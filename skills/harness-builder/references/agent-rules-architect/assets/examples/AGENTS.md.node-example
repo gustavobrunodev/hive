@@ -1,0 +1,28 @@
+# AGENTS.md
+
+## Stack
+Next.js 14 (App Router) + tRPC + Drizzle ORM. DB access is server-only — never
+import `src/server/db` from a client component.
+
+## Commands
+- Install: `pnpm install`        # never npm/yarn — only pnpm matches the lockfile
+- Dev: `pnpm dev`
+- Build: `pnpm build`
+- Test (all): `pnpm test`
+- Test (one): `pnpm vitest run src/path/to/file.test.ts`
+- Check (lint+format+types): `pnpm check`   # run before finishing any task
+
+## Boundaries
+- Never edit `src/server/db/schema.gen.ts` — generated from migrations.
+- Never commit `.env*`.
+- Ask first before adding a new dependency.
+
+## Conventions (non-default)
+- Server data fetching goes through tRPC routers in `src/server/routers/`; do not
+  write API route handlers by hand.
+- Money is stored and passed as integer cents, never floats.
+
+## Specialized rules — read the file when its trigger applies
+- Changing the DB schema or writing a migration → read `docs/database.md`
+- Adding/modifying a tRPC procedure → read `docs/trpc.md`
+- Writing tests → read `docs/testing.md`

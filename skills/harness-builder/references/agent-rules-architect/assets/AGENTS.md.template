@@ -1,0 +1,43 @@
+# AGENTS.md
+
+<!--
+  TEMPLATE — delete every section you don't have NON-INFERABLE content for.
+  Empty/inferable sections are net-negative. Target < ~150 lines total.
+  Run the inference test on every line: "could the agent learn this by reading
+  the code / manifests / existing docs?" If yes, delete it.
+-->
+
+## Stack
+<!-- One line, only the non-obvious part (unusual arch, version pin). Delete if generic. -->
+<!-- e.g. "Next.js 14 (App Router) + tRPC; all DB access is server-side only." -->
+
+## Commands
+<!-- Highest-value section. Exact, copy-pasteable, WITH flags. Verify they run. -->
+- Install: ``
+- Dev/Run: ``
+- Build: ``
+- Test (all): ``
+- Test (one): ``      <!-- single-test syntax is the one agents most often get wrong -->
+- Lint / Format / Types: ``
+
+## Boundaries
+<!-- Top-leverage content. Name concrete paths/files/commands. -->
+- Never edit: ``         <!-- generated/vendored dirs -->
+- Never commit: `.env*`, secrets
+- Ask first before: ``   <!-- destructive or wide-reaching actions -->
+
+## Conventions (non-default only)
+<!-- ONLY what differs from defaults AND isn't enforced by the linter/formatter.
+     Prefer a 3–10 line code snippet over prose. Delete if nothing qualifies. -->
+
+## Testing
+<!-- Only non-obvious rules: required setup, what to mock vs not, where tests live.
+     Delete if there's nothing the agent can't infer. -->
+
+## Git / PR
+<!-- Only if non-standard: commit format, branch naming, required pre-PR checks. -->
+
+## Specialized rules — read the file when its trigger applies
+<!-- The on-demand index. One line each, concrete trigger → file. Delete if no docs/. -->
+- <trigger, e.g. "Changing DB schema or writing a migration"> → read `docs/<area>.md`
+- <trigger> → read `docs/<area>.md`
