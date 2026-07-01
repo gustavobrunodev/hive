@@ -1,0 +1,131 @@
+.hds-flow {
+  margin-top: 56px;
+  position: relative;
+}
+.hds-spine-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.hds-spine-label b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.hds-spine-label .hds-sw {
+  width: 26px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--bordo-sensatez), var(--coral));
+}
+
+.hds-steps {
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+.hds-step {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: clamp(16px, 2.4vw, 28px);
+  position: relative;
+  padding-bottom: 30px;
+}
+.hds-step:last-child {
+  padding-bottom: 0;
+}
+
+.hds-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hds-rail .hds-node {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-weight: 700;
+  font-size: 1.25rem;
+  z-index: 1;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.hds-step.hds-step-he .hds-node {
+  background: var(--bordo-sensatez);
+  border-color: transparent;
+  color: var(--cinza-impacto);
+}
+.hds-rail .hds-wire {
+  flex: 1;
+  width: 2px;
+  background: var(--line-strong);
+  margin-top: 6px;
+}
+.hds-step:last-child .hds-rail .hds-wire {
+  display: none;
+}
+
+.hds-step-panel {
+  padding: 22px 24px;
+  align-self: start;
+}
+.hds-step-panel .hds-ph {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 8px;
+}
+.hds-step-panel .hds-ph h3 {
+  font-size: 1.22rem;
+}
+.hds-step-panel p {
+  color: var(--muted);
+  font-size: 0.96rem;
+}
+
+.hds-substeps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+.hds-sub {
+  background: var(--bordo);
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+}
+.hds-sub .hds-sub-lbl {
+  font-family: var(--ff-num);
+  font-weight: 700;
+  color: var(--coral);
+  font-size: 0.92rem;
+  margin-bottom: 5px;
+}
+.hds-sub .hds-sub-sk {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.hds-sub p {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+  .hds-step {
+    grid-template-columns: 60px 1fr;
+  }
+  .hds-rail .hds-node {
+    width: 46px;
+    height: 46px;
+    font-size: 1.05rem;
+  }
+}

@@ -1,0 +1,19 @@
+.hds-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  position: relative;
+}
+.hds-panel-accent-border {
+  border-color: rgba(204, 121, 88, 0.32);
+}
+.hds-panel-interactive {
+  transition: transform 0.3s var(--ease-expo), border-color 0.3s;
+}
+.hds-panel-hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+}
+.hds-panel-hover-slide:hover {
+  transform: translateX(4px);
+  border-color: var(--line-strong);
+}

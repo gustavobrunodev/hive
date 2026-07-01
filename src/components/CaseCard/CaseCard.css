@@ -1,0 +1,41 @@
+.hds-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+  margin-top: 40px;
+}
+.hds-case {
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hds-case-tag {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--coral);
+  letter-spacing: 0.02em;
+}
+.hds-case h3 {
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+.hds-case > p {
+  color: var(--muted);
+  font-size: 0.94rem;
+  flex: 1;
+}
+.hds-case-prompt {
+  font-family: "Inter Tight", var(--ff-body);
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: var(--bordo);
+  border: 1px solid var(--line);
+  padding: 11px 14px;
+  line-height: 1.5;
+}
+.hds-case-prompt .hds-case-prompt-pr {
+  color: var(--coral);
+  font-weight: 700;
+  margin-right: 6px;
+}

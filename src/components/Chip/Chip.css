@@ -1,0 +1,61 @@
+.hds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* variant: tag — hero pill, e.g. "Agent skill · harness-builder" */
+.hds-chip-tag {
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: var(--surface);
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+}
+.hds-chip-tag b {
+  color: var(--coral);
+  font-weight: 700;
+}
+
+/* variant: phase — terminal phase steps, e.g. "0 · Orientar" */
+.hds-chip-phase {
+  font-size: 0.72rem;
+  color: var(--ink);
+  background: var(--bordo);
+  border: 1px solid var(--line);
+  padding: 6px 9px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.hds-chip-phase.is-active {
+  background: var(--coral);
+  color: #241019;
+  border-color: transparent;
+}
+
+/* variant: agent — compatible-agent pills, e.g. "Cursor" */
+.hds-chip-agent {
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  padding: 7px 12px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+/* variant: skill — module tag inside pipeline panels, e.g. "harness-engineer" */
+.hds-chip-skill {
+  font-family: var(--ff-body);
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
+  padding: 5px 10px;
+  color: var(--coral);
+  background: rgba(204, 121, 88, 0.12);
+  border: 1px solid rgba(204, 121, 88, 0.3);
+}
+.hds-chip-skill.tone-he {
+  color: var(--cinza-impacto);
+  background: rgba(133, 40, 56, 0.28);
+  border-color: rgba(133, 40, 56, 0.6);
+}

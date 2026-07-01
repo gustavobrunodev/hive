@@ -1,0 +1,17 @@
+.hds-badge {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 9px;
+}
+.hds-badge-accent {
+  color: var(--coral);
+  background: rgba(204, 121, 88, 0.12);
+  border: 1px solid rgba(204, 121, 88, 0.3);
+}
+.hds-badge-muted {
+  color: var(--muted);
+  background: rgba(38, 10, 18, 0.4);
+  border: 1px solid var(--line);
+  align-self: flex-start;
+}
