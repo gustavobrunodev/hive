@@ -1,0 +1,35 @@
+.hds-s-head {
+  max-width: 62ch;
+}
+.hds-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--coral);
+  margin-bottom: 18px;
+}
+.hds-eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  background: var(--coral);
+}
+.hds-s-head h2 {
+  font-size: clamp(2rem, 4.4vw, 3.1rem);
+}
+.hds-s-head .hds-rule {
+  width: 64px;
+  height: 3px;
+  background: var(--coral);
+  margin-top: 20px;
+}
+.hds-lead {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  line-height: 1.6;
+  margin-top: 18px;
+  max-width: 60ch;
+}

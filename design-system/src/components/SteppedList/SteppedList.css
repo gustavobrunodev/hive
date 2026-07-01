@@ -1,0 +1,47 @@
+.hds-steps-list {
+  list-style: none;
+  counter-reset: hds-st;
+  margin: 0;
+  padding: 0;
+}
+.hds-steps-list > li {
+  counter-increment: hds-st;
+  position: relative;
+  padding-left: 46px;
+  padding-bottom: 22px;
+}
+.hds-steps-list > li::before {
+  content: counter(hds-st);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-family: var(--ff-num);
+  font-weight: 700;
+  color: var(--coral);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  font-size: 0.95rem;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.hds-steps-list > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 32px;
+  bottom: 6px;
+  width: 1px;
+  background: repeating-linear-gradient(var(--line-strong) 0 3px, transparent 3px 7px);
+}
+.hds-steps-list .hds-st-t {
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.hds-steps-list .hds-st-d {
+  color: var(--muted);
+  font-size: 0.94rem;
+}

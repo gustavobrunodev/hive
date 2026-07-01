@@ -1,0 +1,17 @@
+.hds-zmark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  background: var(--bordo-sensatez);
+  color: var(--cinza-impacto);
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+.hds-zmark span {
+  transform: translateY(1px);
+}

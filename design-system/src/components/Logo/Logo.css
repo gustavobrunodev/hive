@@ -1,0 +1,10 @@
+.hds-logo {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+.hds-logo svg {
+  display: block;
+  width: auto;
+  height: 2rem;
+}

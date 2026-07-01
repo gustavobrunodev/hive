@@ -1,0 +1,41 @@
+/* src/components/HarnessMark/HarnessMark.css */
+.hds-hbmark {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+.hds-hbmark-row {
+  align-items: center;
+}
+.hds-hbmark-stack {
+  flex-direction: column;
+  align-items: center;
+}
+.hds-hbmark-box {
+  display: inline-block;
+  flex: none;
+}
+.hds-hbmark-tile {
+  display: grid;
+  place-items: center;
+  /* Canto cortado assinatura da HIVE (diagonal lean-right, 16% dos lados). */
+  clip-path: polygon(0 0, 84% 0, 100% 16%, 100% 100%, 16% 100%, 0 84%);
+}
+.hds-hbmark-wm {
+  display: inline-flex;
+  flex-direction: column;
+}
+.hds-hbmark-name {
+  font-family: var(--ff-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+.hds-hbmark-endo {
+  font-family: var(--ff-num);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

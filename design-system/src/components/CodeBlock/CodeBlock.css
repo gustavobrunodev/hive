@@ -1,0 +1,57 @@
+.hds-code {
+  position: relative;
+  background: #1c070e;
+  border: 1px solid var(--line);
+  margin-top: 12px;
+}
+/*
+ * Host pages (e.g. Docusaurus/infima) style raw `pre`/`button` elements with
+ * their own background, border-radius and border — reset them explicitly so
+ * the code block always renders flush against `.hds-code`'s background.
+ */
+.hds-code pre {
+  margin: 0;
+  padding: 16px 86px 16px 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: "Inter Tight", ui-monospace, monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.hds-code .hds-code-cmt {
+  color: var(--muted);
+}
+.hds-code .hds-code-cor {
+  color: var(--coral);
+}
+.hds-copy {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  font-family: var(--ff-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.hds-copy:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.hds-copy.hds-copy-ok {
+  color: var(--verde);
+  border-color: rgba(82, 201, 152, 0.4);
+}
+.hds-copy:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}

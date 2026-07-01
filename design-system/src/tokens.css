@@ -1,0 +1,40 @@
+:root {
+  /* Zup palette */
+  --bordo: #260a12;
+  --bordo-2: #5c1c27;
+  --cinza-impacto: #ded4d4;
+  --cinza-conhecimento: #ad9797;
+  --bordo-sensatez: #852838;
+  --coral: #cc7958;
+  --cinza-light: #f5f0f0;
+  --verde: #52c998;
+
+  --ink: var(--cinza-impacto);
+  --muted: var(--cinza-conhecimento);
+  --surface: #30121a; /* raised surface on bordo */
+  --surface-2: #3a1620; /* hover / nested */
+  --line: rgba(222, 212, 212, 0.14);
+  --line-strong: rgba(222, 212, 212, 0.26);
+
+  --ff-display: "Funnel Display", Georgia, "Times New Roman", serif;
+  --ff-body: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --ff-num: "Inter Tight", "Inter", sans-serif;
+
+  /* 4pt spacing scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+
+  --maxw: 1160px;
+  --cut: 16px; /* diagonal corner size */
+  --cut-sm: 10px;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
