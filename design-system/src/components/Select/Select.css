@@ -1,0 +1,168 @@
+/* Select — trigger styled like Input; portalled listbox on --z-dropdown.
+   Radix's Select.Root/Trigger/Portal/Content/Viewport/Item/ItemIndicator
+   supply keyboard nav, positioning (avoidCollisions on), and ARIA — this
+   file styles on top. */
+
+.hds-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  width: 100%;
+  height: 40px;
+  padding: 9px 12px;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  outline: none;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-quart),
+    box-shadow 0.2s var(--ease-quart);
+}
+
+.hds-select-trigger[data-placeholder] {
+  color: var(--faint);
+}
+
+.hds-select-trigger:hover:not([data-disabled]) {
+  border-color: var(--border-strong);
+}
+
+.hds-select-trigger:focus-visible,
+.hds-select-trigger[data-state="open"] {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.hds-select-trigger[data-disabled] {
+  color: var(--faint);
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+
+.hds-select-icon {
+  display: inline-flex;
+  color: var(--muted);
+  transition: transform 0.2s var(--ease-quart);
+}
+
+.hds-select-trigger[data-state="open"] .hds-select-icon {
+  transform: rotate(180deg);
+}
+
+.hds-select-content {
+  z-index: var(--z-dropdown);
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-select-content[data-state="open"] {
+  animation-name: hds-select-in;
+}
+
+.hds-select-content[data-state="closed"] {
+  animation-name: hds-select-out;
+  animation-duration: 100ms;
+}
+
+.hds-select-viewport {
+  padding: var(--s-1);
+}
+
+.hds-select-scroll-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  color: var(--muted);
+  cursor: default;
+}
+
+.hds-select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  padding-left: calc(var(--s-3) + 20px);
+  border-radius: var(--rounded-sm);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hds-select-item[data-highlighted] {
+  background: var(--surface-2);
+}
+
+.hds-select-item[data-disabled] {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-select-item-indicator {
+  position: absolute;
+  left: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.hds-select-label {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.hds-select-separator {
+  height: 1px;
+  margin: var(--s-1) 0;
+  background: var(--border);
+}
+
+@keyframes hds-select-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hds-select-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-select-trigger,
+  .hds-select-icon {
+    transition: none;
+  }
+  .hds-select-content {
+    animation-duration: 0.01ms;
+  }
+}
