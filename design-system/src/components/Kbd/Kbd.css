@@ -1,0 +1,18 @@
+.hds-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+}
+
+.hds-kbd + .hds-kbd {
+  margin-left: 2px;
+}
