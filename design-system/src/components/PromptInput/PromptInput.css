@@ -1,0 +1,85 @@
+.hds-prompt-input {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  padding: var(--s-3);
+  gap: var(--s-2);
+  transition: border-color 0.2s var(--ease-quart);
+}
+
+.hds-prompt-input:focus-within {
+  border-color: var(--focus);
+}
+
+.hds-prompt-input[data-disabled] {
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+
+.hds-prompt-input-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.hds-prompt-input-textarea.hds-textarea {
+  border: 0;
+  background: transparent;
+  padding: var(--s-1) 0;
+}
+
+.hds-prompt-input-textarea.hds-textarea:focus-visible {
+  box-shadow: none;
+}
+
+.hds-prompt-input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.hds-prompt-input-toolbar-extra {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.hds-prompt-input-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart), opacity 0.15s var(--ease-quart);
+}
+
+.hds-prompt-input-send:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.hds-prompt-input-send:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.hds-prompt-input-send:disabled {
+  background: var(--surface-3);
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-prompt-input,
+  .hds-prompt-input-send {
+    transition: none;
+  }
+}
