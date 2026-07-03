@@ -1,0 +1,246 @@
+/* Sheet — edge-anchored modal panel. Radix's Dialog.Root/Trigger/Portal/
+   Overlay/Content/Title/Description/Close supply focus trap, Escape/
+   outside-click dismiss, and focus restore — this file styles on top and
+   adds the per-`side` slide-in/out transform. */
+
+.hds-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--overlay);
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-sheet-overlay[data-state="open"] {
+  animation-name: hds-sheet-overlay-in;
+}
+
+.hds-sheet-overlay[data-state="closed"] {
+  animation-name: hds-sheet-overlay-out;
+  animation-duration: 100ms;
+}
+
+.hds-sheet-content {
+  position: fixed;
+  z-index: var(--z-modal);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+  padding: var(--s-5);
+  outline: none;
+  overflow-y: auto;
+  animation-duration: 220ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-sheet-content[data-side="right"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 90vw);
+}
+
+.hds-sheet-content[data-side="left"] {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(400px, 90vw);
+}
+
+.hds-sheet-content[data-side="top"] {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(400px, 90vh);
+}
+
+.hds-sheet-content[data-side="bottom"] {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: min(400px, 90vh);
+}
+
+.hds-sheet-content[data-side="right"][data-state="open"] {
+  animation-name: hds-sheet-content-in-right;
+}
+
+.hds-sheet-content[data-side="right"][data-state="closed"] {
+  animation-name: hds-sheet-content-out-right;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-sheet-content[data-side="left"][data-state="open"] {
+  animation-name: hds-sheet-content-in-left;
+}
+
+.hds-sheet-content[data-side="left"][data-state="closed"] {
+  animation-name: hds-sheet-content-out-left;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-sheet-content[data-side="top"][data-state="open"] {
+  animation-name: hds-sheet-content-in-top;
+}
+
+.hds-sheet-content[data-side="top"][data-state="closed"] {
+  animation-name: hds-sheet-content-out-top;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-sheet-content[data-side="bottom"][data-state="open"] {
+  animation-name: hds-sheet-content-in-bottom;
+}
+
+.hds-sheet-content[data-side="bottom"][data-state="closed"] {
+  animation-name: hds-sheet-content-out-bottom;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-sheet-title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--ff-body);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.hds-sheet-description {
+  margin: 0 0 var(--s-4);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@keyframes hds-sheet-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hds-sheet-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hds-sheet-content-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes hds-sheet-content-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes hds-sheet-content-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes hds-sheet-content-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes hds-sheet-content-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hds-sheet-content-out-top {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes hds-sheet-content-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hds-sheet-content-out-bottom {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-sheet-overlay,
+  .hds-sheet-content {
+    animation-duration: 0.01ms !important;
+  }
+  .hds-sheet-content[data-state="open"],
+  .hds-sheet-content[data-state="closed"] {
+    animation-name: hds-sheet-content-fade;
+  }
+}
+
+@keyframes hds-sheet-content-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
