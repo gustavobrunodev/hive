@@ -1,0 +1,126 @@
+/* Accordion — product-register collapsible section list (DESIGN.md's
+   States/Motion/Icons: default/hover/focus-visible/disabled floor, 150-250ms
+   motion, 16px icon). Radix's Accordion.Root/Item/Header/Trigger/Content
+   supply roving-tabindex keyboard nav, single-vs-multiple open-state
+   management, and the `--radix-accordion-content-height` custom property —
+   this file styles on top. */
+
+.hds-accordion {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.hds-accordion-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.hds-accordion-item:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.hds-accordion-header {
+  margin: 0;
+}
+
+.hds-accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) 0;
+  background: none;
+  border: none;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hds-accordion-trigger:hover:not([data-disabled]) {
+  color: var(--accent);
+}
+
+.hds-accordion-trigger:hover:not([data-disabled]) .hds-accordion-chevron {
+  color: var(--accent);
+}
+
+.hds-accordion-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.hds-accordion-trigger[data-disabled] {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-accordion-trigger-text {
+  flex: 1;
+}
+
+.hds-accordion-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s var(--ease-quart);
+}
+
+.hds-accordion-trigger[data-state="open"] .hds-accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.hds-accordion-trigger[data-disabled] .hds-accordion-chevron {
+  color: var(--faint);
+}
+
+.hds-accordion-content {
+  overflow: hidden;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.hds-accordion-content[data-state="open"] {
+  animation: hds-accordion-down 200ms var(--ease-quart);
+}
+
+.hds-accordion-content[data-state="closed"] {
+  animation: hds-accordion-up 150ms var(--ease-expo);
+}
+
+.hds-accordion-content-inner {
+  padding-bottom: var(--s-3);
+}
+
+@keyframes hds-accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes hds-accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-accordion-chevron {
+    transition: none;
+  }
+
+  .hds-accordion-content[data-state="open"],
+  .hds-accordion-content[data-state="closed"] {
+    animation-duration: 0.01ms;
+  }
+}
