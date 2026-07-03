@@ -1,0 +1,103 @@
+/* Resizable — thin DS wrapper over react-resizable-panels' Group/Panel/
+   Separator. The library owns layout mechanics (flex-direction, sizing,
+   drag/keyboard resize, ARIA separator role + aria-valuenow/min/max) —
+   this file only styles the handle's visual line + hit area + states. */
+
+.hds-resizable {
+  min-height: 0;
+  min-width: 0;
+}
+
+.hds-resizable-panel {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.hds-resizable-handle {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  outline: none;
+  touch-action: none;
+}
+
+.hds-resizable-handle::before {
+  content: "";
+  position: absolute;
+  background: var(--border);
+  transition: background-color 0.15s var(--ease-quart);
+}
+
+.hds-resizable-handle[aria-orientation="vertical"] {
+  width: 9px;
+  cursor: col-resize;
+}
+
+.hds-resizable-handle[aria-orientation="vertical"]::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.hds-resizable-handle[aria-orientation="horizontal"] {
+  height: 9px;
+  cursor: row-resize;
+}
+
+.hds-resizable-handle[aria-orientation="horizontal"]::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.hds-resizable-handle:hover::before,
+.hds-resizable-handle:active::before {
+  background: var(--accent);
+}
+
+.hds-resizable-handle:focus-visible::before {
+  background: var(--focus);
+}
+
+.hds-resizable-handle[aria-disabled="true"] {
+  cursor: default;
+}
+
+.hds-resizable-handle-grip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-2);
+}
+
+.hds-resizable-handle[aria-orientation="horizontal"] .hds-resizable-handle-grip {
+  flex-direction: row;
+}
+
+.hds-resizable-handle[aria-orientation="vertical"] .hds-resizable-handle-grip {
+  flex-direction: column;
+}
+
+.hds-resizable-handle-grip span {
+  width: 3px;
+  height: 3px;
+  border-radius: var(--rounded-full);
+  background: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-resizable-handle::before {
+    transition: none;
+  }
+}
