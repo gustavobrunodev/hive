@@ -30,3 +30,62 @@ export { Footer } from "./components/Footer/Footer";
 export { HarnessMark } from "./components/HarnessMark/HarnessMark";
 
 export { VisuallyHidden } from "./components/VisuallyHidden/VisuallyHidden";
+
+// Phase 1 — forms
+export { Input } from "./components/Input/Input";
+export { Textarea } from "./components/Textarea/Textarea";
+export { Label } from "./components/Label/Label";
+export { Field } from "./components/Field/Field";
+export { Checkbox } from "./components/Checkbox/Checkbox";
+export { RadioGroup, RadioGroupItem } from "./components/RadioGroup/RadioGroup";
+export { Switch } from "./components/Switch/Switch";
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+} from "./components/Select/Select";
+export { Slider } from "./components/Slider/Slider";
+
+// Phase 1 — overlays
+export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription } from "./components/Dialog/Dialog";
+export {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./components/AlertDialog/AlertDialog";
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose } from "./components/Popover/Popover";
+export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./components/Tooltip/Tooltip";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "./components/DropdownMenu/DropdownMenu";
+export {
+  Toast,
+  ToastProvider,
+  ToastViewport,
+  ToastTitle,
+  ToastDescription,
+  ToastAction,
+  ToastClose,
+  useToast,
+} from "./components/Toast/Toast";
+
+// Phase 1 — feedback
+export { Spinner } from "./components/Spinner/Spinner";
+export { Skeleton } from "./components/Skeleton/Skeleton";

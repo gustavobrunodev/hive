@@ -55,6 +55,43 @@ Two signature visual motifs are utility classes, not components: `.cut` / `.cut-
 | `Nav` | `header.nav` |
 | `Footer` | `footer.ft` |
 
+## Theming (light + dark)
+
+Every interactive component below consumes a **semantic role-token layer** (`--bg`, `--surface`, `--ink`, `--border`, `--accent`, `--focus`, `--danger`/`--warning`/`--success`/`--info`, etc. — see `DESIGN.md` for the full table and both themes' values), resolved per `data-theme`:
+
+```html
+<html data-theme="dark"> <!-- or data-theme="light" -->
+```
+
+With no `data-theme` attribute, the system falls back to `prefers-color-scheme` (defaulting to dark). The original 24 marketing components above render unchanged on the dark theme — their raw brand tokens (`--coral`, `--bordo`, etc.) still work directly, but new components should consume role tokens only. See `PRODUCT.md` (register: product) and `DESIGN.md` for the full design language and Do's/Don'ts.
+
+## Interactive components (product register)
+
+Built on [Radix UI](https://www.radix-ui.com/) primitives for accessibility (focus trap, keyboard nav, ARIA), styled with this system's tokens. **[R]** = Radix-backed, **[H]** = in-house, **[C]** = composite.
+
+| Component | Kind | Notes |
+|---|---|---|
+| `Input` | [H] | `startIcon` slot, `error` → `aria-invalid` |
+| `Textarea` | [H] | Auto-resize via `useAutosizeTextarea`; `onSubmit` + `submitOnEnter` |
+| `Label` | [H] | `required` indicator (visual + `VisuallyHidden` text) |
+| `Field` | [H] | Composes `Label` + a control + description/error, wires `htmlFor`/`aria-describedby`/`aria-invalid` |
+| `Checkbox` | [R] | Supports `indeterminate` |
+| `RadioGroup` + `RadioGroupItem` | [R] | Roving-tabindex, arrow-key nav |
+| `Switch` | [R] | |
+| `Select` + `SelectItem` (+ `SelectGroup`/`SelectLabel`/`SelectSeparator`) | [R] | Trigger styled like `Input`; portalled listbox |
+| `Slider` | [R] | Single or range (multi-thumb) via `value`/`defaultValue` array length |
+| `Dialog` | [R] | Focus trap + restore, `cut` prop for the brand cut-corner clip-path |
+| `AlertDialog` | [R] | Escape/outside-click dismiss both blocked — requires an explicit `AlertDialogAction`/`AlertDialogCancel` choice |
+| `Popover` | [R] | Edge-aware positioning (Radix `avoidCollisions`) |
+| `TooltipProvider` + `Tooltip` + `TooltipTrigger` + `TooltipContent` | [R] | Shows on hover *and* keyboard focus |
+| `DropdownMenu` (+ `Item`/`CheckboxItem`/`RadioGroup`+`RadioItem`/`Separator`/`Label`) | [R] | `Item` supports `shortcut` slot + `variant="danger"` |
+| `ToastProvider` + `Toast` + `useToast()` | [R] | Imperative `toast({ title, description, variant, duration })`; ARIA live region, pause-on-hover/focus, and stacking are Radix built-ins |
+| `Spinner` | [H] | `role="status"`, named/pixel `size`, reduced-motion static fallback |
+| `Skeleton` | [H] | Flexible block primitive; shimmer disabled under `prefers-reduced-motion` |
+| `VisuallyHidden` | [H] | Wraps `@radix-ui/react-visually-hidden` |
+
+Mount `ToastProvider` once near the app root (it renders its own `ToastViewport`); mount `TooltipProvider` once as well. Radix packages (`@radix-ui/react-*`, plus `cmdk` and `react-resizable-panels` landing in later phases) are bundled `dependencies`, not peers — only `react`/`react-dom` stay external.
+
 ## Build
 
 ```sh
