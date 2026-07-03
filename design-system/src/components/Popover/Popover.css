@@ -1,0 +1,79 @@
+/* Popover — product-register floating panel (DESIGN.md's Overlays surface
+   treatment: --surface background, --border outline, --shadow-2, portalled
+   on --z-overlay). Radix's Popover.Root/Trigger/Portal/Content/Arrow/Close
+   supply focus handling, Escape/outside-click dismiss, and edge-aware
+   positioning (avoidCollisions on by default) — this file styles on top. */
+
+.hds-popover-content {
+  z-index: var(--z-overlay);
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - var(--s-5)));
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-4);
+  outline: none;
+  transform-origin: var(--radix-popover-content-transform-origin);
+  will-change: transform, opacity;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-popover-content:focus-visible {
+  box-shadow: var(--shadow-2), 0 0 0 2px var(--focus);
+}
+
+.hds-popover-content[data-state="open"] {
+  animation-name: hds-popover-in;
+}
+
+.hds-popover-content[data-state="closed"] {
+  animation-name: hds-popover-out;
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-popover-arrow {
+  fill: var(--surface);
+}
+
+@keyframes hds-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes hds-popover-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-popover-content {
+    animation-duration: 0.01ms;
+    animation-name: hds-popover-fade;
+  }
+}
+
+@keyframes hds-popover-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
