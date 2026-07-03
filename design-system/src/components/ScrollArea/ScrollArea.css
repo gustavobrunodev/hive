@@ -1,0 +1,76 @@
+/* ScrollArea — product-register long-list container (message log, file
+   tree). Radix's ScrollArea.Root/Viewport/Scrollbar/Thumb/Corner supply
+   the real overflow/scroll behavior, wheel/touch/keyboard handling, and
+   auto-hide timing — this file only styles a thin thumb-only overlay on
+   top (PRODUCT.md's ban on reinvented scrollbars: restrained, native-
+   feeling, no arrows/track chrome). */
+
+.hds-scroll-area {
+  position: relative;
+  overflow: hidden;
+  --hds-scroll-area-thumb-size: 6px;
+}
+
+/* Radix sets `display:table` on the Viewport's single child internally
+   only when needed; the Viewport element itself just needs to fill its
+   Root and keep the real, always-present overflow:auto scroll box that
+   backs the "native fallback" requirement. */
+.hds-scroll-area-viewport {
+  width: 100%;
+  height: 100%;
+}
+
+.hds-scroll-area-scrollbar {
+  display: flex;
+  user-select: none;
+  touch-action: none;
+  padding: 2px;
+  background: transparent;
+  transition: background-color 160ms var(--ease-quart);
+}
+
+.hds-scroll-area-scrollbar[data-orientation="vertical"] {
+  width: var(--hds-scroll-area-thumb-size);
+}
+
+.hds-scroll-area-scrollbar[data-orientation="horizontal"] {
+  flex-direction: column;
+  height: var(--hds-scroll-area-thumb-size);
+}
+
+.hds-scroll-area-thumb {
+  flex: 1;
+  position: relative;
+  border-radius: var(--rounded-full);
+  background: var(--border-strong);
+  transition: background-color 160ms var(--ease-quart);
+}
+
+/* Enlarge the hit target without enlarging the visible thumb — keeps the
+   rendered scrollbar thin (6-8px) while staying easy to grab. */
+.hds-scroll-area-thumb::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.hds-scroll-area-scrollbar:hover .hds-scroll-area-thumb {
+  background: var(--muted);
+}
+
+.hds-scroll-area-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-scroll-area-scrollbar,
+  .hds-scroll-area-thumb {
+    transition: none;
+  }
+}
