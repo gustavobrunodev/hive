@@ -1,0 +1,109 @@
+/* Command — cmdk styled with DS tokens. cmdk sets its own `[cmdk-*]`
+   attribute markers (role="listbox"/"option"/"combobox" etc. included) —
+   this file targets both the DS class names and, where useful, the
+   attribute markers for structural rules cmdk itself relies on. */
+
+.hds-command {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.hds-command-dialog-content {
+  padding: 0;
+  width: min(560px, calc(100vw - var(--s-6)));
+  overflow: hidden;
+}
+
+.hds-command-in-dialog {
+  max-height: min(420px, 70vh);
+}
+
+.hds-command-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.hds-command-search-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.hds-command-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: 0.9375rem;
+}
+
+.hds-command-input::placeholder {
+  color: var(--faint);
+}
+
+.hds-command-list {
+  overflow-y: auto;
+  padding: var(--s-1);
+}
+
+.hds-command-empty {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.hds-command-group [cmdk-group-heading] {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.hds-command-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-sm);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.hds-command-item[aria-selected="true"] {
+  background: var(--surface-2);
+}
+
+.hds-command-item[aria-disabled="true"] {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-command-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-command-item-shortcut {
+  flex-shrink: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.hds-command-separator {
+  height: 1px;
+  margin: var(--s-1) 0;
+  background: var(--border);
+}
