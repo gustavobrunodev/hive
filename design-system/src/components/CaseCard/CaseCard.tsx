@@ -1,5 +1,4 @@
 import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react"
-// @ts-expect-error Panel.jsx has not been migrated to TS yet (parallel task, out of scope here)
 import { Panel } from "../Panel/Panel.jsx"
 import { Badge } from "../Badge/Badge.jsx"
 import { cx } from "../../utils/cx"
