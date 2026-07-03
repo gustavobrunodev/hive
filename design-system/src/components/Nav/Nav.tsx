@@ -1,10 +1,34 @@
-import React from "react";
-import { BrandMark } from "../BrandMark/BrandMark.jsx";
-import { Button } from "../Button/Button.jsx";
-import { cx } from "../../utils/cx.js";
-import "./Nav.css";
+import type { ComponentPropsWithoutRef, ReactNode } from "react"
+import { BrandMark } from "../BrandMark/BrandMark"
+import { Button } from "../Button/Button"
+import { cx } from "../../utils/cx"
+import "./Nav.css"
 
-export function Nav({ brand, brandHref = "#top", links = [], cta, className, ...rest }) {
+export interface NavLink {
+  href: string
+  label: ReactNode
+}
+
+export interface NavCta {
+  href: string
+  label: ReactNode
+}
+
+export interface NavProps extends ComponentPropsWithoutRef<"header"> {
+  brand?: ReactNode
+  brandHref?: string
+  links?: NavLink[]
+  cta?: NavCta
+}
+
+export function Nav({
+  brand,
+  brandHref = "#top",
+  links = [],
+  cta,
+  className,
+  ...rest
+}: NavProps) {
   return (
     <header className={cx("hds-nav", className)} {...rest}>
       <div className="wrap hds-nav-inner">
@@ -27,5 +51,5 @@ export function Nav({ brand, brandHref = "#top", links = [], cta, className, ...
         )}
       </div>
     </header>
-  );
+  )
 }
