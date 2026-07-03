@@ -1,0 +1,93 @@
+/* Tree — WAI-ARIA tree pattern (role=tree/treeitem/group). This is an
+   in-house component: no Radix primitive exists for trees, so focus
+   management, keyboard nav, and ARIA wiring are all implemented directly
+   in Tree.tsx. This file only styles the rendered structure. */
+
+.hds-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.hds-tree [role="group"] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hds-tree-item {
+  outline: none;
+}
+
+.hds-tree-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+
+.hds-tree-item:hover > .hds-tree-row {
+  background: var(--surface-2);
+}
+
+.hds-tree-item:focus-visible > .hds-tree-row {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.hds-tree-item-selected > .hds-tree-row {
+  background: var(--selected-bg);
+  color: var(--selected);
+}
+
+.hds-tree-item-disabled > .hds-tree-row {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-tree-item-disabled:hover > .hds-tree-row {
+  background: transparent;
+}
+
+.hds-tree-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hds-tree-toggle-leaf {
+  padding-left: calc(var(--s-2) + 12px + var(--s-2));
+}
+
+.hds-tree-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s var(--ease-quart);
+}
+
+.hds-tree-item[aria-expanded="true"] > .hds-tree-row .hds-tree-chevron {
+  transform: rotate(90deg);
+}
+
+.hds-tree-label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-tree-row,
+  .hds-tree-chevron {
+    transition: none;
+  }
+}

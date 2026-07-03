@@ -1,0 +1,377 @@
+import { useCallback, useMemo, useRef, useState } from "react"
+import type { KeyboardEvent, ReactNode } from "react"
+import { cx } from "../../utils/cx"
+import { useControllableState } from "../../hooks/useControllableState"
+import "./Tree.css"
+
+export interface TreeNode {
+  id: string
+  label: ReactNode
+  children?: TreeNode[]
+  disabled?: boolean
+}
+
+export interface TreeRenderState {
+  level: number
+  expanded: boolean
+  selected: boolean
+  hasChildren: boolean
+}
+
+export interface TreeProps {
+  /** The hierarchy to render. */
+  nodes: TreeNode[]
+  /** `"single"` (default) replaces the selection on activate; `"multiple"` toggles membership. */
+  selection?: "single" | "multiple"
+  selectedIds?: string[]
+  defaultSelectedIds?: string[]
+  onSelectedIdsChange?: (ids: string[]) => void
+  expandedIds?: string[]
+  defaultExpandedIds?: string[]
+  onExpandedIdsChange?: (ids: string[]) => void
+  /** Render-prop for a node's row content. Defaults to a chevron (if it has children) + `node.label`. */
+  renderLabel?: (node: TreeNode, state: TreeRenderState) => ReactNode
+  className?: string
+  "aria-label"?: string
+  "aria-labelledby"?: string
+}
+
+interface FlatItem {
+  node: TreeNode
+  level: number
+  parentId: string | null
+  hasChildren: boolean
+}
+
+function flattenVisible(
+  nodes: TreeNode[],
+  expandedIds: ReadonlySet<string>,
+  level = 0,
+  parentId: string | null = null
+): FlatItem[] {
+  const out: FlatItem[] = []
+  for (const node of nodes) {
+    const hasChildren = Boolean(node.children && node.children.length > 0)
+    out.push({ node, level, parentId, hasChildren })
+    if (hasChildren && expandedIds.has(node.id)) {
+      out.push(...flattenVisible(node.children as TreeNode[], expandedIds, level + 1, node.id))
+    }
+  }
+  return out
+}
+
+function defaultRenderLabel(node: TreeNode, state: TreeRenderState): ReactNode {
+  return (
+    <>
+      {state.hasChildren && (
+        <svg
+          className="hds-tree-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      <span className="hds-tree-label-text">{node.label}</span>
+    </>
+  )
+}
+
+/**
+ * WAI-ARIA tree pattern: `role="tree"`/`"treeitem"`/`"group"`, roving
+ * tabindex, arrow-key navigation, expand/collapse, `aria-expanded`/
+ * `aria-selected`, single/multi-select. Data-driven (`nodes` prop) +
+ * render-prop for row content (spec.md's P2 AC3).
+ */
+export function Tree({
+  nodes,
+  selection = "single",
+  selectedIds: selectedIdsProp,
+  defaultSelectedIds = [],
+  onSelectedIdsChange,
+  expandedIds: expandedIdsProp,
+  defaultExpandedIds = [],
+  onExpandedIdsChange,
+  renderLabel = defaultRenderLabel,
+  className,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+}: TreeProps) {
+  const [selectedIds, setSelectedIds] = useControllableState<string[]>({
+    value: selectedIdsProp,
+    defaultValue: defaultSelectedIds,
+    onChange: onSelectedIdsChange,
+  })
+  const [expandedIds, setExpandedIds] = useControllableState<string[]>({
+    value: expandedIdsProp,
+    defaultValue: defaultExpandedIds,
+    onChange: onExpandedIdsChange,
+  })
+
+  const expandedSet = useMemo(() => new Set(expandedIds), [expandedIds])
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const flat = useMemo(() => flattenVisible(nodes, expandedSet), [nodes, expandedSet])
+  const enabledFlat = useMemo(() => flat.filter((item) => !item.node.disabled), [flat])
+
+  const [activeId, setActiveId] = useState<string | null>(() => enabledFlat[0]?.node.id ?? null)
+  const activeIdRef = useRef(activeId)
+  activeIdRef.current = activeId
+
+  const itemRefs = useRef(new Map<string, HTMLLIElement>())
+  const typeAheadRef = useRef<{ text: string; timeout: ReturnType<typeof setTimeout> | null }>({
+    text: "",
+    timeout: null,
+  })
+
+  const focusItem = useCallback((id: string | null) => {
+    if (!id) return
+    setActiveId(id)
+    itemRefs.current.get(id)?.focus()
+  }, [])
+
+  const expand = useCallback(
+    (id: string) => {
+      if (expandedSet.has(id)) return
+      setExpandedIds([...expandedIds, id])
+    },
+    [expandedSet, expandedIds, setExpandedIds]
+  )
+
+  const collapse = useCallback(
+    (id: string) => {
+      if (!expandedSet.has(id)) return
+      setExpandedIds(expandedIds.filter((existing) => existing !== id))
+    },
+    [expandedSet, expandedIds, setExpandedIds]
+  )
+
+  const activate = useCallback(
+    (id: string) => {
+      if (selection === "multiple") {
+        setSelectedIds(selectedSet.has(id) ? selectedIds.filter((existing) => existing !== id) : [...selectedIds, id])
+      } else {
+        setSelectedIds([id])
+      }
+    },
+    [selection, selectedSet, selectedIds, setSelectedIds]
+  )
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLUListElement>) => {
+      const currentId = activeIdRef.current
+      if (!currentId) return
+      const currentIndex = enabledFlat.findIndex((item) => item.node.id === currentId)
+      if (currentIndex === -1) return
+      const current = enabledFlat[currentIndex]
+      if (!current) return
+
+      switch (event.key) {
+        case "ArrowDown": {
+          event.preventDefault()
+          const next = enabledFlat[currentIndex + 1]
+          if (next) focusItem(next.node.id)
+          break
+        }
+        case "ArrowUp": {
+          event.preventDefault()
+          const prev = enabledFlat[currentIndex - 1]
+          if (prev) focusItem(prev.node.id)
+          break
+        }
+        case "ArrowRight": {
+          event.preventDefault()
+          if (current.hasChildren && !expandedSet.has(current.node.id)) {
+            expand(current.node.id)
+          } else if (current.hasChildren) {
+            const next = enabledFlat[currentIndex + 1]
+            if (next && next.parentId === current.node.id) focusItem(next.node.id)
+          }
+          break
+        }
+        case "ArrowLeft": {
+          event.preventDefault()
+          if (current.hasChildren && expandedSet.has(current.node.id)) {
+            collapse(current.node.id)
+          } else if (current.parentId) {
+            focusItem(current.parentId)
+          }
+          break
+        }
+        case "Home": {
+          event.preventDefault()
+          const first = enabledFlat[0]
+          if (first) focusItem(first.node.id)
+          break
+        }
+        case "End": {
+          event.preventDefault()
+          const last = enabledFlat[enabledFlat.length - 1]
+          if (last) focusItem(last.node.id)
+          break
+        }
+        case "Enter":
+        case " ": {
+          event.preventDefault()
+          activate(current.node.id)
+          break
+        }
+        default: {
+          if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            const char = event.key.toLowerCase()
+            const buffer = typeAheadRef.current
+            if (buffer.timeout) clearTimeout(buffer.timeout)
+            buffer.text += char
+            buffer.timeout = setTimeout(() => {
+              buffer.text = ""
+            }, 500)
+
+            const searchable = enabledFlat
+              .map((item, index) => ({ item, index }))
+              .filter(({ item }) => typeof item.node.label === "string")
+            const startAt = currentIndex + 1
+            const match =
+              searchable.find(
+                ({ item, index }) =>
+                  index >= startAt && (item.node.label as string).toLowerCase().startsWith(buffer.text)
+              ) ??
+              searchable.find(({ item }) => (item.node.label as string).toLowerCase().startsWith(buffer.text))
+            if (match) focusItem(match.item.node.id)
+          }
+        }
+      }
+    },
+    [enabledFlat, expandedSet, expand, collapse, activate, focusItem]
+  )
+
+  return (
+    <ul
+      role="tree"
+      className={cx("hds-tree", className)}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      aria-multiselectable={selection === "multiple" ? "true" : undefined}
+      onKeyDown={handleKeyDown}
+    >
+      {nodes.map((node) => (
+        <TreeItem
+          key={node.id}
+          node={node}
+          level={1}
+          expandedSet={expandedSet}
+          selectedSet={selectedSet}
+          activeId={activeId}
+          renderLabel={renderLabel}
+          itemRefs={itemRefs}
+          onFocus={setActiveId}
+          onToggleExpand={(id) => (expandedSet.has(id) ? collapse(id) : expand(id))}
+          onActivate={activate}
+        />
+      ))}
+    </ul>
+  )
+}
+
+interface TreeItemProps {
+  node: TreeNode
+  level: number
+  expandedSet: ReadonlySet<string>
+  selectedSet: ReadonlySet<string>
+  activeId: string | null
+  renderLabel: (node: TreeNode, state: TreeRenderState) => ReactNode
+  itemRefs: React.MutableRefObject<Map<string, HTMLLIElement>>
+  onFocus: (id: string) => void
+  onToggleExpand: (id: string) => void
+  onActivate: (id: string) => void
+}
+
+function TreeItem({
+  node,
+  level,
+  expandedSet,
+  selectedSet,
+  activeId,
+  renderLabel,
+  itemRefs,
+  onFocus,
+  onToggleExpand,
+  onActivate,
+}: TreeItemProps) {
+  const hasChildren = Boolean(node.children && node.children.length > 0)
+  const expanded = expandedSet.has(node.id)
+  const selected = selectedSet.has(node.id)
+  const isActive = activeId === node.id
+
+  return (
+    <li
+      ref={(el) => {
+        if (el) itemRefs.current.set(node.id, el)
+        else itemRefs.current.delete(node.id)
+      }}
+      role="treeitem"
+      id={`hds-tree-item-${node.id}`}
+      aria-selected={node.disabled ? undefined : selected}
+      aria-expanded={hasChildren ? expanded : undefined}
+      aria-disabled={node.disabled ? "true" : undefined}
+      aria-level={level}
+      tabIndex={node.disabled ? undefined : isActive ? 0 : -1}
+      className={cx(
+        "hds-tree-item",
+        selected && "hds-tree-item-selected",
+        node.disabled && "hds-tree-item-disabled"
+      )}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (node.disabled) return
+        onFocus(node.id)
+        onActivate(node.id)
+      }}
+      onFocus={(event) => {
+        event.stopPropagation()
+        if (!node.disabled) onFocus(node.id)
+      }}
+    >
+      <div className="hds-tree-row" style={{ paddingLeft: `calc(${level - 1} * var(--s-5))` }}>
+        {hasChildren ? (
+          <button
+            type="button"
+            className="hds-tree-toggle"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleExpand(node.id)
+            }}
+          >
+            {renderLabel(node, { level, expanded, selected, hasChildren })}
+          </button>
+        ) : (
+          <span className="hds-tree-toggle hds-tree-toggle-leaf">
+            {renderLabel(node, { level, expanded, selected, hasChildren })}
+          </span>
+        )}
+      </div>
+      {hasChildren && expanded && (
+        <ul role="group">
+          {(node.children as TreeNode[]).map((child) => (
+            <TreeItem
+              key={child.id}
+              node={child}
+              level={level + 1}
+              expandedSet={expandedSet}
+              selectedSet={selectedSet}
+              activeId={activeId}
+              renderLabel={renderLabel}
+              itemRefs={itemRefs}
+              onFocus={onFocus}
+              onToggleExpand={onToggleExpand}
+              onActivate={onActivate}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
