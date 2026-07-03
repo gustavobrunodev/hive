@@ -1,0 +1,45 @@
+.hds-spinner {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.hds-spinner-svg {
+  display: block;
+  animation: hds-spinner-spin 0.8s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+.hds-spinner-track {
+  stroke: var(--border-strong);
+}
+
+.hds-spinner-arc {
+  stroke: var(--hds-spinner-color, var(--accent));
+  stroke-linecap: round;
+  /* Circumference of r=20 is ~125.66; a ~90/40 split draws a partial arc
+     (roughly 3/4 gap) so rotation reads as motion rather than a static ring. */
+  stroke-dasharray: 90 40;
+}
+
+@keyframes hds-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion, JS-detected path: mirrored via data-reduced-motion so the
+   behavior is testable and applies from first render. */
+.hds-spinner[data-reduced-motion="true"] .hds-spinner-svg {
+  animation: none;
+}
+
+/* Reduced motion, CSS-only fallback for environments where the JS check
+   above can't run before paint. */
+@media (prefers-reduced-motion: reduce) {
+  .hds-spinner-svg {
+    animation: none;
+  }
+}
