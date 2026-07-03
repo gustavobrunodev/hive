@@ -89,3 +89,32 @@ export {
 // Phase 1 — feedback
 export { Spinner } from "./components/Spinner/Spinner";
 export { Skeleton } from "./components/Skeleton/Skeleton";
+
+// Phase 2 — structure
+export { Separator } from "./components/Separator/Separator";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/Tabs/Tabs";
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./components/Accordion/Accordion";
+export { ScrollArea } from "./components/ScrollArea/ScrollArea";
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetTitle, SheetDescription } from "./components/Sheet/Sheet";
+
+// Phase 2 — navigation/data
+export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuCheckboxItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuLabel,
+} from "./components/ContextMenu/ContextMenu";
+export { Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from "./components/Command/Command";
+export { Breadcrumb, BreadcrumbItem } from "./components/Breadcrumb/Breadcrumb";
+export { Tree } from "./components/Tree/Tree";
+export { Avatar } from "./components/Avatar/Avatar";
+export { Progress } from "./components/Progress/Progress";
+export { Alert } from "./components/Alert/Alert";
+export { Empty } from "./components/Empty/Empty";
+export { Kbd } from "./components/Kbd/Kbd";
+export { Resizable, ResizablePanel, ResizableHandle } from "./components/Resizable/Resizable";

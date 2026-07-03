@@ -90,7 +90,29 @@ Built on [Radix UI](https://www.radix-ui.com/) primitives for accessibility (foc
 | `Skeleton` | [H] | Flexible block primitive; shimmer disabled under `prefers-reduced-motion` |
 | `VisuallyHidden` | [H] | Wraps `@radix-ui/react-visually-hidden` |
 
-Mount `ToastProvider` once near the app root (it renders its own `ToastViewport`); mount `TooltipProvider` once as well. Radix packages (`@radix-ui/react-*`, plus `cmdk` and `react-resizable-panels` landing in later phases) are bundled `dependencies`, not peers — only `react`/`react-dom` stay external.
+Mount `ToastProvider` once near the app root (it renders its own `ToastViewport`); mount `TooltipProvider` once as well. Radix packages (`@radix-ui/react-*`, plus `cmdk` and `react-resizable-panels`) are bundled `dependencies`, not peers — only `react`/`react-dom` stay external.
+
+## App-shaping primitives (product register)
+
+Structure, navigation, and data-display primitives for assembling the chat/workspace split (D4: these stay generic — the actual chat screen and file-explorer pane are assembled in the consuming app).
+
+| Component | Kind | Notes |
+|---|---|---|
+| `Separator` | [R] | `decorative` (default `true`, no `role`) vs. explicit `false` (`role="separator"`) |
+| `Tabs` + `TabsList` + `TabsTrigger` + `TabsContent` | [R] | `TabsList`'s `variant`: `"underline"` (default) or `"segmented"` |
+| `Accordion` + `AccordionItem` + `AccordionTrigger` + `AccordionContent` | [R] | `type="single"` or `"multiple"`; chevron rotates on `data-state`, height-transitions via Radix's `--radix-accordion-content-height` |
+| `ScrollArea` | [R] | Thin tokenized scrollbar overlay; `Viewport` always has real `overflow`, so native scroll still works if the overlay doesn't render |
+| `Sheet` + `SheetTrigger` + `SheetClose` + `SheetContent` + `SheetTitle` + `SheetDescription` | [R] | `SheetContent`'s `side`: `"left" \| "right" (default) \| "top" \| "bottom"`; slides in/out instead of centering |
+| `ContextMenu` (+ `Item`/`CheckboxItem`/`RadioGroup`+`RadioItem`/`Separator`/`Label`) | [R] | Opens at the pointer on right-click; keyboard fallback (context-menu key) is a Radix built-in |
+| `Command` + `CommandInput` + `CommandList` + `CommandEmpty` + `CommandGroup` + `CommandItem` + `CommandSeparator` + `CommandDialog` | [R] | `cmdk`-backed type-to-filter palette; `CommandDialog` composes cmdk's bare `Command` inside this system's own `Dialog` (not cmdk's bundled dialog) |
+| `Breadcrumb` + `BreadcrumbItem` | [H] | Array-driven (`items` prop); collapses the middle into a static "…" past `maxItems`, always keeps first + last |
+| `Tree` | [H] | WAI-ARIA tree pattern (`role="tree"/"treeitem"/"group"`); roving tabindex, arrow-key nav (←/→ collapse-or-ascend / expand-or-descend, ↑/↓ move), Home/End, type-ahead with wrap-around; `selection="single" \| "multiple"` |
+| `Avatar` | [R] | `size` (named or px), optional `status` dot (`online`/`offline`/`away`/`busy`) |
+| `Progress` | [R] | Determinate (`value`/`max`) or indeterminate (`value={null}`) |
+| `Alert` | [H] | `variant`: `info`/`success`/`warning`/`danger` — full tinted background + matching border, deliberately **no** side-stripe |
+| `Empty` | [H] | `icon`/`title`/`description`/`action` slots — "teaches the interface," not a blank area |
+| `Kbd` | [H] | Renders one key/token per `<Kbd>`; compose siblings for combos (`<Kbd>⌘</Kbd><Kbd>K</Kbd>`) |
+| `Resizable` + `ResizablePanel` + `ResizableHandle` | [H] | Wraps `react-resizable-panels` (`Group`/`Panel`/`Separator` — the library's installed v4 API, not the older `PanelGroup`/`PanelResizeHandle` naming); persistence via the library's own `defaultLayout`/`onLayoutChanged` props |
 
 ## Build
 
