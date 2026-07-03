@@ -1,0 +1,42 @@
+.hds-typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--s-2) var(--s-3);
+}
+
+.hds-typing-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--muted);
+  animation: hds-typing-bounce 1.2s ease-in-out infinite;
+}
+
+.hds-typing-indicator-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.hds-typing-indicator-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes hds-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-typing-indicator-dot {
+    animation: none;
+    opacity: 0.7;
+  }
+}
