@@ -66,7 +66,7 @@ import { Fragment, jsx as jsx3, jsxs } from "react/jsx-runtime";
 function Button({
   variant = "primary",
   href,
-  arrow = false,
+  arrow: arrow4 = false,
   cut = true,
   className,
   children,
@@ -80,7 +80,7 @@ function Button({
   );
   const content = /* @__PURE__ */ jsxs(Fragment, { children: [
     children,
-    arrow && /* @__PURE__ */ jsx3("span", { className: "hds-btn-arrow", "aria-hidden": "true", children: "\u2192" })
+    arrow4 && /* @__PURE__ */ jsx3("span", { className: "hds-btn-arrow", "aria-hidden": "true", children: "\u2192" })
   ] });
   if (href) {
     return /* @__PURE__ */ jsx3("a", { className: classes, href, ...rest, children: content });
@@ -213,7 +213,7 @@ function ValueCard({
   className,
   children,
   style,
-  index,
+  index: index2,
   ...rest
 }) {
   return /* @__PURE__ */ jsxs4(
@@ -221,7 +221,7 @@ function ValueCard({
     {
       as: "article",
       className: cx("hds-val", className),
-      style: index != null ? { ...style, "--i": index } : style,
+      style: index2 != null ? { ...style, "--i": index2 } : style,
       ...rest,
       children: [
         /* @__PURE__ */ jsxs4("div", { className: "hds-val-k", children: [
@@ -265,7 +265,7 @@ function SkillCard({
   className,
   children,
   style,
-  index,
+  index: index2,
   ...rest
 }) {
   return /* @__PURE__ */ jsxs5(
@@ -275,7 +275,7 @@ function SkillCard({
       hover: "lift",
       accentBorder: lead,
       className: cx("hds-skill", lead && "hds-skill-lead", className),
-      style: index != null ? { ...style, "--i": index } : style,
+      style: index2 != null ? { ...style, "--i": index2 } : style,
       ...rest,
       children: [
         number != null && /* @__PURE__ */ jsx11("span", { className: "hds-skill-num", children: number }),
@@ -300,7 +300,7 @@ function CaseCard({
   className,
   children,
   style,
-  index,
+  index: index2,
   ...rest
 }) {
   return /* @__PURE__ */ jsxs6(
@@ -309,7 +309,7 @@ function CaseCard({
       as: "article",
       hover: "lift",
       className: cx("hds-case", className),
-      style: index != null ? { ...style, "--i": index } : style,
+      style: index2 != null ? { ...style, "--i": index2 } : style,
       ...rest,
       children: [
         /* @__PURE__ */ jsx12("div", { className: "hds-case-tag", children: tag }),
@@ -632,12 +632,12 @@ function Wordmark({
     showEndo && /* @__PURE__ */ jsx23("span", { className: "hds-hbmark-endo", style: { fontSize: Math.max(9, Math.round(fontSize * 0.42)) + "px" }, children: "Uma skill \xB7 HIVE" })
   ] });
 }
-var Box = ({ size, children }) => /* @__PURE__ */ jsx23("span", { className: "hds-hbmark-box", style: { width: size + "px", height: size + "px" }, children });
+var Box = ({ size: size4, children }) => /* @__PURE__ */ jsx23("span", { className: "hds-hbmark-box", style: { width: size4 + "px", height: size4 + "px" }, children });
 function HarnessMark({
   variant = "symbol",
   tone = "color",
   color,
-  size,
+  size: size4,
   background,
   endorsement,
   className,
@@ -647,10 +647,10 @@ function HarnessMark({
   const wordColor = tone === "mono" ? color : void 0;
   const sym = (s) => /* @__PURE__ */ jsx23(Box, { size: s, children: /* @__PURE__ */ jsx23(HexSymbol, { tone, color }) });
   if (variant === "wordmark") {
-    return /* @__PURE__ */ jsx23("span", { className: cn, role: "img", "aria-label": "Harness Builder", ...rest, children: /* @__PURE__ */ jsx23(Wordmark, { fontSize: Number(size) || 24, endorsement, color: wordColor }) });
+    return /* @__PURE__ */ jsx23("span", { className: cn, role: "img", "aria-label": "Harness Builder", ...rest, children: /* @__PURE__ */ jsx23(Wordmark, { fontSize: Number(size4) || 24, endorsement, color: wordColor }) });
   }
   if (variant === "icon") {
-    const isz = Number(size) || 96;
+    const isz = Number(size4) || 96;
     return /* @__PURE__ */ jsx23(
       "span",
       {
@@ -664,7 +664,7 @@ function HarnessMark({
     );
   }
   if (variant === "horizontal") {
-    const hz = Number(size) || 44;
+    const hz = Number(size4) || 44;
     return /* @__PURE__ */ jsxs14(
       "span",
       {
@@ -681,7 +681,7 @@ function HarnessMark({
     );
   }
   if (variant === "stacked") {
-    const st = Number(size) || 56;
+    const st = Number(size4) || 56;
     return /* @__PURE__ */ jsxs14(
       "span",
       {
@@ -697,7 +697,7 @@ function HarnessMark({
       }
     );
   }
-  return /* @__PURE__ */ jsx23("span", { className: cn, role: "img", "aria-label": "Harness Builder", ...rest, children: sym(Number(size) || 40) });
+  return /* @__PURE__ */ jsx23("span", { className: cn, role: "img", "aria-label": "Harness Builder", ...rest, children: sym(Number(size4) || 40) });
 }
 
 // node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
@@ -750,7 +750,7 @@ function useComposedRefs(...refs) {
 // node_modules/@radix-ui/react-slot/dist/index.mjs
 // @__NO_SIDE_EFFECTS__
 function createSlot(ownerName) {
-  const Slot2 = React2.forwardRef((props, forwardedRef) => {
+  const Slot22 = React2.forwardRef((props, forwardedRef) => {
     let { children, ...slotProps } = props;
     let slottableElement = null;
     let hasSlottable = false;
@@ -799,10 +799,17 @@ function createSlot(ownerName) {
     }
     return React2.cloneElement(slottableElement, mergedProps);
   });
-  Slot2.displayName = `${ownerName}.Slot`;
-  return Slot2;
+  Slot22.displayName = `${ownerName}.Slot`;
+  return Slot22;
 }
 var SLOTTABLE_IDENTIFIER = Symbol.for("radix.slottable");
+// @__NO_SIDE_EFFECTS__
+function createSlottable(ownerName) {
+  const Slottable2 = (props) => "child" in props ? props.children(props.child) : props.children;
+  Slottable2.displayName = `${ownerName}.Slottable`;
+  Slottable2.__radixId = SLOTTABLE_IDENTIFIER;
+  return Slottable2;
+}
 var getSlottableElementFromSlottable = (slottable, child) => {
   if ("child" in slottable.props) {
     const child2 = slottable.props.child;
@@ -888,18 +895,21 @@ var NODES = [
   "ul"
 ];
 var Primitive = NODES.reduce((primitive, node) => {
-  const Slot = createSlot(`Primitive.${node}`);
-  const Node = React3.forwardRef((props, forwardedRef) => {
+  const Slot5 = createSlot(`Primitive.${node}`);
+  const Node2 = React3.forwardRef((props, forwardedRef) => {
     const { asChild, ...primitiveProps } = props;
-    const Comp = asChild ? Slot : node;
+    const Comp = asChild ? Slot5 : node;
     if (typeof window !== "undefined") {
       window[Symbol.for("radix-ui")] = true;
     }
     return /* @__PURE__ */ jsx24(Comp, { ...primitiveProps, ref: forwardedRef });
   });
-  Node.displayName = `Primitive.${node}`;
-  return { ...primitive, [node]: Node };
+  Node2.displayName = `Primitive.${node}`;
+  return { ...primitive, [node]: Node2 };
 }, {});
+function dispatchDiscreteCustomEvent(target, event) {
+  if (target) ReactDOM.flushSync(() => target.dispatchEvent(event));
+}
 
 // node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
 import { jsx as jsx25 } from "react/jsx-runtime";
@@ -937,22 +947,10685 @@ import { jsx as jsx26 } from "react/jsx-runtime";
 function VisuallyHidden2({ children, ...rest }) {
   return /* @__PURE__ */ jsx26(Root, { ...rest, children });
 }
+
+// src/components/Input/Input.tsx
+import { forwardRef as forwardRef4 } from "react";
+import { jsx as jsx27, jsxs as jsxs15 } from "react/jsx-runtime";
+var Input = forwardRef4(function Input2({ startIcon, error = false, className, ...rest }, ref) {
+  const input = /* @__PURE__ */ jsx27(
+    "input",
+    {
+      ref,
+      className: cx("hds-input", error && "hds-input-error", !startIcon && className),
+      "aria-invalid": error ? "true" : void 0,
+      ...rest
+    }
+  );
+  if (!startIcon) {
+    return input;
+  }
+  return /* @__PURE__ */ jsxs15("span", { className: cx("hds-input-icon", error && "hds-input-icon-error", className), children: [
+    /* @__PURE__ */ jsx27("span", { className: "hds-input-icon-slot", "aria-hidden": "true", children: startIcon }),
+    input
+  ] });
+});
+Input.displayName = "Input";
+
+// src/components/Textarea/Textarea.tsx
+import { forwardRef as forwardRef5, useMemo } from "react";
+
+// src/hooks/useAutosizeTextarea.ts
+import { useEffect as useEffect2, useRef as useRef3 } from "react";
+function useAutosizeTextarea(value, { minRows = 1, maxRows } = {}) {
+  const ref = useRef3(null);
+  useEffect2(() => {
+    const node = ref.current;
+    if (!node) return;
+    const resize = () => {
+      try {
+        if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") {
+          return;
+        }
+        const computed = window.getComputedStyle(node);
+        let lineHeight = parseFloat(computed.lineHeight);
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+          const fontSize = parseFloat(computed.fontSize);
+          lineHeight = Number.isFinite(fontSize) && fontSize > 0 ? fontSize * 1.2 : 20;
+        }
+        const paddingTop = parseFloat(computed.paddingTop) || 0;
+        const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+        const borderTop = parseFloat(computed.borderTopWidth) || 0;
+        const borderBottom = parseFloat(computed.borderBottomWidth) || 0;
+        const extra = paddingTop + paddingBottom + borderTop + borderBottom;
+        node.style.height = "auto";
+        const scrollHeight = node.scrollHeight;
+        const minHeight = lineHeight * minRows + extra;
+        const maxHeight = maxRows ? lineHeight * maxRows + extra : Infinity;
+        const nextHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+        node.style.height = `${nextHeight}px`;
+        node.style.overflowY = maxRows !== void 0 && scrollHeight > maxHeight ? "auto" : "hidden";
+      } catch {
+      }
+    };
+    resize();
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => resize());
+      observer.observe(node);
+    }
+    return () => observer?.disconnect();
+  }, [value, minRows, maxRows]);
+  return ref;
+}
+
+// src/hooks/useControllableState.ts
+import { useCallback as useCallback2, useRef as useRef4, useState as useState3 } from "react";
+function useControllableState({
+  value: controlledValue,
+  defaultValue,
+  onChange
+}) {
+  const isControlled = controlledValue !== void 0;
+  const [uncontrolledValue, setUncontrolledValue] = useState3(defaultValue);
+  const onChangeRef = useRef4(onChange);
+  onChangeRef.current = onChange;
+  const value = isControlled ? controlledValue : uncontrolledValue;
+  const setValue = useCallback2(
+    (next) => {
+      if (!isControlled) {
+        setUncontrolledValue(next);
+      }
+      onChangeRef.current?.(next);
+    },
+    [isControlled]
+  );
+  return [value, setValue];
+}
+
+// src/components/Textarea/Textarea.tsx
+import { jsx as jsx28 } from "react/jsx-runtime";
+function mergeRefs(...refs) {
+  return (node) => {
+    for (const ref of refs) {
+      if (!ref) continue;
+      if (typeof ref === "function") {
+        ref(node);
+      } else {
+        ;
+        ref.current = node;
+      }
+    }
+  };
+}
+var Textarea = forwardRef5(function Textarea2({
+  minRows = 1,
+  maxRows = 8,
+  error = false,
+  onSubmit,
+  submitOnEnter = true,
+  className,
+  value,
+  defaultValue,
+  onChange,
+  onKeyDown,
+  ...rest
+}, forwardedRef) {
+  const [currentValue, setCurrentValue] = useControllableState({
+    value,
+    defaultValue: defaultValue ?? ""
+  });
+  const autosizeRef = useAutosizeTextarea(currentValue, { minRows, maxRows });
+  const ref = useMemo(() => mergeRefs(forwardedRef, autosizeRef), [forwardedRef, autosizeRef]);
+  const handleChange = (event) => {
+    setCurrentValue(event.target.value);
+    onChange?.(event);
+  };
+  const handleKeyDown = (event) => {
+    onKeyDown?.(event);
+    if (onSubmit && submitOnEnter && event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      onSubmit();
+    }
+  };
+  return /* @__PURE__ */ jsx28(
+    "textarea",
+    {
+      ref,
+      className: cx("hds-textarea", error && "hds-textarea-error", className),
+      value: currentValue,
+      onChange: handleChange,
+      onKeyDown: handleKeyDown,
+      "aria-invalid": error ? "true" : void 0,
+      rows: minRows,
+      ...rest
+    }
+  );
+});
+Textarea.displayName = "Textarea";
+
+// src/components/Label/Label.tsx
+import { Fragment as Fragment3, jsx as jsx29, jsxs as jsxs16 } from "react/jsx-runtime";
+function Label({ required = false, className, children, ...rest }) {
+  return /* @__PURE__ */ jsxs16("label", { className: cx("hds-label", className), ...rest, children: [
+    children,
+    required && /* @__PURE__ */ jsxs16(Fragment3, { children: [
+      /* @__PURE__ */ jsx29("span", { className: "hds-label-required", "aria-hidden": "true", children: "*" }),
+      /* @__PURE__ */ jsx29(VisuallyHidden2, { children: "(required)" })
+    ] })
+  ] });
+}
+
+// src/components/Field/Field.tsx
+import { cloneElement as cloneElement2, isValidElement as isValidElement2, useId } from "react";
+import { jsx as jsx30, jsxs as jsxs17 } from "react/jsx-runtime";
+function Field({ label, description, error, required = false, className, children, ...rest }) {
+  const controlId = useId();
+  const descriptionId = useId();
+  const errorId = useId();
+  if (!isValidElement2(children)) {
+    throw new Error("Field requires a single element child (the form control)");
+  }
+  const describedBy = cx(description ? descriptionId : false, error ? errorId : false) || void 0;
+  const control = cloneElement2(children, {
+    id: children.props.id ?? controlId,
+    "aria-describedby": describedBy,
+    "aria-invalid": error ? "true" : void 0,
+    "aria-required": required || void 0
+  });
+  return /* @__PURE__ */ jsxs17("div", { className: cx("hds-field", className), ...rest, children: [
+    /* @__PURE__ */ jsx30(Label, { htmlFor: children.props.id ?? controlId, required, className: "hds-field-label", children: label }),
+    control,
+    description && /* @__PURE__ */ jsx30("p", { id: descriptionId, className: "hds-field-description", children: description }),
+    error && /* @__PURE__ */ jsx30("p", { id: errorId, role: "alert", className: "hds-field-error", children: error })
+  ] });
+}
+
+// src/components/Checkbox/Checkbox.tsx
+import * as React13 from "react";
+
+// node_modules/@radix-ui/react-checkbox/dist/index.mjs
+import * as React12 from "react";
+
+// node_modules/@radix-ui/react-context/dist/index.mjs
+import * as React5 from "react";
+import { jsx as jsx31 } from "react/jsx-runtime";
+function createContextScope(scopeName, createContextScopeDeps = []) {
+  let defaultContexts = [];
+  function createContext32(rootComponentName, defaultContext) {
+    const BaseContext = React5.createContext(defaultContext);
+    BaseContext.displayName = rootComponentName + "Context";
+    const index2 = defaultContexts.length;
+    defaultContexts = [...defaultContexts, defaultContext];
+    const Provider3 = (props) => {
+      const { scope, children, ...context } = props;
+      const Context = scope?.[scopeName]?.[index2] || BaseContext;
+      const value = React5.useMemo(() => context, Object.values(context));
+      return /* @__PURE__ */ jsx31(Context.Provider, { value, children });
+    };
+    Provider3.displayName = rootComponentName + "Provider";
+    function useContext22(consumerName, scope) {
+      const Context = scope?.[scopeName]?.[index2] || BaseContext;
+      const context = React5.useContext(Context);
+      if (context) return context;
+      if (defaultContext !== void 0) return defaultContext;
+      throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
+    }
+    return [Provider3, useContext22];
+  }
+  const createScope = () => {
+    const scopeContexts = defaultContexts.map((defaultContext) => {
+      return React5.createContext(defaultContext);
+    });
+    return function useScope(scope) {
+      const contexts = scope?.[scopeName] || scopeContexts;
+      return React5.useMemo(
+        () => ({ [`__scope${scopeName}`]: { ...scope, [scopeName]: contexts } }),
+        [scope, contexts]
+      );
+    };
+  };
+  createScope.scopeName = scopeName;
+  return [createContext32, composeContextScopes(createScope, ...createContextScopeDeps)];
+}
+function composeContextScopes(...scopes) {
+  const baseScope = scopes[0];
+  if (scopes.length === 1) return baseScope;
+  const createScope = () => {
+    const scopeHooks = scopes.map((createScope2) => ({
+      useScope: createScope2(),
+      scopeName: createScope2.scopeName
+    }));
+    return function useComposedScopes(overrideScopes) {
+      const nextScopes = scopeHooks.reduce((nextScopes2, { useScope, scopeName }) => {
+        const scopeProps = useScope(overrideScopes);
+        const currentScope = scopeProps[`__scope${scopeName}`];
+        return { ...nextScopes2, ...currentScope };
+      }, {});
+      return React5.useMemo(() => ({ [`__scope${baseScope.scopeName}`]: nextScopes }), [nextScopes]);
+    };
+  };
+  createScope.scopeName = baseScope.scopeName;
+  return createScope;
+}
+
+// node_modules/@radix-ui/primitive/dist/index.mjs
+var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
+function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
+  return function handleEvent(event) {
+    originalEventHandler?.(event);
+    if (checkForDefaultPrevented === false || !event.defaultPrevented) {
+      return ourEventHandler?.(event);
+    }
+  };
+}
+
+// node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+import * as React8 from "react";
+
+// node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+import * as React6 from "react";
+var useLayoutEffect2 = globalThis?.document ? React6.useLayoutEffect : () => {
+};
+
+// node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+import * as React22 from "react";
+
+// node_modules/@radix-ui/react-use-effect-event/dist/index.mjs
+import * as React7 from "react";
+var useReactEffectEvent = React7[" useEffectEvent ".trim().toString()];
+var useReactInsertionEffect = React7[" useInsertionEffect ".trim().toString()];
+function useEffectEvent(callback) {
+  if (typeof useReactEffectEvent === "function") {
+    return useReactEffectEvent(callback);
+  }
+  const ref = React7.useRef(() => {
+    throw new Error("Cannot call an event handler while rendering.");
+  });
+  if (typeof useReactInsertionEffect === "function") {
+    useReactInsertionEffect(() => {
+      ref.current = callback;
+    });
+  } else {
+    useLayoutEffect2(() => {
+      ref.current = callback;
+    });
+  }
+  return React7.useMemo(() => (...args) => ref.current?.(...args), []);
+}
+
+// node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+var useInsertionEffect = React8[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
+function useControllableState2({
+  prop,
+  defaultProp,
+  onChange = () => {
+  },
+  caller
+}) {
+  const [uncontrolledProp, setUncontrolledProp, onChangeRef] = useUncontrolledState({
+    defaultProp,
+    onChange
+  });
+  const isControlled = prop !== void 0;
+  const value = isControlled ? prop : uncontrolledProp;
+  if (true) {
+    const isControlledRef = React8.useRef(prop !== void 0);
+    React8.useEffect(() => {
+      const wasControlled = isControlledRef.current;
+      if (wasControlled !== isControlled) {
+        const from = wasControlled ? "controlled" : "uncontrolled";
+        const to = isControlled ? "controlled" : "uncontrolled";
+        console.warn(
+          `${caller} is changing from ${from} to ${to}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`
+        );
+      }
+      isControlledRef.current = isControlled;
+    }, [isControlled, caller]);
+  }
+  const setValue = React8.useCallback(
+    (nextValue) => {
+      if (isControlled) {
+        const value2 = isFunction(nextValue) ? nextValue(prop) : nextValue;
+        if (value2 !== prop) {
+          onChangeRef.current?.(value2);
+        }
+      } else {
+        setUncontrolledProp(nextValue);
+      }
+    },
+    [isControlled, prop, setUncontrolledProp, onChangeRef]
+  );
+  return [value, setValue];
+}
+function useUncontrolledState({
+  defaultProp,
+  onChange
+}) {
+  const [value, setValue] = React8.useState(defaultProp);
+  const prevValueRef = React8.useRef(value);
+  const onChangeRef = React8.useRef(onChange);
+  useInsertionEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+  React8.useEffect(() => {
+    if (prevValueRef.current !== value) {
+      onChangeRef.current?.(value);
+      prevValueRef.current = value;
+    }
+  }, [value, prevValueRef]);
+  return [value, setValue, onChangeRef];
+}
+function isFunction(value) {
+  return typeof value === "function";
+}
+var SYNC_STATE = Symbol("RADIX:SYNC_STATE");
+
+// node_modules/@radix-ui/react-use-previous/dist/index.mjs
+import * as React9 from "react";
+function usePrevious(value) {
+  const ref = React9.useRef({ value, previous: value });
+  return React9.useMemo(() => {
+    if (ref.current.value !== value) {
+      ref.current.previous = ref.current.value;
+      ref.current.value = value;
+    }
+    return ref.current.previous;
+  }, [value]);
+}
+
+// node_modules/@radix-ui/react-use-size/dist/index.mjs
+import * as React10 from "react";
+function useSize(element) {
+  const [size4, setSize] = React10.useState(void 0);
+  useLayoutEffect2(() => {
+    if (element) {
+      setSize({ width: element.offsetWidth, height: element.offsetHeight });
+      const resizeObserver = new ResizeObserver((entries) => {
+        if (!Array.isArray(entries)) {
+          return;
+        }
+        if (!entries.length) {
+          return;
+        }
+        const entry = entries[0];
+        let width;
+        let height;
+        if ("borderBoxSize" in entry) {
+          const borderSizeEntry = entry["borderBoxSize"];
+          const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
+          width = borderSize["inlineSize"];
+          height = borderSize["blockSize"];
+        } else {
+          width = element.offsetWidth;
+          height = element.offsetHeight;
+        }
+        setSize({ width, height });
+      });
+      resizeObserver.observe(element, { box: "border-box" });
+      return () => resizeObserver.unobserve(element);
+    } else {
+      setSize(void 0);
+    }
+  }, [element]);
+  return size4;
+}
+
+// node_modules/@radix-ui/react-presence/dist/index.mjs
+import * as React23 from "react";
+import * as React11 from "react";
+function useStateMachine(initialState, machine) {
+  return React11.useReducer((state, event) => {
+    const nextState = machine[state][event];
+    return nextState ?? state;
+  }, initialState);
+}
+var Presence = (props) => {
+  const { present, children } = props;
+  const presence = usePresence(present);
+  const child = typeof children === "function" ? children({ present: presence.isPresent }) : React23.Children.only(children);
+  const ref = useStableComposedRefs(presence.ref, getElementRef2(child));
+  const forceMount = typeof children === "function";
+  return forceMount || presence.isPresent ? React23.cloneElement(child, { ref }) : null;
+};
+Presence.displayName = "Presence";
+function usePresence(present) {
+  const [node, setNode] = React23.useState();
+  const stylesRef = React23.useRef(null);
+  const prevPresentRef = React23.useRef(present);
+  const prevAnimationNameRef = React23.useRef("none");
+  const initialState = present ? "mounted" : "unmounted";
+  const [state, send] = useStateMachine(initialState, {
+    mounted: {
+      UNMOUNT: "unmounted",
+      ANIMATION_OUT: "unmountSuspended"
+    },
+    unmountSuspended: {
+      MOUNT: "mounted",
+      ANIMATION_END: "unmounted"
+    },
+    unmounted: {
+      MOUNT: "mounted"
+    }
+  });
+  React23.useEffect(() => {
+    const currentAnimationName = getAnimationName(stylesRef.current);
+    prevAnimationNameRef.current = state === "mounted" ? currentAnimationName : "none";
+  }, [state]);
+  useLayoutEffect2(() => {
+    const styles = stylesRef.current;
+    const wasPresent = prevPresentRef.current;
+    const hasPresentChanged = wasPresent !== present;
+    if (hasPresentChanged) {
+      const prevAnimationName = prevAnimationNameRef.current;
+      const currentAnimationName = getAnimationName(styles);
+      if (present) {
+        send("MOUNT");
+      } else if (currentAnimationName === "none" || styles?.display === "none") {
+        send("UNMOUNT");
+      } else {
+        const isAnimating = prevAnimationName !== currentAnimationName;
+        if (wasPresent && isAnimating) {
+          send("ANIMATION_OUT");
+        } else {
+          send("UNMOUNT");
+        }
+      }
+      prevPresentRef.current = present;
+    }
+  }, [present, send]);
+  useLayoutEffect2(() => {
+    if (node) {
+      let timeoutId;
+      const ownerWindow = node.ownerDocument.defaultView ?? window;
+      const handleAnimationEnd = (event) => {
+        const currentAnimationName = getAnimationName(stylesRef.current);
+        const isCurrentAnimation = currentAnimationName.includes(CSS.escape(event.animationName));
+        if (event.target === node && isCurrentAnimation) {
+          send("ANIMATION_END");
+          if (!prevPresentRef.current) {
+            const currentFillMode = node.style.animationFillMode;
+            node.style.animationFillMode = "forwards";
+            timeoutId = ownerWindow.setTimeout(() => {
+              if (node.style.animationFillMode === "forwards") {
+                node.style.animationFillMode = currentFillMode;
+              }
+            });
+          }
+        }
+      };
+      const handleAnimationStart = (event) => {
+        if (event.target === node) {
+          prevAnimationNameRef.current = getAnimationName(stylesRef.current);
+        }
+      };
+      node.addEventListener("animationstart", handleAnimationStart);
+      node.addEventListener("animationcancel", handleAnimationEnd);
+      node.addEventListener("animationend", handleAnimationEnd);
+      return () => {
+        ownerWindow.clearTimeout(timeoutId);
+        node.removeEventListener("animationstart", handleAnimationStart);
+        node.removeEventListener("animationcancel", handleAnimationEnd);
+        node.removeEventListener("animationend", handleAnimationEnd);
+      };
+    } else {
+      send("ANIMATION_END");
+    }
+  }, [node, send]);
+  return {
+    isPresent: ["mounted", "unmountSuspended"].includes(state),
+    ref: React23.useCallback((node2) => {
+      stylesRef.current = node2 ? getComputedStyle(node2) : null;
+      setNode(node2);
+    }, [])
+  };
+}
+function setRef2(ref, value) {
+  if (typeof ref === "function") {
+    return ref(value);
+  } else if (ref !== null && ref !== void 0) {
+    ref.current = value;
+  }
+}
+function useStableComposedRefs(...refs) {
+  const refsRef = React23.useRef(refs);
+  refsRef.current = refs;
+  return React23.useCallback((node) => {
+    const currentRefs = refsRef.current;
+    let hasCleanup = false;
+    const cleanups = currentRefs.map((ref) => {
+      const cleanup = setRef2(ref, node);
+      if (!hasCleanup && typeof cleanup === "function") {
+        hasCleanup = true;
+      }
+      return cleanup;
+    });
+    if (hasCleanup) {
+      return () => {
+        for (let i = 0; i < cleanups.length; i++) {
+          const cleanup = cleanups[i];
+          if (typeof cleanup === "function") {
+            cleanup();
+          } else {
+            setRef2(currentRefs[i], null);
+          }
+        }
+      };
+    }
+  }, []);
+}
+function getAnimationName(styles) {
+  return styles?.animationName || "none";
+}
+function getElementRef2(element) {
+  let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
+  let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.ref;
+  }
+  getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
+  mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.props.ref;
+  }
+  return element.props.ref || element.ref;
+}
+
+// node_modules/@radix-ui/react-checkbox/dist/index.mjs
+import { Fragment as Fragment4, jsx as jsx32, jsxs as jsxs18 } from "react/jsx-runtime";
+var CHECKBOX_NAME = "Checkbox";
+var [createCheckboxContext, createCheckboxScope] = createContextScope(CHECKBOX_NAME);
+var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
+function CheckboxProvider(props) {
+  const {
+    __scopeCheckbox,
+    checked: checkedProp,
+    children,
+    defaultChecked,
+    disabled,
+    form,
+    name,
+    onCheckedChange,
+    required,
+    value = "on",
+    // @ts-expect-error
+    internal_do_not_use_render
+  } = props;
+  const [checked, setChecked] = useControllableState2({
+    prop: checkedProp,
+    defaultProp: defaultChecked ?? false,
+    onChange: onCheckedChange,
+    caller: CHECKBOX_NAME
+  });
+  const [control, setControl] = React12.useState(null);
+  const [bubbleInput, setBubbleInput] = React12.useState(null);
+  const hasConsumerStoppedPropagationRef = React12.useRef(false);
+  const isFormControl = control ? !!form || !!control.closest("form") : (
+    // We set this to true by default so that events bubble to forms without JS (SSR)
+    true
+  );
+  const context = {
+    checked,
+    disabled,
+    setChecked,
+    control,
+    setControl,
+    name,
+    form,
+    value,
+    hasConsumerStoppedPropagationRef,
+    required,
+    defaultChecked: isIndeterminate(defaultChecked) ? false : defaultChecked,
+    isFormControl,
+    bubbleInput,
+    setBubbleInput
+  };
+  return /* @__PURE__ */ jsx32(
+    CheckboxProviderImpl,
+    {
+      scope: __scopeCheckbox,
+      ...context,
+      children: isFunction2(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
+    }
+  );
+}
+var TRIGGER_NAME = "CheckboxTrigger";
+var CheckboxTrigger = React12.forwardRef(
+  ({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
+    const {
+      control,
+      value,
+      disabled,
+      checked,
+      required,
+      setControl,
+      setChecked,
+      hasConsumerStoppedPropagationRef,
+      isFormControl,
+      bubbleInput
+    } = useCheckboxContext(TRIGGER_NAME, __scopeCheckbox);
+    const composedRefs = useComposedRefs(forwardedRef, setControl);
+    const initialCheckedStateRef = React12.useRef(checked);
+    React12.useEffect(() => {
+      const form = control?.form;
+      if (form) {
+        const reset = () => setChecked(initialCheckedStateRef.current);
+        form.addEventListener("reset", reset);
+        return () => form.removeEventListener("reset", reset);
+      }
+    }, [control, setChecked]);
+    return /* @__PURE__ */ jsx32(
+      Primitive.button,
+      {
+        type: "button",
+        role: "checkbox",
+        "aria-checked": isIndeterminate(checked) ? "mixed" : checked,
+        "aria-required": required,
+        "data-state": getState(checked),
+        "data-disabled": disabled ? "" : void 0,
+        disabled,
+        value,
+        ...checkboxProps,
+        ref: composedRefs,
+        onKeyDown: composeEventHandlers(onKeyDown, (event) => {
+          if (event.key === "Enter") event.preventDefault();
+        }),
+        onClick: composeEventHandlers(onClick, (event) => {
+          setChecked((prevChecked) => isIndeterminate(prevChecked) ? true : !prevChecked);
+          if (bubbleInput && isFormControl) {
+            hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
+            if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
+          }
+        })
+      }
+    );
+  }
+);
+CheckboxTrigger.displayName = TRIGGER_NAME;
+var Checkbox = React12.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeCheckbox,
+      name,
+      checked,
+      defaultChecked,
+      required,
+      disabled,
+      value,
+      onCheckedChange,
+      form,
+      ...checkboxProps
+    } = props;
+    return /* @__PURE__ */ jsx32(
+      CheckboxProvider,
+      {
+        __scopeCheckbox,
+        checked,
+        defaultChecked,
+        disabled,
+        required,
+        onCheckedChange,
+        name,
+        form,
+        value,
+        internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs18(Fragment4, { children: [
+          /* @__PURE__ */ jsx32(
+            CheckboxTrigger,
+            {
+              ...checkboxProps,
+              ref: forwardedRef,
+              __scopeCheckbox
+            }
+          ),
+          isFormControl && /* @__PURE__ */ jsx32(
+            CheckboxBubbleInput,
+            {
+              __scopeCheckbox
+            }
+          )
+        ] })
+      }
+    );
+  }
+);
+Checkbox.displayName = CHECKBOX_NAME;
+var INDICATOR_NAME = "CheckboxIndicator";
+var CheckboxIndicator = React12.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
+    const context = useCheckboxContext(INDICATOR_NAME, __scopeCheckbox);
+    return /* @__PURE__ */ jsx32(
+      Presence,
+      {
+        present: forceMount || isIndeterminate(context.checked) || context.checked === true,
+        children: /* @__PURE__ */ jsx32(
+          Primitive.span,
+          {
+            "data-state": getState(context.checked),
+            "data-disabled": context.disabled ? "" : void 0,
+            ...indicatorProps,
+            ref: forwardedRef,
+            style: { pointerEvents: "none", ...props.style }
+          }
+        )
+      }
+    );
+  }
+);
+CheckboxIndicator.displayName = INDICATOR_NAME;
+var BUBBLE_INPUT_NAME = "CheckboxBubbleInput";
+var CheckboxBubbleInput = React12.forwardRef(
+  ({ __scopeCheckbox, ...props }, forwardedRef) => {
+    const {
+      control,
+      hasConsumerStoppedPropagationRef,
+      checked,
+      defaultChecked,
+      required,
+      disabled,
+      name,
+      value,
+      form,
+      bubbleInput,
+      setBubbleInput
+    } = useCheckboxContext(BUBBLE_INPUT_NAME, __scopeCheckbox);
+    const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
+    const prevChecked = usePrevious(checked);
+    const controlSize = useSize(control);
+    React12.useEffect(() => {
+      const input = bubbleInput;
+      if (!input) return;
+      const inputProto = window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        inputProto,
+        "checked"
+      );
+      const setChecked = descriptor.set;
+      const bubbles = !hasConsumerStoppedPropagationRef.current;
+      if (prevChecked !== checked && setChecked) {
+        const event = new Event("click", { bubbles });
+        input.indeterminate = isIndeterminate(checked);
+        setChecked.call(input, isIndeterminate(checked) ? false : checked);
+        input.dispatchEvent(event);
+      }
+    }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
+    const defaultCheckedRef = React12.useRef(isIndeterminate(checked) ? false : checked);
+    return /* @__PURE__ */ jsx32(
+      Primitive.input,
+      {
+        type: "checkbox",
+        "aria-hidden": true,
+        defaultChecked: defaultChecked ?? defaultCheckedRef.current,
+        required,
+        disabled,
+        name,
+        value,
+        form,
+        ...props,
+        tabIndex: -1,
+        ref: composedRefs,
+        style: {
+          ...props.style,
+          ...controlSize,
+          position: "absolute",
+          pointerEvents: "none",
+          opacity: 0,
+          margin: 0,
+          // We transform because the input is absolutely positioned but we have
+          // rendered it **after** the button. This pulls it back to sit on top
+          // of the button.
+          transform: "translateX(-100%)"
+        }
+      }
+    );
+  }
+);
+CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME;
+function isFunction2(value) {
+  return typeof value === "function";
+}
+function isIndeterminate(checked) {
+  return checked === "indeterminate";
+}
+function getState(checked) {
+  return isIndeterminate(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
+}
+
+// src/components/Checkbox/Checkbox.tsx
+import { jsx as jsx33, jsxs as jsxs19 } from "react/jsx-runtime";
+var Checkbox2 = React13.forwardRef(({ className, ...rest }, ref) => /* @__PURE__ */ jsx33(Checkbox, { ref, className: cx("hds-checkbox", className), ...rest, children: /* @__PURE__ */ jsxs19(CheckboxIndicator, { className: "hds-checkbox-indicator", children: [
+  /* @__PURE__ */ jsx33(
+    "svg",
+    {
+      className: "hds-checkbox-icon hds-checkbox-icon-check",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx33(
+        "path",
+        {
+          d: "M3.5 8.5L6.5 11.5L12.5 4.5",
+          stroke: "currentColor",
+          strokeWidth: "2",
+          strokeLinecap: "round",
+          strokeLinejoin: "round"
+        }
+      )
+    }
+  ),
+  /* @__PURE__ */ jsx33(
+    "svg",
+    {
+      className: "hds-checkbox-icon hds-checkbox-icon-dash",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx33("path", { d: "M4 8H12", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round" })
+    }
+  )
+] }) }));
+Checkbox2.displayName = "Checkbox";
+
+// src/components/RadioGroup/RadioGroup.tsx
+import { forwardRef as forwardRef13 } from "react";
+
+// node_modules/@radix-ui/react-radio-group/dist/index.mjs
+import * as React25 from "react";
+
+// node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+import * as React18 from "react";
+
+// node_modules/@radix-ui/react-collection/dist/index.mjs
+import * as React14 from "react";
+import { jsx as jsx34 } from "react/jsx-runtime";
+import * as React24 from "react";
+import { jsx as jsx210 } from "react/jsx-runtime";
+function createCollection(name) {
+  const PROVIDER_NAME4 = name + "CollectionProvider";
+  const [createCollectionContext, createCollectionScope6] = createContextScope(PROVIDER_NAME4);
+  const [CollectionProviderImpl, useCollectionContext] = createCollectionContext(
+    PROVIDER_NAME4,
+    { collectionRef: { current: null }, itemMap: /* @__PURE__ */ new Map() }
+  );
+  const CollectionProvider = (props) => {
+    const { scope, children } = props;
+    const ref = React14.useRef(null);
+    const itemMap = React14.useRef(/* @__PURE__ */ new Map()).current;
+    return /* @__PURE__ */ jsx34(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
+  };
+  CollectionProvider.displayName = PROVIDER_NAME4;
+  const COLLECTION_SLOT_NAME = name + "CollectionSlot";
+  const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
+  const CollectionSlot = React14.forwardRef(
+    (props, forwardedRef) => {
+      const { scope, children } = props;
+      const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
+      const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
+      return /* @__PURE__ */ jsx34(CollectionSlotImpl, { ref: composedRefs, children });
+    }
+  );
+  CollectionSlot.displayName = COLLECTION_SLOT_NAME;
+  const ITEM_SLOT_NAME = name + "CollectionItemSlot";
+  const ITEM_DATA_ATTR = "data-radix-collection-item";
+  const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
+  const CollectionItemSlot = React14.forwardRef(
+    (props, forwardedRef) => {
+      const { scope, children, ...itemData } = props;
+      const ref = React14.useRef(null);
+      const composedRefs = useComposedRefs(forwardedRef, ref);
+      const context = useCollectionContext(ITEM_SLOT_NAME, scope);
+      React14.useEffect(() => {
+        context.itemMap.set(ref, { ref, ...itemData });
+        return () => void context.itemMap.delete(ref);
+      });
+      return /* @__PURE__ */ jsx34(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
+    }
+  );
+  CollectionItemSlot.displayName = ITEM_SLOT_NAME;
+  function useCollection6(scope) {
+    const context = useCollectionContext(name + "CollectionConsumer", scope);
+    const getItems = React14.useCallback(() => {
+      const collectionNode = context.collectionRef.current;
+      if (!collectionNode) return [];
+      const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
+      const items = Array.from(context.itemMap.values());
+      const orderedItems = items.sort(
+        (a, b) => orderedNodes.indexOf(a.ref.current) - orderedNodes.indexOf(b.ref.current)
+      );
+      return orderedItems;
+    }, [context.collectionRef, context.itemMap]);
+    return getItems;
+  }
+  return [
+    { Provider: CollectionProvider, Slot: CollectionSlot, ItemSlot: CollectionItemSlot },
+    useCollection6,
+    createCollectionScope6
+  ];
+}
+
+// node_modules/@radix-ui/react-id/dist/index.mjs
+import * as React15 from "react";
+var useReactId = React15[" useId ".trim().toString()] || (() => void 0);
+var count = 0;
+function useId2(deterministicId) {
+  const [id, setId] = React15.useState(useReactId());
+  useLayoutEffect2(() => {
+    if (!deterministicId) setId((reactId) => reactId ?? String(count++));
+  }, [deterministicId]);
+  return deterministicId || (id ? `radix-${id}` : "");
+}
+
+// node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+import * as React16 from "react";
+function useCallbackRef(callback) {
+  const callbackRef = React16.useRef(callback);
+  React16.useEffect(() => {
+    callbackRef.current = callback;
+  });
+  return React16.useMemo(() => (...args) => callbackRef.current?.(...args), []);
+}
+
+// node_modules/@radix-ui/react-direction/dist/index.mjs
+import * as React17 from "react";
+import { jsx as jsx35 } from "react/jsx-runtime";
+var DirectionContext = React17.createContext(void 0);
+function useDirection(localDir) {
+  const globalDir = React17.useContext(DirectionContext);
+  return localDir || globalDir || "ltr";
+}
+
+// node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+import { jsx as jsx36 } from "react/jsx-runtime";
+var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
+var EVENT_OPTIONS = { bubbles: false, cancelable: true };
+var GROUP_NAME = "RovingFocusGroup";
+var [Collection, useCollection, createCollectionScope] = createCollection(GROUP_NAME);
+var [createRovingFocusGroupContext, createRovingFocusGroupScope] = createContextScope(
+  GROUP_NAME,
+  [createCollectionScope]
+);
+var [RovingFocusProvider, useRovingFocusContext] = createRovingFocusGroupContext(GROUP_NAME);
+var RovingFocusGroup = React18.forwardRef(
+  (props, forwardedRef) => {
+    return /* @__PURE__ */ jsx36(Collection.Provider, { scope: props.__scopeRovingFocusGroup, children: /* @__PURE__ */ jsx36(Collection.Slot, { scope: props.__scopeRovingFocusGroup, children: /* @__PURE__ */ jsx36(RovingFocusGroupImpl, { ...props, ref: forwardedRef }) }) });
+  }
+);
+RovingFocusGroup.displayName = GROUP_NAME;
+var RovingFocusGroupImpl = React18.forwardRef((props, forwardedRef) => {
+  const {
+    __scopeRovingFocusGroup,
+    orientation,
+    loop = false,
+    dir,
+    currentTabStopId: currentTabStopIdProp,
+    defaultCurrentTabStopId,
+    onCurrentTabStopIdChange,
+    onEntryFocus,
+    preventScrollOnEntryFocus = false,
+    ...groupProps
+  } = props;
+  const ref = React18.useRef(null);
+  const composedRefs = useComposedRefs(forwardedRef, ref);
+  const direction = useDirection(dir);
+  const [currentTabStopId, setCurrentTabStopId] = useControllableState2({
+    prop: currentTabStopIdProp,
+    defaultProp: defaultCurrentTabStopId ?? null,
+    onChange: onCurrentTabStopIdChange,
+    caller: GROUP_NAME
+  });
+  const [isTabbingBackOut, setIsTabbingBackOut] = React18.useState(false);
+  const handleEntryFocus = useCallbackRef(onEntryFocus);
+  const getItems = useCollection(__scopeRovingFocusGroup);
+  const isClickFocusRef = React18.useRef(false);
+  const [focusableItemsCount, setFocusableItemsCount] = React18.useState(0);
+  React18.useEffect(() => {
+    const node = ref.current;
+    if (node) {
+      node.addEventListener(ENTRY_FOCUS, handleEntryFocus);
+      return () => node.removeEventListener(ENTRY_FOCUS, handleEntryFocus);
+    }
+  }, [handleEntryFocus]);
+  return /* @__PURE__ */ jsx36(
+    RovingFocusProvider,
+    {
+      scope: __scopeRovingFocusGroup,
+      orientation,
+      dir: direction,
+      loop,
+      currentTabStopId,
+      onItemFocus: React18.useCallback(
+        (tabStopId) => setCurrentTabStopId(tabStopId),
+        [setCurrentTabStopId]
+      ),
+      onItemShiftTab: React18.useCallback(() => setIsTabbingBackOut(true), []),
+      onFocusableItemAdd: React18.useCallback(
+        () => setFocusableItemsCount((prevCount) => prevCount + 1),
+        []
+      ),
+      onFocusableItemRemove: React18.useCallback(
+        () => setFocusableItemsCount((prevCount) => prevCount - 1),
+        []
+      ),
+      children: /* @__PURE__ */ jsx36(
+        Primitive.div,
+        {
+          tabIndex: isTabbingBackOut || focusableItemsCount === 0 ? -1 : 0,
+          "data-orientation": orientation,
+          ...groupProps,
+          ref: composedRefs,
+          style: { outline: "none", ...props.style },
+          onMouseDown: composeEventHandlers(props.onMouseDown, () => {
+            isClickFocusRef.current = true;
+          }),
+          onFocus: composeEventHandlers(props.onFocus, (event) => {
+            const isKeyboardFocus = !isClickFocusRef.current;
+            if (event.target === event.currentTarget && isKeyboardFocus && !isTabbingBackOut) {
+              const entryFocusEvent = new CustomEvent(ENTRY_FOCUS, EVENT_OPTIONS);
+              event.currentTarget.dispatchEvent(entryFocusEvent);
+              if (!entryFocusEvent.defaultPrevented) {
+                const items = getItems().filter((item) => item.focusable);
+                const activeItem = items.find((item) => item.active);
+                const currentItem = items.find((item) => item.id === currentTabStopId);
+                const candidateItems = [activeItem, currentItem, ...items].filter(
+                  Boolean
+                );
+                const candidateNodes = candidateItems.map((item) => item.ref.current);
+                focusFirst(candidateNodes, preventScrollOnEntryFocus);
+              }
+            }
+            isClickFocusRef.current = false;
+          }),
+          onBlur: composeEventHandlers(props.onBlur, () => setIsTabbingBackOut(false))
+        }
+      )
+    }
+  );
+});
+var ITEM_NAME = "RovingFocusGroupItem";
+var RovingFocusGroupItem = React18.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeRovingFocusGroup,
+      focusable = true,
+      active = false,
+      tabStopId,
+      children,
+      ...itemProps
+    } = props;
+    const autoId = useId2();
+    const id = tabStopId || autoId;
+    const context = useRovingFocusContext(ITEM_NAME, __scopeRovingFocusGroup);
+    const isCurrentTabStop = context.currentTabStopId === id;
+    const getItems = useCollection(__scopeRovingFocusGroup);
+    const { onFocusableItemAdd, onFocusableItemRemove, currentTabStopId } = context;
+    React18.useEffect(() => {
+      if (focusable) {
+        onFocusableItemAdd();
+        return () => onFocusableItemRemove();
+      }
+    }, [focusable, onFocusableItemAdd, onFocusableItemRemove]);
+    return /* @__PURE__ */ jsx36(
+      Collection.ItemSlot,
+      {
+        scope: __scopeRovingFocusGroup,
+        id,
+        focusable,
+        active,
+        children: /* @__PURE__ */ jsx36(
+          Primitive.span,
+          {
+            tabIndex: isCurrentTabStop ? 0 : -1,
+            "data-orientation": context.orientation,
+            ...itemProps,
+            ref: forwardedRef,
+            onMouseDown: composeEventHandlers(props.onMouseDown, (event) => {
+              if (!focusable) event.preventDefault();
+              else context.onItemFocus(id);
+            }),
+            onFocus: composeEventHandlers(props.onFocus, () => context.onItemFocus(id)),
+            onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+              if (event.key === "Tab" && event.shiftKey) {
+                context.onItemShiftTab();
+                return;
+              }
+              if (event.target !== event.currentTarget) return;
+              const focusIntent = getFocusIntent(event, context.orientation, context.dir);
+              if (focusIntent !== void 0) {
+                if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+                event.preventDefault();
+                const items = getItems().filter((item) => item.focusable);
+                let candidateNodes = items.map((item) => item.ref.current);
+                if (focusIntent === "last") candidateNodes.reverse();
+                else if (focusIntent === "prev" || focusIntent === "next") {
+                  if (focusIntent === "prev") candidateNodes.reverse();
+                  const currentIndex = candidateNodes.indexOf(event.currentTarget);
+                  candidateNodes = context.loop ? wrapArray(candidateNodes, currentIndex + 1) : candidateNodes.slice(currentIndex + 1);
+                }
+                setTimeout(() => focusFirst(candidateNodes));
+              }
+            }),
+            children: typeof children === "function" ? children({ isCurrentTabStop, hasTabStop: currentTabStopId != null }) : children
+          }
+        )
+      }
+    );
+  }
+);
+RovingFocusGroupItem.displayName = ITEM_NAME;
+var MAP_KEY_TO_FOCUS_INTENT = {
+  ArrowLeft: "prev",
+  ArrowUp: "prev",
+  ArrowRight: "next",
+  ArrowDown: "next",
+  PageUp: "first",
+  Home: "first",
+  PageDown: "last",
+  End: "last"
+};
+function getDirectionAwareKey(key, dir) {
+  if (dir !== "rtl") return key;
+  return key === "ArrowLeft" ? "ArrowRight" : key === "ArrowRight" ? "ArrowLeft" : key;
+}
+function getFocusIntent(event, orientation, dir) {
+  const key = getDirectionAwareKey(event.key, dir);
+  if (orientation === "vertical" && ["ArrowLeft", "ArrowRight"].includes(key)) return void 0;
+  if (orientation === "horizontal" && ["ArrowUp", "ArrowDown"].includes(key)) return void 0;
+  return MAP_KEY_TO_FOCUS_INTENT[key];
+}
+function focusFirst(candidates, preventScroll = false) {
+  const PREVIOUSLY_FOCUSED_ELEMENT = document.activeElement;
+  for (const candidate of candidates) {
+    if (candidate === PREVIOUSLY_FOCUSED_ELEMENT) return;
+    candidate.focus({ preventScroll });
+    if (document.activeElement !== PREVIOUSLY_FOCUSED_ELEMENT) return;
+  }
+}
+function wrapArray(array, startIndex) {
+  return array.map((_, index2) => array[(startIndex + index2) % array.length]);
+}
+var Root2 = RovingFocusGroup;
+var Item = RovingFocusGroupItem;
+
+// node_modules/@radix-ui/react-radio-group/dist/index.mjs
+import * as React19 from "react";
+import { Fragment as Fragment5, jsx as jsx37, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment22, jsx as jsx211, jsxs as jsxs22 } from "react/jsx-runtime";
+var RADIO_NAME = "Radio";
+var [createRadioContext, createRadioScope] = createContextScope(RADIO_NAME);
+var [RadioProviderImpl, useRadioContext] = createRadioContext(RADIO_NAME);
+function RadioProvider(props) {
+  const {
+    __scopeRadio,
+    checked = false,
+    children,
+    disabled,
+    form,
+    name,
+    onCheck,
+    required,
+    value = "on",
+    // @ts-expect-error
+    internal_do_not_use_render
+  } = props;
+  const [control, setControl] = React19.useState(null);
+  const [bubbleInput, setBubbleInput] = React19.useState(null);
+  const hasConsumerStoppedPropagationRef = React19.useRef(false);
+  const isFormControl = control ? !!form || !!control.closest("form") : (
+    // We set this to true by default so that events bubble to forms without JS (SSR)
+    true
+  );
+  const context = {
+    checked,
+    disabled,
+    required,
+    name,
+    form,
+    value,
+    control,
+    setControl,
+    hasConsumerStoppedPropagationRef,
+    isFormControl,
+    bubbleInput,
+    setBubbleInput,
+    onCheck: () => onCheck?.()
+  };
+  return /* @__PURE__ */ jsx37(RadioProviderImpl, { scope: __scopeRadio, ...context, children: isFunction3(internal_do_not_use_render) ? internal_do_not_use_render(context) : children });
+}
+var TRIGGER_NAME2 = "RadioTrigger";
+var RadioTrigger = React19.forwardRef(
+  ({ __scopeRadio, onClick, ...radioProps }, forwardedRef) => {
+    const {
+      checked,
+      disabled,
+      value,
+      setControl,
+      onCheck,
+      hasConsumerStoppedPropagationRef,
+      isFormControl,
+      bubbleInput
+    } = useRadioContext(TRIGGER_NAME2, __scopeRadio);
+    const composedRefs = useComposedRefs(forwardedRef, setControl);
+    return /* @__PURE__ */ jsx37(
+      Primitive.button,
+      {
+        type: "button",
+        role: "radio",
+        "aria-checked": checked,
+        "data-state": getState2(checked),
+        "data-disabled": disabled ? "" : void 0,
+        disabled,
+        value,
+        ...radioProps,
+        ref: composedRefs,
+        onClick: composeEventHandlers(onClick, (event) => {
+          if (!checked) onCheck();
+          if (bubbleInput && isFormControl) {
+            hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
+            if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
+          }
+        })
+      }
+    );
+  }
+);
+RadioTrigger.displayName = TRIGGER_NAME2;
+var Radio = React19.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeRadio, name, checked, required, disabled, value, onCheck, form, ...radioProps } = props;
+    return /* @__PURE__ */ jsx37(
+      RadioProvider,
+      {
+        __scopeRadio,
+        checked,
+        disabled,
+        required,
+        onCheck,
+        name,
+        form,
+        value,
+        internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs20(Fragment5, { children: [
+          /* @__PURE__ */ jsx37(
+            RadioTrigger,
+            {
+              ...radioProps,
+              ref: forwardedRef,
+              __scopeRadio
+            }
+          ),
+          isFormControl && /* @__PURE__ */ jsx37(
+            RadioBubbleInput,
+            {
+              __scopeRadio
+            }
+          )
+        ] })
+      }
+    );
+  }
+);
+Radio.displayName = RADIO_NAME;
+var INDICATOR_NAME2 = "RadioIndicator";
+var RadioIndicator = React19.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeRadio, forceMount, ...indicatorProps } = props;
+    const context = useRadioContext(INDICATOR_NAME2, __scopeRadio);
+    return /* @__PURE__ */ jsx37(Presence, { present: forceMount || context.checked, children: /* @__PURE__ */ jsx37(
+      Primitive.span,
+      {
+        "data-state": getState2(context.checked),
+        "data-disabled": context.disabled ? "" : void 0,
+        ...indicatorProps,
+        ref: forwardedRef
+      }
+    ) });
+  }
+);
+RadioIndicator.displayName = INDICATOR_NAME2;
+var BUBBLE_INPUT_NAME2 = "RadioBubbleInput";
+var RadioBubbleInput = React19.forwardRef(
+  ({ __scopeRadio, ...props }, forwardedRef) => {
+    const {
+      control,
+      checked,
+      required,
+      disabled,
+      name,
+      value,
+      form,
+      bubbleInput,
+      setBubbleInput,
+      hasConsumerStoppedPropagationRef
+    } = useRadioContext(BUBBLE_INPUT_NAME2, __scopeRadio);
+    const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
+    const prevChecked = usePrevious(checked);
+    const controlSize = useSize(control);
+    React19.useEffect(() => {
+      const input = bubbleInput;
+      if (!input) return;
+      const inputProto = window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        inputProto,
+        "checked"
+      );
+      const setChecked = descriptor.set;
+      const bubbles = !hasConsumerStoppedPropagationRef.current;
+      if (prevChecked !== checked && setChecked) {
+        const event = new Event("click", { bubbles });
+        setChecked.call(input, checked);
+        input.dispatchEvent(event);
+      }
+    }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
+    const defaultCheckedRef = React19.useRef(checked);
+    return /* @__PURE__ */ jsx37(
+      Primitive.input,
+      {
+        type: "radio",
+        "aria-hidden": true,
+        defaultChecked: defaultCheckedRef.current,
+        required,
+        disabled,
+        name,
+        value,
+        form,
+        ...props,
+        tabIndex: -1,
+        ref: composedRefs,
+        style: {
+          ...props.style,
+          ...controlSize,
+          position: "absolute",
+          pointerEvents: "none",
+          opacity: 0,
+          margin: 0,
+          // We transform because the input is absolutely positioned but we have
+          // rendered it **after** the button. This pulls it back to sit on top
+          // of the button.
+          transform: "translateX(-100%)"
+        }
+      }
+    );
+  }
+);
+RadioBubbleInput.displayName = BUBBLE_INPUT_NAME2;
+function isFunction3(value) {
+  return typeof value === "function";
+}
+function getState2(checked) {
+  return checked ? "checked" : "unchecked";
+}
+var ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+var RADIO_GROUP_NAME = "RadioGroup";
+var [createRadioGroupContext, createRadioGroupScope] = createContextScope(RADIO_GROUP_NAME, [
+  createRovingFocusGroupScope,
+  createRadioScope
+]);
+var useRovingFocusGroupScope = createRovingFocusGroupScope();
+var useRadioScope = createRadioScope();
+var [RadioGroupProvider, useRadioGroupContext] = createRadioGroupContext(RADIO_GROUP_NAME);
+var RadioGroup = React25.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeRadioGroup,
+      name,
+      defaultValue,
+      value: valueProp,
+      required = false,
+      disabled = false,
+      orientation,
+      dir,
+      loop = true,
+      onValueChange,
+      ...groupProps
+    } = props;
+    const rovingFocusGroupScope = useRovingFocusGroupScope(__scopeRadioGroup);
+    const direction = useDirection(dir);
+    const [value, setValue] = useControllableState2({
+      prop: valueProp,
+      defaultProp: defaultValue ?? null,
+      onChange: onValueChange,
+      caller: RADIO_GROUP_NAME
+    });
+    return /* @__PURE__ */ jsx211(
+      RadioGroupProvider,
+      {
+        scope: __scopeRadioGroup,
+        name,
+        required,
+        disabled,
+        value,
+        onValueChange: setValue,
+        children: /* @__PURE__ */ jsx211(
+          Root2,
+          {
+            asChild: true,
+            ...rovingFocusGroupScope,
+            orientation,
+            dir: direction,
+            loop,
+            children: /* @__PURE__ */ jsx211(
+              Primitive.div,
+              {
+                role: "radiogroup",
+                "aria-required": required,
+                "aria-orientation": orientation,
+                "data-disabled": disabled ? "" : void 0,
+                dir: direction,
+                ...groupProps,
+                ref: forwardedRef
+              }
+            )
+          }
+        )
+      }
+    );
+  }
+);
+RadioGroup.displayName = RADIO_GROUP_NAME;
+var ITEM_NAME2 = "RadioGroupItem";
+var ITEM_PROVIDER_NAME = "RadioGroupItemProvider";
+var ITEM_TRIGGER_NAME = "RadioGroupItemTrigger";
+var ITEM_BUBBLE_INPUT_NAME = "RadioGroupItemBubbleInput";
+function RadioGroupItemProvider(props) {
+  const {
+    __scopeRadioGroup,
+    value,
+    disabled,
+    children,
+    // @ts-expect-error
+    internal_do_not_use_render
+  } = props;
+  const context = useRadioGroupContext(ITEM_PROVIDER_NAME, __scopeRadioGroup);
+  const radioScope = useRadioScope(__scopeRadioGroup);
+  const isDisabled = context.disabled || disabled;
+  return /* @__PURE__ */ jsx211(
+    RadioProvider,
+    {
+      ...radioScope,
+      checked: context.value === value,
+      disabled: isDisabled,
+      required: context.required,
+      name: context.name,
+      value,
+      onCheck: () => context.onValueChange(value),
+      internal_do_not_use_render,
+      children
+    }
+  );
+}
+var RadioGroupItemTrigger = React25.forwardRef((props, forwardedRef) => {
+  const { __scopeRadioGroup, ...triggerProps } = props;
+  const rovingFocusGroupScope = useRovingFocusGroupScope(__scopeRadioGroup);
+  const radioScope = useRadioScope(__scopeRadioGroup);
+  const { checked, disabled } = useRadioContext(ITEM_TRIGGER_NAME, radioScope.__scopeRadio);
+  const ref = React25.useRef(null);
+  const composedRefs = useComposedRefs(forwardedRef, ref);
+  const isArrowKeyPressedRef = React25.useRef(false);
+  React25.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (ARROW_KEYS.includes(event.key)) {
+        isArrowKeyPressedRef.current = true;
+      }
+    };
+    const handleKeyUp = () => isArrowKeyPressedRef.current = false;
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+  return /* @__PURE__ */ jsx211(
+    Item,
+    {
+      asChild: true,
+      ...rovingFocusGroupScope,
+      focusable: !disabled,
+      active: checked,
+      children: /* @__PURE__ */ jsx211(
+        RadioTrigger,
+        {
+          ...radioScope,
+          ...triggerProps,
+          ref: composedRefs,
+          onKeyDown: composeEventHandlers(triggerProps.onKeyDown, (event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }),
+          onFocus: composeEventHandlers(triggerProps.onFocus, () => {
+            if (isArrowKeyPressedRef.current) {
+              ref.current?.click();
+            }
+          })
+        }
+      )
+    }
+  );
+});
+RadioGroupItemTrigger.displayName = ITEM_TRIGGER_NAME;
+var RadioGroupItem = React25.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeRadioGroup, value, disabled, ...itemProps } = props;
+    return /* @__PURE__ */ jsx211(
+      RadioGroupItemProvider,
+      {
+        __scopeRadioGroup,
+        value,
+        disabled,
+        internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs22(Fragment22, { children: [
+          /* @__PURE__ */ jsx211(
+            RadioGroupItemTrigger,
+            {
+              ...itemProps,
+              ref: forwardedRef,
+              __scopeRadioGroup
+            }
+          ),
+          isFormControl && /* @__PURE__ */ jsx211(
+            RadioGroupItemBubbleInput,
+            {
+              __scopeRadioGroup
+            }
+          )
+        ] })
+      }
+    );
+  }
+);
+RadioGroupItem.displayName = ITEM_NAME2;
+var RadioGroupItemBubbleInput = React25.forwardRef((props, forwardedRef) => {
+  const { __scopeRadioGroup, ...bubbleProps } = props;
+  const radioScope = useRadioScope(__scopeRadioGroup);
+  return /* @__PURE__ */ jsx211(RadioBubbleInput, { ...radioScope, ...bubbleProps, ref: forwardedRef });
+});
+RadioGroupItemBubbleInput.displayName = ITEM_BUBBLE_INPUT_NAME;
+var INDICATOR_NAME22 = "RadioGroupIndicator";
+var RadioGroupIndicator = React25.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeRadioGroup, ...indicatorProps } = props;
+    const radioScope = useRadioScope(__scopeRadioGroup);
+    return /* @__PURE__ */ jsx211(RadioIndicator, { ...radioScope, ...indicatorProps, ref: forwardedRef });
+  }
+);
+RadioGroupIndicator.displayName = INDICATOR_NAME22;
+
+// src/components/RadioGroup/RadioGroup.tsx
+import { jsx as jsx38 } from "react/jsx-runtime";
+var RadioGroup2 = forwardRef13(
+  function RadioGroup3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx38(RadioGroup, { ref, className: cx("hds-radio-group", className), ...rest });
+  }
+);
+RadioGroup2.displayName = "RadioGroup";
+var RadioGroupItem2 = forwardRef13(
+  function RadioGroupItem3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx38(RadioGroupItem, { ref, className: cx("hds-radio-item", className), ...rest, children: /* @__PURE__ */ jsx38(RadioGroupIndicator, { className: "hds-radio-indicator" }) });
+  }
+);
+RadioGroupItem2.displayName = "RadioGroupItem";
+
+// src/components/Switch/Switch.tsx
+import { forwardRef as forwardRef15 } from "react";
+
+// node_modules/@radix-ui/react-switch/dist/index.mjs
+import * as React20 from "react";
+import { Fragment as Fragment6, jsx as jsx39, jsxs as jsxs21 } from "react/jsx-runtime";
+var SWITCH_NAME = "Switch";
+var [createSwitchContext, createSwitchScope] = createContextScope(SWITCH_NAME);
+var [SwitchProviderImpl, useSwitchContext] = createSwitchContext(SWITCH_NAME);
+function SwitchProvider(props) {
+  const {
+    __scopeSwitch,
+    checked: checkedProp,
+    children,
+    defaultChecked,
+    disabled,
+    form,
+    name,
+    onCheckedChange,
+    required,
+    value = "on",
+    // @ts-expect-error
+    internal_do_not_use_render
+  } = props;
+  const [checked, setChecked] = useControllableState2({
+    prop: checkedProp,
+    defaultProp: defaultChecked ?? false,
+    onChange: onCheckedChange,
+    caller: SWITCH_NAME
+  });
+  const [control, setControl] = React20.useState(null);
+  const [bubbleInput, setBubbleInput] = React20.useState(null);
+  const hasConsumerStoppedPropagationRef = React20.useRef(false);
+  const isFormControl = control ? !!form || !!control.closest("form") : (
+    // We set this to true by default so that events bubble to forms without JS (SSR)
+    true
+  );
+  const context = {
+    checked,
+    setChecked,
+    disabled,
+    control,
+    setControl,
+    name,
+    form,
+    value,
+    hasConsumerStoppedPropagationRef,
+    required,
+    defaultChecked,
+    isFormControl,
+    bubbleInput,
+    setBubbleInput
+  };
+  return /* @__PURE__ */ jsx39(SwitchProviderImpl, { scope: __scopeSwitch, ...context, children: isFunction4(internal_do_not_use_render) ? internal_do_not_use_render(context) : children });
+}
+var TRIGGER_NAME3 = "SwitchTrigger";
+var SwitchTrigger = React20.forwardRef(
+  ({ __scopeSwitch, onClick, ...switchProps }, forwardedRef) => {
+    const {
+      value,
+      disabled,
+      checked,
+      required,
+      setControl,
+      setChecked,
+      hasConsumerStoppedPropagationRef,
+      isFormControl,
+      bubbleInput
+    } = useSwitchContext(TRIGGER_NAME3, __scopeSwitch);
+    const composedRefs = useComposedRefs(forwardedRef, setControl);
+    return /* @__PURE__ */ jsx39(
+      Primitive.button,
+      {
+        type: "button",
+        role: "switch",
+        "aria-checked": checked,
+        "aria-required": required,
+        "data-state": getState3(checked),
+        "data-disabled": disabled ? "" : void 0,
+        disabled,
+        value,
+        ...switchProps,
+        ref: composedRefs,
+        onClick: composeEventHandlers(onClick, (event) => {
+          setChecked((prevChecked) => !prevChecked);
+          if (bubbleInput && isFormControl) {
+            hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
+            if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
+          }
+        })
+      }
+    );
+  }
+);
+SwitchTrigger.displayName = TRIGGER_NAME3;
+var Switch = React20.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeSwitch,
+      name,
+      checked,
+      defaultChecked,
+      required,
+      disabled,
+      value,
+      onCheckedChange,
+      form,
+      ...switchProps
+    } = props;
+    return /* @__PURE__ */ jsx39(
+      SwitchProvider,
+      {
+        __scopeSwitch,
+        checked,
+        defaultChecked,
+        disabled,
+        required,
+        onCheckedChange,
+        name,
+        form,
+        value,
+        internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs21(Fragment6, { children: [
+          /* @__PURE__ */ jsx39(
+            SwitchTrigger,
+            {
+              ...switchProps,
+              ref: forwardedRef,
+              __scopeSwitch
+            }
+          ),
+          isFormControl && /* @__PURE__ */ jsx39(
+            SwitchBubbleInput,
+            {
+              __scopeSwitch
+            }
+          )
+        ] })
+      }
+    );
+  }
+);
+Switch.displayName = SWITCH_NAME;
+var THUMB_NAME = "SwitchThumb";
+var SwitchThumb = React20.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSwitch, ...thumbProps } = props;
+    const context = useSwitchContext(THUMB_NAME, __scopeSwitch);
+    return /* @__PURE__ */ jsx39(
+      Primitive.span,
+      {
+        "data-state": getState3(context.checked),
+        "data-disabled": context.disabled ? "" : void 0,
+        ...thumbProps,
+        ref: forwardedRef
+      }
+    );
+  }
+);
+SwitchThumb.displayName = THUMB_NAME;
+var BUBBLE_INPUT_NAME3 = "SwitchBubbleInput";
+var SwitchBubbleInput = React20.forwardRef(
+  ({ __scopeSwitch, ...props }, forwardedRef) => {
+    const {
+      control,
+      hasConsumerStoppedPropagationRef,
+      checked,
+      defaultChecked,
+      required,
+      disabled,
+      name,
+      value,
+      form,
+      bubbleInput,
+      setBubbleInput
+    } = useSwitchContext(BUBBLE_INPUT_NAME3, __scopeSwitch);
+    const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
+    const prevChecked = usePrevious(checked);
+    const controlSize = useSize(control);
+    React20.useEffect(() => {
+      const input = bubbleInput;
+      if (!input) return;
+      const inputProto = window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        inputProto,
+        "checked"
+      );
+      const setChecked = descriptor.set;
+      const bubbles = !hasConsumerStoppedPropagationRef.current;
+      if (prevChecked !== checked && setChecked) {
+        const event = new Event("click", { bubbles });
+        setChecked.call(input, checked);
+        input.dispatchEvent(event);
+      }
+    }, [bubbleInput, prevChecked, checked, hasConsumerStoppedPropagationRef]);
+    const defaultCheckedRef = React20.useRef(checked);
+    return /* @__PURE__ */ jsx39(
+      Primitive.input,
+      {
+        type: "checkbox",
+        "aria-hidden": true,
+        defaultChecked: defaultChecked ?? defaultCheckedRef.current,
+        required,
+        disabled,
+        name,
+        value,
+        form,
+        ...props,
+        tabIndex: -1,
+        ref: composedRefs,
+        style: {
+          ...props.style,
+          ...controlSize,
+          position: "absolute",
+          pointerEvents: "none",
+          opacity: 0,
+          margin: 0,
+          // We transform because the input is absolutely positioned but we have
+          // rendered it **after** the button. This pulls it back to sit on top
+          // of the button.
+          transform: "translateX(-100%)"
+        }
+      }
+    );
+  }
+);
+SwitchBubbleInput.displayName = BUBBLE_INPUT_NAME3;
+function isFunction4(value) {
+  return typeof value === "function";
+}
+function getState3(checked) {
+  return checked ? "checked" : "unchecked";
+}
+
+// src/components/Switch/Switch.tsx
+import { jsx as jsx40 } from "react/jsx-runtime";
+var Switch2 = forwardRef15(
+  function Switch3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx40(Switch, { ref, className: cx("hds-switch", className), ...rest, children: /* @__PURE__ */ jsx40(SwitchThumb, { className: "hds-switch-thumb" }) });
+  }
+);
+Switch2.displayName = "Switch";
+
+// src/components/Select/Select.tsx
+import { forwardRef as forwardRef24 } from "react";
+
+// node_modules/@radix-ui/react-select/dist/index.mjs
+import * as React39 from "react";
+import * as ReactDOM4 from "react-dom";
+
+// node_modules/@radix-ui/number/dist/index.mjs
+function clamp(value, [min2, max2]) {
+  return Math.min(max2, Math.max(min2, value));
+}
+
+// node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+import * as React21 from "react";
+import { jsx as jsx41 } from "react/jsx-runtime";
+var DISMISSABLE_LAYER_NAME = "DismissableLayer";
+var CONTEXT_UPDATE = "dismissableLayer.update";
+var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
+var FOCUS_OUTSIDE = "dismissableLayer.focusOutside";
+var originalBodyPointerEvents;
+var DismissableLayerContext = React21.createContext({
+  layers: /* @__PURE__ */ new Set(),
+  layersWithOutsidePointerEventsDisabled: /* @__PURE__ */ new Set(),
+  branches: /* @__PURE__ */ new Set(),
+  // Outside elements that belong to a layer's own dismiss affordance (eg, a
+  // dialog overlay). Pressing them should dismiss the layer regardless of
+  // whether or not they stop propagation.
+  //
+  // See https://github.com/radix-ui/primitives/issues/3346
+  dismissableSurfaces: /* @__PURE__ */ new Set()
+});
+var DismissableLayer = React21.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      disableOutsidePointerEvents = false,
+      deferPointerDownOutside = false,
+      onEscapeKeyDown,
+      onPointerDownOutside,
+      onFocusOutside,
+      onInteractOutside,
+      onDismiss,
+      ...layerProps
+    } = props;
+    const context = React21.useContext(DismissableLayerContext);
+    const [node, setNode] = React21.useState(null);
+    const ownerDocument = node?.ownerDocument ?? globalThis?.document;
+    const [, force] = React21.useState({});
+    const composedRefs = useComposedRefs(forwardedRef, setNode);
+    const layers = Array.from(context.layers);
+    const [highestLayerWithOutsidePointerEventsDisabled] = [...context.layersWithOutsidePointerEventsDisabled].slice(-1);
+    const highestLayerWithOutsidePointerEventsDisabledIndex = layers.indexOf(highestLayerWithOutsidePointerEventsDisabled);
+    const index2 = node ? layers.indexOf(node) : -1;
+    const isBodyPointerEventsDisabled = context.layersWithOutsidePointerEventsDisabled.size > 0;
+    const isPointerEventsEnabled = index2 >= highestLayerWithOutsidePointerEventsDisabledIndex;
+    const isDeferredPointerDownOutsideRef = React21.useRef(false);
+    const pointerDownOutside = usePointerDownOutside(
+      (event) => {
+        const target = event.target;
+        if (!(target instanceof Node)) {
+          return;
+        }
+        const isPointerDownOnBranch = [...context.branches].some(
+          (branch) => branch.contains(target)
+        );
+        if (!isPointerEventsEnabled || isPointerDownOnBranch) return;
+        onPointerDownOutside?.(event);
+        onInteractOutside?.(event);
+        if (!event.defaultPrevented) onDismiss?.();
+      },
+      {
+        ownerDocument,
+        deferPointerDownOutside,
+        isDeferredPointerDownOutsideRef,
+        dismissableSurfaces: context.dismissableSurfaces
+      }
+    );
+    const focusOutside = useFocusOutside((event) => {
+      if (deferPointerDownOutside && isDeferredPointerDownOutsideRef.current) {
+        return;
+      }
+      const target = event.target;
+      const isFocusInBranch = [...context.branches].some((branch) => branch.contains(target));
+      if (isFocusInBranch) return;
+      onFocusOutside?.(event);
+      onInteractOutside?.(event);
+      if (!event.defaultPrevented) onDismiss?.();
+    }, ownerDocument);
+    const isHighestLayer = node ? index2 === layers.length - 1 : false;
+    const handleKeyDown = useEffectEvent((event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      onEscapeKeyDown?.(event);
+      if (!event.defaultPrevented && onDismiss) {
+        event.preventDefault();
+        onDismiss();
+      }
+    });
+    React21.useEffect(() => {
+      if (!isHighestLayer) {
+        return;
+      }
+      ownerDocument.addEventListener("keydown", handleKeyDown, { capture: true });
+      return () => ownerDocument.removeEventListener("keydown", handleKeyDown, { capture: true });
+    }, [ownerDocument, isHighestLayer]);
+    React21.useEffect(() => {
+      if (!node) return;
+      if (disableOutsidePointerEvents) {
+        if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
+          originalBodyPointerEvents = ownerDocument.body.style.pointerEvents;
+          ownerDocument.body.style.pointerEvents = "none";
+        }
+        context.layersWithOutsidePointerEventsDisabled.add(node);
+      }
+      context.layers.add(node);
+      dispatchUpdate();
+      return () => {
+        if (disableOutsidePointerEvents) {
+          context.layersWithOutsidePointerEventsDisabled.delete(node);
+          if (context.layersWithOutsidePointerEventsDisabled.size === 0) {
+            ownerDocument.body.style.pointerEvents = originalBodyPointerEvents;
+          }
+        }
+      };
+    }, [node, ownerDocument, disableOutsidePointerEvents, context]);
+    React21.useEffect(() => {
+      return () => {
+        if (!node) return;
+        context.layers.delete(node);
+        context.layersWithOutsidePointerEventsDisabled.delete(node);
+        dispatchUpdate();
+      };
+    }, [node, context]);
+    React21.useEffect(() => {
+      const handleUpdate = () => force({});
+      document.addEventListener(CONTEXT_UPDATE, handleUpdate);
+      return () => document.removeEventListener(CONTEXT_UPDATE, handleUpdate);
+    }, []);
+    return /* @__PURE__ */ jsx41(
+      Primitive.div,
+      {
+        ...layerProps,
+        ref: composedRefs,
+        style: {
+          pointerEvents: isBodyPointerEventsDisabled ? isPointerEventsEnabled ? "auto" : "none" : void 0,
+          ...props.style
+        },
+        onFocusCapture: composeEventHandlers(props.onFocusCapture, focusOutside.onFocusCapture),
+        onBlurCapture: composeEventHandlers(props.onBlurCapture, focusOutside.onBlurCapture),
+        onPointerDownCapture: composeEventHandlers(
+          props.onPointerDownCapture,
+          pointerDownOutside.onPointerDownCapture
+        )
+      }
+    );
+  }
+);
+DismissableLayer.displayName = DISMISSABLE_LAYER_NAME;
+var BRANCH_NAME = "DismissableLayerBranch";
+var DismissableLayerBranch = React21.forwardRef((props, forwardedRef) => {
+  const context = React21.useContext(DismissableLayerContext);
+  const ref = React21.useRef(null);
+  const composedRefs = useComposedRefs(forwardedRef, ref);
+  React21.useEffect(() => {
+    const node = ref.current;
+    if (node) {
+      context.branches.add(node);
+      return () => {
+        context.branches.delete(node);
+      };
+    }
+  }, [context.branches]);
+  return /* @__PURE__ */ jsx41(Primitive.div, { ...props, ref: composedRefs });
+});
+DismissableLayerBranch.displayName = BRANCH_NAME;
+function useDismissableLayerSurface() {
+  const context = React21.useContext(DismissableLayerContext);
+  const [node, setNode] = React21.useState(null);
+  React21.useEffect(() => {
+    if (!node) {
+      return;
+    }
+    context.dismissableSurfaces.add(node);
+    return () => {
+      context.dismissableSurfaces.delete(node);
+    };
+  }, [node, context.dismissableSurfaces]);
+  return setNode;
+}
+function usePointerDownOutside(onPointerDownOutside, args) {
+  const {
+    ownerDocument = globalThis?.document,
+    deferPointerDownOutside = false,
+    isDeferredPointerDownOutsideRef,
+    dismissableSurfaces
+  } = args;
+  const handlePointerDownOutside = useCallbackRef(onPointerDownOutside);
+  const isPointerInsideReactTreeRef = React21.useRef(false);
+  const isPointerDownOutsideRef = React21.useRef(false);
+  const interceptedOutsideInteractionEventsRef = React21.useRef(/* @__PURE__ */ new Map());
+  const handleClickRef = React21.useRef(() => {
+  });
+  React21.useEffect(() => {
+    function resetOutsideInteraction() {
+      isPointerDownOutsideRef.current = false;
+      isDeferredPointerDownOutsideRef.current = false;
+      interceptedOutsideInteractionEventsRef.current.clear();
+    }
+    function isOutsideInteractionIntercepted() {
+      return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
+    }
+    function handleInteractionCapture(event) {
+      if (!isPointerDownOutsideRef.current) {
+        return;
+      }
+      const target = event.target;
+      const isDismissableSurface = target instanceof Node && [...dismissableSurfaces].some((surface) => surface.contains(target));
+      if (!isDismissableSurface) {
+        interceptedOutsideInteractionEventsRef.current.set(event.type, true);
+      }
+      if (event.type === "click") {
+        window.setTimeout(() => {
+          if (isPointerDownOutsideRef.current) {
+            handleClickRef.current();
+          }
+        }, 0);
+      }
+    }
+    function handleInteractionBubble(event) {
+      if (isPointerDownOutsideRef.current) {
+        interceptedOutsideInteractionEventsRef.current.set(event.type, false);
+      }
+    }
+    const handlePointerDown = (event) => {
+      if (event.target && !isPointerInsideReactTreeRef.current) {
+        let handleAndDispatchPointerDownOutsideEvent2 = function() {
+          ownerDocument.removeEventListener("click", handleClickRef.current);
+          const wasOutsideInteractionIntercepted = isOutsideInteractionIntercepted();
+          resetOutsideInteraction();
+          if (!wasOutsideInteractionIntercepted) {
+            handleAndDispatchCustomEvent(
+              POINTER_DOWN_OUTSIDE,
+              handlePointerDownOutside,
+              eventDetail,
+              { discrete: true }
+            );
+          }
+        };
+        var handleAndDispatchPointerDownOutsideEvent = handleAndDispatchPointerDownOutsideEvent2;
+        const eventDetail = { originalEvent: event };
+        isPointerDownOutsideRef.current = true;
+        isDeferredPointerDownOutsideRef.current = deferPointerDownOutside && event.button === 0;
+        interceptedOutsideInteractionEventsRef.current.clear();
+        if (!deferPointerDownOutside || event.button !== 0) {
+          handleAndDispatchPointerDownOutsideEvent2();
+        } else {
+          ownerDocument.removeEventListener("click", handleClickRef.current);
+          handleClickRef.current = handleAndDispatchPointerDownOutsideEvent2;
+          ownerDocument.addEventListener("click", handleClickRef.current, { once: true });
+        }
+      } else {
+        ownerDocument.removeEventListener("click", handleClickRef.current);
+        resetOutsideInteraction();
+      }
+      isPointerInsideReactTreeRef.current = false;
+    };
+    const outsideInteractionEvents = [
+      "pointerup",
+      "mousedown",
+      "mouseup",
+      "touchstart",
+      "touchend",
+      "click"
+    ];
+    for (const eventName of outsideInteractionEvents) {
+      ownerDocument.addEventListener(eventName, handleInteractionCapture, true);
+      ownerDocument.addEventListener(eventName, handleInteractionBubble);
+    }
+    const timerId = window.setTimeout(() => {
+      ownerDocument.addEventListener("pointerdown", handlePointerDown);
+    }, 0);
+    return () => {
+      window.clearTimeout(timerId);
+      ownerDocument.removeEventListener("pointerdown", handlePointerDown);
+      ownerDocument.removeEventListener("click", handleClickRef.current);
+      for (const eventName of outsideInteractionEvents) {
+        ownerDocument.removeEventListener(eventName, handleInteractionCapture, true);
+        ownerDocument.removeEventListener(eventName, handleInteractionBubble);
+      }
+    };
+  }, [
+    ownerDocument,
+    handlePointerDownOutside,
+    deferPointerDownOutside,
+    isDeferredPointerDownOutsideRef,
+    dismissableSurfaces
+  ]);
+  return {
+    // ensures we check React component tree (not just DOM tree)
+    onPointerDownCapture: () => isPointerInsideReactTreeRef.current = true
+  };
+}
+function useFocusOutside(onFocusOutside, ownerDocument = globalThis?.document) {
+  const handleFocusOutside = useCallbackRef(onFocusOutside);
+  const isFocusInsideReactTreeRef = React21.useRef(false);
+  React21.useEffect(() => {
+    const handleFocus = (event) => {
+      if (event.target && !isFocusInsideReactTreeRef.current) {
+        const eventDetail = { originalEvent: event };
+        handleAndDispatchCustomEvent(FOCUS_OUTSIDE, handleFocusOutside, eventDetail, {
+          discrete: false
+        });
+      }
+    };
+    ownerDocument.addEventListener("focusin", handleFocus);
+    return () => ownerDocument.removeEventListener("focusin", handleFocus);
+  }, [ownerDocument, handleFocusOutside]);
+  return {
+    onFocusCapture: () => isFocusInsideReactTreeRef.current = true,
+    onBlurCapture: () => isFocusInsideReactTreeRef.current = false
+  };
+}
+function dispatchUpdate() {
+  const event = new CustomEvent(CONTEXT_UPDATE);
+  document.dispatchEvent(event);
+}
+function handleAndDispatchCustomEvent(name, handler, detail, { discrete }) {
+  const target = detail.originalEvent.target;
+  const event = new CustomEvent(name, { bubbles: false, cancelable: true, detail });
+  if (handler) target.addEventListener(name, handler, { once: true });
+  if (discrete) {
+    dispatchDiscreteCustomEvent(target, event);
+  } else {
+    target.dispatchEvent(event);
+  }
+}
+var Root3 = DismissableLayer;
+var Branch = DismissableLayerBranch;
+
+// node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+import * as React26 from "react";
+var count2 = 0;
+var guards = null;
+function useFocusGuards() {
+  React26.useEffect(() => {
+    if (!guards) {
+      guards = { start: createFocusGuard(), end: createFocusGuard() };
+    }
+    const { start, end } = guards;
+    if (document.body.firstElementChild !== start) {
+      document.body.insertAdjacentElement("afterbegin", start);
+    }
+    if (document.body.lastElementChild !== end) {
+      document.body.insertAdjacentElement("beforeend", end);
+    }
+    count2++;
+    return () => {
+      if (count2 === 1) {
+        guards?.start.remove();
+        guards?.end.remove();
+        guards = null;
+      }
+      count2 = Math.max(0, count2 - 1);
+    };
+  }, []);
+}
+function createFocusGuard() {
+  const element = document.createElement("span");
+  element.setAttribute("data-radix-focus-guard", "");
+  element.tabIndex = 0;
+  element.style.outline = "none";
+  element.style.opacity = "0";
+  element.style.position = "fixed";
+  element.style.pointerEvents = "none";
+  return element;
+}
+
+// node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+import * as React27 from "react";
+import { jsx as jsx42 } from "react/jsx-runtime";
+var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
+var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
+var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
+var FOCUS_SCOPE_NAME = "FocusScope";
+var FocusScope = React27.forwardRef((props, forwardedRef) => {
+  const {
+    loop = false,
+    trapped = false,
+    onMountAutoFocus: onMountAutoFocusProp,
+    onUnmountAutoFocus: onUnmountAutoFocusProp,
+    ...scopeProps
+  } = props;
+  const [container, setContainer] = React27.useState(null);
+  const onMountAutoFocus = useCallbackRef(onMountAutoFocusProp);
+  const onUnmountAutoFocus = useCallbackRef(onUnmountAutoFocusProp);
+  const lastFocusedElementRef = React27.useRef(null);
+  const composedRefs = useComposedRefs(forwardedRef, setContainer);
+  const focusScope = React27.useRef({
+    paused: false,
+    pause() {
+      this.paused = true;
+    },
+    resume() {
+      this.paused = false;
+    }
+  }).current;
+  React27.useEffect(() => {
+    if (trapped) {
+      let handleFocusIn2 = function(event) {
+        if (focusScope.paused || !container) return;
+        const target = event.target;
+        if (container.contains(target)) {
+          lastFocusedElementRef.current = target;
+        } else {
+          focus(lastFocusedElementRef.current, { select: true });
+        }
+      }, handleFocusOut2 = function(event) {
+        if (focusScope.paused || !container) return;
+        const relatedTarget = event.relatedTarget;
+        if (relatedTarget === null) return;
+        if (!container.contains(relatedTarget)) {
+          focus(lastFocusedElementRef.current, { select: true });
+        }
+      }, handleMutations2 = function(mutations) {
+        const focusedElement = document.activeElement;
+        if (focusedElement !== document.body) return;
+        for (const mutation of mutations) {
+          if (mutation.removedNodes.length > 0) focus(container);
+        }
+      };
+      var handleFocusIn = handleFocusIn2, handleFocusOut = handleFocusOut2, handleMutations = handleMutations2;
+      document.addEventListener("focusin", handleFocusIn2);
+      document.addEventListener("focusout", handleFocusOut2);
+      const mutationObserver = new MutationObserver(handleMutations2);
+      if (container) mutationObserver.observe(container, { childList: true, subtree: true });
+      return () => {
+        document.removeEventListener("focusin", handleFocusIn2);
+        document.removeEventListener("focusout", handleFocusOut2);
+        mutationObserver.disconnect();
+      };
+    }
+  }, [trapped, container, focusScope.paused]);
+  React27.useEffect(() => {
+    if (container) {
+      focusScopesStack.add(focusScope);
+      const previouslyFocusedElement = document.activeElement;
+      const hasFocusedCandidate = container.contains(previouslyFocusedElement);
+      if (!hasFocusedCandidate) {
+        const mountEvent = new CustomEvent(AUTOFOCUS_ON_MOUNT, EVENT_OPTIONS2);
+        container.addEventListener(AUTOFOCUS_ON_MOUNT, onMountAutoFocus);
+        container.dispatchEvent(mountEvent);
+        if (!mountEvent.defaultPrevented) {
+          focusFirst2(removeLinks(getTabbableCandidates(container)), { select: true });
+          if (document.activeElement === previouslyFocusedElement) {
+            focus(container);
+          }
+        }
+      }
+      return () => {
+        container.removeEventListener(AUTOFOCUS_ON_MOUNT, onMountAutoFocus);
+        setTimeout(() => {
+          const unmountEvent = new CustomEvent(AUTOFOCUS_ON_UNMOUNT, EVENT_OPTIONS2);
+          container.addEventListener(AUTOFOCUS_ON_UNMOUNT, onUnmountAutoFocus);
+          container.dispatchEvent(unmountEvent);
+          if (!unmountEvent.defaultPrevented) {
+            focus(previouslyFocusedElement ?? document.body, { select: true });
+          }
+          container.removeEventListener(AUTOFOCUS_ON_UNMOUNT, onUnmountAutoFocus);
+          focusScopesStack.remove(focusScope);
+        }, 0);
+      };
+    }
+  }, [container, onMountAutoFocus, onUnmountAutoFocus, focusScope]);
+  const handleKeyDown = React27.useCallback(
+    (event) => {
+      if (!loop && !trapped) return;
+      if (focusScope.paused) return;
+      const isTabKey = event.key === "Tab" && !event.altKey && !event.ctrlKey && !event.metaKey;
+      const focusedElement = document.activeElement;
+      if (isTabKey && focusedElement) {
+        const container2 = event.currentTarget;
+        const [first, last] = getTabbableEdges(container2);
+        const hasTabbableElementsInside = first && last;
+        if (!hasTabbableElementsInside) {
+          if (focusedElement === container2) event.preventDefault();
+        } else {
+          if (!event.shiftKey && focusedElement === last) {
+            event.preventDefault();
+            if (loop) focus(first, { select: true });
+          } else if (event.shiftKey && focusedElement === first) {
+            event.preventDefault();
+            if (loop) focus(last, { select: true });
+          }
+        }
+      }
+    },
+    [loop, trapped, focusScope.paused]
+  );
+  return /* @__PURE__ */ jsx42(Primitive.div, { tabIndex: -1, ...scopeProps, ref: composedRefs, onKeyDown: handleKeyDown });
+});
+FocusScope.displayName = FOCUS_SCOPE_NAME;
+function focusFirst2(candidates, { select = false } = {}) {
+  const previouslyFocusedElement = document.activeElement;
+  for (const candidate of candidates) {
+    focus(candidate, { select });
+    if (document.activeElement !== previouslyFocusedElement) return;
+  }
+}
+function getTabbableEdges(container) {
+  const candidates = getTabbableCandidates(container);
+  const first = findVisible(candidates, container);
+  const last = findVisible(candidates.reverse(), container);
+  return [first, last];
+}
+function getTabbableCandidates(container) {
+  const nodes = [];
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (node) => {
+      const isHiddenInput = node.tagName === "INPUT" && node.type === "hidden";
+      if (node.disabled || node.hidden || isHiddenInput) return NodeFilter.FILTER_SKIP;
+      return node.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  return nodes;
+}
+function findVisible(elements, container) {
+  for (const element of elements) {
+    if (!isHidden(element, { upTo: container })) return element;
+  }
+}
+function isHidden(node, { upTo }) {
+  if (getComputedStyle(node).visibility === "hidden") return true;
+  while (node) {
+    if (upTo !== void 0 && node === upTo) return false;
+    if (getComputedStyle(node).display === "none") return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+function isSelectableInput(element) {
+  return element instanceof HTMLInputElement && "select" in element;
+}
+function focus(element, { select = false } = {}) {
+  if (element && element.focus) {
+    const previouslyFocusedElement = document.activeElement;
+    element.focus({ preventScroll: true });
+    if (element !== previouslyFocusedElement && isSelectableInput(element) && select)
+      element.select();
+  }
+}
+var focusScopesStack = createFocusScopesStack();
+function createFocusScopesStack() {
+  let stack = [];
+  return {
+    add(focusScope) {
+      const activeFocusScope = stack[0];
+      if (focusScope !== activeFocusScope) {
+        activeFocusScope?.pause();
+      }
+      stack = arrayRemove(stack, focusScope);
+      stack.unshift(focusScope);
+    },
+    remove(focusScope) {
+      stack = arrayRemove(stack, focusScope);
+      stack[0]?.resume();
+    }
+  };
+}
+function arrayRemove(array, item) {
+  const updatedArray = [...array];
+  const index2 = updatedArray.indexOf(item);
+  if (index2 !== -1) {
+    updatedArray.splice(index2, 1);
+  }
+  return updatedArray;
+}
+function removeLinks(items) {
+  return items.filter((item) => item.tagName !== "A");
+}
+
+// node_modules/@radix-ui/react-popper/dist/index.mjs
+import * as React30 from "react";
+
+// node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+var sides = ["top", "right", "bottom", "left"];
+var min = Math.min;
+var max = Math.max;
+var round = Math.round;
+var floor = Math.floor;
+var createCoords = (v) => ({
+  x: v,
+  y: v
+});
+var oppositeSideMap = {
+  left: "right",
+  right: "left",
+  bottom: "top",
+  top: "bottom"
+};
+function clamp2(start, value, end) {
+  return max(start, min(value, end));
+}
+function evaluate(value, param) {
+  return typeof value === "function" ? value(param) : value;
+}
+function getSide(placement) {
+  return placement.split("-")[0];
+}
+function getAlignment(placement) {
+  return placement.split("-")[1];
+}
+function getOppositeAxis(axis) {
+  return axis === "x" ? "y" : "x";
+}
+function getAxisLength(axis) {
+  return axis === "y" ? "height" : "width";
+}
+function getSideAxis(placement) {
+  const firstChar = placement[0];
+  return firstChar === "t" || firstChar === "b" ? "y" : "x";
+}
+function getAlignmentAxis(placement) {
+  return getOppositeAxis(getSideAxis(placement));
+}
+function getAlignmentSides(placement, rects, rtl) {
+  if (rtl === void 0) {
+    rtl = false;
+  }
+  const alignment = getAlignment(placement);
+  const alignmentAxis = getAlignmentAxis(placement);
+  const length = getAxisLength(alignmentAxis);
+  let mainAlignmentSide = alignmentAxis === "x" ? alignment === (rtl ? "end" : "start") ? "right" : "left" : alignment === "start" ? "bottom" : "top";
+  if (rects.reference[length] > rects.floating[length]) {
+    mainAlignmentSide = getOppositePlacement(mainAlignmentSide);
+  }
+  return [mainAlignmentSide, getOppositePlacement(mainAlignmentSide)];
+}
+function getExpandedPlacements(placement) {
+  const oppositePlacement = getOppositePlacement(placement);
+  return [getOppositeAlignmentPlacement(placement), oppositePlacement, getOppositeAlignmentPlacement(oppositePlacement)];
+}
+function getOppositeAlignmentPlacement(placement) {
+  return placement.includes("start") ? placement.replace("start", "end") : placement.replace("end", "start");
+}
+var lrPlacement = ["left", "right"];
+var rlPlacement = ["right", "left"];
+var tbPlacement = ["top", "bottom"];
+var btPlacement = ["bottom", "top"];
+function getSideList(side, isStart, rtl) {
+  switch (side) {
+    case "top":
+    case "bottom":
+      if (rtl) return isStart ? rlPlacement : lrPlacement;
+      return isStart ? lrPlacement : rlPlacement;
+    case "left":
+    case "right":
+      return isStart ? tbPlacement : btPlacement;
+    default:
+      return [];
+  }
+}
+function getOppositeAxisPlacements(placement, flipAlignment, direction, rtl) {
+  const alignment = getAlignment(placement);
+  let list = getSideList(getSide(placement), direction === "start", rtl);
+  if (alignment) {
+    list = list.map((side) => side + "-" + alignment);
+    if (flipAlignment) {
+      list = list.concat(list.map(getOppositeAlignmentPlacement));
+    }
+  }
+  return list;
+}
+function getOppositePlacement(placement) {
+  const side = getSide(placement);
+  return oppositeSideMap[side] + placement.slice(side.length);
+}
+function expandPaddingObject(padding) {
+  return {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    ...padding
+  };
+}
+function getPaddingObject(padding) {
+  return typeof padding !== "number" ? expandPaddingObject(padding) : {
+    top: padding,
+    right: padding,
+    bottom: padding,
+    left: padding
+  };
+}
+function rectToClientRect(rect) {
+  const {
+    x,
+    y,
+    width,
+    height
+  } = rect;
+  return {
+    width,
+    height,
+    top: y,
+    left: x,
+    right: x + width,
+    bottom: y + height,
+    x,
+    y
+  };
+}
+
+// node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+function computeCoordsFromPlacement(_ref, placement, rtl) {
+  let {
+    reference,
+    floating
+  } = _ref;
+  const sideAxis = getSideAxis(placement);
+  const alignmentAxis = getAlignmentAxis(placement);
+  const alignLength = getAxisLength(alignmentAxis);
+  const side = getSide(placement);
+  const isVertical = sideAxis === "y";
+  const commonX = reference.x + reference.width / 2 - floating.width / 2;
+  const commonY = reference.y + reference.height / 2 - floating.height / 2;
+  const commonAlign = reference[alignLength] / 2 - floating[alignLength] / 2;
+  let coords;
+  switch (side) {
+    case "top":
+      coords = {
+        x: commonX,
+        y: reference.y - floating.height
+      };
+      break;
+    case "bottom":
+      coords = {
+        x: commonX,
+        y: reference.y + reference.height
+      };
+      break;
+    case "right":
+      coords = {
+        x: reference.x + reference.width,
+        y: commonY
+      };
+      break;
+    case "left":
+      coords = {
+        x: reference.x - floating.width,
+        y: commonY
+      };
+      break;
+    default:
+      coords = {
+        x: reference.x,
+        y: reference.y
+      };
+  }
+  switch (getAlignment(placement)) {
+    case "start":
+      coords[alignmentAxis] -= commonAlign * (rtl && isVertical ? -1 : 1);
+      break;
+    case "end":
+      coords[alignmentAxis] += commonAlign * (rtl && isVertical ? -1 : 1);
+      break;
+  }
+  return coords;
+}
+async function detectOverflow(state, options) {
+  var _await$platform$isEle;
+  if (options === void 0) {
+    options = {};
+  }
+  const {
+    x,
+    y,
+    platform: platform2,
+    rects,
+    elements,
+    strategy
+  } = state;
+  const {
+    boundary = "clippingAncestors",
+    rootBoundary = "viewport",
+    elementContext = "floating",
+    altBoundary = false,
+    padding = 0
+  } = evaluate(options, state);
+  const paddingObject = getPaddingObject(padding);
+  const altContext = elementContext === "floating" ? "reference" : "floating";
+  const element = elements[altBoundary ? altContext : elementContext];
+  const clippingClientRect = rectToClientRect(await platform2.getClippingRect({
+    element: ((_await$platform$isEle = await (platform2.isElement == null ? void 0 : platform2.isElement(element))) != null ? _await$platform$isEle : true) ? element : element.contextElement || await (platform2.getDocumentElement == null ? void 0 : platform2.getDocumentElement(elements.floating)),
+    boundary,
+    rootBoundary,
+    strategy
+  }));
+  const rect = elementContext === "floating" ? {
+    x,
+    y,
+    width: rects.floating.width,
+    height: rects.floating.height
+  } : rects.reference;
+  const offsetParent = await (platform2.getOffsetParent == null ? void 0 : platform2.getOffsetParent(elements.floating));
+  const offsetScale = await (platform2.isElement == null ? void 0 : platform2.isElement(offsetParent)) ? await (platform2.getScale == null ? void 0 : platform2.getScale(offsetParent)) || {
+    x: 1,
+    y: 1
+  } : {
+    x: 1,
+    y: 1
+  };
+  const elementClientRect = rectToClientRect(platform2.convertOffsetParentRelativeRectToViewportRelativeRect ? await platform2.convertOffsetParentRelativeRectToViewportRelativeRect({
+    elements,
+    rect,
+    offsetParent,
+    strategy
+  }) : rect);
+  return {
+    top: (clippingClientRect.top - elementClientRect.top + paddingObject.top) / offsetScale.y,
+    bottom: (elementClientRect.bottom - clippingClientRect.bottom + paddingObject.bottom) / offsetScale.y,
+    left: (clippingClientRect.left - elementClientRect.left + paddingObject.left) / offsetScale.x,
+    right: (elementClientRect.right - clippingClientRect.right + paddingObject.right) / offsetScale.x
+  };
+}
+var MAX_RESET_COUNT = 50;
+var computePosition = async (reference, floating, config) => {
+  const {
+    placement = "bottom",
+    strategy = "absolute",
+    middleware = [],
+    platform: platform2
+  } = config;
+  const platformWithDetectOverflow = platform2.detectOverflow ? platform2 : {
+    ...platform2,
+    detectOverflow
+  };
+  const rtl = await (platform2.isRTL == null ? void 0 : platform2.isRTL(floating));
+  let rects = await platform2.getElementRects({
+    reference,
+    floating,
+    strategy
+  });
+  let {
+    x,
+    y
+  } = computeCoordsFromPlacement(rects, placement, rtl);
+  let statefulPlacement = placement;
+  let resetCount = 0;
+  const middlewareData = {};
+  for (let i = 0; i < middleware.length; i++) {
+    const currentMiddleware = middleware[i];
+    if (!currentMiddleware) {
+      continue;
+    }
+    const {
+      name,
+      fn
+    } = currentMiddleware;
+    const {
+      x: nextX,
+      y: nextY,
+      data,
+      reset
+    } = await fn({
+      x,
+      y,
+      initialPlacement: placement,
+      placement: statefulPlacement,
+      strategy,
+      middlewareData,
+      rects,
+      platform: platformWithDetectOverflow,
+      elements: {
+        reference,
+        floating
+      }
+    });
+    x = nextX != null ? nextX : x;
+    y = nextY != null ? nextY : y;
+    middlewareData[name] = {
+      ...middlewareData[name],
+      ...data
+    };
+    if (reset && resetCount < MAX_RESET_COUNT) {
+      resetCount++;
+      if (typeof reset === "object") {
+        if (reset.placement) {
+          statefulPlacement = reset.placement;
+        }
+        if (reset.rects) {
+          rects = reset.rects === true ? await platform2.getElementRects({
+            reference,
+            floating,
+            strategy
+          }) : reset.rects;
+        }
+        ({
+          x,
+          y
+        } = computeCoordsFromPlacement(rects, statefulPlacement, rtl));
+      }
+      i = -1;
+    }
+  }
+  return {
+    x,
+    y,
+    placement: statefulPlacement,
+    strategy,
+    middlewareData
+  };
+};
+var arrow = (options) => ({
+  name: "arrow",
+  options,
+  async fn(state) {
+    const {
+      x,
+      y,
+      placement,
+      rects,
+      platform: platform2,
+      elements,
+      middlewareData
+    } = state;
+    const {
+      element,
+      padding = 0
+    } = evaluate(options, state) || {};
+    if (element == null) {
+      return {};
+    }
+    const paddingObject = getPaddingObject(padding);
+    const coords = {
+      x,
+      y
+    };
+    const axis = getAlignmentAxis(placement);
+    const length = getAxisLength(axis);
+    const arrowDimensions = await platform2.getDimensions(element);
+    const isYAxis = axis === "y";
+    const minProp = isYAxis ? "top" : "left";
+    const maxProp = isYAxis ? "bottom" : "right";
+    const clientProp = isYAxis ? "clientHeight" : "clientWidth";
+    const endDiff = rects.reference[length] + rects.reference[axis] - coords[axis] - rects.floating[length];
+    const startDiff = coords[axis] - rects.reference[axis];
+    const arrowOffsetParent = await (platform2.getOffsetParent == null ? void 0 : platform2.getOffsetParent(element));
+    let clientSize = arrowOffsetParent ? arrowOffsetParent[clientProp] : 0;
+    if (!clientSize || !await (platform2.isElement == null ? void 0 : platform2.isElement(arrowOffsetParent))) {
+      clientSize = elements.floating[clientProp] || rects.floating[length];
+    }
+    const centerToReference = endDiff / 2 - startDiff / 2;
+    const largestPossiblePadding = clientSize / 2 - arrowDimensions[length] / 2 - 1;
+    const minPadding = min(paddingObject[minProp], largestPossiblePadding);
+    const maxPadding = min(paddingObject[maxProp], largestPossiblePadding);
+    const min$1 = minPadding;
+    const max2 = clientSize - arrowDimensions[length] - maxPadding;
+    const center = clientSize / 2 - arrowDimensions[length] / 2 + centerToReference;
+    const offset4 = clamp2(min$1, center, max2);
+    const shouldAddOffset = !middlewareData.arrow && getAlignment(placement) != null && center !== offset4 && rects.reference[length] / 2 - (center < min$1 ? minPadding : maxPadding) - arrowDimensions[length] / 2 < 0;
+    const alignmentOffset = shouldAddOffset ? center < min$1 ? center - min$1 : center - max2 : 0;
+    return {
+      [axis]: coords[axis] + alignmentOffset,
+      data: {
+        [axis]: offset4,
+        centerOffset: center - offset4 - alignmentOffset,
+        ...shouldAddOffset && {
+          alignmentOffset
+        }
+      },
+      reset: shouldAddOffset
+    };
+  }
+});
+var flip = function(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  return {
+    name: "flip",
+    options,
+    async fn(state) {
+      var _middlewareData$arrow, _middlewareData$flip;
+      const {
+        placement,
+        middlewareData,
+        rects,
+        initialPlacement,
+        platform: platform2,
+        elements
+      } = state;
+      const {
+        mainAxis: checkMainAxis = true,
+        crossAxis: checkCrossAxis = true,
+        fallbackPlacements: specifiedFallbackPlacements,
+        fallbackStrategy = "bestFit",
+        fallbackAxisSideDirection = "none",
+        flipAlignment = true,
+        ...detectOverflowOptions
+      } = evaluate(options, state);
+      if ((_middlewareData$arrow = middlewareData.arrow) != null && _middlewareData$arrow.alignmentOffset) {
+        return {};
+      }
+      const side = getSide(placement);
+      const initialSideAxis = getSideAxis(initialPlacement);
+      const isBasePlacement = getSide(initialPlacement) === initialPlacement;
+      const rtl = await (platform2.isRTL == null ? void 0 : platform2.isRTL(elements.floating));
+      const fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipAlignment ? [getOppositePlacement(initialPlacement)] : getExpandedPlacements(initialPlacement));
+      const hasFallbackAxisSideDirection = fallbackAxisSideDirection !== "none";
+      if (!specifiedFallbackPlacements && hasFallbackAxisSideDirection) {
+        fallbackPlacements.push(...getOppositeAxisPlacements(initialPlacement, flipAlignment, fallbackAxisSideDirection, rtl));
+      }
+      const placements2 = [initialPlacement, ...fallbackPlacements];
+      const overflow = await platform2.detectOverflow(state, detectOverflowOptions);
+      const overflows = [];
+      let overflowsData = ((_middlewareData$flip = middlewareData.flip) == null ? void 0 : _middlewareData$flip.overflows) || [];
+      if (checkMainAxis) {
+        overflows.push(overflow[side]);
+      }
+      if (checkCrossAxis) {
+        const sides2 = getAlignmentSides(placement, rects, rtl);
+        overflows.push(overflow[sides2[0]], overflow[sides2[1]]);
+      }
+      overflowsData = [...overflowsData, {
+        placement,
+        overflows
+      }];
+      if (!overflows.every((side2) => side2 <= 0)) {
+        var _middlewareData$flip2, _overflowsData$filter;
+        const nextIndex = (((_middlewareData$flip2 = middlewareData.flip) == null ? void 0 : _middlewareData$flip2.index) || 0) + 1;
+        const nextPlacement = placements2[nextIndex];
+        if (nextPlacement) {
+          const ignoreCrossAxisOverflow = checkCrossAxis === "alignment" ? initialSideAxis !== getSideAxis(nextPlacement) : false;
+          if (!ignoreCrossAxisOverflow || // We leave the current main axis only if every placement on that axis
+          // overflows the main axis.
+          overflowsData.every((d) => getSideAxis(d.placement) === initialSideAxis ? d.overflows[0] > 0 : true)) {
+            return {
+              data: {
+                index: nextIndex,
+                overflows: overflowsData
+              },
+              reset: {
+                placement: nextPlacement
+              }
+            };
+          }
+        }
+        let resetPlacement = (_overflowsData$filter = overflowsData.filter((d) => d.overflows[0] <= 0).sort((a, b) => a.overflows[1] - b.overflows[1])[0]) == null ? void 0 : _overflowsData$filter.placement;
+        if (!resetPlacement) {
+          switch (fallbackStrategy) {
+            case "bestFit": {
+              var _overflowsData$filter2;
+              const placement2 = (_overflowsData$filter2 = overflowsData.filter((d) => {
+                if (hasFallbackAxisSideDirection) {
+                  const currentSideAxis = getSideAxis(d.placement);
+                  return currentSideAxis === initialSideAxis || // Create a bias to the `y` side axis due to horizontal
+                  // reading directions favoring greater width.
+                  currentSideAxis === "y";
+                }
+                return true;
+              }).map((d) => [d.placement, d.overflows.filter((overflow2) => overflow2 > 0).reduce((acc, overflow2) => acc + overflow2, 0)]).sort((a, b) => a[1] - b[1])[0]) == null ? void 0 : _overflowsData$filter2[0];
+              if (placement2) {
+                resetPlacement = placement2;
+              }
+              break;
+            }
+            case "initialPlacement":
+              resetPlacement = initialPlacement;
+              break;
+          }
+        }
+        if (placement !== resetPlacement) {
+          return {
+            reset: {
+              placement: resetPlacement
+            }
+          };
+        }
+      }
+      return {};
+    }
+  };
+};
+function getSideOffsets(overflow, rect) {
+  return {
+    top: overflow.top - rect.height,
+    right: overflow.right - rect.width,
+    bottom: overflow.bottom - rect.height,
+    left: overflow.left - rect.width
+  };
+}
+function isAnySideFullyClipped(overflow) {
+  return sides.some((side) => overflow[side] >= 0);
+}
+var hide = function(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  return {
+    name: "hide",
+    options,
+    async fn(state) {
+      const {
+        rects,
+        platform: platform2
+      } = state;
+      const {
+        strategy = "referenceHidden",
+        ...detectOverflowOptions
+      } = evaluate(options, state);
+      switch (strategy) {
+        case "referenceHidden": {
+          const overflow = await platform2.detectOverflow(state, {
+            ...detectOverflowOptions,
+            elementContext: "reference"
+          });
+          const offsets = getSideOffsets(overflow, rects.reference);
+          return {
+            data: {
+              referenceHiddenOffsets: offsets,
+              referenceHidden: isAnySideFullyClipped(offsets)
+            }
+          };
+        }
+        case "escaped": {
+          const overflow = await platform2.detectOverflow(state, {
+            ...detectOverflowOptions,
+            altBoundary: true
+          });
+          const offsets = getSideOffsets(overflow, rects.floating);
+          return {
+            data: {
+              escapedOffsets: offsets,
+              escaped: isAnySideFullyClipped(offsets)
+            }
+          };
+        }
+        default: {
+          return {};
+        }
+      }
+    }
+  };
+};
+var originSides = /* @__PURE__ */ new Set(["left", "top"]);
+async function convertValueToCoords(state, options) {
+  const {
+    placement,
+    platform: platform2,
+    elements
+  } = state;
+  const rtl = await (platform2.isRTL == null ? void 0 : platform2.isRTL(elements.floating));
+  const side = getSide(placement);
+  const alignment = getAlignment(placement);
+  const isVertical = getSideAxis(placement) === "y";
+  const mainAxisMulti = originSides.has(side) ? -1 : 1;
+  const crossAxisMulti = rtl && isVertical ? -1 : 1;
+  const rawValue = evaluate(options, state);
+  let {
+    mainAxis,
+    crossAxis,
+    alignmentAxis
+  } = typeof rawValue === "number" ? {
+    mainAxis: rawValue,
+    crossAxis: 0,
+    alignmentAxis: null
+  } : {
+    mainAxis: rawValue.mainAxis || 0,
+    crossAxis: rawValue.crossAxis || 0,
+    alignmentAxis: rawValue.alignmentAxis
+  };
+  if (alignment && typeof alignmentAxis === "number") {
+    crossAxis = alignment === "end" ? alignmentAxis * -1 : alignmentAxis;
+  }
+  return isVertical ? {
+    x: crossAxis * crossAxisMulti,
+    y: mainAxis * mainAxisMulti
+  } : {
+    x: mainAxis * mainAxisMulti,
+    y: crossAxis * crossAxisMulti
+  };
+}
+var offset = function(options) {
+  if (options === void 0) {
+    options = 0;
+  }
+  return {
+    name: "offset",
+    options,
+    async fn(state) {
+      var _middlewareData$offse, _middlewareData$arrow;
+      const {
+        x,
+        y,
+        placement,
+        middlewareData
+      } = state;
+      const diffCoords = await convertValueToCoords(state, options);
+      if (placement === ((_middlewareData$offse = middlewareData.offset) == null ? void 0 : _middlewareData$offse.placement) && (_middlewareData$arrow = middlewareData.arrow) != null && _middlewareData$arrow.alignmentOffset) {
+        return {};
+      }
+      return {
+        x: x + diffCoords.x,
+        y: y + diffCoords.y,
+        data: {
+          ...diffCoords,
+          placement
+        }
+      };
+    }
+  };
+};
+var shift = function(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  return {
+    name: "shift",
+    options,
+    async fn(state) {
+      const {
+        x,
+        y,
+        placement,
+        platform: platform2
+      } = state;
+      const {
+        mainAxis: checkMainAxis = true,
+        crossAxis: checkCrossAxis = false,
+        limiter = {
+          fn: (_ref) => {
+            let {
+              x: x2,
+              y: y2
+            } = _ref;
+            return {
+              x: x2,
+              y: y2
+            };
+          }
+        },
+        ...detectOverflowOptions
+      } = evaluate(options, state);
+      const coords = {
+        x,
+        y
+      };
+      const overflow = await platform2.detectOverflow(state, detectOverflowOptions);
+      const crossAxis = getSideAxis(getSide(placement));
+      const mainAxis = getOppositeAxis(crossAxis);
+      let mainAxisCoord = coords[mainAxis];
+      let crossAxisCoord = coords[crossAxis];
+      if (checkMainAxis) {
+        const minSide = mainAxis === "y" ? "top" : "left";
+        const maxSide = mainAxis === "y" ? "bottom" : "right";
+        const min2 = mainAxisCoord + overflow[minSide];
+        const max2 = mainAxisCoord - overflow[maxSide];
+        mainAxisCoord = clamp2(min2, mainAxisCoord, max2);
+      }
+      if (checkCrossAxis) {
+        const minSide = crossAxis === "y" ? "top" : "left";
+        const maxSide = crossAxis === "y" ? "bottom" : "right";
+        const min2 = crossAxisCoord + overflow[minSide];
+        const max2 = crossAxisCoord - overflow[maxSide];
+        crossAxisCoord = clamp2(min2, crossAxisCoord, max2);
+      }
+      const limitedCoords = limiter.fn({
+        ...state,
+        [mainAxis]: mainAxisCoord,
+        [crossAxis]: crossAxisCoord
+      });
+      return {
+        ...limitedCoords,
+        data: {
+          x: limitedCoords.x - x,
+          y: limitedCoords.y - y,
+          enabled: {
+            [mainAxis]: checkMainAxis,
+            [crossAxis]: checkCrossAxis
+          }
+        }
+      };
+    }
+  };
+};
+var limitShift = function(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  return {
+    options,
+    fn(state) {
+      const {
+        x,
+        y,
+        placement,
+        rects,
+        middlewareData
+      } = state;
+      const {
+        offset: offset4 = 0,
+        mainAxis: checkMainAxis = true,
+        crossAxis: checkCrossAxis = true
+      } = evaluate(options, state);
+      const coords = {
+        x,
+        y
+      };
+      const crossAxis = getSideAxis(placement);
+      const mainAxis = getOppositeAxis(crossAxis);
+      let mainAxisCoord = coords[mainAxis];
+      let crossAxisCoord = coords[crossAxis];
+      const rawOffset = evaluate(offset4, state);
+      const computedOffset = typeof rawOffset === "number" ? {
+        mainAxis: rawOffset,
+        crossAxis: 0
+      } : {
+        mainAxis: 0,
+        crossAxis: 0,
+        ...rawOffset
+      };
+      if (checkMainAxis) {
+        const len = mainAxis === "y" ? "height" : "width";
+        const limitMin = rects.reference[mainAxis] - rects.floating[len] + computedOffset.mainAxis;
+        const limitMax = rects.reference[mainAxis] + rects.reference[len] - computedOffset.mainAxis;
+        if (mainAxisCoord < limitMin) {
+          mainAxisCoord = limitMin;
+        } else if (mainAxisCoord > limitMax) {
+          mainAxisCoord = limitMax;
+        }
+      }
+      if (checkCrossAxis) {
+        var _middlewareData$offse, _middlewareData$offse2;
+        const len = mainAxis === "y" ? "width" : "height";
+        const isOriginSide = originSides.has(getSide(placement));
+        const limitMin = rects.reference[crossAxis] - rects.floating[len] + (isOriginSide ? ((_middlewareData$offse = middlewareData.offset) == null ? void 0 : _middlewareData$offse[crossAxis]) || 0 : 0) + (isOriginSide ? 0 : computedOffset.crossAxis);
+        const limitMax = rects.reference[crossAxis] + rects.reference[len] + (isOriginSide ? 0 : ((_middlewareData$offse2 = middlewareData.offset) == null ? void 0 : _middlewareData$offse2[crossAxis]) || 0) - (isOriginSide ? computedOffset.crossAxis : 0);
+        if (crossAxisCoord < limitMin) {
+          crossAxisCoord = limitMin;
+        } else if (crossAxisCoord > limitMax) {
+          crossAxisCoord = limitMax;
+        }
+      }
+      return {
+        [mainAxis]: mainAxisCoord,
+        [crossAxis]: crossAxisCoord
+      };
+    }
+  };
+};
+var size = function(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  return {
+    name: "size",
+    options,
+    async fn(state) {
+      var _state$middlewareData, _state$middlewareData2;
+      const {
+        placement,
+        rects,
+        platform: platform2,
+        elements
+      } = state;
+      const {
+        apply = () => {
+        },
+        ...detectOverflowOptions
+      } = evaluate(options, state);
+      const overflow = await platform2.detectOverflow(state, detectOverflowOptions);
+      const side = getSide(placement);
+      const alignment = getAlignment(placement);
+      const isYAxis = getSideAxis(placement) === "y";
+      const {
+        width,
+        height
+      } = rects.floating;
+      let heightSide;
+      let widthSide;
+      if (side === "top" || side === "bottom") {
+        heightSide = side;
+        widthSide = alignment === (await (platform2.isRTL == null ? void 0 : platform2.isRTL(elements.floating)) ? "start" : "end") ? "left" : "right";
+      } else {
+        widthSide = side;
+        heightSide = alignment === "end" ? "top" : "bottom";
+      }
+      const maximumClippingHeight = height - overflow.top - overflow.bottom;
+      const maximumClippingWidth = width - overflow.left - overflow.right;
+      const overflowAvailableHeight = min(height - overflow[heightSide], maximumClippingHeight);
+      const overflowAvailableWidth = min(width - overflow[widthSide], maximumClippingWidth);
+      const noShift = !state.middlewareData.shift;
+      let availableHeight = overflowAvailableHeight;
+      let availableWidth = overflowAvailableWidth;
+      if ((_state$middlewareData = state.middlewareData.shift) != null && _state$middlewareData.enabled.x) {
+        availableWidth = maximumClippingWidth;
+      }
+      if ((_state$middlewareData2 = state.middlewareData.shift) != null && _state$middlewareData2.enabled.y) {
+        availableHeight = maximumClippingHeight;
+      }
+      if (noShift && !alignment) {
+        const xMin = max(overflow.left, 0);
+        const xMax = max(overflow.right, 0);
+        const yMin = max(overflow.top, 0);
+        const yMax = max(overflow.bottom, 0);
+        if (isYAxis) {
+          availableWidth = width - 2 * (xMin !== 0 || xMax !== 0 ? xMin + xMax : max(overflow.left, overflow.right));
+        } else {
+          availableHeight = height - 2 * (yMin !== 0 || yMax !== 0 ? yMin + yMax : max(overflow.top, overflow.bottom));
+        }
+      }
+      await apply({
+        ...state,
+        availableWidth,
+        availableHeight
+      });
+      const nextDimensions = await platform2.getDimensions(elements.floating);
+      if (width !== nextDimensions.width || height !== nextDimensions.height) {
+        return {
+          reset: {
+            rects: true
+          }
+        };
+      }
+      return {};
+    }
+  };
+};
+
+// node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+function hasWindow() {
+  return typeof window !== "undefined";
+}
+function getNodeName(node) {
+  if (isNode(node)) {
+    return (node.nodeName || "").toLowerCase();
+  }
+  return "#document";
+}
+function getWindow(node) {
+  var _node$ownerDocument;
+  return (node == null || (_node$ownerDocument = node.ownerDocument) == null ? void 0 : _node$ownerDocument.defaultView) || window;
+}
+function getDocumentElement(node) {
+  var _ref;
+  return (_ref = (isNode(node) ? node.ownerDocument : node.document) || window.document) == null ? void 0 : _ref.documentElement;
+}
+function isNode(value) {
+  if (!hasWindow()) {
+    return false;
+  }
+  return value instanceof Node || value instanceof getWindow(value).Node;
+}
+function isElement(value) {
+  if (!hasWindow()) {
+    return false;
+  }
+  return value instanceof Element || value instanceof getWindow(value).Element;
+}
+function isHTMLElement(value) {
+  if (!hasWindow()) {
+    return false;
+  }
+  return value instanceof HTMLElement || value instanceof getWindow(value).HTMLElement;
+}
+function isShadowRoot(value) {
+  if (!hasWindow() || typeof ShadowRoot === "undefined") {
+    return false;
+  }
+  return value instanceof ShadowRoot || value instanceof getWindow(value).ShadowRoot;
+}
+function isOverflowElement(element) {
+  const {
+    overflow,
+    overflowX,
+    overflowY,
+    display
+  } = getComputedStyle2(element);
+  return /auto|scroll|overlay|hidden|clip/.test(overflow + overflowY + overflowX) && display !== "inline" && display !== "contents";
+}
+function isTableElement(element) {
+  return /^(table|td|th)$/.test(getNodeName(element));
+}
+function isTopLayer(element) {
+  try {
+    if (element.matches(":popover-open")) {
+      return true;
+    }
+  } catch (_e) {
+  }
+  try {
+    return element.matches(":modal");
+  } catch (_e) {
+    return false;
+  }
+}
+var willChangeRe = /transform|translate|scale|rotate|perspective|filter/;
+var containRe = /paint|layout|strict|content/;
+var isNotNone = (value) => !!value && value !== "none";
+var isWebKitValue;
+function isContainingBlock(elementOrCss) {
+  const css = isElement(elementOrCss) ? getComputedStyle2(elementOrCss) : elementOrCss;
+  return isNotNone(css.transform) || isNotNone(css.translate) || isNotNone(css.scale) || isNotNone(css.rotate) || isNotNone(css.perspective) || !isWebKit() && (isNotNone(css.backdropFilter) || isNotNone(css.filter)) || willChangeRe.test(css.willChange || "") || containRe.test(css.contain || "");
+}
+function getContainingBlock(element) {
+  let currentNode = getParentNode(element);
+  while (isHTMLElement(currentNode) && !isLastTraversableNode(currentNode)) {
+    if (isContainingBlock(currentNode)) {
+      return currentNode;
+    } else if (isTopLayer(currentNode)) {
+      return null;
+    }
+    currentNode = getParentNode(currentNode);
+  }
+  return null;
+}
+function isWebKit() {
+  if (isWebKitValue == null) {
+    isWebKitValue = typeof CSS !== "undefined" && CSS.supports && CSS.supports("-webkit-backdrop-filter", "none");
+  }
+  return isWebKitValue;
+}
+function isLastTraversableNode(node) {
+  return /^(html|body|#document)$/.test(getNodeName(node));
+}
+function getComputedStyle2(element) {
+  return getWindow(element).getComputedStyle(element);
+}
+function getNodeScroll(element) {
+  if (isElement(element)) {
+    return {
+      scrollLeft: element.scrollLeft,
+      scrollTop: element.scrollTop
+    };
+  }
+  return {
+    scrollLeft: element.scrollX,
+    scrollTop: element.scrollY
+  };
+}
+function getParentNode(node) {
+  if (getNodeName(node) === "html") {
+    return node;
+  }
+  const result = (
+    // Step into the shadow DOM of the parent of a slotted node.
+    node.assignedSlot || // DOM Element detected.
+    node.parentNode || // ShadowRoot detected.
+    isShadowRoot(node) && node.host || // Fallback.
+    getDocumentElement(node)
+  );
+  return isShadowRoot(result) ? result.host : result;
+}
+function getNearestOverflowAncestor(node) {
+  const parentNode = getParentNode(node);
+  if (isLastTraversableNode(parentNode)) {
+    return node.ownerDocument ? node.ownerDocument.body : node.body;
+  }
+  if (isHTMLElement(parentNode) && isOverflowElement(parentNode)) {
+    return parentNode;
+  }
+  return getNearestOverflowAncestor(parentNode);
+}
+function getOverflowAncestors(node, list, traverseIframes) {
+  var _node$ownerDocument2;
+  if (list === void 0) {
+    list = [];
+  }
+  if (traverseIframes === void 0) {
+    traverseIframes = true;
+  }
+  const scrollableAncestor = getNearestOverflowAncestor(node);
+  const isBody = scrollableAncestor === ((_node$ownerDocument2 = node.ownerDocument) == null ? void 0 : _node$ownerDocument2.body);
+  const win = getWindow(scrollableAncestor);
+  if (isBody) {
+    const frameElement = getFrameElement(win);
+    return list.concat(win, win.visualViewport || [], isOverflowElement(scrollableAncestor) ? scrollableAncestor : [], frameElement && traverseIframes ? getOverflowAncestors(frameElement) : []);
+  } else {
+    return list.concat(scrollableAncestor, getOverflowAncestors(scrollableAncestor, [], traverseIframes));
+  }
+}
+function getFrameElement(win) {
+  return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
+}
+
+// node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+function getCssDimensions(element) {
+  const css = getComputedStyle2(element);
+  let width = parseFloat(css.width) || 0;
+  let height = parseFloat(css.height) || 0;
+  const hasOffset = isHTMLElement(element);
+  const offsetWidth = hasOffset ? element.offsetWidth : width;
+  const offsetHeight = hasOffset ? element.offsetHeight : height;
+  const shouldFallback = round(width) !== offsetWidth || round(height) !== offsetHeight;
+  if (shouldFallback) {
+    width = offsetWidth;
+    height = offsetHeight;
+  }
+  return {
+    width,
+    height,
+    $: shouldFallback
+  };
+}
+function unwrapElement(element) {
+  return !isElement(element) ? element.contextElement : element;
+}
+function getScale(element) {
+  const domElement = unwrapElement(element);
+  if (!isHTMLElement(domElement)) {
+    return createCoords(1);
+  }
+  const rect = domElement.getBoundingClientRect();
+  const {
+    width,
+    height,
+    $
+  } = getCssDimensions(domElement);
+  let x = ($ ? round(rect.width) : rect.width) / width;
+  let y = ($ ? round(rect.height) : rect.height) / height;
+  if (!x || !Number.isFinite(x)) {
+    x = 1;
+  }
+  if (!y || !Number.isFinite(y)) {
+    y = 1;
+  }
+  return {
+    x,
+    y
+  };
+}
+var noOffsets = /* @__PURE__ */ createCoords(0);
+function getVisualOffsets(element) {
+  const win = getWindow(element);
+  if (!isWebKit() || !win.visualViewport) {
+    return noOffsets;
+  }
+  return {
+    x: win.visualViewport.offsetLeft,
+    y: win.visualViewport.offsetTop
+  };
+}
+function shouldAddVisualOffsets(element, isFixed, floatingOffsetParent) {
+  if (isFixed === void 0) {
+    isFixed = false;
+  }
+  if (!floatingOffsetParent || isFixed && floatingOffsetParent !== getWindow(element)) {
+    return false;
+  }
+  return isFixed;
+}
+function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetParent) {
+  if (includeScale === void 0) {
+    includeScale = false;
+  }
+  if (isFixedStrategy === void 0) {
+    isFixedStrategy = false;
+  }
+  const clientRect = element.getBoundingClientRect();
+  const domElement = unwrapElement(element);
+  let scale = createCoords(1);
+  if (includeScale) {
+    if (offsetParent) {
+      if (isElement(offsetParent)) {
+        scale = getScale(offsetParent);
+      }
+    } else {
+      scale = getScale(element);
+    }
+  }
+  const visualOffsets = shouldAddVisualOffsets(domElement, isFixedStrategy, offsetParent) ? getVisualOffsets(domElement) : createCoords(0);
+  let x = (clientRect.left + visualOffsets.x) / scale.x;
+  let y = (clientRect.top + visualOffsets.y) / scale.y;
+  let width = clientRect.width / scale.x;
+  let height = clientRect.height / scale.y;
+  if (domElement) {
+    const win = getWindow(domElement);
+    const offsetWin = offsetParent && isElement(offsetParent) ? getWindow(offsetParent) : offsetParent;
+    let currentWin = win;
+    let currentIFrame = getFrameElement(currentWin);
+    while (currentIFrame && offsetParent && offsetWin !== currentWin) {
+      const iframeScale = getScale(currentIFrame);
+      const iframeRect = currentIFrame.getBoundingClientRect();
+      const css = getComputedStyle2(currentIFrame);
+      const left = iframeRect.left + (currentIFrame.clientLeft + parseFloat(css.paddingLeft)) * iframeScale.x;
+      const top = iframeRect.top + (currentIFrame.clientTop + parseFloat(css.paddingTop)) * iframeScale.y;
+      x *= iframeScale.x;
+      y *= iframeScale.y;
+      width *= iframeScale.x;
+      height *= iframeScale.y;
+      x += left;
+      y += top;
+      currentWin = getWindow(currentIFrame);
+      currentIFrame = getFrameElement(currentWin);
+    }
+  }
+  return rectToClientRect({
+    width,
+    height,
+    x,
+    y
+  });
+}
+function getWindowScrollBarX(element, rect) {
+  const leftScroll = getNodeScroll(element).scrollLeft;
+  if (!rect) {
+    return getBoundingClientRect(getDocumentElement(element)).left + leftScroll;
+  }
+  return rect.left + leftScroll;
+}
+function getHTMLOffset(documentElement, scroll) {
+  const htmlRect = documentElement.getBoundingClientRect();
+  const x = htmlRect.left + scroll.scrollLeft - getWindowScrollBarX(documentElement, htmlRect);
+  const y = htmlRect.top + scroll.scrollTop;
+  return {
+    x,
+    y
+  };
+}
+function convertOffsetParentRelativeRectToViewportRelativeRect(_ref) {
+  let {
+    elements,
+    rect,
+    offsetParent,
+    strategy
+  } = _ref;
+  const isFixed = strategy === "fixed";
+  const documentElement = getDocumentElement(offsetParent);
+  const topLayer = elements ? isTopLayer(elements.floating) : false;
+  if (offsetParent === documentElement || topLayer && isFixed) {
+    return rect;
+  }
+  let scroll = {
+    scrollLeft: 0,
+    scrollTop: 0
+  };
+  let scale = createCoords(1);
+  const offsets = createCoords(0);
+  const isOffsetParentAnElement = isHTMLElement(offsetParent);
+  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
+    if (getNodeName(offsetParent) !== "body" || isOverflowElement(documentElement)) {
+      scroll = getNodeScroll(offsetParent);
+    }
+    if (isOffsetParentAnElement) {
+      const offsetRect = getBoundingClientRect(offsetParent);
+      scale = getScale(offsetParent);
+      offsets.x = offsetRect.x + offsetParent.clientLeft;
+      offsets.y = offsetRect.y + offsetParent.clientTop;
+    }
+  }
+  const htmlOffset = documentElement && !isOffsetParentAnElement && !isFixed ? getHTMLOffset(documentElement, scroll) : createCoords(0);
+  return {
+    width: rect.width * scale.x,
+    height: rect.height * scale.y,
+    x: rect.x * scale.x - scroll.scrollLeft * scale.x + offsets.x + htmlOffset.x,
+    y: rect.y * scale.y - scroll.scrollTop * scale.y + offsets.y + htmlOffset.y
+  };
+}
+function getClientRects(element) {
+  return Array.from(element.getClientRects());
+}
+function getDocumentRect(element) {
+  const html = getDocumentElement(element);
+  const scroll = getNodeScroll(element);
+  const body = element.ownerDocument.body;
+  const width = max(html.scrollWidth, html.clientWidth, body.scrollWidth, body.clientWidth);
+  const height = max(html.scrollHeight, html.clientHeight, body.scrollHeight, body.clientHeight);
+  let x = -scroll.scrollLeft + getWindowScrollBarX(element);
+  const y = -scroll.scrollTop;
+  if (getComputedStyle2(body).direction === "rtl") {
+    x += max(html.clientWidth, body.clientWidth) - width;
+  }
+  return {
+    width,
+    height,
+    x,
+    y
+  };
+}
+var SCROLLBAR_MAX = 25;
+function getViewportRect(element, strategy) {
+  const win = getWindow(element);
+  const html = getDocumentElement(element);
+  const visualViewport = win.visualViewport;
+  let width = html.clientWidth;
+  let height = html.clientHeight;
+  let x = 0;
+  let y = 0;
+  if (visualViewport) {
+    width = visualViewport.width;
+    height = visualViewport.height;
+    const visualViewportBased = isWebKit();
+    if (!visualViewportBased || visualViewportBased && strategy === "fixed") {
+      x = visualViewport.offsetLeft;
+      y = visualViewport.offsetTop;
+    }
+  }
+  const windowScrollbarX = getWindowScrollBarX(html);
+  if (windowScrollbarX <= 0) {
+    const doc = html.ownerDocument;
+    const body = doc.body;
+    const bodyStyles = getComputedStyle(body);
+    const bodyMarginInline = doc.compatMode === "CSS1Compat" ? parseFloat(bodyStyles.marginLeft) + parseFloat(bodyStyles.marginRight) || 0 : 0;
+    const clippingStableScrollbarWidth = Math.abs(html.clientWidth - body.clientWidth - bodyMarginInline);
+    if (clippingStableScrollbarWidth <= SCROLLBAR_MAX) {
+      width -= clippingStableScrollbarWidth;
+    }
+  } else if (windowScrollbarX <= SCROLLBAR_MAX) {
+    width += windowScrollbarX;
+  }
+  return {
+    width,
+    height,
+    x,
+    y
+  };
+}
+function getInnerBoundingClientRect(element, strategy) {
+  const clientRect = getBoundingClientRect(element, true, strategy === "fixed");
+  const top = clientRect.top + element.clientTop;
+  const left = clientRect.left + element.clientLeft;
+  const scale = isHTMLElement(element) ? getScale(element) : createCoords(1);
+  const width = element.clientWidth * scale.x;
+  const height = element.clientHeight * scale.y;
+  const x = left * scale.x;
+  const y = top * scale.y;
+  return {
+    width,
+    height,
+    x,
+    y
+  };
+}
+function getClientRectFromClippingAncestor(element, clippingAncestor, strategy) {
+  let rect;
+  if (clippingAncestor === "viewport") {
+    rect = getViewportRect(element, strategy);
+  } else if (clippingAncestor === "document") {
+    rect = getDocumentRect(getDocumentElement(element));
+  } else if (isElement(clippingAncestor)) {
+    rect = getInnerBoundingClientRect(clippingAncestor, strategy);
+  } else {
+    const visualOffsets = getVisualOffsets(element);
+    rect = {
+      x: clippingAncestor.x - visualOffsets.x,
+      y: clippingAncestor.y - visualOffsets.y,
+      width: clippingAncestor.width,
+      height: clippingAncestor.height
+    };
+  }
+  return rectToClientRect(rect);
+}
+function hasFixedPositionAncestor(element, stopNode) {
+  const parentNode = getParentNode(element);
+  if (parentNode === stopNode || !isElement(parentNode) || isLastTraversableNode(parentNode)) {
+    return false;
+  }
+  return getComputedStyle2(parentNode).position === "fixed" || hasFixedPositionAncestor(parentNode, stopNode);
+}
+function getClippingElementAncestors(element, cache) {
+  const cachedResult = cache.get(element);
+  if (cachedResult) {
+    return cachedResult;
+  }
+  let result = getOverflowAncestors(element, [], false).filter((el) => isElement(el) && getNodeName(el) !== "body");
+  let currentContainingBlockComputedStyle = null;
+  const elementIsFixed = getComputedStyle2(element).position === "fixed";
+  let currentNode = elementIsFixed ? getParentNode(element) : element;
+  while (isElement(currentNode) && !isLastTraversableNode(currentNode)) {
+    const computedStyle = getComputedStyle2(currentNode);
+    const currentNodeIsContaining = isContainingBlock(currentNode);
+    if (!currentNodeIsContaining && computedStyle.position === "fixed") {
+      currentContainingBlockComputedStyle = null;
+    }
+    const shouldDropCurrentNode = elementIsFixed ? !currentNodeIsContaining && !currentContainingBlockComputedStyle : !currentNodeIsContaining && computedStyle.position === "static" && !!currentContainingBlockComputedStyle && (currentContainingBlockComputedStyle.position === "absolute" || currentContainingBlockComputedStyle.position === "fixed") || isOverflowElement(currentNode) && !currentNodeIsContaining && hasFixedPositionAncestor(element, currentNode);
+    if (shouldDropCurrentNode) {
+      result = result.filter((ancestor) => ancestor !== currentNode);
+    } else {
+      currentContainingBlockComputedStyle = computedStyle;
+    }
+    currentNode = getParentNode(currentNode);
+  }
+  cache.set(element, result);
+  return result;
+}
+function getClippingRect(_ref) {
+  let {
+    element,
+    boundary,
+    rootBoundary,
+    strategy
+  } = _ref;
+  const elementClippingAncestors = boundary === "clippingAncestors" ? isTopLayer(element) ? [] : getClippingElementAncestors(element, this._c) : [].concat(boundary);
+  const clippingAncestors = [...elementClippingAncestors, rootBoundary];
+  const firstRect = getClientRectFromClippingAncestor(element, clippingAncestors[0], strategy);
+  let top = firstRect.top;
+  let right = firstRect.right;
+  let bottom = firstRect.bottom;
+  let left = firstRect.left;
+  for (let i = 1; i < clippingAncestors.length; i++) {
+    const rect = getClientRectFromClippingAncestor(element, clippingAncestors[i], strategy);
+    top = max(rect.top, top);
+    right = min(rect.right, right);
+    bottom = min(rect.bottom, bottom);
+    left = max(rect.left, left);
+  }
+  return {
+    width: right - left,
+    height: bottom - top,
+    x: left,
+    y: top
+  };
+}
+function getDimensions(element) {
+  const {
+    width,
+    height
+  } = getCssDimensions(element);
+  return {
+    width,
+    height
+  };
+}
+function getRectRelativeToOffsetParent(element, offsetParent, strategy) {
+  const isOffsetParentAnElement = isHTMLElement(offsetParent);
+  const documentElement = getDocumentElement(offsetParent);
+  const isFixed = strategy === "fixed";
+  const rect = getBoundingClientRect(element, true, isFixed, offsetParent);
+  let scroll = {
+    scrollLeft: 0,
+    scrollTop: 0
+  };
+  const offsets = createCoords(0);
+  function setLeftRTLScrollbarOffset() {
+    offsets.x = getWindowScrollBarX(documentElement);
+  }
+  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
+    if (getNodeName(offsetParent) !== "body" || isOverflowElement(documentElement)) {
+      scroll = getNodeScroll(offsetParent);
+    }
+    if (isOffsetParentAnElement) {
+      const offsetRect = getBoundingClientRect(offsetParent, true, isFixed, offsetParent);
+      offsets.x = offsetRect.x + offsetParent.clientLeft;
+      offsets.y = offsetRect.y + offsetParent.clientTop;
+    } else if (documentElement) {
+      setLeftRTLScrollbarOffset();
+    }
+  }
+  if (isFixed && !isOffsetParentAnElement && documentElement) {
+    setLeftRTLScrollbarOffset();
+  }
+  const htmlOffset = documentElement && !isOffsetParentAnElement && !isFixed ? getHTMLOffset(documentElement, scroll) : createCoords(0);
+  const x = rect.left + scroll.scrollLeft - offsets.x - htmlOffset.x;
+  const y = rect.top + scroll.scrollTop - offsets.y - htmlOffset.y;
+  return {
+    x,
+    y,
+    width: rect.width,
+    height: rect.height
+  };
+}
+function isStaticPositioned(element) {
+  return getComputedStyle2(element).position === "static";
+}
+function getTrueOffsetParent(element, polyfill) {
+  if (!isHTMLElement(element) || getComputedStyle2(element).position === "fixed") {
+    return null;
+  }
+  if (polyfill) {
+    return polyfill(element);
+  }
+  let rawOffsetParent = element.offsetParent;
+  if (getDocumentElement(element) === rawOffsetParent) {
+    rawOffsetParent = rawOffsetParent.ownerDocument.body;
+  }
+  return rawOffsetParent;
+}
+function getOffsetParent(element, polyfill) {
+  const win = getWindow(element);
+  if (isTopLayer(element)) {
+    return win;
+  }
+  if (!isHTMLElement(element)) {
+    let svgOffsetParent = getParentNode(element);
+    while (svgOffsetParent && !isLastTraversableNode(svgOffsetParent)) {
+      if (isElement(svgOffsetParent) && !isStaticPositioned(svgOffsetParent)) {
+        return svgOffsetParent;
+      }
+      svgOffsetParent = getParentNode(svgOffsetParent);
+    }
+    return win;
+  }
+  let offsetParent = getTrueOffsetParent(element, polyfill);
+  while (offsetParent && isTableElement(offsetParent) && isStaticPositioned(offsetParent)) {
+    offsetParent = getTrueOffsetParent(offsetParent, polyfill);
+  }
+  if (offsetParent && isLastTraversableNode(offsetParent) && isStaticPositioned(offsetParent) && !isContainingBlock(offsetParent)) {
+    return win;
+  }
+  return offsetParent || getContainingBlock(element) || win;
+}
+var getElementRects = async function(data) {
+  const getOffsetParentFn = this.getOffsetParent || getOffsetParent;
+  const getDimensionsFn = this.getDimensions;
+  const floatingDimensions = await getDimensionsFn(data.floating);
+  return {
+    reference: getRectRelativeToOffsetParent(data.reference, await getOffsetParentFn(data.floating), data.strategy),
+    floating: {
+      x: 0,
+      y: 0,
+      width: floatingDimensions.width,
+      height: floatingDimensions.height
+    }
+  };
+};
+function isRTL(element) {
+  return getComputedStyle2(element).direction === "rtl";
+}
+var platform = {
+  convertOffsetParentRelativeRectToViewportRelativeRect,
+  getDocumentElement,
+  getClippingRect,
+  getOffsetParent,
+  getElementRects,
+  getClientRects,
+  getDimensions,
+  getScale,
+  isElement,
+  isRTL
+};
+function rectsAreEqual(a, b) {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+}
+function observeMove(element, onMove) {
+  let io = null;
+  let timeoutId;
+  const root = getDocumentElement(element);
+  function cleanup() {
+    var _io;
+    clearTimeout(timeoutId);
+    (_io = io) == null || _io.disconnect();
+    io = null;
+  }
+  function refresh(skip, threshold) {
+    if (skip === void 0) {
+      skip = false;
+    }
+    if (threshold === void 0) {
+      threshold = 1;
+    }
+    cleanup();
+    const elementRectForRootMargin = element.getBoundingClientRect();
+    const {
+      left,
+      top,
+      width,
+      height
+    } = elementRectForRootMargin;
+    if (!skip) {
+      onMove();
+    }
+    if (!width || !height) {
+      return;
+    }
+    const insetTop = floor(top);
+    const insetRight = floor(root.clientWidth - (left + width));
+    const insetBottom = floor(root.clientHeight - (top + height));
+    const insetLeft = floor(left);
+    const rootMargin = -insetTop + "px " + -insetRight + "px " + -insetBottom + "px " + -insetLeft + "px";
+    const options = {
+      rootMargin,
+      threshold: max(0, min(1, threshold)) || 1
+    };
+    let isFirstUpdate = true;
+    function handleObserve(entries) {
+      const ratio = entries[0].intersectionRatio;
+      if (ratio !== threshold) {
+        if (!isFirstUpdate) {
+          return refresh();
+        }
+        if (!ratio) {
+          timeoutId = setTimeout(() => {
+            refresh(false, 1e-7);
+          }, 1e3);
+        } else {
+          refresh(false, ratio);
+        }
+      }
+      if (ratio === 1 && !rectsAreEqual(elementRectForRootMargin, element.getBoundingClientRect())) {
+        refresh();
+      }
+      isFirstUpdate = false;
+    }
+    try {
+      io = new IntersectionObserver(handleObserve, {
+        ...options,
+        // Handle <iframe>s
+        root: root.ownerDocument
+      });
+    } catch (_e) {
+      io = new IntersectionObserver(handleObserve, options);
+    }
+    io.observe(element);
+  }
+  refresh(true);
+  return cleanup;
+}
+function autoUpdate(reference, floating, update, options) {
+  if (options === void 0) {
+    options = {};
+  }
+  const {
+    ancestorScroll = true,
+    ancestorResize = true,
+    elementResize = typeof ResizeObserver === "function",
+    layoutShift = typeof IntersectionObserver === "function",
+    animationFrame = false
+  } = options;
+  const referenceEl = unwrapElement(reference);
+  const ancestors = ancestorScroll || ancestorResize ? [...referenceEl ? getOverflowAncestors(referenceEl) : [], ...floating ? getOverflowAncestors(floating) : []] : [];
+  ancestors.forEach((ancestor) => {
+    ancestorScroll && ancestor.addEventListener("scroll", update, {
+      passive: true
+    });
+    ancestorResize && ancestor.addEventListener("resize", update);
+  });
+  const cleanupIo = referenceEl && layoutShift ? observeMove(referenceEl, update) : null;
+  let reobserveFrame = -1;
+  let resizeObserver = null;
+  if (elementResize) {
+    resizeObserver = new ResizeObserver((_ref) => {
+      let [firstEntry] = _ref;
+      if (firstEntry && firstEntry.target === referenceEl && resizeObserver && floating) {
+        resizeObserver.unobserve(floating);
+        cancelAnimationFrame(reobserveFrame);
+        reobserveFrame = requestAnimationFrame(() => {
+          var _resizeObserver;
+          (_resizeObserver = resizeObserver) == null || _resizeObserver.observe(floating);
+        });
+      }
+      update();
+    });
+    if (referenceEl && !animationFrame) {
+      resizeObserver.observe(referenceEl);
+    }
+    if (floating) {
+      resizeObserver.observe(floating);
+    }
+  }
+  let frameId;
+  let prevRefRect = animationFrame ? getBoundingClientRect(reference) : null;
+  if (animationFrame) {
+    frameLoop();
+  }
+  function frameLoop() {
+    const nextRefRect = getBoundingClientRect(reference);
+    if (prevRefRect && !rectsAreEqual(prevRefRect, nextRefRect)) {
+      update();
+    }
+    prevRefRect = nextRefRect;
+    frameId = requestAnimationFrame(frameLoop);
+  }
+  update();
+  return () => {
+    var _resizeObserver2;
+    ancestors.forEach((ancestor) => {
+      ancestorScroll && ancestor.removeEventListener("scroll", update);
+      ancestorResize && ancestor.removeEventListener("resize", update);
+    });
+    cleanupIo == null || cleanupIo();
+    (_resizeObserver2 = resizeObserver) == null || _resizeObserver2.disconnect();
+    resizeObserver = null;
+    if (animationFrame) {
+      cancelAnimationFrame(frameId);
+    }
+  };
+}
+var offset2 = offset;
+var shift2 = shift;
+var flip2 = flip;
+var size2 = size;
+var hide2 = hide;
+var arrow2 = arrow;
+var limitShift2 = limitShift;
+var computePosition2 = (reference, floating, options) => {
+  const cache = /* @__PURE__ */ new Map();
+  const mergedOptions = {
+    platform,
+    ...options
+  };
+  const platformWithCache = {
+    ...mergedOptions.platform,
+    _c: cache
+  };
+  return computePosition(reference, floating, {
+    ...mergedOptions,
+    platform: platformWithCache
+  });
+};
+
+// node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+import * as React28 from "react";
+import { useLayoutEffect as useLayoutEffect3 } from "react";
+import * as ReactDOM2 from "react-dom";
+var isClient = typeof document !== "undefined";
+var noop = function noop2() {
+};
+var index = isClient ? useLayoutEffect3 : noop;
+function deepEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== typeof b) {
+    return false;
+  }
+  if (typeof a === "function" && a.toString() === b.toString()) {
+    return true;
+  }
+  let length;
+  let i;
+  let keys;
+  if (a && b && typeof a === "object") {
+    if (Array.isArray(a)) {
+      length = a.length;
+      if (length !== b.length) return false;
+      for (i = length; i-- !== 0; ) {
+        if (!deepEqual(a[i], b[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    keys = Object.keys(a);
+    length = keys.length;
+    if (length !== Object.keys(b).length) {
+      return false;
+    }
+    for (i = length; i-- !== 0; ) {
+      if (!{}.hasOwnProperty.call(b, keys[i])) {
+        return false;
+      }
+    }
+    for (i = length; i-- !== 0; ) {
+      const key = keys[i];
+      if (key === "_owner" && a.$$typeof) {
+        continue;
+      }
+      if (!deepEqual(a[key], b[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return a !== a && b !== b;
+}
+function getDPR(element) {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+  const win = element.ownerDocument.defaultView || window;
+  return win.devicePixelRatio || 1;
+}
+function roundByDPR(element, value) {
+  const dpr = getDPR(element);
+  return Math.round(value * dpr) / dpr;
+}
+function useLatestRef(value) {
+  const ref = React28.useRef(value);
+  index(() => {
+    ref.current = value;
+  });
+  return ref;
+}
+function useFloating(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  const {
+    placement = "bottom",
+    strategy = "absolute",
+    middleware = [],
+    platform: platform2,
+    elements: {
+      reference: externalReference,
+      floating: externalFloating
+    } = {},
+    transform = true,
+    whileElementsMounted,
+    open
+  } = options;
+  const [data, setData] = React28.useState({
+    x: 0,
+    y: 0,
+    strategy,
+    placement,
+    middlewareData: {},
+    isPositioned: false
+  });
+  const [latestMiddleware, setLatestMiddleware] = React28.useState(middleware);
+  if (!deepEqual(latestMiddleware, middleware)) {
+    setLatestMiddleware(middleware);
+  }
+  const [_reference, _setReference] = React28.useState(null);
+  const [_floating, _setFloating] = React28.useState(null);
+  const setReference = React28.useCallback((node) => {
+    if (node !== referenceRef.current) {
+      referenceRef.current = node;
+      _setReference(node);
+    }
+  }, []);
+  const setFloating = React28.useCallback((node) => {
+    if (node !== floatingRef.current) {
+      floatingRef.current = node;
+      _setFloating(node);
+    }
+  }, []);
+  const referenceEl = externalReference || _reference;
+  const floatingEl = externalFloating || _floating;
+  const referenceRef = React28.useRef(null);
+  const floatingRef = React28.useRef(null);
+  const dataRef = React28.useRef(data);
+  const hasWhileElementsMounted = whileElementsMounted != null;
+  const whileElementsMountedRef = useLatestRef(whileElementsMounted);
+  const platformRef = useLatestRef(platform2);
+  const openRef = useLatestRef(open);
+  const update = React28.useCallback(() => {
+    if (!referenceRef.current || !floatingRef.current) {
+      return;
+    }
+    const config = {
+      placement,
+      strategy,
+      middleware: latestMiddleware
+    };
+    if (platformRef.current) {
+      config.platform = platformRef.current;
+    }
+    computePosition2(referenceRef.current, floatingRef.current, config).then((data2) => {
+      const fullData = {
+        ...data2,
+        // The floating element's position may be recomputed while it's closed
+        // but still mounted (such as when transitioning out). To ensure
+        // `isPositioned` will be `false` initially on the next open, avoid
+        // setting it to `true` when `open === false` (must be specified).
+        isPositioned: openRef.current !== false
+      };
+      if (isMountedRef.current && !deepEqual(dataRef.current, fullData)) {
+        dataRef.current = fullData;
+        ReactDOM2.flushSync(() => {
+          setData(fullData);
+        });
+      }
+    });
+  }, [latestMiddleware, placement, strategy, platformRef, openRef]);
+  index(() => {
+    if (open === false && dataRef.current.isPositioned) {
+      dataRef.current.isPositioned = false;
+      setData((data2) => ({
+        ...data2,
+        isPositioned: false
+      }));
+    }
+  }, [open]);
+  const isMountedRef = React28.useRef(false);
+  index(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  index(() => {
+    if (referenceEl) referenceRef.current = referenceEl;
+    if (floatingEl) floatingRef.current = floatingEl;
+    if (referenceEl && floatingEl) {
+      if (whileElementsMountedRef.current) {
+        return whileElementsMountedRef.current(referenceEl, floatingEl, update);
+      }
+      update();
+    }
+  }, [referenceEl, floatingEl, update, whileElementsMountedRef, hasWhileElementsMounted]);
+  const refs = React28.useMemo(() => ({
+    reference: referenceRef,
+    floating: floatingRef,
+    setReference,
+    setFloating
+  }), [setReference, setFloating]);
+  const elements = React28.useMemo(() => ({
+    reference: referenceEl,
+    floating: floatingEl
+  }), [referenceEl, floatingEl]);
+  const floatingStyles = React28.useMemo(() => {
+    const initialStyles = {
+      position: strategy,
+      left: 0,
+      top: 0
+    };
+    if (!elements.floating) {
+      return initialStyles;
+    }
+    const x = roundByDPR(elements.floating, data.x);
+    const y = roundByDPR(elements.floating, data.y);
+    if (transform) {
+      return {
+        ...initialStyles,
+        transform: "translate(" + x + "px, " + y + "px)",
+        ...getDPR(elements.floating) >= 1.5 && {
+          willChange: "transform"
+        }
+      };
+    }
+    return {
+      position: strategy,
+      left: x,
+      top: y
+    };
+  }, [strategy, transform, elements.floating, data.x, data.y]);
+  return React28.useMemo(() => ({
+    ...data,
+    update,
+    refs,
+    elements,
+    floatingStyles
+  }), [data, update, refs, elements, floatingStyles]);
+}
+var arrow$1 = (options) => {
+  function isRef(value) {
+    return {}.hasOwnProperty.call(value, "current");
+  }
+  return {
+    name: "arrow",
+    options,
+    fn(state) {
+      const {
+        element,
+        padding
+      } = typeof options === "function" ? options(state) : options;
+      if (element && isRef(element)) {
+        if (element.current != null) {
+          return arrow2({
+            element: element.current,
+            padding
+          }).fn(state);
+        }
+        return {};
+      }
+      if (element) {
+        return arrow2({
+          element,
+          padding
+        }).fn(state);
+      }
+      return {};
+    }
+  };
+};
+var offset3 = (options, deps) => {
+  const result = offset2(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var shift3 = (options, deps) => {
+  const result = shift2(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var limitShift3 = (options, deps) => {
+  const result = limitShift2(options);
+  return {
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var flip3 = (options, deps) => {
+  const result = flip2(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var size3 = (options, deps) => {
+  const result = size2(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var hide3 = (options, deps) => {
+  const result = hide2(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+var arrow3 = (options, deps) => {
+  const result = arrow$1(options);
+  return {
+    name: result.name,
+    fn: result.fn,
+    options: [options, deps]
+  };
+};
+
+// node_modules/@radix-ui/react-arrow/dist/index.mjs
+import * as React29 from "react";
+import { jsx as jsx43 } from "react/jsx-runtime";
+var NAME2 = "Arrow";
+var Arrow = React29.forwardRef((props, forwardedRef) => {
+  const { children, width = 10, height = 5, ...arrowProps } = props;
+  return /* @__PURE__ */ jsx43(
+    Primitive.svg,
+    {
+      ...arrowProps,
+      ref: forwardedRef,
+      width,
+      height,
+      viewBox: "0 0 30 10",
+      preserveAspectRatio: "none",
+      children: props.asChild ? children : /* @__PURE__ */ jsx43("polygon", { points: "0,0 30,0 15,10" })
+    }
+  );
+});
+Arrow.displayName = NAME2;
+var Root4 = Arrow;
+
+// node_modules/@radix-ui/react-popper/dist/index.mjs
+import { jsx as jsx44 } from "react/jsx-runtime";
+var POPPER_NAME = "Popper";
+var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
+var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
+var Popper = (props) => {
+  const { __scopePopper, children } = props;
+  const [anchor, setAnchor] = React30.useState(null);
+  const [placementState, setPlacementState] = React30.useState(void 0);
+  return /* @__PURE__ */ jsx44(
+    PopperProvider,
+    {
+      scope: __scopePopper,
+      anchor,
+      onAnchorChange: setAnchor,
+      placementState,
+      setPlacementState,
+      children
+    }
+  );
+};
+Popper.displayName = POPPER_NAME;
+var ANCHOR_NAME = "PopperAnchor";
+var PopperAnchor = React30.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopePopper, virtualRef, ...anchorProps } = props;
+    const context = usePopperContext(ANCHOR_NAME, __scopePopper);
+    const ref = React30.useRef(null);
+    const onAnchorChange = context.onAnchorChange;
+    const callbackRef = React30.useCallback(
+      (node) => {
+        ref.current = node;
+        if (node) {
+          onAnchorChange(node);
+        }
+      },
+      [onAnchorChange]
+    );
+    const composedRefs = useComposedRefs(forwardedRef, callbackRef);
+    const anchorRef = React30.useRef(null);
+    React30.useEffect(() => {
+      if (!virtualRef) {
+        return;
+      }
+      const previousAnchor = anchorRef.current;
+      anchorRef.current = virtualRef.current;
+      if (previousAnchor !== anchorRef.current) {
+        onAnchorChange(anchorRef.current);
+      }
+    });
+    const sideAndAlign = context.placementState && getSideAndAlignFromPlacement(context.placementState);
+    const placedSide = sideAndAlign?.[0];
+    const placedAlign = sideAndAlign?.[1];
+    return virtualRef ? null : /* @__PURE__ */ jsx44(
+      Primitive.div,
+      {
+        "data-radix-popper-side": placedSide,
+        "data-radix-popper-align": placedAlign,
+        ...anchorProps,
+        ref: composedRefs
+      }
+    );
+  }
+);
+PopperAnchor.displayName = ANCHOR_NAME;
+var CONTENT_NAME = "PopperContent";
+var [PopperContentProvider, useContentContext] = createPopperContext(CONTENT_NAME);
+var PopperContent = React30.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopePopper,
+      side = "bottom",
+      sideOffset = 0,
+      align = "center",
+      alignOffset = 0,
+      arrowPadding = 0,
+      avoidCollisions = true,
+      collisionBoundary = [],
+      collisionPadding: collisionPaddingProp = 0,
+      sticky = "partial",
+      hideWhenDetached = false,
+      updatePositionStrategy = "optimized",
+      onPlaced,
+      ...contentProps
+    } = props;
+    const context = usePopperContext(CONTENT_NAME, __scopePopper);
+    const [content, setContent] = React30.useState(null);
+    const composedRefs = useComposedRefs(forwardedRef, setContent);
+    const [arrow4, setArrow] = React30.useState(null);
+    const arrowSize = useSize(arrow4);
+    const arrowWidth = arrowSize?.width ?? 0;
+    const arrowHeight = arrowSize?.height ?? 0;
+    const desiredPlacement = side + (align !== "center" ? "-" + align : "");
+    const collisionPadding = typeof collisionPaddingProp === "number" ? collisionPaddingProp : { top: 0, right: 0, bottom: 0, left: 0, ...collisionPaddingProp };
+    const boundary = Array.isArray(collisionBoundary) ? collisionBoundary : [collisionBoundary];
+    const hasExplicitBoundaries = boundary.length > 0;
+    const detectOverflowOptions = {
+      padding: collisionPadding,
+      boundary: boundary.filter(isNotNull),
+      // with `strategy: 'fixed'`, this is the only way to get it to respect boundaries
+      altBoundary: hasExplicitBoundaries
+    };
+    const { refs, floatingStyles, placement, isPositioned, middlewareData } = useFloating({
+      // default to `fixed` strategy so users don't have to pick and we also avoid focus scroll issues
+      strategy: "fixed",
+      placement: desiredPlacement,
+      whileElementsMounted: (...args) => {
+        const cleanup = autoUpdate(...args, {
+          animationFrame: updatePositionStrategy === "always"
+        });
+        return cleanup;
+      },
+      elements: {
+        reference: context.anchor
+      },
+      middleware: [
+        offset3({ mainAxis: sideOffset + arrowHeight, alignmentAxis: alignOffset }),
+        avoidCollisions && shift3({
+          mainAxis: true,
+          crossAxis: false,
+          limiter: sticky === "partial" ? limitShift3() : void 0,
+          ...detectOverflowOptions
+        }),
+        avoidCollisions && flip3({ ...detectOverflowOptions }),
+        size3({
+          ...detectOverflowOptions,
+          apply: ({ elements, rects, availableWidth, availableHeight }) => {
+            const { width: anchorWidth, height: anchorHeight } = rects.reference;
+            const contentStyle = elements.floating.style;
+            contentStyle.setProperty("--radix-popper-available-width", `${availableWidth}px`);
+            contentStyle.setProperty("--radix-popper-available-height", `${availableHeight}px`);
+            contentStyle.setProperty("--radix-popper-anchor-width", `${anchorWidth}px`);
+            contentStyle.setProperty("--radix-popper-anchor-height", `${anchorHeight}px`);
+          }
+        }),
+        arrow4 && arrow3({ element: arrow4, padding: arrowPadding }),
+        transformOrigin({ arrowWidth, arrowHeight }),
+        hideWhenDetached && hide3({
+          strategy: "referenceHidden",
+          ...detectOverflowOptions,
+          // `hide` detects whether the anchor (reference) is clipped, so when
+          // no explicit `collisionBoundary` is set we fall back to Floating
+          // UI's default clipping ancestors (e.g. a scrollable menu). This
+          // lets an occluded submenu hide once its anchor scrolls out of view
+          // (#3237). The collision/size middlewares deliberately keep the
+          // viewport-based default to avoid clamping content rendered inside
+          // transformed or overflow-clipping portal containers.
+          boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
+        })
+      ]
+    });
+    const setPlacementState = context.setPlacementState;
+    useLayoutEffect2(() => {
+      setPlacementState(placement);
+      return () => {
+        setPlacementState(void 0);
+      };
+    }, [placement, setPlacementState]);
+    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
+    const handlePlaced = useCallbackRef(onPlaced);
+    useLayoutEffect2(() => {
+      if (isPositioned) {
+        handlePlaced?.();
+      }
+    }, [isPositioned, handlePlaced]);
+    const arrowX = middlewareData.arrow?.x;
+    const arrowY = middlewareData.arrow?.y;
+    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
+    const [contentZIndex, setContentZIndex] = React30.useState();
+    useLayoutEffect2(() => {
+      if (content) setContentZIndex(window.getComputedStyle(content).zIndex);
+    }, [content]);
+    return /* @__PURE__ */ jsx44(
+      "div",
+      {
+        ref: refs.setFloating,
+        "data-radix-popper-content-wrapper": "",
+        style: {
+          ...floatingStyles,
+          transform: isPositioned ? floatingStyles.transform : "translate(0, -200%)",
+          // keep off the page when measuring
+          minWidth: "max-content",
+          zIndex: contentZIndex,
+          "--radix-popper-transform-origin": [
+            middlewareData.transformOrigin?.x,
+            middlewareData.transformOrigin?.y
+          ].join(" "),
+          // hide the content if using the hide middleware and should be hidden
+          // set visibility to hidden and disable pointer events so the UI behaves
+          // as if the PopperContent isn't there at all
+          ...middlewareData.hide?.referenceHidden && {
+            visibility: "hidden",
+            pointerEvents: "none"
+          }
+        },
+        dir: props.dir,
+        children: /* @__PURE__ */ jsx44(
+          PopperContentProvider,
+          {
+            scope: __scopePopper,
+            placedSide,
+            placedAlign,
+            onArrowChange: setArrow,
+            arrowX,
+            arrowY,
+            shouldHideArrow: cannotCenterArrow,
+            children: /* @__PURE__ */ jsx44(
+              Primitive.div,
+              {
+                "data-side": placedSide,
+                "data-align": placedAlign,
+                ...contentProps,
+                ref: composedRefs,
+                style: {
+                  ...contentProps.style,
+                  // if the PopperContent hasn't been placed yet (not all measurements done)
+                  // we prevent animations so that users's animation don't kick in too early referring wrong sides
+                  animation: !isPositioned ? "none" : void 0
+                }
+              }
+            )
+          }
+        )
+      }
+    );
+  }
+);
+PopperContent.displayName = CONTENT_NAME;
+var ARROW_NAME = "PopperArrow";
+var OPPOSITE_SIDE = {
+  top: "bottom",
+  right: "left",
+  bottom: "top",
+  left: "right"
+};
+var PopperArrow = React30.forwardRef(function PopperArrow2(props, forwardedRef) {
+  const { __scopePopper, ...arrowProps } = props;
+  const contentContext = useContentContext(ARROW_NAME, __scopePopper);
+  const baseSide = OPPOSITE_SIDE[contentContext.placedSide];
+  return (
+    // we have to use an extra wrapper because `ResizeObserver` (used by `useSize`)
+    // doesn't report size as we'd expect on SVG elements.
+    // it reports their bounding box which is effectively the largest path inside the SVG.
+    /* @__PURE__ */ jsx44(
+      "span",
+      {
+        ref: contentContext.onArrowChange,
+        style: {
+          position: "absolute",
+          left: contentContext.arrowX,
+          top: contentContext.arrowY,
+          [baseSide]: 0,
+          transformOrigin: {
+            top: "",
+            right: "0 0",
+            bottom: "center 0",
+            left: "100% 0"
+          }[contentContext.placedSide],
+          transform: {
+            top: "translateY(100%)",
+            right: "translateY(50%) rotate(90deg) translateX(-50%)",
+            bottom: `rotate(180deg)`,
+            left: "translateY(50%) rotate(-90deg) translateX(50%)"
+          }[contentContext.placedSide],
+          visibility: contentContext.shouldHideArrow ? "hidden" : void 0
+        },
+        children: /* @__PURE__ */ jsx44(
+          Root4,
+          {
+            ...arrowProps,
+            ref: forwardedRef,
+            style: {
+              ...arrowProps.style,
+              // ensures the element can be measured correctly (mostly for if SVG)
+              display: "block"
+            }
+          }
+        )
+      }
+    )
+  );
+});
+PopperArrow.displayName = ARROW_NAME;
+function isNotNull(value) {
+  return value !== null;
+}
+var transformOrigin = (options) => ({
+  name: "transformOrigin",
+  options,
+  fn(data) {
+    const { placement, rects, middlewareData } = data;
+    const cannotCenterArrow = middlewareData.arrow?.centerOffset !== 0;
+    const isArrowHidden = cannotCenterArrow;
+    const arrowWidth = isArrowHidden ? 0 : options.arrowWidth;
+    const arrowHeight = isArrowHidden ? 0 : options.arrowHeight;
+    const [placedSide, placedAlign] = getSideAndAlignFromPlacement(placement);
+    const noArrowAlign = { start: "0%", center: "50%", end: "100%" }[placedAlign];
+    const arrowXCenter = (middlewareData.arrow?.x ?? 0) + arrowWidth / 2;
+    const arrowYCenter = (middlewareData.arrow?.y ?? 0) + arrowHeight / 2;
+    let x = "";
+    let y = "";
+    if (placedSide === "bottom") {
+      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
+      y = `${-arrowHeight}px`;
+    } else if (placedSide === "top") {
+      x = isArrowHidden ? noArrowAlign : `${arrowXCenter}px`;
+      y = `${rects.floating.height + arrowHeight}px`;
+    } else if (placedSide === "right") {
+      x = `${-arrowHeight}px`;
+      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
+    } else if (placedSide === "left") {
+      x = `${rects.floating.width + arrowHeight}px`;
+      y = isArrowHidden ? noArrowAlign : `${arrowYCenter}px`;
+    }
+    return { data: { x, y } };
+  }
+});
+function getSideAndAlignFromPlacement(placement) {
+  const [side, align = "center"] = placement.split("-");
+  return [side, align];
+}
+var Root22 = Popper;
+var Anchor = PopperAnchor;
+var Content = PopperContent;
+var Arrow2 = PopperArrow;
+
+// node_modules/@radix-ui/react-portal/dist/index.mjs
+import * as React31 from "react";
+import * as ReactDOM3 from "react-dom";
+import { jsx as jsx45 } from "react/jsx-runtime";
+var PORTAL_NAME = "Portal";
+var Portal = React31.forwardRef((props, forwardedRef) => {
+  const { container: containerProp, ...portalProps } = props;
+  const [mounted, setMounted] = React31.useState(false);
+  useLayoutEffect2(() => setMounted(true), []);
+  const container = containerProp || mounted && globalThis?.document?.body;
+  return container ? ReactDOM3.createPortal(/* @__PURE__ */ jsx45(Primitive.div, { ...portalProps, ref: forwardedRef }), container) : null;
+});
+Portal.displayName = PORTAL_NAME;
+
+// node_modules/aria-hidden/dist/es2015/index.js
+var getDefaultParent = function(originalTarget) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  var sampleTarget = Array.isArray(originalTarget) ? originalTarget[0] : originalTarget;
+  return sampleTarget.ownerDocument.body;
+};
+var counterMap = /* @__PURE__ */ new WeakMap();
+var uncontrolledNodes = /* @__PURE__ */ new WeakMap();
+var markerMap = {};
+var lockCount = 0;
+var unwrapHost = function(node) {
+  return node && (node.host || unwrapHost(node.parentNode));
+};
+var correctTargets = function(parent, targets) {
+  return targets.map(function(target) {
+    if (parent.contains(target)) {
+      return target;
+    }
+    var correctedTarget = unwrapHost(target);
+    if (correctedTarget && parent.contains(correctedTarget)) {
+      return correctedTarget;
+    }
+    console.error("aria-hidden", target, "in not contained inside", parent, ". Doing nothing");
+    return null;
+  }).filter(function(x) {
+    return Boolean(x);
+  });
+};
+var applyAttributeToOthers = function(originalTarget, parentNode, markerName, controlAttribute) {
+  var targets = correctTargets(parentNode, Array.isArray(originalTarget) ? originalTarget : [originalTarget]);
+  if (!markerMap[markerName]) {
+    markerMap[markerName] = /* @__PURE__ */ new WeakMap();
+  }
+  var markerCounter = markerMap[markerName];
+  var hiddenNodes = [];
+  var elementsToKeep = /* @__PURE__ */ new Set();
+  var elementsToStop = new Set(targets);
+  var keep = function(el) {
+    if (!el || elementsToKeep.has(el)) {
+      return;
+    }
+    elementsToKeep.add(el);
+    keep(el.parentNode);
+  };
+  targets.forEach(keep);
+  var deep = function(parent) {
+    if (!parent || elementsToStop.has(parent)) {
+      return;
+    }
+    Array.prototype.forEach.call(parent.children, function(node) {
+      if (elementsToKeep.has(node)) {
+        deep(node);
+      } else {
+        try {
+          var attr = node.getAttribute(controlAttribute);
+          var alreadyHidden = attr !== null && attr !== "false";
+          var counterValue = (counterMap.get(node) || 0) + 1;
+          var markerValue = (markerCounter.get(node) || 0) + 1;
+          counterMap.set(node, counterValue);
+          markerCounter.set(node, markerValue);
+          hiddenNodes.push(node);
+          if (counterValue === 1 && alreadyHidden) {
+            uncontrolledNodes.set(node, true);
+          }
+          if (markerValue === 1) {
+            node.setAttribute(markerName, "true");
+          }
+          if (!alreadyHidden) {
+            node.setAttribute(controlAttribute, "true");
+          }
+        } catch (e) {
+          console.error("aria-hidden: cannot operate on ", node, e);
+        }
+      }
+    });
+  };
+  deep(parentNode);
+  elementsToKeep.clear();
+  lockCount++;
+  return function() {
+    hiddenNodes.forEach(function(node) {
+      var counterValue = counterMap.get(node) - 1;
+      var markerValue = markerCounter.get(node) - 1;
+      counterMap.set(node, counterValue);
+      markerCounter.set(node, markerValue);
+      if (!counterValue) {
+        if (!uncontrolledNodes.has(node)) {
+          node.removeAttribute(controlAttribute);
+        }
+        uncontrolledNodes.delete(node);
+      }
+      if (!markerValue) {
+        node.removeAttribute(markerName);
+      }
+    });
+    lockCount--;
+    if (!lockCount) {
+      counterMap = /* @__PURE__ */ new WeakMap();
+      counterMap = /* @__PURE__ */ new WeakMap();
+      uncontrolledNodes = /* @__PURE__ */ new WeakMap();
+      markerMap = {};
+    }
+  };
+};
+var hideOthers = function(originalTarget, parentNode, markerName) {
+  if (markerName === void 0) {
+    markerName = "data-aria-hidden";
+  }
+  var targets = Array.from(Array.isArray(originalTarget) ? originalTarget : [originalTarget]);
+  var activeParentNode = parentNode || getDefaultParent(originalTarget);
+  if (!activeParentNode) {
+    return function() {
+      return null;
+    };
+  }
+  targets.push.apply(targets, Array.from(activeParentNode.querySelectorAll("[aria-live], script")));
+  return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
+};
+
+// node_modules/tslib/tslib.es6.mjs
+var __assign = function() {
+  __assign = Object.assign || function __assign2(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+      for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+    }
+    return t;
+  };
+  return __assign.apply(this, arguments);
+};
+function __rest(s, e) {
+  var t = {};
+  for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+    t[p] = s[p];
+  if (s != null && typeof Object.getOwnPropertySymbols === "function")
+    for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+      if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+        t[p[i]] = s[p[i]];
+    }
+  return t;
+}
+function __spreadArray(to, from, pack) {
+  if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+    if (ar || !(i in from)) {
+      if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+      ar[i] = from[i];
+    }
+  }
+  return to.concat(ar || Array.prototype.slice.call(from));
+}
+
+// node_modules/react-remove-scroll/dist/es2015/Combination.js
+import * as React38 from "react";
+
+// node_modules/react-remove-scroll/dist/es2015/UI.js
+import * as React34 from "react";
+
+// node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+var zeroRightClassName = "right-scroll-bar-position";
+var fullWidthClassName = "width-before-scroll-bar";
+var noScrollbarsClassName = "with-scroll-bars-hidden";
+var removedBarSizeVariable = "--removed-body-scroll-bar-size";
+
+// node_modules/use-callback-ref/dist/es2015/assignRef.js
+function assignRef(ref, value) {
+  if (typeof ref === "function") {
+    ref(value);
+  } else if (ref) {
+    ref.current = value;
+  }
+  return ref;
+}
+
+// node_modules/use-callback-ref/dist/es2015/useRef.js
+import { useState as useState18 } from "react";
+function useCallbackRef2(initialValue, callback) {
+  var ref = useState18(function() {
+    return {
+      // value
+      value: initialValue,
+      // last callback
+      callback,
+      // "memoized" public interface
+      facade: {
+        get current() {
+          return ref.value;
+        },
+        set current(value) {
+          var last = ref.value;
+          if (last !== value) {
+            ref.value = value;
+            ref.callback(value, last);
+          }
+        }
+      }
+    };
+  })[0];
+  ref.callback = callback;
+  return ref.facade;
+}
+
+// node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+import * as React32 from "react";
+var useIsomorphicLayoutEffect = typeof window !== "undefined" ? React32.useLayoutEffect : React32.useEffect;
+var currentValues = /* @__PURE__ */ new WeakMap();
+function useMergeRefs(refs, defaultValue) {
+  var callbackRef = useCallbackRef2(defaultValue || null, function(newValue) {
+    return refs.forEach(function(ref) {
+      return assignRef(ref, newValue);
+    });
+  });
+  useIsomorphicLayoutEffect(function() {
+    var oldValue = currentValues.get(callbackRef);
+    if (oldValue) {
+      var prevRefs_1 = new Set(oldValue);
+      var nextRefs_1 = new Set(refs);
+      var current_1 = callbackRef.current;
+      prevRefs_1.forEach(function(ref) {
+        if (!nextRefs_1.has(ref)) {
+          assignRef(ref, null);
+        }
+      });
+      nextRefs_1.forEach(function(ref) {
+        if (!prevRefs_1.has(ref)) {
+          assignRef(ref, current_1);
+        }
+      });
+    }
+    currentValues.set(callbackRef, refs);
+  }, [refs]);
+  return callbackRef;
+}
+
+// node_modules/use-sidecar/dist/es2015/medium.js
+function ItoI(a) {
+  return a;
+}
+function innerCreateMedium(defaults, middleware) {
+  if (middleware === void 0) {
+    middleware = ItoI;
+  }
+  var buffer = [];
+  var assigned = false;
+  var medium = {
+    read: function() {
+      if (assigned) {
+        throw new Error("Sidecar: could not `read` from an `assigned` medium. `read` could be used only with `useMedium`.");
+      }
+      if (buffer.length) {
+        return buffer[buffer.length - 1];
+      }
+      return defaults;
+    },
+    useMedium: function(data) {
+      var item = middleware(data, assigned);
+      buffer.push(item);
+      return function() {
+        buffer = buffer.filter(function(x) {
+          return x !== item;
+        });
+      };
+    },
+    assignSyncMedium: function(cb) {
+      assigned = true;
+      while (buffer.length) {
+        var cbs = buffer;
+        buffer = [];
+        cbs.forEach(cb);
+      }
+      buffer = {
+        push: function(x) {
+          return cb(x);
+        },
+        filter: function() {
+          return buffer;
+        }
+      };
+    },
+    assignMedium: function(cb) {
+      assigned = true;
+      var pendingQueue = [];
+      if (buffer.length) {
+        var cbs = buffer;
+        buffer = [];
+        cbs.forEach(cb);
+        pendingQueue = buffer;
+      }
+      var executeQueue = function() {
+        var cbs2 = pendingQueue;
+        pendingQueue = [];
+        cbs2.forEach(cb);
+      };
+      var cycle = function() {
+        return Promise.resolve().then(executeQueue);
+      };
+      cycle();
+      buffer = {
+        push: function(x) {
+          pendingQueue.push(x);
+          cycle();
+        },
+        filter: function(filter) {
+          pendingQueue = pendingQueue.filter(filter);
+          return buffer;
+        }
+      };
+    }
+  };
+  return medium;
+}
+function createSidecarMedium(options) {
+  if (options === void 0) {
+    options = {};
+  }
+  var medium = innerCreateMedium(null);
+  medium.options = __assign({ async: true, ssr: false }, options);
+  return medium;
+}
+
+// node_modules/use-sidecar/dist/es2015/exports.js
+import * as React33 from "react";
+var SideCar = function(_a) {
+  var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
+  if (!sideCar) {
+    throw new Error("Sidecar: please provide `sideCar` property to import the right car");
+  }
+  var Target = sideCar.read();
+  if (!Target) {
+    throw new Error("Sidecar medium not found");
+  }
+  return React33.createElement(Target, __assign({}, rest));
+};
+SideCar.isSideCarExport = true;
+function exportSidecar(medium, exported) {
+  medium.useMedium(exported);
+  return SideCar;
+}
+
+// node_modules/react-remove-scroll/dist/es2015/medium.js
+var effectCar = createSidecarMedium();
+
+// node_modules/react-remove-scroll/dist/es2015/UI.js
+var nothing = function() {
+  return;
+};
+var RemoveScroll = React34.forwardRef(function(props, parentRef) {
+  var ref = React34.useRef(null);
+  var _a = React34.useState({
+    onScrollCapture: nothing,
+    onWheelCapture: nothing,
+    onTouchMoveCapture: nothing
+  }), callbacks = _a[0], setCallbacks = _a[1];
+  var forwardProps = props.forwardProps, children = props.children, className = props.className, removeScrollBar = props.removeScrollBar, enabled = props.enabled, shards = props.shards, sideCar = props.sideCar, noRelative = props.noRelative, noIsolation = props.noIsolation, inert = props.inert, allowPinchZoom = props.allowPinchZoom, _b = props.as, Container = _b === void 0 ? "div" : _b, gapMode = props.gapMode, rest = __rest(props, ["forwardProps", "children", "className", "removeScrollBar", "enabled", "shards", "sideCar", "noRelative", "noIsolation", "inert", "allowPinchZoom", "as", "gapMode"]);
+  var SideCar2 = sideCar;
+  var containerRef = useMergeRefs([ref, parentRef]);
+  var containerProps = __assign(__assign({}, rest), callbacks);
+  return React34.createElement(
+    React34.Fragment,
+    null,
+    enabled && React34.createElement(SideCar2, { sideCar: effectCar, removeScrollBar, shards, noRelative, noIsolation, inert, setCallbacks, allowPinchZoom: !!allowPinchZoom, lockRef: ref, gapMode }),
+    forwardProps ? React34.cloneElement(React34.Children.only(children), __assign(__assign({}, containerProps), { ref: containerRef })) : React34.createElement(Container, __assign({}, containerProps, { className, ref: containerRef }), children)
+  );
+});
+RemoveScroll.defaultProps = {
+  enabled: true,
+  removeScrollBar: true,
+  inert: false
+};
+RemoveScroll.classNames = {
+  fullWidth: fullWidthClassName,
+  zeroRight: zeroRightClassName
+};
+
+// node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+import * as React37 from "react";
+
+// node_modules/react-remove-scroll-bar/dist/es2015/component.js
+import * as React36 from "react";
+
+// node_modules/react-style-singleton/dist/es2015/hook.js
+import * as React35 from "react";
+
+// node_modules/get-nonce/dist/es2015/index.js
+var currentNonce;
+var getNonce = function() {
+  if (currentNonce) {
+    return currentNonce;
+  }
+  if (typeof __webpack_nonce__ !== "undefined") {
+    return __webpack_nonce__;
+  }
+  return void 0;
+};
+
+// node_modules/react-style-singleton/dist/es2015/singleton.js
+function makeStyleTag() {
+  if (!document)
+    return null;
+  var tag = document.createElement("style");
+  tag.type = "text/css";
+  var nonce = getNonce();
+  if (nonce) {
+    tag.setAttribute("nonce", nonce);
+  }
+  return tag;
+}
+function injectStyles(tag, css) {
+  if (tag.styleSheet) {
+    tag.styleSheet.cssText = css;
+  } else {
+    tag.appendChild(document.createTextNode(css));
+  }
+}
+function insertStyleTag(tag) {
+  var head = document.head || document.getElementsByTagName("head")[0];
+  head.appendChild(tag);
+}
+var stylesheetSingleton = function() {
+  var counter = 0;
+  var stylesheet = null;
+  return {
+    add: function(style) {
+      if (counter == 0) {
+        if (stylesheet = makeStyleTag()) {
+          injectStyles(stylesheet, style);
+          insertStyleTag(stylesheet);
+        }
+      }
+      counter++;
+    },
+    remove: function() {
+      counter--;
+      if (!counter && stylesheet) {
+        stylesheet.parentNode && stylesheet.parentNode.removeChild(stylesheet);
+        stylesheet = null;
+      }
+    }
+  };
+};
+
+// node_modules/react-style-singleton/dist/es2015/hook.js
+var styleHookSingleton = function() {
+  var sheet = stylesheetSingleton();
+  return function(styles, isDynamic) {
+    React35.useEffect(function() {
+      sheet.add(styles);
+      return function() {
+        sheet.remove();
+      };
+    }, [styles && isDynamic]);
+  };
+};
+
+// node_modules/react-style-singleton/dist/es2015/component.js
+var styleSingleton = function() {
+  var useStyle = styleHookSingleton();
+  var Sheet = function(_a) {
+    var styles = _a.styles, dynamic = _a.dynamic;
+    useStyle(styles, dynamic);
+    return null;
+  };
+  return Sheet;
+};
+
+// node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+var zeroGap = {
+  left: 0,
+  top: 0,
+  right: 0,
+  gap: 0
+};
+var parse = function(x) {
+  return parseInt(x || "", 10) || 0;
+};
+var getOffset = function(gapMode) {
+  var cs = window.getComputedStyle(document.body);
+  var left = cs[gapMode === "padding" ? "paddingLeft" : "marginLeft"];
+  var top = cs[gapMode === "padding" ? "paddingTop" : "marginTop"];
+  var right = cs[gapMode === "padding" ? "paddingRight" : "marginRight"];
+  return [parse(left), parse(top), parse(right)];
+};
+var getGapWidth = function(gapMode) {
+  if (gapMode === void 0) {
+    gapMode = "margin";
+  }
+  if (typeof window === "undefined") {
+    return zeroGap;
+  }
+  var offsets = getOffset(gapMode);
+  var documentWidth = document.documentElement.clientWidth;
+  var windowWidth = window.innerWidth;
+  return {
+    left: offsets[0],
+    top: offsets[1],
+    right: offsets[2],
+    gap: Math.max(0, windowWidth - documentWidth + offsets[2] - offsets[0])
+  };
+};
+
+// node_modules/react-remove-scroll-bar/dist/es2015/component.js
+var Style = styleSingleton();
+var lockAttribute = "data-scroll-locked";
+var getStyles = function(_a, allowRelative, gapMode, important) {
+  var left = _a.left, top = _a.top, right = _a.right, gap = _a.gap;
+  if (gapMode === void 0) {
+    gapMode = "margin";
+  }
+  return "\n  .".concat(noScrollbarsClassName, " {\n   overflow: hidden ").concat(important, ";\n   padding-right: ").concat(gap, "px ").concat(important, ";\n  }\n  body[").concat(lockAttribute, "] {\n    overflow: hidden ").concat(important, ";\n    overscroll-behavior: contain;\n    ").concat([
+    allowRelative && "position: relative ".concat(important, ";"),
+    gapMode === "margin" && "\n    padding-left: ".concat(left, "px;\n    padding-top: ").concat(top, "px;\n    padding-right: ").concat(right, "px;\n    margin-left:0;\n    margin-top:0;\n    margin-right: ").concat(gap, "px ").concat(important, ";\n    "),
+    gapMode === "padding" && "padding-right: ".concat(gap, "px ").concat(important, ";")
+  ].filter(Boolean).join(""), "\n  }\n  \n  .").concat(zeroRightClassName, " {\n    right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " {\n    margin-right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(zeroRightClassName, " .").concat(zeroRightClassName, " {\n    right: 0 ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " .").concat(fullWidthClassName, " {\n    margin-right: 0 ").concat(important, ";\n  }\n  \n  body[").concat(lockAttribute, "] {\n    ").concat(removedBarSizeVariable, ": ").concat(gap, "px;\n  }\n");
+};
+var getCurrentUseCounter = function() {
+  var counter = parseInt(document.body.getAttribute(lockAttribute) || "0", 10);
+  return isFinite(counter) ? counter : 0;
+};
+var useLockAttribute = function() {
+  React36.useEffect(function() {
+    document.body.setAttribute(lockAttribute, (getCurrentUseCounter() + 1).toString());
+    return function() {
+      var newCounter = getCurrentUseCounter() - 1;
+      if (newCounter <= 0) {
+        document.body.removeAttribute(lockAttribute);
+      } else {
+        document.body.setAttribute(lockAttribute, newCounter.toString());
+      }
+    };
+  }, []);
+};
+var RemoveScrollBar = function(_a) {
+  var noRelative = _a.noRelative, noImportant = _a.noImportant, _b = _a.gapMode, gapMode = _b === void 0 ? "margin" : _b;
+  useLockAttribute();
+  var gap = React36.useMemo(function() {
+    return getGapWidth(gapMode);
+  }, [gapMode]);
+  return React36.createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
+};
+
+// node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+var passiveSupported = false;
+if (typeof window !== "undefined") {
+  try {
+    options = Object.defineProperty({}, "passive", {
+      get: function() {
+        passiveSupported = true;
+        return true;
+      }
+    });
+    window.addEventListener("test", options, options);
+    window.removeEventListener("test", options, options);
+  } catch (err) {
+    passiveSupported = false;
+  }
+}
+var options;
+var nonPassive = passiveSupported ? { passive: false } : false;
+
+// node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+var alwaysContainsScroll = function(node) {
+  return node.tagName === "TEXTAREA";
+};
+var elementCanBeScrolled = function(node, overflow) {
+  if (!(node instanceof Element)) {
+    return false;
+  }
+  var styles = window.getComputedStyle(node);
+  return (
+    // not-not-scrollable
+    styles[overflow] !== "hidden" && // contains scroll inside self
+    !(styles.overflowY === styles.overflowX && !alwaysContainsScroll(node) && styles[overflow] === "visible")
+  );
+};
+var elementCouldBeVScrolled = function(node) {
+  return elementCanBeScrolled(node, "overflowY");
+};
+var elementCouldBeHScrolled = function(node) {
+  return elementCanBeScrolled(node, "overflowX");
+};
+var locationCouldBeScrolled = function(axis, node) {
+  var ownerDocument = node.ownerDocument;
+  var current = node;
+  do {
+    if (typeof ShadowRoot !== "undefined" && current instanceof ShadowRoot) {
+      current = current.host;
+    }
+    var isScrollable = elementCouldBeScrolled(axis, current);
+    if (isScrollable) {
+      var _a = getScrollVariables(axis, current), scrollHeight = _a[1], clientHeight = _a[2];
+      if (scrollHeight > clientHeight) {
+        return true;
+      }
+    }
+    current = current.parentNode;
+  } while (current && current !== ownerDocument.body);
+  return false;
+};
+var getVScrollVariables = function(_a) {
+  var scrollTop = _a.scrollTop, scrollHeight = _a.scrollHeight, clientHeight = _a.clientHeight;
+  return [
+    scrollTop,
+    scrollHeight,
+    clientHeight
+  ];
+};
+var getHScrollVariables = function(_a) {
+  var scrollLeft = _a.scrollLeft, scrollWidth = _a.scrollWidth, clientWidth = _a.clientWidth;
+  return [
+    scrollLeft,
+    scrollWidth,
+    clientWidth
+  ];
+};
+var elementCouldBeScrolled = function(axis, node) {
+  return axis === "v" ? elementCouldBeVScrolled(node) : elementCouldBeHScrolled(node);
+};
+var getScrollVariables = function(axis, node) {
+  return axis === "v" ? getVScrollVariables(node) : getHScrollVariables(node);
+};
+var getDirectionFactor = function(axis, direction) {
+  return axis === "h" && direction === "rtl" ? -1 : 1;
+};
+var handleScroll = function(axis, endTarget, event, sourceDelta, noOverscroll) {
+  var directionFactor = getDirectionFactor(axis, window.getComputedStyle(endTarget).direction);
+  var delta = directionFactor * sourceDelta;
+  var target = event.target;
+  var targetInLock = endTarget.contains(target);
+  var shouldCancelScroll = false;
+  var isDeltaPositive = delta > 0;
+  var availableScroll = 0;
+  var availableScrollTop = 0;
+  do {
+    if (!target) {
+      break;
+    }
+    var _a = getScrollVariables(axis, target), position = _a[0], scroll_1 = _a[1], capacity = _a[2];
+    var elementScroll = scroll_1 - capacity - directionFactor * position;
+    if (position || elementScroll) {
+      if (elementCouldBeScrolled(axis, target)) {
+        availableScroll += elementScroll;
+        availableScrollTop += position;
+      }
+    }
+    var parent_1 = target.parentNode;
+    target = parent_1 && parent_1.nodeType === Node.DOCUMENT_FRAGMENT_NODE ? parent_1.host : parent_1;
+  } while (
+    // portaled content
+    !targetInLock && target !== document.body || // self content
+    targetInLock && (endTarget.contains(target) || endTarget === target)
+  );
+  if (isDeltaPositive && (noOverscroll && Math.abs(availableScroll) < 1 || !noOverscroll && delta > availableScroll)) {
+    shouldCancelScroll = true;
+  } else if (!isDeltaPositive && (noOverscroll && Math.abs(availableScrollTop) < 1 || !noOverscroll && -delta > availableScrollTop)) {
+    shouldCancelScroll = true;
+  }
+  return shouldCancelScroll;
+};
+
+// node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+var getTouchXY = function(event) {
+  return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
+};
+var getDeltaXY = function(event) {
+  return [event.deltaX, event.deltaY];
+};
+var extractRef = function(ref) {
+  return ref && "current" in ref ? ref.current : ref;
+};
+var deltaCompare = function(x, y) {
+  return x[0] === y[0] && x[1] === y[1];
+};
+var generateStyle = function(id) {
+  return "\n  .block-interactivity-".concat(id, " {pointer-events: none;}\n  .allow-interactivity-").concat(id, " {pointer-events: all;}\n");
+};
+var idCounter = 0;
+var lockStack = [];
+function RemoveScrollSideCar(props) {
+  var shouldPreventQueue = React37.useRef([]);
+  var touchStartRef = React37.useRef([0, 0]);
+  var activeAxis = React37.useRef();
+  var id = React37.useState(idCounter++)[0];
+  var Style2 = React37.useState(styleSingleton)[0];
+  var lastProps = React37.useRef(props);
+  React37.useEffect(function() {
+    lastProps.current = props;
+  }, [props]);
+  React37.useEffect(function() {
+    if (props.inert) {
+      document.body.classList.add("block-interactivity-".concat(id));
+      var allow_1 = __spreadArray([props.lockRef.current], (props.shards || []).map(extractRef), true).filter(Boolean);
+      allow_1.forEach(function(el) {
+        return el.classList.add("allow-interactivity-".concat(id));
+      });
+      return function() {
+        document.body.classList.remove("block-interactivity-".concat(id));
+        allow_1.forEach(function(el) {
+          return el.classList.remove("allow-interactivity-".concat(id));
+        });
+      };
+    }
+    return;
+  }, [props.inert, props.lockRef.current, props.shards]);
+  var shouldCancelEvent = React37.useCallback(function(event, parent) {
+    if ("touches" in event && event.touches.length === 2 || event.type === "wheel" && event.ctrlKey) {
+      return !lastProps.current.allowPinchZoom;
+    }
+    var touch = getTouchXY(event);
+    var touchStart = touchStartRef.current;
+    var deltaX = "deltaX" in event ? event.deltaX : touchStart[0] - touch[0];
+    var deltaY = "deltaY" in event ? event.deltaY : touchStart[1] - touch[1];
+    var currentAxis;
+    var target = event.target;
+    var moveDirection = Math.abs(deltaX) > Math.abs(deltaY) ? "h" : "v";
+    if ("touches" in event && moveDirection === "h" && target.type === "range") {
+      return false;
+    }
+    var selection = window.getSelection();
+    var anchorNode = selection && selection.anchorNode;
+    var isTouchingSelection = anchorNode ? anchorNode === target || anchorNode.contains(target) : false;
+    if (isTouchingSelection) {
+      return false;
+    }
+    var canBeScrolledInMainDirection = locationCouldBeScrolled(moveDirection, target);
+    if (!canBeScrolledInMainDirection) {
+      return true;
+    }
+    if (canBeScrolledInMainDirection) {
+      currentAxis = moveDirection;
+    } else {
+      currentAxis = moveDirection === "v" ? "h" : "v";
+      canBeScrolledInMainDirection = locationCouldBeScrolled(moveDirection, target);
+    }
+    if (!canBeScrolledInMainDirection) {
+      return false;
+    }
+    if (!activeAxis.current && "changedTouches" in event && (deltaX || deltaY)) {
+      activeAxis.current = currentAxis;
+    }
+    if (!currentAxis) {
+      return true;
+    }
+    var cancelingAxis = activeAxis.current || currentAxis;
+    return handleScroll(cancelingAxis, parent, event, cancelingAxis === "h" ? deltaX : deltaY, true);
+  }, []);
+  var shouldPrevent = React37.useCallback(function(_event) {
+    var event = _event;
+    if (!lockStack.length || lockStack[lockStack.length - 1] !== Style2) {
+      return;
+    }
+    var delta = "deltaY" in event ? getDeltaXY(event) : getTouchXY(event);
+    var sourceEvent = shouldPreventQueue.current.filter(function(e) {
+      return e.name === event.type && (e.target === event.target || event.target === e.shadowParent) && deltaCompare(e.delta, delta);
+    })[0];
+    if (sourceEvent && sourceEvent.should) {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      return;
+    }
+    if (!sourceEvent) {
+      var shardNodes = (lastProps.current.shards || []).map(extractRef).filter(Boolean).filter(function(node) {
+        return node.contains(event.target);
+      });
+      var shouldStop = shardNodes.length > 0 ? shouldCancelEvent(event, shardNodes[0]) : !lastProps.current.noIsolation;
+      if (shouldStop) {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+      }
+    }
+  }, []);
+  var shouldCancel = React37.useCallback(function(name, delta, target, should) {
+    var event = { name, delta, target, should, shadowParent: getOutermostShadowParent(target) };
+    shouldPreventQueue.current.push(event);
+    setTimeout(function() {
+      shouldPreventQueue.current = shouldPreventQueue.current.filter(function(e) {
+        return e !== event;
+      });
+    }, 1);
+  }, []);
+  var scrollTouchStart = React37.useCallback(function(event) {
+    touchStartRef.current = getTouchXY(event);
+    activeAxis.current = void 0;
+  }, []);
+  var scrollWheel = React37.useCallback(function(event) {
+    shouldCancel(event.type, getDeltaXY(event), event.target, shouldCancelEvent(event, props.lockRef.current));
+  }, []);
+  var scrollTouchMove = React37.useCallback(function(event) {
+    shouldCancel(event.type, getTouchXY(event), event.target, shouldCancelEvent(event, props.lockRef.current));
+  }, []);
+  React37.useEffect(function() {
+    lockStack.push(Style2);
+    props.setCallbacks({
+      onScrollCapture: scrollWheel,
+      onWheelCapture: scrollWheel,
+      onTouchMoveCapture: scrollTouchMove
+    });
+    document.addEventListener("wheel", shouldPrevent, nonPassive);
+    document.addEventListener("touchmove", shouldPrevent, nonPassive);
+    document.addEventListener("touchstart", scrollTouchStart, nonPassive);
+    return function() {
+      lockStack = lockStack.filter(function(inst) {
+        return inst !== Style2;
+      });
+      document.removeEventListener("wheel", shouldPrevent, nonPassive);
+      document.removeEventListener("touchmove", shouldPrevent, nonPassive);
+      document.removeEventListener("touchstart", scrollTouchStart, nonPassive);
+    };
+  }, []);
+  var removeScrollBar = props.removeScrollBar, inert = props.inert;
+  return React37.createElement(
+    React37.Fragment,
+    null,
+    inert ? React37.createElement(Style2, { styles: generateStyle(id) }) : null,
+    removeScrollBar ? React37.createElement(RemoveScrollBar, { noRelative: props.noRelative, gapMode: props.gapMode }) : null
+  );
+}
+function getOutermostShadowParent(node) {
+  var shadowParent = null;
+  while (node !== null) {
+    if (node instanceof ShadowRoot) {
+      shadowParent = node.host;
+      node = node.host;
+    }
+    node = node.parentNode;
+  }
+  return shadowParent;
+}
+
+// node_modules/react-remove-scroll/dist/es2015/sidecar.js
+var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
+
+// node_modules/react-remove-scroll/dist/es2015/Combination.js
+var ReactRemoveScroll = React38.forwardRef(function(props, ref) {
+  return React38.createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
+});
+ReactRemoveScroll.classNames = RemoveScroll.classNames;
+var Combination_default = ReactRemoveScroll;
+
+// node_modules/@radix-ui/react-select/dist/index.mjs
+import { Fragment as Fragment23, jsx as jsx46, jsxs as jsxs23 } from "react/jsx-runtime";
+var OPEN_KEYS = [" ", "Enter", "ArrowUp", "ArrowDown"];
+var SELECTION_KEYS = [" ", "Enter"];
+var SELECT_NAME = "Select";
+var [Collection2, useCollection2, createCollectionScope2] = createCollection(SELECT_NAME);
+var [createSelectContext, createSelectScope] = createContextScope(SELECT_NAME, [
+  createCollectionScope2,
+  createPopperScope
+]);
+var usePopperScope = createPopperScope();
+var [SelectProviderImpl, useSelectContext] = createSelectContext(SELECT_NAME);
+var [SelectNativeOptionsProvider, useSelectNativeOptionsContext] = createSelectContext(SELECT_NAME);
+var PROVIDER_NAME = "SelectProvider";
+function SelectProvider(props) {
+  const {
+    __scopeSelect,
+    children,
+    open: openProp,
+    defaultOpen,
+    onOpenChange,
+    value: valueProp,
+    defaultValue,
+    onValueChange,
+    dir,
+    name,
+    autoComplete,
+    disabled,
+    required,
+    form,
+    // @ts-expect-error internal render prop used by `Select` to compose its default parts
+    internal_do_not_use_render
+  } = props;
+  const popperScope = usePopperScope(__scopeSelect);
+  const [trigger, setTrigger] = React39.useState(null);
+  const [valueNode, setValueNode] = React39.useState(null);
+  const [valueNodeHasChildren, setValueNodeHasChildren] = React39.useState(false);
+  const direction = useDirection(dir);
+  const [open, setOpen] = useControllableState2({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: onOpenChange,
+    caller: SELECT_NAME
+  });
+  const [value, setValue] = useControllableState2({
+    prop: valueProp,
+    defaultProp: defaultValue,
+    onChange: onValueChange,
+    caller: SELECT_NAME
+  });
+  const triggerPointerDownPosRef = React39.useRef(null);
+  const isFormControl = trigger ? !!form || !!trigger.closest("form") : true;
+  const [nativeOptionsSet, setNativeOptionsSet] = React39.useState(/* @__PURE__ */ new Set());
+  const contentId = useId2();
+  const nativeSelectKey = Array.from(nativeOptionsSet).map((option) => option.props.value).join(";");
+  const handleNativeOptionAdd = React39.useCallback((option) => {
+    setNativeOptionsSet((prev) => new Set(prev).add(option));
+  }, []);
+  const handleNativeOptionRemove = React39.useCallback((option) => {
+    setNativeOptionsSet((prev) => {
+      const optionsSet = new Set(prev);
+      optionsSet.delete(option);
+      return optionsSet;
+    });
+  }, []);
+  const context = {
+    required,
+    trigger,
+    onTriggerChange: setTrigger,
+    valueNode,
+    onValueNodeChange: setValueNode,
+    valueNodeHasChildren,
+    onValueNodeHasChildrenChange: setValueNodeHasChildren,
+    contentId,
+    value,
+    onValueChange: setValue,
+    open,
+    onOpenChange: setOpen,
+    dir: direction,
+    triggerPointerDownPosRef,
+    disabled,
+    name,
+    autoComplete,
+    form,
+    nativeOptions: nativeOptionsSet,
+    nativeSelectKey,
+    isFormControl
+  };
+  return /* @__PURE__ */ jsx46(Root22, { ...popperScope, children: /* @__PURE__ */ jsx46(SelectProviderImpl, { scope: __scopeSelect, ...context, children: /* @__PURE__ */ jsx46(Collection2.Provider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx46(
+    SelectNativeOptionsProvider,
+    {
+      scope: __scopeSelect,
+      onNativeOptionAdd: handleNativeOptionAdd,
+      onNativeOptionRemove: handleNativeOptionRemove,
+      children: isFunction5(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
+    }
+  ) }) }) });
+}
+SelectProvider.displayName = PROVIDER_NAME;
+var Select = (props) => {
+  const { __scopeSelect, children, ...providerProps } = props;
+  return /* @__PURE__ */ jsx46(
+    SelectProvider,
+    {
+      __scopeSelect,
+      ...providerProps,
+      internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ jsxs23(Fragment23, { children: [
+        children,
+        isFormControl ? /* @__PURE__ */ jsx46(
+          SelectBubbleInput,
+          {
+            __scopeSelect
+          }
+        ) : null
+      ] })
+    }
+  );
+};
+Select.displayName = SELECT_NAME;
+var TRIGGER_NAME4 = "SelectTrigger";
+var SelectTrigger = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, disabled = false, ...triggerProps } = props;
+    const popperScope = usePopperScope(__scopeSelect);
+    const context = useSelectContext(TRIGGER_NAME4, __scopeSelect);
+    const isDisabled = context.disabled || disabled;
+    const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
+    const getItems = useCollection2(__scopeSelect);
+    const pointerTypeRef = React39.useRef("touch");
+    const [searchRef, handleTypeaheadSearch, resetTypeahead] = useTypeaheadSearch((search) => {
+      const enabledItems = getItems().filter((item) => !item.disabled);
+      const currentItem = enabledItems.find((item) => item.value === context.value);
+      const nextItem = findNextItem(enabledItems, search, currentItem);
+      if (nextItem !== void 0) {
+        context.onValueChange(nextItem.value);
+      }
+    });
+    const handleOpen = (pointerEvent) => {
+      if (!isDisabled) {
+        context.onOpenChange(true);
+        resetTypeahead();
+      }
+      if (pointerEvent) {
+        context.triggerPointerDownPosRef.current = {
+          x: Math.round(pointerEvent.pageX),
+          y: Math.round(pointerEvent.pageY)
+        };
+      }
+    };
+    return /* @__PURE__ */ jsx46(Anchor, { asChild: true, ...popperScope, children: /* @__PURE__ */ jsx46(
+      Primitive.button,
+      {
+        type: "button",
+        role: "combobox",
+        "aria-controls": context.open ? context.contentId : void 0,
+        "aria-expanded": context.open,
+        "aria-required": context.required,
+        "aria-autocomplete": "none",
+        dir: context.dir,
+        "data-state": context.open ? "open" : "closed",
+        disabled: isDisabled,
+        "data-disabled": isDisabled ? "" : void 0,
+        "data-placeholder": shouldShowPlaceholder(context.value) ? "" : void 0,
+        ...triggerProps,
+        ref: composedRefs,
+        onClick: composeEventHandlers(triggerProps.onClick, (event) => {
+          event.currentTarget.focus();
+          if (pointerTypeRef.current !== "mouse") {
+            handleOpen(event);
+          }
+        }),
+        onPointerDown: composeEventHandlers(triggerProps.onPointerDown, (event) => {
+          pointerTypeRef.current = event.pointerType;
+          const target = event.target;
+          if (target.hasPointerCapture(event.pointerId)) {
+            target.releasePointerCapture(event.pointerId);
+          }
+          if (event.button === 0 && event.ctrlKey === false && event.pointerType === "mouse") {
+            handleOpen(event);
+            event.preventDefault();
+          }
+        }),
+        onKeyDown: composeEventHandlers(triggerProps.onKeyDown, (event) => {
+          const isTypingAhead = searchRef.current !== "";
+          const isModifierKey = event.ctrlKey || event.altKey || event.metaKey;
+          if (!isModifierKey && event.key.length === 1) handleTypeaheadSearch(event.key);
+          if (isTypingAhead && event.key === " ") return;
+          if (OPEN_KEYS.includes(event.key)) {
+            handleOpen();
+            event.preventDefault();
+          }
+        })
+      }
+    ) });
+  }
+);
+SelectTrigger.displayName = TRIGGER_NAME4;
+var VALUE_NAME = "SelectValue";
+var SelectValue = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, className, style, children, placeholder = "", ...valueProps } = props;
+    const context = useSelectContext(VALUE_NAME, __scopeSelect);
+    const { onValueNodeHasChildrenChange } = context;
+    const hasChildren = children !== void 0;
+    const composedRefs = useComposedRefs(forwardedRef, context.onValueNodeChange);
+    useLayoutEffect2(() => {
+      onValueNodeHasChildrenChange(hasChildren);
+    }, [onValueNodeHasChildrenChange, hasChildren]);
+    const showPlaceholder = shouldShowPlaceholder(context.value);
+    return /* @__PURE__ */ jsx46(
+      Primitive.span,
+      {
+        ...valueProps,
+        asChild: showPlaceholder ? false : valueProps.asChild,
+        ref: composedRefs,
+        style: { pointerEvents: "none" },
+        children: /* @__PURE__ */ jsx46(React39.Fragment, { children: showPlaceholder ? placeholder : children }, showPlaceholder ? "placeholder" : "value")
+      }
+    );
+  }
+);
+SelectValue.displayName = VALUE_NAME;
+var ICON_NAME = "SelectIcon";
+var SelectIcon = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, children, ...iconProps } = props;
+    return /* @__PURE__ */ jsx46(Primitive.span, { "aria-hidden": true, ...iconProps, ref: forwardedRef, children: children || "\u25BC" });
+  }
+);
+SelectIcon.displayName = ICON_NAME;
+var PORTAL_NAME2 = "SelectPortal";
+var [PortalProvider, usePortalContext] = createSelectContext(PORTAL_NAME2, {
+  forceMount: void 0
+});
+var SelectPortal = (props) => {
+  const { __scopeSelect, forceMount, ...portalProps } = props;
+  return /* @__PURE__ */ jsx46(PortalProvider, { scope: props.__scopeSelect, forceMount, children: /* @__PURE__ */ jsx46(Portal, { asChild: true, ...portalProps }) });
+};
+SelectPortal.displayName = PORTAL_NAME2;
+var CONTENT_NAME2 = "SelectContent";
+var SelectContent = React39.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext(CONTENT_NAME2, props.__scopeSelect);
+    const { forceMount = portalContext.forceMount, ...contentProps } = props;
+    const context = useSelectContext(CONTENT_NAME2, props.__scopeSelect);
+    const [fragment, setFragment] = React39.useState();
+    useLayoutEffect2(() => {
+      setFragment(new DocumentFragment());
+    }, []);
+    return /* @__PURE__ */ jsx46(Presence, { present: forceMount || context.open, children: ({ present }) => present ? /* @__PURE__ */ jsx46(SelectContentImpl, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx46(SelectContentFragment, { ...contentProps, fragment }) });
+  }
+);
+SelectContent.displayName = CONTENT_NAME2;
+var SelectContentFragment = React39.forwardRef((props, forwardedRef) => {
+  const { __scopeSelect, children, fragment } = props;
+  if (!fragment) return null;
+  return ReactDOM4.createPortal(
+    /* @__PURE__ */ jsx46(SelectContentProvider, { scope: __scopeSelect, children: /* @__PURE__ */ jsx46(Collection2.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx46("div", { ref: forwardedRef, children }) }) }),
+    fragment
+  );
+});
+SelectContentFragment.displayName = "SelectContentFragment";
+var CONTENT_MARGIN = 10;
+var [SelectContentProvider, useSelectContentContext] = createSelectContext(CONTENT_NAME2);
+var CONTENT_IMPL_NAME = "SelectContentImpl";
+var Slot = createSlot("SelectContent.RemoveScroll");
+var SelectContentImpl = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect } = props;
+    const {
+      position = "item-aligned",
+      onCloseAutoFocus,
+      onEscapeKeyDown,
+      onPointerDownOutside,
+      //
+      // PopperContent props
+      side,
+      sideOffset,
+      align,
+      alignOffset,
+      arrowPadding,
+      collisionBoundary,
+      collisionPadding,
+      sticky,
+      hideWhenDetached,
+      avoidCollisions,
+      //
+      ...contentProps
+    } = props;
+    const context = useSelectContext(CONTENT_NAME2, __scopeSelect);
+    const [content, setContent] = React39.useState(null);
+    const [viewport, setViewport] = React39.useState(null);
+    const composedRefs = useComposedRefs(forwardedRef, setContent);
+    const [selectedItem, setSelectedItem] = React39.useState(null);
+    const [selectedItemText, setSelectedItemText] = React39.useState(
+      null
+    );
+    const getItems = useCollection2(__scopeSelect);
+    const [isPositioned, setIsPositioned] = React39.useState(false);
+    const firstValidItemFoundRef = React39.useRef(false);
+    React39.useEffect(() => {
+      if (content) return hideOthers(content);
+    }, [content]);
+    useFocusGuards();
+    const focusFirst5 = React39.useCallback(
+      (candidates) => {
+        const [firstItem, ...restItems] = getItems().map((item) => item.ref.current);
+        const [lastItem] = restItems.slice(-1);
+        const PREVIOUSLY_FOCUSED_ELEMENT = document.activeElement;
+        for (const candidate of candidates) {
+          if (candidate === PREVIOUSLY_FOCUSED_ELEMENT) return;
+          candidate?.scrollIntoView({ block: "nearest" });
+          if (candidate === firstItem && viewport) viewport.scrollTop = 0;
+          if (candidate === lastItem && viewport) viewport.scrollTop = viewport.scrollHeight;
+          candidate?.focus();
+          if (document.activeElement !== PREVIOUSLY_FOCUSED_ELEMENT) return;
+        }
+      },
+      [getItems, viewport]
+    );
+    const focusSelectedItem = React39.useCallback(
+      () => focusFirst5([selectedItem, content]),
+      [focusFirst5, selectedItem, content]
+    );
+    React39.useEffect(() => {
+      if (isPositioned) {
+        focusSelectedItem();
+      }
+    }, [isPositioned, focusSelectedItem]);
+    const { onOpenChange, triggerPointerDownPosRef } = context;
+    React39.useEffect(() => {
+      if (content) {
+        let pointerMoveDelta = { x: 0, y: 0 };
+        const handlePointerMove = (event) => {
+          pointerMoveDelta = {
+            x: Math.abs(Math.round(event.pageX) - (triggerPointerDownPosRef.current?.x ?? 0)),
+            y: Math.abs(Math.round(event.pageY) - (triggerPointerDownPosRef.current?.y ?? 0))
+          };
+        };
+        const handlePointerUp = (event) => {
+          if (pointerMoveDelta.x <= 10 && pointerMoveDelta.y <= 10) {
+            event.preventDefault();
+          } else {
+            if (!event.composedPath().includes(content)) {
+              onOpenChange(false);
+            }
+          }
+          document.removeEventListener("pointermove", handlePointerMove);
+          triggerPointerDownPosRef.current = null;
+        };
+        if (triggerPointerDownPosRef.current !== null) {
+          document.addEventListener("pointermove", handlePointerMove);
+          document.addEventListener("pointerup", handlePointerUp, { capture: true, once: true });
+        }
+        return () => {
+          document.removeEventListener("pointermove", handlePointerMove);
+          document.removeEventListener("pointerup", handlePointerUp, { capture: true });
+        };
+      }
+    }, [content, onOpenChange, triggerPointerDownPosRef]);
+    React39.useEffect(() => {
+      const close = () => onOpenChange(false);
+      window.addEventListener("blur", close);
+      window.addEventListener("resize", close);
+      return () => {
+        window.removeEventListener("blur", close);
+        window.removeEventListener("resize", close);
+      };
+    }, [onOpenChange]);
+    const [searchRef, handleTypeaheadSearch] = useTypeaheadSearch((search) => {
+      const enabledItems = getItems().filter((item) => !item.disabled);
+      const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
+      const nextItem = findNextItem(enabledItems, search, currentItem);
+      if (nextItem) {
+        setTimeout(() => nextItem.ref.current?.focus());
+      }
+    });
+    const itemRefCallback = React39.useCallback(
+      (node, value, disabled) => {
+        const isFirstValidItem = !firstValidItemFoundRef.current && !disabled;
+        const isSelectedItem = context.value !== void 0 && context.value === value;
+        if (isSelectedItem || isFirstValidItem) {
+          setSelectedItem(node);
+          if (isFirstValidItem) firstValidItemFoundRef.current = true;
+        }
+      },
+      [context.value]
+    );
+    const handleItemLeave = React39.useCallback(() => content?.focus(), [content]);
+    const itemTextRefCallback = React39.useCallback(
+      (node, value, disabled) => {
+        const isFirstValidItem = !firstValidItemFoundRef.current && !disabled;
+        const isSelectedItem = context.value !== void 0 && context.value === value;
+        if (isSelectedItem || isFirstValidItem) {
+          setSelectedItemText(node);
+        }
+      },
+      [context.value]
+    );
+    const SelectPosition = position === "popper" ? SelectPopperPosition : SelectItemAlignedPosition;
+    const popperContentProps = SelectPosition === SelectPopperPosition ? {
+      side,
+      sideOffset,
+      align,
+      alignOffset,
+      arrowPadding,
+      collisionBoundary,
+      collisionPadding,
+      sticky,
+      hideWhenDetached,
+      avoidCollisions
+    } : {};
+    return /* @__PURE__ */ jsx46(
+      SelectContentProvider,
+      {
+        scope: __scopeSelect,
+        content,
+        viewport,
+        onViewportChange: setViewport,
+        itemRefCallback,
+        selectedItem,
+        onItemLeave: handleItemLeave,
+        itemTextRefCallback,
+        focusSelectedItem,
+        selectedItemText,
+        position,
+        isPositioned,
+        searchRef,
+        children: /* @__PURE__ */ jsx46(Combination_default, { as: Slot, allowPinchZoom: true, children: /* @__PURE__ */ jsx46(
+          FocusScope,
+          {
+            asChild: true,
+            trapped: context.open,
+            onMountAutoFocus: (event) => {
+              event.preventDefault();
+            },
+            onUnmountAutoFocus: composeEventHandlers(onCloseAutoFocus, (event) => {
+              context.trigger?.focus({ preventScroll: true });
+              event.preventDefault();
+            }),
+            children: /* @__PURE__ */ jsx46(
+              DismissableLayer,
+              {
+                asChild: true,
+                disableOutsidePointerEvents: true,
+                onEscapeKeyDown,
+                onPointerDownOutside,
+                onFocusOutside: (event) => event.preventDefault(),
+                onDismiss: () => context.onOpenChange(false),
+                children: /* @__PURE__ */ jsx46(
+                  SelectPosition,
+                  {
+                    role: "listbox",
+                    id: context.contentId,
+                    "data-state": context.open ? "open" : "closed",
+                    dir: context.dir,
+                    onContextMenu: (event) => event.preventDefault(),
+                    ...contentProps,
+                    ...popperContentProps,
+                    onPlaced: () => setIsPositioned(true),
+                    ref: composedRefs,
+                    style: {
+                      // flex layout so we can place the scroll buttons properly
+                      display: "flex",
+                      flexDirection: "column",
+                      // reset the outline by default as the content MAY get focused
+                      outline: "none",
+                      ...contentProps.style
+                    },
+                    onKeyDown: composeEventHandlers(contentProps.onKeyDown, (event) => {
+                      const isModifierKey = event.ctrlKey || event.altKey || event.metaKey;
+                      if (event.key === "Tab") event.preventDefault();
+                      if (!isModifierKey && event.key.length === 1) handleTypeaheadSearch(event.key);
+                      if (["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
+                        const items = getItems().filter((item) => !item.disabled);
+                        let candidateNodes = items.map((item) => item.ref.current);
+                        if (["ArrowUp", "End"].includes(event.key)) {
+                          candidateNodes = candidateNodes.slice().reverse();
+                        }
+                        if (["ArrowUp", "ArrowDown"].includes(event.key)) {
+                          const currentElement = event.target;
+                          const currentIndex = candidateNodes.indexOf(currentElement);
+                          candidateNodes = candidateNodes.slice(currentIndex + 1);
+                        }
+                        setTimeout(() => focusFirst5(candidateNodes));
+                        event.preventDefault();
+                      }
+                    })
+                  }
+                )
+              }
+            )
+          }
+        ) })
+      }
+    );
+  }
+);
+SelectContentImpl.displayName = CONTENT_IMPL_NAME;
+var ITEM_ALIGNED_POSITION_NAME = "SelectItemAlignedPosition";
+var SelectItemAlignedPosition = React39.forwardRef((props, forwardedRef) => {
+  const { __scopeSelect, onPlaced, ...popperProps } = props;
+  const context = useSelectContext(CONTENT_NAME2, __scopeSelect);
+  const contentContext = useSelectContentContext(CONTENT_NAME2, __scopeSelect);
+  const [contentWrapper, setContentWrapper] = React39.useState(null);
+  const [content, setContent] = React39.useState(null);
+  const composedRefs = useComposedRefs(forwardedRef, setContent);
+  const getItems = useCollection2(__scopeSelect);
+  const shouldExpandOnScrollRef = React39.useRef(false);
+  const shouldRepositionRef = React39.useRef(true);
+  const { viewport, selectedItem, selectedItemText, focusSelectedItem } = contentContext;
+  const position = React39.useCallback(() => {
+    if (context.trigger && context.valueNode && contentWrapper && content && viewport && selectedItem && selectedItemText) {
+      const triggerRect = context.trigger.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      const valueNodeRect = context.valueNode.getBoundingClientRect();
+      const itemTextRect = selectedItemText.getBoundingClientRect();
+      if (context.dir !== "rtl") {
+        const itemTextOffset = itemTextRect.left - contentRect.left;
+        const left = valueNodeRect.left - itemTextOffset;
+        const leftDelta = triggerRect.left - left;
+        const minContentWidth = triggerRect.width + leftDelta;
+        const contentWidth = Math.max(minContentWidth, contentRect.width);
+        const rightEdge = window.innerWidth - CONTENT_MARGIN;
+        const clampedLeft = clamp(left, [
+          CONTENT_MARGIN,
+          // Prevents the content from going off the starting edge of the
+          // viewport. It may still go off the ending edge, but this can be
+          // controlled by the user since they may want to manage overflow in a
+          // specific way.
+          // https://github.com/radix-ui/primitives/issues/2049
+          Math.max(CONTENT_MARGIN, rightEdge - contentWidth)
+        ]);
+        contentWrapper.style.minWidth = minContentWidth + "px";
+        contentWrapper.style.left = clampedLeft + "px";
+      } else {
+        const itemTextOffset = contentRect.right - itemTextRect.right;
+        const right = window.innerWidth - valueNodeRect.right - itemTextOffset;
+        const rightDelta = window.innerWidth - triggerRect.right - right;
+        const minContentWidth = triggerRect.width + rightDelta;
+        const contentWidth = Math.max(minContentWidth, contentRect.width);
+        const leftEdge = window.innerWidth - CONTENT_MARGIN;
+        const clampedRight = clamp(right, [
+          CONTENT_MARGIN,
+          Math.max(CONTENT_MARGIN, leftEdge - contentWidth)
+        ]);
+        contentWrapper.style.minWidth = minContentWidth + "px";
+        contentWrapper.style.right = clampedRight + "px";
+      }
+      const items = getItems();
+      const availableHeight = window.innerHeight - CONTENT_MARGIN * 2;
+      const itemsHeight = viewport.scrollHeight;
+      const contentStyles = window.getComputedStyle(content);
+      const contentBorderTopWidth = parseInt(contentStyles.borderTopWidth, 10);
+      const contentPaddingTop = parseInt(contentStyles.paddingTop, 10);
+      const contentBorderBottomWidth = parseInt(contentStyles.borderBottomWidth, 10);
+      const contentPaddingBottom = parseInt(contentStyles.paddingBottom, 10);
+      const fullContentHeight = contentBorderTopWidth + contentPaddingTop + itemsHeight + contentPaddingBottom + contentBorderBottomWidth;
+      const minContentHeight = Math.min(selectedItem.offsetHeight * 5, fullContentHeight);
+      const viewportStyles = window.getComputedStyle(viewport);
+      const viewportPaddingTop = parseInt(viewportStyles.paddingTop, 10);
+      const viewportPaddingBottom = parseInt(viewportStyles.paddingBottom, 10);
+      const topEdgeToTriggerMiddle = triggerRect.top + triggerRect.height / 2 - CONTENT_MARGIN;
+      const triggerMiddleToBottomEdge = availableHeight - topEdgeToTriggerMiddle;
+      const selectedItemHalfHeight = selectedItem.offsetHeight / 2;
+      const itemOffsetMiddle = selectedItem.offsetTop + selectedItemHalfHeight;
+      const contentTopToItemMiddle = contentBorderTopWidth + contentPaddingTop + itemOffsetMiddle;
+      const itemMiddleToContentBottom = fullContentHeight - contentTopToItemMiddle;
+      const willAlignWithoutTopOverflow = contentTopToItemMiddle <= topEdgeToTriggerMiddle;
+      if (willAlignWithoutTopOverflow) {
+        const isLastItem = items.length > 0 && selectedItem === items[items.length - 1].ref.current;
+        contentWrapper.style.bottom = "0px";
+        const viewportOffsetBottom = content.clientHeight - viewport.offsetTop - viewport.offsetHeight;
+        const clampedTriggerMiddleToBottomEdge = Math.max(
+          triggerMiddleToBottomEdge,
+          selectedItemHalfHeight + // viewport might have padding bottom, include it to avoid a scrollable viewport
+          (isLastItem ? viewportPaddingBottom : 0) + viewportOffsetBottom + contentBorderBottomWidth
+        );
+        const height = contentTopToItemMiddle + clampedTriggerMiddleToBottomEdge;
+        contentWrapper.style.height = height + "px";
+      } else {
+        const isFirstItem = items.length > 0 && selectedItem === items[0].ref.current;
+        contentWrapper.style.top = "0px";
+        const clampedTopEdgeToTriggerMiddle = Math.max(
+          topEdgeToTriggerMiddle,
+          contentBorderTopWidth + viewport.offsetTop + // viewport might have padding top, include it to avoid a scrollable viewport
+          (isFirstItem ? viewportPaddingTop : 0) + selectedItemHalfHeight
+        );
+        const height = clampedTopEdgeToTriggerMiddle + itemMiddleToContentBottom;
+        contentWrapper.style.height = height + "px";
+        viewport.scrollTop = contentTopToItemMiddle - topEdgeToTriggerMiddle + viewport.offsetTop;
+      }
+      contentWrapper.style.margin = `${CONTENT_MARGIN}px 0`;
+      contentWrapper.style.minHeight = minContentHeight + "px";
+      contentWrapper.style.maxHeight = availableHeight + "px";
+      onPlaced?.();
+      requestAnimationFrame(() => shouldExpandOnScrollRef.current = true);
+    }
+  }, [
+    getItems,
+    context.trigger,
+    context.valueNode,
+    contentWrapper,
+    content,
+    viewport,
+    selectedItem,
+    selectedItemText,
+    context.dir,
+    onPlaced
+  ]);
+  useLayoutEffect2(() => position(), [position]);
+  const [contentZIndex, setContentZIndex] = React39.useState();
+  useLayoutEffect2(() => {
+    if (content) setContentZIndex(window.getComputedStyle(content).zIndex);
+  }, [content]);
+  const handleScrollButtonChange = React39.useCallback(
+    (node) => {
+      if (node && shouldRepositionRef.current === true) {
+        position();
+        focusSelectedItem?.();
+        shouldRepositionRef.current = false;
+      }
+    },
+    [position, focusSelectedItem]
+  );
+  return /* @__PURE__ */ jsx46(
+    SelectViewportProvider,
+    {
+      scope: __scopeSelect,
+      contentWrapper,
+      shouldExpandOnScrollRef,
+      onScrollButtonChange: handleScrollButtonChange,
+      children: /* @__PURE__ */ jsx46(
+        "div",
+        {
+          ref: setContentWrapper,
+          style: {
+            display: "flex",
+            flexDirection: "column",
+            position: "fixed",
+            zIndex: contentZIndex
+          },
+          children: /* @__PURE__ */ jsx46(
+            Primitive.div,
+            {
+              ...popperProps,
+              ref: composedRefs,
+              style: {
+                // When we get the height of the content, it includes borders. If we were to set
+                // the height without having `boxSizing: 'border-box'` it would be too big.
+                boxSizing: "border-box",
+                // We need to ensure the content doesn't get taller than the wrapper
+                maxHeight: "100%",
+                ...popperProps.style
+              }
+            }
+          )
+        }
+      )
+    }
+  );
+});
+SelectItemAlignedPosition.displayName = ITEM_ALIGNED_POSITION_NAME;
+var POPPER_POSITION_NAME = "SelectPopperPosition";
+var SelectPopperPosition = React39.forwardRef((props, forwardedRef) => {
+  const {
+    __scopeSelect,
+    align = "start",
+    collisionPadding = CONTENT_MARGIN,
+    ...popperProps
+  } = props;
+  const popperScope = usePopperScope(__scopeSelect);
+  return /* @__PURE__ */ jsx46(
+    Content,
+    {
+      ...popperScope,
+      ...popperProps,
+      ref: forwardedRef,
+      align,
+      collisionPadding,
+      style: {
+        // Ensure border-box for floating-ui calculations
+        boxSizing: "border-box",
+        ...popperProps.style,
+        // re-namespace exposed content custom properties
+        ...{
+          "--radix-select-content-transform-origin": "var(--radix-popper-transform-origin)",
+          "--radix-select-content-available-width": "var(--radix-popper-available-width)",
+          "--radix-select-content-available-height": "var(--radix-popper-available-height)",
+          "--radix-select-trigger-width": "var(--radix-popper-anchor-width)",
+          "--radix-select-trigger-height": "var(--radix-popper-anchor-height)"
+        }
+      }
+    }
+  );
+});
+SelectPopperPosition.displayName = POPPER_POSITION_NAME;
+var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME2, {});
+var VIEWPORT_NAME = "SelectViewport";
+var SelectViewport = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, nonce, ...viewportProps } = props;
+    const contentContext = useSelectContentContext(VIEWPORT_NAME, __scopeSelect);
+    const viewportContext = useSelectViewportContext(VIEWPORT_NAME, __scopeSelect);
+    const composedRefs = useComposedRefs(forwardedRef, contentContext.onViewportChange);
+    const prevScrollTopRef = React39.useRef(0);
+    return /* @__PURE__ */ jsxs23(Fragment23, { children: [
+      /* @__PURE__ */ jsx46(
+        "style",
+        {
+          dangerouslySetInnerHTML: {
+            __html: `[data-radix-select-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-select-viewport]::-webkit-scrollbar{display:none}`
+          },
+          nonce
+        }
+      ),
+      /* @__PURE__ */ jsx46(Collection2.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx46(
+        Primitive.div,
+        {
+          "data-radix-select-viewport": "",
+          role: "presentation",
+          ...viewportProps,
+          ref: composedRefs,
+          style: {
+            // we use position: 'relative' here on the `viewport` so that when we call
+            // `selectedItem.offsetTop` in calculations, the offset is relative to the viewport
+            // (independent of the scrollUpButton).
+            position: "relative",
+            flex: 1,
+            // Viewport should only be scrollable in the vertical direction.
+            // This won't work in vertical writing modes, so we'll need to
+            // revisit this if/when that is supported
+            // https://developer.chrome.com/blog/vertical-form-controls
+            overflow: "hidden auto",
+            ...viewportProps.style
+          },
+          onScroll: composeEventHandlers(viewportProps.onScroll, (event) => {
+            const viewport = event.currentTarget;
+            const { contentWrapper, shouldExpandOnScrollRef } = viewportContext;
+            if (shouldExpandOnScrollRef?.current && contentWrapper) {
+              const scrolledBy = Math.abs(prevScrollTopRef.current - viewport.scrollTop);
+              if (scrolledBy > 0) {
+                const availableHeight = window.innerHeight - CONTENT_MARGIN * 2;
+                const cssMinHeight = parseFloat(contentWrapper.style.minHeight);
+                const cssHeight = parseFloat(contentWrapper.style.height);
+                const prevHeight = Math.max(cssMinHeight, cssHeight);
+                if (prevHeight < availableHeight) {
+                  const nextHeight = prevHeight + scrolledBy;
+                  const clampedNextHeight = Math.min(availableHeight, nextHeight);
+                  const heightDiff = nextHeight - clampedNextHeight;
+                  contentWrapper.style.height = clampedNextHeight + "px";
+                  if (contentWrapper.style.bottom === "0px") {
+                    viewport.scrollTop = heightDiff > 0 ? heightDiff : 0;
+                    contentWrapper.style.justifyContent = "flex-end";
+                  }
+                }
+              }
+            }
+            prevScrollTopRef.current = viewport.scrollTop;
+          })
+        }
+      ) })
+    ] });
+  }
+);
+SelectViewport.displayName = VIEWPORT_NAME;
+var GROUP_NAME2 = "SelectGroup";
+var [SelectGroupContextProvider, useSelectGroupContext] = createSelectContext(GROUP_NAME2);
+var SelectGroup = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, ...groupProps } = props;
+    const groupId = useId2();
+    return /* @__PURE__ */ jsx46(SelectGroupContextProvider, { scope: __scopeSelect, id: groupId, children: /* @__PURE__ */ jsx46(Primitive.div, { role: "group", "aria-labelledby": groupId, ...groupProps, ref: forwardedRef }) });
+  }
+);
+SelectGroup.displayName = GROUP_NAME2;
+var LABEL_NAME = "SelectLabel";
+var SelectLabel = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, ...labelProps } = props;
+    const groupContext = useSelectGroupContext(LABEL_NAME, __scopeSelect);
+    return /* @__PURE__ */ jsx46(Primitive.div, { id: groupContext.id, ...labelProps, ref: forwardedRef });
+  }
+);
+SelectLabel.displayName = LABEL_NAME;
+var ITEM_NAME3 = "SelectItem";
+var [SelectItemContextProvider, useSelectItemContext] = createSelectContext(ITEM_NAME3);
+var SelectItem = React39.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeSelect,
+      value,
+      disabled = false,
+      textValue: textValueProp,
+      ...itemProps
+    } = props;
+    const context = useSelectContext(ITEM_NAME3, __scopeSelect);
+    const contentContext = useSelectContentContext(ITEM_NAME3, __scopeSelect);
+    const isSelected = context.value === value;
+    const [textValue, setTextValue] = React39.useState(textValueProp ?? "");
+    const [isFocused, setIsFocused] = React39.useState(false);
+    const handleItemRefCallback = useCallbackRef(
+      (node) => contentContext.itemRefCallback?.(node, value, disabled)
+    );
+    const composedRefs = useComposedRefs(forwardedRef, handleItemRefCallback);
+    const textId = useId2();
+    const pointerTypeRef = React39.useRef("touch");
+    const handleSelect = () => {
+      if (!disabled) {
+        context.onValueChange(value);
+        context.onOpenChange(false);
+      }
+    };
+    return /* @__PURE__ */ jsx46(
+      SelectItemContextProvider,
+      {
+        scope: __scopeSelect,
+        value,
+        disabled,
+        textId,
+        isSelected,
+        onItemTextChange: React39.useCallback((node) => {
+          setTextValue((prevTextValue) => prevTextValue || (node?.textContent ?? "").trim());
+        }, []),
+        children: /* @__PURE__ */ jsx46(
+          Collection2.ItemSlot,
+          {
+            scope: __scopeSelect,
+            value,
+            disabled,
+            textValue,
+            children: /* @__PURE__ */ jsx46(
+              Primitive.div,
+              {
+                role: "option",
+                "aria-labelledby": textId,
+                "data-highlighted": isFocused ? "" : void 0,
+                "aria-selected": isSelected && isFocused,
+                "data-state": isSelected ? "checked" : "unchecked",
+                "aria-disabled": disabled || void 0,
+                "data-disabled": disabled ? "" : void 0,
+                tabIndex: disabled ? void 0 : -1,
+                ...itemProps,
+                ref: composedRefs,
+                onFocus: composeEventHandlers(itemProps.onFocus, () => setIsFocused(true)),
+                onBlur: composeEventHandlers(itemProps.onBlur, () => setIsFocused(false)),
+                onClick: composeEventHandlers(itemProps.onClick, () => {
+                  if (pointerTypeRef.current !== "mouse") handleSelect();
+                }),
+                onPointerUp: composeEventHandlers(itemProps.onPointerUp, () => {
+                  if (pointerTypeRef.current === "mouse") handleSelect();
+                }),
+                onPointerDown: composeEventHandlers(itemProps.onPointerDown, (event) => {
+                  pointerTypeRef.current = event.pointerType;
+                }),
+                onPointerMove: composeEventHandlers(itemProps.onPointerMove, (event) => {
+                  pointerTypeRef.current = event.pointerType;
+                  if (disabled) {
+                    contentContext.onItemLeave?.();
+                  } else if (pointerTypeRef.current === "mouse") {
+                    event.currentTarget.focus({ preventScroll: true });
+                  }
+                }),
+                onPointerLeave: composeEventHandlers(itemProps.onPointerLeave, (event) => {
+                  if (event.currentTarget === document.activeElement) {
+                    contentContext.onItemLeave?.();
+                  }
+                }),
+                onKeyDown: composeEventHandlers(itemProps.onKeyDown, (event) => {
+                  const isTypingAhead = contentContext.searchRef?.current !== "";
+                  if (isTypingAhead && event.key === " ") return;
+                  if (SELECTION_KEYS.includes(event.key)) handleSelect();
+                  if (event.key === " ") event.preventDefault();
+                })
+              }
+            )
+          }
+        )
+      }
+    );
+  }
+);
+SelectItem.displayName = ITEM_NAME3;
+var ITEM_TEXT_NAME = "SelectItemText";
+var SelectItemText = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, className, style, ...itemTextProps } = props;
+    const context = useSelectContext(ITEM_TEXT_NAME, __scopeSelect);
+    const contentContext = useSelectContentContext(ITEM_TEXT_NAME, __scopeSelect);
+    const itemContext = useSelectItemContext(ITEM_TEXT_NAME, __scopeSelect);
+    const nativeOptionsContext = useSelectNativeOptionsContext(ITEM_TEXT_NAME, __scopeSelect);
+    const [itemTextNode, setItemTextNode] = React39.useState(null);
+    const handleItemTextRefCallback = useCallbackRef(
+      (node) => contentContext.itemTextRefCallback?.(node, itemContext.value, itemContext.disabled)
+    );
+    const composedRefs = useComposedRefs(
+      forwardedRef,
+      setItemTextNode,
+      itemContext.onItemTextChange,
+      handleItemTextRefCallback
+    );
+    const textContent = itemTextNode?.textContent;
+    const nativeOption = React39.useMemo(
+      () => /* @__PURE__ */ jsx46("option", { value: itemContext.value, disabled: itemContext.disabled, children: textContent }, itemContext.value),
+      [itemContext.disabled, itemContext.value, textContent]
+    );
+    const { onNativeOptionAdd, onNativeOptionRemove } = nativeOptionsContext;
+    useLayoutEffect2(() => {
+      onNativeOptionAdd(nativeOption);
+      return () => onNativeOptionRemove(nativeOption);
+    }, [onNativeOptionAdd, onNativeOptionRemove, nativeOption]);
+    return /* @__PURE__ */ jsxs23(Fragment23, { children: [
+      /* @__PURE__ */ jsx46(Primitive.span, { id: itemContext.textId, ...itemTextProps, ref: composedRefs }),
+      itemContext.isSelected && context.valueNode && !context.valueNodeHasChildren && !shouldShowPlaceholder(context.value) ? ReactDOM4.createPortal(itemTextProps.children, context.valueNode) : null
+    ] });
+  }
+);
+SelectItemText.displayName = ITEM_TEXT_NAME;
+var ITEM_INDICATOR_NAME = "SelectItemIndicator";
+var SelectItemIndicator = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, ...itemIndicatorProps } = props;
+    const itemContext = useSelectItemContext(ITEM_INDICATOR_NAME, __scopeSelect);
+    return itemContext.isSelected ? /* @__PURE__ */ jsx46(Primitive.span, { "aria-hidden": true, ...itemIndicatorProps, ref: forwardedRef }) : null;
+  }
+);
+SelectItemIndicator.displayName = ITEM_INDICATOR_NAME;
+var SCROLL_UP_BUTTON_NAME = "SelectScrollUpButton";
+var SelectScrollUpButton = React39.forwardRef((props, forwardedRef) => {
+  const contentContext = useSelectContentContext(SCROLL_UP_BUTTON_NAME, props.__scopeSelect);
+  const viewportContext = useSelectViewportContext(SCROLL_UP_BUTTON_NAME, props.__scopeSelect);
+  const [canScrollUp, setCanScrollUp] = React39.useState(false);
+  const composedRefs = useComposedRefs(forwardedRef, viewportContext.onScrollButtonChange);
+  useLayoutEffect2(() => {
+    if (contentContext.viewport && contentContext.isPositioned) {
+      let handleScroll22 = function() {
+        const canScrollUp2 = viewport.scrollTop > 0;
+        setCanScrollUp(canScrollUp2);
+      };
+      var handleScroll2 = handleScroll22;
+      const viewport = contentContext.viewport;
+      handleScroll22();
+      viewport.addEventListener("scroll", handleScroll22);
+      return () => viewport.removeEventListener("scroll", handleScroll22);
+    }
+  }, [contentContext.viewport, contentContext.isPositioned]);
+  return canScrollUp ? /* @__PURE__ */ jsx46(
+    SelectScrollButtonImpl,
+    {
+      ...props,
+      ref: composedRefs,
+      onAutoScroll: () => {
+        const { viewport, selectedItem } = contentContext;
+        if (viewport && selectedItem) {
+          viewport.scrollTop = viewport.scrollTop - selectedItem.offsetHeight;
+        }
+      }
+    }
+  ) : null;
+});
+SelectScrollUpButton.displayName = SCROLL_UP_BUTTON_NAME;
+var SCROLL_DOWN_BUTTON_NAME = "SelectScrollDownButton";
+var SelectScrollDownButton = React39.forwardRef((props, forwardedRef) => {
+  const contentContext = useSelectContentContext(SCROLL_DOWN_BUTTON_NAME, props.__scopeSelect);
+  const viewportContext = useSelectViewportContext(SCROLL_DOWN_BUTTON_NAME, props.__scopeSelect);
+  const [canScrollDown, setCanScrollDown] = React39.useState(false);
+  const composedRefs = useComposedRefs(forwardedRef, viewportContext.onScrollButtonChange);
+  useLayoutEffect2(() => {
+    if (contentContext.viewport && contentContext.isPositioned) {
+      let handleScroll22 = function() {
+        const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+        const canScrollDown2 = Math.ceil(viewport.scrollTop) < maxScroll;
+        setCanScrollDown(canScrollDown2);
+      };
+      var handleScroll2 = handleScroll22;
+      const viewport = contentContext.viewport;
+      handleScroll22();
+      viewport.addEventListener("scroll", handleScroll22);
+      return () => viewport.removeEventListener("scroll", handleScroll22);
+    }
+  }, [contentContext.viewport, contentContext.isPositioned]);
+  return canScrollDown ? /* @__PURE__ */ jsx46(
+    SelectScrollButtonImpl,
+    {
+      ...props,
+      ref: composedRefs,
+      onAutoScroll: () => {
+        const { viewport, selectedItem } = contentContext;
+        if (viewport && selectedItem) {
+          viewport.scrollTop = viewport.scrollTop + selectedItem.offsetHeight;
+        }
+      }
+    }
+  ) : null;
+});
+SelectScrollDownButton.displayName = SCROLL_DOWN_BUTTON_NAME;
+var SelectScrollButtonImpl = React39.forwardRef((props, forwardedRef) => {
+  const { __scopeSelect, onAutoScroll, ...scrollIndicatorProps } = props;
+  const contentContext = useSelectContentContext("SelectScrollButton", __scopeSelect);
+  const autoScrollTimerRef = React39.useRef(null);
+  const getItems = useCollection2(__scopeSelect);
+  const clearAutoScrollTimer = React39.useCallback(() => {
+    if (autoScrollTimerRef.current !== null) {
+      window.clearInterval(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = null;
+    }
+  }, []);
+  React39.useEffect(() => {
+    return () => clearAutoScrollTimer();
+  }, [clearAutoScrollTimer]);
+  useLayoutEffect2(() => {
+    const activeItem = getItems().find((item) => item.ref.current === document.activeElement);
+    activeItem?.ref.current?.scrollIntoView({ block: "nearest" });
+  }, [getItems]);
+  return /* @__PURE__ */ jsx46(
+    Primitive.div,
+    {
+      "aria-hidden": true,
+      ...scrollIndicatorProps,
+      ref: forwardedRef,
+      style: { flexShrink: 0, ...scrollIndicatorProps.style },
+      onPointerDown: composeEventHandlers(scrollIndicatorProps.onPointerDown, () => {
+        if (autoScrollTimerRef.current === null) {
+          autoScrollTimerRef.current = window.setInterval(onAutoScroll, 50);
+        }
+      }),
+      onPointerMove: composeEventHandlers(scrollIndicatorProps.onPointerMove, () => {
+        contentContext.onItemLeave?.();
+        if (autoScrollTimerRef.current === null) {
+          autoScrollTimerRef.current = window.setInterval(onAutoScroll, 50);
+        }
+      }),
+      onPointerLeave: composeEventHandlers(scrollIndicatorProps.onPointerLeave, () => {
+        clearAutoScrollTimer();
+      })
+    }
+  );
+});
+var SEPARATOR_NAME = "SelectSeparator";
+var SelectSeparator = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, ...separatorProps } = props;
+    return /* @__PURE__ */ jsx46(Primitive.div, { "aria-hidden": true, ...separatorProps, ref: forwardedRef });
+  }
+);
+SelectSeparator.displayName = SEPARATOR_NAME;
+var ARROW_NAME2 = "SelectArrow";
+var SelectArrow = React39.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSelect, ...arrowProps } = props;
+    const popperScope = usePopperScope(__scopeSelect);
+    const contentContext = useSelectContentContext(ARROW_NAME2, __scopeSelect);
+    return contentContext.position === "popper" ? /* @__PURE__ */ jsx46(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef }) : null;
+  }
+);
+SelectArrow.displayName = ARROW_NAME2;
+var BUBBLE_INPUT_NAME4 = "SelectBubbleInput";
+var SelectBubbleInput = React39.forwardRef(
+  ({ __scopeSelect, ...props }, forwardedRef) => {
+    const context = useSelectContext(BUBBLE_INPUT_NAME4, __scopeSelect);
+    const { value, onValueChange, required, disabled, name, autoComplete, form } = context;
+    const { nativeOptions, nativeSelectKey } = context;
+    const ref = React39.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    const selectValue = value ?? "";
+    const prevValue = usePrevious(selectValue);
+    const hasEmptyValueOption = Array.from(nativeOptions).some(
+      (option) => (option.props.value ?? "") === ""
+    );
+    React39.useEffect(() => {
+      const select = ref.current;
+      if (!select) return;
+      const selectProto = window.HTMLSelectElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        selectProto,
+        "value"
+      );
+      const setValue = descriptor.set;
+      if (prevValue !== selectValue && setValue) {
+        const event = new Event("change", { bubbles: true });
+        setValue.call(select, selectValue);
+        select.dispatchEvent(event);
+      }
+    }, [prevValue, selectValue]);
+    return /* @__PURE__ */ jsxs23(
+      Primitive.select,
+      {
+        "aria-hidden": true,
+        required,
+        tabIndex: -1,
+        name,
+        autoComplete,
+        disabled,
+        form,
+        onChange: (event) => onValueChange(event.target.value),
+        ...props,
+        style: { ...VISUALLY_HIDDEN_STYLES, ...props.style },
+        ref: composedRefs,
+        defaultValue: selectValue,
+        children: [
+          shouldShowPlaceholder(value) && !hasEmptyValueOption ? /* @__PURE__ */ jsx46("option", { value: "" }) : null,
+          Array.from(nativeOptions)
+        ]
+      },
+      nativeSelectKey
+    );
+  }
+);
+SelectBubbleInput.displayName = BUBBLE_INPUT_NAME4;
+function isFunction5(value) {
+  return typeof value === "function";
+}
+function shouldShowPlaceholder(value) {
+  return value === "" || value === void 0;
+}
+function useTypeaheadSearch(onSearchChange) {
+  const handleSearchChange = useCallbackRef(onSearchChange);
+  const searchRef = React39.useRef("");
+  const timerRef = React39.useRef(0);
+  const handleTypeaheadSearch = React39.useCallback(
+    (key) => {
+      const search = searchRef.current + key;
+      handleSearchChange(search);
+      (function updateSearch(value) {
+        searchRef.current = value;
+        window.clearTimeout(timerRef.current);
+        if (value !== "") timerRef.current = window.setTimeout(() => updateSearch(""), 1e3);
+      })(search);
+    },
+    [handleSearchChange]
+  );
+  const resetTypeahead = React39.useCallback(() => {
+    searchRef.current = "";
+    window.clearTimeout(timerRef.current);
+  }, []);
+  React39.useEffect(() => {
+    return () => window.clearTimeout(timerRef.current);
+  }, []);
+  return [searchRef, handleTypeaheadSearch, resetTypeahead];
+}
+function findNextItem(items, search, currentItem) {
+  const isRepeated = search.length > 1 && Array.from(search).every((char) => char === search[0]);
+  const normalizedSearch = isRepeated ? search[0] : search;
+  const currentItemIndex = currentItem ? items.indexOf(currentItem) : -1;
+  let wrappedItems = wrapArray2(items, Math.max(currentItemIndex, 0));
+  const excludeCurrentItem = normalizedSearch.length === 1;
+  if (excludeCurrentItem) wrappedItems = wrappedItems.filter((v) => v !== currentItem);
+  const nextItem = wrappedItems.find(
+    (item) => item.textValue.toLowerCase().startsWith(normalizedSearch.toLowerCase())
+  );
+  return nextItem !== currentItem ? nextItem : void 0;
+}
+function wrapArray2(array, startIndex) {
+  return array.map((_, index2) => array[(startIndex + index2) % array.length]);
+}
+
+// src/components/Select/Select.tsx
+import { jsx as jsx47, jsxs as jsxs24 } from "react/jsx-runtime";
+var Select2 = Select;
+var SelectGroup2 = SelectGroup;
+var SelectValue2 = SelectValue;
+var SelectTrigger2 = forwardRef24(
+  function SelectTrigger3({ className, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs24(SelectTrigger, { ref, className: cx("hds-select-trigger", className), ...rest, children: [
+      children,
+      /* @__PURE__ */ jsx47(SelectIcon, { className: "hds-select-icon", asChild: true, children: /* @__PURE__ */ jsx47("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx47("path", { d: "M4 6l4 4 4-4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) })
+    ] });
+  }
+);
+SelectTrigger2.displayName = "SelectTrigger";
+var SelectContent2 = forwardRef24(
+  function SelectContent3({ className, children, position = "popper", sideOffset = 6, ...rest }, ref) {
+    return /* @__PURE__ */ jsx47(SelectPortal, { children: /* @__PURE__ */ jsxs24(
+      SelectContent,
+      {
+        ref,
+        position,
+        sideOffset,
+        className: cx("hds-select-content", className),
+        ...rest,
+        children: [
+          /* @__PURE__ */ jsx47(SelectScrollUpButton, { className: "hds-select-scroll-button", children: /* @__PURE__ */ jsx47("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx47("path", { d: "M4 10l4-4 4 4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }),
+          /* @__PURE__ */ jsx47(SelectViewport, { className: "hds-select-viewport", children }),
+          /* @__PURE__ */ jsx47(SelectScrollDownButton, { className: "hds-select-scroll-button", children: /* @__PURE__ */ jsx47("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx47("path", { d: "M4 6l4 4 4-4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) })
+        ]
+      }
+    ) });
+  }
+);
+SelectContent2.displayName = "SelectContent";
+var SelectItem2 = forwardRef24(
+  function SelectItem3({ className, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs24(SelectItem, { ref, className: cx("hds-select-item", className), ...rest, children: [
+      /* @__PURE__ */ jsx47("span", { className: "hds-select-item-indicator", children: /* @__PURE__ */ jsx47(SelectItemIndicator, { children: /* @__PURE__ */ jsx47("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx47("path", { d: "M3 8.5l3 3 7-7", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }) }),
+      /* @__PURE__ */ jsx47(SelectItemText, { children })
+    ] });
+  }
+);
+SelectItem2.displayName = "SelectItem";
+var SelectLabel2 = forwardRef24(
+  function SelectLabel3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx47(SelectLabel, { ref, className: cx("hds-select-label", className), ...rest });
+  }
+);
+SelectLabel2.displayName = "SelectLabel";
+var SelectSeparator2 = forwardRef24(
+  function SelectSeparator3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx47(SelectSeparator, { ref, className: cx("hds-select-separator", className), ...rest });
+  }
+);
+SelectSeparator2.displayName = "SelectSeparator";
+
+// src/components/Slider/Slider.tsx
+import * as React41 from "react";
+
+// node_modules/@radix-ui/react-slider/dist/index.mjs
+import * as React40 from "react";
+import { Fragment as Fragment10, jsx as jsx48, jsxs as jsxs25 } from "react/jsx-runtime";
+var PAGE_KEYS = ["PageUp", "PageDown"];
+var ARROW_KEYS2 = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+var BACK_KEYS = {
+  "from-left": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
+  "from-right": ["Home", "PageDown", "ArrowDown", "ArrowRight"],
+  "from-bottom": ["Home", "PageDown", "ArrowDown", "ArrowLeft"],
+  "from-top": ["Home", "PageDown", "ArrowUp", "ArrowLeft"]
+};
+var SLIDER_NAME = "Slider";
+var [Collection3, useCollection3, createCollectionScope3] = createCollection(SLIDER_NAME);
+var [createSliderContext, createSliderScope] = createContextScope(SLIDER_NAME, [
+  createCollectionScope3
+]);
+var [SliderProvider, useSliderContext] = createSliderContext(SLIDER_NAME);
+var Slider = React40.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      name,
+      min: min2 = 0,
+      max: max2 = 100,
+      step = 1,
+      orientation = "horizontal",
+      disabled = false,
+      minStepsBetweenThumbs = 0,
+      defaultValue = [min2],
+      value,
+      onValueChange = () => {
+      },
+      onValueCommit = () => {
+      },
+      inverted = false,
+      form,
+      ...sliderProps
+    } = props;
+    const thumbRefs = React40.useRef(/* @__PURE__ */ new Set());
+    const valueIndexToChangeRef = React40.useRef(0);
+    const isKeyboardInteractionRef = React40.useRef(false);
+    const isHorizontal = orientation === "horizontal";
+    const SliderOrientation = isHorizontal ? SliderHorizontal : SliderVertical;
+    const [values = [], setValues] = useControllableState2({
+      prop: value,
+      defaultProp: defaultValue,
+      onChange: (value2) => {
+        const thumbs = [...thumbRefs.current];
+        thumbs[valueIndexToChangeRef.current]?.focus({
+          preventScroll: true,
+          focusVisible: isKeyboardInteractionRef.current
+        });
+        isKeyboardInteractionRef.current = false;
+        onValueChange(value2);
+      }
+    });
+    const valuesBeforeSlideStartRef = React40.useRef(values);
+    function handleSlideStart(value2) {
+      const closestIndex = getClosestValueIndex(values, value2);
+      updateValues(value2, closestIndex);
+    }
+    function handleSlideMove(value2) {
+      updateValues(value2, valueIndexToChangeRef.current);
+    }
+    function handleSlideEnd() {
+      const prevValue = valuesBeforeSlideStartRef.current[valueIndexToChangeRef.current];
+      const nextValue = values[valueIndexToChangeRef.current];
+      const hasChanged = nextValue !== prevValue;
+      if (hasChanged) onValueCommit(values);
+    }
+    function updateValues(value2, atIndex, { commit } = { commit: false }) {
+      const decimalCount = getDecimalCount(step);
+      const snapToStep = roundValue(Math.round((value2 - min2) / step) * step + min2, decimalCount);
+      const nextValue = clamp(snapToStep, [min2, max2]);
+      setValues((prevValues = []) => {
+        const nextValues = getNextSortedValues(prevValues, nextValue, atIndex);
+        if (hasMinStepsBetweenValues(nextValues, minStepsBetweenThumbs * step)) {
+          valueIndexToChangeRef.current = nextValues.indexOf(nextValue);
+          const hasChanged = String(nextValues) !== String(prevValues);
+          if (hasChanged && commit) onValueCommit(nextValues);
+          return hasChanged ? nextValues : prevValues;
+        } else {
+          return prevValues;
+        }
+      });
+    }
+    return /* @__PURE__ */ jsx48(
+      SliderProvider,
+      {
+        scope: props.__scopeSlider,
+        name,
+        disabled,
+        min: min2,
+        max: max2,
+        valueIndexToChangeRef,
+        thumbs: thumbRefs.current,
+        values,
+        orientation,
+        form,
+        children: /* @__PURE__ */ jsx48(Collection3.Provider, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx48(Collection3.Slot, { scope: props.__scopeSlider, children: /* @__PURE__ */ jsx48(
+          SliderOrientation,
+          {
+            "aria-disabled": disabled,
+            "data-disabled": disabled ? "" : void 0,
+            ...sliderProps,
+            ref: forwardedRef,
+            onPointerDown: composeEventHandlers(sliderProps.onPointerDown, () => {
+              if (!disabled) {
+                valuesBeforeSlideStartRef.current = values;
+                isKeyboardInteractionRef.current = false;
+              }
+            }),
+            min: min2,
+            max: max2,
+            inverted,
+            onSlideStart: disabled ? void 0 : handleSlideStart,
+            onSlideMove: disabled ? void 0 : handleSlideMove,
+            onSlideEnd: disabled ? void 0 : handleSlideEnd,
+            onHomeKeyDown: () => {
+              if (!disabled) {
+                isKeyboardInteractionRef.current = true;
+                updateValues(min2, 0, { commit: true });
+              }
+            },
+            onEndKeyDown: () => {
+              if (!disabled) {
+                isKeyboardInteractionRef.current = true;
+                updateValues(max2, values.length - 1, { commit: true });
+              }
+            },
+            onStepKeyDown: ({ event, direction: stepDirection }) => {
+              if (!disabled) {
+                isKeyboardInteractionRef.current = true;
+                const isPageKey = PAGE_KEYS.includes(event.key);
+                const isSkipKey = isPageKey || event.shiftKey && ARROW_KEYS2.includes(event.key);
+                const multiplier = isSkipKey ? 10 : 1;
+                const atIndex = valueIndexToChangeRef.current;
+                const value2 = values[atIndex];
+                const stepInDirection = step * multiplier * stepDirection;
+                updateValues(value2 + stepInDirection, atIndex, { commit: true });
+              }
+            }
+          }
+        ) }) })
+      }
+    );
+  }
+);
+Slider.displayName = SLIDER_NAME;
+var [SliderOrientationProvider, useSliderOrientationContext] = createSliderContext(SLIDER_NAME, {
+  startEdge: "left",
+  endEdge: "right",
+  size: "width",
+  direction: 1
+});
+var SliderHorizontal = React40.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      min: min2,
+      max: max2,
+      dir,
+      inverted,
+      onSlideStart,
+      onSlideMove,
+      onSlideEnd,
+      onStepKeyDown,
+      ...sliderProps
+    } = props;
+    const [slider, setSlider] = React40.useState(null);
+    const composedRefs = useComposedRefs(forwardedRef, setSlider);
+    const rectRef = React40.useRef(void 0);
+    const direction = useDirection(dir);
+    const isDirectionLTR = direction === "ltr";
+    const isSlidingFromLeft = isDirectionLTR && !inverted || !isDirectionLTR && inverted;
+    function getValueFromPointer(pointerPosition) {
+      const rect = rectRef.current || slider.getBoundingClientRect();
+      const input = [0, rect.width];
+      const output = isSlidingFromLeft ? [min2, max2] : [max2, min2];
+      const value = linearScale(input, output);
+      rectRef.current = rect;
+      return value(pointerPosition - rect.left);
+    }
+    return /* @__PURE__ */ jsx48(
+      SliderOrientationProvider,
+      {
+        scope: props.__scopeSlider,
+        startEdge: isSlidingFromLeft ? "left" : "right",
+        endEdge: isSlidingFromLeft ? "right" : "left",
+        direction: isSlidingFromLeft ? 1 : -1,
+        size: "width",
+        children: /* @__PURE__ */ jsx48(
+          SliderImpl,
+          {
+            dir: direction,
+            "data-orientation": "horizontal",
+            ...sliderProps,
+            ref: composedRefs,
+            style: {
+              ...sliderProps.style,
+              "--radix-slider-thumb-transform": "translateX(-50%)"
+            },
+            onSlideStart: (event) => {
+              const value = getValueFromPointer(event.clientX);
+              onSlideStart?.(value);
+            },
+            onSlideMove: (event) => {
+              const value = getValueFromPointer(event.clientX);
+              onSlideMove?.(value);
+            },
+            onSlideEnd: () => {
+              rectRef.current = void 0;
+              onSlideEnd?.();
+            },
+            onStepKeyDown: (event) => {
+              const slideDirection = isSlidingFromLeft ? "from-left" : "from-right";
+              const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
+              onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
+            }
+          }
+        )
+      }
+    );
+  }
+);
+var SliderVertical = React40.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      min: min2,
+      max: max2,
+      inverted,
+      onSlideStart,
+      onSlideMove,
+      onSlideEnd,
+      onStepKeyDown,
+      ...sliderProps
+    } = props;
+    const sliderRef = React40.useRef(null);
+    const ref = useComposedRefs(forwardedRef, sliderRef);
+    const rectRef = React40.useRef(void 0);
+    const isSlidingFromBottom = !inverted;
+    function getValueFromPointer(pointerPosition) {
+      const rect = rectRef.current || sliderRef.current.getBoundingClientRect();
+      const input = [0, rect.height];
+      const output = isSlidingFromBottom ? [max2, min2] : [min2, max2];
+      const value = linearScale(input, output);
+      rectRef.current = rect;
+      return value(pointerPosition - rect.top);
+    }
+    return /* @__PURE__ */ jsx48(
+      SliderOrientationProvider,
+      {
+        scope: props.__scopeSlider,
+        startEdge: isSlidingFromBottom ? "bottom" : "top",
+        endEdge: isSlidingFromBottom ? "top" : "bottom",
+        size: "height",
+        direction: isSlidingFromBottom ? 1 : -1,
+        children: /* @__PURE__ */ jsx48(
+          SliderImpl,
+          {
+            "data-orientation": "vertical",
+            ...sliderProps,
+            ref,
+            style: {
+              ...sliderProps.style,
+              "--radix-slider-thumb-transform": "translateY(50%)"
+            },
+            onSlideStart: (event) => {
+              const value = getValueFromPointer(event.clientY);
+              onSlideStart?.(value);
+            },
+            onSlideMove: (event) => {
+              const value = getValueFromPointer(event.clientY);
+              onSlideMove?.(value);
+            },
+            onSlideEnd: () => {
+              rectRef.current = void 0;
+              onSlideEnd?.();
+            },
+            onStepKeyDown: (event) => {
+              const slideDirection = isSlidingFromBottom ? "from-bottom" : "from-top";
+              const isBackKey = BACK_KEYS[slideDirection].includes(event.key);
+              onStepKeyDown?.({ event, direction: isBackKey ? -1 : 1 });
+            }
+          }
+        )
+      }
+    );
+  }
+);
+var SliderImpl = React40.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeSlider,
+      onSlideStart,
+      onSlideMove,
+      onSlideEnd,
+      onHomeKeyDown,
+      onEndKeyDown,
+      onStepKeyDown,
+      ...sliderProps
+    } = props;
+    const context = useSliderContext(SLIDER_NAME, __scopeSlider);
+    return /* @__PURE__ */ jsx48(
+      Primitive.span,
+      {
+        ...sliderProps,
+        ref: forwardedRef,
+        onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+          if (event.key === "Home") {
+            onHomeKeyDown(event);
+            event.preventDefault();
+          } else if (event.key === "End") {
+            onEndKeyDown(event);
+            event.preventDefault();
+          } else if (PAGE_KEYS.concat(ARROW_KEYS2).includes(event.key)) {
+            onStepKeyDown(event);
+            event.preventDefault();
+          }
+        }),
+        onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
+          const target = event.target;
+          target.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          if (context.thumbs.has(target)) {
+            target.focus({ preventScroll: true, focusVisible: false });
+          } else {
+            onSlideStart(event);
+          }
+        }),
+        onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
+          const target = event.target;
+          if (target.hasPointerCapture(event.pointerId)) onSlideMove(event);
+        }),
+        onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
+          const target = event.target;
+          if (target.hasPointerCapture(event.pointerId)) {
+            target.releasePointerCapture(event.pointerId);
+            onSlideEnd(event);
+          }
+        })
+      }
+    );
+  }
+);
+var TRACK_NAME = "SliderTrack";
+var SliderTrack = React40.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSlider, ...trackProps } = props;
+    const context = useSliderContext(TRACK_NAME, __scopeSlider);
+    return /* @__PURE__ */ jsx48(
+      Primitive.span,
+      {
+        "data-disabled": context.disabled ? "" : void 0,
+        "data-orientation": context.orientation,
+        ...trackProps,
+        ref: forwardedRef
+      }
+    );
+  }
+);
+SliderTrack.displayName = TRACK_NAME;
+var RANGE_NAME = "SliderRange";
+var SliderRange = React40.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSlider, ...rangeProps } = props;
+    const context = useSliderContext(RANGE_NAME, __scopeSlider);
+    const orientation = useSliderOrientationContext(RANGE_NAME, __scopeSlider);
+    const ref = React40.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    const valuesCount = context.values.length;
+    const percentages = context.values.map(
+      (value) => convertValueToPercentage(value, context.min, context.max)
+    );
+    const offsetStart = valuesCount > 1 ? Math.min(...percentages) : 0;
+    const offsetEnd = 100 - Math.max(...percentages);
+    return /* @__PURE__ */ jsx48(
+      Primitive.span,
+      {
+        "data-orientation": context.orientation,
+        "data-disabled": context.disabled ? "" : void 0,
+        ...rangeProps,
+        ref: composedRefs,
+        style: {
+          ...props.style,
+          [orientation.startEdge]: offsetStart + "%",
+          [orientation.endEdge]: offsetEnd + "%"
+        }
+      }
+    );
+  }
+);
+SliderRange.displayName = RANGE_NAME;
+var THUMB_NAME2 = "SliderThumb";
+var [SliderThumbContextProvider, useSliderThumbContext] = createSliderContext(THUMB_NAME2);
+var THUMB_PROVIDER_NAME = "SliderThumbProvider";
+function SliderThumbProvider(props) {
+  const {
+    __scopeSlider,
+    name,
+    children,
+    // @ts-expect-error internal render prop
+    internal_do_not_use_render
+  } = props;
+  const context = useSliderContext(THUMB_PROVIDER_NAME, __scopeSlider);
+  const getItems = useCollection3(__scopeSlider);
+  const [thumb, setThumb] = React40.useState(null);
+  const index2 = React40.useMemo(
+    () => thumb ? getItems().findIndex((item) => item.ref.current === thumb) : -1,
+    [getItems, thumb]
+  );
+  const size4 = useSize(thumb);
+  const isFormControl = thumb ? !!context.form || !!thumb.closest("form") : true;
+  const value = context.values[index2];
+  const resolvedName = name ?? (context.name ? context.name + (context.values.length > 1 ? "[]" : "") : void 0);
+  const percent = value === void 0 ? 0 : convertValueToPercentage(value, context.min, context.max);
+  React40.useEffect(() => {
+    if (thumb) {
+      context.thumbs.add(thumb);
+      return () => {
+        context.thumbs.delete(thumb);
+      };
+    }
+  }, [thumb, context.thumbs]);
+  const thumbContext = {
+    value,
+    name: resolvedName,
+    form: context.form,
+    isFormControl,
+    index: index2,
+    thumb,
+    onThumbChange: setThumb,
+    percent,
+    size: size4
+  };
+  return /* @__PURE__ */ jsx48(SliderThumbContextProvider, { scope: __scopeSlider, ...thumbContext, children: isFunction6(internal_do_not_use_render) ? internal_do_not_use_render(thumbContext) : children });
+}
+SliderThumbProvider.displayName = THUMB_PROVIDER_NAME;
+var THUMB_TRIGGER_NAME = "SliderThumbTrigger";
+var SliderThumbTrigger = React40.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSlider, ...thumbProps } = props;
+    const context = useSliderContext(THUMB_TRIGGER_NAME, __scopeSlider);
+    const orientation = useSliderOrientationContext(THUMB_TRIGGER_NAME, __scopeSlider);
+    const { index: index2, value, percent, size: size4, onThumbChange } = useSliderThumbContext(
+      THUMB_TRIGGER_NAME,
+      __scopeSlider
+    );
+    const composedRefs = useComposedRefs(forwardedRef, onThumbChange);
+    const label = getLabel(index2, context.values.length);
+    const orientationSize = size4?.[orientation.size];
+    const thumbInBoundsOffset = orientationSize ? getThumbInBoundsOffset(orientationSize, percent, orientation.direction) : 0;
+    return /* @__PURE__ */ jsx48(
+      "span",
+      {
+        style: {
+          transform: "var(--radix-slider-thumb-transform)",
+          position: "absolute",
+          [orientation.startEdge]: `calc(${percent}% + ${thumbInBoundsOffset}px)`
+        },
+        children: /* @__PURE__ */ jsx48(Collection3.ItemSlot, { scope: __scopeSlider, children: /* @__PURE__ */ jsx48(
+          Primitive.span,
+          {
+            role: "slider",
+            "aria-label": props["aria-label"] || label,
+            "aria-valuemin": context.min,
+            "aria-valuenow": value,
+            "aria-valuemax": context.max,
+            "aria-orientation": context.orientation,
+            "data-orientation": context.orientation,
+            "data-disabled": context.disabled ? "" : void 0,
+            tabIndex: context.disabled ? void 0 : 0,
+            ...thumbProps,
+            ref: composedRefs,
+            style: value === void 0 ? { display: "none" } : props.style,
+            onFocus: composeEventHandlers(props.onFocus, () => {
+              context.valueIndexToChangeRef.current = index2;
+            })
+          }
+        ) })
+      }
+    );
+  }
+);
+SliderThumbTrigger.displayName = THUMB_TRIGGER_NAME;
+var SliderThumb = React40.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeSlider, name, ...thumbProps } = props;
+    return /* @__PURE__ */ jsx48(
+      SliderThumbProvider,
+      {
+        __scopeSlider,
+        name,
+        internal_do_not_use_render: ({ index: index2, isFormControl }) => /* @__PURE__ */ jsxs25(Fragment10, { children: [
+          /* @__PURE__ */ jsx48(
+            SliderThumbTrigger,
+            {
+              ...thumbProps,
+              ref: forwardedRef,
+              __scopeSlider
+            }
+          ),
+          isFormControl ? /* @__PURE__ */ jsx48(
+            SliderBubbleInput,
+            {
+              __scopeSlider
+            },
+            index2
+          ) : null
+        ] })
+      }
+    );
+  }
+);
+SliderThumb.displayName = THUMB_NAME2;
+var BUBBLE_INPUT_NAME5 = "SliderBubbleInput";
+var SliderBubbleInput = React40.forwardRef(
+  ({ __scopeSlider, ...props }, forwardedRef) => {
+    const { value, name, form } = useSliderThumbContext(BUBBLE_INPUT_NAME5, __scopeSlider);
+    const ref = React40.useRef(null);
+    const composedRefs = useComposedRefs(ref, forwardedRef);
+    const prevValue = usePrevious(value);
+    React40.useEffect(() => {
+      const input = ref.current;
+      if (!input) return;
+      const inputProto = window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(inputProto, "value");
+      const setValue = descriptor.set;
+      if (prevValue !== value && setValue) {
+        const event = new Event("input", { bubbles: true });
+        setValue.call(input, value);
+        input.dispatchEvent(event);
+      }
+    }, [prevValue, value]);
+    return /* @__PURE__ */ jsx48(
+      Primitive.input,
+      {
+        style: { display: "none" },
+        name,
+        form,
+        ...props,
+        ref: composedRefs,
+        defaultValue: value
+      }
+    );
+  }
+);
+SliderBubbleInput.displayName = BUBBLE_INPUT_NAME5;
+function getNextSortedValues(prevValues = [], nextValue, atIndex) {
+  const nextValues = [...prevValues];
+  nextValues[atIndex] = nextValue;
+  return nextValues.sort((a, b) => a - b);
+}
+function convertValueToPercentage(value, min2, max2) {
+  const maxSteps = max2 - min2;
+  const percentPerStep = 100 / maxSteps;
+  const percentage = percentPerStep * (value - min2);
+  return clamp(percentage, [0, 100]);
+}
+function getLabel(index2, totalValues) {
+  if (totalValues > 2) {
+    return `Value ${index2 + 1} of ${totalValues}`;
+  } else if (totalValues === 2) {
+    return ["Minimum", "Maximum"][index2];
+  } else {
+    return void 0;
+  }
+}
+function getClosestValueIndex(values, nextValue) {
+  if (values.length === 1) return 0;
+  const distances = values.map((value) => Math.abs(value - nextValue));
+  const closestDistance = Math.min(...distances);
+  return distances.indexOf(closestDistance);
+}
+function getThumbInBoundsOffset(width, left, direction) {
+  const halfWidth = width / 2;
+  const halfPercent = 50;
+  const offset4 = linearScale([0, halfPercent], [0, halfWidth]);
+  return (halfWidth - offset4(left) * direction) * direction;
+}
+function getStepsBetweenValues(values) {
+  return values.slice(0, -1).map((value, index2) => values[index2 + 1] - value);
+}
+function hasMinStepsBetweenValues(values, minStepsBetweenValues) {
+  if (minStepsBetweenValues > 0) {
+    const stepsBetweenValues = getStepsBetweenValues(values);
+    const actualMinStepsBetweenValues = Math.min(...stepsBetweenValues);
+    return actualMinStepsBetweenValues >= minStepsBetweenValues;
+  }
+  return true;
+}
+function linearScale(input, output) {
+  return (value) => {
+    if (input[0] === input[1] || output[0] === output[1]) return output[0];
+    const ratio = (output[1] - output[0]) / (input[1] - input[0]);
+    return output[0] + ratio * (value - input[0]);
+  };
+}
+function getDecimalCount(value) {
+  if (!Number.isFinite(value)) return 0;
+  const str = value.toString();
+  if (str.includes("e")) {
+    const [coefficient, exponent] = str.split("e");
+    const decimalPart2 = coefficient.split(".")[1] || "";
+    const exponentNum = Number(exponent);
+    return Math.max(0, decimalPart2.length - exponentNum);
+  }
+  const decimalPart = str.split(".")[1];
+  return decimalPart ? decimalPart.length : 0;
+}
+function roundValue(value, decimalCount) {
+  const rounder = Math.pow(10, decimalCount);
+  return Math.round(value * rounder) / rounder;
+}
+function isFunction6(value) {
+  return typeof value === "function";
+}
+
+// src/components/Slider/Slider.tsx
+import { jsx as jsx49, jsxs as jsxs26 } from "react/jsx-runtime";
+var Slider2 = React41.forwardRef(function Slider3({ className, value, defaultValue, ...rest }, ref) {
+  const thumbCount = (value ?? defaultValue)?.length ?? 1;
+  return /* @__PURE__ */ jsxs26(
+    Slider,
+    {
+      ref,
+      className: cx("hds-slider", className),
+      value,
+      defaultValue,
+      ...rest,
+      children: [
+        /* @__PURE__ */ jsx49(SliderTrack, { className: "hds-slider-track", children: /* @__PURE__ */ jsx49(SliderRange, { className: "hds-slider-range" }) }),
+        Array.from({ length: thumbCount }, (_, index2) => /* @__PURE__ */ jsx49(SliderThumb, { className: "hds-slider-thumb" }, index2))
+      ]
+    }
+  );
+});
+Slider2.displayName = "Slider";
+
+// src/components/Dialog/Dialog.tsx
+import { forwardRef as forwardRef28 } from "react";
+
+// node_modules/@radix-ui/react-dialog/dist/index.mjs
+import * as React42 from "react";
+import { Fragment as Fragment11, jsx as jsx50 } from "react/jsx-runtime";
+var DIALOG_NAME = "Dialog";
+var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
+var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
+var Dialog = (props) => {
+  const {
+    __scopeDialog,
+    children,
+    open: openProp,
+    defaultOpen,
+    onOpenChange,
+    modal = true
+  } = props;
+  const triggerRef = React42.useRef(null);
+  const contentRef = React42.useRef(null);
+  const [open, setOpen] = useControllableState2({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: onOpenChange,
+    caller: DIALOG_NAME
+  });
+  return /* @__PURE__ */ jsx50(
+    DialogProvider,
+    {
+      scope: __scopeDialog,
+      triggerRef,
+      contentRef,
+      contentId: useId2(),
+      titleId: useId2(),
+      descriptionId: useId2(),
+      open,
+      onOpenChange: setOpen,
+      onOpenToggle: React42.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
+      modal,
+      children
+    }
+  );
+};
+Dialog.displayName = DIALOG_NAME;
+var TRIGGER_NAME5 = "DialogTrigger";
+var DialogTrigger = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, ...triggerProps } = props;
+    const context = useDialogContext(TRIGGER_NAME5, __scopeDialog);
+    const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
+    return /* @__PURE__ */ jsx50(
+      Primitive.button,
+      {
+        type: "button",
+        "aria-haspopup": "dialog",
+        "aria-expanded": context.open,
+        "aria-controls": context.open ? context.contentId : void 0,
+        "data-state": getState4(context.open),
+        ...triggerProps,
+        ref: composedTriggerRef,
+        onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
+      }
+    );
+  }
+);
+DialogTrigger.displayName = TRIGGER_NAME5;
+var PORTAL_NAME3 = "DialogPortal";
+var [PortalProvider2, usePortalContext2] = createDialogContext(PORTAL_NAME3, {
+  forceMount: void 0
+});
+var DialogPortal = (props) => {
+  const { __scopeDialog, forceMount, children, container } = props;
+  const context = useDialogContext(PORTAL_NAME3, __scopeDialog);
+  return /* @__PURE__ */ jsx50(PortalProvider2, { scope: __scopeDialog, forceMount, children: React42.Children.map(children, (child) => /* @__PURE__ */ jsx50(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx50(Portal, { asChild: true, container, children: child }) })) });
+};
+DialogPortal.displayName = PORTAL_NAME3;
+var OVERLAY_NAME = "DialogOverlay";
+var DialogOverlay = React42.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext2(OVERLAY_NAME, props.__scopeDialog);
+    const { forceMount = portalContext.forceMount, ...overlayProps } = props;
+    const context = useDialogContext(OVERLAY_NAME, props.__scopeDialog);
+    return context.modal ? /* @__PURE__ */ jsx50(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx50(DialogOverlayImpl, { ...overlayProps, ref: forwardedRef }) }) : null;
+  }
+);
+DialogOverlay.displayName = OVERLAY_NAME;
+var Slot2 = createSlot("DialogOverlay.RemoveScroll");
+var DialogOverlayImpl = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, ...overlayProps } = props;
+    const context = useDialogContext(OVERLAY_NAME, __scopeDialog);
+    const registerDismissableSurface = useDismissableLayerSurface();
+    const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
+    return (
+      // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
+      // ie. when `Overlay` and `Content` are siblings
+      /* @__PURE__ */ jsx50(Combination_default, { as: Slot2, allowPinchZoom: true, shards: [context.contentRef], children: /* @__PURE__ */ jsx50(
+        Primitive.div,
+        {
+          "data-state": getState4(context.open),
+          ...overlayProps,
+          ref: composedRefs,
+          style: { pointerEvents: "auto", ...overlayProps.style }
+        }
+      ) })
+    );
+  }
+);
+var CONTENT_NAME3 = "DialogContent";
+var DialogContent = React42.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext2(CONTENT_NAME3, props.__scopeDialog);
+    const { forceMount = portalContext.forceMount, ...contentProps } = props;
+    const context = useDialogContext(CONTENT_NAME3, props.__scopeDialog);
+    return /* @__PURE__ */ jsx50(Presence, { present: forceMount || context.open, children: context.modal ? /* @__PURE__ */ jsx50(DialogContentModal, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx50(DialogContentNonModal, { ...contentProps, ref: forwardedRef }) });
+  }
+);
+DialogContent.displayName = CONTENT_NAME3;
+var DialogContentModal = React42.forwardRef(
+  (props, forwardedRef) => {
+    const context = useDialogContext(CONTENT_NAME3, props.__scopeDialog);
+    const contentRef = React42.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, context.contentRef, contentRef);
+    React42.useEffect(() => {
+      const content = contentRef.current;
+      if (content) return hideOthers(content);
+    }, []);
+    return /* @__PURE__ */ jsx50(
+      DialogContentImpl,
+      {
+        ...props,
+        ref: composedRefs,
+        trapFocus: context.open,
+        disableOutsidePointerEvents: context.open,
+        onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
+          event.preventDefault();
+          context.triggerRef.current?.focus();
+        }),
+        onPointerDownOutside: composeEventHandlers(props.onPointerDownOutside, (event) => {
+          const originalEvent = event.detail.originalEvent;
+          const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
+          const isRightClick = originalEvent.button === 2 || ctrlLeftClick;
+          if (isRightClick) event.preventDefault();
+        }),
+        onFocusOutside: composeEventHandlers(
+          props.onFocusOutside,
+          (event) => event.preventDefault()
+        )
+      }
+    );
+  }
+);
+var DialogContentNonModal = React42.forwardRef(
+  (props, forwardedRef) => {
+    const context = useDialogContext(CONTENT_NAME3, props.__scopeDialog);
+    const hasInteractedOutsideRef = React42.useRef(false);
+    const hasPointerDownOutsideRef = React42.useRef(false);
+    return /* @__PURE__ */ jsx50(
+      DialogContentImpl,
+      {
+        ...props,
+        ref: forwardedRef,
+        trapFocus: false,
+        disableOutsidePointerEvents: false,
+        onCloseAutoFocus: (event) => {
+          props.onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented) {
+            if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
+            event.preventDefault();
+          }
+          hasInteractedOutsideRef.current = false;
+          hasPointerDownOutsideRef.current = false;
+        },
+        onInteractOutside: (event) => {
+          props.onInteractOutside?.(event);
+          if (!event.defaultPrevented) {
+            hasInteractedOutsideRef.current = true;
+            if (event.detail.originalEvent.type === "pointerdown") {
+              hasPointerDownOutsideRef.current = true;
+            }
+          }
+          const target = event.target;
+          const targetIsTrigger = context.triggerRef.current?.contains(target);
+          if (targetIsTrigger) event.preventDefault();
+          if (event.detail.originalEvent.type === "focusin" && hasPointerDownOutsideRef.current) {
+            event.preventDefault();
+          }
+        }
+      }
+    );
+  }
+);
+var DialogContentImpl = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
+    const context = useDialogContext(CONTENT_NAME3, __scopeDialog);
+    useFocusGuards();
+    return /* @__PURE__ */ jsx50(Fragment11, { children: /* @__PURE__ */ jsx50(
+      FocusScope,
+      {
+        asChild: true,
+        loop: true,
+        trapped: trapFocus,
+        onMountAutoFocus: onOpenAutoFocus,
+        onUnmountAutoFocus: onCloseAutoFocus,
+        children: /* @__PURE__ */ jsx50(
+          DismissableLayer,
+          {
+            role: "dialog",
+            id: context.contentId,
+            "aria-describedby": context.descriptionId,
+            "aria-labelledby": context.titleId,
+            "data-state": getState4(context.open),
+            ...contentProps,
+            ref: forwardedRef,
+            deferPointerDownOutside: true,
+            onDismiss: () => context.onOpenChange(false)
+          }
+        )
+      }
+    ) });
+  }
+);
+var TITLE_NAME = "DialogTitle";
+var DialogTitle = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, ...titleProps } = props;
+    const context = useDialogContext(TITLE_NAME, __scopeDialog);
+    return /* @__PURE__ */ jsx50(Primitive.h2, { id: context.titleId, ...titleProps, ref: forwardedRef });
+  }
+);
+DialogTitle.displayName = TITLE_NAME;
+var DESCRIPTION_NAME = "DialogDescription";
+var DialogDescription = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, ...descriptionProps } = props;
+    const context = useDialogContext(DESCRIPTION_NAME, __scopeDialog);
+    return /* @__PURE__ */ jsx50(Primitive.p, { id: context.descriptionId, ...descriptionProps, ref: forwardedRef });
+  }
+);
+DialogDescription.displayName = DESCRIPTION_NAME;
+var CLOSE_NAME = "DialogClose";
+var DialogClose = React42.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDialog, ...closeProps } = props;
+    const context = useDialogContext(CLOSE_NAME, __scopeDialog);
+    return /* @__PURE__ */ jsx50(
+      Primitive.button,
+      {
+        type: "button",
+        ...closeProps,
+        ref: forwardedRef,
+        onClick: composeEventHandlers(props.onClick, () => context.onOpenChange(false))
+      }
+    );
+  }
+);
+DialogClose.displayName = CLOSE_NAME;
+function getState4(open) {
+  return open ? "open" : "closed";
+}
+
+// src/components/Dialog/Dialog.tsx
+import { jsx as jsx51, jsxs as jsxs27 } from "react/jsx-runtime";
+var Dialog2 = Dialog;
+var DialogTrigger2 = DialogTrigger;
+var DialogClose2 = DialogClose;
+var DialogContent2 = forwardRef28(
+  function DialogContent3({ className, cut = false, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs27(DialogPortal, { children: [
+      /* @__PURE__ */ jsx51(DialogOverlay, { className: "hds-dialog-overlay" }),
+      /* @__PURE__ */ jsx51(
+        DialogContent,
+        {
+          ref,
+          "aria-modal": "true",
+          className: cx("hds-dialog-content", cut && "cut-sm", className),
+          ...rest,
+          children
+        }
+      )
+    ] });
+  }
+);
+DialogContent2.displayName = "DialogContent";
+var DialogTitle2 = forwardRef28(
+  function DialogTitle3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx51(DialogTitle, { ref, className: cx("hds-dialog-title", className), ...rest });
+  }
+);
+DialogTitle2.displayName = "DialogTitle";
+var DialogDescription2 = forwardRef28(
+  function DialogDescription3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx51(DialogDescription, { ref, className: cx("hds-dialog-description", className), ...rest });
+  }
+);
+DialogDescription2.displayName = "DialogDescription";
+
+// src/components/AlertDialog/AlertDialog.tsx
+import { forwardRef as forwardRef30 } from "react";
+
+// node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
+import * as React43 from "react";
+import { jsx as jsx52 } from "react/jsx-runtime";
+var ROOT_NAME = "AlertDialog";
+var [createAlertDialogContext, createAlertDialogScope] = createContextScope(ROOT_NAME, [
+  createDialogScope
+]);
+var useDialogScope = createDialogScope();
+var AlertDialog = (props) => {
+  const { __scopeAlertDialog, ...alertDialogProps } = props;
+  const dialogScope = useDialogScope(__scopeAlertDialog);
+  return /* @__PURE__ */ jsx52(Dialog, { ...dialogScope, ...alertDialogProps, modal: true });
+};
+AlertDialog.displayName = ROOT_NAME;
+var TRIGGER_NAME6 = "AlertDialogTrigger";
+var AlertDialogTrigger = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, ...triggerProps } = props;
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    return /* @__PURE__ */ jsx52(DialogTrigger, { ...dialogScope, ...triggerProps, ref: forwardedRef });
+  }
+);
+AlertDialogTrigger.displayName = TRIGGER_NAME6;
+var PORTAL_NAME4 = "AlertDialogPortal";
+var AlertDialogPortal = (props) => {
+  const { __scopeAlertDialog, ...portalProps } = props;
+  const dialogScope = useDialogScope(__scopeAlertDialog);
+  return /* @__PURE__ */ jsx52(DialogPortal, { ...dialogScope, ...portalProps });
+};
+AlertDialogPortal.displayName = PORTAL_NAME4;
+var OVERLAY_NAME2 = "AlertDialogOverlay";
+var AlertDialogOverlay = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, ...overlayProps } = props;
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    return /* @__PURE__ */ jsx52(DialogOverlay, { ...dialogScope, ...overlayProps, ref: forwardedRef });
+  }
+);
+AlertDialogOverlay.displayName = OVERLAY_NAME2;
+var CONTENT_NAME4 = "AlertDialogContent";
+var [AlertDialogContentProvider, useAlertDialogContentContext] = createAlertDialogContext(CONTENT_NAME4);
+var AlertDialogContent = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, children, ...contentProps } = props;
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    const contentRef = React43.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, contentRef);
+    const cancelRef = React43.useRef(null);
+    return /* @__PURE__ */ jsx52(AlertDialogContentProvider, { scope: __scopeAlertDialog, cancelRef, children: /* @__PURE__ */ jsx52(
+      DialogContent,
+      {
+        role: "alertdialog",
+        ...dialogScope,
+        ...contentProps,
+        ref: composedRefs,
+        onOpenAutoFocus: composeEventHandlers(contentProps.onOpenAutoFocus, (event) => {
+          event.preventDefault();
+          cancelRef.current?.focus({ preventScroll: true });
+        }),
+        onPointerDownOutside: (event) => event.preventDefault(),
+        onInteractOutside: (event) => event.preventDefault(),
+        children
+      }
+    ) });
+  }
+);
+AlertDialogContent.displayName = CONTENT_NAME4;
+var TITLE_NAME2 = "AlertDialogTitle";
+var AlertDialogTitle = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, ...titleProps } = props;
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    return /* @__PURE__ */ jsx52(DialogTitle, { ...dialogScope, ...titleProps, ref: forwardedRef });
+  }
+);
+AlertDialogTitle.displayName = TITLE_NAME2;
+var DESCRIPTION_NAME2 = "AlertDialogDescription";
+var AlertDialogDescription = React43.forwardRef((props, forwardedRef) => {
+  const { __scopeAlertDialog, ...descriptionProps } = props;
+  const dialogScope = useDialogScope(__scopeAlertDialog);
+  return /* @__PURE__ */ jsx52(DialogDescription, { ...dialogScope, ...descriptionProps, ref: forwardedRef });
+});
+AlertDialogDescription.displayName = DESCRIPTION_NAME2;
+var ACTION_NAME = "AlertDialogAction";
+var AlertDialogAction = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, ...actionProps } = props;
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    return /* @__PURE__ */ jsx52(DialogClose, { ...dialogScope, ...actionProps, ref: forwardedRef });
+  }
+);
+AlertDialogAction.displayName = ACTION_NAME;
+var CANCEL_NAME = "AlertDialogCancel";
+var AlertDialogCancel = React43.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeAlertDialog, ...cancelProps } = props;
+    const { cancelRef } = useAlertDialogContentContext(CANCEL_NAME, __scopeAlertDialog);
+    const dialogScope = useDialogScope(__scopeAlertDialog);
+    const ref = useComposedRefs(forwardedRef, cancelRef);
+    return /* @__PURE__ */ jsx52(DialogClose, { ...dialogScope, ...cancelProps, ref });
+  }
+);
+AlertDialogCancel.displayName = CANCEL_NAME;
+var Root23 = AlertDialog;
+var Trigger2 = AlertDialogTrigger;
+var Portal2 = AlertDialogPortal;
+var Overlay2 = AlertDialogOverlay;
+var Content2 = AlertDialogContent;
+var Action = AlertDialogAction;
+var Cancel = AlertDialogCancel;
+var Title2 = AlertDialogTitle;
+var Description2 = AlertDialogDescription;
+
+// src/components/AlertDialog/AlertDialog.tsx
+import { jsx as jsx53, jsxs as jsxs28 } from "react/jsx-runtime";
+var AlertDialog2 = Root23;
+var AlertDialogTrigger2 = Trigger2;
+var AlertDialogContent2 = forwardRef30(
+  function AlertDialogContent3({ className, children, onEscapeKeyDown, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs28(Portal2, { children: [
+      /* @__PURE__ */ jsx53(Overlay2, { className: "hds-alert-dialog-overlay" }),
+      /* @__PURE__ */ jsx53(
+        Content2,
+        {
+          ref,
+          "aria-modal": "true",
+          className: cx("hds-alert-dialog-content", className),
+          onEscapeKeyDown: (event) => {
+            onEscapeKeyDown?.(event);
+            event.preventDefault();
+          },
+          ...rest,
+          children
+        }
+      )
+    ] });
+  }
+);
+AlertDialogContent2.displayName = "AlertDialogContent";
+var AlertDialogTitle2 = forwardRef30(
+  function AlertDialogTitle3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx53(Title2, { ref, className: cx("hds-alert-dialog-title", className), ...rest });
+  }
+);
+AlertDialogTitle2.displayName = "AlertDialogTitle";
+var AlertDialogDescription2 = forwardRef30(function AlertDialogDescription3({ className, ...rest }, ref) {
+  return /* @__PURE__ */ jsx53(Description2, { ref, className: cx("hds-alert-dialog-description", className), ...rest });
+});
+AlertDialogDescription2.displayName = "AlertDialogDescription";
+var AlertDialogAction2 = forwardRef30(
+  function AlertDialogAction3({ className, variant = "default", ...rest }, ref) {
+    return /* @__PURE__ */ jsx53(
+      Action,
+      {
+        ref,
+        className: cx("hds-alert-dialog-action", variant === "danger" && "hds-alert-dialog-action-danger", className),
+        ...rest
+      }
+    );
+  }
+);
+AlertDialogAction2.displayName = "AlertDialogAction";
+var AlertDialogCancel2 = forwardRef30(
+  function AlertDialogCancel3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx53(Cancel, { ref, className: cx("hds-alert-dialog-cancel", className), ...rest });
+  }
+);
+AlertDialogCancel2.displayName = "AlertDialogCancel";
+
+// src/components/Popover/Popover.tsx
+import { forwardRef as forwardRef32 } from "react";
+
+// node_modules/@radix-ui/react-popover/dist/index.mjs
+import * as React44 from "react";
+import { jsx as jsx54 } from "react/jsx-runtime";
+var POPOVER_NAME = "Popover";
+var [createPopoverContext, createPopoverScope] = createContextScope(POPOVER_NAME, [
+  createPopperScope
+]);
+var usePopperScope2 = createPopperScope();
+var [PopoverProvider, usePopoverContext] = createPopoverContext(POPOVER_NAME);
+var Popover = (props) => {
+  const {
+    __scopePopover,
+    children,
+    open: openProp,
+    defaultOpen,
+    onOpenChange,
+    modal = false
+  } = props;
+  const popperScope = usePopperScope2(__scopePopover);
+  const triggerRef = React44.useRef(null);
+  const [hasCustomAnchor, setHasCustomAnchor] = React44.useState(false);
+  const [open, setOpen] = useControllableState2({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: onOpenChange,
+    caller: POPOVER_NAME
+  });
+  return /* @__PURE__ */ jsx54(Root22, { ...popperScope, children: /* @__PURE__ */ jsx54(
+    PopoverProvider,
+    {
+      scope: __scopePopover,
+      contentId: useId2(),
+      triggerRef,
+      open,
+      onOpenChange: setOpen,
+      onOpenToggle: React44.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
+      hasCustomAnchor,
+      onCustomAnchorAdd: React44.useCallback(() => setHasCustomAnchor(true), []),
+      onCustomAnchorRemove: React44.useCallback(() => setHasCustomAnchor(false), []),
+      modal,
+      children
+    }
+  ) });
+};
+Popover.displayName = POPOVER_NAME;
+var ANCHOR_NAME2 = "PopoverAnchor";
+var PopoverAnchor = React44.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...anchorProps } = props;
+    const context = usePopoverContext(ANCHOR_NAME2, __scopePopover);
+    const popperScope = usePopperScope2(__scopePopover);
+    const { onCustomAnchorAdd, onCustomAnchorRemove } = context;
+    React44.useEffect(() => {
+      onCustomAnchorAdd();
+      return () => onCustomAnchorRemove();
+    }, [onCustomAnchorAdd, onCustomAnchorRemove]);
+    return /* @__PURE__ */ jsx54(Anchor, { ...popperScope, ...anchorProps, ref: forwardedRef });
+  }
+);
+PopoverAnchor.displayName = ANCHOR_NAME2;
+var TRIGGER_NAME7 = "PopoverTrigger";
+var PopoverTrigger = React44.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...triggerProps } = props;
+    const context = usePopoverContext(TRIGGER_NAME7, __scopePopover);
+    const popperScope = usePopperScope2(__scopePopover);
+    const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
+    const trigger = /* @__PURE__ */ jsx54(
+      Primitive.button,
+      {
+        type: "button",
+        "aria-haspopup": "dialog",
+        "aria-expanded": context.open,
+        "aria-controls": context.open ? context.contentId : void 0,
+        "data-state": getState5(context.open),
+        ...triggerProps,
+        ref: composedTriggerRef,
+        onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
+      }
+    );
+    return context.hasCustomAnchor ? trigger : /* @__PURE__ */ jsx54(Anchor, { asChild: true, ...popperScope, children: trigger });
+  }
+);
+PopoverTrigger.displayName = TRIGGER_NAME7;
+var PORTAL_NAME5 = "PopoverPortal";
+var [PortalProvider3, usePortalContext3] = createPopoverContext(PORTAL_NAME5, {
+  forceMount: void 0
+});
+var PopoverPortal = (props) => {
+  const { __scopePopover, forceMount, children, container } = props;
+  const context = usePopoverContext(PORTAL_NAME5, __scopePopover);
+  return /* @__PURE__ */ jsx54(PortalProvider3, { scope: __scopePopover, forceMount, children: /* @__PURE__ */ jsx54(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx54(Portal, { asChild: true, container, children }) }) });
+};
+PopoverPortal.displayName = PORTAL_NAME5;
+var CONTENT_NAME5 = "PopoverContent";
+var PopoverContent = React44.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext3(CONTENT_NAME5, props.__scopePopover);
+    const { forceMount = portalContext.forceMount, ...contentProps } = props;
+    const context = usePopoverContext(CONTENT_NAME5, props.__scopePopover);
+    return /* @__PURE__ */ jsx54(Presence, { present: forceMount || context.open, children: context.modal ? /* @__PURE__ */ jsx54(PopoverContentModal, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx54(PopoverContentNonModal, { ...contentProps, ref: forwardedRef }) });
+  }
+);
+PopoverContent.displayName = CONTENT_NAME5;
+var Slot3 = createSlot("PopoverContent.RemoveScroll");
+var PopoverContentModal = React44.forwardRef(
+  (props, forwardedRef) => {
+    const context = usePopoverContext(CONTENT_NAME5, props.__scopePopover);
+    const contentRef = React44.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, contentRef);
+    const isRightClickOutsideRef = React44.useRef(false);
+    React44.useEffect(() => {
+      const content = contentRef.current;
+      if (content) return hideOthers(content);
+    }, []);
+    return /* @__PURE__ */ jsx54(Combination_default, { as: Slot3, allowPinchZoom: true, children: /* @__PURE__ */ jsx54(
+      PopoverContentImpl,
+      {
+        ...props,
+        ref: composedRefs,
+        trapFocus: context.open,
+        disableOutsidePointerEvents: true,
+        onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
+          event.preventDefault();
+          if (!isRightClickOutsideRef.current) context.triggerRef.current?.focus();
+        }),
+        onPointerDownOutside: composeEventHandlers(
+          props.onPointerDownOutside,
+          (event) => {
+            const originalEvent = event.detail.originalEvent;
+            const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
+            const isRightClick = originalEvent.button === 2 || ctrlLeftClick;
+            isRightClickOutsideRef.current = isRightClick;
+          },
+          { checkForDefaultPrevented: false }
+        ),
+        onFocusOutside: composeEventHandlers(
+          props.onFocusOutside,
+          (event) => event.preventDefault(),
+          { checkForDefaultPrevented: false }
+        )
+      }
+    ) });
+  }
+);
+var PopoverContentNonModal = React44.forwardRef(
+  (props, forwardedRef) => {
+    const context = usePopoverContext(CONTENT_NAME5, props.__scopePopover);
+    const hasInteractedOutsideRef = React44.useRef(false);
+    const hasPointerDownOutsideRef = React44.useRef(false);
+    return /* @__PURE__ */ jsx54(
+      PopoverContentImpl,
+      {
+        ...props,
+        ref: forwardedRef,
+        trapFocus: false,
+        disableOutsidePointerEvents: false,
+        onCloseAutoFocus: (event) => {
+          props.onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented) {
+            if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
+            event.preventDefault();
+          }
+          hasInteractedOutsideRef.current = false;
+          hasPointerDownOutsideRef.current = false;
+        },
+        onInteractOutside: (event) => {
+          props.onInteractOutside?.(event);
+          if (!event.defaultPrevented) {
+            hasInteractedOutsideRef.current = true;
+            if (event.detail.originalEvent.type === "pointerdown") {
+              hasPointerDownOutsideRef.current = true;
+            }
+          }
+          const target = event.target;
+          const targetIsTrigger = context.triggerRef.current?.contains(target);
+          if (targetIsTrigger) event.preventDefault();
+          if (event.detail.originalEvent.type === "focusin" && hasPointerDownOutsideRef.current) {
+            event.preventDefault();
+          }
+        }
+      }
+    );
+  }
+);
+var PopoverContentImpl = React44.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopePopover,
+      trapFocus,
+      onOpenAutoFocus,
+      onCloseAutoFocus,
+      disableOutsidePointerEvents,
+      onEscapeKeyDown,
+      onPointerDownOutside,
+      onFocusOutside,
+      onInteractOutside,
+      ...contentProps
+    } = props;
+    const context = usePopoverContext(CONTENT_NAME5, __scopePopover);
+    const popperScope = usePopperScope2(__scopePopover);
+    useFocusGuards();
+    return /* @__PURE__ */ jsx54(
+      FocusScope,
+      {
+        asChild: true,
+        loop: true,
+        trapped: trapFocus,
+        onMountAutoFocus: onOpenAutoFocus,
+        onUnmountAutoFocus: onCloseAutoFocus,
+        children: /* @__PURE__ */ jsx54(
+          DismissableLayer,
+          {
+            asChild: true,
+            disableOutsidePointerEvents,
+            onInteractOutside,
+            onEscapeKeyDown,
+            onPointerDownOutside,
+            onFocusOutside,
+            onDismiss: () => context.onOpenChange(false),
+            deferPointerDownOutside: true,
+            children: /* @__PURE__ */ jsx54(
+              Content,
+              {
+                "data-state": getState5(context.open),
+                role: "dialog",
+                id: context.contentId,
+                ...popperScope,
+                ...contentProps,
+                ref: forwardedRef,
+                style: {
+                  ...contentProps.style,
+                  // re-namespace exposed content custom properties
+                  ...{
+                    "--radix-popover-content-transform-origin": "var(--radix-popper-transform-origin)",
+                    "--radix-popover-content-available-width": "var(--radix-popper-available-width)",
+                    "--radix-popover-content-available-height": "var(--radix-popper-available-height)",
+                    "--radix-popover-trigger-width": "var(--radix-popper-anchor-width)",
+                    "--radix-popover-trigger-height": "var(--radix-popper-anchor-height)"
+                  }
+                }
+              }
+            )
+          }
+        )
+      }
+    );
+  }
+);
+var CLOSE_NAME2 = "PopoverClose";
+var PopoverClose = React44.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...closeProps } = props;
+    const context = usePopoverContext(CLOSE_NAME2, __scopePopover);
+    return /* @__PURE__ */ jsx54(
+      Primitive.button,
+      {
+        type: "button",
+        ...closeProps,
+        ref: forwardedRef,
+        onClick: composeEventHandlers(props.onClick, () => context.onOpenChange(false))
+      }
+    );
+  }
+);
+PopoverClose.displayName = CLOSE_NAME2;
+var ARROW_NAME3 = "PopoverArrow";
+var PopoverArrow = React44.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...arrowProps } = props;
+    const popperScope = usePopperScope2(__scopePopover);
+    return /* @__PURE__ */ jsx54(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
+  }
+);
+PopoverArrow.displayName = ARROW_NAME3;
+function getState5(open) {
+  return open ? "open" : "closed";
+}
+var Root24 = Popover;
+var Anchor2 = PopoverAnchor;
+var Trigger = PopoverTrigger;
+var Portal3 = PopoverPortal;
+var Content22 = PopoverContent;
+var Close = PopoverClose;
+var Arrow22 = PopoverArrow;
+
+// src/components/Popover/Popover.tsx
+import { jsx as jsx55, jsxs as jsxs29 } from "react/jsx-runtime";
+var Popover2 = Root24;
+var PopoverTrigger2 = Trigger;
+var PopoverAnchor2 = Anchor2;
+var PopoverClose2 = Close;
+var PopoverContent2 = forwardRef32(
+  function PopoverContent3({ className, sideOffset = 8, collisionPadding = 8, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsx55(Portal3, { children: /* @__PURE__ */ jsxs29(
+      Content22,
+      {
+        ref,
+        sideOffset,
+        collisionPadding,
+        className: cx("hds-popover-content", className),
+        ...rest,
+        children: [
+          children,
+          /* @__PURE__ */ jsx55(Arrow22, { className: "hds-popover-arrow", width: 12, height: 6 })
+        ]
+      }
+    ) });
+  }
+);
+PopoverContent2.displayName = "PopoverContent";
+
+// src/components/Tooltip/Tooltip.tsx
+import { forwardRef as forwardRef34 } from "react";
+
+// node_modules/@radix-ui/react-tooltip/dist/index.mjs
+import * as React45 from "react";
+import { jsx as jsx56, jsxs as jsxs30 } from "react/jsx-runtime";
+var [createTooltipContext, createTooltipScope] = createContextScope("Tooltip", [
+  createPopperScope
+]);
+var usePopperScope3 = createPopperScope();
+var PROVIDER_NAME2 = "TooltipProvider";
+var DEFAULT_DELAY_DURATION = 700;
+var TOOLTIP_OPEN = "tooltip.open";
+var [TooltipProviderContextProvider, useTooltipProviderContext] = createTooltipContext(PROVIDER_NAME2);
+var TooltipProvider = (props) => {
+  const {
+    __scopeTooltip,
+    delayDuration = DEFAULT_DELAY_DURATION,
+    skipDelayDuration = 300,
+    disableHoverableContent = false,
+    children
+  } = props;
+  const isOpenDelayedRef = React45.useRef(true);
+  const isPointerInTransitRef = React45.useRef(false);
+  const skipDelayTimerRef = React45.useRef(0);
+  React45.useEffect(() => {
+    const skipDelayTimer = skipDelayTimerRef.current;
+    return () => window.clearTimeout(skipDelayTimer);
+  }, []);
+  return /* @__PURE__ */ jsx56(
+    TooltipProviderContextProvider,
+    {
+      scope: __scopeTooltip,
+      isOpenDelayedRef,
+      delayDuration,
+      onOpen: React45.useCallback(() => {
+        if (skipDelayDuration <= 0) return;
+        window.clearTimeout(skipDelayTimerRef.current);
+        isOpenDelayedRef.current = false;
+      }, [skipDelayDuration]),
+      onClose: React45.useCallback(() => {
+        if (skipDelayDuration <= 0) return;
+        window.clearTimeout(skipDelayTimerRef.current);
+        skipDelayTimerRef.current = window.setTimeout(
+          () => isOpenDelayedRef.current = true,
+          skipDelayDuration
+        );
+      }, [skipDelayDuration]),
+      isPointerInTransitRef,
+      onPointerInTransitChange: React45.useCallback((inTransit) => {
+        isPointerInTransitRef.current = inTransit;
+      }, []),
+      disableHoverableContent,
+      children
+    }
+  );
+};
+TooltipProvider.displayName = PROVIDER_NAME2;
+var TOOLTIP_NAME = "Tooltip";
+var [TooltipContextProvider, useTooltipContext] = createTooltipContext(TOOLTIP_NAME);
+var Tooltip = (props) => {
+  const {
+    __scopeTooltip,
+    children,
+    open: openProp,
+    defaultOpen,
+    onOpenChange,
+    disableHoverableContent: disableHoverableContentProp,
+    delayDuration: delayDurationProp
+  } = props;
+  const providerContext = useTooltipProviderContext(TOOLTIP_NAME, props.__scopeTooltip);
+  const popperScope = usePopperScope3(__scopeTooltip);
+  const [trigger, setTrigger] = React45.useState(null);
+  const contentId = useId2();
+  const openTimerRef = React45.useRef(0);
+  const disableHoverableContent = disableHoverableContentProp ?? providerContext.disableHoverableContent;
+  const delayDuration = delayDurationProp ?? providerContext.delayDuration;
+  const wasOpenDelayedRef = React45.useRef(false);
+  const [open, setOpen] = useControllableState2({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: (open2) => {
+      if (open2) {
+        providerContext.onOpen();
+        document.dispatchEvent(new CustomEvent(TOOLTIP_OPEN));
+      } else {
+        providerContext.onClose();
+      }
+      onOpenChange?.(open2);
+    },
+    caller: TOOLTIP_NAME
+  });
+  const stateAttribute = React45.useMemo(() => {
+    return open ? wasOpenDelayedRef.current ? "delayed-open" : "instant-open" : "closed";
+  }, [open]);
+  const handleOpen = React45.useCallback(() => {
+    window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = 0;
+    wasOpenDelayedRef.current = false;
+    setOpen(true);
+  }, [setOpen]);
+  const handleClose = React45.useCallback(() => {
+    window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = 0;
+    setOpen(false);
+  }, [setOpen]);
+  const handleDelayedOpen = React45.useCallback(() => {
+    window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = window.setTimeout(() => {
+      wasOpenDelayedRef.current = true;
+      setOpen(true);
+      openTimerRef.current = 0;
+    }, delayDuration);
+  }, [delayDuration, setOpen]);
+  React45.useEffect(() => {
+    return () => {
+      if (openTimerRef.current) {
+        window.clearTimeout(openTimerRef.current);
+        openTimerRef.current = 0;
+      }
+    };
+  }, []);
+  return /* @__PURE__ */ jsx56(Root22, { ...popperScope, children: /* @__PURE__ */ jsx56(
+    TooltipContextProvider,
+    {
+      scope: __scopeTooltip,
+      contentId,
+      open,
+      stateAttribute,
+      trigger,
+      onTriggerChange: setTrigger,
+      onTriggerEnter: React45.useCallback(() => {
+        if (providerContext.isOpenDelayedRef.current) handleDelayedOpen();
+        else handleOpen();
+      }, [providerContext.isOpenDelayedRef, handleDelayedOpen, handleOpen]),
+      onTriggerLeave: React45.useCallback(() => {
+        if (disableHoverableContent) {
+          handleClose();
+        } else {
+          window.clearTimeout(openTimerRef.current);
+          openTimerRef.current = 0;
+        }
+      }, [handleClose, disableHoverableContent]),
+      onOpen: handleOpen,
+      onClose: handleClose,
+      disableHoverableContent,
+      children
+    }
+  ) });
+};
+Tooltip.displayName = TOOLTIP_NAME;
+var TRIGGER_NAME8 = "TooltipTrigger";
+var TooltipTrigger = React45.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeTooltip, ...triggerProps } = props;
+    const context = useTooltipContext(TRIGGER_NAME8, __scopeTooltip);
+    const providerContext = useTooltipProviderContext(TRIGGER_NAME8, __scopeTooltip);
+    const popperScope = usePopperScope3(__scopeTooltip);
+    const ref = React45.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref, context.onTriggerChange);
+    const isPointerDownRef = React45.useRef(false);
+    const hasPointerMoveOpenedRef = React45.useRef(false);
+    const handlePointerUp = React45.useCallback(() => isPointerDownRef.current = false, []);
+    React45.useEffect(() => {
+      return () => document.removeEventListener("pointerup", handlePointerUp);
+    }, [handlePointerUp]);
+    return /* @__PURE__ */ jsx56(Anchor, { asChild: true, ...popperScope, children: /* @__PURE__ */ jsx56(
+      Primitive.button,
+      {
+        "aria-describedby": context.open ? context.contentId : void 0,
+        "data-state": context.stateAttribute,
+        ...triggerProps,
+        ref: composedRefs,
+        onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
+          if (event.pointerType === "touch") return;
+          if (!hasPointerMoveOpenedRef.current && !providerContext.isPointerInTransitRef.current) {
+            context.onTriggerEnter();
+            hasPointerMoveOpenedRef.current = true;
+          }
+        }),
+        onPointerLeave: composeEventHandlers(props.onPointerLeave, () => {
+          context.onTriggerLeave();
+          hasPointerMoveOpenedRef.current = false;
+        }),
+        onPointerDown: composeEventHandlers(props.onPointerDown, () => {
+          if (context.open) {
+            context.onClose();
+          }
+          isPointerDownRef.current = true;
+          document.addEventListener("pointerup", handlePointerUp, { once: true });
+        }),
+        onFocus: composeEventHandlers(props.onFocus, () => {
+          if (!isPointerDownRef.current) context.onOpen();
+        }),
+        onBlur: composeEventHandlers(props.onBlur, context.onClose),
+        onClick: composeEventHandlers(props.onClick, context.onClose)
+      }
+    ) });
+  }
+);
+TooltipTrigger.displayName = TRIGGER_NAME8;
+var PORTAL_NAME6 = "TooltipPortal";
+var [PortalProvider4, usePortalContext4] = createTooltipContext(PORTAL_NAME6, {
+  forceMount: void 0
+});
+var TooltipPortal = (props) => {
+  const { __scopeTooltip, forceMount, children, container } = props;
+  const context = useTooltipContext(PORTAL_NAME6, __scopeTooltip);
+  return /* @__PURE__ */ jsx56(PortalProvider4, { scope: __scopeTooltip, forceMount, children: /* @__PURE__ */ jsx56(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx56(Portal, { asChild: true, container, children }) }) });
+};
+TooltipPortal.displayName = PORTAL_NAME6;
+var CONTENT_NAME6 = "TooltipContent";
+var TooltipContent = React45.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext4(CONTENT_NAME6, props.__scopeTooltip);
+    const { forceMount = portalContext.forceMount, side = "top", ...contentProps } = props;
+    const context = useTooltipContext(CONTENT_NAME6, props.__scopeTooltip);
+    return /* @__PURE__ */ jsx56(Presence, { present: forceMount || context.open, children: context.disableHoverableContent ? /* @__PURE__ */ jsx56(TooltipContentImpl, { side, ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx56(TooltipContentHoverable, { side, ...contentProps, ref: forwardedRef }) });
+  }
+);
+var TooltipContentHoverable = React45.forwardRef((props, forwardedRef) => {
+  const context = useTooltipContext(CONTENT_NAME6, props.__scopeTooltip);
+  const providerContext = useTooltipProviderContext(CONTENT_NAME6, props.__scopeTooltip);
+  const ref = React45.useRef(null);
+  const composedRefs = useComposedRefs(forwardedRef, ref);
+  const [pointerGraceArea, setPointerGraceArea] = React45.useState(null);
+  const { trigger, onClose } = context;
+  const content = ref.current;
+  const { onPointerInTransitChange } = providerContext;
+  const handleRemoveGraceArea = React45.useCallback(() => {
+    setPointerGraceArea(null);
+    onPointerInTransitChange(false);
+  }, [onPointerInTransitChange]);
+  const handleCreateGraceArea = React45.useCallback(
+    (event, hoverTarget) => {
+      const currentTarget = event.currentTarget;
+      const exitPoint = { x: event.clientX, y: event.clientY };
+      const exitSide = getExitSideFromRect(exitPoint, currentTarget.getBoundingClientRect());
+      const paddedExitPoints = getPaddedExitPoints(exitPoint, exitSide);
+      const hoverTargetPoints = getPointsFromRect(hoverTarget.getBoundingClientRect());
+      const graceArea = getHull([...paddedExitPoints, ...hoverTargetPoints]);
+      setPointerGraceArea(graceArea);
+      onPointerInTransitChange(true);
+    },
+    [onPointerInTransitChange]
+  );
+  React45.useEffect(() => {
+    return () => handleRemoveGraceArea();
+  }, [handleRemoveGraceArea]);
+  React45.useEffect(() => {
+    if (trigger && content) {
+      const handleTriggerLeave = (event) => handleCreateGraceArea(event, content);
+      const handleContentLeave = (event) => handleCreateGraceArea(event, trigger);
+      trigger.addEventListener("pointerleave", handleTriggerLeave);
+      content.addEventListener("pointerleave", handleContentLeave);
+      return () => {
+        trigger.removeEventListener("pointerleave", handleTriggerLeave);
+        content.removeEventListener("pointerleave", handleContentLeave);
+      };
+    }
+  }, [trigger, content, handleCreateGraceArea, handleRemoveGraceArea]);
+  React45.useEffect(() => {
+    if (pointerGraceArea) {
+      const handleTrackPointerGrace = (event) => {
+        const target = event.target;
+        const pointerPosition = { x: event.clientX, y: event.clientY };
+        const hasEnteredTarget = trigger?.contains(target) || content?.contains(target);
+        const isPointerOutsideGraceArea = !isPointInPolygon(pointerPosition, pointerGraceArea);
+        if (hasEnteredTarget) {
+          handleRemoveGraceArea();
+        } else if (isPointerOutsideGraceArea) {
+          handleRemoveGraceArea();
+          onClose();
+        }
+      };
+      document.addEventListener("pointermove", handleTrackPointerGrace);
+      return () => document.removeEventListener("pointermove", handleTrackPointerGrace);
+    }
+  }, [trigger, content, pointerGraceArea, onClose, handleRemoveGraceArea]);
+  return /* @__PURE__ */ jsx56(TooltipContentImpl, { ...props, ref: composedRefs });
+});
+var [VisuallyHiddenContentContextProvider, useVisuallyHiddenContentContext] = createTooltipContext(TOOLTIP_NAME, { isInside: false });
+var Slottable = createSlottable("TooltipContent");
+var TooltipContentImpl = React45.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeTooltip,
+      children,
+      "aria-label": ariaLabel,
+      onEscapeKeyDown,
+      onPointerDownOutside,
+      ...contentProps
+    } = props;
+    const context = useTooltipContext(CONTENT_NAME6, __scopeTooltip);
+    const popperScope = usePopperScope3(__scopeTooltip);
+    const { onClose } = context;
+    React45.useEffect(() => {
+      document.addEventListener(TOOLTIP_OPEN, onClose);
+      return () => document.removeEventListener(TOOLTIP_OPEN, onClose);
+    }, [onClose]);
+    React45.useEffect(() => {
+      if (context.trigger) {
+        const handleScroll2 = (event) => {
+          if (event.target instanceof Node && event.target.contains(context.trigger)) {
+            onClose();
+          }
+        };
+        window.addEventListener("scroll", handleScroll2, { capture: true });
+        return () => window.removeEventListener("scroll", handleScroll2, { capture: true });
+      }
+    }, [context.trigger, onClose]);
+    return /* @__PURE__ */ jsx56(
+      DismissableLayer,
+      {
+        asChild: true,
+        disableOutsidePointerEvents: false,
+        onEscapeKeyDown,
+        onPointerDownOutside,
+        onFocusOutside: (event) => event.preventDefault(),
+        onDismiss: onClose,
+        children: /* @__PURE__ */ jsxs30(
+          Content,
+          {
+            "data-state": context.stateAttribute,
+            ...popperScope,
+            ...contentProps,
+            ref: forwardedRef,
+            style: {
+              ...contentProps.style,
+              // re-namespace exposed content custom properties
+              ...{
+                "--radix-tooltip-content-transform-origin": "var(--radix-popper-transform-origin)",
+                "--radix-tooltip-content-available-width": "var(--radix-popper-available-width)",
+                "--radix-tooltip-content-available-height": "var(--radix-popper-available-height)",
+                "--radix-tooltip-trigger-width": "var(--radix-popper-anchor-width)",
+                "--radix-tooltip-trigger-height": "var(--radix-popper-anchor-height)"
+              }
+            },
+            children: [
+              /* @__PURE__ */ jsx56(Slottable, { children }),
+              /* @__PURE__ */ jsx56(VisuallyHiddenContentContextProvider, { scope: __scopeTooltip, isInside: true, children: /* @__PURE__ */ jsx56(Root, { id: context.contentId, role: "tooltip", children: ariaLabel || children }) })
+            ]
+          }
+        )
+      }
+    );
+  }
+);
+TooltipContent.displayName = CONTENT_NAME6;
+var ARROW_NAME4 = "TooltipArrow";
+var TooltipArrow = React45.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeTooltip, ...arrowProps } = props;
+    const popperScope = usePopperScope3(__scopeTooltip);
+    const visuallyHiddenContentContext = useVisuallyHiddenContentContext(
+      ARROW_NAME4,
+      __scopeTooltip
+    );
+    return visuallyHiddenContentContext.isInside ? null : /* @__PURE__ */ jsx56(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
+  }
+);
+TooltipArrow.displayName = ARROW_NAME4;
+function getExitSideFromRect(point, rect) {
+  const top = Math.abs(rect.top - point.y);
+  const bottom = Math.abs(rect.bottom - point.y);
+  const right = Math.abs(rect.right - point.x);
+  const left = Math.abs(rect.left - point.x);
+  switch (Math.min(top, bottom, right, left)) {
+    case left:
+      return "left";
+    case right:
+      return "right";
+    case top:
+      return "top";
+    case bottom:
+      return "bottom";
+    default:
+      throw new Error("unreachable");
+  }
+}
+function getPaddedExitPoints(exitPoint, exitSide, padding = 5) {
+  const paddedExitPoints = [];
+  switch (exitSide) {
+    case "top":
+      paddedExitPoints.push(
+        { x: exitPoint.x - padding, y: exitPoint.y + padding },
+        { x: exitPoint.x + padding, y: exitPoint.y + padding }
+      );
+      break;
+    case "bottom":
+      paddedExitPoints.push(
+        { x: exitPoint.x - padding, y: exitPoint.y - padding },
+        { x: exitPoint.x + padding, y: exitPoint.y - padding }
+      );
+      break;
+    case "left":
+      paddedExitPoints.push(
+        { x: exitPoint.x + padding, y: exitPoint.y - padding },
+        { x: exitPoint.x + padding, y: exitPoint.y + padding }
+      );
+      break;
+    case "right":
+      paddedExitPoints.push(
+        { x: exitPoint.x - padding, y: exitPoint.y - padding },
+        { x: exitPoint.x - padding, y: exitPoint.y + padding }
+      );
+      break;
+  }
+  return paddedExitPoints;
+}
+function getPointsFromRect(rect) {
+  const { top, right, bottom, left } = rect;
+  return [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom }
+  ];
+}
+function isPointInPolygon(point, polygon) {
+  const { x, y } = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const ii = polygon[i];
+    const jj = polygon[j];
+    const xi = ii.x;
+    const yi = ii.y;
+    const xj = jj.x;
+    const yj = jj.y;
+    const intersect = yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function getHull(points) {
+  const newPoints = points.slice();
+  newPoints.sort((a, b) => {
+    if (a.x < b.x) return -1;
+    else if (a.x > b.x) return 1;
+    else if (a.y < b.y) return -1;
+    else if (a.y > b.y) return 1;
+    else return 0;
+  });
+  return getHullPresorted(newPoints);
+}
+function getHullPresorted(points) {
+  if (points.length <= 1) return points.slice();
+  const upperHull = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    while (upperHull.length >= 2) {
+      const q = upperHull[upperHull.length - 1];
+      const r = upperHull[upperHull.length - 2];
+      if ((q.x - r.x) * (p.y - r.y) >= (q.y - r.y) * (p.x - r.x)) upperHull.pop();
+      else break;
+    }
+    upperHull.push(p);
+  }
+  upperHull.pop();
+  const lowerHull = [];
+  for (let i = points.length - 1; i >= 0; i--) {
+    const p = points[i];
+    while (lowerHull.length >= 2) {
+      const q = lowerHull[lowerHull.length - 1];
+      const r = lowerHull[lowerHull.length - 2];
+      if ((q.x - r.x) * (p.y - r.y) >= (q.y - r.y) * (p.x - r.x)) lowerHull.pop();
+      else break;
+    }
+    lowerHull.push(p);
+  }
+  lowerHull.pop();
+  if (upperHull.length === 1 && lowerHull.length === 1 && upperHull[0].x === lowerHull[0].x && upperHull[0].y === lowerHull[0].y) {
+    return upperHull;
+  } else {
+    return upperHull.concat(lowerHull);
+  }
+}
+var Provider = TooltipProvider;
+var Root32 = Tooltip;
+var Trigger3 = TooltipTrigger;
+var Portal4 = TooltipPortal;
+var Content23 = TooltipContent;
+var Arrow23 = TooltipArrow;
+
+// src/components/Tooltip/Tooltip.tsx
+import { jsx as jsx57, jsxs as jsxs31 } from "react/jsx-runtime";
+function TooltipProvider2({ delayDuration = 350, skipDelayDuration = 300, ...rest }) {
+  return /* @__PURE__ */ jsx57(Provider, { delayDuration, skipDelayDuration, ...rest });
+}
+var Tooltip2 = Root32;
+var TooltipTrigger2 = Trigger3;
+var TooltipContent2 = forwardRef34(
+  function TooltipContent3({ className, sideOffset = 6, collisionPadding = 8, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsx57(Portal4, { children: /* @__PURE__ */ jsxs31(
+      Content23,
+      {
+        ref,
+        sideOffset,
+        collisionPadding,
+        className: cx("hds-tooltip-content", className),
+        ...rest,
+        children: [
+          children,
+          /* @__PURE__ */ jsx57(Arrow23, { className: "hds-tooltip-arrow", width: 10, height: 5 })
+        ]
+      }
+    ) });
+  }
+);
+TooltipContent2.displayName = "TooltipContent";
+
+// src/components/DropdownMenu/DropdownMenu.tsx
+import { forwardRef as forwardRef37 } from "react";
+
+// node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+import * as React47 from "react";
+
+// node_modules/@radix-ui/react-menu/dist/index.mjs
+import * as React46 from "react";
+import { jsx as jsx58 } from "react/jsx-runtime";
+var SELECTION_KEYS2 = ["Enter", " "];
+var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
+var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
+var FIRST_LAST_KEYS = [...FIRST_KEYS, ...LAST_KEYS];
+var SUB_OPEN_KEYS = {
+  ltr: [...SELECTION_KEYS2, "ArrowRight"],
+  rtl: [...SELECTION_KEYS2, "ArrowLeft"]
+};
+var SUB_CLOSE_KEYS = {
+  ltr: ["ArrowLeft"],
+  rtl: ["ArrowRight"]
+};
+var MENU_NAME = "Menu";
+var [Collection4, useCollection4, createCollectionScope4] = createCollection(MENU_NAME);
+var [createMenuContext, createMenuScope] = createContextScope(MENU_NAME, [
+  createCollectionScope4,
+  createPopperScope,
+  createRovingFocusGroupScope
+]);
+var usePopperScope4 = createPopperScope();
+var useRovingFocusGroupScope2 = createRovingFocusGroupScope();
+var [MenuProvider, useMenuContext] = createMenuContext(MENU_NAME);
+var [MenuRootProvider, useMenuRootContext] = createMenuContext(MENU_NAME);
+var Menu = (props) => {
+  const { __scopeMenu, open = false, children, dir, onOpenChange, modal = true } = props;
+  const popperScope = usePopperScope4(__scopeMenu);
+  const [content, setContent] = React46.useState(null);
+  const isUsingKeyboardRef = React46.useRef(false);
+  const handleOpenChange = useCallbackRef(onOpenChange);
+  const direction = useDirection(dir);
+  React46.useEffect(() => {
+    const handleKeyDown = () => {
+      isUsingKeyboardRef.current = true;
+      document.addEventListener("pointerdown", handlePointer, { capture: true, once: true });
+      document.addEventListener("pointermove", handlePointer, { capture: true, once: true });
+    };
+    const handlePointer = () => isUsingKeyboardRef.current = false;
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+      document.removeEventListener("pointerdown", handlePointer, { capture: true });
+      document.removeEventListener("pointermove", handlePointer, { capture: true });
+    };
+  }, []);
+  React46.useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const handleBlur = () => handleOpenChange(false);
+    window.addEventListener("blur", handleBlur);
+    return () => window.removeEventListener("blur", handleBlur);
+  }, [open, handleOpenChange]);
+  return /* @__PURE__ */ jsx58(Root22, { ...popperScope, children: /* @__PURE__ */ jsx58(
+    MenuProvider,
+    {
+      scope: __scopeMenu,
+      open,
+      onOpenChange: handleOpenChange,
+      content,
+      onContentChange: setContent,
+      children: /* @__PURE__ */ jsx58(
+        MenuRootProvider,
+        {
+          scope: __scopeMenu,
+          onClose: React46.useCallback(() => handleOpenChange(false), [handleOpenChange]),
+          isUsingKeyboardRef,
+          dir: direction,
+          modal,
+          children
+        }
+      )
+    }
+  ) });
+};
+Menu.displayName = MENU_NAME;
+var ANCHOR_NAME3 = "MenuAnchor";
+var MenuAnchor = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, ...anchorProps } = props;
+    const popperScope = usePopperScope4(__scopeMenu);
+    return /* @__PURE__ */ jsx58(Anchor, { ...popperScope, ...anchorProps, ref: forwardedRef });
+  }
+);
+MenuAnchor.displayName = ANCHOR_NAME3;
+var PORTAL_NAME7 = "MenuPortal";
+var [PortalProvider5, usePortalContext5] = createMenuContext(PORTAL_NAME7, {
+  forceMount: void 0
+});
+var MenuPortal = (props) => {
+  const { __scopeMenu, forceMount, children, container } = props;
+  const context = useMenuContext(PORTAL_NAME7, __scopeMenu);
+  return /* @__PURE__ */ jsx58(PortalProvider5, { scope: __scopeMenu, forceMount, children: /* @__PURE__ */ jsx58(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx58(Portal, { asChild: true, container, children }) }) });
+};
+MenuPortal.displayName = PORTAL_NAME7;
+var CONTENT_NAME7 = "MenuContent";
+var [MenuContentProvider, useMenuContentContext] = createMenuContext(CONTENT_NAME7);
+var MenuContent = React46.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext5(CONTENT_NAME7, props.__scopeMenu);
+    const { forceMount = portalContext.forceMount, ...contentProps } = props;
+    const context = useMenuContext(CONTENT_NAME7, props.__scopeMenu);
+    const rootContext = useMenuRootContext(CONTENT_NAME7, props.__scopeMenu);
+    return /* @__PURE__ */ jsx58(Collection4.Provider, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx58(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx58(Collection4.Slot, { scope: props.__scopeMenu, children: rootContext.modal ? /* @__PURE__ */ jsx58(MenuRootContentModal, { ...contentProps, ref: forwardedRef }) : /* @__PURE__ */ jsx58(MenuRootContentNonModal, { ...contentProps, ref: forwardedRef }) }) }) });
+  }
+);
+var MenuRootContentModal = React46.forwardRef(
+  (props, forwardedRef) => {
+    const context = useMenuContext(CONTENT_NAME7, props.__scopeMenu);
+    const ref = React46.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    React46.useEffect(() => {
+      const content = ref.current;
+      if (content) return hideOthers(content);
+    }, []);
+    return /* @__PURE__ */ jsx58(
+      MenuContentImpl,
+      {
+        ...props,
+        ref: composedRefs,
+        trapFocus: context.open,
+        disableOutsidePointerEvents: context.open,
+        disableOutsideScroll: true,
+        onFocusOutside: composeEventHandlers(
+          props.onFocusOutside,
+          (event) => event.preventDefault(),
+          { checkForDefaultPrevented: false }
+        ),
+        onDismiss: () => context.onOpenChange(false)
+      }
+    );
+  }
+);
+var MenuRootContentNonModal = React46.forwardRef((props, forwardedRef) => {
+  const context = useMenuContext(CONTENT_NAME7, props.__scopeMenu);
+  return /* @__PURE__ */ jsx58(
+    MenuContentImpl,
+    {
+      ...props,
+      ref: forwardedRef,
+      trapFocus: false,
+      disableOutsidePointerEvents: false,
+      disableOutsideScroll: false,
+      onDismiss: () => context.onOpenChange(false)
+    }
+  );
+});
+var Slot4 = createSlot("MenuContent.ScrollLock");
+var MenuContentImpl = React46.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeMenu,
+      loop = false,
+      trapFocus,
+      onOpenAutoFocus,
+      onCloseAutoFocus,
+      disableOutsidePointerEvents,
+      onEntryFocus,
+      onEscapeKeyDown,
+      onPointerDownOutside,
+      onFocusOutside,
+      onInteractOutside,
+      onDismiss,
+      disableOutsideScroll,
+      ...contentProps
+    } = props;
+    const context = useMenuContext(CONTENT_NAME7, __scopeMenu);
+    const rootContext = useMenuRootContext(CONTENT_NAME7, __scopeMenu);
+    const popperScope = usePopperScope4(__scopeMenu);
+    const rovingFocusGroupScope = useRovingFocusGroupScope2(__scopeMenu);
+    const getItems = useCollection4(__scopeMenu);
+    const [currentItemId, setCurrentItemId] = React46.useState(null);
+    const contentRef = React46.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, contentRef, context.onContentChange);
+    const timerRef = React46.useRef(0);
+    const searchRef = React46.useRef("");
+    const pointerGraceTimerRef = React46.useRef(0);
+    const pointerGraceIntentRef = React46.useRef(null);
+    const pointerDirRef = React46.useRef("right");
+    const lastPointerXRef = React46.useRef(0);
+    const ScrollLockWrapper = disableOutsideScroll ? Combination_default : React46.Fragment;
+    const scrollLockWrapperProps = disableOutsideScroll ? { as: Slot4, allowPinchZoom: true } : void 0;
+    const handleTypeaheadSearch = (key) => {
+      const search = searchRef.current + key;
+      const items = getItems().filter((item) => !item.disabled);
+      const currentItem = document.activeElement;
+      const currentMatch = items.find((item) => item.ref.current === currentItem)?.textValue;
+      const values = items.map((item) => item.textValue);
+      const nextMatch = getNextMatch(values, search, currentMatch);
+      const newItem = items.find((item) => item.textValue === nextMatch)?.ref.current;
+      (function updateSearch(value) {
+        searchRef.current = value;
+        window.clearTimeout(timerRef.current);
+        if (value !== "") timerRef.current = window.setTimeout(() => updateSearch(""), 1e3);
+      })(search);
+      if (newItem) {
+        setTimeout(() => newItem.focus());
+      }
+    };
+    React46.useEffect(() => {
+      return () => window.clearTimeout(timerRef.current);
+    }, []);
+    useFocusGuards();
+    const isPointerMovingToSubmenu = React46.useCallback((event) => {
+      const isMovingTowards = pointerDirRef.current === pointerGraceIntentRef.current?.side;
+      return isMovingTowards && isPointerInGraceArea(event, pointerGraceIntentRef.current?.area);
+    }, []);
+    return /* @__PURE__ */ jsx58(
+      MenuContentProvider,
+      {
+        scope: __scopeMenu,
+        searchRef,
+        onItemEnter: React46.useCallback(
+          (event) => {
+            if (isPointerMovingToSubmenu(event)) event.preventDefault();
+          },
+          [isPointerMovingToSubmenu]
+        ),
+        onItemLeave: React46.useCallback(
+          (event) => {
+            if (isPointerMovingToSubmenu(event)) return;
+            contentRef.current?.focus();
+            setCurrentItemId(null);
+          },
+          [isPointerMovingToSubmenu]
+        ),
+        onTriggerLeave: React46.useCallback(
+          (event) => {
+            if (isPointerMovingToSubmenu(event)) event.preventDefault();
+          },
+          [isPointerMovingToSubmenu]
+        ),
+        pointerGraceTimerRef,
+        onPointerGraceIntentChange: React46.useCallback((intent) => {
+          pointerGraceIntentRef.current = intent;
+        }, []),
+        children: /* @__PURE__ */ jsx58(ScrollLockWrapper, { ...scrollLockWrapperProps, children: /* @__PURE__ */ jsx58(
+          FocusScope,
+          {
+            asChild: true,
+            trapped: trapFocus,
+            onMountAutoFocus: composeEventHandlers(onOpenAutoFocus, (event) => {
+              event.preventDefault();
+              contentRef.current?.focus({ preventScroll: true });
+            }),
+            onUnmountAutoFocus: onCloseAutoFocus,
+            children: /* @__PURE__ */ jsx58(
+              DismissableLayer,
+              {
+                asChild: true,
+                disableOutsidePointerEvents,
+                onEscapeKeyDown,
+                onPointerDownOutside,
+                onFocusOutside,
+                onInteractOutside,
+                onDismiss,
+                children: /* @__PURE__ */ jsx58(
+                  Root2,
+                  {
+                    asChild: true,
+                    ...rovingFocusGroupScope,
+                    dir: rootContext.dir,
+                    orientation: "vertical",
+                    loop,
+                    currentTabStopId: currentItemId,
+                    onCurrentTabStopIdChange: setCurrentItemId,
+                    onEntryFocus: composeEventHandlers(onEntryFocus, (event) => {
+                      if (!rootContext.isUsingKeyboardRef.current) event.preventDefault();
+                    }),
+                    preventScrollOnEntryFocus: true,
+                    children: /* @__PURE__ */ jsx58(
+                      Content,
+                      {
+                        role: "menu",
+                        "aria-orientation": "vertical",
+                        "data-state": getOpenState(context.open),
+                        "data-radix-menu-content": "",
+                        dir: rootContext.dir,
+                        ...popperScope,
+                        ...contentProps,
+                        ref: composedRefs,
+                        style: { outline: "none", ...contentProps.style },
+                        onKeyDown: composeEventHandlers(contentProps.onKeyDown, (event) => {
+                          const target = event.target;
+                          const isKeyDownInside = target.closest("[data-radix-menu-content]") === event.currentTarget;
+                          const isModifierKey = event.ctrlKey || event.altKey || event.metaKey;
+                          const isCharacterKey = event.key.length === 1;
+                          if (isKeyDownInside) {
+                            if (event.key === "Tab") event.preventDefault();
+                            if (!isModifierKey && isCharacterKey) handleTypeaheadSearch(event.key);
+                          }
+                          const content = contentRef.current;
+                          if (event.target !== content) return;
+                          if (!FIRST_LAST_KEYS.includes(event.key)) return;
+                          event.preventDefault();
+                          const items = getItems().filter((item) => !item.disabled);
+                          const candidateNodes = items.map((item) => item.ref.current);
+                          if (LAST_KEYS.includes(event.key)) candidateNodes.reverse();
+                          focusFirst3(candidateNodes);
+                        }),
+                        onBlur: composeEventHandlers(props.onBlur, (event) => {
+                          if (!event.currentTarget.contains(event.target)) {
+                            window.clearTimeout(timerRef.current);
+                            searchRef.current = "";
+                          }
+                        }),
+                        onPointerMove: composeEventHandlers(
+                          props.onPointerMove,
+                          whenMouse((event) => {
+                            const target = event.target;
+                            const pointerXHasChanged = lastPointerXRef.current !== event.clientX;
+                            if (event.currentTarget.contains(target) && pointerXHasChanged) {
+                              const newDir = event.clientX > lastPointerXRef.current ? "right" : "left";
+                              pointerDirRef.current = newDir;
+                              lastPointerXRef.current = event.clientX;
+                            }
+                          })
+                        )
+                      }
+                    )
+                  }
+                )
+              }
+            )
+          }
+        ) })
+      }
+    );
+  }
+);
+MenuContent.displayName = CONTENT_NAME7;
+var GROUP_NAME3 = "MenuGroup";
+var MenuGroup = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, ...groupProps } = props;
+    return /* @__PURE__ */ jsx58(Primitive.div, { role: "group", ...groupProps, ref: forwardedRef });
+  }
+);
+MenuGroup.displayName = GROUP_NAME3;
+var LABEL_NAME2 = "MenuLabel";
+var MenuLabel = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, ...labelProps } = props;
+    return /* @__PURE__ */ jsx58(Primitive.div, { ...labelProps, ref: forwardedRef });
+  }
+);
+MenuLabel.displayName = LABEL_NAME2;
+var ITEM_NAME4 = "MenuItem";
+var ITEM_SELECT = "menu.itemSelect";
+var MenuItem = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { disabled = false, onSelect, ...itemProps } = props;
+    const ref = React46.useRef(null);
+    const rootContext = useMenuRootContext(ITEM_NAME4, props.__scopeMenu);
+    const contentContext = useMenuContentContext(ITEM_NAME4, props.__scopeMenu);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    const isPointerDownRef = React46.useRef(false);
+    const handleSelect = () => {
+      const menuItem = ref.current;
+      if (!disabled && menuItem) {
+        const itemSelectEvent = new CustomEvent(ITEM_SELECT, { bubbles: true, cancelable: true });
+        menuItem.addEventListener(ITEM_SELECT, (event) => onSelect?.(event), { once: true });
+        dispatchDiscreteCustomEvent(menuItem, itemSelectEvent);
+        if (itemSelectEvent.defaultPrevented) {
+          isPointerDownRef.current = false;
+        } else {
+          rootContext.onClose();
+        }
+      }
+    };
+    return /* @__PURE__ */ jsx58(
+      MenuItemImpl,
+      {
+        ...itemProps,
+        ref: composedRefs,
+        disabled,
+        onClick: composeEventHandlers(props.onClick, handleSelect),
+        onPointerDown: (event) => {
+          props.onPointerDown?.(event);
+          isPointerDownRef.current = true;
+        },
+        onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
+          if (!isPointerDownRef.current) event.currentTarget?.click();
+        }),
+        onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+          const isTypingAhead = contentContext.searchRef.current !== "";
+          if (disabled || isTypingAhead && event.key === " ") return;
+          if (SELECTION_KEYS2.includes(event.key)) {
+            event.currentTarget.click();
+            event.preventDefault();
+          }
+        })
+      }
+    );
+  }
+);
+MenuItem.displayName = ITEM_NAME4;
+var MenuItemImpl = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, disabled = false, textValue, ...itemProps } = props;
+    const contentContext = useMenuContentContext(ITEM_NAME4, __scopeMenu);
+    const rovingFocusGroupScope = useRovingFocusGroupScope2(__scopeMenu);
+    const ref = React46.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    const [isFocused, setIsFocused] = React46.useState(false);
+    const [textContent, setTextContent] = React46.useState("");
+    React46.useEffect(() => {
+      const menuItem = ref.current;
+      if (menuItem) {
+        setTextContent((menuItem.textContent ?? "").trim());
+      }
+    }, [itemProps.children]);
+    return /* @__PURE__ */ jsx58(
+      Collection4.ItemSlot,
+      {
+        scope: __scopeMenu,
+        disabled,
+        textValue: textValue ?? textContent,
+        children: /* @__PURE__ */ jsx58(Item, { asChild: true, ...rovingFocusGroupScope, focusable: !disabled, children: /* @__PURE__ */ jsx58(
+          Primitive.div,
+          {
+            role: "menuitem",
+            "data-highlighted": isFocused ? "" : void 0,
+            "aria-disabled": disabled || void 0,
+            "data-disabled": disabled ? "" : void 0,
+            ...itemProps,
+            ref: composedRefs,
+            onPointerMove: composeEventHandlers(
+              props.onPointerMove,
+              whenMouse((event) => {
+                if (disabled) {
+                  contentContext.onItemLeave(event);
+                } else {
+                  contentContext.onItemEnter(event);
+                  if (!event.defaultPrevented) {
+                    const item = event.currentTarget;
+                    item.focus({ preventScroll: true });
+                  }
+                }
+              })
+            ),
+            onPointerLeave: composeEventHandlers(
+              props.onPointerLeave,
+              whenMouse((event) => contentContext.onItemLeave(event))
+            ),
+            onFocus: composeEventHandlers(props.onFocus, () => setIsFocused(true)),
+            onBlur: composeEventHandlers(props.onBlur, () => setIsFocused(false))
+          }
+        ) })
+      }
+    );
+  }
+);
+var CHECKBOX_ITEM_NAME = "MenuCheckboxItem";
+var MenuCheckboxItem = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { checked = false, onCheckedChange, ...checkboxItemProps } = props;
+    return /* @__PURE__ */ jsx58(ItemIndicatorProvider, { scope: props.__scopeMenu, checked, children: /* @__PURE__ */ jsx58(
+      MenuItem,
+      {
+        role: "menuitemcheckbox",
+        "aria-checked": isIndeterminate2(checked) ? "mixed" : checked,
+        ...checkboxItemProps,
+        ref: forwardedRef,
+        "data-state": getCheckedState(checked),
+        onSelect: composeEventHandlers(
+          checkboxItemProps.onSelect,
+          () => onCheckedChange?.(isIndeterminate2(checked) ? true : !checked),
+          { checkForDefaultPrevented: false }
+        )
+      }
+    ) });
+  }
+);
+MenuCheckboxItem.displayName = CHECKBOX_ITEM_NAME;
+var RADIO_GROUP_NAME2 = "MenuRadioGroup";
+var [RadioGroupProvider2, useRadioGroupContext2] = createMenuContext(
+  RADIO_GROUP_NAME2,
+  { value: void 0, onValueChange: () => {
+  } }
+);
+var MenuRadioGroup = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { value, onValueChange, ...groupProps } = props;
+    const handleValueChange = useCallbackRef(onValueChange);
+    return /* @__PURE__ */ jsx58(RadioGroupProvider2, { scope: props.__scopeMenu, value, onValueChange: handleValueChange, children: /* @__PURE__ */ jsx58(MenuGroup, { ...groupProps, ref: forwardedRef }) });
+  }
+);
+MenuRadioGroup.displayName = RADIO_GROUP_NAME2;
+var RADIO_ITEM_NAME = "MenuRadioItem";
+var MenuRadioItem = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { value, ...radioItemProps } = props;
+    const context = useRadioGroupContext2(RADIO_ITEM_NAME, props.__scopeMenu);
+    const checked = value === context.value;
+    return /* @__PURE__ */ jsx58(ItemIndicatorProvider, { scope: props.__scopeMenu, checked, children: /* @__PURE__ */ jsx58(
+      MenuItem,
+      {
+        role: "menuitemradio",
+        "aria-checked": checked,
+        ...radioItemProps,
+        ref: forwardedRef,
+        "data-state": getCheckedState(checked),
+        onSelect: composeEventHandlers(
+          radioItemProps.onSelect,
+          () => context.onValueChange?.(value),
+          { checkForDefaultPrevented: false }
+        )
+      }
+    ) });
+  }
+);
+MenuRadioItem.displayName = RADIO_ITEM_NAME;
+var ITEM_INDICATOR_NAME2 = "MenuItemIndicator";
+var [ItemIndicatorProvider, useItemIndicatorContext] = createMenuContext(
+  ITEM_INDICATOR_NAME2,
+  { checked: false }
+);
+var MenuItemIndicator = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, forceMount, ...itemIndicatorProps } = props;
+    const indicatorContext = useItemIndicatorContext(ITEM_INDICATOR_NAME2, __scopeMenu);
+    return /* @__PURE__ */ jsx58(
+      Presence,
+      {
+        present: forceMount || isIndeterminate2(indicatorContext.checked) || indicatorContext.checked === true,
+        children: /* @__PURE__ */ jsx58(
+          Primitive.span,
+          {
+            ...itemIndicatorProps,
+            ref: forwardedRef,
+            "data-state": getCheckedState(indicatorContext.checked)
+          }
+        )
+      }
+    );
+  }
+);
+MenuItemIndicator.displayName = ITEM_INDICATOR_NAME2;
+var SEPARATOR_NAME2 = "MenuSeparator";
+var MenuSeparator = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, ...separatorProps } = props;
+    return /* @__PURE__ */ jsx58(
+      Primitive.div,
+      {
+        role: "separator",
+        "aria-orientation": "horizontal",
+        ...separatorProps,
+        ref: forwardedRef
+      }
+    );
+  }
+);
+MenuSeparator.displayName = SEPARATOR_NAME2;
+var ARROW_NAME5 = "MenuArrow";
+var MenuArrow = React46.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeMenu, ...arrowProps } = props;
+    const popperScope = usePopperScope4(__scopeMenu);
+    return /* @__PURE__ */ jsx58(Arrow2, { ...popperScope, ...arrowProps, ref: forwardedRef });
+  }
+);
+MenuArrow.displayName = ARROW_NAME5;
+var SUB_NAME = "MenuSub";
+var [MenuSubProvider, useMenuSubContext] = createMenuContext(SUB_NAME);
+var MenuSub = (props) => {
+  const { __scopeMenu, children, open = false, onOpenChange } = props;
+  const parentMenuContext = useMenuContext(SUB_NAME, __scopeMenu);
+  const popperScope = usePopperScope4(__scopeMenu);
+  const [trigger, setTrigger] = React46.useState(null);
+  const [content, setContent] = React46.useState(null);
+  const handleOpenChange = useCallbackRef(onOpenChange);
+  React46.useEffect(() => {
+    if (parentMenuContext.open === false) handleOpenChange(false);
+    return () => handleOpenChange(false);
+  }, [parentMenuContext.open, handleOpenChange]);
+  return /* @__PURE__ */ jsx58(Root22, { ...popperScope, children: /* @__PURE__ */ jsx58(
+    MenuProvider,
+    {
+      scope: __scopeMenu,
+      open,
+      onOpenChange: handleOpenChange,
+      content,
+      onContentChange: setContent,
+      children: /* @__PURE__ */ jsx58(
+        MenuSubProvider,
+        {
+          scope: __scopeMenu,
+          contentId: useId2(),
+          triggerId: useId2(),
+          trigger,
+          onTriggerChange: setTrigger,
+          children
+        }
+      )
+    }
+  ) });
+};
+MenuSub.displayName = SUB_NAME;
+var SUB_TRIGGER_NAME = "MenuSubTrigger";
+var MenuSubTrigger = React46.forwardRef(
+  (props, forwardedRef) => {
+    const context = useMenuContext(SUB_TRIGGER_NAME, props.__scopeMenu);
+    const rootContext = useMenuRootContext(SUB_TRIGGER_NAME, props.__scopeMenu);
+    const subContext = useMenuSubContext(SUB_TRIGGER_NAME, props.__scopeMenu);
+    const contentContext = useMenuContentContext(SUB_TRIGGER_NAME, props.__scopeMenu);
+    const openTimerRef = React46.useRef(null);
+    const { pointerGraceTimerRef, onPointerGraceIntentChange } = contentContext;
+    const scope = { __scopeMenu: props.__scopeMenu };
+    const clearOpenTimer = React46.useCallback(() => {
+      if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }, []);
+    React46.useEffect(() => clearOpenTimer, [clearOpenTimer]);
+    React46.useEffect(() => {
+      const pointerGraceTimer = pointerGraceTimerRef.current;
+      return () => {
+        window.clearTimeout(pointerGraceTimer);
+        onPointerGraceIntentChange(null);
+      };
+    }, [pointerGraceTimerRef, onPointerGraceIntentChange]);
+    const composedRefs = useComposedRefs(forwardedRef, subContext.onTriggerChange);
+    return /* @__PURE__ */ jsx58(MenuAnchor, { asChild: true, ...scope, children: /* @__PURE__ */ jsx58(
+      MenuItemImpl,
+      {
+        id: subContext.triggerId,
+        "aria-haspopup": "menu",
+        "aria-expanded": context.open,
+        "aria-controls": context.open ? subContext.contentId : void 0,
+        "data-state": getOpenState(context.open),
+        ...props,
+        ref: composedRefs,
+        onClick: (event) => {
+          props.onClick?.(event);
+          if (props.disabled || event.defaultPrevented) return;
+          event.currentTarget.focus();
+          if (!context.open) context.onOpenChange(true);
+        },
+        onPointerMove: composeEventHandlers(
+          props.onPointerMove,
+          whenMouse((event) => {
+            contentContext.onItemEnter(event);
+            if (event.defaultPrevented) return;
+            if (!props.disabled && !context.open && !openTimerRef.current) {
+              contentContext.onPointerGraceIntentChange(null);
+              openTimerRef.current = window.setTimeout(() => {
+                context.onOpenChange(true);
+                clearOpenTimer();
+              }, 100);
+            }
+          })
+        ),
+        onPointerLeave: composeEventHandlers(
+          props.onPointerLeave,
+          whenMouse((event) => {
+            clearOpenTimer();
+            const contentRect = context.content?.getBoundingClientRect();
+            if (contentRect) {
+              const side = context.content?.dataset.side;
+              const rightSide = side === "right";
+              const bleed = rightSide ? -5 : 5;
+              const contentNearEdge = contentRect[rightSide ? "left" : "right"];
+              const contentFarEdge = contentRect[rightSide ? "right" : "left"];
+              contentContext.onPointerGraceIntentChange({
+                area: [
+                  // Apply a bleed on clientX to ensure that our exit point is
+                  // consistently within polygon bounds
+                  { x: event.clientX + bleed, y: event.clientY },
+                  { x: contentNearEdge, y: contentRect.top },
+                  { x: contentFarEdge, y: contentRect.top },
+                  { x: contentFarEdge, y: contentRect.bottom },
+                  { x: contentNearEdge, y: contentRect.bottom }
+                ],
+                side
+              });
+              window.clearTimeout(pointerGraceTimerRef.current);
+              pointerGraceTimerRef.current = window.setTimeout(
+                () => contentContext.onPointerGraceIntentChange(null),
+                300
+              );
+            } else {
+              contentContext.onTriggerLeave(event);
+              if (event.defaultPrevented) return;
+              contentContext.onPointerGraceIntentChange(null);
+            }
+          })
+        ),
+        onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+          const isTypingAhead = contentContext.searchRef.current !== "";
+          if (props.disabled || isTypingAhead && event.key === " ") return;
+          if (SUB_OPEN_KEYS[rootContext.dir].includes(event.key)) {
+            context.onOpenChange(true);
+            context.content?.focus();
+            event.preventDefault();
+          }
+        })
+      }
+    ) });
+  }
+);
+MenuSubTrigger.displayName = SUB_TRIGGER_NAME;
+var SUB_CONTENT_NAME = "MenuSubContent";
+var MenuSubContent = React46.forwardRef(
+  (props, forwardedRef) => {
+    const portalContext = usePortalContext5(CONTENT_NAME7, props.__scopeMenu);
+    const { forceMount = portalContext.forceMount, align = "start", ...subContentProps } = props;
+    const context = useMenuContext(CONTENT_NAME7, props.__scopeMenu);
+    const rootContext = useMenuRootContext(CONTENT_NAME7, props.__scopeMenu);
+    const subContext = useMenuSubContext(SUB_CONTENT_NAME, props.__scopeMenu);
+    const ref = React46.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref);
+    return /* @__PURE__ */ jsx58(Collection4.Provider, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx58(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsx58(Collection4.Slot, { scope: props.__scopeMenu, children: /* @__PURE__ */ jsx58(
+      MenuContentImpl,
+      {
+        id: subContext.contentId,
+        "aria-labelledby": subContext.triggerId,
+        ...subContentProps,
+        ref: composedRefs,
+        align,
+        side: rootContext.dir === "rtl" ? "left" : "right",
+        disableOutsidePointerEvents: false,
+        disableOutsideScroll: false,
+        trapFocus: false,
+        onOpenAutoFocus: (event) => {
+          if (rootContext.isUsingKeyboardRef.current) ref.current?.focus();
+          event.preventDefault();
+        },
+        onCloseAutoFocus: (event) => event.preventDefault(),
+        onFocusOutside: composeEventHandlers(props.onFocusOutside, (event) => {
+          if (event.target !== subContext.trigger) context.onOpenChange(false);
+        }),
+        onEscapeKeyDown: composeEventHandlers(props.onEscapeKeyDown, (event) => {
+          rootContext.onClose();
+          event.preventDefault();
+        }),
+        onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+          const isKeyDownInside = event.currentTarget.contains(event.target);
+          const isCloseKey = SUB_CLOSE_KEYS[rootContext.dir].includes(event.key);
+          if (isKeyDownInside && isCloseKey) {
+            context.onOpenChange(false);
+            subContext.trigger?.focus();
+            event.preventDefault();
+          }
+        })
+      }
+    ) }) }) });
+  }
+);
+MenuSubContent.displayName = SUB_CONTENT_NAME;
+function getOpenState(open) {
+  return open ? "open" : "closed";
+}
+function isIndeterminate2(checked) {
+  return checked === "indeterminate";
+}
+function getCheckedState(checked) {
+  return isIndeterminate2(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
+}
+function focusFirst3(candidates) {
+  const PREVIOUSLY_FOCUSED_ELEMENT = document.activeElement;
+  for (const candidate of candidates) {
+    if (candidate === PREVIOUSLY_FOCUSED_ELEMENT) return;
+    candidate.focus();
+    if (document.activeElement !== PREVIOUSLY_FOCUSED_ELEMENT) return;
+  }
+}
+function wrapArray3(array, startIndex) {
+  return array.map((_, index2) => array[(startIndex + index2) % array.length]);
+}
+function getNextMatch(values, search, currentMatch) {
+  const isRepeated = search.length > 1 && Array.from(search).every((char) => char === search[0]);
+  const normalizedSearch = isRepeated ? search[0] : search;
+  const currentMatchIndex = currentMatch ? values.indexOf(currentMatch) : -1;
+  let wrappedValues = wrapArray3(values, Math.max(currentMatchIndex, 0));
+  const excludeCurrentMatch = normalizedSearch.length === 1;
+  if (excludeCurrentMatch) wrappedValues = wrappedValues.filter((v) => v !== currentMatch);
+  const nextMatch = wrappedValues.find(
+    (value) => value.toLowerCase().startsWith(normalizedSearch.toLowerCase())
+  );
+  return nextMatch !== currentMatch ? nextMatch : void 0;
+}
+function isPointInPolygon2(point, polygon) {
+  const { x, y } = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const ii = polygon[i];
+    const jj = polygon[j];
+    const xi = ii.x;
+    const yi = ii.y;
+    const xj = jj.x;
+    const yj = jj.y;
+    const intersect = yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function isPointerInGraceArea(event, area) {
+  if (!area) return false;
+  const cursorPos = { x: event.clientX, y: event.clientY };
+  return isPointInPolygon2(cursorPos, area);
+}
+function whenMouse(handler) {
+  return (event) => event.pointerType === "mouse" ? handler(event) : void 0;
+}
+var Root33 = Menu;
+var Anchor22 = MenuAnchor;
+var Portal5 = MenuPortal;
+var Content24 = MenuContent;
+var Group = MenuGroup;
+var Label2 = MenuLabel;
+var Item2 = MenuItem;
+var CheckboxItem = MenuCheckboxItem;
+var RadioGroup4 = MenuRadioGroup;
+var RadioItem = MenuRadioItem;
+var ItemIndicator = MenuItemIndicator;
+var Separator = MenuSeparator;
+var Arrow24 = MenuArrow;
+var SubTrigger = MenuSubTrigger;
+var SubContent = MenuSubContent;
+
+// node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+import { jsx as jsx59 } from "react/jsx-runtime";
+var DROPDOWN_MENU_NAME = "DropdownMenu";
+var [createDropdownMenuContext, createDropdownMenuScope] = createContextScope(
+  DROPDOWN_MENU_NAME,
+  [createMenuScope]
+);
+var useMenuScope = createMenuScope();
+var [DropdownMenuProvider, useDropdownMenuContext] = createDropdownMenuContext(DROPDOWN_MENU_NAME);
+var DropdownMenu = (props) => {
+  const {
+    __scopeDropdownMenu,
+    children,
+    dir,
+    open: openProp,
+    defaultOpen,
+    onOpenChange,
+    modal = true
+  } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  const triggerRef = React47.useRef(null);
+  const [open, setOpen] = useControllableState2({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: onOpenChange,
+    caller: DROPDOWN_MENU_NAME
+  });
+  return /* @__PURE__ */ jsx59(
+    DropdownMenuProvider,
+    {
+      scope: __scopeDropdownMenu,
+      triggerId: useId2(),
+      triggerRef,
+      contentId: useId2(),
+      open,
+      onOpenChange: setOpen,
+      onOpenToggle: React47.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
+      modal,
+      children: /* @__PURE__ */ jsx59(Root33, { ...menuScope, open, onOpenChange: setOpen, dir, modal, children })
+    }
+  );
+};
+DropdownMenu.displayName = DROPDOWN_MENU_NAME;
+var TRIGGER_NAME9 = "DropdownMenuTrigger";
+var DropdownMenuTrigger = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, disabled = false, ...triggerProps } = props;
+    const context = useDropdownMenuContext(TRIGGER_NAME9, __scopeDropdownMenu);
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    const composedRefs = useComposedRefs(forwardedRef, context.triggerRef);
+    return /* @__PURE__ */ jsx59(Anchor22, { asChild: true, ...menuScope, children: /* @__PURE__ */ jsx59(
+      Primitive.button,
+      {
+        type: "button",
+        id: context.triggerId,
+        "aria-haspopup": "menu",
+        "aria-expanded": context.open,
+        "aria-controls": context.open ? context.contentId : void 0,
+        "data-state": context.open ? "open" : "closed",
+        "data-disabled": disabled ? "" : void 0,
+        disabled,
+        ...triggerProps,
+        ref: composedRefs,
+        onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
+          if (!disabled && event.button === 0 && event.ctrlKey === false) {
+            context.onOpenToggle();
+            if (!context.open) event.preventDefault();
+          }
+        }),
+        onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+          if (disabled) return;
+          if (["Enter", " "].includes(event.key)) context.onOpenToggle();
+          if (event.key === "ArrowDown") context.onOpenChange(true);
+          if (["Enter", " ", "ArrowDown"].includes(event.key)) event.preventDefault();
+        })
+      }
+    ) });
+  }
+);
+DropdownMenuTrigger.displayName = TRIGGER_NAME9;
+var PORTAL_NAME8 = "DropdownMenuPortal";
+var DropdownMenuPortal = (props) => {
+  const { __scopeDropdownMenu, ...portalProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(Portal5, { ...menuScope, ...portalProps });
+};
+DropdownMenuPortal.displayName = PORTAL_NAME8;
+var CONTENT_NAME8 = "DropdownMenuContent";
+var DropdownMenuContent = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, ...contentProps } = props;
+    const context = useDropdownMenuContext(CONTENT_NAME8, __scopeDropdownMenu);
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    const hasInteractedOutsideRef = React47.useRef(false);
+    return /* @__PURE__ */ jsx59(
+      Content24,
+      {
+        id: context.contentId,
+        "aria-labelledby": context.triggerId,
+        ...menuScope,
+        ...contentProps,
+        ref: forwardedRef,
+        onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
+          if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
+          hasInteractedOutsideRef.current = false;
+          event.preventDefault();
+        }),
+        onInteractOutside: composeEventHandlers(props.onInteractOutside, (event) => {
+          const originalEvent = event.detail.originalEvent;
+          const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
+          const isRightClick = originalEvent.button === 2 || ctrlLeftClick;
+          if (!context.modal || isRightClick) hasInteractedOutsideRef.current = true;
+        }),
+        style: {
+          ...props.style,
+          // re-namespace exposed content custom properties
+          ...{
+            "--radix-dropdown-menu-content-transform-origin": "var(--radix-popper-transform-origin)",
+            "--radix-dropdown-menu-content-available-width": "var(--radix-popper-available-width)",
+            "--radix-dropdown-menu-content-available-height": "var(--radix-popper-available-height)",
+            "--radix-dropdown-menu-trigger-width": "var(--radix-popper-anchor-width)",
+            "--radix-dropdown-menu-trigger-height": "var(--radix-popper-anchor-height)"
+          }
+        }
+      }
+    );
+  }
+);
+DropdownMenuContent.displayName = CONTENT_NAME8;
+var GROUP_NAME4 = "DropdownMenuGroup";
+var DropdownMenuGroup = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, ...groupProps } = props;
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    return /* @__PURE__ */ jsx59(Group, { ...menuScope, ...groupProps, ref: forwardedRef });
+  }
+);
+DropdownMenuGroup.displayName = GROUP_NAME4;
+var LABEL_NAME3 = "DropdownMenuLabel";
+var DropdownMenuLabel = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, ...labelProps } = props;
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    return /* @__PURE__ */ jsx59(Label2, { ...menuScope, ...labelProps, ref: forwardedRef });
+  }
+);
+DropdownMenuLabel.displayName = LABEL_NAME3;
+var ITEM_NAME5 = "DropdownMenuItem";
+var DropdownMenuItem = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, ...itemProps } = props;
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    return /* @__PURE__ */ jsx59(Item2, { ...menuScope, ...itemProps, ref: forwardedRef });
+  }
+);
+DropdownMenuItem.displayName = ITEM_NAME5;
+var CHECKBOX_ITEM_NAME2 = "DropdownMenuCheckboxItem";
+var DropdownMenuCheckboxItem = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...checkboxItemProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(CheckboxItem, { ...menuScope, ...checkboxItemProps, ref: forwardedRef });
+});
+DropdownMenuCheckboxItem.displayName = CHECKBOX_ITEM_NAME2;
+var RADIO_GROUP_NAME3 = "DropdownMenuRadioGroup";
+var DropdownMenuRadioGroup = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...radioGroupProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(RadioGroup4, { ...menuScope, ...radioGroupProps, ref: forwardedRef });
+});
+DropdownMenuRadioGroup.displayName = RADIO_GROUP_NAME3;
+var RADIO_ITEM_NAME2 = "DropdownMenuRadioItem";
+var DropdownMenuRadioItem = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...radioItemProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(RadioItem, { ...menuScope, ...radioItemProps, ref: forwardedRef });
+});
+DropdownMenuRadioItem.displayName = RADIO_ITEM_NAME2;
+var INDICATOR_NAME3 = "DropdownMenuItemIndicator";
+var DropdownMenuItemIndicator = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...itemIndicatorProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(ItemIndicator, { ...menuScope, ...itemIndicatorProps, ref: forwardedRef });
+});
+DropdownMenuItemIndicator.displayName = INDICATOR_NAME3;
+var SEPARATOR_NAME3 = "DropdownMenuSeparator";
+var DropdownMenuSeparator = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...separatorProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(Separator, { ...menuScope, ...separatorProps, ref: forwardedRef });
+});
+DropdownMenuSeparator.displayName = SEPARATOR_NAME3;
+var ARROW_NAME6 = "DropdownMenuArrow";
+var DropdownMenuArrow = React47.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeDropdownMenu, ...arrowProps } = props;
+    const menuScope = useMenuScope(__scopeDropdownMenu);
+    return /* @__PURE__ */ jsx59(Arrow24, { ...menuScope, ...arrowProps, ref: forwardedRef });
+  }
+);
+DropdownMenuArrow.displayName = ARROW_NAME6;
+var SUB_TRIGGER_NAME2 = "DropdownMenuSubTrigger";
+var DropdownMenuSubTrigger = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...subTriggerProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(SubTrigger, { ...menuScope, ...subTriggerProps, ref: forwardedRef });
+});
+DropdownMenuSubTrigger.displayName = SUB_TRIGGER_NAME2;
+var SUB_CONTENT_NAME2 = "DropdownMenuSubContent";
+var DropdownMenuSubContent = React47.forwardRef((props, forwardedRef) => {
+  const { __scopeDropdownMenu, ...subContentProps } = props;
+  const menuScope = useMenuScope(__scopeDropdownMenu);
+  return /* @__PURE__ */ jsx59(
+    SubContent,
+    {
+      ...menuScope,
+      ...subContentProps,
+      ref: forwardedRef,
+      style: {
+        ...props.style,
+        // re-namespace exposed content custom properties
+        ...{
+          "--radix-dropdown-menu-content-transform-origin": "var(--radix-popper-transform-origin)",
+          "--radix-dropdown-menu-content-available-width": "var(--radix-popper-available-width)",
+          "--radix-dropdown-menu-content-available-height": "var(--radix-popper-available-height)",
+          "--radix-dropdown-menu-trigger-width": "var(--radix-popper-anchor-width)",
+          "--radix-dropdown-menu-trigger-height": "var(--radix-popper-anchor-height)"
+        }
+      }
+    }
+  );
+});
+DropdownMenuSubContent.displayName = SUB_CONTENT_NAME2;
+var Root25 = DropdownMenu;
+var Trigger4 = DropdownMenuTrigger;
+var Portal22 = DropdownMenuPortal;
+var Content25 = DropdownMenuContent;
+var Label22 = DropdownMenuLabel;
+var Item22 = DropdownMenuItem;
+var CheckboxItem2 = DropdownMenuCheckboxItem;
+var RadioGroup22 = DropdownMenuRadioGroup;
+var RadioItem2 = DropdownMenuRadioItem;
+var ItemIndicator2 = DropdownMenuItemIndicator;
+var Separator2 = DropdownMenuSeparator;
+
+// src/components/DropdownMenu/DropdownMenu.tsx
+import { jsx as jsx60, jsxs as jsxs32 } from "react/jsx-runtime";
+var DropdownMenu2 = Root25;
+var DropdownMenuTrigger2 = Trigger4;
+var DropdownMenuContent2 = forwardRef37(
+  function DropdownMenuContent3({ className, sideOffset = 6, ...rest }, ref) {
+    return /* @__PURE__ */ jsx60(Portal22, { children: /* @__PURE__ */ jsx60(
+      Content25,
+      {
+        ref,
+        sideOffset,
+        className: cx("hds-dropdown-menu-content", className),
+        ...rest
+      }
+    ) });
+  }
+);
+DropdownMenuContent2.displayName = "DropdownMenuContent";
+var DropdownMenuItem2 = forwardRef37(
+  function DropdownMenuItem3({ className, variant = "default", shortcut, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs32(
+      Item22,
+      {
+        ref,
+        className: cx("hds-dropdown-menu-item", variant === "danger" && "hds-dropdown-menu-item-danger", className),
+        ...rest,
+        children: [
+          /* @__PURE__ */ jsx60("span", { className: "hds-dropdown-menu-item-label", children }),
+          shortcut && /* @__PURE__ */ jsx60("span", { className: "hds-dropdown-menu-shortcut", children: shortcut })
+        ]
+      }
+    );
+  }
+);
+DropdownMenuItem2.displayName = "DropdownMenuItem";
+var DropdownMenuCheckboxItem2 = forwardRef37(function DropdownMenuCheckboxItem3({ className, children, ...rest }, ref) {
+  return /* @__PURE__ */ jsxs32(CheckboxItem2, { ref, className: cx("hds-dropdown-menu-item", className), ...rest, children: [
+    /* @__PURE__ */ jsx60("span", { className: "hds-dropdown-menu-item-indicator", children: /* @__PURE__ */ jsx60(ItemIndicator2, { children: /* @__PURE__ */ jsx60("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx60("path", { d: "M3 8.5l3 3 7-7", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }) }),
+    children
+  ] });
+});
+DropdownMenuCheckboxItem2.displayName = "DropdownMenuCheckboxItem";
+var DropdownMenuRadioGroup2 = RadioGroup22;
+var DropdownMenuRadioItem2 = forwardRef37(
+  function DropdownMenuRadioItem3({ className, children, ...rest }, ref) {
+    return /* @__PURE__ */ jsxs32(RadioItem2, { ref, className: cx("hds-dropdown-menu-item", className), ...rest, children: [
+      /* @__PURE__ */ jsx60("span", { className: "hds-dropdown-menu-item-indicator", children: /* @__PURE__ */ jsx60(ItemIndicator2, { children: /* @__PURE__ */ jsx60("svg", { width: "8", height: "8", viewBox: "0 0 8 8", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx60("circle", { cx: "4", cy: "4", r: "4", fill: "currentColor" }) }) }) }),
+      children
+    ] });
+  }
+);
+DropdownMenuRadioItem2.displayName = "DropdownMenuRadioItem";
+var DropdownMenuSeparator2 = forwardRef37(
+  function DropdownMenuSeparator3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx60(Separator2, { ref, className: cx("hds-dropdown-menu-separator", className), ...rest });
+  }
+);
+DropdownMenuSeparator2.displayName = "DropdownMenuSeparator";
+var DropdownMenuLabel2 = forwardRef37(
+  function DropdownMenuLabel3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx60(Label22, { ref, className: cx("hds-dropdown-menu-label", className), ...rest });
+  }
+);
+DropdownMenuLabel2.displayName = "DropdownMenuLabel";
+
+// src/components/Toast/Toast.tsx
+import { createContext as createContext4, forwardRef as forwardRef39, useCallback as useCallback18, useContext as useContext4, useMemo as useMemo13, useState as useState27 } from "react";
+
+// node_modules/@radix-ui/react-toast/dist/index.mjs
+import * as React48 from "react";
+import * as ReactDOM5 from "react-dom";
+import { Fragment as Fragment13, jsx as jsx61, jsxs as jsxs33 } from "react/jsx-runtime";
+var PROVIDER_NAME3 = "ToastProvider";
+var [Collection5, useCollection5, createCollectionScope5] = createCollection("Toast");
+var [createToastContext, createToastScope] = createContextScope("Toast", [createCollectionScope5]);
+var [ToastProviderProvider, useToastProviderContext] = createToastContext(PROVIDER_NAME3);
+var ToastProvider = (props) => {
+  const {
+    __scopeToast,
+    label = "Notification",
+    duration = 5e3,
+    swipeDirection = "right",
+    swipeThreshold = 50,
+    announcerContainer,
+    children
+  } = props;
+  const [viewport, setViewport] = React48.useState(null);
+  const [toastCount, setToastCount] = React48.useState(0);
+  const isFocusedToastEscapeKeyDownRef = React48.useRef(false);
+  const isClosePausedRef = React48.useRef(false);
+  if (!label.trim()) {
+    console.error(
+      `Invalid prop \`label\` supplied to \`${PROVIDER_NAME3}\`. Expected non-empty \`string\`.`
+    );
+  }
+  return /* @__PURE__ */ jsx61(Collection5.Provider, { scope: __scopeToast, children: /* @__PURE__ */ jsx61(
+    ToastProviderProvider,
+    {
+      scope: __scopeToast,
+      label,
+      duration,
+      swipeDirection,
+      swipeThreshold,
+      toastCount,
+      viewport,
+      onViewportChange: setViewport,
+      onToastAdd: React48.useCallback(() => setToastCount((prevCount) => prevCount + 1), []),
+      onToastRemove: React48.useCallback(() => setToastCount((prevCount) => prevCount - 1), []),
+      isFocusedToastEscapeKeyDownRef,
+      isClosePausedRef,
+      announcerContainer,
+      children
+    }
+  ) });
+};
+ToastProvider.displayName = PROVIDER_NAME3;
+var VIEWPORT_NAME2 = "ToastViewport";
+var VIEWPORT_DEFAULT_HOTKEY = ["F8"];
+var VIEWPORT_PAUSE = "toast.viewportPause";
+var VIEWPORT_RESUME = "toast.viewportResume";
+var ToastViewport = React48.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeToast,
+      hotkey = VIEWPORT_DEFAULT_HOTKEY,
+      label = "Notifications ({hotkey})",
+      ...viewportProps
+    } = props;
+    const context = useToastProviderContext(VIEWPORT_NAME2, __scopeToast);
+    const getItems = useCollection5(__scopeToast);
+    const wrapperRef = React48.useRef(null);
+    const headFocusProxyRef = React48.useRef(null);
+    const tailFocusProxyRef = React48.useRef(null);
+    const ref = React48.useRef(null);
+    const composedRefs = useComposedRefs(forwardedRef, ref, context.onViewportChange);
+    const hotkeyLabel = hotkey.join("+").replace(/Key/g, "").replace(/Digit/g, "");
+    const hasToasts = context.toastCount > 0;
+    React48.useEffect(() => {
+      const handleKeyDown = (event) => {
+        const isHotkeyPressed = hotkey.length !== 0 && hotkey.every((key) => event[key] || event.code === key);
+        if (isHotkeyPressed) ref.current?.focus();
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [hotkey]);
+    React48.useEffect(() => {
+      const wrapper = wrapperRef.current;
+      const viewport = ref.current;
+      if (hasToasts && wrapper && viewport) {
+        const handlePause = () => {
+          if (!context.isClosePausedRef.current) {
+            const pauseEvent = new CustomEvent(VIEWPORT_PAUSE);
+            viewport.dispatchEvent(pauseEvent);
+            context.isClosePausedRef.current = true;
+          }
+        };
+        const handleResume = () => {
+          if (context.isClosePausedRef.current) {
+            const resumeEvent = new CustomEvent(VIEWPORT_RESUME);
+            viewport.dispatchEvent(resumeEvent);
+            context.isClosePausedRef.current = false;
+          }
+        };
+        const handleFocusOutResume = (event) => {
+          const isFocusMovingOutside = !wrapper.contains(event.relatedTarget);
+          if (isFocusMovingOutside) handleResume();
+        };
+        const handlePointerLeaveResume = () => {
+          const isFocusInside = wrapper.contains(document.activeElement);
+          if (!isFocusInside) handleResume();
+        };
+        wrapper.addEventListener("focusin", handlePause);
+        wrapper.addEventListener("focusout", handleFocusOutResume);
+        wrapper.addEventListener("pointermove", handlePause);
+        wrapper.addEventListener("pointerleave", handlePointerLeaveResume);
+        window.addEventListener("blur", handlePause);
+        window.addEventListener("focus", handleResume);
+        return () => {
+          wrapper.removeEventListener("focusin", handlePause);
+          wrapper.removeEventListener("focusout", handleFocusOutResume);
+          wrapper.removeEventListener("pointermove", handlePause);
+          wrapper.removeEventListener("pointerleave", handlePointerLeaveResume);
+          window.removeEventListener("blur", handlePause);
+          window.removeEventListener("focus", handleResume);
+        };
+      }
+    }, [hasToasts, context.isClosePausedRef]);
+    const getSortedTabbableCandidates = React48.useCallback(
+      ({ tabbingDirection }) => {
+        const toastItems = getItems();
+        const tabbableCandidates = toastItems.map((toastItem) => {
+          const toastNode = toastItem.ref.current;
+          const toastTabbableCandidates = [toastNode, ...getTabbableCandidates2(toastNode)];
+          return tabbingDirection === "forwards" ? toastTabbableCandidates : toastTabbableCandidates.reverse();
+        });
+        return (tabbingDirection === "forwards" ? tabbableCandidates.reverse() : tabbableCandidates).flat();
+      },
+      [getItems]
+    );
+    React48.useEffect(() => {
+      const viewport = ref.current;
+      if (viewport) {
+        const handleKeyDown = (event) => {
+          const isMetaKey = event.altKey || event.ctrlKey || event.metaKey;
+          const isTabKey = event.key === "Tab" && !isMetaKey;
+          if (isTabKey) {
+            const focusedElement = document.activeElement;
+            const isTabbingBackwards = event.shiftKey;
+            const targetIsViewport = event.target === viewport;
+            if (targetIsViewport && isTabbingBackwards) {
+              headFocusProxyRef.current?.focus();
+              return;
+            }
+            const tabbingDirection = isTabbingBackwards ? "backwards" : "forwards";
+            const sortedCandidates = getSortedTabbableCandidates({ tabbingDirection });
+            const index2 = sortedCandidates.findIndex((candidate) => candidate === focusedElement);
+            if (focusFirst4(sortedCandidates.slice(index2 + 1))) {
+              event.preventDefault();
+            } else {
+              isTabbingBackwards ? headFocusProxyRef.current?.focus() : tailFocusProxyRef.current?.focus();
+            }
+          }
+        };
+        viewport.addEventListener("keydown", handleKeyDown);
+        return () => viewport.removeEventListener("keydown", handleKeyDown);
+      }
+    }, [getItems, getSortedTabbableCandidates]);
+    return /* @__PURE__ */ jsxs33(
+      Branch,
+      {
+        ref: wrapperRef,
+        role: "region",
+        "aria-label": label.replace("{hotkey}", hotkeyLabel),
+        tabIndex: -1,
+        style: { pointerEvents: hasToasts ? void 0 : "none" },
+        children: [
+          hasToasts && /* @__PURE__ */ jsx61(
+            FocusProxy,
+            {
+              ref: headFocusProxyRef,
+              onFocusFromOutsideViewport: () => {
+                const tabbableCandidates = getSortedTabbableCandidates({
+                  tabbingDirection: "forwards"
+                });
+                focusFirst4(tabbableCandidates);
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx61(Collection5.Slot, { scope: __scopeToast, children: /* @__PURE__ */ jsx61(Primitive.ol, { tabIndex: -1, ...viewportProps, ref: composedRefs }) }),
+          hasToasts && /* @__PURE__ */ jsx61(
+            FocusProxy,
+            {
+              ref: tailFocusProxyRef,
+              onFocusFromOutsideViewport: () => {
+                const tabbableCandidates = getSortedTabbableCandidates({
+                  tabbingDirection: "backwards"
+                });
+                focusFirst4(tabbableCandidates);
+              }
+            }
+          )
+        ]
+      }
+    );
+  }
+);
+ToastViewport.displayName = VIEWPORT_NAME2;
+var FOCUS_PROXY_NAME = "ToastFocusProxy";
+var FocusProxy = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeToast, onFocusFromOutsideViewport, ...proxyProps } = props;
+    const context = useToastProviderContext(FOCUS_PROXY_NAME, __scopeToast);
+    return /* @__PURE__ */ jsx61(
+      VisuallyHidden,
+      {
+        tabIndex: 0,
+        ...proxyProps,
+        ref: forwardedRef,
+        style: { position: "fixed" },
+        onFocus: (event) => {
+          const prevFocusedElement = event.relatedTarget;
+          const isFocusFromOutsideViewport = !context.viewport?.contains(prevFocusedElement);
+          if (isFocusFromOutsideViewport) onFocusFromOutsideViewport();
+        }
+      }
+    );
+  }
+);
+FocusProxy.displayName = FOCUS_PROXY_NAME;
+var TOAST_NAME = "Toast";
+var TOAST_SWIPE_START = "toast.swipeStart";
+var TOAST_SWIPE_MOVE = "toast.swipeMove";
+var TOAST_SWIPE_CANCEL = "toast.swipeCancel";
+var TOAST_SWIPE_END = "toast.swipeEnd";
+var Toast = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { forceMount, open: openProp, defaultOpen, onOpenChange, ...toastProps } = props;
+    const [open, setOpen] = useControllableState2({
+      prop: openProp,
+      defaultProp: defaultOpen ?? true,
+      onChange: onOpenChange,
+      caller: TOAST_NAME
+    });
+    return /* @__PURE__ */ jsx61(Presence, { present: forceMount || open, children: /* @__PURE__ */ jsx61(
+      ToastImpl,
+      {
+        open,
+        ...toastProps,
+        ref: forwardedRef,
+        onClose: () => setOpen(false),
+        onPause: useCallbackRef(props.onPause),
+        onResume: useCallbackRef(props.onResume),
+        onSwipeStart: composeEventHandlers(props.onSwipeStart, (event) => {
+          event.currentTarget.setAttribute("data-swipe", "start");
+        }),
+        onSwipeMove: composeEventHandlers(props.onSwipeMove, (event) => {
+          const { x, y } = event.detail.delta;
+          event.currentTarget.setAttribute("data-swipe", "move");
+          event.currentTarget.style.setProperty("--radix-toast-swipe-move-x", `${x}px`);
+          event.currentTarget.style.setProperty("--radix-toast-swipe-move-y", `${y}px`);
+        }),
+        onSwipeCancel: composeEventHandlers(props.onSwipeCancel, (event) => {
+          event.currentTarget.setAttribute("data-swipe", "cancel");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-move-x");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-move-y");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-end-x");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-end-y");
+        }),
+        onSwipeEnd: composeEventHandlers(props.onSwipeEnd, (event) => {
+          const { x, y } = event.detail.delta;
+          event.currentTarget.setAttribute("data-swipe", "end");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-move-x");
+          event.currentTarget.style.removeProperty("--radix-toast-swipe-move-y");
+          event.currentTarget.style.setProperty("--radix-toast-swipe-end-x", `${x}px`);
+          event.currentTarget.style.setProperty("--radix-toast-swipe-end-y", `${y}px`);
+          setOpen(false);
+        })
+      }
+    ) });
+  }
+);
+Toast.displayName = TOAST_NAME;
+var [ToastInteractiveProvider, useToastInteractiveContext] = createToastContext(TOAST_NAME, {
+  onClose() {
+  }
+});
+var ToastImpl = React48.forwardRef(
+  (props, forwardedRef) => {
+    const {
+      __scopeToast,
+      type = "foreground",
+      duration: durationProp,
+      open,
+      onClose,
+      onEscapeKeyDown,
+      onPause,
+      onResume,
+      onSwipeStart,
+      onSwipeMove,
+      onSwipeCancel,
+      onSwipeEnd,
+      ...toastProps
+    } = props;
+    const context = useToastProviderContext(TOAST_NAME, __scopeToast);
+    const [node, setNode] = React48.useState(null);
+    const composedRefs = useComposedRefs(forwardedRef, setNode);
+    const pointerStartRef = React48.useRef(null);
+    const swipeDeltaRef = React48.useRef(null);
+    const duration = durationProp || context.duration;
+    const closeTimerStartTimeRef = React48.useRef(0);
+    const closeTimerRemainingTimeRef = React48.useRef(duration);
+    const closeTimerRef = React48.useRef(0);
+    const { onToastAdd, onToastRemove } = context;
+    const handleClose = useCallbackRef(() => {
+      const isFocusInToast = node?.contains(document.activeElement);
+      if (isFocusInToast) context.viewport?.focus();
+      onClose();
+    });
+    const startTimer = React48.useCallback(
+      (duration2) => {
+        if (!duration2 || duration2 === Infinity) return;
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerStartTimeRef.current = (/* @__PURE__ */ new Date()).getTime();
+        closeTimerRef.current = window.setTimeout(handleClose, duration2);
+      },
+      [handleClose]
+    );
+    React48.useEffect(() => {
+      const viewport = context.viewport;
+      if (viewport) {
+        const handleResume = () => {
+          startTimer(closeTimerRemainingTimeRef.current);
+          onResume?.();
+        };
+        const handlePause = () => {
+          const elapsedTime = (/* @__PURE__ */ new Date()).getTime() - closeTimerStartTimeRef.current;
+          closeTimerRemainingTimeRef.current = closeTimerRemainingTimeRef.current - elapsedTime;
+          window.clearTimeout(closeTimerRef.current);
+          onPause?.();
+        };
+        viewport.addEventListener(VIEWPORT_PAUSE, handlePause);
+        viewport.addEventListener(VIEWPORT_RESUME, handleResume);
+        return () => {
+          viewport.removeEventListener(VIEWPORT_PAUSE, handlePause);
+          viewport.removeEventListener(VIEWPORT_RESUME, handleResume);
+        };
+      }
+    }, [context.viewport, duration, onPause, onResume, startTimer]);
+    React48.useEffect(() => {
+      if (open && !context.isClosePausedRef.current) startTimer(duration);
+    }, [open, duration, context.isClosePausedRef, startTimer]);
+    React48.useEffect(() => {
+      return () => {
+        window.clearTimeout(closeTimerRef.current);
+      };
+    }, []);
+    React48.useEffect(() => {
+      onToastAdd();
+      return () => onToastRemove();
+    }, [onToastAdd, onToastRemove]);
+    const announceTextContent = React48.useMemo(() => {
+      return node ? getAnnounceTextContent(node) : null;
+    }, [node]);
+    if (!context.viewport) return null;
+    return /* @__PURE__ */ jsxs33(Fragment13, { children: [
+      announceTextContent && /* @__PURE__ */ jsx61(
+        ToastAnnounce,
+        {
+          __scopeToast,
+          role: "status",
+          "aria-live": type === "foreground" ? "assertive" : "polite",
+          children: announceTextContent
+        }
+      ),
+      /* @__PURE__ */ jsx61(ToastInteractiveProvider, { scope: __scopeToast, onClose: handleClose, children: ReactDOM5.createPortal(
+        /* @__PURE__ */ jsx61(Collection5.ItemSlot, { scope: __scopeToast, children: /* @__PURE__ */ jsx61(
+          Root3,
+          {
+            asChild: true,
+            onEscapeKeyDown: composeEventHandlers(onEscapeKeyDown, () => {
+              if (!context.isFocusedToastEscapeKeyDownRef.current) handleClose();
+              context.isFocusedToastEscapeKeyDownRef.current = false;
+            }),
+            children: /* @__PURE__ */ jsx61(
+              Primitive.li,
+              {
+                tabIndex: 0,
+                "data-state": open ? "open" : "closed",
+                "data-swipe-direction": context.swipeDirection,
+                ...toastProps,
+                ref: composedRefs,
+                style: { userSelect: "none", touchAction: "none", ...props.style },
+                onKeyDown: composeEventHandlers(props.onKeyDown, (event) => {
+                  if (event.key !== "Escape") return;
+                  onEscapeKeyDown?.(event.nativeEvent);
+                  if (!event.nativeEvent.defaultPrevented) {
+                    context.isFocusedToastEscapeKeyDownRef.current = true;
+                    handleClose();
+                  }
+                }),
+                onPointerDown: composeEventHandlers(props.onPointerDown, (event) => {
+                  if (event.button !== 0) return;
+                  pointerStartRef.current = { x: event.clientX, y: event.clientY };
+                }),
+                onPointerMove: composeEventHandlers(props.onPointerMove, (event) => {
+                  if (!pointerStartRef.current) return;
+                  const x = event.clientX - pointerStartRef.current.x;
+                  const y = event.clientY - pointerStartRef.current.y;
+                  const hasSwipeMoveStarted = Boolean(swipeDeltaRef.current);
+                  const isHorizontalSwipe = ["left", "right"].includes(context.swipeDirection);
+                  const clamp3 = ["left", "up"].includes(context.swipeDirection) ? Math.min : Math.max;
+                  const clampedX = isHorizontalSwipe ? clamp3(0, x) : 0;
+                  const clampedY = !isHorizontalSwipe ? clamp3(0, y) : 0;
+                  const moveStartBuffer = event.pointerType === "touch" ? 10 : 2;
+                  const delta = { x: clampedX, y: clampedY };
+                  const eventDetail = { originalEvent: event, delta };
+                  if (hasSwipeMoveStarted) {
+                    swipeDeltaRef.current = delta;
+                    handleAndDispatchCustomEvent2(TOAST_SWIPE_MOVE, onSwipeMove, eventDetail, {
+                      discrete: false
+                    });
+                  } else if (isDeltaInDirection(delta, context.swipeDirection, moveStartBuffer)) {
+                    swipeDeltaRef.current = delta;
+                    handleAndDispatchCustomEvent2(TOAST_SWIPE_START, onSwipeStart, eventDetail, {
+                      discrete: false
+                    });
+                    event.target.setPointerCapture(event.pointerId);
+                  } else if (Math.abs(x) > moveStartBuffer || Math.abs(y) > moveStartBuffer) {
+                    pointerStartRef.current = null;
+                  }
+                }),
+                onPointerUp: composeEventHandlers(props.onPointerUp, (event) => {
+                  const delta = swipeDeltaRef.current;
+                  const target = event.target;
+                  if (target.hasPointerCapture(event.pointerId)) {
+                    target.releasePointerCapture(event.pointerId);
+                  }
+                  swipeDeltaRef.current = null;
+                  pointerStartRef.current = null;
+                  if (delta) {
+                    const toast = event.currentTarget;
+                    const eventDetail = { originalEvent: event, delta };
+                    if (isDeltaInDirection(delta, context.swipeDirection, context.swipeThreshold)) {
+                      handleAndDispatchCustomEvent2(TOAST_SWIPE_END, onSwipeEnd, eventDetail, {
+                        discrete: true
+                      });
+                    } else {
+                      handleAndDispatchCustomEvent2(
+                        TOAST_SWIPE_CANCEL,
+                        onSwipeCancel,
+                        eventDetail,
+                        {
+                          discrete: true
+                        }
+                      );
+                    }
+                    toast.addEventListener("click", (event2) => event2.preventDefault(), {
+                      once: true
+                    });
+                  }
+                })
+              }
+            )
+          }
+        ) }),
+        context.viewport
+      ) })
+    ] });
+  }
+);
+var ToastAnnounce = (props) => {
+  const { __scopeToast, children, ...announceProps } = props;
+  const context = useToastProviderContext(TOAST_NAME, __scopeToast);
+  const [renderAnnounceText, setRenderAnnounceText] = React48.useState(false);
+  const [isAnnounced, setIsAnnounced] = React48.useState(false);
+  useNextFrame(() => setRenderAnnounceText(true));
+  React48.useEffect(() => {
+    const timer = window.setTimeout(() => setIsAnnounced(true), 1e3);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return isAnnounced ? null : /* @__PURE__ */ jsx61(Portal, { asChild: true, container: context.announcerContainer || void 0, children: /* @__PURE__ */ jsx61(VisuallyHidden, { ...announceProps, children: renderAnnounceText && /* @__PURE__ */ jsxs33(Fragment13, { children: [
+    context.label,
+    " ",
+    children
+  ] }) }) });
+};
+var TITLE_NAME3 = "ToastTitle";
+var ToastTitle = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeToast, ...titleProps } = props;
+    return /* @__PURE__ */ jsx61(Primitive.div, { ...titleProps, ref: forwardedRef });
+  }
+);
+ToastTitle.displayName = TITLE_NAME3;
+var DESCRIPTION_NAME3 = "ToastDescription";
+var ToastDescription = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeToast, ...descriptionProps } = props;
+    return /* @__PURE__ */ jsx61(Primitive.div, { ...descriptionProps, ref: forwardedRef });
+  }
+);
+ToastDescription.displayName = DESCRIPTION_NAME3;
+var ACTION_NAME2 = "ToastAction";
+var ToastAction = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { altText, ...actionProps } = props;
+    if (!altText.trim()) {
+      console.error(
+        `Invalid prop \`altText\` supplied to \`${ACTION_NAME2}\`. Expected non-empty \`string\`.`
+      );
+      return null;
+    }
+    return /* @__PURE__ */ jsx61(ToastAnnounceExclude, { altText, asChild: true, children: /* @__PURE__ */ jsx61(ToastClose, { ...actionProps, ref: forwardedRef }) });
+  }
+);
+ToastAction.displayName = ACTION_NAME2;
+var CLOSE_NAME3 = "ToastClose";
+var ToastClose = React48.forwardRef(
+  (props, forwardedRef) => {
+    const { __scopeToast, ...closeProps } = props;
+    const interactiveContext = useToastInteractiveContext(CLOSE_NAME3, __scopeToast);
+    return /* @__PURE__ */ jsx61(ToastAnnounceExclude, { asChild: true, children: /* @__PURE__ */ jsx61(
+      Primitive.button,
+      {
+        type: "button",
+        ...closeProps,
+        ref: forwardedRef,
+        onClick: composeEventHandlers(props.onClick, interactiveContext.onClose)
+      }
+    ) });
+  }
+);
+ToastClose.displayName = CLOSE_NAME3;
+var ToastAnnounceExclude = React48.forwardRef((props, forwardedRef) => {
+  const { __scopeToast, altText, ...announceExcludeProps } = props;
+  return /* @__PURE__ */ jsx61(
+    Primitive.div,
+    {
+      "data-radix-toast-announce-exclude": "",
+      "data-radix-toast-announce-alt": altText || void 0,
+      ...announceExcludeProps,
+      ref: forwardedRef
+    }
+  );
+});
+function getAnnounceTextContent(container) {
+  const textContent = [];
+  const childNodes = Array.from(container.childNodes);
+  childNodes.forEach((node) => {
+    if (node.nodeType === node.TEXT_NODE && node.textContent) textContent.push(node.textContent);
+    if (isHTMLElement2(node)) {
+      const isHidden2 = node.ariaHidden || node.hidden || node.style.display === "none";
+      const isExcluded = node.dataset.radixToastAnnounceExclude === "";
+      if (!isHidden2) {
+        if (isExcluded) {
+          const altText = node.dataset.radixToastAnnounceAlt;
+          if (altText) textContent.push(altText);
+        } else {
+          textContent.push(...getAnnounceTextContent(node));
+        }
+      }
+    }
+  });
+  return textContent;
+}
+function handleAndDispatchCustomEvent2(name, handler, detail, { discrete }) {
+  const currentTarget = detail.originalEvent.currentTarget;
+  const event = new CustomEvent(name, { bubbles: true, cancelable: true, detail });
+  if (handler) currentTarget.addEventListener(name, handler, { once: true });
+  if (discrete) {
+    dispatchDiscreteCustomEvent(currentTarget, event);
+  } else {
+    currentTarget.dispatchEvent(event);
+  }
+}
+var isDeltaInDirection = (delta, direction, threshold = 0) => {
+  const deltaX = Math.abs(delta.x);
+  const deltaY = Math.abs(delta.y);
+  const isDeltaX = deltaX > deltaY;
+  if (direction === "left" || direction === "right") {
+    return isDeltaX && deltaX > threshold;
+  } else {
+    return !isDeltaX && deltaY > threshold;
+  }
+};
+function useNextFrame(callback = () => {
+}) {
+  const fn = useCallbackRef(callback);
+  useLayoutEffect2(() => {
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => raf2 = window.requestAnimationFrame(fn));
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
+  }, [fn]);
+}
+function isHTMLElement2(node) {
+  return node.nodeType === node.ELEMENT_NODE;
+}
+function getTabbableCandidates2(container) {
+  const nodes = [];
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (node) => {
+      const isHiddenInput = node.tagName === "INPUT" && node.type === "hidden";
+      if (node.disabled || node.hidden || isHiddenInput) return NodeFilter.FILTER_SKIP;
+      return node.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  return nodes;
+}
+function focusFirst4(candidates) {
+  const previouslyFocusedElement = document.activeElement;
+  return candidates.some((candidate) => {
+    if (candidate === previouslyFocusedElement) return true;
+    candidate.focus();
+    return document.activeElement !== previouslyFocusedElement;
+  });
+}
+var Provider2 = ToastProvider;
+var Viewport = ToastViewport;
+var Root26 = Toast;
+var Title = ToastTitle;
+var Description = ToastDescription;
+var Action2 = ToastAction;
+var Close2 = ToastClose;
+
+// src/components/Toast/Toast.tsx
+import { jsx as jsx62, jsxs as jsxs34 } from "react/jsx-runtime";
+var Toast2 = forwardRef39(function Toast3({ className, variant = "info", ...rest }, ref) {
+  return /* @__PURE__ */ jsx62(
+    Root26,
+    {
+      ref,
+      className: cx("hds-toast", `hds-toast-${variant}`, className),
+      ...rest
+    }
+  );
+});
+Toast2.displayName = "Toast";
+var ToastTitle2 = forwardRef39(function ToastTitle3({ className, ...rest }, ref) {
+  return /* @__PURE__ */ jsx62(Title, { ref, className: cx("hds-toast-title", className), ...rest });
+});
+ToastTitle2.displayName = "ToastTitle";
+var ToastDescription2 = forwardRef39(
+  function ToastDescription3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx62(Description, { ref, className: cx("hds-toast-description", className), ...rest });
+  }
+);
+ToastDescription2.displayName = "ToastDescription";
+var ToastAction2 = forwardRef39(function ToastAction3({ className, ...rest }, ref) {
+  return /* @__PURE__ */ jsx62(Action2, { ref, className: cx("hds-toast-action", className), ...rest });
+});
+ToastAction2.displayName = "ToastAction";
+var ToastClose2 = forwardRef39(function ToastClose3({ className, "aria-label": ariaLabel = "Dismiss", children, ...rest }, ref) {
+  return /* @__PURE__ */ jsx62(Close2, { ref, "aria-label": ariaLabel, className: cx("hds-toast-close", className), ...rest, children: children ?? /* @__PURE__ */ jsx62("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx62("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) });
+});
+ToastClose2.displayName = "ToastClose";
+var ToastViewport2 = forwardRef39(
+  function ToastViewport3({ className, ...rest }, ref) {
+    return /* @__PURE__ */ jsx62(Viewport, { ref, className: cx("hds-toast-viewport", className), ...rest });
+  }
+);
+ToastViewport2.displayName = "ToastViewport";
+var ToastContext = createContext4(null);
+function useToast() {
+  const context = useContext4(ToastContext);
+  if (!context) {
+    throw new Error("useToast must be used within a ToastProvider");
+  }
+  return context;
+}
+var toastIdCounter = 0;
+function nextToastId() {
+  toastIdCounter += 1;
+  return `hds-toast-${toastIdCounter}`;
+}
+function ToastProvider2({ children, duration = 5e3, swipeDirection = "right" }) {
+  const [toasts, setToasts] = useState27([]);
+  const dismiss = useCallback18((id) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  }, []);
+  const toast = useCallback18((options) => {
+    const id = nextToastId();
+    setToasts((current) => [...current, { id, ...options }]);
+    return id;
+  }, []);
+  const contextValue = useMemo13(() => ({ toast, dismiss }), [toast, dismiss]);
+  return /* @__PURE__ */ jsx62(ToastContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsxs34(Provider2, { duration, swipeDirection, children: [
+    children,
+    toasts.map(({ id, title, description, variant, duration: itemDuration }) => /* @__PURE__ */ jsxs34(
+      Toast2,
+      {
+        variant,
+        duration: itemDuration,
+        onOpenChange: (open) => {
+          if (!open) dismiss(id);
+        },
+        children: [
+          /* @__PURE__ */ jsxs34("div", { className: "hds-toast-body", children: [
+            title && /* @__PURE__ */ jsx62(ToastTitle2, { children: title }),
+            description && /* @__PURE__ */ jsx62(ToastDescription2, { children: description })
+          ] }),
+          /* @__PURE__ */ jsx62(ToastClose2, {})
+        ]
+      },
+      id
+    )),
+    /* @__PURE__ */ jsx62(ToastViewport2, {})
+  ] }) });
+}
+
+// src/components/Spinner/Spinner.tsx
+import { useState as useState28 } from "react";
+import { jsx as jsx63, jsxs as jsxs35 } from "react/jsx-runtime";
+var SIZE_SCALE = {
+  sm: 16,
+  md: 24,
+  lg: 32
+};
+function resolveSize(size4) {
+  return typeof size4 === "number" ? size4 : SIZE_SCALE[size4];
+}
+function prefersReducedMotion() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function Spinner({ size: size4 = "md", label = "Loading", className, style, ...rest }) {
+  const [reducedMotion] = useState28(prefersReducedMotion);
+  const px = resolveSize(size4);
+  return /* @__PURE__ */ jsxs35(
+    "span",
+    {
+      role: "status",
+      className: cx("hds-spinner", className),
+      "data-reduced-motion": reducedMotion ? "true" : void 0,
+      style: { width: px, height: px, ...style },
+      ...rest,
+      children: [
+        /* @__PURE__ */ jsxs35(
+          "svg",
+          {
+            className: "hds-spinner-svg",
+            viewBox: "0 0 50 50",
+            width: px,
+            height: px,
+            "aria-hidden": "true",
+            focusable: "false",
+            children: [
+              /* @__PURE__ */ jsx63("circle", { className: "hds-spinner-track", cx: "25", cy: "25", r: "20", fill: "none", strokeWidth: "5" }),
+              /* @__PURE__ */ jsx63("circle", { className: "hds-spinner-arc", cx: "25", cy: "25", r: "20", fill: "none", strokeWidth: "5" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsx63(VisuallyHidden2, { children: label })
+      ]
+    }
+  );
+}
+
+// src/components/Skeleton/Skeleton.tsx
+import { forwardRef as forwardRef40 } from "react";
+import { jsx as jsx64 } from "react/jsx-runtime";
+function prefersReducedMotion2() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+var Skeleton = forwardRef40(function Skeleton2({ className, ...rest }, ref) {
+  const reduced = prefersReducedMotion2();
+  return /* @__PURE__ */ jsx64(
+    "div",
+    {
+      ref,
+      className: cx("hds-skeleton", reduced && "hds-skeleton-static", className),
+      role: "presentation",
+      "aria-hidden": "true",
+      ...rest
+    }
+  );
+});
+Skeleton.displayName = "Skeleton";
 export {
+  AlertDialog2 as AlertDialog,
+  AlertDialogAction2 as AlertDialogAction,
+  AlertDialogCancel2 as AlertDialogCancel,
+  AlertDialogContent2 as AlertDialogContent,
+  AlertDialogDescription2 as AlertDialogDescription,
+  AlertDialogTitle2 as AlertDialogTitle,
+  AlertDialogTrigger2 as AlertDialogTrigger,
   Badge,
   BrandMark,
   Button,
   Callout,
   CaseCard,
   CaseGrid,
+  Checkbox2 as Checkbox,
   Chip,
   Cmt,
   CodeBlock,
   Cond,
   Cor,
+  Dialog2 as Dialog,
+  DialogClose2 as DialogClose,
+  DialogContent2 as DialogContent,
+  DialogDescription2 as DialogDescription,
+  DialogTitle2 as DialogTitle,
+  DialogTrigger2 as DialogTrigger,
   DotsBackground,
+  DropdownMenu2 as DropdownMenu,
+  DropdownMenuCheckboxItem2 as DropdownMenuCheckboxItem,
+  DropdownMenuContent2 as DropdownMenuContent,
+  DropdownMenuItem2 as DropdownMenuItem,
+  DropdownMenuLabel2 as DropdownMenuLabel,
+  DropdownMenuRadioGroup2 as DropdownMenuRadioGroup,
+  DropdownMenuRadioItem2 as DropdownMenuRadioItem,
+  DropdownMenuSeparator2 as DropdownMenuSeparator,
+  DropdownMenuTrigger2 as DropdownMenuTrigger,
+  Field,
   Flow,
   Footer,
   HarnessMark,
+  Input,
+  Label,
   Logo,
   ModeBlock,
   ModeSplit,
@@ -960,12 +11633,30 @@ export {
   Panel,
   PinChip,
   Pkg,
+  Popover2 as Popover,
+  PopoverAnchor2 as PopoverAnchor,
+  PopoverClose2 as PopoverClose,
+  PopoverContent2 as PopoverContent,
+  PopoverTrigger2 as PopoverTrigger,
+  RadioGroup2 as RadioGroup,
+  RadioGroupItem2 as RadioGroupItem,
   Reveal,
   SectionHeading,
+  Select2 as Select,
+  SelectContent2 as SelectContent,
+  SelectGroup2 as SelectGroup,
+  SelectItem2 as SelectItem,
+  SelectLabel2 as SelectLabel,
+  SelectSeparator2 as SelectSeparator,
+  SelectTrigger2 as SelectTrigger,
+  SelectValue2 as SelectValue,
+  Skeleton,
   SkillCard,
   SkillGrid,
   SkillSpinePin,
+  Slider2 as Slider,
   SpineLabel,
+  Spinner,
   Stack,
   Stagger,
   Step,
@@ -974,10 +11665,24 @@ export {
   Steps,
   Sub,
   Substeps,
+  Switch2 as Switch,
   Table,
   Terminal,
+  Textarea,
+  Toast2 as Toast,
+  ToastAction2 as ToastAction,
+  ToastClose2 as ToastClose,
+  ToastDescription2 as ToastDescription,
+  ToastProvider2 as ToastProvider,
+  ToastTitle2 as ToastTitle,
+  ToastViewport2 as ToastViewport,
+  Tooltip2 as Tooltip,
+  TooltipContent2 as TooltipContent,
+  TooltipProvider2 as TooltipProvider,
+  TooltipTrigger2 as TooltipTrigger,
   ValueCard,
   ValueGrid,
-  VisuallyHidden2 as VisuallyHidden
+  VisuallyHidden2 as VisuallyHidden,
+  useToast
 };
 //# sourceMappingURL=ds-bundle.js.map
