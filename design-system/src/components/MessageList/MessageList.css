@@ -1,0 +1,58 @@
+.hds-message-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.hds-message-list-scroll-area {
+  flex: 1;
+  min-height: 0;
+}
+
+.hds-message-list-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4);
+}
+
+.hds-message-list-jump-button {
+  position: absolute;
+  bottom: var(--s-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  box-shadow: var(--shadow-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-quart), background-color 0.15s var(--ease-quart);
+}
+
+.hds-message-list-jump-button:hover {
+  background: var(--surface-2);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.hds-message-list-jump-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-message-list-jump-button {
+    transition: none;
+  }
+  .hds-message-list-jump-button:hover {
+    transform: translateX(-50%);
+  }
+}
