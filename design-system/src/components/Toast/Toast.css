@@ -1,0 +1,158 @@
+/* Toast — Radix's Toast.Provider/Viewport/Root supply the ARIA live
+   region, auto-dismiss timer, pause-on-hover/focus (shared across the
+   whole viewport), and swipe-to-dismiss. This file styles on top plus the
+   stacking viewport. */
+
+.hds-toast-viewport {
+  position: fixed;
+  bottom: var(--s-5);
+  right: var(--s-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: min(380px, calc(100vw - var(--s-6)));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+
+.hds-toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-3) var(--s-4);
+  border-left: 3px solid var(--info);
+}
+
+.hds-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.hds-toast-success {
+  border-left-color: var(--success);
+}
+
+.hds-toast-warning {
+  border-left-color: var(--warning);
+}
+
+.hds-toast-danger {
+  border-left-color: var(--danger);
+}
+
+.hds-toast-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hds-toast-description {
+  margin: var(--s-1) 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.hds-toast-action {
+  flex-shrink: 0;
+  align-self: center;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  border: 0;
+  cursor: pointer;
+}
+
+.hds-toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+}
+
+.hds-toast-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.hds-toast-close:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hds-toast[data-state="open"] {
+  animation: hds-toast-in 200ms var(--ease-quart);
+}
+
+.hds-toast[data-state="closed"] {
+  animation: hds-toast-out 150ms var(--ease-expo);
+}
+
+.hds-toast[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+
+.hds-toast[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 150ms var(--ease-quart);
+}
+
+.hds-toast[data-swipe="end"] {
+  animation: hds-toast-swipe-out 150ms var(--ease-expo);
+}
+
+@keyframes hds-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hds-toast-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hds-toast-swipe-out {
+  from {
+    transform: translateX(var(--radix-toast-swipe-end-x));
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(var(--radix-toast-swipe-end-x) + 100%));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-toast[data-state="open"],
+  .hds-toast[data-state="closed"] {
+    animation-duration: 0.01ms;
+  }
+}
