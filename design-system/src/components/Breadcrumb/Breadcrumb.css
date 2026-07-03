@@ -1,0 +1,70 @@
+.hds-breadcrumb {
+  font-family: var(--ff-body);
+}
+
+.hds-breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.hds-breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+.hds-breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: var(--rounded-sm);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-decoration: none;
+  cursor: default;
+}
+
+a.hds-breadcrumb-segment,
+button.hds-breadcrumb-segment {
+  cursor: pointer;
+}
+
+a.hds-breadcrumb-segment:hover,
+button.hds-breadcrumb-segment:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.hds-breadcrumb-segment:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hds-breadcrumb-segment.is-current {
+  color: var(--ink);
+  font-weight: 600;
+  cursor: default;
+}
+
+.hds-breadcrumb-separator {
+  color: var(--faint);
+  padding: 0 4px;
+  user-select: none;
+}
+
+.hds-breadcrumb-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  color: var(--faint);
+  user-select: none;
+}
