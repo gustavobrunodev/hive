@@ -37,3 +37,21 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {}
 }
+
+// jsdom doesn't implement the Pointer Events capture API. Radix Select
+// (and other pointer-driven primitives) call these unconditionally on
+// pointerdown/pointerup, so a no-op/false stand-in is enough to exercise
+// those code paths under test.
+if (typeof Element !== "undefined") {
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = function hasPointerCapture() {
+      return false
+    }
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = function setPointerCapture() {}
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = function releasePointerCapture() {}
+  }
+}
