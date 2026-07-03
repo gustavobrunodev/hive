@@ -4,6 +4,7 @@
   "description": "Hive Design System — extracted from the Harness Builder marketing site (Zup brand language).",
   "type": "module",
   "main": "dist/ds-bundle.js",
+  "types": "dist/index.d.ts",
   "style": "dist/ds-bundle.css",
   "files": [
     "dist"
