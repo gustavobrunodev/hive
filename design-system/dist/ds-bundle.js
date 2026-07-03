@@ -13050,7 +13050,7 @@ var Corner = ScrollAreaCorner;
 // src/components/ScrollArea/ScrollArea.tsx
 import { jsx as jsx73, jsxs as jsxs38 } from "react/jsx-runtime";
 var ScrollArea2 = forwardRef49(
-  function ScrollArea3({ className, children, type = "hover", scrollHideDelay = 600, ...rest }, ref) {
+  function ScrollArea3({ className, children, type = "hover", scrollHideDelay = 600, viewportRef, ...rest }, ref) {
     return /* @__PURE__ */ jsxs38(
       Root7,
       {
@@ -13060,7 +13060,7 @@ var ScrollArea2 = forwardRef49(
         className: cx("hds-scroll-area", className),
         ...rest,
         children: [
-          /* @__PURE__ */ jsx73(Viewport2, { className: "hds-scroll-area-viewport", children }),
+          /* @__PURE__ */ jsx73(Viewport2, { ref: viewportRef, className: "hds-scroll-area-viewport", children }),
           /* @__PURE__ */ jsx73(
             Scrollbar,
             {
@@ -16653,6 +16653,190 @@ var ResizableHandle = forwardRef60(function ResizableHandle2({ className, withGr
   ] }) });
 });
 ResizableHandle.displayName = "ResizableHandle";
+
+// src/components/ChatMessage/ChatMessage.tsx
+import { forwardRef as forwardRef61 } from "react";
+import { jsx as jsx88, jsxs as jsxs49 } from "react/jsx-runtime";
+var ChatMessage = forwardRef61(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
+  return /* @__PURE__ */ jsxs49("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx88("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs49("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx88("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs49("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx88("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx88("div", { className: "hds-chat-message-actions", children: actions })
+      ] })
+    ] })
+  ] });
+});
+ChatMessage.displayName = "ChatMessage";
+
+// src/components/TypingIndicator/TypingIndicator.tsx
+import { jsx as jsx89, jsxs as jsxs50 } from "react/jsx-runtime";
+function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
+  return /* @__PURE__ */ jsxs50("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx89("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx89("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx89("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx89(VisuallyHidden2, { children: label })
+  ] });
+}
+
+// src/components/MessageList/MessageList.tsx
+import { useCallback as useCallback24, useEffect as useEffect35, useRef as useRef41, useState as useState34 } from "react";
+import { jsx as jsx90, jsxs as jsxs51 } from "react/jsx-runtime";
+function prefersReducedMotion3() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function MessageList({
+  children,
+  bottomThreshold = 80,
+  jumpToLatestLabel = "Jump to latest",
+  className,
+  ...rest
+}) {
+  const viewportRef = useRef41(null);
+  const contentRef = useRef41(null);
+  const [isPinned, setIsPinned] = useState34(true);
+  const isPinnedRef = useRef41(isPinned);
+  isPinnedRef.current = isPinned;
+  const isNearBottom = useCallback24(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return true;
+    const distance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    return distance <= bottomThreshold;
+  }, [bottomThreshold]);
+  const scrollToBottom = useCallback24((behavior = "smooth") => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    if (typeof viewport.scrollTo === "function") {
+      viewport.scrollTo({
+        top: viewport.scrollHeight,
+        behavior: prefersReducedMotion3() ? "instant" : behavior
+      });
+    } else {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
+  }, []);
+  const handleScroll2 = useCallback24(() => {
+    setIsPinned(isNearBottom());
+  }, [isNearBottom]);
+  useEffect35(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.addEventListener("scroll", handleScroll2, { passive: true });
+    return () => viewport.removeEventListener("scroll", handleScroll2);
+  }, [handleScroll2]);
+  useEffect35(() => {
+    const content = contentRef.current;
+    if (!content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (isPinnedRef.current) scrollToBottom("instant");
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
+  useEffect35(() => {
+    scrollToBottom("instant");
+  }, [scrollToBottom]);
+  return /* @__PURE__ */ jsxs51("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx90(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx90("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx90(
+      "button",
+      {
+        type: "button",
+        className: "hds-message-list-jump-button",
+        onClick: () => {
+          scrollToBottom("smooth");
+          setIsPinned(true);
+        },
+        children: jumpToLatestLabel
+      }
+    )
+  ] });
+}
+
+// src/components/Attachment/Attachment.tsx
+import { forwardRef as forwardRef62 } from "react";
+import { jsx as jsx91, jsxs as jsxs52 } from "react/jsx-runtime";
+var Attachment = forwardRef62(function Attachment2({ name, meta, icon, onRemove, removeLabel, className, ...rest }, ref) {
+  const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
+  return /* @__PURE__ */ jsxs52("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx91("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs52("span", { className: "hds-attachment-text", children: [
+      /* @__PURE__ */ jsx91("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx91("span", { className: "hds-attachment-meta", children: meta })
+    ] }),
+    onRemove && /* @__PURE__ */ jsx91("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx91("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx91("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+  ] });
+});
+Attachment.displayName = "Attachment";
+
+// src/components/PromptInput/PromptInput.tsx
+import { jsx as jsx92, jsxs as jsxs53 } from "react/jsx-runtime";
+function SendIcon() {
+  return /* @__PURE__ */ jsx92("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx92("path", { d: "M2 8h11M8 3l5 5-5 5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) });
+}
+function PromptInput({
+  value: valueProp,
+  defaultValue = "",
+  onChange,
+  onSubmit,
+  placeholder = "Message...",
+  disabled = false,
+  streaming = false,
+  minRows = 1,
+  maxRows = 8,
+  attachments,
+  toolbar,
+  sendLabel = "Send",
+  className,
+  ...rest
+}) {
+  const [value, setValue] = useControllableState({
+    value: valueProp,
+    defaultValue,
+    onChange
+  });
+  const isEmpty = value.trim().length === 0;
+  const sendDisabled = disabled || streaming || isEmpty;
+  const submit = () => {
+    if (sendDisabled) return;
+    onSubmit(value.trim());
+    if (valueProp === void 0) setValue("");
+  };
+  return /* @__PURE__ */ jsxs53("div", { className: cx("hds-prompt-input", className), "data-disabled": disabled || void 0, ...rest, children: [
+    attachments && /* @__PURE__ */ jsx92("div", { className: "hds-prompt-input-attachments", children: attachments }),
+    /* @__PURE__ */ jsx92(
+      Textarea,
+      {
+        className: "hds-prompt-input-textarea",
+        value,
+        onChange: (event) => setValue(event.target.value),
+        onSubmit: submit,
+        placeholder,
+        disabled,
+        minRows,
+        maxRows
+      }
+    ),
+    /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-toolbar", children: [
+      /* @__PURE__ */ jsx92("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }),
+      /* @__PURE__ */ jsx92(
+        "button",
+        {
+          type: "button",
+          className: "hds-prompt-input-send",
+          disabled: sendDisabled,
+          "aria-label": sendLabel,
+          onClick: submit,
+          children: /* @__PURE__ */ jsx92(SendIcon, {})
+        }
+      )
+    ] })
+  ] });
+}
 export {
   Accordion2 as Accordion,
   AccordionContent2 as AccordionContent,
@@ -16666,6 +16850,7 @@ export {
   AlertDialogDescription2 as AlertDialogDescription,
   AlertDialogTitle2 as AlertDialogTitle,
   AlertDialogTrigger2 as AlertDialogTrigger,
+  Attachment,
   Avatar2 as Avatar,
   Badge,
   BrandMark,
@@ -16675,6 +16860,7 @@ export {
   Callout,
   CaseCard,
   CaseGrid,
+  ChatMessage,
   Checkbox2 as Checkbox,
   Chip,
   Cmt,
@@ -16723,6 +16909,7 @@ export {
   Kbd,
   Label,
   Logo,
+  MessageList,
   ModeBlock,
   ModeSplit,
   Nav,
@@ -16735,6 +16922,7 @@ export {
   PopoverContent2 as PopoverContent,
   PopoverTrigger2 as PopoverTrigger,
   Progress2 as Progress,
+  PromptInput,
   RadioGroup2 as RadioGroup,
   RadioGroupItem2 as RadioGroupItem,
   Resizable,
@@ -16793,6 +16981,7 @@ export {
   TooltipProvider2 as TooltipProvider,
   TooltipTrigger2 as TooltipTrigger,
   Tree,
+  TypingIndicator,
   ValueCard,
   ValueGrid,
   VisuallyHidden2 as VisuallyHidden,

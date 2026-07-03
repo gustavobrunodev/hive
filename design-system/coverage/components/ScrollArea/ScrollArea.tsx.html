@@ -123,7 +123,13 @@
 <a name='L58'></a><a href='#L58'>58</a>
 <a name='L59'></a><a href='#L59'>59</a>
 <a name='L60'></a><a href='#L60'>60</a>
-<a name='L61'></a><a href='#L61'>61</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -153,43 +159,46 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">19x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { forwardRef } from "react"
-import type { ComponentPropsWithoutRef, ElementRef } from "react"
+import type { ComponentPropsWithoutRef, ElementRef, Ref } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import { cx } from "../../utils/cx"
 import "./ScrollArea.css"
 &nbsp;
-export type ScrollAreaProps = ComponentPropsWithoutRef&lt;typeof ScrollAreaPrimitive.Root&gt;
+export type ScrollAreaProps = ComponentPropsWithoutRef&lt;typeof ScrollAreaPrimitive.Root&gt; &amp; {
+  /** Ref to the underlying scrollable viewport element — the real `overflow: auto` node, for consumers that need to read/set scroll position (e.g. `MessageList`'s pin-to-latest behavior). */
+  viewportRef?: Ref&lt;HTMLDivElement&gt;
+}
 &nbsp;
 /**
  * A viewport with a tokenized, thumb-only scrollbar overlay — wraps Radix's
@@ -212,7 +221,7 @@ export type ScrollAreaProps = ComponentPropsWithoutRef&lt;typeof ScrollAreaPrimi
  * clipped by it.
  */
 export const ScrollArea = forwardRef&lt;ElementRef&lt;typeof ScrollAreaPrimitive.Root&gt;, ScrollAreaProps&gt;(
-  function ScrollArea({ className, children, type = "hover", scrollHideDelay = 600, ...rest }, ref) {
+  function ScrollArea({ className, children, type = "hover", scrollHideDelay = 600, viewportRef, ...rest }, ref) {
     return (
       &lt;ScrollAreaPrimitive.Root
         ref={ref}
@@ -221,7 +230,7 @@ export const ScrollArea = forwardRef&lt;ElementRef&lt;typeof ScrollAreaPrimitive
         className={cx("hds-scroll-area", className)}
         {...rest}
       &gt;
-        &lt;ScrollAreaPrimitive.Viewport className="hds-scroll-area-viewport"&gt;
+        &lt;ScrollAreaPrimitive.Viewport ref={viewportRef} className="hds-scroll-area-viewport"&gt;
           {children}
         &lt;/ScrollAreaPrimitive.Viewport&gt;
         &lt;ScrollAreaPrimitive.Scrollbar
@@ -250,7 +259,7 @@ ScrollArea.displayName = "ScrollArea"
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-03T17:09:17.950Z
+                at 2026-07-03T17:21:48.242Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

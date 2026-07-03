@@ -55,3 +55,8 @@ export { Alert } from "./components/Alert/Alert";
 export { Empty } from "./components/Empty/Empty";
 export { Kbd } from "./components/Kbd/Kbd";
 export { Resizable, ResizablePanel, ResizableHandle } from "./components/Resizable/Resizable";
+export { ChatMessage } from "./components/ChatMessage/ChatMessage";
+export { TypingIndicator } from "./components/TypingIndicator/TypingIndicator";
+export { MessageList } from "./components/MessageList/MessageList";
+export { Attachment } from "./components/Attachment/Attachment";
+export { PromptInput } from "./components/PromptInput/PromptInput";

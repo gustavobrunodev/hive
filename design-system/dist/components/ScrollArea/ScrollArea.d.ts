@@ -1,7 +1,10 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, Ref } from "react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 import "./ScrollArea.css";
-export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>;
+export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+    /** Ref to the underlying scrollable viewport element — the real `overflow: auto` node, for consumers that need to read/set scroll position (e.g. `MessageList`'s pin-to-latest behavior). */
+    viewportRef?: Ref<HTMLDivElement>;
+};
 /**
  * A viewport with a tokenized, thumb-only scrollbar overlay — wraps Radix's
  * `ScrollArea.Root`/`Viewport`/`Scrollbar`/`Thumb`/`Corner`. Radix's
@@ -22,4 +25,7 @@ export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitiv
  * inside a `ScrollArea` (which portal to `document.body`) are never
  * clipped by it.
  */
-export declare const ScrollArea: import("react").ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+export declare const ScrollArea: import("react").ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
+    /** Ref to the underlying scrollable viewport element — the real `overflow: auto` node, for consumers that need to read/set scroll position (e.g. `MessageList`'s pin-to-latest behavior). */
+    viewportRef?: Ref<HTMLDivElement>;
+} & import("react").RefAttributes<HTMLDivElement>>;
