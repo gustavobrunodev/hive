@@ -1,0 +1,127 @@
+/* Tabs — product-register navigation pattern (PRODUCT.md's "standard
+   navigation patterns" + roving-tabindex requirement). Radix's
+   Tabs.Root/List/Trigger/Content supply value state, role="tablist"/"tab"/
+   "tabpanel", roving-tabindex + arrow-key navigation, and data-state/
+   data-disabled — this file styles on top with role tokens only. Two
+   TabsList variants: "underline" (bottom border on the active trigger) and
+   "segmented" (pill-shaped track with a solid pill behind the active
+   trigger). */
+
+.hds-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.hds-tabs-list {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.hds-tabs-list-underline {
+  gap: var(--s-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.hds-tabs-list-segmented {
+  gap: var(--s-1);
+  padding: var(--s-1);
+  background: var(--surface-2);
+  border-radius: var(--rounded-full);
+}
+
+.hds-tabs-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease-quart),
+    background-color 0.2s var(--ease-quart),
+    border-color 0.2s var(--ease-quart),
+    box-shadow 0.2s var(--ease-quart);
+}
+
+.hds-tabs-trigger:hover:not([data-disabled]) {
+  color: var(--ink);
+}
+
+.hds-tabs-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+  border-radius: var(--rounded-sm);
+}
+
+.hds-tabs-trigger[data-state="active"] {
+  color: var(--ink);
+}
+
+.hds-tabs-trigger[data-disabled] {
+  cursor: not-allowed;
+  color: var(--faint);
+}
+
+/* Underline variant — bottom border swap driven by data-state, no
+   JS-measured sliding indicator. */
+.hds-tabs-list-underline .hds-tabs-trigger {
+  padding: var(--s-3) var(--s-1);
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+}
+
+.hds-tabs-list-underline .hds-tabs-trigger[data-state="active"] {
+  border-bottom-color: var(--accent);
+}
+
+/* Segmented variant — pill-shaped track, solid pill behind the active
+   trigger. */
+.hds-tabs-list-segmented .hds-tabs-trigger {
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--rounded-full);
+}
+
+.hds-tabs-list-segmented .hds-tabs-trigger[data-state="active"] {
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.hds-tabs-content {
+  padding-top: var(--s-4);
+  outline: none;
+  animation: hds-tabs-content-in 200ms var(--ease-quart);
+}
+
+.hds-tabs-content:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+  border-radius: var(--rounded-sm);
+}
+
+@keyframes hds-tabs-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-tabs-trigger {
+    transition: none;
+  }
+
+  .hds-tabs-content {
+    animation: none;
+  }
+}
