@@ -1,0 +1,127 @@
+/* Dialog — modal surface. Radix's Dialog.Root/Trigger/Portal/Overlay/
+   Content/Title/Description/Close supply focus trap, Escape/outside-click
+   dismiss, and focus restore — this file styles on top. */
+
+.hds-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--overlay);
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-dialog-overlay[data-state="open"] {
+  animation-name: hds-dialog-overlay-in;
+}
+
+.hds-dialog-overlay[data-state="closed"] {
+  animation-name: hds-dialog-overlay-out;
+  animation-duration: 100ms;
+}
+
+.hds-dialog-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-modal);
+  width: min(480px, calc(100vw - var(--s-6)));
+  max-height: calc(100vh - var(--s-7));
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--s-5);
+  outline: none;
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-dialog-content[data-state="open"] {
+  animation-name: hds-dialog-content-in;
+}
+
+.hds-dialog-content[data-state="closed"] {
+  animation-name: hds-dialog-content-out;
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-expo);
+}
+
+.hds-dialog-title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--ff-body);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.hds-dialog-description {
+  margin: 0 0 var(--s-4);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@keyframes hds-dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hds-dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hds-dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes hds-dialog-content-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-dialog-overlay,
+  .hds-dialog-content {
+    animation-duration: 0.01ms !important;
+  }
+  .hds-dialog-content[data-state="open"],
+  .hds-dialog-content[data-state="closed"] {
+    animation-name: hds-dialog-content-fade;
+  }
+}
+
+@keyframes hds-dialog-content-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
