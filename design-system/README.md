@@ -37,6 +37,7 @@ Two signature visual motifs are utility classes, not components: `.cut` / `.cut-
 | `Chip` (`variant: tag\|phase\|agent\|skill`) | `.tag`, `.chip`, `.agent-chip`, `.skilltag` |
 | `PinChip` (`variant: drive\|deleg`) | `.pin-chip` |
 | `BrandMark` | `.zmark` |
+| `HarnessMark` (`tone: "symbol" \| "mono"`) | Harness Builder product mark (hexagon lockup) |
 | `Logo` (`tone: color\|black\|white`, `mark: brain\|simple\|description\|full`) | `assets/logos/*.svg` |
 | `Panel` | shared surface primitive (background/border/cut/hover) underlying the cards below |
 | `Callout` (`variant: gate\|limits`) | `.gate`, `.limits` |
@@ -80,9 +81,9 @@ Built on [Radix UI](https://www.radix-ui.com/) primitives for accessibility (foc
 | `Switch` | [R] | |
 | `Select` + `SelectItem` (+ `SelectGroup`/`SelectLabel`/`SelectSeparator`) | [R] | Trigger styled like `Input`; portalled listbox |
 | `Slider` | [R] | Single or range (multi-thumb) via `value`/`defaultValue` array length |
-| `Dialog` | [R] | Focus trap + restore, `cut` prop for the brand cut-corner clip-path |
+| `Dialog` + `DialogTrigger` + `DialogClose` + `DialogContent` + `DialogTitle` + `DialogDescription` | [R] | Focus trap + restore, `cut` prop for the brand cut-corner clip-path |
 | `AlertDialog` | [R] | Escape/outside-click dismiss both blocked — requires an explicit `AlertDialogAction`/`AlertDialogCancel` choice |
-| `Popover` | [R] | Edge-aware positioning (Radix `avoidCollisions`) |
+| `Popover` + `PopoverTrigger` + `PopoverContent` + `PopoverAnchor` + `PopoverClose` | [R] | Edge-aware positioning (Radix `avoidCollisions`) |
 | `TooltipProvider` + `Tooltip` + `TooltipTrigger` + `TooltipContent` | [R] | Shows on hover *and* keyboard focus |
 | `DropdownMenu` (+ `Item`/`CheckboxItem`/`RadioGroup`+`RadioItem`/`Separator`/`Label`) | [R] | `Item` supports `shortcut` slot + `variant="danger"` |
 | `ToastProvider` + `Toast` + `useToast()` | [R] | Imperative `toast({ title, description, variant, duration })`; ARIA live region, pause-on-hover/focus, and stacking are Radix built-ins |
