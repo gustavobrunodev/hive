@@ -1,0 +1,99 @@
+/* RadioGroup — product-register radio control. Consumes role tokens only
+   (DESIGN.md's Inputs/Fields + product bans: no invented radio shape).
+   Radix's RadioGroup.Root/Item/Indicator supply roving-tabindex, arrow-key
+   navigation, and data-state/data-disabled — this file styles on top. */
+
+.hds-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.hds-radio-group[data-orientation="horizontal"] {
+  flex-direction: row;
+  gap: var(--s-4);
+}
+
+.hds-radio-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-quart),
+    background-color 0.2s var(--ease-quart),
+    box-shadow 0.2s var(--ease-quart);
+}
+
+.hds-radio-item:hover:not([data-disabled]) {
+  border-color: var(--muted);
+}
+
+.hds-radio-item:active:not([data-disabled]) {
+  border-color: var(--accent);
+}
+
+.hds-radio-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.hds-radio-item[data-state="checked"] {
+  border-color: var(--accent);
+}
+
+.hds-radio-item[data-state="checked"]:hover:not([data-disabled]) {
+  border-color: var(--accent-hover);
+}
+
+.hds-radio-item[data-disabled] {
+  cursor: not-allowed;
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.hds-radio-item[data-disabled][data-state="checked"] {
+  border-color: var(--faint);
+}
+
+.hds-radio-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.hds-radio-indicator::after {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform 0.2s var(--ease-quart);
+}
+
+.hds-radio-item[data-state="checked"] .hds-radio-indicator::after {
+  transform: scale(1);
+}
+
+.hds-radio-item[data-disabled] .hds-radio-indicator::after {
+  background: var(--faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-radio-item,
+  .hds-radio-indicator::after {
+    transition: none;
+  }
+}
