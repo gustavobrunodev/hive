@@ -1,0 +1,106 @@
+/* ChatMessage — role-based alignment + tokenized bubble. Generic per D4:
+   the app supplies rendered content; this only handles layout/styling. */
+
+.hds-chat-message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  max-width: 100%;
+}
+
+.hds-chat-message-avatar {
+  flex-shrink: 0;
+}
+
+.hds-chat-message-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  max-width: min(640px, 80%);
+}
+
+.hds-chat-message-bubble {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--rounded-lg);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+/* assistant: left-aligned, avatar leading, tinted-neutral bubble */
+.hds-chat-message-assistant {
+  flex-direction: row;
+}
+
+.hds-chat-message-assistant .hds-chat-message-bubble {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-bottom-left-radius: var(--rounded-sm);
+}
+
+/* user: right-aligned, avatar trailing, accent bubble */
+.hds-chat-message-user {
+  flex-direction: row-reverse;
+}
+
+.hds-chat-message-user .hds-chat-message-body {
+  align-items: flex-end;
+}
+
+.hds-chat-message-user .hds-chat-message-bubble {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: var(--rounded-sm);
+}
+
+/* system: centered, muted, no bubble chrome — reads as a status line */
+.hds-chat-message-system {
+  justify-content: center;
+  text-align: center;
+}
+
+.hds-chat-message-system .hds-chat-message-body {
+  align-items: center;
+  max-width: 100%;
+}
+
+.hds-chat-message-system .hds-chat-message-bubble {
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  padding: var(--s-1) var(--s-2);
+}
+
+.hds-chat-message-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+.hds-chat-message-timestamp {
+  white-space: nowrap;
+}
+
+/* Timestamp stays visible; actions (copy/retry) reveal on hover/focus so
+   the row doesn't stay cluttered with controls at rest. */
+.hds-chat-message-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+
+.hds-chat-message:hover .hds-chat-message-actions,
+.hds-chat-message:focus-within .hds-chat-message-actions {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-chat-message-actions {
+    transition: none;
+  }
+}
