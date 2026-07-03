@@ -1,0 +1,128 @@
+/* DropdownMenu — portalled action menu on --z-dropdown. Radix's
+   DropdownMenu.Root/Trigger/Portal/Content/Item/CheckboxItem/RadioItem/
+   Separator/Label supply keyboard nav, positioning, and ARIA — this file
+   styles on top. */
+
+.hds-dropdown-menu-content {
+  z-index: var(--z-dropdown);
+  min-width: 200px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-1);
+  outline: none;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-dropdown-menu-content[data-state="open"] {
+  animation-name: hds-dropdown-menu-in;
+}
+
+.hds-dropdown-menu-content[data-state="closed"] {
+  animation-name: hds-dropdown-menu-out;
+  animation-duration: 100ms;
+}
+
+.hds-dropdown-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-sm);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hds-dropdown-menu-item[data-highlighted] {
+  background: var(--surface-2);
+}
+
+.hds-dropdown-menu-item[data-disabled] {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-dropdown-menu-item-danger {
+  color: var(--danger-ink);
+}
+
+.hds-dropdown-menu-item-danger[data-highlighted] {
+  background: var(--danger-bg);
+}
+
+.hds-dropdown-menu-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-dropdown-menu-shortcut {
+  flex-shrink: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* CheckboxItem/RadioItem reserve a leading slot for their indicator, since
+   they render it as a child rather than DropdownMenuItem's trailing shortcut. */
+.hds-dropdown-menu-item:has(.hds-dropdown-menu-item-indicator) {
+  padding-left: calc(var(--s-3) + 20px);
+}
+
+.hds-dropdown-menu-item-indicator {
+  position: absolute;
+  left: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  color: currentColor;
+}
+
+.hds-dropdown-menu-separator {
+  height: 1px;
+  margin: var(--s-1) 0;
+  background: var(--border);
+}
+
+.hds-dropdown-menu-label {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+@keyframes hds-dropdown-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hds-dropdown-menu-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-dropdown-menu-content {
+    animation-duration: 0.01ms;
+  }
+}
