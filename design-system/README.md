@@ -114,6 +114,18 @@ Structure, navigation, and data-display primitives for assembling the chat/works
 | `Kbd` | [H] | Renders one key/token per `<Kbd>`; compose siblings for combos (`<Kbd>⌘</Kbd><Kbd>K</Kbd>`) |
 | `Resizable` + `ResizablePanel` + `ResizableHandle` | [H] | Wraps `react-resizable-panels` (`Group`/`Panel`/`Separator` — the library's installed v4 API, not the older `PanelGroup`/`PanelResizeHandle` naming); persistence via the library's own `defaultLayout`/`onLayoutChanged` props |
 
+## AI-chat primitives (generic, D4)
+
+Highest-level compositions in the system — assembly, not reinvention, for building a chat screen. Stay generic: no transport, no model calls, no markdown parsing. All data arrives via props/children; the app supplies rendered message content and owns `onSubmit`/attachment state.
+
+| Component | Kind | Notes |
+|---|---|---|
+| `ChatMessage` | [C] | `role`: `"user"` (right-aligned, accent bubble) / `"assistant"` (left-aligned, neutral bubble) / `"system"` (centered, muted, no bubble chrome); avatar/timestamp/actions slots — actions reveal on hover/focus-within |
+| `TypingIndicator` | [H] | Three-dot bounce, `role="status"` announces an accessible label, reduced-motion collapses to static |
+| `MessageList` | [C] | Built on `ScrollArea`'s `viewportRef`; stays pinned to the latest message while the user hasn't scrolled up, surfaces a "jump to latest" button once they have |
+| `Attachment` | [C] | Chip with `name`/`meta`/`icon` slots + an `onRemove` callback |
+| `PromptInput` | [C] | Composes `Textarea` (auto-resize + keyboard submit already built in) + toolbar slot + send button (disabled while empty/`streaming`/`disabled`) + `attachments` slot |
+
 ## Build
 
 ```sh
