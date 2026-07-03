@@ -22,3 +22,4 @@ export { Reveal, Stagger } from "./components/Reveal/Reveal";
 export { Nav } from "./components/Nav/Nav";
 export { Footer } from "./components/Footer/Footer";
 export { HarnessMark } from "./components/HarnessMark/HarnessMark";
+export { VisuallyHidden } from "./components/VisuallyHidden/VisuallyHidden";

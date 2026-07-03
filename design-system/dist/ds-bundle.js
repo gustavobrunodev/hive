@@ -699,6 +699,244 @@ function HarnessMark({
   }
   return /* @__PURE__ */ jsx23("span", { className: cn, role: "img", "aria-label": "Harness Builder", ...rest, children: sym(Number(size) || 40) });
 }
+
+// node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+import * as React4 from "react";
+
+// node_modules/@radix-ui/react-primitive/dist/index.mjs
+import * as React3 from "react";
+import * as ReactDOM from "react-dom";
+
+// node_modules/@radix-ui/react-slot/dist/index.mjs
+import * as React2 from "react";
+
+// node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+import * as React from "react";
+function setRef(ref, value) {
+  if (typeof ref === "function") {
+    return ref(value);
+  } else if (ref !== null && ref !== void 0) {
+    ref.current = value;
+  }
+}
+function composeRefs(...refs) {
+  return (node) => {
+    let hasCleanup = false;
+    const cleanups = refs.map((ref) => {
+      const cleanup = setRef(ref, node);
+      if (!hasCleanup && typeof cleanup == "function") {
+        hasCleanup = true;
+      }
+      return cleanup;
+    });
+    if (hasCleanup) {
+      return () => {
+        for (let i = 0; i < cleanups.length; i++) {
+          const cleanup = cleanups[i];
+          if (typeof cleanup == "function") {
+            cleanup();
+          } else {
+            setRef(refs[i], null);
+          }
+        }
+      };
+    }
+  };
+}
+function useComposedRefs(...refs) {
+  return React.useCallback(composeRefs(...refs), refs);
+}
+
+// node_modules/@radix-ui/react-slot/dist/index.mjs
+// @__NO_SIDE_EFFECTS__
+function createSlot(ownerName) {
+  const Slot2 = React2.forwardRef((props, forwardedRef) => {
+    let { children, ...slotProps } = props;
+    let slottableElement = null;
+    let hasSlottable = false;
+    const newChildren = [];
+    if (isLazyComponent(children) && typeof use === "function") {
+      children = use(children._payload);
+    }
+    React2.Children.forEach(children, (maybeSlottable) => {
+      if (isSlottable(maybeSlottable)) {
+        hasSlottable = true;
+        const slottable = maybeSlottable;
+        let child = "child" in slottable.props ? slottable.props.child : slottable.props.children;
+        if (isLazyComponent(child) && typeof use === "function") {
+          child = use(child._payload);
+        }
+        slottableElement = getSlottableElementFromSlottable(slottable, child);
+        newChildren.push(slottableElement?.props?.children);
+      } else {
+        newChildren.push(maybeSlottable);
+      }
+    });
+    if (slottableElement) {
+      slottableElement = React2.cloneElement(slottableElement, void 0, newChildren);
+    } else if (
+      // A `Slottable` was found but it didn't resolve to a single element (e.g.
+      // it wrapped multiple elements, text, or a render-prop `child` that
+      // wasn't an element). Don't fall back to treating the `Slottable` wrapper
+      // itself as the slot target — throw a descriptive error below instead.
+      !hasSlottable && React2.Children.count(children) === 1 && React2.isValidElement(children)
+    ) {
+      slottableElement = children;
+    }
+    const slottableElementRef = slottableElement ? getElementRef(slottableElement) : void 0;
+    const composedRef = useComposedRefs(forwardedRef, slottableElementRef);
+    if (!slottableElement) {
+      if (children || children === 0) {
+        throw new Error(
+          hasSlottable ? createSlottableError(ownerName) : createSlotError(ownerName)
+        );
+      }
+      return children;
+    }
+    const mergedProps = mergeProps(slotProps, slottableElement.props ?? {});
+    if (slottableElement.type !== React2.Fragment) {
+      mergedProps.ref = forwardedRef ? composedRef : slottableElementRef;
+    }
+    return React2.cloneElement(slottableElement, mergedProps);
+  });
+  Slot2.displayName = `${ownerName}.Slot`;
+  return Slot2;
+}
+var SLOTTABLE_IDENTIFIER = Symbol.for("radix.slottable");
+var getSlottableElementFromSlottable = (slottable, child) => {
+  if ("child" in slottable.props) {
+    const child2 = slottable.props.child;
+    if (!React2.isValidElement(child2)) return null;
+    return React2.cloneElement(child2, void 0, slottable.props.children(child2.props.children));
+  }
+  return React2.isValidElement(child) ? child : null;
+};
+function mergeProps(slotProps, childProps) {
+  const overrideProps = { ...childProps };
+  for (const propName in childProps) {
+    const slotPropValue = slotProps[propName];
+    const childPropValue = childProps[propName];
+    const isHandler = /^on[A-Z]/.test(propName);
+    if (isHandler) {
+      if (slotPropValue && childPropValue) {
+        overrideProps[propName] = (...args) => {
+          const result = childPropValue(...args);
+          slotPropValue(...args);
+          return result;
+        };
+      } else if (slotPropValue) {
+        overrideProps[propName] = slotPropValue;
+      }
+    } else if (propName === "style") {
+      overrideProps[propName] = { ...slotPropValue, ...childPropValue };
+    } else if (propName === "className") {
+      overrideProps[propName] = [slotPropValue, childPropValue].filter(Boolean).join(" ");
+    }
+  }
+  return { ...slotProps, ...overrideProps };
+}
+function getElementRef(element) {
+  let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
+  let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.ref;
+  }
+  getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
+  mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+  if (mayWarn) {
+    return element.props.ref;
+  }
+  return element.props.ref || element.ref;
+}
+function isSlottable(child) {
+  return React2.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER;
+}
+var REACT_LAZY_TYPE = Symbol.for("react.lazy");
+function isLazyComponent(element) {
+  return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
+}
+function isPromiseLike(value) {
+  return typeof value === "object" && value !== null && "then" in value;
+}
+var createSlotError = (ownerName) => {
+  return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
+};
+var createSlottableError = (ownerName) => {
+  return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
+};
+var use = React2[" use ".trim().toString()];
+
+// node_modules/@radix-ui/react-primitive/dist/index.mjs
+import { jsx as jsx24 } from "react/jsx-runtime";
+var NODES = [
+  "a",
+  "button",
+  "div",
+  "form",
+  "h2",
+  "h3",
+  "img",
+  "input",
+  "label",
+  "li",
+  "nav",
+  "ol",
+  "p",
+  "select",
+  "span",
+  "svg",
+  "ul"
+];
+var Primitive = NODES.reduce((primitive, node) => {
+  const Slot = createSlot(`Primitive.${node}`);
+  const Node = React3.forwardRef((props, forwardedRef) => {
+    const { asChild, ...primitiveProps } = props;
+    const Comp = asChild ? Slot : node;
+    if (typeof window !== "undefined") {
+      window[Symbol.for("radix-ui")] = true;
+    }
+    return /* @__PURE__ */ jsx24(Comp, { ...primitiveProps, ref: forwardedRef });
+  });
+  Node.displayName = `Primitive.${node}`;
+  return { ...primitive, [node]: Node };
+}, {});
+
+// node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+import { jsx as jsx25 } from "react/jsx-runtime";
+var VISUALLY_HIDDEN_STYLES = Object.freeze({
+  // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
+  position: "absolute",
+  border: 0,
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  wordWrap: "normal"
+});
+var NAME = "VisuallyHidden";
+var VisuallyHidden = React4.forwardRef(
+  (props, forwardedRef) => {
+    return /* @__PURE__ */ jsx25(
+      Primitive.span,
+      {
+        ...props,
+        ref: forwardedRef,
+        style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
+      }
+    );
+  }
+);
+VisuallyHidden.displayName = NAME;
+var Root = VisuallyHidden;
+
+// src/components/VisuallyHidden/VisuallyHidden.tsx
+import { jsx as jsx26 } from "react/jsx-runtime";
+function VisuallyHidden2({ children, ...rest }) {
+  return /* @__PURE__ */ jsx26(Root, { ...rest, children });
+}
 export {
   Badge,
   BrandMark,
@@ -739,6 +977,7 @@ export {
   Table,
   Terminal,
   ValueCard,
-  ValueGrid
+  ValueGrid,
+  VisuallyHidden2 as VisuallyHidden
 };
 //# sourceMappingURL=ds-bundle.js.map
