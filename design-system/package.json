@@ -14,13 +14,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "9.1.20",
+    "@storybook/addon-docs": "9.1.20",
+    "@storybook/react-vite": "9.1.20",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -32,7 +37,9 @@
     "jsdom": "^25.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "storybook": "9.1.20",
     "typescript": "^5.7.2",
+    "vite": "6.4.3",
     "vitest": "^2.1.8"
   },
   "dependencies": {
