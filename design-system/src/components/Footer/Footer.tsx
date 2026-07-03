@@ -1,9 +1,15 @@
-import React from "react";
-import { BrandMark } from "../BrandMark/BrandMark.jsx";
-import { cx } from "../../utils/cx.js";
-import "./Footer.css";
+import type { ComponentPropsWithoutRef, ReactNode } from "react"
+import { BrandMark } from "../BrandMark/BrandMark"
+import { cx } from "../../utils/cx"
+import "./Footer.css"
 
-export function Footer({ brand, tagline, bottomItems = [], className, ...rest }) {
+export interface FooterProps extends ComponentPropsWithoutRef<"footer"> {
+  brand?: ReactNode
+  tagline?: ReactNode
+  bottomItems?: ReactNode[]
+}
+
+export function Footer({ brand, tagline, bottomItems = [], className, ...rest }: FooterProps) {
   return (
     <footer className={cx("hds-ft", className)} {...rest}>
       <div className="wrap">
@@ -22,5 +28,5 @@ export function Footer({ brand, tagline, bottomItems = [], className, ...rest })
         )}
       </div>
     </footer>
-  );
+  )
 }
