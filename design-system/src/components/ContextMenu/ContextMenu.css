@@ -1,0 +1,129 @@
+/* ContextMenu — portalled right-click menu on --z-dropdown, positioned at
+   the pointer. Radix's ContextMenu.Root/Trigger/Portal/Content/Item/
+   CheckboxItem/RadioItem/Separator/Label supply pointer + keyboard
+   (context-menu key / long-press) triggering, positioning, and ARIA — this
+   file styles on top. */
+
+.hds-context-menu-content {
+  z-index: var(--z-dropdown);
+  min-width: 200px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-1);
+  outline: none;
+  transform-origin: var(--radix-context-menu-content-transform-origin);
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-quart);
+  animation-fill-mode: both;
+}
+
+.hds-context-menu-content[data-state="open"] {
+  animation-name: hds-context-menu-in;
+}
+
+.hds-context-menu-content[data-state="closed"] {
+  animation-name: hds-context-menu-out;
+  animation-duration: 100ms;
+}
+
+.hds-context-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-sm);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hds-context-menu-item[data-highlighted] {
+  background: var(--surface-2);
+}
+
+.hds-context-menu-item[data-disabled] {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-context-menu-item-danger {
+  color: var(--danger-ink);
+}
+
+.hds-context-menu-item-danger[data-highlighted] {
+  background: var(--danger-bg);
+}
+
+.hds-context-menu-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-context-menu-shortcut {
+  flex-shrink: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* CheckboxItem/RadioItem reserve a leading slot for their indicator, since
+   they render it as a child rather than ContextMenuItem's trailing shortcut. */
+.hds-context-menu-item:has(.hds-context-menu-item-indicator) {
+  padding-left: calc(var(--s-3) + 20px);
+}
+
+.hds-context-menu-item-indicator {
+  position: absolute;
+  left: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  color: currentColor;
+}
+
+.hds-context-menu-separator {
+  height: 1px;
+  margin: var(--s-1) 0;
+  background: var(--border);
+}
+
+.hds-context-menu-label {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+@keyframes hds-context-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hds-context-menu-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-context-menu-content {
+    animation-duration: 0.01ms;
+  }
+}
