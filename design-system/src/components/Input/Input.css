@@ -1,0 +1,88 @@
+/* Input — product-register text field. Consumes role tokens only
+   (DESIGN.md's Inputs/Fields section); never a raw brand primitive. */
+
+.hds-input-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.hds-input-icon-slot {
+  position: absolute;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+  stroke: currentColor;
+}
+
+.hds-input {
+  width: 100%;
+  height: 40px;
+  padding: 9px 12px;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  transition:
+    border-color 0.2s var(--ease-quart),
+    box-shadow 0.2s var(--ease-quart),
+    background-color 0.2s var(--ease-quart),
+    color 0.2s var(--ease-quart);
+}
+
+.hds-input-icon-slot + .hds-input {
+  padding-left: 36px;
+}
+
+.hds-input::placeholder {
+  color: var(--faint);
+}
+
+.hds-input:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.hds-input:active:not(:disabled) {
+  border-color: var(--muted);
+}
+
+.hds-input:focus-visible {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.hds-input:disabled {
+  color: var(--faint);
+  background: var(--surface-2);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+.hds-input-error {
+  border-color: var(--danger);
+}
+
+.hds-input-error:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.hds-input-error:focus-visible {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-input {
+    transition: none;
+  }
+}
