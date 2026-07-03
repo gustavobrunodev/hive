@@ -245,3 +245,19 @@
     --shadow-3: 0 12px 32px oklch(19.5% 0.048 4.8 / 14%);
   }
 }
+
+/* ==========================================================================
+   Layer 1 — z-index scale (theme-independent)
+   Shared stacking order for portaled/overlay content (Radix Dropdown,
+   Popover/Sheet/Dialog, Toast, Tooltip, ...). See design.md's
+   "Shared Primitives (F4)". Not theme-dependent, so it lives outside the
+   data-theme blocks above.
+   ========================================================================== */
+:root {
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1200;
+  --z-modal: 1300;
+  --z-toast: 1400;
+  --z-tooltip: 1500;
+}
