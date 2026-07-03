@@ -6,14 +6,14 @@
 
 .hds-callout-gate {
   margin-top: 14px;
-  background: var(--bordo);
+  background: var(--bg);
   border: 1px dashed rgba(82, 201, 152, 0.45);
   padding: 11px 14px;
   color: var(--ink);
   font-size: 0.88rem;
 }
 .hds-callout-gate .hds-callout-label {
-  color: var(--verde);
+  color: var(--success);
   font-weight: 700;
 }
 
@@ -22,11 +22,11 @@
   gap: 14px;
   max-width: 60ch;
   background: rgba(38, 10, 18, 0.5);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   padding: 18px 20px;
 }
 .hds-callout-limits .hds-callout-icon {
-  color: var(--verde);
+  color: var(--success);
   font-family: var(--ff-num);
   font-weight: 700;
   flex: none;

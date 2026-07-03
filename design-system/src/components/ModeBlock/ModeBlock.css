@@ -11,7 +11,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: var(--coral);
+  color: var(--accent);
   margin-bottom: 12px;
 }
 .hds-mode-block h3 {
@@ -44,7 +44,7 @@
   top: 0.55em;
   width: 6px;
   height: 6px;
-  background: var(--coral);
+  background: var(--accent);
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 

@@ -49,7 +49,7 @@
   display: grid;
   place-items: center;
   background: var(--surface);
-  border: 1.5px solid var(--line-strong);
+  border: 1.5px solid var(--border-strong);
   color: var(--ink);
   font-family: var(--ff-num);
   font-weight: 700;
@@ -65,7 +65,7 @@
 .hds-rail .hds-wire {
   flex: 1;
   width: 2px;
-  background: var(--line-strong);
+  background: var(--border-strong);
   margin-top: 6px;
 }
 .hds-step:last-child .hds-rail .hds-wire {
@@ -98,14 +98,14 @@
   margin-top: 14px;
 }
 .hds-sub {
-  background: var(--bordo);
-  border: 1px solid var(--line);
+  background: var(--bg);
+  border: 1px solid var(--border);
   padding: 14px 16px;
 }
 .hds-sub .hds-sub-lbl {
   font-family: var(--ff-num);
   font-weight: 700;
-  color: var(--coral);
+  color: var(--accent);
   font-size: 0.92rem;
   margin-bottom: 5px;
 }

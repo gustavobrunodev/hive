@@ -1,6 +1,6 @@
 .hds-panel {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   position: relative;
 }
 .hds-panel-accent-border {
@@ -11,9 +11,9 @@
 }
 .hds-panel-hover-lift:hover {
   transform: translateY(-4px);
-  border-color: var(--line-strong);
+  border-color: var(--border-strong);
 }
 .hds-panel-hover-slide:hover {
   transform: translateX(4px);
-  border-color: var(--line-strong);
+  border-color: var(--border-strong);
 }

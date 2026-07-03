@@ -1,7 +1,7 @@
 .hds-code {
   position: relative;
   background: #1c070e;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   margin-top: 12px;
 }
 /*
@@ -26,7 +26,7 @@
   color: var(--muted);
 }
 .hds-code .hds-code-cor {
-  color: var(--coral);
+  color: var(--accent);
 }
 .hds-copy {
   position: absolute;
@@ -34,7 +34,7 @@
   right: 9px;
   background: var(--surface);
   color: var(--muted);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: 0;
   font-family: var(--ff-body);
   font-size: 0.72rem;
@@ -48,10 +48,10 @@
   background: var(--surface-2);
 }
 .hds-copy.hds-copy-ok {
-  color: var(--verde);
+  color: var(--success);
   border-color: rgba(82, 201, 152, 0.4);
 }
 .hds-copy:focus-visible {
-  outline: 2px solid var(--coral);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }

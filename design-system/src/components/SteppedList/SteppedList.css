@@ -21,9 +21,9 @@
   place-items: center;
   font-family: var(--ff-num);
   font-weight: 700;
-  color: var(--coral);
+  color: var(--accent);
   background: var(--surface);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--border-strong);
   font-size: 0.95rem;
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
@@ -34,7 +34,7 @@
   top: 32px;
   bottom: 6px;
   width: 1px;
-  background: repeating-linear-gradient(var(--line-strong) 0 3px, transparent 3px 7px);
+  background: repeating-linear-gradient(var(--border-strong) 0 3px, transparent 3px 7px);
 }
 .hds-steps-list .hds-st-t {
   font-weight: 600;

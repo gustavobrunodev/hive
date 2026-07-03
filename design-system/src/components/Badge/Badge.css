@@ -5,13 +5,13 @@
   padding: 4px 9px;
 }
 .hds-badge-accent {
-  color: var(--coral);
+  color: var(--accent);
   background: rgba(204, 121, 88, 0.12);
   border: 1px solid rgba(204, 121, 88, 0.3);
 }
 .hds-badge-muted {
   color: var(--muted);
   background: rgba(38, 10, 18, 0.4);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   align-self: flex-start;
 }

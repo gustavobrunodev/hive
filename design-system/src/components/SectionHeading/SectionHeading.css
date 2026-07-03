@@ -8,14 +8,14 @@
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--coral);
+  color: var(--accent);
   margin-bottom: 18px;
 }
 .hds-eyebrow::before {
   content: "";
   width: 22px;
   height: 2px;
-  background: var(--coral);
+  background: var(--accent);
 }
 .hds-s-head h2 {
   font-size: clamp(2rem, 4.4vw, 3.1rem);
@@ -23,7 +23,7 @@
 .hds-s-head .hds-rule {
   width: 64px;
   height: 3px;
-  background: var(--coral);
+  background: var(--accent);
   margin-top: 20px;
 }
 .hds-lead {

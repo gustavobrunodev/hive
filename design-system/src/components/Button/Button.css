@@ -13,7 +13,7 @@
   min-height: 48px;
 }
 .hds-btn-primary {
-  background: var(--coral);
+  background: var(--accent);
   color: #241019;
 }
 .hds-btn-primary:hover {
@@ -25,7 +25,7 @@
 .hds-btn-ghost {
   background: transparent;
   color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
 }
 .hds-btn-ghost:hover {
   background: var(--surface);
@@ -35,10 +35,10 @@
 }
 .hds-btn:focus-visible {
   outline: 0;
-  box-shadow: inset 0 0 0 2.5px var(--bordo);
+  box-shadow: inset 0 0 0 2.5px var(--bg);
 }
 .hds-btn-ghost:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--coral);
+  box-shadow: inset 0 0 0 2px var(--focus);
 }
 .hds-btn .hds-btn-arrow {
   transition: transform 0.25s var(--ease-expo);

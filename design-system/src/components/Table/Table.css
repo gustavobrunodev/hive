@@ -1,6 +1,6 @@
 .hds-table-wrap {
   margin-top: 48px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
 }
@@ -37,7 +37,7 @@
 .hds-table-wrap .hds-table tbody td {
   padding: 16px 20px;
   border: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
   vertical-align: middle;
 }
 .hds-table-wrap .hds-table tbody tr:hover {

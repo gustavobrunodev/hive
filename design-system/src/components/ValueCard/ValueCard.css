@@ -11,7 +11,7 @@
   font-family: var(--ff-num);
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--coral);
+  color: var(--accent);
   margin-bottom: 14px;
   display: flex;
   align-items: center;
@@ -21,7 +21,7 @@
   font-style: normal;
   width: 9px;
   height: 9px;
-  background: var(--coral);
+  background: var(--accent);
   display: block;
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }

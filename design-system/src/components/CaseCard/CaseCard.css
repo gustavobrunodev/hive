@@ -13,7 +13,7 @@
 .hds-case-tag {
   font-size: 0.74rem;
   font-weight: 600;
-  color: var(--coral);
+  color: var(--accent);
   letter-spacing: 0.02em;
 }
 .hds-case h3 {
@@ -29,13 +29,13 @@
   font-family: "Inter Tight", var(--ff-body);
   font-size: 0.86rem;
   color: var(--ink);
-  background: var(--bordo);
-  border: 1px solid var(--line);
+  background: var(--bg);
+  border: 1px solid var(--border);
   padding: 11px 14px;
   line-height: 1.5;
 }
 .hds-case-prompt .hds-case-prompt-pr {
-  color: var(--coral);
+  color: var(--accent);
   font-weight: 700;
   margin-right: 6px;
 }
