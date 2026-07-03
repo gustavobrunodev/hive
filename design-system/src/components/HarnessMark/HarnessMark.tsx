@@ -1,5 +1,5 @@
-import React from "react";
-import "./HarnessMark.css";
+import * as React from "react"
+import "./HarnessMark.css"
 
 /**
  * HarnessMark — marca do produto Harness Builder (iniciativa HIVE).
@@ -12,15 +12,34 @@ import "./HarnessMark.css";
  * monocromática (tone="mono") usa uma cor só, passada em `color`.
  */
 
-const HEX = "58,20 24,40 24,80 58,100 92,80 92,40";
-const CORE = "58,46 45,53.5 45,66.5 58,74 71,66.5 71,53.5";
-const CELL_1 = "99,24 90,29 90,39 99,44 108,39 108,29";
-const CELL_2 = "113,9 107,12.5 107,19.5 113,23 119,19.5 119,12.5";
+/**
+ * HarnessMark — from @hive/design-system.
+ * Marca do produto Harness Builder (direção "colmeia afiada").
+ */
+export interface HarnessMarkProps extends React.HTMLAttributes<HTMLSpanElement> {
+  /** Qual lockup renderizar. Default: "symbol". */
+  variant?: "symbol" | "horizontal" | "stacked" | "wordmark" | "icon"
+  /** "color" = coral + núcleo verde; "mono" = uma cor só (usa `color`). Default: "color". */
+  tone?: "color" | "mono"
+  /** Cor da versão monocromática. Default: currentColor. */
+  color?: string
+  /** Tamanho do símbolo em px; escala o lockup inteiro. */
+  size?: number
+  /** Cor de fundo do tile (só no variant "icon"). Default: var(--bordo-2). */
+  background?: string
+  /** Mostra "Uma skill · HIVE". Default: true. */
+  endorsement?: boolean
+}
 
-function HexSymbol({ tone, color }) {
-  const mono = tone === "mono";
-  const stroke = mono ? color || "currentColor" : "var(--coral)";
-  const core = mono ? color || "currentColor" : "var(--verde)";
+const HEX = "58,20 24,40 24,80 58,100 92,80 92,40"
+const CORE = "58,46 45,53.5 45,66.5 58,74 71,66.5 71,53.5"
+const CELL_1 = "99,24 90,29 90,39 99,44 108,39 108,29"
+const CELL_2 = "113,9 107,12.5 107,19.5 113,23 119,19.5 119,12.5"
+
+function HexSymbol({ tone, color }: { tone?: HarnessMarkProps["tone"]; color?: string }) {
+  const mono = tone === "mono"
+  const stroke = mono ? color || "currentColor" : "var(--coral)"
+  const core = mono ? color || "currentColor" : "var(--verde)"
   return (
     <svg
       viewBox="0 0 120 120"
@@ -35,13 +54,23 @@ function HexSymbol({ tone, color }) {
       <polygon points={CELL_1} fill={stroke} opacity={0.9} />
       <polygon points={CELL_2} fill={stroke} opacity={0.5} />
     </svg>
-  );
+  )
 }
 
-function Wordmark({ fontSize = 24, endorsement, color, align = "left" }) {
-  const showEndo = !(endorsement === false || endorsement === "false");
+function Wordmark({
+  fontSize = 24,
+  endorsement,
+  color,
+  align = "left",
+}: {
+  fontSize?: number
+  endorsement?: boolean
+  color?: string
+  align?: string
+}) {
+  const showEndo = !(endorsement === false || (endorsement as unknown) === "false")
   return (
-    <span className="hds-hbmark-wm" style={{ gap: Math.round(fontSize * 0.28) + "px", textAlign: align }}>
+    <span className="hds-hbmark-wm" style={{ gap: Math.round(fontSize * 0.28) + "px", textAlign: align as React.CSSProperties["textAlign"] }}>
       <span className="hds-hbmark-name" style={{ fontSize: fontSize + "px", color: color || "var(--ink)" }}>
         Harness Builder
       </span>
@@ -51,14 +80,14 @@ function Wordmark({ fontSize = 24, endorsement, color, align = "left" }) {
         </span>
       )}
     </span>
-  );
+  )
 }
 
-const Box = ({ size, children }) => (
+const Box = ({ size, children }: { size: number; children: React.ReactNode }) => (
   <span className="hds-hbmark-box" style={{ width: size + "px", height: size + "px" }}>
     {children}
   </span>
-);
+)
 
 export function HarnessMark({
   variant = "symbol",
@@ -69,25 +98,25 @@ export function HarnessMark({
   endorsement,
   className,
   ...rest
-}) {
-  const cn = ["hds-hbmark", className].filter(Boolean).join(" ");
-  const wordColor = tone === "mono" ? color : undefined;
-  const sym = (s) => (
+}: HarnessMarkProps) {
+  const cn = ["hds-hbmark", className].filter(Boolean).join(" ")
+  const wordColor = tone === "mono" ? color : undefined
+  const sym = (s: number) => (
     <Box size={s}>
       <HexSymbol tone={tone} color={color} />
     </Box>
-  );
+  )
 
   if (variant === "wordmark") {
     return (
       <span className={cn} role="img" aria-label="Harness Builder" {...rest}>
         <Wordmark fontSize={Number(size) || 24} endorsement={endorsement} color={wordColor} />
       </span>
-    );
+    )
   }
 
   if (variant === "icon") {
-    const isz = Number(size) || 96;
+    const isz = Number(size) || 96
     return (
       <span
         className={cn + " hds-hbmark-tile"}
@@ -100,11 +129,11 @@ export function HarnessMark({
           <HexSymbol tone={tone} color={color} />
         </Box>
       </span>
-    );
+    )
   }
 
   if (variant === "horizontal") {
-    const hz = Number(size) || 44;
+    const hz = Number(size) || 44
     return (
       <span
         className={cn + " hds-hbmark-row"}
@@ -116,11 +145,11 @@ export function HarnessMark({
         {sym(hz)}
         <Wordmark fontSize={Math.round(hz * 0.52)} endorsement={endorsement} color={wordColor} />
       </span>
-    );
+    )
   }
 
   if (variant === "stacked") {
-    const st = Number(size) || 56;
+    const st = Number(size) || 56
     return (
       <span
         className={cn + " hds-hbmark-stack"}
@@ -132,7 +161,7 @@ export function HarnessMark({
         {sym(st)}
         <Wordmark fontSize={Math.round(st * 0.42)} endorsement={endorsement} align="center" color={wordColor} />
       </span>
-    );
+    )
   }
 
   // variant === "symbol"
@@ -140,7 +169,7 @@ export function HarnessMark({
     <span className={cn} role="img" aria-label="Harness Builder" {...rest}>
       {sym(Number(size) || 40)}
     </span>
-  );
+  )
 }
 
-export default HarnessMark;
+export default HarnessMark
