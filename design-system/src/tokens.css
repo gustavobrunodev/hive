@@ -51,6 +51,15 @@
   --cut-sm: 10px;
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* Product-register corner scale (DESIGN.md's `rounded` token group) —
+     plain rounded corners for the new interactive components, distinct
+     from the brand register's `--cut`/`--cut-sm` clip-path. */
+  --rounded-none: 0px;
+  --rounded-sm: 4px;
+  --rounded-md: 6px;
+  --rounded-lg: 10px;
+  --rounded-full: 999px;
 }
 
 /* ==========================================================================
