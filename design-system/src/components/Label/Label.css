@@ -1,0 +1,15 @@
+.hds-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--ff-body);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.hds-label-required {
+  color: var(--danger-ink);
+}
