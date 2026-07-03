@@ -1,6 +1,6 @@
 ---
 name: harness-builder
-description: Creates or improves a project's coding-agent harness (guides + sensors) or handles scoped harness tasks via four bundled reference modules. Full playbook — assess, rules, baselines, gap skills, sensors, steering loop. Scoped — rules/AGENTS.md only (agent-rules-architect); find/install ecosystem skills (find-skills); harness assess/audit/sensors/timing (harness-engineer); org stack baselines React/Angular/.NET/SDD (stack-skill-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, sensors, linters, stack presets, or skill discovery.
+description: Creates or improves a project's coding-agent harness (guides + sensors) or handles scoped harness tasks via four bundled reference modules. Full playbook — assess, rules, baselines, gap skills, sensors, steering loop. Scoped — rules/AGENTS.md only (agent-rules-architect); find/install ecosystem skills (find-skills); harness assess/audit/sensors/timing (harness-engineer); org stack ai-tool presets — skills + MCPs — React/Angular/.NET/SDD (stack-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, sensors, linters, stack presets, or skill discovery.
 ---
 
 # Harness Builder
@@ -16,14 +16,14 @@ load **only** what that mode needs. Never read all reference modules up front.
 | **Rules** | Create/improve/audit/trim `AGENTS.md`, `.cursor/rules`, agent instructions; "só rules"; optimize rules | [`references/agent-rules-architect/SKILL.md`](references/agent-rules-architect/SKILL.md) |
 | **Find** | Find/search/install a skill; "tem skill para X?"; skills.sh; extend agent capabilities | [`references/find-skills/SKILL.md`](references/find-skills/SKILL.md) |
 | **Harness** | Assess/audit harness; add sensors; timing/placement; steering loop; harness gaps — *without* full playbook or rules-only job | [`references/harness-engineer/SKILL.md`](references/harness-engineer/SKILL.md) |
-| **Presets** | Apply org baselines; install stack skills; "presets React/Angular/.NET"; SDD baseline | [`references/stack-skill-presets/SKILL.md`](references/stack-skill-presets/SKILL.md) |
+| **Presets** | Apply org ai-tool presets (skills + MCPs); install stack tools; "presets React/Angular/.NET"; SDD baseline | [`references/stack-presets/SKILL.md`](references/stack-presets/SKILL.md) |
 
 **Routing rules:**
 
 - Match the **narrowest** mode that fits. "Só quero rules" → **Rules**, not Full.
 - If the user names a stack for presets ("aplicar presets num app React"), use
   **Presets** — inside that module, load **only** the matching stack reference
-  (e.g. `references/stack-skill-presets/references/frontend-react.md`), never all.
+  (e.g. `references/stack-presets/references/frontend-react.md`), never all.
 - Multi-scope requests ("avalia o harness e depois escreve rules") → run modes
   **sequentially**: finish one module, then load the next. Do not preload both.
 - Ambiguous? Ask once: full harness vs. scoped task — default to **Full** only
@@ -60,11 +60,12 @@ surfaces as a separate ask.
 
 ### Presets
 
-Read `references/stack-skill-presets/SKILL.md` only. Detect stack (or use what
+Read `references/stack-presets/SKILL.md` only. Detect stack (or use what
 the user stated), then load **only** the matching reference file(s) from its
-baseline map — e.g. React → `references/frontend-react.md` inside that module.
-Always evaluate `references/sdd.md` for cross-cutting SDD. Idempotent: install
-only what's missing; confirm with user.
+baseline map — e.g. React → `references/frontend-react.md` (+ the shared
+`references/frontend-mcps.md` for its MCP set) inside that module. Always
+evaluate `references/sdd.md` for cross-cutting SDD. Idempotent: install only
+what's missing (skills *and* MCPs); confirm with user.
 
 ## Prime directive (all modes)
 
@@ -84,7 +85,7 @@ only what's missing; confirm with user.
 | `references/full-playbook.md` | Full mode only — 6-phase orchestration |
 | `references/harness-engineer/` | Harness mode; also phases 0–1, 4–5 in Full |
 | `references/agent-rules-architect/` | Rules mode; phase 2 in Full |
-| `references/stack-skill-presets/` | Presets mode; phase 3a in Full |
+| `references/stack-presets/` | Presets mode; phase 3a in Full |
 | `references/find-skills/` | Find mode; phase 3b in Full |
 
 Each module folder is a verbatim, independently-updatable copy — replace the

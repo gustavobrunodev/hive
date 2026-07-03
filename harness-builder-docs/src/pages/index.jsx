@@ -63,7 +63,7 @@ function SiteNav() {
           <a href="#quando-usar">Quando usar</a>
           <a href="#como-funciona">Playbook</a>
           <a href="#skills">Skills</a>
-          <a href="#baselines">Baselines</a>
+          <a href="#presets">Presets</a>
         </nav>
         <div className="hive-nav-actions">
           <ThemeToggle />
@@ -242,8 +242,8 @@ function WhenToUseSection() {
     {
       tag: 'Stack mudou',
       title: 'Novo módulo ou framework',
-      body: 'Detecta o stack, aplica baselines da org que faltam e avalia lacunas restantes — idempotente, só instala o que não existe.',
-      prompt: 'Adicionamos backend .NET ao monorepo — quais baselines faltam?',
+      body: 'Detecta o stack, aplica os presets de ai-tools da org que faltam — skills e MCPs — e avalia lacunas restantes. Idempotente: só instala o que não existe.',
+      prompt: 'Adicionamos backend .NET ao monorepo — quais presets faltam?',
       mode: 'Modo Presets',
     },
     {
@@ -381,17 +381,17 @@ function HowItWorksSection() {
                 number={3}
                 title="Skills"
                 skills={[
-                  { label: 'stack-skill-presets', he: false },
+                  { label: 'stack-presets', he: false },
                   { label: 'find-skills', he: false },
                 ]}
               >
-                <p>Primeiro as baselines obrigatórias do stack; depois a descoberta de skills para o que sobrou.</p>
+                <p>Primeiro os presets obrigatórios do stack — skills e MCPs; depois a descoberta de skills para o que sobrou.</p>
                 <Substeps>
-                  <Sub label="3a · Baselines" skill="stack-skill-presets">
-                    Garante as skills padrão do stack detectado, instalando só o que falta.
+                  <Sub label="3a · Presets" skill="stack-presets">
+                    Garante as ai-tools padrão do stack detectado — skills e MCPs —, instalando só o que falta.
                   </Sub>
                   <Sub label="3b · Lacunas" skill="find-skills">
-                    Busca e valida skills do ecossistema para gaps reais que as baselines não cobrem.
+                    Busca e valida skills do ecossistema para gaps reais que os presets não cobrem.
                   </Sub>
                 </Substeps>
               </Step>
@@ -456,10 +456,10 @@ function SkillsSection() {
               <code>docs/</code> progressivos, carregados só quando a tarefa precisa.
             </p>
           </SkillCard>
-          <SkillCard role="Baselines" title="stack-skill-presets" index={2}>
+          <SkillCard role="Presets" title="stack-presets" index={2}>
             <p>
-              Skills obrigatórias da organização por stack. Progressivo (lê só a referência do
-              stack) e idempotente (instala só o que falta).
+              Ai-tools obrigatórias da organização por stack — skills e MCPs. Progressivo (lê só a
+              referência do stack) e idempotente (instala só o que falta).
             </p>
           </SkillCard>
           <SkillCard role="Lacunas" title="find-skills" index={3}>
@@ -474,18 +474,18 @@ function SkillsSection() {
   );
 }
 
-// ---- Baselines ----
+// ---- Presets ----
 function BaselinesSection() {
   return (
-    <section className="section-pad" id="baselines" aria-labelledby="bl-h">
+    <section className="section-pad" id="presets" aria-labelledby="bl-h">
       <div className="wrap">
         <Reveal>
           <SectionHeading
             eyebrow="Fase 3a"
             id="bl-h"
-            lead="A skill garante as skills padrão da organização conforme o stack detectado, instalando somente o que ainda falta no projeto."
+            lead="A skill garante as ai-tools padrão da organização conforme o stack detectado — skills e MCPs —, instalando somente o que ainda falta no projeto."
           >
-            Baselines por stack
+            Presets por stack
           </SectionHeading>
         </Reveal>
         <Reveal>
@@ -493,7 +493,8 @@ function BaselinesSection() {
             <thead>
               <tr>
                 <th scope="col">Quando</th>
-                <th scope="col">Skill baseline</th>
+                <th scope="col">Skills baseline</th>
+                <th scope="col">MCPs baseline</th>
                 <th scope="col">Condição</th>
               </tr>
             </thead>
@@ -506,6 +507,9 @@ function BaselinesSection() {
                   <Pkg>tlc-spec-driven</Pkg>
                 </td>
                 <td>
+                  <Cond>—</Cond>
+                </td>
+                <td>
                   <Cond>Só se não houver ferramenta de SDD no projeto</Cond>
                 </td>
               </tr>
@@ -515,6 +519,10 @@ function BaselinesSection() {
                 </td>
                 <td>
                   <Pkg>vercel-react-best-practices</Pkg>
+                  <Cond> + testing/perf sob gap</Cond>
+                </td>
+                <td>
+                  <Pkg>Figma</Pkg> · <Pkg>Playwright</Pkg> · <Pkg>Chrome DevTools</Pkg>
                 </td>
                 <td>
                   <Cond>Se não existir no projeto</Cond>
@@ -527,6 +535,10 @@ function BaselinesSection() {
                 <td>
                   <Pkg>angular-developer</Pkg>
                   <Badge>oficial</Badge>
+                  <Cond> + testing/perf sob gap</Cond>
+                </td>
+                <td>
+                  <Pkg>Figma</Pkg> · <Pkg>Playwright</Pkg> · <Pkg>Chrome DevTools</Pkg>
                 </td>
                 <td>
                   <Cond>Se não existir no projeto</Cond>
@@ -538,6 +550,10 @@ function BaselinesSection() {
                 </td>
                 <td>
                   <Pkg>dotnet-best-practices</Pkg>
+                  <Cond> + testing/perf sob gap</Cond>
+                </td>
+                <td>
+                  <Cond>— (set de MCP é só frontend)</Cond>
                 </td>
                 <td>
                   <Cond>Se não existir no projeto</Cond>
@@ -545,6 +561,13 @@ function BaselinesSection() {
               </tr>
             </tbody>
           </Table>
+        </Reveal>
+        <Reveal>
+          <Callout>
+            Preset não é harness template: o preset é o piso de tooling por <em>stack</em>
+            (skills + MCPs). Um harness template amarra guides e sensores a uma{' '}
+            <em>topologia</em> de serviço — outro eixo, outro escopo.
+          </Callout>
         </Reveal>
       </div>
     </section>

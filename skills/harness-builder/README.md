@@ -27,7 +27,7 @@ Agora é **uma única skill**:
 | --- | --- |
 | **`harness-engineer`** | A **espinha** do processo: avalia o harness, decide o que é necessário, define sensores e fecha o steering loop. |
 | **`agent-rules-architect`** | Camada de **guides**: escreve/enxuga as rules (`AGENTS.md` + `docs/`). |
-| **`stack-skill-presets`** | **Baselines da org** por stack: garante que as skills obrigatórias do projeto estejam instaladas (progressivo e idempotente). |
+| **`stack-presets`** | **Presets da org** por stack: garante que as ai-tools obrigatórias (skills + MCPs) do projeto estejam instaladas (progressivo e idempotente). |
 | **`find-skills`** | Preenche **lacunas de capacidade** restantes com skills do ecossistema. |
 
 Cada módulo mantém sua própria estrutura (`SKILL.md`, `references/`, `assets/`,
@@ -47,28 +47,35 @@ SKILL.md (playbook)
                              ↳ [gate] aprova prioridades antes de mudar nada
   └─ Fase 2  Guides/Rules  → agent-rules-architect (AGENTS.md + docs/ mínimos)
   └─ Fase 3  Skills
-       ├─ 3a Baselines     → stack-skill-presets (obrigatórias por stack)
+       ├─ 3a Presets       → stack-presets (skills + MCPs obrigatórios por stack)
        └─ 3b Lacunas       → find-skills (só lacunas reais, skills validadas)
   └─ Fase 4  Sensors       → harness-engineer (sensores + timing, "keep left")
   └─ Fase 5  Steering loop → harness-engineer (re-inventário + limites honestos)
 ```
 
-### Baselines por stack (Fase 3a)
+### Presets por stack (Fase 3a)
 
-O módulo `stack-skill-presets` garante as skills **obrigatórias da organização**
-de acordo com o stack detectado, **instalando só o que falta** (idempotente) e
-com **carregamento progressivo** — lê apenas a referência do stack identificado:
+O módulo `stack-presets` garante as **ai-tools obrigatórias da organização**
+(skills + MCPs) de acordo com o stack detectado, **instalando só o que falta**
+(idempotente) e com **carregamento progressivo** — lê apenas a referência do
+stack identificado:
 
-| Quando… | Skill baseline | Condição |
-| --- | --- | --- |
-| Qualquer projeto | `tlc-spec-driven` | só se **não** houver ferramenta de SDD |
-| Frontend **React** | `vercel-react-best-practices` | se não existir no projeto |
-| Frontend **Angular** | `angular-developer` (oficial) | se não existir no projeto |
-| Backend **.NET / C#** | `dotnet-best-practices` (`github/awesome-copilot`) | se não existir no projeto |
+| Quando… | Skills baseline | MCPs baseline | Condição |
+| --- | --- | --- | --- |
+| Qualquer projeto | `tlc-spec-driven` | — | só se **não** houver ferramenta de SDD |
+| Frontend **React** | `vercel-react-best-practices` + testing/perf sob gap | Figma · Playwright · Chrome DevTools | se não existir no projeto |
+| Frontend **Angular** | `angular-developer` (oficial) + testing/perf sob gap | Figma · Playwright · Chrome DevTools | se não existir no projeto |
+| Backend **.NET / C#** | `dotnet-best-practices` (`github/awesome-copilot`) + testing/perf sob gap | — (set de MCP é só frontend) | se não existir no projeto |
 
-As instalações são **a nível de projeto** (vivem com o repo). Para trocar um
-pacote baseline, edite o arquivo correspondente em
-`references/stack-skill-presets/references/`.
+Skills são instaladas **a nível de projeto** (vivem com o repo); MCPs vão no
+`.mcp.json` (o Figma usa um **placeholder** de API-key — nunca uma chave real).
+Para trocar um pacote baseline, edite o arquivo correspondente em
+`references/stack-presets/references/`.
+
+> **Preset ≠ harness template.** O preset é o **piso de tooling** por *stack*
+> (skills + MCPs). Um *harness template* (ver `harness-model.md`) é outra coisa:
+> um bundle de **guides + sensores** amarrado a uma *topologia* de serviço. O
+> preset é um dos insumos que um harness template empacota.
 
 ### Princípio que governa tudo: _less, but sharper_
 
@@ -121,7 +128,7 @@ harness-builder-v2/
 ├── references/                    # módulos preservados, independentes
 │   ├── harness-engineer/          # espinha (modelo, assessment, sensores, script)
 │   ├── agent-rules-architect/     # guides/rules (AGENTS.md + docs/, audit script)
-│   ├── stack-skill-presets/       # baselines obrigatórias por stack
+│   ├── stack-presets/             # presets obrigatórios por stack (skills + MCPs)
 │   └── find-skills/               # skills do ecossistema
 └── site/                          # landing page do produto
     ├── index.html

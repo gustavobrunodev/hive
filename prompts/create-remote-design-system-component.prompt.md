@@ -1,0 +1,1 @@
+Eu preciso que vc gere e me disponibilize os arquivos necessarios para criar o componente na biblioteca design system em react local para eu sincronizar com o design system remoto

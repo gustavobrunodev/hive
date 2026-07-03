@@ -19,7 +19,7 @@ gaps it has actually identified.
 | --- | --- |
 | `harness-engineer` | **Spine.** Frames, assesses, wires sensors, closes steering loop. |
 | `agent-rules-architect` | **Guides.** Authors/trims `AGENTS.md` + `docs/` for guide gaps found. |
-| `stack-skill-presets` | **Baselines.** Org mandatory skills per stack (progressive, idempotent). |
+| `stack-presets` | **Presets.** Org mandatory ai-tools (skills + MCPs) per stack (progressive, idempotent). |
 | `find-skills` | **Gaps.** Vets ecosystem skills for gaps baselines/rules don't cover. |
 
 Load each module's `SKILL.md` only when its phase starts — never all up front.
@@ -83,18 +83,20 @@ copy, keep `AGENTS.md` ruthlessly small.
 
 **3a before 3b**, always.
 
-### 3a — Baselines (`stack-skill-presets`)
+### 3a — Presets (`stack-presets`)
 
-Load `references/stack-skill-presets/SKILL.md`. Progressive + idempotent:
+Load `references/stack-presets/SKILL.md`. Progressive + idempotent. Presets are
+**skills + MCPs** keyed by stack:
 
-| Stack | Baseline | Condition |
-| --- | --- | --- |
-| Any | `tlc-spec-driven` | only if no SDD tool |
-| React | `vercel-react-best-practices` | if missing |
-| Angular | `angular-developer` | if missing |
-| .NET / C# | `dotnet-best-practices` | if missing |
+| Stack | Baseline skills | Baseline MCPs | Condition |
+| --- | --- | --- | --- |
+| Any | `tlc-spec-driven` | — | only if no SDD tool |
+| React | `vercel-react-best-practices` + testing/perf on gap | Figma · Playwright · Chrome DevTools | if missing |
+| Angular | `angular-developer` + testing/perf on gap | Figma · Playwright · Chrome DevTools | if missing |
+| .NET / C# | `dotnet-best-practices` + testing/perf on gap | — (frontend-only MCP set) | if missing |
 
-Project-level install; confirm each step with user.
+Skills install project-level; MCPs go in `.mcp.json` (Figma needs an API-key
+placeholder — never a real key). Confirm each step with user.
 
 ### 3b — Gap discovery (`find-skills`)
 
@@ -130,7 +132,7 @@ python3 references/harness-engineer/scripts/harness_inventory.py <repo-path>
 - [ ] Only prioritized items implemented; deferrals are one line each.
 - [ ] Minimal `AGENTS.md` + `docs/` via `agent-rules-architect`, audit passing.
 - [ ] Sensors with self-correction messages; gating only where justified.
-- [ ] Stack baselines present (via `stack-skill-presets` if missing).
+- [ ] Stack presets present — skills + MCPs (via `stack-presets` if missing).
 - [ ] Additional skills vetted and fill real gaps.
 - [ ] Steering loop documented; inventory re-run confirms coverage.
 - [ ] Honest limits stated.

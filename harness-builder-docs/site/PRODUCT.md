@@ -17,7 +17,7 @@ tanto no setup inicial quanto na evolução contínua do projeto.
 `harness-builder` é uma skill instalável via HIVE CLI em qualquer agente de
 código (Cursor, Claude, Copilot, Devin, etc.). Seu `SKILL.md` orquestra quatro
 módulos de referência (`harness-engineer`, `agent-rules-architect`,
-`stack-skill-presets`, `find-skills`) em `references/` para criar, avaliar e
+`stack-presets`, `find-skills`) em `references/` para criar, avaliar e
 **evoluir** o harness de qualquer projeto — guiada por harness engineering e
 avessa a overengineering.
 
@@ -63,7 +63,7 @@ Instala (HIVE CLI)
 | Agente repete o mesmo erro | Harness | Propõe guide, sensor ou ambos — mínimo necessário |
 | AGENTS.md inchado ou desatualizado | Rules | Revisa, aplica inference test, enxuga |
 | Buscar capacidade especializada | Find | Pesquisa, valida, instala com aval |
-| Novo módulo/stack no monorepo | Presets | Baselines idempotentes + lacunas restantes |
+| Novo módulo/stack no monorepo | Presets | Presets de ai-tools (skills + MCPs) idempotentes + lacunas restantes |
 | Sensor/linter dispara demais | Harness | Refinar, reposicionar ou remover |
 | Reviews de PR do agente pioraram | Harness / Full | Assessment focado nas falhas observadas |
 
