@@ -1,10 +1,13 @@
 import { forwardRef } from "react"
-import type { ComponentPropsWithoutRef, ElementRef } from "react"
+import type { ComponentPropsWithoutRef, ElementRef, Ref } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import { cx } from "../../utils/cx"
 import "./ScrollArea.css"
 
-export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
+export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+  /** Ref to the underlying scrollable viewport element — the real `overflow: auto` node, for consumers that need to read/set scroll position (e.g. `MessageList`'s pin-to-latest behavior). */
+  viewportRef?: Ref<HTMLDivElement>
+}
 
 /**
  * A viewport with a tokenized, thumb-only scrollbar overlay — wraps Radix's
@@ -27,7 +30,7 @@ export type ScrollAreaProps = ComponentPropsWithoutRef<typeof ScrollAreaPrimitiv
  * clipped by it.
  */
 export const ScrollArea = forwardRef<ElementRef<typeof ScrollAreaPrimitive.Root>, ScrollAreaProps>(
-  function ScrollArea({ className, children, type = "hover", scrollHideDelay = 600, ...rest }, ref) {
+  function ScrollArea({ className, children, type = "hover", scrollHideDelay = 600, viewportRef, ...rest }, ref) {
     return (
       <ScrollAreaPrimitive.Root
         ref={ref}
@@ -36,7 +39,7 @@ export const ScrollArea = forwardRef<ElementRef<typeof ScrollAreaPrimitive.Root>
         className={cx("hds-scroll-area", className)}
         {...rest}
       >
-        <ScrollAreaPrimitive.Viewport className="hds-scroll-area-viewport">
+        <ScrollAreaPrimitive.Viewport ref={viewportRef} className="hds-scroll-area-viewport">
           {children}
         </ScrollAreaPrimitive.Viewport>
         <ScrollAreaPrimitive.Scrollbar

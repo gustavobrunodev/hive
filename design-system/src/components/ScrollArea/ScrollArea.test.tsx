@@ -73,4 +73,15 @@ describe("ScrollArea", () => {
 
     expect(ref.current).toBe(screen.getByTestId("scroll-area"))
   })
+
+  it("forwards viewportRef to the actual scrollable viewport element", () => {
+    const viewportRef = createRef<HTMLDivElement>()
+    render(
+      <ScrollArea viewportRef={viewportRef} data-testid="scroll-area">
+        <p>Content</p>
+      </ScrollArea>
+    )
+
+    expect(viewportRef.current).toBe(document.querySelector(".hds-scroll-area-viewport"))
+  })
 })
