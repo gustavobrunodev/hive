@@ -1,15 +1,21 @@
-import React from "react";
-import { cx } from "../../utils/cx.js";
-import "./Chip.css";
+import type { ComponentPropsWithoutRef } from "react"
+import { cx } from "../../utils/cx"
+import "./Chip.css"
 
 const VARIANT_CLASS = {
   tag: "hds-chip-tag",
   phase: "hds-chip-phase",
   agent: "hds-chip-agent",
   skill: "hds-chip-skill",
-};
+} as const
 
-export function Chip({ variant = "tag", active = false, tone, className, children, ...rest }) {
+export interface ChipProps extends ComponentPropsWithoutRef<"span"> {
+  variant?: keyof typeof VARIANT_CLASS
+  active?: boolean
+  tone?: string
+}
+
+export function Chip({ variant = "tag", active = false, tone, className, children, ...rest }: ChipProps) {
   return (
     <span
       className={cx(
@@ -23,5 +29,5 @@ export function Chip({ variant = "tag", active = false, tone, className, childre
     >
       {children}
     </span>
-  );
+  )
 }
