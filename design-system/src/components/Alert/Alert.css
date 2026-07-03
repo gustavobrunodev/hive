@@ -1,0 +1,65 @@
+/* Alert — full tinted background + matching full-perimeter border.
+   Deliberately NOT a colored left stripe/accent border (that's Toast's
+   treatment for transient portaled notifications); Alert is inline,
+   static-by-default page content, so the whole box reads as the state
+   rather than a single edge. */
+
+.hds-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  border-radius: var(--rounded-md);
+  border: 1px solid var(--info);
+  background: var(--info-bg);
+  color: var(--info-ink);
+  padding: var(--s-3) var(--s-4);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.hds-alert-success {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--success-ink);
+}
+
+.hds-alert-warning {
+  border-color: var(--warning);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+
+.hds-alert-danger {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+.hds-alert-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  stroke: currentColor;
+}
+
+.hds-alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.hds-alert-title {
+  font-weight: 600;
+  margin: 0 0 var(--s-1);
+}
+
+.hds-alert-description {
+  margin: 0;
+}
+
+.hds-alert-title:last-child,
+.hds-alert-description:last-child {
+  margin-bottom: 0;
+}
