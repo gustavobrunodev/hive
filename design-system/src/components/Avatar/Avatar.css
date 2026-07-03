@@ -1,0 +1,69 @@
+.hds-avatar {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  color: var(--muted);
+  user-select: none;
+}
+
+.hds-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.hds-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--ff-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Presence dot: sized relative to the avatar, with a ring in --surface so it
+   reads as a notch cut out of the avatar rather than a floating blob. Assumes
+   the avatar sits on a --surface-colored background, matching the overlay
+   surfaces this DS's product register composes avatars into (message rows,
+   list items). */
+.hds-avatar-status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 30%;
+  height: 30%;
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: var(--rounded-full);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.hds-avatar-status-online {
+  background: var(--success);
+}
+
+.hds-avatar-status-offline {
+  background: var(--faint);
+}
+
+.hds-avatar-status-away {
+  background: var(--warning);
+}
+
+.hds-avatar-status-busy {
+  background: var(--danger);
+}
