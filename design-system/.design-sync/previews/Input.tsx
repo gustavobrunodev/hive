@@ -1,5 +1,5 @@
 import * as React from "react"
-import * as S from "@ds-stories/src/components/ValueCard/ValueCard.stories"
+import * as S from "@ds-stories/src/components/Input/Input.stories"
 
 function compose(S: any, key: string) {
   const meta: any = S.default ?? {}
@@ -32,27 +32,29 @@ function compose(S: any, key: string) {
   }, render)
 }
 
-// The story declares `parameters: { layout: "padded" }`, which gives
-// storybook's canvas a 16px inset. The design-sync capture harness has no
-// equivalent per-story layout parameter — a single-story capture always
-// sits inside the card scaffold's fixed 24px body padding. For a lone
-// ValueCard that 8px-per-side gap is invisible, but ValueGrid's
-// `repeat(auto-fit, minmax(260px, 1fr))` columns divide whatever width they
-// get by 3: 8px/side narrower container == ~5px narrower per column, just
-// enough to wrap a borderline title ("Um único design system") to a second
-// line where storybook keeps it on one. A negative margin here widens the
-// grid back out to storybook's effective content width without touching
-// the component itself.
-function paddedInset(Story: React.ComponentType) {
+// Storybook's `layout: "centered"` parameter shrink-wraps the story to its
+// content's intrinsic width; the design-sync capture harness has no
+// equivalent (it screenshots the full viewport), so `Input`'s intentional
+// `width: 100%` (dist/ds-bundle.css — Field/Select constrain width via their
+// own wrapper, Input doesn't by design) stretches full-bleed here instead of
+// shrink-wrapping like storybook. Bounding at 320px mirrors the width Field's
+// own stories already give their embedded Input/Select controls.
+function centered(Story: React.ComponentType) {
   return (
-    <div style={{ margin: "0 -8px" }}>
+    <div style={{ width: "fit-content" }}>
       <Story />
     </div>
   )
 }
 
 const ComposedDefault = compose(S, "Default")
-const ComposedGrid = compose(S, "Grid")
+const ComposedFocused = compose(S, "Focused")
+const ComposedWithError = compose(S, "WithError")
+const ComposedDisabled = compose(S, "Disabled")
+const ComposedWithStartIcon = compose(S, "WithStartIcon")
 
-export const Default = () => paddedInset(ComposedDefault)
-export const Grid = () => paddedInset(ComposedGrid)
+export const Default = () => centered(ComposedDefault)
+export const Focused = () => centered(ComposedFocused)
+export const WithError = () => centered(ComposedWithError)
+export const Disabled = () => centered(ComposedDisabled)
+export const WithStartIcon = () => centered(ComposedWithStartIcon)

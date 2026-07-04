@@ -20,7 +20,7 @@ gaps, page sections) should use the design tokens directly as CSS custom propert
 | Token group | Names | Use for |
 |---|---|---|
 | Palette | `--bordo` `--bordo-2` `--coral` `--verde` | brand surfaces/accents |
-| Semantic | `--ink` `--muted` `--surface` `--surface-2` `--line` `--line-strong` | text, raised surfaces, borders |
+| Semantic | `--ink` `--muted` `--surface` `--surface-2` `--border` `--border-strong` | text, raised surfaces, borders |
 | Type | `--ff-display` (headings) `--ff-body` (text) `--ff-num` (numerals/metrics) | `font-family` |
 | Spacing | `--s-1` … `--s-10` (4px → 128px, 4pt scale) | gap/padding/margin |
 | Motion | `--ease-expo` `--ease-quart` | transition timing |

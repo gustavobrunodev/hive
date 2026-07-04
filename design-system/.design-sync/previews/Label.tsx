@@ -1,5 +1,5 @@
 import * as React from "react"
-import * as S from "@ds-stories/src/components/ValueCard/ValueCard.stories"
+import * as S from "@ds-stories/src/components/Label/Label.stories"
 
 function compose(S: any, key: string) {
   const meta: any = S.default ?? {}
@@ -32,27 +32,20 @@ function compose(S: any, key: string) {
   }, render)
 }
 
-// The story declares `parameters: { layout: "padded" }`, which gives
-// storybook's canvas a 16px inset. The design-sync capture harness has no
-// equivalent per-story layout parameter — a single-story capture always
-// sits inside the card scaffold's fixed 24px body padding. For a lone
-// ValueCard that 8px-per-side gap is invisible, but ValueGrid's
-// `repeat(auto-fit, minmax(260px, 1fr))` columns divide whatever width they
-// get by 3: 8px/side narrower container == ~5px narrower per column, just
-// enough to wrap a borderline title ("Um único design system") to a second
-// line where storybook keeps it on one. A negative margin here widens the
-// grid back out to storybook's effective content width without touching
-// the component itself.
-function paddedInset(Story: React.ComponentType) {
+// Same fix as the owned Input.tsx preview: Label's stories embed an Input
+// (width: 100% by design, unconstrained here), and storybook's
+// `layout: "centered"` shrink-wrap has no equivalent in the capture harness.
+// Bounding at 320px mirrors Field's own stories.
+function centered(Story: React.ComponentType) {
   return (
-    <div style={{ margin: "0 -8px" }}>
+    <div style={{ width: "fit-content" }}>
       <Story />
     </div>
   )
 }
 
 const ComposedDefault = compose(S, "Default")
-const ComposedGrid = compose(S, "Grid")
+const ComposedRequired = compose(S, "Required")
 
-export const Default = () => paddedInset(ComposedDefault)
-export const Grid = () => paddedInset(ComposedGrid)
+export const Default = () => centered(ComposedDefault)
+export const Required = () => centered(ComposedRequired)
