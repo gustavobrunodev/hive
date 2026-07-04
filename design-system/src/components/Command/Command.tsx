@@ -19,7 +19,9 @@ export const Command = forwardRef<ElementRef<typeof CommandPrimitive>, CommandPr
 Command.displayName = "Command"
 
 export type CommandDialogProps = ComponentPropsWithoutRef<typeof CommandPrimitive> & {
+  /** Whether the palette dialog is open. Omit for uncontrolled (Radix manages state internally). */
   open?: boolean
+  /** Called with the next open state on trigger click, Escape, or outside click. */
   onOpenChange?: (open: boolean) => void
   /** Accessible dialog title, visually hidden. Defaults to `"Command palette"`. */
   label?: string
