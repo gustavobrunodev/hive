@@ -1,0 +1,125 @@
+import { Meta } from "@storybook/addon-docs/blocks"
+import { useState } from "react"
+import { Button } from "../components/Button/Button"
+import { Badge } from "../components/Badge/Badge"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/Tooltip/Tooltip"
+
+<Meta title="Foundations/Theming" />
+
+# Theming
+
+The whole design system — both registers — resolves color through **one attribute**:
+`data-theme` on the document root.
+
+```html
+<html data-theme="dark"> <!-- or data-theme="light" -->
+```
+
+`tokens.css` declares the semantic role layer (`--bg`, `--surface`, `--ink`, `--accent`, …)
+twice, scoped as `:root[data-theme="dark"]` and `:root[data-theme="light"]`. Components only
+ever read the role tokens, never the raw brand primitives, so flipping the attribute is the
+entire theming API — there is no theme prop, no CSS-in-JS provider, no per-component dark
+variant to maintain.
+
+With no `data-theme` attribute present anywhere in the document, the system falls back to
+`prefers-color-scheme` (a bare `:root` block mirrors dark, and a `@media (prefers-color-scheme:
+light)` override kicks in for light-preferring systems) — so an app that never sets the
+attribute still renders sensibly.
+
+## Setting it yourself
+
+```js
+document.documentElement.setAttribute("data-theme", "light")
+// or
+document.documentElement.setAttribute("data-theme", "dark")
+```
+
+That's the entire runtime API. A theme switcher is just a button that toggles this
+attribute (and, typically, persists the choice to `localStorage` and reads it back on
+load) — no component re-render is required for the color change itself, since it's pure
+CSS custom-property resolution; React only needs to re-render if something in your app
+tracks the theme value for its own logic (e.g. picking a differently-licensed image asset).
+
+This Storybook instance wires exactly this mechanism: `.storybook/preview.ts`'s global
+`theme` toolbar control drives a decorator that calls this same `setAttribute` on the
+iframe's `document.documentElement` — never on a wrapper `<div>`, since the role tokens are
+scoped to `:root[data-theme]` and a wrapper div would never match that selector.
+
+## Live demo
+
+Flip the theme below — it calls the exact API above directly on this page's own document
+root, independent of the toolbar control above, so you can see the effect without leaving
+the page. Real DS components (`Button`, `Badge`, `Tooltip`) are rendered, not a mockup.
+
+export function ThemeDemo() {
+  const [theme, setTheme] = useState(
+    typeof document !== "undefined"
+      ? document.documentElement.getAttribute("data-theme") || "dark"
+      : "dark"
+  )
+
+  function apply(next) {
+    document.documentElement.setAttribute("data-theme", next)
+    setTheme(next)
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        padding: 20,
+        borderRadius: "var(--rounded-lg)",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div style={{ display: "flex", gap: 8 }}>
+        <Button variant={theme === "dark" ? "primary" : "ghost"} cut={false} onClick={() => apply("dark")}>
+          Dark
+        </Button>
+        <Button variant={theme === "light" ? "primary" : "ghost"} cut={false} onClick={() => apply("light")}>
+          Light
+        </Button>
+        <span style={{ marginLeft: "auto", alignSelf: "center", fontFamily: "var(--ff-num)", fontSize: "0.8125rem", color: "var(--muted)" }}>
+          data-theme = "{theme}"
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Badge variant="accent">Selected</Badge>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" cut={false}>
+                Hover or focus me
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Portalled to document.body — themed automatically</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+  )
+}
+
+<ThemeDemo />
+
+## Radix portals and theming
+
+Overlay components (`Dialog`, `Popover`, `DropdownMenu`, `Select`, `Tooltip`, `Toast`, …)
+are Radix-backed and render their content through a **portal** — the DOM node that shows
+the popover/menu/tooltip is not a child of your component tree, it's appended directly to
+`document.body`.
+
+This works correctly with no extra plumbing because `document.body` is a descendant of
+`document.documentElement` — the exact node that carries `data-theme`. A portalled node
+inherits the same `:root[data-theme]` cascade as everything else on the page; there's no
+separate "portal root" that needs its own theme context wired up.
+
+The one thing to get right: **always set `data-theme` on `document.documentElement`
+(`<html>`), never on a wrapper `<div>`** around your app. If your theme toggle instead sets
+a class or attribute on some inner container, portalled content mounted at `document.body`
+sits *outside* that container in the DOM and would silently fall back to unthemed default
+values. This is exactly what `.storybook/preview.ts`'s decorator does — and exactly why the
+`Tooltip` in the demo above themes correctly despite rendering into a portal.
