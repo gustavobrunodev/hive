@@ -25,7 +25,9 @@ const SOURCES: Record<Tone, Partial<Record<Mark, string>>> = {
 }
 
 export interface LogoProps extends ComponentPropsWithoutRef<"span"> {
+  /** Color treatment of the SVG. Default: "color". */
   tone?: Tone
+  /** Which lockup to render. Not every tone has every mark (e.g. "full" is color-only); missing combinations fall back to the default simple-color mark. Default: "simple". */
   mark?: Mark
 }
 
