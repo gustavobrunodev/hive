@@ -21,7 +21,9 @@ export declare const Command: import("react").ForwardRefExoticComponent<Omit<{
     vimBindings?: boolean;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 export type CommandDialogProps = ComponentPropsWithoutRef<typeof CommandPrimitive> & {
+    /** Whether the palette dialog is open. Omit for uncontrolled (Radix manages state internally). */
     open?: boolean;
+    /** Called with the next open state on trigger click, Escape, or outside click. */
     onOpenChange?: (open: boolean) => void;
     /** Accessible dialog title, visually hidden. Defaults to `"Command palette"`. */
     label?: string;

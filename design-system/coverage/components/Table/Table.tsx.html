@@ -108,7 +108,32 @@
 <a name='L43'></a><a href='#L43'>43</a>
 <a name='L44'></a><a href='#L44'>44</a>
 <a name='L45'></a><a href='#L45'>45</a>
-<a name='L46'></a><a href='#L46'>46</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -126,15 +151,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -143,6 +159,18 @@
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -158,9 +186,20 @@ import { cx } from "../../utils/cx"
 import "./Table.css"
 &nbsp;
 export interface TableProps extends ComponentPropsWithoutRef&lt;"div"&gt; {
+  /**
+   * Clips the wrapper's corners with the DS's signature beveled-cut style
+   * (shared with `Panel`/`Terminal`/`Button`). Defaults to `true`; pass
+   * `false` for a plain rectangular table.
+   */
   cut?: boolean
 }
 &nbsp;
+/**
+ * Scrollable/bordered wrapper around a plain `&lt;table&gt;`. Renders only the
+ * `.hds-table-wrap` div and `&lt;table&gt;` shell — callers own `&lt;thead&gt;`/`&lt;tbody&gt;`/
+ * `&lt;tr&gt;`/`&lt;th&gt;`/`&lt;td&gt;` markup entirely, so real table semantics (scope,
+ * headers) are the consumer's responsibility.
+ */
 export function Table({ cut = true, className, children, ...rest }: TableProps) {
   return (
     &lt;div className={cx("hds-table-wrap", cut &amp;&amp; "cut", className)} {...rest}&gt;
@@ -171,6 +210,7 @@ export function Table({ cut = true, className, children, ...rest }: TableProps) 
 &nbsp;
 export interface PkgProps extends ComponentPropsWithoutRef&lt;"span"&gt; {}
 &nbsp;
+/** Bold, tabular-numeral cell treatment for a package/identifier-style value (e.g. a version or code). */
 export function Pkg({ className, children, ...rest }: PkgProps) {
   return (
     &lt;span className={cx("hds-pkg", className)} {...rest}&gt;
@@ -181,6 +221,7 @@ export function Pkg({ className, children, ...rest }: PkgProps) {
 &nbsp;
 export interface StackProps extends ComponentPropsWithoutRef&lt;"span"&gt; {}
 &nbsp;
+/** Semi-bold cell treatment for a stack/technology-name value. */
 export function Stack({ className, children, ...rest }: StackProps) {
   return (
     &lt;span className={cx("hds-stack", className)} {...rest}&gt;
@@ -191,6 +232,7 @@ export function Stack({ className, children, ...rest }: StackProps) {
 &nbsp;
 export interface CondProps extends ComponentPropsWithoutRef&lt;"span"&gt; {}
 &nbsp;
+/** Muted, smaller cell treatment for a secondary/conditional-detail value. */
 export function Cond({ className, children, ...rest }: CondProps) {
   return (
     &lt;span className={cx("hds-cond", className)} {...rest}&gt;
@@ -205,7 +247,7 @@ export function Cond({ className, children, ...rest }: CondProps) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-03T17:26:16.157Z
+                at 2026-07-04T01:48:08.934Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

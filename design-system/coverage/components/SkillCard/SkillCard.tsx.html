@@ -153,21 +153,19 @@
 <a name='L88'></a><a href='#L88'>88</a>
 <a name='L89'></a><a href='#L89'>89</a>
 <a name='L90'></a><a href='#L90'>90</a>
-<a name='L91'></a><a href='#L91'>91</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -177,6 +175,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
@@ -207,6 +225,12 @@
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -251,6 +275,7 @@ import "./SkillCard.css"
 &nbsp;
 export interface SkillGridProps extends ComponentPropsWithoutRef&lt;"div"&gt; {}
 &nbsp;
+/** Responsive grid layout container for a collection of `SkillCard`s. */
 export function SkillGrid({ className, children, ...rest }: SkillGridProps) {
   return (
     &lt;div className={cx("hds-skills", className)} {...rest}&gt;
@@ -260,12 +285,17 @@ export function SkillGrid({ className, children, ...rest }: SkillGridProps) {
 }
 &nbsp;
 export interface SkillSpinePinProps {
+  /** Label above the "drive" row. Defaults to `"Conduz"`. */
   driveLabel?: ReactNode
+  /** Names pinned as driving/owning this skill, each rendered as a `PinChip` with `variant="drive"`. Omit or pass `[]` to hide the row entirely. */
   drive?: string[]
+  /** Label above the "delegate" row. Defaults to `"Delega"`. */
   delegateLabel?: ReactNode
+  /** Names pinned as delegates for this skill, each rendered as a `PinChip` with `variant="deleg"`. Omit or pass `[]` to hide the row entirely. */
   delegate?: string[]
 }
 &nbsp;
+/** Two labeled rows of `PinChip`s — who drives vs. who delegates a given skill/responsibility. Standalone component, not nested inside `SkillCard`. */
 export function SkillSpinePin({
   driveLabel = "Conduz",
   drive = [],
@@ -299,13 +329,19 @@ export function SkillSpinePin({
 }
 &nbsp;
 export interface SkillCardProps extends Omit&lt;ComponentPropsWithoutRef&lt;"article"&gt;, "title" | "role"&gt; {
+  /** Small role/category label above the title. */
   role?: ReactNode
+  /** Card heading, rendered as an `&lt;h3&gt;`. */
   title?: ReactNode
+  /** Highlights this as the lead/primary skill with `Panel`'s accent border and an `hds-skill-lead` class. Defaults to `false`. */
   lead?: boolean
+  /** Optional number badge (e.g. "01") rendered before the role label. Omit for no number. */
   number?: ReactNode
+  /** Position within a `SkillGrid`, used to stagger this card's CSS entrance-animation delay via the `--i` custom property. Omit for no stagger. */
   index?: number
 }
 &nbsp;
+/** A `Panel`-based skill card: optional number, role, title, and free-form `children` content. Typically laid out inside a `SkillGrid`. */
 export function SkillCard({
   role,
   title,
@@ -340,7 +376,7 @@ export function SkillCard({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-03T17:26:16.157Z
+                at 2026-07-04T01:48:08.934Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
