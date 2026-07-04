@@ -1,0 +1,115 @@
+import { Meta } from "@storybook/addon-docs/blocks"
+
+<Meta title="Accessibility" />
+
+# Accessibility
+
+The product register's accessibility philosophy is **delegated, not reinvented**: focus
+trapping, dismiss-on-outside-click/Escape, floating-element positioning/collision, and
+roving-tabindex composite widgets are [Radix UI](https://www.radix-ui.com/)'s job. This
+system supplies tokens, visual states, and — where a real UX judgment call is needed — a
+deliberate override on top of Radix's default. It never ships a parallel, hand-rolled a11y
+implementation next to Radix's.
+
+## The Radix a11y engine
+
+Every overlay, form control, and structural composite listed below is Radix-backed
+(`[R]`); a few are in-house (`[H]`) and implement the equivalent WAI-ARIA pattern by hand.
+
+| Kind | Components |
+| --- | --- |
+| `[R]` Overlays | `Dialog`, `AlertDialog`, `Sheet`, `Popover`, `DropdownMenu`, `ContextMenu`, `Tooltip`, `Toast` |
+| `[R]` Forms | `Checkbox`, `RadioGroup`, `Switch`, `Select`, `Slider` |
+| `[R]` Structure | `Accordion`, `Tabs`, `Separator`, `ScrollArea`, `Avatar`, `Progress`, `VisuallyHidden` |
+| `[H]` In-house | `Tree` (WAI-ARIA tree pattern), `Spinner`, `Skeleton`, `TypingIndicator`, `Breadcrumb` |
+| `[C]` Composite | `Command` — `cmdk`'s bare `Command` composed **inside this system's own `Dialog`**, not cmdk's bundled dialog, so it inherits this system's focus trap, Escape/outside-click handling, and `aria-modal` wiring instead of a second, separate implementation |
+
+Radix gives every `[R]` component its roles, keyboard map, and focus behavior for free.
+What this design system still owns on top: tokenized visual states for all eight semantic
+states (hover/focus/active/disabled/selected/loading/error/warning-success-info — see
+PRODUCT.md's "Component state contract"), and, where noted below, an explicit override of
+a Radix default because the product's actual UX requirement differs from Radix's generic
+one.
+
+## Focus management
+
+- **Focus trap + restore.** `Dialog`, `AlertDialog`, `Sheet`, and `CommandDialog` (which
+  reuses `Dialog` under the hood) all trap focus inside the open surface and restore it to
+  the triggering element on close — Radix's `Dialog`/`AlertDialog` primitives handle this
+  natively; nothing in this system reimplements it.
+- **Roving tabindex.** `Tabs`, `RadioGroup`, `DropdownMenu`/`ContextMenu` (via Radix), and
+  the in-house `Tree` all move a single `tabIndex={0}` between items with arrow keys rather
+  than making every item individually tabbable — one `Tab` stop enters the widget, arrow
+  keys move within it.
+- **Visible focus, always.** Every focusable element shows a `:focus-visible` ring using
+  the `--focus` token (which resolves to `--accent` in both themes). This ring is never
+  suppressed with `outline: none` anywhere in the system — PRODUCT.md states this as a hard
+  line, not a preference.
+
+## `aria-modal` conventions
+
+Radix's `Dialog.Content`/`AlertDialog.Content` do **not** set `aria-modal` themselves by
+default. This system sets it explicitly, `aria-modal="true"`, on every true modal surface:
+`DialogContent`, `AlertDialogContent`, `SheetContent`, and `CommandDialog`'s content (via
+the DS `Dialog` it composes). Each has a matching test asserting
+`toHaveAttribute("aria-modal", "true")` — this is a verified contract, not just a comment.
+
+> **Gotcha: `AlertDialog` blocks Escape too, not just outside-click.**
+> Radix's `AlertDialog` blocks outside-click dismissal by default, but its Escape handling
+> falls through to the underlying `Dialog.Content` behavior — which *does* close on Escape.
+> `AlertDialogContent` explicitly overrides `onEscapeKeyDown` and calls
+> `event.preventDefault()` so Escape never dismisses it either. A confirmation dialog
+> ("delete this file?") always requires an explicit `AlertDialogAction` or
+> `AlertDialogCancel` click — never an accidental Escape tap. Plain `Dialog` and `Sheet`
+> keep Radix's default: Escape and outside-click both dismiss normally. If you're building
+> a destructive-confirmation flow and reach for `Dialog` instead of `AlertDialog`, you lose
+> this guarantee.
+
+## Keyboard interaction patterns
+
+| Component | Keys |
+| --- | --- |
+| `Dialog` / `Sheet` | `Escape` or outside-click dismisses; focus trapped inside while open |
+| `AlertDialog` | `Escape` and outside-click are both blocked — an explicit action button is required |
+| `RadioGroup` | Arrow keys move selection between items (roving tabindex) |
+| `Select` | Arrow keys navigate options; type-ahead jumps to a matching item; portalled listbox |
+| `Slider` | Arrow keys (± step), `Home`/`End` (min/max) on the active thumb |
+| `Tabs` | Arrow keys move focus between `TabsTrigger`s (roving tabindex) |
+| `DropdownMenu` / `ContextMenu` | Arrow keys move between items; `ContextMenu` also supports the keyboard context-menu key as a Radix built-in, alongside its right-click trigger |
+| `Tree` | `←`/`→` collapse-or-ascend / expand-or-descend, `↑`/`↓` move, `Home`/`End` jump to first/last, type-ahead with wrap-around; `role="tree"`/`"treeitem"`/`"group"` |
+| `Tooltip` | Shows on hover **and** keyboard focus (Radix default) — a `TooltipTrigger` is always keyboard-reachable, not just hoverable. `TooltipProvider` tunes the shared delay to 350ms open / 300ms skip (down from Radix's 700ms/300ms default), tighter for a keyboard-heavy desktop app |
+| `Toast` | ARIA live region announces without stealing focus; pause-on-hover/focus and stacking are Radix built-ins |
+
+## Reduced-motion handling
+
+`prefers-reduced-motion: reduce` is honored at two layers:
+
+1. **Global fallback** (`base.css`) — clamps every `animation-duration`/`transition-duration`
+   to effectively zero and disables the brand register's `.reveal`/`.stagger` scroll
+   choreography outright. That choreography is a marketing-only tool in the first place
+   (per PRODUCT.md's anti-references, it "does not belong in a chat pane or a file tree"),
+   so this global rule mostly protects brand-register pages, not the product register.
+2. **Component-level fallbacks**, each with a real static appearance (never just "stop
+   animating and leave the loading state illegible"):
+   - **`Spinner`** — the arc stops rotating and renders as a static partial ring. Detection
+     runs both as a `prefers-reduced-motion` CSS media query and as a JS check mirrored onto
+     a `data-reduced-motion` attribute (defense in depth: the JS path applies from first
+     render, before the browser has necessarily painted the CSS query's effect). The
+     `role="status"` + `VisuallyHidden` label still announces "Loading" regardless of motion.
+   - **`Skeleton`** — the shimmer sweep is replaced with a static, muted fill, via the same
+     dual CSS-media-query + JS-class approach. `Skeleton` itself is `role="presentation"`
+     and `aria-hidden="true"` — it's decorative loading chrome, not an announced status;
+     pair it with a nearby `Spinner` or live region if the loading state needs its own
+     screen-reader announcement.
+   - **`TypingIndicator`** — the three-dot bounce collapses to a static state; `role="status"`
+     still announces its label (default `"Assistant is responding"`).
+
+## Screen reader support
+
+- Icon-only controls always carry an accessible name — `aria-label`, or `VisuallyHidden`
+  text for a visually-hidden-but-announced label (see `CommandDialog`'s title, wrapped in
+  `VisuallyHidden` since a ⌘K palette has no visible heading).
+- Live regions (`Toast`, `Spinner`, `TypingIndicator`) announce state changes without
+  stealing keyboard focus from whatever the user was doing.
+- Where Radix backs a component, its ARIA roles/attributes come from Radix directly — this
+  system's job is styling on top, never a second, competing set of ARIA attributes.
