@@ -22,6 +22,17 @@
 - Safe modification: when touching these components, don't try to "fix" jsdom to make the geometry-dependent branches pass — that's fighting the test environment, not a real bug. Verify geometry-dependent behavior manually in a real browser (or via `impeccable`'s live-preview mechanism) instead.
 - Test coverage: global coverage stays ≥90% on all four metrics regardless (per-file dips in `functions`% on these three files are accounted for by the untestable branches above, not missing test *intent*).
 
+## Bugs Found During Storybook Documentation (not fixed — behavior frozen)
+
+**`Button` doesn't forward its ref, so `asChild`-style composition logs a React warning:**
+
+- Found: `storybook-documentation` feature, T75 Playwright MCP spot-check on `Overlays/Dialog`'s `Default` story (`<Dialog.Trigger asChild><Button>...</Button></Dialog.Trigger>`).
+- Symptom: browser console logs `Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?` pointing at `Button.tsx`. The dialog still opens and is fully operable/themed — Radix's `Slot` merges the trigger's other props (onClick, etc.) independently of the ref, so this is silent/non-fatal today.
+- Cause: `Button` (`src/components/Button/Button.tsx`) is a plain function component, not wrapped in `React.forwardRef`. Any future `asChild`/composition pattern that needs Radix to imperatively focus or measure the underlying DOM node (not just click it) would silently fail to do so.
+- Impact: `src/components/Button/Button.tsx` only, and only in `asChild`-composition contexts (Dialog/AlertDialog/Sheet/Tooltip triggers wrapping a `Button` — Popover/DropdownMenu triggers etc. would hit the same warning if a story or consumer composes them the same way).
+- Not fixed here: `storybook-documentation`'s scope is docs/stories only, component behavior/public API is frozen (see `context.md`'s standing constraints). Adding `forwardRef` is a safe, additive change (no prop/behavior change) but belongs to a future component-fix pass, not a docs feature.
+- Fix sketch for that future pass: wrap `Button`'s function body in `React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(...)`, forward the ref onto the rendered `<button>`/`<a>`, and update `ButtonProps` if a typed ref export is desired.
+
 ## Dependencies at Risk
 
 **`react-resizable-panels` — installed major version's public API differs from what `design.md` assumed:**
