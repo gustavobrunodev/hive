@@ -23,16 +23,24 @@ export interface TreeProps {
   nodes: TreeNode[]
   /** `"single"` (default) replaces the selection on activate; `"multiple"` toggles membership. */
   selection?: "single" | "multiple"
+  /** Controlled: the currently selected node ids. Pair with `onSelectedIdsChange`. */
   selectedIds?: string[]
+  /** Uncontrolled initial selection. Ignored if `selectedIds` is provided. */
   defaultSelectedIds?: string[]
+  /** Fires whenever the selection changes (click or Enter/Space on the active node). */
   onSelectedIdsChange?: (ids: string[]) => void
+  /** Controlled: the currently expanded node ids. Pair with `onExpandedIdsChange`. */
   expandedIds?: string[]
+  /** Uncontrolled initial expansion. Ignored if `expandedIds` is provided. */
   defaultExpandedIds?: string[]
+  /** Fires whenever a node is expanded or collapsed (click on the chevron or ArrowRight/ArrowLeft). */
   onExpandedIdsChange?: (ids: string[]) => void
   /** Render-prop for a node's row content. Defaults to a chevron (if it has children) + `node.label`. */
   renderLabel?: (node: TreeNode, state: TreeRenderState) => ReactNode
   className?: string
+  /** Accessible name for the `role="tree"` root. Provide this or `aria-labelledby`. */
   "aria-label"?: string
+  /** Accessible name reference for the `role="tree"` root, e.g. a heading id. */
   "aria-labelledby"?: string
 }
 
