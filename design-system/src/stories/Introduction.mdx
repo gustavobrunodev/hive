@@ -1,0 +1,93 @@
+import { Meta } from "@storybook/addon-docs/blocks"
+
+<Meta title="Introduction" />
+
+# Hive Design System
+
+React components extracted from the Harness Builder marketing site — the dark **Zup**
+brand language (bordo background, coral accent, diagonal-cut corners, dot-dispersion
+gradients, Funnel Display + Inter type) — now extended with a second, parallel register of
+interactive, accessible primitives for the product surfaces built on top of it.
+
+## Two registers, one token vocabulary
+
+`@hive/design-system` ships two things that share tokens but never share visual grammar:
+
+- **Brand register** — the 24 original marketing components (`BrandMark`, `HarnessMark`,
+  `Terminal`, `ValueGrid`, `Reveal`/`Stagger`, …). Design **is** the product here: full-volume
+  Zup identity, `Funnel Display` display type, the `.cut`/`.cut-sm` diagonal corner motif,
+  orchestrated scroll choreography.
+- **Product register** — forms, overlays, menus, structural primitives, and AI-chat
+  composites (Radix-UI-backed) that a consuming desktop app assembles into real screens: an
+  AI chat surface and a workspace file explorer. Here the system's job is to disappear into
+  the task — Inter everywhere, a tighter fixed-rem type scale, plain rounded corners instead
+  of cut corners, and motion that only ever signals state, never decoration.
+
+Three words describe the brand personality across both registers: **precise, restrained,
+quietly confident.** On product surfaces the Zup identity shows up as a quiet accent (coral
+on dark, `bordo-sensatez` on light) reserved for primary actions and selection state — never
+as decoration layered on top of a control that should otherwise feel exactly as familiar as
+it needs to be.
+
+See `PRODUCT.md` at the package root for the full brand-personality and anti-reference brief,
+and `DESIGN.md` for the token-by-token design language.
+
+## Install & consume
+
+```sh
+npm install @hive/design-system
+```
+
+Load the brand fonts before the bundle styles — the system does not inject a `<link>` tag
+for you:
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap"
+  rel="stylesheet"
+/>
+```
+
+```js
+import "@hive/design-system/dist/ds-bundle.css"
+import { Button, ValueCard, ValueGrid } from "@hive/design-system"
+```
+
+Wrap your app's outer container with `className="wrap"` for the page max-width/gutter.
+Radix packages (`@radix-ui/react-*`, plus `cmdk` and `react-resizable-panels`) ship as
+bundled `dependencies`, not peers — only `react`/`react-dom` stay external. Mount
+`ToastProvider` and `TooltipProvider` once near your app root; every `Toast`/`Tooltip`
+beneath them shares one context (see **Foundations/Theming** and the per-component docs
+under each group in the sidebar for provider wiring).
+
+## Theme model
+
+Every component consumes a **semantic role-token layer** (`--bg`, `--surface`, `--ink`,
+`--border`, `--accent`, `--focus`, `--danger`/`--warning`/`--success`/`--info`, …) resolved
+per a `data-theme` attribute:
+
+```html
+<html data-theme="dark"> <!-- or data-theme="light" -->
+```
+
+With no `data-theme` attribute set, the system falls back to `prefers-color-scheme`
+(defaulting to dark). The original 24 marketing components render unchanged on the dark
+theme — their raw brand tokens (`--coral`, `--bordo`, …) still resolve directly — but new
+product-register components consume role tokens only. This Storybook instance's toolbar
+theme switcher (top toolbar, mirror icon) drives exactly this attribute on the canvas so
+every story is checkable in both themes; the mechanics are explained in
+**Foundations/Theming**, and every token this page and your app can reach is enumerated
+live in **Foundations/Tokens**.
+
+## Where to go next
+
+- **Foundations/Tokens** — every color role, spacing/radius/z-index step, and type family
+  as a live swatch read straight from `tokens.css`.
+- **Foundations/Theming** — how `data-theme` works, how to set it yourself, and why Radix
+  portals theme correctly without extra plumbing.
+- **Accessibility** — the Radix a11y engine this system builds on: focus management,
+  `aria-modal` conventions, keyboard patterns, and reduced-motion handling.
+- Every component group below (Forms, Overlays, Feedback, Navigation, Layout, Data,
+  AI Chat, Utilities) documents its own props, states, and usage guidance.
