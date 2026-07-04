@@ -2,6 +2,12 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react"
 import { cx } from "../../utils/cx"
 import "./SteppedList.css"
 
+/**
+ * Numbered vertical step list — a CSS `counter()`-driven `<ol>` with a
+ * dashed connector between items. No `active`/current-step affordance is
+ * built in; the numbering is purely sequential (see `SteppedListItem` for
+ * per-step title/description).
+ */
 export interface SteppedListProps extends ComponentPropsWithoutRef<"ol"> {}
 
 export function SteppedList({ className, children, ...rest }: SteppedListProps) {
@@ -13,7 +19,9 @@ export function SteppedList({ className, children, ...rest }: SteppedListProps) 
 }
 
 export interface SteppedListItemProps extends Omit<ComponentPropsWithoutRef<"li">, "title"> {
+  /** Step heading, rendered above `description`. */
   title?: ReactNode
+  /** Supporting copy under `title`. */
   description?: ReactNode
 }
 
