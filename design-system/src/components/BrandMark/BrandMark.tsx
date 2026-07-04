@@ -3,6 +3,7 @@ import { cx } from "../../utils/cx"
 import "./BrandMark.css"
 
 export interface BrandMarkProps extends ComponentPropsWithoutRef<"span"> {
+  /** Single character rendered inside the cut-corner tile. Default: "Z". */
   letter?: string
 }
 
