@@ -65,6 +65,28 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
+    options: {
+      // Foundations pages first, then the 9 component groups in the fixed
+      // order design.md defines (Brand → Forms → Overlays → Feedback →
+      // Navigation → Layout → Data Display → AI Chat → Utilities).
+      storySort: {
+        order: [
+          "Introduction",
+          "Foundations",
+          ["Tokens", "Theming"],
+          "Accessibility",
+          "Brand",
+          "Forms",
+          "Overlays",
+          "Feedback",
+          "Navigation",
+          "Layout",
+          "Data Display",
+          "AI Chat",
+          "Utilities",
+        ],
+      },
+    },
   },
 }
 
