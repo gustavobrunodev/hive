@@ -1,0 +1,278 @@
+import { Meta } from "@storybook/addon-docs/blocks"
+import { useEffect, useState } from "react"
+
+<Meta title="Foundations/Tokens" />
+
+# Tokens
+
+Every value below is rendered by referencing the live CSS custom property (`var(--token)`)
+declared in `src/tokens.css` — nothing here is a hardcoded copy of a color, size, or family
+that could drift out of sync with the source. Flip the theme in the toolbar above (or add
+`?globals=theme:light` to the URL) and the swatches update immediately, because they resolve
+the same `:root[data-theme]` cascade every other component does.
+
+export function useLiveVar(name) {
+  const [value, setValue] = useState("")
+
+  useEffect(() => {
+    const read = () => {
+      const resolved = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+      setValue(resolved)
+    }
+    read()
+
+    const observer = new MutationObserver(read)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
+    return () => observer.disconnect()
+  }, [name])
+
+  return value
+}
+
+export function ColorSwatch({ name, description }) {
+  const resolved = useLiveVar(name)
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 4px" }}>
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          flexShrink: 0,
+          borderRadius: "var(--rounded-md)",
+          background: `var(${name})`,
+          border: "1px solid var(--border-strong)",
+        }}
+      />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: "var(--ff-num)", fontWeight: 600, fontSize: "0.8125rem", color: "var(--ink)" }}>
+          {name}
+        </div>
+        <div style={{ fontFamily: "var(--ff-num)", fontSize: "0.75rem", color: "var(--muted)" }}>
+          {resolved || "…"}
+        </div>
+        {description && (
+          <div style={{ fontSize: "0.8125rem", color: "var(--faint)", marginTop: 2 }}>{description}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function ColorGrid({ tokens }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 4 }}>
+      {tokens.map(([name, description]) => (
+        <ColorSwatch key={name} name={name} description={description} />
+      ))}
+    </div>
+  )
+}
+
+export function ScaleRow({ name, dimension = "width", swatch = "background" }) {
+  const resolved = useLiveVar(name)
+  const boxStyle =
+    swatch === "background"
+      ? {
+          [dimension]: `var(${name})`,
+          height: dimension === "width" ? 24 : `var(${name})`,
+          background: "var(--accent)",
+          borderRadius: "var(--rounded-sm)",
+        }
+      : {
+          width: 56,
+          height: 56,
+          background: "var(--surface-2)",
+          border: "1px solid var(--border-strong)",
+          borderRadius: `var(${name})`,
+        }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "6px 0" }}>
+      <code style={{ width: 130, flexShrink: 0, fontSize: "0.8125rem", color: "var(--ink)" }}>{name}</code>
+      <div style={{ ...boxStyle, flexShrink: 0 }} />
+      <span style={{ fontFamily: "var(--ff-num)", fontSize: "0.8125rem", color: "var(--muted)" }}>
+        {resolved || "…"}
+      </span>
+    </div>
+  )
+}
+
+export function ZIndexRow({ name, description }) {
+  const resolved = useLiveVar(name)
+  return (
+    <tr>
+      <td style={{ padding: "6px 12px 6px 0", fontFamily: "var(--ff-num)", fontSize: "0.8125rem", color: "var(--ink)" }}>
+        {name}
+      </td>
+      <td style={{ padding: "6px 12px 6px 0", fontFamily: "var(--ff-num)", fontSize: "0.8125rem", color: "var(--muted)" }}>
+        {resolved || "…"}
+      </td>
+      <td style={{ padding: "6px 0", fontSize: "0.8125rem", color: "var(--faint)" }}>{description}</td>
+    </tr>
+  )
+}
+
+export function TypeSpecimen({ family, label, sample }) {
+  const resolved = useLiveVar(family)
+  return (
+    <div style={{ padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <code style={{ fontSize: "0.8125rem", color: "var(--ink)" }}>{family}</code>
+        <span style={{ fontFamily: "var(--ff-num)", fontSize: "0.75rem", color: "var(--faint)" }}>{label}</span>
+      </div>
+      <div style={{ fontFamily: `var(${family})`, fontSize: "1.5rem", color: "var(--ink)" }}>{sample}</div>
+      <div style={{ fontFamily: "var(--ff-num)", fontSize: "0.75rem", color: "var(--muted)", marginTop: 2 }}>
+        {resolved || "…"}
+      </div>
+    </div>
+  )
+}
+
+## Color roles
+
+The semantic role layer components actually consume — resolved per `data-theme`. Dark-theme
+values are byte-for-byte restatements of the original marketing palette (see DESIGN.md's
+"Dark-Truth Rule"); light theme is new territory built from the same brand ramp.
+
+### Surfaces & text
+
+<ColorGrid
+  tokens={[
+    ["--bg", "Page background"],
+    ["--bg-2", "Sunken background (nested wells)"],
+    ["--surface", "Raised surface (panels, cards)"],
+    ["--surface-2", "Hover / nested surface"],
+    ["--surface-3", "Second nested tier"],
+    ["--ink", "Primary text"],
+    ["--muted", "Secondary text"],
+    ["--faint", "Tertiary / placeholder / disabled-label text"],
+    ["--border", "Hairline divider"],
+    ["--border-strong", "Emphasized divider / input border"],
+  ]}
+/>
+
+### Accent & focus
+
+<ColorGrid
+  tokens={[
+    ["--accent", "Primary actions, selection, links"],
+    ["--accent-hover", "Accent hover state"],
+    ["--accent-ink", "Text/icon on an accent fill"],
+    ["--focus", "Focus-visible ring color (always visible, never suppressed)"],
+  ]}
+/>
+
+### State vocabulary
+
+Every interactive surface speaks the same state words — danger, warning, success, info —
+each with a base, a low-alpha `-bg` tint for chip/banner fills, and an `-ink` for text/icon
+on that tint or directly on the page surface.
+
+<ColorGrid
+  tokens={[
+    ["--danger", "Destructive actions, invalid fields, error text"],
+    ["--danger-bg", "Danger tint fill"],
+    ["--danger-ink", "Text/icon on danger tint"],
+    ["--warning", "Non-blocking caution"],
+    ["--warning-bg", "Warning tint fill"],
+    ["--warning-ink", "Text/icon on warning tint"],
+    ["--success", "Confirmations"],
+    ["--success-bg", "Success tint fill"],
+    ["--success-ink", "Text/icon on success tint"],
+    ["--info", "Neutral system messages"],
+    ["--info-bg", "Info tint fill"],
+    ["--info-ink", "Text/icon on info tint"],
+    ["--selected", "Current-item indicator (Tree, Tabs, Menu)"],
+    ["--selected-bg", "Selected-row tint fill"],
+    ["--overlay", "Modal/sheet backdrop scrim"],
+  ]}
+/>
+
+### Brand primitives (Layer 1)
+
+Theme-independent raw values feeding the roles above. Components never consume these
+directly — only the semantic roles do — but the brand register's original components still
+reference them by name.
+
+<ColorGrid
+  tokens={[
+    ["--bordo", "Zup ambient dark background"],
+    ["--bordo-2", "Bordo, one step lighter"],
+    ["--bordo-sensatez", "Light-theme accent"],
+    ["--coral", "Dark-theme accent"],
+    ["--coral-hover", "Coral hover ramp"],
+    ["--verde", "Success primitive (dark theme)"],
+    ["--cinza-impacto", "Dark-theme ink primitive"],
+    ["--cinza-conhecimento", "Dark-theme muted primitive"],
+    ["--cinza-light", "Light-theme background primitive"],
+  ]}
+/>
+
+## Spacing scale
+
+A 4pt rhythm, `--s-1` through `--s-10`. Bars are sized with `width: var(--s-N)` — never a
+copied pixel value.
+
+<div>
+  <ScaleRow name="--s-1" />
+  <ScaleRow name="--s-2" />
+  <ScaleRow name="--s-3" />
+  <ScaleRow name="--s-4" />
+  <ScaleRow name="--s-5" />
+  <ScaleRow name="--s-6" />
+  <ScaleRow name="--s-7" />
+  <ScaleRow name="--s-8" />
+  <ScaleRow name="--s-9" />
+  <ScaleRow name="--s-10" />
+</div>
+
+## Radius scale
+
+The product register's plain-rounded-corner scale (`DESIGN.md`'s "rounded" token group) —
+distinct from the brand register's `.cut`/`.cut-sm` diagonal clip-path, which stays a
+brand-only signature.
+
+<div>
+  <ScaleRow name="--rounded-none" swatch="radius" />
+  <ScaleRow name="--rounded-sm" swatch="radius" />
+  <ScaleRow name="--rounded-md" swatch="radius" />
+  <ScaleRow name="--rounded-lg" swatch="radius" />
+  <ScaleRow name="--rounded-full" swatch="radius" />
+</div>
+
+## Z-index scale
+
+The shared stacking order for portaled/overlay content (Dropdown, Popover/Sheet/Dialog,
+Toast, Tooltip). Theme-independent — it lives outside the `data-theme` blocks in
+`tokens.css`.
+
+<table style={{ borderCollapse: "collapse", width: "100%" }}>
+  <thead>
+    <tr>
+      <th style={{ textAlign: "left", padding: "6px 12px 6px 0", fontSize: "0.75rem", color: "var(--faint)" }}>Token</th>
+      <th style={{ textAlign: "left", padding: "6px 12px 6px 0", fontSize: "0.75rem", color: "var(--faint)" }}>Value</th>
+      <th style={{ textAlign: "left", padding: "6px 0", fontSize: "0.75rem", color: "var(--faint)" }}>Used by</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ZIndexRow name="--z-dropdown" description="DropdownMenu, Select listbox" />
+    <ZIndexRow name="--z-sticky" description="Sticky headers/toolbars" />
+    <ZIndexRow name="--z-overlay" description="Dialog/AlertDialog/Sheet backdrop" />
+    <ZIndexRow name="--z-modal" description="Dialog/AlertDialog/Sheet/CommandDialog panel" />
+    <ZIndexRow name="--z-toast" description="Toast viewport" />
+    <ZIndexRow name="--z-tooltip" description="Tooltip — top of the stack" />
+  </tbody>
+</table>
+
+## Typography
+
+Only the family tokens are exposed as CSS custom properties today; the fixed-rem type
+*scale* itself (Display/Headline/Title/Body/Label/Caption steps) is a documented convention
+in `DESIGN.md`, not yet a set of CSS variables — so it's intentionally not swatched here as
+if it were one.
+
+<div>
+  <TypeSpecimen family="--ff-display" label="Brand-register headlines only" sample="Aa Funnel Display" />
+  <TypeSpecimen family="--ff-body" label="Every product-register label, control, and body string" sample="Aa Inter" />
+  <TypeSpecimen family="--ff-num" label="Mono/data — code, timestamps, Kbd" sample="Aa Inter Tight 0123" />
+</div>
