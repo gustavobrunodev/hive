@@ -6,6 +6,7 @@ import "./CaseCard.css"
 
 export interface CaseGridProps extends ComponentPropsWithoutRef<"div"> {}
 
+/** Responsive grid layout container for a collection of `CaseCard`s. */
 export function CaseGrid({ className, children, ...rest }: CaseGridProps) {
   return (
     <div className={cx("hds-cases", className)} {...rest}>
@@ -15,13 +16,19 @@ export function CaseGrid({ className, children, ...rest }: CaseGridProps) {
 }
 
 export interface CaseCardProps extends Omit<ComponentPropsWithoutRef<"article">, "title"> {
+  /** Small category/tag label above the title. */
   tag?: ReactNode
+  /** Card heading, rendered as an `<h3>`. */
   title?: ReactNode
+  /** Optional example-prompt line rendered after `children`, prefixed with a `›` marker. Omit if this case has no sample prompt. */
   prompt?: ReactNode
+  /** Optional mode label rendered as a muted `Badge` at the end of the card. Omit if not applicable. */
   mode?: ReactNode
+  /** Position within a `CaseGrid`, used to stagger this card's CSS entrance-animation delay via the `--i` custom property. Omit for no stagger. */
   index?: number
 }
 
+/** A `Panel`-based case-study/example card: tag, title, prose (`children`), optional sample prompt, and an optional mode badge. Typically laid out inside a `CaseGrid`. */
 export function CaseCard({
   tag,
   title,
