@@ -12,7 +12,6 @@ import {
   Stagger,
   SectionHeading,
   ValueCard,
-  Terminal,
   ModeSplit,
   ModeBlock,
   CaseCard,
@@ -138,6 +137,7 @@ function AgentMarks() {
 
 // ---- Hero ----
 function HeroSection() {
+  const { withBaseUrl } = useBaseUrlUtils();
   return (
     <section className="hive-hero" id="top">
       <DotsBackground />
@@ -174,19 +174,26 @@ function HeroSection() {
         </div>
 
         <Reveal className="hive-hero-visual">
-          <Terminal
-            title="agent · projeto-da-squad"
-            command="Avalie e melhore o harness deste projeto"
-            output="Avaliando o harness atual e mapeando lacunas antes de mudar qualquer arquivo…"
-            phases={[
-              { label: '0 · Orientar', active: true },
-              { label: '1 · Avaliar', active: true },
-              { label: '2 · Rules', active: false },
-              { label: '3 · Skills', active: false },
-              { label: '4 · Sensores', active: false },
-              { label: '5 · Steering', active: false },
-            ]}
-          />
+          <div className="hds-term cut hive-hero-video">
+            <div className="hds-term-bar">
+              <i />
+              <i />
+              <i />
+              <span>Harness Builder — vídeo de lançamento</span>
+            </div>
+            <div className="hive-hero-video-body">
+              <video
+                className="hive-hero-video-el"
+                src={withBaseUrl('video/harness-builder-launch.mp4')}
+                controls
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+              />
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
