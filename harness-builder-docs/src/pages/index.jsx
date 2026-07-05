@@ -1,6 +1,7 @@
 import React from 'react';
 import Layout from '@theme/Layout';
 import { useColorMode } from '@docusaurus/theme-common';
+import { useBaseUrlUtils } from '@docusaurus/useBaseUrl';
 import '@hive/design-system/dist/ds-bundle.css';
 
 import {
@@ -100,6 +101,41 @@ function SiteFooter() {
   );
 }
 
+// ---- Agent marks ----
+function IconMore() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const AGENTS = [
+  { id: 'claude', label: 'Claude', img: 'img/agents/claude.png' },
+  { id: 'cursor', label: 'Cursor', img: 'img/agents/cursor.png' },
+  { id: 'copilot', label: 'GitHub Copilot', img: 'img/agents/github-copilot.svg' },
+  { id: 'devin', label: 'Devin', img: 'img/agents/devin.svg' },
+  { id: 'mais', label: '+ outros agentes', Icon: IconMore },
+];
+
+function AgentMarks() {
+  const { withBaseUrl } = useBaseUrlUtils();
+  return (
+    <div className="hive-hero-agents">
+      <span className="hive-hero-agents-label">Funciona com</span>
+      <ul className="hive-hero-agents-list" aria-label="Agentes de código compatíveis">
+        {AGENTS.map(({ id, label, img, Icon }) => (
+          <li key={id} className="hive-hero-agent" data-tooltip={label} tabIndex={0} aria-label={label}>
+            <span className="hive-hero-agent-mark">
+              {img ? <img src={withBaseUrl(img)} alt="" width={18} height={18} loading="lazy" /> : <Icon />}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ---- Hero ----
 function HeroSection() {
   return (
@@ -133,11 +169,8 @@ function HeroSection() {
             <span>
               <i className="dot" aria-hidden="true" />6 fases, 1 skill
             </span>
-            <span>
-              <i className="dot" aria-hidden="true" />
-              Cursor, Claude, Copilot, Devin…
-            </span>
           </div>
+          <AgentMarks />
         </div>
 
         <Reveal className="hive-hero-visual">
