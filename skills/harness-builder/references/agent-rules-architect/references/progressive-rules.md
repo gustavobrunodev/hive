@@ -52,8 +52,10 @@ for the project:
 - **By technology:** `react.md`, `graphql.md`, `terraform.md`.
 - **By directory:** maps a folder to a file (`docs/api.md` ⇄ `src/api/**`); pairs
   naturally with glob or nested-file auto-loading.
-- **By task type:** `testing.md`, `migrations.md`, `releasing.md`,
-  `debugging.md`.
+- **By task type:** `testing.md`, `e2e-testing.md` (when Playwright, Cypress,
+  Selenium, or similar is present — worth splitting from `testing.md` when it
+  has its own run target, fixtures, and flakiness rules), `migrations.md`,
+  `releasing.md`, `debugging.md`.
 
 Heuristics for good categorization:
 

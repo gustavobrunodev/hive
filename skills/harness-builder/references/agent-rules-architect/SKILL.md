@@ -70,8 +70,13 @@ Determine:
   and is the default. If the user targets a specific tool (Cursor, Claude Code,
   Codex…), you can add a native auto-loading layer — see
   `references/tool-compatibility.md`.
-- **Language.** Write rules in the language the repo/user already uses; default
-  to English (the cross-tool convention and what models handle best).
+- **Language.** Default to **Brazilian Portuguese (pt-BR)** for every rule file
+  you author or improve — headings, prose, and index triggers in `AGENTS.md`,
+  nested `AGENTS.md`, and all `docs/` files. Keep commands, code snippets,
+  paths, flags, and identifiers verbatim — those aren't translated. If the repo
+  already has rule files written in a different language, preserve that
+  language when *improving* them (don't silently translate existing content —
+  ask the user first). Switch away from pt-BR only on explicit user request.
 
 ### 2. Research the project — the most important step
 
@@ -84,6 +89,17 @@ At minimum, establish: the stack and versions; the exact build/test/lint/format
 commands (and how to run a *single* test); what the linter/formatter already
 enforces (so you don't restate it); hard boundaries (generated dirs, secrets,
 vendored code); and any genuinely non-obvious architectural constraints.
+
+Also establish two structural signals that change *where* rules get written:
+
+- **E2E test frameworks.** Detect Playwright, Cypress, Selenium/WebdriverIO,
+  Puppeteer, TestCafe, etc. (config files, dependencies — see the checklist in
+  `research-playbook.md`). If present, e2e testing is a standing candidate for
+  its own `docs/e2e-testing.md` (or the project's existing name for it) — see
+  step 5.
+- **Module divergence.** In a monorepo/multi-app layout, note any package or
+  module whose commands, stack, or conventions genuinely differ from the rest.
+  These are candidates for their own nested `AGENTS.md` — see step 3.
 
 Follow `references/research-playbook.md` for ecosystem-by-ecosystem detection
 (where to look, which files to read, which commands to verify). Prefer reading
@@ -106,10 +122,19 @@ What survives the test then gets sorted:
 - **Goes in a `docs/` file** if it's specialized: rules for one subsystem,
   framework, or workflow that only matter for a slice of tasks. Detail that's
   important but rarely relevant belongs here, not in the always-loaded layer.
+- **Goes in a nested `AGENTS.md` inside the module's own folder** if it's
+  specific to one package/app/module and would be wrong or irrelevant
+  elsewhere in the repo (e.g. `apps/mobile/AGENTS.md` uses different commands
+  or conventions than `apps/api/`). Keep the root `AGENTS.md` to what's
+  genuinely shared; don't nest preemptively — only when a module's rules
+  actually diverge from the rest. See "Nesting & monorepos" in
+  `references/agents-md-guide.md`.
 
 The litmus test for the split: *"On a random task in this repo, would the agent
-need this?"* Mostly-yes → `AGENTS.md`. Sometimes → `docs/`. The healthiest
-`AGENTS.md` is small with a clear index into richer `docs/`.
+need this?"* Mostly-yes → `AGENTS.md`. Sometimes, and shared across modules →
+`docs/`. Sometimes, and specific to one module → that module's own nested
+`AGENTS.md`. The healthiest root `AGENTS.md` is small with a clear index into
+richer `docs/` and, where they diverge, its own nested files per module.
 
 ### 4. Write the minimal AGENTS.md
 
@@ -131,6 +156,18 @@ Create one file per category under `docs/` (e.g. `docs/testing.md`,
 usually a subsystem, technology, directory, or task type — so the agent can tell
 at a glance when each applies. Then add a short, imperatively-worded index to
 `AGENTS.md` so the files get discovered and loaded on demand.
+
+**E2E tests as a standing category.** If step 2 detected an e2e framework
+(Playwright, Cypress, Selenium/WebdriverIO, Puppeteer, TestCafe, …), treat e2e
+conventions as their own category — same create-vs-improve discipline as
+everything else: if a matching rule file already exists (`docs/e2e-testing.md`,
+`docs/e2e.md`, or wherever the project already documents this), audit and
+sharpen it rather than duplicating; if none exists, create it from scratch
+using the same inference test and minimalism as any other `docs/` file. Typical
+non-obvious content: how to run it locally/headless and against which target
+(dev server vs. deployed env), required setup (seed data, auth bypass, mock
+server), selector convention (e.g. `data-testid`), and flakiness/retry policy.
+Never restate what the framework's own config already declares.
 
 `references/progressive-rules.md` covers categorization strategy, how to phrase
 index pointers so loading is reliable, when to split or merge files, how to
@@ -181,5 +218,6 @@ Load these as the workflow directs; don't read them all up front.
   specifics, file precedence, and migration from legacy formats.
 
 Assets: `assets/AGENTS.md.template`, `assets/docs-rule.template.md`, and
-`assets/examples/` (calibrated AGENTS.md samples). Script:
+`assets/examples/` (calibrated AGENTS.md samples, all in pt-BR — including
+`docs-e2e-testing.example.md` for the e2e category). Script:
 `scripts/audit_rules.py`.

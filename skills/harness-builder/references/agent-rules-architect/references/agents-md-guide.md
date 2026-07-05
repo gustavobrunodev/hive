@@ -25,6 +25,10 @@ Format facts that matter:
 - **Optional frontmatter exists but isn't required.** A v1.1 proposal adds
   optional `description`/`tags` frontmatter for progressive disclosure; don't
   rely on it. Plain Markdown is the safe, universal choice.
+- **Language.** Write the file in **Brazilian Portuguese (pt-BR)** by default —
+  headings and prose included (e.g. `## Comandos`, `## Limites`, `## Convenções`,
+  `## Regras especializadas`). Commands, code, paths, and flags stay verbatim.
+  See "Language" in `SKILL.md` step 1 for the improve-existing-file exception.
 
 ## The high-value sections
 
@@ -42,7 +46,9 @@ reference them constantly.
 3. **Testing.** Only non-obvious rules: required setup (e.g. "start the DB with
    `docker compose up -d db` first"), what to mock vs. not, where tests live, how
    to run one. Skip "write tests for new code" unless that's genuinely a project
-   norm worth stating.
+   norm worth stating. If an e2e framework (Playwright, Cypress, …) is present,
+   keep only a one-line pointer here and push the depth into its own on-demand
+   `docs/e2e-testing.md` (see `progressive-rules.md`).
 4. **Code style — exceptions only.** *Only* conventions that differ from defaults
    and that the linter/formatter does **not** already enforce. If Prettier/Ruff
    handles it, say nothing. A 3–10 line snippet beats prose.
@@ -82,38 +88,39 @@ reference them constantly.
 **Bloated / net-negative (don't):**
 ```markdown
 # AGENTS.md
-This project is a modern web application built with React, a popular JavaScript
-library for building user interfaces. We care deeply about code quality and
-maintainability. The source code lives in the src directory. To install
-dependencies, run npm install. We use Prettier to keep our code nicely
-formatted, and ESLint to catch problems. Please write clean, readable code and
-follow our established conventions and best practices...
+Este projeto é uma aplicação web moderna construída com React, uma biblioteca
+JavaScript popular para construir interfaces de usuário. Nós nos preocupamos
+profundamente com qualidade e manutenibilidade de código. O código-fonte vive
+na pasta src. Para instalar as dependências, rode npm install. Usamos Prettier
+para manter nosso código bem formatado, e ESLint para pegar problemas. Por
+favor escreva código limpo e legível e siga nossas convenções e boas práticas
+estabelecidas...
 ```
-Nearly every line fails the inference test: the stack is in `package.json`, the
-folder layout is self-evident, the formatter enforces formatting, and "write
-clean code" is unactionable.
+Quase toda linha falha no teste de inferência: o stack está no `package.json`,
+a estrutura de pastas é autoevidente, o formatter já força a formatação, e
+"escreva código limpo" não é acionável.
 
 **Minimal / high-signal (do):**
 ```markdown
 # AGENTS.md
 
-## Commands
-- Install: `pnpm install`   # never `npm` — it corrupts the lockfile
+## Comandos
+- Instalar: `pnpm install`   # nunca `npm` — corrompe o lockfile
 - Dev: `pnpm dev`
-- Test (all): `pnpm test`
-- Test (one): `pnpm vitest run path/to/file.test.ts`
-- Lint/format/types: `pnpm check`  # runs eslint + prettier + tsc
+- Testes (todos): `pnpm test`
+- Testes (um só): `pnpm vitest run path/to/file.test.ts`
+- Lint/format/types: `pnpm check`  # roda eslint + prettier + tsc
 
-## Boundaries
-- Never edit `src/generated/**` (regenerated from the OpenAPI spec).
-- Never commit `.env*`.
+## Limites
+- Nunca editar `src/generated/**` (regenerado a partir do spec OpenAPI).
+- Nunca commitar `.env*`.
 
-## Conventions (non-default)
-- All API calls go through `src/lib/api.ts`; do not call `fetch` directly.
+## Convenções (fora do padrão)
+- Toda chamada de API passa por `src/lib/api.ts`; não chamar `fetch` direto.
 
-## Specialized rules — load when relevant
-- Database & migrations → read `docs/database.md`
-- Auth & sessions → read `docs/auth.md`
+## Regras especializadas — carregar quando aplicável
+- Banco de dados e migrations → ler `docs/database.md`
+- Auth e sessões → ler `docs/auth.md`
 ```
 
 ## Nesting & monorepos
@@ -125,6 +132,13 @@ ship dozens of nested AGENTS.md files this way.) This is itself a form of
 progressive disclosure: an agent working in `packages/api/` automatically gets
 that package's rules and not the frontend's. Don't nest preemptively — only when
 two areas actually diverge.
+
+Treat this as an active check during research (see "Repo shape" and "Monorepo
+note" in `research-playbook.md`), not something to reach for only if the user
+asks: walk every module/app/package and ask whether its commands, stack, or
+conventions actually differ from its siblings. If yes, give it its own
+`AGENTS.md` in its own folder; if a module has nothing that diverges, don't
+create one just for symmetry.
 
 ## Backward compatibility
 

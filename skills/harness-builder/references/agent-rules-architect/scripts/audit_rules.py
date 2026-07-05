@@ -27,6 +27,9 @@ CODEX_WARN_BYTES = 24 * 1024   # warn before you hit the cap
 DUP_MIN_LEN = 40               # min line length to count as README duplication
 
 # Clearly non-actionable phrases. Kept tight to avoid false positives.
+# Rules are pt-BR by default (see agent-rules-architect SKILL.md), so both
+# pt-BR and legacy/English phrasing are checked — repos being improved may
+# still carry older English rule files.
 VAGUE_PHRASES = [
     "clean code", "best practices", "high quality", "high-quality",
     "readable code", "write good code", "good code", "follow conventions",
@@ -34,6 +37,12 @@ VAGUE_PHRASES = [
     "well-structured", "maintainable code", "as appropriate", "use common sense",
     "industry standard", "industry-standard", "properly formatted",
     "format properly", "format your code", "keep it clean", "write clean",
+    "código limpo", "boas práticas", "alta qualidade", "código legível",
+    "escreva um bom código", "bom código", "siga as convenções",
+    "siga nossas convenções", "bem estruturado", "código de fácil manutenção",
+    "conforme apropriado", "senso comum", "padrão da indústria",
+    "formatado corretamente", "formate corretamente", "formate seu código",
+    "mantenha limpo", "escreva código limpo",
 ]
 
 RULE_FILENAMES = ["AGENTS.md", "CLAUDE.md"]
@@ -168,10 +177,13 @@ def check_commands(root: str, findings: list[Finding]) -> None:
     if not os.path.exists(agents):
         return
     text = read(agents)
-    if not re.search(r"(?im)^#+\s*(commands?|build|test|usage|scripts)\b", text):
+    if not re.search(
+        r"(?im)^#+\s*(commands?|build|test|usage|scripts"
+        r"|comandos?|testes?|uso)\b", text,
+    ):
         findings.append(Finding("INFO", "AGENTS.md",
-            "no Commands/Build/Test section found — exact build/test/lint commands "
-            "are usually the single highest-value content."))
+            "no Commands/Build/Test (or Comandos/Testes) section found — exact "
+            "build/test/lint commands are usually the single highest-value content."))
     elif text.count("`") < 4:
         findings.append(Finding("INFO", "AGENTS.md",
             "few backticked commands found — make commands exact and copy-pasteable, "

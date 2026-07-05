@@ -1,31 +1,34 @@
-# <Area> rules
+# Regras de <Área>
 
 <!--
-  TEMPLATE for an on-demand rule file (docs/<area>.md).
-  Loaded only when its AGENTS.md index trigger matches, so it can be richer than
-  AGENTS.md — but keep the same discipline: concrete, imperative, no duplication
-  of what the code or human docs already say. Keep focused on ONE concern.
-  Add the matching one-line trigger to the AGENTS.md index.
+  TEMPLATE para um arquivo de regra sob demanda (docs/<area>.md).
+  Carregado só quando o gatilho do índice do AGENTS.md corresponder, então pode
+  ser mais rico que o AGENTS.md — mas mantenha a mesma disciplina: concreto,
+  imperativo, sem duplicar o que o código ou a documentação humana já diz.
+  Mantenha o foco em UMA única preocupação.
+  Adicione o gatilho de uma linha correspondente ao índice do AGENTS.md.
+  Escreva o conteúdo final em português do Brasil (pt-BR) — comandos, código,
+  caminhos e flags ficam como estão, sem tradução.
 -->
 
-**When this applies:** <restate the trigger, e.g. "modifying DB schema or adding a migration">
+**Quando isso se aplica:** <reafirme o gatilho, ex.: "alterando o schema do BD ou adicionando uma migration">
 
-## Rules
-<!-- The do/don't patterns specific to this area. Imperative and concrete.
-     Pair every "don't" with a "do". Snippets > prose. -->
+## Regras
+<!-- Os padrões de fazer/não fazer específicos desta área. Imperativo e concreto.
+     Combine cada "não faça" com um "faça". Snippets > prosa. -->
 -
 -
 
-## Required sequence (if any)
-<!-- For workflows that must follow steps, e.g. how to author a safe migration.
-     Delete if not applicable. -->
+## Sequência obrigatória (se houver)
+<!-- Para fluxos que precisam seguir passos, ex.: como escrever uma migration segura.
+     Apague se não for aplicável. -->
 1.
 2.
 
-## Pitfalls
-<!-- Non-obvious gotchas the agent would otherwise hit. Delete if none. -->
+## Armadilhas
+<!-- Pegadinhas não óbvias que o agente cairia sem isso. Apague se não houver. -->
 -
 
-## Deeper references (load only if needed)
-<!-- Level-3 pointers: long specs, schemas, examples. Link, don't inline. -->
-- See `` for <…>.
+## Referências mais profundas (carregar só se necessário)
+<!-- Ponteiros de nível 3: specs longas, schemas, exemplos. Linke, não copie. -->
+- Ver `` para <…>.

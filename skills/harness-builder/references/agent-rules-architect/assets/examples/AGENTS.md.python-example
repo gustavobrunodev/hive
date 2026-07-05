@@ -1,25 +1,25 @@
 # AGENTS.md
 
 ## Stack
-FastAPI service, Python 3.12, managed with `uv`. Async throughout — except
-`app/legacy/`, which is sync-only; do not convert it.
+Serviço FastAPI, Python 3.12, gerenciado com `uv`. Assíncrono em tudo — exceto
+`app/legacy/`, que é só síncrono; não converter.
 
-## Commands
-- Install: `uv sync`             # not pip — the project is uv-managed
-- Run: `uv run uvicorn app.main:app --reload`
-- Test (all): `uv run pytest`
-- Test (one): `uv run pytest tests/test_x.py::test_name`
+## Comandos
+- Instalar: `uv sync`             # não pip — o projeto é gerenciado por uv
+- Rodar: `uv run uvicorn app.main:app --reload`
+- Testes (todos): `uv run pytest`
+- Testes (um só): `uv run pytest tests/test_x.py::test_name`
 - Lint + format + types: `uv run ruff check . && uv run ruff format . && uv run mypy app`
 
-## Testing
-- Integration tests need a local Postgres: `docker compose up -d db` first, or
-  they fail with an opaque connection error.
-- Mock outbound HTTP with `respx`; never mock the database — use the test DB.
+## Testes
+- Testes de integração precisam de um Postgres local: `docker compose up -d db`
+  antes, senão falham com um erro de conexão obscuro.
+- Mockar HTTP de saída com `respx`; nunca mockar o banco — usar o BD de teste.
 
-## Boundaries
-- Never edit files under `app/_generated/` (regenerated from the OpenAPI spec).
-- Never commit `.env` or anything under `secrets/`.
+## Limites
+- Nunca editar arquivos em `app/_generated/` (regenerados a partir do spec OpenAPI).
+- Nunca commitar `.env` ou qualquer coisa em `secrets/`.
 
-## Specialized rules — read the file when its trigger applies
-- Adding/modifying an API endpoint → read `docs/api.md`
-- Changing models or writing an Alembic migration → read `docs/database.md`
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+- Adicionando/modificando um endpoint de API → ler `docs/api.md`
+- Alterando models ou escrevendo uma migration Alembic → ler `docs/database.md`

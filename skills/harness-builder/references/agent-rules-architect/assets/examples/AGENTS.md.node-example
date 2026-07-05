@@ -1,28 +1,28 @@
 # AGENTS.md
 
 ## Stack
-Next.js 14 (App Router) + tRPC + Drizzle ORM. DB access is server-only — never
-import `src/server/db` from a client component.
+Next.js 14 (App Router) + tRPC + Drizzle ORM. Acesso ao BD é só server-side —
+nunca importar `src/server/db` de um client component.
 
-## Commands
-- Install: `pnpm install`        # never npm/yarn — only pnpm matches the lockfile
+## Comandos
+- Instalar: `pnpm install`        # nunca npm/yarn — só pnpm bate com o lockfile
 - Dev: `pnpm dev`
 - Build: `pnpm build`
-- Test (all): `pnpm test`
-- Test (one): `pnpm vitest run src/path/to/file.test.ts`
-- Check (lint+format+types): `pnpm check`   # run before finishing any task
+- Testes (todos): `pnpm test`
+- Testes (um só): `pnpm vitest run src/path/to/file.test.ts`
+- Check (lint+format+types): `pnpm check`   # rodar antes de finalizar qualquer tarefa
 
-## Boundaries
-- Never edit `src/server/db/schema.gen.ts` — generated from migrations.
-- Never commit `.env*`.
-- Ask first before adding a new dependency.
+## Limites
+- Nunca editar `src/server/db/schema.gen.ts` — gerado a partir das migrations.
+- Nunca commitar `.env*`.
+- Perguntar antes de adicionar uma nova dependência.
 
-## Conventions (non-default)
-- Server data fetching goes through tRPC routers in `src/server/routers/`; do not
-  write API route handlers by hand.
-- Money is stored and passed as integer cents, never floats.
+## Convenções (fora do padrão)
+- Data fetching do servidor passa pelos routers tRPC em `src/server/routers/`;
+  não escrever handlers de rota de API à mão.
+- Dinheiro é armazenado e passado como centavos inteiros, nunca float.
 
-## Specialized rules — read the file when its trigger applies
-- Changing the DB schema or writing a migration → read `docs/database.md`
-- Adding/modifying a tRPC procedure → read `docs/trpc.md`
-- Writing tests → read `docs/testing.md`
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+- Alterando o schema do BD ou escrevendo uma migration → ler `docs/database.md`
+- Adicionando/modificando um procedure tRPC → ler `docs/trpc.md`
+- Escrevendo testes → ler `docs/testing.md`

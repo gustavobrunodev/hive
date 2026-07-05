@@ -27,7 +27,12 @@ A short, factual inventory:
    current `AGENTS.md`/`CLAUDE.md`/`.cursorrules`/`.cursor/rules`. These are both
    *sources* and *things not to duplicate*.
 7. **Repo shape** — monorepo vs single package; where the real subprojects live
-   (this decides whether you need nested files).
+   (this decides whether you need nested files). For each module found, note
+   whether its commands/stack/conventions actually diverge from the rest —
+   that's the signal for a nested `AGENTS.md` (see "Monorepo note" below).
+8. **E2E test frameworks** — Playwright, Cypress, Selenium/WebdriverIO,
+   Puppeteer, TestCafe, etc. (see the cheat-sheet entry below). Presence of one
+   is a standing signal to create or improve a dedicated e2e rule file.
 
 ## A fast, reliable order of operations
 
@@ -104,6 +109,25 @@ always confirm against the repo's own scripts/CI rather than pasting defaults.
 - **Manifests:** `*.csproj`, `*.sln`, `Directory.Build.props`. **Commands:**
   `dotnet build`, `dotnet test --filter Name~...`, `dotnet format`.
 
+### E2E / browser test frameworks
+
+- **Playwright:** `playwright.config.ts`/`.js`, `@playwright/test` dependency,
+  an `e2e/` or `tests-examples/` dir. Commands usually `npx playwright test`
+  (single: `npx playwright test path/to/file.spec.ts -g "name"`), `--ui`/`--debug`
+  for local runs, `--project=` for browser targets.
+- **Cypress:** `cypress.config.ts`/`.js`/`cypress.json`, `cypress/` dir,
+  `cypress` dependency. Commands usually `npx cypress run` (single:
+  `npx cypress run --spec path/to/file.cy.ts`), `npx cypress open` for local/UI.
+- **Selenium / WebdriverIO:** `wdio.conf.js`, `selenium-webdriver` dependency.
+- **Puppeteer:** `puppeteer`/`puppeteer-core` dependency, usually driven by a
+  custom test runner rather than its own CLI.
+- **TestCafe:** `.testcaferc.json`, `testcafe` dependency.
+
+Any of these found → flag for step 5's e2e rule-file handling: required target
+(dev server URL, seeded test env), auth/login bypass if any, selector
+convention, and how to run one spec headless/headed are the usual high-value,
+non-obvious content — never restate what the framework's own config declares.
+
 ### Other ecosystems / build orchestration
 - **Make/Just/Task:** `Makefile`, `Justfile`, `Taskfile.yml` targets are often
   the canonical entrypoints regardless of language — check them.
@@ -133,7 +157,11 @@ As you gather, sort findings against the inference test (see
 If there are multiple real subprojects with *different* conventions, plan for
 **nested `AGENTS.md`** in each subproject rather than cramming everything into the
 root (agents read the nearest file; the closest wins). Keep the root file to
-what's truly shared. See `references/agents-md-guide.md` for nesting mechanics.
+what's truly shared. This is an active check, not a passive fallback: for every
+module you find in step 7 above, ask "does this module's commands/stack/
+boundaries actually differ from its siblings?" — if yes, it gets its own
+`AGENTS.md` in its own folder rather than being folded into the root file or
+left undocumented. See `references/agents-md-guide.md` for nesting mechanics.
 
 ## Output of this step
 
