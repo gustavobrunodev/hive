@@ -7,6 +7,7 @@ import type {
   SessionOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
+import type { BmadEvent } from '../main/bmadService'
 
 // The single typed bridge for all privileged (main-process) calls the renderer
 // may make. Every future IPC method (T4+) is added here, not as a separate
@@ -75,6 +76,23 @@ const hive = {
         ipcRenderer.removeListener('agent:event', listener)
         ipcRenderer.send('agent:event:stop')
       }
+    }
+  },
+
+  // BmadService (T8/T9), streaming. Same channel-pattern as `watchWorkspace`
+  // above: 'bmad:install:event' pushes each BmadEvent, a start/stop pair of
+  // renderer -> main sends drives the underlying install, and the bridge
+  // method returns an unsubscribe function. Unlike `watchWorkspace`, the
+  // underlying stream naturally ends on its own (a `done`/`error` event is
+  // always the last one) — `unsubscribe` is still provided for an early-exit
+  // case (e.g. the onboarding screen unmounting mid-install).
+  installBmad: (workspace: string, onEvent: (evt: BmadEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, evt: BmadEvent): void => onEvent(evt)
+    ipcRenderer.on('bmad:install:event', listener)
+    ipcRenderer.send('bmad:install:start', workspace)
+    return () => {
+      ipcRenderer.removeListener('bmad:install:event', listener)
+      ipcRenderer.send('bmad:install:stop')
     }
   }
 }

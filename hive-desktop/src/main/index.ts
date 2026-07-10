@@ -9,6 +9,7 @@ import { createProcessRunner } from './processRunner'
 import { createClaudeCliAdapter } from './claudeCliAdapter'
 import { createAgentService } from './agentService'
 import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
+import { createBmadService } from './bmadService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -163,6 +164,38 @@ app.whenReady().then(() => {
   ipcMain.on('agent:event:stop', (event) => {
     activeAgentEventUnsubs.get(event.sender.id)?.()
     activeAgentEventUnsubs.delete(event.sender.id)
+  })
+
+  // BmadService (T8/T9): reuses the same ProcessRunner as AgentService above
+  // (both are just uniform spawn/stream/kill — no shared state between
+  // calls). install() is an async generator, so this follows the same
+  // streaming pattern as fs:watch:*/agent:event:* — except cancellation
+  // needs an explicit `stopped` flag checked inside the loop (there's no
+  // underlying subscription to tear down like the other two, just an
+  // in-flight `for await`).
+  //   'bmad:install:start' (renderer -> main, fire-and-forget): begin installing into `workspace`.
+  //   'bmad:install:event' (main -> renderer, fire-and-forget, repeated): one BmadEvent per install-progress event.
+  //   'bmad:install:stop'  (renderer -> main, fire-and-forget): stop forwarding further events.
+  const bmadService = createBmadService(processRunner, configStore)
+  const activeInstallStops = new Map<number, () => void>()
+
+  ipcMain.on('bmad:install:start', (event, workspace: string) => {
+    activeInstallStops.get(event.sender.id)?.()
+    let stopped = false
+    void (async () => {
+      for await (const bmadEvent of bmadService.install(workspace)) {
+        if (stopped) return
+        event.sender.send('bmad:install:event', bmadEvent)
+      }
+    })()
+    activeInstallStops.set(event.sender.id, () => {
+      stopped = true
+    })
+  })
+
+  ipcMain.on('bmad:install:stop', (event) => {
+    activeInstallStops.get(event.sender.id)?.()
+    activeInstallStops.delete(event.sender.id)
   })
 
   createWindow()

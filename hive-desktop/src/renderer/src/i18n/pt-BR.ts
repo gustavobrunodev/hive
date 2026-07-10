@@ -49,5 +49,13 @@ export const ptBR = {
     viewerErrorDescription: 'Tente selecionar o arquivo novamente.',
     copyLabel: 'Copiar',
     copiedLabel: 'Copiado'
+  },
+  guidedInstall: {
+    title: 'Preparando seu workspace',
+    description: 'Estamos instalando o BMAD no workspace escolhido. Isso leva só um instante.',
+    progressLabel: 'Instalando…',
+    errorTitle: 'Não foi possível concluir a instalação',
+    errorDescriptionFallback: 'Algo deu errado durante a instalação do BMAD.',
+    retryCta: 'Tentar novamente'
   }
 } as const

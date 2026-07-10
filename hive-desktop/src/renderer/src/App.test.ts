@@ -5,7 +5,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App'
 
 /**
- * Task T6 — Onboarding: workspace-pick UI (design.md §5.1, R2.1).
+ * Tasks T6 (workspace pick) + T9 (guided install) — design.md §5.1, R2.1,
+ * R3.2–R3.4.
  *
  * Uses `React.createElement` instead of JSX so this can stay a `.test.ts`
  * file matched by the existing `src/renderer/src/**\/*.test.ts` vitest
@@ -19,7 +20,7 @@ import App from './App'
  * real components here would load a second React instance alongside
  * hive-desktop's own and crash on `Invalid hook call`. Swapping in trivial
  * host-element equivalents keeps this test scoped to `App`'s own gating
- * logic — which is what T6 actually needs to prove — without touching any
+ * logic — which is what T6/T9 actually need to prove — without touching any
  * shared config outside this task's file allowlist.
  *
  * `window.hive` is mocked entirely per-test — a real native folder-picker
@@ -46,9 +47,14 @@ vi.mock('@hive/design-system', () => ({
       createElement('h2', null, title),
       description ? createElement('p', null, description) : null,
       action
-    )
+    ),
+  Alert: ({ title, children, ...rest }: { title?: ReactNode; children?: ReactNode }) =>
+    createElement('div', rest, createElement('strong', null, title), children),
+  Progress: () => createElement('div', { role: 'progressbar' }),
+  SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
+  SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title)
 }))
-describe('App — first-run workspace gate (T6)', () => {
+describe('App — first-run workspace gate + guided install (T6, T9)', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
@@ -75,7 +81,8 @@ describe('App — first-run workspace gate (T6)', () => {
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
-      }
+      },
+      installBmad: vi.fn().mockReturnValue(() => {})
     }
     window.hive = Object.assign(defaults, overrides)
   }
@@ -89,8 +96,11 @@ describe('App — first-run workspace gate (T6)', () => {
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
   })
 
-  it('skips the picker and shows the ready placeholder for a returning user', async () => {
-    mockHive({ getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace') })
+  it('skips the picker and shows the ready placeholder for an already-provisioned returning user', async () => {
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(true)
+    })
 
     render(createElement(App))
 
@@ -98,10 +108,22 @@ describe('App — first-run workspace gate (T6)', () => {
     expect(screen.queryByText('Nenhum workspace selecionado')).toBeNull()
   })
 
-  it('advances to the ready placeholder after a successful pick', async () => {
+  it('shows the guided install screen for a returning user whose workspace is not yet provisioned', async () => {
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(false)
+    })
+
+    render(createElement(App))
+
+    expect(await screen.findByText('Preparando seu workspace')).toBeTruthy()
+  })
+
+  it('advances to the guided install screen (not straight to ready) after a fresh pick', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue(null),
-      chooseWorkspace: vi.fn().mockResolvedValue('/home/user/chosen-workspace')
+      chooseWorkspace: vi.fn().mockResolvedValue('/home/user/chosen-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(false)
     })
 
     render(createElement(App))
@@ -109,7 +131,27 @@ describe('App — first-run workspace gate (T6)', () => {
     const chooseButton = await screen.findByText('Escolher workspace')
     fireEvent.click(chooseButton)
 
-    expect(await screen.findByText('Workspace: /home/user/chosen-workspace')).toBeTruthy()
+    expect(await screen.findByText('Preparando seu workspace')).toBeTruthy()
+  })
+
+  it('advances from guided install to the ready placeholder once installBmad() reports done', async () => {
+    let emitDone: (() => void) | undefined
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(false),
+      installBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
+        emitDone = () => onEvent({ type: 'done' })
+        return () => {}
+      })
+    })
+
+    render(createElement(App))
+
+    await screen.findByText('Preparando seu workspace')
+    expect(emitDone).toBeTruthy()
+    emitDone?.()
+
+    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
   })
 
   it('stays on the picker screen (no crash) when the user cancels the pick', async () => {

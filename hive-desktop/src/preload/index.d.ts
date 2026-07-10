@@ -6,6 +6,7 @@ import type {
   SessionOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
+import type { BmadEvent } from '../main/bmadService'
 
 declare global {
   interface Window {
@@ -29,6 +30,8 @@ declare global {
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
+      /** BmadService (T8/T9) install stream — see preload/index.ts for the full channel design. */
+      installBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
     }
   }
 }

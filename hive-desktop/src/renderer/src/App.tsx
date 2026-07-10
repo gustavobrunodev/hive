@@ -2,20 +2,29 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button, Panel, Spinner } from '@hive/design-system'
 import { t } from './i18n'
 import { WorkspacePicker } from './onboarding/WorkspacePicker'
+import { GuidedInstall } from './onboarding/GuidedInstall'
 
 type Theme = 'dark' | 'light'
 
 const THEME_STORAGE_KEY = 'hive-desktop-theme'
 
 /**
- * First-run gate state (design.md §5.1, task T6):
+ * First-run gate state (design.md §5.1, tasks T6 + T9):
  *  - `checking`: initial `getWorkspace()` call is still in flight.
  *  - `picker`: no workspace persisted — show the workspace-pick screen.
- *  - `ready`: a workspace path is known (persisted, or just picked) — the
- *    guided-install screen (T9) replaces this placeholder wholesale.
+ *  - `checkingProvisioned`: a workspace is known, checking `isProvisioned()`
+ *    to decide between `installing` and `ready`.
+ *  - `installing`: workspace known but not yet BMAD-provisioned — guided
+ *    install screen (T9).
+ *  - `ready`: workspace known and provisioned — the update gate (T10) and
+ *    real work UI (T12/T15/T18/T19) replace this placeholder wholesale.
  */
 type OnboardingState =
-  { status: 'checking' } | { status: 'picker' } | { status: 'ready'; workspacePath: string }
+  | { status: 'checking' }
+  | { status: 'picker' }
+  | { status: 'checkingProvisioned'; workspacePath: string }
+  | { status: 'installing'; workspacePath: string }
+  | { status: 'ready'; workspacePath: string }
 
 function App(): React.JSX.Element {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -33,21 +42,46 @@ function App(): React.JSX.Element {
     let cancelled = false
     window.hive.getWorkspace().then((path) => {
       if (cancelled) return
-      setOnboarding(path ? { status: 'ready', workspacePath: path } : { status: 'picker' })
+      setOnboarding(
+        path ? { status: 'checkingProvisioned', workspacePath: path } : { status: 'picker' }
+      )
     })
     return () => {
       cancelled = true
     }
   }, [])
 
+  // Once a workspace is known (persisted, or just picked), decide between
+  // the guided install (T9) and the ready placeholder based on
+  // isProvisioned(). T10 will insert an update gate before `ready` for the
+  // already-provisioned branch — out of scope for this task.
+  useEffect(() => {
+    if (onboarding.status !== 'checkingProvisioned') return
+    let cancelled = false
+    const { workspacePath } = onboarding
+    window.hive.isProvisioned().then((provisioned) => {
+      if (cancelled) return
+      setOnboarding(
+        provisioned ? { status: 'ready', workspacePath } : { status: 'installing', workspacePath }
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [onboarding])
+
   const handleChooseWorkspace = useCallback(() => {
     window.hive.chooseWorkspace().then((path) => {
       // Cancelled pick resolves null — stay on the picker screen as-is.
-      if (path) setOnboarding({ status: 'ready', workspacePath: path })
+      if (path) setOnboarding({ status: 'checkingProvisioned', workspacePath: path })
     })
   }, [])
 
-  if (onboarding.status === 'checking') {
+  const handleInstallComplete = useCallback((workspacePath: string) => {
+    setOnboarding({ status: 'ready', workspacePath })
+  }, [])
+
+  if (onboarding.status === 'checking' || onboarding.status === 'checkingProvisioned') {
     return (
       <main>
         <div
@@ -69,6 +103,16 @@ function App(): React.JSX.Element {
       <main>
         <WorkspacePicker onChooseWorkspace={handleChooseWorkspace} />
       </main>
+    )
+  }
+
+  if (onboarding.status === 'installing') {
+    const { workspacePath } = onboarding
+    return (
+      <GuidedInstall
+        workspace={workspacePath}
+        onComplete={() => handleInstallComplete(workspacePath)}
+      />
     )
   }
 
