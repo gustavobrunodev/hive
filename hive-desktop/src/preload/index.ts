@@ -94,6 +94,18 @@ const hive = {
       ipcRenderer.removeListener('bmad:install:event', listener)
       ipcRenderer.send('bmad:install:stop')
     }
+  },
+
+  // BmadService.update() (T10) — identical shape to installBmad above, on
+  // its own channel pair.
+  updateBmad: (workspace: string, onEvent: (evt: BmadEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, evt: BmadEvent): void => onEvent(evt)
+    ipcRenderer.on('bmad:update:event', listener)
+    ipcRenderer.send('bmad:update:start', workspace)
+    return () => {
+      ipcRenderer.removeListener('bmad:update:event', listener)
+      ipcRenderer.send('bmad:update:stop')
+    }
   }
 }
 

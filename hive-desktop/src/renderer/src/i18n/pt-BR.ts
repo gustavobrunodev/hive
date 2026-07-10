@@ -57,5 +57,14 @@ export const ptBR = {
     errorTitle: 'Não foi possível concluir a instalação',
     errorDescriptionFallback: 'Algo deu errado durante a instalação do BMAD.',
     retryCta: 'Tentar novamente'
+  },
+  updateGate: {
+    title: 'Atualizando o BMAD',
+    description: 'Verificando se há atualizações do BMAD para este workspace.',
+    progressLabel: 'Atualizando…',
+    errorTitle: 'Não foi possível atualizar o BMAD',
+    errorDescriptionFallback: 'Algo deu errado durante a atualização do BMAD.',
+    retryCta: 'Tentar novamente',
+    continueAnywayCta: 'Continuar mesmo assim'
   }
 } as const

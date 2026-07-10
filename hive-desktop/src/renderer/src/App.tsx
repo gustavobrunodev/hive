@@ -3,27 +3,33 @@ import { Button, Panel, Spinner } from '@hive/design-system'
 import { t } from './i18n'
 import { WorkspacePicker } from './onboarding/WorkspacePicker'
 import { GuidedInstall } from './onboarding/GuidedInstall'
+import { UpdateGate } from './onboarding/UpdateGate'
 
 type Theme = 'dark' | 'light'
 
 const THEME_STORAGE_KEY = 'hive-desktop-theme'
 
 /**
- * First-run gate state (design.md §5.1, tasks T6 + T9):
+ * First-run + relaunch gate state (design.md §5.1–§5.2, tasks T6 + T9 + T10):
  *  - `checking`: initial `getWorkspace()` call is still in flight.
  *  - `picker`: no workspace persisted — show the workspace-pick screen.
  *  - `checkingProvisioned`: a workspace is known, checking `isProvisioned()`
- *    to decide between `installing` and `ready`.
+ *    to decide between `installing` and `updating`.
  *  - `installing`: workspace known but not yet BMAD-provisioned — guided
- *    install screen (T9).
- *  - `ready`: workspace known and provisioned — the update gate (T10) and
- *    real work UI (T12/T15/T18/T19) replace this placeholder wholesale.
+ *    install screen (T9). Completing it goes straight to `ready` (a
+ *    just-provisioned workspace doesn't need an update in the same launch).
+ *  - `updating`: workspace already provisioned (a relaunch, R8.2) — auto-update
+ *    gate (T10) runs before the work UI, per R4.1. Completing it (or the user
+ *    choosing "continue anyway" after a failure, R4.2) goes to `ready`.
+ *  - `ready`: the real work UI (T12/T15/T18/T19) replaces this placeholder
+ *    wholesale.
  */
 type OnboardingState =
   | { status: 'checking' }
   | { status: 'picker' }
   | { status: 'checkingProvisioned'; workspacePath: string }
   | { status: 'installing'; workspacePath: string }
+  | { status: 'updating'; workspacePath: string }
   | { status: 'ready'; workspacePath: string }
 
 function App(): React.JSX.Element {
@@ -52,9 +58,9 @@ function App(): React.JSX.Element {
   }, [])
 
   // Once a workspace is known (persisted, or just picked), decide between
-  // the guided install (T9) and the ready placeholder based on
-  // isProvisioned(). T10 will insert an update gate before `ready` for the
-  // already-provisioned branch — out of scope for this task.
+  // the guided install (T9) and the auto-update gate (T10) based on
+  // isProvisioned() (R2.3, R8.2: a returning user's remembered workspace
+  // updates before the work UI; a fresh/unprovisioned one installs first).
   useEffect(() => {
     if (onboarding.status !== 'checkingProvisioned') return
     let cancelled = false
@@ -62,7 +68,9 @@ function App(): React.JSX.Element {
     window.hive.isProvisioned().then((provisioned) => {
       if (cancelled) return
       setOnboarding(
-        provisioned ? { status: 'ready', workspacePath } : { status: 'installing', workspacePath }
+        provisioned
+          ? { status: 'updating', workspacePath }
+          : { status: 'installing', workspacePath }
       )
     })
     return () => {
@@ -77,7 +85,15 @@ function App(): React.JSX.Element {
     })
   }, [])
 
+  // A just-completed install doesn't need an update in the same launch —
+  // goes straight to ready. A completed (or "continue anyway"-dismissed)
+  // update also goes to ready; both handlers converge on the same
+  // transition, kept separate for readability at each call site.
   const handleInstallComplete = useCallback((workspacePath: string) => {
+    setOnboarding({ status: 'ready', workspacePath })
+  }, [])
+
+  const handleUpdateComplete = useCallback((workspacePath: string) => {
     setOnboarding({ status: 'ready', workspacePath })
   }, [])
 
@@ -112,6 +128,16 @@ function App(): React.JSX.Element {
       <GuidedInstall
         workspace={workspacePath}
         onComplete={() => handleInstallComplete(workspacePath)}
+      />
+    )
+  }
+
+  if (onboarding.status === 'updating') {
+    const { workspacePath } = onboarding
+    return (
+      <UpdateGate
+        workspace={workspacePath}
+        onComplete={() => handleUpdateComplete(workspacePath)}
       />
     )
   }

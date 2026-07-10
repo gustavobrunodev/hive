@@ -18,6 +18,7 @@ export type BmadEvent =
 
 export interface BmadService {
   install(workspace: string): AsyncIterable<BmadEvent>
+  update(workspace: string): AsyncIterable<BmadEvent>
 }
 
 // Line-prefix markers observed in a real `bmad-method@6.10.0 install` run
@@ -79,10 +80,16 @@ function parseLine(rawLine: string): BmadEvent | null {
 }
 
 /**
- * Creates a `BmadService` that drives the real, T0-verified install command
- * (design.md §7):
+ * Creates a `BmadService` that drives the real, T0-verified install/update
+ * command (design.md §7). There is no separate `update` subcommand — plain
+ * `install --yes` against an already-provisioned directory auto-detects and
+ * "defaults to quick-update", so `install()` and `update()` share this one
+ * code path, differing only in whether `--modules bmm` (first-run module
+ * selection) is passed and in what a successful run means for
+ * `ConfigStore.provisioned`:
  *
- *   npx bmad-method install --directory <workspace> --modules bmm --tools claude-code --yes
+ *   install: npx bmad-method install --directory <ws> --modules bmm --tools claude-code --yes
+ *   update:  npx bmad-method install --directory <ws> --tools claude-code --yes
  *
  * `processRunner` and `configStore` are both injected (mirroring
  * `configStore.ts`/`workspaceService.ts`'s DI pattern) so this module has no
@@ -94,14 +101,18 @@ export function createBmadService(
   processRunner: ProcessRunner,
   configStore: ConfigStore
 ): BmadService {
-  async function* install(workspace: string): AsyncIterable<BmadEvent> {
+  async function* runInstallCommand(
+    workspace: string,
+    extraArgs: string[],
+    failureVerb: string,
+    onSuccess: () => void
+  ): AsyncIterable<BmadEvent> {
     const handle = processRunner.run('npx', [
       'bmad-method',
       'install',
       '--directory',
       workspace,
-      '--modules',
-      'bmm',
+      ...extraArgs,
       '--tools',
       'claude-code',
       '--yes'
@@ -138,16 +149,29 @@ export function createBmadService(
     const { code } = await handle.exitCode
 
     if (code === 0) {
-      configStore.setProvisioned(true)
+      onSuccess()
       yield { type: 'done', ok: true }
     } else {
       yield {
         type: 'error',
-        message: `bmad-method install exited with code ${code ?? 'unknown'}`,
+        message: `bmad-method ${failureVerb} exited with code ${code ?? 'unknown'}`,
         detail: stderrChunks.join('').trim() || undefined
       }
     }
   }
 
-  return { install }
+  function install(workspace: string): AsyncIterable<BmadEvent> {
+    return runInstallCommand(workspace, ['--modules', 'bmm'], 'install', () =>
+      configStore.setProvisioned(true)
+    )
+  }
+
+  function update(workspace: string): AsyncIterable<BmadEvent> {
+    // Already provisioned going in (R4.1 only runs update on a provisioned
+    // workspace) — a successful update doesn't need to re-flip the flag, and
+    // a failed one (R4.2's "continue anyway") must not unset it either.
+    return runInstallCommand(workspace, [], 'update', () => {})
+  }
+
+  return { install, update }
 }

@@ -32,6 +32,8 @@ declare global {
       }
       /** BmadService (T8/T9) install stream — see preload/index.ts for the full channel design. */
       installBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
+      /** BmadService.update() (T10) stream — see preload/index.ts for the full channel design. */
+      updateBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
     }
   }
 }

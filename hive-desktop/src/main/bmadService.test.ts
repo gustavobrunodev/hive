@@ -160,6 +160,58 @@ describe('BmadService', () => {
     expect(configStore.getConfig().provisioned).toBe(false)
   })
 
+  it('update() invokes the exact real T0-verified command/args (no --modules)', async () => {
+    processRunner.script({ code: 0 })
+    const service = createBmadService(processRunner, configStore)
+
+    await collect(service.update('/Users/dev/my-workspace'))
+
+    expect(processRunner.calls).toEqual([
+      {
+        command: 'npx',
+        args: [
+          'bmad-method',
+          'install',
+          '--directory',
+          '/Users/dev/my-workspace',
+          '--tools',
+          'claude-code',
+          '--yes'
+        ],
+        opts: undefined
+      }
+    ])
+  })
+
+  it('successful update ends in done and does not need to touch provisioned (already true)', async () => {
+    configStore.setProvisioned(true)
+    processRunner.script({
+      chunks: [{ stream: 'stdout', data: '◇  2 module(s) up to date\n' }],
+      code: 0
+    })
+    const service = createBmadService(processRunner, configStore)
+
+    const events = await collect(service.update('/Users/dev/my-workspace'))
+
+    expect(events.at(-1)).toEqual({ type: 'done', ok: true })
+    expect(configStore.getConfig().provisioned).toBe(true)
+  })
+
+  it('failing update ends in error and leaves provisioned untouched (R4.2 "continue anyway")', async () => {
+    configStore.setProvisioned(true)
+    processRunner.script({
+      chunks: [{ stream: 'stderr', data: 'Error: network timeout\n' }],
+      code: 1
+    })
+    const service = createBmadService(processRunner, configStore)
+
+    const events = await collect(service.update('/Users/dev/my-workspace'))
+
+    expect(events.at(-1)).toMatchObject({ type: 'error' })
+    // Still provisioned — a failed update must not undo a prior successful install.
+    expect(configStore.getConfig().provisioned).toBe(true)
+  })
+
   it('partial lines split across chunk boundaries are still parsed correctly', async () => {
     processRunner.script({
       chunks: [

@@ -103,6 +103,38 @@ const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
 
 vi.mock('./agentService', () => ({ createAgentService: vi.fn(() => fakeAgentService) }))
 
+// BmadService (T8/T9/T10): mocked the same way FsService/AgentService are
+// above. Without this, index.ts's real (un-mocked, since bmadService.ts
+// imports no 'electron' API) BmadService + real spawn-based ProcessRunner
+// would try to actually run `npx bmad-method install` when this test
+// exercises the bmad:install:*/bmad:update:* handlers — this file only cares
+// that index.ts routes IPC calls to *whatever* BmadService it's given, not
+// BmadService's own parsing/command logic (covered by bmadService.test.ts).
+const { fakeBmadService, installGate } = vi.hoisted(() => {
+  let resumeInstall: (() => void) | undefined
+  return {
+    installGate: { resume: () => resumeInstall?.() },
+    fakeBmadService: {
+      // Yields one event, then blocks on an externally-resolved gate before
+      // yielding a second — lets a test call bmad:install:stop() in the gap
+      // and prove the second event is never relayed (deterministic, no real
+      // timers needed to win a race).
+      install: vi.fn(async function* installStub() {
+        yield { type: 'step', id: 's1', label: 'Step 1' }
+        await new Promise<void>((resolve) => {
+          resumeInstall = resolve
+        })
+        yield { type: 'done', ok: true }
+      }),
+      update: vi.fn(async function* updateStub() {
+        yield { type: 'done', ok: true }
+      })
+    }
+  }
+})
+
+vi.mock('./bmadService', () => ({ createBmadService: vi.fn(() => fakeBmadService) }))
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
@@ -293,5 +325,53 @@ describe('main process bootstrap', () => {
     findOnHandler('agent:event:start')(fakeEvent)
 
     expect(firstUnsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  // T8/T9: BmadService.install() wiring — 'bmad:install:start'/'bmad:install:stop'
+  // are fire-and-forget ipcMain.on handlers driving an async generator (not a
+  // subscribe/unsubscribe pair like fs:watch:*/agent:event:*), so cancellation
+  // is proven by stopping mid-stream and confirming a later-yielded event is
+  // never relayed.
+  it('registers bmad:install:start/stop, drives BmadService.install(workspace), relays events, and stops relaying after bmad:install:stop', async () => {
+    expect(ipcMain.on).toHaveBeenCalledWith('bmad:install:start', expect.any(Function))
+    expect(ipcMain.on).toHaveBeenCalledWith('bmad:install:stop', expect.any(Function))
+
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 55, send } }
+
+    findOnHandler('bmad:install:start')(fakeEvent, '/ws')
+    expect(fakeBmadService.install).toHaveBeenCalledWith('/ws')
+
+    // Flush the generator's first yield.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(send).toHaveBeenCalledWith('bmad:install:event', {
+      type: 'step',
+      id: 's1',
+      label: 'Step 1'
+    })
+
+    // Stop before the gated second event resolves — it must never be relayed.
+    findOnHandler('bmad:install:stop')(fakeEvent)
+    installGate.resume()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(send).not.toHaveBeenCalledWith('bmad:install:event', { type: 'done', ok: true })
+  })
+
+  // T10: BmadService.update() wiring — identical shape to bmad:install:*
+  // above (proven there), so this just confirms update's own channel names
+  // and that it drives BmadService.update(workspace), not install().
+  it('registers bmad:update:start/stop, drives BmadService.update(workspace), and relays events to the sender', async () => {
+    expect(ipcMain.on).toHaveBeenCalledWith('bmad:update:start', expect.any(Function))
+    expect(ipcMain.on).toHaveBeenCalledWith('bmad:update:stop', expect.any(Function))
+
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 56, send } }
+
+    findOnHandler('bmad:update:start')(fakeEvent, '/ws')
+    expect(fakeBmadService.update).toHaveBeenCalledWith('/ws')
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(send).toHaveBeenCalledWith('bmad:update:event', { type: 'done', ok: true })
   })
 })

@@ -198,6 +198,32 @@ app.whenReady().then(() => {
     activeInstallStops.delete(event.sender.id)
   })
 
+  // BmadService.update() (T10): identical streaming shape to bmad:install:*
+  // above, on separate channels since a renderer could (in principle) have
+  // both an install and an update in flight for different reasons — kept
+  // fully independent rather than trying to unify into one parameterized
+  // channel.
+  const activeUpdateStops = new Map<number, () => void>()
+
+  ipcMain.on('bmad:update:start', (event, workspace: string) => {
+    activeUpdateStops.get(event.sender.id)?.()
+    let stopped = false
+    void (async () => {
+      for await (const bmadEvent of bmadService.update(workspace)) {
+        if (stopped) return
+        event.sender.send('bmad:update:event', bmadEvent)
+      }
+    })()
+    activeUpdateStops.set(event.sender.id, () => {
+      stopped = true
+    })
+  })
+
+  ipcMain.on('bmad:update:stop', (event) => {
+    activeUpdateStops.get(event.sender.id)?.()
+    activeUpdateStops.delete(event.sender.id)
+  })
+
   createWindow()
 
   app.on('activate', function () {

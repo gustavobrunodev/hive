@@ -5,8 +5,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App'
 
 /**
- * Tasks T6 (workspace pick) + T9 (guided install) — design.md §5.1, R2.1,
- * R3.2–R3.4.
+ * Tasks T6 (workspace pick) + T9 (guided install) + T10 (update gate) —
+ * design.md §5.1–§5.2, R2.1, R3.2–R3.4, R4.1–R4.2.
  *
  * Uses `React.createElement` instead of JSX so this can stay a `.test.ts`
  * file matched by the existing `src/renderer/src/**\/*.test.ts` vitest
@@ -54,7 +54,7 @@ vi.mock('@hive/design-system', () => ({
   SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
   SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title)
 }))
-describe('App — first-run workspace gate + guided install (T6, T9)', () => {
+describe('App — first-run workspace gate + guided install + update gate (T6, T9, T10)', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
@@ -82,7 +82,8 @@ describe('App — first-run workspace gate + guided install (T6, T9)', () => {
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
-      installBmad: vi.fn().mockReturnValue(() => {})
+      installBmad: vi.fn().mockReturnValue(() => {}),
+      updateBmad: vi.fn().mockReturnValue(() => {})
     }
     window.hive = Object.assign(defaults, overrides)
   }
@@ -96,7 +97,7 @@ describe('App — first-run workspace gate + guided install (T6, T9)', () => {
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
   })
 
-  it('skips the picker and shows the ready placeholder for an already-provisioned returning user', async () => {
+  it('skips the picker and shows the update gate for an already-provisioned returning user (R8.2)', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
       isProvisioned: vi.fn().mockResolvedValue(true)
@@ -104,8 +105,53 @@ describe('App — first-run workspace gate + guided install (T6, T9)', () => {
 
     render(createElement(App))
 
-    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
+    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
     expect(screen.queryByText('Nenhum workspace selecionado')).toBeNull()
+    expect(screen.queryByText('Preparando seu workspace')).toBeNull()
+  })
+
+  it('advances from the update gate to the ready placeholder once updateBmad() reports done', async () => {
+    let emitDone: (() => void) | undefined
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(true),
+      updateBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
+        emitDone = () => onEvent({ type: 'done' })
+        return () => {}
+      })
+    })
+
+    render(createElement(App))
+
+    await screen.findByText('Atualizando o BMAD')
+    expect(emitDone).toBeTruthy()
+    emitDone?.()
+
+    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
+  })
+
+  it('"continue anyway" on a failed update advances to ready without retrying (R4.2)', async () => {
+    let emitError: (() => void) | undefined
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      isProvisioned: vi.fn().mockResolvedValue(true),
+      updateBmad: vi.fn(
+        (_workspace: string, onEvent: (evt: { type: string; message?: string }) => void) => {
+          emitError = () => onEvent({ type: 'error', message: 'falha de rede' })
+          return () => {}
+        }
+      )
+    })
+
+    render(createElement(App))
+
+    await screen.findByText('Atualizando o BMAD')
+    emitError?.()
+
+    const continueButton = await screen.findByText('Continuar mesmo assim')
+    fireEvent.click(continueButton)
+
+    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
   })
 
   it('shows the guided install screen for a returning user whose workspace is not yet provisioned', async () => {
