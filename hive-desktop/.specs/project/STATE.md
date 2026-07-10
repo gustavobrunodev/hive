@@ -64,17 +64,51 @@ Updated as work progresses. Load at start of every session.
   named 'styleText'`. Verified by reproducing the crash then re-running under
   Node 22.22.1 successfully. The Electron app's Node runtime (bundled or
   system, whichever `ProcessRunner` shells out to) must satisfy this floor.
+  `hive-desktop/.nvmrc` pins 22.22.1; `npm run dev`/`test`/`typecheck`/`lint`
+  all need it active (`source ~/.nvm/nvm.sh && nvm use 22.22.1` — a shell's
+  `nvm use` does NOT persist across separate tool invocations in an agent
+  harness, only within one shell session/command — re-run it every time or
+  chain it into the same command).
 - **BMAD → Claude Code integration is Skills, not slash commands.**
   `--tools claude-code` writes `.claude/skills/<name>/SKILL.md` (46 skills
   observed); there is no `.claude/commands/` directory. `AgentAdapter.
   runWorkflow()` should drive this by sending a clear natural-language intent
   (Claude Code resolves skills by matching the message against each
   `SKILL.md` description), not by any CLI flag or subcommand.
+- **`@hive/design-system` consumption confirmed (T3):** `"file:../design-system"`
+  dependency + `npm install --install-links` (copies rather than symlinks, so
+  TS module resolution walks `node_modules` normally); React 18.3.x pinned to
+  match the DS's own dev-tested version. Works cleanly in an electron-vite
+  renderer, ESM bundle + CSS both load without error.
+- **electron-vite react-ts scaffold ships demo CSS that actively fights a real
+  app** (found during T20's impeccable pass, not caught earlier): `#root`'s
+  flex-centering + `body`'s hardcoded, never-`data-theme`-aware background +
+  a decorative `wavy-lines.svg` image left the real app shell rendering in a
+  ~1183px centered column with visible dead-background gutters on every
+  screen, in every theme. Fixed by sourcing `body`'s color/background from
+  the DS's real `--ink`/`--bg` tokens and stripping the scaffold's demo
+  rules entirely — worth an explicit `npm run dev` + resize/theme-toggle
+  visual check early next time a project starts from this template, rather
+  than trusting the placeholder screens' `minHeight:100vh`/`maxWidth` inline
+  styles to have quietly masked it (they did, until T19's `WorkUI` used a
+  bare `height:100vh` with no `maxWidth` cap).
+- **Custom-interactive DS components need their own focus-visible rule.**
+  `SkillCard` (and similarly any presentational DS component wrapped with
+  `role="button"`/`tabIndex` instead of a real DS interactive primitive)
+  has no built-in `:focus-visible` treatment, so it silently falls back to
+  the browser's default 1px outline — inconsistent with the DS's own
+  `--focus` ring every real interactive component shows. `chat/IntentGrid.css`
+  is the fix pattern (mirrors `Button.css`'s `inset 2px var(--focus)`); reuse
+  it if another screen makes a presentational DS card clickable.
+- **`ClaudeCliAdapter`'s `--effort` CLI flag is unverified** (T13) — `--model`
+  and `-p`/print-mode are confirmed real flags, but no public `--effort` flag
+  was found for the real `claude` CLI. Correct against real `claude --help`
+  docs before relying on it; there is no real `claude` binary in this sandbox
+  to verify against directly (confirmed absent, T13/T20).
 
 ## Todos (cross-feature)
 
-- Confirm `@hive/design-system` is consumable from an Electron renderer build
-  (ESM bundle + CSS); check peer React 18 alignment.
+- (none open)
 
 ## Deferred Ideas
 
@@ -82,7 +116,23 @@ Updated as work progresses. Load at start of every session.
   M5 when a second adapter exists.
 - Embedded real terminal (xterm.js) as an optional "advanced/transparency" view.
 - Cloud sync of workspace artifacts.
+- **T16 — File attachment into context [S].** Should-have, spec explicitly
+  allows dropping it "if time-boxed" — deferred to keep M1 scope to the
+  must-haves. `AgentAdapter.capabilities().supportsAttachments` is already
+  `false` and `AgentInput`/`AgentSession` are shaped so adding it later is
+  additive (agentAdapter.ts's own doc comments), not a breaking change.
+- Correct `ClaudeCliAdapter`'s `--effort` flag against real `claude --help`
+  once a real `claude` binary is available to verify against (see Lessons).
+- Re-run `bmadCli.e2e.test.ts` (`npm run test:e2e`) and drive an actual live
+  Claude Code chat conversation once a real `claude` CLI is available, to
+  fully close R8.1's chat/PRD-generation leg for real (currently covered by
+  scripted-fake-process tests + a live Playwright pass with `window.hive`
+  stubbed — see the test file's own doc comment for the exact gap).
+- Favicon 404 in the Vite dev server (harmless — Electron's window/taskbar
+  icon comes from `resources/icon.png`, not a web favicon) — P3, cosmetic
+  dev-console noise only.
 
 ## Preferences
 
-- (none recorded yet)
+- Lightweight tasks (state updates, session handoff, small doc edits) work
+  well with faster/cheaper models — noted per the skill's own guidance.
