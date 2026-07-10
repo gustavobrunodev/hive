@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Panel } from '@hive/design-system'
+import { t } from './i18n'
 
 type Theme = 'dark' | 'light'
 
@@ -19,10 +20,10 @@ function App(): React.JSX.Element {
   return (
     <main>
       <Panel style={{ maxWidth: 480, margin: '48px auto', padding: 24, color: 'var(--ink)' }}>
-        <h1>Hive Desktop</h1>
-        <p>Design system wired — placeholder content, replaced in later tasks.</p>
+        <h1>{t('app.title')}</h1>
+        <p>{t('app.placeholderDescription')}</p>
         <Button onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
-          Toggle theme (current: {theme})
+          {t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
         </Button>
       </Panel>
     </main>
