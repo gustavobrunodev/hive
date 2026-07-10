@@ -26,5 +26,13 @@ export const ptBR = {
     loading: 'Carregando…',
     emptyState: 'Nada por aqui ainda.',
     errorGeneric: 'Algo deu errado. Tente novamente.'
+  },
+  onboarding: {
+    checkingWorkspace: 'Verificando workspace…',
+    pickerTitle: 'Nenhum workspace selecionado',
+    pickerDescription:
+      'Escolha uma pasta no seu computador para usar como workspace do Hive Desktop. É lá que os artefatos do BMAD e dos agentes serão salvos.',
+    chooseWorkspaceCta: 'Escolher workspace',
+    workspaceReadyDescription: (path: string) => `Workspace: ${path}`
   }
 } as const
