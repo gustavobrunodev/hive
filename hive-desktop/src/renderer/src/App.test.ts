@@ -66,7 +66,16 @@ describe('App — first-run workspace gate (T6)', () => {
       isProvisioned: vi.fn().mockResolvedValue(false),
       listTree: vi.fn().mockResolvedValue([]),
       readFile: vi.fn().mockResolvedValue(''),
-      watchWorkspace: vi.fn().mockReturnValue(() => {})
+      watchWorkspace: vi.fn().mockReturnValue(() => {}),
+      agent: {
+        capabilities: vi
+          .fn()
+          .mockResolvedValue({ models: [], efforts: [], supportsAttachments: false }),
+        start: vi.fn().mockResolvedValue(undefined),
+        send: vi.fn().mockResolvedValue(undefined),
+        runWorkflow: vi.fn().mockResolvedValue(undefined),
+        onEvent: vi.fn().mockReturnValue(() => {})
+      }
     }
     window.hive = Object.assign(defaults, overrides)
   }

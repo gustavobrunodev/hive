@@ -34,5 +34,20 @@ export const ptBR = {
       'Escolha uma pasta no seu computador para usar como workspace do Hive Desktop. É lá que os artefatos do BMAD e dos agentes serão salvos.',
     chooseWorkspaceCta: 'Escolher workspace',
     workspaceReadyDescription: (path: string) => `Workspace: ${path}`
+  },
+  explorer: {
+    treeLoading: 'Carregando arquivos…',
+    treeErrorTitle: 'Não foi possível carregar os arquivos',
+    treeErrorDescription: 'Tente novamente ou verifique se o workspace ainda existe.',
+    treeEmptyTitle: 'Nenhum arquivo ainda',
+    treeEmptyDescription: 'Os arquivos criados no workspace vão aparecer aqui.',
+    treeAriaLabel: 'Arquivos do workspace',
+    viewerEmptyTitle: 'Nenhum arquivo selecionado',
+    viewerEmptyDescription: 'Selecione um arquivo na árvore ao lado para visualizar o conteúdo.',
+    viewerLoading: 'Carregando conteúdo…',
+    viewerErrorTitle: 'Não foi possível abrir o arquivo',
+    viewerErrorDescription: 'Tente selecionar o arquivo novamente.',
+    copyLabel: 'Copiar',
+    copiedLabel: 'Copiado'
   }
 } as const
