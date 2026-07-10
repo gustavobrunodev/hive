@@ -60,6 +60,23 @@ Updated as work progresses. Load at start of every session.
 
 ## Lessons
 
+- **`sandbox: true` + electron-vite's default preload externalization is a
+  broken combo — found via a real `npm run dev` crash (2026-07-10).**
+  Symptom: app window loads to Vite's red error overlay, no useful message
+  in the terminal (only WSL-noise dbus/dconf lines). Root cause: with
+  `sandbox: true` (src/main/index.ts), the preload script runs in a
+  restricted context that cannot resolve third-party `node_modules` at
+  runtime — only `electron`/Node builtins work unbundled. electron-vite
+  defaults `build.externalizeDeps: true` for the preload target, which
+  leaves `@electron-toolkit/preload` as a runtime `require()` that then
+  fails ("module not found"), so `window.hive` never gets exposed via
+  `contextBridge` and every renderer screen crashes reading `undefined`.
+  Fixed in `electron.vite.config.ts` by setting `preload.build.
+  externalizeDeps: false` (bundles `@electron-toolkit/preload` inline;
+  `electron`/builtins stay external via electron-vite's own preload preset
+  regardless). Diagnosed by temporarily wiring `webContents.on('console-
+  message', ...)` in `src/main/index.ts` and running under `xvfb-run` — the
+  terminal alone never surfaces renderer-side errors.
 - **Node version floor for BMAD:** `bmad-method@6.10.0` requires Node
   ≥ 20.12.0 — on 20.11 it crashes with `node:util does not provide an export
   named 'styleText'`. Verified by reproducing the crash then re-running under
