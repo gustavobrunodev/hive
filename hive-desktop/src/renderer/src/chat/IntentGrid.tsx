@@ -1,5 +1,6 @@
 import { Badge, Empty, SkillCard, SkillGrid } from '@hive/design-system'
 import { intentLabel, t } from '../i18n'
+import './IntentGrid.css'
 
 /** Structural mirror of `main/workflowCatalog.ts`'s `WorkflowEntry` — kept local so this component stays self-contained, same convention `explorer/Explorer.tsx` uses for `FsTreeNode`. */
 interface WorkflowEntryLike {
@@ -45,6 +46,7 @@ export function IntentGrid<T extends WorkflowEntryLike>({
               role={wired ? 'button' : undefined}
               tabIndex={wired ? 0 : undefined}
               aria-disabled={wired ? undefined : true}
+              className={wired ? 'hds-intent-card--interactive' : undefined}
               style={{ cursor: wired ? 'pointer' : 'default', opacity: wired ? 1 : 0.7 }}
               onClick={wired ? () => onSelect(entry) : undefined}
               onKeyDown={
