@@ -109,9 +109,9 @@ describe('ClaudeCliAdapter — session turns', () => {
       { type: 'done' }
     ])
 
-    // Sanity check on the invocation: cwd is the workspace, model/effort are
-    // forwarded as flags (best-guess flags — see claudeCliAdapter.ts header
-    // for verified-vs-guessed detail).
+    // Sanity check on the invocation: cwd is the workspace, model/effort/
+    // permission-mode are forwarded as flags (all verified live against a
+    // real `claude` binary — see claudeCliAdapter.ts header).
     expect(fakeRunner.calls).toHaveLength(1)
     expect(fakeRunner.calls[0].command).toBe('claude')
     expect(fakeRunner.calls[0].args).toEqual([
@@ -120,7 +120,9 @@ describe('ClaudeCliAdapter — session turns', () => {
       '--model',
       'claude-sonnet-4-5',
       '--effort',
-      'medium'
+      'medium',
+      '--permission-mode',
+      'acceptEdits'
     ])
     expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws' })
   })

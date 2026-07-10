@@ -21,30 +21,33 @@ import {
  * --- CLI invocation flags: verified vs. best-guess (flag this clearly for
  * future correction — see task report) ---
  *
- * VERIFIED (public Claude Code CLI docs, at authoring time):
+ * VERIFIED against a real `claude` binary (v2.1.206) and a live `-p` run
+ * driving the real `bmad-prd` skill end-to-end (produced a real
+ * `_bmad-output/.../prd.md`, matching design.md §7's predicted path):
  *   - `claude -p "<prompt>"` — non-interactive "print mode": run one turn
  *     against the given prompt, stream/print the result, then exit. This is
  *     the right primitive for spawning one process per turn against
  *     `ProcessRunner`/`ProcessHandle`, which only exposes a stdout/stderr
  *     stream + exit code (no stdin), not an attach-and-keep-talking channel.
- *   - `--model <id>` — selects the model for the run.
+ *   - `--model <id>` — selects the model for the run. `--help` recommends
+ *     aliases (`opus`/`sonnet`/`haiku`/`fable`) over pinned full model ids,
+ *     since the latter churn as new model generations ship.
+ *   - `--effort <level>` — confirmed real, values `low|medium|high|xhigh|max`.
+ *   - `--permission-mode <mode>` — **required** for any workflow that writes
+ *     files (which "Create a PRD" always does): verified live that `-p` with
+ *     no permission-mode flag silently refuses tool-driven writes ("I don't
+ *     have permission to write there yet"), while `acceptEdits` allows them.
+ *     `acceptEdits` covers Write/Edit only, not Bash — BMAD sub-steps that
+ *     shell out (e.g. `uv run` scripts) still get skipped/blocked under it;
+ *     acceptable for the MVP's single PRD-skill workflow, revisit if a
+ *     future workflow needs Bash-driven BMAD steps.
  *   - Working directory: the CLI operates on the current working directory;
  *     we pass `opts.workspace` as `cwd` to `ProcessRunner.run`, not as a
  *     flag (matches how `BmadService`-style callers use `RunOptions.cwd`).
- *
- * BEST-GUESS / UNVERIFIED — a future task should confirm against real
- * Claude CLI docs/`claude --help` before relying on these in production:
- *   - `--effort <id>` — there is no confirmed public flag mapping to the
- *     curated "low/medium/high" effort levels this adapter exposes via
- *     `capabilities()`. It is passed through as `--effort <opts.effort>`
- *     so the plumbing exists end-to-end, but the literal flag name is a
- *     guess and may need to change (or be dropped/replaced with an env var
- *     or a different mechanism entirely) once verified.
  *   - Workflow prompts sent via `runWorkflow` (e.g. "use the bmad-prd skill
- *     to create a PRD") are inferred from design.md §7's finding that BMAD
- *     integrates with Claude Code exclusively through Skills, matched by
- *     natural-language prompt — not independently verified by running a
- *     real chat turn in this task.
+ *     to create a PRD") — confirmed live: Claude Code resolves the skill by
+ *     matching the natural-language prompt against `SKILL.md` descriptions,
+ *     no explicit invocation syntax needed.
  */
 
 const CLAUDE_COMMAND = 'claude'
@@ -56,9 +59,9 @@ function capabilities(): AgentCapabilities {
   // of C5 is that this list is a maintained, hand-picked set either way.
   return {
     models: [
-      { id: 'claude-opus-4-5', label: 'Opus' },
-      { id: 'claude-sonnet-4-5', label: 'Sonnet' },
-      { id: 'claude-haiku-4-5', label: 'Haiku' }
+      { id: 'opus', label: 'Opus' },
+      { id: 'sonnet', label: 'Sonnet' },
+      { id: 'haiku', label: 'Haiku' }
     ],
     efforts: [
       { id: 'low', label: 'Low' },
@@ -106,7 +109,20 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
   function spawnTurn(prompt: string): void {
     const handle = processRunner.run(
       CLAUDE_COMMAND,
-      ['-p', prompt, '--model', opts.model, '--effort', opts.effort],
+      [
+        '-p',
+        prompt,
+        '--model',
+        opts.model,
+        '--effort',
+        opts.effort,
+        // Verified live: without a permission-mode flag, `-p` silently
+        // refuses tool-driven writes ("I don't have permission to write
+        // there yet"). `acceptEdits` is the minimum that lets BMAD skills
+        // (e.g. bmad-prd) actually write their output artifact.
+        '--permission-mode',
+        'acceptEdits'
+      ],
       { cwd: opts.workspace }
     )
     activeHandle = handle

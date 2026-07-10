@@ -50,12 +50,13 @@ Updated as work progresses. Load at start of every session.
   (not `.claude/commands/` as originally assumed) and the PRD workflow is the
   `bmad-prd` skill, writing to
   `_bmad-output/planning-artifacts/prds/prd-<project_name>-<date>/prd.md` by
-  default. Full detail in design.md §7 "BMAD Integration — VERIFIED". One
-  open item carried forward, not a blocker: the live chat-driven PRD
-  generation itself (Discovery→Finalize inside a real Claude Code
-  conversation) wasn't executed — only the installed skill's own
-  config/instructions were inspected — so spot-check the actual output file
-  once R6/R7 chat wiring lands in M1.
+  default. Full detail in design.md §7 "BMAD Integration — VERIFIED".
+- **B2 — RESOLVED (2026-07-10).** Live chat-driven PRD generation verified
+  against a real `claude` CLI binary (v2.1.206, authenticated) in a throwaway
+  workspace: `claude -p "use the bmad-prd skill to create a PRD..." --model
+  sonnet --effort low --permission-mode acceptEdits` produced a real
+  `prd.md` at the exact path B1 predicted. This also confirmed `--effort`
+  is a real flag and surfaced a real bug, now fixed — see Lessons.
 
 ## Lessons
 
@@ -100,11 +101,29 @@ Updated as work progresses. Load at start of every session.
   `--focus` ring every real interactive component shows. `chat/IntentGrid.css`
   is the fix pattern (mirrors `Button.css`'s `inset 2px var(--focus)`); reuse
   it if another screen makes a presentational DS card clickable.
-- **`ClaudeCliAdapter`'s `--effort` CLI flag is unverified** (T13) — `--model`
-  and `-p`/print-mode are confirmed real flags, but no public `--effort` flag
-  was found for the real `claude` CLI. Correct against real `claude --help`
-  docs before relying on it; there is no real `claude` binary in this sandbox
-  to verify against directly (confirmed absent, T13/T20).
+- **`ClaudeCliAdapter` fully verified live (2026-07-10) against a real `claude`
+  binary (v2.1.206).** `--model`, `-p`, `--effort` (`low|medium|high|xhigh|max`)
+  all confirmed real. Fixed two real defects found by the live run: (1)
+  `capabilities()` listed stale pinned model ids (`claude-opus-4-5` etc.) —
+  changed to the alias ids `--help` itself recommends (`opus`/`sonnet`/
+  `haiku`), which don't churn as model generations ship; (2) `spawnTurn` never
+  passed `--permission-mode`, so `-p` silently refused all tool-driven writes
+  ("I don't have permission to write there yet") — any real "Create a PRD"
+  run would have failed to ever produce the artifact. Fixed by adding
+  `--permission-mode acceptEdits` (covers Write/Edit; Bash-driven BMAD
+  sub-steps like `uv run` scripts still get skipped under it — fine for the
+  MVP's single skill-driven workflow, revisit if a future workflow needs
+  Bash).
+- **`bmad-method install --directory <path>` does not fully sandbox the
+  install** when invoked from a different cwd — `.claude/skills/bmad-*`,
+  `.agents/skills/`, `.agents/.skill-lock.json`, `.github/agents/*.agent.md`
+  are written relative to the invocation cwd, not `--directory` (only
+  `_bmad/` and `_bmad-output/` respect it). Caused real untracked pollution
+  in the `hive` monorepo root during this session's live-CLI validation
+  (left in place per user choice, not cleaned up — see repo root `git status`
+  if this needs addressing later). Always `cd` into the target directory
+  before calling `bmad-method install` rather than trusting `--directory`
+  alone.
 
 ## Todos (cross-feature)
 
@@ -121,13 +140,11 @@ Updated as work progresses. Load at start of every session.
   must-haves. `AgentAdapter.capabilities().supportsAttachments` is already
   `false` and `AgentInput`/`AgentSession` are shaped so adding it later is
   additive (agentAdapter.ts's own doc comments), not a breaking change.
-- Correct `ClaudeCliAdapter`'s `--effort` flag against real `claude --help`
-  once a real `claude` binary is available to verify against (see Lessons).
-- Re-run `bmadCli.e2e.test.ts` (`npm run test:e2e`) and drive an actual live
-  Claude Code chat conversation once a real `claude` CLI is available, to
-  fully close R8.1's chat/PRD-generation leg for real (currently covered by
-  scripted-fake-process tests + a live Playwright pass with `window.hive`
-  stubbed — see the test file's own doc comment for the exact gap).
+- ~~Correct `ClaudeCliAdapter`'s `--effort` flag / drive a live PRD generation
+  once a real `claude` CLI is available~~ — DONE 2026-07-10, see Lessons (B2).
+  `bmadCli.e2e.test.ts` still covers install/update only (no real `claude`
+  binary in the automated test environment); the live chat leg was validated
+  manually, not added to the automated E2E suite.
 - Favicon 404 in the Vite dev server (harmless — Electron's window/taskbar
   icon comes from `resources/icon.png`, not a web favicon) — P3, cosmetic
   dev-console noise only.
