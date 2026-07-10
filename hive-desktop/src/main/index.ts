@@ -1,7 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { createConfigStore } from './configStore'
+import { createWorkspaceService } from './workspaceService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -53,6 +55,25 @@ app.whenReady().then(() => {
 
   // IPC: request/response round trip for window.hive.ping()
   ipcMain.handle('ping', async () => 'pong')
+
+  // WorkspaceService (T5): a single ConfigStore instance backed by the
+  // per-user data dir, wrapped for workspace-picker/read operations and
+  // exposed to the renderer as window.hive.{chooseWorkspace,getWorkspace,isProvisioned}.
+  const configStore = createConfigStore(app.getPath('userData'))
+  // Adapter closure (rather than passing `dialog` straight through): Electron's
+  // `dialog.showOpenDialog` is overloaded (an optional BrowserWindow first
+  // arg), which doesn't structurally match the single-argument `DialogLike`
+  // workspaceService.ts declares to stay Electron-import-free. This one-line
+  // wrapper calls the options-only overload, satisfying `DialogLike` without
+  // loosening its type or importing Electron's types into workspaceService.ts.
+  const workspaceService = createWorkspaceService(configStore, {
+    showOpenDialog: (options) =>
+      dialog.showOpenDialog(options as Parameters<typeof dialog.showOpenDialog>[0])
+  })
+
+  ipcMain.handle('workspace:choose', async () => workspaceService.chooseWorkspace())
+  ipcMain.handle('workspace:get', async () => workspaceService.getWorkspace())
+  ipcMain.handle('workspace:isProvisioned', async () => workspaceService.isProvisioned())
 
   createWindow()
 

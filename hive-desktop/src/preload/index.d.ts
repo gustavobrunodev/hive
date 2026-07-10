@@ -6,6 +6,9 @@ declare global {
     api: unknown
     hive: {
       ping(): Promise<string>
+      chooseWorkspace(): Promise<string | null>
+      getWorkspace(): Promise<string | null>
+      isProvisioned(): Promise<boolean>
     }
   }
 }

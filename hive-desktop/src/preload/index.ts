@@ -6,7 +6,10 @@ import { electronAPI } from '@electron-toolkit/preload'
 // contextBridge.exposeInMainWorld call — this keeps the renderer's entire
 // privileged surface enumerable in one place.
 const hive = {
-  ping: (): Promise<string> => ipcRenderer.invoke('ping')
+  ping: (): Promise<string> => ipcRenderer.invoke('ping'),
+  chooseWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:choose'),
+  getWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:get'),
+  isProvisioned: (): Promise<boolean> => ipcRenderer.invoke('workspace:isProvisioned')
 }
 
 // Template-provided helper API (kept for the scaffold's Versions.tsx, owned by
