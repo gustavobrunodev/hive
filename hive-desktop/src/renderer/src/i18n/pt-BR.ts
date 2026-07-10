@@ -66,5 +66,17 @@ export const ptBR = {
     errorDescriptionFallback: 'Algo deu errado durante a atualização do BMAD.',
     retryCta: 'Tentar novamente',
     continueAnywayCta: 'Continuar mesmo assim'
+  },
+  chat: {
+    emptyTitle: 'Nova conversa',
+    emptyDescription: 'Envie uma mensagem para começar a conversar com o agente.',
+    promptPlaceholder: 'Escreva uma mensagem…',
+    sendLabel: 'Enviar',
+    typingLabel: 'O agente está respondendo',
+    modelLabel: 'Modelo',
+    effortLabel: 'Esforço',
+    jumpToLatestLabel: 'Ir para a última mensagem',
+    errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
+    loadingCapabilities: 'Carregando opções do agente…'
   }
 } as const
