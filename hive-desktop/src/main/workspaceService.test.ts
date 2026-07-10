@@ -57,12 +57,18 @@ describe('WorkspaceService', () => {
   })
 
   it('getWorkspace() returns null when nothing has been picked yet', () => {
-    const service = createWorkspaceService(configStore, fakeDialog({ canceled: true, filePaths: [] }))
+    const service = createWorkspaceService(
+      configStore,
+      fakeDialog({ canceled: true, filePaths: [] })
+    )
     expect(service.getWorkspace()).toBeNull()
   })
 
   it('isProvisioned() reflects the ConfigStore state (false by default, true after setProvisioned(true))', () => {
-    const service = createWorkspaceService(configStore, fakeDialog({ canceled: true, filePaths: [] }))
+    const service = createWorkspaceService(
+      configStore,
+      fakeDialog({ canceled: true, filePaths: [] })
+    )
     expect(service.isProvisioned()).toBe(false)
 
     configStore.setProvisioned(true)

@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { FsChangeEvent, TreeNode } from '../main/fsService'
+import type {
+  AgentCapabilities,
+  AgentEvent,
+  SessionOpts,
+  WorkflowCommand
+} from '../main/agentAdapter'
 
 // The single typed bridge for all privileged (main-process) calls the renderer
 // may make. Every future IPC method (T4+) is added here, not as a separate
@@ -41,6 +47,34 @@ const hive = {
     return () => {
       ipcRenderer.removeListener('fs:watch:event', listener)
       ipcRenderer.send('fs:watch:stop')
+    }
+  },
+
+  // AgentService (T14). Grouped under a nested `agent` namespace (unlike the
+  // flat top-level methods above) to match design.md §3's IPC surface
+  // (`agent.capabilities()`, `agent.start(opts)`, `agent.send(...)`,
+  // `agent.runWorkflow(key)`). `capabilities`/`start`/`send`/`runWorkflow`
+  // are plain invoke/response calls — even though a session's *events*
+  // stream separately via `onEvent`, starting/sending/running a workflow
+  // just needs to succeed or fail. `onEvent` is the streaming half and
+  // follows the exact `watchWorkspace` channel-pattern above: one
+  // main -> renderer event channel ('agent:event'), a start/stop pair of
+  // renderer -> main sends ('agent:event:start'/'agent:event:stop'), and a
+  // subscribe-returning-unsubscribe shape.
+  agent: {
+    capabilities: (): Promise<AgentCapabilities> => ipcRenderer.invoke('agent:capabilities'),
+    start: (opts: SessionOpts): Promise<void> => ipcRenderer.invoke('agent:start', opts),
+    send: (text: string): Promise<void> => ipcRenderer.invoke('agent:send', text),
+    runWorkflow: (cmd: WorkflowCommand): Promise<void> =>
+      ipcRenderer.invoke('agent:runWorkflow', cmd),
+    onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
+      ipcRenderer.on('agent:event', listener)
+      ipcRenderer.send('agent:event:start')
+      return () => {
+        ipcRenderer.removeListener('agent:event', listener)
+        ipcRenderer.send('agent:event:stop')
+      }
     }
   }
 }

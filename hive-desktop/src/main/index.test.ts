@@ -74,6 +74,35 @@ const { fakeFsService, watchWorkspaceCalls } = vi.hoisted(() => {
 
 vi.mock('./fsService', () => ({ createFsService: vi.fn(() => fakeFsService) }))
 
+// AgentService (T14): mocked the same way FsService is above — index.ts
+// wires window.hive.agent.* to a real AgentService backed by a real
+// ClaudeCliAdapter/ProcessRunner (neither of which import 'electron', so
+// they're left un-mocked and constructed for real), but this file only cares
+// that index.ts routes IPC calls to *whatever* AgentService it's given, not
+// AgentService's own forwarding logic (covered by agentService.test.ts).
+const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
+  const agentOnEventCalls: Array<{
+    listener: (event: unknown) => void
+    unsubscribe: ReturnType<typeof import('vitest').vi.fn>
+  }> = []
+  return {
+    agentOnEventCalls,
+    fakeAgentService: {
+      capabilities: vi.fn(() => ({ models: [], efforts: [], supportsAttachments: false })),
+      startSession: vi.fn(),
+      send: vi.fn(),
+      runWorkflow: vi.fn(),
+      onEvent: vi.fn((listener: (event: unknown) => void) => {
+        const unsubscribe = vi.fn()
+        agentOnEventCalls.push({ listener, unsubscribe })
+        return unsubscribe
+      })
+    }
+  }
+})
+
+vi.mock('./agentService', () => ({ createAgentService: vi.fn(() => fakeAgentService) }))
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
@@ -199,5 +228,70 @@ describe('main process bootstrap', () => {
     findOnHandler('fs:watch:start')(fakeEvent, '/ws-b')
 
     expect(firstStop).toHaveBeenCalledTimes(1)
+  })
+
+  // T14: AgentService wiring — capabilities/start/send/runWorkflow route to
+  // the (mocked) AgentService with the exact args the renderer passed, as
+  // real request/response ipcMain.handle registrations.
+  it('registers agent:capabilities/start/send/runWorkflow handlers, routing to AgentService', async () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('agent:capabilities', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('agent:start', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('agent:send', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('agent:runWorkflow', expect.any(Function))
+
+    const fakeInvokeEvent = {}
+
+    await expect(findHandler('agent:capabilities')()).resolves.toEqual({
+      models: [],
+      efforts: [],
+      supportsAttachments: false
+    })
+    expect(fakeAgentService.capabilities).toHaveBeenCalled()
+
+    const opts = { workspace: '/ws', model: 'claude-sonnet-4-5', effort: 'medium' }
+    await findHandler('agent:start')(fakeInvokeEvent, opts)
+    expect(fakeAgentService.startSession).toHaveBeenCalledWith(opts)
+
+    await findHandler('agent:send')(fakeInvokeEvent, 'hello agent')
+    expect(fakeAgentService.send).toHaveBeenCalledWith('hello agent')
+
+    const cmd = { key: 'prd' }
+    await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd)
+    expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd)
+  })
+
+  // T14: AgentService streaming wiring — 'agent:event:start'/'agent:event:stop'
+  // are fire-and-forget ipcMain.on handlers (not ipcMain.handle), mirroring
+  // fs:watch:start/stop: they subscribe/unsubscribe via AgentService.onEvent
+  // and relay forwarded events back to the requesting sender over
+  // 'agent:event'.
+  it('registers agent:event:start/agent:event:stop, subscribes/unsubscribes via AgentService.onEvent, and relays events to the sender', () => {
+    expect(ipcMain.on).toHaveBeenCalledWith('agent:event:start', expect.any(Function))
+    expect(ipcMain.on).toHaveBeenCalledWith('agent:event:stop', expect.any(Function))
+
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 99, send } }
+
+    findOnHandler('agent:event:start')(fakeEvent)
+    expect(fakeAgentService.onEvent).toHaveBeenCalled()
+
+    const call = agentOnEventCalls[agentOnEventCalls.length - 1]
+    call.listener({ type: 'token', text: 'hi' })
+    expect(send).toHaveBeenCalledWith('agent:event', { type: 'token', text: 'hi' })
+
+    findOnHandler('agent:event:stop')(fakeEvent)
+    expect(call.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('starting a new agent event subscription for the same sender tears down its previous subscription first (no leaked subscriptions)', () => {
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 100, send } }
+
+    findOnHandler('agent:event:start')(fakeEvent)
+    const firstUnsubscribe = agentOnEventCalls[agentOnEventCalls.length - 1].unsubscribe
+
+    findOnHandler('agent:event:start')(fakeEvent)
+
+    expect(firstUnsubscribe).toHaveBeenCalledTimes(1)
   })
 })

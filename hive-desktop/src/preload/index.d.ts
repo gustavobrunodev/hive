@@ -1,5 +1,11 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { FsChangeEvent, TreeNode } from '../main/fsService'
+import type {
+  AgentCapabilities,
+  AgentEvent,
+  SessionOpts,
+  WorkflowCommand
+} from '../main/agentAdapter'
 
 declare global {
   interface Window {
@@ -14,6 +20,15 @@ declare global {
       readFile(root: string, relativePath: string): Promise<string>
       /** Starts watching `root`; returns an unsubscribe function (see preload/index.ts for the full channel design). */
       watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void
+      /** AgentService (T14) surface — see preload/index.ts for the full channel design. */
+      agent: {
+        capabilities(): Promise<AgentCapabilities>
+        start(opts: SessionOpts): Promise<void>
+        send(text: string): Promise<void>
+        runWorkflow(cmd: WorkflowCommand): Promise<void>
+        /** Subscribes to the active session's events; returns an unsubscribe function. */
+        onEvent(onEvent: (evt: AgentEvent) => void): () => void
+      }
     }
   }
 }

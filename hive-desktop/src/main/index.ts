@@ -5,6 +5,10 @@ import icon from '../../resources/icon.png?asset'
 import { createConfigStore } from './configStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, type FsChangeEvent } from './fsService'
+import { createProcessRunner } from './processRunner'
+import { createClaudeCliAdapter } from './claudeCliAdapter'
+import { createAgentService } from './agentService'
+import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
 
 function createWindow(): void {
   // Create the browser window.
@@ -113,6 +117,52 @@ app.whenReady().then(() => {
   ipcMain.on('fs:watch:stop', (event) => {
     activeWatchStops.get(event.sender.id)?.()
     activeWatchStops.delete(event.sender.id)
+  })
+
+  // AgentService (T14): a single ClaudeCliAdapter (the MVP's sole
+  // AgentAdapter, C1) backed by a real (spawn-based) ProcessRunner, wrapped
+  // by AgentService to own the active session. Exposed to the renderer as
+  // window.hive.agent.{capabilities,start,send,runWorkflow,onEvent}.
+  const processRunner = createProcessRunner()
+  const claudeCliAdapter = createClaudeCliAdapter(processRunner)
+  const agentService = createAgentService(claudeCliAdapter)
+
+  ipcMain.handle('agent:capabilities', async () => agentService.capabilities())
+  ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
+    agentService.startSession(opts)
+  })
+  ipcMain.handle('agent:send', async (_event, text: string) => {
+    agentService.send(text)
+  })
+  ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand) => {
+    agentService.runWorkflow(cmd)
+  })
+
+  // Streaming IPC for agent events — same channel-pattern as fs:watch:* above
+  // (see its comment for the full rationale): a start/stop pair of
+  // renderer -> main fire-and-forget sends, one main -> renderer event
+  // channel repeated per event, keyed by `event.sender.id` so each window
+  // gets its own subscription and a stray start/stop from one window can't
+  // affect another. Starting a new subscription for a sender that already
+  // has one first tears down the old one, so repeated starts (e.g. the
+  // renderer resubscribing after starting a new session) can't leak
+  // subscriptions.
+  //   'agent:event:start' (renderer -> main, fire-and-forget): subscribe to the active session's events.
+  //   'agent:event'        (main -> renderer, fire-and-forget, repeated): one AgentEvent per stream event.
+  //   'agent:event:stop'  (renderer -> main, fire-and-forget): unsubscribe.
+  const activeAgentEventUnsubs = new Map<number, () => void>()
+
+  ipcMain.on('agent:event:start', (event) => {
+    activeAgentEventUnsubs.get(event.sender.id)?.()
+    const unsubscribe = agentService.onEvent((agentEvent: AgentEvent) => {
+      event.sender.send('agent:event', agentEvent)
+    })
+    activeAgentEventUnsubs.set(event.sender.id, unsubscribe)
+  })
+
+  ipcMain.on('agent:event:stop', (event) => {
+    activeAgentEventUnsubs.get(event.sender.id)?.()
+    activeAgentEventUnsubs.delete(event.sender.id)
   })
 
   createWindow()
