@@ -44,9 +44,45 @@ vi.mock('@electron-toolkit/utils', () => ({
 
 vi.mock('../../resources/icon.png?asset', () => ({ default: 'icon-stub' }))
 
+// FsService (T11): mocked (rather than exercised against a real temp dir,
+// which fsService.test.ts already does thoroughly) so this file can assert
+// index.ts routes IPC calls to it correctly — same "does the wiring work"
+// concern as the WorkspaceService tests below, just via a module mock
+// instead of an injected fake, since createFsService() takes no
+// Electron-ish dependency to substitute the way WorkspaceService's
+// `DialogLike` does. Declared via vi.hoisted so the mock factory (which
+// vi.mock hoists above these declarations) can close over it.
+const { fakeFsService, watchWorkspaceCalls } = vi.hoisted(() => {
+  const watchWorkspaceCalls: Array<{
+    root: string
+    onChange: (event: unknown) => void
+    stop: ReturnType<typeof import('vitest').vi.fn>
+  }> = []
+  return {
+    watchWorkspaceCalls,
+    fakeFsService: {
+      listTree: vi.fn(() => [{ name: 'a.txt', path: 'a.txt', type: 'file' }]),
+      readFile: vi.fn(() => 'fake file contents'),
+      watchWorkspace: vi.fn((root: string, onChange: (event: unknown) => void) => {
+        const stop = vi.fn()
+        watchWorkspaceCalls.push({ root, onChange, stop })
+        return stop
+      })
+    }
+  }
+})
+
+vi.mock('./fsService', () => ({ createFsService: vi.fn(() => fakeFsService) }))
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
+  return call[1] as (...args: unknown[]) => unknown
+}
+
+function findOnHandler(channel: string): (...args: unknown[]) => unknown {
+  const call = vi.mocked(ipcMain.on).mock.calls.find(([ch]) => ch === channel)
+  if (!call) throw new Error(`no ipcMain.on registered for "${channel}"`)
   return call[1] as (...args: unknown[]) => unknown
 }
 
@@ -105,5 +141,63 @@ describe('main process bootstrap', () => {
     await expect(findHandler('workspace:choose')()).resolves.toBe('/picked/workspace')
     expect(dialog.showOpenDialog).toHaveBeenCalledWith({ properties: ['openDirectory'] })
     await expect(findHandler('workspace:get')()).resolves.toBe('/picked/workspace')
+  })
+
+  // T11: FsService wiring — request/response methods route to the (mocked)
+  // FsService with the exact args the renderer passed.
+  it('registers fs:listTree and fs:readFile handlers, routing to FsService', async () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('fs:listTree', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('fs:readFile', expect.any(Function))
+
+    // Real ipcMain.handle listeners always receive the IpcMainInvokeEvent as
+    // their first argument, followed by the args the renderer passed —
+    // mirrored here with a stub event object.
+    const fakeInvokeEvent = {}
+    await expect(findHandler('fs:listTree')(fakeInvokeEvent, '/ws', 'docs')).resolves.toEqual([
+      { name: 'a.txt', path: 'a.txt', type: 'file' }
+    ])
+    expect(fakeFsService.listTree).toHaveBeenCalledWith('/ws', 'docs')
+
+    await expect(findHandler('fs:readFile')(fakeInvokeEvent, '/ws', 'a.txt')).resolves.toBe(
+      'fake file contents'
+    )
+    expect(fakeFsService.readFile).toHaveBeenCalledWith('/ws', 'a.txt')
+  })
+
+  // T11: FsService streaming wiring — 'fs:watch:start'/'fs:watch:stop' are
+  // registered as fire-and-forget ipcMain.on handlers (not ipcMain.handle),
+  // and relay FsService's onChange events back to the requesting sender over
+  // 'fs:watch:event'.
+  it('registers fs:watch:start/fs:watch:stop, starts/stops FsService.watchWorkspace, and relays events to the sender', () => {
+    expect(ipcMain.on).toHaveBeenCalledWith('fs:watch:start', expect.any(Function))
+    expect(ipcMain.on).toHaveBeenCalledWith('fs:watch:stop', expect.any(Function))
+
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 42, send } }
+
+    findOnHandler('fs:watch:start')(fakeEvent, '/ws')
+    expect(fakeFsService.watchWorkspace).toHaveBeenCalledWith('/ws', expect.any(Function))
+
+    const call = watchWorkspaceCalls[watchWorkspaceCalls.length - 1]
+    expect(call.root).toBe('/ws')
+
+    // Simulate FsService firing a change: main should relay it to the sender.
+    call.onChange({ type: 'add', path: 'new-file.txt' })
+    expect(send).toHaveBeenCalledWith('fs:watch:event', { type: 'add', path: 'new-file.txt' })
+
+    findOnHandler('fs:watch:stop')(fakeEvent)
+    expect(call.stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('starting a new watch for the same sender tears down its previous watcher first (no leaked watchers)', () => {
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 7, send } }
+
+    findOnHandler('fs:watch:start')(fakeEvent, '/ws-a')
+    const firstStop = watchWorkspaceCalls[watchWorkspaceCalls.length - 1].stop
+
+    findOnHandler('fs:watch:start')(fakeEvent, '/ws-b')
+
+    expect(firstStop).toHaveBeenCalledTimes(1)
   })
 })

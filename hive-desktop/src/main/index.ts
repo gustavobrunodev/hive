@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createConfigStore } from './configStore'
 import { createWorkspaceService } from './workspaceService'
+import { createFsService, type FsChangeEvent } from './fsService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -74,6 +75,45 @@ app.whenReady().then(() => {
   ipcMain.handle('workspace:choose', async () => workspaceService.chooseWorkspace())
   ipcMain.handle('workspace:get', async () => workspaceService.getWorkspace())
   ipcMain.handle('workspace:isProvisioned', async () => workspaceService.isProvisioned())
+
+  // FsService (T11): a single stateless instance (it takes `root` per call,
+  // see fsService.ts) exposed as window.hive.{listTree,readFile,watchWorkspace}.
+  const fsService = createFsService()
+
+  ipcMain.handle('fs:listTree', async (_event, root: string, relativePath?: string) =>
+    fsService.listTree(root, relativePath)
+  )
+  ipcMain.handle('fs:readFile', async (_event, root: string, relativePath: string) =>
+    fsService.readFile(root, relativePath)
+  )
+
+  // Streaming IPC for watchWorkspace — the first of its kind in this
+  // codebase (ongoing change events rather than one request/response), so
+  // documented in more detail than the request/response handlers above.
+  // Channels:
+  //   'fs:watch:start' (renderer -> main, fire-and-forget): begin watching `root`.
+  //   'fs:watch:event'  (main -> renderer, fire-and-forget, repeated): one FsChangeEvent per fs change.
+  //   'fs:watch:stop'  (renderer -> main, fire-and-forget): tear down the watcher.
+  // Keyed by `event.sender.id` (the requesting WebContents) rather than a
+  // single module-level variable, so each renderer window gets its own
+  // watcher lifecycle and a stray stop/start from one window can't affect
+  // another. Starting a new watch for a sender that already has one first
+  // tears down the old one, so repeated starts (e.g. workspace switches)
+  // can't leak watchers.
+  const activeWatchStops = new Map<number, () => void>()
+
+  ipcMain.on('fs:watch:start', (event, root: string) => {
+    activeWatchStops.get(event.sender.id)?.()
+    const stop = fsService.watchWorkspace(root, (change: FsChangeEvent) => {
+      event.sender.send('fs:watch:event', change)
+    })
+    activeWatchStops.set(event.sender.id, stop)
+  })
+
+  ipcMain.on('fs:watch:stop', (event) => {
+    activeWatchStops.get(event.sender.id)?.()
+    activeWatchStops.delete(event.sender.id)
+  })
 
   createWindow()
 
