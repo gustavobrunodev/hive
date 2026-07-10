@@ -1,3 +1,4 @@
+import '@hive/design-system/dist/ds-bundle.css'
 import './assets/main.css'
 
 import { StrictMode } from 'react'
