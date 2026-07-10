@@ -32,8 +32,7 @@ export const ptBR = {
     pickerTitle: 'Nenhum workspace selecionado',
     pickerDescription:
       'Escolha uma pasta no seu computador para usar como workspace do Hive Desktop. É lá que os artefatos do BMAD e dos agentes serão salvos.',
-    chooseWorkspaceCta: 'Escolher workspace',
-    workspaceReadyDescription: (path: string) => `Workspace: ${path}`
+    chooseWorkspaceCta: 'Escolher workspace'
   },
   explorer: {
     treeLoading: 'Carregando arquivos…',
@@ -81,6 +80,9 @@ export const ptBR = {
     title: 'O que você quer fazer hoje?',
     description: 'Escolha um ponto de partida guiado pelo BMAD.',
     plannedBadge: 'Em breve'
+  },
+  workUI: {
+    resizeHandleLabel: 'Redimensionar painéis'
   }
 } as const
 

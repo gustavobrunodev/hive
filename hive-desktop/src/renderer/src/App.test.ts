@@ -54,6 +54,18 @@ vi.mock('@hive/design-system', () => ({
   SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
   SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title)
 }))
+
+// `WorkUI` (T19) composes `Explorer`/`Chat`, each with their own large DS
+// dependency surface (Tree, MessageList, Select*, SkillCard, Resizable*,
+// etc.) already thoroughly covered by Explorer.test.ts/Chat.test.ts — this
+// file only needs to prove the onboarding *gate* reaches `ready` and hands
+// off the right workspace, so `WorkUI` itself is mocked to a trivial marker
+// rather than duplicating every one of those DS mocks here.
+vi.mock('./WorkUI', () => ({
+  WorkUI: ({ workspace }: { workspace: string }) =>
+    createElement('div', { 'data-testid': 'work-ui' }, `WorkUI: ${workspace}`)
+}))
+
 describe('App — first-run workspace gate + guided install + update gate (T6, T9, T10)', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -128,7 +140,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     expect(emitDone).toBeTruthy()
     emitDone?.()
 
-    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
+    expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
   })
 
   it('"continue anyway" on a failed update advances to ready without retrying (R4.2)', async () => {
@@ -152,7 +164,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     const continueButton = await screen.findByText('Continuar mesmo assim')
     fireEvent.click(continueButton)
 
-    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
+    expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
   })
 
   it('shows the guided install screen for a returning user whose workspace is not yet provisioned', async () => {
@@ -198,7 +210,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     expect(emitDone).toBeTruthy()
     emitDone?.()
 
-    expect(await screen.findByText('Workspace: /home/user/my-workspace')).toBeTruthy()
+    expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
   })
 
   it('stays on the picker screen (no crash) when the user cancels the pick', async () => {

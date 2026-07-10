@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Panel, Spinner } from '@hive/design-system'
+import { Spinner } from '@hive/design-system'
 import { t } from './i18n'
 import { WorkspacePicker } from './onboarding/WorkspacePicker'
 import { GuidedInstall } from './onboarding/GuidedInstall'
 import { UpdateGate } from './onboarding/UpdateGate'
+import { WorkUI } from './WorkUI'
 
 type Theme = 'dark' | 'light'
 
@@ -21,8 +22,7 @@ const THEME_STORAGE_KEY = 'hive-desktop-theme'
  *  - `updating`: workspace already provisioned (a relaunch, R8.2) — auto-update
  *    gate (T10) runs before the work UI, per R4.1. Completing it (or the user
  *    choosing "continue anyway" after a failure, R4.2) goes to `ready`.
- *  - `ready`: the real work UI (T12/T15/T18/T19) replaces this placeholder
- *    wholesale.
+ *  - `ready`: the real work UI (`WorkUI`, T19 — composing `Explorer` + `Chat`).
  */
 type OnboardingState =
   | { status: 'checking' }
@@ -143,15 +143,11 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <main>
-      <Panel style={{ maxWidth: 480, margin: '48px auto', padding: 24, color: 'var(--ink)' }}>
-        <h1>{t('app.title')}</h1>
-        <p>{t('onboarding.workspaceReadyDescription', onboarding.workspacePath)}</p>
-        <Button onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
-          {t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
-        </Button>
-      </Panel>
-    </main>
+    <WorkUI
+      workspace={onboarding.workspacePath}
+      theme={theme}
+      onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+    />
   )
 }
 
