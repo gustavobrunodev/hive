@@ -1,4 +1,6 @@
-import { ptBR } from './pt-BR'
+import { ptBR, intentLabel } from './pt-BR'
+
+export { intentLabel }
 
 /** The (only, for MVP) locale's strings. Exposed for tests/tooling; components should use `t()`. */
 export const strings = ptBR

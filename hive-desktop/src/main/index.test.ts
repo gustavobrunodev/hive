@@ -374,4 +374,19 @@ describe('main process bootstrap', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(send).toHaveBeenCalledWith('bmad:update:event', { type: 'done', ok: true })
   })
+
+  // T17: WorkflowCatalog wiring — request/response, routing to the real
+  // listWithDiscovery() (not mocked: it's a plain fs read with a documented
+  // never-throws fallback, so exercising it for real against a workspace
+  // with no _bmad/ present is simpler and just as trustworthy as mocking).
+  it('registers workflows:list, routing to listWithDiscovery(workspace) with a clean curated-catalog fallback', async () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('workflows:list', expect.any(Function))
+
+    const entries = (await findHandler('workflows:list')({}, userDataDir)) as Array<{
+      key: string
+      status: string
+    }>
+    const prd = entries.find((entry) => entry.key === 'prd')
+    expect(prd?.status).toBe('wired')
+  })
 })

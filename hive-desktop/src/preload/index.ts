@@ -8,6 +8,7 @@ import type {
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent } from '../main/bmadService'
+import type { WorkflowEntry } from '../main/workflowCatalog'
 
 // The single typed bridge for all privileged (main-process) calls the renderer
 // may make. Every future IPC method (T4+) is added here, not as a separate
@@ -106,6 +107,14 @@ const hive = {
       ipcRenderer.removeListener('bmad:update:event', listener)
       ipcRenderer.send('bmad:update:stop')
     }
+  },
+
+  // WorkflowCatalog (T17), grouped under a `workflows` namespace (matching
+  // design.md §3's `workflows.list()`), plain invoke/response — a one-shot
+  // list, not a stream.
+  workflows: {
+    list: (workspace: string): Promise<WorkflowEntry[]> =>
+      ipcRenderer.invoke('workflows:list', workspace)
   }
 }
 

@@ -83,7 +83,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
-      updateBmad: vi.fn().mockReturnValue(() => {})
+      updateBmad: vi.fn().mockReturnValue(() => {}),
+      workflows: { list: vi.fn().mockResolvedValue([]) }
     }
     window.hive = Object.assign(defaults, overrides)
   }

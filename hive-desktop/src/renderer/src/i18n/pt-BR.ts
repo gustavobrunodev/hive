@@ -68,8 +68,6 @@ export const ptBR = {
     continueAnywayCta: 'Continuar mesmo assim'
   },
   chat: {
-    emptyTitle: 'Nova conversa',
-    emptyDescription: 'Envie uma mensagem para começar a conversar com o agente.',
     promptPlaceholder: 'Escreva uma mensagem…',
     sendLabel: 'Enviar',
     typingLabel: 'O agente está respondendo',
@@ -78,5 +76,34 @@ export const ptBR = {
     jumpToLatestLabel: 'Ir para a última mensagem',
     errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
     loadingCapabilities: 'Carregando opções do agente…'
+  },
+  intentGrid: {
+    title: 'O que você quer fazer hoje?',
+    description: 'Escolha um ponto de partida guiado pelo BMAD.',
+    plannedBadge: 'Em breve'
   }
 } as const
+
+/**
+ * Intent labels keyed by `WorkflowEntry.key` (workflowCatalog.ts) — our
+ * chrome's button labels, not agent/BMAD-produced content, so R1.6 applies:
+ * pt-BR, not `WorkflowEntry.label`'s English catalog value. Kept as a
+ * sibling export (not nested inside `ptBR`) rather than a `Record<string,
+ * string>` leaf inside it: `t()`'s `PathsOf` type walks every leaf of
+ * `ptBR` to build its literal path union, and an open-ended string-indexed
+ * record leaf would widen that union to plain `string`, silently defeating
+ * `t()`'s compile-time key-checking for every other call site. Resolved via
+ * the dedicated `intentLabel()` helper below instead.
+ */
+const intentLabelsPtBR: Record<string, string> = {
+  prd: 'Criar um PRD',
+  'domain-research': 'Pesquisa de domínio',
+  brainstorm: 'Brainstorm',
+  architecture: 'Arquitetura',
+  story: 'Criar uma história'
+}
+
+/** Resolves an intent's pt-BR label by `WorkflowEntry.key`, falling back to the key itself for an unrecognized/discovered-at-runtime entry. */
+export function intentLabel(key: string): string {
+  return intentLabelsPtBR[key] ?? key
+}

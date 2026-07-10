@@ -10,6 +10,7 @@ import { createClaudeCliAdapter } from './claudeCliAdapter'
 import { createAgentService } from './agentService'
 import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
 import { createBmadService } from './bmadService'
+import { listWithDiscovery } from './workflowCatalog'
 
 function createWindow(): void {
   // Create the browser window.
@@ -223,6 +224,13 @@ app.whenReady().then(() => {
     activeUpdateStops.get(event.sender.id)?.()
     activeUpdateStops.delete(event.sender.id)
   })
+
+  // WorkflowCatalog (T17): request/response, same shape as fs:listTree/
+  // fs:readFile above — a one-shot list, not a stream. Exposed as
+  // window.hive.workflows.list(workspace).
+  ipcMain.handle('workflows:list', async (_event, workspace: string) =>
+    listWithDiscovery(workspace)
+  )
 
   createWindow()
 

@@ -7,6 +7,7 @@ import type {
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent } from '../main/bmadService'
+import type { WorkflowEntry } from '../main/workflowCatalog'
 
 declare global {
   interface Window {
@@ -34,6 +35,10 @@ declare global {
       installBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
       /** BmadService.update() (T10) stream — see preload/index.ts for the full channel design. */
       updateBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
+      /** WorkflowCatalog (T17) surface — see preload/index.ts for the full channel design. */
+      workflows: {
+        list(workspace: string): Promise<WorkflowEntry[]>
+      }
     }
   }
 }

@@ -5,7 +5,8 @@ import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/re
 import { Chat } from './Chat'
 
 /**
- * Task T15 — Chat UI (design.md §4 "Chat" row, R6.1, R6.4).
+ * Task T15 — Chat UI (design.md §4 "Chat" row, R6.1, R6.4) + T18 — new-session
+ * intent placeholders (R7.1).
  *
  * Same mocking approach as Explorer.test.ts/GuidedInstall.test.ts:
  * `@hive/design-system` gets trivial DOM stand-ins (a real render would load
@@ -35,6 +36,29 @@ vi.mock('@hive/design-system', () => ({
       null,
       createElement('h2', null, title),
       createElement('p', null, description)
+    ),
+  Badge: ({ children, ...rest }: { children?: ReactNode }) => createElement('span', rest, children),
+  SkillGrid: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('div', rest, children),
+  SkillCard: ({
+    title,
+    lead,
+    children,
+    onClick,
+    onKeyDown,
+    ...rest
+  }: {
+    title?: ReactNode
+    lead?: boolean
+    children?: ReactNode
+    onClick?: () => void
+    onKeyDown?: (event: { key: string; preventDefault: () => void }) => void
+  }) =>
+    createElement(
+      'article',
+      { ...rest, 'data-lead': lead, onClick, onKeyDown },
+      createElement('h3', null, title),
+      children
     ),
   MessageList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   PromptInput: ({
@@ -100,7 +124,22 @@ describe('Chat (T15)', () => {
     message?: string
   }
 
-  function mockHive(): {
+  const defaultWorkflowEntries = [
+    {
+      key: 'prd',
+      label: 'Create a PRD',
+      command: { key: 'bmad-prd', prompt: 'Use bmad-prd.' },
+      status: 'wired'
+    },
+    {
+      key: 'domain-research',
+      label: 'Domain Research',
+      command: { key: 'bmad-domain-research' },
+      status: 'planned'
+    }
+  ]
+
+  function mockHive(workflowEntries: typeof defaultWorkflowEntries = defaultWorkflowEntries): {
     emit: (event: AgentEventLike) => void
     startCalls: Array<{ workspace: string; model: string; effort: string }>
   } {
@@ -130,6 +169,9 @@ describe('Chat (T15)', () => {
           capturedOnEvent = onEvent
           return vi.fn()
         })
+      },
+      workflows: {
+        list: vi.fn().mockResolvedValue(workflowEntries)
       }
     }
     return {
@@ -138,16 +180,44 @@ describe('Chat (T15)', () => {
     }
   }
 
-  it('shows the empty state before any messages, and loads capabilities-driven model/effort options', async () => {
+  it('shows the intent grid before any messages, and loads capabilities-driven model/effort options', async () => {
     mockHive()
 
     render(createElement(Chat, { workspace: '/ws' }))
 
-    expect(screen.getByText('Nova conversa')).toBeTruthy()
+    expect(screen.getByText('O que você quer fazer hoje?')).toBeTruthy()
     expect(await screen.findByText('Modelo A')).toBeTruthy()
     expect(screen.getByText('Modelo B')).toBeTruthy()
     expect(screen.getByText('Baixo')).toBeTruthy()
     expect(screen.getByText('Alto')).toBeTruthy()
+  })
+
+  it('renders the wired PRD intent as lead/clickable and a planned intent as non-interactive with a badge (T18)', async () => {
+    mockHive()
+
+    render(createElement(Chat, { workspace: '/ws' }))
+
+    const prdCard = await screen.findByText('Criar um PRD')
+    expect(prdCard.closest('article')?.getAttribute('data-lead')).toBe('true')
+
+    const researchCard = await screen.findByText('Pesquisa de domínio')
+    expect(researchCard.closest('article')?.getAttribute('data-lead')).toBe('false')
+    expect(screen.getByText('Em breve')).toBeTruthy()
+  })
+
+  it('clicking the wired PRD intent calls agent.runWorkflow() with its command and renders it as a user message (R7.2)', async () => {
+    mockHive()
+
+    render(createElement(Chat, { workspace: '/ws' }))
+    const prdCard = await screen.findByText('Criar um PRD')
+
+    fireEvent.click(prdCard.closest('article') as Element)
+
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-prd',
+      prompt: 'Use bmad-prd.'
+    })
+    expect(await screen.findByTestId('typing-indicator')).toBeTruthy()
   })
 
   it('starts a session with the first model/effort as defaults once capabilities load', async () => {

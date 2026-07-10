@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
   ChatMessage,
-  Empty,
   MessageList,
   PromptInput,
   Select,
@@ -13,7 +12,8 @@ import {
   Spinner,
   TypingIndicator
 } from '@hive/design-system'
-import { t } from '../i18n'
+import { intentLabel, t } from '../i18n'
+import { IntentGrid } from './IntentGrid'
 
 interface ChatMessageEntry {
   id: string
@@ -30,6 +30,14 @@ interface AgentCapabilities {
   models: AgentOption[]
   efforts: AgentOption[]
   supportsAttachments: boolean
+}
+
+/** Structural mirror of `main/workflowCatalog.ts`'s `WorkflowEntry` — same self-contained convention `explorer/Explorer.tsx` uses for `FsTreeNode`. */
+interface WorkflowEntry {
+  key: string
+  label: string
+  command: { key: string; prompt?: string }
+  status: 'wired' | 'planned'
 }
 
 interface ChatProps {
@@ -61,6 +69,7 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
   const [streamingText, setStreamingText] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [workflowEntries, setWorkflowEntries] = useState<WorkflowEntry[]>([])
   const streamingTextRef = useRef<string | null>(null)
 
   // Load capabilities once and pick sensible defaults (first model/effort) —
@@ -77,6 +86,17 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
       cancelled = true
     }
   }, [])
+
+  // WorkflowCatalog (T17/T18) — feeds the new-session intent grid (R7.1).
+  useEffect(() => {
+    let cancelled = false
+    window.hive.workflows.list(workspace).then((entries) => {
+      if (!cancelled) setWorkflowEntries(entries)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [workspace])
 
   // (Re)start the session whenever workspace/model/effort settle or change,
   // and (re)subscribe to events — AgentService.onEvent() is scoped to
@@ -136,22 +156,28 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
     window.hive.agent.send(value)
   }, [])
 
+  // Guided-intent entry point (T18/R7.2): clicking a wired intent (MVP:
+  // "Create a PRD") is a turn like any other — the resulting artifact
+  // becomes visible in the explorer via its own watcher (T11), not
+  // something this component tracks directly.
+  const handleSelectIntent = useCallback((entry: WorkflowEntry) => {
+    setErrorMessage(null)
+    setMessages((current) => [
+      ...current,
+      { id: nextMessageId(), role: 'user', text: intentLabel(entry.key) }
+    ])
+    streamingTextRef.current = ''
+    setStreamingText('')
+    window.hive.agent.runWorkflow(entry.command)
+  }, [])
+
   const isStreaming = streamingText !== null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
         {messages.length === 0 && streamingText === null ? (
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Empty title={t('chat.emptyTitle')} description={t('chat.emptyDescription')} />
-          </div>
+          <IntentGrid entries={workflowEntries} onSelect={handleSelectIntent} />
         ) : (
           <MessageList jumpToLatestLabel={t('chat.jumpToLatestLabel')}>
             {messages.map((message) => (

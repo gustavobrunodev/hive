@@ -99,7 +99,8 @@ describe('Explorer (T12)', () => {
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
-      updateBmad: vi.fn().mockReturnValue(() => {})
+      updateBmad: vi.fn().mockReturnValue(() => {}),
+      workflows: { list: vi.fn().mockResolvedValue([]) }
     }
     window.hive = Object.assign(defaults, overrides)
     return { watchListeners }
