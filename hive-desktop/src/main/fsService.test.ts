@@ -415,6 +415,82 @@ describe('FsService', () => {
     })
   })
 
+  describe('importEntry()', () => {
+    let sourceRoot: string
+
+    beforeEach(() => {
+      sourceRoot = mkdtempSync(join(tmpdir(), 'hive-fs-service-import-source-'))
+    })
+
+    afterEach(() => {
+      rmSync(sourceRoot, { recursive: true, force: true })
+    })
+
+    it('imports a single file from an arbitrary OS path into the workspace', () => {
+      const sourceFile = join(sourceRoot, 'imported.txt')
+      writeFileSync(sourceFile, 'imported content')
+
+      service.importEntry(root, sourceFile, 'imported.txt')
+
+      expect(readFileSync(join(root, 'imported.txt'), 'utf-8')).toBe('imported content')
+    })
+
+    it('imports a nested folder recursively', () => {
+      mkdirSync(join(sourceRoot, 'sub'))
+      writeFileSync(join(sourceRoot, 'top.txt'), 'top')
+      writeFileSync(join(sourceRoot, 'sub', 'inner.txt'), 'inner')
+
+      service.importEntry(root, sourceRoot, 'imported-dir')
+
+      expect(readFileSync(join(root, 'imported-dir', 'top.txt'), 'utf-8')).toBe('top')
+      expect(readFileSync(join(root, 'imported-dir', 'sub', 'inner.txt'), 'utf-8')).toBe('inner')
+    })
+
+    it('throws a ConflictError when the destination already exists and overwrite is not set', () => {
+      const sourceFile = join(sourceRoot, 'clash.txt')
+      writeFileSync(sourceFile, 'new stuff')
+
+      try {
+        service.importEntry(root, sourceFile, 'a.txt')
+        expect.unreachable()
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConflictError)
+        expect((err as ConflictError).code).toBe('CONFLICT')
+      }
+      // original destination content untouched
+      expect(readFileSync(join(root, 'a.txt'), 'utf-8')).toBe('hello a')
+    })
+
+    it('overwrites the destination when overwrite is true', () => {
+      const sourceFile = join(sourceRoot, 'clash.txt')
+      writeFileSync(sourceFile, 'new stuff')
+
+      service.importEntry(root, sourceFile, 'a.txt', { overwrite: true })
+
+      expect(readFileSync(join(root, 'a.txt'), 'utf-8')).toBe('new stuff')
+    })
+
+    it('rejects a destRel that escapes the workspace root, while an arbitrary sourceAbs outside any workspace still works otherwise', () => {
+      const sourceFile = join(sourceRoot, 'escape-attempt.txt')
+      writeFileSync(sourceFile, 'x')
+
+      // The dest-escape check throws regardless of how far outside the
+      // workspace sourceAbs itself lives (sourceRoot here is a sibling temp
+      // dir, not under root) — proving the asymmetry: sourceAbs is never
+      // resolveSafe-checked, only destRel is.
+      expect(() => service.importEntry(root, sourceFile, '../../../etc/escaped.txt')).toThrow(
+        /escapes workspace root/
+      )
+      expect(existsSync(join(root, '..', '..', '..', 'etc', 'escaped.txt'))).toBe(false)
+
+      // And to prove the asymmetry positively (not just that escaping dest
+      // fails): the same arbitrary, out-of-workspace sourceAbs succeeds when
+      // given a valid destRel.
+      service.importEntry(root, sourceFile, 'escape-attempt.txt')
+      expect(readFileSync(join(root, 'escape-attempt.txt'), 'utf-8')).toBe('x')
+    })
+  })
+
   describe('trash()', () => {
     it('rejects when no trashItem dependency was injected', async () => {
       await expect(service.trash(root, 'a.txt')).rejects.toThrow(/no trashItem dependency/)

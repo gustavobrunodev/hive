@@ -108,6 +108,21 @@ export interface FsService {
   exists(root: string, relativePath: string): boolean
   /** Deletes to the OS trash (FM-R3). Async — the injected `trashItem` is async. */
   trash(root: string, relativePath: string): Promise<void>
+  /**
+   * Copies an arbitrary OS path (`sourceAbs`) INTO the workspace at `destRel`,
+   * recursively for directories (FM-R5). Security asymmetry (FM-R6.1):
+   * `sourceAbs` is deliberately NOT `resolveSafe`-checked — it's an arbitrary
+   * host-OS path outside the workspace by definition (that's the whole point
+   * of importing it IN) — only `destRel` is. Throws
+   * `ConflictError{code:'CONFLICT'}` if `destRel` already exists and
+   * `opts.overwrite` isn't `true`, mirroring `createFile`/`move`.
+   */
+  importEntry(
+    root: string,
+    sourceAbs: string,
+    destRel: string,
+    opts?: { overwrite?: boolean }
+  ): void
 }
 
 /**
@@ -370,6 +385,27 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     await deps.trashItem(targetAbs)
   }
 
+  function importEntry(
+    root: string,
+    sourceAbs: string,
+    destRel: string,
+    opts?: { overwrite?: boolean }
+  ): void {
+    // sourceAbs is intentionally NOT resolveSafe-checked (FM-R6.1 asymmetry —
+    // it's an arbitrary host-OS path outside the workspace by definition).
+    // Only the destination is.
+    const rootAbs = resolve(root)
+    const destAbs = resolveSafe(rootAbs, destRel)
+    // Pre-check + throw ConflictError ourselves (same convention as
+    // createFile/move) rather than relying on cpSync's errorOnExist, whose
+    // thrown error is a plain EEXIST-style Error without a discriminable
+    // `code` IPC/renderer callers can branch on.
+    if (existsSync(destAbs) && !opts?.overwrite) {
+      throw new ConflictError('CONFLICT', `Already exists: ${destRel}`)
+    }
+    cpSync(sourceAbs, destAbs, { recursive: true, force: true })
+  }
+
   return {
     listTree,
     readFile,
@@ -380,6 +416,7 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     createDirectory,
     move,
     exists,
-    trash
+    trash,
+    importEntry
   }
 }
