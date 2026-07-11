@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync
+} from 'fs'
 import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { ConflictError, createFsService, type FsChangeEvent, type FsService } from './fsService'
@@ -161,6 +170,51 @@ describe('FsService', () => {
 
     it('rejects a path that resolves to a directory instead of a file', () => {
       expect(() => service.statFile(root, 'docs')).toThrow(/Not a file/)
+    })
+  })
+
+  describe('saveFile()', () => {
+    it('saves without a baseline (unconditional overwrite) and returns fresh EntryMeta', () => {
+      const meta = service.saveFile(root, 'a.txt', 'new content')
+      expect(readFileSync(join(root, 'a.txt'), 'utf-8')).toBe('new content')
+      expect(meta.size).toBe('new content'.length)
+      expect(typeof meta.mtimeMs).toBe('number')
+    })
+
+    it('saves when expectedMtimeMs matches the current on-disk mtime (happy path)', () => {
+      const baseline = service.statFile(root, 'a.txt')
+      const meta = service.saveFile(root, 'a.txt', 'updated', {
+        expectedMtimeMs: baseline.mtimeMs
+      })
+      expect(readFileSync(join(root, 'a.txt'), 'utf-8')).toBe('updated')
+      expect(meta.size).toBe('updated'.length)
+    })
+
+    it('throws ConflictError{code:STALE} when the on-disk file was mutated out-of-band since the baseline', () => {
+      const baseline = service.statFile(root, 'a.txt')
+
+      // Mutate out-of-band so the on-disk mtime no longer matches the
+      // baseline captured above — bump the mtime explicitly rather than
+      // relying on wall-clock drift between two writes in the same tick.
+      const bumpedMtime = new Date(baseline.mtimeMs + 5000)
+      writeFileSync(join(root, 'a.txt'), 'changed by someone else')
+      utimesSync(join(root, 'a.txt'), bumpedMtime, bumpedMtime)
+
+      try {
+        service.saveFile(root, 'a.txt', 'my overwrite', { expectedMtimeMs: baseline.mtimeMs })
+        expect.unreachable()
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConflictError)
+        expect((err as ConflictError).code).toBe('STALE')
+      }
+      // the out-of-band write must survive untouched
+      expect(readFileSync(join(root, 'a.txt'), 'utf-8')).toBe('changed by someone else')
+    })
+
+    it('rejects a relativePath that escapes the workspace root', () => {
+      expect(() => service.saveFile(root, '../../../etc/passwd', 'x')).toThrow(
+        /escapes workspace root/
+      )
     })
   })
 

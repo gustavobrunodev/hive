@@ -76,6 +76,21 @@ export interface FsService {
   /** Stats a file for the edit baseline (FM-R2.3). Throws if `relativePath` resolves outside `root` or isn't a file. */
   statFile(root: string, relativePath: string): EntryMeta
   /**
+   * Writes `content` to `relativePath`, overwriting whatever is there, and
+   * returns the fresh `EntryMeta` (FM-R2.2). When `opts.expectedMtimeMs` is
+   * given, it's compared against the file's current on-disk mtime first —
+   * a mismatch means something else (the agent/BMAD) wrote the file since
+   * the caller's baseline was captured, so this throws
+   * `ConflictError{code:'STALE'}` rather than clobbering that write
+   * (FM-R2.3). Omit `opts`/`expectedMtimeMs` to save unconditionally.
+   */
+  saveFile(
+    root: string,
+    relativePath: string,
+    content: string,
+    opts?: { expectedMtimeMs?: number }
+  ): EntryMeta
+  /**
    * Creates an empty file (FM-R1.1). Throws `ConflictError{code:'CONFLICT'}`
    * if the target already exists and `opts.overwrite` isn't `true`.
    */
@@ -274,6 +289,25 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     return { mtimeMs: stat.mtimeMs, size: stat.size }
   }
 
+  function saveFile(
+    root: string,
+    relativePath: string,
+    content: string,
+    opts?: { expectedMtimeMs?: number }
+  ): EntryMeta {
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    if (opts?.expectedMtimeMs !== undefined) {
+      const stat = statSync(targetAbs)
+      if (stat.mtimeMs !== opts.expectedMtimeMs) {
+        throw new ConflictError('STALE', `File changed on disk: ${relativePath}`)
+      }
+    }
+    writeFileSync(targetAbs, content)
+    const stat = statSync(targetAbs)
+    return { mtimeMs: stat.mtimeMs, size: stat.size }
+  }
+
   function createFile(root: string, relativePath: string, opts?: { overwrite?: boolean }): void {
     assertValidName(relativePath)
     const rootAbs = resolve(root)
@@ -341,6 +375,7 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     readFile,
     watchWorkspace,
     statFile,
+    saveFile,
     createFile,
     createDirectory,
     move,
