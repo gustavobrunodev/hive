@@ -88,7 +88,10 @@ export const ptBR = {
     unsavedGuardTitle: 'Descartar alterações?',
     unsavedGuardDescription: 'Este arquivo tem alterações não salvas. Elas serão perdidas.',
     unsavedGuardCancelCta: 'Cancelar',
-    unsavedGuardConfirmCta: 'Descartar alterações'
+    unsavedGuardConfirmCta: 'Descartar alterações',
+
+    // T4 — HTML live preview (UX-R8)
+    htmlPreviewLabel: 'Pré-visualização do HTML'
   },
   guidedInstall: {
     title: 'Preparando seu workspace',
