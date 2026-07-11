@@ -16,7 +16,7 @@ import {
   Tree
 } from '@hive/design-system'
 import { t } from '../i18n'
-import { renderMarkdown } from '../ui/markdown'
+import { Markdown } from '../ui/markdown'
 import { IconButton } from '../ui/IconButton'
 import {
   CheckIcon,
@@ -1007,7 +1007,8 @@ type PendingDiscard = { target: string } | { target: 'close' }
  * File viewer pane (task T12's viewer half; task T9 promotes it to an
  * editor — design.md §5, FM-R2): a titled pane — file icon, name, parent
  * path, edit/copy/close actions — over a readable render (`.md` via
- * `renderMarkdown`, everything else in a DS `CodeBlock`), or, in edit mode,
+ * `Markdown` (T1, `react-markdown`+`remark-gfm`), everything else in a DS
+ * `CodeBlock`), or, in edit mode,
  * a plain controlled `<textarea>`.
  *
  * `path` is the pane's *requested* file; `displayedPath` is what's actually
@@ -1306,8 +1307,8 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     if (isMarkdownPath(viewerState.path)) {
       return (
         <div className="wb-viewer-scroll">
-          <div className="wb-viewer-content wb-md hds-markdown" data-testid="markdown-viewer">
-            {renderMarkdown(viewerState.content)}
+          <div className="wb-viewer-content wb-md" data-testid="markdown-viewer">
+            <Markdown source={viewerState.content} />
           </div>
         </div>
       )

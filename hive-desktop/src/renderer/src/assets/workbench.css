@@ -501,6 +501,50 @@
   padding: 0;
   font-size: inherit;
 }
+.wb-md a {
+  color: var(--link, var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wb-md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--s-4) 0;
+}
+
+/* GFM tables (remark-gfm, T1/UX-R7.1) */
+.wb-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--s-3);
+  font-size: 0.9em;
+}
+.wb-md th,
+.wb-md td {
+  border: 1px solid var(--border);
+  padding: var(--s-1) var(--s-3);
+  text-align: left;
+}
+.wb-md thead th {
+  background: var(--surface-2);
+  font-weight: 650;
+}
+.wb-md tbody tr:nth-child(even) {
+  background: var(--surface-2);
+}
+
+/* GFM task lists (remark-gfm, T1/UX-R7.1) */
+.wb-md ul.contains-task-list {
+  list-style: none;
+  padding-left: var(--s-3);
+}
+.wb-md li.task-list-item {
+  list-style: none;
+  margin-left: calc(var(--s-3) * -1);
+}
+.wb-md li.task-list-item input[type='checkbox'] {
+  margin-right: var(--s-2);
+}
 
 /* ==========================================================================
    Chat

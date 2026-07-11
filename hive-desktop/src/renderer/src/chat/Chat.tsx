@@ -13,7 +13,7 @@ import {
   TypingIndicator
 } from '@hive/design-system'
 import { intentLabel, t } from '../i18n'
-import { renderMarkdown } from '../ui/markdown'
+import { Markdown } from '../ui/markdown'
 import { HiveCellIcon } from '../ui/icons'
 import { IntentGrid } from './IntentGrid'
 
@@ -181,9 +181,13 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
     </span>
   )
 
-  /** Assistant text is BMAD/agent output — markdown-heavy, so it renders through the same lightweight transform the file viewer uses (headings, lists, code) instead of collapsing into one unbroken paragraph. */
+  /** Assistant text is BMAD/agent output — markdown-heavy (headings, lists, tables, code) — so it renders through the same `react-markdown`+`remark-gfm` renderer the file viewer uses (T1) instead of collapsing into one unbroken paragraph. */
   function assistantBody(text: string): React.JSX.Element {
-    return <div className="wb-chat-md wb-md">{renderMarkdown(text)}</div>
+    return (
+      <div className="wb-chat-md wb-md">
+        <Markdown source={text} />
+      </div>
+    )
   }
 
   const isEmpty = messages.length === 0 && streamingText === null
