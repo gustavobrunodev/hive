@@ -1210,8 +1210,13 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     setDraft(readyState.content)
   }, [readyState])
 
+  // Returns whether the save actually landed — callers that need to chain a
+  // close/switch after saving (Ctrl+S's caller doesn't, but the 3-way
+  // unsaved-guard's "Salvar" does) use this to decide whether to proceed or
+  // abort in favor of the STALE dialog (design.md §3: "on STALE, surface the
+  // existing stale dialog and abort the close").
   const performSave = useCallback(
-    async (force: boolean) => {
+    async (force: boolean): Promise<boolean> => {
       setSaving(true)
       setActionError(false)
       try {
@@ -1222,18 +1227,36 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
             })
         setViewerState({ status: 'ready', path: readyState.path, content: draft, baseline: meta })
         setStaleOpen(false)
+        return true
       } catch (err) {
         if (isFsConflictError(err) && err.code === 'STALE') {
           setStaleOpen(true)
         } else {
           setActionError(true)
         }
+        return false
       } finally {
         setSaving(false)
       }
     },
     [workspace, readyState, draft]
   )
+
+  // Ctrl/Cmd+S (UX-R1.2): scoped to the viewer's lifetime via mount/unmount
+  // of this effect. `preventDefault` always fires (so the OS/browser save
+  // dialog never appears), independent of whether there's anything to save —
+  // `performSave` itself is only invoked while `dirty`, making the shortcut a
+  // no-op on a clean file.
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent): void => {
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's'
+      if (!isSaveShortcut) return
+      event.preventDefault()
+      if (dirty) void performSave(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [dirty, performSave])
 
   const handleSave = useCallback(() => void performSave(false), [performSave])
   const handleOverwrite = useCallback(() => void performSave(true), [performSave])
@@ -1264,10 +1287,12 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     }
   }, [dirty, onClose])
 
-  // Only ever wired to the confirm dialog's own button, which is itself
+  // "Descartar" (UX-R1.3): drops the draft and proceeds with whatever
+  // triggered the guard — the pane's own close button or the tree's
+  // path-switch. Only ever wired to the dialog's own button, which is itself
   // only mounted while `pendingDiscard` is set — see the `readyState`
   // comment above for why this skips a defensive null-check branch.
-  const confirmDiscard = useCallback(() => {
+  const handleDiscardChoice = useCallback(() => {
     const { target } = pendingDiscard as PendingDiscard
     setPendingDiscard(null)
     if (target === 'close') {
@@ -1277,6 +1302,28 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     }
   }, [pendingDiscard, onClose])
 
+  // "Salvar" (UX-R1.3): saves the draft first, then continues the same
+  // pending close/switch on success. On STALE (or any other save failure),
+  // aborts the close/switch instead of silently losing it or silently
+  // overwriting — `performSave` has already surfaced the STALE dialog (or
+  // `actionError`) as a side effect, so this just dismisses the unsaved
+  // guard and leaves the viewer open, still dirty, on `target`.
+  const handleSaveChoice = useCallback(() => {
+    const { target } = pendingDiscard as PendingDiscard
+    void performSave(false).then((ok) => {
+      setPendingDiscard(null)
+      if (ok) {
+        if (target === 'close') {
+          onClose()
+        } else {
+          setDisplayedPath(target)
+        }
+      }
+    })
+  }, [pendingDiscard, performSave, onClose])
+
+  // "Cancelar": dismiss the dialog, stay open with the draft still dirty —
+  // no state change beyond closing the prompt itself.
   const cancelDiscard = useCallback(() => setPendingDiscard(null), [])
 
   // Preview is only *offered* for `.md`/`.html` (design.md §3) — other
@@ -1353,11 +1400,18 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
             <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
             <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
             <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={cancelDiscard}>
+              <Button className="wb-btn" onClick={cancelDiscard} disabled={saving}>
                 {t('explorer.unsavedGuardCancelCta')}
               </Button>
-              <Button className="wb-btn hds-btn-primary" onClick={confirmDiscard}>
+              <Button className="wb-btn" onClick={handleDiscardChoice} disabled={saving}>
                 {t('explorer.unsavedGuardConfirmCta')}
+              </Button>
+              <Button
+                className="wb-btn hds-btn-primary"
+                onClick={handleSaveChoice}
+                disabled={saving}
+              >
+                {t('explorer.unsavedGuardSaveCta')}
               </Button>
             </div>
           </DialogContent>

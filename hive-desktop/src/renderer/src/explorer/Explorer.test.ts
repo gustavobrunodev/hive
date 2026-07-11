@@ -10,7 +10,7 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
-import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { FileTree, FileViewer } from './Explorer'
 
 /**
@@ -1483,7 +1483,7 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(screen.getByText('prd.md'))
 
     const dialog = await screen.findByRole('dialog')
-    expect(dialog.textContent).toContain('Descartar alterações?')
+    expect(dialog.textContent).toContain('Alterações não salvas')
     expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
@@ -1520,7 +1520,7 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(screen.getByLabelText('Fechar arquivo'))
 
     const dialog = await screen.findByRole('dialog')
-    expect(dialog.textContent).toContain('Descartar alterações?')
+    expect(dialog.textContent).toContain('Alterações não salvas')
 
     fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
     await waitFor(() => {
@@ -1552,6 +1552,158 @@ describe('Explorer (T12/T8)', () => {
       expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'docs/prd.md')
     })
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  // --- T6: Ctrl+S + three-way save-on-close (UX-R1.2/R1.3) ------------------
+
+  it('Ctrl+S saves the file while dirty', async () => {
+    window.hive.fs.statFile = vi.fn().mockResolvedValue({ mtimeMs: 4242, size: 19 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenCalledWith('/ws', 'a.txt', 'edited content', {
+        expectedMtimeMs: 4242
+      })
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    })
+  })
+
+  it('Ctrl+S is a no-op when the file is not dirty (no spurious save)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByLabelText('Conteúdo do arquivo')
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+
+    expect(window.hive.fs.saveFile).not.toHaveBeenCalled()
+  })
+
+  it('the unsaved-changes guard is a three-way dialog: Salvar, Descartar, Cancelar', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Salvar' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Descartar alterações' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeTruthy()
+  })
+
+  it('clicking Salvar in the close-guard persists the draft then closes the viewer', async () => {
+    window.hive.fs.statFile = vi.fn().mockResolvedValue({ mtimeMs: 4242, size: 19 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenCalledWith('/ws', 'a.txt', 'edited content', {
+        expectedMtimeMs: 4242
+      })
+    })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('clicking Salvar in the switch-file guard persists the draft then opens the new file', async () => {
+    window.hive.fs.statFile = vi.fn().mockResolvedValue({ mtimeMs: 4242, size: 19 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByText('prd.md'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenCalledWith('/ws', 'a.txt', 'edited content', {
+        expectedMtimeMs: 4242
+      })
+    })
+    await waitFor(() => {
+      expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    })
+  })
+
+  it('clicking Cancelar keeps the viewer open with the draft still dirty (no close/switch, no save)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(window.hive.fs.saveFile).not.toHaveBeenCalled()
+    expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+      'edited content'
+    )
+  })
+
+  it('a STALE conflict during Salvar surfaces the STALE dialog and does not close/switch', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValue({ name: 'FsConflictError', code: 'STALE', message: 'changed on disk' })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+    const guardDialog = await screen.findByRole('dialog')
+    fireEvent.click(within(guardDialog).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog').textContent).toContain('O arquivo mudou no disco')
+    })
+    // the close never happened — the editor is still on screen, still dirty.
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeTruthy()
+  })
+
+  it('Descartar in the switch-file guard still discards and opens the new file (unchanged behavior)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByText('prd.md'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar alterações' }))
+
+    await waitFor(() => {
+      expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    })
+    expect(window.hive.fs.saveFile).not.toHaveBeenCalled()
   })
 
   it('the Copy button writes the file content to the clipboard and shows "Copiado"', async () => {

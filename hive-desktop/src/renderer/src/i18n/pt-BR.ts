@@ -85,10 +85,11 @@ export const ptBR = {
       'Alguém (ou algum agente) alterou este arquivo desde que você o abriu. O que você quer fazer?',
     staleReloadCta: 'Recarregar',
     staleOverwriteCta: 'Sobrescrever',
-    unsavedGuardTitle: 'Descartar alterações?',
-    unsavedGuardDescription: 'Este arquivo tem alterações não salvas. Elas serão perdidas.',
+    unsavedGuardTitle: 'Alterações não salvas',
+    unsavedGuardDescription: 'Este arquivo tem alterações não salvas. O que você quer fazer?',
     unsavedGuardCancelCta: 'Cancelar',
     unsavedGuardConfirmCta: 'Descartar alterações',
+    unsavedGuardSaveCta: 'Salvar',
 
     // T4 — HTML live preview (UX-R8)
     htmlPreviewLabel: 'Pré-visualização do HTML'
