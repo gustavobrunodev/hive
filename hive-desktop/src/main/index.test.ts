@@ -304,12 +304,9 @@ describe('main process bootstrap', () => {
     await findHandler('fs:importEntry')(fakeInvokeEvent, '/ws', '/outside/src.txt', 'dest.txt', {
       overwrite: true
     })
-    expect(fakeFsService.importEntry).toHaveBeenCalledWith(
-      '/ws',
-      '/outside/src.txt',
-      'dest.txt',
-      { overwrite: true }
-    )
+    expect(fakeFsService.importEntry).toHaveBeenCalledWith('/ws', '/outside/src.txt', 'dest.txt', {
+      overwrite: true
+    })
 
     await expect(findHandler('fs:exists')(fakeInvokeEvent, '/ws', 'a.txt')).resolves.toBe(true)
     expect(fakeFsService.exists).toHaveBeenCalledWith('/ws', 'a.txt')
@@ -378,7 +375,7 @@ describe('main process bootstrap', () => {
 
     const browserWindowCreated = vi
       .mocked(app.on)
-      .mock.calls.find(([channel]) => channel === 'browser-window-created')?.[1] as (
+      .mock.calls.find((call) => (call[0] as string) === 'browser-window-created')?.[1] as (
       _e: unknown,
       window: unknown
     ) => void
@@ -389,7 +386,7 @@ describe('main process bootstrap', () => {
   it("app 'activate' recreates a window only when none are open (macOS dock-click behavior)", () => {
     const activateHandler = vi
       .mocked(app.on)
-      .mock.calls.find(([channel]) => channel === 'activate')?.[1] as () => void
+      .mock.calls.find((call) => (call[0] as string) === 'activate')?.[1] as () => void
     expect(activateHandler).toBeInstanceOf(Function)
 
     const windowCountBefore = vi.mocked(BrowserWindow).mock.calls.length
@@ -404,7 +401,7 @@ describe('main process bootstrap', () => {
   it("app 'window-all-closed' quits outside macOS", () => {
     const windowAllClosedHandler = vi
       .mocked(app.on)
-      .mock.calls.find(([channel]) => channel === 'window-all-closed')?.[1] as () => void
+      .mock.calls.find((call) => (call[0] as string) === 'window-all-closed')?.[1] as () => void
     expect(windowAllClosedHandler).toBeInstanceOf(Function)
     windowAllClosedHandler()
     expect(app.quit).toHaveBeenCalled()

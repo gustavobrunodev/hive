@@ -47,7 +47,11 @@ declare global {
        */
       fs: {
         statFile(root: string, relativePath: string): Promise<EntryMeta>
-        createFile(root: string, relativePath: string, opts?: { overwrite?: boolean }): Promise<void>
+        createFile(
+          root: string,
+          relativePath: string,
+          opts?: { overwrite?: boolean }
+        ): Promise<void>
         createDirectory(root: string, relativePath: string): Promise<void>
         saveFile(
           root: string,

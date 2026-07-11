@@ -179,12 +179,15 @@ const hive = {
         relativePath: string,
         content: string,
         opts?: { expectedMtimeMs?: number }
-      ): Promise<EntryMeta> =>
-        ipcRenderer.invoke('fs:saveFile', root, relativePath, content, opts)
+      ): Promise<EntryMeta> => ipcRenderer.invoke('fs:saveFile', root, relativePath, content, opts)
     ),
     move: withTypedConflict(
-      (root: string, fromRel: string, toRel: string, opts?: { overwrite?: boolean }): Promise<void> =>
-        ipcRenderer.invoke('fs:move', root, fromRel, toRel, opts)
+      (
+        root: string,
+        fromRel: string,
+        toRel: string,
+        opts?: { overwrite?: boolean }
+      ): Promise<void> => ipcRenderer.invoke('fs:move', root, fromRel, toRel, opts)
     ),
     importEntry: withTypedConflict(
       (

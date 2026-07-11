@@ -553,7 +553,9 @@ describe('FsService — pre-existing branch coverage (symlinks, watch fallback)'
       const tree = service.listTree(root)
       const link = tree.find((n) => n.name === 'link-to-dir')
       expect(link?.type).toBe('directory')
-      expect(link?.children).toEqual([{ name: 'inner.txt', path: 'link-to-dir/inner.txt', type: 'file' }])
+      expect(link?.children).toEqual([
+        { name: 'inner.txt', path: 'link-to-dir/inner.txt', type: 'file' }
+      ])
     })
 
     it('silently excludes a broken symlink (target does not exist)', () => {

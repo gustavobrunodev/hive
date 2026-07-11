@@ -113,9 +113,12 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.on).toHaveBeenCalledWith('fs:watch:event', expect.any(Function))
     expect(ipcRenderer.send).toHaveBeenCalledWith('fs:watch:start', '/root')
 
-    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
-      ([channel]) => channel === 'fs:watch:event'
-    )?.[1] as (event: unknown, change: unknown) => void
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'fs:watch:event')?.[1] as (
+      event: unknown,
+      change: unknown
+    ) => void
     const change = { type: 'change' }
     listener({}, change)
     expect(onChange).toHaveBeenCalledWith(change)
@@ -165,9 +168,12 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.on).toHaveBeenCalledWith('agent:event', expect.any(Function))
       expect(ipcRenderer.send).toHaveBeenCalledWith('agent:event:start')
 
-      const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
-        ([channel]) => channel === 'agent:event'
-      )?.[1] as (event: unknown, evt: unknown) => void
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([channel]) => channel === 'agent:event')?.[1] as (
+        event: unknown,
+        evt: unknown
+      ) => void
       const evt = { type: 'text' }
       listener({}, evt)
       expect(onEvent).toHaveBeenCalledWith(evt)
@@ -188,9 +194,12 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.on).toHaveBeenCalledWith('bmad:install:event', expect.any(Function))
     expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:start', '/root')
 
-    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
-      ([channel]) => channel === 'bmad:install:event'
-    )?.[1] as (event: unknown, evt: unknown) => void
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'bmad:install:event')?.[1] as (
+      event: unknown,
+      evt: unknown
+    ) => void
     const evt = { type: 'progress' }
     listener({}, evt)
     expect(onEvent).toHaveBeenCalledWith(evt)
@@ -209,9 +218,12 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.on).toHaveBeenCalledWith('bmad:update:event', expect.any(Function))
     expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:update:start', '/root')
 
-    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
-      ([channel]) => channel === 'bmad:update:event'
-    )?.[1] as (event: unknown, evt: unknown) => void
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'bmad:update:event')?.[1] as (
+      event: unknown,
+      evt: unknown
+    ) => void
     const evt = { type: 'progress' }
     listener({}, evt)
     expect(onEvent).toHaveBeenCalledWith(evt)
@@ -223,7 +235,9 @@ describe('preload: window.hive bridge', () => {
 
   // T17: WorkflowCatalog namespace, never covered by a test.
   it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
-    const hive = exposedGlobals().get('hive') as { workflows: { list: (w: string) => Promise<unknown> } }
+    const hive = exposedGlobals().get('hive') as {
+      workflows: { list: (w: string) => Promise<unknown> }
+    }
     await expect(hive.workflows.list('/root')).resolves.toBe('invoked:workflows:list')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('workflows:list', '/root')
   })
@@ -294,13 +308,9 @@ describe('preload: window.hive bridge', () => {
 
     it('fs.saveFile(root, rel, content, opts) invokes "fs:saveFile" with matching args', async () => {
       await getFs().saveFile('/root', 'a.txt', 'hello', { expectedMtimeMs: 123 })
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-        'fs:saveFile',
-        '/root',
-        'a.txt',
-        'hello',
-        { expectedMtimeMs: 123 }
-      )
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:saveFile', '/root', 'a.txt', 'hello', {
+        expectedMtimeMs: 123
+      })
     })
 
     it('fs.move(root, from, to, opts) invokes "fs:move" with matching args', async () => {
@@ -361,7 +371,9 @@ describe('preload: window.hive bridge', () => {
       })
 
       it('maps a STALE:-prefixed rejection to an FsConflictError', async () => {
-        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(new Error('STALE: file changed on disk'))
+        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(
+          new Error('STALE: file changed on disk')
+        )
         const fs = getFs()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const call = (fs[method] as any)(...args)

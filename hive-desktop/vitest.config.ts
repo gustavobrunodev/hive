@@ -25,7 +25,20 @@ export default defineConfig({
         'src/main/fsService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/preload/index.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/renderer/src/explorer/**': { statements: 90, branches: 90, functions: 90, lines: 90 },
-        'src/main/index.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/main/index.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // T10 regression pass: pt-BR.ts and icons.tsx are also touched by
+        // this feature (T8/T9 added file-management copy/icons to them) and
+        // design.md's coverage note calls for 90/90/90/90 on every touched
+        // file — T1 missed these two. `preload/index.d.ts` (types only, no
+        // runtime) and `assets/workbench.css` (not JS/TS) aren't
+        // instrumentable by v8 coverage, so they have no glob here.
+        'src/renderer/src/i18n/pt-BR.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/icons.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 }
       }
     }
   }
