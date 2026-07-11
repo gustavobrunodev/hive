@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DragEvent, KeyboardEvent, ReactNode } from 'react'
+import type { DragEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import {
   Button,
   CodeBlock,
@@ -234,6 +234,23 @@ export function FileTree({
   // the last directory row the user clicked, or '' (root) until then.
   const [activeDirPath, setActiveDirPath] = useState('')
   const [expandedIds, setExpandedIds] = useState<string[]>([])
+  // T8: the tree's own multi-select set (Ctrl toggles membership, Shift
+  // selects a range — both handled inside the DS `Tree` itself, design.md
+  // §2). Seeded from `selectedPath` so the file already open in the viewer
+  // stays highlighted; reconciled below whenever the tree refreshes so a
+  // deleted path never lingers in the set.
+  const [selectedIds, setSelectedIds] = useState<string[]>(selectedPath ? [selectedPath] : [])
+  // Set synchronously (capture phase, ahead of the DS Tree's own bubble-phase
+  // `onClick` → `onActivate` → `onSelectedIdsChange` chain) so
+  // `handleSelectedIdsChange` below can tell *how* the resulting selection
+  // came about. The DS Tree's public API only reports the resulting ids
+  // (design.md §2), not the triggering modifiers, so this is the only place
+  // the app can observe them — Ctrl/Shift must never open the viewer, even
+  // when they happen to leave exactly one file selected (UX-R3.2).
+  const lastClickModsRef = useRef<{ toggle: boolean; range: boolean }>({
+    toggle: false,
+    range: false
+  })
   const [pendingInput, setPendingInput] = useState<PendingInput | null>(null)
   const [pendingInputValue, setPendingInputValue] = useState('')
   const [renaming, setRenaming] = useState<RenamingState | null>(null)
@@ -293,8 +310,36 @@ export function FileTree({
     [treeState]
   )
 
+  // T8: reconcile the selection on every refresh — drop any id whose path no
+  // longer exists in the (re)loaded tree (design.md §2).
+  useEffect(() => {
+    if (treeState.status !== 'ready') return
+    setSelectedIds((current) => {
+      const next = current.filter((id) => fileTypes.has(id))
+      return next.length === current.length ? current : next
+    })
+  }, [fileTypes, treeState.status])
+
+  // Keeps the tree's highlight in sync with whatever file the viewer has
+  // open (e.g. the very first plain-click open below already sets
+  // `selectedIds` itself, but this also covers `selectedPath` arriving from
+  // outside the tree). Never overrides an in-progress Ctrl/Shift selection
+  // that already contains the path.
+  useEffect(() => {
+    if (!selectedPath) return
+    setSelectedIds((current) => (current.includes(selectedPath) ? current : [selectedPath]))
+  }, [selectedPath])
+
   const handleSelectedIdsChange = useCallback(
     (ids: string[]) => {
+      setSelectedIds(ids)
+      // Ctrl/Shift changes only ever adjust the selection set — never open
+      // the viewer or touch `activeDirPath`, no matter what the resulting
+      // selection ends up looking like (UX-R3.2, e.g. Ctrl-click deselecting
+      // down to exactly one file must not pop the viewer open).
+      const mods = lastClickModsRef.current
+      if (mods.toggle || mods.range) return
+      if (ids.length !== 1) return
       const path = ids[0]
       if (path === undefined) return
       const type = fileTypes.get(path)
@@ -306,6 +351,16 @@ export function FileTree({
     },
     [fileTypes, onOpenFile]
   )
+
+  // Captured ahead of the Tree row's own `onClick` (see `lastClickModsRef`
+  // above) — attached on the scroll container so it fires for every row
+  // regardless of which inner element the click actually lands on.
+  const handleTreeClickCapture = useCallback((event: MouseEvent) => {
+    lastClickModsRef.current = {
+      toggle: event.ctrlKey || event.metaKey,
+      range: event.shiftKey
+    }
+  }, [])
 
   const ensureExpanded = useCallback((dirPath: string) => {
     if (dirPath === '') return
@@ -962,10 +1017,16 @@ export function FileTree({
     }
 
     return (
-      <div className="wb-rail-scroll" onDragOver={handleRootDragOver} onDrop={handleRootDrop}>
+      <div
+        className="wb-rail-scroll"
+        onDragOver={handleRootDragOver}
+        onDrop={handleRootDrop}
+        onClickCapture={handleTreeClickCapture}
+      >
         <Tree
           nodes={displayNodes}
-          selectedIds={selectedPath ? [selectedPath] : []}
+          selection="multiple"
+          selectedIds={selectedIds}
           expandedIds={expandedIds}
           onExpandedIdsChange={setExpandedIds}
           onSelectedIdsChange={handleSelectedIdsChange}

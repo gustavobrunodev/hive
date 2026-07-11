@@ -97,16 +97,45 @@ vi.mock('@hive/design-system', () => ({
       { role: 'tree' },
       flattenTreeNodes(nodes).map((node) => {
         const hasChildren = Boolean(node.children && node.children.length > 0)
+        const selected = Boolean(selectedIds?.includes(node.id))
         const state: MockTreeRenderState = {
           level: 1,
           expanded: true,
-          selected: Boolean(selectedIds?.includes(node.id)),
+          selected,
           hasChildren
         }
         const content = renderLabel ? renderLabel(node, state) : node.label
         return createElement(
           'div',
-          { key: node.id, role: 'treeitem', onClick: () => onSelectedIdsChange?.([node.id]) },
+          {
+            key: node.id,
+            role: 'treeitem',
+            className: selected ? 'hds-tree-item-selected' : undefined,
+            // Stand-in for T2's modifier-aware `Tree.activate` (real toggle
+            // + range logic lives in the DS package, already covered by its
+            // own test suite) — just enough here (Ctrl toggles membership;
+            // Shift unions in, real range math not needed for T8's app-side
+            // assertions) to exercise the "never open on a modifier click"
+            // gating this mock's callers depend on.
+            onClick: (event: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }) => {
+              const current = selectedIds ?? []
+              if (event.ctrlKey || event.metaKey) {
+                onSelectedIdsChange?.(
+                  current.includes(node.id)
+                    ? current.filter((id) => id !== node.id)
+                    : [...current, node.id]
+                )
+                return
+              }
+              if (event.shiftKey) {
+                onSelectedIdsChange?.(
+                  current.includes(node.id) ? current : [...current, node.id]
+                )
+                return
+              }
+              onSelectedIdsChange?.([node.id])
+            }
+          },
           content
         )
       })
@@ -275,6 +304,114 @@ describe('Explorer (T12/T8)', () => {
     unmount()
 
     expect(unsubscribe).toHaveBeenCalled()
+  })
+
+  // --- T8: multi-select wiring (UX-R3.2/R4.2) -------------------------------
+
+  it('Ctrl-clicking builds a selection set without ever opening the viewer', async () => {
+    mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    expect(window.hive.readFile).not.toHaveBeenCalled()
+    expect(aRow.className).toContain('hds-tree-item-selected')
+    expect(prdRow.className).toContain('hds-tree-item-selected')
+  })
+
+  it('a plain click on a single file still opens the viewer (multi-select mode unchanged for the base case)', async () => {
+    mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow)
+
+    expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'a.txt')
+    expect(aRow.className).toContain('hds-tree-item-selected')
+  })
+
+  it('Ctrl-clicking down to exactly one remaining file does NOT open the viewer', async () => {
+    mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+    // Deselect a.txt again, leaving prd.md as the sole remaining selection —
+    // this must never pop the viewer open, unlike a plain click landing on
+    // prd.md directly.
+    fireEvent.click(aRow, { ctrlKey: true })
+
+    expect(window.hive.readFile).not.toHaveBeenCalled()
+    expect(aRow.className).not.toContain('hds-tree-item-selected')
+    expect(prdRow.className).toContain('hds-tree-item-selected')
+  })
+
+  it('a plain click on a directory still sets activeDirPath and never opens the viewer', async () => {
+    mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const docsRow = (await screen.findByText('docs')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(docsRow)
+
+    expect(window.hive.readFile).not.toHaveBeenCalled()
+
+    // Sanity-checks the activeDirPath side effect (existing behavior,
+    // unrelated to file multi-select): the toolbar's "New file" action now
+    // targets the clicked directory instead of the workspace root.
+    fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'targeted.txt' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'docs/targeted.txt', undefined)
+    })
+  })
+
+  it('a tree refresh drops a since-deleted path from the selection (a later same-named file is not phantom-preselected)', async () => {
+    const fixtureWithB = [
+      { name: 'a.txt', path: 'a.txt', type: 'file' as const },
+      { name: 'b.txt', path: 'b.txt', type: 'file' as const }
+    ]
+    const fixtureWithoutB = [{ name: 'a.txt', path: 'a.txt', type: 'file' as const }]
+    const fixtureWithNewB = [
+      { name: 'a.txt', path: 'a.txt', type: 'file' as const },
+      { name: 'b.txt', path: 'b.txt', type: 'file' as const }
+    ]
+    const listTree = vi
+      .fn()
+      .mockResolvedValueOnce(fixtureWithB)
+      .mockResolvedValueOnce(fixtureWithoutB)
+      .mockResolvedValueOnce(fixtureWithNewB)
+    const { watchListeners } = mockHive({ listTree })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const bRow = (await screen.findByText('b.txt')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(bRow, { ctrlKey: true })
+    expect(bRow.className).toContain('hds-tree-item-selected')
+
+    // b.txt is deleted — the watcher fires and the tree refetches without it.
+    watchListeners[0]({ type: 'unlink', path: 'b.txt' })
+    await waitFor(() => {
+      expect(screen.queryByText('b.txt')).toBeNull()
+    })
+
+    // A new file happens to be created with the exact same path — the
+    // watcher fires again and it reappears. If the earlier selection wasn't
+    // reconciled, the stale 'b.txt' id would still linger in the set and
+    // this brand-new row would render pre-selected without ever being
+    // clicked.
+    watchListeners[0]({ type: 'add', path: 'b.txt' })
+    const newBRow = (await screen.findByText('b.txt')).closest('[role="treeitem"]') as HTMLElement
+    expect(newBRow.className).not.toContain('hds-tree-item-selected')
   })
 
   // --- T8: create -----------------------------------------------------------
