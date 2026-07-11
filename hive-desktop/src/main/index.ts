@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createConfigStore } from './configStore'
 import { createWorkspaceService } from './workspaceService'
-import { createFsService, type FsChangeEvent } from './fsService'
+import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
 import { createClaudeCliAdapter } from './claudeCliAdapter'
 import { createAgentService } from './agentService'
@@ -82,15 +82,99 @@ app.whenReady().then(() => {
   ipcMain.handle('workspace:get', async () => workspaceService.getWorkspace())
   ipcMain.handle('workspace:isProvisioned', async () => workspaceService.isProvisioned())
 
-  // FsService (T11): a single stateless instance (it takes `root` per call,
-  // see fsService.ts) exposed as window.hive.{listTree,readFile,watchWorkspace}.
-  const fsService = createFsService()
+  // FsService (T11/T6): a single stateless instance (it takes `root` per
+  // call, see fsService.ts) exposed as
+  // window.hive.{listTree,readFile,watchWorkspace,statFile,createFile,
+  // createDirectory,saveFile,move,importEntry,exists,trash}. `trashItem` is
+  // injected here (rather than fsService.ts importing `electron` directly)
+  // so fsService.ts stays Electron-free and testable with a fake — see its
+  // FsServiceDeps doc comment.
+  const fsService = createFsService({ trashItem: (abs) => shell.trashItem(abs) })
 
   ipcMain.handle('fs:listTree', async (_event, root: string, relativePath?: string) =>
     fsService.listTree(root, relativePath)
   )
   ipcMain.handle('fs:readFile', async (_event, root: string, relativePath: string) =>
     fsService.readFile(root, relativePath)
+  )
+
+  // Design §2's "prefix approach": `ipcMain.handle` only preserves an Error's
+  // `message`/`name` across the structured-clone boundary to the renderer —
+  // custom properties like `ConflictError.code` are dropped. Rather than
+  // JSON-encoding the error (more ceremony, and this codebase has no
+  // precedent for that), a handler that can throw `ConflictError` is wrapped
+  // so it rethrows a plain `Error` whose message is prefixed with
+  // `CONFLICT:`/`STALE:` (matching `ConflictError.code`) — the preload bridge
+  // (T7) parses that prefix back into a typed rejection for the renderer.
+  function withConflictPrefix<Args extends unknown[], R>(
+    handler: (...args: Args) => R | Promise<R>
+  ): (...args: Args) => Promise<R> {
+    return async (...args: Args) => {
+      try {
+        return await handler(...args)
+      } catch (err) {
+        if (err instanceof ConflictError) {
+          throw new Error(`${err.code}: ${err.message}`)
+        }
+        throw err
+      }
+    }
+  }
+
+  ipcMain.handle('fs:statFile', async (_event, root: string, relativePath: string) =>
+    fsService.statFile(root, relativePath)
+  )
+  ipcMain.handle(
+    'fs:createFile',
+    withConflictPrefix(
+      async (_event: unknown, root: string, relativePath: string, opts?: { overwrite?: boolean }) =>
+        fsService.createFile(root, relativePath, opts)
+    )
+  )
+  ipcMain.handle('fs:createDirectory', async (_event, root: string, relativePath: string) =>
+    fsService.createDirectory(root, relativePath)
+  )
+  ipcMain.handle(
+    'fs:saveFile',
+    withConflictPrefix(
+      async (
+        _event: unknown,
+        root: string,
+        relativePath: string,
+        content: string,
+        opts?: { expectedMtimeMs?: number }
+      ) => fsService.saveFile(root, relativePath, content, opts)
+    )
+  )
+  ipcMain.handle(
+    'fs:move',
+    withConflictPrefix(
+      async (
+        _event: unknown,
+        root: string,
+        fromRel: string,
+        toRel: string,
+        opts?: { overwrite?: boolean }
+      ) => fsService.move(root, fromRel, toRel, opts)
+    )
+  )
+  ipcMain.handle(
+    'fs:importEntry',
+    withConflictPrefix(
+      async (
+        _event: unknown,
+        root: string,
+        sourceAbs: string,
+        destRel: string,
+        opts?: { overwrite?: boolean }
+      ) => fsService.importEntry(root, sourceAbs, destRel, opts)
+    )
+  )
+  ipcMain.handle('fs:exists', async (_event, root: string, relativePath: string) =>
+    fsService.exists(root, relativePath)
+  )
+  ipcMain.handle('fs:trash', async (_event, root: string, relativePath: string) =>
+    fsService.trash(root, relativePath)
   )
 
   // Streaming IPC for watchWorkspace — the first of its kind in this

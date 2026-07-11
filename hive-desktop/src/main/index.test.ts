@@ -2,7 +2,8 @@ import { afterAll, describe, expect, it, vi, beforeAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { ConflictError } from './fsService'
 
 // A real temp dir (not mocked) so the ConfigStore that src/main/index.ts
 // constructs via createConfigStore(app.getPath('userData')) has somewhere
@@ -31,7 +32,7 @@ vi.mock('electron', () => {
     },
     BrowserWindow: BrowserWindowMock,
     ipcMain: { handle: vi.fn(), on: vi.fn() },
-    shell: { openExternal: vi.fn() },
+    shell: { openExternal: vi.fn(), trashItem: vi.fn(() => Promise.resolve()) },
     dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) }
   }
 })
@@ -67,12 +68,32 @@ const { fakeFsService, watchWorkspaceCalls } = vi.hoisted(() => {
         const stop = vi.fn()
         watchWorkspaceCalls.push({ root, onChange, stop })
         return stop
-      })
+      }),
+      statFile: vi.fn(() => ({ mtimeMs: 123, size: 4 })),
+      createFile: vi.fn(),
+      createDirectory: vi.fn(),
+      saveFile: vi.fn(() => ({ mtimeMs: 456, size: 7 })),
+      move: vi.fn(),
+      importEntry: vi.fn(),
+      exists: vi.fn(() => true),
+      trash: vi.fn(() => Promise.resolve())
     }
   }
 })
 
-vi.mock('./fsService', () => ({ createFsService: vi.fn(() => fakeFsService) }))
+// createFsService is mocked (T11's existing rationale, still applies), but
+// `createFsService` is called with T6's `{ trashItem }` dep now — asserted
+// below via `createFsServiceMock.mock.calls`. `ConflictError` is re-exported
+// from the *real* module (via importActual) rather than re-declared here:
+// index.ts's `err instanceof ConflictError` check (T6) must see the same
+// class identity this test throws, which only importActual guarantees.
+const { createFsServiceMock } = vi.hoisted(() => ({ createFsServiceMock: vi.fn() }))
+
+vi.mock('./fsService', async () => {
+  const actual = await vi.importActual<typeof import('./fsService')>('./fsService')
+  createFsServiceMock.mockImplementation(() => fakeFsService)
+  return { ...actual, createFsService: createFsServiceMock }
+})
 
 // AgentService (T14): mocked the same way FsService is above — index.ts
 // wires window.hive.agent.* to a real AgentService backed by a real
@@ -223,6 +244,196 @@ describe('main process bootstrap', () => {
       'fake file contents'
     )
     expect(fakeFsService.readFile).toHaveBeenCalledWith('/ws', 'a.txt')
+  })
+
+  // T6: FsService is constructed with `shell.trashItem` injected as its
+  // `trashItem` dep (design §2) — proven by inspecting what index.ts actually
+  // passed to the (mocked) createFsService, then confirming that dep really
+  // is shell.trashItem by calling it through.
+  it('constructs FsService with shell.trashItem injected as the trashItem dep', async () => {
+    expect(createFsServiceMock).toHaveBeenCalledTimes(1)
+    const [deps] = createFsServiceMock.mock.calls[0] as [{ trashItem?: (abs: string) => unknown }]
+    expect(deps.trashItem).toBeInstanceOf(Function)
+    await deps.trashItem?.('/abs/path')
+    expect(shell.trashItem).toHaveBeenCalledWith('/abs/path')
+  })
+
+  // T6: the remaining fs:* write/read handlers — each just delegates to the
+  // matching FsService method with the args the renderer passed, mirroring
+  // the fs:listTree/fs:readFile assertions above.
+  it('registers fs:statFile/createFile/createDirectory/saveFile/move/importEntry/exists/trash, routing to FsService', async () => {
+    for (const channel of [
+      'fs:statFile',
+      'fs:createFile',
+      'fs:createDirectory',
+      'fs:saveFile',
+      'fs:move',
+      'fs:importEntry',
+      'fs:exists',
+      'fs:trash'
+    ]) {
+      expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+    }
+
+    const fakeInvokeEvent = {}
+
+    await expect(findHandler('fs:statFile')(fakeInvokeEvent, '/ws', 'a.txt')).resolves.toEqual({
+      mtimeMs: 123,
+      size: 4
+    })
+    expect(fakeFsService.statFile).toHaveBeenCalledWith('/ws', 'a.txt')
+
+    await findHandler('fs:createFile')(fakeInvokeEvent, '/ws', 'b.txt', { overwrite: true })
+    expect(fakeFsService.createFile).toHaveBeenCalledWith('/ws', 'b.txt', { overwrite: true })
+
+    await findHandler('fs:createDirectory')(fakeInvokeEvent, '/ws', 'docs')
+    expect(fakeFsService.createDirectory).toHaveBeenCalledWith('/ws', 'docs')
+
+    await expect(
+      findHandler('fs:saveFile')(fakeInvokeEvent, '/ws', 'a.txt', 'content', {
+        expectedMtimeMs: 111
+      })
+    ).resolves.toEqual({ mtimeMs: 456, size: 7 })
+    expect(fakeFsService.saveFile).toHaveBeenCalledWith('/ws', 'a.txt', 'content', {
+      expectedMtimeMs: 111
+    })
+
+    await findHandler('fs:move')(fakeInvokeEvent, '/ws', 'a.txt', 'b.txt', { overwrite: false })
+    expect(fakeFsService.move).toHaveBeenCalledWith('/ws', 'a.txt', 'b.txt', { overwrite: false })
+
+    await findHandler('fs:importEntry')(fakeInvokeEvent, '/ws', '/outside/src.txt', 'dest.txt', {
+      overwrite: true
+    })
+    expect(fakeFsService.importEntry).toHaveBeenCalledWith(
+      '/ws',
+      '/outside/src.txt',
+      'dest.txt',
+      { overwrite: true }
+    )
+
+    await expect(findHandler('fs:exists')(fakeInvokeEvent, '/ws', 'a.txt')).resolves.toBe(true)
+    expect(fakeFsService.exists).toHaveBeenCalledWith('/ws', 'a.txt')
+
+    await findHandler('fs:trash')(fakeInvokeEvent, '/ws', 'a.txt')
+    expect(fakeFsService.trash).toHaveBeenCalledWith('/ws', 'a.txt')
+  })
+
+  // T6: the CONFLICT:/STALE: message-prefix convention (design §2) — a
+  // thrown ConflictError from FsService comes out of the handler as a plain
+  // Error whose message is prefixed per its `code`, since `code` itself
+  // doesn't survive the ipcMain.handle structured-clone boundary. Exercised
+  // on fs:createFile (CONFLICT) and fs:saveFile (STALE); the other
+  // conflict-capable handlers (fs:move, fs:importEntry) share the same
+  // `withConflictPrefix` wrapper so aren't re-tested per-handler.
+  it('rethrows a ConflictError{code:"CONFLICT"} from FsService as an Error prefixed "CONFLICT: "', async () => {
+    fakeFsService.createFile.mockImplementationOnce(() => {
+      throw new ConflictError('CONFLICT', 'Already exists: dup.txt')
+    })
+    await expect(findHandler('fs:createFile')({}, '/ws', 'dup.txt')).rejects.toThrow(
+      'CONFLICT: Already exists: dup.txt'
+    )
+  })
+
+  it('rethrows a ConflictError{code:"STALE"} from FsService as an Error prefixed "STALE: "', async () => {
+    fakeFsService.saveFile.mockImplementationOnce(() => {
+      throw new ConflictError('STALE', 'File changed on disk: a.txt')
+    })
+    await expect(
+      findHandler('fs:saveFile')({}, '/ws', 'a.txt', 'new content', { expectedMtimeMs: 1 })
+    ).rejects.toThrow('STALE: File changed on disk: a.txt')
+  })
+
+  it('lets a non-ConflictError from a wrapped handler propagate unprefixed', async () => {
+    fakeFsService.move.mockImplementationOnce(() => {
+      throw new Error('Path escapes workspace root: ../evil')
+    })
+    await expect(findHandler('fs:move')({}, '/ws', 'a.txt', '../evil')).rejects.toThrow(
+      'Path escapes workspace root: ../evil'
+    )
+  })
+
+  // Pre-existing createWindow()/app-lifecycle branches (predate T6, not part
+  // of the fs:* surface this task owns) were left unexercised by the
+  // original test file, which left src/main/index.ts's branch coverage below
+  // the 90% gate even before this task's changes. Covered here too (still
+  // within this test file's existing scope) so the whole-file gate that T6's
+  // verify step runs against actually passes.
+  it("wires up the BrowserWindow's ready-to-show/window-open/browser-window-created callbacks", () => {
+    const mainWindowInstance = vi.mocked(BrowserWindow).mock.results[0].value as {
+      on: ReturnType<typeof vi.fn>
+      show: ReturnType<typeof vi.fn>
+      webContents: { setWindowOpenHandler: ReturnType<typeof vi.fn> }
+    }
+
+    const readyToShow = mainWindowInstance.on.mock.calls.find(
+      ([channel]) => channel === 'ready-to-show'
+    )?.[1] as () => void
+    readyToShow()
+    expect(mainWindowInstance.show).toHaveBeenCalled()
+
+    const windowOpenHandler = mainWindowInstance.webContents.setWindowOpenHandler.mock
+      .calls[0][0] as (details: { url: string }) => { action: string }
+    expect(windowOpenHandler({ url: 'https://example.com' })).toEqual({ action: 'deny' })
+    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com')
+
+    const browserWindowCreated = vi
+      .mocked(app.on)
+      .mock.calls.find(([channel]) => channel === 'browser-window-created')?.[1] as (
+      _e: unknown,
+      window: unknown
+    ) => void
+    expect(browserWindowCreated).toBeInstanceOf(Function)
+    browserWindowCreated(undefined, mainWindowInstance)
+  })
+
+  it("app 'activate' recreates a window only when none are open (macOS dock-click behavior)", () => {
+    const activateHandler = vi
+      .mocked(app.on)
+      .mock.calls.find(([channel]) => channel === 'activate')?.[1] as () => void
+    expect(activateHandler).toBeInstanceOf(Function)
+
+    const windowCountBefore = vi.mocked(BrowserWindow).mock.calls.length
+    vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([{}] as unknown as [])
+    activateHandler()
+    expect(vi.mocked(BrowserWindow).mock.calls.length).toBe(windowCountBefore) // no window open() call: getAllWindows() wasn't empty
+
+    activateHandler()
+    expect(vi.mocked(BrowserWindow).mock.calls.length).toBe(windowCountBefore + 1) // getAllWindows() empty: a new window is created
+  })
+
+  it("app 'window-all-closed' quits outside macOS", () => {
+    const windowAllClosedHandler = vi
+      .mocked(app.on)
+      .mock.calls.find(([channel]) => channel === 'window-all-closed')?.[1] as () => void
+    expect(windowAllClosedHandler).toBeInstanceOf(Function)
+    windowAllClosedHandler()
+    expect(app.quit).toHaveBeenCalled()
+  })
+
+  // T8/T10: the `activeInstallStops`/`activeUpdateStops` optional-chaining
+  // "tear down a previous run for this sender" branch, and the async
+  // generator loop's `if (stopped) return` branch — both pre-existing gaps
+  // left uncovered by the original test file.
+  it('a second bmad:install:start for the same sender tears down the first (optional-chaining branch)', () => {
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 201, send } }
+    findOnHandler('bmad:install:start')(fakeEvent, '/ws-1')
+    // Second start for the same sender exercises the `activeInstallStops.get(...)?.()`
+    // branch where a previous entry actually exists.
+    findOnHandler('bmad:install:start')(fakeEvent, '/ws-2')
+    expect(fakeBmadService.install).toHaveBeenCalledTimes(2)
+  })
+
+  it('bmad:update:start/stop stops relaying further events after stop, and a second start tears down the first', async () => {
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 202, send } }
+
+    findOnHandler('bmad:update:start')(fakeEvent, '/ws-1')
+    // Second start for the same sender exercises the optional-chaining branch.
+    findOnHandler('bmad:update:start')(fakeEvent, '/ws-2')
+    findOnHandler('bmad:update:stop')(fakeEvent)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(fakeBmadService.update).toHaveBeenCalledTimes(2)
   })
 
   // T11: FsService streaming wiring — 'fs:watch:start'/'fs:watch:stop' are
