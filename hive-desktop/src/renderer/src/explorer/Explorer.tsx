@@ -255,7 +255,14 @@ export function FileTree({
   const [pendingInputValue, setPendingInputValue] = useState('')
   const [renaming, setRenaming] = useState<RenamingState | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  // T9: the paths a pending delete confirmation targets — >1 means the
+  // dialog is confirming a bulk delete over the current `selectedIds`
+  // (design.md §4 "Bulk delete (UX-R5.1)", context.md C3). A single-item
+  // delete (row menu on a row that isn't part of a >1 multi-selection)
+  // still lands here as a one-element array — same confirm/cancel/dialog
+  // plumbing, just a different description string and a single `fs.trash`
+  // call instead of iterating.
+  const [deleteTargets, setDeleteTargets] = useState<string[] | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
@@ -555,14 +562,34 @@ export function FileTree({
     [renaming, performMove, closeAllInputs]
   )
 
-  // --- Delete (FM-R3) -------------------------------------------------------
+  // --- Delete (FM-R3, bulk: UX-R5.1/R5.3) -----------------------------------
 
   const confirmDelete = useCallback(() => {
-    if (!deleteTarget) return
-    const target = deleteTarget
-    setDeleteTarget(null)
-    window.hive.fs.trash(workspace, target).then(refresh, reportError)
-  }, [deleteTarget, workspace, refresh, reportError])
+    if (!deleteTargets) return
+    const targets = deleteTargets
+    setDeleteTargets(null)
+    if (targets.length <= 1) {
+      const target = targets[0]
+      if (target === undefined) return
+      window.hive.fs.trash(workspace, target).then(refresh, reportError)
+      return
+    }
+    // Bulk delete: fire every item's trash concurrently and let all of them
+    // settle before reacting — `Promise.allSettled` (not `Promise.all` /
+    // sequential `await`s that bail on the first rejection) is what makes
+    // this non-aborting, so one bad item never blocks the rest of the
+    // selection from being trashed. Each failure is individually reported
+    // (per-item, via the existing `actionError` banner) rather than thrown.
+    void Promise.allSettled(targets.map((target) => window.hive.fs.trash(workspace, target))).then(
+      (results) => {
+        for (const result of results) {
+          if (result.status === 'rejected') reportError(result.reason)
+        }
+        refresh()
+        setSelectedIds([])
+      }
+    )
+  }, [deleteTargets, workspace, refresh, reportError])
 
   // --- Internal drag-and-drop move (FM-R4.2) --------------------------------
 
@@ -979,7 +1006,15 @@ export function FileTree({
                   variant="danger"
                   onSelect={() => {
                     setMenuFor(null)
-                    setDeleteTarget(node.id)
+                    // T9: if this row is part of a >1 multi-selection, the
+                    // delete action targets the whole selection (context.md
+                    // C3's "full OS-like" bulk scope) — otherwise it's just
+                    // this row, same as before T9.
+                    setDeleteTargets(
+                      selectedIds.includes(node.id) && selectedIds.length > 1
+                        ? selectedIds
+                        : [node.id]
+                    )
                   }}
                 >
                   <TrashIcon size={14} />
@@ -999,6 +1034,7 @@ export function FileTree({
       fileTypes,
       dragOverPath,
       menuFor,
+      selectedIds,
       handleInputKeyDown,
       closeAllInputs,
       submitRename,
@@ -1080,15 +1116,17 @@ export function FileTree({
       </div>
       {actionError && <div className="wb-tree-error">{t('explorer.actionErrorMessage')}</div>}
       {treeBody}
-      {deleteTarget && (
-        <Dialog open onOpenChange={(open: boolean) => !open && setDeleteTarget(null)}>
+      {deleteTargets && (
+        <Dialog open onOpenChange={(open: boolean) => !open && setDeleteTargets(null)}>
           <DialogContent>
             <DialogTitle>{t('explorer.deleteDialogTitle')}</DialogTitle>
             <DialogDescription>
-              {t('explorer.deleteDialogDescription', basename(deleteTarget))}
+              {deleteTargets.length > 1
+                ? t('explorer.deleteManyDescription', deleteTargets.length)
+                : t('explorer.deleteDialogDescription', basename(deleteTargets[0] ?? ''))}
             </DialogDescription>
             <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={() => setDeleteTarget(null)}>
+              <Button className="wb-btn" onClick={() => setDeleteTargets(null)}>
                 {t('explorer.deleteCancelCta')}
               </Button>
               <Button className="wb-btn hds-btn-primary" onClick={confirmDelete}>

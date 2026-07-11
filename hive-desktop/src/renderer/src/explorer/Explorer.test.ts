@@ -498,6 +498,109 @@ describe('Explorer (T12/T8)', () => {
     })
   })
 
+  // --- T9: bulk delete (design.md §4 "Bulk delete", UX-R5.1/R5.3, context.md C3) --
+
+  it('deleting from a 3-item selection shows one dialog naming the count and trashes all 3 on confirm', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const docsRow = (await screen.findByText('docs')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(docsRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Excluir/ }))
+
+    // Exactly one confirm dialog, naming the count.
+    const dialog = await screen.findByRole('dialog')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(dialog.textContent).toContain('3')
+    expect(window.hive.fs.trash).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover para a lixeira' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.trash).toHaveBeenCalledTimes(3)
+    })
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'a.txt')
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'docs')
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+
+    // Selection is cleared after the bulk op completes — the previously
+    // multi-selected rows no longer carry the DS Tree's selected styling.
+    await waitFor(() => {
+      expect(aRow.className).not.toContain('hds-tree-item-selected')
+      expect(docsRow.className).not.toContain('hds-tree-item-selected')
+      expect(prdRow.className).not.toContain('hds-tree-item-selected')
+    })
+  })
+
+  it('one failing item in a bulk delete does not abort the other trash calls', async () => {
+    window.hive.fs.trash = vi
+      .fn()
+      .mockImplementation((_root: string, target: string) =>
+        target === 'docs'
+          ? Promise.reject(new Error('cannot trash docs'))
+          : Promise.resolve(undefined)
+      )
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const docsRow = (await screen.findByText('docs')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(docsRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Excluir/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Mover para a lixeira' }))
+
+    // All 3 items still get a trash call — the 'docs' rejection doesn't
+    // short-circuit the batch.
+    await waitFor(() => {
+      expect(window.hive.fs.trash).toHaveBeenCalledTimes(3)
+    })
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'a.txt')
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'docs')
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+
+    // The per-item failure still surfaces the generic action-error banner.
+    await screen.findByText('Não foi possível concluir a ação. Tente novamente.')
+
+    // ...but the bulk op still completes: refresh fires and selection clears.
+    await waitFor(() => {
+      expect(aRow.className).not.toContain('hds-tree-item-selected')
+    })
+  })
+
+  it('a single-selection delete (<=1) keeps the old single-item confirm wording and behavior', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Excluir/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain(
+      '"a.txt" será movido para a lixeira do sistema. Você pode recuperá-lo por lá.'
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover para a lixeira' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.trash).toHaveBeenCalledTimes(1)
+    })
+    expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'a.txt')
+  })
+
   // --- T8: internal drag-and-drop move (FM-R4.2) ---------------------------
 
   it('dragging a file row onto a folder row calls fs.move into that folder', async () => {

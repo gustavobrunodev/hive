@@ -63,6 +63,9 @@ export const ptBR = {
     deleteDialogTitle: 'Mover para a Lixeira?',
     deleteDialogDescription: (name: string) =>
       `"${name}" será movido para a lixeira do sistema. Você pode recuperá-lo por lá.`,
+    // T9 — bulk delete (UX-R5.1): confirm dialog wording for a >1 selection.
+    deleteManyDescription: (count: number) =>
+      `${count} itens serão movidos para a lixeira do sistema. Você pode recuperá-los por lá.`,
     deleteConfirmCta: 'Mover para a lixeira',
     deleteCancelCta: 'Cancelar',
     conflictDialogTitle: 'Já existe um item com esse nome',
