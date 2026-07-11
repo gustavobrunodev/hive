@@ -291,6 +291,94 @@ describe('Chat (T15)', () => {
     expect(screen.getByText('Não foi possível concluir a resposta: processo falhou')).toBeTruthy()
   })
 
+  it('ignores tool events (no-op branch) without disturbing streaming state', async () => {
+    const { emit } = mockHive()
+
+    render(createElement(Chat, { workspace: '/ws' }))
+    await screen.findByText('Modelo A')
+
+    emit({ type: 'token', text: 'Olá' })
+    await screen.findByText('Olá')
+
+    emit({ type: 'tool' })
+
+    expect(screen.getByText('Olá')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('does not update state from a stale capabilities()/start() resolution after unmount', async () => {
+    interface CapabilitiesLike {
+      models: Array<{ id: string; label: string }>
+      efforts: Array<{ id: string; label: string }>
+      supportsAttachments: boolean
+    }
+    let resolveCapabilities: ((value: CapabilitiesLike) => void) | undefined
+    let resolveStart: (() => void) | undefined
+    window.hive = {
+      ...window.hive,
+      agent: {
+        capabilities: vi.fn(
+          () =>
+            new Promise<CapabilitiesLike>((resolve) => {
+              resolveCapabilities = resolve
+            })
+        ),
+        start: vi.fn(
+          () =>
+            new Promise<void>((resolve) => {
+              resolveStart = resolve
+            })
+        ),
+        send: vi.fn().mockResolvedValue(undefined),
+        runWorkflow: vi.fn().mockResolvedValue(undefined),
+        onEvent: vi.fn(() => vi.fn())
+      },
+      workflows: {
+        list: vi.fn().mockResolvedValue(defaultWorkflowEntries)
+      }
+    }
+
+    const { unmount } = render(createElement(Chat, { workspace: '/ws' }))
+    unmount()
+
+    // Resolve after unmount — the effects' cleanup should have flipped
+    // `cancelled`, so these `.then()` callbacks must no-op (lines 82/114)
+    // instead of calling setState on an unmounted component.
+    expect(() => {
+      resolveCapabilities?.({
+        models: [{ id: 'model-a', label: 'Modelo A' }],
+        efforts: [{ id: 'low', label: 'Baixo' }],
+        supportsAttachments: false
+      })
+      resolveStart?.()
+    }).not.toThrow()
+  })
+
+  it('renders the model/effort Selects with no value selected when capabilities report no options', async () => {
+    mockHive([])
+    window.hive = {
+      ...window.hive,
+      agent: {
+        ...window.hive.agent,
+        capabilities: vi.fn().mockResolvedValue({
+          models: [],
+          efforts: [],
+          supportsAttachments: false
+        })
+      }
+    }
+
+    render(createElement(Chat, { workspace: '/ws' }))
+    await screen.findByText('O que você quer fazer hoje?')
+
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'oi' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    expect(await screen.findByText('oi')).toBeTruthy()
+  })
+
   it('restarts the session with the newly selected model', async () => {
     const { startCalls } = mockHive()
 

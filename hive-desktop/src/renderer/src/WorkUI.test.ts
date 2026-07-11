@@ -86,8 +86,17 @@ vi.mock('./explorer/Explorer', () => ({
       { type: 'button', 'data-testid': 'file-tree', onClick: () => onOpenFile?.('README.md') },
       'FileTree'
     ),
-  FileViewer: ({ path }: { path: string }) =>
-    createElement('div', { 'data-testid': 'file-viewer' }, `FileViewer: ${path}`)
+  FileViewer: ({ path, onClose }: { path: string; onClose?: () => void }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'file-viewer' },
+      `FileViewer: ${path}`,
+      createElement(
+        'button',
+        { type: 'button', 'data-testid': 'close-viewer', onClick: () => onClose?.() },
+        'close'
+      )
+    )
 }))
 
 vi.mock('./chat/Chat', () => ({
@@ -223,5 +232,54 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
 
     expect(screen.getByTestId('panel-viewer')).toBeTruthy()
     expect(screen.getByText('FileViewer: README.md')).toBeTruthy()
+  })
+
+  it('closes the viewer panel when the FileViewer reports onClose', () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    expect(screen.getByTestId('panel-viewer')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('close-viewer'))
+
+    expect(screen.queryByTestId('panel-viewer')).toBeNull()
+  })
+
+  it('renders the light-theme toggle icon/label and forwards toggle clicks', () => {
+    const onToggleTheme = vi.fn()
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'light',
+        onToggleTheme
+      })
+    )
+
+    const toggle = screen.getByRole('button', { name: /tema/i })
+    fireEvent.click(toggle)
+
+    expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+
+  it('swallows a localStorage.setItem failure when persisting the layout', () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    vi.mocked(localStorage.setItem).mockImplementation(() => {
+      throw new Error('quota exceeded')
+    })
+
+    expect(() => fireEvent.click(screen.getByTestId('simulate-drag'))).not.toThrow()
   })
 })

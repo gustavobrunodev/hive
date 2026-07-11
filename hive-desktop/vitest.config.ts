@@ -38,7 +38,22 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
-        'src/renderer/src/ui/icons.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/renderer/src/ui/icons.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // T13 (explorer-editor-ux, M7): new/changed files from this feature.
+        // `src/renderer/src/explorer/**` above already covers Explorer.tsx
+        // (T1/T5-T10) and the new HtmlPreview.tsx (T4); `src/main/index.ts`
+        // and `src/preload/index.ts` above already cover T3's openExternal
+        // handler/bridge. Tree.tsx (T2) lives in design-system, a separate
+        // package with its own coverage gate (global 90% threshold over all
+        // src/**/*.{ts,tsx}) — no entry needed here.
+        'src/renderer/src/ui/markdown.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/WorkUI.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/chat/Chat.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 }
       }
     }
   }
