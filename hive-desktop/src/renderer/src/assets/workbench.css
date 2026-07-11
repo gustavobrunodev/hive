@@ -1,0 +1,888 @@
+/**
+ * Hive Desktop — product-register workbench styles.
+ *
+ * Everything here consumes the design system's Layer-2 role tokens
+ * (--bg/--surface/--ink/--accent/…) so both themes resolve for free, and
+ * follows the DS product-register rules (design-system/DESIGN.md): Inter
+ * only, fixed rem scale, plain radii (never the brand cut corner), flat
+ * surfaces, motion 150–250ms that signals state.
+ */
+
+:root {
+  --wb-topbar-h: 46px;
+  --wb-rail-w: 260px;
+  --wb-pane-header-h: 40px;
+}
+
+/* --- Product-register resets (this app has no brand-register surface) ---
+   The DS marketing base.css puts Funnel Display on h1–h3 and a 1.0625rem
+   marketing measure on body; both are wrong for dense product UI (the One
+   Family Rule / Fixed-Scale Rule). Scoped under #root to win regardless of
+   CSS import order. */
+#root {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+#root h1,
+#root h2,
+#root h3 {
+  font-family: var(--ff-body);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+/* Native scrollbars, recolored to the theme (never rebehaved). */
+#root ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+#root ::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--rounded-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#root ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+  background-clip: padding-box;
+}
+#root ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ==========================================================================
+   Shell — top bar + 3-zone body (rail | chat | viewer)
+   ========================================================================== */
+
+.wb-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+}
+
+.wb-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: var(--wb-topbar-h);
+  padding: 0 var(--s-3) 0 var(--s-4);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-topbar-logo .hds-logo svg {
+  height: 20px;
+}
+
+.wb-topbar-title {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.wb-topbar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
+.wb-workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: var(--rounded-md);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+}
+.wb-workspace-chip svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+.wb-workspace-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wb-topbar-spacer {
+  flex: 1;
+}
+
+.wb-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-icon-btn:active {
+  background: var(--surface-3);
+}
+.wb-icon-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-icon-btn:disabled {
+  color: var(--faint);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.wb-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ==========================================================================
+   File rail (tree sidebar)
+   ========================================================================== */
+
+.wb-rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--wb-rail-w);
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+}
+
+.wb-pane-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--wb-pane-header-h);
+  padding: 0 var(--s-3) 0 var(--s-4);
+  flex-shrink: 0;
+}
+
+.wb-pane-header-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-rail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--s-2) var(--s-4);
+}
+
+.wb-rail .hds-tree {
+  font-size: 0.8125rem;
+}
+.wb-rail .hds-tree-toggle {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.wb-tree-icon {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+.hds-tree-item-selected > .hds-tree-row .wb-tree-icon {
+  color: var(--selected);
+}
+
+/* --- Tree row actions / inline create-rename / drag-drop (T8) --------- */
+
+.wb-tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--s-2) var(--s-2);
+  flex-shrink: 0;
+}
+
+.wb-tree-error {
+  margin: 0 var(--s-3) var(--s-2);
+  padding: 6px 10px;
+  border-radius: var(--rounded-sm);
+  font-size: 0.75rem;
+  color: var(--danger-ink, var(--ink));
+  background: var(--danger-bg, var(--surface-2));
+}
+
+.wb-tree-row-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--rounded-sm);
+}
+
+.wb-tree-row-content .hds-tree-label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.wb-tree-row-dropover {
+  outline: 2px dashed var(--focus);
+  outline-offset: -2px;
+  background: var(--selected-bg);
+  border-radius: var(--rounded-sm);
+}
+
+.wb-tree-row-menu-btn {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0;
+}
+.wb-tree-row-content:hover .wb-tree-row-menu-btn,
+.wb-tree-row-menu-btn:focus-visible {
+  opacity: 1;
+}
+
+.wb-tree-inline-input {
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--focus);
+  border-radius: var(--rounded-sm);
+}
+.wb-tree-inline-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-tree-inline-input[aria-invalid='true'] {
+  border-color: var(--danger-ink, #e5484d);
+}
+
+/* Generic dialog action row (delete-confirm / conflict dialogs) */
+.wb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+/* Centered loading/empty/error states inside a pane */
+.wb-pane-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-5);
+  min-height: 0;
+  width: 100%;
+}
+.wb-pane-center .hds-empty {
+  padding: var(--s-5) var(--s-3);
+}
+
+/* ==========================================================================
+   File viewer pane
+   ========================================================================== */
+
+.wb-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.wb-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--wb-pane-header-h);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.wb-viewer-header > svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.wb-viewer-name {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.wb-viewer-path {
+  font-size: 0.75rem;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* keeps the tail (deepest segment) visible when truncated */
+  text-align: left;
+  min-width: 0;
+}
+
+.wb-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.wb-viewer-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wb-viewer-content {
+  padding: var(--s-5) var(--s-6) var(--s-7);
+  max-width: 76ch;
+}
+
+.wb-viewer-content .hds-codeblock,
+.wb-viewer-content pre {
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Markdown (viewer docs + assistant chat replies)
+   ========================================================================== */
+
+.wb-md {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.wb-md > :first-child {
+  margin-top: 0;
+}
+.wb-md h1 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: var(--s-6) 0 var(--s-3);
+}
+.wb-md h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: var(--s-5) 0 var(--s-2);
+}
+.wb-md h3,
+.wb-md h4,
+.wb-md h5,
+.wb-md h6 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: var(--s-4) 0 var(--s-2);
+}
+.wb-md p {
+  margin: 0 0 var(--s-3);
+}
+.wb-md ul {
+  list-style: disc;
+  margin: 0 0 var(--s-3);
+  padding-left: var(--s-5);
+}
+.wb-md ol {
+  list-style: decimal;
+  margin: 0 0 var(--s-3);
+  padding-left: var(--s-5);
+}
+.wb-md blockquote {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-1) var(--s-4);
+  border-left: 2px solid var(--border-strong);
+  color: var(--muted);
+}
+.wb-md blockquote p {
+  margin: 0;
+}
+.wb-md li {
+  margin-bottom: var(--s-1);
+}
+.wb-md li::marker {
+  color: var(--faint);
+}
+.wb-md code {
+  font-family: var(--ff-num);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  padding: 1px 5px;
+}
+.wb-md pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  padding: var(--s-3) var(--s-4);
+  margin: 0 0 var(--s-3);
+  overflow-x: auto;
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.wb-md pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ==========================================================================
+   Chat
+   ========================================================================== */
+
+.wb-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.wb-chat-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* One shared reading column for messages, intents and the composer */
+.wb-chat-col {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  padding-inline: var(--s-5);
+}
+
+.wb-chat .hds-message-list {
+  height: 100%;
+}
+
+.wb-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding-top: var(--s-5);
+  padding-bottom: var(--s-4);
+}
+
+/* Assistant replies read as a document, not a shouted bubble */
+.wb-chat .hds-chat-message-assistant .hds-chat-message-bubble {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+.wb-chat .hds-chat-message-assistant .hds-chat-message-body {
+  max-width: min(640px, 92%);
+}
+.wb-chat-md.wb-md {
+  font-size: 0.9375rem;
+}
+.wb-chat-md.wb-md p:last-child,
+.wb-chat-md.wb-md ul:last-child,
+.wb-chat-md.wb-md pre:last-child {
+  margin-bottom: 0;
+}
+
+.wb-chat .hds-chat-message-user .hds-chat-message-bubble {
+  white-space: pre-wrap;
+}
+
+.wb-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent);
+  margin-top: 2px;
+}
+.wb-avatar .hds-logo svg,
+.wb-avatar.hds-logo svg {
+  height: 16px;
+}
+
+/* Composer zone */
+.wb-composer {
+  flex-shrink: 0;
+  padding-top: var(--s-2);
+  padding-bottom: var(--s-4);
+}
+
+.wb-composer .hds-prompt-input {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+.wb-composer .hds-prompt-input:focus-within {
+  border-color: var(--focus);
+}
+
+.wb-composer-error {
+  margin-bottom: var(--s-3);
+}
+
+.wb-composer-hint {
+  margin-top: var(--s-2);
+  font-size: 0.71875rem;
+  color: var(--faint);
+  text-align: right;
+}
+.wb-composer-hint .hds-kbd {
+  font-size: 0.6875rem;
+}
+
+/* Compact model/effort pickers inside the composer toolbar */
+.wb-select-compact.hds-select-trigger {
+  height: 28px;
+  width: auto;
+  padding: 3px 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--rounded-md);
+}
+.wb-select-compact.hds-select-trigger:hover:not([data-disabled]) {
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--ink);
+}
+.wb-select-compact.hds-select-trigger:focus-visible,
+.wb-select-compact.hds-select-trigger[data-state='open'] {
+  border-color: var(--focus);
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   New-session hero (empty chat: greeting + centered composer + intent pills)
+   ========================================================================== */
+
+.wb-hero-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Safe vertical centering: unlike `justify-content: center`, auto margins
+   collapse to 0 when the content overflows, so the top never gets clipped
+   behind the scroll edge. */
+.wb-hero-wrap > .wb-hero {
+  margin-block: auto;
+}
+
+.wb-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}
+
+.wb-hero-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent);
+  margin-bottom: var(--s-4);
+}
+
+.wb-hero-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--s-2);
+}
+
+.wb-hero-sub {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin: 0 0 var(--s-5);
+}
+
+.wb-hero-composer {
+  width: 100%;
+  max-width: 640px;
+  text-align: left;
+  margin-top: var(--s-6);
+}
+
+/* Intent pills — one glance, one click. */
+.wb-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+}
+
+.wb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-pill svg {
+  flex-shrink: 0;
+}
+
+.wb-pill[data-lead='true'] {
+  cursor: pointer;
+}
+.wb-pill[data-lead='true'] svg {
+  color: var(--accent);
+}
+.wb-pill[data-lead='true']:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.wb-pill[data-lead='true']:active {
+  background: var(--surface-3);
+}
+.wb-pill[data-lead='true']:focus-visible {
+  outline: 0;
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+/* Planned pills: one quiet shared "Em breve" tag, entries at --faint —
+   a roadmap whisper, not four repeated badges. */
+.wb-pills-planned {
+  margin-top: var(--s-3);
+}
+.wb-pills-planned .wb-pill {
+  color: var(--faint);
+  background: transparent;
+}
+.wb-pills-planned-label {
+  font-size: 0.71875rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-right: var(--s-1);
+}
+
+/* Theme-aware logo swap (HiveLogo.tsx) — the SVG lockups have baked-in
+   fills, so the right tone is chosen per theme here. */
+.wb-logo-light {
+  display: none;
+}
+:root[data-theme='light'] .wb-logo-light {
+  display: inline-flex;
+}
+:root[data-theme='light'] .wb-logo-dark {
+  display: none;
+}
+
+/* ==========================================================================
+   Onboarding (picker / install / update / splash)
+   ========================================================================== */
+
+.wb-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-5);
+  background: var(--bg);
+}
+
+.wb-gate-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 460px;
+}
+
+.wb-gate-logo {
+  margin-bottom: var(--s-5);
+}
+.wb-gate-logo .hds-logo svg,
+.wb-gate-logo.hds-logo svg {
+  height: 44px;
+}
+
+.wb-gate-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--s-3);
+}
+
+.wb-gate-desc {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 var(--s-5);
+  max-width: 46ch;
+}
+
+.wb-gate-note {
+  margin-top: var(--s-4);
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+/* Progress card (guided install / update) */
+.wb-gate-card {
+  width: min(460px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  padding: var(--s-6);
+}
+
+.wb-gate-card .wb-gate-title {
+  font-size: 1.125rem;
+  margin-bottom: var(--s-2);
+}
+
+.wb-gate-card .wb-gate-desc {
+  font-size: 0.875rem;
+  margin-bottom: var(--s-5);
+}
+
+.wb-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+}
+
+.wb-step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.wb-step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+}
+.wb-step[data-state='done'] .wb-step-marker {
+  background: var(--success-bg);
+  color: var(--success-ink);
+}
+.wb-step[data-state='active'] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.wb-step[data-state='active'] .wb-step-marker {
+  color: var(--accent);
+}
+.wb-step[data-state='active'] .wb-step-marker .hds-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.wb-gate-progress-caption {
+  margin-top: var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  min-height: 1.3em;
+}
+
+.wb-gate-error-actions {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+/* App-scale DS Button (the DS default is a 48px marketing CTA) */
+.wb-btn.hds-btn {
+  padding: 9px 16px;
+  min-height: 36px;
+  font-size: 0.875rem;
+  border-radius: var(--rounded-sm);
+}
+.wb-btn.hds-btn:hover {
+  transform: none;
+}
+.wb-btn-lg.hds-btn {
+  padding: 12px 22px;
+  min-height: 44px;
+  font-size: 0.9375rem;
+  border-radius: var(--rounded-md);
+}
+
+/* DS primary Button hardcodes its dark-theme ink/hover; retint per theme */
+.wb-btn.hds-btn-primary,
+.wb-btn-lg.hds-btn-primary {
+  color: var(--accent-ink);
+}
+.wb-btn.hds-btn-primary:hover,
+.wb-btn-lg.hds-btn-primary:hover {
+  background: var(--accent-hover);
+  color: var(--accent-ink);
+}
+.wb-btn.hds-btn:focus-visible,
+.wb-btn-lg.hds-btn:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--focus),
+    inset 0 0 0 4px var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-icon-btn,
+  .wb-intent,
+  .wb-intent-icon {
+    transition: none;
+  }
+}

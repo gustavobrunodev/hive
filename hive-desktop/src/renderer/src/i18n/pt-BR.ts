@@ -29,25 +29,49 @@ export const ptBR = {
   },
   onboarding: {
     checkingWorkspace: 'Verificando workspace…',
-    pickerTitle: 'Nenhum workspace selecionado',
+    pickerTitle: 'Bem-vindo ao Hive',
     pickerDescription:
-      'Escolha uma pasta no seu computador para usar como workspace do Hive Desktop. É lá que os artefatos do BMAD e dos agentes serão salvos.',
+      'Escolha uma pasta no seu computador para ser o seu workspace — é nela que o BMAD e os agentes vão trabalhar e salvar os artefatos do seu projeto.',
+    pickerNote: 'Na primeira vez, o BMAD será instalado automaticamente no workspace escolhido.',
     chooseWorkspaceCta: 'Escolher workspace'
   },
   explorer: {
+    paneTitle: 'Arquivos',
     treeLoading: 'Carregando arquivos…',
     treeErrorTitle: 'Não foi possível carregar os arquivos',
     treeErrorDescription: 'Tente novamente ou verifique se o workspace ainda existe.',
     treeEmptyTitle: 'Nenhum arquivo ainda',
     treeEmptyDescription: 'Os arquivos criados no workspace vão aparecer aqui.',
     treeAriaLabel: 'Arquivos do workspace',
-    viewerEmptyTitle: 'Nenhum arquivo selecionado',
-    viewerEmptyDescription: 'Selecione um arquivo na árvore ao lado para visualizar o conteúdo.',
+    viewerCloseLabel: 'Fechar arquivo',
     viewerLoading: 'Carregando conteúdo…',
     viewerErrorTitle: 'Não foi possível abrir o arquivo',
     viewerErrorDescription: 'Tente selecionar o arquivo novamente.',
-    copyLabel: 'Copiar',
-    copiedLabel: 'Copiado'
+    copyLabel: 'Copiar conteúdo',
+    copiedLabel: 'Copiado',
+
+    // T8 — create/rename/delete/move/import actions (FM-R1, R3, R4, R5, R7)
+    newFileLabel: 'Novo arquivo',
+    newFolderLabel: 'Nova pasta',
+    newItemPlaceholder: 'Nome do arquivo ou pasta',
+    renamePlaceholder: 'Novo nome',
+    rowMenuLabel: (name: string) => `Mais ações para ${name}`,
+    menuNewFile: 'Novo arquivo',
+    menuNewFolder: 'Nova pasta',
+    menuRename: 'Renomear',
+    menuDelete: 'Excluir',
+    deleteDialogTitle: 'Mover para a Lixeira?',
+    deleteDialogDescription: (name: string) =>
+      `"${name}" será movido para a lixeira do sistema. Você pode recuperá-lo por lá.`,
+    deleteConfirmCta: 'Mover para a lixeira',
+    deleteCancelCta: 'Cancelar',
+    conflictDialogTitle: 'Já existe um item com esse nome',
+    conflictDialogDescription: (name: string) =>
+      `Já existe um item chamado "${name}" neste local. O que você quer fazer?`,
+    conflictOverwriteCta: 'Substituir',
+    conflictRenameCta: 'Renomear',
+    conflictCancelCta: 'Cancelar',
+    actionErrorMessage: 'Não foi possível concluir a ação. Tente novamente.'
   },
   guidedInstall: {
     title: 'Preparando seu workspace',
@@ -74,15 +98,17 @@ export const ptBR = {
     effortLabel: 'Esforço',
     jumpToLatestLabel: 'Ir para a última mensagem',
     errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
-    loadingCapabilities: 'Carregando opções do agente…'
+    loadingCapabilities: 'Carregando opções do agente…',
+    composerHint: 'Enter envia · Shift+Enter quebra a linha'
   },
   intentGrid: {
     title: 'O que você quer fazer hoje?',
-    description: 'Escolha um ponto de partida guiado pelo BMAD.',
+    description: 'Escreva sua mensagem ou comece por um fluxo guiado do BMAD.',
     plannedBadge: 'Em breve'
   },
   workUI: {
-    resizeHandleLabel: 'Redimensionar painéis'
+    resizeHandleLabel: 'Redimensionar painéis',
+    workspaceChipTitle: (path: string) => `Workspace ativo: ${path}`
   }
 } as const
 
@@ -99,9 +125,9 @@ export const ptBR = {
  */
 const intentLabelsPtBR: Record<string, string> = {
   prd: 'Criar um PRD',
-  'domain-research': 'Pesquisa de domínio',
-  brainstorm: 'Brainstorm',
-  architecture: 'Arquitetura',
+  'domain-research': 'Pesquisar um domínio',
+  brainstorm: 'Fazer um brainstorm',
+  architecture: 'Definir a arquitetura',
   story: 'Criar uma história'
 }
 
