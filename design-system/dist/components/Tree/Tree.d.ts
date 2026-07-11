@@ -37,6 +37,13 @@ export interface TreeProps {
     /** Accessible name reference for the `role="tree"` root, e.g. a heading id. */
     "aria-labelledby"?: string;
 }
+/** Modifier state derived from the triggering click/keyboard event. */
+export interface ActivateMods {
+    /** Ctrl/Cmd-click: toggle membership instead of replacing the selection. */
+    toggle: boolean;
+    /** Shift-click: replace the selection with the visible-order range from the anchor. */
+    range: boolean;
+}
 /**
  * WAI-ARIA tree pattern: `role="tree"`/`"treeitem"`/`"group"`, roving
  * tabindex, arrow-key navigation, expand/collapse, `aria-expanded`/

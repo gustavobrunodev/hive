@@ -51,6 +51,14 @@ interface FlatItem {
   hasChildren: boolean
 }
 
+/** Modifier state derived from the triggering click/keyboard event. */
+export interface ActivateMods {
+  /** Ctrl/Cmd-click: toggle membership instead of replacing the selection. */
+  toggle: boolean
+  /** Shift-click: replace the selection with the visible-order range from the anchor. */
+  range: boolean
+}
+
 function flattenVisible(
   nodes: TreeNode[],
   expandedIds: ReadonlySet<string>,
@@ -128,6 +136,8 @@ export function Tree({
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
 
+  const anchorIdRef = useRef<string | null>(null)
+
   const itemRefs = useRef(new Map<string, HTMLLIElement>())
   const typeAheadRef = useRef<{ text: string; timeout: ReturnType<typeof setTimeout> | null }>({
     text: "",
@@ -157,14 +167,32 @@ export function Tree({
   )
 
   const activate = useCallback(
-    (id: string) => {
+    (id: string, mods: ActivateMods = { toggle: false, range: false }) => {
       if (selection === "multiple") {
-        setSelectedIds(selectedSet.has(id) ? selectedIds.filter((existing) => existing !== id) : [...selectedIds, id])
+        const anchor = anchorIdRef.current
+        if (mods.range && anchor) {
+          const anchorIndex = enabledFlat.findIndex((item) => item.node.id === anchor)
+          const targetIndex = enabledFlat.findIndex((item) => item.node.id === id)
+          if (anchorIndex !== -1 && targetIndex !== -1) {
+            const [start, end] = anchorIndex <= targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
+            setSelectedIds(enabledFlat.slice(start, end + 1).map((item) => item.node.id))
+            return
+          }
+        }
+        if (mods.toggle) {
+          setSelectedIds(
+            selectedSet.has(id) ? selectedIds.filter((existing) => existing !== id) : [...selectedIds, id]
+          )
+          anchorIdRef.current = id
+          return
+        }
+        setSelectedIds([id])
+        anchorIdRef.current = id
       } else {
         setSelectedIds([id])
       }
     },
-    [selection, selectedSet, selectedIds, setSelectedIds]
+    [selection, selectedSet, selectedIds, setSelectedIds, enabledFlat]
   )
 
   const handleKeyDown = useCallback(
@@ -223,7 +251,7 @@ export function Tree({
         case "Enter":
         case " ": {
           event.preventDefault()
-          activate(current.node.id)
+          activate(current.node.id, { toggle: false, range: false })
           break
         }
         default: {
@@ -292,7 +320,7 @@ interface TreeItemProps {
   itemRefs: React.MutableRefObject<Map<string, HTMLLIElement>>
   onFocus: (id: string) => void
   onToggleExpand: (id: string) => void
-  onActivate: (id: string) => void
+  onActivate: (id: string, mods: ActivateMods) => void
 }
 
 function TreeItem({
@@ -334,7 +362,10 @@ function TreeItem({
         event.stopPropagation()
         if (node.disabled) return
         onFocus(node.id)
-        onActivate(node.id)
+        onActivate(node.id, {
+          toggle: event.ctrlKey || event.metaKey,
+          range: event.shiftKey,
+        })
       }}
       onFocus={(event) => {
         event.stopPropagation()

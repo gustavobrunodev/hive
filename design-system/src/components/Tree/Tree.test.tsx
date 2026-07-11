@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { Tree } from "./Tree"
@@ -141,22 +141,25 @@ describe("Tree", () => {
     expect(getItem("src")).toHaveAttribute("aria-selected", "false")
   })
 
-  it("multi-select mode toggles membership and sets aria-multiselectable", async () => {
-    const user = userEvent.setup()
-    render(<Tree nodes={nodes} aria-label="Files" selection="multiple" />)
+  it("multi-select mode sets aria-multiselectable and Ctrl-click toggles membership", () => {
+    render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["readme"]} />)
     expect(screen.getByRole("tree")).toHaveAttribute("aria-multiselectable", "true")
-
-    getItem("src").focus()
-    await user.keyboard(" ")
-    await user.keyboard("{ArrowDown} ")
-    expect(getItem("src")).toHaveAttribute("aria-selected", "true")
     expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
 
-    // toggling src again should deselect it, leaving README.md selected
-    getItem("src").focus()
+    // Ctrl-click on "locked.txt" is a no-op (disabled), so use another leaf:
+    // exercise toggle-on via a second render-independent leaf isn't needed —
+    // Ctrl-clicking the already-selected README.md toggles it off.
+    fireEvent.click(screen.getByText("README.md"), { ctrlKey: true })
+    expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+  })
+
+  it("Space in multi-select mode replaces the selection (keyboard activation carries no toggle/range modifiers)", async () => {
+    const user = userEvent.setup()
+    render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["src"]} />)
+    getItem("README.md").focus()
     await user.keyboard(" ")
+    expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
     expect(getItem("src")).toHaveAttribute("aria-selected", "false")
-    expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
   })
 
   it("a disabled node is non-focusable, non-selectable, and skipped by arrow navigation", async () => {
@@ -238,5 +241,117 @@ describe("Tree", () => {
   it("merges a custom className", () => {
     render(<Tree nodes={nodes} aria-label="Files" className="extra" />)
     expect(screen.getByRole("tree")).toHaveClass("hds-tree", "extra")
+  })
+
+  describe("modifier-aware selection (multiple mode)", () => {
+    it("plain click replaces selection with a single id, even when others were selected", async () => {
+      const user = userEvent.setup()
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["readme", "src"]} />)
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      await user.click(screen.getByText("README.md"))
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("Ctrl-click toggles membership while keeping other selected items", () => {
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["src"]} />)
+      fireEvent.click(screen.getByText("README.md"), { ctrlKey: true })
+      expect(getItem("src")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("Ctrl-click on an already-selected item removes just that item", () => {
+      render(
+        <Tree
+          nodes={nodes}
+          aria-label="Files"
+          selection="multiple"
+          defaultExpandedIds={["src"]}
+          defaultSelectedIds={["index", "readme"]}
+        />
+      )
+      fireEvent.click(screen.getByText("index.ts"), { ctrlKey: true })
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "false")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+    })
+
+    // Note: clicking a node with children only toggles expand/collapse (the
+    // label sits inside the chevron <button>, which stops click propagation
+    // before it reaches the row's onActivate) — this is pre-existing Tree
+    // behavior, unchanged by T2. So these range tests anchor/target on leaf
+    // rows, which is how the app's file rows in fact behave (only leaf/file
+    // rows are ever mouse-selectable; directories are keyboard-selectable).
+    // Visible order with src+components expanded: src, components, Button.tsx,
+    // Input.tsx, index.ts, README.md.
+    it("Shift-click selects the visible-order range from the anchor (forward)", () => {
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src", "components"]} />
+      )
+      // plain click on "Button.tsx" sets the anchor
+      fireEvent.click(screen.getByText("Button.tsx"))
+      // shift-click on "README.md" (later in visible order) selects the whole range
+      fireEvent.click(screen.getByText("README.md"), { shiftKey: true })
+      expect(getItem("Button.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("Input.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "false")
+      expect(getItem("components")).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("Shift-click selects the visible-order range from the anchor (backward)", () => {
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src", "components"]} />
+      )
+      // plain click on "index.ts" sets the anchor further down the visible list
+      fireEvent.click(screen.getByText("index.ts"))
+      // shift-click on "Input.tsx" (earlier in visible order) selects the range in between
+      fireEvent.click(screen.getByText("Input.tsx"), { shiftKey: true })
+      expect(getItem("Input.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("Button.tsx")).toHaveAttribute("aria-selected", "false")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("a subsequent shift-click re-anchors from the original anchor, not the previous range end", () => {
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src", "components"]} />
+      )
+      fireEvent.click(screen.getByText("Button.tsx"))
+      fireEvent.click(screen.getByText("README.md"), { shiftKey: true })
+      expect(getItem("Button.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      // anchor is still "Button.tsx": shift-clicking back on it should collapse the range to just itself
+      fireEvent.click(screen.getByText("Button.tsx"), { shiftKey: true })
+      expect(getItem("Button.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("Enter/Space always pass toggle:false, range:false (single-item select, no range/toggle surprises)", async () => {
+      const user = userEvent.setup()
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["src"]} />)
+      getItem("README.md").focus()
+      await user.keyboard("{Enter}")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("single-selection mode ignores Ctrl/Shift modifiers and always replaces the selection", () => {
+      render(
+        <Tree
+          nodes={nodes}
+          aria-label="Files"
+          defaultExpandedIds={["src"]}
+          defaultSelectedIds={["index"]}
+        />
+      )
+      fireEvent.click(screen.getByText("README.md"), { ctrlKey: true })
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "false")
+
+      fireEvent.click(screen.getByText("index.ts"), { shiftKey: true })
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+    })
   })
 })
