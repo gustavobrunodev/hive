@@ -662,22 +662,26 @@ describe('Explorer (T12/T8)', () => {
     expect(await screen.findByRole('menuitem', { name: /Excluir/ })).toBeTruthy()
   })
 
-  it('blurring the inline create input cancels it without creating anything', async () => {
+  // --- T7: rename/create blur auto-commit -----------------------------------
+
+  it('blurring the inline create input with a valid name commits it (same path as Enter)', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     await screen.findByText('a.txt')
 
     fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
     const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
-    fireEvent.change(input, { target: { value: 'never.txt' } })
+    fireEvent.change(input, { target: { value: 'blurred.txt' } })
     fireEvent.blur(input)
 
     await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'blurred.txt', undefined)
+    })
+    await waitFor(() => {
       expect(screen.queryByPlaceholderText('Nome do arquivo ou pasta')).toBeNull()
     })
-    expect(window.hive.fs.createFile).not.toHaveBeenCalled()
   })
 
-  it('blurring the inline rename input cancels it without moving anything', async () => {
+  it('blurring the inline rename input with a valid name commits the move (same path as Enter)', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     await screen.findByText('a.txt')
 
@@ -688,9 +692,140 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'renamed.txt')
+    })
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Novo nome')).toBeNull()
+    })
+  })
+
+  it('blurring the inline create input with an empty value cancels instead of committing', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Nome do arquivo ou pasta')).toBeNull()
+    })
+    expect(window.hive.fs.createFile).not.toHaveBeenCalled()
+  })
+
+  it('blurring the inline rename input with an invalid value (path separator) cancels instead of committing', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Renomear/ }))
+    const input = await screen.findByPlaceholderText('Novo nome')
+    fireEvent.change(input, { target: { value: 'a/b' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
       expect(screen.queryByPlaceholderText('Novo nome')).toBeNull()
     })
     expect(window.hive.fs.move).not.toHaveBeenCalled()
+  })
+
+  it('Escape still cancels the inline rename input without moving anything', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Renomear/ }))
+    const input = await screen.findByPlaceholderText('Novo nome')
+    fireEvent.change(input, { target: { value: 'renamed.txt' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Novo nome')).toBeNull()
+    })
+    expect(window.hive.fs.move).not.toHaveBeenCalled()
+  })
+
+  it('Enter then a follow-up blur on the create input commits exactly once', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'once.txt' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    // Simulate the blur that follows Enter (focus naturally moving, or the
+    // input unmounting) before the async createFile has settled.
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledTimes(1)
+    })
+    expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'once.txt', undefined)
+  })
+
+  it('Enter then a follow-up blur on the rename input commits exactly once', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Renomear/ }))
+    const input = await screen.findByPlaceholderText('Novo nome')
+    fireEvent.change(input, { target: { value: 'once.txt' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledTimes(1)
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'once.txt')
+  })
+
+  it('a blur fired while the create-conflict dialog is open does not double-commit', async () => {
+    window.hive.fs.exists = vi.fn().mockResolvedValue(true)
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'a.txt' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await screen.findByRole('dialog')
+    // The conflict dialog stealing focus fires another blur on the
+    // still-mounted inline input — must not trigger a second createFile.
+    fireEvent.blur(input)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Substituir' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'a.txt', { overwrite: true })
+    })
+    expect(window.hive.fs.createFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('a blur fired while the rename-conflict dialog is open does not double-commit', async () => {
+    window.hive.fs.exists = vi.fn().mockResolvedValue(true)
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para a\.txt/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Renomear/ }))
+    const input = await screen.findByPlaceholderText('Novo nome')
+    fireEvent.change(input, { target: { value: 'docs' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await screen.findByRole('dialog')
+    fireEvent.blur(input)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Substituir' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'docs', { overwrite: true })
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledTimes(1)
   })
 
   it('dragging over then leaving a folder row clears the drop-target highlight', async () => {

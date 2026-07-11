@@ -227,6 +227,11 @@ export function FileTree({
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState(false)
   const dragSourceRef = useRef<string | null>(null)
+  // T7 blur-commit double-commit guard: set the instant a commit is actually
+  // attempted (Enter or blur), so a blur that follows an Enter-commit (or
+  // fires as the conflict dialog steals focus mid-commit) is a no-op instead
+  // of firing a second create/rename. Reset when the input session closes.
+  const committedRef = useRef(false)
 
   // Initial load + re-fetch whenever `refreshToken` bumps (from the watcher
   // below) or the workspace changes. The loading-state reset lives inside
@@ -298,6 +303,7 @@ export function FileTree({
   const refresh = useCallback(() => setRefreshToken((current) => current + 1), [])
 
   const closeAllInputs = useCallback(() => {
+    committedRef.current = false
     setPendingInput(null)
     setPendingInputValue('')
     setRenaming(null)
@@ -336,7 +342,10 @@ export function FileTree({
                 closeAllInputs()
               }
             },
-            onRename: () => setConflict(null),
+            onRename: () => {
+              committedRef.current = false
+              setConflict(null)
+            },
             onCancel: () => closeAllInputs()
           })
           return
@@ -357,7 +366,10 @@ export function FileTree({
                 closeAllInputs()
               }
             },
-            onRename: () => setConflict(null),
+            onRename: () => {
+              committedRef.current = false
+              setConflict(null)
+            },
             onCancel: () => closeAllInputs()
           })
           return
@@ -404,7 +416,10 @@ export function FileTree({
                 onDone()
               }
             },
-            onRename: () => setConflict(null),
+            onRename: () => {
+              committedRef.current = false
+              setConflict(null)
+            },
             onCancel: () => onDone()
           })
           return
@@ -427,7 +442,10 @@ export function FileTree({
                 onDone()
               }
             },
-            onRename: () => setConflict(null),
+            onRename: () => {
+              committedRef.current = false
+              setConflict(null)
+            },
             onCancel: () => onDone()
           })
           return
@@ -714,11 +732,33 @@ export function FileTree({
               onKeyDown={(event) =>
                 handleInputKeyDown(
                   event,
-                  (value) => void pendingInput.commit(value),
+                  (value) => {
+                    // Same double-commit guard as onBlur below — Enter and
+                    // blur can both fire for one input session (e.g. Enter
+                    // naturally shifting focus), and only the first valid
+                    // attempt should go through.
+                    if (committedRef.current || !validateEntryName(value)) return
+                    committedRef.current = true
+                    void pendingInput.commit(value)
+                  },
                   closeAllInputs
                 )
               }
-              onBlur={() => closeAllInputs()}
+              onBlur={() => {
+                // T7: blur commits (same path as Enter) instead of
+                // cancelling. `committedRef` blocks a second commit when
+                // Enter already fired, or when this blur is really the
+                // conflict-dialog-mid-commit teardown (pendingInput/renaming
+                // stay mounted while the conflict dialog is up, so the input
+                // can still blur once more before the dialog resolves).
+                if (committedRef.current) return
+                if (!validateEntryName(pendingInputValue)) {
+                  closeAllInputs()
+                  return
+                }
+                committedRef.current = true
+                void pendingInput.commit(pendingInputValue)
+              }}
               onClick={(event) => event.stopPropagation()}
             />
           </span>
@@ -736,8 +776,26 @@ export function FileTree({
               value={renameValue}
               aria-label={t('explorer.renamePlaceholder')}
               onChange={(event) => setRenameValue(event.target.value)}
-              onKeyDown={(event) => handleInputKeyDown(event, submitRename, closeAllInputs)}
-              onBlur={() => closeAllInputs()}
+              onKeyDown={(event) =>
+                handleInputKeyDown(
+                  event,
+                  (value) => {
+                    if (committedRef.current || !validateEntryName(value)) return
+                    committedRef.current = true
+                    submitRename(value)
+                  },
+                  closeAllInputs
+                )
+              }
+              onBlur={() => {
+                if (committedRef.current) return
+                if (!validateEntryName(renameValue)) {
+                  closeAllInputs()
+                  return
+                }
+                committedRef.current = true
+                submitRename(renameValue)
+              }}
               onClick={(event) => event.stopPropagation()}
             />
           </span>
