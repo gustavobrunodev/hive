@@ -5,14 +5,13 @@ import path from 'node:path'
 // Playwright can drive the REAL built Electron app (main + preload + renderer
 // + contextBridge) in this environment, not any particular feature.
 //
-// `window.hive.fs` does NOT exist yet at this point in the task sequence —
-// checked src/preload/index.ts (T2 time): `hive` only exposes top-level
-// `ping`/`chooseWorkspace`/`getWorkspace`/`isProvisioned`/`listTree`/
-// `readFile`/`watchWorkspace` plus the `agent`/`workflows` namespaces. The
-// nested `fs` namespace (design.md §3) is added later by T7. So this smoke
-// asserts `window.hive` exists (and a couple of its current top-level
-// methods) rather than `window.hive.fs`, per the task instructions — revisit
-// this assertion once T7 lands and change it to `window.hive.fs`.
+// At T2 time `window.hive.fs` did not exist yet — checked src/preload/
+// index.ts then: `hive` only exposed top-level `ping`/`chooseWorkspace`/
+// `getWorkspace`/`isProvisioned`/`listTree`/`readFile`/`watchWorkspace` plus
+// the `agent`/`workflows` namespaces. T7 has since added the nested `fs`
+// namespace (design.md §3), so the assertion below now checks for its
+// presence — this smoke stays otherwise unchanged (still just proving the
+// bridge exists, not exercising any fs method).
 test('app launches and exposes the window.hive preload bridge', async () => {
   const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
 
@@ -44,8 +43,10 @@ test('app launches and exposes the window.hive preload bridge', async () => {
 
     expect(hiveShape.hasHive).toBe(true)
     expect(hiveShape.hasListTree).toBe(true)
-    // Documented, not asserted true: fs namespace lands in T7.
-    expect(hiveShape.hasFsNamespace).toBe(false)
+    // T7 has since landed (this spike originally predated it and asserted
+    // `false` here, documenting the not-yet-built state at T2 time) — the
+    // nested `fs` namespace is now part of the preload bridge (T11).
+    expect(hiveShape.hasFsNamespace).toBe(true)
   } finally {
     await app.close()
   }

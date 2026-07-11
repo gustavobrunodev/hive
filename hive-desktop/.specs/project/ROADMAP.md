@@ -55,10 +55,31 @@ All upstream placeholders (Domain Research, PRD, Brainstorm, Architecture, Story
 wired to BMAD workflows; dynamic discovery of installed BMAD workflows as fallback
 to the curated catalog.
 
-## M4 — File editing
+## M4 — File editing ✅ Done (2026-07-11)
 
-Promote the read-only viewer to a real editor (edit/save artifacts in place),
-with awareness of concurrent agent writes.
+**Feature:** `file-management`
+
+Promoted the read-only viewer to a real editor (edit/save artifacts in place,
+with concurrent-write awareness), plus full workspace file-management: create,
+rename, delete (system trash), internal move (drag), and OS-drag import — all
+with security (workspace-escape rejection), conflict handling (overwrite/
+rename/cancel), and live-refresh awareness of concurrent agent writes.
+
+**Exit criteria:** FM-R1–R7 implemented and demonstrated in the running app;
+FM-R8.1 no regression; FM-R8.2 ≥90% coverage per changed file; FM-R8.3
+Playwright/Electron E2E. — met (T1–T11). Unit/component coverage (main,
+preload, renderer) is green. The T11 E2E spec (`e2e/file-management.spec.ts`)
+drives the real Electron app through create → edit+save → rename → internal
+move (synthetic `DragEvent`s at the row elements — real OS-level HTML5 DnD
+isn't reliably drivable via Playwright/Electron) → import (via the sanctioned
+`window.hive.fs.importEntry` test-hook call, per design.md §8, since OS-native
+drag-from-Windows can't be simulated) → delete, asserting the **on-disk**
+result after each step. It currently cannot complete end-to-end in this dev
+sandbox for a reason unrelated to file-management itself — see STATE.md's
+T11 lesson (a duplicate-React-module crash from the in-flight, uncommitted
+design-system rework blocks the app from ever reaching the work UI at all
+right now). Kept as a local/manual gate rather than a blocking CI requirement
+until that's resolved, per design.md's flagged E2E-instability risk allowance.
 
 ## M5 — Second agent adapter
 

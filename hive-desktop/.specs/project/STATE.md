@@ -171,13 +171,68 @@ Updated as work progresses. Load at start of every session.
   smoke). `window.hive.fs` does not exist yet (lands at T7) — the T2 smoke
   asserts `window.hive` + a current top-level method (`listTree`) instead;
   revisit once T7 lands.
+- **T2 smoke's `hasFsNamespace` assertion had gone stale by T11.** T7 landed
+  the `fs` namespace (as the T2-era comment anticipated it would) but nobody
+  came back to flip the assertion from `false` to `true` — `app-launch.spec.ts`
+  was silently failing (not "must not regress", already regressed) before this
+  task started. Fixed as part of T11 (in scope: "must not regress" implies the
+  smoke has to actually pass). Lesson: a spec comment that says "revisit once
+  X lands" is a todo, not documentation — grep for those phrases when a
+  dependency task completes, don't wait for CI to notice.
+- **T11 — workspace-selection-for-tests approach: seed `userData/config.json`
+  directly, don't drive the native picker dialog.** `WorkspacePicker`'s CTA
+  opens a real OS `dialog.showOpenDialog` — not scriptable from Playwright.
+  Electron's standard `--user-data-dir=<dir>` CLI switch is untouched by this
+  app (`configStore.ts`'s `baseDir` is exactly `app.getPath('userData')`), so
+  `_electron.launch({ args: [appPath, `--user-data-dir=${throwawayUserDataDir}`] })`
+  plus a pre-written `config.json` (`{ workspacePath, provisioned: true }`)
+  boots the app straight past the picker — no dialog automation needed. Note
+  this only skips *first-run install*; `provisioned: true` is never read by
+  `updateBmad()`'s `update()` path (see next lesson), so `App.tsx` still lands
+  on `UpdateGate` every launch, seeded or not.
+- **T11 — `UpdateGate` always shells out to a real `npx bmad-method install`,
+  every launch, with no test-mode bypass anywhere in main/preload/renderer.**
+  Checked `bmadService.ts`: `configStore.provisioned` is written by
+  `install()`'s success callback but never read by `update()` to short-
+  circuit it. There is no `HIVE_E2E`/`SKIP_ONBOARDING`-style env var in this
+  codebase. `UpdateGate` does expose a sanctioned escape hatch for exactly
+  this (R4.2's "continue anyway" on an `error` event), which
+  `file-management.spec.ts` races against the happy path and clicks if hit —
+  legitimate, not a workaround.
+- **T11 — real blocker found: the app currently crashes before ever reaching
+  the work UI, due to a duplicate-React-module-instance bug, unrelated to
+  file-management.** Diagnosed via a throwaway Playwright script that dumped
+  `document.body.innerHTML` + console/pageerror events over time (rather than
+  re-running the full 7-minute E2E spec repeatedly): the renderer's `#root`
+  never gets content: `Spinner` (rendered by `App.tsx`'s `checking`/
+  `checkingProvisioned` states, i.e. *before* `UpdateGate` is even reached)
+  throws `Cannot read properties of null (reading 'useState')` — a classic
+  invalid-hook-call symptom. Root cause: `node_modules/react` resolves to two
+  physically different copies — `hive-desktop/node_modules/react` vs
+  `design-system/node_modules/react` (the `file:../design-system` link has no
+  dedupe) — so a `@hive/design-system` component's hooks run against a
+  different React module instance than the app's own render tree uses. This
+  predates T11 and is unrelated to the file-management IPC/UI code (the
+  working tree also has a substantial in-progress, uncommitted design-system
+  rework layered on top — see the repo-root `git status` note any session
+  picks up here). Per the task's own instruction and design.md's flagged
+  E2E-instability risk allowance, `e2e/file-management.spec.ts` is left
+  committed as a correct, ready-to-pass local gate rather than blocked on
+  fixing an unrelated, in-flight dependency issue — **it currently cannot
+  complete in this sandbox** (confirmed via two full runs, one with a 200s
+  and one with a 420s onboarding-wait budget — both timed out because the
+  screen never renders past a blank `#root`, not because anything was
+  legitimately slow). Whoever resolves the design-system rework's React
+  duplication should re-run `npm run build && xvfb-run -a npm run
+  test:e2e:app` — expected to pass once `#root` actually renders.
 
 ## Todos (cross-feature)
 
-- **file-management** planned (spec/design/tasks written 2026-07-11), not yet
-  implemented. Next: branch off `main`, start at T1 (coverage gate) / T2
-  (Playwright-Electron spike). Verify `webUtils.getPathForFile` works under
-  `sandbox:true` early (T5) — linchpin of the OS-import (drag-from-Windows) leg.
+- **file-management (T1–T11) implemented on `main`.** Feature complete —
+  create/edit/delete/rename/move/import, security, conflicts, coverage gate,
+  E2E spec. The E2E spec (`e2e/file-management.spec.ts`) is correct but
+  currently blocked from completing by the unrelated React-duplication crash
+  above — re-run once that's fixed. ROADMAP M4 marked done.
 
 ## Deferred Ideas
 
