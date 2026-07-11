@@ -1,10 +1,15 @@
 import {
+  cpSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
+  rmSync,
   statSync,
   watch,
+  writeFileSync,
   type FSWatcher
 } from 'fs'
 import { isAbsolute, join, relative, resolve, sep } from 'path'
@@ -30,6 +35,30 @@ export interface FsChangeEvent {
   path: string
 }
 
+/** `statFile`'s return shape — the mtime/size baseline used for edit-conflict detection (FM-R2.3). */
+export interface EntryMeta {
+  mtimeMs: number
+  size: number
+}
+
+/**
+ * Thrown by write operations that hit a naming conflict. `code` is a
+ * discriminable tag so callers (IPC/renderer) can branch without parsing the
+ * message: `'CONFLICT'` when a create/move/import target already exists and
+ * `overwrite` wasn't requested; `'STALE'` when a save's `expectedMtimeMs`
+ * baseline no longer matches the on-disk file (T4 — saveFile's job; the
+ * class lives here so T4 can reuse it without T3 depending on T4).
+ */
+export class ConflictError extends Error {
+  code: 'CONFLICT' | 'STALE'
+
+  constructor(code: 'CONFLICT' | 'STALE', message: string) {
+    super(message)
+    this.name = 'ConflictError'
+    this.code = code
+  }
+}
+
 export interface FsService {
   /**
    * Lists the folder structure under `relativePath` (default: the workspace
@@ -43,6 +72,27 @@ export interface FsService {
    * one. Returns a stop function that tears down the underlying watcher.
    */
   watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void
+
+  /** Stats a file for the edit baseline (FM-R2.3). Throws if `relativePath` resolves outside `root` or isn't a file. */
+  statFile(root: string, relativePath: string): EntryMeta
+  /**
+   * Creates an empty file (FM-R1.1). Throws `ConflictError{code:'CONFLICT'}`
+   * if the target already exists and `opts.overwrite` isn't `true`.
+   */
+  createFile(root: string, relativePath: string, opts?: { overwrite?: boolean }): void
+  /** Creates a directory, recursive (FM-R1.2). No-op-safe if it already exists. */
+  createDirectory(root: string, relativePath: string): void
+  /**
+   * Renames/moves a file or directory within the workspace (FM-R4). Both
+   * `fromRel` and `toRel` are `resolveSafe`-checked. Throws
+   * `ConflictError{code:'CONFLICT'}` if `toRel` already exists and
+   * `opts.overwrite` isn't `true`.
+   */
+  move(root: string, fromRel: string, toRel: string, opts?: { overwrite?: boolean }): void
+  /** Does a workspace-relative path already exist? (conflict pre-check, FM-R7) */
+  exists(root: string, relativePath: string): boolean
+  /** Deletes to the OS trash (FM-R3). Async — the injected `trashItem` is async. */
+  trash(root: string, relativePath: string): Promise<void>
 }
 
 /**
@@ -128,13 +178,39 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
 }
 
 /**
+ * Validates the final path segment of a create/rename target (FM-R1.3),
+ * before it ever reaches `resolveSafe` — an empty name, a name embedding a
+ * path separator, or a `.`/`..` segment gets a clear, specific error here
+ * rather than surfacing as a generic "escapes workspace root".
+ */
+function assertValidName(relativePath: string): void {
+  // Splitting on both separators and taking the last segment means the
+  // segment itself can never contain '/' or '\' — no need for a separate
+  // `.includes()` check, and `split` on any string (including `''`) always
+  // yields at least one element, so `name` is always defined.
+  const segments = relativePath.split(/[/\\]/)
+  const name = segments[segments.length - 1]
+  if (name === '' || name === '.' || name === '..') {
+    throw new Error(`Invalid name: ${relativePath}`)
+  }
+}
+
+/** Dependencies `createFsService` can have injected, keeping `fsService.ts` itself Electron-free. */
+export interface FsServiceDeps {
+  /** Moves an absolute path to the OS trash — `main/index.ts` injects `shell.trashItem`. */
+  trashItem?: (absolutePath: string) => Promise<void>
+}
+
+/**
  * Creates the `FsService` (R5.1–R5.4, design.md §2). Every method takes the
  * workspace `root` explicitly (rather than binding to one at construction
  * time) so a single instance can be reused across workspace switches — it
  * has no `electron` dependency and needs no injected fakes for testing,
- * unlike `WorkspaceService`'s `DialogLike`.
+ * unlike `WorkspaceService`'s `DialogLike`. The one exception is `trash`
+ * (design §1 C2): trashing routes through `deps.trashItem`, DI'd here so
+ * this file never imports `electron` while still being testable with a fake.
  */
-export function createFsService(): FsService {
+export function createFsService(deps?: FsServiceDeps): FsService {
   function listTree(root: string, relativePath = '.'): TreeNode[] {
     const rootAbs = resolve(root)
     const dirAbs = resolveSafe(rootAbs, relativePath)
@@ -188,5 +264,87 @@ export function createFsService(): FsService {
     return () => watcher.close()
   }
 
-  return { listTree, readFile, watchWorkspace }
+  function statFile(root: string, relativePath: string): EntryMeta {
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    const stat = statSync(targetAbs)
+    if (!stat.isFile()) {
+      throw new Error(`Not a file: ${relativePath}`)
+    }
+    return { mtimeMs: stat.mtimeMs, size: stat.size }
+  }
+
+  function createFile(root: string, relativePath: string, opts?: { overwrite?: boolean }): void {
+    assertValidName(relativePath)
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    if (existsSync(targetAbs) && !opts?.overwrite) {
+      throw new ConflictError('CONFLICT', `Already exists: ${relativePath}`)
+    }
+    writeFileSync(targetAbs, '')
+  }
+
+  function createDirectory(root: string, relativePath: string): void {
+    assertValidName(relativePath)
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    // recursive: true is itself no-op-safe if the directory already exists.
+    mkdirSync(targetAbs, { recursive: true })
+  }
+
+  function move(
+    root: string,
+    fromRel: string,
+    toRel: string,
+    opts?: { overwrite?: boolean }
+  ): void {
+    assertValidName(toRel)
+    const rootAbs = resolve(root)
+    const fromAbs = resolveSafe(rootAbs, fromRel)
+    const toAbs = resolveSafe(rootAbs, toRel)
+    if (existsSync(toAbs) && !opts?.overwrite) {
+      throw new ConflictError('CONFLICT', `Already exists: ${toRel}`)
+    }
+    try {
+      renameSync(fromAbs, toAbs)
+    } catch (err) {
+      // EXDEV: source and destination are on different filesystems/devices —
+      // renameSync can't do an atomic move across them. Unlikely within a
+      // single workspace root, but cheap to handle correctly: copy then
+      // remove the original.
+      if ((err as NodeJS.ErrnoException).code === 'EXDEV') {
+        cpSync(fromAbs, toAbs, { recursive: true, force: true })
+        rmSync(fromAbs, { recursive: true, force: true })
+      } else {
+        throw err
+      }
+    }
+  }
+
+  function exists(root: string, relativePath: string): boolean {
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    return existsSync(targetAbs)
+  }
+
+  async function trash(root: string, relativePath: string): Promise<void> {
+    if (!deps?.trashItem) {
+      throw new Error('trash: no trashItem dependency injected')
+    }
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    await deps.trashItem(targetAbs)
+  }
+
+  return {
+    listTree,
+    readFile,
+    watchWorkspace,
+    statFile,
+    createFile,
+    createDirectory,
+    move,
+    exists,
+    trash
+  }
 }
