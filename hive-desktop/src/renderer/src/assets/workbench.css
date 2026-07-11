@@ -10,7 +10,6 @@
 
 :root {
   --wb-topbar-h: 46px;
-  --wb-rail-w: 260px;
   --wb-pane-header-h: 40px;
 }
 
@@ -158,14 +157,13 @@
 }
 
 /* ==========================================================================
-   File rail (tree sidebar)
+   File rail (tree sidebar) — a Resizable panel (T11); width comes from the
+   group's layout (defaultSize/persisted flex-grow), not a fixed CSS value.
    ========================================================================== */
 
 .wb-rail {
   display: flex;
   flex-direction: column;
-  width: var(--wb-rail-w);
-  flex-shrink: 0;
   min-height: 0;
   background: var(--bg-2);
   border-right: 1px solid var(--border);
