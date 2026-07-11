@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeAll } from 'vitest'
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { FsConflictError as FsConflictErrorType } from './index'
 
 // Mocks Electron's contextBridge/ipcRenderer (and the template's
 // @electron-toolkit/preload helper, which itself imports 'electron') so the
@@ -7,9 +8,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 // renderer process.
 vi.mock('electron', () => ({
   contextBridge: { exposeInMainWorld: vi.fn() },
-  ipcRenderer: { invoke: vi.fn((channel: string) => Promise.resolve(`invoked:${channel}`)) },
+  ipcRenderer: {
+    invoke: vi.fn((channel: string) => Promise.resolve(`invoked:${channel}`)),
+    on: vi.fn(),
+    removeListener: vi.fn(),
+    send: vi.fn()
+  },
   webFrame: {},
-  webUtils: {}
+  webUtils: { getPathForFile: vi.fn((file: File) => `/abs/path/${file.name}`) }
 }))
 
 vi.mock('@electron-toolkit/preload', () => ({
@@ -22,8 +28,11 @@ function exposedGlobals(): Map<string, unknown> {
 }
 
 describe('preload: window.hive bridge', () => {
+  let FsConflictError: typeof FsConflictErrorType
+
   beforeAll(async () => {
-    await import('./index')
+    const mod = await import('./index')
+    FsConflictError = mod.FsConflictError
   })
 
   it('exposes "hive" with a typed ping() method, as the pattern for all future IPC', () => {
@@ -75,4 +84,304 @@ describe('preload: window.hive bridge', () => {
   // is structural — see src/main/index.test.ts, which asserts the
   // BrowserWindow webPreferences (contextIsolation/sandbox/nodeIntegration)
   // that make Node APIs unreachable from the renderer in the first place.
+
+  // T11: FsService request/response + streaming methods (predate T7, never
+  // covered by a test — closing that gap here alongside the T7 fs.* work so
+  // src/preload/index.ts clears its coverage gate).
+  it('hive.listTree(root, rel) round-trips through ipcRenderer.invoke("fs:listTree", root, rel)', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      listTree: (root: string, rel?: string) => Promise<unknown>
+    }
+    await expect(hive.listTree('/root', 'sub')).resolves.toBe('invoked:fs:listTree')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:listTree', '/root', 'sub')
+  })
+
+  it('hive.readFile(root, rel) round-trips through ipcRenderer.invoke("fs:readFile", root, rel)', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      readFile: (root: string, rel: string) => Promise<unknown>
+    }
+    await expect(hive.readFile('/root', 'a.txt')).resolves.toBe('invoked:fs:readFile')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:readFile', '/root', 'a.txt')
+  })
+
+  it('hive.watchWorkspace(root, onChange) registers a listener, sends fs:watch:start, and the returned unsubscribe removes the listener + sends fs:watch:stop', () => {
+    const hive = exposedGlobals().get('hive') as {
+      watchWorkspace: (root: string, onChange: (evt: unknown) => void) => () => void
+    }
+    const onChange = vi.fn()
+    const unsubscribe = hive.watchWorkspace('/root', onChange)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('fs:watch:event', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('fs:watch:start', '/root')
+
+    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
+      ([channel]) => channel === 'fs:watch:event'
+    )?.[1] as (event: unknown, change: unknown) => void
+    const change = { type: 'change' }
+    listener({}, change)
+    expect(onChange).toHaveBeenCalledWith(change)
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('fs:watch:event', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('fs:watch:stop')
+  })
+
+  // T14: AgentService namespace, never covered by a test.
+  describe('hive.agent.*', () => {
+    function getAgent(): {
+      capabilities: () => Promise<unknown>
+      start: (opts: unknown) => Promise<void>
+      send: (text: string) => Promise<void>
+      runWorkflow: (cmd: unknown) => Promise<void>
+      onEvent: (onEvent: (evt: unknown) => void) => () => void
+    } {
+      return (exposedGlobals().get('hive') as { agent: ReturnType<typeof getAgent> }).agent
+    }
+
+    it('agent.capabilities() invokes "agent:capabilities"', async () => {
+      await getAgent().capabilities()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities')
+    })
+
+    it('agent.start(opts) invokes "agent:start" with opts', async () => {
+      const opts = { workspace: '/root' }
+      await getAgent().start(opts)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:start', opts)
+    })
+
+    it('agent.send(text) invokes "agent:send" with text', async () => {
+      await getAgent().send('hello')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:send', 'hello')
+    })
+
+    it('agent.runWorkflow(cmd) invokes "agent:runWorkflow" with cmd', async () => {
+      const cmd = { key: 'plan' }
+      await getAgent().runWorkflow(cmd)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:runWorkflow', cmd)
+    })
+
+    it('agent.onEvent(onEvent) registers a listener, sends agent:event:start, and the returned unsubscribe removes the listener + sends agent:event:stop', () => {
+      const onEvent = vi.fn()
+      const unsubscribe = getAgent().onEvent(onEvent)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('agent:event', expect.any(Function))
+      expect(ipcRenderer.send).toHaveBeenCalledWith('agent:event:start')
+
+      const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
+        ([channel]) => channel === 'agent:event'
+      )?.[1] as (event: unknown, evt: unknown) => void
+      const evt = { type: 'text' }
+      listener({}, evt)
+      expect(onEvent).toHaveBeenCalledWith(evt)
+
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('agent:event', listener)
+      expect(ipcRenderer.send).toHaveBeenCalledWith('agent:event:stop')
+    })
+  })
+
+  // T8/T9/T10: BmadService install/update streams, never covered by a test.
+  it('hive.installBmad(workspace, onEvent) registers a listener, sends bmad:install:start, and the returned unsubscribe removes the listener + sends bmad:install:stop', () => {
+    const hive = exposedGlobals().get('hive') as {
+      installBmad: (workspace: string, onEvent: (evt: unknown) => void) => () => void
+    }
+    const onEvent = vi.fn()
+    const unsubscribe = hive.installBmad('/root', onEvent)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('bmad:install:event', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:start', '/root')
+
+    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
+      ([channel]) => channel === 'bmad:install:event'
+    )?.[1] as (event: unknown, evt: unknown) => void
+    const evt = { type: 'progress' }
+    listener({}, evt)
+    expect(onEvent).toHaveBeenCalledWith(evt)
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('bmad:install:event', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:stop')
+  })
+
+  it('hive.updateBmad(workspace, onEvent) registers a listener, sends bmad:update:start, and the returned unsubscribe removes the listener + sends bmad:update:stop', () => {
+    const hive = exposedGlobals().get('hive') as {
+      updateBmad: (workspace: string, onEvent: (evt: unknown) => void) => () => void
+    }
+    const onEvent = vi.fn()
+    const unsubscribe = hive.updateBmad('/root', onEvent)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('bmad:update:event', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:update:start', '/root')
+
+    const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
+      ([channel]) => channel === 'bmad:update:event'
+    )?.[1] as (event: unknown, evt: unknown) => void
+    const evt = { type: 'progress' }
+    listener({}, evt)
+    expect(onEvent).toHaveBeenCalledWith(evt)
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('bmad:update:event', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:update:stop')
+  })
+
+  // T17: WorkflowCatalog namespace, never covered by a test.
+  it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
+    const hive = exposedGlobals().get('hive') as { workflows: { list: (w: string) => Promise<unknown> } }
+    await expect(hive.workflows.list('/root')).resolves.toBe('invoked:workflows:list')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workflows:list', '/root')
+  })
+
+  // T7: file management, window.hive.fs.* + pathForFile.
+  // (A local shape rather than `typeof window.hive.fs`: the latter depends on
+  // the ambient `declare global` in index.d.ts resolving under this file's
+  // DOM lib, which isn't guaranteed under tsconfig.node.json.)
+  interface HiveFs {
+    statFile: (root: string, rel: string) => Promise<unknown>
+    createFile: (root: string, rel: string, opts?: { overwrite?: boolean }) => Promise<void>
+    createDirectory: (root: string, rel: string) => Promise<void>
+    saveFile: (
+      root: string,
+      rel: string,
+      content: string,
+      opts?: { expectedMtimeMs?: number }
+    ) => Promise<unknown>
+    move: (root: string, from: string, to: string, opts?: { overwrite?: boolean }) => Promise<void>
+    importEntry: (
+      root: string,
+      src: string,
+      dest: string,
+      opts?: { overwrite?: boolean }
+    ) => Promise<void>
+    exists: (root: string, rel: string) => Promise<boolean>
+    trash: (root: string, rel: string) => Promise<void>
+    pathForFile: (file: File) => string
+  }
+
+  describe('hive.fs.*', () => {
+    function getFs(): HiveFs {
+      return (exposedGlobals().get('hive') as { fs: HiveFs }).fs
+    }
+
+    it('exposes hive.fs with all expected methods', () => {
+      expect(getFs()).toEqual(
+        expect.objectContaining({
+          statFile: expect.any(Function),
+          createFile: expect.any(Function),
+          createDirectory: expect.any(Function),
+          saveFile: expect.any(Function),
+          move: expect.any(Function),
+          importEntry: expect.any(Function),
+          exists: expect.any(Function),
+          trash: expect.any(Function),
+          pathForFile: expect.any(Function)
+        })
+      )
+    })
+
+    it('fs.statFile(root, rel) invokes "fs:statFile" with matching args', async () => {
+      await getFs().statFile('/root', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:statFile', '/root', 'a.txt')
+    })
+
+    it('fs.createFile(root, rel, opts) invokes "fs:createFile" with matching args', async () => {
+      await getFs().createFile('/root', 'a.txt', { overwrite: true })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:createFile', '/root', 'a.txt', {
+        overwrite: true
+      })
+    })
+
+    it('fs.createDirectory(root, rel) invokes "fs:createDirectory" with matching args', async () => {
+      await getFs().createDirectory('/root', 'dir')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:createDirectory', '/root', 'dir')
+    })
+
+    it('fs.saveFile(root, rel, content, opts) invokes "fs:saveFile" with matching args', async () => {
+      await getFs().saveFile('/root', 'a.txt', 'hello', { expectedMtimeMs: 123 })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        'fs:saveFile',
+        '/root',
+        'a.txt',
+        'hello',
+        { expectedMtimeMs: 123 }
+      )
+    })
+
+    it('fs.move(root, from, to, opts) invokes "fs:move" with matching args', async () => {
+      await getFs().move('/root', 'a.txt', 'b.txt', { overwrite: false })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:move', '/root', 'a.txt', 'b.txt', {
+        overwrite: false
+      })
+    })
+
+    it('fs.importEntry(root, src, dest, opts) invokes "fs:importEntry" with matching args', async () => {
+      await getFs().importEntry('/root', '/abs/src.txt', 'dest.txt', { overwrite: true })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        'fs:importEntry',
+        '/root',
+        '/abs/src.txt',
+        'dest.txt',
+        { overwrite: true }
+      )
+    })
+
+    it('fs.exists(root, rel) invokes "fs:exists" with matching args', async () => {
+      await getFs().exists('/root', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:exists', '/root', 'a.txt')
+    })
+
+    it('fs.trash(root, rel) invokes "fs:trash" with matching args', async () => {
+      await getFs().trash('/root', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:trash', '/root', 'a.txt')
+    })
+
+    it('fs.pathForFile delegates to webUtils.getPathForFile', () => {
+      const file = { name: 'dropped.txt' } as File
+      const path = getFs().pathForFile(file)
+      expect(webUtils.getPathForFile).toHaveBeenCalledWith(file)
+      expect(path).toBe('/abs/path/dropped.txt')
+    })
+
+    describe.each([
+      ['createFile', ['/root', 'a.txt', undefined]],
+      ['saveFile', ['/root', 'a.txt', 'hello', undefined]],
+      ['move', ['/root', 'a.txt', 'b.txt', undefined]],
+      ['importEntry', ['/root', '/abs/src.txt', 'dest.txt', undefined]]
+    ] as const)('%s conflict-mapping', (method, args) => {
+      it('maps a CONFLICT:-prefixed rejection to an FsConflictError', async () => {
+        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(
+          new Error('CONFLICT: dest.txt already exists')
+        )
+        const fs = getFs()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const call = (fs[method] as any)(...args)
+        await expect(call).rejects.toBeInstanceOf(FsConflictError)
+        try {
+          await call
+        } catch (err) {
+          expect((err as FsConflictErrorType).code).toBe('CONFLICT')
+          expect((err as FsConflictErrorType).message).toBe('dest.txt already exists')
+        }
+      })
+
+      it('maps a STALE:-prefixed rejection to an FsConflictError', async () => {
+        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(new Error('STALE: file changed on disk'))
+        const fs = getFs()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const call = (fs[method] as any)(...args)
+        await expect(call).rejects.toBeInstanceOf(FsConflictError)
+        try {
+          await call
+        } catch (err) {
+          expect((err as FsConflictErrorType).code).toBe('STALE')
+          expect((err as FsConflictErrorType).message).toBe('file changed on disk')
+        }
+      })
+
+      it('passes through a non-prefixed rejection unchanged', async () => {
+        const original = new Error('boom')
+        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(original)
+        const fs = getFs()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const call = (fs[method] as any)(...args)
+        await expect(call).rejects.toBe(original)
+      })
+    })
+  })
 })

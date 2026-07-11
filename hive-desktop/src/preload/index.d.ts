@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { FsChangeEvent, TreeNode } from '../main/fsService'
+import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
@@ -38,6 +38,39 @@ declare global {
       /** WorkflowCatalog (T17) surface — see preload/index.ts for the full channel design. */
       workflows: {
         list(workspace: string): Promise<WorkflowEntry[]>
+      }
+      /**
+       * File management (T6/T7) surface — see preload/index.ts for the full
+       * channel design. `createFile`/`saveFile`/`move`/`importEntry` reject
+       * with a `FsConflictError` (exported from preload/index.ts) on a
+       * `CONFLICT`/`STALE` outcome instead of a plain Error.
+       */
+      fs: {
+        statFile(root: string, relativePath: string): Promise<EntryMeta>
+        createFile(root: string, relativePath: string, opts?: { overwrite?: boolean }): Promise<void>
+        createDirectory(root: string, relativePath: string): Promise<void>
+        saveFile(
+          root: string,
+          relativePath: string,
+          content: string,
+          opts?: { expectedMtimeMs?: number }
+        ): Promise<EntryMeta>
+        move(
+          root: string,
+          fromRel: string,
+          toRel: string,
+          opts?: { overwrite?: boolean }
+        ): Promise<void>
+        importEntry(
+          root: string,
+          sourceAbs: string,
+          destRel: string,
+          opts?: { overwrite?: boolean }
+        ): Promise<void>
+        exists(root: string, relativePath: string): Promise<boolean>
+        trash(root: string, relativePath: string): Promise<void>
+        /** Turns a dropped renderer File into its absolute OS path via webUtils. */
+        pathForFile(file: File): string
       }
     }
   }

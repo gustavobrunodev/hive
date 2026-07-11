@@ -1,6 +1,6 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { FsChangeEvent, TreeNode } from '../main/fsService'
+import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
@@ -9,6 +9,43 @@ import type {
 } from '../main/agentAdapter'
 import type { BmadEvent } from '../main/bmadService'
 import type { WorkflowEntry } from '../main/workflowCatalog'
+
+// Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
+// convention (see the `withConflictPrefix` comment there for why a prefix
+// rather than a serialized custom Error field). `withTypedConflict` wraps an
+// invoke call and, on a prefixed rejection, throws this instead — giving the
+// renderer a discriminable `.code` to branch on rather than parsing strings.
+export class FsConflictError extends Error {
+  code: 'CONFLICT' | 'STALE'
+
+  constructor(code: 'CONFLICT' | 'STALE', message: string) {
+    super(message)
+    this.name = 'FsConflictError'
+    this.code = code
+  }
+}
+
+const CONFLICT_PREFIXES = ['CONFLICT', 'STALE'] as const
+
+function withTypedConflict<Args extends unknown[], R>(
+  invoke: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args) => {
+    try {
+      return await invoke(...args)
+    } catch (err) {
+      if (err instanceof Error) {
+        for (const code of CONFLICT_PREFIXES) {
+          const prefix = `${code}: `
+          if (err.message.startsWith(prefix)) {
+            throw new FsConflictError(code, err.message.slice(prefix.length))
+          }
+        }
+      }
+      throw err
+    }
+  }
+}
 
 // The single typed bridge for all privileged (main-process) calls the renderer
 // may make. Every future IPC method (T4+) is added here, not as a separate
@@ -115,6 +152,56 @@ const hive = {
   workflows: {
     list: (workspace: string): Promise<WorkflowEntry[]> =>
       ipcRenderer.invoke('workflows:list', workspace)
+  },
+
+  // File management (T6/T7), grouped under an `fs` namespace matching
+  // design.md §3. Each wrapper's arg order mirrors the corresponding
+  // `fs:<name>` handler in main/index.ts exactly. `createFile`/`saveFile`/
+  // `move`/`importEntry` can reject with a `CONFLICT:`/`STALE:`-prefixed
+  // Error (main/index.ts's `withConflictPrefix`, since a custom `.code` on a
+  // thrown Error doesn't survive the IPC structured-clone boundary) — those
+  // four are wrapped with `withTypedConflict` below, which strips the prefix
+  // and rejects with a `FsConflictError` carrying a discriminable `code`
+  // instead. `statFile`/`createDirectory`/`exists`/`trash` can't hit a
+  // conflict, so they invoke directly.
+  fs: {
+    statFile: (root: string, relativePath: string): Promise<EntryMeta> =>
+      ipcRenderer.invoke('fs:statFile', root, relativePath),
+    createFile: withTypedConflict(
+      (root: string, relativePath: string, opts?: { overwrite?: boolean }): Promise<void> =>
+        ipcRenderer.invoke('fs:createFile', root, relativePath, opts)
+    ),
+    createDirectory: (root: string, relativePath: string): Promise<void> =>
+      ipcRenderer.invoke('fs:createDirectory', root, relativePath),
+    saveFile: withTypedConflict(
+      (
+        root: string,
+        relativePath: string,
+        content: string,
+        opts?: { expectedMtimeMs?: number }
+      ): Promise<EntryMeta> =>
+        ipcRenderer.invoke('fs:saveFile', root, relativePath, content, opts)
+    ),
+    move: withTypedConflict(
+      (root: string, fromRel: string, toRel: string, opts?: { overwrite?: boolean }): Promise<void> =>
+        ipcRenderer.invoke('fs:move', root, fromRel, toRel, opts)
+    ),
+    importEntry: withTypedConflict(
+      (
+        root: string,
+        sourceAbs: string,
+        destRel: string,
+        opts?: { overwrite?: boolean }
+      ): Promise<void> => ipcRenderer.invoke('fs:importEntry', root, sourceAbs, destRel, opts)
+    ),
+    exists: (root: string, relativePath: string): Promise<boolean> =>
+      ipcRenderer.invoke('fs:exists', root, relativePath),
+    trash: (root: string, relativePath: string): Promise<void> =>
+      ipcRenderer.invoke('fs:trash', root, relativePath),
+    // Turns a dropped renderer File into its absolute OS path. webUtils is
+    // main/preload-only under sandbox:true — this is the ONLY way the
+    // renderer can learn a dropped file's path (FM-R5).
+    pathForFile: (file: File): string => webUtils.getPathForFile(file)
   }
 }
 
