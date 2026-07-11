@@ -230,16 +230,18 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(fileButton)
 
     expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'a.txt')
-    expect((await screen.findByTestId('code-viewer')).textContent).toContain('plain text content')
+    const textarea = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+    expect(textarea.value).toBe('plain text content')
   })
 
-  it('renders a .md file readably (not as a raw code block)', async () => {
+  it('toggling a .md file to preview renders it readably (not as a raw code block)', async () => {
     mockHive({ readFile: vi.fn().mockResolvedValue('# Título\n\nUm parágrafo.') })
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
 
     const mdButton = await screen.findByText('prd.md')
     fireEvent.click(mdButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
 
     const markdownViewer = await screen.findByTestId('markdown-viewer')
     expect(markdownViewer.querySelector('h1')?.textContent).toBe('Título')
@@ -1234,16 +1236,73 @@ describe('Explorer (T12/T8)', () => {
 
   // --- T9: editor edit/save/dirty/STALE (FM-R2) ------------------------------
 
-  it('toggling Edit shows an editable textarea seeded with the file content', async () => {
+  // --- T5: edit-by-default + mode toggle + draft-preview (UX-R1.1/R1.4) -----
+
+  it('opening a .txt file lands directly in the editable textarea, no click needed', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    await screen.findByTestId('code-viewer')
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
 
     const textarea = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
     expect(textarea.value).toBe('plain text content')
     expect(screen.queryByTestId('code-viewer')).toBeNull()
+  })
+
+  it('a plain .txt file has no preview toggle button (edit-only)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByLabelText('Conteúdo do arquivo')
+
+    expect(screen.queryByRole('button', { name: 'Visualizar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
+
+  it('opening a .md file also lands in edit mode by default', async () => {
+    mockHive({ readFile: vi.fn().mockResolvedValue('# Título\n\nUm parágrafo.') })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('prd.md'))
+
+    const textarea = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+    expect(textarea.value).toBe('# Título\n\nUm parágrafo.')
+    expect(screen.queryByTestId('markdown-viewer')).toBeNull()
+  })
+
+  it('toggling a .md file to preview shows the unsaved draft, not the last-saved content', async () => {
+    mockHive({ readFile: vi.fn().mockResolvedValue('# Original') })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('prd.md'))
+
+    const textarea = await screen.findByLabelText('Conteúdo do arquivo')
+    fireEvent.change(textarea, { target: { value: '# Edited draft' } })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
+
+    const markdownViewer = await screen.findByTestId('markdown-viewer')
+    expect(markdownViewer.querySelector('h1')?.textContent).toBe('Edited draft')
+    expect(markdownViewer.textContent).not.toContain('Original')
+  })
+
+  it('toggling an .html file to preview renders HtmlPreview seeded with the current draft', async () => {
+    const htmlTree = [{ name: 'page.html', path: 'page.html', type: 'file' as const }]
+    mockHive({
+      listTree: vi.fn().mockResolvedValue(htmlTree),
+      readFile: vi.fn().mockResolvedValue('<p>original</p>')
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('page.html'))
+
+    const textarea = await screen.findByLabelText('Conteúdo do arquivo')
+    fireEvent.change(textarea, { target: { value: '<p>edited</p>' } })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
+
+    const preview = await screen.findByTestId('html-preview-pane')
+    const iframe = preview.querySelector('iframe') as HTMLIFrameElement
+    expect(iframe).toBeTruthy()
+    expect(iframe.getAttribute('srcdoc')).toBe('<p>edited</p>')
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
   })
 
   it('binary files have no Edit toggle (read-only, FM-R2.1)', async () => {
@@ -1263,7 +1322,6 @@ describe('Explorer (T12/T8)', () => {
   it('editing the textarea marks the file dirty (shows the dot, Save and Discard)', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
 
     const textarea = await screen.findByLabelText('Conteúdo do arquivo')
     fireEvent.change(textarea, { target: { value: 'edited content' } })
@@ -1278,7 +1336,6 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1302,7 +1359,6 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1327,7 +1383,6 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1363,7 +1418,6 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1388,7 +1442,6 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1405,7 +1458,6 @@ describe('Explorer (T12/T8)', () => {
   it('Discard reverts the textarea to the last-saved content and clears dirty', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1424,7 +1476,6 @@ describe('Explorer (T12/T8)', () => {
   it('the unsaved-changes guard blocks switching files while dirty until confirmed', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1446,7 +1497,6 @@ describe('Explorer (T12/T8)', () => {
   it('confirming the unsaved-changes guard discards edits and opens the new file', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1463,7 +1513,6 @@ describe('Explorer (T12/T8)', () => {
   it('closing the viewer while dirty asks for confirmation before closing', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
     fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
       target: { value: 'edited content' }
     })
@@ -1482,12 +1531,12 @@ describe('Explorer (T12/T8)', () => {
   it('closing the viewer when not dirty closes immediately without a confirm dialog', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    await screen.findByTestId('code-viewer')
+    await screen.findByLabelText('Conteúdo do arquivo')
 
     fireEvent.click(screen.getByLabelText('Fechar arquivo'))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('code-viewer')).toBeNull()
+      expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
     })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
@@ -1495,7 +1544,7 @@ describe('Explorer (T12/T8)', () => {
   it('switching to a different file while not dirty opens it directly (no guard dialog)', async () => {
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    await screen.findByTestId('code-viewer')
+    await screen.findByLabelText('Conteúdo do arquivo')
 
     fireEvent.click(screen.getByText('prd.md'))
 
@@ -1514,7 +1563,7 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('a.txt'))
-    await screen.findByTestId('code-viewer')
+    await screen.findByLabelText('Conteúdo do arquivo')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copiar conteúdo' }))
 
@@ -1531,7 +1580,7 @@ describe('Explorer (T12/T8)', () => {
     expect(await screen.findByText('Não foi possível abrir o arquivo')).toBeTruthy()
   })
 
-  it('the Copy and Edit toggle buttons are no-ops while the file is still loading (disabled-state guard)', async () => {
+  it('the Copy button is a no-op while the file is still loading (disabled-state guard)', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
@@ -1552,13 +1601,38 @@ describe('Explorer (T12/T8)', () => {
     await screen.findByRole('status')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copiar conteúdo' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
 
     expect(writeText).not.toHaveBeenCalled()
     expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
 
     resolveRead('plain text content')
-    await screen.findByTestId('code-viewer')
+    await screen.findByLabelText('Conteúdo do arquivo')
+  })
+
+  it('the preview toggle button is disabled (a no-op) while the file is still loading', async () => {
+    let resolveRead: (value: string) => void = () => {}
+    mockHive({
+      readFile: vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveRead = resolve
+          })
+      )
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('prd.md'))
+    await screen.findByRole('status')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Visualizar' }))
+
+    expect(screen.queryByTestId('markdown-viewer')).toBeNull()
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+
+    resolveRead('# Título')
+    // Still lands in edit mode by default — the disabled click above never
+    // flipped the mode.
+    await screen.findByLabelText('Conteúdo do arquivo')
   })
 
   it('unmounting while the initial fetch is in flight does not throw when it later settles (race guard)', async () => {

@@ -17,11 +17,13 @@ import {
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { Markdown } from '../ui/markdown'
+import { HtmlPreview } from './HtmlPreview'
 import { IconButton } from '../ui/IconButton'
 import {
   CheckIcon,
   CloseIcon,
   CopyIcon,
+  EyeIcon,
   FileCodeIcon,
   FileIcon,
   FileTextIcon,
@@ -116,6 +118,21 @@ interface DsTreeNodeShape {
 
 function isMarkdownPath(path: string): boolean {
   return path.toLowerCase().endsWith('.md')
+}
+
+/** `.html` files get the sandboxed live preview (T4/T5, design.md §3/§6). */
+function isHtmlPath(path: string): boolean {
+  return path.toLowerCase().endsWith('.html')
+}
+
+/** Preview is only ever *offered* for these kinds (design.md §3) — factored out so `FileViewer`'s own branching stays low. */
+function isPreviewableKind(path: string): boolean {
+  return isMarkdownPath(path) || isHtmlPath(path)
+}
+
+/** `editable && isPreviewableKind(path)`, factored out (same reason as `isPreviewableKind`: keeps `FileViewer`'s own cyclomatic complexity down). */
+function isPreviewable(editable: boolean, path: string): boolean {
+  return editable && isPreviewableKind(path)
 }
 
 const CODE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|json|yaml|yml|toml|css|html|sh|py|rb|go|rs)$/i
@@ -1062,12 +1079,24 @@ function isEditablePath(path: string): boolean {
 type PendingDiscard = { target: string } | { target: 'close' }
 
 /**
+ * `edit` vs `preview` (T5, design.md §3, UX-R1.1/R1.4/R7/R8). Replaces the
+ * old `editing` boolean: editable files always default to `edit` on open (no
+ * pencil-click needed); `preview` is only ever reachable via the toggle, and
+ * only offered for `.md`/`.html` (see `previewable` below) — renders the
+ * live `draft`, not the last-loaded/saved content, so it reflects unsaved
+ * edits.
+ */
+type ViewerMode = 'edit' | 'preview'
+
+/**
  * File viewer pane (task T12's viewer half; task T9 promotes it to an
- * editor — design.md §5, FM-R2): a titled pane — file icon, name, parent
- * path, edit/copy/close actions — over a readable render (`.md` via
- * `Markdown` (T1, `react-markdown`+`remark-gfm`), everything else in a DS
- * `CodeBlock`), or, in edit mode,
- * a plain controlled `<textarea>`.
+ * editor, T5 makes edit the default — design.md §5/§3, FM-R2/UX-R1): a
+ * titled pane — file icon, name, parent path, mode-toggle/copy/close
+ * actions — over either the editable `<textarea>` (the default for any
+ * editable file) or, once toggled, a preview render (`.md` via `Markdown`
+ * (T1), `.html` via `HtmlPreview` (T4)) of the current draft. Binary files
+ * skip the mode concept entirely and stay in the old read-only `CodeBlock`
+ * view.
  *
  * `path` is the pane's *requested* file; `displayedPath` is what's actually
  * loaded/shown. They're kept separate so an unsaved-changes guard can
@@ -1085,20 +1114,25 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     path: displayedPath
   })
   const [copied, setCopied] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [mode, setMode] = useState<ViewerMode>('edit')
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [staleOpen, setStaleOpen] = useState(false)
   const [actionError, setActionError] = useState(false)
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null)
+  // Bumped on every (re)load from disk (initial open + STALE "Recarregar") —
+  // remounts `HtmlPreview`'s iframe so its internal script state resets
+  // instead of surviving under a stale `srcDoc` (T4/T5 wiring).
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const dirty = editing && viewerState.status === 'ready' && draft !== viewerState.content
+  const editable = isEditablePath(displayedPath)
+  const dirty = editable && viewerState.status === 'ready' && draft !== viewerState.content
 
   useEffect(() => {
     let cancelled = false
     const load = async (): Promise<void> => {
       setViewerState({ status: 'loading', path: displayedPath })
-      setEditing(false)
+      setMode('edit')
       setStaleOpen(false)
       setActionError(false)
       try {
@@ -1112,6 +1146,7 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
         if (cancelled) return
         setViewerState({ status: 'ready', path: displayedPath, content, baseline })
         setDraft(content)
+        setReloadKey((current) => current + 1)
       } catch {
         if (!cancelled) setViewerState({ status: 'error', path: displayedPath })
       }
@@ -1167,10 +1202,9 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     void navigator.clipboard.writeText(readyState.content).then(() => setCopied(true))
   }, [readyState])
 
-  const toggleEditing = useCallback(() => {
-    if (!editing) setDraft(readyState.content)
-    setEditing((current) => !current)
-  }, [editing, readyState])
+  const toggleMode = useCallback(() => {
+    setMode((current) => (current === 'edit' ? 'preview' : 'edit'))
+  }, [])
 
   const handleDiscard = useCallback(() => {
     setDraft(readyState.content)
@@ -1216,6 +1250,7 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
       ([content, baseline]) => {
         setViewerState({ status: 'ready', path: displayedPath, content, baseline })
         setDraft(content)
+        setReloadKey((current) => current + 1)
       },
       () => setActionError(true)
     )
@@ -1235,7 +1270,6 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
   const confirmDiscard = useCallback(() => {
     const { target } = pendingDiscard as PendingDiscard
     setPendingDiscard(null)
-    setEditing(false)
     if (target === 'close') {
       onClose()
     } else {
@@ -1245,7 +1279,13 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
 
   const cancelDiscard = useCallback(() => setPendingDiscard(null), [])
 
-  const editable = isEditablePath(displayedPath)
+  // Preview is only *offered* for `.md`/`.html` (design.md §3) — other
+  // editable text files are edit-only, no toggle at all.
+  const previewable = isPreviewable(editable, displayedPath)
+  const modeToggle =
+    mode === 'edit'
+      ? { label: t('explorer.viewLabel'), icon: <EyeIcon /> }
+      : { label: t('explorer.editLabel'), icon: <PencilIcon /> }
 
   return (
     <div className="wb-viewer">
@@ -1267,14 +1307,14 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
               </Button>
             </>
           )}
-          {editable && (
+          {previewable && (
             <IconButton
-              label={editing ? t('explorer.viewLabel') : t('explorer.editLabel')}
-              onClick={toggleEditing}
+              label={modeToggle.label}
+              onClick={toggleMode}
               disabled={viewerState.status !== 'ready'}
-              aria-pressed={editing}
+              aria-pressed={mode === 'preview'}
             >
-              <PencilIcon />
+              {modeToggle.icon}
             </IconButton>
           )}
           <IconButton
@@ -1346,7 +1386,23 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
       )
     }
 
-    if (editing) {
+    if (!editable) {
+      return (
+        <div className="wb-viewer-scroll">
+          <div className="wb-viewer-content">
+            <CodeBlock
+              copyText={viewerState.content}
+              copyLabel={t('explorer.copyLabel')}
+              copiedLabel={t('explorer.copiedLabel')}
+            >
+              {viewerState.content}
+            </CodeBlock>
+          </div>
+        </div>
+      )
+    }
+
+    if (mode === 'edit') {
       return (
         <div className="wb-viewer-scroll">
           <div className="wb-viewer-content">
@@ -1362,26 +1418,27 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
       )
     }
 
+    // mode === 'preview': only reachable via the toggle above, which is only
+    // rendered when `previewable` (md/html) — draft, not the last-saved
+    // content, is the source of truth (UX-R1.4/R7.1).
     if (isMarkdownPath(viewerState.path)) {
       return (
         <div className="wb-viewer-scroll">
           <div className="wb-viewer-content wb-md" data-testid="markdown-viewer">
-            <Markdown source={viewerState.content} />
+            <Markdown source={draft} />
           </div>
         </div>
       )
     }
 
+    // isHtmlPath(viewerState.path): the only other `previewable` kind. Not
+    // gated behind an explicit check — `mode` can only reach 'preview' via
+    // the toggle, which only renders when `previewable` (md/html), so any
+    // non-markdown file here is necessarily HTML.
     return (
       <div className="wb-viewer-scroll">
-        <div className="wb-viewer-content">
-          <CodeBlock
-            copyText={viewerState.content}
-            copyLabel={t('explorer.copyLabel')}
-            copiedLabel={t('explorer.copiedLabel')}
-          >
-            {viewerState.content}
-          </CodeBlock>
+        <div className="wb-viewer-content" data-testid="html-preview-pane">
+          <HtmlPreview source={draft} reloadKey={reloadKey} />
         </div>
       </div>
     )

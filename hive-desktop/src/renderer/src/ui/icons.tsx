@@ -155,6 +155,15 @@ export function PencilIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+export function EyeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.5 8S3.9 3.5 8 3.5 14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z" />
+      <circle cx="8" cy="8" r="1.75" />
+    </svg>
+  )
+}
+
 export function MoreIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
