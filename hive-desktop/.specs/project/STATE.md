@@ -38,6 +38,17 @@ Updated as work progresses. Load at start of every session.
   artifacts are out of scope (governed by the agent/workflow). Requirement R1.6,
   task T3b. User decision. (2026-07-09)
 
+- **D11 — Feature `file-management` (expands M4).** Full in-app file CRUD +
+  OS import. Decisions (2026-07-11): (a) **E2E = Playwright driving real
+  Electron** (`_electron.launch`), new `test:e2e:app` script kept separate from
+  the vitest node smoke; (b) **delete = OS trash** (`shell.trashItem`) +
+  confirm; (c) **conflict = prompt per item** (Overwrite/Rename/Cancel), service
+  stays mechanism-only; (d) **edit = save + concurrent-write (STALE) detection**
+  via mtime baseline. `FsService` stays Electron-free via injected `trashItem`
+  (DI, like `WorkspaceService`'s `DialogLike`). Coverage gate is **per-file 90%**
+  on changed files (not global). Plan in `.specs/features/file-management/`.
+  (2026-07-11)
+
 ## Blockers
 
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
@@ -141,10 +152,32 @@ Updated as work progresses. Load at start of every session.
   if this needs addressing later). Always `cd` into the target directory
   before calling `bmad-method install` rather than trusting `--directory`
   alone.
+- **T2 spike — Playwright `_electron.launch` works fine in this WSL2/xvfb env,
+  once one env var is stripped.** `@playwright/test` + `_electron.launch`
+  driving the real built app (`out/main/index.js`) is NOT flaky here (contrary
+  to design.md's flagged risk) — `xvfb-run -a npm run test:e2e:app` passes
+  reliably, same `xvfb-run` pattern already proven for other Electron smokes.
+  The one real gotcha: this dev shell has `ELECTRON_RUN_AS_NODE=1` set ambient
+  (WSLENV Windows-interop leak) — the `electron` binary's own env, when
+  inherited by a spawned Electron process, makes it run the target script as
+  plain Node instead of booting the Electron app (`electron.app` is
+  `undefined`, `_electron.launch()` fails with "Process failed to launch!").
+  Fix: strip `ELECTRON_RUN_AS_NODE` from the `env` passed to
+  `_electron.launch({ env })` inside the spec itself (see
+  `e2e/app-launch.spec.ts`) so the harness doesn't depend on the caller's
+  shell state — same "don't rely on ambient shell state" lesson as the nvm
+  finding above. Run command: `npm run build && xvfb-run -a npm run
+  test:e2e:app` (new script, kept separate from the vitest `test:e2e` node
+  smoke). `window.hive.fs` does not exist yet (lands at T7) — the T2 smoke
+  asserts `window.hive` + a current top-level method (`listTree`) instead;
+  revisit once T7 lands.
 
 ## Todos (cross-feature)
 
-- (none open)
+- **file-management** planned (spec/design/tasks written 2026-07-11), not yet
+  implemented. Next: branch off `main`, start at T1 (coverage gate) / T2
+  (Playwright-Electron spike). Verify `webUtils.getPathForFile` works under
+  `sandbox:true` early (T5) — linchpin of the OS-import (drag-from-Windows) leg.
 
 ## Deferred Ideas
 
