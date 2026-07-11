@@ -86,6 +86,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     const defaults: typeof window.hive = {
       ping: vi.fn().mockResolvedValue('pong'),
       chooseWorkspace: vi.fn().mockResolvedValue(null),
+      openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
       listTree: vi.fn().mockResolvedValue([]),

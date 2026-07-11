@@ -597,4 +597,46 @@ describe('main process bootstrap', () => {
     const prd = entries.find((entry) => entry.key === 'prd')
     expect(prd?.status).toBe('wired')
   })
+
+  // T3 (UX-R7.3): openExternal wiring — the handler must reject anything
+  // that isn't http(s)/mailto *without* ever reaching shell.openExternal
+  // (that's the whole point of the bridge: the renderer can't use it to open
+  // local files or run script URLs), and forward everything else through.
+  describe('shell:openExternal (T3)', () => {
+    it('registers a shell:openExternal handler', () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith('shell:openExternal', expect.any(Function))
+    })
+
+    it('rejects a file: URL without calling shell.openExternal', async () => {
+      vi.mocked(shell.openExternal).mockClear()
+      await expect(findHandler('shell:openExternal')({}, 'file:///etc/passwd')).rejects.toThrow()
+      expect(shell.openExternal).not.toHaveBeenCalled()
+    })
+
+    it('rejects a javascript: URL without calling shell.openExternal', async () => {
+      vi.mocked(shell.openExternal).mockClear()
+      await expect(
+        findHandler('shell:openExternal')({}, 'javascript:alert(1)')
+      ).rejects.toThrow()
+      expect(shell.openExternal).not.toHaveBeenCalled()
+    })
+
+    it('rejects an unparseable URL without calling shell.openExternal', async () => {
+      vi.mocked(shell.openExternal).mockClear()
+      await expect(findHandler('shell:openExternal')({}, 'not a url')).rejects.toThrow()
+      expect(shell.openExternal).not.toHaveBeenCalled()
+    })
+
+    it('forwards a valid https: URL to shell.openExternal', async () => {
+      vi.mocked(shell.openExternal).mockClear()
+      await findHandler('shell:openExternal')({}, 'https://example.com')
+      expect(shell.openExternal).toHaveBeenCalledWith('https://example.com')
+    })
+
+    it('forwards a valid mailto: URL to shell.openExternal', async () => {
+      vi.mocked(shell.openExternal).mockClear()
+      await findHandler('shell:openExternal')({}, 'mailto:someone@example.com')
+      expect(shell.openExternal).toHaveBeenCalledWith('mailto:someone@example.com')
+    })
+  })
 })

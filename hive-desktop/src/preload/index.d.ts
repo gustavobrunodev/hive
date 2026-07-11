@@ -16,6 +16,8 @@ declare global {
     hive: {
       ping(): Promise<string>
       chooseWorkspace(): Promise<string | null>
+      /** T3 (UX-R7.3): opens an http(s)/mailto URL in the OS default handler; see preload/index.ts for the full channel design. */
+      openExternal(url: string): Promise<void>
       getWorkspace(): Promise<string | null>
       isProvisioned(): Promise<boolean>
       listTree(root: string, relativePath?: string): Promise<TreeNode[]>

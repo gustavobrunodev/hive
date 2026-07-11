@@ -12,6 +12,11 @@ import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
 import { createBmadService } from './bmadService'
 import { listWithDiscovery } from './workflowCatalog'
 
+// T3 (UX-R7.3): protocols window.hive.openExternal is allowed to hand to
+// shell.openExternal — see the ipcMain.handle('shell:openExternal', ...)
+// registration below for the full rationale.
+const OPEN_EXTERNAL_ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -62,6 +67,27 @@ app.whenReady().then(() => {
 
   // IPC: request/response round trip for window.hive.ping()
   ipcMain.handle('ping', async () => 'pong')
+
+  // openExternal (T3, UX-R7.3): the only way the renderer can hand the OS a
+  // link to open (e.g. a link inside markdown/HTML preview, T4/T5) — it's a
+  // sandboxed BrowserWindow with nodeIntegration off, so it has no direct
+  // route to shell.openExternal without this bridge. Only `http:`/`https:`/
+  // `mailto:` URLs are forwarded; anything else (`file:`, `javascript:`, or
+  // an unparseable string) throws instead of reaching shell.openExternal, so
+  // the renderer can never use this as a way to open local files or run
+  // script URLs. Exposed to the renderer as window.hive.openExternal.
+  ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw new Error(`openExternal: invalid URL: ${url}`)
+    }
+    if (!OPEN_EXTERNAL_ALLOWED_PROTOCOLS.has(parsed.protocol)) {
+      throw new Error(`openExternal: unsupported protocol: ${parsed.protocol}`)
+    }
+    await shell.openExternal(url)
+  })
 
   // WorkspaceService (T5): a single ConfigStore instance backed by the
   // per-user data dir, wrapped for workspace-picker/read operations and

@@ -54,6 +54,10 @@ function withTypedConflict<Args extends unknown[], R>(
 const hive = {
   ping: (): Promise<string> => ipcRenderer.invoke('ping'),
   chooseWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:choose'),
+  // openExternal (T3, UX-R7.3): forwards to main's 'shell:openExternal'
+  // handler, which validates the URL is http(s)/mailto before calling
+  // shell.openExternal — see main/index.ts for the full rationale.
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
   getWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:get'),
   isProvisioned: (): Promise<boolean> => ipcRenderer.invoke('workspace:isProvisioned'),
 

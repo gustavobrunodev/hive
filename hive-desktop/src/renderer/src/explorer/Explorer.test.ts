@@ -171,6 +171,7 @@ describe('Explorer (T12/T8)', () => {
     const defaults: typeof window.hive = {
       ping: vi.fn().mockResolvedValue('pong'),
       chooseWorkspace: vi.fn().mockResolvedValue(null),
+      openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
       listTree: vi.fn().mockResolvedValue(fixtureTree),
