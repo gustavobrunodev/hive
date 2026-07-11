@@ -200,7 +200,7 @@ describe('Chat (T15)', () => {
     const prdCard = await screen.findByText('Criar um PRD')
     expect(prdCard.closest('article')?.getAttribute('data-lead')).toBe('true')
 
-    const researchCard = await screen.findByText('Pesquisa de domínio')
+    const researchCard = await screen.findByText('Pesquisar um domínio')
     expect(researchCard.closest('article')?.getAttribute('data-lead')).toBe('false')
     expect(screen.getByText('Em breve')).toBeTruthy()
   })

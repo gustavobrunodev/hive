@@ -13,6 +13,8 @@ import {
   TypingIndicator
 } from '@hive/design-system'
 import { intentLabel, t } from '../i18n'
+import { renderMarkdown } from '../ui/markdown'
+import { HiveCellIcon } from '../ui/icons'
 import { IntentGrid } from './IntentGrid'
 
 interface ChatMessageEntry {
@@ -173,76 +175,108 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
 
   const isStreaming = streamingText !== null
 
+  const assistantAvatar = (
+    <span className="wb-avatar" aria-hidden="true">
+      <HiveCellIcon />
+    </span>
+  )
+
+  /** Assistant text is BMAD/agent output — markdown-heavy, so it renders through the same lightweight transform the file viewer uses (headings, lists, code) instead of collapsing into one unbroken paragraph. */
+  function assistantBody(text: string): React.JSX.Element {
+    return <div className="wb-chat-md wb-md">{renderMarkdown(text)}</div>
+  }
+
+  const isEmpty = messages.length === 0 && streamingText === null
+
+  // One composer definition, two homes: center-stage inside the hero while
+  // the conversation is empty (the prompt IS the empty state's main
+  // affordance), docked at the bottom once messages exist.
+  const composer = (
+    <>
+      {errorMessage && (
+        <Alert variant="danger" role="alert" className="wb-composer-error">
+          {t('chat.errorMessage', errorMessage)}
+        </Alert>
+      )}
+      <PromptInput
+        onSubmit={handleSubmit}
+        streaming={isStreaming}
+        placeholder={t('chat.promptPlaceholder')}
+        sendLabel={t('chat.sendLabel')}
+        toolbar={
+          capabilities ? (
+            <>
+              <Select value={model ?? undefined} onValueChange={setModel}>
+                <SelectTrigger className="wb-select-compact" aria-label={t('chat.modelLabel')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {capabilities.models.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={effort ?? undefined} onValueChange={setEffort}>
+                <SelectTrigger className="wb-select-compact" aria-label={t('chat.effortLabel')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {capabilities.efforts.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : (
+            <Spinner label={t('chat.loadingCapabilities')} />
+          )
+        }
+      />
+    </>
+  )
+
+  if (isEmpty) {
+    return (
+      <div className="wb-chat">
+        <IntentGrid entries={workflowEntries} onSelect={handleSelectIntent} composer={composer} />
+      </div>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        {messages.length === 0 && streamingText === null ? (
-          <IntentGrid entries={workflowEntries} onSelect={handleSelectIntent} />
-        ) : (
-          <MessageList jumpToLatestLabel={t('chat.jumpToLatestLabel')}>
+    <div className="wb-chat">
+      <div className="wb-chat-scroll">
+        <MessageList jumpToLatestLabel={t('chat.jumpToLatestLabel')}>
+          <div className="wb-chat-col wb-chat-messages">
             {messages.map((message) => (
-              <ChatMessage key={message.id} role={message.role}>
-                {message.text}
+              <ChatMessage
+                key={message.id}
+                role={message.role}
+                avatar={message.role === 'assistant' ? assistantAvatar : undefined}
+              >
+                {message.role === 'assistant' ? assistantBody(message.text) : message.text}
               </ChatMessage>
             ))}
             {streamingText !== null && (
-              <ChatMessage role="assistant">
+              <ChatMessage role="assistant" avatar={assistantAvatar}>
                 {streamingText.length > 0 ? (
-                  streamingText
+                  assistantBody(streamingText)
                 ) : (
                   <TypingIndicator label={t('chat.typingLabel')} />
                 )}
               </ChatMessage>
             )}
-          </MessageList>
-        )}
+          </div>
+        </MessageList>
       </div>
 
-      {errorMessage && (
-        <Alert variant="danger" role="alert">
-          {t('chat.errorMessage', errorMessage)}
-        </Alert>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12 }}>
-        <PromptInput
-          onSubmit={handleSubmit}
-          streaming={isStreaming}
-          placeholder={t('chat.promptPlaceholder')}
-          sendLabel={t('chat.sendLabel')}
-          toolbar={
-            capabilities ? (
-              <>
-                <Select value={model ?? undefined} onValueChange={setModel}>
-                  <SelectTrigger aria-label={t('chat.modelLabel')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {capabilities.models.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={effort ?? undefined} onValueChange={setEffort}>
-                  <SelectTrigger aria-label={t('chat.effortLabel')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {capabilities.efforts.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            ) : (
-              <Spinner label={t('chat.loadingCapabilities')} />
-            )
-          }
-        />
+      <div className="wb-chat-col wb-composer">
+        {composer}
+        <p className="wb-composer-hint">{t('chat.composerHint')}</p>
       </div>
     </div>
   )

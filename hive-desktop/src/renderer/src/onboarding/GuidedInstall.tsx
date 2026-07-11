@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react'
-import {
-  Alert,
-  Button,
-  Panel,
-  Progress,
-  SteppedList,
-  SteppedListItem,
-  Spinner
-} from '@hive/design-system'
+import { Alert, Button, Progress, Spinner } from '@hive/design-system'
 import { t } from '../i18n'
+import { CheckIcon } from '../ui/icons'
 
 interface GuidedInstallProps {
   /** Workspace path to install BMAD into. */
@@ -26,12 +19,13 @@ type Phase = { status: 'running' } | { status: 'error'; message: string; detail?
 
 /**
  * Guided BMAD install screen (task T9, design.md §5.1, R3.2–R3.4). Renders
- * `window.hive.installBmad()`'s BmadEvent stream as a DS SteppedList (one
- * entry per `step` event) + Progress/Spinner (driven by `progress` events),
- * with an Alert + retry on `error`. `prompt` events are intentionally
- * unhandled — T0 verified the real install command runs fully
- * non-interactively, so BMAD never actually emits one today (see
- * bmadService.ts's BmadEvent doc comment).
+ * `window.hive.installBmad()`'s BmadEvent stream as a step checklist (one
+ * row per `step` event — earlier steps marked done, the latest one active
+ * with an inline spinner) over a single indeterminate Progress bar whose
+ * caption tracks `progress` events, with an Alert + retry on `error`.
+ * `prompt` events are intentionally unhandled — T0 verified the real
+ * install command runs fully non-interactively, so BMAD never actually
+ * emits one today (see bmadService.ts's BmadEvent doc comment).
  */
 export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): React.JSX.Element {
   const [steps, setSteps] = useState<StepEntry[]>([])
@@ -81,43 +75,53 @@ export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): Re
   }, [workspace, runToken, onComplete])
 
   return (
-    <main>
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24
-        }}
-      >
-        <Panel style={{ maxWidth: 480, width: '100%', padding: 24, color: 'var(--ink)' }}>
-          <h1>{t('guidedInstall.title')}</h1>
-          <p>{t('guidedInstall.description')}</p>
+    <main className="wb-gate">
+      <div className="wb-gate-card">
+        <h1 className="wb-gate-title">{t('guidedInstall.title')}</h1>
+        <p className="wb-gate-desc">{t('guidedInstall.description')}</p>
 
-          {phase.status === 'error' ? (
-            <>
-              <Alert variant="danger" title={t('guidedInstall.errorTitle')} role="alert">
-                {phase.message || t('guidedInstall.errorDescriptionFallback')}
-              </Alert>
-              <Button onClick={() => setRunToken((current) => current + 1)}>
+        {phase.status === 'error' ? (
+          <>
+            <Alert variant="danger" title={t('guidedInstall.errorTitle')} role="alert">
+              {phase.message || t('guidedInstall.errorDescriptionFallback')}
+            </Alert>
+            <div className="wb-gate-error-actions">
+              <Button
+                cut={false}
+                className="wb-btn"
+                onClick={() => setRunToken((current) => current + 1)}
+              >
                 {t('guidedInstall.retryCta')}
               </Button>
-            </>
-          ) : (
-            <>
-              {steps.length > 0 && (
-                <SteppedList>
-                  {steps.map((step) => (
-                    <SteppedListItem key={step.id} title={step.label} />
-                  ))}
-                </SteppedList>
-              )}
-              <Progress value={null} />
-              <Spinner label={progressMessage ?? t('guidedInstall.progressLabel')} />
-            </>
-          )}
-        </Panel>
+            </div>
+          </>
+        ) : (
+          <>
+            {steps.length > 0 && (
+              <ol className="wb-steps">
+                {steps.map((step, index) => {
+                  const isActive = index === steps.length - 1
+                  return (
+                    <li key={step.id} className="wb-step" data-state={isActive ? 'active' : 'done'}>
+                      <span className="wb-step-marker" aria-hidden="true">
+                        {isActive ? (
+                          <Spinner size="sm" label={t('guidedInstall.progressLabel')} />
+                        ) : (
+                          <CheckIcon size={12} />
+                        )}
+                      </span>
+                      {step.label}
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+            <Progress value={null} />
+            <p className="wb-gate-progress-caption" role="status">
+              {progressMessage ?? t('guidedInstall.progressLabel')}
+            </p>
+          </>
+        )}
       </div>
     </main>
   )

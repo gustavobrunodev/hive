@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Spinner } from '@hive/design-system'
 import { t } from './i18n'
+import { HiveLogo } from './ui/HiveLogo'
 import { WorkspacePicker } from './onboarding/WorkspacePicker'
 import { GuidedInstall } from './onboarding/GuidedInstall'
 import { UpdateGate } from './onboarding/UpdateGate'
@@ -99,15 +100,9 @@ function App(): React.JSX.Element {
 
   if (onboarding.status === 'checking' || onboarding.status === 'checkingProvisioned') {
     return (
-      <main>
-        <div
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
+      <main className="wb-gate">
+        <div className="wb-gate-inner">
+          <HiveLogo mark="brain" className="wb-gate-logo" />
           <Spinner label={t('onboarding.checkingWorkspace')} />
         </div>
       </main>

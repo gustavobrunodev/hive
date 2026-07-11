@@ -12,9 +12,10 @@ import { createElement, type ReactNode } from 'react'
  * dependency, per T12's constraints.
  *
  * It's a deliberately small subset: ATX headings (`#`…`######`), unordered
- * list items (`-`/`*`), fenced code blocks (```), inline `` `code` `` and
- * `**bold**`, and paragraphs. No AST, no nested/mixed inline emphasis, no
- * ordered lists, no links/images/tables/blockquotes/nested lists. This is
+ * (`-`/`*`) and ordered (`1.`/`1)`) list items, `>` blockquotes, fenced
+ * code blocks (```), inline `` `code` `` and `**bold**`, and paragraphs.
+ * No AST, no nested/mixed inline emphasis, no links/images/tables/nested
+ * lists. This is
  * "readable form" for MVP scope — BMAD-produced artifacts (PRDs, specs,
  * task lists) are mostly headings/lists/code/prose — not a spec-compliant
  * CommonMark renderer. If `.md` viewing grows real requirements (nested
@@ -30,6 +31,8 @@ export function renderMarkdown(source: string): ReactNode[] {
   let index = 0
   let key = 0
   let listBuffer: string[] = []
+  let orderedBuffer: string[] = []
+  let quoteBuffer: string[] = []
   let paragraphBuffer: string[] = []
 
   function flushList(): void {
@@ -46,6 +49,32 @@ export function renderMarkdown(source: string): ReactNode[] {
     listBuffer = []
   }
 
+  function flushOrdered(): void {
+    if (orderedBuffer.length === 0) return
+    blocks.push(
+      createElement(
+        'ol',
+        { key: `ol-${key++}` },
+        orderedBuffer.map((item, itemIndex) =>
+          createElement('li', { key: itemIndex }, renderInline(item))
+        )
+      )
+    )
+    orderedBuffer = []
+  }
+
+  function flushQuote(): void {
+    if (quoteBuffer.length === 0) return
+    blocks.push(
+      createElement(
+        'blockquote',
+        { key: `bq-${key++}` },
+        createElement('p', null, renderInline(quoteBuffer.join(' ')))
+      )
+    )
+    quoteBuffer = []
+  }
+
   function flushParagraph(): void {
     if (paragraphBuffer.length === 0) return
     blocks.push(createElement('p', { key: `p-${key++}` }, renderInline(paragraphBuffer.join(' '))))
@@ -57,6 +86,8 @@ export function renderMarkdown(source: string): ReactNode[] {
 
     if (/^```/.test(line)) {
       flushList()
+      flushOrdered()
+      flushQuote()
       flushParagraph()
       const codeLines: string[] = []
       index++
@@ -78,6 +109,8 @@ export function renderMarkdown(source: string): ReactNode[] {
     const headingMatch = /^(#{1,6})\s+(.*)$/.exec(line)
     if (headingMatch) {
       flushList()
+      flushOrdered()
+      flushQuote()
       flushParagraph()
       const level = headingMatch[1].length
       blocks.push(
@@ -89,25 +122,53 @@ export function renderMarkdown(source: string): ReactNode[] {
 
     const listMatch = /^\s*[-*]\s+(.*)$/.exec(line)
     if (listMatch) {
+      flushOrdered()
+      flushQuote()
       flushParagraph()
       listBuffer.push(listMatch[1])
       index++
       continue
     }
 
+    const orderedMatch = /^\s*\d+[.)]\s+(.*)$/.exec(line)
+    if (orderedMatch) {
+      flushList()
+      flushQuote()
+      flushParagraph()
+      orderedBuffer.push(orderedMatch[1])
+      index++
+      continue
+    }
+
+    const quoteMatch = /^>\s?(.*)$/.exec(line)
+    if (quoteMatch) {
+      flushList()
+      flushOrdered()
+      flushParagraph()
+      quoteBuffer.push(quoteMatch[1])
+      index++
+      continue
+    }
+
     if (line.trim() === '') {
       flushList()
+      flushOrdered()
+      flushQuote()
       flushParagraph()
       index++
       continue
     }
 
     flushList()
+    flushOrdered()
+    flushQuote()
     paragraphBuffer.push(line)
     index++
   }
 
   flushList()
+  flushOrdered()
+  flushQuote()
   flushParagraph()
 
   return blocks

@@ -28,8 +28,14 @@ import App from './App'
  * proof for this task (see task report for the Playwright smoke pass).
  */
 vi.mock('@hive/design-system', () => ({
-  Button: ({ children, ...rest }: { children?: ReactNode }) =>
-    createElement('button', rest, children),
+  Button: ({ children, ...rest }: { children?: ReactNode; cut?: boolean; variant?: string }) => {
+    // `cut`/`variant` are DS-only styling props — not valid DOM attributes.
+    delete rest.cut
+    delete rest.variant
+    return createElement('button', rest, children)
+  },
+  Logo: ({ tone, mark }: { tone?: string; mark?: string }) =>
+    createElement('span', { 'data-testid': `logo-${tone}-${mark}` }),
   Panel: ({ children, ...rest }: { children?: ReactNode }) => createElement('div', rest, children),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   Empty: ({
@@ -96,7 +102,18 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
       updateBmad: vi.fn().mockReturnValue(() => {}),
-      workflows: { list: vi.fn().mockResolvedValue([]) }
+      workflows: { list: vi.fn().mockResolvedValue([]) },
+      fs: {
+        statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
+        createFile: vi.fn().mockResolvedValue(undefined),
+        createDirectory: vi.fn().mockResolvedValue(undefined),
+        saveFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
+        move: vi.fn().mockResolvedValue(undefined),
+        importEntry: vi.fn().mockResolvedValue(undefined),
+        exists: vi.fn().mockResolvedValue(false),
+        trash: vi.fn().mockResolvedValue(undefined),
+        pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt')
+      }
     }
     window.hive = Object.assign(defaults, overrides)
   }
@@ -106,7 +123,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     render(createElement(App))
 
-    expect(await screen.findByText('Nenhum workspace selecionado')).toBeTruthy()
+    expect(await screen.findByText('Bem-vindo ao Hive')).toBeTruthy()
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
   })
 
@@ -119,7 +136,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     render(createElement(App))
 
     expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
-    expect(screen.queryByText('Nenhum workspace selecionado')).toBeNull()
+    expect(screen.queryByText('Bem-vindo ao Hive')).toBeNull()
     expect(screen.queryByText('Preparando seu workspace')).toBeNull()
   })
 
@@ -227,7 +244,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     // Give the cancelled promise a tick to resolve, then assert we're still
     // on the picker (no throw, no silent blank screen).
     await waitFor(() => {
-      expect(screen.getByText('Nenhum workspace selecionado')).toBeTruthy()
+      expect(screen.getByText('Bem-vindo ao Hive')).toBeTruthy()
     })
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
   })

@@ -1,7 +1,11 @@
-import { Button, Resizable, ResizableHandle, ResizablePanel } from '@hive/design-system'
+import { useState } from 'react'
+import { Resizable, ResizableHandle, ResizablePanel } from '@hive/design-system'
 import { t } from './i18n'
-import { Explorer } from './explorer/Explorer'
+import { FileTree, FileViewer } from './explorer/Explorer'
 import { Chat } from './chat/Chat'
+import { IconButton } from './ui/IconButton'
+import { HiveLogo } from './ui/HiveLogo'
+import { FolderIcon, MoonIcon, SunIcon } from './ui/icons'
 
 interface WorkUIProps {
   /** Absolute path to the provisioned, up-to-date workspace. */
@@ -10,51 +14,74 @@ interface WorkUIProps {
   onToggleTheme: () => void
 }
 
+/** Last path segment of an absolute workspace path (both separators, so a Windows path renders its folder name too). */
+function workspaceName(workspace: string): string {
+  const segments = workspace.split(/[/\\]/).filter(Boolean)
+  return segments[segments.length - 1] ?? workspace
+}
+
 /**
  * The app's main work surface (task T19, design.md §4 layout — "File Tree |
- * Chat | File Viewer"): composes `Explorer` (T12 — tree + viewer, already a
- * self-contained two-pane unit) and `Chat` (T15/T18 — conversation + guided
- * intents) side by side via the DS `Resizable` group.
+ * Chat | File Viewer"): a slim top bar (brand mark, active-workspace chip,
+ * theme toggle) over three zones. The file tree is a fixed left rail; chat
+ * owns the remaining width; the file viewer is a resizable right pane that
+ * *only exists while a file is open* (no permanently empty middle column).
  *
- * **Deliberate layout simplification vs. design.md's literal 3-column
- * diagram**: `Explorer` already owns an internal tree/viewer split (it needs
- * the selected-file state to live in one place), so splitting it into two
- * independent top-level panes here would mean lifting that state up and
- * widening `Explorer`'s public API for no functional gain — every
- * requirement this task must satisfy (R5.1–R5.4 tree+viewer behavior, R6/R7
- * chat+intents) is met either way. Two resizable columns — `Explorer` (its
- * own tree+viewer) on the left, `Chat` on the right — reflects that
- * structure honestly instead of forcing a 3-way split around a
- * component that isn't shaped for it.
+ * The open-file state lives here — not inside the explorer — because the
+ * viewer pane and the tree's selection highlight both depend on it across
+ * the pane boundary. `Chat` is mounted once and never remounts when the
+ * viewer opens/closes (its panel keeps the same child position and `id`,
+ * so React reconciles it in place), so the agent session and conversation
+ * survive file browsing; react-resizable-panels v4 supports panels
+ * conditionally joining/leaving a group, reconciled by `id`.
  */
 export function WorkUI({ workspace, theme, onToggleTheme }: WorkUIProps): React.JSX.Element {
+  const [openPath, setOpenPath] = useState<string | null>(null)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 16px',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0
-        }}
-      >
-        <strong>{t('app.title')}</strong>
-        <Button onClick={onToggleTheme}>
-          {t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
-        </Button>
+    <div className="wb-app">
+      <header className="wb-topbar">
+        <HiveLogo mark="brain" className="wb-topbar-logo" />
+        <span className="wb-topbar-title">{t('app.title')}</span>
+        <span className="wb-topbar-sep" aria-hidden="true" />
+        <span className="wb-workspace-chip" title={t('workUI.workspaceChipTitle', workspace)}>
+          <FolderIcon size={14} />
+          <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
+        </span>
+        <div className="wb-topbar-spacer" />
+        <IconButton
+          label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
+          onClick={onToggleTheme}
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </IconButton>
       </header>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Resizable orientation="horizontal" style={{ height: '100%' }}>
-          <ResizablePanel id="explorer" defaultSize={40} minSize={20}>
-            <Explorer workspace={workspace} />
-          </ResizablePanel>
-          <ResizableHandle aria-label={t('workUI.resizeHandleLabel')} />
-          <ResizablePanel id="chat" defaultSize={60} minSize={30}>
-            <Chat workspace={workspace} />
-          </ResizablePanel>
-        </Resizable>
+      <div className="wb-body">
+        <aside className="wb-rail" aria-label={t('explorer.treeAriaLabel')}>
+          <div className="wb-pane-header">
+            <span className="wb-pane-header-label">{t('explorer.paneTitle')}</span>
+          </div>
+          <FileTree workspace={workspace} selectedPath={openPath} onOpenFile={setOpenPath} />
+        </aside>
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+          <Resizable orientation="horizontal" style={{ height: '100%' }}>
+            <ResizablePanel id="chat" defaultSize={55} minSize={30}>
+              <Chat workspace={workspace} />
+            </ResizablePanel>
+            {openPath !== null && (
+              <>
+                <ResizableHandle aria-label={t('workUI.resizeHandleLabel')} />
+                <ResizablePanel id="viewer" defaultSize={45} minSize={24}>
+                  <FileViewer
+                    workspace={workspace}
+                    path={openPath}
+                    onClose={() => setOpenPath(null)}
+                  />
+                </ResizablePanel>
+              </>
+            )}
+          </Resizable>
+        </div>
       </div>
     </div>
   )
