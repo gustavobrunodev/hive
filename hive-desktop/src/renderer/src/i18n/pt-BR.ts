@@ -71,7 +71,24 @@ export const ptBR = {
     conflictOverwriteCta: 'Substituir',
     conflictRenameCta: 'Renomear',
     conflictCancelCta: 'Cancelar',
-    actionErrorMessage: 'Não foi possível concluir a ação. Tente novamente.'
+    actionErrorMessage: 'Não foi possível concluir a ação. Tente novamente.',
+
+    // T9 — editor edit/save/dirty/STALE (FM-R2)
+    editLabel: 'Editar',
+    viewLabel: 'Visualizar',
+    editorAriaLabel: 'Conteúdo do arquivo',
+    dirtyLabel: 'Alterações não salvas',
+    saveCta: 'Salvar',
+    discardCta: 'Descartar',
+    staleDialogTitle: 'O arquivo mudou no disco',
+    staleDialogDescription:
+      'Alguém (ou algum agente) alterou este arquivo desde que você o abriu. O que você quer fazer?',
+    staleReloadCta: 'Recarregar',
+    staleOverwriteCta: 'Sobrescrever',
+    unsavedGuardTitle: 'Descartar alterações?',
+    unsavedGuardDescription: 'Este arquivo tem alterações não salvas. Elas serão perdidas.',
+    unsavedGuardCancelCta: 'Cancelar',
+    unsavedGuardConfirmCta: 'Descartar alterações'
   },
   guidedInstall: {
     title: 'Preparando seu workspace',

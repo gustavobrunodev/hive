@@ -334,10 +334,31 @@
 }
 
 .wb-viewer-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.8125rem;
   font-weight: 650;
   color: var(--ink);
   white-space: nowrap;
+}
+
+/* Unsaved-changes indicator (T9) — a small filled dot next to the file name. */
+.wb-dirty-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--focus);
+}
+
+.wb-viewer-error {
+  margin: 0 var(--s-4) 0;
+  padding: 6px 10px;
+  border-radius: var(--rounded-sm);
+  font-size: 0.75rem;
+  color: var(--danger-ink, var(--ink));
+  background: var(--danger-bg, var(--surface-2));
 }
 
 .wb-viewer-path {
@@ -372,6 +393,31 @@
 .wb-viewer-content .hds-codeblock,
 .wb-viewer-content pre {
   max-width: 100%;
+}
+
+/* Editable text surface (T9) — plain controlled textarea, styled to match
+   the DS CodeBlock's monospace surface rather than pulling in a new dep. */
+.wb-editor-surface {
+  width: 100%;
+  min-height: 60vh;
+  padding: 16px 18px;
+  font-family:
+    'Inter Tight',
+    ui-monospace,
+    monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wb-editor-surface:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 /* ==========================================================================

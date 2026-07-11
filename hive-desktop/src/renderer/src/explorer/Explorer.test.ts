@@ -192,10 +192,10 @@ describe('Explorer (T12/T8)', () => {
       updateBmad: vi.fn().mockReturnValue(() => {}),
       workflows: { list: vi.fn().mockResolvedValue([]) },
       fs: {
-        statFile: vi.fn(),
+        statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 19 }),
         createFile: vi.fn().mockResolvedValue(undefined),
         createDirectory: vi.fn().mockResolvedValue(undefined),
-        saveFile: vi.fn(),
+        saveFile: vi.fn().mockResolvedValue({ mtimeMs: 2000, size: 19 }),
         move: vi.fn().mockResolvedValue(undefined),
         importEntry: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(false),
@@ -1085,5 +1085,363 @@ describe('Explorer (T12/T8)', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
     expect(window.hive.fs.importEntry).toHaveBeenCalledTimes(1)
+  })
+
+  it('a code file (e.g. .ts) renders with the code icon in the tree', async () => {
+    const codeTree = [{ name: 'index.ts', path: 'index.ts', type: 'file' as const }]
+    mockHive({ listTree: vi.fn().mockResolvedValue(codeTree) })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    expect(await screen.findByText('index.ts')).toBeTruthy()
+  })
+
+  // --- T9: editor edit/save/dirty/STALE (FM-R2) ------------------------------
+
+  it('toggling Edit shows an editable textarea seeded with the file content', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByTestId('code-viewer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+
+    const textarea = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+    expect(textarea.value).toBe('plain text content')
+    expect(screen.queryByTestId('code-viewer')).toBeNull()
+  })
+
+  it('binary files have no Edit toggle (read-only, FM-R2.1)', async () => {
+    const binaryTree = [{ name: 'logo.png', path: 'logo.png', type: 'file' as const }]
+    mockHive({
+      listTree: vi.fn().mockResolvedValue(binaryTree),
+      readFile: vi.fn().mockResolvedValue('')
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('logo.png'))
+    await screen.findByTestId('code-viewer')
+
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
+
+  it('editing the textarea marks the file dirty (shows the dot, Save and Discard)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+
+    const textarea = await screen.findByLabelText('Conteúdo do arquivo')
+    fireEvent.change(textarea, { target: { value: 'edited content' } })
+
+    expect(await screen.findByRole('button', { name: 'Salvar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Descartar' })).toBeTruthy()
+    expect(document.querySelector('.wb-dirty-dot')).toBeTruthy()
+  })
+
+  it('Save calls saveFile with the draft content and the statFile baseline mtimeMs, then clears dirty', async () => {
+    window.hive.fs.statFile = vi.fn().mockResolvedValue({ mtimeMs: 4242, size: 19 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenCalledWith('/ws', 'a.txt', 'edited content', {
+        expectedMtimeMs: 4242
+      })
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    })
+  })
+
+  it('a STALE save rejection opens "O arquivo mudou no disco"', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValue({ name: 'FsConflictError', code: 'STALE', message: 'changed on disk' })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('O arquivo mudou no disco')
+  })
+
+  it('STALE dialog "Recarregar" discards local edits, re-reads the file and resets the baseline', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValue({ name: 'FsConflictError', code: 'STALE', message: 'x' })
+    window.hive.readFile = vi
+      .fn()
+      .mockResolvedValueOnce('plain text content')
+      .mockResolvedValueOnce('content changed on disk')
+    window.hive.fs.statFile = vi
+      .fn()
+      .mockResolvedValueOnce({ mtimeMs: 1000, size: 19 })
+      .mockResolvedValueOnce({ mtimeMs: 5000, size: 24 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Recarregar' }))
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+        'content changed on disk'
+      )
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // the fresh statFile's mtimeMs (5000) is now the baseline for the next save.
+    fireEvent.change(screen.getByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'more edits' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenLastCalledWith('/ws', 'a.txt', 'more edits', {
+        expectedMtimeMs: 5000
+      })
+    })
+  })
+
+  it('STALE dialog "Sobrescrever" retries saveFile WITHOUT expectedMtimeMs and refreshes the baseline', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValueOnce({ name: 'FsConflictError', code: 'STALE', message: 'x' })
+      .mockResolvedValueOnce({ mtimeMs: 9000, size: 30 })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Sobrescrever' }))
+
+    await waitFor(() => {
+      expect(window.hive.fs.saveFile).toHaveBeenLastCalledWith('/ws', 'a.txt', 'edited content')
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  it('if retrying "Sobrescrever" itself fails, the action-error banner shows', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValueOnce({ name: 'FsConflictError', code: 'STALE', message: 'x' })
+      .mockRejectedValueOnce(new Error('disk full'))
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Sobrescrever' }))
+
+    expect(
+      await screen.findByText('Não foi possível concluir a ação. Tente novamente.')
+    ).toBeTruthy()
+  })
+
+  it('Discard reverts the textarea to the last-saved content and clears dirty', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    expect(await screen.findByRole('button', { name: 'Descartar' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+        'plain text content'
+      )
+    })
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+  })
+
+  it('the unsaved-changes guard blocks switching files while dirty until confirmed', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByText('prd.md'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Descartar alterações?')
+    expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+      'edited content'
+    )
+  })
+
+  it('confirming the unsaved-changes guard discards edits and opens the new file', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByText('prd.md'))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
+
+    await waitFor(() => {
+      expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    })
+  })
+
+  it('closing the viewer while dirty asks for confirmation before closing', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Descartar alterações?')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+    })
+  })
+
+  it('closing the viewer when not dirty closes immediately without a confirm dialog', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByTestId('code-viewer')
+
+    fireEvent.click(screen.getByLabelText('Fechar arquivo'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('code-viewer')).toBeNull()
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('switching to a different file while not dirty opens it directly (no guard dialog)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByTestId('code-viewer')
+
+    fireEvent.click(screen.getByText('prd.md'))
+
+    await waitFor(() => {
+      expect(window.hive.readFile).toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('the Copy button writes the file content to the clipboard and shows "Copiado"', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByTestId('code-viewer')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar conteúdo' }))
+
+    expect(writeText).toHaveBeenCalledWith('plain text content')
+    expect(await screen.findByRole('button', { name: 'Copiado' })).toBeTruthy()
+  })
+
+  it('a readFile failure on open shows the viewer error state', async () => {
+    mockHive({ readFile: vi.fn().mockRejectedValue(new Error('cannot read')) })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+
+    expect(await screen.findByText('Não foi possível abrir o arquivo')).toBeTruthy()
+  })
+
+  it('the Copy and Edit toggle buttons are no-ops while the file is still loading (disabled-state guard)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+    let resolveRead: (value: string) => void = () => {}
+    mockHive({
+      readFile: vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveRead = resolve
+          })
+      )
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByRole('status')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar conteúdo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+
+    expect(writeText).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+
+    resolveRead('plain text content')
+    await screen.findByTestId('code-viewer')
+  })
+
+  it('unmounting while the initial fetch is in flight does not throw when it later settles (race guard)', async () => {
+    let resolveRead: (value: string) => void = () => {}
+    mockHive({
+      readFile: vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveRead = resolve
+          })
+      )
+    })
+
+    const { unmount } = render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByRole('status')
+
+    unmount()
+    resolveRead('late content')
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
 })

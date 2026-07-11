@@ -106,7 +106,7 @@ type TreeState =
 type ViewerState =
   | { status: 'loading'; path: string }
   | { status: 'error'; path: string }
-  | { status: 'ready'; path: string; content: string }
+  | { status: 'ready'; path: string; content: string; baseline: EntryMeta | null }
 
 interface DsTreeNodeShape {
   id: string
@@ -977,33 +977,110 @@ export interface FileViewerProps {
 }
 
 /**
- * File viewer pane (task T12's viewer half): a titled pane — file icon,
- * name, parent path, copy + close actions — over a readable render (`.md`
- * via `renderMarkdown`, everything else in a DS `CodeBlock`). Re-fetches
- * whenever `path` changes.
+ * Structural mirror of `main/fsService.ts`'s `EntryMeta` (design.md §1) — the
+ * edit baseline (FM-R2.3). Kept local for the same reason `FsTreeNode`
+ * above is: this component stays self-contained inside `explorer/**`
+ * rather than importing across the main/renderer boundary.
+ */
+interface EntryMeta {
+  mtimeMs: number
+  size: number
+}
+
+/**
+ * Extensions the editor refuses to open as text (T9/FM-R2.1 "binary/unknown
+ * files stay read-only"). Everything else — including files with no
+ * recognized extension — is treated as editable text, matching the viewer's
+ * existing default of rendering any non-markdown file as a `CodeBlock`.
+ */
+const BINARY_EXTENSIONS =
+  /\.(png|jpe?g|gif|bmp|ico|webp|avif|pdf|zip|tar|gz|7z|rar|exe|dll|so|dylib|bin|woff2?|ttf|otf|eot|mp3|mp4|wav|mov|avi|db|sqlite3?)$/i
+
+function isEditablePath(path: string): boolean {
+  return !BINARY_EXTENSIONS.test(path)
+}
+
+/** Shape of the confirm-before-discard prompt (FM-R2.1's unsaved-changes guard): either a pending file switch, or the pane's own close action. */
+type PendingDiscard = { target: string } | { target: 'close' }
+
+/**
+ * File viewer pane (task T12's viewer half; task T9 promotes it to an
+ * editor — design.md §5, FM-R2): a titled pane — file icon, name, parent
+ * path, edit/copy/close actions — over a readable render (`.md` via
+ * `renderMarkdown`, everything else in a DS `CodeBlock`), or, in edit mode,
+ * a plain controlled `<textarea>`.
+ *
+ * `path` is the pane's *requested* file; `displayedPath` is what's actually
+ * loaded/shown. They're kept separate so an unsaved-changes guard can
+ * intercept a `path` change from the tree (FileTree calls `onOpenFile`
+ * directly, updating the parent's state immediately — there's no other
+ * interception point) without touching `FileTree` itself: while dirty, an
+ * incoming `path` is parked in `pendingDiscard` and a confirm dialog shown;
+ * `displayedPath` (and thus the fetch effect below) only advances once the
+ * user confirms discarding.
  */
 export function FileViewer({ workspace, path, onClose }: FileViewerProps): React.JSX.Element {
-  const [viewerState, setViewerState] = useState<ViewerState>({ status: 'loading', path })
+  const [displayedPath, setDisplayedPath] = useState(path)
+  const [viewerState, setViewerState] = useState<ViewerState>({
+    status: 'loading',
+    path: displayedPath
+  })
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [staleOpen, setStaleOpen] = useState(false)
+  const [actionError, setActionError] = useState(false)
+  const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null)
+
+  const dirty = editing && viewerState.status === 'ready' && draft !== viewerState.content
 
   useEffect(() => {
     let cancelled = false
-    const load = (): void => {
-      setViewerState({ status: 'loading', path })
-      window.hive.readFile(workspace, path).then(
-        (content: string) => {
-          if (!cancelled) setViewerState({ status: 'ready', path, content })
-        },
-        () => {
-          if (!cancelled) setViewerState({ status: 'error', path })
-        }
-      )
+    const load = async (): Promise<void> => {
+      setViewerState({ status: 'loading', path: displayedPath })
+      setEditing(false)
+      setStaleOpen(false)
+      setActionError(false)
+      try {
+        const [content, baseline] = await Promise.all([
+          window.hive.readFile(workspace, displayedPath),
+          window.hive.fs.statFile(workspace, displayedPath).then(
+            (meta) => meta,
+            () => null
+          )
+        ])
+        if (cancelled) return
+        setViewerState({ status: 'ready', path: displayedPath, content, baseline })
+        setDraft(content)
+      } catch {
+        if (!cancelled) setViewerState({ status: 'error', path: displayedPath })
+      }
     }
-    load()
+    void load()
     return () => {
       cancelled = true
     }
-  }, [workspace, path])
+  }, [workspace, displayedPath])
+
+  // Unsaved-changes guard (FM-R2.1): a `path` prop change is the tree
+  // opening a different file. If dirty, park it in `pendingDiscard` instead
+  // of adopting it immediately — the fetch effect above only reacts to
+  // `displayedPath`, so the currently-open file stays on screen until the
+  // user confirms or cancels. The reset-state statement lives inside a
+  // callback invoked from the effect (react-hooks/set-state-in-effect),
+  // not as a direct statement in the effect body.
+  useEffect(() => {
+    const sync = (): void => {
+      if (path === displayedPath) return
+      if (dirty) {
+        setPendingDiscard({ target: path })
+      } else {
+        setDisplayedPath(path)
+      }
+    }
+    sync()
+  }, [path, displayedPath, dirty])
 
   useEffect(() => {
     if (!copied) return
@@ -1011,22 +1088,136 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
     return () => clearTimeout(timer)
   }, [copied])
 
-  const separatorIndex = path.lastIndexOf('/')
-  const fileName = separatorIndex === -1 ? path : path.slice(separatorIndex + 1)
-  const parentPath = separatorIndex === -1 ? '' : path.slice(0, separatorIndex)
+  const separatorIndex = displayedPath.lastIndexOf('/')
+  const fileName = separatorIndex === -1 ? displayedPath : displayedPath.slice(separatorIndex + 1)
+  const parentPath = separatorIndex === -1 ? '' : displayedPath.slice(0, separatorIndex)
+
+  // Copy/Edit/Discard/Save/Sobrescrever are all only wired to controls that
+  // are `disabled` (Copy/Edit — React's DOM event system itself refuses to
+  // dispatch click/etc. to a disabled native form control, so these can
+  // never actually run while not ready) or conditionally unmounted
+  // (Discard/Save only render while `dirty`, Sobrescrever only while
+  // `staleOpen` — both imply `viewerState` already reached 'ready'). Rather
+  // than a defensive (and, per those invariants, dead) `if (status !==
+  // 'ready') return` branch in each one, narrow once with a cast — the
+  // invariant is enforced by disabled/conditional-mount, not a runtime
+  // check here.
+  const readyState = viewerState as Extract<ViewerState, { status: 'ready' }>
 
   const handleCopy = useCallback(() => {
-    if (viewerState.status !== 'ready') return
-    void navigator.clipboard.writeText(viewerState.content).then(() => setCopied(true))
-  }, [viewerState])
+    void navigator.clipboard.writeText(readyState.content).then(() => setCopied(true))
+  }, [readyState])
+
+  const toggleEditing = useCallback(() => {
+    if (!editing) setDraft(readyState.content)
+    setEditing((current) => !current)
+  }, [editing, readyState])
+
+  const handleDiscard = useCallback(() => {
+    setDraft(readyState.content)
+  }, [readyState])
+
+  const performSave = useCallback(
+    async (force: boolean) => {
+      setSaving(true)
+      setActionError(false)
+      try {
+        const meta = force
+          ? await window.hive.fs.saveFile(workspace, readyState.path, draft)
+          : await window.hive.fs.saveFile(workspace, readyState.path, draft, {
+              expectedMtimeMs: readyState.baseline?.mtimeMs
+            })
+        setViewerState({ status: 'ready', path: readyState.path, content: draft, baseline: meta })
+        setStaleOpen(false)
+      } catch (err) {
+        if (isFsConflictError(err) && err.code === 'STALE') {
+          setStaleOpen(true)
+        } else {
+          setActionError(true)
+        }
+      } finally {
+        setSaving(false)
+      }
+    },
+    [workspace, readyState, draft]
+  )
+
+  const handleSave = useCallback(() => void performSave(false), [performSave])
+  const handleOverwrite = useCallback(() => void performSave(true), [performSave])
+
+  const handleReload = useCallback(() => {
+    setStaleOpen(false)
+    Promise.all([
+      window.hive.readFile(workspace, displayedPath),
+      window.hive.fs.statFile(workspace, displayedPath).then(
+        (meta) => meta,
+        () => null
+      )
+    ]).then(
+      ([content, baseline]) => {
+        setViewerState({ status: 'ready', path: displayedPath, content, baseline })
+        setDraft(content)
+      },
+      () => setActionError(true)
+    )
+  }, [workspace, displayedPath])
+
+  const handleCloseClick = useCallback(() => {
+    if (dirty) {
+      setPendingDiscard({ target: 'close' })
+    } else {
+      onClose()
+    }
+  }, [dirty, onClose])
+
+  // Only ever wired to the confirm dialog's own button, which is itself
+  // only mounted while `pendingDiscard` is set — see the `readyState`
+  // comment above for why this skips a defensive null-check branch.
+  const confirmDiscard = useCallback(() => {
+    const { target } = pendingDiscard as PendingDiscard
+    setPendingDiscard(null)
+    setEditing(false)
+    if (target === 'close') {
+      onClose()
+    } else {
+      setDisplayedPath(target)
+    }
+  }, [pendingDiscard, onClose])
+
+  const cancelDiscard = useCallback(() => setPendingDiscard(null), [])
+
+  const editable = isEditablePath(displayedPath)
 
   return (
     <div className="wb-viewer">
       <header className="wb-viewer-header">
-        {fileIconFor(path)}
-        <span className="wb-viewer-name">{fileName}</span>
+        {fileIconFor(displayedPath)}
+        <span className="wb-viewer-name">
+          {fileName}
+          {dirty && <span className="wb-dirty-dot" aria-label={t('explorer.dirtyLabel')} />}
+        </span>
         {parentPath && <span className="wb-viewer-path">{parentPath}</span>}
         <div className="wb-viewer-actions">
+          {dirty && (
+            <>
+              <Button className="wb-btn" onClick={handleDiscard} disabled={saving}>
+                {t('explorer.discardCta')}
+              </Button>
+              <Button className="wb-btn hds-btn-primary" onClick={handleSave} disabled={saving}>
+                {t('explorer.saveCta')}
+              </Button>
+            </>
+          )}
+          {editable && (
+            <IconButton
+              label={editing ? t('explorer.viewLabel') : t('explorer.editLabel')}
+              onClick={toggleEditing}
+              disabled={viewerState.status !== 'ready'}
+              aria-pressed={editing}
+            >
+              <PencilIcon />
+            </IconButton>
+          )}
           <IconButton
             label={copied ? t('explorer.copiedLabel') : t('explorer.copyLabel')}
             onClick={handleCopy}
@@ -1034,12 +1225,45 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </IconButton>
-          <IconButton label={t('explorer.viewerCloseLabel')} onClick={onClose}>
+          <IconButton label={t('explorer.viewerCloseLabel')} onClick={handleCloseClick}>
             <CloseIcon />
           </IconButton>
         </div>
       </header>
+      {actionError && <div className="wb-viewer-error">{t('explorer.actionErrorMessage')}</div>}
       {renderViewerBody()}
+      {staleOpen && (
+        <Dialog open onOpenChange={(open: boolean) => !open && setStaleOpen(false)}>
+          <DialogContent>
+            <DialogTitle>{t('explorer.staleDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('explorer.staleDialogDescription')}</DialogDescription>
+            <div className="wb-dialog-actions">
+              <Button className="wb-btn" onClick={handleReload}>
+                {t('explorer.staleReloadCta')}
+              </Button>
+              <Button className="wb-btn hds-btn-primary" onClick={handleOverwrite}>
+                {t('explorer.staleOverwriteCta')}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      {pendingDiscard && (
+        <Dialog open onOpenChange={(open: boolean) => !open && cancelDiscard()}>
+          <DialogContent>
+            <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
+            <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
+            <div className="wb-dialog-actions">
+              <Button className="wb-btn" onClick={cancelDiscard}>
+                {t('explorer.unsavedGuardCancelCta')}
+              </Button>
+              <Button className="wb-btn hds-btn-primary" onClick={confirmDiscard}>
+                {t('explorer.unsavedGuardConfirmCta')}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 
@@ -1059,6 +1283,22 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
             title={t('explorer.viewerErrorTitle')}
             description={t('explorer.viewerErrorDescription')}
           />
+        </div>
+      )
+    }
+
+    if (editing) {
+      return (
+        <div className="wb-viewer-scroll">
+          <div className="wb-viewer-content">
+            <textarea
+              className="wb-editor-surface"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label={t('explorer.editorAriaLabel')}
+              spellCheck={false}
+            />
+          </div>
         </div>
       )
     }
