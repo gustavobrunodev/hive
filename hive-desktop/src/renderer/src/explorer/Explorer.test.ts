@@ -517,6 +517,135 @@ describe('Explorer (T12/T8)', () => {
     })
   })
 
+  // --- T10: bulk drag-move (design.md §4 "Bulk move", UX-R5.2/R5.3) --------
+
+  const bulkDragTree = [
+    { name: 'a.txt', path: 'a.txt', type: 'file' as const },
+    { name: 'b.txt', path: 'b.txt', type: 'file' as const },
+    {
+      name: 'docs',
+      path: 'docs',
+      type: 'directory' as const,
+      children: [{ name: 'prd.md', path: 'docs/prd.md', type: 'file' as const }]
+    },
+    { name: 'other', path: 'other', type: 'directory' as const, children: [] }
+  ]
+
+  it('dragging one row out of a 3-item selection moves the whole selection (one fs.move call per item)', async () => {
+    mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const bRow = (await screen.findByText('b.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(bRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    const sourceRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const targetRow = screen.getByText('other').closest('.wb-tree-row-content') as HTMLElement
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', files: [] as File[] }
+
+    fireEvent.dragStart(sourceRow, { dataTransfer })
+    fireEvent.dragOver(targetRow, { dataTransfer })
+    fireEvent.drop(targetRow, { dataTransfer })
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledTimes(3)
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'other/a.txt')
+    expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'b.txt', 'other/b.txt')
+    expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'docs/prd.md', 'other/prd.md')
+  })
+
+  it('dragging a row NOT in the current selection moves only that row and resets the selection to it', async () => {
+    mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const bRow = (await screen.findByText('b.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(bRow, { ctrlKey: true })
+
+    const sourceRow = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+    const targetRow = screen.getByText('other').closest('.wb-tree-row-content') as HTMLElement
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', files: [] as File[] }
+
+    fireEvent.dragStart(sourceRow, { dataTransfer })
+
+    // Dragging an unselected row resets the selection to just it — the
+    // stale a.txt/b.txt selection must not ride along.
+    expect(aRow.className).not.toContain('hds-tree-item-selected')
+    expect(bRow.className).not.toContain('hds-tree-item-selected')
+    expect(prdRow.className).toContain('hds-tree-item-selected')
+
+    fireEvent.dragOver(targetRow, { dataTransfer })
+    fireEvent.drop(targetRow, { dataTransfer })
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledTimes(1)
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'docs/prd.md', 'other/prd.md')
+  })
+
+  it('a self/descendant drop target is skipped for that item only — the rest of the batch still moves', async () => {
+    mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const docsRow = (await screen.findByText('docs')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(docsRow, { ctrlKey: true })
+
+    // Drop target is a row *inside* docs (docs/prd.md) — its containing
+    // folder is 'docs' itself, a self/descendant hit for the 'docs' item in
+    // the batch (but not for 'a.txt').
+    const sourceRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const targetRow = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', files: [] as File[] }
+
+    fireEvent.dragStart(sourceRow, { dataTransfer })
+    fireEvent.dragOver(targetRow, { dataTransfer })
+    fireEvent.drop(targetRow, { dataTransfer })
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'docs/a.txt')
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledTimes(1)
+    expect(window.hive.fs.move).not.toHaveBeenCalledWith('/ws', 'docs', expect.anything())
+  })
+
+  it('a same-parent (no-op) drop target is skipped for that item only — the rest of the batch still moves', async () => {
+    mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    // Dropping on the rail background moves to the workspace root: a.txt is
+    // already there (no-op, skipped), docs/prd.md is not (proceeds).
+    const sourceRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const rail = document.querySelector('.wb-rail-scroll') as HTMLElement
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', files: [] as File[] }
+
+    fireEvent.dragStart(sourceRow, { dataTransfer })
+    fireEvent.dragOver(rail, { dataTransfer })
+    fireEvent.drop(rail, { dataTransfer })
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'docs/prd.md', 'prd.md')
+    })
+    expect(window.hive.fs.move).toHaveBeenCalledTimes(1)
+    expect(window.hive.fs.move).not.toHaveBeenCalledWith('/ws', 'a.txt', 'a.txt')
+  })
+
   // --- T8: external OS drop / import (FM-R5) --------------------------------
 
   it('dropping an OS file onto a folder row resolves its abs path and calls importEntry', async () => {

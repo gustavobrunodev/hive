@@ -260,7 +260,11 @@ export function FileTree({
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState(false)
-  const dragSourceRef = useRef<string | null>(null)
+  // T10: the drag payload — one or more paths. Populated in
+  // `handleRowDragStart` from either the whole current selection (dragging a
+  // row that's part of it) or just the dragged row (dragging an unselected
+  // row, which also resets `selectedIds` — see there).
+  const dragSourcesRef = useRef<string[] | null>(null)
   // T7 blur-commit double-commit guard: set the instant a commit is actually
   // attempted (Enter or blur), so a blur that follows an Enter-commit (or
   // fires as the conflict dialog steals focus mid-commit) is a no-op instead
@@ -562,24 +566,45 @@ export function FileTree({
 
   // --- Internal drag-and-drop move (FM-R4.2) --------------------------------
 
-  const handleRowDragStart = useCallback((event: DragEvent, path: string) => {
-    dragSourceRef.current = path
-    event.dataTransfer.effectAllowed = 'move'
-    try {
-      event.dataTransfer.setData('text/plain', path)
-    } catch {
-      // jsdom / some browsers can throw on setData in odd states — the
-      // internal move still works via dragSourceRef, so this is best-effort.
-    }
-  }, [])
+  // T10 (UX-R5.2): if the dragged row is already part of the current
+  // selection, the whole selection rides along as the drag payload.
+  // Otherwise only this row moves, and the selection resets to just it — a
+  // drag of an unselected row must never carry along an unrelated stale
+  // multi-selection.
+  const handleRowDragStart = useCallback(
+    (event: DragEvent, path: string) => {
+      const inSelection = selectedIds.includes(path)
+      const payload = inSelection ? selectedIds : [path]
+      if (!inSelection) setSelectedIds([path])
+      dragSourcesRef.current = payload
+      event.dataTransfer.effectAllowed = 'move'
+      try {
+        event.dataTransfer.setData('text/plain', path)
+      } catch {
+        // jsdom / some browsers can throw on setData in odd states — the
+        // internal move still works via dragSourcesRef, so this is
+        // best-effort.
+      }
+    },
+    [selectedIds]
+  )
 
+  // T10: iterates the drag payload (1 or N paths), running each through the
+  // same guards/`performMove` a single-item move already used. Any item
+  // whose destination is its own current parent (no-op) or is itself/a
+  // descendant of itself is skipped without blocking the rest of the batch.
+  // Post-move selection bookkeeping is the existing generic reconciliation
+  // effect above (drops any `selectedIds` entry whose path no longer exists
+  // once the tree refreshes) — nothing additional needed here.
   const moveInternal = useCallback(
-    (sourcePath: string, destDir: string) => {
-      if (isSelfOrDescendant(sourcePath, destDir)) return
-      const name = basename(sourcePath)
-      const toRel = joinRelative(destDir, name)
-      if (toRel === sourcePath) return
-      void performMove(sourcePath, toRel, () => {})
+    (sourcePaths: string[], destDir: string) => {
+      for (const sourcePath of sourcePaths) {
+        if (isSelfOrDescendant(sourcePath, destDir)) continue
+        const name = basename(sourcePath)
+        const toRel = joinRelative(destDir, name)
+        if (toRel === sourcePath) continue
+        void performMove(sourcePath, toRel, () => {})
+      }
     },
     [performMove]
   )
@@ -728,12 +753,12 @@ export function FileTree({
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
         importFiles(Array.from(files), destDir)
-        dragSourceRef.current = null
+        dragSourcesRef.current = null
         return
       }
-      const source = dragSourceRef.current
-      dragSourceRef.current = null
-      if (source) moveInternal(source, destDir)
+      const sources = dragSourcesRef.current
+      dragSourcesRef.current = null
+      if (sources) moveInternal(sources, destDir)
     },
     [importFiles, moveInternal]
   )
@@ -748,12 +773,12 @@ export function FileTree({
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
         importFiles(Array.from(files), '')
-        dragSourceRef.current = null
+        dragSourcesRef.current = null
         return
       }
-      const source = dragSourceRef.current
-      dragSourceRef.current = null
-      if (source) moveInternal(source, '')
+      const sources = dragSourcesRef.current
+      dragSourcesRef.current = null
+      if (sources) moveInternal(sources, '')
     },
     [importFiles, moveInternal]
   )
