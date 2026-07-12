@@ -101,6 +101,18 @@ function App(): React.JSX.Element {
     setOnboarding({ status: 'ready', workspacePath })
   }, [])
 
+  // T5 (WS-R4.1, WS-R4.4): runtime switch entry, invoked via `WorkUI`'s
+  // `onCandidateWorkspace` (T7) once the user picks "Abrir pasta…" or a
+  // Recentes entry. Re-enters the SAME onboarding gate used for first-run/
+  // relaunch — `checkingProvisioned` re-derives install-vs-update for this
+  // NEW path via the existing disk-based provisionState() effect above.
+  // Note: the unsaved-work guard + session teardown (WS-R5) is T8's job,
+  // layered inside WorkUI before it calls onCandidateWorkspace — this
+  // handler only performs the state re-entry.
+  const handleSwitchWorkspace = useCallback((workspacePath: string) => {
+    setOnboarding({ status: 'checkingProvisioned', workspacePath })
+  }, [])
+
   if (onboarding.status === 'checking' || onboarding.status === 'checkingProvisioned') {
     return (
       <main className="wb-gate">
@@ -142,9 +154,15 @@ function App(): React.JSX.Element {
 
   return (
     <WorkUI
+      // WS-R4.4: keyed on the active workspace path so switching fully
+      // unmounts/remounts the subtree (fresh file tree, fresh chat, no
+      // leaked state from the previous workspace) instead of re-rendering
+      // in place.
+      key={onboarding.workspacePath}
       workspace={onboarding.workspacePath}
       theme={theme}
       onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+      onCandidateWorkspace={handleSwitchWorkspace}
     />
   )
 }

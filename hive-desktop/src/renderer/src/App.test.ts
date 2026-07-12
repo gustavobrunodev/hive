@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createElement, type ReactNode } from 'react'
+import { createElement, useState, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
 
@@ -99,20 +99,35 @@ vi.mock('@hive/design-system', () => ({
 // file only needs to prove the onboarding *gate* reaches `ready` and hands
 // off the right workspace, so `WorkUI` itself is mocked to a trivial marker
 // rather than duplicating every one of those DS mocks here.
+// T5 (WS-R4.1, WS-R4.4): the mock also exercises `onCandidateWorkspace` (a
+// "switch workspace" button standing in for T7's real chip-menu selection)
+// and generates a fresh random instance id *only on mount* (a `useState`
+// initializer doesn't re-run across re-renders) — this is how the T5 tests
+// below prove App's `key={workspacePath}` actually remounts `WorkUI` on a
+// workspace change instead of merely re-rendering it in place.
 vi.mock('./WorkUI', () => ({
   WorkUI: ({
     workspace,
-    onToggleTheme
+    onToggleTheme,
+    onCandidateWorkspace
   }: {
     workspace: string
     onToggleTheme?: () => void
-  }) =>
-    createElement(
+    onCandidateWorkspace?: (path: string) => void
+  }) => {
+    const [instanceId] = useState(() => Math.random().toString(36).slice(2))
+    return createElement(
       'div',
-      { 'data-testid': 'work-ui' },
+      { 'data-testid': 'work-ui', 'data-instance-id': instanceId },
       `WorkUI: ${workspace}`,
-      createElement('button', { onClick: onToggleTheme }, 'toggle theme')
+      createElement('button', { onClick: onToggleTheme }, 'toggle theme'),
+      createElement(
+        'button',
+        { onClick: () => onCandidateWorkspace?.('/home/user/switched-workspace') },
+        'switch workspace'
+      )
     )
+  }
 }))
 
 describe('App — first-run workspace gate + guided install + update gate (T6, T9, T10)', () => {
@@ -333,5 +348,73 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       expect(screen.getByText('Bem-vindo ao Hive')).toBeTruthy()
     })
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
+  })
+
+  describe('T5 — runtime workspace switch entry (WS-R4.1, WS-R4.4)', () => {
+    it('re-enters checkingProvisioned and routes to the update gate for a switched, already-provisioned workspace', async () => {
+      let emitDone: (() => void) | undefined
+      const provisionState = vi.fn().mockResolvedValue(true)
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+        provisionState,
+        updateBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
+          emitDone = () => onEvent({ type: 'done' })
+          return () => {}
+        })
+      })
+
+      render(createElement(App))
+
+      // Drive the initial (relaunch) update gate to ready first.
+      await screen.findByText('Atualizando o BMAD')
+      emitDone?.()
+
+      const originalWorkUi = await screen.findByText('WorkUI: /home/user/my-workspace')
+      const originalInstanceId = originalWorkUi.getAttribute('data-instance-id')
+
+      fireEvent.click(screen.getByText('switch workspace'))
+
+      // Re-enters the checkingProvisioned gate — the spinner screen shows
+      // again — then, since provisionState() resolves true for the new
+      // path, lands on the update gate exactly as a relaunch would.
+      expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
+      expect(provisionState).toHaveBeenLastCalledWith('/home/user/switched-workspace')
+
+      emitDone?.()
+
+      const newWorkUi = await screen.findByText('WorkUI: /home/user/switched-workspace')
+      expect(newWorkUi).toBeTruthy()
+
+      // WS-R4.4: WorkUI remounted (fresh instance, not just re-rendered)
+      // bound to the new workspace — proven by a fresh random instance id.
+      const newInstanceId = newWorkUi.getAttribute('data-instance-id')
+      expect(newInstanceId).toBeTruthy()
+      expect(newInstanceId).not.toBe(originalInstanceId)
+    })
+
+    it('re-enters checkingProvisioned and routes to guided install for a switched, unprovisioned workspace', async () => {
+      let emitDone: (() => void) | undefined
+      const provisionState = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+        provisionState,
+        updateBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
+          emitDone = () => onEvent({ type: 'done' })
+          return () => {}
+        })
+      })
+
+      render(createElement(App))
+
+      await screen.findByText('Atualizando o BMAD')
+      emitDone?.()
+      await screen.findByText('WorkUI: /home/user/my-workspace')
+
+      fireEvent.click(screen.getByText('switch workspace'))
+
+      expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
+      expect(provisionState).toHaveBeenLastCalledWith('/home/user/switched-workspace')
+      expect(screen.queryByText('Atualizando o BMAD')).toBeNull()
+    })
   })
 })
