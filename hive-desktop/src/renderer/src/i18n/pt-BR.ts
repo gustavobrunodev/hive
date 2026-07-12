@@ -103,7 +103,25 @@ export const ptBR = {
     progressLabel: 'Instalando…',
     errorTitle: 'Não foi possível concluir a instalação',
     errorDescriptionFallback: 'Algo deu errado durante a instalação do BMAD.',
-    retryCta: 'Tentar novamente'
+    retryCta: 'Tentar novamente',
+    // Guided configuration form shown before the install runs (BUG 1): the
+    // CLI's interactive questions abstracted into the app's own visual flow.
+    form: {
+      title: 'Configurar o BMAD',
+      description:
+        'Escolha o que instalar e como os agentes devem se comunicar. Você pode reinstalar depois para ajustar.',
+      modulesLegend: 'Módulos',
+      modulesHint: 'O BMad Core é sempre instalado. Selecione os módulos adicionais que quiser.',
+      identityLegend: 'Sobre você',
+      userNameLabel: 'Como os agentes devem te chamar?',
+      userNamePlaceholder: 'Seu nome ou o nome do time',
+      communicationLanguageLabel: 'Idioma da conversa com os agentes',
+      documentOutputLanguageLabel: 'Idioma dos documentos gerados',
+      skillLevelLabel: 'Seu nível de experiência em desenvolvimento',
+      skillLevelHint: 'Afeta como os agentes explicam conceitos no chat.',
+      modulesRequiredError: 'Selecione ao menos um módulo para continuar.',
+      submitCta: 'Instalar BMAD'
+    }
   },
   updateGate: {
     title: 'Atualizando o BMAD',
@@ -132,7 +150,11 @@ export const ptBR = {
   },
   workUI: {
     resizeHandleLabel: 'Redimensionar painéis',
-    workspaceChipTitle: (path: string) => `Workspace ativo: ${path}`
+    workspaceChipTitle: (path: string) => `Workspace ativo: ${path}`,
+    /** T7 (WS-R1.2/R7.1): workspace chip menu — "Abrir pasta…" entry. */
+    openFolder: 'Abrir pasta…',
+    /** T7 (WS-R1.2/R1.3/R7.1): workspace chip menu — Recentes section heading. */
+    recents: 'Recentes'
   }
 } as const
 

@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createElement, type ReactNode } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  createContext,
+  createElement,
+  useContext,
+  isValidElement,
+  cloneElement,
+  type ReactElement,
+  type ReactNode
+} from 'react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 /**
  * Task T11 — resizable file-area divider + persistence (design.md §7,
@@ -25,6 +33,9 @@ const resizableProps: {
   defaultLayout?: unknown
   onLayoutChanged?: (layout: Record<string, number>, meta: { isUserInteraction: boolean }) => void
 } = {}
+
+/** Minimal context bridge so the mocked `DropdownMenuTrigger` can toggle its sibling `DropdownMenu`'s open state — mirrors the same pattern already used in `explorer/Explorer.test.ts` (real Radix does this internally; nothing else here needs to know about it). */
+const DropdownMenuMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 
 vi.mock('@hive/design-system', () => ({
   Resizable: ({
@@ -76,7 +87,44 @@ vi.mock('@hive/design-system', () => ({
     void withGrip
     return createElement('div', { role: 'separator', ...rest })
   },
-  Logo: () => createElement('span', { 'data-testid': 'logo' })
+  Logo: () => createElement('span', { 'data-testid': 'logo' }),
+  DropdownMenu: ({
+    onOpenChange,
+    children
+  }: {
+    onOpenChange?: (open: boolean) => void
+    children?: ReactNode
+  }) => createElement(DropdownMenuMockCtx.Provider, { value: { onOpenChange } }, children),
+  DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => {
+    const ctx = useContext(DropdownMenuMockCtx)
+    if (!isValidElement(children)) return children
+    const element = children as ReactElement<{ onClick?: (event: unknown) => void }>
+    return cloneElement(element, {
+      onClick: (event: unknown) => {
+        element.props.onClick?.(event)
+        ctx.onOpenChange?.(true)
+      }
+    })
+  },
+  DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'menu' }, children),
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    title
+  }: {
+    children?: ReactNode
+    onSelect?: () => void
+    title?: string
+  }) =>
+    createElement(
+      'button',
+      { type: 'button', role: 'menuitem', title, onClick: () => onSelect?.() },
+      children
+    ),
+  DropdownMenuLabel: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'presentation' }, children),
+  DropdownMenuSeparator: () => createElement('hr')
 }))
 
 vi.mock('./explorer/Explorer', () => ({
@@ -126,8 +174,17 @@ function createLocalStorageMock(): Storage {
 
 let WorkUI: typeof import('./WorkUI').WorkUI
 
+/** Minimal `window.hive` bridge stand-in — this environment has no real main process, so `chooseWorkspace`/`getRecentWorkspaces` are spies the tests drive directly (mirrors `explorer/Explorer.test.ts`'s per-test `window.hive` mocking approach). */
+function createHiveMock(): Window['hive'] {
+  return {
+    chooseWorkspace: vi.fn(async () => null),
+    getRecentWorkspaces: vi.fn(async () => [])
+  } as unknown as Window['hive']
+}
+
 beforeEach(async () => {
   vi.stubGlobal('localStorage', createLocalStorageMock())
+  vi.stubGlobal('hive', createHiveMock())
   resizableProps.defaultLayout = undefined
   resizableProps.onLayoutChanged = undefined
   ;({ WorkUI } = await import('./WorkUI'))
@@ -281,5 +338,200 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
     })
 
     expect(() => fireEvent.click(screen.getByTestId('simulate-drag'))).not.toThrow()
+  })
+})
+
+/**
+ * Task T7 — workspace chip menu (design.md §5.1, WS-R1.1–R1.4/R7).
+ *
+ * The `wb-workspace-chip` becomes a DS `DropdownMenu` trigger: opening it
+ * loads the MRU via `window.hive.getRecentWorkspaces()`, excludes the
+ * active workspace (WS-R1.4), and omits the whole Recentes section when
+ * nothing else is left (WS-R1.3). "Abrir pasta…" resolves a candidate via
+ * `window.hive.chooseWorkspace()`; a recents entry resolves its own path.
+ * Either way the candidate is only ever handed off via `onCandidateWorkspace`
+ * — WorkUI does not perform the switch itself (that's T8's guard/pipeline).
+ */
+describe('WorkUI — workspace chip menu (T7)', () => {
+  it('opens the menu on click and loads recents, excluding the active workspace', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
+      '/home/user/my-workspace',
+      '/home/user/other-project',
+      '/home/user/third-project'
+    ])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+
+    expect(window.hive.getRecentWorkspaces).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
+    const menu = within(screen.getByRole('menu'))
+    expect(menu.getByText('other-project')).toBeTruthy()
+    expect(menu.getByText('third-project')).toBeTruthy()
+    // The active workspace's own name is only the chip's label — never
+    // repeated inside the menu (WS-R1.4: never "switch" to where you are).
+    expect(menu.queryByText('my-workspace')).toBeNull()
+    expect(menu.getByText('Abrir pasta…')).toBeTruthy()
+  })
+
+  it('is a native <button> trigger, so it is keyboard-operable (Enter/Space) without bespoke key handling', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue(['/home/user/other-project'])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    const trigger = screen.getByRole('button', { name: /workspace ativo/i })
+    // A real <button type="button"> gets Enter/Space activation for free from
+    // the browser (jsdom doesn't simulate that dispatch, so this asserts the
+    // semantics that make it true rather than re-simulating the browser):
+    expect(trigger.tagName).toBe('BUTTON')
+    expect(trigger.getAttribute('type')).toBe('button')
+
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    // Activating it (click — what a native button's Enter/Space collapses to)
+    // opens the menu, same as a mouse click.
+    fireEvent.click(trigger)
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+  })
+
+  it('omits the Recentes section entirely when there are no other recent workspaces', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue(['/home/user/my-workspace'])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+    expect(screen.getByText('Abrir pasta…')).toBeTruthy()
+    expect(screen.queryByText('Recentes')).toBeNull()
+  })
+
+  it('"Abrir pasta…" invokes window.hive.chooseWorkspace and reports a picked candidate', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/picked-workspace')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText('Abrir pasta…'))
+
+    expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/picked-workspace')
+    )
+  })
+
+  it('does not report a candidate when the native picker is cancelled', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue(null)
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('Abrir pasta…'))
+
+    await waitFor(() => expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1))
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('selecting a recent entry invokes onCandidateWorkspace with its path', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
+      '/home/user/my-workspace',
+      '/home/user/other-project'
+    ])
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
+
+    fireEvent.click(screen.getByText('other-project'))
+
+    expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+  })
+
+  it('shows the full path as a tooltip on each recent entry', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
+      '/home/user/my-workspace',
+      '/home/user/other-project'
+    ])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+
+    const entry = await screen.findByText('other-project')
+    expect(entry.closest('[title]')?.getAttribute('title')).toBe('/home/user/other-project')
+  })
+
+  it('tolerates a getRecentWorkspaces rejection by rendering an empty Recentes-less menu', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockRejectedValue(new Error('ipc failure'))
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+    expect(screen.getByText('Abrir pasta…')).toBeTruthy()
+    expect(screen.queryByText('Recentes')).toBeNull()
   })
 })
