@@ -7,7 +7,11 @@ import { join } from 'path'
  */
 export interface Config {
   workspacePath: string | null
+  // Retained; still written by install() success. No longer the source of
+  // truth for routing — that becomes disk-based (see workspace-switching
+  // design.md §6).
   provisioned: boolean
+  recentWorkspaces: string[]
   lastModel: string | null
   lastEffort: string | null
 }
@@ -15,11 +19,15 @@ export interface Config {
 export const DEFAULT_CONFIG: Config = {
   workspacePath: null,
   provisioned: false,
+  recentWorkspaces: [],
   lastModel: null,
   lastEffort: null
 }
 
 const CONFIG_FILE_NAME = 'config.json'
+
+/** Max entries retained in `Config.recentWorkspaces` (MRU, WS-R2.1). */
+export const MAX_RECENT_WORKSPACES = 10
 
 export interface ConfigStore {
   getConfig(): Config
@@ -28,6 +36,9 @@ export interface ConfigStore {
   setProvisioned(value: boolean): void
   setLastModel(id: string): void
   setLastEffort(id: string): void
+  getRecentWorkspaces(): string[]
+  pushRecentWorkspace(path: string): void
+  removeRecentWorkspace(path: string): void
 }
 
 /**
@@ -89,6 +100,18 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setWorkspacePath: (path: string) => updateConfig({ workspacePath: path }),
     setProvisioned: (value: boolean) => updateConfig({ provisioned: value }),
     setLastModel: (id: string) => updateConfig({ lastModel: id }),
-    setLastEffort: (id: string) => updateConfig({ lastEffort: id })
+    setLastEffort: (id: string) => updateConfig({ lastEffort: id }),
+    getRecentWorkspaces: () => readConfig().recentWorkspaces,
+    pushRecentWorkspace: (path: string) => {
+      const current = readConfig()
+      const deduped = current.recentWorkspaces.filter((p) => p !== path)
+      const recentWorkspaces = [path, ...deduped].slice(0, MAX_RECENT_WORKSPACES)
+      writeConfig({ ...current, recentWorkspaces })
+    },
+    removeRecentWorkspace: (path: string) => {
+      const current = readConfig()
+      const recentWorkspaces = current.recentWorkspaces.filter((p) => p !== path)
+      writeConfig({ ...current, recentWorkspaces })
+    }
   }
 }

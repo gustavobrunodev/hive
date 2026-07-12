@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { DEFAULT_CONFIG, createConfigStore } from './configStore'
+import { DEFAULT_CONFIG, MAX_RECENT_WORKSPACES, createConfigStore } from './configStore'
 
 // `createConfigStore` takes its base directory as a plain argument instead of
 // reading `electron.app.getPath('userData')` internally, so tests point it at
@@ -24,6 +24,25 @@ describe('ConfigStore', () => {
     expect(store.getConfig()).toEqual(DEFAULT_CONFIG)
   })
 
+  it('treats a corrupt config file as first run rather than throwing', () => {
+    const configPath = join(baseDir, 'config.json')
+    writeFileSync(configPath, '{ not valid json', 'utf-8')
+
+    const store = createConfigStore(baseDir)
+    expect(store.getConfig()).toEqual(DEFAULT_CONFIG)
+  })
+
+  it('cleans up the temp file and rethrows when the atomic rename fails', () => {
+    const configPath = join(baseDir, 'config.json')
+    // Make the rename target an existing non-empty directory so renameSync
+    // (file -> directory) fails, exercising the write-failure cleanup path.
+    mkdirSync(configPath)
+    writeFileSync(join(configPath, 'placeholder'), 'x', 'utf-8')
+
+    const store = createConfigStore(baseDir)
+    expect(() => store.setWorkspacePath('/workspace')).toThrow()
+  })
+
   it('writes a value and reads it back (round-trip)', () => {
     const store = createConfigStore(baseDir)
 
@@ -35,6 +54,7 @@ describe('ConfigStore', () => {
     expect(store.getConfig()).toEqual({
       workspacePath: '/Users/dev/my-workspace',
       provisioned: true,
+      recentWorkspaces: [],
       lastModel: 'claude-opus-4',
       lastEffort: 'high'
     })
@@ -50,6 +70,7 @@ describe('ConfigStore', () => {
     expect(store.getConfig()).toEqual({
       workspacePath: '/workspace',
       provisioned: true,
+      recentWorkspaces: [],
       lastModel: 'claude-sonnet-4',
       lastEffort: 'medium'
     })
@@ -69,8 +90,77 @@ describe('ConfigStore', () => {
     expect(secondInstance.getConfig()).toEqual({
       workspacePath: '/persisted/workspace',
       provisioned: true,
+      recentWorkspaces: [],
       lastModel: 'claude-haiku-4',
       lastEffort: 'low'
     })
+  })
+
+  it('backfills recentWorkspaces to [] when loading an old config without the field', () => {
+    const store = createConfigStore(baseDir)
+    // Simulate a pre-existing config.json written before recentWorkspaces existed.
+    store.setWorkspacePath('/legacy/workspace')
+    const configPath = join(baseDir, 'config.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({ workspacePath: '/legacy/workspace', provisioned: true }),
+      'utf-8'
+    )
+
+    expect(store.getConfig().recentWorkspaces).toEqual([])
+  })
+
+  it('pushRecentWorkspace adds a new entry to the front', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/b')
+
+    expect(store.getRecentWorkspaces()).toEqual(['/b', '/a'])
+  })
+
+  it('pushRecentWorkspace moves an existing entry to the front instead of duplicating it', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/b')
+    store.pushRecentWorkspace('/c')
+    store.pushRecentWorkspace('/a')
+
+    expect(store.getRecentWorkspaces()).toEqual(['/a', '/c', '/b'])
+  })
+
+  it('pushRecentWorkspace dedupes so only one instance of a path is kept', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/a')
+
+    expect(store.getRecentWorkspaces()).toEqual(['/a'])
+  })
+
+  it('pushRecentWorkspace caps the list at MAX_RECENT_WORKSPACES, dropping the oldest', () => {
+    const store = createConfigStore(baseDir)
+    const paths = Array.from({ length: MAX_RECENT_WORKSPACES + 5 }, (_, i) => `/workspace-${i}`)
+    for (const path of paths) {
+      store.pushRecentWorkspace(path)
+    }
+
+    const recents = store.getRecentWorkspaces()
+    expect(recents).toHaveLength(MAX_RECENT_WORKSPACES)
+    // Most recently pushed is at the front; oldest pushes were dropped.
+    const expected = paths
+      .slice(paths.length - MAX_RECENT_WORKSPACES)
+      .reverse()
+    expect(recents).toEqual(expected)
+  })
+
+  it('removeRecentWorkspace prunes a single entry, leaving the rest untouched', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/b')
+    store.pushRecentWorkspace('/c')
+
+    store.removeRecentWorkspace('/b')
+
+    expect(store.getRecentWorkspaces()).toEqual(['/c', '/a'])
   })
 })
