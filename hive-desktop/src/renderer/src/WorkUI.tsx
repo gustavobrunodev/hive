@@ -108,9 +108,9 @@ export function WorkUI({ workspace, theme, onToggleTheme }: WorkUIProps): React.
           <ResizablePanel
             id="rail"
             className="wb-rail"
-            minSize={12}
-            maxSize={40}
-            defaultSize={22}
+            minSize="12%"
+            maxSize="40%"
+            defaultSize="22%"
             aria-label={t('explorer.treeAriaLabel')}
           >
             <div className="wb-pane-header">
@@ -119,13 +119,13 @@ export function WorkUI({ workspace, theme, onToggleTheme }: WorkUIProps): React.
             <FileTree workspace={workspace} selectedPath={openPath} onOpenFile={setOpenPath} />
           </ResizablePanel>
           <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-          <ResizablePanel id="chat" minSize={30} defaultSize={53}>
+          <ResizablePanel id="chat" minSize="30%" defaultSize="53%">
             <Chat workspace={workspace} />
           </ResizablePanel>
           {openPath !== null && (
             <>
               <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-              <ResizablePanel id="viewer" minSize={24} defaultSize={25}>
+              <ResizablePanel id="viewer" minSize="24%" defaultSize="25%">
                 <FileViewer
                   workspace={workspace}
                   path={openPath}
