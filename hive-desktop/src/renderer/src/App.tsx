@@ -15,8 +15,9 @@ const THEME_STORAGE_KEY = 'hive-desktop-theme'
  * First-run + relaunch gate state (design.md §5.1–§5.2, tasks T6 + T9 + T10):
  *  - `checking`: initial `getWorkspace()` call is still in flight.
  *  - `picker`: no workspace persisted — show the workspace-pick screen.
- *  - `checkingProvisioned`: a workspace is known, checking `isProvisioned()`
- *    to decide between `installing` and `updating`.
+ *  - `checkingProvisioned`: a workspace is known, checking `provisionState()`
+ *    (disk-based, for this specific path) to decide between `installing` and
+ *    `updating`.
  *  - `installing`: workspace known but not yet BMAD-provisioned — guided
  *    install screen (T9). Completing it goes straight to `ready` (a
  *    just-provisioned workspace doesn't need an update in the same launch).
@@ -59,14 +60,16 @@ function App(): React.JSX.Element {
   }, [])
 
   // Once a workspace is known (persisted, or just picked), decide between
-  // the guided install (T9) and the auto-update gate (T10) based on
-  // isProvisioned() (R2.3, R8.2: a returning user's remembered workspace
+  // the guided install (T9) and the auto-update gate (T10) based on a
+  // disk-based provisionState() check for this specific workspacePath
+  // (WS-R3.3: routing must depend on the selected path, not a global
+  // config flag — R2.3, R8.2: a returning user's remembered workspace
   // updates before the work UI; a fresh/unprovisioned one installs first).
   useEffect(() => {
     if (onboarding.status !== 'checkingProvisioned') return
     let cancelled = false
     const { workspacePath } = onboarding
-    window.hive.isProvisioned().then((provisioned) => {
+    window.hive.provisionState(workspacePath).then((provisioned) => {
       if (cancelled) return
       setOnboarding(
         provisioned

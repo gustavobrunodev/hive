@@ -100,8 +100,19 @@ vi.mock('@hive/design-system', () => ({
 // off the right workspace, so `WorkUI` itself is mocked to a trivial marker
 // rather than duplicating every one of those DS mocks here.
 vi.mock('./WorkUI', () => ({
-  WorkUI: ({ workspace }: { workspace: string }) =>
-    createElement('div', { 'data-testid': 'work-ui' }, `WorkUI: ${workspace}`)
+  WorkUI: ({
+    workspace,
+    onToggleTheme
+  }: {
+    workspace: string
+    onToggleTheme?: () => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'work-ui' },
+      `WorkUI: ${workspace}`,
+      createElement('button', { onClick: onToggleTheme }, 'toggle theme')
+    )
 }))
 
 describe('App — first-run workspace gate + guided install + update gate (T6, T9, T10)', () => {
@@ -166,7 +177,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
   it('skips the picker and shows the update gate for an already-provisioned returning user (R8.2)', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(true)
+      provisionState: vi.fn().mockResolvedValue(true)
     })
 
     render(createElement(App))
@@ -180,7 +191,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     let emitDone: (() => void) | undefined
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(true),
+      provisionState: vi.fn().mockResolvedValue(true),
       updateBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
         emitDone = () => onEvent({ type: 'done' })
         return () => {}
@@ -194,13 +205,22 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     emitDone?.()
 
     expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
+
+    const initialTheme = document.documentElement.getAttribute('data-theme')
+    fireEvent.click(screen.getByText('toggle theme'))
+    const toggledTheme = document.documentElement.getAttribute('data-theme')
+    expect(toggledTheme).not.toBe(initialTheme)
+
+    // Toggle back — exercises both branches of the dark/light ternary.
+    fireEvent.click(screen.getByText('toggle theme'))
+    expect(document.documentElement.getAttribute('data-theme')).toBe(initialTheme)
   })
 
   it('"continue anyway" on a failed update advances to ready without retrying (R4.2)', async () => {
     let emitError: (() => void) | undefined
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(true),
+      provisionState: vi.fn().mockResolvedValue(true),
       updateBmad: vi.fn(
         (_workspace: string, onEvent: (evt: { type: string; message?: string }) => void) => {
           emitError = () => onEvent({ type: 'error', message: 'falha de rede' })
@@ -223,7 +243,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
   it('shows the guided install screen for a returning user whose workspace is not yet provisioned', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(false)
+      provisionState: vi.fn().mockResolvedValue(false)
     })
 
     render(createElement(App))
@@ -236,7 +256,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue(null),
       chooseWorkspace: vi.fn().mockResolvedValue('/home/user/chosen-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(false)
+      provisionState: vi.fn().mockResolvedValue(false)
     })
 
     render(createElement(App))
@@ -249,11 +269,34 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
   })
 
+  it('routes a first-run pick of an already-provisioned folder to the update gate, not install (WS-R3.3)', async () => {
+    // Regression test for the latent bug: routing must be decided by a
+    // disk-based provisionState() check on the *specific* picked path, not
+    // a global config.provisioned flag — otherwise a first-run pick of a
+    // folder that already has BMAD installed incorrectly lands on
+    // `installing` instead of `updating`.
+    const provisionState = vi.fn().mockResolvedValue(true)
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue(null),
+      chooseWorkspace: vi.fn().mockResolvedValue('/home/user/already-provisioned'),
+      provisionState
+    })
+
+    render(createElement(App))
+
+    const chooseButton = await screen.findByText('Escolher workspace')
+    fireEvent.click(chooseButton)
+
+    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
+    expect(screen.queryByText('Configurar o BMAD')).toBeNull()
+    expect(provisionState).toHaveBeenCalledWith('/home/user/already-provisioned')
+  })
+
   it('advances from guided install to the ready placeholder once installBmad() reports done', async () => {
     let emitDone: (() => void) | undefined
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
-      isProvisioned: vi.fn().mockResolvedValue(false),
+      provisionState: vi.fn().mockResolvedValue(false),
       installBmad: vi.fn(
         (_workspace: string, _options: unknown, onEvent: (evt: { type: string }) => void) => {
           emitDone = () => onEvent({ type: 'done' })
