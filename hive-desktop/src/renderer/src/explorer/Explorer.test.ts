@@ -37,14 +37,25 @@ import { FileTree, FileViewer } from './Explorer'
  * handlers) all live inside `renderLabel`, so a mock that renders
  * `node.label` directly would never exercise any of it.
  */
-function ExplorerHarness({ workspace }: { workspace: string }): ReactNode {
+function ExplorerHarness({
+  workspace,
+  onDirtyChange
+}: {
+  workspace: string
+  onDirtyChange?: (dirty: boolean) => void
+}): ReactNode {
   const [openPath, setOpenPath] = useState<string | null>(null)
   return createElement(
     'div',
     null,
     createElement(FileTree, { workspace, selectedPath: openPath, onOpenFile: setOpenPath }),
     openPath !== null
-      ? createElement(FileViewer, { workspace, path: openPath, onClose: () => setOpenPath(null) })
+      ? createElement(FileViewer, {
+          workspace,
+          path: openPath,
+          onClose: () => setOpenPath(null),
+          onDirtyChange
+        })
       : null
   )
 }
@@ -1698,6 +1709,57 @@ describe('Explorer (T12/T8)', () => {
     expect(await screen.findByRole('button', { name: 'Salvar' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeTruthy()
     expect(document.querySelector('.wb-dirty-dot')).toBeTruthy()
+  })
+
+  // --- WS-R5.1 enablement: FileViewer.onDirtyChange (T6, workspace-switching) ---
+
+  it('onDirtyChange(true) fires when the draft diverges from the saved content', async () => {
+    const onDirtyChange = vi.fn()
+    render(createElement(ExplorerHarness, { workspace: '/ws', onDirtyChange }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    await screen.findByLabelText('Conteúdo do arquivo')
+
+    onDirtyChange.mockClear()
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenCalledWith(true)
+    })
+  })
+
+  it('onDirtyChange(false) fires after Save clears the dirty draft', async () => {
+    window.hive.fs.statFile = vi.fn().mockResolvedValue({ mtimeMs: 4242, size: 19 })
+    const onDirtyChange = vi.fn()
+    render(createElement(ExplorerHarness, { workspace: '/ws', onDirtyChange }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    })
+  })
+
+  it('onDirtyChange(false) fires after Discard reverts the draft', async () => {
+    const onDirtyChange = vi.fn()
+    render(createElement(ExplorerHarness, { workspace: '/ws', onDirtyChange }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descartar' }))
+
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    })
   })
 
   it('Save calls saveFile with the draft content and the statFile baseline mtimeMs, then clears dirty', async () => {

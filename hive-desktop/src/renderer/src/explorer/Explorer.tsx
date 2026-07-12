@@ -1173,6 +1173,13 @@ export interface FileViewerProps {
   path: string
   /** Invoked by the header's close control — the pane only exists while a file is open. */
   onClose: () => void
+  /**
+   * Enablement-only hook for the workspace-switching guard (WS-R5.1,
+   * design.md §5): fired whenever the local `dirty` state changes (including
+   * on mount) so a parent (`WorkUI`) can observe it without owning any of
+   * the in-viewer guard behavior itself, which stays exactly as-is here.
+   */
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 /**
@@ -1231,7 +1238,12 @@ type ViewerMode = 'edit' | 'preview'
  * `displayedPath` (and thus the fetch effect below) only advances once the
  * user confirms discarding.
  */
-export function FileViewer({ workspace, path, onClose }: FileViewerProps): React.JSX.Element {
+export function FileViewer({
+  workspace,
+  path,
+  onClose,
+  onDirtyChange
+}: FileViewerProps): React.JSX.Element {
   const [displayedPath, setDisplayedPath] = useState(path)
   const [viewerState, setViewerState] = useState<ViewerState>({
     status: 'loading',
@@ -1251,6 +1263,14 @@ export function FileViewer({ workspace, path, onClose }: FileViewerProps): React
 
   const editable = isEditablePath(displayedPath)
   const dirty = editable && viewerState.status === 'ready' && draft !== viewerState.content
+
+  // WS-R5.1 enablement (design.md §5): reports `dirty` upward whenever it
+  // changes, including on mount, so a parent can lift/observe it for a
+  // future switch guard — purely additive, no in-viewer guard behavior
+  // changes here.
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
 
   useEffect(() => {
     let cancelled = false
