@@ -215,14 +215,20 @@ describe('main process bootstrap', () => {
   })
 
   it('workspace:choose drives dialog.showOpenDialog, persists the pick, and is readable back via workspace:get', async () => {
+    // WorkspaceService (T2) now validates the picked path against the real
+    // filesystem (openWorkspace's default pathExists/isDirectory), so this
+    // uses a real, existing directory rather than an arbitrary fake path.
+    const pickedWorkspace = mkdtempSync(join(tmpdir(), 'hive-main-index-picked-'))
     vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
       canceled: false,
-      filePaths: ['/picked/workspace']
+      filePaths: [pickedWorkspace]
     } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
 
-    await expect(findHandler('workspace:choose')()).resolves.toBe('/picked/workspace')
+    await expect(findHandler('workspace:choose')()).resolves.toBe(pickedWorkspace)
     expect(dialog.showOpenDialog).toHaveBeenCalledWith({ properties: ['openDirectory'] })
-    await expect(findHandler('workspace:get')()).resolves.toBe('/picked/workspace')
+    await expect(findHandler('workspace:get')()).resolves.toBe(pickedWorkspace)
+
+    rmSync(pickedWorkspace, { recursive: true, force: true })
   })
 
   // T11: FsService wiring — request/response methods route to the (mocked)
