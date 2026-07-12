@@ -6,8 +6,9 @@ import type {
   SessionOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
-import type { BmadEvent } from '../main/bmadService'
+import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry } from '../main/workflowCatalog'
+import type { OpenResult } from '../main/workspaceService'
 
 declare global {
   interface Window {
@@ -20,6 +21,12 @@ declare global {
       openExternal(url: string): Promise<void>
       getWorkspace(): Promise<string | null>
       isProvisioned(): Promise<boolean>
+      /** T3 (WS-R3.2): disk-based provisioning check for an arbitrary path — see preload/index.ts for the full channel design. */
+      provisionState(path: string): Promise<boolean>
+      /** T3 (WS-R2): the persisted MRU workspace list, newest-first — see preload/index.ts for the full channel design. */
+      getRecentWorkspaces(): Promise<string[]>
+      /** T3 (WS-R6.3): validates and opens `path` as the active workspace, persisting it as the MRU head — see preload/index.ts for the full channel design. */
+      openWorkspace(path: string): Promise<OpenResult>
       listTree(root: string, relativePath?: string): Promise<TreeNode[]>
       readFile(root: string, relativePath: string): Promise<string>
       /** Starts watching `root`; returns an unsubscribe function (see preload/index.ts for the full channel design). */
@@ -34,7 +41,11 @@ declare global {
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
       /** BmadService (T8/T9) install stream — see preload/index.ts for the full channel design. */
-      installBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
+      installBmad(
+        workspace: string,
+        options: BmadInstallOptions,
+        onEvent: (evt: BmadEvent) => void
+      ): () => void
       /** BmadService.update() (T10) stream — see preload/index.ts for the full channel design. */
       updateBmad(workspace: string, onEvent: (evt: BmadEvent) => void): () => void
       /** WorkflowCatalog (T17) surface — see preload/index.ts for the full channel design. */

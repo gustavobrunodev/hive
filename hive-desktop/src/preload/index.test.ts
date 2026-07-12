@@ -78,6 +78,44 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:isProvisioned')
   })
 
+  // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching IPC methods, added to
+  // the same `hive` bridge object following the exact chooseWorkspace()/
+  // getWorkspace()/isProvisioned() pattern above.
+  it('exposes hive.provisionState/getRecentWorkspaces/openWorkspace as typed methods', () => {
+    const globals = exposedGlobals()
+    expect(globals.get('hive')).toEqual(
+      expect.objectContaining({
+        provisionState: expect.any(Function),
+        getRecentWorkspaces: expect.any(Function),
+        openWorkspace: expect.any(Function)
+      })
+    )
+  })
+
+  it('hive.provisionState(path) round-trips through ipcRenderer.invoke("workspace:provisionState", path)', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      provisionState: (path: string) => Promise<boolean>
+    }
+    await expect(hive.provisionState('/some/path')).resolves.toBe(
+      'invoked:workspace:provisionState'
+    )
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:provisionState', '/some/path')
+  })
+
+  it('hive.getRecentWorkspaces() round-trips through ipcRenderer.invoke("workspace:recents")', async () => {
+    const hive = exposedGlobals().get('hive') as { getRecentWorkspaces: () => Promise<string[]> }
+    await expect(hive.getRecentWorkspaces()).resolves.toBe('invoked:workspace:recents')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:recents')
+  })
+
+  it('hive.openWorkspace(path) round-trips through ipcRenderer.invoke("workspace:open", path)', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      openWorkspace: (path: string) => Promise<unknown>
+    }
+    await expect(hive.openWorkspace('/some/path')).resolves.toBe('invoked:workspace:open')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:open', '/some/path')
+  })
+
   // Proving "renderer has no require/fs/child_process access" from *this*
   // test would be hollow: the module under test never imports those, so a
   // string/shape check here only tests our mocks. The real, meaningful proof
@@ -185,14 +223,19 @@ describe('preload: window.hive bridge', () => {
   })
 
   // T8/T9/T10: BmadService install/update streams, never covered by a test.
-  it('hive.installBmad(workspace, onEvent) registers a listener, sends bmad:install:start, and the returned unsubscribe removes the listener + sends bmad:install:stop', () => {
+  it('hive.installBmad(workspace, options, onEvent) registers a listener, sends bmad:install:start with the options, and the returned unsubscribe removes the listener + sends bmad:install:stop', () => {
     const hive = exposedGlobals().get('hive') as {
-      installBmad: (workspace: string, onEvent: (evt: unknown) => void) => () => void
+      installBmad: (
+        workspace: string,
+        options: { modules: string[] },
+        onEvent: (evt: unknown) => void
+      ) => () => void
     }
     const onEvent = vi.fn()
-    const unsubscribe = hive.installBmad('/root', onEvent)
+    const options = { modules: ['bmm'] }
+    const unsubscribe = hive.installBmad('/root', options, onEvent)
     expect(ipcRenderer.on).toHaveBeenCalledWith('bmad:install:event', expect.any(Function))
-    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:start', '/root')
+    expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:start', '/root', options)
 
     const listener = vi
       .mocked(ipcRenderer.on)

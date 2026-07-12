@@ -214,6 +214,9 @@ describe('Explorer (T12/T8)', () => {
       openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
+      provisionState: vi.fn().mockResolvedValue(false),
+      getRecentWorkspaces: vi.fn().mockResolvedValue([]),
+      openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue(fixtureTree),
       readFile: vi.fn().mockResolvedValue('plain text content'),
       watchWorkspace: vi.fn((_root, onChange: WatchListener) => {

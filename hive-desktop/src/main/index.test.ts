@@ -231,6 +231,55 @@ describe('main process bootstrap', () => {
     rmSync(pickedWorkspace, { recursive: true, force: true })
   })
 
+  // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching handlers, delegating to
+  // the same real WorkspaceService/ConfigStore pair as the three handlers
+  // above (no mocking of WorkspaceService itself — this suite already wires
+  // a real instance backed by the mocked app.getPath('userData') temp dir).
+  it('registers workspace:provisionState, workspace:recents, and workspace:open handlers', () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('workspace:provisionState', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('workspace:recents', expect.any(Function))
+    expect(ipcMain.handle).toHaveBeenCalledWith('workspace:open', expect.any(Function))
+  })
+
+  it('workspace:provisionState reports false for an unprovisioned directory (no _bmad/_config/manifest.yaml)', async () => {
+    const fakeInvokeEvent = {}
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-provision-'))
+    await expect(findHandler('workspace:provisionState')(fakeInvokeEvent, dir)).resolves.toBe(
+      false
+    )
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('workspace:open validates and persists a path, and workspace:recents reflects it as the MRU head', async () => {
+    const fakeInvokeEvent = {}
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-open-'))
+
+    await expect(findHandler('workspace:open')(fakeInvokeEvent, dir)).resolves.toEqual({
+      ok: true,
+      path: dir
+    })
+    await expect(findHandler('workspace:get')()).resolves.toBe(dir)
+    // MRU is shared with the earlier workspace:choose test in this describe
+    // block (same ConfigStore instance), so only the head (this open) is
+    // asserted rather than the full list.
+    await expect(findHandler('workspace:recents')()).resolves.toEqual(
+      expect.arrayContaining([dir])
+    )
+    const recents = (await findHandler('workspace:recents')()) as string[]
+    expect(recents[0]).toBe(dir)
+
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('workspace:open reports a non-fatal "missing" reason for a path that does not exist on disk', async () => {
+    const fakeInvokeEvent = {}
+    const missing = join(tmpdir(), 'hive-main-index-open-missing-does-not-exist')
+    await expect(findHandler('workspace:open')(fakeInvokeEvent, missing)).resolves.toEqual({
+      ok: false,
+      reason: 'missing'
+    })
+  })
+
   // T11: FsService wiring — request/response methods route to the (mocked)
   // FsService with the exact args the renderer passed.
   it('registers fs:listTree and fs:readFile handlers, routing to FsService', async () => {
@@ -553,8 +602,8 @@ describe('main process bootstrap', () => {
     const send = vi.fn()
     const fakeEvent = { sender: { id: 55, send } }
 
-    findOnHandler('bmad:install:start')(fakeEvent, '/ws')
-    expect(fakeBmadService.install).toHaveBeenCalledWith('/ws')
+    findOnHandler('bmad:install:start')(fakeEvent, '/ws', { modules: ['bmm'] })
+    expect(fakeBmadService.install).toHaveBeenCalledWith('/ws', { modules: ['bmm'] })
 
     // Flush the generator's first yield.
     await new Promise((resolve) => setTimeout(resolve, 0))

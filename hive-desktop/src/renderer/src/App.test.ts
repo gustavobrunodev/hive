@@ -58,7 +58,39 @@ vi.mock('@hive/design-system', () => ({
     createElement('div', rest, createElement('strong', null, title), children),
   Progress: () => createElement('div', { role: 'progressbar' }),
   SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
-  SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title)
+  SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title),
+  // Guided-install form (BUG 1) controls — trivial DOM stand-ins so App's
+  // gate tests can drive the form the real GuidedInstall now shows first.
+  Checkbox: ({
+    id,
+    checked,
+    onCheckedChange
+  }: {
+    id?: string
+    checked?: boolean
+    onCheckedChange?: (checked: boolean) => void
+  }) =>
+    createElement('input', {
+      type: 'checkbox',
+      id,
+      checked: Boolean(checked),
+      onChange: (e: { target: { checked: boolean } }) => onCheckedChange?.(e.target.checked)
+    }),
+  Field: ({ label, children }: { label?: ReactNode; children?: ReactNode }) =>
+    createElement('label', null, label, children),
+  Input: (props: Record<string, unknown>) => createElement('input', props),
+  Label: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('label', rest, children),
+  RadioGroup: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'radiogroup' }, children),
+  RadioGroupItem: ({ id, value }: { id?: string; value?: string }) =>
+    createElement('input', { type: 'radio', id, value, name: 'skill', readOnly: true }),
+  Select: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectItem: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectTrigger: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('div', rest, children),
+  SelectValue: () => createElement('span')
 }))
 
 // `WorkUI` (T19) composes `Explorer`/`Chat`, each with their own large DS
@@ -89,6 +121,9 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
+      provisionState: vi.fn().mockResolvedValue(false),
+      getRecentWorkspaces: vi.fn().mockResolvedValue([]),
+      openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue([]),
       readFile: vi.fn().mockResolvedValue(''),
       watchWorkspace: vi.fn().mockReturnValue(() => {}),
@@ -193,7 +228,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     render(createElement(App))
 
-    expect(await screen.findByText('Preparando seu workspace')).toBeTruthy()
+    // Guided install now opens on its configuration form (BUG 1).
+    expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
   })
 
   it('advances to the guided install screen (not straight to ready) after a fresh pick', async () => {
@@ -208,7 +244,9 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     const chooseButton = await screen.findByText('Escolher workspace')
     fireEvent.click(chooseButton)
 
-    expect(await screen.findByText('Preparando seu workspace')).toBeTruthy()
+    // A fresh, unprovisioned pick lands on the guided-install configuration
+    // form (BUG 1) — not straight to the work UI, and not silently installing.
+    expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
   })
 
   it('advances from guided install to the ready placeholder once installBmad() reports done', async () => {
@@ -216,14 +254,18 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
       isProvisioned: vi.fn().mockResolvedValue(false),
-      installBmad: vi.fn((_workspace: string, onEvent: (evt: { type: string }) => void) => {
-        emitDone = () => onEvent({ type: 'done' })
-        return () => {}
-      })
+      installBmad: vi.fn(
+        (_workspace: string, _options: unknown, onEvent: (evt: { type: string }) => void) => {
+          emitDone = () => onEvent({ type: 'done' })
+          return () => {}
+        }
+      )
     })
 
     render(createElement(App))
 
+    // Submit the config form to kick off the install, then drive it to done.
+    fireEvent.click(await screen.findByText('Instalar BMAD'))
     await screen.findByText('Preparando seu workspace')
     expect(emitDone).toBeTruthy()
     emitDone?.()

@@ -9,7 +9,7 @@ import { createProcessRunner } from './processRunner'
 import { createClaudeCliAdapter } from './claudeCliAdapter'
 import { createAgentService } from './agentService'
 import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
-import { createBmadService } from './bmadService'
+import { createBmadService, type BmadInstallOptions } from './bmadService'
 import { listWithDiscovery } from './workflowCatalog'
 
 // T3 (UX-R7.3): protocols window.hive.openExternal is allowed to hand to
@@ -107,6 +107,15 @@ app.whenReady().then(() => {
   ipcMain.handle('workspace:choose', async () => workspaceService.chooseWorkspace())
   ipcMain.handle('workspace:get', async () => workspaceService.getWorkspace())
   ipcMain.handle('workspace:isProvisioned', async () => workspaceService.isProvisioned())
+  // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching methods, following the
+  // exact synchronous-delegate-wrapped-in-async-handle pattern above.
+  ipcMain.handle('workspace:provisionState', async (_event, path: string) =>
+    workspaceService.provisionState(path)
+  )
+  ipcMain.handle('workspace:recents', async () => workspaceService.getRecentWorkspaces())
+  ipcMain.handle('workspace:open', async (_event, path: string) =>
+    workspaceService.openWorkspace(path)
+  )
 
   // FsService (T11/T6): a single stateless instance (it takes `root` per
   // call, see fsService.ts) exposed as
@@ -290,11 +299,11 @@ app.whenReady().then(() => {
   const bmadService = createBmadService(processRunner, configStore)
   const activeInstallStops = new Map<number, () => void>()
 
-  ipcMain.on('bmad:install:start', (event, workspace: string) => {
+  ipcMain.on('bmad:install:start', (event, workspace: string, options: BmadInstallOptions) => {
     activeInstallStops.get(event.sender.id)?.()
     let stopped = false
     void (async () => {
-      for await (const bmadEvent of bmadService.install(workspace)) {
+      for await (const bmadEvent of bmadService.install(workspace, options)) {
         if (stopped) return
         event.sender.send('bmad:install:event', bmadEvent)
       }

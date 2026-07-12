@@ -7,8 +7,9 @@ import type {
   SessionOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
-import type { BmadEvent } from '../main/bmadService'
+import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry } from '../main/workflowCatalog'
+import type { OpenResult } from '../main/workspaceService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -60,6 +61,12 @@ const hive = {
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
   getWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:get'),
   isProvisioned: (): Promise<boolean> => ipcRenderer.invoke('workspace:isProvisioned'),
+  // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching methods, same
+  // invoke/response shape as the three methods above.
+  provisionState: (path: string): Promise<boolean> =>
+    ipcRenderer.invoke('workspace:provisionState', path),
+  getRecentWorkspaces: (): Promise<string[]> => ipcRenderer.invoke('workspace:recents'),
+  openWorkspace: (path: string): Promise<OpenResult> => ipcRenderer.invoke('workspace:open', path),
 
   // FsService (T11), request/response — same invoke/response shape as the
   // methods above.
@@ -128,10 +135,14 @@ const hive = {
   // underlying stream naturally ends on its own (a `done`/`error` event is
   // always the last one) — `unsubscribe` is still provided for an early-exit
   // case (e.g. the onboarding screen unmounting mid-install).
-  installBmad: (workspace: string, onEvent: (evt: BmadEvent) => void): (() => void) => {
+  installBmad: (
+    workspace: string,
+    options: BmadInstallOptions,
+    onEvent: (evt: BmadEvent) => void
+  ): (() => void) => {
     const listener = (_event: IpcRendererEvent, evt: BmadEvent): void => onEvent(evt)
     ipcRenderer.on('bmad:install:event', listener)
-    ipcRenderer.send('bmad:install:start', workspace)
+    ipcRenderer.send('bmad:install:start', workspace, options)
     return () => {
       ipcRenderer.removeListener('bmad:install:event', listener)
       ipcRenderer.send('bmad:install:stop')
