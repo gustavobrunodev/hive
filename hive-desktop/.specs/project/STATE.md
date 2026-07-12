@@ -49,6 +49,21 @@ Updated as work progresses. Load at start of every session.
   on changed files (not global). Plan in `.specs/features/file-management/`.
   (2026-07-11)
 
+- **D12 — Feature `explorer-editor-ux` (M7).** 7 UX improvements on M4's file
+  management, planned 2026-07-11 (spec/design/tasks/context in
+  `.specs/features/explorer-editor-ux/`). Gray-area decisions (context.md):
+  (C1) editable files **open in raw edit** by default, preview is a toggle;
+  (C2) Markdown preview uses **`react-markdown`+`remark-gfm`** (real dep,
+  replaces the hand-rolled `ui/markdown.tsx`); (C3) multi-select is **full
+  OS-like** — Ctrl/Shift select drives **bulk delete + bulk drag-move**
+  (supersedes M4's single-item non-goal); (C4) HTML preview is a **sandboxed
+  `srcdoc` iframe + auto-reload** (no local HTTP server — relative-asset support
+  deferred). Requires the DS `Tree` (`design-system/src/components/Tree`)
+  extended to be **modifier-aware** (Ctrl/Meta toggle, Shift range from an
+  anchor over its visible-flat order) — additive, single-mode unchanged. User
+  rules: validate every visual behavior via the **Playwright MCP**; free to
+  extend/create DS components for UX. (2026-07-11)
+
 ## Blockers
 
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
@@ -71,6 +86,20 @@ Updated as work progresses. Load at start of every session.
 
 ## Lessons
 
+- **A `file:`-linked React package that ships its own `node_modules/react`
+  duplicates React in the renderer → "invalid hook call" crash (2026-07-11).**
+  Symptom: `#root` never gets content; the very first DS-backed component's
+  hook (`Spinner`'s `useState`) throws
+  `Cannot read properties of null (reading 'useState')` before any app UI
+  mounts. Cause: `@hive/design-system` (`file:../design-system`) is bundled
+  with react/react-dom kept `external` (`design-system/build.mjs`), so Vite
+  resolves those imports relative to the linked package's own
+  `node_modules/react` — a *second physical copy* alongside
+  `hive-desktop/node_modules/react`. Two React instances in one renderer =
+  invalid hook call. Fix: `renderer.resolve.dedupe: ['react', 'react-dom']`
+  in `electron.vite.config.ts` (Vite's canonical dedupe for linked packages) —
+  forces a single copy. `npm`'s `file:` link does no hoisting/dedupe on its
+  own, so any future linked package that carries React needs this to hold.
 - **`sandbox: true` + electron-vite's default preload externalization is a
   broken combo — found via a real `npm run dev` crash (2026-07-10).**
   Symptom: app window loads to Vite's red error overlay, no useful message
@@ -199,6 +228,20 @@ Updated as work progresses. Load at start of every session.
   this (R4.2's "continue anyway" on an `error` event), which
   `file-management.spec.ts` races against the happy path and clicks if hit —
   legitimate, not a workaround.
+- **T11 — RESOLVED (2026-07-11): the duplicate-React-module-instance crash is
+  fixed.** Fix: added `resolve.dedupe: ['react', 'react-dom']` to the `renderer`
+  config in `electron.vite.config.ts`. The DS bundle keeps react/react-dom
+  `external` (`design-system/build.mjs`), so Vite was resolving those imports
+  relative to the linked package (`design-system/node_modules/react`) — a
+  different physical copy than the app's — bundling two Reacts into one
+  renderer. `dedupe` forces every react/react-dom import to the app's single
+  copy. Verified under `xvfb-run` (throwaway-userData Playwright launch): `#root`
+  now renders the full `.wb-app` shell (~58 KB), **0 page errors, 0
+  invalid-hook-call errors** (previously `Spinner` threw
+  `Cannot read properties of null (reading 'useState')` before `#root` got any
+  content). `e2e/file-management.spec.ts` should now be re-runnable via
+  `npm run build && xvfb-run -a npm run test:e2e:app`. Original diagnosis
+  retained below.
 - **T11 — real blocker found: the app currently crashes before ever reaching
   the work UI, due to a duplicate-React-module-instance bug, unrelated to
   file-management.** Diagnosed via a throwaway Playwright script that dumped
@@ -225,6 +268,57 @@ Updated as work progresses. Load at start of every session.
   legitimately slow). Whoever resolves the design-system rework's React
   duplication should re-run `npm run build && xvfb-run -a npm run
   test:e2e:app` — expected to pass once `#root` actually renders.
+- **T14 — real bug found by E2E validation: `react-resizable-panels` v4
+  treats bare numeric `minSize`/`maxSize`/`defaultSize` as PIXELS, not
+  percent (2026-07-12).** `WorkUI.tsx`'s `ResizablePanel`s passed plain
+  numbers (`minSize={12} maxSize={40} defaultSize={22}` etc.) intending
+  percentages, matching the DS `Resizable` doc comment's claim of "minSize/
+  maxSize/collapsible per react-resizable-panels" — but the installed
+  `react-resizable-panels@4.12.0`'s own type doc is explicit: "Numeric values
+  are assumed to be pixels. Strings without explicit units are assumed to be
+  percentages." So the rail was silently clamped to a literal **40px**
+  (`maxSize={40}` as pixels) on every launch — T11's whole "resizable file
+  rail" feature was effectively broken (a barely-visible 40px sliver, not a
+  22%-wide pane), and dragging the handle had no visible effect since the
+  pixel-based max was already hit. Caught while writing T14's rail-resize E2E
+  scenario: a throwaway Playwright script dumping `getBoundingClientRect()`
+  and the Panel's own computed `flex-grow` inline style showed `4.489`
+  instead of the expected `~22`, and `maxSize`'s value (40) matched the
+  measured pixel width exactly — too specific to be a coincidence. Fixed by
+  passing string percentages instead (`minSize="12%" maxSize="40%"
+  defaultSize="22%"`, same for `chat`/`viewer`) in `WorkUI.tsx`; re-verified
+  the rail now defaults to ~22% of window width and resizes properly up to
+  the intended 40% cap. Per T14's own instruction ("debug real failures,
+  don't weaken assertions") this was fixed in product code, not routed around
+  in the test. Lesson for any future `ResizablePanel` usage in this codebase:
+  always pass size props as `"NN%"` strings, never bare numbers.
+- **T14 — Playwright MCP tools (`mcp__playwright__browser_*`) do not apply to
+  this Electron app; they drive the MCP server's own separate Chromium
+  instance with no path to the app's renderer (2026-07-12).** Verified live:
+  `browser_navigate` to `about:blank` opens a normal page in the MCP's own
+  managed browser context — there is no `connect`/`cdp-endpoint`-style tool
+  in this session's Playwright MCP surface to attach it to an arbitrary
+  external process's DevTools Protocol endpoint, and even if there were, this
+  app's renderer only exposes `window.hive` via a `contextBridge` preload
+  that a vanilla MCP-navigated tab (no Electron main process, no IPC) could
+  never see — so "navigate to the app" isn't meaningful the way it is for a
+  web app under test. Per context.md R-A's actual intent (validate visual
+  behavior in the real running app, not assert blind), the correct
+  Electron-native equivalent already in place is `_electron.launch` via
+  `@playwright/test` (`e2e/*.spec.ts`) — same underlying Playwright engine,
+  just its Node test-runner API instead of the MCP tool surface, and it's the
+  only one of the two that can actually reach `window.hive`/the real
+  BrowserWindow. T14's 8 new E2E scenarios (real DOM/on-disk assertions) plus
+  a handful of throwaway `_electron.launch` scripts (bounding-box/computed-
+  style dumps used to diagnose the rail-resize bug above, and
+  `window.screenshot()` captures of the md-table/html-preview/multi-select/
+  rail-resize states) serve as this feature's actual "Playwright MCP pass" —
+  screenshots taken via the real Electron page object, not the MCP tool
+  names, but the same evidence-gathering spirit. Worth flagging in any future
+  Electron-app task that literally asks for "the Playwright MCP tools": they
+  need `--remote-debugging-port` on the target app *and* an MCP server
+  configured with a matching `--cdp-endpoint` to be useful there at all,
+  neither of which is set up in this environment.
 
 ## Todos (cross-feature)
 
@@ -233,6 +327,21 @@ Updated as work progresses. Load at start of every session.
   E2E spec. The E2E spec (`e2e/file-management.spec.ts`) is correct but
   currently blocked from completing by the unrelated React-duplication crash
   above — re-run once that's fixed. ROADMAP M4 marked done.
+- **explorer-editor-ux (M7, T1–T14) fully implemented on `main` (2026-07-12).**
+  All 7 planned UX improvements shipped: edit-by-default + preview toggle,
+  Ctrl+S + 3-way save-on-close dialog, rename/create commit-on-blur, Ctrl/
+  Shift multi-select + bulk delete/drag-move, resizable+persisted file rail,
+  `react-markdown`+`remark-gfm` table/task-list preview, sandboxed `.html`
+  live preview. T14 closed the feature: `e2e/explorer-editor-ux.spec.ts`
+  (new, 8 tests) covers open-by-default+Ctrl+S-save, close-dirty 3-way dialog,
+  rename-via-blur, Ctrl-click bulk delete, Shift-click range select, rail
+  resize persisted across a real app relaunch, `.md` table preview, and
+  `.html` live preview (both app-driven "instant" reload and a real on-disk
+  edit reloaded via reopen) — every scenario asserts the **on-disk** or real
+  DOM/iframe result, not mocked state. Full suite green: `npm run build &&
+  xvfb-run -a npm run test:e2e:app` → 10/10 (both E2E spec files); `npm run
+  test` → 330/330 unit tests. `.specs/features/explorer-editor-ux/tasks.md`
+  T1-T14 marked `[x]`.
 
 ## Deferred Ideas
 
