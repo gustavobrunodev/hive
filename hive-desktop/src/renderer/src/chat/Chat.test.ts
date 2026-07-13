@@ -165,6 +165,7 @@ describe('Chat (T15)', () => {
         }),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn((onEvent: (event: AgentEventLike) => void) => {
           capturedOnEvent = onEvent
           return vi.fn()
@@ -331,6 +332,7 @@ describe('Chat (T15)', () => {
         ),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn(() => vi.fn())
       },
       workflows: {
@@ -392,5 +394,27 @@ describe('Chat (T15)', () => {
     await waitFor(() => {
       expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-b', effort: 'low' })
     })
+  })
+
+  /**
+   * Task T8 (WS-R5.2, design.md §5.2/§8): the one behavior design.md flags
+   * as needing an explicit hands-on check — does `Chat` unmounting (e.g.
+   * because `App`/`WorkUI` remounted the whole subtree under a workspace
+   * switch's new `key`) actually tear its session down, rather than leaving
+   * it running orphaned until (if ever) a new session happens to start?
+   * `agent.stop()` (new IPC call, wired into `AgentService.stop()`) is the
+   * explicit teardown call this test proves fires on unmount.
+   */
+  it('calls agent.stop() to tear down the session on unmount (WS-R5.2)', async () => {
+    mockHive()
+
+    const { unmount } = render(createElement(Chat, { workspace: '/ws' }))
+    await waitFor(() => expect(window.hive.agent.start).toHaveBeenCalled())
+
+    expect(window.hive.agent.stop).not.toHaveBeenCalled()
+
+    unmount()
+
+    expect(window.hive.agent.stop).toHaveBeenCalledTimes(1)
   })
 })

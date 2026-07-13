@@ -160,6 +160,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         start: vi.fn().mockResolvedValue(undefined),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),

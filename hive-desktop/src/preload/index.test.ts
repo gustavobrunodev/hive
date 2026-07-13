@@ -173,6 +173,7 @@ describe('preload: window.hive bridge', () => {
       start: (opts: unknown) => Promise<void>
       send: (text: string) => Promise<void>
       runWorkflow: (cmd: unknown) => Promise<void>
+      stop: () => Promise<void>
       onEvent: (onEvent: (evt: unknown) => void) => () => void
     } {
       return (exposedGlobals().get('hive') as { agent: ReturnType<typeof getAgent> }).agent
@@ -198,6 +199,11 @@ describe('preload: window.hive bridge', () => {
       const cmd = { key: 'plan' }
       await getAgent().runWorkflow(cmd)
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:runWorkflow', cmd)
+    })
+
+    it('agent.stop() invokes "agent:stop"', async () => {
+      await getAgent().stop()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:stop')
     })
 
     it('agent.onEvent(onEvent) registers a listener, sends agent:event:start, and the returned unsubscribe removes the listener + sends agent:event:stop', () => {

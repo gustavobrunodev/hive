@@ -195,4 +195,27 @@ describe('AgentService', () => {
 
     expect(received).toEqual([])
   })
+
+  // T8 (WS-R5.2): explicit teardown, distinct from startSession()'s own
+  // "stop the previous session" side effect — this is for the case where no
+  // new session is started right after (e.g. Chat's unmount on a workspace
+  // switch that never mounts a new Chat).
+  it('stop() stops the active session and clears it, so a later send()/runWorkflow() throws again', () => {
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(adapter)
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+
+    service.stop()
+
+    expect(sessions[0].stopped).toBe(true)
+    expect(() => service.send('hi')).toThrow(/no active session/i)
+    expect(() => service.runWorkflow({ key: 'prd' })).toThrow(/no active session/i)
+  })
+
+  it('stop() with no active session is a safe no-op', () => {
+    const { adapter } = createFakeAdapter()
+    const service = createAgentService(adapter)
+
+    expect(() => service.stop()).not.toThrow()
+  })
 })

@@ -37,6 +37,8 @@ declare global {
         start(opts: SessionOpts): Promise<void>
         send(text: string): Promise<void>
         runWorkflow(cmd: WorkflowCommand): Promise<void>
+        /** T8 (WS-R5.2): explicit teardown of the active session — see preload/index.ts for the full channel design. */
+        stop(): Promise<void>
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }

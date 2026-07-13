@@ -58,6 +58,18 @@ export interface AgentService {
    * `agent:event:*` channel pattern, which itself mirrors `fs:watch:*`.
    */
   onEvent(listener: (event: AgentEvent) => void): () => void
+  /**
+   * Stops the active session's underlying process(es), if any, and clears
+   * it as the active session (T8, WS-R5.2). Distinct from `startSession`'s
+   * internal `activeSession?.stop()` — that only tears down the *previous*
+   * session as a side effect of starting a new one. This is for the case
+   * where no new session is started right away (e.g. a workspace switch
+   * whose `Chat` unmounts and the new workspace fails to provision before a
+   * new session starts): without an explicit `stop()`, the old session's
+   * process(es) would otherwise keep running, orphaned, until (if ever) a
+   * new session starts. Safe to call with no active session (no-op).
+   */
+  stop(): void
 }
 
 function requireActiveSession(session: AgentSession | null, methodName: string): AgentSession {
@@ -107,11 +119,17 @@ export function createAgentService(adapter: AgentAdapter): AgentService {
     }
   }
 
+  function stop(): void {
+    activeSession?.stop()
+    activeSession = null
+  }
+
   return {
     capabilities: () => adapter.capabilities(),
     startSession,
     send,
     runWorkflow,
-    onEvent
+    onEvent,
+    stop
   }
 }

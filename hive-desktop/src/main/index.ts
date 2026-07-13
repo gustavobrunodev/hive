@@ -258,6 +258,12 @@ app.whenReady().then(() => {
   ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand) => {
     agentService.runWorkflow(cmd)
   })
+  // T8 (WS-R5.2): explicit session teardown, called by Chat's unmount
+  // cleanup so a switched-away-from workspace's session doesn't keep
+  // running orphaned when no new session immediately replaces it.
+  ipcMain.handle('agent:stop', async () => {
+    agentService.stop()
+  })
 
   // Streaming IPC for agent events — same channel-pattern as fs:watch:* above
   // (see its comment for the full rationale): a start/stop pair of

@@ -117,6 +117,10 @@ const hive = {
     send: (text: string): Promise<void> => ipcRenderer.invoke('agent:send', text),
     runWorkflow: (cmd: WorkflowCommand): Promise<void> =>
       ipcRenderer.invoke('agent:runWorkflow', cmd),
+    // T8 (WS-R5.2): explicit teardown of the active session, called from
+    // `Chat`'s unmount cleanup so a switched-away-from workspace's session
+    // doesn't linger orphaned when no new session starts right after.
+    stop: (): Promise<void> => ipcRenderer.invoke('agent:stop'),
     onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
       ipcRenderer.on('agent:event', listener)

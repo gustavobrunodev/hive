@@ -113,6 +113,7 @@ const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
       startSession: vi.fn(),
       send: vi.fn(),
       runWorkflow: vi.fn(),
+      stop: vi.fn(),
       onEvent: vi.fn((listener: (event: unknown) => void) => {
         const unsubscribe = vi.fn()
         agentOnEventCalls.push({ listener, unsubscribe })
@@ -553,6 +554,15 @@ describe('main process bootstrap', () => {
     const cmd = { key: 'prd' }
     await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd)
     expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd)
+  })
+
+  // T8 (WS-R5.2): explicit session-teardown handler, called by Chat's
+  // unmount cleanup — routes to AgentService.stop() with no args.
+  it('registers an agent:stop handler routing to AgentService.stop()', async () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('agent:stop', expect.any(Function))
+
+    await findHandler('agent:stop')({})
+    expect(fakeAgentService.stop).toHaveBeenCalledTimes(1)
   })
 
   // T14: AgentService streaming wiring — 'agent:event:start'/'agent:event:stop'

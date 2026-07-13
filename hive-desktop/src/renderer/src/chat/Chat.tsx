@@ -144,6 +144,16 @@ export function Chat({ workspace }: ChatProps): React.JSX.Element {
     return () => {
       cancelled = true
       unsubscribe?.()
+      // WS-R5.2: stop the session's underlying process(es) on cleanup —
+      // covers both an in-place model/effort change (redundant with the
+      // next `agent.start()`'s own teardown, but harmless — `stop()` is
+      // idempotent) and, critically, a true unmount (e.g. a workspace
+      // switch remounting this whole subtree under a new `key`, per
+      // App.tsx/WorkUI's re-key), where nothing else would ever call
+      // `startSession()` again to trigger the adapter's own
+      // stop-the-previous-session behavior, leaving the old session's
+      // process(es) orphaned with no active subscriber.
+      void window.hive.agent.stop()
     }
   }, [workspace, model, effort])
 
