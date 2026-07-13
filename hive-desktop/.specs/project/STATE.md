@@ -64,6 +64,24 @@ Updated as work progresses. Load at start of every session.
   rules: validate every visual behavior via the **Playwright MCP**; free to
   extend/create DS components for UX. (2026-07-11)
 
+- **D13 — Feature `workspace-switching` (M8).** VsCode-style in-app workspace
+  switching, planned 2026-07-12 (spec/context/design/tasks in
+  `.specs/features/workspace-switching/`). Gray-area decisions (context.md):
+  (C1) switch affordance = the topbar workspace-chip **menu** with "Abrir
+  pasta…" + a persisted **Recentes (MRU)** list — no native OS menu bar in v1;
+  (C2) switching with unsaved edits reuses the explorer-editor-ux **three-way
+  save dialog** and tears down the active agent session; (C3) **same window**,
+  context replaced in place (no multi-window); (C4) install-vs-update is decided
+  by a **disk check of `<ws>/_bmad/_config/manifest.yaml`** per-path (Blocker
+  B1's marker), **replacing** reliance on the global `config.provisioned` flag —
+  this also fixes a latent first-run bug where picking an already-provisioned
+  folder reinstalled instead of updating; (C5) the file/editor **engine stays
+  bespoke** — a VsCode-engine swap (code-oss/Theia) and even Monaco (editor-only)
+  were evaluated mid-planning and explicitly **rejected/not-queued** (contradicts
+  G5 "first-party, not a wrapper", discards M4/M7; the desired VsCode-like UX is
+  a thin layer over the existing engine). `provisioned` config flag is kept but
+  vestigial for routing. User decisions. (2026-07-12)
+
 ## Blockers
 
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
@@ -342,6 +360,40 @@ Updated as work progresses. Load at start of every session.
   xvfb-run -a npm run test:e2e:app` → 10/10 (both E2E spec files); `npm run
   test` → 330/330 unit tests. `.specs/features/explorer-editor-ux/tasks.md`
   T1-T14 marked `[x]`.
+- **workspace-switching (M8, T1–T10) fully implemented on `main`
+  (2026-07-12).** VsCode-style in-app workspace switching shipped end to end:
+  `ConfigStore` MRU (`recentWorkspaces` push/dedupe/cap-10/remove),
+  `WorkspaceService` path-aware `provisionState`/`openWorkspace` (disk check
+  of `_bmad/_config/manifest.yaml` per path, replacing the global
+  `config.provisioned` flag for routing and fixing the latent
+  already-provisioned-folder-reinstalls bug), IPC + preload bridge
+  (`workspace:provisionState`/`workspace:recents`/`workspace:open`),
+  `App.tsx` routing through `provisionState` plus a runtime re-entry into
+  the onboarding gate (`handleSwitchWorkspace`, keyed `WorkUI` remount),
+  `FileViewer`'s additive `onDirtyChange`, the `WorkUI` workspace-chip menu
+  ("Abrir pasta…" + Recentes), and the three-way save guard + agent-session
+  teardown wired end-to-end. T9's regression pass found the existing E2E
+  specs needed their on-disk manifest fixture seeded, since routing now
+  reads `_bmad/_config/manifest.yaml` directly rather than trusting the
+  config flag. T10 closeout: `npm run test` → 389/389 unit/component tests
+  green (21 files, no code changes needed); `npm run typecheck` clean;
+  `npm run lint` shows 2 pre-existing `Explorer.tsx` errors
+  (set-state-in-effect, lines 336/349) that predate this feature — from
+  `explorer-editor-ux`'s T8 (commit `9fc0b344`, 2026-07-11) — left untouched
+  per scope discipline; no new lint errors from this feature's own files.
+  Per-file coverage confirmed ≥90% statements/branches/functions/lines on
+  every T1-T9 touched file: `configStore.ts` (98.41/94.44/100/98.41),
+  `workspaceService.ts` (100/100/100/100), `main/index.ts`
+  (99.58/94.11/100/99.58), `preload/index.ts` (97.9/97.77/96.87/97.9),
+  `App.tsx` (100/92.3/100/100), `WorkUI.tsx` (100/93.87/100/100),
+  `Chat.tsx` (100/98.14/100/100), `agentService.ts` (100/95.45/100/100),
+  `pt-BR.ts` (100/100/100/100) — no new `vitest.config.ts` per-file
+  threshold entries were needed. T9's `e2e/workspace-switching.spec.ts` was
+  already confirmed green in that task (`npm run build && xvfb-run -a npm
+  run test:e2e:app`); not re-run in T10 since no code changed. ROADMAP M8
+  marked Done; `.specs/features/workspace-switching/tasks.md` T1-T10 marked
+  `[x]`. `spec.md` has no explicit per-requirement status markers (prose +
+  Requirement IDs only) — left as-is.
 
 ## Deferred Ideas
 

@@ -81,6 +81,56 @@ design-system rework blocks the app from ever reaching the work UI at all
 right now). Kept as a local/manual gate rather than a blocking CI requirement
 until that's resolved, per design.md's flagged E2E-instability risk allowance.
 
+## M7 — Explorer & Editor UX 📝 Planned (2026-07-11)
+
+**Feature:** `explorer-editor-ux`
+
+Seven UX improvements on top of M4's file management, planned via tlc-spec-driven
+(spec/design/tasks in `.specs/features/explorer-editor-ux/`): (F1) files open
+already editable with `Ctrl+S` save + three-way save-on-close; (F2) rename/create
+auto-commit on blur; (F3) `Ctrl`-click individual multi-select; (F4) `Shift`-click
+range-select; (F5) resizable, persisted file-rail divider; (F6) formatted Markdown
+preview via `react-markdown`+`remark-gfm`; (F7) sandboxed HTML live preview with
+disk auto-reload. Full OS-like multi-select drives bulk delete + bulk drag-move
+(supersedes M4's single-item non-goal). User decisions captured in `context.md`
+(C1–C4). Requires the DS `Tree` extended for modifier-aware selection.
+
+**Exit criteria:** UX-R1–R8 implemented and demonstrated in the running app;
+UX-R9.1 no regression; UX-R9.2 ≥90% coverage per changed file; UX-R9.3 E2E +
+UX-R9.4 Playwright-MCP visual validation. **Prereq (RESOLVED 2026-07-11):** the
+React-duplication render-blocker is fixed (`renderer.resolve.dedupe` in
+`electron.vite.config.ts`) — the app reaches the work UI, so E2E/MCP checks run.
+
+## M8 — Workspace Switching ✅ Done (2026-07-12)
+
+**Feature:** `workspace-switching`
+
+VsCode-style "open/switch workspace" from inside the running app: the topbar
+workspace chip becomes a menu ("Abrir pasta…" + a persisted **Recentes** MRU
+list), and selecting a workspace re-enters the BMAD onboarding gate for that
+path — **guided install** if the folder lacks BMAD, **update** if it already has
+it. Detection moves from the global `config.provisioned` flag to a **disk-based,
+per-path** check of `_bmad/_config/manifest.yaml` (Blocker B1's marker), which
+also fixes a latent first-run bug (picking an already-provisioned folder wrongly
+reinstalled). Switch is same-window (context replaced in place), guarded by the
+existing three-way save dialog for unsaved edits and a clean agent-session
+teardown. Engine stays bespoke — evaluated and explicitly **not** swapped for a
+VsCode/Monaco engine (context.md C5). Planned via tlc-spec-driven
+(spec/context/design/tasks in `.specs/features/workspace-switching/`).
+
+**Exit criteria:** WS-R1–R7 implemented and demonstrated in the running app;
+WS-R8.1 no regression; WS-R8.2 ≥90% coverage per changed file; WS-R8.3 E2E
+(switch to provisioned → update, to unprovisioned → install, asserting on-disk
+config/MRU); WS-R8.4 `_electron.launch` visual validation. — met (T1–T10).
+Full unit/component suite green (389/389), `npm run typecheck` clean, `npm run
+lint` has no new errors from this feature's files, per-file coverage ≥90% on
+every T1-T9 touched file (ConfigStore, WorkspaceService, main/index.ts,
+preload/index.ts, App.tsx, WorkUI.tsx, Chat.tsx, agentService.ts, pt-BR.ts).
+T9's `e2e/workspace-switching.spec.ts` (`npm run build && xvfb-run -a npm run
+test:e2e:app`) confirmed the switch-to-provisioned→update and
+switch-to-unprovisioned→install flows on-disk, plus `_electron.launch`
+screenshots of the chip menu and post-switch work UI.
+
 ## M5 — Second agent adapter
 
 Add a second agent CLI (e.g. Devin) to prove the decoupling from M1 in practice.
