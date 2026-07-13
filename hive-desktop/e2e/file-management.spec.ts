@@ -71,6 +71,21 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
     fs.mkdirSync(userDataDir, { recursive: true })
     fs.mkdirSync(importSourceDir, { recursive: true })
 
+    // T9 (workspace-switching, WS-R3.3) changed onboarding routing from the
+    // `provisioned` config flag to a disk-based check of
+    // `<workspace>/_bmad/_config/manifest.yaml` (`WorkspaceService.
+    // provisionState()`), evaluated fresh for the specific workspace path.
+    // `provisioned: true` below no longer alone routes past `GuidedInstall`
+    // — the on-disk marker itself has to exist too, or the app now
+    // (correctly) shows the guided-install config form instead of
+    // `UpdateGate`. This spec is about file management inside an
+    // already-provisioned workspace, not the install flow, so the marker is
+    // written directly (same throwaway-fixture spirit as workspace-
+    // switching's own E2E spec — no real `bmad-method install` run needed).
+    const manifestDir = path.join(workspaceDir, '_bmad', '_config')
+    fs.mkdirSync(manifestDir, { recursive: true })
+    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
+
     // Seed the config the app will read on boot (see comment above) —
     // mirrors `ConfigStore`'s own `Config` shape (`src/main/configStore.ts`).
     fs.writeFileSync(
@@ -115,8 +130,9 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
       expect(fs.readFileSync(notesPath, 'utf-8')).toBe('')
 
       // --- Edit + save (FM-R2) -----------------------------------------------
+      // T5 (explorer-editor-ux, UX-R1.1): editable files now open directly in
+      // edit mode (no separate "Editar" button click needed anymore).
       await openFile(window, 'notes.md')
-      await window.getByRole('button', { name: 'Editar' }).click()
       const editor = window.getByLabel('Conteúdo do arquivo')
       await editor.fill('# Hello from E2E\n')
       await window.getByRole('button', { name: 'Salvar' }).click()
@@ -153,9 +169,7 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
       // OS-level DnD pipeline reacting to synthetic mouse coordinates.
       await dragRowOnto(window, 'renamed.md', 'target-folder')
       const movedPath = path.join(workspaceDir, 'target-folder', 'renamed.md')
-      await expect
-        .poll(() => fs.existsSync(renamedPath), { timeout: 10_000 })
-        .toBe(false)
+      await expect.poll(() => fs.existsSync(renamedPath), { timeout: 10_000 }).toBe(false)
       expect(fs.existsSync(movedPath)).toBe(true)
       expect(fs.readFileSync(movedPath, 'utf-8')).toBe('# Hello from E2E\n')
 
@@ -169,9 +183,7 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
       )
       const importedPath = path.join(workspaceDir, 'imported-doc.txt')
       expect(fs.existsSync(importedPath)).toBe(true)
-      expect(fs.readFileSync(importedPath, 'utf-8')).toBe(
-        'brought in from outside the workspace\n'
-      )
+      expect(fs.readFileSync(importedPath, 'utf-8')).toBe('brought in from outside the workspace\n')
       // Refresh so the tree reflects the import made via the test hook
       // rather than the watcher (which should also pick it up, but the
       // delete step below needs the row present regardless of timing).
@@ -183,9 +195,7 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
 
       // --- Delete (FM-R3, trash) -------------------------------------------
       await deleteEntry(window, 'imported-doc.txt')
-      await expect
-        .poll(() => fs.existsSync(importedPath), { timeout: 10_000 })
-        .toBe(false)
+      await expect.poll(() => fs.existsSync(importedPath), { timeout: 10_000 }).toBe(false)
     } finally {
       await app.close()
       fs.rmSync(tmpRoot, { recursive: true, force: true })
@@ -201,7 +211,7 @@ test.describe('file management E2E (real Electron, throwaway workspace)', () => 
  * hatch if the real `npx bmad-method` update errors out.
  */
 async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('aside.wb-rail')
+  const rail = window.locator('.wb-rail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
 
   await Promise.race([
@@ -227,7 +237,9 @@ async function createEntry(
   const input = window.getByLabel('Nome do arquivo ou pasta')
   await input.fill(name)
   await input.press('Enter')
-  await window.locator(`[id="hds-tree-item-${name}"]`).waitFor({ state: 'visible', timeout: 10_000 })
+  await window
+    .locator(`[id="hds-tree-item-${name}"]`)
+    .waitFor({ state: 'visible', timeout: 10_000 })
 }
 
 /** Opens a root-level file by clicking its tree row. */
@@ -243,7 +255,9 @@ async function renameEntry(window: Page, fromName: string, toName: string): Prom
   const input = window.getByLabel('Novo nome')
   await input.fill(toName)
   await input.press('Enter')
-  await window.locator(`[id="hds-tree-item-${toName}"]`).waitFor({ state: 'visible', timeout: 10_000 })
+  await window
+    .locator(`[id="hds-tree-item-${toName}"]`)
+    .waitFor({ state: 'visible', timeout: 10_000 })
 }
 
 /** Row-menu "Excluir" flow: opens the row's `...` menu, clicks Delete, confirms the trash dialog. */
@@ -261,7 +275,11 @@ async function deleteEntry(window: Page, relPath: string): Promise<void> {
  * content (not a nested child row's, which the DS `Tree` renders as a
  * sibling `<ul role="group">`, not inside `div.hds-tree-row`).
  */
-async function dragRowOnto(window: Page, sourceRelPath: string, destRelPath: string): Promise<void> {
+async function dragRowOnto(
+  window: Page,
+  sourceRelPath: string,
+  destRelPath: string
+): Promise<void> {
   await window.evaluate(
     ([sourceId, destId]) => {
       function rowContent(id: string): HTMLElement {

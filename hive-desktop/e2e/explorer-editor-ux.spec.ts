@@ -37,6 +37,15 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     fs.mkdirSync(workspaceDir, { recursive: true })
     fs.mkdirSync(userDataDir, { recursive: true })
 
+    // T9 (workspace-switching, WS-R3.3): onboarding routing is now
+    // disk-based (`<workspace>/_bmad/_config/manifest.yaml`), not the
+    // `provisioned` config flag alone — see file-management.spec.ts's
+    // matching comment for the full rationale. Written directly, no real
+    // `bmad-method install` run needed for this UX-focused spec.
+    const manifestDir = path.join(workspaceDir, '_bmad', '_config')
+    fs.mkdirSync(manifestDir, { recursive: true })
+    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
+
     fs.writeFileSync(
       path.join(userDataDir, 'config.json'),
       JSON.stringify({
@@ -254,6 +263,12 @@ test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app
     const userDataDir = path.join(tmpRoot, 'userData')
     fs.mkdirSync(workspaceDir, { recursive: true })
     fs.mkdirSync(userDataDir, { recursive: true })
+    // T9 (workspace-switching, WS-R3.3): disk-based provisioning marker
+    // required alongside the config flag — see the top of this file's
+    // matching comment.
+    const manifestDir = path.join(workspaceDir, '_bmad', '_config')
+    fs.mkdirSync(manifestDir, { recursive: true })
+    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
     fs.writeFileSync(
       path.join(userDataDir, 'config.json'),
       JSON.stringify({
