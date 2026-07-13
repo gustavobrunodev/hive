@@ -1,5 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -11,11 +16,23 @@ import {
   ResizablePanel
 } from '@hive/design-system'
 import { t } from './i18n'
-import { FileTree, FileViewer } from './explorer/Explorer'
+import { FileTree, FileViewer, type FileViewerHandle } from './explorer/Explorer'
 import { Chat } from './chat/Chat'
 import { IconButton } from './ui/IconButton'
 import { HiveLogo } from './ui/HiveLogo'
 import { FolderIcon, MoonIcon, SunIcon } from './ui/icons'
+
+/** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
+function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
+  switch (reason) {
+    case 'missing':
+      return t('workUI.switchErrorMissing')
+    case 'not-a-directory':
+      return t('workUI.switchErrorNotADirectory')
+    case 'unreadable':
+      return t('workUI.switchErrorUnreadable')
+  }
+}
 
 interface WorkUIProps {
   /** Absolute path to the provisioned, up-to-date workspace. */
@@ -111,6 +128,17 @@ export function WorkUI({
   const [defaultLayout] = useState(loadWorkLayout)
   const [chipMenuOpen, setChipMenuOpen] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
+  // T8 (WS-R5.1, design.md §5.2): lifted from the active `FileViewer`'s own
+  // `dirty` state via its `onDirtyChange` callback — purely observational,
+  // the in-viewer guard itself is untouched.
+  const [viewerDirty, setViewerDirty] = useState(false)
+  const viewerRef = useRef<FileViewerHandle>(null)
+  // The candidate path currently blocked behind the three-way unsaved-work
+  // dialog (WS-R5.1/R5.3); `null` means no guard dialog is open.
+  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null)
+  // WS-R6.3: a non-fatal message when the last switch attempt's
+  // `openWorkspace` call failed — the current workspace stays active.
+  const [switchError, setSwitchError] = useState<string | null>(null)
 
   /** WS-R1.2/R1.4: loads the MRU list fresh each time the chip menu opens, excluding the currently-active workspace so the user never "switches" to where they already are. */
   const handleChipMenuOpenChange = useCallback(
@@ -125,17 +153,81 @@ export function WorkUI({
     [workspace]
   )
 
+  // T8 (WS-R4.5 extended to this entry point, WS-R6.3): the actual "proceed"
+  // step of the switch pipeline — validates + persists `path` as the active
+  // workspace via `openWorkspace`, then, only on success, hands it off to
+  // `onCandidateWorkspace` (App's `handleSwitchWorkspace`, T5), which is
+  // what actually re-enters the onboarding gate / remounts `WorkUI`. A
+  // failure surfaces a clear, non-fatal error and leaves the current
+  // workspace untouched — `onCandidateWorkspace` is never called.
+  const proceedSwitch = useCallback(
+    async (path: string): Promise<void> => {
+      setSwitchError(null)
+      const result = await window.hive.openWorkspace(path)
+      if (result.ok) {
+        onCandidateWorkspace?.(path)
+      } else {
+        setSwitchError(switchErrorMessage(result.reason))
+      }
+    },
+    [onCandidateWorkspace]
+  )
+
+  // T8 (WS-R5.1/R5.3): the switch guard's entry point, shared by both the
+  // chip menu's "Abrir pasta…" and its Recentes entries. Dirty parks the
+  // candidate behind the three-way dialog; clean proceeds straight to
+  // `proceedSwitch`.
+  const requestSwitch = useCallback(
+    (path: string) => {
+      if (viewerDirty) {
+        setPendingSwitch(path)
+      } else {
+        void proceedSwitch(path)
+      }
+    },
+    [viewerDirty, proceedSwitch]
+  )
+
   /** WS-R1.2: "Abrir pasta…" resolves a candidate via the native picker; a cancelled picker (null) is a no-op (WS-R4.5). */
   const handleChooseFolder = useCallback(() => {
     window.hive
       .chooseWorkspace()
       .then((path) => {
-        if (path) onCandidateWorkspace?.(path)
+        if (path) requestSwitch(path)
       })
       .catch(() => {
         // Picker failure is a no-op here — no partial candidate to report.
       })
-  }, [onCandidateWorkspace])
+  }, [requestSwitch])
+
+  // "Cancelar" (WS-R4.5 extended to the switch guard): dismiss the dialog,
+  // no state change beyond that — the switch never happened.
+  const cancelSwitch = useCallback(() => setPendingSwitch(null), [])
+
+  // "Descartar" (only ever wired to the dialog's own button, itself only
+  // mounted while `pendingSwitch` is set — see `FileViewer`'s `readyState`
+  // comment for why this skips a defensive null-check branch): proceed with
+  // the switch, dropping the viewer's unsaved edits.
+  const handleDiscardSwitch = useCallback(() => {
+    const path = pendingSwitch as string
+    setPendingSwitch(null)
+    void proceedSwitch(path)
+  }, [pendingSwitch, proceedSwitch])
+
+  // "Salvar": flush the viewer's draft first (mirrors its own "Salvar" —
+  // same `performSave(false)` via the `requestSave` imperative handle), and
+  // only proceed with the switch if the save actually landed. On failure
+  // (e.g. a STALE conflict), `performSave` has already surfaced its own
+  // dialog/error inline in the viewer — this just dismisses the switch
+  // guard and aborts the switch, same as the in-viewer guard's own
+  // "Salvar" choice.
+  const handleSaveSwitch = useCallback(() => {
+    const path = pendingSwitch as string
+    setPendingSwitch(null)
+    void (viewerRef.current?.requestSave() ?? Promise.resolve(false)).then((ok) => {
+      if (ok) void proceedSwitch(path)
+    })
+  }, [pendingSwitch, proceedSwitch])
 
   return (
     <div className="wb-app">
@@ -165,11 +257,7 @@ export function WorkUI({
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
                   {recents.map((path) => (
-                    <DropdownMenuItem
-                      key={path}
-                      title={path}
-                      onSelect={() => onCandidateWorkspace?.(path)}
-                    >
+                    <DropdownMenuItem key={path} title={path} onSelect={() => requestSwitch(path)}>
                       {workspaceName(path)}
                     </DropdownMenuItem>
                   ))}
@@ -186,6 +274,11 @@ export function WorkUI({
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </IconButton>
       </header>
+      {switchError && (
+        <div className="wb-switch-error" role="alert">
+          {switchError}
+        </div>
+      )}
       <div className="wb-body">
         <Resizable
           orientation="horizontal"
@@ -215,15 +308,36 @@ export function WorkUI({
               <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
               <ResizablePanel id="viewer" minSize="24%" defaultSize="25%">
                 <FileViewer
+                  ref={viewerRef}
                   workspace={workspace}
                   path={openPath}
                   onClose={() => setOpenPath(null)}
+                  onDirtyChange={setViewerDirty}
                 />
               </ResizablePanel>
             </>
           )}
         </Resizable>
       </div>
+      {pendingSwitch !== null && (
+        <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
+          <DialogContent>
+            <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
+            <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
+            <div className="wb-dialog-actions">
+              <Button className="wb-btn" onClick={cancelSwitch}>
+                {t('explorer.unsavedGuardCancelCta')}
+              </Button>
+              <Button className="wb-btn" onClick={handleDiscardSwitch}>
+                {t('explorer.unsavedGuardConfirmCta')}
+              </Button>
+              <Button className="wb-btn hds-btn-primary" onClick={handleSaveSwitch}>
+                {t('explorer.unsavedGuardSaveCta')}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

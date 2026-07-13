@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import type { DragEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import {
   Button,
@@ -1183,6 +1191,20 @@ export interface FileViewerProps {
 }
 
 /**
+ * Imperative handle (T8, WS-R5.1, design.md §5.2 "chosen approach: lift a
+ * requestFlush ref"): lets a parent (`WorkUI`'s switch guard) trigger the
+ * viewer's own non-force save — the exact same `performSave(false)` its
+ * "Salvar" button already calls — without duplicating any save/conflict
+ * logic outside the viewer. Resolves to whether the save actually landed
+ * (`false` on a STALE conflict or any other failure, in which case
+ * `performSave` has already surfaced its own dialog/error inline here, same
+ * as the in-viewer guard's own "Salvar").
+ */
+export interface FileViewerHandle {
+  requestSave: () => Promise<boolean>
+}
+
+/**
  * Structural mirror of `main/fsService.ts`'s `EntryMeta` (design.md §1) — the
  * edit baseline (FM-R2.3). Kept local for the same reason `FsTreeNode`
  * above is: this component stays self-contained inside `explorer/**`
@@ -1238,12 +1260,10 @@ type ViewerMode = 'edit' | 'preview'
  * `displayedPath` (and thus the fetch effect below) only advances once the
  * user confirms discarding.
  */
-export function FileViewer({
-  workspace,
-  path,
-  onClose,
-  onDirtyChange
-}: FileViewerProps): React.JSX.Element {
+export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function FileViewer(
+  { workspace, path, onClose, onDirtyChange },
+  ref
+): React.JSX.Element {
   const [displayedPath, setDisplayedPath] = useState(path)
   const [viewerState, setViewerState] = useState<ViewerState>({
     status: 'loading',
@@ -1385,6 +1405,11 @@ export function FileViewer({
     },
     [workspace, readyState, draft]
   )
+
+  // T8 (WS-R5.1): exposes `requestSave` for `WorkUI`'s switch guard — the
+  // exact same non-force `performSave(false)` the "Salvar" button already
+  // calls (see `FileViewerHandle`'s doc comment above).
+  useImperativeHandle(ref, () => ({ requestSave: () => performSave(false) }), [performSave])
 
   // Ctrl/Cmd+S (UX-R1.2): scoped to the viewer's lifetime via mount/unmount
   // of this effect. `preventDefault` always fires (so the OS/browser save
@@ -1641,4 +1666,4 @@ export function FileViewer({
       </div>
     )
   }
-}
+})

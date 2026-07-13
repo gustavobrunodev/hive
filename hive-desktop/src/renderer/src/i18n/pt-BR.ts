@@ -154,7 +154,14 @@ export const ptBR = {
     /** T7 (WS-R1.2/R7.1): workspace chip menu — "Abrir pasta…" entry. */
     openFolder: 'Abrir pasta…',
     /** T7 (WS-R1.2/R1.3/R7.1): workspace chip menu — Recentes section heading. */
-    recents: 'Recentes'
+    recents: 'Recentes',
+    /** T8 (WS-R6.3): non-fatal errors when a candidate workspace can't be opened — the previous workspace stays active. */
+    switchErrorMissing:
+      'Não foi possível trocar de workspace: a pasta selecionada não foi encontrada.',
+    switchErrorNotADirectory:
+      'Não foi possível trocar de workspace: o caminho selecionado não é uma pasta.',
+    switchErrorUnreadable:
+      'Não foi possível trocar de workspace: não foi possível ler a pasta selecionada.'
   }
 } as const
 

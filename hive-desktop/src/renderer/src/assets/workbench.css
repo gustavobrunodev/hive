@@ -375,6 +375,16 @@
   background: var(--danger-bg, var(--surface-2));
 }
 
+/* T8 (WS-R6.3): non-fatal "couldn't open that workspace" banner, shown below the topbar. */
+.wb-switch-error {
+  margin: var(--s-2) var(--s-4) 0;
+  padding: 6px 10px;
+  border-radius: var(--rounded-sm);
+  font-size: 0.75rem;
+  color: var(--danger-ink, var(--ink));
+  background: var(--danger-bg, var(--surface-2));
+}
+
 .wb-viewer-path {
   font-size: 0.75rem;
   color: var(--faint);

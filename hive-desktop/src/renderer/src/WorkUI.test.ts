@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createContext,
   createElement,
+  forwardRef,
   useContext,
+  useImperativeHandle,
   isValidElement,
   cloneElement,
   type ReactElement,
@@ -124,8 +126,51 @@ vi.mock('@hive/design-system', () => ({
     ),
   DropdownMenuLabel: ({ children }: { children?: ReactNode }) =>
     createElement('div', { role: 'presentation' }, children),
-  DropdownMenuSeparator: () => createElement('hr')
+  DropdownMenuSeparator: () => createElement('hr'),
+  // T8 (WS-R5.1): the three-way unsaved-work guard dialog, same mock shape
+  // `explorer/Explorer.test.ts` uses for its own (source) in-viewer guard —
+  // plus a dismiss control (`onOpenChange(false)`, e.g. Escape/backdrop in
+  // the real Radix-backed component) so tests can exercise that path too,
+  // not just the explicit "Cancelar" button.
+  Button: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('button', { type: 'button', ...rest }, children),
+  Dialog: ({
+    children,
+    onOpenChange
+  }: {
+    children?: ReactNode
+    onOpenChange?: (open: boolean) => void
+  }) =>
+    createElement(
+      'div',
+      { role: 'dialog' },
+      children,
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'dialog-dismiss',
+          onClick: () => onOpenChange?.(false)
+        },
+        'dismiss'
+      )
+    ),
+  DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
+  DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children)
 }))
+
+/**
+ * T8 — `FileViewer`'s imperative `requestSave` handle (WS-R5.1, design.md
+ * §5.2): a module-scope spy the switch-guard tests below drive directly
+ * (`mockResolvedValueOnce(false)` etc.), mirroring `resizableProps`'
+ * capture-object pattern above — `vi.mock`'s factory is only *called*
+ * lazily on first import, by which point this `const` is already
+ * initialized, same as that established pattern.
+ */
+const fileViewerMock: { requestSave: ReturnType<typeof vi.fn> } = {
+  requestSave: vi.fn(async () => true)
+}
 
 vi.mock('./explorer/Explorer', () => ({
   FileTree: ({ onOpenFile }: { onOpenFile?: (path: string) => void }) =>
@@ -134,8 +179,16 @@ vi.mock('./explorer/Explorer', () => ({
       { type: 'button', 'data-testid': 'file-tree', onClick: () => onOpenFile?.('README.md') },
       'FileTree'
     ),
-  FileViewer: ({ path, onClose }: { path: string; onClose?: () => void }) =>
-    createElement(
+  FileViewer: forwardRef(function FileViewer(
+    {
+      path,
+      onClose,
+      onDirtyChange
+    }: { path: string; onClose?: () => void; onDirtyChange?: (dirty: boolean) => void },
+    ref: React.Ref<{ requestSave: () => Promise<boolean> }>
+  ) {
+    useImperativeHandle(ref, () => ({ requestSave: fileViewerMock.requestSave }), [])
+    return createElement(
       'div',
       { 'data-testid': 'file-viewer' },
       `FileViewer: ${path}`,
@@ -143,8 +196,14 @@ vi.mock('./explorer/Explorer', () => ({
         'button',
         { type: 'button', 'data-testid': 'close-viewer', onClick: () => onClose?.() },
         'close'
+      ),
+      createElement(
+        'button',
+        { type: 'button', 'data-testid': 'mark-dirty', onClick: () => onDirtyChange?.(true) },
+        'mark dirty'
       )
     )
+  })
 }))
 
 vi.mock('./chat/Chat', () => ({
@@ -174,11 +233,20 @@ function createLocalStorageMock(): Storage {
 
 let WorkUI: typeof import('./WorkUI').WorkUI
 
-/** Minimal `window.hive` bridge stand-in — this environment has no real main process, so `chooseWorkspace`/`getRecentWorkspaces` are spies the tests drive directly (mirrors `explorer/Explorer.test.ts`'s per-test `window.hive` mocking approach). */
+/**
+ * Minimal `window.hive` bridge stand-in — this environment has no real main
+ * process, so `chooseWorkspace`/`getRecentWorkspaces`/`openWorkspace` are
+ * spies the tests drive directly (mirrors `explorer/Explorer.test.ts`'s
+ * per-test `window.hive` mocking approach). `openWorkspace` defaults to
+ * succeeding with whatever path it's given (T8, WS-R4/R6.3) — most tests
+ * only care that the pipeline reaches it and proceeds; the failure-path
+ * tests override it per-case.
+ */
 function createHiveMock(): Window['hive'] {
   return {
     chooseWorkspace: vi.fn(async () => null),
-    getRecentWorkspaces: vi.fn(async () => [])
+    getRecentWorkspaces: vi.fn(async () => []),
+    openWorkspace: vi.fn(async (path: string) => ({ ok: true, path }))
   } as unknown as Window['hive']
 }
 
@@ -187,6 +255,8 @@ beforeEach(async () => {
   vi.stubGlobal('hive', createHiveMock())
   resizableProps.defaultLayout = undefined
   resizableProps.onLayoutChanged = undefined
+  fileViewerMock.requestSave.mockReset()
+  fileViewerMock.requestSave.mockResolvedValue(true)
   ;({ WorkUI } = await import('./WorkUI'))
 })
 
@@ -494,7 +564,9 @@ describe('WorkUI — workspace chip menu (T7)', () => {
 
     fireEvent.click(screen.getByText('other-project'))
 
-    expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
   })
 
   it('shows the full path as a tooltip on each recent entry', async () => {
@@ -533,5 +605,257 @@ describe('WorkUI — workspace chip menu (T7)', () => {
     await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
     expect(screen.getByText('Abrir pasta…')).toBeTruthy()
     expect(screen.queryByText('Recentes')).toBeNull()
+  })
+})
+
+/**
+ * Task T8 — switch guard + `openWorkspace` pipeline (design.md §5.2, WS-R5,
+ * WS-R6.3). Extends T7's chip menu: a resolved candidate path no longer
+ * reaches `onCandidateWorkspace` directly — it first goes through the
+ * unsaved-work guard (only if the viewer reports `dirty` via its
+ * `onDirtyChange` callback) and then the actual `window.hive.openWorkspace`
+ * call, only calling `onCandidateWorkspace` on success.
+ */
+describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
+  /** Opens the file viewer (via the mocked FileTree) and marks it dirty (via the mocked FileViewer's onDirtyChange hook). */
+  function openDirtyViewer(): void {
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+  }
+
+  function openChipAndPickFolder(): void {
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    fireEvent.click(screen.getByText('Abrir pasta…'))
+  }
+
+  it('proceeds directly through openWorkspace, with no dialog, when the viewer is not dirty', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openChipAndPickFolder()
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('dirty + Cancelar aborts the switch entirely: no openWorkspace call, onCandidateWorkspace not called', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('dismissing the guard dialog (e.g. Escape/backdrop, not just the Cancelar button) also aborts the switch', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByTestId('dialog-dismiss'))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('dirty + Descartar proceeds with the switch, dropping the unsaved edits', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar alterações' }))
+
+    expect(fileViewerMock.requestSave).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('dirty + Salvar saves via the imperative handle first, then proceeds once the save lands', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(fileViewerMock.requestSave).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('dirty + Salvar aborts the switch when the save itself fails (e.g. a STALE conflict)', async () => {
+    fileViewerMock.requestSave.mockResolvedValueOnce(false)
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(fileViewerMock.requestSave).toHaveBeenCalledTimes(1))
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('an openWorkspace failure keeps the current workspace, shows a non-fatal error, and never calls onCandidateWorkspace (WS-R6.3)', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/missing-folder')
+    vi.mocked(window.hive.openWorkspace).mockResolvedValue({ ok: false, reason: 'missing' })
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openChipAndPickFolder()
+
+    await waitFor(() =>
+      expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/missing-folder')
+    )
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['not-a-directory', 'não é uma pasta'],
+    ['unreadable', 'não foi possível ler']
+  ] as const)(
+    'maps an openWorkspace "%s" failure to its own user-facing message (WS-R6.3)',
+    async (reason, expectedSubstring) => {
+      vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+      vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/bad-folder')
+      vi.mocked(window.hive.openWorkspace).mockResolvedValue({ ok: false, reason })
+
+      render(
+        createElement(WorkUI, {
+          workspace: '/home/user/my-workspace',
+          theme: 'dark',
+          onToggleTheme: vi.fn()
+        })
+      )
+
+      openChipAndPickFolder()
+
+      const alert = await screen.findByRole('alert')
+      expect(alert.textContent?.toLowerCase()).toContain(expectedSubstring)
+    }
+  )
+
+  it('a cancelled native picker remains a no-op even with a dirty viewer (WS-R4.5)', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue(null)
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+
+    openDirtyViewer()
+    openChipAndPickFolder()
+
+    await waitFor(() => expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
   })
 })
