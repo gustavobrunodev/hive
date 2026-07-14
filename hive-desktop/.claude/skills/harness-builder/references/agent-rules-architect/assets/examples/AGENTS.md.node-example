@@ -1,0 +1,28 @@
+# AGENTS.md
+
+## Stack
+Next.js 14 (App Router) + tRPC + Drizzle ORM. Acesso ao BD é só server-side —
+nunca importar `src/server/db` de um client component.
+
+## Comandos
+- Instalar: `pnpm install`        # nunca npm/yarn — só pnpm bate com o lockfile
+- Dev: `pnpm dev`
+- Build: `pnpm build`
+- Testes (todos): `pnpm test`
+- Testes (um só): `pnpm vitest run src/path/to/file.test.ts`
+- Check (lint+format+types): `pnpm check`   # rodar antes de finalizar qualquer tarefa
+
+## Limites
+- Nunca editar `src/server/db/schema.gen.ts` — gerado a partir das migrations.
+- Nunca commitar `.env*`.
+- Perguntar antes de adicionar uma nova dependência.
+
+## Convenções (fora do padrão)
+- Data fetching do servidor passa pelos routers tRPC em `src/server/routers/`;
+  não escrever handlers de rota de API à mão.
+- Dinheiro é armazenado e passado como centavos inteiros, nunca float.
+
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+- Alterando o schema do BD ou escrevendo uma migration → ler `docs/database.md`
+- Adicionando/modificando um procedure tRPC → ler `docs/trpc.md`
+- Escrevendo testes → ler `docs/testing.md`

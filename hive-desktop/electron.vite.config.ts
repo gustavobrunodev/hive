@@ -20,7 +20,16 @@ export default defineConfig({
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')
-      }
+      },
+      // `@hive/design-system` is a `file:../design-system` link that ships its
+      // own `node_modules/react`(-dom). Its bundle keeps react/react-dom
+      // external, so Vite resolves those imports relative to the linked
+      // package — a *different physical copy* than the app's own react. Two
+      // React instances in one renderer = "invalid hook call" (a DS
+      // component's `useState` runs against a React that never rendered the
+      // tree), crashing before the work UI ever mounts. `dedupe` forces every
+      // react/react-dom import to resolve to the app's single copy.
+      dedupe: ['react', 'react-dom']
     },
     plugins: [react()]
   }

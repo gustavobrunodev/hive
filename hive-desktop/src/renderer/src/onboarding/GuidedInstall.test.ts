@@ -15,8 +15,16 @@ import type { BmadEvent } from '../../../main/bmadService'
  */
 vi.mock('@hive/design-system', () => ({
   Panel: ({ children, ...rest }: { children?: ReactNode }) => createElement('div', rest, children),
-  Button: ({ children, ...rest }: { children?: ReactNode }) =>
-    createElement('button', rest, children),
+  // `cut` is a DS-only prop, not a DOM attribute — drop it so React doesn't
+  // warn. The real DS Button always renders `type="button"` (it omits `type`
+  // from its props) and so never submits a form on its own — mirror that here
+  // so the form's submit path is exercised via the Button's `onClick` (exactly
+  // how the app wires it), not via a native submit this stand-in would
+  // otherwise fake.
+  Button: ({ children, ...rest }: { children?: ReactNode; cut?: boolean }) => {
+    delete rest.cut
+    return createElement('button', { type: 'button', ...rest }, children)
+  },
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   Alert: ({ title, children, ...rest }: { title?: ReactNode; children?: ReactNode }) =>
     createElement(
@@ -27,7 +35,38 @@ vi.mock('@hive/design-system', () => ({
     ),
   Progress: () => createElement('div', { role: 'progressbar' }),
   SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
-  SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title)
+  SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title),
+  // Guided-install form (BUG 1) controls — trivial DOM stand-ins.
+  Checkbox: ({
+    id,
+    checked,
+    onCheckedChange
+  }: {
+    id?: string
+    checked?: boolean
+    onCheckedChange?: (checked: boolean) => void
+  }) =>
+    createElement('input', {
+      type: 'checkbox',
+      id,
+      checked: Boolean(checked),
+      onChange: (e: { target: { checked: boolean } }) => onCheckedChange?.(e.target.checked)
+    }),
+  Field: ({ label, children }: { label?: ReactNode; children?: ReactNode }) =>
+    createElement('label', null, label, children),
+  Input: (props: Record<string, unknown>) => createElement('input', props),
+  Label: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('label', rest, children),
+  RadioGroup: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'radiogroup' }, children),
+  RadioGroupItem: ({ id, value }: { id?: string; value?: string }) =>
+    createElement('input', { type: 'radio', id, value, name: 'skill', readOnly: true }),
+  Select: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectItem: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SelectTrigger: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('div', rest, children),
+  SelectValue: () => createElement('span')
 }))
 
 describe('GuidedInstall (T9)', () => {
@@ -44,10 +83,12 @@ describe('GuidedInstall (T9)', () => {
     const unsubscribe = vi.fn()
     window.hive = {
       ...window.hive,
-      installBmad: vi.fn((_workspace: string, onEvent: (event: BmadEvent) => void) => {
-        capturedOnEvent = onEvent
-        return unsubscribe
-      })
+      installBmad: vi.fn(
+        (_workspace: string, _options: unknown, onEvent: (event: BmadEvent) => void) => {
+          capturedOnEvent = onEvent
+          return unsubscribe
+        }
+      )
     }
     return {
       emit: (event: BmadEvent) => capturedOnEvent?.(event),
@@ -55,12 +96,40 @@ describe('GuidedInstall (T9)', () => {
     }
   }
 
-  it('starts installBmad() for the given workspace and shows the running state', () => {
+  /**
+   * The screen now opens on the configuration form (BUG 1) — nothing installs
+   * until it's submitted. Submitting it (with the pre-checked recommended
+   * module) is what starts `installBmad`, so every "install running" assertion
+   * below first drives this. The DS Button is `type="button"`, so the click
+   * runs the submit handler via its `onClick` (not a native form submit).
+   */
+  function submitConfigForm(): void {
+    fireEvent.click(screen.getByText('Instalar BMAD'))
+  }
+
+  it('shows the config form first and does not install until it is submitted', () => {
     mockInstallBmad()
 
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
 
-    expect(window.hive.installBmad).toHaveBeenCalledWith('/ws', expect.any(Function))
+    // The form is up; nothing has been installed yet.
+    expect(screen.getByText('Configurar o BMAD')).toBeTruthy()
+    expect(window.hive.installBmad).not.toHaveBeenCalled()
+  })
+
+  it('starts installBmad() with the collected options and shows the running state on submit', async () => {
+    mockInstallBmad()
+
+    render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
+    submitConfigForm()
+
+    await waitFor(() => {
+      expect(window.hive.installBmad).toHaveBeenCalledWith(
+        '/ws',
+        expect.objectContaining({ modules: expect.arrayContaining(['bmm']) }),
+        expect.any(Function)
+      )
+    })
     expect(screen.getByText('Preparando seu workspace')).toBeTruthy()
     expect(screen.getByRole('progressbar')).toBeTruthy()
   })
@@ -69,6 +138,7 @@ describe('GuidedInstall (T9)', () => {
     const { emit } = mockInstallBmad()
 
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
+    submitConfigForm()
 
     emit({ type: 'step', id: 'install-core', label: 'Instalando módulo core' })
     emit({ type: 'step', id: 'install-bmm', label: 'Instalando módulo bmm' })
@@ -84,6 +154,7 @@ describe('GuidedInstall (T9)', () => {
     const onComplete = vi.fn()
 
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete }))
+    submitConfigForm()
 
     emit({ type: 'done', ok: true })
 
@@ -96,6 +167,7 @@ describe('GuidedInstall (T9)', () => {
     const { emit } = mockInstallBmad()
 
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
+    submitConfigForm()
 
     emit({ type: 'error', message: 'Falha na instalação', detail: 'exit code 1' })
 
@@ -122,6 +194,7 @@ describe('GuidedInstall (T9)', () => {
     const { unmount } = render(
       createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} })
     )
+    submitConfigForm()
     unmount()
 
     expect(unsubscribe).toHaveBeenCalled()

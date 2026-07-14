@@ -56,7 +56,9 @@ describe('ConfigStore', () => {
       provisioned: true,
       recentWorkspaces: [],
       lastModel: 'claude-opus-4',
-      lastEffort: 'high'
+      lastEffort: 'high',
+      agent: null,
+      role: null
     })
   })
 
@@ -72,7 +74,9 @@ describe('ConfigStore', () => {
       provisioned: true,
       recentWorkspaces: [],
       lastModel: 'claude-sonnet-4',
-      lastEffort: 'medium'
+      lastEffort: 'medium',
+      agent: null,
+      role: null
     })
   })
 
@@ -92,8 +96,27 @@ describe('ConfigStore', () => {
       provisioned: true,
       recentWorkspaces: [],
       lastModel: 'claude-haiku-4',
-      lastEffort: 'low'
+      lastEffort: 'low',
+      agent: null,
+      role: null
     })
+  })
+
+  it('persists and reads back the app-wide agent + role preferences', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getAgent()).toBeNull()
+    expect(store.getRole()).toBeNull()
+
+    store.setAgent('claude-cli')
+    store.setRole('pm')
+
+    expect(store.getAgent()).toBe('claude-cli')
+    expect(store.getRole()).toBe('pm')
+
+    // Survives a restart (fresh instance, same dir).
+    const restarted = createConfigStore(baseDir)
+    expect(restarted.getAgent()).toBe('claude-cli')
+    expect(restarted.getRole()).toBe('pm')
   })
 
   it('backfills recentWorkspaces to [] when loading an old config without the field', () => {
@@ -147,9 +170,7 @@ describe('ConfigStore', () => {
     const recents = store.getRecentWorkspaces()
     expect(recents).toHaveLength(MAX_RECENT_WORKSPACES)
     // Most recently pushed is at the front; oldest pushes were dropped.
-    const expected = paths
-      .slice(paths.length - MAX_RECENT_WORKSPACES)
-      .reverse()
+    const expected = paths.slice(paths.length - MAX_RECENT_WORKSPACES).reverse()
     expect(recents).toEqual(expected)
   })
 

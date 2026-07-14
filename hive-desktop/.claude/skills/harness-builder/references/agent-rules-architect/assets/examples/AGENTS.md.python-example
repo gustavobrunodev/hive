@@ -1,0 +1,25 @@
+# AGENTS.md
+
+## Stack
+Serviço FastAPI, Python 3.12, gerenciado com `uv`. Assíncrono em tudo — exceto
+`app/legacy/`, que é só síncrono; não converter.
+
+## Comandos
+- Instalar: `uv sync`             # não pip — o projeto é gerenciado por uv
+- Rodar: `uv run uvicorn app.main:app --reload`
+- Testes (todos): `uv run pytest`
+- Testes (um só): `uv run pytest tests/test_x.py::test_name`
+- Lint + format + types: `uv run ruff check . && uv run ruff format . && uv run mypy app`
+
+## Testes
+- Testes de integração precisam de um Postgres local: `docker compose up -d db`
+  antes, senão falham com um erro de conexão obscuro.
+- Mockar HTTP de saída com `respx`; nunca mockar o banco — usar o BD de teste.
+
+## Limites
+- Nunca editar arquivos em `app/_generated/` (regenerados a partir do spec OpenAPI).
+- Nunca commitar `.env` ou qualquer coisa em `secrets/`.
+
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+- Adicionando/modificando um endpoint de API → ler `docs/api.md`
+- Alterando models ou escrevendo uma migration Alembic → ler `docs/database.md`

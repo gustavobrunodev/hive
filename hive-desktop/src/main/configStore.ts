@@ -14,6 +14,14 @@ export interface Config {
   recentWorkspaces: string[]
   lastModel: string | null
   lastEffort: string | null
+  // Global (app-wide, not per-workspace) profile preferences — the selected
+  // agent CLI id (agent-selection AG-R2 / AG-C2) and the user's role
+  // (role-personalization RP-R1 / RP-C1). Both `null` until first chosen in
+  // the required first-run setup steps. Typed as plain `string` here (the
+  // persistence layer stays decoupled from the `RoleId`/agent-id unions in
+  // roleCatalog/agentRegistry — it's just data on disk).
+  agent: string | null
+  role: string | null
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -21,7 +29,9 @@ export const DEFAULT_CONFIG: Config = {
   provisioned: false,
   recentWorkspaces: [],
   lastModel: null,
-  lastEffort: null
+  lastEffort: null,
+  agent: null,
+  role: null
 }
 
 const CONFIG_FILE_NAME = 'config.json'
@@ -36,6 +46,10 @@ export interface ConfigStore {
   setProvisioned(value: boolean): void
   setLastModel(id: string): void
   setLastEffort(id: string): void
+  getAgent(): string | null
+  setAgent(id: string): void
+  getRole(): string | null
+  setRole(id: string): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -101,6 +115,10 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setProvisioned: (value: boolean) => updateConfig({ provisioned: value }),
     setLastModel: (id: string) => updateConfig({ lastModel: id }),
     setLastEffort: (id: string) => updateConfig({ lastEffort: id }),
+    getAgent: () => readConfig().agent,
+    setAgent: (id: string) => updateConfig({ agent: id }),
+    getRole: () => readConfig().role,
+    setRole: (id: string) => updateConfig({ role: id }),
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()

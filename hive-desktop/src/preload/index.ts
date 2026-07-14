@@ -8,8 +8,10 @@ import type {
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
-import type { WorkflowEntry } from '../main/workflowCatalog'
+import type { WorkflowEntry, SkillEntry } from '../main/workflowCatalog'
 import type { OpenResult } from '../main/workspaceService'
+import type { AgentMeta } from '../main/agentRegistry'
+import type { ResolvedRoleAction } from '../main/roleCatalog'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -171,6 +173,23 @@ const hive = {
   workflows: {
     list: (workspace: string): Promise<WorkflowEntry[]> =>
       ipcRenderer.invoke('workflows:list', workspace)
+  },
+
+  // chat-controls (CC-R3.1): the full installed-skill list for the slash menu.
+  skills: {
+    list: (workspace: string): Promise<SkillEntry[]> => ipcRenderer.invoke('skills:list', workspace)
+  },
+
+  // Profile (agent-selection + role-personalization): app-wide agent + role
+  // preferences and the resolved role action list. Plain invoke/response.
+  profile: {
+    agents: (): Promise<AgentMeta[]> => ipcRenderer.invoke('profile:agents'),
+    getAgent: (): Promise<string | null> => ipcRenderer.invoke('profile:getAgent'),
+    setAgent: (id: string): Promise<void> => ipcRenderer.invoke('profile:setAgent', id),
+    getRole: (): Promise<string | null> => ipcRenderer.invoke('profile:getRole'),
+    setRole: (id: string): Promise<void> => ipcRenderer.invoke('profile:setRole', id),
+    roleActions: (role: string | null): Promise<ResolvedRoleAction[]> =>
+      ipcRenderer.invoke('profile:roleActions', role)
   },
 
   // File management (T6/T7), grouped under an `fs` namespace matching

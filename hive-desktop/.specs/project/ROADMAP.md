@@ -49,6 +49,15 @@ Model selection, effort selection, file attachments into context, MCP usage,
 conversation history, session resume. All surfaced through the agent-adapter
 capability contract so they stay agent-agnostic.
 
+**Feature (first slice): `chat-controls` ✅ Done (2026-07-13)** — a
+**pause/interrupt** control that stops the in-flight `claude -p` turn (reusing
+`agent.stop()`, keeping partial output) and a **slash-command menu**: typing `/`
+in the composer opens a keyboard-navigable, type-to-filter list of the workspace's
+discovered BMAD skills (fed by `bmad-help.csv` via a new full-`listSkills`
+discovery), each launchable as a workflow turn. The Claude CLI's own slash
+commands are unavailable in `-p` mode, so the app supplies its own (agent-agnostic,
+sourced from BMAD workspace metadata). Plan in `.specs/features/chat-controls/`.
+
 ## M3 — Full workflow catalog
 
 All upstream placeholders (Domain Research, PRD, Brainstorm, Architecture, Story)
@@ -134,6 +143,33 @@ screenshots of the chip menu and post-switch work UI.
 ## M5 — Second agent adapter
 
 Add a second agent CLI (e.g. Devin) to prove the decoupling from M1 in practice.
+
+**Feature (first slice): `agent-selection` ✅ Done (2026-07-13)** — proves G2
+at the product surface: an **adapter registry** (`claude-cli` available; `devin`
+and others as declared `available:false` placeholders), a **globally persisted
+selection**, a re-bindable `AgentService`, and a **picker** at first-run setup +
+in the profile sheet. No real Devin adapter (no such CLI in this environment —
+it's a cloud agent, not a local `-p` CLI); the selection path is built and
+Claude stays functional, so a genuine second adapter drops in later as one
+registry entry. Plan in `.specs/features/agent-selection/`.
+
+## M9 — Personalization & Profile ✅ Done (2026-07-13)
+
+**Feature:** `role-personalization`
+
+The app adapts to *who the user is*. A **role** (Product Manager, Tech Lead, UX
+Designer, QA, Developer) is chosen in a **required** first-run step (global,
+persisted) and drives a **role→action catalog** — BMAD workflows plus a "Conversar
+com <persona>" action bound to the role's BMAD specialist agent (John=PM,
+Winston=Architect, Sally=UX, Murat=QA/`bmad-tea`, Amelia=Dev, all verified skills).
+The role's actions render in the "O que você quer fazer hoje?" hero (all launchable,
+superseding the MVP's single-wired-PRD catalog), in a **persistent left action
+rail** available at any time (the user-chosen "second home" for the shortcuts, over
+a ⌘K palette / topbar menu), and are re-configurable via a **profile/settings gear**
+(a right-side Sheet) that also switches the agent. Shaped with `impeccable`
+(product register). Onboarding order: workspace → agent step → role step →
+install/update → work UI (agent+role are one-time global steps, skipped on later
+launches / workspace switches). Plan in `.specs/features/role-personalization/`.
 
 ## M6 — Polish & packaging
 

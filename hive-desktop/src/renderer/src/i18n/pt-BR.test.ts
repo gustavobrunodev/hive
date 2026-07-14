@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ptBR, intentLabel } from './pt-BR'
+import { ptBR, intentLabel, roleMeta, roleActionLabel } from './pt-BR'
 
 /**
  * T10 (file-management regression pass) — `pt-BR.ts` is one of this
@@ -29,5 +29,23 @@ describe('pt-BR copy — pure helpers', () => {
 
   it('intentLabel() falls back to the raw key for an unrecognized, runtime-discovered entry', () => {
     expect(intentLabel('some-future-workflow')).toBe('some-future-workflow')
+  })
+
+  it('chat.agentIndicatorAria() interpolates the active agent name', () => {
+    expect(ptBR.chat.agentIndicatorAria('Claude Code')).toBe('Agente ativo: Claude Code')
+  })
+
+  it('roleMeta() resolves a known role and falls back to a general descriptor', () => {
+    expect(roleMeta('pm').name).toBe('Product Manager')
+    expect(roleMeta('pm').persona).toBe('John')
+    expect(roleMeta('qa').persona).toBe('Murat')
+    expect(roleMeta('general').name).toBe('Geral')
+    expect(roleMeta('unknown').persona).toBe('BMAD')
+  })
+
+  it('roleActionLabel() resolves known action keys and falls back to the raw key', () => {
+    expect(roleActionLabel('prd')).toBe('Criar um PRD')
+    expect(roleActionLabel('persona-pm')).toBe('Conversar com John')
+    expect(roleActionLabel('unknown-action')).toBe('unknown-action')
   })
 })

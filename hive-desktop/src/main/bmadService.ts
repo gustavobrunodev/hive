@@ -16,9 +16,58 @@ export type BmadEvent =
   | { type: 'done'; ok: true }
   | { type: 'error'; message: string; detail?: string }
 
+/**
+ * The information the guided-install form (design.md §5.1, GuidedInstall.tsx)
+ * collects from the user, mapped 1:1 onto `bmad-method install`'s
+ * non-interactive flags. Rather than driving the real interactive clack TUI
+ * over a pty (fragile screen-scraping), the app abstracts the CLI's questions
+ * into its own visual form and then runs the install non-interactively with
+ * the answers — matching the app's "terminal abstracted into visual UI"
+ * philosophy (context.md C2). All fields except `modules` are optional; an
+ * omitted field simply isn't passed, so the CLI keeps its own default.
+ */
+export interface BmadInstallOptions {
+  /** Module IDs to install alongside always-present core (`--modules`), e.g. `['bmm']`. */
+  modules: string[]
+  /** What agents should call the user (`--user-name`). */
+  userName?: string
+  /** Language agents chat in (`--communication-language`). */
+  communicationLanguage?: string
+  /** Language for generated documents (`--document-output-language`). */
+  documentOutputLanguage?: string
+  /** Output folder relative to the workspace (`--output-folder`). */
+  outputFolder?: string
+  /**
+   * Module-scoped config options, emitted as repeated
+   * `--set <module>.<key>=<value>` flags (e.g. `{ 'bmm.user_skill_level': 'intermediate' }`).
+   */
+  set?: Record<string, string>
+}
+
 export interface BmadService {
-  install(workspace: string): AsyncIterable<BmadEvent>
+  install(workspace: string, options: BmadInstallOptions): AsyncIterable<BmadEvent>
   update(workspace: string): AsyncIterable<BmadEvent>
+}
+
+/**
+ * Flattens a `BmadInstallOptions` into the ordered CLI flag list that sits
+ * between `--directory <ws>` and the fixed `--tools claude-code --yes` tail
+ * (added by `runInstallCommand`). `--modules` is always present (at least the
+ * user's selection); every other flag is included only when its field is set,
+ * so unspecified answers fall back to the CLI's own defaults.
+ */
+function buildInstallArgs(options: BmadInstallOptions): string[] {
+  const args: string[] = ['--modules', options.modules.join(',')]
+  if (options.userName) args.push('--user-name', options.userName)
+  if (options.communicationLanguage)
+    args.push('--communication-language', options.communicationLanguage)
+  if (options.documentOutputLanguage)
+    args.push('--document-output-language', options.documentOutputLanguage)
+  if (options.outputFolder) args.push('--output-folder', options.outputFolder)
+  for (const [key, value] of Object.entries(options.set ?? {})) {
+    args.push('--set', `${key}=${value}`)
+  }
+  return args
 }
 
 // Line-prefix markers observed in a real `bmad-method@6.10.0 install` run
@@ -84,11 +133,12 @@ function parseLine(rawLine: string): BmadEvent | null {
  * command (design.md §7). There is no separate `update` subcommand — plain
  * `install --yes` against an already-provisioned directory auto-detects and
  * "defaults to quick-update", so `install()` and `update()` share this one
- * code path, differing only in whether `--modules bmm` (first-run module
- * selection) is passed and in what a successful run means for
- * `ConfigStore.provisioned`:
+ * code path, differing only in the flags between `--directory <ws>` and the
+ * fixed `--tools claude-code --yes` tail (install carries the guided-form
+ * answers built by `buildInstallArgs`; update carries none) and in what a
+ * successful run means for `ConfigStore.provisioned`:
  *
- *   install: npx bmad-method install --directory <ws> --modules bmm --tools claude-code --yes
+ *   install: npx bmad-method install --directory <ws> --modules <sel> [--user-name … --set …] --tools claude-code --yes
  *   update:  npx bmad-method install --directory <ws> --tools claude-code --yes
  *
  * `processRunner` and `configStore` are both injected (mirroring
@@ -160,8 +210,8 @@ export function createBmadService(
     }
   }
 
-  function install(workspace: string): AsyncIterable<BmadEvent> {
-    return runInstallCommand(workspace, ['--modules', 'bmm'], 'install', () =>
+  function install(workspace: string, options: BmadInstallOptions): AsyncIterable<BmadEvent> {
+    return runInstallCommand(workspace, buildInstallArgs(options), 'install', () =>
       configStore.setProvisioned(true)
     )
   }

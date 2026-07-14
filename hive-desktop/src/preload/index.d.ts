@@ -7,8 +7,10 @@ import type {
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
-import type { WorkflowEntry } from '../main/workflowCatalog'
+import type { WorkflowEntry, SkillEntry } from '../main/workflowCatalog'
 import type { OpenResult } from '../main/workspaceService'
+import type { AgentMeta } from '../main/agentRegistry'
+import type { ResolvedRoleAction } from '../main/roleCatalog'
 
 declare global {
   interface Window {
@@ -53,6 +55,19 @@ declare global {
       /** WorkflowCatalog (T17) surface — see preload/index.ts for the full channel design. */
       workflows: {
         list(workspace: string): Promise<WorkflowEntry[]>
+      }
+      /** chat-controls (CC-R3): full installed-skill list for the slash menu. */
+      skills: {
+        list(workspace: string): Promise<SkillEntry[]>
+      }
+      /** Profile (agent-selection + role-personalization): app-wide agent + role. */
+      profile: {
+        agents(): Promise<AgentMeta[]>
+        getAgent(): Promise<string | null>
+        setAgent(id: string): Promise<void>
+        getRole(): Promise<string | null>
+        setRole(id: string): Promise<void>
+        roleActions(role: string | null): Promise<ResolvedRoleAction[]>
       }
       /**
        * File management (T6/T7) surface — see preload/index.ts for the full

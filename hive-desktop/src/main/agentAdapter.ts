@@ -68,13 +68,19 @@ export interface AgentInput {
  *   `AgentEvent` shape change.
  * - `done` — the turn/session's underlying process finished successfully.
  * - `error` — the turn/session's underlying process failed (non-zero exit,
- *   killed by an unexpected signal, or failed to spawn).
+ *   killed by an *unexpected* signal, or failed to spawn).
+ * - `interrupted` — the turn was stopped by the *user* (chat-controls CC-R1):
+ *   `stop()` killed the in-flight process on purpose. Distinct from `error` so
+ *   the UI treats a deliberate stop as a normal outcome (keep partial output,
+ *   no error Alert) rather than a claude failure (CC-R1.5). Terminal, like
+ *   `done`/`error`.
  */
 export type AgentEvent =
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string; detail?: string }
   | { type: 'done' }
   | { type: 'error'; message: string }
+  | { type: 'interrupted' }
 
 /**
  * A guided-intent entry point (R7.2) — "run BMAD workflow X". The full

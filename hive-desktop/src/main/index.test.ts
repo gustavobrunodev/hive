@@ -245,9 +245,7 @@ describe('main process bootstrap', () => {
   it('workspace:provisionState reports false for an unprovisioned directory (no _bmad/_config/manifest.yaml)', async () => {
     const fakeInvokeEvent = {}
     const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-provision-'))
-    await expect(findHandler('workspace:provisionState')(fakeInvokeEvent, dir)).resolves.toBe(
-      false
-    )
+    await expect(findHandler('workspace:provisionState')(fakeInvokeEvent, dir)).resolves.toBe(false)
     rmSync(dir, { recursive: true, force: true })
   })
 
@@ -263,9 +261,7 @@ describe('main process bootstrap', () => {
     // MRU is shared with the earlier workspace:choose test in this describe
     // block (same ConfigStore instance), so only the head (this open) is
     // asserted rather than the full list.
-    await expect(findHandler('workspace:recents')()).resolves.toEqual(
-      expect.arrayContaining([dir])
-    )
+    await expect(findHandler('workspace:recents')()).resolves.toEqual(expect.arrayContaining([dir]))
     const recents = (await findHandler('workspace:recents')()) as string[]
     expect(recents[0]).toBe(dir)
 
@@ -680,9 +676,7 @@ describe('main process bootstrap', () => {
 
     it('rejects a javascript: URL without calling shell.openExternal', async () => {
       vi.mocked(shell.openExternal).mockClear()
-      await expect(
-        findHandler('shell:openExternal')({}, 'javascript:alert(1)')
-      ).rejects.toThrow()
+      await expect(findHandler('shell:openExternal')({}, 'javascript:alert(1)')).rejects.toThrow()
       expect(shell.openExternal).not.toHaveBeenCalled()
     })
 

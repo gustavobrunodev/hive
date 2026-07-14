@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createAgentService } from './agentService'
+import type { AgentRegistry, AgentMeta } from './agentRegistry'
 import {
   createAgentEventQueue,
   type AgentAdapter,
@@ -56,10 +57,10 @@ const FAKE_CAPABILITIES: AgentCapabilities = {
   supportsAttachments: false
 }
 
-function createFakeAdapter(): { adapter: AgentAdapter; sessions: FakeSession[] } {
+function createFakeAdapter(id = 'fake'): { adapter: AgentAdapter; sessions: FakeSession[] } {
   const sessions: FakeSession[] = []
   const adapter: AgentAdapter = {
-    id: 'fake',
+    id,
     displayName: 'Fake Adapter',
     capabilities: () => FAKE_CAPABILITIES,
     startSession: (opts: SessionOpts) => {
@@ -69,6 +70,31 @@ function createFakeAdapter(): { adapter: AgentAdapter; sessions: FakeSession[] }
     }
   }
   return { adapter, sessions }
+}
+
+/**
+ * A minimal `AgentRegistry` wrapping one or more fake adapters — `AgentService`
+ * now resolves its adapter through the registry (agent-selection AG-R1), so
+ * tests inject a registry keyed by adapter id. `resolve` mirrors the real
+ * registry's unknown-id-falls-back-to-default behaviour (AG-R2.2).
+ */
+function createFakeRegistry(adapters: Record<string, AgentAdapter>): AgentRegistry {
+  const ids = Object.keys(adapters)
+  const meta: AgentMeta[] = ids.map((id) => ({
+    id,
+    displayName: adapters[id].displayName,
+    description: '',
+    available: true
+  }))
+  return {
+    list: () => meta,
+    get: (id) => adapters[id] ?? null,
+    defaultId: () => ids[0],
+    resolve: (id) => {
+      if (id && adapters[id]) return { id, adapter: adapters[id] }
+      return { id: ids[0], adapter: adapters[ids[0]] }
+    }
+  }
 }
 
 // Yields long enough for the microtask chain driving `onEvent`'s internal
@@ -81,28 +107,28 @@ function flushMicrotasks(): Promise<void> {
 describe('AgentService', () => {
   it('capabilities() passes through to the adapter', () => {
     const { adapter } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     expect(service.capabilities()).toEqual(FAKE_CAPABILITIES)
   })
 
   it('send() throws when no session has been started', () => {
     const { adapter } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     expect(() => service.send('hello')).toThrow(/no active session/i)
   })
 
   it('runWorkflow() throws when no session has been started', () => {
     const { adapter } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     expect(() => service.runWorkflow({ key: 'prd' })).toThrow(/no active session/i)
   })
 
   it('startSession() + send() forwards the turn to the underlying session', () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
     service.send('hello')
@@ -113,7 +139,7 @@ describe('AgentService', () => {
 
   it('runWorkflow() forwards to the underlying session', () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
     service.runWorkflow({ key: 'prd', prompt: 'run prd' })
@@ -123,7 +149,7 @@ describe('AgentService', () => {
 
   it('starting a new session stops the previous active session and becomes the new target for send()', () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     service.startSession({ workspace: '/ws-1', model: 'model-a', effort: 'low' })
     service.startSession({ workspace: '/ws-2', model: 'model-a', effort: 'low' })
@@ -138,7 +164,7 @@ describe('AgentService', () => {
 
   it('onEvent() with no active session is a safe no-op subscribe (does not throw)', () => {
     const { adapter } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     const unsubscribe = service.onEvent(() => {})
     expect(() => unsubscribe()).not.toThrow()
@@ -146,7 +172,7 @@ describe('AgentService', () => {
 
   it("onEvent() forwards the active session's streamed events, in order", async () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
     service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
 
     const received: AgentEvent[] = []
@@ -167,7 +193,7 @@ describe('AgentService', () => {
 
   it('unsubscribing via the returned function stops further forwarding', async () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
     service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
 
     const received: AgentEvent[] = []
@@ -182,7 +208,7 @@ describe('AgentService', () => {
 
   it("starting a new session stops forwarding a previous onEvent subscription's events", async () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
     service.startSession({ workspace: '/ws-1', model: 'model-a', effort: 'low' })
 
     const received: AgentEvent[] = []
@@ -202,7 +228,7 @@ describe('AgentService', () => {
   // switch that never mounts a new Chat).
   it('stop() stops the active session and clears it, so a later send()/runWorkflow() throws again', () => {
     const { adapter, sessions } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
     service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
 
     service.stop()
@@ -214,8 +240,52 @@ describe('AgentService', () => {
 
   it('stop() with no active session is a safe no-op', () => {
     const { adapter } = createFakeAdapter()
-    const service = createAgentService(adapter)
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     expect(() => service.stop()).not.toThrow()
+  })
+
+  // agent-selection (AG-R1.2/AG-C4): the active adapter is chosen from the
+  // registry and can be re-bound at runtime.
+  it('activeAgentId() reports the initially-selected adapter', () => {
+    const a = createFakeAdapter('agent-a')
+    const b = createFakeAdapter('agent-b')
+    const service = createAgentService(
+      createFakeRegistry({ 'agent-a': a.adapter, 'agent-b': b.adapter }),
+      'agent-b'
+    )
+
+    expect(service.activeAgentId()).toBe('agent-b')
+  })
+
+  it('resolves an unknown initial id to the registry default (AG-R2.2)', () => {
+    const a = createFakeAdapter('agent-a')
+    const service = createAgentService(createFakeRegistry({ 'agent-a': a.adapter }), 'missing')
+
+    expect(service.activeAgentId()).toBe('agent-a')
+  })
+
+  it('setAdapter() re-binds which adapter future sessions use', () => {
+    const a = createFakeAdapter('agent-a')
+    const b = createFakeAdapter('agent-b')
+    const service = createAgentService(
+      createFakeRegistry({ 'agent-a': a.adapter, 'agent-b': b.adapter }),
+      'agent-a'
+    )
+
+    service.setAdapter('agent-b')
+    expect(service.activeAgentId()).toBe('agent-b')
+
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+    expect(a.sessions).toHaveLength(0)
+    expect(b.sessions).toHaveLength(1)
+  })
+
+  it('setAdapter() ignores an unknown/unavailable id (safe no-op)', () => {
+    const a = createFakeAdapter('agent-a')
+    const service = createAgentService(createFakeRegistry({ 'agent-a': a.adapter }), 'agent-a')
+
+    service.setAdapter('nope')
+    expect(service.activeAgentId()).toBe('agent-a')
   })
 })

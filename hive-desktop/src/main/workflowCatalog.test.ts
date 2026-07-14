@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { list, listWithDiscovery, parseBmadHelpCsv } from './workflowCatalog'
+import { list, listWithDiscovery, listSkills, parseBmadHelpCsv } from './workflowCatalog'
 
 // A trimmed fixture of the *real* `_bmad/_config/bmad-help.csv` header and a
 // handful of its actual rows, as captured from the T0 throwaway
@@ -127,6 +127,50 @@ describe('WorkflowCatalog', () => {
       // extra entry, and no second "story" entry for the raw skill key.
       const storyLikeEntries = result.filter((entry) => entry.command.key === 'bmad-create-story')
       expect(storyLikeEntries).toHaveLength(1)
+    })
+  })
+
+  // chat-controls (CC-R3.1): the full installed-skill list for the slash menu.
+  describe('listSkills()', () => {
+    let workspaceRoot: string
+
+    beforeEach(() => {
+      workspaceRoot = mkdtempSync(join(tmpdir(), 'hive-skills-'))
+    })
+
+    afterEach(() => {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+    })
+
+    it('returns [] when no bmad-help.csv is present', async () => {
+      expect(await listSkills(workspaceRoot)).toEqual([])
+    })
+
+    it('returns [] on a malformed csv', async () => {
+      const configDir = join(workspaceRoot, '_bmad', '_config')
+      mkdirSync(configDir, { recursive: true })
+      writeFileSync(join(configDir, 'bmad-help.csv'), 'not a csv')
+      expect(await listSkills(workspaceRoot)).toEqual([])
+    })
+
+    it('lists every skill (key/label/description), skips _meta, and dedupes multi-action skills', async () => {
+      const configDir = join(workspaceRoot, '_bmad', '_config')
+      mkdirSync(configDir, { recursive: true })
+      writeFileSync(join(configDir, 'bmad-help.csv'), REAL_BMAD_HELP_CSV)
+
+      const skills = await listSkills(workspaceRoot)
+
+      // _meta row is skipped.
+      expect(skills.some((s) => s.key === '_meta')).toBe(false)
+      // bmad-create-story appears twice in the CSV → deduped to one entry.
+      expect(skills.filter((s) => s.key === 'bmad-create-story')).toHaveLength(1)
+      // Distinct workflow skills surfaced with label + description.
+      const prd = skills.find((s) => s.key === 'bmad-prd')
+      expect(prd?.label).toBe('Create Edit and Review PRD')
+      expect(prd?.description).toMatch(/PRD/)
+      expect(skills.map((s) => s.key)).toEqual(
+        expect.arrayContaining(['bmad-market-research', 'bmad-prd', 'bmad-create-story'])
+      )
     })
   })
 })

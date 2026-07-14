@@ -89,44 +89,115 @@
   background: var(--border-strong);
 }
 
+/* The chip is a workspace *switcher*, not a label — so it must read as an
+   interactive control at rest (a subtle surface + border give it a pressable
+   silhouette) and carry a trailing caret, the universal "opens a menu" cue.
+   Hover/open deepen the surface; open also flips the caret. */
 .wb-workspace-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
   min-width: 0;
-  max-width: 220px;
-  padding: 4px 10px;
+  max-width: 240px;
+  padding: 4px 6px 4px 9px;
   border-radius: var(--rounded-md);
   font: inherit;
   font-size: 0.8125rem;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-.wb-workspace-chip:hover {
-  background: var(--surface-2);
+  font-weight: 600;
   color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
-/* T7 (WS-R1.1): the chip is now a custom-interactive DS menu trigger (a
-   plain <button>, not a native control the browser already outlines) — per
-   the STATE presentational-as-button lesson it needs its own explicit
+.wb-workspace-chip:hover,
+.wb-workspace-chip[data-state='open'] {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+/* T7 (WS-R1.1): the chip is a custom-interactive DS menu trigger (a plain
+   <button>, not a native control the browser already outlines) — per the
+   STATE presentational-as-button lesson it needs its own explicit
    :focus-visible ring rather than relying on the browser default; mirrors
    the sibling `.wb-icon-btn:focus-visible` rule in this same topbar. */
 .wb-workspace-chip:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
-.wb-workspace-chip svg {
+.wb-workspace-chip-icon {
   flex-shrink: 0;
-  color: var(--faint);
+  color: var(--muted);
 }
 .wb-workspace-chip-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  color: var(--ink);
+}
+.wb-workspace-chip-caret {
+  flex-shrink: 0;
+  color: var(--faint);
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms ease;
+}
+.wb-workspace-chip:hover .wb-workspace-chip-caret,
+.wb-workspace-chip[data-state='open'] .wb-workspace-chip-caret {
   color: var(--muted);
+}
+.wb-workspace-chip[data-state='open'] .wb-workspace-chip-caret {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-workspace-chip,
+  .wb-workspace-chip-caret {
+    transition: none;
+  }
+}
+
+/* Chip menu: give each entry an icon + a two-line label (name over its full
+   path) so recents are scannable and unambiguous — the DS item-label span is
+   single-line/ellipsis by default, so relax it into a flex row here. */
+.wb-workspace-menu {
+  min-width: 260px;
+  max-width: 380px;
+}
+.wb-workspace-menu .hds-dropdown-menu-item-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+}
+.wb-menu-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.wb-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-menu-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+  color: var(--ink);
+}
+.wb-menu-item-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--faint);
 }
 
 .wb-topbar-spacer {
@@ -1100,5 +1171,495 @@
   .wb-intent,
   .wb-intent-icon {
     transition: none;
+  }
+}
+
+/* ==========================================================================
+   Action rail (role-personalization RP-R5) — a fixed chrome column on the far
+   left, OUTSIDE the resizable body group so it never disturbs `hive.workLayout`.
+   Quiet by default (icon-only, --muted), accent only on hover/active/persona.
+   ========================================================================== */
+
+.wb-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.wb-shell > .wb-body {
+  min-width: 0;
+}
+
+.wb-actionrail {
+  flex-shrink: 0;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-3) 0;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.wb-actionrail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.wb-actionrail-divider {
+  width: 20px;
+  height: 1px;
+  background: var(--border-strong);
+  margin: var(--s-1) 0;
+}
+
+.wb-actionrail-settings {
+  margin-top: auto;
+}
+
+.wb-rail-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart),
+    transform 0.1s var(--ease-quart);
+}
+.wb-rail-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-rail-btn:active {
+  transform: scale(0.92);
+  background: var(--surface-3);
+}
+.wb-rail-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+/* Persona action ("Conversar com o especialista") — the warm, human entry. */
+.wb-rail-btn[data-persona] {
+  color: var(--accent);
+}
+.wb-rail-btn[data-persona]:hover {
+  background: var(--selected-bg);
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   Setup screens (agent + role pickers) — a wider gate card holding a
+   selectable-card radiogroup (agent-selection AG-R3.1, role-personalization RP-R2).
+   ========================================================================== */
+
+.wb-setup-card {
+  width: min(720px, 100%);
+  text-align: left;
+}
+.wb-setup-card .wb-gate-title {
+  font-size: 1.375rem;
+  text-align: center;
+}
+.wb-setup-card .wb-gate-desc {
+  text-align: center;
+  max-width: 52ch;
+  margin-inline: auto;
+}
+
+.wb-setup-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--s-6);
+}
+
+/* Role card action preview chips */
+.wb-role-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: var(--s-2);
+}
+.wb-role-preview-chip {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: var(--rounded-full);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Choice card + radiogroup (shared: agent/role setup + profile sheet).
+   ========================================================================== */
+
+.wb-choice-grid {
+  display: grid;
+  gap: var(--s-3);
+}
+.wb-choice-grid[data-variant='cards'] {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.wb-choice-grid[data-variant='list'] {
+  grid-template-columns: 1fr;
+  gap: var(--s-2);
+}
+
+.wb-choice-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.16s var(--ease-quart),
+    background-color 0.16s var(--ease-quart),
+    box-shadow 0.16s var(--ease-quart);
+}
+.wb-choice-grid[data-variant='list'] .wb-choice-card {
+  padding: var(--s-3) var(--s-4);
+  align-items: center;
+}
+.wb-choice-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.wb-choice-card[data-selected] {
+  border-color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-choice-card[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.wb-choice-card[data-disabled]:hover {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.wb-choice-card:focus-visible {
+  outline: 0;
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.wb-choice-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  color: var(--accent);
+}
+.wb-choice-card[data-selected] .wb-choice-card-icon {
+  background: var(--surface);
+}
+.wb-choice-grid[data-variant='list'] .wb-choice-card-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.wb-choice-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.wb-choice-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-choice-card-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-3);
+  border-radius: var(--rounded-full);
+  padding: 2px 7px;
+}
+.wb-choice-card-desc {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.wb-choice-card-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.16s var(--ease-quart),
+    transform 0.16s var(--ease-quart);
+}
+.wb-choice-card[data-selected] .wb-choice-card-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Staggered entrance for the onboarding card grids — legitimate list stagger. */
+.wb-choice-grid[data-variant='cards'] .wb-choice-card {
+  animation: wb-rise 0.28s var(--ease-quart) both;
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card:nth-child(5) {
+  animation-delay: 0.16s;
+}
+@keyframes wb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Hero persona pill (role-personalization RP-R4) — the "talk to a specialist"
+   entry, set apart from the workflow pills and accent-tinted.
+   ========================================================================== */
+
+.wb-pills-persona {
+  margin-top: var(--s-4);
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wb-pills-persona-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.wb-pill[data-persona] {
+  color: var(--accent);
+  background: var(--selected-bg);
+  border-color: transparent;
+}
+.wb-pill[data-persona] svg {
+  color: var(--accent);
+}
+.wb-pill[data-persona]:hover {
+  background: var(--selected-bg);
+  border-color: var(--accent);
+}
+
+/* ==========================================================================
+   Chat controls — interrupt Stop button, agent indicator, slash menu
+   (chat-controls CC-R1/R2, agent-selection AG-R3.3).
+   ========================================================================== */
+
+.wb-composer-wrap {
+  position: relative;
+}
+
+.wb-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+  border: 1px solid transparent;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-stop-btn:hover {
+  border-color: var(--danger);
+}
+.wb-stop-btn:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+.wb-stop-btn svg {
+  flex-shrink: 0;
+}
+
+.wb-agent-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--faint);
+  padding: 0 var(--s-1);
+  white-space: nowrap;
+}
+.wb-agent-indicator::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-right: 6px;
+}
+
+/* Slash-command menu — a listbox anchored above the composer, opening upward. */
+.wb-slash-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--s-2));
+  z-index: var(--z-dropdown);
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-1);
+  animation: wb-slash-in 0.12s var(--ease-quart) both;
+}
+@keyframes wb-slash-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wb-slash-menu-head {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: var(--s-2) var(--s-3) var(--s-1);
+}
+.wb-slash-empty {
+  padding: var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-slash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wb-slash-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+}
+.wb-slash-item[data-active] {
+  background: var(--selected-bg);
+}
+.wb-slash-item-icon {
+  display: inline-flex;
+  color: var(--accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.wb-slash-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wb-slash-item-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-slash-item-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Profile sheet (role-personalization RP-R6, agent-selection AG-R3.2)
+   ========================================================================== */
+
+.wb-profile-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: min(420px, 92vw);
+}
+.wb-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wb-profile-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0;
+}
+.wb-profile-scope-note {
+  font-size: 0.75rem;
+  color: var(--faint);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-rail-btn,
+  .wb-choice-card,
+  .wb-choice-card-check,
+  .wb-stop-btn {
+    transition: none;
+  }
+  .wb-choice-grid[data-variant='cards'] .wb-choice-card,
+  .wb-slash-menu {
+    animation: none;
   }
 }

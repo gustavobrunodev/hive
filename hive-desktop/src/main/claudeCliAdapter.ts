@@ -53,20 +53,30 @@ import {
 const CLAUDE_COMMAND = 'claude'
 
 function capabilities(): AgentCapabilities {
-  // Curated per C5 — deliberately not scraped from `claude --help`. Ids are
-  // structurally reasonable Claude model/effort identifiers, not guaranteed
-  // to be the literally-current model id strings (those churn); the point
-  // of C5 is that this list is a maintained, hand-picked set either way.
+  // Curated per C5 — deliberately not scraped from `claude --help` (there is
+  // no stable machine-readable "list models" command, and the concrete set is
+  // account-dependent). This is the full set of model aliases and effort
+  // levels the Claude Code CLI accepts, not an arbitrarily trimmed subset:
+  //
+  //   - Models: the CLI's own `--model` aliases (`--help` recommends aliases
+  //     over pinned model ids, which churn as new generations ship). `fable`
+  //     was previously missing from this list.
+  //   - Efforts: `--effort` accepts `low|medium|high|xhigh|max` (verified
+  //     against a real `claude` binary). `xhigh`/`max` were previously
+  //     missing.
   return {
     models: [
       { id: 'opus', label: 'Opus' },
       { id: 'sonnet', label: 'Sonnet' },
-      { id: 'haiku', label: 'Haiku' }
+      { id: 'haiku', label: 'Haiku' },
+      { id: 'fable', label: 'Fable' }
     ],
     efforts: [
       { id: 'low', label: 'Low' },
       { id: 'medium', label: 'Medium' },
-      { id: 'high', label: 'High' }
+      { id: 'high', label: 'High' },
+      { id: 'xhigh', label: 'Extra High' },
+      { id: 'max', label: 'Max' }
     ],
     // R6.5 (attachments) is a separate should-have task (T16).
     supportsAttachments: false
@@ -77,18 +87,26 @@ function capabilities(): AgentCapabilities {
  * Pipes one spawned turn's `ProcessHandle` into the session's shared event
  * queue: every stdout/stderr chunk becomes a `token` event (simplest
  * reasonable MVP mapping — see agentAdapter.ts's `AgentEvent` doc), then
- * exactly one terminal event (`done` on a clean exit, `error` otherwise:
- * non-zero exit code, or exit via signal).
+ * exactly one terminal event:
+ *  - `done` on a clean exit (code 0),
+ *  - `interrupted` when the non-clean exit was caused by a deliberate
+ *    user `stop()` (chat-controls CC-R1.5) — `wasInterrupted()` reports this
+ *    turn's handle was the one `stop()` killed,
+ *  - `error` otherwise (unexpected non-zero exit code or signal).
+ * Partial `token`s already delivered are unaffected either way (CC-R1.3).
  */
 async function pipeTurn(
   handle: ProcessHandle,
-  queue: ReturnType<typeof createAgentEventQueue>
+  queue: ReturnType<typeof createAgentEventQueue>,
+  wasInterrupted: () => boolean
 ): Promise<void> {
   for await (const chunk of handle.output) {
     queue.push({ type: 'token', text: chunk.data })
   }
   const result = await handle.exitCode
-  if (result.code === 0) {
+  if (wasInterrupted()) {
+    queue.push({ type: 'interrupted' })
+  } else if (result.code === 0) {
     queue.push({ type: 'done' })
   } else if (result.signal) {
     queue.push({ type: 'error', message: `claude was terminated by signal ${result.signal}` })
@@ -105,8 +123,13 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
   // whole session, since `ProcessHandle` exposes no stdin to keep feeding a
   // single interactive process turn after turn.
   let activeHandle: ProcessHandle | null = null
+  // The handle a user `stop()` killed, so `pipeTurn` can distinguish a
+  // deliberate interrupt (emit `interrupted`) from a real failure
+  // (emit `error`) — chat-controls CC-R1.5. Reset when a new turn spawns.
+  let interruptedHandle: ProcessHandle | null = null
 
   function spawnTurn(prompt: string): void {
+    interruptedHandle = null
     const handle = processRunner.run(
       CLAUDE_COMMAND,
       [
@@ -126,7 +149,7 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
       { cwd: opts.workspace }
     )
     activeHandle = handle
-    void pipeTurn(handle, queue).then(() => {
+    void pipeTurn(handle, queue, () => interruptedHandle === handle).then(() => {
       if (activeHandle === handle) {
         activeHandle = null
       }
@@ -157,6 +180,11 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
       spawnTurn(prompt)
     },
     stop(): void {
+      // Mark the in-flight turn as a *user* interrupt so its terminal event is
+      // `interrupted`, not `error` (CC-R1.5), then kill it. Harmless when
+      // there's no active turn (`activeHandle` null → nothing killed, and the
+      // next spawn resets `interruptedHandle`).
+      interruptedHandle = activeHandle
       activeHandle?.kill()
     }
   }

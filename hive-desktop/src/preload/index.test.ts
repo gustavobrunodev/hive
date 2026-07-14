@@ -291,6 +291,46 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('workflows:list', '/root')
   })
 
+  // chat-controls (CC-R3): the skills discovery namespace.
+  it('hive.skills.list(workspace) invokes "skills:list" with workspace', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      skills: { list: (w: string) => Promise<unknown> }
+    }
+    await expect(hive.skills.list('/root')).resolves.toBe('invoked:skills:list')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('skills:list', '/root')
+  })
+
+  // Profile namespace (agent-selection + role-personalization).
+  it('hive.profile.* invokes the matching profile IPC channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      profile: {
+        agents: () => Promise<unknown>
+        getAgent: () => Promise<unknown>
+        setAgent: (id: string) => Promise<unknown>
+        getRole: () => Promise<unknown>
+        setRole: (id: string) => Promise<unknown>
+        roleActions: (role: string | null) => Promise<unknown>
+      }
+    }
+    await expect(hive.profile.agents()).resolves.toBe('invoked:profile:agents')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:agents')
+
+    await expect(hive.profile.getAgent()).resolves.toBe('invoked:profile:getAgent')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:getAgent')
+
+    await hive.profile.setAgent('claude-cli')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setAgent', 'claude-cli')
+
+    await expect(hive.profile.getRole()).resolves.toBe('invoked:profile:getRole')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:getRole')
+
+    await hive.profile.setRole('pm')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setRole', 'pm')
+
+    await hive.profile.roleActions('pm')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:roleActions', 'pm')
+  })
+
   // T7: file management, window.hive.fs.* + pathForFile.
   // (A local shape rather than `typeof window.hive.fs`: the latter depends on
   // the ambient `declare global` in index.d.ts resolving under this file's

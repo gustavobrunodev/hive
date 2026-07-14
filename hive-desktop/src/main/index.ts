@@ -6,11 +6,12 @@ import { createConfigStore } from './configStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
-import { createClaudeCliAdapter } from './claudeCliAdapter'
+import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
 import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
 import { createBmadService, type BmadInstallOptions } from './bmadService'
-import { listWithDiscovery } from './workflowCatalog'
+import { listWithDiscovery, listSkills } from './workflowCatalog'
+import { resolveRoleActions } from './roleCatalog'
 
 // T3 (UX-R7.3): protocols window.hive.openExternal is allowed to hand to
 // shell.openExternal — see the ipcMain.handle('shell:openExternal', ...)
@@ -245,8 +246,15 @@ app.whenReady().then(() => {
   // by AgentService to own the active session. Exposed to the renderer as
   // window.hive.agent.{capabilities,start,send,runWorkflow,onEvent}.
   const processRunner = createProcessRunner()
-  const claudeCliAdapter = createClaudeCliAdapter(processRunner)
-  const agentService = createAgentService(claudeCliAdapter)
+  // agent-selection (AG-R1/R2): the adapter is chosen from a registry by the
+  // globally-persisted selection (falling back to the default available adapter
+  // for an unknown/unset id), instead of hardwiring the Claude adapter. The
+  // registry is also queried by the `profile.agents` picker below.
+  const agentRegistry = createAgentRegistry(processRunner)
+  const agentService = createAgentService(
+    agentRegistry,
+    configStore.getAgent() ?? agentRegistry.defaultId()
+  )
 
   ipcMain.handle('agent:capabilities', async () => agentService.capabilities())
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
@@ -355,6 +363,34 @@ app.whenReady().then(() => {
   // window.hive.workflows.list(workspace).
   ipcMain.handle('workflows:list', async (_event, workspace: string) =>
     listWithDiscovery(workspace)
+  )
+
+  // chat-controls (CC-R3.1): the full installed-skill list for the slash menu,
+  // request/response like workflows:list. Exposed as window.hive.skills.list.
+  ipcMain.handle('skills:list', async (_event, workspace: string) => listSkills(workspace))
+
+  // Profile IPC (agent-selection + role-personalization) — the app-wide agent
+  // and role preferences plus the resolved role action list. Grouped under
+  // window.hive.profile.* in the preload bridge.
+  ipcMain.handle('profile:agents', async () => agentRegistry.list())
+  // Raw persisted selection (nullable) — the onboarding gate routes new users
+  // through the required agent step precisely when this is null. The active
+  // adapter still defaults safely (agentService resolves the id at construction).
+  ipcMain.handle('profile:getAgent', async () => configStore.getAgent())
+  ipcMain.handle('profile:setAgent', async (_event, id: string) => {
+    // Only an available registered adapter may become active; the picker gates
+    // on `available`, and setAdapter/registry.get are safe no-ops otherwise, so
+    // a bad id neither persists nor re-binds (AG-R3.1 honesty).
+    if (!agentRegistry.get(id)) return
+    configStore.setAgent(id)
+    agentService.setAdapter(id)
+  })
+  ipcMain.handle('profile:getRole', async () => configStore.getRole())
+  ipcMain.handle('profile:setRole', async (_event, id: string) => {
+    configStore.setRole(id)
+  })
+  ipcMain.handle('profile:roleActions', async (_event, role: string | null) =>
+    resolveRoleActions(role)
   )
 
   createWindow()

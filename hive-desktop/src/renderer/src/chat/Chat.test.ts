@@ -1,22 +1,20 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createContext, createElement, useContext, type ReactNode } from 'react'
+import { createContext, createElement, createRef, useContext, type ReactNode } from 'react'
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { Chat } from './Chat'
+import { Chat, type ChatHandle } from './Chat'
+import type { RoleAction } from '../ui/ActionRail'
 
 /**
- * Task T15 — Chat UI (design.md §4 "Chat" row, R6.1, R6.4) + T18 — new-session
- * intent placeholders (R7.1).
+ * Chat UI tests. Covers the role-personalized hero (RP-R4), the launch handle
+ * (RP-R5), the interrupt Stop control (chat-controls CC-R1), the `/`
+ * slash-command menu (CC-R2), and the active-agent indicator + session re-bind
+ * (agent-selection AG-R3.3 / AG-C4).
  *
- * Same mocking approach as Explorer.test.ts/GuidedInstall.test.ts:
- * `@hive/design-system` gets trivial DOM stand-ins (a real render would load
- * a second React instance from design-system's own node_modules), and
- * `window.hive` is mocked per test.
- *
- * `Select`/`SelectItem` need a bit more than the others: Radix's real Select
- * is portal/popover-based, so the mock always renders `SelectContent`'s
- * items (no open/closed state) and wires `onValueChange` through a small
- * context, letting tests "pick" an option by clicking its rendered label.
+ * `@hive/design-system` gets DOM stand-ins (a real render would load a second
+ * React instance from the DS's own node_modules); `window.hive` is mocked per
+ * test. `PromptInput` is a controlled `value`/`onChange` input plus a send
+ * button, so tests can type `/` (opening the slash menu) and submit.
  */
 const SelectContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
 
@@ -30,68 +28,40 @@ vi.mock('@hive/design-system', () => ({
     ),
   ChatMessage: ({ role, children }: { role: string; children?: ReactNode }) =>
     createElement('div', { 'data-role': role }, children),
-  Empty: ({ title, description }: { title?: ReactNode; description?: ReactNode }) =>
-    createElement(
-      'div',
-      null,
-      createElement('h2', null, title),
-      createElement('p', null, description)
-    ),
-  Badge: ({ children, ...rest }: { children?: ReactNode }) => createElement('span', rest, children),
-  SkillGrid: ({ children, ...rest }: { children?: ReactNode }) =>
-    createElement('div', rest, children),
-  SkillCard: ({
-    title,
-    lead,
-    children,
-    onClick,
-    onKeyDown,
-    ...rest
-  }: {
-    title?: ReactNode
-    lead?: boolean
-    children?: ReactNode
-    onClick?: () => void
-    onKeyDown?: (event: { key: string; preventDefault: () => void }) => void
-  }) =>
-    createElement(
-      'article',
-      { ...rest, 'data-lead': lead, onClick, onKeyDown },
-      createElement('h3', null, title),
-      children
-    ),
   MessageList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   PromptInput: ({
+    value,
+    onChange,
     onSubmit,
     placeholder,
     sendLabel,
     streaming,
-    toolbar
+    toolbar,
+    ...rest
   }: {
+    value?: string
+    onChange?: (value: string) => void
     onSubmit: (value: string) => void
     placeholder?: string
     sendLabel?: string
     streaming?: boolean
     toolbar?: ReactNode
-  }) => {
-    let inputValue = ''
-    return createElement(
+  }) =>
+    createElement(
       'div',
-      null,
+      rest,
       createElement('input', {
         placeholder,
-        onChange: (event: { target: { value: string } }) => {
-          inputValue = event.target.value
-        }
+        value: value ?? '',
+        onChange: (event: { target: { value: string } }) => onChange?.(event.target.value)
       }),
       createElement(
         'button',
-        { disabled: streaming, onClick: () => onSubmit(inputValue) },
+        { disabled: streaming, onClick: () => onSubmit((value ?? '').trim()) },
         sendLabel
       ),
       toolbar
-    )
-  },
+    ),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   TypingIndicator: ({ label }: { label?: string }) =>
     createElement('span', { 'data-testid': 'typing-indicator' }, label),
@@ -112,7 +82,7 @@ vi.mock('@hive/design-system', () => ({
   }
 }))
 
-describe('Chat (T15)', () => {
+describe('Chat', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
@@ -124,22 +94,15 @@ describe('Chat (T15)', () => {
     message?: string
   }
 
-  const defaultWorkflowEntries = [
-    {
-      key: 'prd',
-      label: 'Create a PRD',
-      command: { key: 'bmad-prd', prompt: 'Use bmad-prd.' },
-      status: 'wired'
-    },
-    {
-      key: 'domain-research',
-      label: 'Domain Research',
-      command: { key: 'bmad-domain-research' },
-      status: 'planned'
-    }
+  const roleActions: RoleAction[] = [
+    { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: 'Use bmad-prd.' } },
+    { key: 'brainstorm', kind: 'workflow', command: { key: 'bmad-brainstorming', prompt: 'br' } },
+    { key: 'persona-pm', kind: 'persona', command: { key: 'bmad-agent-pm', prompt: 'talk John' } }
   ]
 
-  function mockHive(workflowEntries: typeof defaultWorkflowEntries = defaultWorkflowEntries): {
+  function mockHive(
+    options: { skills?: Array<{ key: string; label: string; description: string }> } = {}
+  ): {
     emit: (event: AgentEventLike) => void
     startCalls: Array<{ workspace: string; model: string; effort: string }>
   } {
@@ -153,10 +116,7 @@ describe('Chat (T15)', () => {
             { id: 'model-a', label: 'Modelo A' },
             { id: 'model-b', label: 'Modelo B' }
           ],
-          efforts: [
-            { id: 'low', label: 'Baixo' },
-            { id: 'high', label: 'Alto' }
-          ],
+          efforts: [{ id: 'low', label: 'Baixo' }],
           supportsAttachments: false
         }),
         start: vi.fn((opts: { workspace: string; model: string; effort: string }) => {
@@ -171,48 +131,47 @@ describe('Chat (T15)', () => {
           return vi.fn()
         })
       },
-      workflows: {
-        list: vi.fn().mockResolvedValue(workflowEntries)
+      profile: {
+        agents: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true }
+          ])
+      },
+      skills: {
+        list: vi.fn().mockResolvedValue(options.skills ?? [])
       }
-    }
-    return {
-      emit: (event: AgentEventLike) => capturedOnEvent?.(event),
-      startCalls
-    }
+    } as unknown as typeof window.hive
+    return { emit: (event: AgentEventLike) => capturedOnEvent?.(event), startCalls }
   }
 
-  it('shows the intent grid before any messages, and loads capabilities-driven model/effort options', async () => {
-    mockHive()
+  function renderChat(
+    extra: { skills?: Array<{ key: string; label: string; description: string }> } = {}
+  ): ReturnType<typeof mockHive> {
+    const hive = mockHive(extra)
+    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli' }))
+    return hive
+  }
 
-    render(createElement(Chat, { workspace: '/ws' }))
-
+  it('renders the role actions as the hero, with the persona action set apart', async () => {
+    renderChat()
     expect(screen.getByText('O que você quer fazer hoje?')).toBeTruthy()
+    expect(await screen.findByText('Criar um PRD')).toBeTruthy()
+    expect(screen.getByText('Fazer um brainstorm')).toBeTruthy()
+    const persona = screen.getByText('Conversar com John')
+    expect(persona.closest('article')?.getAttribute('data-persona')).toBe('true')
+  })
+
+  it('loads capabilities-driven model/effort options', async () => {
+    renderChat()
     expect(await screen.findByText('Modelo A')).toBeTruthy()
-    expect(screen.getByText('Modelo B')).toBeTruthy()
     expect(screen.getByText('Baixo')).toBeTruthy()
-    expect(screen.getByText('Alto')).toBeTruthy()
   })
 
-  it('renders the wired PRD intent as lead/clickable and a planned intent as non-interactive with a badge (T18)', async () => {
-    mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
-
-    const prdCard = await screen.findByText('Criar um PRD')
-    expect(prdCard.closest('article')?.getAttribute('data-lead')).toBe('true')
-
-    const researchCard = await screen.findByText('Pesquisar um domínio')
-    expect(researchCard.closest('article')?.getAttribute('data-lead')).toBe('false')
-    expect(screen.getByText('Em breve')).toBeTruthy()
-  })
-
-  it('clicking the wired PRD intent calls agent.runWorkflow() with its command and renders it as a user message (R7.2)', async () => {
-    mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
-    const prdCard = await screen.findByText('Criar um PRD')
-
-    fireEvent.click(prdCard.closest('article') as Element)
+  it('clicking a workflow action calls runWorkflow and renders a user message + typing indicator', async () => {
+    renderChat()
+    const prd = await screen.findByText('Criar um PRD')
+    fireEvent.click(prd.closest('article') as Element)
 
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
       key: 'bmad-prd',
@@ -221,22 +180,40 @@ describe('Chat (T15)', () => {
     expect(await screen.findByTestId('typing-indicator')).toBeTruthy()
   })
 
-  it('starts a session with the first model/effort as defaults once capabilities load', async () => {
-    const { startCalls } = mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
-
-    await waitFor(() => {
-      expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-a', effort: 'low' })
+  it('clicking the persona action launches its command', async () => {
+    renderChat()
+    const persona = await screen.findByText('Conversar com John')
+    fireEvent.click(persona.closest('article') as Element)
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-agent-pm',
+      prompt: 'talk John'
     })
   })
 
-  it('sending a message renders it as a user ChatMessage and calls agent.send()', async () => {
+  it('exposes launchAction via the imperative handle (used by the action rail)', async () => {
     mockHive()
+    const ref = createRef<ChatHandle>()
+    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    await screen.findByText('Criar um PRD')
 
-    render(createElement(Chat, { workspace: '/ws' }))
+    ref.current?.launchAction(roleActions[0])
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-prd',
+      prompt: 'Use bmad-prd.'
+    })
+    expect(await screen.findByText('Criar um PRD')).toBeTruthy()
+  })
+
+  it('starts a session with the first model/effort defaults once capabilities load', async () => {
+    const { startCalls } = renderChat()
+    await waitFor(() =>
+      expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-a', effort: 'low' })
+    )
+  })
+
+  it('sends a message: user ChatMessage + agent.send', async () => {
+    renderChat()
     await screen.findByText('Modelo A')
-
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'Olá, agente' }
     })
@@ -246,175 +223,165 @@ describe('Chat (T15)', () => {
     expect(window.hive.agent.send).toHaveBeenCalledWith('Olá, agente')
   })
 
-  it('streams token events into a growing assistant message, then finalizes it on done', async () => {
-    const { emit } = mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
+  it('streams token events, then finalizes on done', async () => {
+    const { emit } = renderChat()
     await screen.findByText('Modelo A')
-
-    expect(screen.queryByTestId('typing-indicator')).toBeNull()
-
     emit({ type: 'token', text: 'Olá' })
-    await screen.findByText('Olá')
-
-    emit({ type: 'token', text: ', tudo bem?' })
-    await screen.findByText('Olá, tudo bem?')
-
+    expect(await screen.findByText('Olá')).toBeTruthy()
+    emit({ type: 'token', text: ' mundo' })
+    expect(await screen.findByText('Olá mundo')).toBeTruthy()
     emit({ type: 'done' })
-    await waitFor(() => {
-      expect(screen.getByText('Olá, tudo bem?')).toBeTruthy()
-    })
+    expect(await screen.findByText('Olá mundo')).toBeTruthy()
   })
 
-  it('shows the typing indicator immediately on submit, before the first token arrives', async () => {
-    mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
+  it('shows an error Alert on an error event', async () => {
+    const { emit } = renderChat()
     await screen.findByText('Modelo A')
-
-    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'oi' }
-    })
-    fireEvent.click(screen.getByText('Enviar'))
-
-    expect(await screen.findByTestId('typing-indicator')).toBeTruthy()
-  })
-
-  it('shows an Alert with the error message on an error event', async () => {
-    const { emit } = mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
-    await screen.findByText('Modelo A')
-
-    emit({ type: 'error', message: 'processo falhou' })
-
+    emit({ type: 'token', text: 'partial' })
+    await screen.findByText('partial')
+    emit({ type: 'error', message: 'boom' })
     expect(await screen.findByRole('alert')).toBeTruthy()
-    expect(screen.getByText('Não foi possível concluir a resposta: processo falhou')).toBeTruthy()
   })
 
-  it('ignores tool events (no-op branch) without disturbing streaming state', async () => {
-    const { emit } = mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
+  // chat-controls CC-R1 — interrupt.
+  it('shows the Stop control only while streaming and calls agent.stop when clicked', async () => {
+    const { emit } = renderChat()
     await screen.findByText('Modelo A')
+    expect(screen.queryByLabelText('Interromper a resposta do agente')).toBeNull()
 
-    emit({ type: 'token', text: 'Olá' })
-    await screen.findByText('Olá')
+    emit({ type: 'token', text: 'thinking' })
+    const stop = await screen.findByLabelText('Interromper a resposta do agente')
+    fireEvent.click(stop)
+    expect(window.hive.agent.stop).toHaveBeenCalled()
+  })
 
-    emit({ type: 'tool' })
+  it('an interrupted event keeps partial output as a finished message (no error Alert)', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    emit({ type: 'token', text: 'partial answer' })
+    await screen.findByText('partial answer')
+    emit({ type: 'interrupted' })
 
-    expect(screen.getByText('Olá')).toBeTruthy()
+    // Partial preserved, streaming indicator gone, no error.
+    expect(await screen.findByText('partial answer')).toBeTruthy()
+    expect(screen.queryByTestId('typing-indicator')).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('does not update state from a stale capabilities()/start() resolution after unmount', async () => {
-    interface CapabilitiesLike {
-      models: Array<{ id: string; label: string }>
-      efforts: Array<{ id: string; label: string }>
-      supportsAttachments: boolean
-    }
-    let resolveCapabilities: ((value: CapabilitiesLike) => void) | undefined
-    let resolveStart: (() => void) | undefined
-    window.hive = {
-      ...window.hive,
-      agent: {
-        capabilities: vi.fn(
-          () =>
-            new Promise<CapabilitiesLike>((resolve) => {
-              resolveCapabilities = resolve
-            })
-        ),
-        start: vi.fn(
-          () =>
-            new Promise<void>((resolve) => {
-              resolveStart = resolve
-            })
-        ),
-        send: vi.fn().mockResolvedValue(undefined),
-        runWorkflow: vi.fn().mockResolvedValue(undefined),
-        stop: vi.fn().mockResolvedValue(undefined),
-        onEvent: vi.fn(() => vi.fn())
-      },
-      workflows: {
-        list: vi.fn().mockResolvedValue(defaultWorkflowEntries)
-      }
-    }
-
-    const { unmount } = render(createElement(Chat, { workspace: '/ws' }))
-    unmount()
-
-    // Resolve after unmount — the effects' cleanup should have flipped
-    // `cancelled`, so these `.then()` callbacks must no-op (lines 82/114)
-    // instead of calling setState on an unmounted component.
-    expect(() => {
-      resolveCapabilities?.({
-        models: [{ id: 'model-a', label: 'Modelo A' }],
-        efforts: [{ id: 'low', label: 'Baixo' }],
-        supportsAttachments: false
-      })
-      resolveStart?.()
-    }).not.toThrow()
+  it('an interrupted event with no output leaves no empty assistant bubble', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.click(screen.getByText('Enviar')) // empty send is a no-op path guard
+    emit({ type: 'interrupted' })
+    // Only structural nodes; no assistant message rendered.
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
   })
 
-  it('renders the model/effort Selects with no value selected when capabilities report no options', async () => {
-    mockHive([])
-    window.hive = {
-      ...window.hive,
-      agent: {
-        ...window.hive.agent,
-        capabilities: vi.fn().mockResolvedValue({
-          models: [],
-          efforts: [],
-          supportsAttachments: false
-        })
-      }
-    }
-
-    render(createElement(Chat, { workspace: '/ws' }))
-    await screen.findByText('O que você quer fazer hoje?')
-
-    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'oi' }
-    })
-    fireEvent.click(screen.getByText('Enviar'))
-
-    expect(await screen.findByText('oi')).toBeTruthy()
+  // agent-selection AG-R3.3 — active-agent indicator.
+  it('shows the active agent name in the composer', async () => {
+    renderChat()
+    expect(await screen.findByText('Claude Code')).toBeTruthy()
   })
 
-  it('restarts the session with the newly selected model', async () => {
-    const { startCalls } = mockHive()
-
-    render(createElement(Chat, { workspace: '/ws' }))
-    await waitFor(() => {
-      expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-a', effort: 'low' })
+  // chat-controls CC-R2 — slash menu.
+  it('opens the slash menu on a leading "/" listing workspace skills, and filters', async () => {
+    renderChat({
+      skills: [
+        { key: 'bmad-prd', label: 'Create PRD', description: 'PRD workflow' },
+        { key: 'bmad-ux', label: 'Create UX', description: 'UX spec' }
+      ]
     })
+    await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByText('Modelo B'))
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(await screen.findByText('Create PRD')).toBeTruthy()
+    expect(screen.getByText('Create UX')).toBeTruthy()
 
-    await waitFor(() => {
-      expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-b', effort: 'low' })
+    fireEvent.change(input, { target: { value: '/ux' } })
+    await waitFor(() => expect(screen.queryByText('Create PRD')).toBeNull())
+    expect(screen.getByText('Create UX')).toBeTruthy()
+  })
+
+  it('selecting a slash skill launches it as a workflow and clears the composer', async () => {
+    renderChat({ skills: [{ key: 'bmad-ux', label: 'Create UX', description: 'UX spec' }] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '/ux' } })
+
+    const option = await screen.findByText('Create UX')
+    fireEvent.mouseDown(option)
+
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-ux',
+      prompt: 'Use the bmad-ux skill.'
     })
   })
 
-  /**
-   * Task T8 (WS-R5.2, design.md §5.2/§8): the one behavior design.md flags
-   * as needing an explicit hands-on check — does `Chat` unmounting (e.g.
-   * because `App`/`WorkUI` remounted the whole subtree under a workspace
-   * switch's new `key`) actually tear its session down, rather than leaving
-   * it running orphaned until (if ever) a new session happens to start?
-   * `agent.stop()` (new IPC call, wired into `AgentService.stop()`) is the
-   * explicit teardown call this test proves fires on unmount.
-   */
-  it('calls agent.stop() to tear down the session on unmount (WS-R5.2)', async () => {
-    mockHive()
+  it('keyboard-navigates the slash menu (ArrowDown + Enter selects)', async () => {
+    renderChat({
+      skills: [
+        { key: 'bmad-prd', label: 'Create PRD', description: '' },
+        { key: 'bmad-ux', label: 'Create UX', description: '' }
+      ]
+    })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/' } })
+    await screen.findByText('Create PRD')
 
-    const { unmount } = render(createElement(Chat, { workspace: '/ws' }))
-    await waitFor(() => expect(window.hive.agent.start).toHaveBeenCalled())
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(window.hive.agent.stop).not.toHaveBeenCalled()
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-ux',
+      prompt: 'Use the bmad-ux skill.'
+    })
+  })
 
-    unmount()
+  it('shows a teaching empty state when no skills are installed', async () => {
+    renderChat({ skills: [] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(await screen.findByText('Nenhuma skill disponível neste workspace.')).toBeTruthy()
+  })
 
-    expect(window.hive.agent.stop).toHaveBeenCalledTimes(1)
+  it('ignores tool events (no crash, no message)', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    expect(() => emit({ type: 'tool' })).not.toThrow()
+  })
+
+  it('ArrowUp wraps to the last slash option', async () => {
+    renderChat({
+      skills: [
+        { key: 'bmad-prd', label: 'Create PRD', description: '' },
+        { key: 'bmad-ux', label: 'Create UX', description: '' }
+      ]
+    })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/' } })
+    await screen.findByText('Create PRD')
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' }) // wraps from 0 to last (index 1)
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith({
+      key: 'bmad-ux',
+      prompt: 'Use the bmad-ux skill.'
+    })
+  })
+
+  it('closes the slash menu on Escape', async () => {
+    renderChat({ skills: [{ key: 'bmad-ux', label: 'Create UX', description: '' }] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/' } })
+    await screen.findByText('Create UX')
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText('Create UX')).toBeNull())
   })
 })

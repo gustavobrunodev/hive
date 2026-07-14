@@ -139,9 +139,7 @@ vi.mock('@hive/design-system', () => ({
                 return
               }
               if (event.shiftKey) {
-                onSelectedIdsChange?.(
-                  current.includes(node.id) ? current : [...current, node.id]
-                )
+                onSelectedIdsChange?.(current.includes(node.id) ? current : [...current, node.id])
                 return
               }
               onSelectedIdsChange?.([node.id])
@@ -236,6 +234,15 @@ describe('Explorer (T12/T8)', () => {
       installBmad: vi.fn().mockReturnValue(() => {}),
       updateBmad: vi.fn().mockReturnValue(() => {}),
       workflows: { list: vi.fn().mockResolvedValue([]) },
+      skills: { list: vi.fn().mockResolvedValue([]) },
+      profile: {
+        agents: vi.fn().mockResolvedValue([]),
+        getAgent: vi.fn().mockResolvedValue(null),
+        setAgent: vi.fn().mockResolvedValue(undefined),
+        getRole: vi.fn().mockResolvedValue(null),
+        setRole: vi.fn().mockResolvedValue(undefined),
+        roleActions: vi.fn().mockResolvedValue([])
+      },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 19 }),
         createFile: vi.fn().mockResolvedValue(undefined),

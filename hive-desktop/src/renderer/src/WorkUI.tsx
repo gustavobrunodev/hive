@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -17,10 +17,12 @@ import {
 } from '@hive/design-system'
 import { t } from './i18n'
 import { FileTree, FileViewer, type FileViewerHandle } from './explorer/Explorer'
-import { Chat } from './chat/Chat'
+import { Chat, type ChatHandle } from './chat/Chat'
+import { ActionRail, type RoleAction } from './ui/ActionRail'
+import { ProfileSheet } from './ui/ProfileSheet'
 import { IconButton } from './ui/IconButton'
 import { HiveLogo } from './ui/HiveLogo'
-import { FolderIcon, MoonIcon, SunIcon } from './ui/icons'
+import { ChevronDownIcon, FolderIcon, FolderOpenIcon, MoonIcon, SunIcon } from './ui/icons'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -54,6 +56,13 @@ interface WorkUIProps {
    * concurrent task).
    */
   onCandidateWorkspace?: (path: string) => void
+  /** Active app-wide role (role-personalization) — drives the intent grid + action rail. */
+  role?: string | null
+  /** Active app-wide agent id (agent-selection) — passed to Chat for the session + indicator. */
+  agent?: string | null
+  /** Live profile changes from the profile sheet — persisted + lifted in App. */
+  onRoleChange?: (roleId: string) => void
+  onAgentChange?: (agentId: string) => void
 }
 
 /** Last path segment of an absolute workspace path (both separators, so a Windows path renders its folder name too). */
@@ -122,12 +131,38 @@ export function WorkUI({
   workspace,
   theme,
   onToggleTheme,
-  onCandidateWorkspace
+  onCandidateWorkspace,
+  role = null,
+  agent = null,
+  onRoleChange = () => {},
+  onAgentChange = () => {}
 }: WorkUIProps): React.JSX.Element {
   const [openPath, setOpenPath] = useState<string | null>(null)
   const [defaultLayout] = useState(loadWorkLayout)
   const [chipMenuOpen, setChipMenuOpen] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
+  // role-personalization: the current role's resolved actions, shared by the
+  // left action rail (this component) and the chat hero (Chat), loaded once
+  // here so both stay in sync and a role change re-renders both.
+  const [roleActions, setRoleActions] = useState<RoleAction[]>([])
+  const [profileOpen, setProfileOpen] = useState(false)
+  // Handle to the chat, so the action rail (which lives outside the Chat
+  // subtree) can launch a role action as a chat turn (RP-R5.1).
+  const chatRef = useRef<ChatHandle>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    window.hive.profile.roleActions(role).then((actions) => {
+      if (!cancelled) setRoleActions(actions)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [role])
+
+  const launchAction = useCallback((action: RoleAction) => {
+    chatRef.current?.launchAction(action)
+  }, [])
   // T8 (WS-R5.1, design.md §5.2): lifted from the active `FileViewer`'s own
   // `dirty` state via its `onDirtyChange` callback — purely observational,
   // the in-viewer guard itself is untouched.
@@ -241,16 +276,23 @@ export function WorkUI({
               type="button"
               className="wb-workspace-chip"
               title={t('workUI.workspaceChipTitle', workspace)}
-              aria-label={t('workUI.workspaceChipTitle', workspace)}
+              aria-label={t('workUI.workspaceChipAria', workspace)}
             >
-              <FolderIcon size={14} />
+              <FolderIcon size={14} className="wb-workspace-chip-icon" />
               <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
+              <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
             </button>
           </DropdownMenuTrigger>
           {chipMenuOpen && (
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="wb-workspace-menu">
+              <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
               <DropdownMenuItem onSelect={handleChooseFolder}>
-                {t('workUI.openFolder')}
+                <span className="wb-menu-item-icon" aria-hidden="true">
+                  <FolderOpenIcon size={15} />
+                </span>
+                <span className="wb-menu-item-text">
+                  <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
+                </span>
               </DropdownMenuItem>
               {recents.length > 0 && (
                 <>
@@ -258,7 +300,13 @@ export function WorkUI({
                   <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
                   {recents.map((path) => (
                     <DropdownMenuItem key={path} title={path} onSelect={() => requestSwitch(path)}>
-                      {workspaceName(path)}
+                      <span className="wb-menu-item-icon" aria-hidden="true">
+                        <FolderIcon size={15} />
+                      </span>
+                      <span className="wb-menu-item-text">
+                        <span className="wb-menu-item-title">{workspaceName(path)}</span>
+                        <span className="wb-menu-item-sub">{path}</span>
+                      </span>
                     </DropdownMenuItem>
                   ))}
                 </>
@@ -279,45 +327,52 @@ export function WorkUI({
           {switchError}
         </div>
       )}
-      <div className="wb-body">
-        <Resizable
-          orientation="horizontal"
-          style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-          defaultLayout={defaultLayout}
-          onLayoutChanged={persistWorkLayout}
-        >
-          <ResizablePanel
-            id="rail"
-            className="wb-rail"
-            minSize="12%"
-            maxSize="40%"
-            defaultSize="22%"
-            aria-label={t('explorer.treeAriaLabel')}
+      <div className="wb-shell">
+        <ActionRail
+          actions={roleActions}
+          onLaunch={launchAction}
+          onOpenSettings={() => setProfileOpen(true)}
+        />
+        <div className="wb-body">
+          <Resizable
+            orientation="horizontal"
+            style={{ flex: 1, minWidth: 0, minHeight: 0 }}
+            defaultLayout={defaultLayout}
+            onLayoutChanged={persistWorkLayout}
           >
-            <div className="wb-pane-header">
-              <span className="wb-pane-header-label">{t('explorer.paneTitle')}</span>
-            </div>
-            <FileTree workspace={workspace} selectedPath={openPath} onOpenFile={setOpenPath} />
-          </ResizablePanel>
-          <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-          <ResizablePanel id="chat" minSize="30%" defaultSize="53%">
-            <Chat workspace={workspace} />
-          </ResizablePanel>
-          {openPath !== null && (
-            <>
-              <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-              <ResizablePanel id="viewer" minSize="24%" defaultSize="25%">
-                <FileViewer
-                  ref={viewerRef}
-                  workspace={workspace}
-                  path={openPath}
-                  onClose={() => setOpenPath(null)}
-                  onDirtyChange={setViewerDirty}
-                />
-              </ResizablePanel>
-            </>
-          )}
-        </Resizable>
+            <ResizablePanel
+              id="rail"
+              className="wb-rail"
+              minSize="12%"
+              maxSize="40%"
+              defaultSize="22%"
+              aria-label={t('explorer.treeAriaLabel')}
+            >
+              <div className="wb-pane-header">
+                <span className="wb-pane-header-label">{t('explorer.paneTitle')}</span>
+              </div>
+              <FileTree workspace={workspace} selectedPath={openPath} onOpenFile={setOpenPath} />
+            </ResizablePanel>
+            <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
+            <ResizablePanel id="chat" minSize="30%" defaultSize="53%">
+              <Chat ref={chatRef} workspace={workspace} roleActions={roleActions} agent={agent} />
+            </ResizablePanel>
+            {openPath !== null && (
+              <>
+                <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
+                <ResizablePanel id="viewer" minSize="24%" defaultSize="25%">
+                  <FileViewer
+                    ref={viewerRef}
+                    workspace={workspace}
+                    path={openPath}
+                    onClose={() => setOpenPath(null)}
+                    onDirtyChange={setViewerDirty}
+                  />
+                </ResizablePanel>
+              </>
+            )}
+          </Resizable>
+        </div>
       </div>
       {pendingSwitch !== null && (
         <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
@@ -338,6 +393,14 @@ export function WorkUI({
           </DialogContent>
         </Dialog>
       )}
+      <ProfileSheet
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        role={role}
+        agent={agent}
+        onRoleChange={onRoleChange}
+        onAgentChange={onAgentChange}
+      />
     </div>
   )
 }

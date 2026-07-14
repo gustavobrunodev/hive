@@ -7,7 +7,22 @@ import {
   MoonIcon,
   IntentBrainstormIcon,
   IntentArchitectureIcon,
-  IntentStoryIcon
+  IntentStoryIcon,
+  RolePmIcon,
+  RoleTechLeadIcon,
+  RoleUxIcon,
+  RoleQaIcon,
+  RoleDevIcon,
+  ClipboardIcon,
+  LayersIcon,
+  BeakerIcon,
+  AutomationIcon,
+  ReviewIcon,
+  PersonaChatIcon,
+  GearIcon,
+  BoltIcon,
+  StopIcon,
+  SlashIcon
 } from './icons'
 
 /**
@@ -42,5 +57,31 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
 
     const { container: story } = render(createElement(IntentStoryIcon))
     expect(story.querySelector('svg')).toBeTruthy()
+  })
+
+  // role-personalization + agent-selection + chat-controls icons — smoke
+  // renders to keep icons.tsx (a gated file) covered even for icons a
+  // component suite doesn't happen to select.
+  it('renders the role, action, persona and chrome icons', () => {
+    for (const Icon of [
+      RolePmIcon,
+      RoleTechLeadIcon,
+      RoleUxIcon,
+      RoleQaIcon,
+      RoleDevIcon,
+      ClipboardIcon,
+      LayersIcon,
+      BeakerIcon,
+      AutomationIcon,
+      ReviewIcon,
+      PersonaChatIcon,
+      GearIcon,
+      BoltIcon,
+      StopIcon,
+      SlashIcon
+    ]) {
+      const { container } = render(createElement(Icon, { size: 18 }))
+      expect(container.querySelector('svg')).toBeTruthy()
+    }
   })
 })

@@ -109,7 +109,19 @@ export function createProcessRunner(): ProcessRunner {
   function run(command: string, args: string[], opts?: RunOptions): ProcessHandle {
     const child = spawn(command, args, {
       cwd: opts?.cwd,
-      env: opts?.env ? { ...process.env, ...opts.env } : process.env
+      env: opts?.env ? { ...process.env, ...opts.env } : process.env,
+      // stdin is closed (`'ignore'` → /dev/null) rather than left as an open,
+      // never-written pipe. Nothing this app spawns feeds stdin — the Claude
+      // CLI gets its prompt via `-p <text>` and BMAD install runs
+      // non-interactively (`--yes` + explicit flags, see bmadService.ts) — but
+      // a dangling stdin pipe makes `claude -p` stall for 3s waiting on input
+      // it will never get, printing "Warning: no stdin data received in 3s,
+      // proceeding without it." Handing it an immediate EOF lets it proceed at
+      // once and drops the warning. stdout/stderr stay piped so `output` still
+      // streams. (If a future adapter needs interactive stdin, add a
+      // pty-backed ProcessRunner per the ProcessHandle doc — don't reopen this
+      // pipe.)
+      stdio: ['ignore', 'pipe', 'pipe']
     })
 
     const queue = createAsyncQueue<ProcessStreamChunk>()

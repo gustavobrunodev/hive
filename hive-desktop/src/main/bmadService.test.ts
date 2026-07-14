@@ -32,11 +32,11 @@ describe('BmadService', () => {
     return out
   }
 
-  it('install() invokes the exact real T0-verified command/args', async () => {
+  it('install() with only modules invokes the minimal non-interactive command', async () => {
     processRunner.script({ code: 0 })
     const service = createBmadService(processRunner, configStore)
 
-    await collect(service.install('/Users/dev/my-workspace'))
+    await collect(service.install('/Users/dev/my-workspace', { modules: ['bmm'] }))
 
     expect(processRunner.calls).toEqual([
       {
@@ -48,6 +48,50 @@ describe('BmadService', () => {
           '/Users/dev/my-workspace',
           '--modules',
           'bmm',
+          '--tools',
+          'claude-code',
+          '--yes'
+        ],
+        opts: undefined
+      }
+    ])
+  })
+
+  it('install() maps the guided-form answers onto the non-interactive CLI flags', async () => {
+    processRunner.script({ code: 0 })
+    const service = createBmadService(processRunner, configStore)
+
+    await collect(
+      service.install('/Users/dev/my-workspace', {
+        modules: ['bmm', 'bmb'],
+        userName: 'Gustavo',
+        communicationLanguage: 'Português',
+        documentOutputLanguage: 'English',
+        outputFolder: '_bmad-output',
+        set: { 'bmm.user_skill_level': 'expert' }
+      })
+    )
+
+    expect(processRunner.calls).toEqual([
+      {
+        command: 'npx',
+        args: [
+          'bmad-method',
+          'install',
+          '--directory',
+          '/Users/dev/my-workspace',
+          '--modules',
+          'bmm,bmb',
+          '--user-name',
+          'Gustavo',
+          '--communication-language',
+          'Português',
+          '--document-output-language',
+          'English',
+          '--output-folder',
+          '_bmad-output',
+          '--set',
+          'bmm.user_skill_level=expert',
           '--tools',
           'claude-code',
           '--yes'
@@ -94,7 +138,7 @@ describe('BmadService', () => {
     })
     const service = createBmadService(processRunner, configStore)
 
-    const events = await collect(service.install('/Users/dev/my-workspace'))
+    const events = await collect(service.install('/Users/dev/my-workspace', { modules: ['bmm'] }))
 
     // At least one step-shaped and one progress-shaped event were parsed.
     expect(events.some((e) => e.type === 'step')).toBe(true)
@@ -128,7 +172,7 @@ describe('BmadService', () => {
     })
     const service = createBmadService(processRunner, configStore)
 
-    const events = await collect(service.install('/Users/dev/my-workspace'))
+    const events = await collect(service.install('/Users/dev/my-workspace', { modules: ['bmm'] }))
 
     const last = events.at(-1)
     expect(last?.type).toBe('error')
@@ -150,7 +194,7 @@ describe('BmadService', () => {
     })
     const service = createBmadService(processRunner, configStore)
 
-    const events = await collect(service.install('/ws'))
+    const events = await collect(service.install('/ws', { modules: ['bmm'] }))
 
     expect(events.at(-1)).toEqual({
       type: 'error',
@@ -222,7 +266,7 @@ describe('BmadService', () => {
     })
     const service = createBmadService(processRunner, configStore)
 
-    const events = await collect(service.install('/ws'))
+    const events = await collect(service.install('/ws', { modules: ['bmm'] }))
 
     expect(events).toContainEqual({
       type: 'step',

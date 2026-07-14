@@ -166,6 +166,21 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       installBmad: vi.fn().mockReturnValue(() => {}),
       updateBmad: vi.fn().mockReturnValue(() => {}),
       workflows: { list: vi.fn().mockResolvedValue([]) },
+      skills: { list: vi.fn().mockResolvedValue([]) },
+      // Default: agent + role already set, so the flow tests below skip the
+      // required first-run setup steps and reach the provisioning gate. The
+      // new-setup tests override getAgent/getRole to null.
+      profile: {
+        agents: vi.fn().mockResolvedValue([
+          { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true },
+          { id: 'devin', displayName: 'Devin', description: '', available: false }
+        ]),
+        getAgent: vi.fn().mockResolvedValue('claude-cli'),
+        setAgent: vi.fn().mockResolvedValue(undefined),
+        getRole: vi.fn().mockResolvedValue('pm'),
+        setRole: vi.fn().mockResolvedValue(undefined),
+        roleActions: vi.fn().mockResolvedValue([])
+      },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
         createFile: vi.fn().mockResolvedValue(undefined),
@@ -349,6 +364,87 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       expect(screen.getByText('Bem-vindo ao Hive')).toBeTruthy()
     })
     expect(screen.getByText('Escolher workspace')).toBeTruthy()
+  })
+
+  // agent-selection + role-personalization: required first-run setup steps,
+  // inserted between the workspace pick and the provisioning gate, shown only
+  // when the (global) agent/role are unset.
+  it('shows the required agent setup step before provisioning when no agent is set', async () => {
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      provisionState: vi.fn().mockResolvedValue(false),
+      profile: {
+        agents: vi.fn().mockResolvedValue([
+          { id: 'claude-cli', displayName: 'Claude Code', description: 'x', available: true },
+          { id: 'devin', displayName: 'Devin', description: 'y', available: false }
+        ]),
+        getAgent: vi.fn().mockResolvedValue(null),
+        setAgent: vi.fn().mockResolvedValue(undefined),
+        getRole: vi.fn().mockResolvedValue(null),
+        setRole: vi.fn().mockResolvedValue(undefined),
+        roleActions: vi.fn().mockResolvedValue([])
+      }
+    })
+
+    render(createElement(App))
+
+    // The agent step comes first — not the install form.
+    expect(await screen.findByText('Escolha seu agente')).toBeTruthy()
+    expect(screen.queryByText('Configurar o BMAD')).toBeNull()
+  })
+
+  it('shows the required role setup step when the agent is set but the role is unset', async () => {
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      provisionState: vi.fn().mockResolvedValue(true),
+      profile: {
+        agents: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'claude-cli', displayName: 'Claude Code', description: 'x', available: true }
+          ]),
+        getAgent: vi.fn().mockResolvedValue('claude-cli'),
+        setAgent: vi.fn().mockResolvedValue(undefined),
+        getRole: vi.fn().mockResolvedValue(null),
+        setRole: vi.fn().mockResolvedValue(undefined),
+        roleActions: vi.fn().mockResolvedValue([])
+      }
+    })
+
+    render(createElement(App))
+
+    expect(await screen.findByText('Qual é o seu papel?')).toBeTruthy()
+  })
+
+  it('completing the role step persists it and advances to the provisioning gate', async () => {
+    const setRole = vi.fn().mockResolvedValue(undefined)
+    mockHive({
+      getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+      provisionState: vi.fn().mockResolvedValue(true),
+      profile: {
+        agents: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'claude-cli', displayName: 'Claude Code', description: 'x', available: true }
+          ]),
+        getAgent: vi.fn().mockResolvedValue('claude-cli'),
+        setAgent: vi.fn().mockResolvedValue(undefined),
+        getRole: vi.fn().mockResolvedValue(null),
+        setRole,
+        roleActions: vi.fn().mockResolvedValue([])
+      }
+    })
+
+    render(createElement(App))
+
+    // Pick a role card, then confirm.
+    const pmCard = await screen.findByText('Product Manager')
+    fireEvent.click(pmCard)
+    fireEvent.click(screen.getByText('Entrar no Hive'))
+
+    await waitFor(() => expect(setRole).toHaveBeenCalledWith('pm'))
+    // Provisioned workspace → update gate after the role step.
+    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
   })
 
   describe('T5 — runtime workspace switch entry (WS-R4.1, WS-R4.4)', () => {

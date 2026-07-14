@@ -190,4 +190,45 @@ describe('ClaudeCliAdapter — session turns', () => {
 
     expect(() => session.stop()).not.toThrow()
   })
+
+  // chat-controls (CC-R1.5): a user stop() ends the turn with `interrupted`,
+  // NOT `error` — a deliberate interrupt is a normal outcome, so the UI keeps
+  // partial output and shows no error Alert.
+  it('a user stop() mid-turn emits an interrupted event, not error', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    // delayMs keeps the turn "running" so stop() lands before it settles.
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: 'partial' }], code: 0, delayMs: 50 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'long task' })
+    session.stop()
+
+    const events = await take(session.events, 1)
+    expect(events).toEqual([{ type: 'interrupted' }])
+  })
+
+  it('after an interrupt, a fresh turn still ends in done (session stays usable)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0, delayMs: 50 }) // first turn, interrupted
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: 'ok' }], code: 0 }) // second turn
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'first' })
+    session.stop()
+    await take(session.events, 1) // drain the interrupted event
+
+    session.send({ text: 'second' })
+    const events = await take(session.events, 2)
+    expect(events).toEqual([{ type: 'token', text: 'ok' }, { type: 'done' }])
+  })
 })

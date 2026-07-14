@@ -82,6 +82,57 @@ Updated as work progresses. Load at start of every session.
   a thin layer over the existing engine). `provisioned` config flag is kept but
   vestigial for routing. User decisions. (2026-07-12)
 
+- **D14 — Feature `chat-controls` (M2 slice).** Planned 2026-07-13
+  (spec/context/design/tasks in `.specs/features/chat-controls/`). (CC-C1)
+  "Pausar o chat" = **interrupt the in-flight turn** (kill the active `claude -p`
+  via the existing `AgentService.stop()`), keeping partial streamed text — there
+  is no persistent generation to pause-and-resume (adapter spawns one one-shot
+  process per turn, no stdin). A new `{ type: 'interrupted' }` `AgentEvent` marks a
+  user stop so it isn't treated as a claude `error`. (CC-C3/C4) A **slash menu**
+  (leading `/`) lists workspace BMAD skills from a new
+  `workflowCatalog.listSkills` over the full `bmad-help.csv` via a `skills.list`
+  IPC — agent-agnostic (BMAD metadata, not a Claude surface; the CLI's own slash
+  commands don't exist in `-p` mode). Personas (`bmad-agent-*`) aren't in the CSV
+  so they won't appear in the slash menu (reached via role actions instead).
+  User decision + agent resolution. (2026-07-13)
+
+- **D15 — Feature `agent-selection` (M5 slice).** Planned 2026-07-13
+  (spec/context/design/tasks in `.specs/features/agent-selection/`). (AG-C1)
+  Scope = registry + global persistence + picker UI + re-bindable `AgentService`
+  now; **no real Devin adapter** (no Devin CLI in this env — it's a cloud agent,
+  not a local `-p` CLI). `devin` is a visible `available:false` placeholder ("Em
+  breve"); Claude stays functional; a genuine second adapter later is one registry
+  entry. (AG-C2) Global scope (matches profile). (AG-C3) Rides the required
+  first-run setup + the profile gear. (AG-C4) Changing agent re-binds the live
+  session (adds `agent` to `Chat`'s session-effect deps). Agent-resolved scope +
+  user profile-scope decision. (2026-07-13)
+
+- **D16 — Feature `role-personalization` (M9, new milestone).** Planned 2026-07-13
+  (spec/context/design/tasks in `.specs/features/role-personalization/`). User
+  discuss answers (2026-07-13): (RP-C1) profile scope = **global** (app-wide, in
+  `ConfigStore.role`); (RP-C2) the role picker is a **required** first-run step
+  (blocking; skipped once set); (RP-C3) the always-available shortcuts live in a
+  **persistent left action rail** (chosen over a ⌘K palette and a topbar dropdown),
+  a fixed chrome column OUTSIDE the resizable body so `hive.workLayout` is
+  untouched. (RP-C4) personas map to verified BMAD agent skills (John=`bmad-agent-pm`,
+  Winston=`bmad-agent-architect`, Sally=`bmad-agent-ux-designer`, Murat=`bmad-tea`,
+  Amelia=`bmad-agent-dev`), launched via natural-language `runWorkflow` prompts.
+  (RP-C5) role actions become **genuinely launchable** (supersedes the MVP's
+  only-`prd`-wired catalog) — each carries a real skill prompt; only live
+  (non-deprecated) skill names used. (RP-C6) onboarding order: workspace → agent
+  step → role step → install/update → work UI (agent+role one-time global, never
+  re-prompted on a workspace switch). Verified: the `bmm` module (always
+  installed/recommended) ships all mapped skills incl. personas + testarch under
+  `.claude/skills/` — but personas/testarch are NOT in `bmad-help.csv` (bmm
+  workflow catalog only), so they resolve via natural language, not via the
+  CSV-fed slash menu. Shaped with `impeccable` product register (D3). New chrome
+  (`ActionRail`, `RoleCard`, `RoleSetup`, `AgentSetup`, `ProfileSheet`) added at
+  the app level, extending DS (user rule C7). Note: `impeccable`'s `context.mjs`
+  reports NO_PRODUCT_MD (no impeccable-format PRODUCT.md at hive-desktop root);
+  used the DS's committed brand tokens + `product.md` register reference +
+  `workbench.css` conventions instead of running the full init (identity-
+  preservation path) — a PRODUCT.md could be authored later. (2026-07-13)
+
 ## Blockers
 
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
@@ -394,6 +445,43 @@ Updated as work progresses. Load at start of every session.
   marked Done; `.specs/features/workspace-switching/tasks.md` T1-T10 marked
   `[x]`. `spec.md` has no explicit per-requirement status markers (prose +
   Requirement IDs only) — left as-is.
+
+- **chat-controls + agent-selection + role-personalization (D14–D16) IMPLEMENTED
+  on `main` (2026-07-13).** All three feature areas shipped end to end:
+  - **Main/IPC:** `configStore` gained `agent`/`role` (global); new
+    `agentRegistry` (claude-cli available + devin placeholder) + re-bindable
+    `agentService` (registry + `setAdapter`/`activeAgentId`); new `roleCatalog`
+    (role→actions, verified skills + persona prompts); `workflowCatalog.listSkills`
+    (full CSV skill list); `claudeCliAdapter`/`agentAdapter` `interrupted` event
+    (user stop ≠ error); `main/index.ts` `profile:*` + `skills:list` handlers;
+    `preload` `profile`/`skills` namespaces.
+  - **Renderer:** required first-run **AgentSetup → RoleSetup** steps wired into
+    `App.tsx`'s gate (skipped once set / on workspace switch); lifted `role`/`agent`
+    state; personalized `IntentGrid` (role actions, persona set apart); persistent
+    left `ActionRail` (fixed chrome column outside the resizable body); `ProfileSheet`
+    (DS Sheet, role+agent, live); `Chat` interrupt Stop + `interrupted` handling +
+    `SlashMenu` (`/`-triggered, keyboard, `aria-activedescendant`) + agent indicator
+    + session re-bind on agent change; shared `ChoiceCard`/`ChoiceGrid` radiogroup;
+    `roleVisuals` icon map; ~16 new icons; all copy in `pt-BR.ts`; styles in
+    `workbench.css` (product register, dark+light, reduced-motion).
+  - **Gates:** `npm run test` → 430/430 (23 files); `npm run typecheck` clean;
+    `npm run build` clean; `npm run lint` shows only the 2 pre-existing
+    `Explorer.tsx` set-state-in-effect errors (from explorer-editor-ux T8) — no
+    new errors from these features' files; per-file coverage ≥90% held on every
+    gated file (index, preload, pt-BR, icons, WorkUI, Chat).
+  - **Visual pass:** `_electron.launch` (throwaway userData + seeded workspace)
+    captured the AgentSetup, RoleSetup (dark+light, +selected), the personalized
+    work-UI hero + action rail, and the profile sheet — all render correctly
+    on-brand in both themes (`test-results/personalization-screenshots/`). The
+    app reached the real work UI end to end (agent+role set → provisioning →
+    hero+rail+"Conversar com John"+"● Claude Code" indicator). Playwright **MCP**
+    tools still can't reach this Electron renderer (STATE.md T14) — used the
+    Electron-native `_electron.launch` path, same engine.
+  - **NOT committed:** left on the working tree (uncommitted) because the tree
+    already carried unrelated in-flight work (the `InstallConfigForm`/guided-install
+    "BUG 1" feature) entangled across shared files — committing cleanly per-task
+    was infeasible without sweeping that in. Commit decisions deferred to the user.
+  - **`tasks.md` for all three features marked `[x]`.**
 
 ## Deferred Ideas
 

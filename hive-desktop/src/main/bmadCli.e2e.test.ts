@@ -50,7 +50,7 @@ describe('E2E smoke — real bmad-method CLI (T20)', () => {
     const bmadService = createBmadService(processRunner, configStore)
 
     const events: BmadEvent[] = []
-    for await (const event of bmadService.install(workspace)) {
+    for await (const event of bmadService.install(workspace, { modules: ['bmm'] })) {
       events.push(event)
     }
 

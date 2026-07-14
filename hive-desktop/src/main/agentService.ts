@@ -1,11 +1,11 @@
 import type {
-  AgentAdapter,
   AgentCapabilities,
   AgentEvent,
   AgentSession,
   SessionOpts,
   WorkflowCommand
 } from './agentAdapter'
+import type { AgentRegistry } from './agentRegistry'
 
 /**
  * `AgentService` (T14) — owns the single active `AgentAdapter` session for
@@ -15,15 +15,28 @@ import type {
  * capabilities") and §3's IPC surface (`agent.capabilities()`,
  * `agent.start(opts)`, `agent.send(...)`, `agent.runWorkflow(key)`).
  *
- * `adapter` is injected (constructor/factory-injection, matching
+ * The `AgentRegistry` is injected (constructor/factory-injection, matching
  * `createConfigStore`/`createWorkspaceService`/`createClaudeCliAdapter`), and
  * this module only ever calls the `AgentAdapter` interface — it never knows
- * it's talking to `ClaudeCliAdapter` specifically, keeping the UI/IPC layer
- * agent-agnostic per R6.2 and context.md decision C1.
+ * which concrete adapter is active, keeping the UI/IPC layer agent-agnostic per
+ * R6.2 and context.md decision C1. The *selected* adapter is mutable
+ * (`setAdapter`, agent-selection AG-R1.2/AG-C4): switching selection affects
+ * subsequent `startSession`/`capabilities` calls; the renderer restarts its
+ * session so the change takes effect (Chat's session effect keys on `agent`).
  */
 export interface AgentService {
-  /** Thin passthrough to the adapter's capabilities (models/efforts/attachments). */
+  /** Thin passthrough to the active adapter's capabilities (models/efforts/attachments). */
   capabilities(): AgentCapabilities
+  /** The id of the currently-selected adapter. */
+  activeAgentId(): string
+  /**
+   * Selects which registered adapter future sessions use (agent-selection).
+   * Ignores unknown/unavailable ids (the registry returns `null` for those) —
+   * callers gate on `available` before calling, and this stays a safe no-op
+   * otherwise. Does not itself restart the active session; the renderer does
+   * that by re-`start`ing after a change.
+   */
+  setAdapter(id: string): void
   /**
    * Starts a new session via the adapter and makes it the active one.
    * MVP scope (design.md): a single active session at a time. Starting a
@@ -79,13 +92,22 @@ function requireActiveSession(session: AgentSession | null, methodName: string):
   return session
 }
 
-export function createAgentService(adapter: AgentAdapter): AgentService {
+export function createAgentService(registry: AgentRegistry, initialAgentId: string): AgentService {
   let activeSession: AgentSession | null = null
+  // Resolve the initial selection through the registry so an unknown/stale
+  // persisted id falls back to the default available adapter (AG-R2.2).
+  let selected = registry.resolve(initialAgentId)
 
   function startSession(opts: SessionOpts): AgentSession {
     activeSession?.stop()
-    activeSession = adapter.startSession(opts)
+    activeSession = selected.adapter.startSession(opts)
     return activeSession
+  }
+
+  function setAdapter(id: string): void {
+    const adapter = registry.get(id)
+    if (!adapter) return // unknown/unavailable — safe no-op (see interface doc)
+    selected = { id, adapter }
   }
 
   function send(text: string): void {
@@ -125,7 +147,9 @@ export function createAgentService(adapter: AgentAdapter): AgentService {
   }
 
   return {
-    capabilities: () => adapter.capabilities(),
+    capabilities: () => selected.adapter.capabilities(),
+    activeAgentId: () => selected.id,
+    setAdapter,
     startSession,
     send,
     runWorkflow,

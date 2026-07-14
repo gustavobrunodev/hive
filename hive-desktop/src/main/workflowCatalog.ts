@@ -250,6 +250,60 @@ export function parseBmadHelpCsv(text: string): BmadHelpRow[] {
 }
 
 /**
+ * One discovered BMAD skill for the chat slash-command menu (chat-controls
+ * CC-R3.1). A flatter shape than `WorkflowEntry` — the slash menu only needs a
+ * launch key, a human label, and a description to filter/display.
+ */
+export interface SkillEntry {
+  /** The BMAD skill name (`command.key` when launched via `agent.runWorkflow`). */
+  key: string
+  /** Human display name (`display-name` column, falling back to the skill name). */
+  label: string
+  /** One-line description (`description` column) — shown muted, and filtered on. */
+  description: string
+}
+
+/**
+ * Lists the *full* set of BMAD workflow skills installed in a workspace, for
+ * the chat slash-command menu (CC-R2/R3). Reuses the same `bmad-help.csv`
+ * source and `parseBmadHelpCsv` parser as `listWithDiscovery` — this is the
+ * complete list (~34 rows), not the curated five. Deduplicates by skill (some
+ * skills appear as multiple menu-action rows) and skips `_meta`/blank rows.
+ *
+ * Note (CC-R3): `bmad-help.csv` is BMAD's *workflow* catalog — it does not list
+ * the `bmad-agent-*`/`bmad-tea` personas, so those never appear in the slash
+ * menu (they're reached via role actions instead — role-personalization). This
+ * source is BMAD workspace metadata, not a Claude-specific surface, keeping the
+ * menu agent-agnostic. Missing/unreadable/empty CSV → `[]` (CC-R2.5), never
+ * throws.
+ */
+export async function listSkills(workspaceRoot: string): Promise<SkillEntry[]> {
+  const csvPath = join(workspaceRoot, '_bmad', '_config', 'bmad-help.csv')
+
+  let rows: BmadHelpRow[]
+  try {
+    const text = await readFile(csvPath, 'utf-8')
+    rows = parseBmadHelpCsv(text)
+  } catch {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const skills: SkillEntry[] = []
+  for (const row of rows) {
+    if (!row.skill || row.skill === '_meta') continue
+    if (seen.has(row.skill)) continue
+    seen.add(row.skill)
+    skills.push({
+      key: row.skill,
+      label: row.displayName || row.skill,
+      description: row.description
+    })
+  }
+  return skills
+}
+
+/**
  * Extends the curated catalog with dynamic discovery from an installed
  * BMAD, reading `<workspaceRoot>/_bmad/_config/bmad-help.csv` (the concrete
  * mechanism design.md §7 recommends over guessing at other formats). Plain

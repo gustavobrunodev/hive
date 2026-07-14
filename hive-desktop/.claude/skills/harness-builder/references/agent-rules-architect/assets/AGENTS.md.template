@@ -1,0 +1,45 @@
+# AGENTS.md
+
+<!--
+  TEMPLATE — apague toda seção sem conteúdo NÃO INFERÍVEL.
+  Seções vazias ou inferíveis são negativas. Meta: < ~150 linhas no total.
+  Rode o teste de inferência em cada linha: "o agente aprenderia isso lendo
+  o código / os manifests / a documentação existente?" Se sim, apague.
+  Escreva o conteúdo final em português do Brasil (pt-BR) — comandos, código,
+  caminhos e flags ficam como estão, sem tradução.
+-->
+
+## Stack
+<!-- Uma linha, só a parte não óbvia (arquitetura incomum, versão fixada). Apague se genérico. -->
+<!-- ex.: "Next.js 14 (App Router) + tRPC; acesso ao BD é só server-side." -->
+
+## Comandos
+<!-- Seção de maior valor. Exatos, copiáveis, COM flags. Verifique que rodam. -->
+- Instalar: ``
+- Dev/Run: ``
+- Build: ``
+- Testes (todos): ``
+- Testes (um só): ``      <!-- sintaxe de teste único é o que o agente mais erra -->
+- Lint / Format / Types: ``
+
+## Limites
+<!-- Conteúdo de maior alavancagem. Nomeie caminhos/arquivos/comandos concretos. -->
+- Nunca editar: ``         <!-- dirs gerados/vendorizados -->
+- Nunca commitar: `.env*`, segredos
+- Perguntar antes de: ``   <!-- ações destrutivas ou de amplo alcance -->
+
+## Convenções (só fora do padrão)
+<!-- SÓ o que diverge do padrão E não é enforçado pelo linter/formatter.
+     Prefira um snippet de código de 3–10 linhas a prosa. Apague se nada se qualificar. -->
+
+## Testes
+<!-- Só regras não óbvias: setup necessário, o que mockar ou não, onde os testes vivem.
+     Apague se não houver nada que o agente não consiga inferir. -->
+
+## Git / PR
+<!-- Só se fora do padrão: formato de commit, nomenclatura de branch, checks pré-PR obrigatórios. -->
+
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+<!-- O índice sob demanda. Uma linha cada, gatilho concreto → arquivo. Apague se não houver docs/. -->
+- <gatilho, ex.: "Alterando o schema do BD ou escrevendo uma migration"> → ler `docs/<area>.md`
+- <gatilho> → ler `docs/<area>.md`

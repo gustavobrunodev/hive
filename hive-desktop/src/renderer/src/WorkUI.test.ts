@@ -157,7 +157,15 @@ vi.mock('@hive/design-system', () => ({
     ),
   DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
-  DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children)
+  DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
+  // Profile sheet (role-personalization RP-R6) — only renders its content
+  // while `open`, matching Radix Dialog/Sheet behaviour, so closed-by-default
+  // it stays out of the DOM.
+  Sheet: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
+    open ? createElement('div', { 'data-testid': 'profile-sheet' }, children) : null,
+  SheetContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  SheetTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
+  SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children)
 }))
 
 /**
@@ -246,7 +254,18 @@ function createHiveMock(): Window['hive'] {
   return {
     chooseWorkspace: vi.fn(async () => null),
     getRecentWorkspaces: vi.fn(async () => []),
-    openWorkspace: vi.fn(async (path: string) => ({ ok: true, path }))
+    openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),
+    // WorkUI loads the role's actions on mount; the (closed) ProfileSheet
+    // loads the agent list on mount — both need to resolve.
+    skills: { list: vi.fn(async () => []) },
+    profile: {
+      agents: vi.fn(async () => []),
+      getAgent: vi.fn(async () => null),
+      setAgent: vi.fn(async () => undefined),
+      getRole: vi.fn(async () => null),
+      setRole: vi.fn(async () => undefined),
+      roleActions: vi.fn(async () => [])
+    }
   } as unknown as Window['hive']
 }
 
@@ -857,5 +876,60 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(window.hive.openWorkspace).not.toHaveBeenCalled()
     expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+})
+
+// role-personalization RP-R5/R6 — the persistent action rail + profile sheet.
+describe('WorkUI — action rail + profile sheet', () => {
+  it("renders the role's actions as rail buttons and opens the profile sheet from the gear", async () => {
+    vi.mocked(window.hive.profile.roleActions).mockResolvedValue([
+      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: 'x' } },
+      { key: 'persona-pm', kind: 'persona', command: { key: 'bmad-agent-pm', prompt: 'y' } }
+    ])
+    vi.mocked(window.hive.profile.agents).mockResolvedValue([
+      { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true }
+    ])
+
+    // No onRoleChange/onAgentChange passed → the WorkUI default no-op handlers
+    // are exercised when a role/agent is picked in the sheet.
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        role: 'pm',
+        agent: 'claude-cli'
+      })
+    )
+
+    // A rail button exists for a role action (label resolved from the key).
+    expect(await screen.findByRole('button', { name: 'Criar um PRD' })).toBeTruthy()
+    // The profile sheet is closed initially, then opens from the gear.
+    expect(screen.queryByTestId('profile-sheet')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações de perfil' }))
+    const sheet = await screen.findByTestId('profile-sheet')
+    expect(sheet).toBeTruthy()
+
+    // Picking a role + an agent in the sheet runs the (default no-op) handlers.
+    fireEvent.click(await screen.findByText('Tech Lead'))
+    fireEvent.click(await screen.findByText('Claude Code'))
+  })
+
+  it('launching a rail action does not crash when the chat has no handle yet', async () => {
+    vi.mocked(window.hive.profile.roleActions).mockResolvedValue([
+      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: 'x' } }
+    ])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        role: 'pm'
+      })
+    )
+
+    const railBtn = await screen.findByRole('button', { name: 'Criar um PRD' })
+    expect(() => fireEvent.click(railBtn)).not.toThrow()
   })
 })
