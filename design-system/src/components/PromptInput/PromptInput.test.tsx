@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { createRef, useState } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
@@ -77,6 +77,40 @@ describe("PromptInput", () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it("streaming with onStop turns the send control into an enabled stop control", async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const onStop = vi.fn()
+    render(<PromptInput onSubmit={onSubmit} streaming onStop={onStop} stopLabel="Stop" />)
+
+    const stop = screen.getByRole("button", { name: "Stop" })
+    expect(stop).toBeEnabled()
+    expect(stop).toHaveAttribute("data-mode", "stop")
+
+    await user.click(stop)
+    expect(onStop).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it("the control returns to send mode once streaming ends", () => {
+    const onStop = vi.fn()
+    const { rerender } = render(
+      <PromptInput onSubmit={() => {}} streaming onStop={onStop} stopLabel="Stop" />
+    )
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument()
+
+    rerender(<PromptInput onSubmit={() => {}} onStop={onStop} stopLabel="Stop" />)
+    const send = screen.getByRole("button", { name: "Send" })
+    expect(send).toHaveAttribute("data-mode", "send")
+    // Back at rest with an empty prompt: send is visible but disabled.
+    expect(send).toBeDisabled()
+  })
+
+  it("disabled wins over stop mode", () => {
+    render(<PromptInput onSubmit={() => {}} streaming disabled onStop={() => {}} stopLabel="Stop" />)
+    expect(screen.getByRole("button", { name: "Stop" })).toBeDisabled()
+  })
+
   it("disabled disables both the textarea and send", () => {
     render(<PromptInput onSubmit={() => {}} disabled />)
     expect(screen.getByRole("textbox")).toBeDisabled()
@@ -119,5 +153,43 @@ describe("PromptInput", () => {
   it("merges a custom className", () => {
     const { container } = render(<PromptInput onSubmit={() => {}} className="extra" />)
     expect(container.firstChild).toHaveClass("hds-prompt-input", "extra")
+  })
+
+  it("allowEmptySubmit enables send while empty and submits an empty string", async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<PromptInput onSubmit={onSubmit} allowEmptySubmit />)
+
+    const send = screen.getByRole("button", { name: "Send" })
+    expect(send).toBeEnabled()
+    await user.click(send)
+    expect(onSubmit).toHaveBeenCalledWith("")
+  })
+
+  it("highlight renders a hidden backdrop mirroring the value through the given renderer", async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <PromptInput
+        onSubmit={() => {}}
+        highlight={(value) => <mark data-testid="token">{value}</mark>}
+      />
+    )
+
+    const backdrop = container.querySelector(".hds-prompt-input-backdrop")
+    expect(backdrop).toHaveAttribute("aria-hidden", "true")
+
+    await user.type(screen.getByRole("textbox"), "#docs/prd.md")
+    expect(screen.getByTestId("token")).toHaveTextContent("#docs/prd.md")
+  })
+
+  it("without highlight, no backdrop layer is rendered", () => {
+    const { container } = render(<PromptInput onSubmit={() => {}} />)
+    expect(container.querySelector(".hds-prompt-input-backdrop")).not.toBeInTheDocument()
+  })
+
+  it("textareaRef reaches the underlying textarea", () => {
+    const ref = createRef<HTMLTextAreaElement>()
+    render(<PromptInput onSubmit={() => {}} textareaRef={ref} />)
+    expect(ref.current).toBe(screen.getByRole("textbox"))
   })
 })

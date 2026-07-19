@@ -39,6 +39,9 @@ const resizableProps: {
 /** Minimal context bridge so the mocked `DropdownMenuTrigger` can toggle its sibling `DropdownMenu`'s open state — mirrors the same pattern already used in `explorer/Explorer.test.ts` (real Radix does this internally; nothing else here needs to know about it). */
 const DropdownMenuMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 
+/** Same bridge for the session-history Popover (the chat pane header mounts the real `SessionHistory`, which rides DS `Popover`). */
+const PopoverMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
+
 vi.mock('@hive/design-system', () => ({
   Resizable: ({
     children,
@@ -165,7 +168,104 @@ vi.mock('@hive/design-system', () => ({
     open ? createElement('div', { 'data-testid': 'profile-sheet' }, children) : null,
   SheetContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   SheetTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
-  SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children)
+  SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
+  // Profile sheet's name field (display-name editing).
+  Field: ({
+    label,
+    description,
+    children
+  }: {
+    label?: ReactNode
+    description?: ReactNode
+    children?: ReactNode
+  }) => createElement('label', null, label, children, description),
+  Input: (props: Record<string, unknown>) => createElement('input', props),
+  // session-history: the chat pane header mounts the real `SessionHistory`,
+  // which rides DS Popover — same context-bridge pattern as DropdownMenu
+  // above. Content renders only while the component holds `open`, matching
+  // the real conditional-content pattern.
+  Popover: ({
+    onOpenChange,
+    children
+  }: {
+    onOpenChange?: (open: boolean) => void
+    children?: ReactNode
+  }) => createElement(PopoverMockCtx.Provider, { value: { onOpenChange } }, children),
+  PopoverTrigger: ({ children }: { children?: ReactNode }) => {
+    const ctx = useContext(PopoverMockCtx)
+    if (!isValidElement(children)) return children
+    const element = children as ReactElement<{ onClick?: (event: unknown) => void }>
+    return cloneElement(element, {
+      onClick: (event: unknown) => {
+        element.props.onClick?.(event)
+        ctx.onOpenChange?.(true)
+      }
+    })
+  },
+  PopoverContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'dialog' }, children),
+  Empty: ({ title, description }: { title?: ReactNode; description?: ReactNode }) =>
+    createElement('div', null, title, description),
+  Skeleton: () => createElement('div', { 'data-testid': 'skeleton' }),
+  // Workspace file search (Ctrl+P palette): CommandDialog renders its content
+  // only while `open`, matching the real Dialog-backed component.
+  CommandDialog: ({
+    open,
+    label,
+    children
+  }: {
+    open?: boolean
+    label?: string
+    children?: ReactNode
+  }) => (open ? createElement('div', { role: 'dialog', 'aria-label': label }, children) : null),
+  CommandInput: (props: Record<string, unknown>) => createElement('input', props),
+  CommandList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  CommandEmpty: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  CommandItem: ({
+    children,
+    onSelect,
+    shortcut,
+    value,
+    keywords,
+    ...rest
+  }: {
+    children?: ReactNode
+    onSelect?: () => void
+    shortcut?: ReactNode
+    value?: string
+    keywords?: string[]
+  }) => {
+    // `value`/`keywords` are cmdk filtering hints, not DOM attributes.
+    void value
+    void keywords
+    return createElement(
+      'button',
+      { type: 'button', onClick: () => onSelect?.(), ...rest },
+      children,
+      shortcut
+    )
+  },
+  // shortcut-customization: the "Personalizar atalhos" picker's extra DS surface.
+  Badge: ({ children, variant }: { children?: ReactNode; variant?: string }) =>
+    createElement('span', { 'data-variant': variant }, children),
+  Command: ({
+    children,
+    label,
+    loop
+  }: {
+    children?: ReactNode
+    label?: string
+    loop?: boolean
+  }) => {
+    void loop
+    return createElement('div', { 'aria-label': label }, children)
+  },
+  CommandGroup: ({ heading, children }: { heading?: ReactNode; children?: ReactNode }) =>
+    createElement('div', null, createElement('div', null, heading), children),
+  // App settings sheet (version + updates).
+  Progress: (props: Record<string, unknown>) =>
+    createElement('div', { role: 'progressbar', 'aria-label': props['aria-label'] as string }),
+  Spinner: ({ label }: { label?: string }) => createElement('span', null, label)
 }))
 
 /**
@@ -181,11 +281,33 @@ const fileViewerMock: { requestSave: ReturnType<typeof vi.fn> } = {
 }
 
 vi.mock('./explorer/Explorer', () => ({
-  FileTree: ({ onOpenFile }: { onOpenFile?: (path: string) => void }) =>
+  FileTree: ({ onOpenFile }: { onOpenFile?: (path: string, opts?: { pin?: boolean }) => void }) =>
     createElement(
-      'button',
-      { type: 'button', 'data-testid': 'file-tree', onClick: () => onOpenFile?.('README.md') },
-      'FileTree'
+      'div',
+      null,
+      createElement(
+        'button',
+        { type: 'button', 'data-testid': 'file-tree', onClick: () => onOpenFile?.('README.md') },
+        'FileTree'
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'open-other',
+          onClick: () => onOpenFile?.('docs/other.md')
+        },
+        'open other'
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'open-pinned',
+          onClick: () => onOpenFile?.('docs/pinned.md', { pin: true })
+        },
+        'open pinned'
+      )
     ),
   FileViewer: forwardRef(function FileViewer(
     {
@@ -215,7 +337,19 @@ vi.mock('./explorer/Explorer', () => ({
 }))
 
 vi.mock('./chat/Chat', () => ({
-  Chat: () => createElement('div', { 'data-testid': 'chat' }, 'Chat')
+  // The mock exposes the customize hook (shortcut-customization) so WorkUI's
+  // "open the picker" wiring can be driven without the real Chat surface.
+  Chat: ({ onCustomizeShortcuts }: { onCustomizeShortcuts?: () => void }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'chat' },
+      'Chat',
+      createElement(
+        'button',
+        { type: 'button', onClick: () => onCustomizeShortcuts?.() },
+        'abrir personalizar'
+      )
+    )
 }))
 
 const STORAGE_KEY = 'hive.workLayout'
@@ -255,9 +389,32 @@ function createHiveMock(): Window['hive'] {
     chooseWorkspace: vi.fn(async () => null),
     getRecentWorkspaces: vi.fn(async () => []),
     openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),
+    // The file-search palette loads the flat workspace file list on open.
+    listFiles: vi.fn(async () => []),
     // WorkUI loads the role's actions on mount; the (closed) ProfileSheet
-    // loads the agent list on mount — both need to resolve.
+    // loads the agent list on mount — both need to resolve. The (closed)
+    // AppSettingsSheet loads app info + subscribes to update events on mount.
     skills: { list: vi.fn(async () => []) },
+    // The (closed) MCP module loads the server list on open.
+    mcp: {
+      list: vi.fn(async () => []),
+      add: vi.fn(async () => undefined),
+      update: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+      setEnabled: vi.fn(async () => undefined),
+      probe: vi.fn(async () => ({ ok: true, tools: [], logs: '', durationMs: 0 }))
+    },
+    app: {
+      info: vi.fn(async () => ({
+        name: 'hive-desktop',
+        version: '0.1.0',
+        updatesSupported: false
+      })),
+      checkForUpdates: vi.fn(async () => undefined),
+      downloadUpdate: vi.fn(async () => undefined),
+      installUpdate: vi.fn(async () => undefined),
+      onUpdateEvent: vi.fn(() => () => {})
+    },
     profile: {
       agents: vi.fn(async () => []),
       getAgent: vi.fn(async () => null),
@@ -265,12 +422,21 @@ function createHiveMock(): Window['hive'] {
       getRole: vi.fn(async () => null),
       setRole: vi.fn(async () => undefined),
       roleActions: vi.fn(async () => [])
+    },
+    shortcuts: {
+      catalog: vi.fn(async () => []),
+      get: vi.fn(async () => null),
+      set: vi.fn(async () => undefined),
+      actions: vi.fn(async () => [])
     }
   } as unknown as Window['hive']
 }
 
 beforeEach(async () => {
   vi.stubGlobal('localStorage', createLocalStorageMock())
+  // Default: the guided tour was already seen, so it never pops into
+  // unrelated tests mid-run. The tour describe below removes the flag.
+  localStorage.setItem('hive.tourSeen', '1')
   vi.stubGlobal('hive', createHiveMock())
   resizableProps.defaultLayout = undefined
   resizableProps.onLayoutChanged = undefined
@@ -879,13 +1045,103 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   })
 })
 
-// role-personalization RP-R5/R6 — the persistent action rail + profile sheet.
-describe('WorkUI — action rail + profile sheet', () => {
-  it("renders the role's actions as rail buttons and opens the profile sheet from the gear", async () => {
-    vi.mocked(window.hive.profile.roleActions).mockResolvedValue([
-      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: 'x' } },
-      { key: 'persona-pm', kind: 'persona', command: { key: 'bmad-agent-pm', prompt: 'y' } }
+// Guided tour — first-access gating (open-once + skip persists the flag).
+describe('WorkUI — guided tour (first access)', () => {
+  function mountWithActions(): void {
+    // shortcut-customization: WorkUI resolves the (possibly customized)
+    // shortcut set via `shortcuts.actions`, not `profile.roleActions`.
+    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue([
+      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } }
     ])
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        role: 'pm',
+        agent: 'claude-cli'
+      })
+    )
+  }
+
+  it('opens on first access once role actions land, and skipping persists the seen flag', async () => {
+    localStorage.removeItem('hive.tourSeen')
+    mountWithActions()
+
+    const dialog = await screen.findByRole(
+      'dialog',
+      { name: 'Tour guiado do Hive' },
+      {
+        timeout: 2000
+      }
+    )
+    expect(dialog).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Pular tour'))
+    expect(screen.queryByRole('dialog', { name: 'Tour guiado do Hive' })).toBeNull()
+    expect(localStorage.setItem).toHaveBeenCalledWith('hive.tourSeen', '1')
+  })
+
+  it('stays closed when the tour was already seen', async () => {
+    mountWithActions()
+    // The role actions land (the tour's open precondition) yet no tour appears.
+    await waitFor(() => expect(window.hive.shortcuts.actions).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    expect(screen.queryByRole('dialog', { name: 'Tour guiado do Hive' })).toBeNull()
+  })
+})
+
+// shortcut-customization: WorkUI opens the picker from Chat's hook and
+// re-resolves the live shortcut set after every persisted change.
+describe('WorkUI — shortcut customization', () => {
+  it('opens the picker, and a toggle persists + re-resolves the shortcut set', async () => {
+    vi.mocked(window.hive.shortcuts.catalog).mockResolvedValue([
+      {
+        key: 'bmad-prd',
+        label: 'Create Edit and Review PRD',
+        description: 'PRD workflow',
+        module: 'bmm',
+        kind: 'skill',
+        persona: null
+      }
+    ])
+    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue([])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        role: 'pm',
+        agent: 'claude-cli'
+      })
+    )
+    await waitFor(() => expect(window.hive.shortcuts.actions).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByText('abrir personalizar'))
+    // No prior customization → defaults come from profile.roleActions.
+    await waitFor(() => expect(window.hive.profile.roleActions).toHaveBeenCalled())
+
+    const row = await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+    fireEvent.click(row)
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith({ skills: ['bmad-prd'], agents: [] })
+    )
+    // onChanged → WorkUI re-resolves the visible shortcut set.
+    await waitFor(() => expect(window.hive.shortcuts.actions).toHaveBeenCalledTimes(2))
+
+    // "Concluído" closes the picker (the dialog's onOpenChange wiring).
+    fireEvent.click(screen.getByRole('button', { name: 'Concluído' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Alternar atalho: Criar um PRD' })).toBeNull()
+    )
+  })
+})
+
+// The left tool rail (search + app settings), the top-bar profile avatar,
+// and the Ctrl+P workspace file search.
+describe('WorkUI — tool rail, profile avatar, file search', () => {
+  it('opens the profile sheet from the top-bar avatar, showing initials when a name is set', async () => {
     vi.mocked(window.hive.profile.agents).mockResolvedValue([
       { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true }
     ])
@@ -898,38 +1154,462 @@ describe('WorkUI — action rail + profile sheet', () => {
         theme: 'dark',
         onToggleTheme: vi.fn(),
         role: 'pm',
-        agent: 'claude-cli'
+        agent: 'claude-cli',
+        userName: 'Gustavo Bruno'
       })
     )
 
-    // A rail button exists for a role action (label resolved from the key).
-    expect(await screen.findByRole('button', { name: 'Criar um PRD' })).toBeTruthy()
-    // The profile sheet is closed initially, then opens from the gear.
-    expect(screen.queryByTestId('profile-sheet')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Configurações de perfil' }))
-    const sheet = await screen.findByTestId('profile-sheet')
-    expect(sheet).toBeTruthy()
+    const avatar = screen.getByRole('button', { name: 'Abrir configurações de perfil' })
+    expect(avatar.textContent).toBe('GB')
+    // The profile sheet is closed initially, then opens from the avatar.
+    expect(screen.queryByText('Perfil')).toBeNull()
+    fireEvent.click(avatar)
+    expect(await screen.findByText('Perfil')).toBeTruthy()
 
     // Picking a role + an agent in the sheet runs the (default no-op) handlers.
     fireEvent.click(await screen.findByText('Tech Lead'))
     fireEvent.click(await screen.findByText('Claude Code'))
+
+    // Committing a new name runs the default no-op onUserNameChange too.
+    const nameInput = screen.getByPlaceholderText('Seu nome')
+    fireEvent.change(nameInput, { target: { value: 'Nova Pessoa' } })
+    fireEvent.blur(nameInput)
   })
 
-  it('launching a rail action does not crash when the chat has no handle yet', async () => {
-    vi.mocked(window.hive.profile.roleActions).mockResolvedValue([
-      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: 'x' } }
-    ])
+  it('opens the app settings sheet (version + updates) from the rail gear', async () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    expect(screen.queryByText('Aplicativo')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações do aplicativo' }))
+    expect(await screen.findByText('Aplicativo')).toBeTruthy()
+    // Version resolved from app.info; dev builds show the honest no-updates note.
+    expect(await screen.findByText('Versão 0.1.0')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Atualizações automáticas ficam disponíveis apenas na versão instalada do aplicativo.'
+      )
+    ).toBeTruthy()
+  })
+
+  it('opens the MCP module (Servidores MCP) from the rail plug button', async () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    expect(screen.queryByText('Nenhum servidor MCP ainda')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
+    // The module opens on its empty state (the mock lists no servers).
+    expect(await screen.findByText('Nenhum servidor MCP ainda')).toBeTruthy()
+  })
+
+  it('opens the file search from the rail button, and picking a file opens it in the viewer', async () => {
+    vi.mocked(window.hive.listFiles).mockResolvedValue(['docs/prd.md'])
 
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
-        role: 'pm'
+        onToggleTheme: vi.fn()
       })
     )
 
-    const railBtn = await screen.findByRole('button', { name: 'Criar um PRD' })
-    expect(() => fireEvent.click(railBtn)).not.toThrow()
+    expect(screen.queryByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar arquivos no workspace' }))
+    expect(await screen.findByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeTruthy()
+
+    // Picking the row opens the file: the viewer panel mounts and the dialog closes.
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir arquivo docs/prd.md' }))
+    expect(screen.getByTestId('panel-viewer')).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeNull()
+  })
+
+  it('Ctrl+P opens the file search from anywhere in the work UI', async () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    expect(await screen.findByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeTruthy()
+  })
+})
+
+/**
+ * customizable-layout — movable panes: persisted left-to-right order
+ * (`hive.paneOrder`), the ↔ move menu, and header drag-and-drop. Same
+ * isolation approach as the T11 layout suite above: the DS Resizable mock
+ * renders panels as plain divs (`panel-<id>`), so DOM order IS pane order.
+ */
+describe('WorkUI — movable panes (customizable-layout)', () => {
+  const PANE_ORDER_KEY = 'hive.paneOrder'
+
+  function renderWorkUI(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+  }
+
+  /** DOM order of the rendered panels, as pane ids. */
+  function panelOrder(): string[] {
+    return Array.from(document.querySelectorAll('[data-testid^="panel-"]')).map((el) =>
+      (el.getAttribute('data-testid') ?? '').replace('panel-', '')
+    )
+  }
+
+  it('renders rail → chat by default, appending the viewer last when a file opens', () => {
+    renderWorkUI()
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    expect(panelOrder()).toEqual(['rail', 'chat', 'viewer'])
+  })
+
+  it('restores a persisted pane order on mount', () => {
+    localStorage.setItem(PANE_ORDER_KEY, JSON.stringify(['chat', 'viewer', 'rail']))
+    renderWorkUI()
+    expect(panelOrder()).toEqual(['chat', 'rail'])
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    expect(panelOrder()).toEqual(['chat', 'viewer', 'rail'])
+  })
+
+  it('falls back to the default order when the persisted value is not a rail/chat/viewer permutation', () => {
+    localStorage.setItem(PANE_ORDER_KEY, JSON.stringify(['chat']))
+    renderWorkUI()
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+
+    localStorage.setItem(PANE_ORDER_KEY, '{corrupt')
+    cleanup()
+    renderWorkUI()
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+  })
+
+  it('moves a pane left via the ↔ menu and persists the new order', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover o painel Conversa' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mover para a esquerda' }))
+
+    expect(panelOrder()).toEqual(['chat', 'rail'])
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      PANE_ORDER_KEY,
+      JSON.stringify(['chat', 'rail', 'viewer'])
+    )
+  })
+
+  it('moving the leftmost pane further left is a no-op', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover o painel Arquivos' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mover para a esquerda' }))
+
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+  })
+
+  it('moves a pane right via the ↔ menu (the mirror path)', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover o painel Arquivos' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mover para a direita' }))
+
+    expect(panelOrder()).toEqual(['chat', 'rail'])
+  })
+
+  it('leaving a hovered pane clears its drop hint', () => {
+    renderWorkUI()
+
+    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['application/x-hive-pane']
+    }
+
+    fireEvent.dragStart(railHeader, { dataTransfer })
+    fireEvent.dragOver(chatPane, { dataTransfer, clientX: 5 })
+    expect(chatPane.getAttribute('data-drop')).toBe('after')
+
+    // Pointer leaves for somewhere outside the pane → the hint clears.
+    fireEvent.dragLeave(chatPane, { relatedTarget: document.body })
+    expect(chatPane.getAttribute('data-drop')).toBeNull()
+  })
+
+  it('drag-and-drop guards: no phantom hints, before-half targeting, child leave keeps the hint', () => {
+    renderWorkUI()
+
+    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const railPane = screen.getByTestId('panel-rail').querySelector('.wb-pane') as HTMLElement
+    const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['application/x-hive-pane']
+    }
+
+    // Hovering with no drag in flight is inert.
+    fireEvent.dragOver(chatPane, { dataTransfer, clientX: 5 })
+    expect(chatPane.getAttribute('data-drop')).toBeNull()
+
+    fireEvent.dragStart(railHeader, { dataTransfer })
+    // Hovering the dragged pane itself is inert too.
+    fireEvent.dragOver(railPane, { dataTransfer, clientX: 5 })
+    expect(railPane.getAttribute('data-drop')).toBeNull()
+
+    // Give the pane a real width so the pointer's half is meaningful, and
+    // dispatch native MouseEvents: jsdom has no DragEvent, so fireEvent's
+    // dragOver falls back to a plain Event whose clientX is undefined —
+    // which would make every hover read as 'after'.
+    chatPane.getBoundingClientRect = () =>
+      ({ left: 0, width: 100, top: 0, height: 100, right: 100, bottom: 100, x: 0, y: 0 }) as DOMRect
+    function mouseDragEvent(type: string, clientX: number): MouseEvent {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX })
+      Object.defineProperty(event, 'dataTransfer', { value: dataTransfer })
+      return event
+    }
+
+    // Left half → 'before'; a repeated same-side hover keeps the hint stable.
+    fireEvent(chatPane, mouseDragEvent('dragover', 5))
+    fireEvent(chatPane, mouseDragEvent('dragover', 5))
+    expect(chatPane.getAttribute('data-drop')).toBe('before')
+
+    // Leaving into one of the pane's own children keeps the hint alive
+    // (same native-MouseEvent route: fireEvent.dragLeave drops relatedTarget).
+    const leaveIntoChild = new MouseEvent('dragleave', {
+      bubbles: true,
+      cancelable: true,
+      relatedTarget: chatPane.firstElementChild
+    })
+    fireEvent(chatPane, leaveIntoChild)
+    expect(chatPane.getAttribute('data-drop')).toBe('before')
+
+    // Dropping on the left half inserts before → rail was already before chat.
+    fireEvent(chatPane, mouseDragEvent('drop', 5))
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+  })
+
+  it('reorders panes by dragging a pane header onto another pane and persists it', () => {
+    renderWorkUI()
+
+    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['application/x-hive-pane']
+    }
+
+    fireEvent.dragStart(railHeader, { dataTransfer })
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-hive-pane', 'rail')
+
+    // jsdom rects are all-zero, so clientX 5 lands in the pane's right half → 'after'.
+    fireEvent.dragOver(chatPane, { dataTransfer, clientX: 5 })
+    expect(chatPane.getAttribute('data-drop')).toBe('after')
+
+    fireEvent.drop(chatPane, { dataTransfer, clientX: 5 })
+    expect(panelOrder()).toEqual(['chat', 'rail'])
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      PANE_ORDER_KEY,
+      JSON.stringify(['chat', 'rail', 'viewer'])
+    )
+    // Drag state fully cleared — no lingering drop hint.
+    expect(document.querySelector('[data-drop]')).toBeNull()
+  })
+
+  it('a drag that ends without a drop clears the drop hint (dragend path)', () => {
+    renderWorkUI()
+
+    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['application/x-hive-pane']
+    }
+
+    fireEvent.dragStart(railHeader, { dataTransfer })
+    fireEvent.dragOver(chatPane, { dataTransfer, clientX: 5 })
+    expect(chatPane.getAttribute('data-drop')).toBe('after')
+
+    fireEvent.dragEnd(railHeader, { dataTransfer })
+    expect(panelOrder()).toEqual(['rail', 'chat'])
+    expect(document.querySelector('[data-drop]')).toBeNull()
+  })
+})
+
+describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
+  function renderWorkUI(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+  }
+
+  /** Visible tab names, in strip order. */
+  function tabNames(): string[] {
+    return screen.getAllByRole('tab').map((tab) => tab.textContent ?? '')
+  }
+
+  it('a plain click opens a preview tab that the next plain open replaces in place', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    expect(tabNames()).toEqual(['README.md'])
+    expect(screen.getByRole('tab').hasAttribute('data-preview')).toBe(true)
+
+    fireEvent.click(screen.getByTestId('open-other'))
+    expect(tabNames()).toEqual(['other.md'])
+  })
+
+  it('a pinned open (double-click in the tree) keeps the preview tab and adds its own', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('open-pinned'))
+
+    expect(tabNames()).toEqual(['README.md', 'pinned.md'])
+    const pinned = screen.getAllByRole('tab')[1] as HTMLElement
+    expect(pinned.hasAttribute('data-preview')).toBe(false)
+  })
+
+  it('double-clicking a preview tab pins it, so the next open adds a second tab', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.doubleClick(screen.getByRole('tab'))
+    expect(screen.getByRole('tab').hasAttribute('data-preview')).toBe(false)
+
+    fireEvent.click(screen.getByTestId('open-other'))
+    expect(tabNames()).toEqual(['README.md', 'other.md'])
+  })
+
+  it('editing a preview tab pins it and shows the dirty dot state', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+
+    const tab = screen.getByRole('tab')
+    expect(tab.hasAttribute('data-preview')).toBe(false)
+    expect(tab.hasAttribute('data-dirty')).toBe(true)
+  })
+
+  it('selecting another tab switches the visible viewer without unmounting the hidden one', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('open-pinned'))
+
+    // Both viewers stay mounted; only the active tab's body is visible.
+    const bodies = Array.from(document.querySelectorAll('.wb-tab-body'))
+    expect(bodies).toHaveLength(2)
+    expect(bodies.filter((body) => !body.hasAttribute('hidden'))).toHaveLength(1)
+
+    fireEvent.click(screen.getAllByRole('tab')[0] as HTMLElement)
+    const readmeBody = bodies[0] as HTMLElement
+    expect(readmeBody.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('closing a clean tab from the strip closes immediately (no guard dialog)', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByLabelText('Fechar README.md'))
+
+    expect(screen.queryByRole('tab')).toBeNull()
+    expect(screen.queryByTestId('panel-viewer')).toBeNull()
+  })
+
+  it('closing a dirty tab asks the three-way guard; Salvar saves via the handle then closes', async () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    fireEvent.click(screen.getByLabelText('Fechar README.md'))
+
+    // Guard dialog up, tab still open.
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('tab')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => {
+      expect(fileViewerMock.requestSave).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('tab')).toBeNull()
+    })
+  })
+
+  it('closing a dirty tab and picking Descartar closes without saving', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    fireEvent.click(screen.getByLabelText('Fechar README.md'))
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
+
+    expect(fileViewerMock.requestSave).not.toHaveBeenCalled()
+    expect(screen.queryByRole('tab')).toBeNull()
+  })
+
+  it('closing a dirty tab and picking Cancelar keeps the tab (and its dirty state)', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    fireEvent.click(screen.getByLabelText('Fechar README.md'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('tab').hasAttribute('data-dirty')).toBe(true)
+  })
+
+  it('closing the active tab activates its neighbor', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('open-pinned'))
+    expect(tabNames()).toEqual(['README.md', 'pinned.md'])
+
+    // pinned.md is active; close it — README.md becomes the active tab.
+    fireEvent.click(screen.getByLabelText('Fechar pinned.md'))
+    expect(tabNames()).toEqual(['README.md'])
+    expect(screen.getByRole('tab').hasAttribute('data-active')).toBe(true)
+  })
+
+  it('middle-clicking a tab closes it (VS Code muscle memory)', () => {
+    renderWorkUI()
+
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent(
+      screen.getByRole('tab'),
+      new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 })
+    )
+
+    expect(screen.queryByRole('tab')).toBeNull()
   })
 })

@@ -79,6 +79,39 @@ describe('FsService', () => {
     })
   })
 
+  describe('listFiles()', () => {
+    it('returns every file as a flat POSIX-relative list, shallow files before deep ones', () => {
+      const files = service.listFiles(root)
+
+      expect(files).toEqual(['a.txt', 'docs/prd.md', 'docs/nested/notes.txt'])
+    })
+
+    it('skips dependency/build directories (node_modules, .git, dist, …)', () => {
+      mkdirSync(join(root, 'node_modules', 'pkg'), { recursive: true })
+      writeFileSync(join(root, 'node_modules', 'pkg', 'index.js'), '')
+      mkdirSync(join(root, '.git'))
+      writeFileSync(join(root, '.git', 'HEAD'), '')
+      mkdirSync(join(root, 'dist'))
+      writeFileSync(join(root, 'dist', 'bundle.js'), '')
+
+      const files = service.listFiles(root)
+
+      expect(files).toEqual(['a.txt', 'docs/prd.md', 'docs/nested/notes.txt'])
+    })
+
+    it('skips symlinks entirely (no cycles, no root escapes)', () => {
+      writeFileSync(join(root, 'real.txt'), 'real')
+      symlinkSync(join(root, 'real.txt'), join(root, 'link.txt'))
+      symlinkSync(join(root, 'docs'), join(root, 'docs-link'))
+
+      const files = service.listFiles(root)
+
+      expect(files).toContain('real.txt')
+      expect(files).not.toContain('link.txt')
+      expect(files.some((path) => path.startsWith('docs-link'))).toBe(false)
+    })
+  })
+
   describe('readFile()', () => {
     it('returns the file contents as text', () => {
       expect(service.readFile(root, 'docs/prd.md')).toBe('# PRD')

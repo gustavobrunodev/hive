@@ -1,4 +1,6 @@
 import type { WorkflowCommand } from './agentAdapter'
+import type { ShortcutPrefs } from './configStore'
+import type { WorkspaceSkill } from './workflowCatalog'
 
 /**
  * `RoleCatalog` — the source of truth for role-personalization (M9, RP-R1/R3).
@@ -37,8 +39,10 @@ export interface RoleActionDef {
   /** The BMAD skill this action invokes. */
   skill: string
   kind: 'workflow' | 'persona'
-  /** Literal natural-language instruction sent to the agent (names the skill
-   *  explicitly — the most robust resolver — plus, for personas, the persona). */
+  /** The literal prompt sent to the agent: the skill's slash command
+   *  (`/bmad-<skill>`), exactly what the user would type in the composer.
+   *  Claude Code resolves a leading-slash prompt as a skill invocation, and
+   *  the chat renders it verbatim — the shortcut IS the slash command. */
   prompt: string
 }
 
@@ -50,144 +54,78 @@ export interface RoleDef {
 }
 
 /** A role action resolved for the renderer: everything it needs to render
- *  (`key`/`kind`) and to launch via the existing `agent.runWorkflow` path. */
+ *  (`key`/`kind`) and to launch via the existing `agent.runWorkflow` path.
+ *  `label` (shortcut-customization): the workspace catalog's display name,
+ *  set only for custom-selected skills — the renderer prefers its own pt-BR
+ *  map by `key` and uses this as the fallback (role-default actions keep
+ *  labels fully renderer-side, as before). */
 export interface ResolvedRoleAction {
   key: string
   kind: 'workflow' | 'persona'
   command: WorkflowCommand
+  label?: string
+  /** skill-studio: set (true) only on shortcuts backed by a user-created
+   *  skill — the renderer gives them the studio's spark icon. */
+  custom?: boolean
 }
 
-function workflow(key: string, skill: string, prompt: string): RoleActionDef {
-  return { key, skill, kind: 'workflow', prompt }
+function workflow(key: string, skill: string): RoleActionDef {
+  return { key, skill, kind: 'workflow', prompt: `/${skill}` }
 }
-function persona(key: string, skill: string, prompt: string): RoleActionDef {
-  return { key, skill, kind: 'persona', prompt }
+function persona(key: string, skill: string): RoleActionDef {
+  return { key, skill, kind: 'persona', prompt: `/${skill}` }
 }
 
 /**
- * The role → actions table (spec.md "Roles → Actions"). Persona prompts name
- * the specialist so Claude Code resolves the `bmad-agent-*`/`bmad-tea` skill.
+ * The role → actions table (spec.md "Roles → Actions"). Every action launches
+ * its skill via the slash command (`prompt` = `/<skill>`), so a shortcut click
+ * and a typed `/bmad-*` command are one and the same path.
  */
 export const ROLE_CATALOG: Record<RoleId, RoleDef> = {
   pm: {
     id: 'pm',
     personaSkill: 'bmad-agent-pm',
     actions: [
-      workflow(
-        'domain-research',
-        'bmad-domain-research',
-        'Use the bmad-domain-research skill to run domain research for this project.'
-      ),
-      workflow(
-        'brainstorm',
-        'bmad-brainstorming',
-        'Use the bmad-brainstorming skill to facilitate a brainstorming session.'
-      ),
-      workflow('prd', 'bmad-prd', 'Use the bmad-prd skill to create a PRD.'),
-      workflow(
-        'product-brief',
-        'bmad-product-brief',
-        'Use the bmad-product-brief skill to create a product brief.'
-      ),
-      workflow(
-        'epics-stories',
-        'bmad-create-epics-and-stories',
-        'Use the bmad-create-epics-and-stories skill to break the requirements into epics and stories.'
-      ),
-      workflow(
-        'story',
-        'bmad-create-story',
-        'Use the bmad-create-story skill to create the next story.'
-      ),
-      persona(
-        'persona-pm',
-        'bmad-agent-pm',
-        'I want to talk to John, the BMAD Product Manager agent (the bmad-agent-pm skill).'
-      )
+      workflow('domain-research', 'bmad-domain-research'),
+      workflow('brainstorm', 'bmad-brainstorming'),
+      workflow('prd', 'bmad-prd'),
+      workflow('product-brief', 'bmad-product-brief'),
+      workflow('epics-stories', 'bmad-create-epics-and-stories'),
+      workflow('story', 'bmad-create-story'),
+      persona('persona-pm', 'bmad-agent-pm')
     ]
   },
   'tech-lead': {
     id: 'tech-lead',
     personaSkill: 'bmad-agent-architect',
     actions: [
-      workflow(
-        'architecture',
-        'bmad-architecture',
-        'Use the bmad-architecture skill to create the technical architecture.'
-      ),
-      workflow(
-        'epics-stories',
-        'bmad-create-epics-and-stories',
-        'Use the bmad-create-epics-and-stories skill to break the requirements into epics and stories.'
-      ),
-      workflow(
-        'story',
-        'bmad-create-story',
-        'Use the bmad-create-story skill to create the next story.'
-      ),
-      persona(
-        'persona-architect',
-        'bmad-agent-architect',
-        'I want to talk to Winston, the BMAD Architect agent (the bmad-agent-architect skill).'
-      )
+      workflow('architecture', 'bmad-architecture'),
+      workflow('epics-stories', 'bmad-create-epics-and-stories'),
+      workflow('story', 'bmad-create-story'),
+      persona('persona-architect', 'bmad-agent-architect')
     ]
   },
   ux: {
     id: 'ux',
     personaSkill: 'bmad-agent-ux-designer',
-    actions: [
-      workflow(
-        'ux-spec',
-        'bmad-ux',
-        'Use the bmad-ux skill to create the UX design specification.'
-      ),
-      persona(
-        'persona-ux',
-        'bmad-agent-ux-designer',
-        'I want to talk to Sally, the BMAD UX Designer agent (the bmad-agent-ux-designer skill).'
-      )
-    ]
+    actions: [workflow('ux-spec', 'bmad-ux'), persona('persona-ux', 'bmad-agent-ux-designer')]
   },
   qa: {
     id: 'qa',
     personaSkill: 'bmad-tea',
     actions: [
-      workflow(
-        'test-design',
-        'bmad-testarch-test-design',
-        'Use the bmad-testarch-test-design skill to design the test plan.'
-      ),
-      workflow(
-        'test-automation',
-        'bmad-testarch-automate',
-        'Use the bmad-testarch-automate skill to expand automated test coverage.'
-      ),
-      persona(
-        'persona-qa',
-        'bmad-tea',
-        'I want to talk to Murat, the BMAD Test Architect agent (the bmad-tea skill).'
-      )
+      workflow('test-design', 'bmad-testarch-test-design'),
+      workflow('test-automation', 'bmad-testarch-automate'),
+      persona('persona-qa', 'bmad-tea')
     ]
   },
   dev: {
     id: 'dev',
     personaSkill: 'bmad-agent-dev',
     actions: [
-      workflow(
-        'dev-story',
-        'bmad-dev-story',
-        'Use the bmad-dev-story skill to implement the next story in the sprint plan.'
-      ),
-      workflow(
-        'code-review',
-        'bmad-code-review',
-        'Use the bmad-code-review skill to review the current code changes.'
-      ),
-      persona(
-        'persona-dev',
-        'bmad-agent-dev',
-        'I want to talk to Amelia, the BMAD Developer agent (the bmad-agent-dev skill).'
-      )
+      workflow('dev-story', 'bmad-dev-story'),
+      workflow('code-review', 'bmad-code-review'),
+      persona('persona-dev', 'bmad-agent-dev')
     ]
   },
   // Internal fallback only (never user-selectable). Mirrors the pre-role
@@ -197,27 +135,11 @@ export const ROLE_CATALOG: Record<RoleId, RoleDef> = {
   general: {
     id: 'general',
     actions: [
-      workflow('prd', 'bmad-prd', 'Use the bmad-prd skill to create a PRD.'),
-      workflow(
-        'domain-research',
-        'bmad-domain-research',
-        'Use the bmad-domain-research skill to run domain research for this project.'
-      ),
-      workflow(
-        'brainstorm',
-        'bmad-brainstorming',
-        'Use the bmad-brainstorming skill to facilitate a brainstorming session.'
-      ),
-      workflow(
-        'architecture',
-        'bmad-architecture',
-        'Use the bmad-architecture skill to create the technical architecture.'
-      ),
-      workflow(
-        'story',
-        'bmad-create-story',
-        'Use the bmad-create-story skill to create the next story.'
-      )
+      workflow('prd', 'bmad-prd'),
+      workflow('domain-research', 'bmad-domain-research'),
+      workflow('brainstorm', 'bmad-brainstorming'),
+      workflow('architecture', 'bmad-architecture'),
+      workflow('story', 'bmad-create-story')
     ]
   }
 }
@@ -240,4 +162,42 @@ export function resolveRoleActions(role: string | null | undefined): ResolvedRol
     kind: action.kind,
     command: { key: action.skill, prompt: action.prompt }
   }))
+}
+
+/**
+ * Resolves the user's shortcut set (shortcut-customization): the custom
+ * selection when one exists, the role defaults otherwise. Custom keys are
+ * validated against the workspace catalog — prefs are global but workspaces
+ * differ, so a skill not installed here is silently skipped rather than
+ * rendered as a dead shortcut. An *empty* catalog (no BMAD metadata at all)
+ * means the prefs can't be validated → role defaults, same as `null` prefs.
+ * An empty *result* from real prefs is respected: deselecting everything is
+ * a legitimate "I want a clean hero" choice.
+ */
+export function resolveShortcuts(
+  role: string | null | undefined,
+  prefs: ShortcutPrefs | null,
+  catalog: readonly WorkspaceSkill[]
+): ResolvedRoleAction[] {
+  if (!prefs || catalog.length === 0) return resolveRoleActions(role)
+
+  const byKey = new Map(catalog.map((skill) => [skill.key, skill]))
+  const pick = (keys: string[], kind: 'workflow' | 'persona'): ResolvedRoleAction[] =>
+    keys.flatMap((key) => {
+      const skill = byKey.get(key)
+      if (!skill) return []
+      return [
+        {
+          key,
+          kind,
+          label: skill.label,
+          // The shortcut IS the slash command, same contract as role actions.
+          command: { key, prompt: `/${key}` },
+          // Carried only when true, so role-default shapes stay unchanged.
+          ...(skill.custom ? { custom: true } : {})
+        }
+      ]
+    })
+
+  return [...pick(prefs.skills, 'workflow'), ...pick(prefs.agents, 'persona')]
 }

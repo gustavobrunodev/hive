@@ -354,6 +354,15 @@ export function PersonaChatIcon({ size, ...rest }: IconProps): React.JSX.Element
 /* --- Chrome icons (rail, profile, chat controls) ----------------------- */
 
 /** Settings gear (profile module entry). */
+export function CompassIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="m10.4 5.6-1.3 3.5-3.5 1.3 1.3-3.5 3.5-1.3Z" />
+    </svg>
+  )
+}
+
 export function GearIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
@@ -386,6 +395,219 @@ export function SlashIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
       <path d="M10 2.75 6 13.25" />
+    </svg>
+  )
+}
+
+/** Grip — six-dot drag handle (movable pane headers). */
+export function PaperclipIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M13.1 7.4 8 12.5a3.08 3.08 0 0 1-4.36-4.36l5.57-5.57a2.05 2.05 0 0 1 2.9 2.9L6.55 11a1.03 1.03 0 0 1-1.45-1.45l4.86-4.86" />
+    </svg>
+  )
+}
+
+export function GripIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="6" cy="3.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="3.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="8" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="8" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="12.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="12.5" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Move horizontal — left/right arrows (the "move pane" menu affordance). */
+export function MoveHorizontalIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.75 8h12.5" />
+      <path d="m4.5 5.25-2.75 2.75 2.75 2.75" />
+      <path d="m11.5 5.25 2.75 2.75-2.75 2.75" />
+    </svg>
+  )
+}
+
+/** History — clock with a rewind arrow (session-history panel trigger). */
+export function HistoryIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.55 6.2A5.75 5.75 0 1 1 2.25 8" />
+      <path d="M2.1 2.8v3.4h3.4" />
+      <path d="M8 5.2v3.05l2.3 1.4" />
+    </svg>
+  )
+}
+
+/** Search — magnifier (session-history filter field). */
+export function SearchIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="7.25" cy="7.25" r="4.5" />
+      <path d="m13.75 13.75-3.3-3.3" />
+    </svg>
+  )
+}
+
+/** Chat bubble — one saved conversation (history rows, hero recents, empty state). */
+export function ChatBubbleIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M13.75 3.6c0-.47-.38-.85-.85-.85H3.1c-.47 0-.85.38-.85.85v6.3c0 .47.38.85.85.85h2.15v2.5l3-2.5h4.65c.47 0 .85-.38.85-.85V3.6Z" />
+    </svg>
+  )
+}
+
+/** Person silhouette — the profile avatar's fallback when no name is set. */
+export function UserIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="5.25" r="2.75" />
+      <path d="M2.9 13.5c.55-2.35 2.6-3.75 5.1-3.75s4.55 1.4 5.1 3.75" />
+    </svg>
+  )
+}
+
+/** Download arrow into a tray — the app-update download action. */
+export function DownloadIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 2.5v7M4.75 6.5 8 9.75l3.25-3.25" />
+      <path d="M2.75 11.5v1.25c0 .41.34.75.75.75h9c.41 0 .75-.34.75-.75V11.5" />
+    </svg>
+  )
+}
+
+/** Circular arrows — "check for updates" (app settings). */
+export function RefreshIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M13.25 8a5.25 5.25 0 1 1-1.54-3.71" />
+      <path d="M13.5 2.5v2.25h-2.25" />
+    </svg>
+  )
+}
+
+/** Horizontal sliders — "Personalizar atalhos" (shortcut-customization). */
+export function SlidersIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.25 4.75h5M10.75 4.75h3M2.25 11.25h3M8.75 11.25h5" />
+      <circle cx="9" cy="4.75" r="1.6" />
+      <circle cx="7" cy="11.25" r="1.6" />
+    </svg>
+  )
+}
+
+/** Four-point spark — the Skill Studio (skill-studio): creation, the "made by you" marker. */
+export function SparkleIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.9c.5 2.6 1.4 3.9 4.1 4.6-2.7.7-3.6 2-4.1 4.6-.5-2.6-1.4-3.9-4.1-4.6 2.7-.7 3.6-2 4.1-4.6Z" />
+      <path d="M12.9 10.4c.25 1.3.7 1.95 2.05 2.3-1.35.35-1.8 1-2.05 2.3-.25-1.3-.7-1.95-2.05-2.3 1.35-.35 1.8-1 2.05-2.3Z" />
+    </svg>
+  )
+}
+
+/** Play triangle — "test this skill in the chat" (skill-studio). */
+export function PlayIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M5.25 3.4c0-.6.65-.97 1.17-.66l7 4.1a.77.77 0 0 1 0 1.32l-7 4.1a.77.77 0 0 1-1.17-.66V3.4Z" />
+    </svg>
+  )
+}
+
+/** Left arrow — back navigation inside a dialog flow (skill-studio create → gallery). */
+export function ArrowLeftIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M13.25 8H2.75M7 3.75 2.75 8 7 12.25" />
+    </svg>
+  )
+}
+
+/** Gauge/target — eval runs (skill-studio): measuring a skill against its cases. */
+export function GaugeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="6.25" />
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="8" cy="8" r="0.4" fill="currentColor" stroke="none" />
+      <path d="M8 1.75v2M8 12.25v2M1.75 8h2M12.25 8h2" />
+    </svg>
+  )
+}
+
+/** Plug/connector — the MCP module (mcp): a Model Context Protocol server connection. */
+export function PlugIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M5.5 1.75v3M10.5 1.75v3" />
+      <path d="M3.75 4.75h8.5v2.5a4.25 4.25 0 0 1-8.5 0z" />
+      <path d="M8 11.5v2.75" />
+    </svg>
+  )
+}
+
+/** Broadcast/waves — a remote (http/sse) MCP transport. */
+export function BroadcastIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M4.8 4.8a4.5 4.5 0 0 0 0 6.4M11.2 4.8a4.5 4.5 0 0 1 0 6.4" />
+      <path d="M2.6 2.6a7.5 7.5 0 0 0 0 10.8M13.4 2.6a7.5 7.5 0 0 1 0 10.8" />
+    </svg>
+  )
+}
+
+/** Terminal prompt — a local (stdio) MCP transport: a spawned command. */
+export function TerminalIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2" />
+      <path d="M4.5 6.25 6.75 8 4.5 9.75M8.25 10h3" />
+    </svg>
+  )
+}
+
+/** Wrench/tools — the tools an MCP server advertises. */
+export function ToolsIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M10.4 2.4a3 3 0 0 0-3.9 3.8l-4 4a1.4 1.4 0 0 0 2 2l4-4a3 3 0 0 0 3.8-3.9L10.5 6 9 4.5z" />
+    </svg>
+  )
+}
+
+/** Lightning/power — the connection test action (probe a server). */
+export function ZapIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8.75 1.75 3.5 8.75h4L7.25 14.25l5.25-7h-4z" />
+    </svg>
+  )
+}
+
+/** Filled status dot — the connection state indicator on a server row. */
+export function StatusDotIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="4" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Warning triangle — a server that failed to connect. */
+export function AlertTriangleIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 2.5 14.25 13H1.75z" />
+      <path d="M8 6.5v3M8 11.4v.1" />
     </svg>
   )
 }

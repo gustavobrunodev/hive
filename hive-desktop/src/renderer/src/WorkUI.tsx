@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DragEvent, HTMLAttributes, ReactNode } from 'react'
 import {
   Button,
   Dialog,
@@ -16,13 +17,32 @@ import {
   ResizablePanel
 } from '@hive/design-system'
 import { t } from './i18n'
-import { FileTree, FileViewer, type FileViewerHandle } from './explorer/Explorer'
+import { FileTree, FileViewer } from './explorer/Explorer'
 import { Chat, type ChatHandle } from './chat/Chat'
+import { SessionHistory } from './chat/SessionHistory'
+import { EditorTabs } from './ui/EditorTabs'
+import { useEditorTabs } from './ui/useEditorTabs'
 import { ActionRail, type RoleAction } from './ui/ActionRail'
 import { ProfileSheet } from './ui/ProfileSheet'
+import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
+import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
+import { McpManager } from './ui/McpManager'
+import { AppSettingsSheet } from './ui/AppSettingsSheet'
+import { FileSearchDialog } from './ui/FileSearchDialog'
+import { GuidedTour } from './tour/GuidedTour'
+import { useGuidedTour } from './tour/useGuidedTour'
 import { IconButton } from './ui/IconButton'
+import { PaneHeader, PaneMoveMenu } from './ui/PaneHeader'
+import { PANE_DRAG_MIME } from './ui/paneDnd'
 import { HiveLogo } from './ui/HiveLogo'
-import { ChevronDownIcon, FolderIcon, FolderOpenIcon, MoonIcon, SunIcon } from './ui/icons'
+import {
+  ChevronDownIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  MoonIcon,
+  SunIcon,
+  UserIcon
+} from './ui/icons'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -60,15 +80,48 @@ interface WorkUIProps {
   role?: string | null
   /** Active app-wide agent id (agent-selection) — passed to Chat for the session + indicator. */
   agent?: string | null
+  /** Display name (install form / profile sheet) — feeds the hero greeting. */
+  userName?: string | null
   /** Live profile changes from the profile sheet — persisted + lifted in App. */
   onRoleChange?: (roleId: string) => void
   onAgentChange?: (agentId: string) => void
+  onUserNameChange?: (name: string) => void
+}
+
+/** Interleaves the visible panes with resize handles (module scope — keeps the loop's branches off `WorkUI`'s complexity budget). */
+function buildPanels(
+  visiblePanes: readonly PaneId[],
+  renderers: Record<PaneId, () => ReactNode>
+): ReactNode[] {
+  const panels: ReactNode[] = []
+  for (const [index, pane] of visiblePanes.entries()) {
+    if (index > 0) {
+      panels.push(
+        <ResizableHandle
+          key={`handle-${index}`}
+          withGrip
+          aria-label={t('workUI.resizeHandleLabel')}
+        />
+      )
+    }
+    panels.push(renderers[pane]())
+  }
+  return panels
 }
 
 /** Last path segment of an absolute workspace path (both separators, so a Windows path renders its folder name too). */
 function workspaceName(workspace: string): string {
   const segments = workspace.split(/[/\\]/).filter(Boolean)
   return segments[segments.length - 1] ?? workspace
+}
+
+/** Up to two initials from the display name ("Gustavo Bruno" → "GB", "Gustavo" → "G"); `null` when unset — the avatar then falls back to a person glyph. */
+function initialsOf(name: string | null): string | null {
+  const words = name?.trim().split(/\s+/).filter(Boolean) ?? []
+  if (words.length === 0) return null
+  const first = words[0][0]
+  const last = words.length > 1 ? words[words.length - 1][0] : ''
+  return (first + last).toUpperCase()
 }
 
 /** Map of Resizable panel id -> flex-grow percentage (mirrors react-resizable-panels' `Layout` type). */
@@ -105,6 +158,48 @@ function persistWorkLayout(layout: WorkLayout): void {
   }
 }
 
+/** The three movable workbench panes (customizable-layout). */
+type PaneId = 'rail' | 'chat' | 'viewer'
+
+/** localStorage key for the persisted left-to-right pane order (customizable-layout — sibling of `hive.workLayout`, which keeps per-pane widths). */
+const PANE_ORDER_STORAGE_KEY = 'hive.paneOrder'
+
+const DEFAULT_PANE_ORDER: readonly PaneId[] = ['rail', 'chat', 'viewer']
+
+/** Where an in-flight pane drag would land: before/after the hovered pane. */
+interface PaneDropHint {
+  pane: PaneId
+  side: 'before' | 'after'
+}
+
+/** Reads the persisted pane order, tolerating missing/corrupt data — anything that isn't a permutation of the three pane ids falls back to the default. */
+function loadPaneOrder(): PaneId[] {
+  try {
+    const raw = localStorage.getItem(PANE_ORDER_STORAGE_KEY)
+    if (!raw) return [...DEFAULT_PANE_ORDER]
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === DEFAULT_PANE_ORDER.length &&
+      DEFAULT_PANE_ORDER.every((id) => parsed.includes(id))
+    ) {
+      return parsed as PaneId[]
+    }
+    return [...DEFAULT_PANE_ORDER]
+  } catch {
+    return [...DEFAULT_PANE_ORDER]
+  }
+}
+
+/** Same write-failure tolerance as `persistWorkLayout`. */
+function persistPaneOrder(order: PaneId[]): void {
+  try {
+    localStorage.setItem(PANE_ORDER_STORAGE_KEY, JSON.stringify(order))
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * The app's main work surface (task T19, design.md §4 layout — "File Tree |
  * Chat | File Viewer"): a slim top bar (brand mark, active-workspace chip,
@@ -134,40 +229,106 @@ export function WorkUI({
   onCandidateWorkspace,
   role = null,
   agent = null,
+  userName = null,
   onRoleChange = () => {},
-  onAgentChange = () => {}
+  onAgentChange = () => {},
+  onUserNameChange = () => {}
 }: WorkUIProps): React.JSX.Element {
-  const [openPath, setOpenPath] = useState<string | null>(null)
+  // Multi-tab editor pane (VS Code preview/pin semantics live in the hook).
+  const editor = useEditorTabs()
   const [defaultLayout] = useState(loadWorkLayout)
+  // customizable-layout: persisted left-to-right pane order + live drag state.
+  const [paneOrder, setPaneOrder] = useState<PaneId[]>(loadPaneOrder)
+  const [dragPane, setDragPane] = useState<PaneId | null>(null)
+  const [dropHint, setDropHint] = useState<PaneDropHint | null>(null)
   const [chipMenuOpen, setChipMenuOpen] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
-  // role-personalization: the current role's resolved actions, shared by the
-  // left action rail (this component) and the chat hero (Chat), loaded once
-  // here so both stay in sync and a role change re-renders both.
+  // role-personalization + shortcut-customization: the resolved shortcut set
+  // (role defaults, or the user's custom selection), shared by the chat hero
+  // and the composer strip — loaded once here so both stay in sync, and
+  // re-resolved on role change AND on every customizer edit (live preview).
   const [roleActions, setRoleActions] = useState<RoleAction[]>([])
   const [profileOpen, setProfileOpen] = useState(false)
+  // shortcut-customization: the "Personalizar atalhos" picker dialog.
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  // skill-studio: the "Estúdio de skills" dialog (create skills/agents + evals).
+  const [studioOpen, setStudioOpen] = useState(false)
+  // mcp: the "Servidores MCP" module (activate/disable + test connection + logs).
+  const [mcpOpen, setMcpOpen] = useState(false)
+  // App settings (version + updates) — the rail's bottom gear.
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false)
+  // Workspace file search (Ctrl+P palette) — the rail's top action.
+  const [searchOpen, setSearchOpen] = useState(false)
+  // Guided tour (first access): opens once the role actions land (so the
+  // shortcut pills exist to spotlight); skip/finish persist "seen" and the
+  // profile sheet can replay it any time (all inside useGuidedTour).
+  const tour = useGuidedTour(roleActions.length > 0)
   // Handle to the chat, so the action rail (which lives outside the Chat
-  // subtree) can launch a role action as a chat turn (RP-R5.1).
+  // subtree) can launch a role action as a chat turn (RP-R5.1), and the
+  // session-history header controls can start/restore conversations.
   const chatRef = useRef<ChatHandle>(null)
+  // session-history: the stored conversation currently on screen — reported
+  // up by Chat, consumed by the history panel (highlight + delete coupling).
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  // background-turns: conversations whose reply is still being generated —
+  // reported up by Chat, shown as "Em andamento" in the history panel.
+  const [runningSessionIds, setRunningSessionIds] = useState<string[]>([])
+
+  const handleNewConversation = useCallback(() => {
+    chatRef.current?.newConversation()
+  }, [])
+
+  const handleOpenSession = useCallback((id: string) => {
+    void chatRef.current?.openSession(id)
+  }, [])
+
+  // skill-studio: every studio action (create briefing, eval run, test) is a
+  // chat turn — the studio composes it, the chat runs it. A creation launch
+  // (`newConversation`) opens a fresh conversation on the studio's chosen
+  // model/effort and backgrounds anything still generating; test/eval launches
+  // continue the on-screen conversation as before.
+  const handleStudioLaunch = useCallback((action: RoleAction, opts?: StudioLaunchOpts) => {
+    if (opts?.newConversation) {
+      chatRef.current?.launchCreation(action, { model: opts.model, effort: opts.effort })
+    } else {
+      chatRef.current?.launchAction(action)
+    }
+  }, [])
+
+  // Re-resolves the shortcut set (role change, workspace change, customizer
+  // edits). Stable per role+workspace, so the customizer's `onChanged` can
+  // reuse it directly.
+  const refreshShortcuts = useCallback(() => {
+    void window.hive.shortcuts.actions(role, workspace).then(setRoleActions)
+  }, [role, workspace])
 
   useEffect(() => {
     let cancelled = false
-    window.hive.profile.roleActions(role).then((actions) => {
+    window.hive.shortcuts.actions(role, workspace).then((actions) => {
       if (!cancelled) setRoleActions(actions)
     })
     return () => {
       cancelled = true
     }
-  }, [role])
+  }, [role, workspace])
 
-  const launchAction = useCallback((action: RoleAction) => {
-    chatRef.current?.launchAction(action)
+  // Ctrl/Cmd+P opens the workspace file search from anywhere in the work UI
+  // (the VS Code quick-open muscle memory).
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
-  // T8 (WS-R5.1, design.md §5.2): lifted from the active `FileViewer`'s own
-  // `dirty` state via its `onDirtyChange` callback — purely observational,
-  // the in-viewer guard itself is untouched.
-  const [viewerDirty, setViewerDirty] = useState(false)
-  const viewerRef = useRef<FileViewerHandle>(null)
+
+  const replayTour = useCallback(() => {
+    setProfileOpen(false)
+    tour.replay()
+  }, [tour])
   // The candidate path currently blocked behind the three-way unsaved-work
   // dialog (WS-R5.1/R5.3); `null` means no guard dialog is open.
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null)
@@ -214,13 +375,13 @@ export function WorkUI({
   // `proceedSwitch`.
   const requestSwitch = useCallback(
     (path: string) => {
-      if (viewerDirty) {
+      if (editor.dirtyPaths.size > 0) {
         setPendingSwitch(path)
       } else {
         void proceedSwitch(path)
       }
     },
-    [viewerDirty, proceedSwitch]
+    [editor.dirtyPaths, proceedSwitch]
   )
 
   /** WS-R1.2: "Abrir pasta…" resolves a candidate via the native picker; a cancelled picker (null) is a no-op (WS-R4.5). */
@@ -239,6 +400,128 @@ export function WorkUI({
   // no state change beyond that — the switch never happened.
   const cancelSwitch = useCallback(() => setPendingSwitch(null), [])
 
+  // --- customizable-layout: movable panes ----------------------------------
+  // The pane order is a persisted permutation of rail/chat/viewer
+  // (`hive.paneOrder`); widths stay in the sibling `hive.workLayout` keyed by
+  // pane id, so they survive reordering too. Two ways to move a pane: drag
+  // its header onto another pane (the drop side follows the pointer's half),
+  // or the ↔ menu every header carries (the keyboard path).
+
+  /** Panes actually on screen, in order — the viewer only exists while at least one tab is open. */
+  const visiblePanes = useMemo(
+    () => paneOrder.filter((id) => id !== 'viewer' || editor.tabs.length > 0),
+    [paneOrder, editor.tabs.length]
+  )
+
+  const applyPaneOrder = useCallback((next: PaneId[]) => {
+    setPaneOrder(next)
+    persistPaneOrder(next)
+  }, [])
+
+  /** Drop `source` before/after `target` in the full order (drag-and-drop path). */
+  const dropPane = useCallback(
+    (source: PaneId, target: PaneId, side: 'before' | 'after') => {
+      if (source === target) return
+      const without = paneOrder.filter((id) => id !== source)
+      const insertAt = without.indexOf(target) + (side === 'after' ? 1 : 0)
+      applyPaneOrder([...without.slice(0, insertAt), source, ...without.slice(insertAt)])
+    },
+    [paneOrder, applyPaneOrder]
+  )
+
+  /** Swap `pane` with its visible neighbor (↔ menu path). */
+  const shiftPane = useCallback(
+    (pane: PaneId, dir: -1 | 1) => {
+      const neighbor = visiblePanes[visiblePanes.indexOf(pane) + dir]
+      if (neighbor === undefined) return
+      const next = [...paneOrder]
+      const a = next.indexOf(pane)
+      const b = next.indexOf(neighbor)
+      next[a] = neighbor
+      next[b] = pane
+      applyPaneOrder(next)
+    },
+    [visiblePanes, paneOrder, applyPaneOrder]
+  )
+
+  /** Drag-source props for a pane's header. */
+  const dragHandlePropsFor = useCallback(
+    (pane: PaneId): HTMLAttributes<HTMLElement> => ({
+      draggable: true,
+      onDragStart: (event: DragEvent) => {
+        event.dataTransfer.effectAllowed = 'move'
+        try {
+          event.dataTransfer.setData(PANE_DRAG_MIME, pane)
+        } catch {
+          // jsdom/edge cases — the move still works via `dragPane` state.
+        }
+        setDragPane(pane)
+      },
+      onDragEnd: () => {
+        setDragPane(null)
+        setDropHint(null)
+      }
+    }),
+    []
+  )
+
+  /** Computes which half of the hovered pane the pointer is in — the drop side. */
+  const dropSideOf = (event: DragEvent<HTMLDivElement>): 'before' | 'after' => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+  }
+
+  /** Drop-target props for a pane's whole body (any pane accepts any other pane). */
+  const dropTargetPropsFor = useCallback(
+    (pane: PaneId): HTMLAttributes<HTMLDivElement> => ({
+      onDragOver: (event: DragEvent<HTMLDivElement>) => {
+        if (!dragPane || dragPane === pane) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        const side = dropSideOf(event)
+        setDropHint((current) =>
+          current && current.pane === pane && current.side === side ? current : { pane, side }
+        )
+      },
+      onDragLeave: (event: DragEvent<HTMLDivElement>) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+        setDropHint((current) => (current?.pane === pane ? null : current))
+      },
+      onDrop: (event: DragEvent<HTMLDivElement>) => {
+        if (!dragPane || dragPane === pane) return
+        event.preventDefault()
+        dropPane(dragPane, pane, dropSideOf(event))
+        setDragPane(null)
+        setDropHint(null)
+      }
+    }),
+    [dragPane, dropPane]
+  )
+
+  /** The ↔ move menu for a pane, bounds derived from the visible order. */
+  const paneMoveMenuFor = (pane: PaneId, name: string): React.JSX.Element => {
+    const index = visiblePanes.indexOf(pane)
+    return (
+      <PaneMoveMenu
+        paneName={name}
+        canMoveLeft={index > 0}
+        canMoveRight={index !== -1 && index < visiblePanes.length - 1}
+        onMoveLeft={() => shiftPane(pane, -1)}
+        onMoveRight={() => shiftPane(pane, 1)}
+      />
+    )
+  }
+
+  /** Shared inner-wrapper props: the drop-target surface + drop-hint/drag styling hooks. */
+  const paneWrapPropsFor = (
+    pane: PaneId
+  ): HTMLAttributes<HTMLDivElement> & Record<string, unknown> => ({
+    className: 'wb-pane',
+    'data-drop': dropHint?.pane === pane ? dropHint.side : undefined,
+    'data-dragging': dragPane === pane || undefined,
+    ...dropTargetPropsFor(pane)
+  })
+
   // "Descartar" (only ever wired to the dialog's own button, itself only
   // mounted while `pendingSwitch` is set — see `FileViewer`'s `readyState`
   // comment for why this skips a defensive null-check branch): proceed with
@@ -249,20 +532,112 @@ export function WorkUI({
     void proceedSwitch(path)
   }, [pendingSwitch, proceedSwitch])
 
-  // "Salvar": flush the viewer's draft first (mirrors its own "Salvar" —
-  // same `performSave(false)` via the `requestSave` imperative handle), and
-  // only proceed with the switch if the save actually landed. On failure
-  // (e.g. a STALE conflict), `performSave` has already surfaced its own
-  // dialog/error inline in the viewer — this just dismisses the switch
-  // guard and aborts the switch, same as the in-viewer guard's own
-  // "Salvar" choice.
+  // "Salvar": flush every dirty tab's draft first (each viewer's own
+  // non-force `performSave(false)` via its `requestSave` handle), and only
+  // proceed with the switch if all saves actually landed. On any failure
+  // (e.g. a STALE conflict), that viewer has already surfaced its own
+  // dialog/error inline — this just dismisses the switch guard and aborts
+  // the switch, same as the in-viewer guard's own "Salvar" choice.
   const handleSaveSwitch = useCallback(() => {
     const path = pendingSwitch as string
     setPendingSwitch(null)
-    void (viewerRef.current?.requestSave() ?? Promise.resolve(false)).then((ok) => {
+    void editor.saveAllDirty().then((ok) => {
       if (ok) void proceedSwitch(path)
     })
-  }, [pendingSwitch, proceedSwitch])
+  }, [pendingSwitch, editor, proceedSwitch])
+
+  // customizable-layout: the three pane bodies, rendered in `visiblePanes`
+  // order. Every element in the array carries a stable key (pane id) so React
+  // reconciles a reorder as a *move*, never a remount — the chat session and
+  // the viewer's draft survive any drag.
+  const paneRenderers: Record<PaneId, () => ReactNode> = {
+    rail: () => (
+      <ResizablePanel
+        key="rail"
+        id="rail"
+        className="wb-rail"
+        minSize="12%"
+        maxSize="40%"
+        defaultSize="22%"
+        aria-label={t('explorer.treeAriaLabel')}
+      >
+        <div {...paneWrapPropsFor('rail')} data-tour="files">
+          <PaneHeader
+            title={t('explorer.paneTitle')}
+            dragProps={dragHandlePropsFor('rail')}
+            actions={paneMoveMenuFor('rail', t('explorer.paneTitle'))}
+          />
+          <FileTree
+            workspace={workspace}
+            selectedPath={editor.activePath}
+            onOpenFile={editor.openFile}
+          />
+        </div>
+      </ResizablePanel>
+    ),
+    chat: () => (
+      <ResizablePanel key="chat" id="chat" minSize="30%" defaultSize="53%">
+        <div {...paneWrapPropsFor('chat')}>
+          <PaneHeader
+            title={t('workUI.paneChat')}
+            dragProps={dragHandlePropsFor('chat')}
+            primaryActions={
+              <SessionHistory
+                workspace={workspace}
+                activeSessionId={activeSessionId}
+                runningSessionIds={runningSessionIds}
+                onNewConversation={handleNewConversation}
+                onOpenSession={handleOpenSession}
+              />
+            }
+            actions={paneMoveMenuFor('chat', t('workUI.paneChat'))}
+          />
+          <Chat
+            ref={chatRef}
+            workspace={workspace}
+            roleActions={roleActions}
+            agent={agent}
+            userName={userName}
+            onSessionChange={setActiveSessionId}
+            onRunningSessionsChange={setRunningSessionIds}
+            onCustomizeShortcuts={() => setShortcutsOpen(true)}
+          />
+        </div>
+      </ResizablePanel>
+    ),
+    viewer: () =>
+      editor.tabs.length === 0 ? null : (
+        <ResizablePanel key="viewer" id="viewer" minSize="24%" defaultSize="25%">
+          <div {...paneWrapPropsFor('viewer')}>
+            <EditorTabs
+              tabs={editor.tabs}
+              activePath={editor.activePath}
+              dirtyPaths={editor.dirtyPaths}
+              onSelect={editor.selectTab}
+              onPin={editor.pinTab}
+              onClose={editor.requestCloseTab}
+              dragProps={dragHandlePropsFor('viewer')}
+              trailing={paneMoveMenuFor('viewer', t('workUI.paneEditor'))}
+            />
+            {/* Every tab's viewer stays mounted (drafts survive switching);
+                only the active one is visible. */}
+            {editor.tabs.map((tab) => (
+              <div key={tab.path} className="wb-tab-body" hidden={tab.path !== editor.activePath}>
+                <FileViewer
+                  ref={(handle) => editor.registerViewer(tab.path, handle)}
+                  workspace={workspace}
+                  path={tab.path}
+                  active={tab.path === editor.activePath}
+                  onClose={() => editor.removeTab(tab.path)}
+                  onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
+                />
+              </div>
+            ))}
+          </div>
+        </ResizablePanel>
+      )
+  }
+  const panels = buildPanels(visiblePanes, paneRenderers)
 
   return (
     <div className="wb-app">
@@ -321,6 +696,19 @@ export function WorkUI({
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </IconButton>
+        {/* Profile avatar (top-right, the desktop-app convention): the user's
+            initials open the profile sheet — who you are; the rail's gear
+            below is the software's settings. */}
+        <button
+          type="button"
+          className="wb-avatar-btn"
+          data-tour="profile"
+          title={t('profile.openLabel')}
+          aria-label={t('profile.openLabel')}
+          onClick={() => setProfileOpen(true)}
+        >
+          {initialsOf(userName) ?? <UserIcon size={15} />}
+        </button>
       </header>
       {switchError && (
         <div className="wb-switch-error" role="alert">
@@ -329,9 +717,10 @@ export function WorkUI({
       )}
       <div className="wb-shell">
         <ActionRail
-          actions={roleActions}
-          onLaunch={launchAction}
-          onOpenSettings={() => setProfileOpen(true)}
+          onOpenSearch={() => setSearchOpen(true)}
+          onOpenStudio={() => setStudioOpen(true)}
+          onOpenMcp={() => setMcpOpen(true)}
+          onOpenAppSettings={() => setAppSettingsOpen(true)}
         />
         <div className="wb-body">
           <Resizable
@@ -340,37 +729,7 @@ export function WorkUI({
             defaultLayout={defaultLayout}
             onLayoutChanged={persistWorkLayout}
           >
-            <ResizablePanel
-              id="rail"
-              className="wb-rail"
-              minSize="12%"
-              maxSize="40%"
-              defaultSize="22%"
-              aria-label={t('explorer.treeAriaLabel')}
-            >
-              <div className="wb-pane-header">
-                <span className="wb-pane-header-label">{t('explorer.paneTitle')}</span>
-              </div>
-              <FileTree workspace={workspace} selectedPath={openPath} onOpenFile={setOpenPath} />
-            </ResizablePanel>
-            <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-            <ResizablePanel id="chat" minSize="30%" defaultSize="53%">
-              <Chat ref={chatRef} workspace={workspace} roleActions={roleActions} agent={agent} />
-            </ResizablePanel>
-            {openPath !== null && (
-              <>
-                <ResizableHandle withGrip aria-label={t('workUI.resizeHandleLabel')} />
-                <ResizablePanel id="viewer" minSize="24%" defaultSize="25%">
-                  <FileViewer
-                    ref={viewerRef}
-                    workspace={workspace}
-                    path={openPath}
-                    onClose={() => setOpenPath(null)}
-                    onDirtyChange={setViewerDirty}
-                  />
-                </ResizablePanel>
-              </>
-            )}
+            {panels}
           </Resizable>
         </div>
       </div>
@@ -393,14 +752,66 @@ export function WorkUI({
           </DialogContent>
         </Dialog>
       )}
+      {editor.pendingClose !== null && (
+        <Dialog open onOpenChange={(open: boolean) => !open && editor.cancelPendingClose()}>
+          <DialogContent>
+            <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
+            <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
+            <div className="wb-dialog-actions">
+              <Button className="wb-btn" onClick={editor.cancelPendingClose}>
+                {t('explorer.unsavedGuardCancelCta')}
+              </Button>
+              <Button className="wb-btn" onClick={editor.discardPendingClose}>
+                {t('explorer.unsavedGuardConfirmCta')}
+              </Button>
+              <Button className="wb-btn hds-btn-primary" onClick={editor.savePendingClose}>
+                {t('explorer.unsavedGuardSaveCta')}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      <FileSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        workspace={workspace}
+        onOpenFile={editor.openFile}
+      />
+      <AppSettingsSheet open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
+      <ShortcutCustomizer
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+        workspace={workspace}
+        role={role}
+        onChanged={refreshShortcuts}
+        onOpenStudio={() => {
+          setShortcutsOpen(false)
+          setStudioOpen(true)
+        }}
+      />
+      <SkillStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        workspace={workspace}
+        role={role}
+        hasRunningConversation={runningSessionIds.length > 0}
+        onLaunch={handleStudioLaunch}
+        onShortcutsChanged={refreshShortcuts}
+        onOpenFile={editor.openFile}
+      />
+      <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
       <ProfileSheet
         open={profileOpen}
         onOpenChange={setProfileOpen}
         role={role}
         agent={agent}
+        userName={userName}
         onRoleChange={onRoleChange}
         onAgentChange={onAgentChange}
+        onUserNameChange={onUserNameChange}
+        onReplayTour={replayTour}
       />
+      <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
     </div>
   )
 }

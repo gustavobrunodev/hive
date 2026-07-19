@@ -22,7 +22,14 @@ import {
   GearIcon,
   BoltIcon,
   StopIcon,
-  SlashIcon
+  SlashIcon,
+  PlugIcon,
+  BroadcastIcon,
+  TerminalIcon,
+  ToolsIcon,
+  ZapIcon,
+  StatusDotIcon,
+  AlertTriangleIcon
 } from './icons'
 
 /**
@@ -78,7 +85,14 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
       GearIcon,
       BoltIcon,
       StopIcon,
-      SlashIcon
+      SlashIcon,
+      PlugIcon,
+      BroadcastIcon,
+      TerminalIcon,
+      ToolsIcon,
+      ZapIcon,
+      StatusDotIcon,
+      AlertTriangleIcon
     ]) {
       const { container } = render(createElement(Icon, { size: 18 }))
       expect(container.querySelector('svg')).toBeTruthy()

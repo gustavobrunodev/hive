@@ -79,6 +79,12 @@ function flattenTreeNodes(nodes: MockTreeNode[]): MockTreeNode[] {
 /** Minimal context bridge so the mocked `DropdownMenuTrigger` can toggle its sibling `DropdownMenu`'s open state — real Radix does this internally; nothing else here needs to know about it. */
 const DropdownMenuMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 
+/** Same bridge idea for the mocked right-click `ContextMenu`: the Trigger opens it on `contextmenu`, the Content only renders while open (mirrors Radix). */
+const ContextMenuMockCtx = createContext<{ open: boolean; setOpen: (open: boolean) => void }>({
+  open: false,
+  setOpen: () => {}
+})
+
 vi.mock('@hive/design-system', () => ({
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', { type: 'button', ...rest }, children),
@@ -181,7 +187,42 @@ vi.mock('@hive/design-system', () => ({
       'button',
       { type: 'button', role: 'menuitem', onClick: () => onSelect?.() },
       children
+    ),
+  ContextMenu: ({ children }: { children?: ReactNode }) => {
+    const [open, setOpen] = useState(false)
+    return createElement(ContextMenuMockCtx.Provider, { value: { open, setOpen } }, children)
+  },
+  ContextMenuTrigger: ({ children }: { children?: ReactNode }) => {
+    const ctx = useContext(ContextMenuMockCtx)
+    if (!isValidElement(children)) return children
+    const element = children as ReactElement<{ onContextMenu?: (event: unknown) => void }>
+    return cloneElement(element, {
+      onContextMenu: (event: unknown) => {
+        element.props.onContextMenu?.(event)
+        ctx.setOpen(true)
+      }
+    })
+  },
+  ContextMenuContent: ({ children }: { children?: ReactNode }) => {
+    const ctx = useContext(ContextMenuMockCtx)
+    return ctx.open ? createElement('div', { role: 'menu' }, children) : null
+  },
+  ContextMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) => {
+    const ctx = useContext(ContextMenuMockCtx)
+    return createElement(
+      'button',
+      {
+        type: 'button',
+        role: 'menuitem',
+        onClick: () => {
+          ctx.setOpen(false)
+          onSelect?.()
+        }
+      },
+      children
     )
+  },
+  ContextMenuSeparator: () => createElement('hr')
 }))
 
 describe('Explorer (T12/T8)', () => {
@@ -216,6 +257,7 @@ describe('Explorer (T12/T8)', () => {
       getRecentWorkspaces: vi.fn().mockResolvedValue([]),
       openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue(fixtureTree),
+      listFiles: vi.fn().mockResolvedValue([]),
       readFile: vi.fn().mockResolvedValue('plain text content'),
       watchWorkspace: vi.fn((_root, onChange: WatchListener) => {
         watchListeners.push(onChange)
@@ -225,23 +267,69 @@ describe('Explorer (T12/T8)', () => {
         capabilities: vi
           .fn()
           .mockResolvedValue({ models: [], efforts: [], supportsAttachments: false }),
+        chooseAttachments: vi.fn().mockResolvedValue([]),
         start: vi.fn().mockResolvedValue(undefined),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
+        interrupt: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
       updateBmad: vi.fn().mockReturnValue(() => {}),
+      app: {
+        info: vi
+          .fn()
+          .mockResolvedValue({ name: 'hive-desktop', version: '0.1.0', updatesSupported: false }),
+        checkForUpdates: vi.fn().mockResolvedValue(undefined),
+        downloadUpdate: vi.fn().mockResolvedValue(undefined),
+        installUpdate: vi.fn().mockResolvedValue(undefined),
+        onUpdateEvent: vi.fn().mockReturnValue(() => {})
+      },
       workflows: { list: vi.fn().mockResolvedValue([]) },
       skills: { list: vi.fn().mockResolvedValue([]) },
+      studio: { list: vi.fn().mockResolvedValue([]) },
+      mcp: {
+        list: vi.fn().mockResolvedValue([]),
+        add: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+        remove: vi.fn().mockResolvedValue(undefined),
+        setEnabled: vi.fn().mockResolvedValue(undefined),
+        probe: vi.fn().mockResolvedValue({ ok: true, tools: [], logs: '', durationMs: 0 })
+      },
+      chatHistory: {
+        list: vi.fn().mockResolvedValue([]),
+        get: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: '00000000-0000-4000-8000-000000000001',
+          workspace: '/ws',
+          agent: null,
+          title: '',
+          createdAt: 0,
+          updatedAt: 0,
+          messages: []
+        }),
+        append: vi.fn().mockResolvedValue(null),
+        rename: vi.fn().mockResolvedValue(null),
+        setCliSession: vi.fn().mockResolvedValue(undefined),
+        search: vi.fn().mockResolvedValue([]),
+        delete: vi.fn().mockResolvedValue(undefined)
+      },
       profile: {
         agents: vi.fn().mockResolvedValue([]),
         getAgent: vi.fn().mockResolvedValue(null),
         setAgent: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
+        getUserName: vi.fn().mockResolvedValue(null),
+        setUserName: vi.fn().mockResolvedValue(undefined),
         roleActions: vi.fn().mockResolvedValue([])
+      },
+      shortcuts: {
+        catalog: vi.fn().mockResolvedValue([]),
+        get: vi.fn().mockResolvedValue(null),
+        set: vi.fn().mockResolvedValue(undefined),
+        actions: vi.fn().mockResolvedValue([])
       },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 19 }),
@@ -684,6 +772,28 @@ describe('Explorer (T12/T8)', () => {
     expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'docs/prd.md', 'other/prd.md')
   })
 
+  // chat-attachments: a tree drag also carries the workspace-file MIME so the
+  // chat composer can accept the row as a context file — files only.
+  it('dragStart writes the workspace-file drag payload with files only (directories filtered out)', async () => {
+    mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const docsRow = (await screen.findByText('docs')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(docsRow, { ctrlKey: true })
+
+    const sourceRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', files: [] as File[] }
+    fireEvent.dragStart(sourceRow, { dataTransfer })
+
+    expect(dataTransfer.setData).toHaveBeenCalledWith(
+      'application/x-hive-workspace-file',
+      JSON.stringify(['a.txt'])
+    )
+  })
+
   it('dragging a row NOT in the current selection moves only that row and resets the selection to it', async () => {
     mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
@@ -1053,6 +1163,106 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.contextMenu(row)
 
     expect(await screen.findByRole('menuitem', { name: /Excluir/ })).toBeTruthy()
+  })
+
+  it('right-clicking a folder row and picking "Novo arquivo" creates inside that folder', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const row = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Novo arquivo/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'via-ctx.md' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'docs/via-ctx.md', undefined)
+    })
+  })
+
+  it('right-clicking the empty tree area offers create actions scoped to the workspace root (VS Code)', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const area = document.querySelector('.wb-tree-body') as HTMLElement
+    fireEvent.contextMenu(area)
+
+    // Area scope: only the create pair, no row actions.
+    expect(screen.queryByRole('menuitem', { name: /Excluir/ })).toBeNull()
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Nova pasta/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'raiz' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createDirectory).toHaveBeenCalledWith('/ws', 'raiz')
+    })
+  })
+
+  it('typing inside the inline create input never bubbles keys to the tree (no typeahead exit)', async () => {
+    const outerKeys = vi.fn()
+    render(
+      createElement(
+        'div',
+        { onKeyDown: outerKeys },
+        createElement(FileTree, { workspace: '/ws', selectedPath: null, onOpenFile: vi.fn() })
+      )
+    )
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.keyDown(input, { key: 'd' })
+    fireEvent.keyDown(input, { key: '.' })
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    // The DS Tree's typeahead lives above this input — nothing may reach it.
+    expect(outerKeys).not.toHaveBeenCalled()
+    // And the input session is still alive (editing only ends on Enter/Esc/blur).
+    expect(screen.getByPlaceholderText('Nome do arquivo ou pasta')).toBeTruthy()
+  })
+
+  it('double-clicking a file row opens it pinned (VS Code pin-on-double-click)', async () => {
+    const onOpenFile = vi.fn()
+    render(createElement(FileTree, { workspace: '/ws', selectedPath: null, onOpenFile }))
+    await screen.findByText('a.txt')
+
+    const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.doubleClick(row)
+
+    expect(onOpenFile).toHaveBeenCalledWith('a.txt', { pin: true })
+  })
+
+  it('an empty folder renders the folder icon (not the generic file icon)', async () => {
+    mockHive({
+      listTree: vi.fn().mockResolvedValue([
+        { name: 'vazia', path: 'vazia', type: 'directory', children: [] },
+        { name: 'a.txt', path: 'a.txt', type: 'file' }
+      ]) as unknown as typeof window.hive.listTree
+    })
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('vazia')
+
+    const emptyDirRow = screen.getByText('vazia').closest('.wb-tree-row-content') as HTMLElement
+    expect(emptyDirRow.querySelector('.wb-tree-icon')).toBeTruthy()
+    expect(emptyDirRow.querySelector('.wb-file-icon')).toBeNull()
+
+    // Files carry the per-type icon wrapper instead.
+    const fileRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    expect(fileRow.querySelector('.wb-file-icon')).toBeTruthy()
+  })
+
+  it('every row (folder and file) renders the fixed caret slot so names align in one column', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const fileRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const dirRow = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+    expect(fileRow.querySelector('.wb-tree-caret')).toBeTruthy()
+    expect(dirRow.querySelector('.wb-tree-caret')).toBeTruthy()
   })
 
   // --- T7: rename/create blur auto-commit -----------------------------------

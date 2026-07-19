@@ -3,6 +3,7 @@ import type {
   AgentEvent,
   AgentSession,
   SessionOpts,
+  TurnOpts,
   WorkflowCommand
 } from './agentAdapter'
 import type { AgentRegistry } from './agentRegistry'
@@ -50,11 +51,25 @@ export interface AgentService {
    * Forwards a turn's text to the active session. Throws if no session has
    * been started yet (a no-op would silently swallow a user's message,
    * which is worse than a clear error the IPC layer can surface as a
-   * rejected promise to the renderer).
+   * rejected promise to the renderer). `opts.resume` (session-history) is
+   * the CLI-native session id of the conversation this turn continues;
+   * `opts.turnId` (background-turns) tags every event the turn produces.
    */
-  send(text: string): void
-  /** Forwards a guided-intent workflow command to the active session. Same no-active-session behavior as `send`: throws. */
-  runWorkflow(cmd: WorkflowCommand): void
+  send(text: string, opts?: TurnOpts): void
+  /** Forwards a guided-intent workflow command to the active session. Same no-active-session behavior and `opts` contract as `send`. */
+  runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts): void
+  /**
+   * Interrupts one in-flight turn by id — or every one, with no id —
+   * (chat-controls CC-R1, background-turns) *without* clearing the active
+   * session. Distinct from `stop()`, which tears the session down entirely:
+   * after an interrupt the user is still mid-conversation — the next `send`
+   * must keep working, and the session's events must still reach
+   * subscribers (the `onEvent` forwarding loop keeps forwarding precisely
+   * because `activeSession` is untouched here, whereas after `stop()` the
+   * `activeSession !== session` check cuts it off). Safe no-op with no
+   * active session.
+   */
+  interrupt(turnId?: string): void
   /**
    * Subscribes `listener` to the *currently* active session's event stream
    * and returns an unsubscribe function. If there is no active session yet,
@@ -110,12 +125,25 @@ export function createAgentService(registry: AgentRegistry, initialAgentId: stri
     selected = { id, adapter }
   }
 
-  function send(text: string): void {
-    requireActiveSession(activeSession, 'send').send({ text })
+  function send(text: string, opts?: TurnOpts): void {
+    requireActiveSession(activeSession, 'send').send({
+      text,
+      resume: opts?.resume ?? null,
+      turnId: opts?.turnId,
+      attachments: opts?.attachments,
+      model: opts?.model,
+      effort: opts?.effort
+    })
   }
 
-  function runWorkflow(cmd: WorkflowCommand): void {
-    requireActiveSession(activeSession, 'runWorkflow').runWorkflow(cmd)
+  function runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts): void {
+    requireActiveSession(activeSession, 'runWorkflow').runWorkflow(cmd, {
+      resume: opts?.resume ?? null,
+      turnId: opts?.turnId,
+      attachments: opts?.attachments,
+      model: opts?.model,
+      effort: opts?.effort
+    })
   }
 
   function onEvent(listener: (event: AgentEvent) => void): () => void {
@@ -141,6 +169,10 @@ export function createAgentService(registry: AgentRegistry, initialAgentId: stri
     }
   }
 
+  function interrupt(turnId?: string): void {
+    activeSession?.interrupt(turnId)
+  }
+
   function stop(): void {
     activeSession?.stop()
     activeSession = null
@@ -154,6 +186,7 @@ export function createAgentService(registry: AgentRegistry, initialAgentId: stri
     send,
     runWorkflow,
     onEvent,
+    interrupt,
     stop
   }
 }

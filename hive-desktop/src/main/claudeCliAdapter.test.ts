@@ -61,7 +61,7 @@ describe('ClaudeCliAdapter — contract', () => {
     expect(typeof session.events[Symbol.asyncIterator]).toBe('function')
   })
 
-  it('capabilities() returns non-empty, well-formed, curated model/effort lists and supportsAttachments: false', () => {
+  it('capabilities() returns non-empty, well-formed, curated model/effort lists and supportsAttachments: true', () => {
     const adapter = createClaudeCliAdapter(createFakeProcessRunner())
     const caps = adapter.capabilities()
 
@@ -79,17 +79,50 @@ describe('ClaudeCliAdapter — contract', () => {
       expect(typeof effort.label).toBe('string')
       expect(effort.label.length).toBeGreaterThan(0)
     }
-    expect(caps.supportsAttachments).toBe(false)
+    // chat-attachments (R6.5/T16): file paths fold into the turn prompt.
+    expect(caps.supportsAttachments).toBe(true)
   })
 })
 
-describe('ClaudeCliAdapter — session turns', () => {
-  it('a scripted successful turn streams token event(s) followed by a done event, in order', async () => {
+/** The flags every turn carries after the session-history stream-json switch. */
+const BASE_FLAGS = [
+  '--model',
+  'claude-sonnet-4-5',
+  '--effort',
+  'medium',
+  '--permission-mode',
+  'acceptEdits',
+  '--output-format',
+  'stream-json',
+  '--include-partial-messages',
+  '--verbose'
+]
+
+/** Builds one stream-json stdout line (newline-terminated, as the CLI emits). */
+function jsonLine(value: unknown): string {
+  return `${JSON.stringify(value)}\n`
+}
+
+function textDelta(text: string, sessionId = 'cli-sess-1'): string {
+  return jsonLine({
+    type: 'stream_event',
+    session_id: sessionId,
+    event: { type: 'content_block_delta', delta: { type: 'text_delta', text } }
+  })
+}
+
+function initLine(sessionId = 'cli-sess-1'): string {
+  return jsonLine({ type: 'system', subtype: 'init', session_id: sessionId })
+}
+
+describe('ClaudeCliAdapter — session turns (stream-json)', () => {
+  it('a successful turn: init → session event, text deltas → tokens, then done', async () => {
     const fakeRunner = createFakeProcessRunner()
     fakeRunner.script({
       chunks: [
-        { stream: 'stdout', data: 'Hello' },
-        { stream: 'stdout', data: ', world' }
+        { stream: 'stdout', data: initLine() },
+        { stream: 'stdout', data: textDelta('Hello') },
+        { stream: 'stdout', data: textDelta(', world') }
       ],
       code: 0
     })
@@ -101,33 +134,162 @@ describe('ClaudeCliAdapter — session turns', () => {
     })
 
     session.send({ text: 'hi there' })
-    const events = await take(session.events, 3)
+    const events = await take(session.events, 4)
 
     expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1' },
       { type: 'token', text: 'Hello' },
       { type: 'token', text: ', world' },
       { type: 'done' }
     ])
 
-    // Sanity check on the invocation: cwd is the workspace, model/effort/
-    // permission-mode are forwarded as flags (all verified live against a
-    // real `claude` binary — see claudeCliAdapter.ts header).
+    // Sanity check on the invocation: cwd is the workspace; model/effort/
+    // permission-mode/stream-json flags are forwarded (verified against a
+    // real `claude` binary — see claudeCliAdapter.ts header). No --resume
+    // for a fresh conversation.
     expect(fakeRunner.calls).toHaveLength(1)
     expect(fakeRunner.calls[0].command).toBe('claude')
-    expect(fakeRunner.calls[0].args).toEqual([
-      '-p',
-      'hi there',
-      '--model',
-      'claude-sonnet-4-5',
-      '--effort',
-      'medium',
-      '--permission-mode',
-      'acceptEdits'
-    ])
+    expect(fakeRunner.calls[0].args).toEqual(['-p', 'hi there', ...BASE_FLAGS])
     expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws' })
   })
 
-  it('a scripted non-zero exit produces an error event', async () => {
+  it('send({resume}) appends --resume <id> so the turn continues the CLI conversation', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'continue please', resume: 'cli-sess-9' })
+    await take(session.events, 1) // drain done
+
+    expect(fakeRunner.calls[0].args).toEqual([
+      '-p',
+      'continue please',
+      ...BASE_FLAGS,
+      '--resume',
+      'cli-sess-9'
+    ])
+  })
+
+  it('send({attachments}) folds the file paths into the prompt as an <attached-files> block (chat-attachments)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'resuma isso', attachments: ['/abs/relatorio.pdf', 'docs/prd.md'] })
+    await take(session.events, 1) // drain done
+
+    const prompt = fakeRunner.calls[0].args[1]
+    expect(prompt.startsWith('resuma isso\n\n<attached-files>')).toBe(true)
+    expect(prompt).toContain('- /abs/relatorio.pdf')
+    expect(prompt).toContain('- docs/prd.md')
+    expect(prompt.trimEnd().endsWith('</attached-files>')).toBe(true)
+  })
+
+  it('send with attachments and empty text sends only the <attached-files> block', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: '', attachments: ['/abs/planilha.xlsx'] })
+    await take(session.events, 1)
+
+    const prompt = fakeRunner.calls[0].args[1]
+    expect(prompt.startsWith('<attached-files>')).toBe(true)
+    expect(prompt).toContain('- /abs/planilha.xlsx')
+  })
+
+  it('send without attachments leaves the prompt untouched', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'oi', attachments: [] })
+    await take(session.events, 1)
+
+    expect(fakeRunner.calls[0].args[1]).toBe('oi')
+  })
+
+  it('a JSON line split across chunks reassembles; complete assistant/result objects are not re-emitted as tokens', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    const delta = textDelta('inteiro')
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: delta.slice(0, 25) },
+        { stream: 'stdout', data: delta.slice(25) },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            message: { content: [{ type: 'text', text: 'inteiro' }] }
+          })
+        },
+        {
+          stream: 'stdout',
+          data: jsonLine({ type: 'result', subtype: 'success', session_id: 'cli-sess-1' })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'q' })
+    const events = await take(session.events, 3)
+
+    // One session announcement (deduped across lines), ONE token — the
+    // assistant/result echoes never duplicate the streamed text.
+    expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1' },
+      { type: 'token', text: 'inteiro' },
+      { type: 'done' }
+    ])
+  })
+
+  it('non-JSON stdout lines fall back to raw tokens (older CLI without stream-json)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [{ stream: 'stdout', data: 'plain old text' }],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'q' })
+    const events = await take(session.events, 2)
+
+    expect(events).toEqual([{ type: 'token', text: 'plain old text' }, { type: 'done' }])
+  })
+
+  it('a non-zero exit produces an error event carrying the stderr tail (stderr never becomes transcript tokens)', async () => {
     const fakeRunner = createFakeProcessRunner()
     fakeRunner.script({ chunks: [{ stream: 'stderr', data: 'boom' }], code: 1 })
     const adapter = createClaudeCliAdapter(fakeRunner)
@@ -138,28 +300,118 @@ describe('ClaudeCliAdapter — session turns', () => {
     })
 
     session.send({ text: 'do a thing' })
-    const events = await take(session.events, 2)
+    const events = await take(session.events, 1)
 
-    expect(events[0]).toEqual({ type: 'token', text: 'boom' })
-    expect(events[1].type).toBe('error')
-    expect((events[1] as { type: 'error'; message: string }).message).toContain('code 1')
+    expect(events[0].type).toBe('error')
+    const message = (events[0] as { type: 'error'; message: string }).message
+    expect(message).toContain('code 1')
+    expect(message).toContain('boom')
   })
 
-  it('runWorkflow() spawns a turn (placeholder command) and does not crash', async () => {
+  it('runWorkflow() spawns a turn (placeholder command) and forwards its resume opt', async () => {
     const fakeRunner = createFakeProcessRunner()
-    fakeRunner.script({ chunks: [{ stream: 'stdout', data: 'working on it' }], code: 0 })
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: textDelta('working on it') }], code: 0 })
     const adapter = createClaudeCliAdapter(fakeRunner)
     const session = adapter.startSession({
       workspace: '/ws',
       model: 'claude-sonnet-4-5',
-      effort: 'high'
+      effort: 'medium'
     })
 
-    expect(() => session.runWorkflow({ key: 'prd' })).not.toThrow()
-    const events = await take(session.events, 2)
+    expect(() => session.runWorkflow({ key: 'prd' }, { resume: 'cli-sess-3' })).not.toThrow()
+    const events = await take(session.events, 3)
 
-    expect(events).toEqual([{ type: 'token', text: 'working on it' }, { type: 'done' }])
-    expect(fakeRunner.calls[0].args).toContain('Run the "prd" workflow.')
+    expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1' },
+      { type: 'token', text: 'working on it' },
+      { type: 'done' }
+    ])
+    // Promptless commands fall back to the skill's slash command.
+    expect(fakeRunner.calls[0].args).toContain('/prd')
+    expect(fakeRunner.calls[0].args).toContain('--resume')
+    expect(fakeRunner.calls[0].args).toContain('cli-sess-3')
+  })
+
+  // skill-studio: a per-turn model/effort override replaces the session
+  // default for just that turn (send + runWorkflow), leaving the session — and
+  // its other, e.g. backgrounded, turns — untouched.
+  it('per-turn model/effort override the session default for that turn only', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: textDelta('a') }], code: 0 })
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: textDelta('b') }], code: 0 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.runWorkflow({ key: 'prd' }, { model: 'opus', effort: 'max' })
+    await take(session.events, 3)
+    const first = fakeRunner.calls[0].args
+    expect(first[first.indexOf('--model') + 1]).toBe('opus')
+    expect(first[first.indexOf('--effort') + 1]).toBe('max')
+
+    // A turn with no override still uses the session default.
+    session.send({ text: 'hi' })
+    await take(session.events, 3)
+    const second = fakeRunner.calls[1].args
+    expect(second[second.indexOf('--model') + 1]).toBe('claude-sonnet-4-5')
+    expect(second[second.indexOf('--effort') + 1]).toBe('medium')
+  })
+
+  // background-turns: events are tagged with the caller's turnId, and two
+  // concurrent turns' streams stay separable.
+  it('tags every event with the turn id it was spawned with', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: initLine('cli-sess-1') },
+        { stream: 'stdout', data: textDelta('oi') }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'q', turnId: 'turn-7' })
+    const events = await take(session.events, 3)
+
+    expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1', turnId: 'turn-7' },
+      { type: 'token', text: 'oi', turnId: 'turn-7' },
+      { type: 'done', turnId: 'turn-7' }
+    ])
+  })
+
+  it('interrupt(turnId) kills only that turn — a concurrent background turn completes normally', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ code: 0, delayMs: 80 }) // turn-a: long-running, will be interrupted
+    fakeRunner.script({
+      chunks: [{ stream: 'stdout', data: textDelta('bg ok', 'cli-b') }],
+      code: 0,
+      delayMs: 20
+    }) // turn-b: completes
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'primeira', turnId: 'turn-a' })
+    session.send({ text: 'segunda', turnId: 'turn-b' })
+    session.interrupt('turn-a')
+
+    const events = await take(session.events, 4)
+    // turn-a dies as a deliberate interrupt; turn-b streams + finishes.
+    expect(events).toContainEqual({ type: 'interrupted', turnId: 'turn-a' })
+    expect(events).toContainEqual({ type: 'token', text: 'bg ok', turnId: 'turn-b' })
+    expect(events).toContainEqual({ type: 'done', turnId: 'turn-b' })
   })
 
   it("stop() calls the underlying process handle's kill()", async () => {

@@ -67,6 +67,9 @@ function App(): React.JSX.Element {
   // session all react to a change without re-reading config.
   const [agent, setAgentState] = useState<string | null>(null)
   const [role, setRoleState] = useState<string | null>(null)
+  // Display name (set in the install form, editable in the profile sheet) —
+  // lifted like agent/role so the hero greeting reacts to a profile edit.
+  const [userName, setUserNameState] = useState<string | null>(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -78,11 +81,13 @@ function App(): React.JSX.Element {
     Promise.all([
       window.hive.getWorkspace(),
       window.hive.profile.getAgent(),
-      window.hive.profile.getRole()
-    ]).then(([path, loadedAgent, loadedRole]) => {
+      window.hive.profile.getRole(),
+      window.hive.profile.getUserName()
+    ]).then(([path, loadedAgent, loadedRole, loadedUserName]) => {
       if (cancelled) return
       setAgentState(loadedAgent)
       setRoleState(loadedRole)
+      setUserNameState(loadedUserName)
       setOnboarding(
         path ? routeAfterWorkspace(path, loadedAgent, loadedRole) : { status: 'picker' }
       )
@@ -157,11 +162,22 @@ function App(): React.JSX.Element {
     setRoleState(roleId)
   }, [])
 
+  // Display-name edit from the profile sheet: persist (main normalizes —
+  // trims, empty clears to null) and lift the normalized value.
+  const handleUserNameChange = useCallback((name: string) => {
+    const trimmed = name.trim()
+    void window.hive.profile.setUserName(trimmed === '' ? null : trimmed)
+    setUserNameState(trimmed === '' ? null : trimmed)
+  }, [])
+
   // A just-completed install doesn't need an update in the same launch —
   // goes straight to ready. A completed (or "continue anyway"-dismissed)
   // update also goes to ready; both handlers converge on the same
   // transition, kept separate for readability at each call site.
   const handleInstallComplete = useCallback((workspacePath: string) => {
+    // The install form may have just captured the user's name (persisted in
+    // main when the install kicked off) — pick it up for the hero greeting.
+    void window.hive.profile.getUserName().then(setUserNameState)
     setOnboarding({ status: 'ready', workspacePath })
   }, [])
 
@@ -246,8 +262,10 @@ function App(): React.JSX.Element {
       // and chat session all react to a profile change made in the sheet.
       role={role}
       agent={agent}
+      userName={userName}
       onRoleChange={handleRoleChange}
       onAgentChange={handleAgentChange}
+      onUserNameChange={handleUserNameChange}
     />
   )
 }

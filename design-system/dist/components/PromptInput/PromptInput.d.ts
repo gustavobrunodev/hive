@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
 import "./PromptInput.css";
 export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, "onChange" | "onSubmit"> {
     value?: string;
@@ -18,6 +18,32 @@ export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, 
     /** Slot for extra toolbar controls (e.g. an attach-file trigger), rendered leading the send button. */
     toolbar?: ReactNode;
     sendLabel?: string;
+    /**
+     * Interrupt handler for the in-flight response. When provided together with
+     * `streaming`, the send control becomes a stop control (same button, same
+     * position — the Claude-chat pattern): enabled, labelled `stopLabel`, and
+     * clicking it calls `onStop` instead of submitting. Without `onStop`,
+     * `streaming` falls back to simply disabling send.
+     */
+    onStop?: () => void;
+    /** Accessible label for the stop state of the send control. */
+    stopLabel?: string;
+    /**
+     * Lets an empty prompt submit (e.g. when the app has pending attachments
+     * that make a text-less send meaningful). `onSubmit` then receives `""`.
+     */
+    allowEmptySubmit?: boolean;
+    /**
+     * Inline-token highlighter: given the current value, returns the same text
+     * with token runs wrapped in styled elements (e.g. `<mark>`). Rendered in a
+     * transparent backdrop layer aligned under the textarea, so token
+     * backgrounds show through while the textarea keeps owning the glyphs,
+     * caret and selection. The returned nodes must preserve the value's exact
+     * character sequence — any drift misaligns the backdrop.
+     */
+    highlight?: (value: string) => ReactNode;
+    /** Reaches the underlying textarea (caret introspection, imperative focus). */
+    textareaRef?: Ref<HTMLTextAreaElement>;
 }
 /**
  * The chat prompt composer — an auto-resizing `Textarea` + toolbar + send
@@ -26,4 +52,4 @@ export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, 
  * no model calls — the app owns `onSubmit` and provides `attachments` as
  * already-rendered `Attachment` chips.
  */
-export declare function PromptInput({ value: valueProp, defaultValue, onChange, onSubmit, placeholder, disabled, streaming, minRows, maxRows, attachments, toolbar, sendLabel, className, ...rest }: PromptInputProps): import("react").JSX.Element;
+export declare function PromptInput({ value: valueProp, defaultValue, onChange, onSubmit, placeholder, disabled, streaming, minRows, maxRows, attachments, toolbar, sendLabel, onStop, stopLabel, allowEmptySubmit, highlight, textareaRef, className, ...rest }: PromptInputProps): import("react").JSX.Element;

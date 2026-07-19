@@ -151,22 +151,61 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       getRecentWorkspaces: vi.fn().mockResolvedValue([]),
       openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue([]),
+      listFiles: vi.fn().mockResolvedValue([]),
       readFile: vi.fn().mockResolvedValue(''),
       watchWorkspace: vi.fn().mockReturnValue(() => {}),
       agent: {
         capabilities: vi
           .fn()
           .mockResolvedValue({ models: [], efforts: [], supportsAttachments: false }),
+        chooseAttachments: vi.fn().mockResolvedValue([]),
         start: vi.fn().mockResolvedValue(undefined),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
+        interrupt: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
       updateBmad: vi.fn().mockReturnValue(() => {}),
+      app: {
+        info: vi
+          .fn()
+          .mockResolvedValue({ name: 'hive-desktop', version: '0.1.0', updatesSupported: false }),
+        checkForUpdates: vi.fn().mockResolvedValue(undefined),
+        downloadUpdate: vi.fn().mockResolvedValue(undefined),
+        installUpdate: vi.fn().mockResolvedValue(undefined),
+        onUpdateEvent: vi.fn().mockReturnValue(() => {})
+      },
       workflows: { list: vi.fn().mockResolvedValue([]) },
       skills: { list: vi.fn().mockResolvedValue([]) },
+      studio: { list: vi.fn().mockResolvedValue([]) },
+      mcp: {
+        list: vi.fn().mockResolvedValue([]),
+        add: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+        remove: vi.fn().mockResolvedValue(undefined),
+        setEnabled: vi.fn().mockResolvedValue(undefined),
+        probe: vi.fn().mockResolvedValue({ ok: true, tools: [], logs: '', durationMs: 0 })
+      },
+      chatHistory: {
+        list: vi.fn().mockResolvedValue([]),
+        get: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: '00000000-0000-4000-8000-000000000001',
+          workspace: '/ws',
+          agent: null,
+          title: '',
+          createdAt: 0,
+          updatedAt: 0,
+          messages: []
+        }),
+        append: vi.fn().mockResolvedValue(null),
+        rename: vi.fn().mockResolvedValue(null),
+        setCliSession: vi.fn().mockResolvedValue(undefined),
+        search: vi.fn().mockResolvedValue([]),
+        delete: vi.fn().mockResolvedValue(undefined)
+      },
       // Default: agent + role already set, so the flow tests below skip the
       // required first-run setup steps and reach the provisioning gate. The
       // new-setup tests override getAgent/getRole to null.
@@ -179,7 +218,15 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setAgent: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue('pm'),
         setRole: vi.fn().mockResolvedValue(undefined),
+        getUserName: vi.fn().mockResolvedValue(null),
+        setUserName: vi.fn().mockResolvedValue(undefined),
         roleActions: vi.fn().mockResolvedValue([])
+      },
+      shortcuts: {
+        catalog: vi.fn().mockResolvedValue([]),
+        get: vi.fn().mockResolvedValue(null),
+        set: vi.fn().mockResolvedValue(undefined),
+        actions: vi.fn().mockResolvedValue([])
       },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
@@ -382,6 +429,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setAgent: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
+        getUserName: vi.fn().mockResolvedValue(null),
+        setUserName: vi.fn().mockResolvedValue(undefined),
         roleActions: vi.fn().mockResolvedValue([])
       }
     })
@@ -407,6 +456,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setAgent: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
+        getUserName: vi.fn().mockResolvedValue(null),
+        setUserName: vi.fn().mockResolvedValue(undefined),
         roleActions: vi.fn().mockResolvedValue([])
       }
     })
@@ -431,6 +482,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setAgent: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole,
+        getUserName: vi.fn().mockResolvedValue(null),
+        setUserName: vi.fn().mockResolvedValue(undefined),
         roleActions: vi.fn().mockResolvedValue([])
       }
     })

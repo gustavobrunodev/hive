@@ -1,17 +1,31 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
+import { statSync } from 'fs'
+import { basename, join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { createConfigStore } from './configStore'
+import { createChatHistoryStore } from './chatHistoryStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
 import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
-import type { AgentEvent, SessionOpts, WorkflowCommand } from './agentAdapter'
+import type {
+  AgentEvent,
+  AttachmentPick,
+  SessionOpts,
+  TurnOpts,
+  WorkflowCommand
+} from './agentAdapter'
 import { createBmadService, type BmadInstallOptions } from './bmadService'
-import { listWithDiscovery, listSkills } from './workflowCatalog'
-import { resolveRoleActions } from './roleCatalog'
+import { listWithDiscovery } from './workflowCatalog'
+import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
+import { createMcpService, type McpServerConfig } from './mcpService'
+import { mcpProbe } from './mcpProbe'
+import { resolveRoleActions, resolveShortcuts } from './roleCatalog'
+import { sanitizeShortcutPrefs } from './configStore'
+import { createUpdateService, type AppInfo } from './updateService'
 
 // T3 (UX-R7.3): protocols window.hive.openExternal is allowed to hand to
 // shell.openExternal — see the ipcMain.handle('shell:openExternal', ...)
@@ -130,6 +144,8 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:listTree', async (_event, root: string, relativePath?: string) =>
     fsService.listTree(root, relativePath)
   )
+  // chat-attachments: flat file list feeding the composer's `#` mention menu.
+  ipcMain.handle('fs:listFiles', async (_event, root: string) => fsService.listFiles(root))
   ipcMain.handle('fs:readFile', async (_event, root: string, relativePath: string) =>
     fsService.readFile(root, relativePath)
   )
@@ -256,21 +272,55 @@ app.whenReady().then(() => {
     configStore.getAgent() ?? agentRegistry.defaultId()
   )
 
+  // chat-attachments (R6.5/T16): native multi-file picker for the composer's
+  // attach button. Name/size are resolved here (not in the renderer) because
+  // the sandboxed renderer only ever sees the returned metadata — it can't
+  // stat arbitrary host paths. A canceled dialog resolves to []. The picker
+  // opens inside the active workspace (`defaultPath`) — that's where the
+  // files a user attaches as context almost always live.
+  ipcMain.handle(
+    'chat:chooseAttachments',
+    async (_event, defaultPath?: string): Promise<AttachmentPick[]> => {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile', 'multiSelections'],
+        ...(defaultPath ? { defaultPath } : {})
+      })
+      if (result.canceled) return []
+      return result.filePaths.map((filePath) => {
+        let size = 0
+        try {
+          size = statSync(filePath).size
+        } catch {
+          // File vanished between pick and stat — keep it listed; the agent
+          // will surface the read failure if it's truly gone.
+        }
+        return { path: filePath, name: basename(filePath), size }
+      })
+    }
+  )
+
   ipcMain.handle('agent:capabilities', async () => agentService.capabilities())
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
     agentService.startSession(opts)
   })
-  ipcMain.handle('agent:send', async (_event, text: string) => {
-    agentService.send(text)
+  ipcMain.handle('agent:send', async (_event, text: string, opts?: TurnOpts) => {
+    agentService.send(text, opts)
   })
-  ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand) => {
-    agentService.runWorkflow(cmd)
+  ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand, opts?: TurnOpts) => {
+    agentService.runWorkflow(cmd, opts)
   })
   // T8 (WS-R5.2): explicit session teardown, called by Chat's unmount
   // cleanup so a switched-away-from workspace's session doesn't keep
   // running orphaned when no new session immediately replaces it.
   ipcMain.handle('agent:stop', async () => {
     agentService.stop()
+  })
+  // chat-controls CC-R1 via session-history: the Stop button interrupts one
+  // in-flight turn — background-turns keep streaming — and the session stays
+  // alive (see AgentService.interrupt's doc for why this must not be
+  // 'agent:stop').
+  ipcMain.handle('agent:interrupt', async (_event, turnId?: string) => {
+    agentService.interrupt(turnId)
   })
 
   // Streaming IPC for agent events — same channel-pattern as fs:watch:* above
@@ -315,6 +365,12 @@ app.whenReady().then(() => {
 
   ipcMain.on('bmad:install:start', (event, workspace: string, options: BmadInstallOptions) => {
     activeInstallStops.get(event.sender.id)?.()
+    // The install form's "what should the agents call you?" answer doubles as
+    // the app-wide display name (greetings, profile) — persist it here so the
+    // setup name and the profile name are one and the same field.
+    if (typeof options?.userName === 'string' && options.userName.trim() !== '') {
+      configStore.setUserName(options.userName)
+    }
     let stopped = false
     void (async () => {
       for await (const bmadEvent of bmadService.install(workspace, options)) {
@@ -358,6 +414,47 @@ app.whenReady().then(() => {
     activeUpdateStops.delete(event.sender.id)
   })
 
+  // ChatHistoryStore (session-history): request/response, same
+  // synchronous-delegate-wrapped-in-async-handle shape as the workspace
+  // handlers above. Persists conversations in the per-user data dir keyed by
+  // workspace — exposed as window.hive.chatHistory.*.
+  const chatHistoryStore = createChatHistoryStore(app.getPath('userData'))
+
+  ipcMain.handle('chatHistory:list', async (_event, workspace: string) =>
+    chatHistoryStore.list(workspace)
+  )
+  ipcMain.handle('chatHistory:get', async (_event, workspace: string, id: string) =>
+    chatHistoryStore.get(workspace, id)
+  )
+  ipcMain.handle('chatHistory:create', async (_event, workspace: string, agent: string | null) =>
+    chatHistoryStore.create(workspace, agent)
+  )
+  ipcMain.handle(
+    'chatHistory:append',
+    async (
+      _event,
+      workspace: string,
+      id: string,
+      message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+    ) => chatHistoryStore.appendMessage(workspace, id, message)
+  )
+  ipcMain.handle(
+    'chatHistory:rename',
+    async (_event, workspace: string, id: string, title: string) =>
+      chatHistoryStore.rename(workspace, id, title)
+  )
+  ipcMain.handle(
+    'chatHistory:setCliSession',
+    async (_event, workspace: string, id: string, cliSessionId: string) =>
+      chatHistoryStore.setCliSession(workspace, id, cliSessionId)
+  )
+  ipcMain.handle('chatHistory:search', async (_event, workspace: string, query: string) =>
+    chatHistoryStore.search(workspace, query)
+  )
+  ipcMain.handle('chatHistory:delete', async (_event, workspace: string, id: string) =>
+    chatHistoryStore.remove(workspace, id)
+  )
+
   // WorkflowCatalog (T17): request/response, same shape as fs:listTree/
   // fs:readFile above — a one-shot list, not a stream. Exposed as
   // window.hive.workflows.list(workspace).
@@ -367,7 +464,40 @@ app.whenReady().then(() => {
 
   // chat-controls (CC-R3.1): the full installed-skill list for the slash menu,
   // request/response like workflows:list. Exposed as window.hive.skills.list.
-  ipcMain.handle('skills:list', async (_event, workspace: string) => listSkills(workspace))
+  // skill-studio: user-created skills are appended, so `/minha-skill`
+  // autocompletes as soon as the builder finishes it.
+  ipcMain.handle('skills:list', async (_event, workspace: string) =>
+    listSkillsWithCreated(workspace)
+  )
+
+  // Skill studio (skill-studio): the user-created skills of a workspace —
+  // request/response like skills:list. Exposed as window.hive.studio.list.
+  ipcMain.handle('studio:list', async (_event, workspace: string) => listCreatedSkills(workspace))
+
+  // MCP module (mcp): the workspace's Model Context Protocol servers —
+  // catalog (`.mcp.json`), enabled state (`.claude/settings.local.json`), and
+  // a live connection probe (status + tools + logs). Grouped under
+  // window.hive.mcp.* in the preload bridge. Writes/probe surface their
+  // Error.message to the renderer (the DS §2 prefix rule keeps it intact).
+  const mcpService = createMcpService({ probe: mcpProbe })
+  ipcMain.handle('mcp:list', async (_event, workspace: string) => mcpService.list(workspace))
+  ipcMain.handle('mcp:add', async (_event, workspace: string, name: string, config: McpServerConfig) =>
+    mcpService.add(workspace, name, config)
+  )
+  ipcMain.handle(
+    'mcp:update',
+    async (_event, workspace: string, originalName: string, name: string, config: McpServerConfig) =>
+      mcpService.update(workspace, originalName, name, config)
+  )
+  ipcMain.handle('mcp:remove', async (_event, workspace: string, name: string) =>
+    mcpService.remove(workspace, name)
+  )
+  ipcMain.handle('mcp:setEnabled', async (_event, workspace: string, name: string, enabled: boolean) =>
+    mcpService.setEnabled(workspace, name, enabled)
+  )
+  ipcMain.handle('mcp:probe', async (_event, workspace: string, name: string) =>
+    mcpService.probe(workspace, name)
+  )
 
   // Profile IPC (agent-selection + role-personalization) — the app-wide agent
   // and role preferences plus the resolved role action list. Grouped under
@@ -389,9 +519,67 @@ app.whenReady().then(() => {
   ipcMain.handle('profile:setRole', async (_event, id: string) => {
     configStore.setRole(id)
   })
+  // Display name (set in the install form, editable in the profile sheet).
+  ipcMain.handle('profile:getUserName', async () => configStore.getUserName())
+  ipcMain.handle('profile:setUserName', async (_event, name: string | null) => {
+    configStore.setUserName(name)
+  })
   ipcMain.handle('profile:roleActions', async (_event, role: string | null) =>
     resolveRoleActions(role)
   )
+
+  // Shortcut customization (shortcut-customization): the full workspace skill
+  // catalog (workflows + specialist agents), the persisted custom selection,
+  // and the resolved shortcut set the hero/strip actually render. Grouped
+  // under window.hive.shortcuts.* in the preload bridge.
+  // skill-studio: the catalog includes user-created skills (`custom: true`),
+  // so creations are pinnable the moment they land on disk.
+  ipcMain.handle('shortcuts:catalog', async (_event, workspace: string) =>
+    listCatalogWithCreated(workspace)
+  )
+  ipcMain.handle('shortcuts:get', async () => configStore.getShortcuts())
+  // Renderer input crosses the IPC boundary sanitized (`null` restores the
+  // role defaults) — the store re-applies the same rule defensively.
+  ipcMain.handle('shortcuts:set', async (_event, prefs: unknown) =>
+    configStore.setShortcuts(sanitizeShortcutPrefs(prefs))
+  )
+  ipcMain.handle('shortcuts:actions', async (_event, role: string | null, workspace: string) =>
+    resolveShortcuts(role, configStore.getShortcuts(), await listCatalogWithCreated(workspace))
+  )
+
+  // UpdateService (app-settings): the app's own version + self-update flow,
+  // driven from the renderer's app-settings sheet. electron-updater only
+  // works from a packaged build, so `updatesSupported` mirrors
+  // `app.isPackaged` and the renderer explains instead of failing. The event
+  // stream follows the exact agent:event:* channel pattern above.
+  //   'update:event:start' (renderer -> main, fire-and-forget): subscribe.
+  //   'update:event'        (main -> renderer, fire-and-forget, repeated): one UpdateEvent per transition.
+  //   'update:event:stop'  (renderer -> main, fire-and-forget): unsubscribe.
+  const updateService = createUpdateService(autoUpdater, app.isPackaged)
+
+  ipcMain.handle('app:info', async (): Promise<AppInfo> => ({
+    name: app.getName(),
+    version: app.getVersion(),
+    updatesSupported: app.isPackaged
+  }))
+  ipcMain.handle('update:check', async () => updateService.check())
+  ipcMain.handle('update:download', async () => updateService.download())
+  ipcMain.handle('update:install', async () => updateService.install())
+
+  const activeUpdateEventUnsubs = new Map<number, () => void>()
+
+  ipcMain.on('update:event:start', (event) => {
+    activeUpdateEventUnsubs.get(event.sender.id)?.()
+    const unsubscribe = updateService.onEvent((updateEvent) => {
+      event.sender.send('update:event', updateEvent)
+    })
+    activeUpdateEventUnsubs.set(event.sender.id, unsubscribe)
+  })
+
+  ipcMain.on('update:event:stop', (event) => {
+    activeUpdateEventUnsubs.get(event.sender.id)?.()
+    activeUpdateEventUnsubs.delete(event.sender.id)
+  })
 
   createWindow()
 

@@ -1,0 +1,41 @@
+/**
+ * Hive Desktop — app-level theme overrides (product register).
+ *
+ * The DS ships its dark theme as the marketing site's bordo ("wine") ledger —
+ * protected by DESIGN.md's Dark-Truth Rule, so it can't change there. For a
+ * desktop tool a developer stares at for hours, that ambient bordo reads as
+ * a costume, not a workspace: the app re-resolves the dark *role* tokens to
+ * a graphite ramp drawn from the brand's own gray family (cinza-impacto
+ * hue, chroma kept near zero so it reads gray) while the coral accent — the
+ * actual brand signature on dark — stays untouched.
+ *
+ * Only Layer-2 roles are overridden, never Layer-1 primitives, so every DS
+ * component keeps resolving correctly. Light theme is untouched.
+ *
+ * Loaded after ds-bundle.css (main.tsx import order), so equal-specificity
+ * declarations here win.
+ *
+ * Contrast (WCAG relative-luminance, against --bg #1c1a1a):
+ *   --ink   #ded4d4 ≈ 11.6:1  (body floor 4.5:1 ✓)
+ *   --muted #a99c9c ≈  6.5:1  (body floor ✓)
+ *   --faint #8b807f ≈  4.6:1  (tertiary/large-text only, 3:1 floor ✓)
+ *   --accent coral #cc7958 ≈ 6.7:1 as text/icon (3:1 UI floor ✓)
+ */
+
+:root[data-theme='dark'] {
+  --bg: #1c1a1a;
+  --bg-2: #151313;
+  --surface: #242121;
+  --surface-2: #2b2828;
+  --surface-3: #343030;
+
+  --muted: #a99c9c;
+  --faint: #8b807f;
+
+  /* Ink-tinted hairlines re-derived from the neutral ink (unchanged alpha). */
+  --border: oklch(87.8% 0.005 17.4 / 14%);
+  --border-strong: oklch(87.8% 0.005 17.4 / 26%);
+
+  /* Selection tint stays coral, slightly quieter on graphite. */
+  --selected-bg: oklch(65.9% 0.114 42.2 / 14%);
+}

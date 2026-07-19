@@ -1,74 +1,81 @@
-import { roleActionLabel, t } from '../i18n'
-import { actionIcon } from './roleVisuals'
-import { GearIcon } from './icons'
+import { t } from '../i18n'
+import { GearIcon, PlugIcon, SearchIcon, SparkleIcon } from './icons'
 
-/** Structural mirror of `main/roleCatalog.ts`'s `ResolvedRoleAction`. */
+/** Structural mirror of `main/roleCatalog.ts`'s `ResolvedRoleAction`.
+ *  `label` (shortcut-customization): catalog display name carried by
+ *  custom-selected shortcuts — the pt-BR maps win when they know the key. */
 export interface RoleAction {
   key: string
   kind: 'workflow' | 'persona'
   command: { key: string; prompt?: string }
+  label?: string
+  /** skill-studio: `true` on shortcuts backed by a user-created skill (spark icon). */
+  custom?: boolean
 }
 
 interface ActionRailProps {
-  actions: RoleAction[]
-  /** Launch an action (routes to the chat as a workflow turn). */
-  onLaunch: (action: RoleAction) => void
-  /** Open the profile/settings sheet. */
-  onOpenSettings: () => void
+  /** Opens the workspace file-search palette (also reachable via Ctrl+P). */
+  onOpenSearch: () => void
+  /** Opens the Skill Studio (skill-studio): create skills/agents + evals. */
+  onOpenStudio: () => void
+  /** Opens the MCP module (mcp): manage Model Context Protocol servers. */
+  onOpenMcp: () => void
+  /** Opens the app settings sheet (version + updates). */
+  onOpenAppSettings: () => void
 }
 
 /**
- * The persistent left action rail (role-personalization RP-R5): the "second
- * home" for the role's actions, available at any time — not just on an empty
- * conversation. A fixed, quiet chrome column OUTSIDE the resizable body group
- * (so it never disturbs the persisted `hive.workLayout`). Icon-only, resting in
- * `--muted`, accent only on hover/active/persona — an always-there tool that
- * recedes until used. The persona action ("Conversar com <especialista>") sits
- * apart, above a hairline; the profile gear is bottom-anchored.
+ * The persistent left tool rail — a fixed, quiet chrome column OUTSIDE the
+ * resizable body group (so it never disturbs the persisted `hive.workLayout`).
+ * Workspace-scoped tools only: file search on top, app settings (version /
+ * updates) bottom-anchored. The role shortcuts that used to live here moved
+ * next to the conversation (Chat's shortcut strip + the hero pills) — closer
+ * to where they're launched; the profile moved to the top bar's avatar.
  */
 export function ActionRail({
-  actions,
-  onLaunch,
-  onOpenSettings
+  onOpenSearch,
+  onOpenStudio,
+  onOpenMcp,
+  onOpenAppSettings
 }: ActionRailProps): React.JSX.Element {
-  const workflows = actions.filter((action) => action.kind === 'workflow')
-  const personas = actions.filter((action) => action.kind === 'persona')
-
-  function renderButton(action: RoleAction): React.JSX.Element {
-    const Icon = actionIcon(action.key)
-    const label = roleActionLabel(action.key)
-    return (
+  return (
+    <nav className="wb-actionrail" aria-label={t('actionRail.ariaLabel')} data-tour="rail">
       <button
-        key={action.key}
         type="button"
         className="wb-rail-btn"
-        data-persona={action.kind === 'persona' || undefined}
-        title={label}
-        aria-label={label}
-        onClick={() => onLaunch(action)}
+        title={`${t('actionRail.searchLabel')} (Ctrl+P)`}
+        aria-label={t('actionRail.searchLabel')}
+        aria-keyshortcuts="Control+P"
+        onClick={onOpenSearch}
       >
-        <Icon size={18} />
+        <SearchIcon size={18} />
       </button>
-    )
-  }
-
-  return (
-    <nav className="wb-actionrail" aria-label={t('actionRail.ariaLabel')}>
-      <div className="wb-actionrail-actions">
-        {workflows.map(renderButton)}
-        {personas.length > 0 && (
-          <>
-            <span className="wb-actionrail-divider" aria-hidden="true" />
-            {personas.map(renderButton)}
-          </>
-        )}
-      </div>
+      <button
+        type="button"
+        className="wb-rail-btn"
+        data-tour="studio"
+        title={t('studio.openLabel')}
+        aria-label={t('studio.openLabel')}
+        onClick={onOpenStudio}
+      >
+        <SparkleIcon size={18} />
+      </button>
+      <button
+        type="button"
+        className="wb-rail-btn"
+        data-tour="mcp"
+        title={t('mcp.openLabel')}
+        aria-label={t('mcp.openLabel')}
+        onClick={onOpenMcp}
+      >
+        <PlugIcon size={18} />
+      </button>
       <button
         type="button"
         className="wb-rail-btn wb-actionrail-settings"
-        title={t('actionRail.settingsLabel')}
-        aria-label={t('actionRail.settingsLabel')}
-        onClick={onOpenSettings}
+        title={t('actionRail.appSettingsLabel')}
+        aria-label={t('actionRail.appSettingsLabel')}
+        onClick={onOpenAppSettings}
       >
         <GearIcon size={18} />
       </button>

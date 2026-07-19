@@ -2,6 +2,19 @@ import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileS
 import { join } from 'path'
 
 /**
+ * The user's custom shortcut selection (shortcut-customization): which
+ * workspace skills appear as workflow shortcuts and which specialist agents
+ * appear as persona shortcuts — both in the "O que você quer fazer hoje?"
+ * hero and the composer's shortcut strip. Arrays hold BMAD skill names in
+ * the user's selection order (toggling appends, so order is meaningful).
+ * `null` in `Config.shortcuts` = never customized → the role's defaults.
+ */
+export interface ShortcutPrefs {
+  skills: string[]
+  agents: string[]
+}
+
+/**
  * Persisted app configuration (R2.2, R3.5). No secrets — agent CLIs manage
  * their own auth. See design.md §6 "Data & Persistence".
  */
@@ -22,6 +35,14 @@ export interface Config {
   // roleCatalog/agentRegistry — it's just data on disk).
   agent: string | null
   role: string | null
+  // How the app (and the agents) address the user — captured by the guided
+  // BMAD install form, editable any time in the profile sheet. `null` until
+  // first provided; display-only (greetings), never an identifier.
+  userName: string | null
+  // Global custom shortcut selection (shortcut-customization). `null` until
+  // the user first customizes — role defaults apply then, and "Restaurar
+  // padrão do papel" writes `null` back.
+  shortcuts: ShortcutPrefs | null
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -31,7 +52,27 @@ export const DEFAULT_CONFIG: Config = {
   lastModel: null,
   lastEffort: null,
   agent: null,
-  role: null
+  role: null,
+  userName: null,
+  shortcuts: null
+}
+
+/**
+ * Normalizes a raw (possibly hand-edited / older-schema) `shortcuts` value:
+ * non-object → `null`; each list keeps only non-empty strings, deduplicated,
+ * preserving order. Exported for the IPC boundary (main/index.ts sanitizes
+ * renderer input with the same rule the store applies on read).
+ */
+export function sanitizeShortcutPrefs(value: unknown): ShortcutPrefs | null {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null
+  const raw = value as { skills?: unknown; agents?: unknown }
+  const cleanList = (list: unknown): string[] => {
+    if (!Array.isArray(list)) return []
+    return [
+      ...new Set(list.filter((item): item is string => typeof item === 'string' && item !== ''))
+    ]
+  }
+  return { skills: cleanList(raw.skills), agents: cleanList(raw.agents) }
 }
 
 const CONFIG_FILE_NAME = 'config.json'
@@ -50,6 +91,10 @@ export interface ConfigStore {
   setAgent(id: string): void
   getRole(): string | null
   setRole(id: string): void
+  getUserName(): string | null
+  setUserName(name: string | null): void
+  getShortcuts(): ShortcutPrefs | null
+  setShortcuts(prefs: ShortcutPrefs | null): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -119,6 +164,18 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setAgent: (id: string) => updateConfig({ agent: id }),
     getRole: () => readConfig().role,
     setRole: (id: string) => updateConfig({ role: id }),
+    getUserName: () => readConfig().userName,
+    // Normalized on write: trimmed, and an empty string clears back to null
+    // (the greeting falls back to the neutral copy).
+    setUserName: (name: string | null) => {
+      const trimmed = name?.trim() ?? ''
+      updateConfig({ userName: trimmed === '' ? null : trimmed })
+    },
+    // Sanitized on read AND write, so a hand-edited config.json can't leak a
+    // malformed shape into the resolver.
+    getShortcuts: () => sanitizeShortcutPrefs(readConfig().shortcuts),
+    setShortcuts: (prefs: ShortcutPrefs | null) =>
+      updateConfig({ shortcuts: sanitizeShortcutPrefs(prefs) }),
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()

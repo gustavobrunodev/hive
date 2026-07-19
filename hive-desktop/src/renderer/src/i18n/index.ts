@@ -1,6 +1,14 @@
-import { ptBR, intentLabel, roleMeta, roleActionLabel } from './pt-BR'
+import {
+  ptBR,
+  intentLabel,
+  roleMeta,
+  roleActionLabel,
+  relativeTimeLabel,
+  shortcutLabel,
+  agentMeta
+} from './pt-BR'
 
-export { intentLabel, roleMeta, roleActionLabel }
+export { intentLabel, roleMeta, roleActionLabel, relativeTimeLabel, shortcutLabel, agentMeta }
 export type { RoleMeta } from './pt-BR'
 
 /** The (only, for MVP) locale's strings. Exposed for tests/tooling; components should use `t()`. */

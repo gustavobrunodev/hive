@@ -1,4 +1,5 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react"
+import { useLayoutEffect, useRef } from "react"
+import type { ComponentPropsWithoutRef, ReactNode, Ref, UIEvent } from "react"
 import { cx } from "../../utils/cx"
 import { useControllableState } from "../../hooks/useControllableState"
 import { Textarea } from "../Textarea/Textarea"
@@ -22,12 +23,46 @@ export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, 
   /** Slot for extra toolbar controls (e.g. an attach-file trigger), rendered leading the send button. */
   toolbar?: ReactNode
   sendLabel?: string
+  /**
+   * Interrupt handler for the in-flight response. When provided together with
+   * `streaming`, the send control becomes a stop control (same button, same
+   * position — the Claude-chat pattern): enabled, labelled `stopLabel`, and
+   * clicking it calls `onStop` instead of submitting. Without `onStop`,
+   * `streaming` falls back to simply disabling send.
+   */
+  onStop?: () => void
+  /** Accessible label for the stop state of the send control. */
+  stopLabel?: string
+  /**
+   * Lets an empty prompt submit (e.g. when the app has pending attachments
+   * that make a text-less send meaningful). `onSubmit` then receives `""`.
+   */
+  allowEmptySubmit?: boolean
+  /**
+   * Inline-token highlighter: given the current value, returns the same text
+   * with token runs wrapped in styled elements (e.g. `<mark>`). Rendered in a
+   * transparent backdrop layer aligned under the textarea, so token
+   * backgrounds show through while the textarea keeps owning the glyphs,
+   * caret and selection. The returned nodes must preserve the value's exact
+   * character sequence — any drift misaligns the backdrop.
+   */
+  highlight?: (value: string) => ReactNode
+  /** Reaches the underlying textarea (caret introspection, imperative focus). */
+  textareaRef?: Ref<HTMLTextAreaElement>
 }
 
 function SendIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2 8h11M8 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="hds-prompt-input-icon-send" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg className="hds-prompt-input-icon-stop" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" />
     </svg>
   )
 }
@@ -52,6 +87,11 @@ export function PromptInput({
   attachments,
   toolbar,
   sendLabel = "Send",
+  onStop,
+  stopLabel = "Stop",
+  allowEmptySubmit = false,
+  highlight,
+  textareaRef,
   className,
   ...rest
 }: PromptInputProps) {
@@ -61,8 +101,14 @@ export function PromptInput({
     onChange,
   })
 
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const innerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+
   const isEmpty = value.trim().length === 0
-  const sendDisabled = disabled || streaming || isEmpty
+  // Stop mode: while streaming with an `onStop` handler, the send control
+  // flips into an always-enabled interrupt button (the Claude-chat pattern).
+  const stopMode = streaming && onStop !== undefined
+  const sendDisabled = disabled || streaming || (isEmpty && !allowEmptySubmit)
 
   const submit = () => {
     if (sendDisabled) return
@@ -70,29 +116,71 @@ export function PromptInput({
     if (valueProp === undefined) setValue("")
   }
 
+  const setTextareaNode = (node: HTMLTextAreaElement | null) => {
+    innerTextareaRef.current = node
+    if (typeof textareaRef === "function") {
+      textareaRef(node)
+    } else if (textareaRef) {
+      ;(textareaRef as { current: HTMLTextAreaElement | null }).current = node
+    }
+  }
+
+  const syncBackdropScroll = () => {
+    const backdrop = backdropRef.current
+    const textarea = innerTextareaRef.current
+    if (backdrop && textarea) backdrop.scrollTop = textarea.scrollTop
+  }
+
+  // Autosize can change scrollTop without a scroll event (value edits at
+  // maxRows) — re-align the backdrop after every value-driven layout.
+  useLayoutEffect(() => {
+    if (highlight) syncBackdropScroll()
+  })
+
+  const textarea = (
+    <Textarea
+      ref={setTextareaNode}
+      className="hds-prompt-input-textarea"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onSubmit={submit}
+      onScroll={highlight ? (event: UIEvent<HTMLTextAreaElement>) => {
+        const backdrop = backdropRef.current
+        if (backdrop) backdrop.scrollTop = event.currentTarget.scrollTop
+      } : undefined}
+      placeholder={placeholder}
+      disabled={disabled}
+      minRows={minRows}
+      maxRows={maxRows}
+    />
+  )
+
   return (
     <div className={cx("hds-prompt-input", className)} data-disabled={disabled || undefined} {...rest}>
       {attachments && <div className="hds-prompt-input-attachments">{attachments}</div>}
-      <Textarea
-        className="hds-prompt-input-textarea"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onSubmit={submit}
-        placeholder={placeholder}
-        disabled={disabled}
-        minRows={minRows}
-        maxRows={maxRows}
-      />
+      {highlight ? (
+        <div className="hds-prompt-input-editor">
+          <div ref={backdropRef} className="hds-prompt-input-backdrop" aria-hidden="true">
+            {highlight(value)}
+          </div>
+          {textarea}
+        </div>
+      ) : (
+        textarea
+      )}
       <div className="hds-prompt-input-toolbar">
         <div className="hds-prompt-input-toolbar-extra">{toolbar}</div>
         <button
           type="button"
           className="hds-prompt-input-send"
-          disabled={sendDisabled}
-          aria-label={sendLabel}
-          onClick={submit}
+          data-mode={stopMode ? "stop" : "send"}
+          disabled={stopMode ? disabled : sendDisabled}
+          aria-label={stopMode ? stopLabel : sendLabel}
+          title={stopMode ? stopLabel : sendLabel}
+          onClick={stopMode ? onStop : submit}
         >
           <SendIcon />
+          <StopIcon />
         </button>
       </div>
     </div>

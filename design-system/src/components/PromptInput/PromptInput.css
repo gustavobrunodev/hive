@@ -30,6 +30,32 @@
   padding: var(--s-1) 0;
 }
 
+/* Highlight mode: a transparent-text mirror aligned under the textarea, so
+   token backgrounds (e.g. mention pills) paint behind the real glyphs. Every
+   metric here must match `.hds-prompt-input-textarea` exactly. */
+.hds-prompt-input-editor {
+  position: relative;
+}
+
+.hds-prompt-input-editor .hds-prompt-input-textarea.hds-textarea {
+  position: relative;
+}
+
+.hds-prompt-input-backdrop {
+  position: absolute;
+  inset: 0;
+  padding: var(--s-1) 0;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
 .hds-prompt-input-textarea.hds-textarea:focus-visible {
   box-shadow: none;
 }
@@ -48,6 +74,7 @@
 }
 
 .hds-prompt-input-send {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -66,6 +93,10 @@
   background: var(--accent-hover);
 }
 
+.hds-prompt-input-send:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
 .hds-prompt-input-send:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -77,9 +108,45 @@
   cursor: not-allowed;
 }
 
+/* One control, two states (send ⇄ stop): both glyphs stay mounted, stacked
+   on the same spot, and crossfade/scale as `data-mode` flips — state change
+   signalled by motion, per the product-register motion rule. */
+.hds-prompt-input-send svg {
+  /* Absolutely positioned flex children center via the button's own
+     align/justify — both glyphs land on the same spot. */
+  position: absolute;
+  transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
+}
+
+.hds-prompt-input-send[data-mode="send"] .hds-prompt-input-icon-stop,
+.hds-prompt-input-send[data-mode="stop"] .hds-prompt-input-icon-send {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+/* While a response streams, the stop control breathes gently — a quiet
+   "something is running" signal that doubles as the affordance to halt it. */
+.hds-prompt-input-send[data-mode="stop"]:not(:disabled) {
+  animation: hds-prompt-stop-breathe 2.4s var(--ease-quart) infinite;
+}
+
+@keyframes hds-prompt-stop-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 45%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent) 0%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hds-prompt-input,
-  .hds-prompt-input-send {
+  .hds-prompt-input-send,
+  .hds-prompt-input-send svg {
     transition: none;
+  }
+  .hds-prompt-input-send[data-mode="stop"]:not(:disabled) {
+    animation: none;
   }
 }

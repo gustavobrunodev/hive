@@ -4,14 +4,21 @@ import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
+  AttachmentPick,
   SessionOpts,
+  TurnOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
-import type { WorkflowEntry, SkillEntry } from '../main/workflowCatalog'
+import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
+import type { CreatedSkill } from '../main/skillStudio'
+import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ResolvedRoleAction } from '../main/roleCatalog'
+import type { ShortcutPrefs } from '../main/configStore'
+import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
+import type { AppInfo, UpdateEvent } from '../main/updateService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -74,6 +81,9 @@ const hive = {
   // methods above.
   listTree: (root: string, relativePath?: string): Promise<TreeNode[]> =>
     ipcRenderer.invoke('fs:listTree', root, relativePath),
+  // chat-attachments: flat workspace file list for the composer's `#` mention
+  // menu — same invoke/response shape as listTree.
+  listFiles: (root: string): Promise<string[]> => ipcRenderer.invoke('fs:listFiles', root),
   readFile: (root: string, relativePath: string): Promise<string> =>
     ipcRenderer.invoke('fs:readFile', root, relativePath),
 
@@ -115,14 +125,30 @@ const hive = {
   // subscribe-returning-unsubscribe shape.
   agent: {
     capabilities: (): Promise<AgentCapabilities> => ipcRenderer.invoke('agent:capabilities'),
+    // chat-attachments (R6.5/T16): native multi-file picker for the attach
+    // button. Resolves to [] when the user cancels the dialog. `defaultPath`
+    // opens the picker inside the active workspace.
+    chooseAttachments: (defaultPath?: string): Promise<AttachmentPick[]> =>
+      ipcRenderer.invoke('chat:chooseAttachments', defaultPath),
     start: (opts: SessionOpts): Promise<void> => ipcRenderer.invoke('agent:start', opts),
-    send: (text: string): Promise<void> => ipcRenderer.invoke('agent:send', text),
-    runWorkflow: (cmd: WorkflowCommand): Promise<void> =>
-      ipcRenderer.invoke('agent:runWorkflow', cmd),
+    // `opts.resume` (session-history): the CLI-native session id this turn
+    // continues — surfaced by the `session` event, persisted per stored
+    // conversation, and handed back here for real conversation memory.
+    // `opts.turnId` (background-turns): tags the turn's events so concurrent
+    // conversations' streams stay apart.
+    send: (text: string, opts?: TurnOpts): Promise<void> =>
+      ipcRenderer.invoke('agent:send', text, opts),
+    runWorkflow: (cmd: WorkflowCommand, opts?: TurnOpts): Promise<void> =>
+      ipcRenderer.invoke('agent:runWorkflow', cmd, opts),
     // T8 (WS-R5.2): explicit teardown of the active session, called from
     // `Chat`'s unmount cleanup so a switched-away-from workspace's session
     // doesn't linger orphaned when no new session starts right after.
     stop: (): Promise<void> => ipcRenderer.invoke('agent:stop'),
+    // chat-controls CC-R1 + background-turns: interrupts one in-flight turn
+    // by id (or all, with none) while the session stays alive — the Stop
+    // button's channel (never 'agent:stop', which would leave the chat with
+    // no session to send the next message to).
+    interrupt: (turnId?: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', turnId),
     onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
       ipcRenderer.on('agent:event', listener)
@@ -180,6 +206,82 @@ const hive = {
     list: (workspace: string): Promise<SkillEntry[]> => ipcRenderer.invoke('skills:list', workspace)
   },
 
+  // Skill studio (skill-studio): the workspace's user-created skills for the
+  // studio gallery. Plain invoke/response, same shape as skills.list.
+  studio: {
+    list: (workspace: string): Promise<CreatedSkill[]> =>
+      ipcRenderer.invoke('studio:list', workspace)
+  },
+
+  // MCP module (mcp): the workspace's Model Context Protocol servers. list is
+  // plain invoke/response; add/update/remove/setEnabled mutate `.mcp.json` /
+  // `.claude/settings.local.json` and can reject with a user-facing
+  // Error.message; probe starts the server and runs the MCP handshake to
+  // report live status + tools + logs. Arg order mirrors the `mcp:*` handlers.
+  mcp: {
+    list: (workspace: string): Promise<McpServer[]> => ipcRenderer.invoke('mcp:list', workspace),
+    add: (workspace: string, name: string, config: McpServerConfig): Promise<void> =>
+      ipcRenderer.invoke('mcp:add', workspace, name, config),
+    update: (
+      workspace: string,
+      originalName: string,
+      name: string,
+      config: McpServerConfig
+    ): Promise<void> => ipcRenderer.invoke('mcp:update', workspace, originalName, name, config),
+    remove: (workspace: string, name: string): Promise<void> =>
+      ipcRenderer.invoke('mcp:remove', workspace, name),
+    setEnabled: (workspace: string, name: string, enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('mcp:setEnabled', workspace, name, enabled),
+    probe: (workspace: string, name: string): Promise<McpProbeResult> =>
+      ipcRenderer.invoke('mcp:probe', workspace, name)
+  },
+
+  // ChatHistoryStore (session-history): persisted conversations per
+  // workspace. Plain invoke/response — list/get/create/append/rename/delete,
+  // arg order mirroring the corresponding 'chatHistory:<name>' handlers in
+  // main/index.ts exactly.
+  chatHistory: {
+    list: (workspace: string): Promise<ChatSessionMeta[]> =>
+      ipcRenderer.invoke('chatHistory:list', workspace),
+    get: (workspace: string, id: string): Promise<StoredChatSession | null> =>
+      ipcRenderer.invoke('chatHistory:get', workspace, id),
+    create: (workspace: string, agent: string | null): Promise<StoredChatSession> =>
+      ipcRenderer.invoke('chatHistory:create', workspace, agent),
+    append: (
+      workspace: string,
+      id: string,
+      message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+    ): Promise<ChatSessionMeta | null> =>
+      ipcRenderer.invoke('chatHistory:append', workspace, id, message),
+    rename: (workspace: string, id: string, title: string): Promise<ChatSessionMeta | null> =>
+      ipcRenderer.invoke('chatHistory:rename', workspace, id, title),
+    setCliSession: (workspace: string, id: string, cliSessionId: string): Promise<void> =>
+      ipcRenderer.invoke('chatHistory:setCliSession', workspace, id, cliSessionId),
+    search: (workspace: string, query: string): Promise<ChatSessionMeta[]> =>
+      ipcRenderer.invoke('chatHistory:search', workspace, query),
+    delete: (workspace: string, id: string): Promise<void> =>
+      ipcRenderer.invoke('chatHistory:delete', workspace, id)
+  },
+
+  // App self-update (app-settings): version info as plain invoke/response;
+  // the update flow's state transitions stream on 'update:event' following
+  // the exact watchWorkspace/agent.onEvent channel pattern above.
+  app: {
+    info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
+    checkForUpdates: (): Promise<void> => ipcRenderer.invoke('update:check'),
+    downloadUpdate: (): Promise<void> => ipcRenderer.invoke('update:download'),
+    installUpdate: (): Promise<void> => ipcRenderer.invoke('update:install'),
+    onUpdateEvent: (onEvent: (evt: UpdateEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: UpdateEvent): void => onEvent(evt)
+      ipcRenderer.on('update:event', listener)
+      ipcRenderer.send('update:event:start')
+      return () => {
+        ipcRenderer.removeListener('update:event', listener)
+        ipcRenderer.send('update:event:stop')
+      }
+    }
+  },
+
   // Profile (agent-selection + role-personalization): app-wide agent + role
   // preferences and the resolved role action list. Plain invoke/response.
   profile: {
@@ -188,8 +290,23 @@ const hive = {
     setAgent: (id: string): Promise<void> => ipcRenderer.invoke('profile:setAgent', id),
     getRole: (): Promise<string | null> => ipcRenderer.invoke('profile:getRole'),
     setRole: (id: string): Promise<void> => ipcRenderer.invoke('profile:setRole', id),
+    getUserName: (): Promise<string | null> => ipcRenderer.invoke('profile:getUserName'),
+    setUserName: (name: string | null): Promise<void> =>
+      ipcRenderer.invoke('profile:setUserName', name),
     roleActions: (role: string | null): Promise<ResolvedRoleAction[]> =>
       ipcRenderer.invoke('profile:roleActions', role)
+  },
+
+  // Shortcut customization (shortcut-customization): workspace skill catalog,
+  // persisted selection, and the resolved shortcut set. Plain invoke/response;
+  // arg order mirrors the `shortcuts:*` handlers in main/index.ts exactly.
+  shortcuts: {
+    catalog: (workspace: string): Promise<WorkspaceSkill[]> =>
+      ipcRenderer.invoke('shortcuts:catalog', workspace),
+    get: (): Promise<ShortcutPrefs | null> => ipcRenderer.invoke('shortcuts:get'),
+    set: (prefs: ShortcutPrefs | null): Promise<void> => ipcRenderer.invoke('shortcuts:set', prefs),
+    actions: (role: string | null, workspace: string): Promise<ResolvedRoleAction[]> =>
+      ipcRenderer.invoke('shortcuts:actions', role, workspace)
   },
 
   // File management (T6/T7), grouped under an `fs` namespace matching

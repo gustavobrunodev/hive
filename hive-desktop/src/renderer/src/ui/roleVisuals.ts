@@ -15,7 +15,8 @@ import {
   RolePmIcon,
   RoleQaIcon,
   RoleTechLeadIcon,
-  RoleUxIcon
+  RoleUxIcon,
+  SparkleIcon
 } from './icons'
 
 type IconComponent = (props: { size?: number }) => React.JSX.Element
@@ -82,4 +83,69 @@ export function actionIcon(actionKey: string): IconComponent {
     default:
       return FileTextIcon
   }
+}
+
+/**
+ * Workspace *skill* key → icon (shortcut-customization) — the skill-key
+ * sibling of `actionIcon`'s map, sharing the same visual family so a custom
+ * shortcut and its role-default twin look identical. A flat lookup table
+ * (not a switch) keeps `skillIcon` itself trivial.
+ */
+const SKILL_ICONS: Record<string, IconComponent> = {
+  'bmad-prd': IntentPrdIcon,
+  'bmad-domain-research': IntentResearchIcon,
+  'bmad-market-research': IntentResearchIcon,
+  'bmad-technical-research': IntentResearchIcon,
+  'bmad-brainstorming': IntentBrainstormIcon,
+  'bmad-forge-idea': IntentBrainstormIcon,
+  'bmad-architecture': IntentArchitectureIcon,
+  'bmad-create-story': IntentStoryIcon,
+  'bmad-spec': IntentStoryIcon,
+  'bmad-product-brief': ClipboardIcon,
+  'bmad-sprint-planning': ClipboardIcon,
+  'bmad-sprint-status': ClipboardIcon,
+  'bmad-create-epics-and-stories': LayersIcon,
+  'bmad-shard-doc': LayersIcon,
+  'bmad-ux': RoleUxIcon,
+  'bmad-dev-story': RoleDevIcon,
+  'bmad-quick-dev': RoleDevIcon,
+  'bmad-dev-auto': RoleDevIcon,
+  'bmad-code-review': ReviewIcon,
+  'bmad-review-adversarial-general': ReviewIcon,
+  'bmad-review-edge-case-hunter': ReviewIcon,
+  'bmad-editorial-review-prose': ReviewIcon,
+  'bmad-editorial-review-structure': ReviewIcon,
+  'bmad-checkpoint-preview': ReviewIcon,
+  'bmad-testarch-test-review': ReviewIcon,
+  'bmad-testarch-automate': AutomationIcon,
+  'bmad-testarch-ci': AutomationIcon,
+  'bmad-qa-generate-e2e-tests': AutomationIcon
+}
+
+/** Icon for a workspace skill key; testarch/testing skills read as the beaker, anything unknown as a generic document. */
+export function skillIcon(skillKey: string): IconComponent {
+  const direct = SKILL_ICONS[skillKey]
+  if (direct) return direct
+  if (skillKey.startsWith('bmad-testarch-') || skillKey === 'bmad-teach-me-testing') {
+    return BeakerIcon
+  }
+  return FileTextIcon
+}
+
+/**
+ * Icon for a resolved shortcut action (role defaults AND custom selections):
+ * persona shortcuts always read as a conversation; a user-created skill
+ * (skill-studio's `custom` flag) reads as the studio's spark; other workflow
+ * shortcuts try the role-action key first, then the skill key (custom
+ * shortcuts carry the BMAD skill name as their key).
+ */
+export function shortcutIcon(action: {
+  key: string
+  kind: 'workflow' | 'persona'
+  custom?: boolean
+}): IconComponent {
+  if (action.kind === 'persona') return PersonaChatIcon
+  if (action.custom) return SparkleIcon
+  const byAction = actionIcon(action.key)
+  return byAction === FileTextIcon ? skillIcon(action.key) : byAction
 }

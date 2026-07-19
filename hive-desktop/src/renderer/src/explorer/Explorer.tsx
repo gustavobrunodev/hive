@@ -11,6 +11,11 @@ import type { DragEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import {
   Button,
   CodeBlock,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -27,14 +32,14 @@ import { t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import { HtmlPreview } from './HtmlPreview'
 import { IconButton } from '../ui/IconButton'
+import { isPaneDrag } from '../ui/paneDnd'
+import { setWorkspaceFileDrag } from '../ui/workspaceFileDnd'
+import { FileTypeIcon } from '../ui/fileIcons'
 import {
   CheckIcon,
   CloseIcon,
   CopyIcon,
   EyeIcon,
-  FileCodeIcon,
-  FileIcon,
-  FileTextIcon,
   FolderIcon,
   FolderOpenIcon,
   FolderPlusIcon,
@@ -143,14 +148,6 @@ function isPreviewable(editable: boolean, path: string): boolean {
   return editable && isPreviewableKind(path)
 }
 
-const CODE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|json|yaml|yml|toml|css|html|sh|py|rb|go|rs)$/i
-
-function fileIconFor(path: string): React.JSX.Element {
-  if (isMarkdownPath(path)) return <FileTextIcon />
-  if (CODE_EXTENSIONS.test(path)) return <FileCodeIcon />
-  return <FileIcon />
-}
-
 /** Flattens the tree into a `path -> type` lookup so selecting a tree row can tell files from directories. */
 function collectFileTypes(nodes: FsTreeNode[], into: Map<string, FsTreeNode['type']>): void {
   for (const node of nodes) {
@@ -173,8 +170,18 @@ export interface FileTreeProps {
   workspace: string
   /** Path of the file currently open in the viewer — kept highlighted in the tree. */
   selectedPath: string | null
-  /** Invoked when a *file* row is activated (directories only expand/collapse). */
-  onOpenFile: (path: string) => void
+  /**
+   * Invoked when a *file* row is activated (directories only expand/
+   * collapse). A plain click opens as a VS Code-style *preview* (no `pin`);
+   * a double-click passes `pin: true` so the parent keeps the tab fixed.
+   */
+  onOpenFile: (path: string, opts?: { pin?: boolean }) => void
+}
+
+/** What the pointer was over when the tree's right-click context menu opened: a row, or the empty area (`null`). */
+interface ContextTarget {
+  path: string
+  isDir: boolean
 }
 
 /** An inline "type a name" row injected into the tree — used for both new-item create and the conflict-driven rename retry (create/move/import all funnel through this one input). */
@@ -203,6 +210,28 @@ interface ConflictState {
   onOverwrite: () => Promise<void>
   onRename: () => void
   onCancel: () => void
+}
+
+/** The tree row chevron (kept on the DS `hds-tree-chevron` class so the DS's expanded-rotation rule still applies). */
+function TreeCaretGlyph(): React.JSX.Element {
+  return (
+    <svg
+      className="hds-tree-chevron"
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 4l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 /** Recursively injects a synthetic node as the last child of `parentPath` ('' = append at the top level). */
@@ -273,6 +302,11 @@ export function FileTree({
   const [deleteTargets, setDeleteTargets] = useState<string[] | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const [menuFor, setMenuFor] = useState<string | null>(null)
+  // VS Code-style right-click menu (whole tree area is the Radix ContextMenu
+  // trigger): captured *before* Radix's own native `contextmenu` listener
+  // fires (React capture phase runs earlier), so the content below knows
+  // whether it's row-scoped or empty-area-scoped when it opens.
+  const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState(false)
   // T10: the drag payload — one or more paths. Populated in
@@ -330,13 +364,19 @@ export function FileTree({
   )
 
   // T8: reconcile the selection on every refresh — drop any id whose path no
-  // longer exists in the (re)loaded tree (design.md §2).
+  // longer exists in the (re)loaded tree (design.md §2). The setState lives
+  // inside a callback invoked from the effect, not as a direct statement in
+  // the effect body (react-hooks/set-state-in-effect — same pattern as the
+  // `sync()` guard effect below).
   useEffect(() => {
-    if (treeState.status !== 'ready') return
-    setSelectedIds((current) => {
-      const next = current.filter((id) => fileTypes.has(id))
-      return next.length === current.length ? current : next
-    })
+    const reconcile = (): void => {
+      if (treeState.status !== 'ready') return
+      setSelectedIds((current) => {
+        const next = current.filter((id) => fileTypes.has(id))
+        return next.length === current.length ? current : next
+      })
+    }
+    reconcile()
   }, [fileTypes, treeState.status])
 
   // Keeps the tree's highlight in sync with whatever file the viewer has
@@ -345,8 +385,11 @@ export function FileTree({
   // outside the tree). Never overrides an in-progress Ctrl/Shift selection
   // that already contains the path.
   useEffect(() => {
-    if (!selectedPath) return
-    setSelectedIds((current) => (current.includes(selectedPath) ? current : [selectedPath]))
+    const sync = (): void => {
+      if (!selectedPath) return
+      setSelectedIds((current) => (current.includes(selectedPath) ? current : [selectedPath]))
+    }
+    sync()
   }, [selectedPath])
 
   const handleSelectedIdsChange = useCallback(
@@ -555,6 +598,16 @@ export function FileTree({
     setRenameValue(basename(path))
   }, [])
 
+  // T9 bulk scope, shared by the kebab and the right-click context menu: a
+  // row that's part of a >1 multi-selection deletes the whole selection.
+  const requestDelete = useCallback(
+    (path: string) => {
+      setMenuFor(null)
+      setDeleteTargets(selectedIds.includes(path) && selectedIds.length > 1 ? selectedIds : [path])
+    },
+    [selectedIds]
+  )
+
   const submitRename = useCallback(
     (rawName: string) => {
       if (!renaming) return
@@ -612,7 +665,7 @@ export function FileTree({
       const payload = inSelection ? selectedIds : [path]
       if (!inSelection) setSelectedIds([path])
       dragSourcesRef.current = payload
-      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.effectAllowed = 'copyMove'
       try {
         event.dataTransfer.setData('text/plain', path)
       } catch {
@@ -620,8 +673,14 @@ export function FileTree({
         // internal move still works via dragSourcesRef, so this is
         // best-effort.
       }
+      // chat-attachments: the same drag is droppable on the chat composer as
+      // context files — directories are filtered out (a mention needs a file).
+      setWorkspaceFileDrag(
+        event,
+        payload.filter((entry) => fileTypes.get(entry) === 'file')
+      )
     },
-    [selectedIds]
+    [selectedIds, fileTypes]
   )
 
   // T10: iterates the drag payload (1 or N paths), running each through the
@@ -772,8 +831,12 @@ export function FileTree({
   )
 
   // --- Shared row drag-over/drop handler (internal move + OS import) -------
+  // Pane drags (customizable-layout) fall through untouched — no
+  // preventDefault/stopPropagation — so they bubble up to `WorkUI`'s
+  // `.wb-pane` drop target instead of lighting up drop-into-folder hints.
 
   const handleRowDragOver = useCallback((event: DragEvent, targetPath: string, isDir: boolean) => {
+    if (isPaneDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     if (isDir) setDragOverPath(targetPath)
@@ -781,6 +844,7 @@ export function FileTree({
 
   const handleRowDrop = useCallback(
     (event: DragEvent, targetPath: string, isDir: boolean) => {
+      if (isPaneDrag(event)) return
       event.preventDefault()
       event.stopPropagation()
       setDragOverPath(null)
@@ -799,11 +863,13 @@ export function FileTree({
   )
 
   const handleRootDragOver = useCallback((event: DragEvent) => {
+    if (isPaneDrag(event)) return
     event.preventDefault()
   }, [])
 
   const handleRootDrop = useCallback(
     (event: DragEvent) => {
+      if (isPaneDrag(event)) return
       event.preventDefault()
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
@@ -824,6 +890,12 @@ export function FileTree({
       onCommit: (value: string) => void,
       onCancel: () => void
     ) => {
+      // Every key stops here: the DS Tree's own `onKeyDown` (on the
+      // `role="tree"` root) implements typeahead — a bubbled "d" or "." would
+      // match a row label, move focus to it, and blur-commit the input
+      // mid-typing. Editing must only end on Enter, Escape or clicking away
+      // (OS file-manager behavior).
+      event.stopPropagation()
       if (event.key === 'Enter') {
         event.preventDefault()
         onCommit((event.target as HTMLInputElement).value)
@@ -835,6 +907,19 @@ export function FileTree({
     []
   )
 
+  // Runs in React's capture phase on the tree container — before Radix's
+  // native `contextmenu` listener on the same element opens the menu — so
+  // the menu content renders for the right scope (the row under the pointer,
+  // or the empty area when there is none).
+  const handleTreeContextMenuCapture = useCallback((event: MouseEvent) => {
+    const row = (event.target as HTMLElement).closest?.('[data-tree-path]')
+    if (row instanceof HTMLElement && row.dataset.treePath !== undefined) {
+      setContextTarget({ path: row.dataset.treePath, isDir: row.dataset.treeDir === 'true' })
+    } else {
+      setContextTarget(null)
+    }
+  }, [])
+
   const displayNodes = useMemo(() => {
     if (!pendingInput) return dsNodes
     return injectNode(dsNodes, pendingInput.parentPath, {
@@ -843,97 +928,125 @@ export function FileTree({
     })
   }, [dsNodes, pendingInput])
 
-  const renderRow = useCallback(
+  // The inline "type a name" row for a create (renderRow's CREATE_ROW_ID
+  // branch) — its own callback so renderRow stays a thin dispatcher.
+  const renderCreateRow = useCallback(
+    (input: PendingInput): React.JSX.Element => (
+      <span className="wb-tree-row-content">
+        <span className="wb-tree-caret" aria-hidden="true" />
+        {input.kind === 'directory' ? (
+          <span className="wb-tree-icon">
+            <FolderIcon />
+          </span>
+        ) : (
+          // Live icon: typing "index.html" flips the glyph to HTML as
+          // you type, VS Code-style.
+          <FileTypeIcon path={pendingInputValue} />
+        )}
+        <input
+          autoFocus
+          className="wb-tree-inline-input"
+          placeholder={t('explorer.newItemPlaceholder')}
+          value={pendingInputValue}
+          aria-label={t('explorer.newItemPlaceholder')}
+          onChange={(event) => setPendingInputValue(event.target.value)}
+          onKeyDown={(event) =>
+            handleInputKeyDown(
+              event,
+              (value) => {
+                // Same double-commit guard as onBlur below — Enter and
+                // blur can both fire for one input session (e.g. Enter
+                // naturally shifting focus), and only the first valid
+                // attempt should go through.
+                if (committedRef.current || !validateEntryName(value)) return
+                committedRef.current = true
+                void input.commit(value)
+              },
+              closeAllInputs
+            )
+          }
+          onBlur={() => {
+            // T7: blur commits (same path as Enter) instead of
+            // cancelling. `committedRef` blocks a second commit when
+            // Enter already fired, or when this blur is really the
+            // conflict-dialog-mid-commit teardown (pendingInput/renaming
+            // stay mounted while the conflict dialog is up, so the input
+            // can still blur once more before the dialog resolves).
+            if (committedRef.current) return
+            if (!validateEntryName(pendingInputValue)) {
+              closeAllInputs()
+              return
+            }
+            committedRef.current = true
+            void input.commit(pendingInputValue)
+          }}
+          onClick={(event) => event.stopPropagation()}
+        />
+      </span>
+    ),
+    [pendingInputValue, handleInputKeyDown, closeAllInputs]
+  )
+
+  // The in-place rename row (label swapped for an input) — same dispatcher
+  // split as `renderCreateRow`.
+  const renderRenameRow = useCallback(
     (
       node: DsTreeNodeShape,
       state: { expanded: boolean; hasChildren: boolean }
     ): React.JSX.Element => {
-      if (node.id === CREATE_ROW_ID && pendingInput) {
-        return (
-          <span className="wb-tree-row-content">
+      const isRenamingDir = fileTypes.get(node.id) === 'directory' || state.hasChildren
+      return (
+        <span className="wb-tree-row-content">
+          <span className="wb-tree-caret" aria-hidden="true">
+            {isRenamingDir && <TreeCaretGlyph />}
+          </span>
+          {isRenamingDir ? (
             <span className="wb-tree-icon">
-              {pendingInput.kind === 'directory' ? <FolderIcon /> : <FileIcon />}
+              {state.expanded ? <FolderOpenIcon /> : <FolderIcon />}
             </span>
-            <input
-              autoFocus
-              className="wb-tree-inline-input"
-              placeholder={t('explorer.newItemPlaceholder')}
-              value={pendingInputValue}
-              aria-label={t('explorer.newItemPlaceholder')}
-              onChange={(event) => setPendingInputValue(event.target.value)}
-              onKeyDown={(event) =>
-                handleInputKeyDown(
-                  event,
-                  (value) => {
-                    // Same double-commit guard as onBlur below — Enter and
-                    // blur can both fire for one input session (e.g. Enter
-                    // naturally shifting focus), and only the first valid
-                    // attempt should go through.
-                    if (committedRef.current || !validateEntryName(value)) return
-                    committedRef.current = true
-                    void pendingInput.commit(value)
-                  },
-                  closeAllInputs
-                )
+          ) : (
+            <FileTypeIcon path={renameValue || node.id} />
+          )}
+          <input
+            autoFocus
+            className="wb-tree-inline-input"
+            placeholder={t('explorer.renamePlaceholder')}
+            value={renameValue}
+            aria-label={t('explorer.renamePlaceholder')}
+            onChange={(event) => setRenameValue(event.target.value)}
+            onKeyDown={(event) =>
+              handleInputKeyDown(
+                event,
+                (value) => {
+                  if (committedRef.current || !validateEntryName(value)) return
+                  committedRef.current = true
+                  submitRename(value)
+                },
+                closeAllInputs
+              )
+            }
+            onBlur={() => {
+              if (committedRef.current) return
+              if (!validateEntryName(renameValue)) {
+                closeAllInputs()
+                return
               }
-              onBlur={() => {
-                // T7: blur commits (same path as Enter) instead of
-                // cancelling. `committedRef` blocks a second commit when
-                // Enter already fired, or when this blur is really the
-                // conflict-dialog-mid-commit teardown (pendingInput/renaming
-                // stay mounted while the conflict dialog is up, so the input
-                // can still blur once more before the dialog resolves).
-                if (committedRef.current) return
-                if (!validateEntryName(pendingInputValue)) {
-                  closeAllInputs()
-                  return
-                }
-                committedRef.current = true
-                void pendingInput.commit(pendingInputValue)
-              }}
-              onClick={(event) => event.stopPropagation()}
-            />
-          </span>
-        )
-      }
+              committedRef.current = true
+              submitRename(renameValue)
+            }}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </span>
+      )
+    },
+    [fileTypes, renameValue, handleInputKeyDown, closeAllInputs, submitRename]
+  )
 
-      if (renaming && node.id === renaming.path) {
-        return (
-          <span className="wb-tree-row-content">
-            <span className="wb-tree-icon">{fileIconFor(node.id)}</span>
-            <input
-              autoFocus
-              className="wb-tree-inline-input"
-              placeholder={t('explorer.renamePlaceholder')}
-              value={renameValue}
-              aria-label={t('explorer.renamePlaceholder')}
-              onChange={(event) => setRenameValue(event.target.value)}
-              onKeyDown={(event) =>
-                handleInputKeyDown(
-                  event,
-                  (value) => {
-                    if (committedRef.current || !validateEntryName(value)) return
-                    committedRef.current = true
-                    submitRename(value)
-                  },
-                  closeAllInputs
-                )
-              }
-              onBlur={() => {
-                if (committedRef.current) return
-                if (!validateEntryName(renameValue)) {
-                  closeAllInputs()
-                  return
-                }
-                committedRef.current = true
-                submitRename(renameValue)
-              }}
-              onClick={(event) => event.stopPropagation()}
-            />
-          </span>
-        )
-      }
-
+  const renderNodeRow = useCallback(
+    (
+      node: DsTreeNodeShape,
+      state: { expanded: boolean; hasChildren: boolean }
+    ): React.JSX.Element => {
       const isDir = fileTypes.get(node.id) === 'directory' || state.hasChildren
       const label = String(node.label)
 
@@ -944,41 +1057,30 @@ export function FileTree({
               ? 'wb-tree-row-content wb-tree-row-dropover'
               : 'wb-tree-row-content'
           }
+          data-tree-path={node.id}
+          data-tree-dir={isDir || undefined}
           draggable
           onDragStart={(event) => handleRowDragStart(event, node.id)}
           onDragOver={(event) => handleRowDragOver(event, node.id, isDir)}
           onDragLeave={() => setDragOverPath((current) => (current === node.id ? null : current))}
           onDrop={(event) => handleRowDrop(event, node.id, isDir)}
-          onContextMenu={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            setMenuFor(node.id)
+          onDoubleClick={() => {
+            // VS Code: double-click pins the (preview) tab open.
+            if (!isDir) onOpenFile(node.id, { pin: true })
           }}
         >
-          {state.hasChildren ? (
-            <>
-              <svg
-                className="hds-tree-chevron"
-                width="12"
-                height="12"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M6 4l4 4-4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="wb-tree-icon">
-                {state.expanded ? <FolderOpenIcon /> : <FolderIcon />}
-              </span>
-            </>
+          {/* Fixed-width caret slot on EVERY row — directories show the
+              chevron, files an empty spacer — so icons and names align in
+              one column regardless of type (OS file-manager alignment). */}
+          <span className="wb-tree-caret" aria-hidden="true">
+            {isDir && <TreeCaretGlyph />}
+          </span>
+          {isDir ? (
+            <span className="wb-tree-icon">
+              {state.expanded ? <FolderOpenIcon /> : <FolderIcon />}
+            </span>
           ) : (
-            <span className="wb-tree-icon">{fileIconFor(node.id)}</span>
+            <FileTypeIcon path={node.id} />
           )}
           <span className="hds-tree-label-text">{node.label}</span>
           <DropdownMenu
@@ -995,7 +1097,17 @@ export function FileTree({
               </IconButton>
             </DropdownMenuTrigger>
             {menuFor === node.id && (
-              <DropdownMenuContent align="start">
+              // Two guards: clicks inside the (DOM-portalled but React-child)
+              // content must not bubble into the DS row's own expand-toggle/
+              // activate handlers (or picking "Novo arquivo" collapses the
+              // folder it targets); and the menu's close must not auto-focus
+              // the trigger back (or it steals focus from the just-mounted
+              // inline input, blur-cancelling the edit session instantly).
+              <DropdownMenuContent
+                align="start"
+                onClick={(event) => event.stopPropagation()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+              >
                 <DropdownMenuItem
                   onSelect={() => startCreate(isDir ? node.id : parentOf(node.id), 'file')}
                 >
@@ -1010,21 +1122,7 @@ export function FileTree({
                   <PencilIcon size={14} />
                   {t('explorer.menuRename')}
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="danger"
-                  onSelect={() => {
-                    setMenuFor(null)
-                    // T9: if this row is part of a >1 multi-selection, the
-                    // delete action targets the whole selection (context.md
-                    // C3's "full OS-like" bulk scope) — otherwise it's just
-                    // this row, same as before T9.
-                    setDeleteTargets(
-                      selectedIds.includes(node.id) && selectedIds.length > 1
-                        ? selectedIds
-                        : [node.id]
-                    )
-                  }}
-                >
+                <DropdownMenuItem variant="danger" onSelect={() => requestDelete(node.id)}>
                   <TrashIcon size={14} />
                   {t('explorer.menuDelete')}
                 </DropdownMenuItem>
@@ -1035,23 +1133,29 @@ export function FileTree({
       )
     },
     [
-      pendingInput,
-      pendingInputValue,
-      renaming,
-      renameValue,
       fileTypes,
       dragOverPath,
       menuFor,
-      selectedIds,
-      handleInputKeyDown,
-      closeAllInputs,
-      submitRename,
       handleRowDragStart,
       handleRowDragOver,
       handleRowDrop,
       startCreate,
-      startRename
+      startRename,
+      requestDelete,
+      onOpenFile
     ]
+  )
+
+  const renderRow = useCallback(
+    (
+      node: DsTreeNodeShape,
+      state: { expanded: boolean; hasChildren: boolean }
+    ): React.JSX.Element => {
+      if (node.id === CREATE_ROW_ID && pendingInput) return renderCreateRow(pendingInput)
+      if (renaming && node.id === renaming.path) return renderRenameRow(node, state)
+      return renderNodeRow(node, state)
+    },
+    [pendingInput, renaming, renderCreateRow, renderRenameRow, renderNodeRow]
   )
 
   const treeBody = ((): React.JSX.Element => {
@@ -1123,7 +1227,64 @@ export function FileTree({
         </IconButton>
       </div>
       {actionError && <div className="wb-tree-error">{t('explorer.actionErrorMessage')}</div>}
-      {treeBody}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          {/* The whole tree area (rows, empty space below them, and the
+              empty/error states) answers to right-click, VS Code-style. */}
+          <div className="wb-tree-body" onContextMenuCapture={handleTreeContextMenuCapture}>
+            {treeBody}
+          </div>
+        </ContextMenuTrigger>
+        {/* Same close-auto-focus guard as the row kebab menu: the inline
+            input opened by a menu action must keep its focus. */}
+        <ContextMenuContent
+          className="wb-tree-context-menu"
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
+          {contextTarget ? (
+            <>
+              <ContextMenuItem
+                onSelect={() =>
+                  startCreate(
+                    contextTarget.isDir ? contextTarget.path : parentOf(contextTarget.path),
+                    'file'
+                  )
+                }
+              >
+                {t('explorer.menuNewFile')}
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() =>
+                  startCreate(
+                    contextTarget.isDir ? contextTarget.path : parentOf(contextTarget.path),
+                    'directory'
+                  )
+                }
+              >
+                {t('explorer.menuNewFolder')}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={() => startRename(contextTarget.path)}>
+                <PencilIcon size={14} />
+                {t('explorer.menuRename')}
+              </ContextMenuItem>
+              <ContextMenuItem variant="danger" onSelect={() => requestDelete(contextTarget.path)}>
+                <TrashIcon size={14} />
+                {t('explorer.menuDelete')}
+              </ContextMenuItem>
+            </>
+          ) : (
+            <>
+              <ContextMenuItem onSelect={() => startCreate('', 'file')}>
+                {t('explorer.menuNewFile')}
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => startCreate('', 'directory')}>
+                {t('explorer.menuNewFolder')}
+              </ContextMenuItem>
+            </>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
       {deleteTargets && (
         <Dialog open onOpenChange={(open: boolean) => !open && setDeleteTargets(null)}>
           <DialogContent>
@@ -1182,12 +1343,28 @@ export interface FileViewerProps {
   /** Invoked by the header's close control — the pane only exists while a file is open. */
   onClose: () => void
   /**
+   * Multi-tab wiring: whether this viewer is the visible tab. Only the
+   * active viewer answers Ctrl/Cmd+S — hidden-but-mounted siblings (their
+   * drafts survive tab switches) must not save concurrently. Defaults to
+   * `true` for single-viewer usage.
+   */
+  active?: boolean
+  /**
    * Enablement-only hook for the workspace-switching guard (WS-R5.1,
    * design.md §5): fired whenever the local `dirty` state changes (including
    * on mount) so a parent (`WorkUI`) can observe it without owning any of
    * the in-viewer guard behavior itself, which stays exactly as-is here.
    */
   onDirtyChange?: (dirty: boolean) => void
+  /**
+   * customizable-layout: drag-source wiring (`draggable`/`onDragStart`/
+   * `onDragEnd`) spread onto the viewer's own header, so this pane is
+   * movable from the same header every other pane is — without stacking a
+   * second bar above the file title row. Owned by `WorkUI`.
+   */
+  paneDragProps?: React.HTMLAttributes<HTMLElement>
+  /** customizable-layout: the pane's ↔ move menu, rendered with the header actions. */
+  paneControls?: ReactNode
 }
 
 /**
@@ -1261,7 +1438,7 @@ type ViewerMode = 'edit' | 'preview'
  * user confirms discarding.
  */
 export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function FileViewer(
-  { workspace, path, onClose, onDirtyChange },
+  { workspace, path, onClose, active, onDirtyChange, paneDragProps, paneControls },
   ref
 ): React.JSX.Element {
   const [displayedPath, setDisplayedPath] = useState(path)
@@ -1417,6 +1594,10 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // `performSave` itself is only invoked while `dirty`, making the shortcut a
   // no-op on a clean file.
   useEffect(() => {
+    // Multi-tab: only the visible tab's viewer owns the shortcut — a hidden
+    // sibling (kept mounted so its draft survives) must not also save.
+    // `undefined` (single-viewer usage) counts as active.
+    if (active === false) return
     const handleKeyDown = (event: globalThis.KeyboardEvent): void => {
       const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's'
       if (!isSaveShortcut) return
@@ -1425,7 +1606,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [dirty, performSave])
+  }, [active, dirty, performSave])
 
   const handleSave = useCallback(() => void performSave(false), [performSave])
   const handleOverwrite = useCallback(() => void performSave(true), [performSave])
@@ -1505,8 +1686,8 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
 
   return (
     <div className="wb-viewer">
-      <header className="wb-viewer-header">
-        {fileIconFor(displayedPath)}
+      <header className="wb-viewer-header" {...paneDragProps}>
+        <FileTypeIcon path={displayedPath} />
         <span className="wb-viewer-name">
           {fileName}
           {dirty && <span className="wb-dirty-dot" aria-label={t('explorer.dirtyLabel')} />}
@@ -1540,6 +1721,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </IconButton>
+          {paneControls}
           <IconButton label={t('explorer.viewerCloseLabel')} onClick={handleCloseClick}>
             <CloseIcon />
           </IconButton>
@@ -1626,17 +1808,18 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     }
 
     if (mode === 'edit') {
+      // Full-bleed editing surface (no reading-measure cap, no inner card):
+      // the textarea IS the pane body, VS Code-style, so the whole block is
+      // writable regardless of pane width.
       return (
-        <div className="wb-viewer-scroll">
-          <div className="wb-viewer-content">
-            <textarea
-              className="wb-editor-surface"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              aria-label={t('explorer.editorAriaLabel')}
-              spellCheck={false}
-            />
-          </div>
+        <div className="wb-editor-fill">
+          <textarea
+            className="wb-editor-surface"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            aria-label={t('explorer.editorAriaLabel')}
+            spellCheck={false}
+          />
         </div>
       )
     }
@@ -1645,9 +1828,11 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     // rendered when `previewable` (md/html) — draft, not the last-saved
     // content, is the source of truth (UX-R1.4/R7.1).
     if (isMarkdownPath(viewerState.path)) {
+      // GitHub-README-style rendered document: a centered reading measure
+      // (`.wb-md-doc`) inside the scrolling pane, typeset by `.wb-md`.
       return (
         <div className="wb-viewer-scroll">
-          <div className="wb-viewer-content wb-md" data-testid="markdown-viewer">
+          <div className="wb-md-doc wb-md" data-testid="markdown-viewer">
             <Markdown source={draft} />
           </div>
         </div>
@@ -1657,12 +1842,11 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     // isHtmlPath(viewerState.path): the only other `previewable` kind. Not
     // gated behind an explicit check — `mode` can only reach 'preview' via
     // the toggle, which only renders when `previewable` (md/html), so any
-    // non-markdown file here is necessarily HTML.
+    // non-markdown file here is necessarily HTML. Fills the whole pane, same
+    // as the editor surface it toggles against.
     return (
-      <div className="wb-viewer-scroll">
-        <div className="wb-viewer-content" data-testid="html-preview-pane">
-          <HtmlPreview source={draft} reloadKey={reloadKey} />
-        </div>
+      <div className="wb-editor-fill" data-testid="html-preview-pane">
+        <HtmlPreview source={draft} reloadKey={reloadKey} />
       </div>
     )
   }

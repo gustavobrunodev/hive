@@ -133,6 +133,112 @@ Updated as work progresses. Load at start of every session.
   `workbench.css` conventions instead of running the full init (identity-
   preservation path) — a PRODUCT.md could be authored later. (2026-07-13)
 
+- **D17 — Feature `shortcut-customization`.** The hero pills + composer strip
+  become user-customizable: any workspace skill can be a workflow shortcut and
+  any number of specialist agents can be persona shortcuts, role defaults
+  remaining the zero-config baseline. Decisions: (SC-1) catalog source is
+  `_bmad/_config/skill-manifest.csv` (the only BMAD-installed catalog listing
+  the `bmad-agent-*`/`bmad-tea` persona skills; `bmad-help.csv` contributes
+  friendlier display names and is the workflow-only fallback for older
+  installs). Agent classification is data-driven: description matches
+  "talk to <persona>" (also yields the persona name) or the skill path has an
+  `/agents/` segment — `bmad-agent-builder` correctly stays a workflow.
+  DEPRECATED shims filtered. (SC-2) prefs are **global** (`ConfigStore.
+  shortcuts: { skills[], agents[] } | null`, same scope rationale as RP-C1);
+  `null` = role defaults, and "Restaurar padrão do papel" writes `null` back.
+  Selection order is meaningful (toggle-on appends). (SC-3) resolution
+  (`roleCatalog.resolveShortcuts`) validates prefs against the *current*
+  workspace's catalog — a skill not installed here is skipped, an empty
+  catalog falls back to role defaults, an intentionally empty selection is
+  respected. (SC-4) the picker (`ShortcutCustomizer`) is a DS `Dialog` +
+  `Command` (cmdk) with **Agentes**/**Skills** groups, persona-initial
+  avatars, live "n de m" counts, and immediate persistence per toggle — the
+  hero/strip behind the dialog are the live preview. cmdk's fuzzy filter was
+  replaced with accent-insensitive substring matching (`ui/shortcutSearch.ts`)
+  — fuzzy over long description keywords matched nearly everything. (SC-5)
+  pt-BR labels for the full stock catalog live in `i18n/pt-BR.ts`
+  (`skillLabelsPtBR` + `agentMetaPtBR`; `shortcutLabel()` falls back to the
+  catalog label then the key, and composes "Conversar com <persona>" for
+  unknown agents). Entry points: a dashed "Personalizar" ghost pill in the
+  hero row and a pinned sliders control after the strip's scrollable chip
+  track (`.wb-shortcut-strip-scroll`). (2026-07-17)
+
+- **D18 — Feature `skill-studio` ("Estúdio de skills").** Implemented 2026-07-18.
+  In-app creation of user skills/agents WITH evals, powered by the BMAD builder
+  skills, integrated with shortcut-customization (D17). Decisions:
+  (SS-1) **creation is a conversation** — the studio composes a pt-BR briefing
+  whose first line is the slash invocation (`/bmad-workflow-builder` for
+  skills, `/bmad-agent-builder` for agents; evals run via
+  `/bmad-eval-runner <path>`, evals-added-later via the builder's Edit
+  intent) and hands it to the chat through the existing
+  `ChatHandle.launchAction` path — the studio never talks to the agent
+  itself (`ui/studioPrompts.ts`). Briefings pin the install location to
+  `.claude/skills/<slug>/` (where Claude Code resolves skills) and, for
+  agents, require the "Use when the user asks to talk to <Persona>"
+  description phrase so the catalog classifier recognizes them.
+  (SS-2) **"created by you" is data-driven, not tracked**: `main/skillStudio.ts`
+  scans `.claude/skills/*/SKILL.md` and treats any directory NOT in
+  `_bmad/_config/skill-manifest.csv` as user-created (minimal frontmatter
+  parser, no YAML dep; agent-vs-skill via the exported
+  `workflowCatalog.classifySkill`). Evals discovered at `<skill>/evals/`
+  (bmad-eval-runner's primary location), cases counted best-effort from
+  .json/.jsonl. (SS-3) **catalog merge, not a parallel registry**:
+  `listCatalogWithCreated` appends creations as `custom: true` entries to the
+  shortcut catalog (so `resolveShortcuts` validates pins with zero changes;
+  `shortcuts:catalog`/`shortcuts:actions` handlers now use it), and
+  `listSkillsWithCreated` feeds the slash menu (`skills:list`) so
+  `/minha-skill` autocompletes as soon as the builder finishes.
+  `ResolvedRoleAction`/renderer `RoleAction` carry an optional `custom` flag —
+  custom shortcut pills get the studio's spark icon. (SS-4) surfaces: rail
+  button (`data-tour="studio"`) → `ui/SkillStudio.tsx` dialog (gallery cards
+  with test/evals/pin/open-SKILL.md/trash actions; teaching empty state; short
+  create form with live `/slug` preview + "gerar evals junto" default-ON);
+  ShortcutCustomizer gains a "Criadas por você" group + footer "Criar skills
+  no Estúdio" link; delete = `fs.trash` on the skill dir after confirm (also
+  un-pins from stored prefs). (SS-5) new IPC: `studio:list` →
+  `window.hive.studio.list(workspace)`, request/response. Gates: 640 unit
+  tests green (16 new SkillStudio renderer tests, 9 main scanner tests,
+  preload/index/customizer additions), typecheck clean, 0 new lint errors
+  (one non-blocking max-lines warning on StudioDialog); visual pass done in
+  the Playwright MCP browser via the static-build + window.hive-mock recipe
+  (dark+light, gallery/create/empty/delete/customizer/slash-menu/pinned-hero
+  screenshots in `.playwright-mcp/`). (2026-07-18)
+
+- **D19 — Feature `mcp` ("Servidores MCP").** Implemented 2026-07-18. In-app
+  management of the workspace's Model Context Protocol servers — the Claude
+  Desktop connector experience (activate/disable, live connection test with
+  status + exposed tools + logs, add/edit/remove, curated presets). Decisions:
+  (MCP-1) **Claude Code-native on-disk contract, no sidecar registry.** The
+  catalog is the CLI's own project-scoped `<ws>/.mcp.json`
+  (`{ mcpServers: { name: { command,args,env } | { type:'http'|'sse',url,headers } } }`);
+  enabled state is the CLI's `<ws>/.claude/settings.local.json` with
+  `enableAllProjectMcpServers:true` + a `disabledMcpjsonServers` denylist (so
+  new servers are on by default — the desktop expectation — and the app IS the
+  approval surface). `main/mcpService.ts` owns both files (atomic temp+rename
+  writes, preserves unknown keys); nothing drifts from what `claude` reads.
+  (MCP-2) **Status/tools/logs = a live probe, injected for testability.**
+  `main/mcpProbe.ts` runs the real MCP JSON-RPC handshake (`initialize` +
+  `notifications/initialized` + `tools/list`): stdio via `child_process` with
+  stdin (the existing `ProcessRunner` has no stdin, so a dedicated `McpProbe`
+  dependency is injected into `McpService` — the DialogLike/trashItem DI
+  convention — keeping the service unit-testable with a fake, real probe wired
+  in `index.ts`), remote via `fetch` Streamable-HTTP. Time-boxed (10 s); ENOENT
+  / early-exit / refuse map to `ok:false` with a pt-BR reason; stderr captured
+  as the log feed. (MCP-3) **Surface = a full module Dialog off the ActionRail
+  plug button (`ui/McpManager.tsx`), rows not cards** (denser/scannable than
+  the studio's gallery; status via dot+pill, never a colored side-stripe);
+  curated real-server presets (`ui/mcpForm.ts`, `{workspace}`-substituted) as
+  the empty-state + add-form starters. New DS-adjacent icons
+  (Plug/Broadcast/Terminal/Tools/Zap/StatusDot/AlertTriangle). Six `mcp:*` IPC
+  handlers under `window.hive.mcp.*`. Gates: 720 unit tests green (mcpService
+  100%, mcpForm 100%, mcpProbe fixture-driven, McpManager ~99% stmt/lines,
+  index/pt-BR/icons/WorkUI gated files kept green; McpManager left ungated like
+  its sibling SkillStudio.tsx), typecheck clean, 0 lint errors; visual pass in
+  the Playwright MCP browser (dark: list / connected-with-tools+logs / add-form
+  presets). Pre-existing note: `Explorer.tsx` coverage was already red from an
+  unrelated in-flight refactor (uncommitted at session start) — untouched here.
+  (2026-07-18)
+
 ## Blockers
 
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a

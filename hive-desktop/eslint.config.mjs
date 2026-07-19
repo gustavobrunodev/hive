@@ -13,9 +13,11 @@ export default defineConfig(
       '**/out',
       '**/coverage',
       '.claude', // vendored agent skills — not our source
+      '.scratch', // local scratch experiments — not our source
       'build',
       'test-results',
-      'playwright-report'
+      'playwright-report',
+      '**/__fixtures__/**' // test fixtures (e.g. the MCP probe's fake stdio server)
     ]
   },
   tseslint.configs.recommended,

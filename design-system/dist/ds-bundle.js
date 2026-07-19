@@ -16796,9 +16796,13 @@ var Attachment = forwardRef62(function Attachment2({ name, meta, icon, onRemove,
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
+import { useLayoutEffect as useLayoutEffect6, useRef as useRef42 } from "react";
 import { jsx as jsx92, jsxs as jsxs53 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx92("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx92("path", { d: "M2 8h11M8 3l5 5-5 5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx92("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx92("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+}
+function StopIcon() {
+  return /* @__PURE__ */ jsx92("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx92("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -16813,6 +16817,11 @@ function PromptInput({
   attachments,
   toolbar,
   sendLabel = "Send",
+  onStop,
+  stopLabel = "Stop",
+  allowEmptySubmit = false,
+  highlight,
+  textareaRef,
   className,
   ...rest
 }) {
@@ -16821,39 +16830,73 @@ function PromptInput({
     defaultValue,
     onChange
   });
+  const backdropRef = useRef42(null);
+  const innerTextareaRef = useRef42(null);
   const isEmpty = value.trim().length === 0;
-  const sendDisabled = disabled || streaming || isEmpty;
+  const stopMode = streaming && onStop !== void 0;
+  const sendDisabled = disabled || streaming || isEmpty && !allowEmptySubmit;
   const submit = () => {
     if (sendDisabled) return;
     onSubmit(value.trim());
     if (valueProp === void 0) setValue("");
   };
+  const setTextareaNode = (node) => {
+    innerTextareaRef.current = node;
+    if (typeof textareaRef === "function") {
+      textareaRef(node);
+    } else if (textareaRef) {
+      ;
+      textareaRef.current = node;
+    }
+  };
+  const syncBackdropScroll = () => {
+    const backdrop = backdropRef.current;
+    const textarea2 = innerTextareaRef.current;
+    if (backdrop && textarea2) backdrop.scrollTop = textarea2.scrollTop;
+  };
+  useLayoutEffect6(() => {
+    if (highlight) syncBackdropScroll();
+  });
+  const textarea = /* @__PURE__ */ jsx92(
+    Textarea,
+    {
+      ref: setTextareaNode,
+      className: "hds-prompt-input-textarea",
+      value,
+      onChange: (event) => setValue(event.target.value),
+      onSubmit: submit,
+      onScroll: highlight ? (event) => {
+        const backdrop = backdropRef.current;
+        if (backdrop) backdrop.scrollTop = event.currentTarget.scrollTop;
+      } : void 0,
+      placeholder,
+      disabled,
+      minRows,
+      maxRows
+    }
+  );
   return /* @__PURE__ */ jsxs53("div", { className: cx("hds-prompt-input", className), "data-disabled": disabled || void 0, ...rest, children: [
     attachments && /* @__PURE__ */ jsx92("div", { className: "hds-prompt-input-attachments", children: attachments }),
-    /* @__PURE__ */ jsx92(
-      Textarea,
-      {
-        className: "hds-prompt-input-textarea",
-        value,
-        onChange: (event) => setValue(event.target.value),
-        onSubmit: submit,
-        placeholder,
-        disabled,
-        minRows,
-        maxRows
-      }
-    ),
+    highlight ? /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-editor", children: [
+      /* @__PURE__ */ jsx92("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
+      textarea
+    ] }) : textarea,
     /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-toolbar", children: [
       /* @__PURE__ */ jsx92("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }),
-      /* @__PURE__ */ jsx92(
+      /* @__PURE__ */ jsxs53(
         "button",
         {
           type: "button",
           className: "hds-prompt-input-send",
-          disabled: sendDisabled,
-          "aria-label": sendLabel,
-          onClick: submit,
-          children: /* @__PURE__ */ jsx92(SendIcon, {})
+          "data-mode": stopMode ? "stop" : "send",
+          disabled: stopMode ? disabled : sendDisabled,
+          "aria-label": stopMode ? stopLabel : sendLabel,
+          title: stopMode ? stopLabel : sendLabel,
+          onClick: stopMode ? onStop : submit,
+          children: [
+            /* @__PURE__ */ jsx92(SendIcon, {}),
+            /* @__PURE__ */ jsx92(StopIcon, {})
+          ]
         }
       )
     ] })

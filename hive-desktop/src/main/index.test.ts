@@ -28,7 +28,10 @@ vi.mock('electron', () => {
       whenReady: vi.fn(() => Promise.resolve()),
       on: vi.fn(),
       quit: vi.fn(),
-      getPath: vi.fn(() => userDataDir)
+      getPath: vi.fn(() => userDataDir),
+      getName: vi.fn(() => 'hive-desktop'),
+      getVersion: vi.fn(() => '0.1.0'),
+      isPackaged: false
     },
     BrowserWindow: BrowserWindowMock,
     ipcMain: { handle: vi.fn(), on: vi.fn() },
@@ -42,6 +45,23 @@ vi.mock('@electron-toolkit/utils', () => ({
   optimizer: { watchWindowShortcuts: vi.fn() },
   is: { dev: false }
 }))
+
+// electron-updater constructs a platform updater (reading electron's app)
+// the moment `autoUpdater` is touched — mock it out entirely; index.ts only
+// hands it to createUpdateService, whose behavior updateService.test.ts
+// covers against a fake.
+const { fakeAutoUpdater } = vi.hoisted(() => ({
+  fakeAutoUpdater: {
+    autoDownload: true,
+    autoInstallOnAppQuit: true,
+    on: vi.fn(),
+    checkForUpdates: vi.fn(() => Promise.resolve(null)),
+    downloadUpdate: vi.fn(() => Promise.resolve([])),
+    quitAndInstall: vi.fn()
+  }
+}))
+
+vi.mock('electron-updater', () => ({ autoUpdater: fakeAutoUpdater }))
 
 vi.mock('../../resources/icon.png?asset', () => ({ default: 'icon-stub' }))
 
@@ -544,12 +564,16 @@ describe('main process bootstrap', () => {
     await findHandler('agent:start')(fakeInvokeEvent, opts)
     expect(fakeAgentService.startSession).toHaveBeenCalledWith(opts)
 
+    // session-history: the resume id (2nd renderer arg) rides through to
+    // AgentService — undefined for a fresh conversation.
     await findHandler('agent:send')(fakeInvokeEvent, 'hello agent')
-    expect(fakeAgentService.send).toHaveBeenCalledWith('hello agent')
+    expect(fakeAgentService.send).toHaveBeenCalledWith('hello agent', undefined)
+    await findHandler('agent:send')(fakeInvokeEvent, 'continue', 'cli-sess-1')
+    expect(fakeAgentService.send).toHaveBeenCalledWith('continue', 'cli-sess-1')
 
     const cmd = { key: 'prd' }
-    await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd)
-    expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd)
+    await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd, 'cli-sess-2')
+    expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd, 'cli-sess-2')
   })
 
   // T8 (WS-R5.2): explicit session-teardown handler, called by Chat's
@@ -696,6 +720,159 @@ describe('main process bootstrap', () => {
       vi.mocked(shell.openExternal).mockClear()
       await findHandler('shell:openExternal')({}, 'mailto:someone@example.com')
       expect(shell.openExternal).toHaveBeenCalledWith('mailto:someone@example.com')
+    })
+  })
+
+  // chat-attachments: the picker opens inside the workspace it's given.
+  describe('chat:chooseAttachments', () => {
+    it('forwards the workspace as the dialog defaultPath', async () => {
+      vi.mocked(dialog.showOpenDialog).mockClear()
+      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
+        canceled: true,
+        filePaths: []
+      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
+      await findHandler('chat:chooseAttachments')({}, '/ws/project')
+      expect(dialog.showOpenDialog).toHaveBeenCalledWith({
+        properties: ['openFile', 'multiSelections'],
+        defaultPath: '/ws/project'
+      })
+    })
+
+    it('omits defaultPath when no workspace is passed (older callers)', async () => {
+      vi.mocked(dialog.showOpenDialog).mockClear()
+      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
+        canceled: true,
+        filePaths: []
+      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
+      await findHandler('chat:chooseAttachments')({})
+      expect(dialog.showOpenDialog).toHaveBeenCalledWith({
+        properties: ['openFile', 'multiSelections']
+      })
+    })
+  })
+
+  // App self-update (app-settings): version info + update-flow wiring.
+  describe('app info + update flow', () => {
+    it('app:info reports the app name/version and unsupported updates (unpacked)', async () => {
+      await expect(findHandler('app:info')()).resolves.toEqual({
+        name: 'hive-desktop',
+        version: '0.1.0',
+        updatesSupported: false
+      })
+    })
+
+    it('registers the update handlers and event channels', () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:check', expect.any(Function))
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:download', expect.any(Function))
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:install', expect.any(Function))
+      expect(ipcMain.on).toHaveBeenCalledWith('update:event:start', expect.any(Function))
+      expect(ipcMain.on).toHaveBeenCalledWith('update:event:stop', expect.any(Function))
+    })
+
+    it('update:check never reaches the real updater while unsupported (app not packaged)', async () => {
+      await findHandler('update:check')()
+      expect(fakeAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
+    })
+
+    it('update:event:start is resubscribe-safe and update:event:stop is idempotent', () => {
+      const sender = { id: 42, send: vi.fn() }
+      findOnHandler('update:event:start')({ sender })
+      // A second start replaces the first subscription instead of leaking it.
+      findOnHandler('update:event:start')({ sender })
+      findOnHandler('update:event:stop')({ sender })
+      // Stopping again (already unsubscribed) is a no-op.
+      findOnHandler('update:event:stop')({ sender })
+    })
+  })
+
+  // skill-studio: user-created skills discovery.
+  describe('studio:list (skill-studio)', () => {
+    it('registers the handler and yields [] for a workspace with no created skills', async () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith('studio:list', expect.any(Function))
+      await expect(findHandler('studio:list')({}, userDataDir)).resolves.toEqual([])
+    })
+  })
+
+  // mcp: the Model Context Protocol server module — catalog + enabled state
+  // round-trip through the six handlers (real service, real temp workspace).
+  describe('mcp:* (mcp)', () => {
+    it('registers all six handlers', () => {
+      for (const channel of [
+        'mcp:list',
+        'mcp:add',
+        'mcp:update',
+        'mcp:remove',
+        'mcp:setEnabled',
+        'mcp:probe'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+    })
+
+    it('adds, toggles, renames, and removes a server through the handlers', async () => {
+      const ws = mkdtempSync(join(tmpdir(), 'hive-mcp-ipc-'))
+      await expect(findHandler('mcp:list')({}, ws)).resolves.toEqual([])
+
+      await findHandler('mcp:add')({}, ws, 'srv', { transport: 'stdio', command: 'npx' })
+      let list = (await findHandler('mcp:list')({}, ws)) as Array<{ name: string; enabled: boolean }>
+      expect(list).toEqual([{ name: 'srv', transport: 'stdio', command: 'npx', enabled: true }])
+
+      await findHandler('mcp:setEnabled')({}, ws, 'srv', false)
+      list = (await findHandler('mcp:list')({}, ws)) as typeof list
+      expect(list[0].enabled).toBe(false)
+
+      await findHandler('mcp:update')({}, ws, 'srv', 'renamed', { transport: 'stdio', command: 'npx' })
+      list = (await findHandler('mcp:list')({}, ws)) as typeof list
+      expect(list[0].name).toBe('renamed')
+
+      await findHandler('mcp:remove')({}, ws, 'renamed')
+      await expect(findHandler('mcp:list')({}, ws)).resolves.toEqual([])
+      rmSync(ws, { recursive: true, force: true })
+    })
+
+    it('mcp:probe rejects for an unknown server', async () => {
+      const ws = mkdtempSync(join(tmpdir(), 'hive-mcp-ipc-'))
+      await expect(findHandler('mcp:probe')({}, ws, 'ghost')).rejects.toThrow(/não encontrado/i)
+      rmSync(ws, { recursive: true, force: true })
+    })
+  })
+
+  // shortcut-customization: catalog + persisted selection + resolved set.
+  describe('shortcuts:* (shortcut-customization)', () => {
+    it('registers the four shortcuts handlers', () => {
+      for (const channel of [
+        'shortcuts:catalog',
+        'shortcuts:get',
+        'shortcuts:set',
+        'shortcuts:actions'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+    })
+
+    it('shortcuts:catalog yields [] for a workspace without BMAD metadata', async () => {
+      await expect(findHandler('shortcuts:catalog')({}, userDataDir)).resolves.toEqual([])
+    })
+
+    it('shortcuts:set/get round-trip through the real ConfigStore, sanitizing input', async () => {
+      await expect(findHandler('shortcuts:get')({})).resolves.toBeNull()
+
+      await findHandler('shortcuts:set')({}, { skills: ['bmad-prd', 7, ''], agents: ['a', 'a'] })
+      await expect(findHandler('shortcuts:get')({})).resolves.toEqual({
+        skills: ['bmad-prd'],
+        agents: ['a']
+      })
+
+      // null restores the role defaults (and leaves later tests unaffected).
+      await findHandler('shortcuts:set')({}, null)
+      await expect(findHandler('shortcuts:get')({})).resolves.toBeNull()
+    })
+
+    it('shortcuts:actions resolves the role defaults while no customization exists', async () => {
+      const actions = (await findHandler('shortcuts:actions')({}, 'pm', userDataDir)) as {
+        key: string
+      }[]
+      expect(actions.map((a) => a.key)).toContain('prd')
     })
   })
 })

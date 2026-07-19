@@ -3,14 +3,21 @@ import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
+  AttachmentPick,
   SessionOpts,
+  TurnOpts,
   WorkflowCommand
 } from '../main/agentAdapter'
 import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
-import type { WorkflowEntry, SkillEntry } from '../main/workflowCatalog'
+import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
+import type { CreatedSkill } from '../main/skillStudio'
+import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
+import type { ShortcutPrefs } from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ResolvedRoleAction } from '../main/roleCatalog'
+import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
+import type { AppInfo, UpdateEvent } from '../main/updateService'
 
 declare global {
   interface Window {
@@ -30,17 +37,24 @@ declare global {
       /** T3 (WS-R6.3): validates and opens `path` as the active workspace, persisting it as the MRU head — see preload/index.ts for the full channel design. */
       openWorkspace(path: string): Promise<OpenResult>
       listTree(root: string, relativePath?: string): Promise<TreeNode[]>
+      /** chat-attachments: flat workspace file list for the composer's `#` mention menu. */
+      listFiles(root: string): Promise<string[]>
       readFile(root: string, relativePath: string): Promise<string>
       /** Starts watching `root`; returns an unsubscribe function (see preload/index.ts for the full channel design). */
       watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void
       /** AgentService (T14) surface — see preload/index.ts for the full channel design. */
       agent: {
         capabilities(): Promise<AgentCapabilities>
+        /** chat-attachments (R6.5/T16): native multi-file picker; [] when canceled. `defaultPath` opens it inside the active workspace. */
+        chooseAttachments(defaultPath?: string): Promise<AttachmentPick[]>
         start(opts: SessionOpts): Promise<void>
-        send(text: string): Promise<void>
-        runWorkflow(cmd: WorkflowCommand): Promise<void>
+        /** `opts.resume` (session-history): conversation memory; `opts.turnId` (background-turns): event routing for concurrent turns. */
+        send(text: string, opts?: TurnOpts): Promise<void>
+        runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts): Promise<void>
         /** T8 (WS-R5.2): explicit teardown of the active session — see preload/index.ts for the full channel design. */
         stop(): Promise<void>
+        /** chat-controls CC-R1 + background-turns: interrupts one turn by id (or all), keeping the session alive. */
+        interrupt(turnId?: string): Promise<void>
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
@@ -60,6 +74,48 @@ declare global {
       skills: {
         list(workspace: string): Promise<SkillEntry[]>
       }
+      /** Skill studio (skill-studio): the workspace's user-created skills. */
+      studio: {
+        list(workspace: string): Promise<CreatedSkill[]>
+      }
+      /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
+      mcp: {
+        list(workspace: string): Promise<McpServer[]>
+        add(workspace: string, name: string, config: McpServerConfig): Promise<void>
+        update(
+          workspace: string,
+          originalName: string,
+          name: string,
+          config: McpServerConfig
+        ): Promise<void>
+        remove(workspace: string, name: string): Promise<void>
+        setEnabled(workspace: string, name: string, enabled: boolean): Promise<void>
+        probe(workspace: string, name: string): Promise<McpProbeResult>
+      }
+      /** ChatHistoryStore (session-history): persisted conversations per workspace — see preload/index.ts for the channel design. */
+      chatHistory: {
+        list(workspace: string): Promise<ChatSessionMeta[]>
+        get(workspace: string, id: string): Promise<StoredChatSession | null>
+        create(workspace: string, agent: string | null): Promise<StoredChatSession>
+        append(
+          workspace: string,
+          id: string,
+          message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+        ): Promise<ChatSessionMeta | null>
+        rename(workspace: string, id: string, title: string): Promise<ChatSessionMeta | null>
+        setCliSession(workspace: string, id: string, cliSessionId: string): Promise<void>
+        search(workspace: string, query: string): Promise<ChatSessionMeta[]>
+        delete(workspace: string, id: string): Promise<void>
+      }
+      /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
+      app: {
+        info(): Promise<AppInfo>
+        checkForUpdates(): Promise<void>
+        downloadUpdate(): Promise<void>
+        installUpdate(): Promise<void>
+        /** Subscribes to update-flow state transitions; returns an unsubscribe function. */
+        onUpdateEvent(onEvent: (evt: UpdateEvent) => void): () => void
+      }
       /** Profile (agent-selection + role-personalization): app-wide agent + role. */
       profile: {
         agents(): Promise<AgentMeta[]>
@@ -67,7 +123,16 @@ declare global {
         setAgent(id: string): Promise<void>
         getRole(): Promise<string | null>
         setRole(id: string): Promise<void>
+        getUserName(): Promise<string | null>
+        setUserName(name: string | null): Promise<void>
         roleActions(role: string | null): Promise<ResolvedRoleAction[]>
+      }
+      /** Shortcut customization (shortcut-customization): workspace skill catalog + persisted selection + resolved shortcut set. */
+      shortcuts: {
+        catalog(workspace: string): Promise<WorkspaceSkill[]>
+        get(): Promise<ShortcutPrefs | null>
+        set(prefs: ShortcutPrefs | null): Promise<void>
+        actions(role: string | null, workspace: string): Promise<ResolvedRoleAction[]>
       }
       /**
        * File management (T6/T7) surface — see preload/index.ts for the full

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ptBR, intentLabel, roleMeta, roleActionLabel } from './pt-BR'
+import { ptBR, intentLabel, roleMeta, roleActionLabel, shortcutLabel, agentMeta } from './pt-BR'
 
 /**
  * T10 (file-management regression pass) — `pt-BR.ts` is one of this
@@ -47,5 +47,43 @@ describe('pt-BR copy — pure helpers', () => {
     expect(roleActionLabel('prd')).toBe('Criar um PRD')
     expect(roleActionLabel('persona-pm')).toBe('Conversar com John')
     expect(roleActionLabel('unknown-action')).toBe('unknown-action')
+  })
+})
+
+// shortcut-customization: skill labels, agent meta, and the picker's copy.
+describe('pt-BR — shortcut-customization', () => {
+  it('shortcutLabel() resolves role-action keys and skill keys through the pt-BR maps', () => {
+    expect(shortcutLabel('prd', 'workflow')).toBe('Criar um PRD')
+    expect(shortcutLabel('bmad-prd', 'workflow')).toBe('Criar um PRD')
+    expect(shortcutLabel('bmad-spec', 'workflow')).toBe('Criar uma spec')
+    expect(shortcutLabel('bmad-agent-pm', 'persona')).toBe('Conversar com John')
+  })
+
+  it('shortcutLabel() composes "Conversar com <persona>" for unknown agents from the fallback', () => {
+    expect(shortcutLabel('bmad-agent-zoe', 'persona', 'Zoe')).toBe('Conversar com Zoe')
+    // No fallback either → the raw key (never crashes).
+    expect(shortcutLabel('bmad-agent-zoe', 'persona')).toBe('bmad-agent-zoe')
+  })
+
+  it('shortcutLabel() falls back to the carried catalog label, then the key, for unknown skills', () => {
+    expect(shortcutLabel('bmad-future-skill', 'workflow', 'Future Skill')).toBe('Future Skill')
+    expect(shortcutLabel('bmad-future-skill', 'workflow')).toBe('bmad-future-skill')
+  })
+
+  it('agentMeta() resolves known specialists and returns null for unknown agents', () => {
+    expect(agentMeta('bmad-agent-ux-designer')).toEqual({
+      persona: 'Sally',
+      role: 'Designer de UX e UI'
+    })
+    expect(agentMeta('bmad-tea')?.persona).toBe('Murat')
+    expect(agentMeta('bmad-agent-zoe')).toBeNull()
+  })
+
+  it('shortcuts counts pluralize correctly', () => {
+    expect(ptBR.shortcuts.selectedCount(0)).toBe('Nenhum atalho selecionado')
+    expect(ptBR.shortcuts.selectedCount(1)).toBe('1 atalho selecionado')
+    expect(ptBR.shortcuts.selectedCount(3)).toBe('3 atalhos selecionados')
+    expect(ptBR.shortcuts.groupCount(2, 7)).toBe('2 de 7')
+    expect(ptBR.shortcuts.toggleAria('Criar um PRD')).toBe('Alternar atalho: Criar um PRD')
   })
 })

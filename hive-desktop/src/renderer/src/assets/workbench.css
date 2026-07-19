@@ -237,6 +237,43 @@
   cursor: not-allowed;
 }
 
+/* Profile avatar (top-right): the user's initials in a small accent-tinted
+   disc — the desktop-app convention for "this is you; click for your
+   settings". A hairline ring materializes on hover so the disc reads as
+   pressable without shouting at rest. */
+.wb-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, transparent);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-quart),
+    box-shadow 0.15s var(--ease-quart);
+}
+.wb-avatar-btn:hover {
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent);
+}
+.wb-avatar-btn:active {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+.wb-avatar-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .wb-body {
   display: flex;
   flex: 1;
@@ -244,16 +281,59 @@
 }
 
 /* ==========================================================================
+   Movable panes (customizable-layout) — every workbench zone (rail / chat /
+   viewer) renders inside a `.wb-pane` wrapper that doubles as the drag
+   drop-target; the pane's header is the drag source. Order persists in
+   `hive.paneOrder`, widths in `hive.workLayout`.
+   ========================================================================== */
+
+.wb-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+/* Pane bodies that used to BE the panel keep filling it from inside the wrapper. */
+.wb-pane > .wb-chat,
+.wb-pane > .wb-viewer {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+/* The pane being dragged recedes; the drop side is a single accent seam on
+   the hovered pane's edge — an insertion caret, not a glow. */
+.wb-pane[data-dragging] {
+  opacity: 0.45;
+}
+.wb-pane[data-drop]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 1;
+}
+.wb-pane[data-drop='before']::after {
+  left: 0;
+}
+.wb-pane[data-drop='after']::after {
+  right: 0;
+}
+
+/* ==========================================================================
    File rail (tree sidebar) — a Resizable panel (T11); width comes from the
    group's layout (defaultSize/persisted flex-grow), not a fixed CSS value.
+   The old border-right is gone: the resize handles draw the seams now, so
+   the rail looks right in any pane order.
    ========================================================================== */
 
 .wb-rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
   background: var(--bg-2);
-  border-right: 1px solid var(--border);
 }
 
 .wb-pane-header {
@@ -261,8 +341,19 @@
   align-items: center;
   gap: var(--s-2);
   height: var(--wb-pane-header-h);
-  padding: 0 var(--s-3) 0 var(--s-4);
+  padding: 0 var(--s-2) 0 var(--s-3);
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wb-pane-header:active {
+  cursor: grabbing;
+}
+
+.wb-pane-grip {
+  flex-shrink: 0;
+  color: var(--faint);
 }
 
 .wb-pane-header-label {
@@ -271,6 +362,51 @@
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Header actions (the ↔ move menu) stay quiet until the pane is engaged. */
+.wb-pane-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+.wb-pane:hover .wb-pane-header-actions,
+.wb-pane-header-actions:focus-within,
+.wb-pane-header-actions:has([data-state='open']) {
+  opacity: 1;
+}
+
+.wb-pane-move-btn.wb-icon-btn {
+  width: 24px;
+  height: 24px;
+}
+
+/* Primary pane actions (session-history's "Nova conversa" + history
+   triggers): unlike the hover-revealed move menu, these are first-class
+   affordances of the pane's *content* — always visible. The first auto
+   margin claims the free space, so the quiet actions block that follows
+   sits flush against it. */
+.wb-pane-header-primary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.wb-history-trigger.wb-icon-btn {
+  width: 24px;
+  height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-pane-header-actions {
+    transition: none;
+  }
 }
 
 .wb-rail-scroll {
@@ -287,12 +423,115 @@
   padding-top: 5px;
   padding-bottom: 5px;
 }
+/* Every row renders its own fixed caret slot (chevron for folders, empty
+   spacer for files), so the DS's extra leaf indent must not double it —
+   icons and names land in one aligned column, OS-file-manager style. */
+.wb-rail .hds-tree-toggle-leaf {
+  padding-left: var(--s-2);
+}
+.wb-tree-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
 .wb-tree-icon {
+  display: inline-flex;
   flex-shrink: 0;
   color: var(--faint);
 }
 .hds-tree-item-selected > .hds-tree-row .wb-tree-icon {
   color: var(--selected);
+}
+
+/* --- Per-file-type icon hues (ui/fileIcons.tsx) -----------------------
+   One tinted family at matched lightness per theme; the label next to the
+   icon carries the text contrast, so these are recognition hues (≥3:1 UI
+   floor), not text colors. Unmapped kinds stay --faint. */
+:root {
+  --wb-ic-blue: oklch(50% 0.13 252);
+  --wb-ic-sky: oklch(52% 0.11 228);
+  --wb-ic-yellow: oklch(55% 0.11 85);
+  --wb-ic-orange: oklch(56% 0.13 50);
+  --wb-ic-green: oklch(52% 0.11 152);
+  --wb-ic-violet: oklch(52% 0.13 300);
+  --wb-ic-red: oklch(54% 0.15 25);
+  --wb-ic-pink: oklch(56% 0.13 350);
+  --wb-ic-teal: oklch(52% 0.09 195);
+}
+:root[data-theme='dark'] {
+  --wb-ic-blue: oklch(74% 0.1 252);
+  --wb-ic-sky: oklch(76% 0.09 228);
+  --wb-ic-yellow: oklch(78% 0.1 88);
+  --wb-ic-orange: oklch(75% 0.11 50);
+  --wb-ic-green: oklch(75% 0.1 152);
+  --wb-ic-violet: oklch(74% 0.1 300);
+  --wb-ic-red: oklch(72% 0.12 25);
+  --wb-ic-pink: oklch(75% 0.1 350);
+  --wb-ic-teal: oklch(75% 0.08 195);
+}
+
+.wb-file-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--faint);
+}
+.wb-file-icon[data-kind='md'] {
+  color: var(--wb-ic-sky);
+}
+.wb-file-icon[data-kind='html'] {
+  color: var(--wb-ic-orange);
+}
+.wb-file-icon[data-kind='css'] {
+  color: var(--wb-ic-violet);
+}
+.wb-file-icon[data-kind='js'],
+.wb-file-icon[data-kind='json'] {
+  color: var(--wb-ic-yellow);
+}
+.wb-file-icon[data-kind='ts'],
+.wb-file-icon[data-kind='doc'] {
+  color: var(--wb-ic-blue);
+}
+.wb-file-icon[data-kind='shell'],
+.wb-file-icon[data-kind='sheet'] {
+  color: var(--wb-ic-green);
+}
+.wb-file-icon[data-kind='code'],
+.wb-file-icon[data-kind='audio'] {
+  color: var(--wb-ic-teal);
+}
+.wb-file-icon[data-kind='slides'] {
+  color: var(--wb-ic-orange);
+}
+.wb-file-icon[data-kind='pdf'],
+.wb-file-icon[data-kind='video'] {
+  color: var(--wb-ic-red);
+}
+.wb-file-icon[data-kind='image'] {
+  color: var(--wb-ic-pink);
+}
+.wb-file-icon[data-kind='archive'] {
+  color: var(--wb-ic-yellow);
+}
+
+/* The right-click scope + treeBody wrapper: fills the rail below the toolbar
+   so empty space (and the empty state) answers to the context menu too. */
+.wb-tree-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Row-scoped context menu items carry a leading icon — give it breathing
+   room from the label (mirrors the DS dropdown item's icon gap). */
+.wb-tree-context-menu .hds-context-menu-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
 }
 
 /* --- Tree row actions / inline create-rename / drag-drop (T8) --------- */
@@ -393,8 +632,184 @@
 }
 
 /* ==========================================================================
-   File viewer pane
+   File viewer pane — a VS Code-style tab strip over one mounted viewer per
+   open tab (only the active tab's viewer is visible; the rest keep their
+   drafts alive under [hidden]).
    ========================================================================== */
+
+.wb-tabs {
+  display: flex;
+  align-items: stretch;
+  height: var(--wb-pane-header-h);
+  flex-shrink: 0;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
+  /* customizable-layout: the strip doubles as the viewer pane's drag handle. */
+  cursor: grab;
+}
+
+.wb-tabs-row {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wb-tabs-row::-webkit-scrollbar {
+  display: none;
+}
+
+.wb-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 200px;
+  padding: 0 6px 0 12px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-tab:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.wb-tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+/* The active tab fuses with the editor surface below: same bg, an accent
+   seam on top, and the strip's bottom hairline erased underneath it. */
+.wb-tab[data-active] {
+  background: var(--bg);
+  color: var(--ink);
+}
+.wb-tab[data-active]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.wb-tab[data-active]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--bg);
+}
+/* Preview (unpinned) tab — italic title, VS Code's "will be replaced" cue. */
+.wb-tab[data-preview] .wb-tab-name {
+  font-style: italic;
+}
+
+.wb-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* Italic (preview) glyphs overhang their advance width — without this the
+     last letter clips against the overflow edge. */
+  padding-right: 3px;
+}
+
+/* Close control: shows the × on the active/hovered tab; a dirty tab shows
+   the unsaved dot instead until the pointer reaches the control (VS Code's
+   dot↔× swap). */
+.wb-tab-close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wb-tab-close:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.wb-tab-close:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-tab-close-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.wb-tab-dirty-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--focus);
+}
+.wb-tab[data-active] .wb-tab-close-x,
+.wb-tab:hover .wb-tab-close-x,
+.wb-tab .wb-tab-close:focus-visible .wb-tab-close-x {
+  display: inline-flex;
+}
+.wb-tab[data-dirty] .wb-tab-close-x {
+  display: none;
+}
+.wb-tab[data-dirty] .wb-tab-dirty-dot {
+  display: inline-flex;
+}
+.wb-tab[data-dirty] .wb-tab-close:hover .wb-tab-close-x,
+.wb-tab[data-dirty] .wb-tab-close:focus-visible .wb-tab-close-x {
+  display: inline-flex;
+}
+.wb-tab[data-dirty] .wb-tab-close:hover .wb-tab-dirty-dot,
+.wb-tab[data-dirty] .wb-tab-close:focus-visible .wb-tab-dirty-dot {
+  display: none;
+}
+
+.wb-tabs-trailing {
+  display: flex;
+  align-items: center;
+  padding-right: var(--s-1);
+}
+
+/* One body slot per open tab; only the active one is displayed. */
+.wb-tab-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wb-tab-body[hidden] {
+  display: none;
+}
+.wb-tab-body > .wb-viewer {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-tab {
+    transition: none;
+  }
+}
 
 .wb-viewer {
   display: flex;
@@ -412,10 +827,11 @@
   padding: 0 var(--s-2) 0 var(--s-4);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.wb-viewer-header > svg {
+.wb-viewer-header > .wb-file-icon {
   flex-shrink: 0;
-  color: var(--faint);
 }
 
 .wb-viewer-name {
@@ -480,9 +896,10 @@
   overflow: auto;
 }
 
+/* Read-only (binary/code) body — a padded scroll region; the code block
+   itself spans the pane's full width. */
 .wb-viewer-content {
   padding: var(--s-5) var(--s-6) var(--s-7);
-  max-width: 76ch;
 }
 
 .wb-viewer-content .hds-codeblock,
@@ -490,46 +907,70 @@
   max-width: 100%;
 }
 
-/* Editable text surface (T9) — plain controlled textarea, styled to match
-   the DS CodeBlock's monospace surface rather than pulling in a new dep. */
+/* Full-bleed pane body shared by the editor and the `.html` live preview:
+   the surface IS the block — no inner card, no fixed measure. */
+.wb-editor-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Editable text surface (T9) — plain controlled textarea, promoted to a
+   VS Code-like full-pane surface: it fills the viewer block entirely and
+   scrolls itself, instead of sitting as a fixed-width card inside it. */
 .wb-editor-surface {
+  flex: 1;
   width: 100%;
-  min-height: 60vh;
-  padding: 16px 18px;
-  font-family:
-    'Inter Tight',
-    ui-monospace,
-    monospace;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-4) var(--s-5) var(--s-7);
+  font-family: 'Inter Tight', ui-monospace, monospace;
   font-size: 0.9rem;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--ink);
-  background: var(--surface, var(--bg));
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-sm);
-  resize: vertical;
+  background: var(--bg);
+  border: 0;
+  border-radius: 0;
+  resize: none;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.wb-editor-surface::placeholder {
+  color: var(--faint);
+}
+/* Keyboard-visible focus only — a mouse click into the text shouldn't draw a
+   ring around the entire pane. */
 .wb-editor-surface:focus-visible {
   outline: 2px solid var(--focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
-/* Sandboxed `.html` preview iframe (T4) — bordered frame filling its
-   container, matching `.wb-editor-surface`'s border/radius conventions. */
+/* Sandboxed `.html` preview iframe (T4) — borderless, fills the pane like
+   the editor surface it toggles against. */
 .wb-html-preview {
   display: block;
+  flex: 1;
   width: 100%;
   height: 100%;
-  min-height: 60vh;
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-sm);
+  min-height: 0;
+  border: 0;
   background: var(--bg);
 }
 
 /* ==========================================================================
-   Markdown (viewer docs + assistant chat replies)
+   Markdown (viewer docs + assistant chat replies) — typeset like a rendered
+   GitHub README: hairline-underlined h1/h2, generous heading air, quiet
+   code surfaces, real table chrome.
    ========================================================================== */
+
+/* The rendered-document container inside the viewer pane: full pane width up
+   to a comfortable reading measure, centered — the README column. */
+.wb-md-doc {
+  width: 100%;
+  max-width: 86ch;
+  margin-inline: auto;
+  padding: var(--s-5) var(--s-6) var(--s-8);
+}
 
 .wb-md {
   color: var(--ink);
@@ -539,45 +980,67 @@
 .wb-md > :first-child {
   margin-top: 0;
 }
-.wb-md h1 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: var(--s-6) 0 var(--s-3);
-}
-.wb-md h2 {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: var(--s-5) 0 var(--s-2);
-}
+.wb-md h1,
+.wb-md h2,
 .wb-md h3,
 .wb-md h4,
 .wb-md h5,
 .wb-md h6 {
-  font-size: 1rem;
+  margin: var(--s-5) 0 var(--s-3);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.wb-md h1 {
+  font-size: 1.625rem;
+  margin-top: var(--s-6);
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.wb-md h2 {
+  font-size: 1.25rem;
+  margin-top: var(--s-6);
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.wb-md h3 {
+  font-size: 1.0625rem;
+}
+.wb-md h4,
+.wb-md h5,
+.wb-md h6 {
+  font-size: 0.9375rem;
   font-weight: 650;
-  margin: var(--s-4) 0 var(--s-2);
+}
+.wb-md h6 {
+  color: var(--muted);
 }
 .wb-md p {
-  margin: 0 0 var(--s-3);
+  margin: 0 0 var(--s-4);
 }
 .wb-md ul {
   list-style: disc;
-  margin: 0 0 var(--s-3);
-  padding-left: var(--s-5);
+  margin: 0 0 var(--s-4);
+  padding-left: var(--s-6);
 }
 .wb-md ol {
   list-style: decimal;
-  margin: 0 0 var(--s-3);
-  padding-left: var(--s-5);
+  margin: 0 0 var(--s-4);
+  padding-left: var(--s-6);
+}
+.wb-md ul ul,
+.wb-md ul ol,
+.wb-md ol ul,
+.wb-md ol ol {
+  margin-bottom: 0;
 }
 .wb-md blockquote {
-  margin: 0 0 var(--s-3);
-  padding: var(--s-1) var(--s-4);
-  border-left: 2px solid var(--border-strong);
+  margin: 0 0 var(--s-4);
+  padding: 0 var(--s-4);
+  border-left: 3px solid var(--border-strong);
   color: var(--muted);
 }
-.wb-md blockquote p {
-  margin: 0;
+.wb-md blockquote > p {
+  margin-bottom: var(--s-2);
 }
 .wb-md li {
   margin-bottom: var(--s-1);
@@ -589,16 +1052,15 @@
   font-family: var(--ff-num);
   font-size: 0.85em;
   background: var(--surface-2);
-  border: 1px solid var(--border);
   border-radius: var(--rounded-sm);
-  padding: 1px 5px;
+  padding: 2px 6px;
 }
 .wb-md pre {
-  background: var(--surface);
+  background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--rounded-md);
-  padding: var(--s-3) var(--s-4);
-  margin: 0 0 var(--s-3);
+  padding: var(--s-4);
+  margin: 0 0 var(--s-4);
   overflow-x: auto;
   font-family: var(--ff-num);
   font-size: 0.8125rem;
@@ -615,31 +1077,34 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.wb-md img {
+  max-width: 100%;
+}
 .wb-md hr {
   border: none;
-  border-top: 1px solid var(--border);
-  margin: var(--s-4) 0;
+  border-top: 2px solid var(--border);
+  margin: var(--s-5) 0;
 }
 
-/* GFM tables (remark-gfm, T1/UX-R7.1) */
+/* GFM tables (remark-gfm, T1/UX-R7.1) — GitHub-style cell chrome. */
 .wb-md table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 var(--s-3);
+  margin: 0 0 var(--s-4);
   font-size: 0.9em;
 }
 .wb-md th,
 .wb-md td {
-  border: 1px solid var(--border);
-  padding: var(--s-1) var(--s-3);
+  border: 1px solid var(--border-strong);
+  padding: 6px var(--s-3);
   text-align: left;
 }
 .wb-md thead th {
-  background: var(--surface-2);
+  background: var(--surface);
   font-weight: 650;
 }
 .wb-md tbody tr:nth-child(even) {
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 /* GFM task lists (remark-gfm, T1/UX-R7.1) */
@@ -653,6 +1118,7 @@
 }
 .wb-md li.task-list-item input[type='checkbox'] {
   margin-right: var(--s-2);
+  accent-color: var(--accent);
 }
 
 /* ==========================================================================
@@ -907,6 +1373,76 @@
   text-transform: uppercase;
   color: var(--faint);
   margin-right: var(--s-1);
+}
+
+/* session-history — "Continuar de onde parou": the hero's quiet resume list
+   (Claude Desktop home pattern: start new above, pick up a thread below).
+   Same width as the composer so the hero reads as one column. */
+.wb-hero-recents {
+  width: 100%;
+  max-width: 640px;
+  margin-top: var(--s-6);
+  text-align: left;
+}
+.wb-hero-recents-label {
+  display: block;
+  font-size: 0.71875rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: var(--s-2);
+  padding-left: 10px;
+}
+.wb-hero-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wb-hero-recent {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-hero-recent:hover {
+  background: var(--surface-2);
+}
+.wb-hero-recent:active {
+  background: var(--surface-3);
+}
+.wb-hero-recent:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-hero-recent-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.wb-hero-recent-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ink);
+}
+.wb-hero-recent-time {
+  flex-shrink: 0;
+  font-size: 0.71875rem;
+  color: var(--muted);
 }
 
 /* Theme-aware logo swap (HiveLogo.tsx) — the SVG lockups have baked-in
@@ -1464,10 +2000,14 @@
 
 .wb-pills-persona {
   margin-top: var(--s-4);
-  flex-direction: column;
   gap: var(--s-2);
 }
+/* Full-width row of its own above the chips, so any number of specialists
+   (shortcut-customization allows several) flows as a centered wrapped row
+   beneath one shared label. */
 .wb-pills-persona-label {
+  flex-basis: 100%;
+  text-align: center;
   font-size: 0.6875rem;
   font-weight: 650;
   letter-spacing: 0.05em;
@@ -1496,32 +2036,85 @@
   position: relative;
 }
 
-.wb-stop-btn {
+/* Role-shortcut strip — the shortcuts' always-at-hand home, docked right
+   above the composer in an active conversation (the hero pills cover the
+   empty state). Quiet chips that read as part of the composer's furniture:
+   resting in --muted with hairline borders, ink on hover, the persona chip
+   carrying the accent (the warm, human entry). Overflow scrolls
+   horizontally with the scrollbar suppressed — the strip is one row, ever. */
+.wb-shortcut-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+/* Only the chips scroll — the customize control after this track stays put
+   (shortcut-customization), so it's reachable with any number of chips. */
+.wb-shortcut-strip-scroll {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wb-shortcut-strip-scroll::-webkit-scrollbar {
+  display: none;
+}
+.wb-shortcut-strip-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+.wb-shortcut-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  font-size: 0.8125rem;
+  flex-shrink: 0;
+  padding: 4px 11px;
+  font: inherit;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--danger-ink);
-  background: var(--danger-bg);
-  border: 1px solid transparent;
-  border-radius: var(--rounded-md);
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
   cursor: pointer;
   transition:
+    color 0.15s var(--ease-quart),
     background-color 0.15s var(--ease-quart),
     border-color 0.15s var(--ease-quart);
 }
-.wb-stop-btn:hover {
-  border-color: var(--danger);
+.wb-shortcut-chip:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
 }
-.wb-stop-btn:focus-visible {
-  outline: 2px solid var(--danger);
+.wb-shortcut-chip:active {
+  background: var(--surface-3);
+}
+.wb-shortcut-chip:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
-.wb-stop-btn svg {
+.wb-shortcut-chip svg {
   flex-shrink: 0;
+  color: var(--faint);
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-shortcut-chip:hover svg {
+  color: var(--accent);
+}
+.wb-shortcut-chip[data-persona],
+.wb-shortcut-chip[data-persona] svg {
+  color: var(--accent);
+}
+.wb-shortcut-chip[data-persona]:hover {
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
 .wb-agent-indicator {
@@ -1542,7 +2135,9 @@
   margin-right: 6px;
 }
 
-/* Slash-command menu — a listbox anchored above the composer, opening upward. */
+/* Slash-command menu — a listbox anchored above the composer, opening
+   upward. Only the list scrolls (flex column), so the head and the
+   keyboard-hint foot stay pinned in view. */
 .wb-slash-menu {
   position: absolute;
   left: 0;
@@ -1550,13 +2145,19 @@
   bottom: calc(100% + var(--s-2));
   z-index: var(--z-dropdown);
   max-height: 280px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--rounded-lg);
   box-shadow: var(--shadow-2);
   padding: var(--s-1);
   animation: wb-slash-in 0.12s var(--ease-quart) both;
+}
+.wb-slash-menu .wb-slash-list {
+  overflow-y: auto;
+  min-height: 0;
 }
 @keyframes wb-slash-in {
   from {
@@ -1622,6 +2223,520 @@
   white-space: nowrap;
 }
 
+/* Command-palette rows: one line, just the command — what you pick is what
+   gets sent. Tighter than the two-line mention rows sharing this anatomy. */
+.wb-slash-item-cmd {
+  align-items: center;
+  padding-block: 6px;
+}
+.wb-slash-item-cmd .wb-slash-item-icon {
+  margin-top: 0;
+  color: var(--muted);
+}
+.wb-slash-item-cmd[data-active] .wb-slash-item-icon {
+  color: var(--accent);
+}
+.wb-slash-cmd {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-slash-menu-foot {
+  margin-top: var(--s-1);
+  padding: var(--s-2) var(--s-3) var(--s-1);
+  font-size: 0.6875rem;
+  color: var(--faint);
+  border-top: 1px solid var(--border);
+}
+
+/* ==========================================================================
+   Chat attachments + `#` file references (chat-attachments R6.5/T16):
+   attach trigger, pending-attachment chips, drag-and-drop overlay, the
+   mention menu (shares the slash menu's anatomy) and mention pills — in the
+   composer backdrop and in sent user bubbles.
+   ========================================================================== */
+
+/* Attach trigger — same ghost family as the compact pickers beside it. */
+.wb-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-attach-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-attach-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Pending-attachment chips settle in as they're added. */
+.wb-composer-chip {
+  animation: wb-chip-in 0.15s var(--ease-quart) both;
+}
+@keyframes wb-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Files-drag overlay: covers the composer while a drag hovers it. Pointer
+   events stay off so the drop lands on the wrapper underneath. */
+.wb-composer-dropzone {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent);
+  background:
+    linear-gradient(var(--selected-bg), var(--selected-bg)),
+    linear-gradient(var(--surface), var(--surface));
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--rounded-lg);
+  pointer-events: none;
+  animation: wb-dropzone-in 0.12s var(--ease-quart) both;
+}
+@keyframes wb-dropzone-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* `#` mention pill behind the textarea's own glyphs (PromptInput backdrop:
+   text is transparent by contract — only the pill paints). `clone` keeps a
+   wrapped token's pill whole on both lines. */
+.wb-mention-token {
+  color: transparent;
+  background: var(--selected-bg);
+  border-radius: var(--rounded-sm);
+  box-shadow: 0 0 0 2px var(--selected-bg);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Mention menu — rides the slash menu's anatomy. Unlike the slash menu, the
+   whole container doesn't scroll: only the list does, so the keyboard-hint
+   footer stays pinned in view. */
+.wb-mention-menu {
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+}
+.wb-mention-menu .wb-slash-list {
+  overflow-y: auto;
+  min-height: 0;
+}
+.wb-mention-menu-foot {
+  margin-top: var(--s-1);
+  padding: var(--s-2) var(--s-3) var(--s-1);
+  font-size: 0.6875rem;
+  color: var(--faint);
+  border-top: 1px solid var(--border);
+}
+.wb-mention-item .wb-slash-item-icon {
+  color: var(--muted);
+}
+.wb-mention-item[data-active] .wb-slash-item-icon {
+  color: var(--accent);
+}
+
+/* A sent slash command (`/bmad-prd`) — the whole bubble is the command
+   token: launching a shortcut and typing the command look identical. */
+.wb-user-command {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  background: oklch(0% 0 0 / 14%);
+  border-radius: var(--rounded-sm);
+  padding: 1px 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Sent user bubble: `#file` references as quiet inline pills on the accent
+   surface, attachments as one chip row under the text. Tints are ink-black
+   translucency so they hold on the solid coral bubble in both themes. */
+.wb-user-mention {
+  background: oklch(0% 0 0 / 14%);
+  border-radius: var(--rounded-sm);
+  padding: 1px 4px;
+  font-weight: 600;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.wb-bubble-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+}
+.wb-bubble-attachments:first-child {
+  margin-top: 0;
+}
+.wb-bubble-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: oklch(0% 0 0 / 14%);
+  border-radius: var(--rounded-md);
+}
+.wb-bubble-attachment svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.wb-bubble-attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Session history (session-history) — the chat pane's conversation panel:
+   search on top, recency-grouped rows, inline rename/delete. Rides the DS
+   popover (portal, z-overlay, open/close motion + reduced-motion fallback
+   come for free); this section only shapes the inside.
+   ========================================================================== */
+
+.wb-history-pop.hds-popover-content {
+  width: 340px;
+  max-width: min(340px, calc(100vw - var(--s-5)));
+  padding: 0;
+  border-radius: var(--rounded-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: min(480px, 72vh);
+  overflow: hidden;
+}
+
+/* Search — the panel's header: one calm field, no title bar (the trigger's
+   tooltip already names the surface; the field's placeholder teaches it). */
+.wb-history-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-2);
+  padding: 0 var(--s-1) 0 var(--s-2);
+  height: 32px;
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  transition: border-color 0.15s var(--ease-quart);
+}
+.wb-history-search:focus-within {
+  border-color: var(--focus);
+}
+.wb-history-search-icon {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+.wb-history-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0;
+}
+.wb-history-search-input::placeholder {
+  color: var(--muted);
+}
+.wb-history-search-clear.wb-icon-btn {
+  width: 22px;
+  height: 22px;
+}
+
+.wb-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--s-2) var(--s-2);
+}
+
+.wb-history-group-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0;
+  padding: var(--s-2) var(--s-2) var(--s-1);
+}
+.wb-history-group + .wb-history-group .wb-history-group-label {
+  padding-top: var(--s-3);
+}
+.wb-history-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* One conversation row: the open-button carries title + meta; the rename/
+   delete actions stay quiet until the row is engaged (hover/keyboard). */
+.wb-history-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--rounded-md);
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-history-row:hover,
+.wb-history-row:focus-within {
+  background: var(--surface-2);
+}
+.wb-history-row[data-active] {
+  background: var(--selected-bg);
+}
+.wb-history-row[data-editing] {
+  background: var(--surface-2);
+  padding: var(--s-1);
+  gap: var(--s-2);
+}
+
+.wb-history-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px var(--s-2) 7px 10px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+}
+.wb-history-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-history-row-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 570;
+  color: var(--ink);
+}
+.wb-history-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-history-current {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.wb-history-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.71875rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wb-history-row-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: var(--rounded-full);
+  background: var(--faint);
+}
+/* Full-text search hit: the matched excerpt replaces time·count on the row. */
+.wb-history-row-snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* background-turns: "Em andamento" — a reply is still being generated for
+   this conversation. Shared by the history rows and the hero recents. The
+   pulse is state-signaling motion (PRODUCT.md principle 5), calmed for
+   reduced-motion into a static dot. */
+.wb-history-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.71875rem;
+  font-weight: 650;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.wb-history-running-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: currentColor;
+  animation: wb-running-pulse 1.2s var(--ease-quart) infinite;
+}
+@keyframes wb-running-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-history-running-dot {
+    animation: none;
+  }
+}
+
+.wb-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding-right: var(--s-1);
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+.wb-history-row:hover .wb-history-actions,
+.wb-history-row:focus-within .wb-history-actions,
+.wb-history-actions[data-visible] {
+  opacity: 1;
+}
+.wb-history-action.wb-icon-btn {
+  width: 24px;
+  height: 24px;
+}
+.wb-history-action.wb-icon-btn[data-danger]:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* Inline rename editor. */
+.wb-history-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--s-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  outline: none;
+}
+.wb-history-rename-input:focus-visible {
+  border-color: var(--focus);
+}
+
+/* Inline delete confirmation — never a modal stacked on a popover. */
+.wb-history-confirm-text {
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.wb-history-confirm-btn {
+  height: 24px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-3);
+  border: 1px solid transparent;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-history-confirm-btn:hover {
+  border-color: var(--border-strong);
+}
+.wb-history-confirm-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-history-confirm-btn[data-danger] {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+.wb-history-confirm-btn[data-danger]:hover {
+  border-color: var(--danger);
+}
+.wb-history-confirm-btn[data-danger]:focus-visible {
+  outline-color: var(--danger);
+}
+
+/* Loading (skeleton rows), teaching empty state, and no-match note. */
+.wb-history-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2) var(--s-3);
+}
+.wb-history-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 10px;
+}
+.wb-history-empty.hds-empty {
+  padding: var(--s-6) var(--s-5);
+}
+.wb-history-nomatch {
+  margin: 0;
+  padding: var(--s-4) var(--s-4) var(--s-5);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 /* ==========================================================================
    Profile sheet (role-personalization RP-R6, agent-selection AG-R3.2)
    ========================================================================== */
@@ -1651,15 +2766,1870 @@
   margin: 0;
 }
 
+/* Name field: the transient "Salvo ✓" confirmation rides next to the field,
+   fading in on commit and back out on its own — feedback, not furniture. */
+.wb-profile-name-row {
+  position: relative;
+}
+.wb-profile-name-saved {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.71875rem;
+  font-weight: 650;
+  color: var(--success);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-quart);
+}
+.wb-profile-name-saved[data-visible] {
+  opacity: 1;
+}
+
+/* "Rever o tour guiado" — a quiet inline action, not a form control. */
+.wb-profile-tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-profile-tour-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.wb-profile-tour-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-profile-tour-btn svg {
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   App settings sheet (version + self-update flow) — the bottom-left gear.
+   ========================================================================== */
+
+.wb-appset-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: min(380px, 92vw);
+}
+
+/* Identity block: mark + name + version, reading like an OS "About" pane. */
+.wb-appset-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--rounded-lg);
+}
+.wb-appset-logo .hds-logo svg {
+  height: 30px;
+}
+.wb-appset-identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wb-appset-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wb-appset-version {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-appset-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.wb-appset-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0;
+}
+
+.wb-appset-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 0;
+}
+.wb-appset-status[data-tone='ok'] {
+  color: var(--success);
+  font-weight: 600;
+}
+.wb-appset-status[data-tone='error'] {
+  color: var(--danger-ink);
+}
+
+.wb-appset-note {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--faint);
+  margin: 0;
+}
+
+.wb-appset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-appset-btn:hover {
+  background: var(--surface-2);
+}
+.wb-appset-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-appset-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wb-appset-btn-primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, black);
+}
+
+.wb-appset-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-self: stretch;
+}
+
+/* ==========================================================================
+   Workspace file search — the Ctrl+P quick-open palette (rail's top action).
+   ========================================================================== */
+
+.wb-filesearch .hds-command-list {
+  max-height: 320px;
+}
+.wb-filesearch-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.wb-filesearch-text {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.wb-filesearch-name {
+  font-weight: 550;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wb-filesearch-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+.wb-filesearch-hint {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.71875rem;
+  color: var(--faint);
+  border-top: 1px solid var(--border);
+}
+
+/* ==========================================================================
+   Guided tour (first access) — one spotlight element whose viewport-sized
+   shadow dims everything else, so moving between stops is a single smooth
+   box transition; the card re-enters per step. Modal by design, but never
+   more than one click (Pular) or one Esc away from done.
+   ========================================================================== */
+
+.wb-tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+/* The welcome step has no anchor: the container itself carries the dim. */
+.wb-tour[data-spotless] {
+  background: oklch(0% 0 0 / 52%);
+}
+
+.wb-tour-spotlight {
+  position: fixed;
+  border-radius: 12px;
+  /* The dim IS the shadow — one paint, no four-panel math. */
+  box-shadow:
+    0 0 0 100vmax oklch(0% 0 0 / 52%),
+    0 0 0 1.5px color-mix(in oklab, var(--accent) 85%, transparent),
+    0 0 24px 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  transition:
+    top 0.28s var(--ease-quart),
+    left 0.28s var(--ease-quart),
+    width 0.28s var(--ease-quart),
+    height 0.28s var(--ease-quart);
+  pointer-events: none;
+}
+
+.wb-tour-card {
+  position: fixed;
+  width: min(344px, calc(100vw - 24px));
+  padding: var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-2);
+  animation: wb-tour-card-in 0.22s var(--ease-quart) both;
+}
+.wb-tour-card[data-placement='center'] {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.wb-tour-card[data-placement='above'] {
+  transform: translateY(-100%);
+}
+.wb-tour-card[data-placement='right'] {
+  transform: translateY(-50%);
+}
+@keyframes wb-tour-card-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.wb-tour-step-count {
+  font-size: 0.71875rem;
+  font-weight: 650;
+  color: var(--accent);
+  margin: 0 0 var(--s-2);
+}
+.wb-tour-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--s-2);
+}
+.wb-tour-body {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 var(--s-4);
+}
+
+.wb-tour-dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--s-4);
+}
+.wb-tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--border-strong);
+  transition:
+    background-color 0.2s var(--ease-quart),
+    width 0.2s var(--ease-quart);
+}
+.wb-tour-dot[data-active] {
+  width: 16px;
+  background: var(--accent);
+}
+
+.wb-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.wb-tour-nav {
+  display: flex;
+  gap: var(--s-2);
+}
+.wb-tour-skip {
+  padding: 6px 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--faint);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-tour-skip:hover {
+  color: var(--ink);
+}
+.wb-tour-skip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-tour-btn {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-tour-btn:hover {
+  background: var(--surface-2);
+}
+.wb-tour-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-tour-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wb-tour-btn-primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, black);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wb-rail-btn,
   .wb-choice-card,
   .wb-choice-card-check,
-  .wb-stop-btn {
+  .wb-avatar-btn,
+  .wb-shortcut-chip,
+  .wb-shortcut-chip svg,
+  .wb-appset-btn,
+  .wb-attach-btn,
+  .wb-hero-recent,
+  .wb-history-search,
+  .wb-history-row,
+  .wb-history-actions,
+  .wb-history-confirm-btn {
     transition: none;
   }
   .wb-choice-grid[data-variant='cards'] .wb-choice-card,
-  .wb-slash-menu {
+  .wb-slash-menu,
+  .wb-composer-chip,
+  .wb-composer-dropzone,
+  .wb-tour-card {
     animation: none;
+  }
+  /* Spotlight jumps between stops instead of gliding; the dim still reads. */
+  .wb-tour-spotlight,
+  .wb-tour-dot,
+  .wb-profile-name-saved,
+  .wb-profile-tour-btn,
+  .wb-tour-skip,
+  .wb-tour-btn {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   shortcut-customization — "Personalizar atalhos"
+   Entry affordances (hero ghost pill + strip trailing control)
+   and the picker dialog (DS Dialog + Command with custom rows).
+   ============================================================ */
+
+/* Hero: the "edit this set" ghost pill at the tail of the shortcut row —
+   dashed outline reads as "slot you can change", quiet until hovered. */
+.wb-pill-customize {
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+.wb-pill-customize svg {
+  color: var(--faint);
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-pill-customize:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.wb-pill-customize:hover svg {
+  color: var(--accent);
+}
+.wb-pill-customize:active {
+  background: var(--surface-3);
+}
+.wb-pill-customize:focus-visible {
+  outline: 0;
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+/* Strip: icon-only sibling of the chips, borderless until hovered. */
+.wb-shortcut-customize {
+  padding: 4px 7px;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* --- Dialog shell: pinned head/foot, only the list scrolls. ------------- */
+.wb-sc-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, calc(100vw - var(--s-6)));
+  height: min(660px, calc(100vh - var(--s-7)));
+  padding: 0;
+  overflow: hidden;
+}
+.wb-sc-head {
+  padding: var(--s-5) var(--s-5) var(--s-4);
+}
+.wb-sc-head-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.wb-sc-title-main {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+.wb-sc-state-badge {
+  flex-shrink: 0;
+}
+.wb-sc-desc {
+  margin: var(--s-1) 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  max-width: 60ch;
+}
+.wb-sc-command {
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+}
+.wb-sc-list {
+  flex: 1;
+  min-height: 0;
+  padding: var(--s-2) var(--s-3) var(--s-3);
+}
+
+/* Group heading: same quiet uppercase vocabulary as the hero recents label,
+   with a live tabular "selected of total" count. */
+.wb-sc-group-head {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: var(--faint);
+}
+.wb-sc-group-count {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Rows ---------------------------------------------------------------- */
+.wb-sc-item {
+  padding: 7px var(--s-3);
+  scroll-margin: var(--s-2);
+}
+/* The DS item label is a single-line ellipsis span; these rows are richer
+   (icon + two-line text), so let it flex instead. */
+.wb-sc-item .hds-command-item-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+}
+.wb-sc-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-sc-item[data-checked] .wb-sc-icon {
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+/* Persona avatar: the specialist's initial in a warm coral disc — the
+   "human" mark that sets agents apart from workflow skills. */
+.wb-sc-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.wb-sc-item[data-checked] .wb-sc-avatar {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wb-sc-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.wb-sc-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-sc-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selection lamp: an empty ring that fills coral when the row is on. */
+.wb-sc-check {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rounded-full);
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-ink);
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-sc-check[data-on] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wb-sc-check svg {
+  transform: scale(0.4);
+  opacity: 0;
+  transition:
+    transform 0.18s var(--ease-quart),
+    opacity 0.15s var(--ease-quart);
+}
+.wb-sc-check[data-on] svg {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* --- Footer -------------------------------------------------------------- */
+.wb-sc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--border);
+}
+.wb-sc-count {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wb-sc-foot-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+.wb-sc-empty-catalog {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-7) var(--s-6);
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  max-width: 44ch;
+  align-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-pill-customize,
+  .wb-pill-customize svg,
+  .wb-sc-icon,
+  .wb-sc-check,
+  .wb-sc-check svg {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   skill-studio — "Estúdio de skills"
+   Create skills/agents with the BMAD builders, generate/run
+   evals, pin creations as shortcuts. Same dialog vocabulary as
+   the shortcut customizer (pinned head, scrolling body).
+   ============================================================ */
+
+.wb-studio-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100vw - var(--s-6)));
+  height: min(700px, calc(100vh - var(--s-7)));
+  padding: 0;
+  overflow: hidden;
+}
+.wb-studio-head {
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+.wb-studio-head-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+/* The studio's identity mark: the spark in a coral-tinted tile. */
+.wb-studio-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rounded-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+}
+.wb-studio-title {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+.wb-studio-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wb-studio-desc {
+  margin: var(--s-2) 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  max-width: 62ch;
+}
+.wb-studio-head-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+.wb-studio-head-actions .wb-btn svg {
+  margin-right: 6px;
+}
+
+/* --- Gallery -------------------------------------------------------------- */
+.wb-studio-gallery {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+.wb-studio-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wb-studio-card {
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  transition: border-color 0.15s var(--ease-quart);
+}
+.wb-studio-card:hover {
+  border-color: var(--border-strong);
+}
+.wb-studio-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+/* Skill glyph tile / agent avatar — the customizer's 28px vocabulary. */
+.wb-studio-card-glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rounded-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-studio-card-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rounded-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.wb-studio-card-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.wb-studio-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--ink);
+  min-width: 0;
+}
+.wb-studio-kind-badge,
+.wb-studio-pin-badge {
+  flex-shrink: 0;
+}
+/* The creation's launch command — the durable identity users type. */
+.wb-studio-card-command {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-studio-card-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wb-studio-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+.wb-studio-evals {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.wb-studio-evals[data-none] {
+  color: var(--faint);
+  font-weight: 500;
+}
+.wb-studio-updated {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Action row: text buttons for the real work, icon-only for file/trash. */
+.wb-studio-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  flex-wrap: wrap;
+}
+.wb-studio-card-actions-spacer {
+  flex: 1;
+}
+.wb-studio-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-studio-action:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.wb-studio-action:active {
+  background: var(--surface-3);
+}
+.wb-studio-action:focus-visible {
+  outline: 0;
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.wb-studio-action-primary {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.wb-studio-action-primary:hover {
+  color: var(--accent);
+  background: var(--selected-bg);
+  border-color: var(--accent);
+}
+/* Pinned state reads as "on": coral fill, like a selected chip. */
+.wb-studio-action[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.wb-studio-iconbtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-studio-iconbtn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.wb-studio-iconbtn:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.wb-studio-iconbtn-danger:hover {
+  color: var(--danger, #e5484d);
+  background: var(--danger-bg, var(--surface-2));
+}
+.wb-studio-delete-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--danger, #e5484d);
+}
+
+/* --- Empty state: the two creation paths ARE the teaching. --------------- */
+.wb-studio-empty {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--s-6) var(--s-6) var(--s-7);
+}
+.wb-studio-empty-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-studio-empty-desc {
+  margin: var(--s-2) 0 var(--s-5);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 52ch;
+}
+.wb-studio-empty-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+  max-width: 480px;
+}
+.wb-studio-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  text-align: left;
+  padding: var(--s-4);
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart),
+    transform 0.15s var(--ease-quart);
+}
+.wb-studio-empty-card:hover {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+.wb-studio-empty-card:active {
+  transform: translateY(0);
+}
+.wb-studio-empty-card:focus-visible {
+  outline: 0;
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.wb-studio-empty-card-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+.wb-studio-empty-card-desc {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* --- Create view ---------------------------------------------------------- */
+.wb-studio-create {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+.wb-studio-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-left: calc(-1 * var(--s-2));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-studio-back:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.wb-studio-back:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.wb-studio-field {
+  max-width: 100%;
+}
+/* Live command preview under the name — the durable identity forming. */
+.wb-studio-slug {
+  margin: calc(-1 * var(--s-3)) 0 0;
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+.wb-studio-evals-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+.wb-studio-evals-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.wb-studio-evals-opt-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-studio-evals-opt-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-studio-create-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: auto;
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+.wb-studio-handoff {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--faint);
+  max-width: 40ch;
+}
+.wb-studio-create-foot .wb-btn svg {
+  margin-right: 6px;
+}
+.wb-studio-handoff-bg {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+/* Run configuration: model + effort, the studio's echo of the chat's run
+   controls. A quiet settings group — legend + a two-up grid of DS selects that
+   line up with the form's inputs above. */
+.wb-studio-run {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.wb-studio-run-legend {
+  padding: 0;
+  margin-bottom: var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-studio-run-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-4);
+}
+.wb-studio-run-field {
+  min-width: 0;
+}
+/* Selects read as form fields here (bordered, full-width), matching the
+   name/idea inputs — not the composer's borderless compact variant. */
+.wb-studio-run-field .hds-select-trigger {
+  width: 100%;
+}
+.wb-studio-run[disabled] {
+  opacity: 0.65;
+}
+
+/* Customizer footer: the quiet way into the studio. */
+.wb-sc-studio-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-sc-studio-link:hover {
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-sc-studio-link:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-studio-card,
+  .wb-studio-action,
+  .wb-studio-iconbtn,
+  .wb-studio-empty-card,
+  .wb-studio-back,
+  .wb-sc-studio-link {
+    transition: none;
+  }
+  .wb-studio-empty-card:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   MCP module (mcp) — "Servidores MCP": manage Model Context Protocol servers
+   (activate/disable, test a live connection, read tools + logs). A row-based
+   register (denser and more scannable than the studio's cards) sharing the
+   dialog chrome + accent vocabulary. Status is carried by the dot + pill, not
+   by a colored side-stripe.
+   ========================================================================== */
+.wb-mcp-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - var(--s-6)));
+  height: min(720px, calc(100vh - var(--s-7)));
+  padding: 0;
+  overflow: hidden;
+}
+
+/* --- Header --------------------------------------------------------------- */
+.wb-mcp-head {
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+.wb-mcp-head-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.wb-mcp-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rounded-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+}
+.wb-mcp-title {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+.wb-mcp-count {
+  font-size: 0.75rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wb-mcp-add {
+  margin-left: auto;
+}
+.wb-mcp-add svg {
+  margin-right: 6px;
+}
+.wb-mcp-desc {
+  margin: var(--s-2) 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 64ch;
+}
+
+/* --- List ----------------------------------------------------------------- */
+.wb-mcp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+.wb-mcp-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wb-mcp-row {
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  transition:
+    border-color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-mcp-row:hover {
+  border-color: var(--border-strong);
+}
+.wb-mcp-row[data-expanded] {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.wb-mcp-row[data-status='disabled'] {
+  background: transparent;
+}
+.wb-mcp-row[data-status='disabled'] .wb-mcp-row-name {
+  color: var(--muted);
+}
+
+.wb-mcp-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+}
+.wb-mcp-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.wb-mcp-row-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--rounded-sm);
+}
+
+/* Status dot — the connection state at a glance. */
+.wb-mcp-status-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rounded-full);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #fff;
+}
+.wb-mcp-status-dot::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: var(--rounded-full);
+  background: currentColor;
+}
+.wb-mcp-status-dot[data-status='idle'] {
+  color: var(--faint);
+}
+.wb-mcp-status-dot[data-status='disabled'] {
+  color: var(--border-strong);
+}
+.wb-mcp-status-dot[data-status='ok'] {
+  color: var(--success);
+}
+.wb-mcp-status-dot[data-status='ok']::before {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--success) 22%, transparent);
+}
+.wb-mcp-status-dot[data-status='error'] {
+  color: var(--danger);
+}
+.wb-mcp-status-dot[data-status='error']::before {
+  display: none;
+}
+.wb-mcp-status-dot[data-status='error'] svg {
+  position: relative;
+  z-index: 1;
+}
+.wb-mcp-status-dot[data-status='checking'] {
+  color: var(--warning);
+}
+.wb-mcp-status-dot[data-status='checking']::before {
+  display: none;
+}
+.wb-mcp-status-spin {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--rounded-full);
+  border: 1.5px solid color-mix(in oklab, var(--warning) 30%, transparent);
+  border-top-color: var(--warning);
+  animation: wb-mcp-spin 0.7s linear infinite;
+}
+@keyframes wb-mcp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wb-mcp-row-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.wb-mcp-row-name {
+  font-size: 0.9375rem;
+  font-weight: 640;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-mcp-row-sub {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-mcp-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+.wb-mcp-transport {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wb-mcp-row[data-expanded] .wb-mcp-transport {
+  background: var(--surface-3);
+}
+.wb-mcp-toolcount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--rounded-full);
+  background: var(--selected-bg);
+  color: var(--accent);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.wb-mcp-statuspill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.wb-mcp-statuspill[data-status='idle'] {
+  color: var(--faint);
+}
+.wb-mcp-statuspill[data-status='disabled'] {
+  color: var(--faint);
+}
+.wb-mcp-statuspill[data-status='ok'] {
+  color: var(--success);
+}
+.wb-mcp-statuspill[data-status='error'] {
+  color: var(--danger);
+}
+.wb-mcp-statuspill[data-status='checking'] {
+  color: var(--warning);
+}
+
+.wb-mcp-row-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+  padding-left: var(--s-1);
+}
+.wb-mcp-switch-wrap {
+  display: inline-flex;
+}
+.wb-mcp-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-md);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-mcp-expand:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.wb-mcp-expand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wb-mcp-expand svg {
+  transition: transform 0.2s var(--ease-quart);
+}
+.wb-mcp-row[data-expanded] .wb-mcp-expand svg {
+  transform: rotate(180deg);
+}
+
+/* --- Expanded detail ------------------------------------------------------ */
+.wb-mcp-detail {
+  border-top: 1px solid var(--border);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  animation: wb-mcp-reveal 0.22s var(--ease-quart);
+}
+@keyframes wb-mcp-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.wb-mcp-probe {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.wb-mcp-testbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--rounded-md);
+  border: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+  background: var(--selected-bg);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-mcp-testbtn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+}
+.wb-mcp-testbtn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.wb-mcp-testbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wb-mcp-probe-hint {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-mcp-probe-result {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.wb-mcp-probe-result[data-status='ok'] {
+  color: var(--success);
+}
+.wb-mcp-probe-result[data-status='error'] {
+  color: var(--danger);
+}
+
+.wb-mcp-detail-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: var(--s-2);
+}
+
+.wb-mcp-toolchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wb-mcp-toolchip {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  cursor: default;
+  transition: border-color 0.15s var(--ease-quart);
+}
+.wb-mcp-toolchip:hover {
+  border-color: var(--accent);
+}
+.wb-mcp-tooltip {
+  max-width: 280px;
+}
+
+.wb-mcp-logs {
+  margin: 0;
+  padding: var(--s-3);
+  max-height: 200px;
+  overflow: auto;
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wb-mcp-logs:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wb-mcp-config {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wb-mcp-config-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--s-3);
+  align-items: baseline;
+}
+.wb-mcp-config-term {
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+.wb-mcp-config-val {
+  font-size: 0.8125rem;
+  color: var(--ink);
+  word-break: break-word;
+}
+.wb-mcp-config-val[data-mono] {
+  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.wb-mcp-detail-actions {
+  display: flex;
+  gap: var(--s-4);
+  padding-top: var(--s-1);
+}
+.wb-mcp-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-mcp-linkbtn:hover {
+  color: var(--ink);
+}
+.wb-mcp-linkbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--rounded-sm);
+}
+.wb-mcp-linkbtn-danger:hover {
+  color: var(--danger);
+}
+
+/* --- Empty state ---------------------------------------------------------- */
+.wb-mcp-empty {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--s-6) var(--s-5) var(--s-5);
+}
+.wb-mcp-empty-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--rounded-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, transparent);
+  margin-bottom: var(--s-4);
+}
+.wb-mcp-empty-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 660;
+  color: var(--ink);
+}
+.wb-mcp-empty-desc {
+  margin: var(--s-2) 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 52ch;
+}
+.wb-mcp-empty-presets-label,
+.wb-mcp-form-presets .wb-mcp-detail-label {
+  align-self: flex-start;
+}
+.wb-mcp-empty-presets-label {
+  margin: var(--s-5) 0 var(--s-3);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* --- Preset grid (shared: empty state + add form) ------------------------- */
+.wb-mcp-presets {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--s-2);
+}
+.wb-mcp-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-3);
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart),
+    transform 0.15s var(--ease-quart);
+}
+.wb-mcp-preset:hover {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+.wb-mcp-preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wb-mcp-preset-top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.wb-mcp-preset-glyph {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rounded-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-mcp-preset-name {
+  font-size: 0.8125rem;
+  font-weight: 640;
+  color: var(--ink);
+}
+.wb-mcp-preset-blurb {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-mcp-empty-scratch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s-4);
+  padding: 8px 14px;
+  border-radius: var(--rounded-md);
+  border: 1px dashed var(--border-strong);
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-mcp-empty-scratch:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.wb-mcp-empty-scratch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Add / edit form ------------------------------------------------------ */
+.wb-mcp-form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+.wb-mcp-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-mcp-back:hover {
+  color: var(--ink);
+}
+.wb-mcp-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--rounded-sm);
+}
+.wb-mcp-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.wb-mcp-form-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 60ch;
+}
+.wb-mcp-form-presets {
+  display: flex;
+  flex-direction: column;
+}
+.wb-mcp-field {
+  width: 100%;
+}
+.wb-mcp-form-error {
+  margin: 0;
+  padding: var(--s-3);
+  border-radius: var(--rounded-md);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.wb-mcp-form-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+.wb-mcp-form-foot .wb-btn svg {
+  margin-right: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-mcp-detail {
+    animation: none;
+  }
+  .wb-mcp-status-spin {
+    animation-duration: 1.6s;
+  }
+  .wb-mcp-expand svg,
+  .wb-mcp-preset,
+  .wb-mcp-row {
+    transition: none;
+  }
+  .wb-mcp-preset:hover {
+    transform: none;
   }
 }

@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { DEFAULT_CONFIG, MAX_RECENT_WORKSPACES, createConfigStore } from './configStore'
+import {
+  DEFAULT_CONFIG,
+  MAX_RECENT_WORKSPACES,
+  createConfigStore,
+  sanitizeShortcutPrefs
+} from './configStore'
 
 // `createConfigStore` takes its base directory as a plain argument instead of
 // reading `electron.app.getPath('userData')` internally, so tests point it at
@@ -58,7 +63,9 @@ describe('ConfigStore', () => {
       lastModel: 'claude-opus-4',
       lastEffort: 'high',
       agent: null,
-      role: null
+      role: null,
+      userName: null,
+      shortcuts: null
     })
   })
 
@@ -76,7 +83,9 @@ describe('ConfigStore', () => {
       lastModel: 'claude-sonnet-4',
       lastEffort: 'medium',
       agent: null,
-      role: null
+      role: null,
+      userName: null,
+      shortcuts: null
     })
   })
 
@@ -98,7 +107,9 @@ describe('ConfigStore', () => {
       lastModel: 'claude-haiku-4',
       lastEffort: 'low',
       agent: null,
-      role: null
+      role: null,
+      userName: null,
+      shortcuts: null
     })
   })
 
@@ -117,6 +128,26 @@ describe('ConfigStore', () => {
     const restarted = createConfigStore(baseDir)
     expect(restarted.getAgent()).toBe('claude-cli')
     expect(restarted.getRole()).toBe('pm')
+  })
+
+  it('persists the display name, trimming on write and clearing on empty/null', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getUserName()).toBeNull()
+
+    store.setUserName('  Gustavo Bruno  ')
+    expect(store.getUserName()).toBe('Gustavo Bruno')
+
+    // Survives a restart (fresh instance, same dir).
+    expect(createConfigStore(baseDir).getUserName()).toBe('Gustavo Bruno')
+
+    // Whitespace-only clears back to null (greeting falls back to neutral copy)…
+    store.setUserName('   ')
+    expect(store.getUserName()).toBeNull()
+
+    // …and so does an explicit null.
+    store.setUserName('Ana')
+    store.setUserName(null)
+    expect(store.getUserName()).toBeNull()
   })
 
   it('backfills recentWorkspaces to [] when loading an old config without the field', () => {
@@ -183,5 +214,61 @@ describe('ConfigStore', () => {
     store.removeRecentWorkspace('/b')
 
     expect(store.getRecentWorkspaces()).toEqual(['/c', '/a'])
+  })
+})
+
+// shortcut-customization: the persisted custom shortcut selection.
+describe('ConfigStore — shortcuts (shortcut-customization)', () => {
+  let baseDir: string
+
+  beforeEach(() => {
+    baseDir = mkdtempSync(join(tmpdir(), 'hive-config-shortcuts-'))
+  })
+
+  afterEach(() => {
+    rmSync(baseDir, { recursive: true, force: true })
+  })
+
+  it('defaults to null (role defaults apply) and round-trips a selection', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getShortcuts()).toBeNull()
+
+    store.setShortcuts({ skills: ['bmad-prd', 'bmad-spec'], agents: ['bmad-agent-pm'] })
+    expect(store.getShortcuts()).toEqual({
+      skills: ['bmad-prd', 'bmad-spec'],
+      agents: ['bmad-agent-pm']
+    })
+
+    // A fresh store over the same dir reads the same selection (disk truth).
+    expect(createConfigStore(baseDir).getShortcuts()).toEqual({
+      skills: ['bmad-prd', 'bmad-spec'],
+      agents: ['bmad-agent-pm']
+    })
+  })
+
+  it('setShortcuts(null) restores the role defaults', () => {
+    const store = createConfigStore(baseDir)
+    store.setShortcuts({ skills: ['bmad-prd'], agents: [] })
+    store.setShortcuts(null)
+    expect(store.getShortcuts()).toBeNull()
+  })
+
+  it('sanitizes hand-edited config on read (bad shapes never leak)', () => {
+    mkdirSync(baseDir, { recursive: true })
+    writeFileSync(
+      join(baseDir, 'config.json'),
+      JSON.stringify({ shortcuts: { skills: ['a', 7, '', 'a'], agents: 'not-a-list' } })
+    )
+    expect(createConfigStore(baseDir).getShortcuts()).toEqual({ skills: ['a'], agents: [] })
+  })
+
+  it('sanitizeShortcutPrefs: non-objects → null; lists deduped, order kept', () => {
+    expect(sanitizeShortcutPrefs(null)).toBeNull()
+    expect(sanitizeShortcutPrefs('x')).toBeNull()
+    expect(sanitizeShortcutPrefs(['x'])).toBeNull()
+    expect(sanitizeShortcutPrefs({ skills: ['b', 'a', 'b'], agents: undefined })).toEqual({
+      skills: ['b', 'a'],
+      agents: []
+    })
   })
 })

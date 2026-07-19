@@ -1,11 +1,13 @@
 import type { ProcessHandle, ProcessRunner } from './processRunner'
 import {
+  composeTurnPrompt,
   createAgentEventQueue,
   type AgentAdapter,
   type AgentCapabilities,
   type AgentInput,
   type AgentSession,
   type SessionOpts,
+  type TurnOpts,
   type WorkflowCommand
 } from './agentAdapter'
 
@@ -48,6 +50,13 @@ import {
  *     to create a PRD") — confirmed live: Claude Code resolves the skill by
  *     matching the natural-language prompt against `SKILL.md` descriptions,
  *     no explicit invocation syntax needed.
+ *   - session-history flags, verified against the same binary's `--help`
+ *     (v2.1.206): `-r, --resume [sessionId]` (resume a conversation by
+ *     session id, works with --print), `--output-format stream-json`,
+ *     `--include-partial-messages` (partial chunks; requires --print +
+ *     stream-json), and stream-json-with-print requiring `--verbose`. The
+ *     stdout parser falls back to raw-token passthrough for any non-JSON
+ *     line, so an older CLI degrades to the previous opaque-text behavior.
  */
 
 const CLAUDE_COMMAND = 'claude'
@@ -78,82 +87,200 @@ function capabilities(): AgentCapabilities {
       { id: 'xhigh', label: 'Extra High' },
       { id: 'max', label: 'Max' }
     ],
-    // R6.5 (attachments) is a separate should-have task (T16).
-    supportsAttachments: false
+    // R6.5/T16: attached/referenced file paths are folded into the turn's
+    // prompt (`composeTurnPrompt`) — the CLI reads the files itself via its
+    // Read tool, which handles text, images and PDFs alike.
+    supportsAttachments: true
+  }
+}
+
+/**
+ * One parsed line of `--output-format stream-json` output (session-history:
+ * this structured mode replaced raw-stdout `token` mapping so the adapter can
+ * learn the CLI's `session_id` — the key to real conversation memory via
+ * `--resume`). Only the fields this adapter reads are modeled; everything
+ * else in the CLI's event objects is ignored.
+ */
+interface StreamJsonLine {
+  type?: string
+  subtype?: string
+  session_id?: string
+  event?: {
+    type?: string
+    delta?: { type?: string; text?: string }
+  }
+}
+
+/**
+ * Routes one stdout line into the session's event queue, tagging every event
+ * with the turn's `turnId` (background-turns: concurrent turns share one
+ * queue, so identity on the event is what keeps their streams apart).
+ *  - `system/init` (and any later event carrying a changed `session_id`) →
+ *    `session` — the renderer persists it per conversation and hands it back
+ *    as `resume` on the next turn.
+ *  - `stream_event` text deltas (`--include-partial-messages`) → `token` —
+ *    true incremental streaming, replacing the old "whole stdout chunk as one
+ *    token" mapping.
+ *  - Complete `assistant`/`result`/`user` objects → ignored: their text
+ *    already streamed as deltas; re-emitting would duplicate every reply.
+ *  - A non-JSON line → emitted verbatim as a `token` (defensive fallback so
+ *    an older CLI without stream-json — or a stray plain-text warning —
+ *    degrades to the previous behavior instead of vanishing).
+ */
+function handleStdoutLine(
+  line: string,
+  queue: ReturnType<typeof createAgentEventQueue>,
+  turnId: string | undefined,
+  sessionTracker: { lastId: string | null }
+): void {
+  const trimmed = line.trim()
+  if (trimmed === '') return
+  let parsed: StreamJsonLine
+  try {
+    parsed = JSON.parse(trimmed) as StreamJsonLine
+  } catch {
+    queue.push({ type: 'token', text: line, turnId })
+    return
+  }
+  if (typeof parsed.session_id === 'string' && parsed.session_id !== sessionTracker.lastId) {
+    sessionTracker.lastId = parsed.session_id
+    queue.push({ type: 'session', id: parsed.session_id, turnId })
+  }
+  if (
+    parsed.type === 'stream_event' &&
+    parsed.event?.type === 'content_block_delta' &&
+    parsed.event.delta?.type === 'text_delta' &&
+    typeof parsed.event.delta.text === 'string'
+  ) {
+    queue.push({ type: 'token', text: parsed.event.delta.text, turnId })
   }
 }
 
 /**
  * Pipes one spawned turn's `ProcessHandle` into the session's shared event
- * queue: every stdout/stderr chunk becomes a `token` event (simplest
- * reasonable MVP mapping — see agentAdapter.ts's `AgentEvent` doc), then
- * exactly one terminal event:
+ * queue: stdout is consumed as line-buffered stream-json (see
+ * `handleStdoutLine`), stderr is collected as error context (never rendered
+ * into the transcript), then exactly one terminal event:
  *  - `done` on a clean exit (code 0),
  *  - `interrupted` when the non-clean exit was caused by a deliberate
  *    user `stop()` (chat-controls CC-R1.5) — `wasInterrupted()` reports this
  *    turn's handle was the one `stop()` killed,
- *  - `error` otherwise (unexpected non-zero exit code or signal).
+ *  - `error` otherwise (unexpected non-zero exit code or signal), with the
+ *    tail of stderr appended so the Alert says *why*, not just the code.
  * Partial `token`s already delivered are unaffected either way (CC-R1.3).
  */
 async function pipeTurn(
   handle: ProcessHandle,
   queue: ReturnType<typeof createAgentEventQueue>,
+  turnId: string | undefined,
   wasInterrupted: () => boolean
 ): Promise<void> {
+  // Session-id dedupe is per turn: every event of a resumed run echoes the
+  // same id, but each new turn must re-announce its (possibly re-minted) id.
+  const sessionTracker: { lastId: string | null } = { lastId: null }
+  let stdoutRest = ''
+  let stderrTail = ''
   for await (const chunk of handle.output) {
-    queue.push({ type: 'token', text: chunk.data })
+    if (chunk.stream === 'stderr') {
+      stderrTail = (stderrTail + chunk.data).slice(-500)
+      continue
+    }
+    stdoutRest += chunk.data
+    const lines = stdoutRest.split('\n')
+    stdoutRest = lines.pop() ?? ''
+    for (const line of lines) {
+      handleStdoutLine(line, queue, turnId, sessionTracker)
+    }
   }
+  handleStdoutLine(stdoutRest, queue, turnId, sessionTracker)
   const result = await handle.exitCode
   if (wasInterrupted()) {
-    queue.push({ type: 'interrupted' })
+    queue.push({ type: 'interrupted', turnId })
   } else if (result.code === 0) {
-    queue.push({ type: 'done' })
+    queue.push({ type: 'done', turnId })
   } else if (result.signal) {
-    queue.push({ type: 'error', message: `claude was terminated by signal ${result.signal}` })
+    queue.push({
+      type: 'error',
+      message: `claude was terminated by signal ${result.signal}`,
+      turnId
+    })
   } else {
-    queue.push({ type: 'error', message: `claude exited with code ${result.code}` })
+    const detail = stderrTail.trim()
+    queue.push({
+      type: 'error',
+      message: `claude exited with code ${result.code}${detail ? `: ${detail}` : ''}`,
+      turnId
+    })
   }
 }
 
 function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSession {
   const queue = createAgentEventQueue()
-  // The most recently spawned turn's handle, so `stop()` has something to
-  // kill. `ClaudeCliAdapter` spawns one `claude -p ...` process per turn
-  // (see file header) rather than holding one long-lived process for the
-  // whole session, since `ProcessHandle` exposes no stdin to keep feeding a
-  // single interactive process turn after turn.
-  let activeHandle: ProcessHandle | null = null
-  // The handle a user `stop()` killed, so `pipeTurn` can distinguish a
+  // Every in-flight turn's handle, keyed by its caller turnId (or an
+  // internal key when none was given). `ClaudeCliAdapter` spawns one
+  // `claude -p ...` process per turn (see file header); background-turns
+  // means several can now run concurrently — one conversation finishing in
+  // the background while another streams on screen — so this is a map, not
+  // a single "active handle". Conversation *context* across one-shot turns
+  // comes from `--resume` (session-history).
+  const activeHandles = new Map<string, ProcessHandle>()
+  // Handles a user interrupt/stop killed, so `pipeTurn` can distinguish a
   // deliberate interrupt (emit `interrupted`) from a real failure
-  // (emit `error`) — chat-controls CC-R1.5. Reset when a new turn spawns.
-  let interruptedHandle: ProcessHandle | null = null
+  // (emit `error`) — chat-controls CC-R1.5.
+  const interruptedHandles = new Set<ProcessHandle>()
+  let anonymousTurnCounter = 0
 
-  function spawnTurn(prompt: string): void {
-    interruptedHandle = null
+  function spawnTurn(prompt: string, turnOpts: TurnOpts | undefined): void {
+    const resume = turnOpts?.resume
+    const turnId = turnOpts?.turnId
+    // Per-turn model/effort override (skill-studio) falls back to the session
+    // defaults — so one turn can run on a heavier model without restarting the
+    // shared session and killing its other (e.g. backgrounded) turns.
+    const model = turnOpts?.model ?? opts.model
+    const effort = turnOpts?.effort ?? opts.effort
+    anonymousTurnCounter += 1
+    const handleKey = turnId ?? `anon-${anonymousTurnCounter}`
     const handle = processRunner.run(
       CLAUDE_COMMAND,
       [
         '-p',
         prompt,
         '--model',
-        opts.model,
+        model,
         '--effort',
-        opts.effort,
+        effort,
         // Verified live: without a permission-mode flag, `-p` silently
         // refuses tool-driven writes ("I don't have permission to write
         // there yet"). `acceptEdits` is the minimum that lets BMAD skills
         // (e.g. bmad-prd) actually write their output artifact.
         '--permission-mode',
-        'acceptEdits'
+        'acceptEdits',
+        // session-history: structured output is what exposes the CLI's
+        // `session_id` (the handle for `--resume`) and true token-level
+        // streaming. `--verbose` is required by the CLI for stream-json
+        // with --print; `--include-partial-messages` adds text deltas.
+        '--output-format',
+        'stream-json',
+        '--include-partial-messages',
+        '--verbose',
+        // Continue this conversation's prior CLI session, when known.
+        ...(resume ? ['--resume', resume] : [])
       ],
       { cwd: opts.workspace }
     )
-    activeHandle = handle
-    void pipeTurn(handle, queue, () => interruptedHandle === handle).then(() => {
-      if (activeHandle === handle) {
-        activeHandle = null
+    activeHandles.set(handleKey, handle)
+    void pipeTurn(handle, queue, turnId, () => interruptedHandles.has(handle)).then(() => {
+      if (activeHandles.get(handleKey) === handle) {
+        activeHandles.delete(handleKey)
       }
+      interruptedHandles.delete(handle)
     })
+  }
+
+  /** Marks a handle as deliberately killed (its terminal event becomes `interrupted`, not `error`), then kills it. */
+  function killAsInterrupt(handle: ProcessHandle): void {
+    interruptedHandles.add(handle)
+    handle.kill()
   }
 
   return {
@@ -161,13 +288,9 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
     // `ProcessHandle` doesn't expose stdin (see file header) — so, for this
     // MVP session model, `send` starts a brand new one-shot `claude -p`
     // turn per call rather than streaming into an already-running process.
-    // Gap for a future task (flagged for T14, which wires this adapter into
-    // `AgentService`): if a true persistent, mid-turn-interruptible session
-    // is needed later, either `ProcessHandle` grows a stdin-write method, or
-    // this adapter switches to a pty-backed `ProcessRunner` (the extension
-    // point `processRunner.ts` already documents for interactive CLIs).
+    // Conversation memory across those turns is `--resume`'s job (above).
     send(input: AgentInput): void {
-      spawnTurn(input.text)
+      spawnTurn(composeTurnPrompt(input.text, input.attachments), input)
     },
     events: queue,
     // Minimal MVP implementation: turns a `WorkflowCommand` into a one-shot
@@ -175,17 +298,27 @@ function startSession(processRunner: ProcessRunner, opts: SessionOpts): AgentSes
     // intents to real BMAD skill prompts) is T17/T19; this just guarantees
     // a sane, non-crashing signature for those tasks to build on, including
     // a placeholder `key` with no `prompt`.
-    runWorkflow(cmd: WorkflowCommand): void {
-      const prompt = cmd.prompt ?? `Run the "${cmd.key}" workflow.`
-      spawnTurn(prompt)
+    runWorkflow(cmd: WorkflowCommand, turnOpts?: TurnOpts): void {
+      // No explicit prompt → invoke the skill by its slash command, the same
+      // thing the user would type in the composer (`claude -p "/<skill>"`).
+      const prompt = cmd.prompt ?? `/${cmd.key}`
+      spawnTurn(composeTurnPrompt(prompt, turnOpts?.attachments), turnOpts)
+    },
+    // background-turns: interrupt exactly one turn (the Stop button targets
+    // the on-screen conversation's turn) or, with no id, every in-flight
+    // turn. Background turns keep streaming either way when not targeted.
+    interrupt(turnId?: string): void {
+      if (turnId !== undefined) {
+        const handle = activeHandles.get(turnId)
+        if (handle) killAsInterrupt(handle)
+        return
+      }
+      for (const handle of activeHandles.values()) killAsInterrupt(handle)
     },
     stop(): void {
-      // Mark the in-flight turn as a *user* interrupt so its terminal event is
-      // `interrupted`, not `error` (CC-R1.5), then kill it. Harmless when
-      // there's no active turn (`activeHandle` null → nothing killed, and the
-      // next spawn resets `interruptedHandle`).
-      interruptedHandle = activeHandle
-      activeHandle?.kill()
+      // Session teardown: every in-flight turn dies as a deliberate
+      // interrupt (CC-R1.5) — never a spurious `error`.
+      for (const handle of activeHandles.values()) killAsInterrupt(handle)
     }
   }
 }

@@ -25,6 +25,8 @@ interface FakeSession extends AgentSession {
   opts: SessionOpts
   sends: AgentInput[]
   workflows: WorkflowCommand[]
+  /** Every `interrupt()` call's turnId arg (undefined = interrupt-all). */
+  interrupts: Array<string | undefined>
   stopped: boolean
   push(event: AgentEvent): void
 }
@@ -35,6 +37,7 @@ function createFakeSession(opts: SessionOpts): FakeSession {
     opts,
     sends: [],
     workflows: [],
+    interrupts: [],
     stopped: false,
     events: queue,
     push: (event: AgentEvent) => queue.push(event),
@@ -43,6 +46,9 @@ function createFakeSession(opts: SessionOpts): FakeSession {
     },
     runWorkflow(cmd: WorkflowCommand) {
       session.workflows.push(cmd)
+    },
+    interrupt(turnId?: string) {
+      session.interrupts.push(turnId)
     },
     stop() {
       session.stopped = true
@@ -134,7 +140,7 @@ describe('AgentService', () => {
     service.send('hello')
 
     expect(sessions).toHaveLength(1)
-    expect(sessions[0].sends).toEqual([{ text: 'hello' }])
+    expect(sessions[0].sends).toEqual([{ text: 'hello', resume: null }])
   })
 
   it('runWorkflow() forwards to the underlying session', () => {
@@ -145,6 +151,45 @@ describe('AgentService', () => {
     service.runWorkflow({ key: 'prd', prompt: 'run prd' })
 
     expect(sessions[0].workflows).toEqual([{ key: 'prd', prompt: 'run prd' }])
+  })
+
+  // session-history + background-turns: resume + turnId ride through untouched.
+  it('send() forwards resume and turnId to the session as AgentInput fields', () => {
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
+
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+    service.send('continua dali', { resume: 'cli-sess-7', turnId: 'turn-9' })
+
+    expect(sessions[0].sends).toEqual([
+      { text: 'continua dali', resume: 'cli-sess-7', turnId: 'turn-9' }
+    ])
+  })
+
+  // skill-studio: a per-turn model/effort override rides through to the session.
+  it('send() forwards a per-turn model/effort override', () => {
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
+
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+    service.send('gera a skill', { turnId: 'turn-1', model: 'opus', effort: 'max' })
+
+    expect(sessions[0].sends).toEqual([
+      { text: 'gera a skill', resume: null, turnId: 'turn-1', model: 'opus', effort: 'max' }
+    ])
+  })
+
+  // chat-attachments: attached/referenced file paths ride through untouched.
+  it('send() forwards attachments to the session as an AgentInput field', () => {
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
+
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+    service.send('analisa', { attachments: ['/abs/dados.csv', 'docs/prd.md'] })
+
+    expect(sessions[0].sends).toEqual([
+      { text: 'analisa', resume: null, attachments: ['/abs/dados.csv', 'docs/prd.md'] }
+    ])
   })
 
   it('starting a new session stops the previous active session and becomes the new target for send()', () => {
@@ -159,7 +204,7 @@ describe('AgentService', () => {
 
     service.send('hi')
     expect(sessions[0].sends).toEqual([])
-    expect(sessions[1].sends).toEqual([{ text: 'hi' }])
+    expect(sessions[1].sends).toEqual([{ text: 'hi', resume: null }])
   })
 
   it('onEvent() with no active session is a safe no-op subscribe (does not throw)', () => {
@@ -243,6 +288,39 @@ describe('AgentService', () => {
     const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
 
     expect(() => service.stop()).not.toThrow()
+  })
+
+  // session-history / chat-controls CC-R1 / background-turns: interrupt
+  // targets turns, never the session — the user is still mid-conversation.
+  it('interrupt(turnId?) forwards to the session and keeps it active: send() still works and events keep forwarding', async () => {
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
+    service.startSession({ workspace: '/ws', model: 'model-a', effort: 'low' })
+
+    const received: AgentEvent[] = []
+    service.onEvent((event) => received.push(event))
+
+    service.interrupt('turn-3')
+    service.interrupt()
+
+    expect(sessions[0].interrupts).toEqual(['turn-3', undefined])
+    expect(sessions[0].stopped).toBe(false)
+    // Session still active: send() targets it instead of throwing…
+    expect(() => service.send('continua')).not.toThrow()
+    expect(sessions[0].sends).toEqual([{ text: 'continua', resume: null }])
+    // …and its events still reach the subscriber (unlike after stop(), which
+    // cuts the forwarding loop via the activeSession identity check).
+    sessions[0].push({ type: 'interrupted' })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(received).toEqual([{ type: 'interrupted' }])
+  })
+
+  it('interrupt() with no active session is a safe no-op', () => {
+    const { adapter } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }), 'fake')
+
+    expect(() => service.interrupt()).not.toThrow()
   })
 
   // agent-selection (AG-R1.2/AG-C4): the active adapter is chosen from the

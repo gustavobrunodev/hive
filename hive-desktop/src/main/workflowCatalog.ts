@@ -304,6 +304,188 @@ export async function listSkills(workspaceRoot: string): Promise<SkillEntry[]> {
 }
 
 /**
+ * One entry of the *full* workspace skill catalog (shortcut-customization):
+ * every BMAD skill installed in the workspace — workflows AND specialist
+ * agents — as offered by the "Personalizar atalhos" picker. Sourced from
+ * `_bmad/_config/skill-manifest.csv` (the only BMAD-installed catalog that
+ * lists the `bmad-agent-*`/`bmad-tea` persona skills; `bmad-help.csv` covers
+ * workflows only), with `bmad-help.csv` contributing nicer display names
+ * where it knows the skill.
+ */
+export interface WorkspaceSkill {
+  /** The skill name — `command.key` when launched via `agent.runWorkflow`. */
+  key: string
+  /**
+   * Best-effort human display name: `bmad-help.csv`'s `display-name` when
+   * present, the persona's first name for agents, else the raw skill name.
+   * The renderer maps known keys to pt-BR labels and uses this as fallback.
+   */
+  label: string
+  /** One-line description (SKILL.md frontmatter, English) — searched on. */
+  description: string
+  /** BMAD module (`core`, `bmm`, `tea`, `bmb`…) — grouping metadata. */
+  module: string
+  /** `agent` = a "talk to <persona>" specialist skill; `skill` = a workflow. */
+  kind: 'skill' | 'agent'
+  /** The specialist's first name ("John", "Sally") when detectable, else null. */
+  persona: string | null
+  /**
+   * `true` for a user-created skill (skill-studio: found under
+   * `.claude/skills/` but absent from BMAD's install manifest). Absent —
+   * not `false` — on BMAD-installed entries, keeping this additive.
+   */
+  custom?: boolean
+}
+
+/**
+ * One row of `_bmad/_config/skill-manifest.csv` — BMAD's complete installed-
+ * skill manifest (62 rows in the real captured install vs. bmad-help.csv's
+ * workflow-only view). Header observed from a real install:
+ *
+ *   canonicalId,name,description,module,path
+ */
+interface SkillManifestRow {
+  canonicalId: string
+  name: string
+  description: string
+  module: string
+  path: string
+}
+
+/** Parses `skill-manifest.csv` with the same header-mapped tolerance as `parseBmadHelpCsv` — malformed input yields `[]`, never throws. */
+export function parseSkillManifestCsv(text: string): SkillManifestRow[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+  if (lines.length < 2) return []
+
+  const header = parseCsvLine(lines[0]).map((h) => h.trim())
+  const columns: ReadonlyArray<keyof SkillManifestRow> = [
+    'canonicalId',
+    'name',
+    'description',
+    'module',
+    'path'
+  ]
+  const fieldIndex = new Map<keyof SkillManifestRow, number>()
+  header.forEach((columnName, index) => {
+    if ((columns as readonly string[]).includes(columnName)) {
+      fieldIndex.set(columnName as keyof SkillManifestRow, index)
+    }
+  })
+  if (!fieldIndex.has('canonicalId') && !fieldIndex.has('name')) return []
+
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line)
+    const row = {} as SkillManifestRow
+    for (const field of columns) {
+      const index = fieldIndex.get(field)
+      row[field] = index !== undefined ? (values[index] ?? '').trim() : ''
+    }
+    return row
+  })
+}
+
+/**
+ * The agent-skill detector. BMAD persona skills describe themselves as
+ * "Use when the user asks to talk to <Name>…" (observed across every
+ * `bmad-agent-*` and `bmad-tea` SKILL.md in the real install) — that's the
+ * primary signal, and it also yields the persona's display name. The path
+ * fallback (`…/agents/…`, e.g. `_bmad/tea/agents/bmad-tea/`) catches an
+ * agent whose description drops the phrase. Note `bmad-agent-builder` is
+ * deliberately NOT an agent (it *builds* agents — its description has no
+ * "talk to", and its path has no `/agents/` segment).
+ */
+const TALK_TO_PATTERN = /talk to ([A-Za-zÀ-ſ]+)/i
+
+export function classifySkill(
+  description: string,
+  path: string
+): Pick<WorkspaceSkill, 'kind' | 'persona'> {
+  const match = TALK_TO_PATTERN.exec(description)
+  if (match) return { kind: 'agent', persona: match[1] }
+  if (/(^|\/)agents\//.test(path)) return { kind: 'agent', persona: null }
+  return { kind: 'skill', persona: null }
+}
+
+/** Deprecated compatibility shims (e.g. `bmad-create-prd`) self-describe as "DEPRECATED — consolidated into …" — never offered as shortcuts. */
+function isDeprecated(description: string): boolean {
+  return description.toUpperCase().includes('DEPRECATED')
+}
+
+/**
+ * Reads `bmad-help.csv`'s first `display-name` per skill — the friendliest
+ * label source available ("Create Brief", "Domain Research"). Missing or
+ * unreadable file yields an empty map (labels then fall back per
+ * `WorkspaceSkill.label`'s chain).
+ */
+async function readDisplayNames(workspaceRoot: string): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  try {
+    const text = await readFile(join(workspaceRoot, '_bmad', '_config', 'bmad-help.csv'), 'utf-8')
+    for (const row of parseBmadHelpCsv(text)) {
+      if (!row.skill || row.skill === '_meta' || !row.displayName) continue
+      if (!names.has(row.skill)) names.set(row.skill, row.displayName)
+    }
+  } catch {
+    // No help CSV — labels fall back to persona/skill names.
+  }
+  return names
+}
+
+/**
+ * Lists the complete workspace skill catalog for shortcut customization:
+ * every installed, non-deprecated BMAD skill, classified as `agent` or
+ * `skill`. Primary source is `skill-manifest.csv`; when it's missing
+ * (older BMAD installs), falls back to `bmad-help.csv`'s workflow rows so
+ * the picker still works (agents then simply aren't listed). Missing/
+ * malformed everything → `[]`, never throws.
+ */
+export async function listWorkspaceCatalog(workspaceRoot: string): Promise<WorkspaceSkill[]> {
+  const displayNames = await readDisplayNames(workspaceRoot)
+
+  let rows: SkillManifestRow[]
+  try {
+    const text = await readFile(
+      join(workspaceRoot, '_bmad', '_config', 'skill-manifest.csv'),
+      'utf-8'
+    )
+    rows = parseSkillManifestCsv(text)
+  } catch {
+    rows = []
+  }
+
+  if (rows.length === 0) {
+    // Manifest unavailable — degrade to the workflow-only view.
+    const workflows = await listSkills(workspaceRoot)
+    return workflows.map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      description: entry.description,
+      module: '',
+      kind: 'skill' as const,
+      persona: null
+    }))
+  }
+
+  const seen = new Set<string>()
+  const catalog: WorkspaceSkill[] = []
+  for (const row of rows) {
+    const key = row.canonicalId || row.name
+    if (!key || seen.has(key) || isDeprecated(row.description)) continue
+    seen.add(key)
+    const { kind, persona } = classifySkill(row.description, row.path)
+    catalog.push({
+      key,
+      label: displayNames.get(key) ?? persona ?? key,
+      description: row.description,
+      module: row.module,
+      kind,
+      persona
+    })
+  }
+  return catalog
+}
+
+/**
  * Extends the curated catalog with dynamic discovery from an installed
  * BMAD, reading `<workspaceRoot>/_bmad/_config/bmad-help.csv` (the concrete
  * mechanism design.md §7 recommends over guessing at other formats). Plain

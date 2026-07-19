@@ -65,6 +65,16 @@ export interface FsService {
    * root itself), recursively. Throws if `relativePath` resolves outside `root`.
    */
   listTree(root: string, relativePath?: string): TreeNode[]
+  /**
+   * Flat list of every *file* under `root` as POSIX-style relative paths
+   * (chat `#` file references). Unlike `listTree`, dependency/build
+   * directories (`node_modules`, `.git`, `dist`, …) are skipped — this feeds
+   * a mention picker, not a file manager — and the walk stops at
+   * `LIST_FILES_LIMIT` entries so a giant workspace can't flood the IPC
+   * boundary. Ordering: breadth-ish per directory, files before subdirs, so
+   * root-level artifacts land inside the cap first.
+   */
+  listFiles(root: string): string[]
   /** Reads a file's contents as UTF-8 text. Throws if `relativePath` resolves outside `root`. */
   readFile(root: string, relativePath: string): string
   /**
@@ -208,6 +218,60 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
 }
 
 /**
+ * Directories `listFiles` never descends into: dependency trees, VCS
+ * internals and build output are never what a user means by `#arquivo`, and
+ * walking them would blow the entry cap before any real artifact appears.
+ */
+const LIST_FILES_IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'out',
+  'build',
+  'coverage',
+  '.cache',
+  '.next',
+  '.venv',
+  '__pycache__',
+  'target'
+])
+
+/** Hard cap on `listFiles` results — plenty for a mention picker, harmless over IPC. */
+const LIST_FILES_LIMIT = 5000
+
+/**
+ * Depth-first file walk for `listFiles`. Files are pushed before
+ * subdirectories at each level so shallow artifacts win the cap race.
+ * Symlinks are skipped entirely (a mention needs a real workspace file;
+ * following links risks cycles and root escapes). Unreadable directories are
+ * skipped, never thrown — one bad permission shouldn't blank the picker.
+ */
+function walkFiles(dirAbs: string, relBase: string, sink: string[]): void {
+  if (sink.length >= LIST_FILES_LIMIT) return
+  let entries
+  try {
+    entries = readdirSync(dirAbs, { withFileTypes: true })
+  } catch {
+    return
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name))
+  const subdirs: Array<{ abs: string; rel: string }> = []
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) continue
+    const entryRel = joinRelative(relBase, entry.name)
+    if (entry.isFile()) {
+      if (sink.length >= LIST_FILES_LIMIT) return
+      sink.push(entryRel)
+    } else if (entry.isDirectory() && !LIST_FILES_IGNORED_DIRS.has(entry.name)) {
+      subdirs.push({ abs: join(dirAbs, entry.name), rel: entryRel })
+    }
+  }
+  for (const dir of subdirs) {
+    walkFiles(dir.abs, dir.rel, sink)
+  }
+}
+
+/**
  * Validates the final path segment of a create/rename target (FM-R1.3),
  * before it ever reaches `resolveSafe` — an empty name, a name embedding a
  * path separator, or a `.`/`..` segment gets a clear, specific error here
@@ -245,6 +309,13 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     const rootAbs = resolve(root)
     const dirAbs = resolveSafe(rootAbs, relativePath)
     return listDir(rootAbs, dirAbs, relativePath === '.' ? '.' : relativePath)
+  }
+
+  function listFiles(root: string): string[] {
+    const rootAbs = resolve(root)
+    const files: string[] = []
+    walkFiles(rootAbs, '.', files)
+    return files
   }
 
   function readFile(root: string, relativePath: string): string {
@@ -408,6 +479,7 @@ export function createFsService(deps?: FsServiceDeps): FsService {
 
   return {
     listTree,
+    listFiles,
     readFile,
     watchWorkspace,
     statFile,

@@ -53,7 +53,48 @@ export default defineConfig({
           lines: 90
         },
         'src/renderer/src/WorkUI.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
-        'src/renderer/src/chat/Chat.tsx': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/renderer/src/chat/Chat.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // shortcut-customization: files this feature added/touched.
+        'src/main/workflowCatalog.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/configStore.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/roleCatalog.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/roleVisuals.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/ShortcutCustomizer.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/IntentGrid.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/shortcutSearch.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // mcp: the MCP-server module's logic files. The service (parallel to
+        // the gated fsService) and the pure form helpers are held to the full
+        // bar; the presentational `McpManager.tsx` follows its sibling
+        // `SkillStudio.tsx` (also ungated) — it's covered by McpManager.test
+        // at ~99% statements/lines, but its many tiny render-callback arrows
+        // make a 90% *function* gate noise, not signal.
+        'src/main/mcpService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/mcpForm.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
       }
     }
   }

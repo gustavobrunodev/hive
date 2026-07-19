@@ -171,9 +171,13 @@ describe('preload: window.hive bridge', () => {
     function getAgent(): {
       capabilities: () => Promise<unknown>
       start: (opts: unknown) => Promise<void>
-      send: (text: string) => Promise<void>
-      runWorkflow: (cmd: unknown) => Promise<void>
+      send: (text: string, opts?: { resume?: string | null; turnId?: string }) => Promise<void>
+      runWorkflow: (
+        cmd: unknown,
+        opts?: { resume?: string | null; turnId?: string }
+      ) => Promise<void>
       stop: () => Promise<void>
+      interrupt: (turnId?: string) => Promise<void>
       onEvent: (onEvent: (evt: unknown) => void) => () => void
     } {
       return (exposedGlobals().get('hive') as { agent: ReturnType<typeof getAgent> }).agent
@@ -190,20 +194,35 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:start', opts)
     })
 
-    it('agent.send(text) invokes "agent:send" with text', async () => {
+    it('agent.send(text, opts) invokes "agent:send" with text + the turn opts', async () => {
       await getAgent().send('hello')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:send', 'hello')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:send', 'hello', undefined)
+      await getAgent().send('again', { resume: 'cli-sess-1', turnId: 'turn-1' })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:send', 'again', {
+        resume: 'cli-sess-1',
+        turnId: 'turn-1'
+      })
     })
 
-    it('agent.runWorkflow(cmd) invokes "agent:runWorkflow" with cmd', async () => {
+    it('agent.runWorkflow(cmd, opts) invokes "agent:runWorkflow" with cmd + the turn opts', async () => {
       const cmd = { key: 'plan' }
-      await getAgent().runWorkflow(cmd)
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:runWorkflow', cmd)
+      await getAgent().runWorkflow(cmd, { resume: 'cli-sess-2', turnId: 'turn-2' })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:runWorkflow', cmd, {
+        resume: 'cli-sess-2',
+        turnId: 'turn-2'
+      })
     })
 
     it('agent.stop() invokes "agent:stop"', async () => {
       await getAgent().stop()
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:stop')
+    })
+
+    it('agent.interrupt(turnId?) invokes "agent:interrupt" with the turn id (never "agent:stop")', async () => {
+      await getAgent().interrupt()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:interrupt', undefined)
+      await getAgent().interrupt('turn-5')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:interrupt', 'turn-5')
     })
 
     it('agent.onEvent(onEvent) registers a listener, sends agent:event:start, and the returned unsubscribe removes the listener + sends agent:event:stop', () => {
@@ -283,6 +302,52 @@ describe('preload: window.hive bridge', () => {
   })
 
   // T17: WorkflowCatalog namespace, never covered by a test.
+  // session-history: the chatHistory namespace, plain invoke/response.
+  it('hive.chatHistory.* invoke their "chatHistory:<name>" channels with matching args', async () => {
+    const chatHistory = (
+      exposedGlobals().get('hive') as {
+        chatHistory: {
+          list: (ws: string) => Promise<unknown>
+          get: (ws: string, id: string) => Promise<unknown>
+          create: (ws: string, agent: string | null) => Promise<unknown>
+          append: (ws: string, id: string, message: unknown) => Promise<unknown>
+          rename: (ws: string, id: string, title: string) => Promise<unknown>
+          setCliSession: (ws: string, id: string, cliSessionId: string) => Promise<void>
+          search: (ws: string, query: string) => Promise<unknown>
+          delete: (ws: string, id: string) => Promise<void>
+        }
+      }
+    ).chatHistory
+
+    await chatHistory.list('/ws')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:list', '/ws')
+    await chatHistory.get('/ws', 'id-1')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:get', '/ws', 'id-1')
+    await chatHistory.create('/ws', 'claude-cli')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:create', '/ws', 'claude-cli')
+    const message = { role: 'user', text: 'oi' }
+    await chatHistory.append('/ws', 'id-1', message)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:append', '/ws', 'id-1', message)
+    await chatHistory.rename('/ws', 'id-1', 'Novo título')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'chatHistory:rename',
+      '/ws',
+      'id-1',
+      'Novo título'
+    )
+    await chatHistory.setCliSession('/ws', 'id-1', 'cli-sess-1')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'chatHistory:setCliSession',
+      '/ws',
+      'id-1',
+      'cli-sess-1'
+    )
+    await chatHistory.search('/ws', 'cascata')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:search', '/ws', 'cascata')
+    await chatHistory.delete('/ws', 'id-1')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:delete', '/ws', 'id-1')
+  })
+
   it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
     const hive = exposedGlobals().get('hive') as {
       workflows: { list: (w: string) => Promise<unknown> }
@@ -298,6 +363,15 @@ describe('preload: window.hive bridge', () => {
     }
     await expect(hive.skills.list('/root')).resolves.toBe('invoked:skills:list')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('skills:list', '/root')
+  })
+
+  // skill-studio: the user-created-skills namespace.
+  it('hive.studio.list(workspace) invokes "studio:list" with workspace', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      studio: { list: (w: string) => Promise<unknown> }
+    }
+    await expect(hive.studio.list('/root')).resolves.toBe('invoked:studio:list')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('studio:list', '/root')
   })
 
   // Profile namespace (agent-selection + role-personalization).
@@ -329,6 +403,90 @@ describe('preload: window.hive bridge', () => {
 
     await hive.profile.roleActions('pm')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:roleActions', 'pm')
+  })
+
+  // shortcut-customization: the shortcuts namespace.
+  it('hive.shortcuts.* invokes the matching shortcuts IPC channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      shortcuts: {
+        catalog: (workspace: string) => Promise<unknown>
+        get: () => Promise<unknown>
+        set: (prefs: { skills: string[]; agents: string[] } | null) => Promise<unknown>
+        actions: (role: string | null, workspace: string) => Promise<unknown>
+      }
+    }
+    await expect(hive.shortcuts.catalog('/root')).resolves.toBe('invoked:shortcuts:catalog')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:catalog', '/root')
+
+    await expect(hive.shortcuts.get()).resolves.toBe('invoked:shortcuts:get')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:get')
+
+    const prefs = { skills: ['bmad-prd'], agents: ['bmad-agent-pm'] }
+    await hive.shortcuts.set(prefs)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', prefs)
+    await hive.shortcuts.set(null)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', null)
+
+    await hive.shortcuts.actions('pm', '/root')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:actions', 'pm', '/root')
+  })
+
+  // Thin invoke wrappers not exercised elsewhere in this file — proven here
+  // so every bridge function routes to its exact channel (coverage gate).
+  it('remaining bridge wrappers invoke their exact channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      openExternal: (url: string) => Promise<void>
+      listFiles: (root: string) => Promise<unknown>
+      agent: { chooseAttachments: (defaultPath?: string) => Promise<unknown> }
+      profile: {
+        getUserName: () => Promise<unknown>
+        setUserName: (name: string | null) => Promise<void>
+      }
+      app: {
+        info: () => Promise<unknown>
+        checkForUpdates: () => Promise<void>
+        downloadUpdate: () => Promise<void>
+        installUpdate: () => Promise<void>
+        onUpdateEvent: (onEvent: (evt: unknown) => void) => () => void
+      }
+    }
+
+    await hive.openExternal('https://example.com')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:openExternal', 'https://example.com')
+
+    await expect(hive.listFiles('/root')).resolves.toBe('invoked:fs:listFiles')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:listFiles', '/root')
+
+    await hive.agent.chooseAttachments('/root')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('chat:chooseAttachments', '/root')
+
+    await expect(hive.profile.getUserName()).resolves.toBe('invoked:profile:getUserName')
+    await hive.profile.setUserName('Gustavo')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setUserName', 'Gustavo')
+
+    await expect(hive.app.info()).resolves.toBe('invoked:app:info')
+    await hive.app.checkForUpdates()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:check')
+    await hive.app.downloadUpdate()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:download')
+    await hive.app.installUpdate()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:install')
+
+    // onUpdateEvent: subscribes on 'update:event' + signals start/stop.
+    const onEvent = vi.fn()
+    const unsubscribe = hive.app.onUpdateEvent(onEvent)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('update:event', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('update:event:start')
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'update:event')?.[1] as (
+      event: unknown,
+      evt: unknown
+    ) => void
+    listener({}, { type: 'checking' })
+    expect(onEvent).toHaveBeenCalledWith({ type: 'checking' })
+    unsubscribe()
+    expect(ipcRenderer.send).toHaveBeenCalledWith('update:event:stop')
   })
 
   // T7: file management, window.hive.fs.* + pathForFile.

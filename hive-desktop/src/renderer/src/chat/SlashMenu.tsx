@@ -24,10 +24,12 @@ interface SlashMenuProps {
 /**
  * The slash-command (skills) menu (chat-controls CC-R2): a listbox of the
  * workspace's BMAD skills, anchored above the composer, opened by a leading
- * `/`. Presentational only — Chat owns the query, filtering, highlight index
- * and keyboard handling (the textarea keeps focus and controls this listbox via
- * `aria-activedescendant`, so focus is never trapped). Rows are chosen on
- * `mousedown` (preventing the default so the textarea doesn't blur first).
+ * `/`. Each row is just the command (`/bmad-prd`) — a command palette, not a
+ * catalog: what you pick is exactly what gets sent. Presentational only —
+ * Chat owns the query, filtering, highlight index and keyboard handling (the
+ * textarea keeps focus and controls this listbox via `aria-activedescendant`,
+ * so focus is never trapped). Rows are chosen on `mousedown` (preventing the
+ * default so the textarea doesn't blur first).
  */
 export function SlashMenu({
   items,
@@ -56,7 +58,7 @@ export function SlashMenu({
               role="option"
               aria-selected={index === highlightIndex}
               data-active={index === highlightIndex || undefined}
-              className="wb-slash-item"
+              className="wb-slash-item wb-slash-item-cmd"
               onMouseEnter={() => onHighlight(index)}
               onMouseDown={(event) => {
                 // Keep textarea focus (don't blur before the select lands).
@@ -67,16 +69,12 @@ export function SlashMenu({
               <span className="wb-slash-item-icon" aria-hidden="true">
                 <SlashIcon size={13} />
               </span>
-              <span className="wb-slash-item-text">
-                <span className="wb-slash-item-label">{skill.label}</span>
-                {skill.description && (
-                  <span className="wb-slash-item-desc">{skill.description}</span>
-                )}
-              </span>
+              <span className="wb-slash-cmd">/{skill.key}</span>
             </li>
           ))}
         </ul>
       )}
+      <div className="wb-slash-menu-foot">{t('chat.slashMenuHint')}</div>
     </div>
   )
 }

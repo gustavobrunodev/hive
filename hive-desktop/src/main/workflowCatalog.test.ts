@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { list, listWithDiscovery, listSkills, parseBmadHelpCsv } from './workflowCatalog'
+import {
+  list,
+  listWithDiscovery,
+  listSkills,
+  listWorkspaceCatalog,
+  parseBmadHelpCsv,
+  parseSkillManifestCsv
+} from './workflowCatalog'
 
 // A trimmed fixture of the *real* `_bmad/_config/bmad-help.csv` header and a
 // handful of its actual rows, as captured from the T0 throwaway
@@ -172,5 +179,93 @@ describe('WorkflowCatalog', () => {
         expect.arrayContaining(['bmad-market-research', 'bmad-prd', 'bmad-create-story'])
       )
     })
+  })
+})
+
+// A trimmed fixture of the *real* `_bmad/_config/skill-manifest.csv` header
+// and rows, as captured from the live install in this repo's own workspace
+// root: same `canonicalId,name,description,module,path` columns. Includes the
+// signals `listWorkspaceCatalog` classifies on — a "talk to <persona>" agent
+// (bmad-agent-pm/John), an agent detected by its `/agents/` path with no
+// "talk to" phrase (bmad-tea variant), `bmad-agent-builder` (agent-*named*
+// but NOT a persona), and a DEPRECATED shim that must be filtered out.
+const REAL_SKILL_MANIFEST_CSV = `canonicalId,name,description,module,path
+"bmad-brainstorming","bmad-brainstorming","Facilitate a brainstorming session using diverse creative techniques.","core","_bmad/core/bmad-brainstorming/SKILL.md"
+"bmad-agent-pm","bmad-agent-pm","Product manager for PRD creation and requirements discovery. Use when the user asks to talk to John or requests the product manager.","bmm","_bmad/bmm/2-plan-workflows/bmad-agent-pm/SKILL.md"
+"bmad-agent-builder","bmad-agent-builder","Builds, edits or analyzes Agent Skills through conversational discovery.","bmb","_bmad/bmb/bmad-agent-builder/SKILL.md"
+"bmad-tea","bmad-tea","Master Test Architect and Quality Advisor.","tea","_bmad/tea/agents/bmad-tea/SKILL.md"
+"bmad-create-prd","bmad-create-prd","DEPRECATED — consolidated into bmad-prd create intent.","bmm","_bmad/bmm/2-plan-workflows/bmad-create-prd/SKILL.md"
+"bmad-prd","bmad-prd","Create, update, or validate a PRD. Use when the user wants help producing, editing, or validating a PRD.","bmm","_bmad/bmm/2-plan-workflows/bmad-prd/SKILL.md"
+`
+
+describe('listWorkspaceCatalog() — shortcut-customization', () => {
+  let workspaceRoot: string
+
+  beforeEach(() => {
+    workspaceRoot = mkdtempSync(join(tmpdir(), 'hive-workspace-catalog-'))
+  })
+
+  afterEach(() => {
+    rmSync(workspaceRoot, { recursive: true, force: true })
+  })
+
+  function writeConfig(files: Record<string, string>): void {
+    const configDir = join(workspaceRoot, '_bmad', '_config')
+    mkdirSync(configDir, { recursive: true })
+    for (const [name, content] of Object.entries(files)) {
+      writeFileSync(join(configDir, name), content)
+    }
+  }
+
+  it('parseSkillManifestCsv maps the real header and tolerates malformed input', () => {
+    const rows = parseSkillManifestCsv(REAL_SKILL_MANIFEST_CSV)
+    expect(rows).toHaveLength(6)
+    expect(rows[0]).toMatchObject({ canonicalId: 'bmad-brainstorming', module: 'core' })
+    expect(parseSkillManifestCsv('')).toEqual([])
+    expect(parseSkillManifestCsv('no,recognizable,columns\na,b,c')).toEqual([])
+  })
+
+  it('classifies agents ("talk to <persona>" or /agents/ path) apart from skills', async () => {
+    writeConfig({ 'skill-manifest.csv': REAL_SKILL_MANIFEST_CSV })
+
+    const catalog = await listWorkspaceCatalog(workspaceRoot)
+    const byKey = new Map(catalog.map((s) => [s.key, s]))
+
+    // "talk to John" → agent, persona captured.
+    expect(byKey.get('bmad-agent-pm')).toMatchObject({ kind: 'agent', persona: 'John' })
+    // `/agents/` path with no "talk to" phrase → still an agent.
+    expect(byKey.get('bmad-tea')?.kind).toBe('agent')
+    // Agent-*named* but neither signal → a plain skill (it builds agents).
+    expect(byKey.get('bmad-agent-builder')?.kind).toBe('skill')
+    expect(byKey.get('bmad-prd')?.kind).toBe('skill')
+  })
+
+  it('filters DEPRECATED shims and merges bmad-help display names as labels', async () => {
+    writeConfig({
+      'skill-manifest.csv': REAL_SKILL_MANIFEST_CSV,
+      'bmad-help.csv': REAL_BMAD_HELP_CSV
+    })
+
+    const catalog = await listWorkspaceCatalog(workspaceRoot)
+
+    expect(catalog.some((s) => s.key === 'bmad-create-prd')).toBe(false)
+    // Label chain: bmad-help display-name > persona > key.
+    expect(catalog.find((s) => s.key === 'bmad-prd')?.label).toBe('Create Edit and Review PRD')
+    expect(catalog.find((s) => s.key === 'bmad-agent-pm')?.label).toBe('John')
+    expect(catalog.find((s) => s.key === 'bmad-brainstorming')?.label).toBe('bmad-brainstorming')
+  })
+
+  it('falls back to the bmad-help workflow view when the manifest is missing', async () => {
+    writeConfig({ 'bmad-help.csv': REAL_BMAD_HELP_CSV })
+
+    const catalog = await listWorkspaceCatalog(workspaceRoot)
+
+    expect(catalog.length).toBeGreaterThan(0)
+    expect(catalog.every((s) => s.kind === 'skill')).toBe(true)
+    expect(catalog.find((s) => s.key === 'bmad-prd')?.label).toBe('Create Edit and Review PRD')
+  })
+
+  it('returns [] when no BMAD metadata exists at all', async () => {
+    expect(await listWorkspaceCatalog(workspaceRoot)).toEqual([])
   })
 })
