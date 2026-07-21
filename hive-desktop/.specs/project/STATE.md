@@ -239,8 +239,64 @@ Updated as work progresses. Load at start of every session.
   unrelated in-flight refactor (uncommitted at session start) — untouched here.
   (2026-07-18)
 
+- **D20 — Feature `npm-distribution` (M6 slice).** Planned 2026-07-21
+  (spec/context/design/tasks in `.specs/features/npm-distribution/`). Publish to
+  the public npm registry under the user's personal scope + in-app self-update
+  sourced from that registry. Discuss decisions (context.md):
+  (ND-C1) **npm is both the version source AND the payload host** — no external
+  release server. Three verified constraints shaped it: jsDelivr/unpkg cap files
+  at **20–50 MB** so a ~92 MB installer *cannot* be CDN-served (we use the raw
+  `registry.npmjs.org/<pkg>/-/<pkg>-<v>.tgz` URL, which is uncapped); npm's hard
+  limit is the **100 MB packument** (metadata, accumulating per version), so
+  binaries go in **separate per-platform packages** (esbuild/swc pattern) and the
+  main package stays metadata-light; and `electron-updater` **cannot consume npm**
+  — its `Provider` (`getLatestVersion`/`resolveFiles`) downloads the resolved URL
+  as a **raw installer + sha512**, and an npm tarball is a `.tgz` wrapper.
+  (Confirmed in the installed `electron-updater@6.8.9`: `provider:"custom"` with
+  an injectable `updateProvider` **does** exist — it covers discovery but not the
+  `.tgz` unwrap, so it buys nothing here.)
+  (ND-C2) public **scoped** package `@<npm-user>/hive-desktop` + sibling
+  per-platform packages; public is a *hard requirement* — a private package needs
+  a client auth token and a desktop app can't ship the user's npm credentials.
+  Both `hive-desktop` and `@gustavobgt/hive-desktop` verified free (HTTP 404).
+  (ND-C3) discovery is automatic, **consent never is**: non-blocking notice,
+  refusable ("Agora não" = session), skippable per-version (persisted in
+  `ConfigStore.skippedUpdateVersion`, never re-nagged), nothing downloaded or
+  applied without an explicit action. User requirement, verbatim.
+  (ND-C4) payload = the **full ~92 MB platform installer**, not a hot-swapped
+  bundle. Measured: `out/` is only **4.2 MB** vs **284 MB** of Electron runtime,
+  so a 4 MB "light" update was tempting but **rejected** — it can't update
+  Electron/native deps and collides with **asar integrity validation (Electron 39)
+  + macOS code signing**, which would force loading app code from `userData`.
+  (ND-C5) the existing `UpdateService`/`UpdateEvent`/`AppInfo` **contract is kept**
+  and only extended (`verifying`/`applying` events, `error.kind`, `bytes`/`notes`,
+  `canApply`, `lastCheckedAt`, `cancel()`); only the backing changes, so
+  IPC/preload/renderer don't churn. `electron-updater` is removed, retiring the
+  mandatory `vi.mock('electron-updater', …)` trap in `main/index.test.ts`.
+  (ND-C6) **Windows/NSIS is the only implemented apply path in v1** (the user's
+  platform), behind a strategy interface; other platforms stop at `downloaded`
+  and offer a manual reveal (`canApply:false`) rather than failing silently.
+  Registry protocol: `GET /<pkg>/latest` (not the packument — the abbreviated
+  form strips custom fields) carries version + a custom `hiveRelease` field with
+  release notes + platform map; scoped names need `%2F` encoding. New deps `tar`
+  + `semver`; sha512 verified with `node:crypto` (no `ssri`). UI shaped with
+  `impeccable` product register on the DS's committed tokens (D16
+  identity-preservation path — `context.mjs` still reports NO_PRODUCT_MD):
+  three tiers — ambient `--accent` dot on the rail gear (the "declining never
+  strands you" guarantee) → **`UpdateNotice` composed from DS Toast primitives**
+  (`duration={Infinity}`, bottom-left above the gear, morphs in place across
+  available/downloading/verifying/downloaded/error with reserved height) →
+  `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
+  (2026-07-21)
+
 ## Blockers
 
+- **ND-B1 — OPEN (2026-07-21), blocks publish only.** The npm **username** for
+  the package scope is unknown (`npm whoami` → 401, not authenticated in this
+  environment), and publishing needs an authenticated `npm login` / automation
+  token. Everything except tasks T17 (first publish) and T18 (real-Windows E2E)
+  can be built and verified without it — the updater is unit-tested against a
+  fake registry with no network.
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
   scratchpad throwaway workspace confirmed: install is fully non-interactive
   (`install --directory <ws> --modules bmm --tools claude-code --yes`, zero

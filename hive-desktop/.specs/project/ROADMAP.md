@@ -176,6 +176,32 @@ launches / workspace switches). Plan in `.specs/features/role-personalization/`.
 Impeccable-driven UX pass, error/empty/loading states hardened, signed installers
 for distribution, auto-update of the app itself.
 
+**Feature (first slice): `npm-distribution` 📝 Planned (2026-07-21)** — ship the
+app to the **public npm registry** under the user's personal account and make a
+running install **discover, download and apply new versions by itself**, with no
+terminal and no external release server. The registry is both the version source
+and the payload host: per-platform packages carry the real electron-builder
+installer, the app reads `GET /<pkg>/latest` (custom `hiveRelease` field →
+version + release notes + platform map), downloads the tarball directly from
+`registry.npmjs.org`, verifies sha512 against `dist.integrity`, extracts and runs
+the installer. `electron-updater` is retired: it has no npm provider, and its
+`Provider` contract expects a raw installer rather than a `.tgz` — but the
+existing `UpdateService`/`UpdateEvent`/`AppInfo` **contract is kept** and only
+extended, so IPC/preload/renderer don't churn. Discovery is automatic; consent
+never is — the notice is non-blocking, refusable ("Agora não"), and skippable
+per-version (persisted), with an ambient dot on the rail gear so declining never
+strands the user. UI shaped with `impeccable` (product register): three tiers
+(ambient dot → morphing `UpdateNotice` on DS Toast primitives → `UpdateCenter`
+sheet), no modal. Windows/NSIS is the implemented apply path in v1. Plan in
+`.specs/features/npm-distribution/`.
+
+**Exit criteria:** ND-R1–R6 implemented; ND-R7.1 no regression; ND-R7.2 ≥90%
+coverage per changed file; ND-R7.3 updater unit-tested against a fake registry
+(no network); ND-R7.4 `npm publish --dry-run` tarball inspection; ND-R7.5
+Playwright-MCP visual pass (dark+light, every state). Release gate: the real
+Windows end-to-end run (T18), which cannot be validated in WSL2.
+**Blocked (publish only):** ND-B1 — npm username + authenticated `npm login`.
+
 ---
 
 ## Dependency Graph
