@@ -9,26 +9,23 @@ import {
 } from '@hive/design-system'
 import { roleMeta, t } from '../i18n'
 import { ChoiceGrid, type ChoiceOption } from './ChoiceCard'
+import { AgentPicker, type AgentMeta } from './AgentPicker'
 import { SELECTABLE_ROLE_IDS, roleIcon } from './roleVisuals'
-import { BoltIcon, CheckIcon, CompassIcon, HiveCellIcon } from './icons'
-
-/** Structural mirror of `main/agentRegistry.ts`'s `AgentMeta`. */
-interface AgentMeta {
-  id: string
-  displayName: string
-  description: string
-  available: boolean
-}
+import { CheckIcon, CompassIcon } from './icons'
 
 interface ProfileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: string | null
-  agent: string | null
+  /** Enabled agent ids (multi-agent). */
+  agents: string[]
+  /** Default agent id (multi-agent) — new conversations start on it. */
+  defaultAgent: string | null
   /** Display name (install form / here) — greets the user in the hero. */
   userName: string | null
   onRoleChange: (roleId: string) => void
-  onAgentChange: (agentId: string) => void
+  onAgentsChange?: (ids: string[]) => void
+  onDefaultAgentChange?: (agentId: string) => void
   onUserNameChange: (name: string) => void
   /** Replays the guided tour (closes the sheet first). */
   onReplayTour?: () => void
@@ -48,27 +45,32 @@ export function ProfileSheet({
   open,
   onOpenChange,
   role,
-  agent,
+  agents,
+  defaultAgent,
   userName,
   onRoleChange,
-  onAgentChange,
+  onAgentsChange = () => {},
+  onDefaultAgentChange = () => {},
   onUserNameChange,
   onReplayTour
 }: ProfileSheetProps): React.JSX.Element {
-  const [agents, setAgents] = useState<AgentMeta[]>([])
+  // Detected agent metadata (availability + install hints) — re-probed each
+  // time the sheet opens so a CLI the user just installed shows up.
+  const [agentMetas, setAgentMetas] = useState<AgentMeta[]>([])
   // Local draft so typing doesn't spam persistence — committed on blur/Enter.
   const [nameDraft, setNameDraft] = useState(userName ?? '')
   const [nameSaved, setNameSaved] = useState(false)
 
   useEffect(() => {
+    if (!open) return
     let cancelled = false
     window.hive.profile.agents().then((list) => {
-      if (!cancelled) setAgents(list)
+      if (!cancelled) setAgentMetas(list)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [open])
 
   // Re-sync the draft whenever the sheet (re)opens or the lifted value moves.
   // Deliberately does NOT clear `nameSaved`: committing a name lifts it
@@ -107,14 +109,11 @@ export function ProfileSheet({
     }
   })
 
-  const agentOptions: ChoiceOption[] = agents.map((entry) => ({
-    id: entry.id,
-    icon: entry.available ? <HiveCellIcon size={20} /> : <BoltIcon size={20} />,
-    title: entry.displayName,
-    description: entry.description,
-    disabled: !entry.available,
-    badge: entry.available ? undefined : t('agentSetup.comingSoon')
-  }))
+  // multi-agent: toggling an agent in the sheet updates the enabled set; the
+  // default stays coherent (handled in App's `onAgentsChange`).
+  function handleToggleAgent(id: string, next: boolean): void {
+    onAgentsChange(next ? [...agents, id] : agents.filter((x) => x !== id))
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -163,13 +162,20 @@ export function ProfileSheet({
 
         <div className="wb-profile-section">
           <h3 className="wb-profile-section-label">{t('profile.agentSectionLabel')}</h3>
-          <ChoiceGrid
-            ariaLabel={t('profile.agentSectionLabel')}
-            options={agentOptions}
-            value={agent}
-            onChange={onAgentChange}
-            variant="list"
+          <p className="wb-profile-section-hint">{t('profile.agentSectionHint')}</p>
+          <AgentPicker
+            agents={agentMetas}
+            enabled={agents}
+            defaultAgent={defaultAgent}
+            onToggle={handleToggleAgent}
+            onSetDefault={onDefaultAgentChange}
+            onInstall={(url) => void window.hive.openExternal(url)}
           />
+          {agents.length === 0 && (
+            <p className="wb-profile-agent-warning" role="alert">
+              {t('profile.agentEmptyWarning')}
+            </p>
+          )}
         </div>
 
         {onReplayTour && (

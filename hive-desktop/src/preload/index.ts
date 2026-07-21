@@ -124,7 +124,10 @@ const hive = {
   // renderer -> main sends ('agent:event:start'/'agent:event:stop'), and a
   // subscribe-returning-unsubscribe shape.
   agent: {
-    capabilities: (): Promise<AgentCapabilities> => ipcRenderer.invoke('agent:capabilities'),
+    // multi-agent: capabilities are per-agent (Devin exposes no model/effort,
+    // Copilot no effort). `agentId` omitted → the default agent's capabilities.
+    capabilities: (agentId?: string): Promise<AgentCapabilities> =>
+      ipcRenderer.invoke('agent:capabilities', agentId),
     // chat-attachments (R6.5/T16): native multi-file picker for the attach
     // button. Resolves to [] when the user cancels the dialog. `defaultPath`
     // opens the picker inside the active workspace.
@@ -285,9 +288,14 @@ const hive = {
   // Profile (agent-selection + role-personalization): app-wide agent + role
   // preferences and the resolved role action list. Plain invoke/response.
   profile: {
+    // multi-agent: `agents()` probes availability per machine (available +
+    // installHint + docsUrl). `getAgent/setAgent` are the **default** agent;
+    // `getAgents/setAgents` are the **enabled** set the switcher offers.
     agents: (): Promise<AgentMeta[]> => ipcRenderer.invoke('profile:agents'),
     getAgent: (): Promise<string | null> => ipcRenderer.invoke('profile:getAgent'),
     setAgent: (id: string): Promise<void> => ipcRenderer.invoke('profile:setAgent', id),
+    getAgents: (): Promise<string[] | null> => ipcRenderer.invoke('profile:getAgents'),
+    setAgents: (ids: string[]): Promise<void> => ipcRenderer.invoke('profile:setAgents', ids),
     getRole: (): Promise<string | null> => ipcRenderer.invoke('profile:getRole'),
     setRole: (id: string): Promise<void> => ipcRenderer.invoke('profile:setRole', id),
     getUserName: (): Promise<string | null> => ipcRenderer.invoke('profile:getUserName'),

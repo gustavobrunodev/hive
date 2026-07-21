@@ -39,18 +39,18 @@ type OnboardingState =
   | { status: 'ready'; workspacePath: string }
 
 /**
- * Routes a known workspace to the next onboarding step (role-personalization
- * RP-C6 / agent-selection AG-C3). The agent + role are **required, one-time,
- * global** steps: shown only when unset, so a returning user (or a workspace
- * switch, where both are already set) skips straight to the per-workspace
- * install/update gate. Order: agent → role → provisioning.
+ * Routes a known workspace to the next onboarding step (multi-agent /
+ * role-personalization). Enabling ≥1 agent + picking a role are **required,
+ * one-time, global** steps: shown only when unset, so a returning user (or a
+ * workspace switch, where both are already set) skips straight to the
+ * per-workspace install/update gate. Order: agents → role → provisioning.
  */
 function routeAfterWorkspace(
   workspacePath: string,
-  agent: string | null,
+  enabledAgents: string[],
   role: string | null
 ): OnboardingState {
-  if (!agent) return { status: 'setupAgent', workspacePath }
+  if (enabledAgents.length === 0) return { status: 'setupAgent', workspacePath }
   if (!role) return { status: 'setupRole', workspacePath }
   return { status: 'checkingProvisioned', workspacePath }
 }
@@ -61,11 +61,13 @@ function App(): React.JSX.Element {
     return stored === 'light' || stored === 'dark' ? stored : 'dark'
   })
   const [onboarding, setOnboarding] = useState<OnboardingState>({ status: 'checking' })
-  // Lifted, app-wide profile state (agent-selection + role-personalization).
-  // Loaded once at startup and updated live by the setup steps + the profile
-  // sheet; passed down to WorkUI so the action rail / intent grid / chat
-  // session all react to a change without re-reading config.
-  const [agent, setAgentState] = useState<string | null>(null)
+  // Lifted, app-wide profile state (multi-agent + role-personalization).
+  // `agents` is the enabled set (the composer switcher's pool); `defaultAgent`
+  // is the agent a new conversation starts on. Loaded once at startup and
+  // updated live by the setup steps + the profile sheet; passed down to WorkUI
+  // so the action rail / intent grid / chat all react without re-reading config.
+  const [agents, setAgentsState] = useState<string[]>([])
+  const [defaultAgent, setDefaultAgentState] = useState<string | null>(null)
   const [role, setRoleState] = useState<string | null>(null)
   // Display name (set in the install form, editable in the profile sheet) —
   // lifted like agent/role so the hero greeting reacts to a profile edit.
@@ -80,17 +82,18 @@ function App(): React.JSX.Element {
     let cancelled = false
     Promise.all([
       window.hive.getWorkspace(),
+      window.hive.profile.getAgents(),
       window.hive.profile.getAgent(),
       window.hive.profile.getRole(),
       window.hive.profile.getUserName()
-    ]).then(([path, loadedAgent, loadedRole, loadedUserName]) => {
+    ]).then(([path, loadedAgents, loadedDefault, loadedRole, loadedUserName]) => {
       if (cancelled) return
-      setAgentState(loadedAgent)
+      const enabled = loadedAgents ?? []
+      setAgentsState(enabled)
+      setDefaultAgentState(loadedDefault)
       setRoleState(loadedRole)
       setUserNameState(loadedUserName)
-      setOnboarding(
-        path ? routeAfterWorkspace(path, loadedAgent, loadedRole) : { status: 'picker' }
-      )
+      setOnboarding(path ? routeAfterWorkspace(path, enabled, loadedRole) : { status: 'picker' })
     })
     return () => {
       cancelled = true
@@ -124,18 +127,20 @@ function App(): React.JSX.Element {
     window.hive.chooseWorkspace().then((path) => {
       // Cancelled pick resolves null — stay on the picker screen as-is. A
       // first-time user still needs the required agent + role steps before the
-      // work UI; a returning one (agent+role already set) skips them.
-      if (path) setOnboarding(routeAfterWorkspace(path, agent, role))
+      // work UI; a returning one (agents+role already set) skips them.
+      if (path) setOnboarding(routeAfterWorkspace(path, agents, role))
     })
-  }, [agent, role])
+  }, [agents, role])
 
-  // Required agent step done (agent-selection AG-R3.1): persist the choice,
-  // lift it into state, and continue routing (role step next if still unset).
+  // Required agent step done (multi-agent): persist the enabled set + default,
+  // lift them, and continue routing (role step next if still unset).
   const handleAgentSetupComplete = useCallback(
-    (workspacePath: string, agentId: string) => {
-      void window.hive.profile.setAgent(agentId)
-      setAgentState(agentId)
-      setOnboarding(routeAfterWorkspace(workspacePath, agentId, role))
+    (workspacePath: string, agentIds: string[], defaultId: string) => {
+      void window.hive.profile.setAgents(agentIds)
+      void window.hive.profile.setAgent(defaultId)
+      setAgentsState(agentIds)
+      setDefaultAgentState(defaultId)
+      setOnboarding(routeAfterWorkspace(workspacePath, agentIds, role))
     },
     [role]
   )
@@ -148,13 +153,26 @@ function App(): React.JSX.Element {
     setOnboarding({ status: 'checkingProvisioned', workspacePath })
   }, [])
 
-  // Live profile changes from the work UI's profile sheet (RP-R6.2 / AG-R3.2).
-  // Persisted in main (setAgent also re-binds the agent adapter there); lifting
-  // the value here re-renders the rail/intent grid and, for the agent, keys
-  // Chat's session effect so it restarts against the new adapter.
-  const handleAgentChange = useCallback((agentId: string) => {
+  // Live profile changes from the work UI's profile sheet (multi-agent).
+  // `handleAgentsChange` persists + lifts the enabled set, keeping the default
+  // coherent (mirrors main's `setEnabledAgents`); `handleDefaultAgentChange`
+  // sets which enabled agent new conversations start on.
+  const handleAgentsChange = useCallback(
+    (ids: string[]) => {
+      void window.hive.profile.setAgents(ids)
+      setAgentsState(ids)
+      const nextDefault = ids.includes(defaultAgent ?? '') ? defaultAgent : (ids[0] ?? null)
+      if (nextDefault !== defaultAgent) {
+        if (nextDefault) void window.hive.profile.setAgent(nextDefault)
+        setDefaultAgentState(nextDefault)
+      }
+    },
+    [defaultAgent]
+  )
+
+  const handleDefaultAgentChange = useCallback((agentId: string) => {
     void window.hive.profile.setAgent(agentId)
-    setAgentState(agentId)
+    setDefaultAgentState(agentId)
   }, [])
 
   const handleRoleChange = useCallback((roleId: string) => {
@@ -218,7 +236,13 @@ function App(): React.JSX.Element {
 
   if (onboarding.status === 'setupAgent') {
     const { workspacePath } = onboarding
-    return <AgentSetup onComplete={(agentId) => handleAgentSetupComplete(workspacePath, agentId)} />
+    return (
+      <AgentSetup
+        onComplete={(agentIds, defaultId) =>
+          handleAgentSetupComplete(workspacePath, agentIds, defaultId)
+        }
+      />
+    )
   }
 
   if (onboarding.status === 'setupRole') {
@@ -257,14 +281,17 @@ function App(): React.JSX.Element {
       theme={theme}
       onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
       onCandidateWorkspace={handleSwitchWorkspace}
-      // Lifted profile state (agent-selection + role-personalization): the
-      // active role/agent + change handlers, so the action rail, intent grid
-      // and chat session all react to a profile change made in the sheet.
+      // Lifted profile state (multi-agent + role-personalization): the role,
+      // the enabled agent set + default, and change handlers, so the action
+      // rail, intent grid and chat all react to a profile change made in the
+      // sheet.
       role={role}
-      agent={agent}
+      agents={agents}
+      defaultAgent={defaultAgent}
       userName={userName}
       onRoleChange={handleRoleChange}
-      onAgentChange={handleAgentChange}
+      onAgentsChange={handleAgentsChange}
+      onDefaultAgentChange={handleDefaultAgentChange}
       onUserNameChange={handleUserNameChange}
     />
   )

@@ -1,85 +1,90 @@
 import { useEffect, useState } from 'react'
 import { Button, Spinner } from '@hive/design-system'
 import { t } from '../i18n'
-import { ChoiceGrid, type ChoiceOption } from '../ui/ChoiceCard'
-import { BoltIcon, HiveCellIcon } from '../ui/icons'
-
-/** Structural mirror of `main/agentRegistry.ts`'s `AgentMeta` — local copy, same
- *  convention `chat/Chat.tsx` uses for `AgentCapabilities`. */
-interface AgentMeta {
-  id: string
-  displayName: string
-  description: string
-  available: boolean
-}
+import { AgentPicker, type AgentMeta } from '../ui/AgentPicker'
 
 interface AgentSetupProps {
-  /** Called with the chosen agent id once the user confirms (persisted here). */
-  onComplete: (agentId: string) => void
+  /** Called with the enabled agent ids + the chosen default once the user confirms. */
+  onComplete: (agentIds: string[], defaultAgent: string) => void
 }
 
 /**
- * First-run agent picker (agent-selection AG-R3.1). A required setup step:
- * choose which agent CLI drives the chat. Available agents are selectable;
- * declared-but-not-yet-available ones (e.g. Devin) render disabled with an
- * "Em breve" badge so the roadmap is visible without pretending they work.
- * Built on the shared `.wb-gate` onboarding shell + the `ChoiceGrid` radiogroup.
+ * First-run agent picker (multi-agent). A required setup step: enable one or
+ * more agent CLIs to drive the chat. Availability is **detected** on this
+ * machine — available agents can be toggled on (the first is pre-enabled as the
+ * default); unavailable ones render disabled with an install hint + a "Como
+ * instalar" link. The user can enable several and pick which is the default for
+ * new conversations. Built on the shared `AgentPicker` so onboarding and the
+ * profile sheet speak the same vocabulary.
  */
 export function AgentSetup({ onComplete }: AgentSetupProps): React.JSX.Element {
   const [agents, setAgents] = useState<AgentMeta[] | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [enabled, setEnabled] = useState<string[]>([])
+  const [defaultAgent, setDefaultAgent] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     window.hive.profile.agents().then((list) => {
       if (cancelled) return
       setAgents(list)
-      // Preselect the first available agent so the required step has a sane
-      // default the user can just confirm.
-      setSelected((current) => current ?? list.find((agent) => agent.available)?.id ?? null)
+      // Pre-enable every agent detected on this machine (the user can toggle
+      // any off), with the first as the default for new conversations.
+      const available = list.filter((agent) => agent.available).map((agent) => agent.id)
+      if (available.length > 0) {
+        setEnabled(available)
+        setDefaultAgent(available[0])
+      }
     })
     return () => {
       cancelled = true
     }
   }, [])
 
-  const options: ChoiceOption[] = (agents ?? []).map((agent) => ({
-    id: agent.id,
-    icon: agent.available ? <HiveCellIcon size={20} /> : <BoltIcon size={20} />,
-    title: agent.displayName,
-    description: agent.description,
-    disabled: !agent.available,
-    badge: agent.available ? undefined : t('agentSetup.comingSoon')
-  }))
+  function handleToggle(id: string, next: boolean): void {
+    setEnabled((current) => {
+      const nextEnabled = next ? [...current, id] : current.filter((x) => x !== id)
+      // Keep the default coherent: if it fell out (or none set yet), adopt the
+      // first still-enabled agent.
+      setDefaultAgent((currentDefault) =>
+        nextEnabled.includes(currentDefault ?? '') ? currentDefault : (nextEnabled[0] ?? null)
+      )
+      return nextEnabled
+    })
+  }
 
   function handleContinue(): void {
-    if (selected) onComplete(selected)
+    if (enabled.length > 0 && defaultAgent) onComplete(enabled, defaultAgent)
   }
 
   return (
     <main className="wb-gate">
-      <div className="wb-gate-card wb-setup-card">
+      <div className="wb-gate-card wb-setup-card wb-agent-setup-card">
         <h1 className="wb-gate-title">{t('agentSetup.title')}</h1>
         <p className="wb-gate-desc">{t('agentSetup.description')}</p>
 
         {agents === null ? (
           <div className="wb-pane-center">
-            <Spinner label={t('common.loading')} />
+            <Spinner label={t('agentSetup.detecting')} />
           </div>
         ) : (
-          <ChoiceGrid
-            ariaLabel={t('agentSetup.title')}
-            options={options}
-            value={selected}
-            onChange={setSelected}
+          <AgentPicker
+            agents={agents}
+            enabled={enabled}
+            defaultAgent={defaultAgent}
+            onToggle={handleToggle}
+            onSetDefault={setDefaultAgent}
+            onInstall={(url) => void window.hive.openExternal(url)}
           />
         )}
 
         <div className="wb-setup-actions">
+          <span className="wb-setup-selection-hint" role="status">
+            {t('agentSetup.selectionHint', enabled.length)}
+          </span>
           <Button
             cut={false}
             className="wb-btn wb-btn-lg hds-btn-primary"
-            disabled={!selected}
+            disabled={enabled.length === 0}
             onClick={handleContinue}
           >
             {t('agentSetup.continueCta')}

@@ -38,6 +38,8 @@ const resizableProps: {
 
 /** Minimal context bridge so the mocked `DropdownMenuTrigger` can toggle its sibling `DropdownMenu`'s open state — mirrors the same pattern already used in `explorer/Explorer.test.ts` (real Radix does this internally; nothing else here needs to know about it). */
 const DropdownMenuMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
+/** multi-agent: bridges the mocked radio group's onValueChange to its items. */
+const RadioGroupMockCtx = createContext<{ onValueChange?: (value: string) => void }>({})
 
 /** Same bridge for the session-history Popover (the chat pane header mounts the real `SessionHistory`, which rides DS `Popover`). */
 const PopoverMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
@@ -130,6 +132,37 @@ vi.mock('@hive/design-system', () => ({
   DropdownMenuLabel: ({ children }: { children?: ReactNode }) =>
     createElement('div', { role: 'presentation' }, children),
   DropdownMenuSeparator: () => createElement('hr'),
+  // multi-agent: the composer's AgentSwitcher radio group + the AgentPicker Switch.
+  DropdownMenuRadioGroup: ({
+    children,
+    onValueChange
+  }: {
+    children?: ReactNode
+    onValueChange?: (value: string) => void
+  }) => createElement(RadioGroupMockCtx.Provider, { value: { onValueChange } }, children),
+  DropdownMenuRadioItem: ({ value, children }: { value: string; children?: ReactNode }) => {
+    const ctx = useContext(RadioGroupMockCtx)
+    return createElement(
+      'button',
+      { type: 'button', role: 'menuitemradio', onClick: () => ctx.onValueChange?.(value) },
+      children
+    )
+  },
+  Switch: ({
+    checked,
+    onCheckedChange,
+    ...rest
+  }: {
+    checked?: boolean
+    onCheckedChange?: (checked: boolean) => void
+  }) =>
+    createElement('button', {
+      type: 'button',
+      role: 'switch',
+      'aria-checked': checked,
+      onClick: () => onCheckedChange?.(!checked),
+      ...rest
+    }),
   // T8 (WS-R5.1): the three-way unsaved-work guard dialog, same mock shape
   // `explorer/Explorer.test.ts` uses for its own (source) in-viewer guard —
   // plus a dismiss control (`onOpenChange(false)`, e.g. Escape/backdrop in
@@ -1059,7 +1092,8 @@ describe('WorkUI — guided tour (first access)', () => {
         theme: 'dark',
         onToggleTheme: vi.fn(),
         role: 'pm',
-        agent: 'claude-cli'
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli'
       })
     )
   }
@@ -1113,7 +1147,8 @@ describe('WorkUI — shortcut customization', () => {
         theme: 'dark',
         onToggleTheme: vi.fn(),
         role: 'pm',
-        agent: 'claude-cli'
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli'
       })
     )
     await waitFor(() => expect(window.hive.shortcuts.actions).toHaveBeenCalledTimes(1))
@@ -1143,7 +1178,14 @@ describe('WorkUI — shortcut customization', () => {
 describe('WorkUI — tool rail, profile avatar, file search', () => {
   it('opens the profile sheet from the top-bar avatar, showing initials when a name is set', async () => {
     vi.mocked(window.hive.profile.agents).mockResolvedValue([
-      { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true }
+      {
+        id: 'claude-cli',
+        displayName: 'Claude Code',
+        description: '',
+        available: true,
+        installHint: '',
+        docsUrl: ''
+      }
     ])
 
     // No onRoleChange/onAgentChange passed → the WorkUI default no-op handlers
@@ -1154,7 +1196,8 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
         theme: 'dark',
         onToggleTheme: vi.fn(),
         role: 'pm',
-        agent: 'claude-cli',
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
         userName: 'Gustavo Bruno'
       })
     )

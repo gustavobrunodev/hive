@@ -186,6 +186,13 @@ export interface FakeProcessScript {
    * When omitted, chunks/exit resolve on the next microtask.
    */
   delayMs?: number
+  /**
+   * Simulates a process that never started (command not found / EACCES),
+   * mirroring the real runner's `child.on('error')` path: no chunks, exit
+   * resolves to `{ code: null, signal: null }`. Used by availability probes
+   * (agentRegistry) to detect a missing CLI binary.
+   */
+  spawnError?: boolean
 }
 
 /** Record of a single `run()` invocation, for assertions in tests. */
@@ -229,6 +236,13 @@ export function createFakeProcessRunner(): FakeProcessRunner {
 
     function deliver(): void {
       if (settled) return // already killed before the scripted delay elapsed
+      if (script.spawnError) {
+        // Mirror the real runner's ENOENT/EACCES path: no output, no exit code.
+        queue.end()
+        settled = true
+        resolveExit({ code: null, signal: null })
+        return
+      }
       for (const chunk of chunks) {
         queue.push(chunk)
       }

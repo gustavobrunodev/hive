@@ -44,7 +44,7 @@ declare global {
       watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void
       /** AgentService (T14) surface — see preload/index.ts for the full channel design. */
       agent: {
-        capabilities(): Promise<AgentCapabilities>
+        capabilities(agentId?: string): Promise<AgentCapabilities>
         /** chat-attachments (R6.5/T16): native multi-file picker; [] when canceled. `defaultPath` opens it inside the active workspace. */
         chooseAttachments(defaultPath?: string): Promise<AttachmentPick[]>
         start(opts: SessionOpts): Promise<void>
@@ -121,6 +121,8 @@ declare global {
         agents(): Promise<AgentMeta[]>
         getAgent(): Promise<string | null>
         setAgent(id: string): Promise<void>
+        getAgents(): Promise<string[] | null>
+        setAgents(ids: string[]): Promise<void>
         getRole(): Promise<string | null>
         setRole(id: string): Promise<void>
         getUserName(): Promise<string | null>

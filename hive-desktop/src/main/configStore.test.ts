@@ -6,6 +6,7 @@ import {
   DEFAULT_CONFIG,
   MAX_RECENT_WORKSPACES,
   createConfigStore,
+  sanitizeAgentList,
   sanitizeShortcutPrefs
 } from './configStore'
 
@@ -63,6 +64,7 @@ describe('ConfigStore', () => {
       lastModel: 'claude-opus-4',
       lastEffort: 'high',
       agent: null,
+      agents: null,
       role: null,
       userName: null,
       shortcuts: null
@@ -83,6 +85,7 @@ describe('ConfigStore', () => {
       lastModel: 'claude-sonnet-4',
       lastEffort: 'medium',
       agent: null,
+      agents: null,
       role: null,
       userName: null,
       shortcuts: null
@@ -107,6 +110,7 @@ describe('ConfigStore', () => {
       lastModel: 'claude-haiku-4',
       lastEffort: 'low',
       agent: null,
+      agents: null,
       role: null,
       userName: null,
       shortcuts: null
@@ -270,5 +274,50 @@ describe('ConfigStore — shortcuts (shortcut-customization)', () => {
       skills: ['b', 'a'],
       agents: []
     })
+  })
+
+  // multi-agent: the enabled-agents set.
+  it('getEnabledAgents/setEnabledAgents round-trips and dedupes, keeping the default coherent', () => {
+    const store = createConfigStore(baseDir)
+    store.setAgent('claude-cli')
+    store.setEnabledAgents(['claude-cli', 'devin', 'claude-cli'])
+
+    expect(store.getEnabledAgents()).toEqual(['claude-cli', 'devin'])
+    expect(store.getAgent()).toBe('claude-cli') // still in the set → unchanged
+  })
+
+  it('setEnabledAgents moves the default into the set when the old default drops out', () => {
+    const store = createConfigStore(baseDir)
+    store.setAgent('devin')
+    store.setEnabledAgents(['claude-cli', 'github-copilot'])
+
+    expect(store.getAgent()).toBe('claude-cli')
+  })
+
+  it('setEnabledAgents([]) clears both the set and the default', () => {
+    const store = createConfigStore(baseDir)
+    store.setAgent('devin')
+    store.setEnabledAgents([])
+
+    expect(store.getEnabledAgents()).toBeNull()
+    expect(store.getAgent()).toBeNull()
+  })
+
+  // multi-agent migration: an older single-agent config seeds the enabled set.
+  it('migrates a pre-multi-agent config (single `agent`, no `agents`) to agents:[agent]', () => {
+    mkdirSync(baseDir, { recursive: true })
+    writeFileSync(join(baseDir, 'config.json'), JSON.stringify({ agent: 'claude-cli' }))
+    const store = createConfigStore(baseDir)
+
+    expect(store.getEnabledAgents()).toEqual(['claude-cli'])
+    expect(store.getConfig().agents).toEqual(['claude-cli'])
+  })
+
+  it('sanitizeAgentList: non-arrays → null; empties → null; deduped, order kept', () => {
+    expect(sanitizeAgentList(null)).toBeNull()
+    expect(sanitizeAgentList('x')).toBeNull()
+    expect(sanitizeAgentList([])).toBeNull()
+    expect(sanitizeAgentList(['', 7])).toBeNull()
+    expect(sanitizeAgentList(['b', 'a', 'b', ''])).toEqual(['b', 'a'])
   })
 })

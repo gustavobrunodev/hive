@@ -611,3 +611,66 @@ export function AlertTriangleIcon({ size, ...rest }: IconProps): React.JSX.Eleme
     </svg>
   )
 }
+
+/**
+ * Agent brand marks (multi-agent) — distinctive per-agent glyphs for the
+ * onboarding picker, profile, composer switcher and history badges. Abstract
+ * evocations (a radial spark, a pilot ring, an orbiting node), NOT reproductions
+ * of the vendors' trademarks; they share the app's geometric family so three
+ * agents read as one system with three identities.
+ */
+
+/** Claude — a radial burst/spark (Anthropic's mark reads as a starburst). */
+export function AgentClaudeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.5v13M3.4 3.4l9.2 9.2M1.5 8h13M3.4 12.6l9.2-9.2" />
+    </svg>
+  )
+}
+
+/** GitHub Copilot — a pilot ring with goggle eyes (friendly co-pilot). */
+export function AgentCopilotIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.5 9.2c0-2.5 2.2-4 5.5-4s5.5 1.5 5.5 4c0 2-1.4 3.3-3 3.3-1 0-1.7-.5-2.5-.5s-1.5.5-2.5.5c-1.6 0-3-1.3-3-3.3Z" />
+      <path d="M8 5.2 7.2 2.6M8 5.2l1-2.6" />
+      <circle cx="5.6" cy="9.2" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="10.4" cy="9.2" r="1.05" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Devin — an orbiting node (autonomous agent circling a task). */
+export function AgentDevinIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="2.4" />
+      <ellipse cx="8" cy="8" rx="6" ry="2.6" transform="rotate(32 8 8)" />
+      <circle cx="12.7" cy="5.7" r="1.05" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Star — "default agent" toggle (multi-agent). `filled` marks the active default. */
+export function StarIcon({
+  size,
+  filled,
+  ...rest
+}: IconProps & { filled?: boolean }): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest} fill={filled ? 'currentColor' : 'none'}>
+      <path d="M8 1.75l1.85 3.9 4.15.55-3.05 2.9.78 4.15L8 11.9l-3.73 2.35.78-4.15L2 7.2l4.15-.55L8 1.75Z" />
+    </svg>
+  )
+}
+
+/** Padlock — the locked per-conversation agent badge (multi-agent). */
+export function LockIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.3" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7" />
+    </svg>
+  )
+}

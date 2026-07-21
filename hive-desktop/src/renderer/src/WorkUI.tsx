@@ -78,13 +78,16 @@ interface WorkUIProps {
   onCandidateWorkspace?: (path: string) => void
   /** Active app-wide role (role-personalization) — drives the intent grid + action rail. */
   role?: string | null
-  /** Active app-wide agent id (agent-selection) — passed to Chat for the session + indicator. */
-  agent?: string | null
+  /** Enabled agent ids (multi-agent) — the composer switcher's pool + the profile picker. */
+  agents?: string[]
+  /** Default agent id (multi-agent) — a new conversation starts on it. */
+  defaultAgent?: string | null
   /** Display name (install form / profile sheet) — feeds the hero greeting. */
   userName?: string | null
   /** Live profile changes from the profile sheet — persisted + lifted in App. */
   onRoleChange?: (roleId: string) => void
-  onAgentChange?: (agentId: string) => void
+  onAgentsChange?: (ids: string[]) => void
+  onDefaultAgentChange?: (agentId: string) => void
   onUserNameChange?: (name: string) => void
 }
 
@@ -228,10 +231,12 @@ export function WorkUI({
   onToggleTheme,
   onCandidateWorkspace,
   role = null,
-  agent = null,
+  agents = [],
+  defaultAgent = null,
   userName = null,
   onRoleChange = () => {},
-  onAgentChange = () => {},
+  onAgentsChange,
+  onDefaultAgentChange,
   onUserNameChange = () => {}
 }: WorkUIProps): React.JSX.Element {
   // Multi-tab editor pane (VS Code preview/pin semantics live in the hook).
@@ -596,7 +601,9 @@ export function WorkUI({
             ref={chatRef}
             workspace={workspace}
             roleActions={roleActions}
-            agent={agent}
+            agents={agents}
+            defaultAgent={defaultAgent}
+            onManageAgents={() => setProfileOpen(true)}
             userName={userName}
             onSessionChange={setActiveSessionId}
             onRunningSessionsChange={setRunningSessionIds}
@@ -804,10 +811,12 @@ export function WorkUI({
         open={profileOpen}
         onOpenChange={setProfileOpen}
         role={role}
-        agent={agent}
+        agents={agents}
+        defaultAgent={defaultAgent}
         userName={userName}
         onRoleChange={onRoleChange}
-        onAgentChange={onAgentChange}
+        onAgentsChange={onAgentsChange}
+        onDefaultAgentChange={onDefaultAgentChange}
         onUserNameChange={onUserNameChange}
         onReplayTour={replayTour}
       />

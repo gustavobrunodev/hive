@@ -185,7 +185,7 @@ describe('preload: window.hive bridge', () => {
 
     it('agent.capabilities() invokes "agent:capabilities"', async () => {
       await getAgent().capabilities()
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities', undefined)
     })
 
     it('agent.start(opts) invokes "agent:start" with opts', async () => {

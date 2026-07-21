@@ -11,6 +11,13 @@
 :root {
   --wb-topbar-h: 46px;
   --wb-pane-header-h: 40px;
+  /* multi-agent: per-agent accent hues, mapped onto the themeable icon palette
+     below (both themes resolve for free). Distinct hue per agent so three
+     agents read as three identities: Claude = coral (the app accent), Copilot
+     = teal, Devin = violet. */
+  --agent-claude: var(--accent);
+  --agent-copilot: var(--wb-ic-teal);
+  --agent-devin: var(--wb-ic-violet);
 }
 
 /* --- Product-register resets (this app has no brand-register surface) ---
@@ -2117,22 +2124,73 @@
   border-color: color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
-.wb-agent-indicator {
+/* ==========================================================================
+   Agent switcher / locked badge (multi-agent) — the composer's per-conversation
+   agent control. `--agent-accent` is set inline per agent (agentVisuals).
+   ========================================================================== */
+
+.wb-agent-pill {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--rounded-full);
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--faint);
-  padding: 0 var(--s-1);
+  font-weight: 650;
   white-space: nowrap;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--agent-accent) 12%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--agent-accent) 34%, transparent);
 }
-.wb-agent-indicator::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--success);
-  margin-right: 6px;
+.wb-agent-pill-mark {
+  display: inline-flex;
+  color: var(--agent-accent);
+}
+.wb-agent-pill-name {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.wb-agent-pill-btn {
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart);
+}
+button.wb-agent-pill-btn:hover {
+  background: color-mix(in oklab, var(--agent-accent) 18%, var(--surface));
+  border-color: color-mix(in oklab, var(--agent-accent) 50%, transparent);
+}
+button.wb-agent-pill-btn:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--agent-accent) 40%, transparent);
+}
+.wb-agent-pill-locked {
+  color: var(--muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.wb-agent-pill-locked .wb-agent-pill-mark {
+  color: var(--agent-accent);
+}
+
+/* The switcher's dropdown menu (DS DropdownMenu content). */
+.wb-agent-menu-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 8rem;
+}
+.wb-agent-menu-mark {
+  display: inline-flex;
+  color: var(--agent-accent);
+}
+.wb-agent-menu-manage {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--muted);
 }
 
 /* Slash-command menu — a listbox anchored above the composer, opening
@@ -4632,4 +4690,200 @@
   .wb-mcp-preset:hover {
     transform: none;
   }
+}
+
+/* ==========================================================================
+   Agent picker (multi-agent) — shared by first-run AgentSetup + profile sheet.
+   Each row: brand mark (accent-tinted) + name/desc + enable Switch + default
+   star; unavailable rows show an install hint + "Como instalar" link.
+   `--agent-accent` is set inline per agent (agentVisuals).
+   ========================================================================== */
+
+.wb-agent-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  text-align: left;
+}
+.wb-agent-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wb-agent-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0;
+}
+.wb-agent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-agent-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  transition:
+    border-color 0.16s var(--ease-quart),
+    background-color 0.16s var(--ease-quart);
+}
+.wb-agent-card[data-enabled] {
+  border-color: color-mix(in oklab, var(--agent-accent) 55%, transparent);
+  background: color-mix(in oklab, var(--agent-accent) 8%, var(--surface));
+}
+.wb-agent-card[data-unavailable] {
+  background: var(--surface);
+  border-style: dashed;
+}
+
+.wb-agent-card-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-md);
+  color: var(--agent-accent);
+  background: color-mix(in oklab, var(--agent-accent) 14%, var(--bg-2));
+}
+.wb-agent-card[data-unavailable] .wb-agent-card-mark {
+  color: var(--faint);
+  background: var(--surface-2);
+}
+
+.wb-agent-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.wb-agent-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-agent-card-default {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--agent-accent);
+  background: color-mix(in oklab, var(--agent-accent) 16%, transparent);
+  border-radius: var(--rounded-full);
+  padding: 1px 7px;
+}
+.wb-agent-card-desc {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.wb-agent-card-install {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+.wb-agent-card-hint {
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+.wb-agent-install-link {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.wb-agent-install-link:hover {
+  color: var(--accent-hover);
+}
+.wb-agent-install-link:focus-visible {
+  outline: 0;
+  border-radius: var(--rounded-sm);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+.wb-agent-card-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+.wb-agent-default-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-md);
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color 0.16s var(--ease-quart),
+    background-color 0.16s var(--ease-quart);
+}
+.wb-agent-default-btn:hover:not(:disabled) {
+  color: var(--agent-accent);
+  background: var(--surface-2);
+}
+.wb-agent-default-btn[data-active] {
+  color: var(--agent-accent);
+}
+.wb-agent-default-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wb-agent-default-btn:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--agent-accent) 40%, transparent);
+}
+
+.wb-agent-card-check {
+  display: inline-flex;
+  color: var(--agent-accent);
+}
+
+/* Onboarding + profile supporting bits. */
+.wb-agent-setup-card {
+  max-width: 560px;
+}
+.wb-setup-actions {
+  align-items: center;
+  gap: var(--s-4);
+}
+.wb-setup-selection-hint {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-profile-section-hint {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: -2px 0 var(--s-1);
+}
+.wb-profile-agent-warning {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--danger, var(--wb-ic-red));
+  margin-top: var(--s-2);
 }

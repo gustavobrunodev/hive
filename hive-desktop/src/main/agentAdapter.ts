@@ -24,6 +24,12 @@ export interface AgentOption {
  * What an adapter supports, so the UI can build model/effort pickers and
  * decide whether to offer attachments — all driven by the adapter, never
  * hardcoded in the UI (C5).
+ *
+ * multi-agent: `models` and/or `efforts` may be **empty**. Not every agent CLI
+ * exposes a model choice (Devin is a fixed-model agent) or effort levels (the
+ * GitHub Copilot CLI has none). The composer hides the corresponding picker
+ * when its list is empty and simply omits `--model`/`--effort` on the turn, so
+ * the adapter falls back to its CLI's own default.
  */
 export interface AgentCapabilities {
   models: AgentOption[]
@@ -48,12 +54,23 @@ export interface AttachmentPick {
 
 /** Options a caller supplies when starting a new agent session. */
 export interface SessionOpts {
+  /**
+   * Which registered adapter drives this session (multi-agent). Set by the
+   * `AgentService` session pool + IPC layer to route `start`/`send` to the
+   * right adapter; the adapter implementation itself ignores it (it already
+   * *is* that adapter). Omitted → the caller's default agent.
+   */
+  agentId?: string
   /** Absolute path to the active workspace; the adapter runs the CLI here. */
   workspace: string
-  /** A model id from this adapter's `capabilities().models`. */
-  model: string
-  /** An effort id from this adapter's `capabilities().efforts`. */
-  effort: string
+  /**
+   * A model id from this adapter's `capabilities().models`, or omitted when
+   * the adapter exposes no model choice (`capabilities().models` empty) — the
+   * CLI then uses its own default.
+   */
+  model?: string
+  /** An effort id from this adapter's `capabilities().efforts`, or omitted when the adapter exposes no effort levels. */
+  effort?: string
 }
 
 /** A single turn's input. */
@@ -153,6 +170,12 @@ export interface WorkflowCommand {
 
 /** Per-turn options shared by `send` (via `AgentInput`) and `runWorkflow`. */
 export interface TurnOpts {
+  /**
+   * Which registered adapter runs this turn (multi-agent). Consumed by the
+   * `AgentService` pool to pick the session; the adapter itself ignores it.
+   * Omitted → the conversation's / caller's default agent.
+   */
+  agentId?: string
   /** Same contract as `AgentInput.resume`. */
   resume?: string | null
   /** Same contract as `AgentInput.turnId`. */

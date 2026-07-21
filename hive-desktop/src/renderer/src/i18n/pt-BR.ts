@@ -151,6 +151,15 @@ export const ptBR = {
     stopAria: 'Interromper a resposta do agente',
     // agent-selection AG-R3.3: the active-agent indicator in the composer.
     agentIndicatorAria: (agent: string) => `Agente ativo: ${agent}`,
+    // multi-agent: the composer's per-conversation agent switcher.
+    agentSwitcherLabel: 'Escolher agente da conversa',
+    agentSwitcherAria: (agent: string) => `Agente da conversa: ${agent}. Clique para trocar.`,
+    agentPickAria: (agent: string) => `Usar ${agent} nesta conversa`,
+    agentMenuLabel: 'Agentes habilitados',
+    agentLockedAria: (agent: string) =>
+      `Esta conversa está no agente ${agent}. Para usar outro, comece uma nova conversa.`,
+    agentLockedHint: 'A conversa já começou neste agente',
+    agentManageCta: 'Gerenciar agentes…',
     // chat-controls CC-R2: slash-command (skills) menu.
     slashMenuLabel: 'Comandos do workspace',
     slashMenuHint: '↑ ↓ navega · Enter executa · Esc fecha',
@@ -422,10 +431,27 @@ export const ptBR = {
   },
   // agent-selection AG-R3.1: first-run agent picker.
   agentSetup: {
-    title: 'Escolha seu agente',
+    title: 'Escolha seus agentes',
     description:
-      'Selecione qual agente de IA vai conduzir suas conversas no Hive. Você pode trocar a qualquer momento nas configurações.',
+      'Habilite um ou mais agentes de IA para conduzir suas conversas no Hive. Você pode usar vários ao mesmo tempo — cada conversa roda no agente que você escolher — e ajustar tudo depois nas configurações.',
+    availableSectionLabel: 'Disponíveis no seu computador',
+    unavailableSectionLabel: 'Precisam ser instalados',
     comingSoon: 'Em breve',
+    // multi-agent: detection + how-to-enable affordance.
+    unavailableHint: 'CLI não encontrada neste computador.',
+    installCta: 'Como instalar',
+    installCtaAria: (agent: string) => `Como instalar ${agent} (abre no navegador)`,
+    detecting: 'Procurando agentes instalados…',
+    emptyAvailable: 'Nenhum agente encontrado ainda. Instale um dos CLIs abaixo para começar.',
+    defaultBadge: 'Padrão',
+    setDefaultAria: (agent: string) => `Definir ${agent} como agente padrão`,
+    toggleAria: (agent: string) => `Habilitar ou desabilitar ${agent}`,
+    selectionHint: (count: number) =>
+      count === 0
+        ? 'Selecione ao menos um agente para continuar.'
+        : count === 1
+          ? '1 agente habilitado.'
+          : `${count} agentes habilitados.`,
     continueCta: 'Continuar'
   },
   // role-personalization RP-R2: required first-run role picker.
@@ -481,7 +507,15 @@ export const ptBR = {
     namePlaceholder: 'Seu nome',
     nameSavedLabel: 'Salvo',
     roleSectionLabel: 'Seu papel',
-    agentSectionLabel: 'Seu agente',
+    agentSectionLabel: 'Seus agentes',
+    agentSectionHint:
+      'Habilite os agentes que quiser usar. O agente padrão inicia cada nova conversa; troque por conversa no chat.',
+    agentDefaultBadge: 'Padrão',
+    agentSetDefaultAria: (agent: string) => `Definir ${agent} como agente padrão`,
+    agentUnavailableHint: 'CLI não encontrada neste computador.',
+    agentInstallCta: 'Como instalar',
+    agentInstallCtaAria: (agent: string) => `Como instalar ${agent} (abre no navegador)`,
+    agentEmptyWarning: 'Habilite ao menos um agente para conversar no Hive.',
     replayTourCta: 'Rever o tour guiado',
     scopeNote: 'Seu perfil vale para todos os workspaces.',
     closeLabel: 'Fechar'

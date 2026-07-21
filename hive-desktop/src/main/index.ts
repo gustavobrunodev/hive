@@ -262,15 +262,14 @@ app.whenReady().then(() => {
   // by AgentService to own the active session. Exposed to the renderer as
   // window.hive.agent.{capabilities,start,send,runWorkflow,onEvent}.
   const processRunner = createProcessRunner()
-  // agent-selection (AG-R1/R2): the adapter is chosen from a registry by the
-  // globally-persisted selection (falling back to the default available adapter
-  // for an unknown/unset id), instead of hardwiring the Claude adapter. The
-  // registry is also queried by the `profile.agents` picker below.
+  // multi-agent: the registry holds every real adapter (Claude, Copilot,
+  // Devin); availability is detected per machine by `registry.detect()` (queried
+  // by the `profile.agents` picker below). `AgentService` runs a pool of
+  // sessions — one per agent — so several agents can drive different
+  // conversations concurrently. Each turn names its `agentId`; the service
+  // routes it (and lazily starts that agent's session).
   const agentRegistry = createAgentRegistry(processRunner)
-  const agentService = createAgentService(
-    agentRegistry,
-    configStore.getAgent() ?? agentRegistry.defaultId()
-  )
+  const agentService = createAgentService(agentRegistry)
 
   // chat-attachments (R6.5/T16): native multi-file picker for the composer's
   // attach button. Name/size are resolved here (not in the renderer) because
@@ -299,7 +298,9 @@ app.whenReady().then(() => {
     }
   )
 
-  ipcMain.handle('agent:capabilities', async () => agentService.capabilities())
+  ipcMain.handle('agent:capabilities', async (_event, agentId?: string) =>
+    agentService.capabilities(agentId)
+  )
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
     agentService.startSession(opts)
   })
@@ -502,18 +503,24 @@ app.whenReady().then(() => {
   // Profile IPC (agent-selection + role-personalization) — the app-wide agent
   // and role preferences plus the resolved role action list. Grouped under
   // window.hive.profile.* in the preload bridge.
-  ipcMain.handle('profile:agents', async () => agentRegistry.list())
-  // Raw persisted selection (nullable) — the onboarding gate routes new users
-  // through the required agent step precisely when this is null. The active
-  // adapter still defaults safely (agentService resolves the id at construction).
+  // multi-agent: the picker's source of truth — probes each CLI on this machine
+  // and returns availability + install hints for the disabled ("como instalar")
+  // cards. Detection is cached in the registry after the first probe.
+  ipcMain.handle('profile:agents', async () => agentRegistry.detect())
+  // The user's **default** agent (new conversations start on it); nullable — the
+  // onboarding gate routes new users through the required agent step when null.
   ipcMain.handle('profile:getAgent', async () => configStore.getAgent())
   ipcMain.handle('profile:setAgent', async (_event, id: string) => {
-    // Only an available registered adapter may become active; the picker gates
-    // on `available`, and setAdapter/registry.get are safe no-ops otherwise, so
-    // a bad id neither persists nor re-binds (AG-R3.1 honesty).
+    // Only a registered agent may become the default (a bad id is a no-op).
     if (!agentRegistry.get(id)) return
     configStore.setAgent(id)
-    agentService.setAdapter(id)
+  })
+  // The **enabled** set (multi-agent): which agents the composer switcher offers.
+  ipcMain.handle('profile:getAgents', async () => configStore.getEnabledAgents())
+  ipcMain.handle('profile:setAgents', async (_event, ids: string[]) => {
+    // Keep only registered ids; setEnabledAgents also keeps the default coherent.
+    const valid = Array.isArray(ids) ? ids.filter((id) => agentRegistry.get(id)) : []
+    configStore.setEnabledAgents(valid)
   })
   ipcMain.handle('profile:getRole', async () => configStore.getRole())
   ipcMain.handle('profile:setRole', async (_event, id: string) => {

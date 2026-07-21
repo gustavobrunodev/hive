@@ -27,13 +27,19 @@ export interface Config {
   recentWorkspaces: string[]
   lastModel: string | null
   lastEffort: string | null
-  // Global (app-wide, not per-workspace) profile preferences — the selected
-  // agent CLI id (agent-selection AG-R2 / AG-C2) and the user's role
-  // (role-personalization RP-R1 / RP-C1). Both `null` until first chosen in
-  // the required first-run setup steps. Typed as plain `string` here (the
-  // persistence layer stays decoupled from the `RoleId`/agent-id unions in
-  // roleCatalog/agentRegistry — it's just data on disk).
+  // Global (app-wide, not per-workspace) profile preferences.
+  //
+  // `agent` (multi-agent): the user's **default** agent CLI id — the one a new
+  // conversation starts on. `agents`: the full set of **enabled** agent ids the
+  // user picked (onboarding + profile), the pool of agents the composer's
+  // switcher offers. `agent` is expected to be a member of `agents`. Both stay
+  // decoupled from the concrete agent-id union (just data on disk).
+  //
+  // Migration: a config written before multi-agent has `agents == null` but a
+  // single `agent`; `readConfig` seeds `agents = [agent]` so older installs keep
+  // exactly the agent they had, now as their (single) enabled set.
   agent: string | null
+  agents: string[] | null
   role: string | null
   // How the app (and the agents) address the user — captured by the guided
   // BMAD install form, editable any time in the profile sheet. `null` until
@@ -52,9 +58,24 @@ export const DEFAULT_CONFIG: Config = {
   lastModel: null,
   lastEffort: null,
   agent: null,
+  agents: null,
   role: null,
   userName: null,
   shortcuts: null
+}
+
+/**
+ * Normalizes a raw (possibly hand-edited / older-schema) enabled-agents value
+ * into a clean, deduplicated, order-preserving list of non-empty strings, or
+ * `null` when there's nothing usable. Same defensive philosophy as
+ * `sanitizeShortcutPrefs`.
+ */
+export function sanitizeAgentList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null
+  const cleaned = [
+    ...new Set(value.filter((item): item is string => typeof item === 'string' && item !== ''))
+  ]
+  return cleaned.length > 0 ? cleaned : null
 }
 
 /**
@@ -89,6 +110,8 @@ export interface ConfigStore {
   setLastEffort(id: string): void
   getAgent(): string | null
   setAgent(id: string): void
+  getEnabledAgents(): string[] | null
+  setEnabledAgents(ids: string[]): void
   getRole(): string | null
   setRole(id: string): void
   getUserName(): string | null
@@ -123,7 +146,12 @@ export function createConfigStore(baseDir: string): ConfigStore {
     try {
       const raw = readFileSync(configPath, 'utf-8')
       const parsed = JSON.parse(raw) as Partial<Config>
-      return { ...DEFAULT_CONFIG, ...parsed }
+      const merged = { ...DEFAULT_CONFIG, ...parsed }
+      // multi-agent migration: an older config has a single `agent` and no
+      // `agents` set — seed the enabled set from it so nothing is lost.
+      const agents = sanitizeAgentList(merged.agents)
+      merged.agents = agents ?? (merged.agent ? [merged.agent] : null)
+      return merged
     } catch {
       // Missing/corrupt file (or unreadable) — treat as first run rather than throw.
       return { ...DEFAULT_CONFIG }
@@ -162,6 +190,17 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setLastEffort: (id: string) => updateConfig({ lastEffort: id }),
     getAgent: () => readConfig().agent,
     setAgent: (id: string) => updateConfig({ agent: id }),
+    getEnabledAgents: () => sanitizeAgentList(readConfig().agents),
+    // Persists the enabled set (sanitized). Keeps the default `agent` coherent:
+    // if the current default isn't in the new set, the first enabled agent
+    // becomes the default (an empty set clears both fields to null).
+    setEnabledAgents: (ids: string[]) => {
+      const current = readConfig()
+      const agents = sanitizeAgentList(ids)
+      const agent =
+        agents == null ? null : agents.includes(current.agent ?? '') ? current.agent : agents[0]
+      writeConfig({ ...current, agents, agent })
+    },
     getRole: () => readConfig().role,
     setRole: (id: string) => updateConfig({ role: id }),
     getUserName: () => readConfig().userName,

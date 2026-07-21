@@ -17,8 +17,27 @@ import type { RoleAction } from '../ui/ActionRail'
  * button, so tests can type `/` (opening the slash menu) and submit.
  */
 const SelectContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
+const DropdownRadioContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
 
 vi.mock('@hive/design-system', () => ({
+  DropdownMenu: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => children,
+  DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+    createElement('button', { onClick: onSelect }, children),
+  DropdownMenuSeparator: () => null,
+  DropdownMenuRadioGroup: ({
+    children,
+    onValueChange
+  }: {
+    children?: ReactNode
+    onValueChange?: (value: string) => void
+  }) => createElement(DropdownRadioContext.Provider, { value: { onValueChange } }, children),
+  DropdownMenuRadioItem: ({ value, children }: { value: string; children?: ReactNode }) => {
+    const ctx = useContext(DropdownRadioContext)
+    return createElement('button', { onClick: () => ctx?.onValueChange?.(value) }, children)
+  },
   Alert: ({ title, children, ...rest }: { title?: ReactNode; children?: ReactNode }) =>
     createElement(
       'div',
@@ -203,7 +222,7 @@ describe('Chat', () => {
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
-    startCalls: Array<{ workspace: string; model: string; effort: string }>
+    startCalls: Array<{ agentId?: string; workspace: string; model?: string; effort?: string }>
     chatHistory: {
       list: ReturnType<typeof vi.fn>
       get: ReturnType<typeof vi.fn>
@@ -216,7 +235,12 @@ describe('Chat', () => {
     }
   } {
     let capturedOnEvent: ((event: AgentEventLike) => void) | undefined
-    const startCalls: Array<{ workspace: string; model: string; effort: string }> = []
+    const startCalls: Array<{
+      agentId?: string
+      workspace: string
+      model?: string
+      effort?: string
+    }> = []
     const chatHistory = {
       list: vi.fn().mockResolvedValue(options.recentSessions ?? []),
       get: vi.fn().mockResolvedValue(options.storedSession ?? null),
@@ -240,10 +264,12 @@ describe('Chat', () => {
           supportsAttachments: true
         }),
         chooseAttachments: vi.fn().mockResolvedValue(options.pickedAttachments ?? []),
-        start: vi.fn((opts: { workspace: string; model: string; effort: string }) => {
-          startCalls.push(opts)
-          return Promise.resolve()
-        }),
+        start: vi.fn(
+          (opts: { agentId?: string; workspace: string; model?: string; effort?: string }) => {
+            startCalls.push(opts)
+            return Promise.resolve()
+          }
+        ),
         send: vi.fn().mockResolvedValue(undefined),
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
@@ -257,7 +283,14 @@ describe('Chat', () => {
         agents: vi
           .fn()
           .mockResolvedValue([
-            { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true }
+            {
+              id: 'claude-cli',
+              displayName: 'Claude Code',
+              description: '',
+              available: true,
+              installHint: '',
+              docsUrl: ''
+            }
           ])
       },
       skills: {
@@ -277,7 +310,15 @@ describe('Chat', () => {
     } = {}
   ): ReturnType<typeof mockHive> {
     const hive = mockHive(extra)
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ...props }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ...props
+      })
+    )
     return hive
   }
 
@@ -350,7 +391,7 @@ describe('Chat', () => {
 
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-prd', prompt: '/bmad-prd' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
     // The transcript shows the slash command that was invoked, verbatim.
     expect(await screen.findByText('/bmad-prd')).toBeTruthy()
@@ -363,20 +404,28 @@ describe('Chat', () => {
     fireEvent.click(persona.closest('article') as Element)
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
   })
 
   it('exposes launchAction via the imperative handle (used by the action rail)', async () => {
     mockHive()
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Criar um PRD')
 
     ref.current?.launchAction(roleActions[0])
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-prd', prompt: '/bmad-prd' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
     expect(await screen.findByText('/bmad-prd')).toBeTruthy()
   })
@@ -386,7 +435,15 @@ describe('Chat', () => {
   it('exposes launchCreation, which opens a new conversation with a per-turn model override', async () => {
     mockHive()
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Criar um PRD')
 
     // Seed a conversation, then launch a creation over it.
@@ -404,17 +461,23 @@ describe('Chat', () => {
 
     expect(window.hive.agent.runWorkflow).toHaveBeenLastCalledWith(
       { key: 'bmad-workflow-builder', prompt: '/bmad-workflow-builder' },
-      { resume: null, turnId: expect.any(String), model: 'model-b', effort: 'low' }
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        model: 'model-b',
+        effort: 'low'
+      })
     )
     // Fresh conversation: the builder command is on screen, the prior one is gone.
     expect(await screen.findByText('/bmad-workflow-builder')).toBeTruthy()
     expect(screen.queryByText('/bmad-prd')).toBeNull()
   })
 
-  it('starts a session with the first model/effort defaults once capabilities load', async () => {
+  it('starts the conversation agent session bound to the workspace', async () => {
     const { startCalls } = renderChat()
     await waitFor(() =>
-      expect(startCalls).toContainEqual({ workspace: '/ws', model: 'model-a', effort: 'low' })
+      expect(startCalls).toContainEqual({ agentId: 'claude-cli', workspace: '/ws' })
     )
   })
 
@@ -427,10 +490,14 @@ describe('Chat', () => {
     fireEvent.click(screen.getByText('Enviar'))
 
     expect(await screen.findByText('Olá, agente')).toBeTruthy()
-    expect(window.hive.agent.send).toHaveBeenCalledWith('Olá, agente', {
-      resume: null,
-      turnId: expect.any(String)
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      'Olá, agente',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String)
+      })
+    )
   })
 
   it('streams token events, then finalizes on done', async () => {
@@ -490,9 +557,12 @@ describe('Chat', () => {
   })
 
   // agent-selection AG-R3.3 — active-agent indicator.
-  it('shows the active agent name in the composer', async () => {
+  it('shows the active agent in the composer switcher', async () => {
     renderChat()
-    expect(await screen.findByText('Claude Code')).toBeTruthy()
+    // The switcher renders the conversation's agent (trigger; the mocked
+    // dropdown also renders its menu items, so there may be more than one).
+    const names = await screen.findAllByText('Claude Code')
+    expect(names.length).toBeGreaterThan(0)
   })
 
   // chat-controls CC-R2 — slash menu (rows are just the command, `/bmad-*`).
@@ -529,7 +599,7 @@ describe('Chat', () => {
 
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-ux', prompt: '/bmad-ux' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
   })
 
@@ -550,7 +620,7 @@ describe('Chat', () => {
 
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-ux', prompt: '/bmad-ux' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
   })
 
@@ -611,11 +681,15 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenCalledWith('resuma #docs/prd.md por favor', {
-      resume: null,
-      turnId: expect.any(String),
-      attachments: ['docs/prd.md']
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      'resuma #docs/prd.md por favor',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        attachments: ['docs/prd.md']
+      })
+    )
   })
 
   // chat-attachments — attached files.
@@ -634,11 +708,15 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenCalledWith('analisa isso', {
-      resume: null,
-      turnId: expect.any(String),
-      attachments: ['/abs/relatorio.pdf']
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      'analisa isso',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        attachments: ['/abs/relatorio.pdf']
+      })
+    )
     // The sent bubble keeps the file as a chip, and the persisted user turn
     // carries the attachment names.
     expect(await screen.findByText('relatorio.pdf')).toBeTruthy()
@@ -684,11 +762,15 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenCalledWith('resuma', {
-      resume: null,
-      turnId: expect.any(String),
-      attachments: ['docs/prd.md']
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      'resuma',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        attachments: ['docs/prd.md']
+      })
+    )
   })
 
   it('a dropped workspace chip and its typed #reference dedupe into one context file', async () => {
@@ -710,11 +792,15 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenCalledWith('resuma #docs/prd.md agora', {
-      resume: null,
-      turnId: expect.any(String),
-      attachments: ['docs/prd.md']
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      'resuma #docs/prd.md agora',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        attachments: ['docs/prd.md']
+      })
+    )
   })
 
   it('attachments alone (no text) are sendable', async () => {
@@ -727,11 +813,15 @@ describe('Chat', () => {
     await screen.findByText('dados.csv')
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenCalledWith('', {
-      resume: null,
-      turnId: expect.any(String),
-      attachments: ['/abs/dados.csv']
-    })
+    expect(window.hive.agent.send).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String),
+        attachments: ['/abs/dados.csv']
+      })
+    )
   })
 
   it('ignores tool events (no crash, no message)', async () => {
@@ -757,7 +847,7 @@ describe('Chat', () => {
 
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
       { key: 'bmad-ux', prompt: '/bmad-ux' },
-      { resume: null, turnId: expect.any(String) }
+      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
   })
 
@@ -891,7 +981,15 @@ describe('Chat', () => {
   it('newConversation (handle) clears the transcript back to the hero', async () => {
     mockHive()
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'alguma coisa' }
@@ -922,7 +1020,8 @@ describe('Chat', () => {
       createElement(Chat, {
         workspace: '/ws',
         roleActions,
-        agent: 'claude-cli',
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
         onSessionChange,
         ref
       })
@@ -943,7 +1042,15 @@ describe('Chat', () => {
   it('switching away mid-stream keeps the turn running: no interrupt, reply completes into ITS conversation', async () => {
     const { chatHistory, emit } = mockHive()
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'pergunta longa' }
@@ -990,7 +1097,15 @@ describe('Chat', () => {
       }
     })
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'pergunta longa' }
@@ -1041,7 +1156,8 @@ describe('Chat', () => {
       createElement(Chat, {
         workspace: '/ws',
         roleActions,
-        agent: 'claude-cli',
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
         onRunningSessionsChange
       })
     )
@@ -1063,10 +1179,14 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
     // First turn starts with no resume handle.
-    expect(window.hive.agent.send).toHaveBeenLastCalledWith('primeira pergunta', {
-      resume: null,
-      turnId: expect.any(String)
-    })
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'primeira pergunta',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String)
+      })
+    )
 
     await act(async () => {
       emit({ type: 'session', id: 'cli-sess-42' })
@@ -1081,10 +1201,14 @@ describe('Chat', () => {
       target: { value: 'segunda pergunta' }
     })
     fireEvent.click(screen.getByText('Enviar'))
-    expect(window.hive.agent.send).toHaveBeenLastCalledWith('segunda pergunta', {
-      resume: 'cli-sess-42',
-      turnId: expect.any(String)
-    })
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'segunda pergunta',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: 'cli-sess-42',
+        turnId: expect.any(String)
+      })
+    )
   })
 
   it('openSession restores the stored CLI id so the next turn resumes that conversation', async () => {
@@ -1101,7 +1225,15 @@ describe('Chat', () => {
       }
     })
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Modelo A')
 
     await act(async () => {
@@ -1112,10 +1244,14 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenLastCalledWith('continuando', {
-      resume: 'cli-sess-77',
-      turnId: expect.any(String)
-    })
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'continuando',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: 'cli-sess-77',
+        turnId: expect.any(String)
+      })
+    )
   })
 
   it('newConversation clears the resume handle (a fresh conversation never inherits context)', async () => {
@@ -1132,7 +1268,15 @@ describe('Chat', () => {
       }
     })
     const ref = createRef<ChatHandle>()
-    render(createElement(Chat, { workspace: '/ws', roleActions, agent: 'claude-cli', ref }))
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
     await screen.findByText('Modelo A')
     await act(async () => {
       await ref.current?.openSession('session-7')
@@ -1146,9 +1290,13 @@ describe('Chat', () => {
     })
     fireEvent.click(screen.getByText('Enviar'))
 
-    expect(window.hive.agent.send).toHaveBeenLastCalledWith('do zero', {
-      resume: null,
-      turnId: expect.any(String)
-    })
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'do zero',
+      expect.objectContaining({
+        agentId: 'claude-cli',
+        resume: null,
+        turnId: expect.any(String)
+      })
+    )
   })
 })

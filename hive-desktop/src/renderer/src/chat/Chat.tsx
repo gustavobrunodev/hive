@@ -25,6 +25,7 @@ import {
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import { HiveCellIcon, PaperclipIcon, SlidersIcon } from '../ui/icons'
+import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
 import { shortcutIcon } from '../ui/roleVisuals'
 import { FileTypeIcon } from '../ui/fileIcons'
 import type { RoleAction } from '../ui/ActionRail'
@@ -91,8 +92,12 @@ interface ChatProps {
   workspace: string
   /** The current role's resolved actions — feeds the empty-state hero (RP-R4). */
   roleActions: RoleAction[]
-  /** The selected agent id — restarts the session when it changes (AG-C4). */
-  agent: string | null
+  /** Enabled agent ids (multi-agent) — the composer switcher's pool. */
+  agents: string[]
+  /** Default agent id (multi-agent) — a new conversation starts on it. */
+  defaultAgent: string | null
+  /** Opens the profile sheet's agent section (the switcher's "Gerenciar agentes…"). */
+  onManageAgents?: () => void
   /** Display name for the empty-state hero greeting ("Olá <nome>, …"). */
   userName?: string | null
   /** session-history: notifies the work UI which stored conversation is on screen (highlight in the history panel). */
@@ -403,7 +408,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   {
     workspace,
     roleActions,
-    agent,
+    agents,
+    defaultAgent,
+    onManageAgents = () => {},
     userName = null,
     onSessionChange,
     onRunningSessionsChange,
@@ -417,7 +424,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
   const [streamingText, setStreamingText] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [agentName, setAgentName] = useState<string | null>(null)
+  // multi-agent: which agent drives THIS conversation. `null` → fall back to the
+  // app default (`defaultAgent`); set explicitly by the composer switcher (fresh
+  // conversation) or when restoring a stored conversation's own agent.
+  const [conversationAgent, setConversationAgent] = useState<string | null>(null)
+  const activeAgent = conversationAgent ?? defaultAgent
+  // id → displayName for every registered agent, for the switcher labels.
+  const [agentNames, setAgentNames] = useState<Record<string, string>>({})
   const [skills, setSkills] = useState<SlashSkill[]>([])
   const [composerValue, setComposerValue] = useState('')
   const [slashDismissed, setSlashDismissed] = useState(false)
@@ -464,34 +477,43 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onRunningSessionsChange?.(runningSessionIds)
   }, [runningSessionIds, onRunningSessionsChange])
 
-  // Capabilities reflect the active adapter — reload when the agent changes
-  // (AG-R1.3). Defaults are only set when unset, so a switch doesn't clobber a
-  // model/effort the user already picked.
+  // multi-agent: capabilities reflect THIS conversation's agent. Model/effort
+  // reset to the new agent's defaults on a switch — model ids aren't portable
+  // across agents (Claude's `opus` means nothing to Copilot), and an agent may
+  // expose no model and/or no effort at all (Devin/Copilot), in which case the
+  // composer hides that picker and the value stays `null` (omitted per turn).
   useEffect(() => {
     let cancelled = false
-    window.hive.agent.capabilities().then((caps) => {
+    window.hive.agent.capabilities(activeAgent ?? undefined).then((caps) => {
       if (cancelled) return
       setCapabilities(caps)
-      setModel((current) => current ?? caps.models[0]?.id ?? null)
-      setEffort((current) => current ?? caps.efforts[0]?.id ?? null)
+      setModel(caps.models[0]?.id ?? null)
+      setEffort(caps.efforts[0]?.id ?? null)
     })
     return () => {
       cancelled = true
     }
-  }, [agent])
+  }, [activeAgent])
 
-  // Resolve the active agent's display name for the composer indicator (AG-R3.3).
+  // Resolve every agent's display name for the switcher labels.
   useEffect(() => {
     let cancelled = false
     window.hive.profile.agents().then((list) => {
       if (cancelled) return
-      const active = list.find((entry) => entry.id === agent)
-      setAgentName(active?.displayName ?? null)
+      setAgentNames(Object.fromEntries(list.map((entry) => [entry.id, entry.displayName])))
     })
     return () => {
       cancelled = true
     }
-  }, [agent])
+  }, [])
+
+  // multi-agent: ensure THIS conversation's agent has a live pooled session
+  // bound to the workspace cwd (idempotent — the pool no-ops a repeat). Per-turn
+  // model/effort travel with each send, so this needn't restart on those.
+  useEffect(() => {
+    if (!activeAgent) return
+    void window.hive.agent.start({ agentId: activeAgent, workspace })
+  }, [activeAgent, workspace])
 
   // Discover the workspace's BMAD skills for the slash menu (CC-R3.1).
   useEffect(() => {
@@ -504,15 +526,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
   }, [workspace])
 
-  // (Re)start the session whenever workspace/model/effort/agent settle or
-  // change, and (re)subscribe to events. Adding `agent` to the deps means a
-  // profile agent switch tears down + restarts the session against the newly
-  // selected adapter (AG-C4).
+  // multi-agent: one unified event subscription per workspace. Every agent's
+  // pooled session funnels its events here; routing is by `turnId`
+  // (background-turns), so a single subscription serves every concurrent
+  // conversation/agent — no per-agent (re)subscribe. Teardown stops the whole
+  // pool and drops in-flight turns (their terminal events die with the
+  // unsubscribe; their user half is already persisted).
   useEffect(() => {
-    if (!model || !effort) return
-    let cancelled = false
-    let unsubscribe: (() => void) | undefined
-
     // Stable alias: the array identity never changes (only its contents), and
     // the cleanup below must clear the same array it subscribed with.
     const turns = turnsRef.current
@@ -529,24 +549,15 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       notifyRunning: refreshRunning
     }
 
-    window.hive.agent.start({ workspace, model, effort }).then(() => {
-      if (cancelled) return
-      unsubscribe = window.hive.agent.onEvent((event) => handleAgentEvent(event, ctx))
-    })
+    const unsubscribe = window.hive.agent.onEvent((event) => handleAgentEvent(event, ctx))
 
     return () => {
-      cancelled = true
-      unsubscribe?.()
-      // Turns still in flight can never settle once this session is torn
-      // down (their terminal events die with the unsubscribe) — drop them so
-      // routing can't mis-settle the *next* session's first turn, and clear
-      // the running indicators. Their user half is already persisted; only
-      // the un-streamed remainder is lost.
+      unsubscribe()
       turns.length = 0
       refreshRunning()
       void window.hive.agent.stop()
     }
-  }, [workspace, model, effort, agent, refreshRunning])
+  }, [workspace, refreshRunning])
 
   // session-history: persists a user turn into its stored conversation,
   // creating the conversation on the very first message (lazy — no empty
@@ -558,7 +569,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         .then(async () => {
           let id = sessionIdRef.current
           if (id === null) {
-            const created = await window.hive.chatHistory.create(workspace, agent)
+            // multi-agent: stamp the conversation with the agent driving it, so
+            // reopening it later restores the right agent (and history badge).
+            const created = await window.hive.chatHistory.create(workspace, activeAgent)
             id = created.id
             sessionIdRef.current = id
             setSessionId(id)
@@ -570,7 +583,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       sessionChainRef.current = chained
       return chained
     },
-    [workspace, agent]
+    [workspace, activeAgent]
   )
 
   // Shared turn kick-off for a text send, a role/rail action, and a slash
@@ -610,16 +623,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     (command: WorkflowCommand, label: string, opts?: { model?: string; effort?: string }) => {
       const resume = cliSessionRef.current
       const turnId = beginTurn(label)
-      // Per-turn model/effort (skill-studio) override the session default for
-      // just this turn — `undefined` leaves the session's own choice in place.
+      // multi-agent: the turn runs on THIS conversation's agent. Per-turn
+      // model/effort (skill-studio override, else the current selection) travel
+      // along; `undefined` lets the agent's CLI use its own default.
       window.hive.agent.runWorkflow(command, {
+        agentId: activeAgent ?? undefined,
         resume,
         turnId,
-        model: opts?.model,
-        effort: opts?.effort
+        model: opts?.model ?? model ?? undefined,
+        effort: opts?.effort ?? effort ?? undefined
       })
     },
-    [beginTurn]
+    [beginTurn, activeAgent, model, effort]
   )
 
   const launchAction = useCallback(
@@ -648,12 +663,15 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setComposerValue('')
       attachments.clear()
       window.hive.agent.send(value, {
+        agentId: activeAgent ?? undefined,
         resume,
         turnId,
-        attachments: contextFiles.length > 0 ? contextFiles : undefined
+        attachments: contextFiles.length > 0 ? contextFiles : undefined,
+        model: model ?? undefined,
+        effort: effort ?? undefined
       })
     },
-    [beginTurn, attachments, mentions.fileSet]
+    [beginTurn, attachments, mentions.fileSet, activeAgent, model, effort]
   )
 
   const handleStop = useCallback(() => {
@@ -682,6 +700,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setSessionId(null)
     sessionChainRef.current = Promise.resolve(null)
     cliSessionRef.current = null
+    // multi-agent: a fresh conversation reverts to the app default agent (the
+    // switcher can then re-pick before the first message).
+    setConversationAgent(null)
   }, [detachTurns])
 
   // skill-studio: launching a creation/generation opens a *fresh* conversation
@@ -703,6 +724,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const stored = await window.hive.chatHistory.get(workspace, id)
       if (!stored) return
       detachTurns()
+      // multi-agent: restore the agent this conversation ran on (falls back to
+      // the app default when the stored agent is unknown/blank).
+      setConversationAgent(stored.agent ?? null)
       setMessages(
         stored.messages.map((message) => ({
           id: message.id,
@@ -739,6 +763,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   const isStreaming = streamingText !== null
   const isEmpty = messages.length === 0 && streamingText === null
+
+  // multi-agent: the composer switcher's pool — enabled agents (in order) with
+  // their display names resolved.
+  const enabledAgents = useMemo<SwitchableAgent[]>(
+    () => agents.map((id) => ({ id, displayName: agentNames[id] ?? id })),
+    [agents, agentNames]
+  )
 
   // session-history: the hero's "continue where you left off" list — loaded
   // whenever the pane is (back) on the empty state, so it's always current.
@@ -878,35 +909,43 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             <PaperclipIcon size={15} />
           </button>
         )}
-        {agentName && (
-          <span className="wb-agent-indicator" aria-label={t('chat.agentIndicatorAria', agentName)}>
-            {agentName}
-          </span>
+        {enabledAgents.length > 0 && (
+          <AgentSwitcher
+            agents={enabledAgents}
+            value={activeAgent}
+            locked={messages.length > 0}
+            onChange={setConversationAgent}
+            onManage={onManageAgents}
+          />
         )}
-        <Select value={model ?? undefined} onValueChange={setModel}>
-          <SelectTrigger className="wb-select-compact" aria-label={t('chat.modelLabel')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {capabilities.models.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={effort ?? undefined} onValueChange={setEffort}>
-          <SelectTrigger className="wb-select-compact" aria-label={t('chat.effortLabel')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {capabilities.efforts.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {capabilities.models.length > 0 && (
+          <Select value={model ?? undefined} onValueChange={setModel}>
+            <SelectTrigger className="wb-select-compact" aria-label={t('chat.modelLabel')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {capabilities.models.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {capabilities.efforts.length > 0 && (
+          <Select value={effort ?? undefined} onValueChange={setEffort}>
+            <SelectTrigger className="wb-select-compact" aria-label={t('chat.effortLabel')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {capabilities.efforts.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </>
     )
   }

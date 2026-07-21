@@ -36,6 +36,22 @@ vi.mock('@hive/design-system', () => ({
   },
   Logo: ({ tone, mark }: { tone?: string; mark?: string }) =>
     createElement('span', { 'data-testid': `logo-${tone}-${mark}` }),
+  // multi-agent: the AgentSetup first-run picker uses the DS Switch per agent.
+  Switch: ({
+    checked,
+    onCheckedChange,
+    ...rest
+  }: {
+    checked?: boolean
+    onCheckedChange?: (checked: boolean) => void
+  }) =>
+    createElement('button', {
+      type: 'button',
+      role: 'switch',
+      'aria-checked': checked,
+      onClick: () => onCheckedChange?.(!checked),
+      ...rest
+    }),
   Panel: ({ children, ...rest }: { children?: ReactNode }) => createElement('div', rest, children),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   Empty: ({
@@ -216,6 +232,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
+        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue('pm'),
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
@@ -427,6 +445,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         ]),
         getAgent: vi.fn().mockResolvedValue(null),
         setAgent: vi.fn().mockResolvedValue(undefined),
+        getAgents: vi.fn().mockResolvedValue(null),
+        setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
@@ -438,7 +458,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     render(createElement(App))
 
     // The agent step comes first — not the install form.
-    expect(await screen.findByText('Escolha seu agente')).toBeTruthy()
+    expect(await screen.findByText('Escolha seus agentes')).toBeTruthy()
     expect(screen.queryByText('Configurar o BMAD')).toBeNull()
   })
 
@@ -454,6 +474,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
+        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
@@ -480,6 +502,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
+        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole,
         getUserName: vi.fn().mockResolvedValue(null),
