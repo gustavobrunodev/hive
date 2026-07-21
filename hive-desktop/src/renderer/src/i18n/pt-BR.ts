@@ -76,6 +76,12 @@ export const ptBR = {
     conflictCancelCta: 'Cancelar',
     actionErrorMessage: 'Não foi possível concluir a ação. Tente novamente.',
 
+    // FM-R5 — arrastar-e-soltar do computador para o workspace (drop overlay).
+    importDropTitle: 'Solte para importar',
+    importDropToFolder: (name: string) => `para a pasta ${name}`,
+    importDropToRoot: (name: string) => `para ${name}`,
+    importDropHint: 'Os arquivos serão copiados para o workspace',
+
     // T9 — editor edit/save/dirty/STALE (FM-R2)
     editLabel: 'Editar',
     viewLabel: 'Visualizar',
@@ -99,7 +105,55 @@ export const ptBR = {
 
     // Multi-tab editor pane (VS Code-style preview/pin tabs)
     tabsLabel: 'Arquivos abertos',
-    closeTabLabel: (name: string) => `Fechar ${name}`
+    closeTabLabel: (name: string) => `Fechar ${name}`,
+
+    // Rich file viewer — docx / pptx / planilhas / pdf / imagens.
+    viewer: {
+      loading: 'Preparando a visualização…',
+      errorTitle: 'Não foi possível abrir este arquivo',
+      errorDescription: 'O arquivo pode estar corrompido ou em um formato não suportado.',
+      retry: 'Tentar de novo',
+      zoomIn: 'Aumentar zoom',
+      zoomOut: 'Diminuir zoom',
+      fit: 'Ajustar à tela',
+      zoomLabel: (pct: number) => `${pct}%`,
+      unsupportedTitle: 'Pré-visualização indisponível',
+      unsupportedDescription:
+        'Ainda não sabemos exibir este tipo de arquivo por aqui. Você pode abri-lo no aplicativo padrão do sistema.',
+      openExternal: 'Abrir no app padrão',
+      image: {
+        actualSize: 'Tamanho real',
+        fitToView: 'Ajustar à tela',
+        dimensions: (w: number, h: number) => `${w} × ${h}`
+      },
+      pdf: {
+        rendering: 'Renderizando páginas…',
+        pageOf: (current: number, total: number) => `Página ${current} de ${total}`,
+        prevPage: 'Página anterior',
+        nextPage: 'Próxima página'
+      },
+      docx: {
+        warnings: (count: number) =>
+          count === 1
+            ? '1 detalhe de formatação foi simplificado.'
+            : `${count} detalhes de formatação foram simplificados.`
+      },
+      sheet: {
+        dimensions: (rows: number, cols: number) => `${rows} linhas × ${cols} colunas`,
+        truncated: (shown: number, total: number) =>
+          `Mostrando as primeiras ${shown} de ${total} linhas`,
+        empty: 'Esta planilha está vazia.'
+      },
+      slides: {
+        readerNote: 'Visualização de leitura — texto e imagens dos slides',
+        slideOf: (current: number, total: number) => `Slide ${current} de ${total}`,
+        prev: 'Slide anterior',
+        next: 'Próximo slide',
+        thumbnailsLabel: 'Miniaturas dos slides',
+        noText: 'Slide sem texto',
+        empty: 'Nenhum slide encontrado nesta apresentação.'
+      }
+    }
   },
   guidedInstall: {
     title: 'Preparando seu workspace',

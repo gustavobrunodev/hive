@@ -10,7 +10,6 @@ import {
 import type { DragEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import {
   Button,
-  CodeBlock,
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -31,6 +30,8 @@ import {
 import { t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import { HtmlPreview } from './HtmlPreview'
+import { DocumentViewer } from './DocumentViewer'
+import { richViewerKind } from './richViewer'
 import { IconButton } from '../ui/IconButton'
 import { isPaneDrag } from '../ui/paneDnd'
 import { setWorkspaceFileDrag } from '../ui/workspaceFileDnd'
@@ -39,6 +40,7 @@ import {
   CheckIcon,
   CloseIcon,
   CopyIcon,
+  DownloadIcon,
   EyeIcon,
   FolderIcon,
   FolderOpenIcon,
@@ -87,6 +89,17 @@ function parentOf(path: string): string {
 /** True if `path` is `ancestorPath` itself or nested under it — the FM-R4.2 self/descendant drop guard. */
 function isSelfOrDescendant(ancestorPath: string, path: string): boolean {
   return path === ancestorPath || path.startsWith(`${ancestorPath}/`)
+}
+
+/**
+ * FM-R5: true when the in-flight drag carries OS files (a drag from Finder /
+ * Explorer / the desktop). `dataTransfer.types` exposes `'Files'` during
+ * dragover — before the file list itself is readable — so it's the only
+ * reliable way to distinguish an *external import* from the tree's own row
+ * moves (`text/plain`) or a pane move, and to light up the import overlay.
+ */
+function isOsFileDrag(event: DragEvent): boolean {
+  return event.dataTransfer?.types?.includes('Files') ?? false
 }
 
 const INVALID_NAME_RE = /[/\\]/
@@ -309,6 +322,21 @@ export function FileTree({
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState(false)
+  // FM-R5: true while an OS file drag hovers the rail — drives the panel-wide
+  // "Solte para importar" overlay. Distinct from `dragOverPath` (which lights
+  // up a single folder row for both internal moves and imports); this is only
+  // ever the *external* import affordance. A dragenter/dragleave depth counter
+  // (both bubble per child element) keeps it stable as the pointer crosses the
+  // tree's nested rows.
+  const [importActive, setImportActive] = useState(false)
+  const importDepthRef = useRef(0)
+  // Defined up here (not with the other DnD handlers) because the row/root
+  // drop handlers below also need to tear the overlay down, and a `const`
+  // referenced in their dependency arrays must already be initialized.
+  const clearImportDrag = useCallback(() => {
+    importDepthRef.current = 0
+    setImportActive(false)
+  }, [])
   // T10: the drag payload — one or more paths. Populated in
   // `handleRowDragStart` from either the whole current selection (dragging a
   // row that's part of it) or just the dragged row (dragging an unselected
@@ -848,6 +876,7 @@ export function FileTree({
       event.preventDefault()
       event.stopPropagation()
       setDragOverPath(null)
+      clearImportDrag()
       const destDir = isDir ? targetPath : parentOf(targetPath)
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
@@ -859,7 +888,7 @@ export function FileTree({
       dragSourcesRef.current = null
       if (sources) moveInternal(sources, destDir)
     },
-    [importFiles, moveInternal]
+    [importFiles, moveInternal, clearImportDrag]
   )
 
   const handleRootDragOver = useCallback((event: DragEvent) => {
@@ -871,6 +900,7 @@ export function FileTree({
     (event: DragEvent) => {
       if (isPaneDrag(event)) return
       event.preventDefault()
+      clearImportDrag()
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
         importFiles(Array.from(files), '')
@@ -881,8 +911,56 @@ export function FileTree({
       dragSourcesRef.current = null
       if (sources) moveInternal(sources, '')
     },
-    [importFiles, moveInternal]
+    [importFiles, moveInternal, clearImportDrag]
   )
+
+  // --- Panel-wide OS-import overlay (FM-R5) ---------------------------------
+  // These sit on the whole tree body so the "Solte para importar" affordance
+  // covers the entire rail, not just individual rows. They only manage the
+  // *visual* state + `preventDefault` (so the empty area below the rows still
+  // accepts a drop); the actual import runs through the row/root drop handlers
+  // underneath, which is why the overlay itself is `pointer-events: none`.
+
+  const handleBodyDragEnter = useCallback((event: DragEvent) => {
+    if (!isOsFileDrag(event) || isPaneDrag(event)) return
+    importDepthRef.current += 1
+    setImportActive(true)
+  }, [])
+
+  const handleBodyDragOver = useCallback((event: DragEvent) => {
+    if (!isOsFileDrag(event) || isPaneDrag(event)) return
+    // Claim the drop across the whole body (rows/root also preventDefault for
+    // their own regions; this covers the gaps between and below them).
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleBodyDragLeave = useCallback((event: DragEvent) => {
+    if (!isOsFileDrag(event)) return
+    importDepthRef.current = Math.max(0, importDepthRef.current - 1)
+    if (importDepthRef.current === 0) setImportActive(false)
+  }, [])
+
+  const handleBodyDrop = useCallback(() => {
+    // Row/root handlers already ran the import (they stopPropagation, so this
+    // only fires for the gaps) — here it's purely the overlay teardown.
+    clearImportDrag()
+    setDragOverPath(null)
+  }, [clearImportDrag])
+
+  // A drag that ends outside the rail (Esc, or dropped elsewhere) never fires
+  // our drop/leave — a window-level `dragend`/`drop` guarantees the overlay
+  // can't get stuck on screen.
+  useEffect(() => {
+    if (!importActive) return
+    const reset = (): void => clearImportDrag()
+    window.addEventListener('dragend', reset)
+    window.addEventListener('drop', reset)
+    return () => {
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('drop', reset)
+    }
+  }, [importActive, clearImportDrag])
 
   const handleInputKeyDown = useCallback(
     (
@@ -1230,9 +1308,37 @@ export function FileTree({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           {/* The whole tree area (rows, empty space below them, and the
-              empty/error states) answers to right-click, VS Code-style. */}
-          <div className="wb-tree-body" onContextMenuCapture={handleTreeContextMenuCapture}>
+              empty/error states) answers to right-click, VS Code-style, and is
+              the drop target for OS file imports (FM-R5) — the drag handlers
+              here only toggle the overlay; the row/root handlers below do the
+              actual import. */}
+          <div
+            className={importActive ? 'wb-tree-body is-importing' : 'wb-tree-body'}
+            onContextMenuCapture={handleTreeContextMenuCapture}
+            onDragEnter={handleBodyDragEnter}
+            onDragOver={handleBodyDragOver}
+            onDragLeave={handleBodyDragLeave}
+            onDrop={handleBodyDrop}
+          >
             {treeBody}
+            {importActive && (
+              <div className="wb-rail-dropzone" aria-hidden="true">
+                <div className="wb-rail-dropzone-card">
+                  <span className="wb-rail-dropzone-icon">
+                    <DownloadIcon size={24} />
+                  </span>
+                  <span className="wb-rail-dropzone-title">
+                    {t('explorer.importDropTitle')}
+                  </span>
+                  <span className="wb-rail-dropzone-dest">
+                    {dragOverPath
+                      ? t('explorer.importDropToFolder', basename(dragOverPath))
+                      : t('explorer.importDropToRoot', basename(workspace) || workspace)}
+                  </span>
+                  <span className="wb-rail-dropzone-hint">{t('explorer.importDropHint')}</span>
+                </div>
+              </div>
+            )}
           </div>
         </ContextMenuTrigger>
         {/* Same close-auto-focus guard as the row kebab menu: the inline
@@ -1405,6 +1511,23 @@ function isEditablePath(path: string): boolean {
   return !BINARY_EXTENSIONS.test(path)
 }
 
+/**
+ * True when a file should open in the rich `DocumentViewer` (image/pdf/docx/
+ * sheet/pptx, or any other binary we don't edit as text) rather than the
+ * textarea editor. Kept as a free function so `FileViewer` reads it in one
+ * call instead of inlining the two-part condition (and its cyclomatic weight).
+ */
+function isDocViewPath(path: string): boolean {
+  return richViewerKind(path) !== null || !isEditablePath(path)
+}
+
+/** Label + icon for the edit⇄preview mode toggle — a free function so `FileViewer` reads it in one call. */
+function modeToggleFor(mode: ViewerMode): { label: string; icon: React.JSX.Element } {
+  return mode === 'edit'
+    ? { label: t('explorer.viewLabel'), icon: <EyeIcon /> }
+    : { label: t('explorer.editLabel'), icon: <PencilIcon /> }
+}
+
 /** Shape of the confirm-before-discard prompt (FM-R2.1's unsaved-changes guard): either a pending file switch, or the pane's own close action. */
 type PendingDiscard = { target: string } | { target: 'close' }
 
@@ -1459,6 +1582,13 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   const [reloadKey, setReloadKey] = useState(0)
 
   const editable = isEditablePath(displayedPath)
+  // A file that gets a rich visual viewer (image/pdf/docx/sheet/pptx), or any
+  // binary we don't edit as text, is shown through `DocumentViewer` instead of
+  // the textarea editor / raw `CodeBlock` — so the editor machinery (Copy,
+  // mode toggle, text read) all switches off for it.
+  const isDocView = isDocViewPath(displayedPath)
+  // `isDocView` files never enter edit mode (draft stays empty and equal to
+  // content), so `dirty` is inherently false for them — no extra guard needed.
   const dirty = editable && viewerState.status === 'ready' && draft !== viewerState.content
 
   // WS-R5.1 enablement (design.md §5): reports `dirty` upward whenever it
@@ -1476,6 +1606,18 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
       setMode('edit')
       setStaleOpen(false)
       setActionError(false)
+      // Rich/binary files: `DocumentViewer` fetches its own bytes (base64 /
+      // parsed structure) — reading the file as lossy UTF-8 text here would be
+      // wasted work and a large useless string over IPC. Land straight in a
+      // ready state with empty text so the header isn't stuck loading.
+      if (isDocViewPath(displayedPath)) {
+        if (!cancelled) {
+          setViewerState({ status: 'ready', path: displayedPath, content: '', baseline: null })
+          setDraft('')
+          setReloadKey((current) => current + 1)
+        }
+        return
+      }
       try {
         const [content, baseline] = await Promise.all([
           window.hive.readFile(workspace, displayedPath),
@@ -1679,10 +1821,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // Preview is only *offered* for `.md`/`.html` (design.md §3) — other
   // editable text files are edit-only, no toggle at all.
   const previewable = isPreviewable(editable, displayedPath)
-  const modeToggle =
-    mode === 'edit'
-      ? { label: t('explorer.viewLabel'), icon: <EyeIcon /> }
-      : { label: t('explorer.editLabel'), icon: <PencilIcon /> }
+  const modeToggle = modeToggleFor(mode)
 
   return (
     <div className="wb-viewer">
@@ -1714,13 +1853,15 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
               {modeToggle.icon}
             </IconButton>
           )}
-          <IconButton
-            label={copied ? t('explorer.copiedLabel') : t('explorer.copyLabel')}
-            onClick={handleCopy}
-            disabled={viewerState.status !== 'ready'}
-          >
-            {copied ? <CheckIcon /> : <CopyIcon />}
-          </IconButton>
+          {!isDocView && (
+            <IconButton
+              label={copied ? t('explorer.copiedLabel') : t('explorer.copyLabel')}
+              onClick={handleCopy}
+              disabled={viewerState.status !== 'ready'}
+            >
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </IconButton>
+          )}
           {paneControls}
           <IconButton label={t('explorer.viewerCloseLabel')} onClick={handleCloseClick}>
             <CloseIcon />
@@ -1791,20 +1932,10 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
       )
     }
 
-    if (!editable) {
-      return (
-        <div className="wb-viewer-scroll">
-          <div className="wb-viewer-content">
-            <CodeBlock
-              copyText={viewerState.content}
-              copyLabel={t('explorer.copyLabel')}
-              copiedLabel={t('explorer.copiedLabel')}
-            >
-              {viewerState.content}
-            </CodeBlock>
-          </div>
-        </div>
-      )
+    // Rich visual viewer (image/pdf/docx/sheet/pptx) or a graceful fallback
+    // for any other binary — replaces the old raw-bytes-in-a-CodeBlock view.
+    if (isDocView) {
+      return <DocumentViewer workspace={workspace} path={displayedPath} />
     }
 
     if (mode === 'edit') {

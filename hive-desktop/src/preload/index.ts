@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
+import type {
+  BinaryFile,
+  DocxDocument,
+  EntryMeta,
+  FsChangeEvent,
+  SlidesDocument,
+  SpreadsheetDocument,
+  TreeNode
+} from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
@@ -330,6 +338,16 @@ const hive = {
   fs: {
     statFile: (root: string, relativePath: string): Promise<EntryMeta> =>
       ipcRenderer.invoke('fs:statFile', root, relativePath),
+    // Rich file viewer readers (docx/pptx/spreadsheet/pdf/image). Parsing is
+    // done in main; these are plain invoke/response like statFile above.
+    readBinary: (root: string, relativePath: string): Promise<BinaryFile> =>
+      ipcRenderer.invoke('fs:readBinary', root, relativePath),
+    readDocx: (root: string, relativePath: string): Promise<DocxDocument> =>
+      ipcRenderer.invoke('fs:readDocx', root, relativePath),
+    readSheet: (root: string, relativePath: string): Promise<SpreadsheetDocument> =>
+      ipcRenderer.invoke('fs:readSheet', root, relativePath),
+    readSlides: (root: string, relativePath: string): Promise<SlidesDocument> =>
+      ipcRenderer.invoke('fs:readSlides', root, relativePath),
     createFile: withTypedConflict(
       (root: string, relativePath: string, opts?: { overwrite?: boolean }): Promise<void> =>
         ipcRenderer.invoke('fs:createFile', root, relativePath, opts)

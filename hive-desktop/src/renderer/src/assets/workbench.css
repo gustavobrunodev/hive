@@ -527,6 +527,7 @@
 /* The right-click scope + treeBody wrapper: fills the rail below the toolbar
    so empty space (and the empty state) answers to the context menu too. */
 .wb-tree-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -582,6 +583,104 @@
   outline-offset: -2px;
   background: var(--selected-bg);
   border-radius: var(--rounded-sm);
+}
+
+/* --- OS file-import drop overlay (FM-R5) ------------------------------------
+   A panel-wide "Solte para importar" affordance that appears while an OS file
+   drag hovers the rail — the external-import counterpart to the per-row
+   `wb-tree-row-dropover` (which still lights the specific target folder
+   underneath). Purely visual: `pointer-events: none` so the drag/drop events
+   reach the tree rows below and land in the right folder. */
+.wb-tree-body.is-importing {
+  /* A soft accent wash tints the whole panel the moment files enter. */
+  background: color-mix(in oklab, var(--accent) 7%, transparent);
+}
+.wb-rail-dropzone {
+  position: absolute;
+  inset: var(--s-2);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  pointer-events: none;
+  border-radius: var(--rounded-lg);
+  border: 2px dashed color-mix(in oklab, var(--accent) 60%, transparent);
+  background:
+    radial-gradient(
+      120% 90% at 50% 40%,
+      color-mix(in oklab, var(--accent) 16%, transparent),
+      transparent 70%
+    ),
+    color-mix(in oklab, var(--bg-2) 78%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: wb-dropzone-pop 0.16s var(--ease-quart) both;
+}
+@keyframes wb-dropzone-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.wb-rail-dropzone-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 15rem;
+  text-align: center;
+}
+.wb-rail-dropzone-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--s-1);
+  border-radius: var(--rounded-full);
+  color: var(--accent-ink, #fff);
+  background: var(--accent);
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--accent) 45%, transparent);
+  animation: wb-dropzone-bob 1.1s var(--ease-quart) infinite alternate;
+}
+@keyframes wb-dropzone-bob {
+  from {
+    transform: translateY(2px);
+  }
+  to {
+    transform: translateY(-3px);
+  }
+}
+.wb-rail-dropzone-title {
+  font-size: 0.9375rem;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.wb-rail-dropzone-dest {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.wb-rail-dropzone-hint {
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-rail-dropzone {
+    animation: none;
+  }
+  .wb-rail-dropzone-icon {
+    animation: none;
+  }
 }
 
 .wb-tree-row-menu-btn {
@@ -4886,4 +4985,448 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 600;
   color: var(--danger, var(--wb-ic-red));
   margin-top: var(--s-2);
+}
+
+/* ==========================================================================
+   Rich file viewer — docx / pptx / spreadsheet / pdf / image (file-viewer).
+   A shared shell (`.wb-doc` + `.wb-doc-toolbar`) with a purpose-built body per
+   file kind. Everything is token-driven so both themes resolve for free, and
+   motion stays in the 150–200ms state-signal band.
+   ========================================================================== */
+
+.wb-doc {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* Viewer sub-toolbar, one row below the file header. */
+.wb-doc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 38px;
+  padding: 0 var(--s-3) 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.wb-doc-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  overflow: hidden;
+}
+.wb-doc-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.wb-doc-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-doc-meta-dot {
+  color: var(--faint);
+}
+.wb-doc-meta-warn {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* Zoom / paging control cluster (image, pdf, slides). */
+.wb-doc-zoom,
+.wb-pdf-pager,
+.wb-slides-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.wb-doc-zoom-value {
+  min-width: 4.25rem;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* Error + retry, shared by every viewer. */
+.wb-doc-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}
+.wb-doc-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Unsupported-binary fallback card. */
+.wb-doc-unsupported-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: 22rem;
+  text-align: center;
+}
+.wb-doc-unsupported-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--rounded-lg);
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+/* -------------------------------------------------------------- image ---- */
+.wb-image-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: var(--s-5);
+  /* Checkerboard so image transparency reads honestly on both themes. */
+  background-color: var(--surface-2);
+  background-image:
+    linear-gradient(45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+.wb-image-stage.is-panning {
+  cursor: grabbing;
+}
+.wb-image-el {
+  display: block;
+  margin: auto;
+  box-shadow: var(--shadow-md, 0 8px 28px rgba(0, 0, 0, 0.28));
+  border-radius: 2px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.wb-image-el.is-fit {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ---------------------------------------------------------------- pdf ---- */
+.wb-pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-2);
+}
+.wb-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-4);
+}
+.wb-pdf-page {
+  position: relative;
+  max-width: 100%;
+  background: #fff;
+  box-shadow: var(--shadow-md, 0 8px 28px rgba(0, 0, 0, 0.28));
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wb-pdf-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* --------------------------------------------------------------- docx ---- */
+.wb-doc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-2);
+  padding: var(--s-6) var(--s-5) var(--s-8);
+}
+.wb-docx-warning {
+  max-width: 50rem;
+  margin: 0 auto var(--s-4);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+.wb-docx-page {
+  max-width: 50rem;
+  margin: 0 auto;
+  padding: clamp(var(--s-6), 5vw, var(--s-8)) clamp(var(--s-6), 6vw, calc(var(--s-8) + var(--s-4)));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-md, 0 10px 34px rgba(0, 0, 0, 0.22));
+}
+.wb-docx-page img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--rounded-sm);
+}
+.wb-docx-page table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--s-4) 0;
+  font-size: 0.875rem;
+}
+.wb-docx-page th,
+.wb-docx-page td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+/* -------------------------------------------------------------- sheet ---- */
+.wb-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.wb-sheet-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.wb-sheet-grid th,
+.wb-sheet-grid td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 10px;
+  white-space: nowrap;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-sheet-colhead,
+.wb-sheet-rowhead,
+.wb-sheet-corner {
+  position: sticky;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+  z-index: 1;
+}
+.wb-sheet-colhead {
+  top: 0;
+  min-width: 4rem;
+}
+.wb-sheet-rowhead {
+  left: 0;
+  min-width: 2.75rem;
+  color: var(--faint);
+}
+.wb-sheet-corner {
+  top: 0;
+  left: 0;
+  z-index: 2;
+  min-width: 2.75rem;
+}
+.wb-sheet-cell {
+  background: var(--bg);
+}
+.wb-sheet-grid tbody tr:nth-child(even) .wb-sheet-cell {
+  background: var(--surface);
+}
+.wb-sheet-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 0 var(--s-2);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+}
+.wb-sheet-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  border-top: 2px solid transparent;
+  transition: color 160ms ease, background 160ms ease;
+  white-space: nowrap;
+}
+.wb-sheet-tab:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.wb-sheet-tab.is-active {
+  color: var(--accent);
+  border-top-color: var(--accent);
+  background: var(--bg);
+}
+
+/* ------------------------------------------------------------- slides ---- */
+.wb-slides-viewer:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-slide-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: var(--s-6) var(--s-5);
+  background: var(--surface-2);
+}
+.wb-slide-surface {
+  width: min(100%, 60rem);
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: clamp(var(--s-5), 4vw, var(--s-7));
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-md, 0 12px 36px rgba(0, 0, 0, 0.24));
+}
+.wb-slide-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  font-weight: 680;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.wb-slide-body {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wb-slide-bullet {
+  position: relative;
+  padding-left: 1.25rem;
+  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink);
+}
+.wb-slide-bullet::before {
+  content: '';
+  position: absolute;
+  left: 0.15rem;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.wb-slide-bullet[data-level='1'] { margin-left: 1.5rem; }
+.wb-slide-bullet[data-level='2'] { margin-left: 3rem; }
+.wb-slide-bullet[data-level='3'] { margin-left: 4.5rem; }
+.wb-slide-bullet[data-level='4'] { margin-left: 6rem; }
+.wb-slide-bullet[data-level]:not([data-level='0'])::before {
+  background: var(--muted);
+}
+.wb-slide-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: auto;
+}
+.wb-slide-image {
+  max-height: 12rem;
+  max-width: 100%;
+  border-radius: var(--rounded-sm);
+  border: 1px solid var(--border);
+}
+.wb-slide-empty {
+  margin: auto;
+  color: var(--faint);
+  font-size: 0.875rem;
+}
+.wb-slide-filmstrip {
+  display: flex;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+}
+.wb-slide-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 8.5rem;
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.wb-slide-thumb:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+.wb-slide-thumb.is-active {
+  border-color: var(--accent);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.wb-slide-thumb-num {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.wb-slide-thumb-title {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-sheet-tab,
+  .wb-slide-thumb {
+    transition: none;
+  }
 }

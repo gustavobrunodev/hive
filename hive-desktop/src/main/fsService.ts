@@ -13,6 +13,26 @@ import {
   type FSWatcher
 } from 'fs'
 import { isAbsolute, join, relative, resolve, sep } from 'path'
+import {
+  readBinaryAt,
+  readDocxAt,
+  readSheetAt,
+  readSlidesAt,
+  type BinaryFile,
+  type DocxDocument,
+  type SlidesDocument,
+  type SpreadsheetDocument
+} from './documentReader'
+
+export type {
+  BinaryFile,
+  DocxDocument,
+  SheetData,
+  SlidesDocument,
+  Slide,
+  SlideBullet,
+  SpreadsheetDocument
+} from './documentReader'
 
 /**
  * A single entry in a workspace's folder structure (R5.1). `path` is always
@@ -77,6 +97,14 @@ export interface FsService {
   listFiles(root: string): string[]
   /** Reads a file's contents as UTF-8 text. Throws if `relativePath` resolves outside `root`. */
   readFile(root: string, relativePath: string): string
+  /** Reads a binary file (image/pdf) as base64 + MIME for a renderer `data:` URL (rich file viewer). */
+  readBinary(root: string, relativePath: string): BinaryFile
+  /** Converts a `.docx` to inline-image HTML (rich file viewer). */
+  readDocx(root: string, relativePath: string): Promise<DocxDocument>
+  /** Parses a spreadsheet (`.xlsx`/`.csv`/…) into per-sheet string grids (rich file viewer). */
+  readSheet(root: string, relativePath: string): Promise<SpreadsheetDocument>
+  /** Parses a `.pptx` into an ordered reader-fidelity slide list (rich file viewer). */
+  readSlides(root: string, relativePath: string): Promise<SlidesDocument>
   /**
    * Watches `root` for add/change/unlink events, calling `onChange` for each
    * one. Returns a stop function that tears down the underlying watcher.
@@ -328,6 +356,37 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     return readFileSync(targetAbs, 'utf-8')
   }
 
+  /** Resolves + asserts a workspace-relative path is a real file, returning `{ abs, size }`. Shared by the rich readers. */
+  function resolveFile(root: string, relativePath: string): { abs: string; size: number } {
+    const rootAbs = resolve(root)
+    const targetAbs = resolveSafe(rootAbs, relativePath)
+    const stat = statSync(targetAbs)
+    if (!stat.isFile()) {
+      throw new Error(`Not a file: ${relativePath}`)
+    }
+    return { abs: targetAbs, size: stat.size }
+  }
+
+  function readBinary(root: string, relativePath: string): BinaryFile {
+    const { abs, size } = resolveFile(root, relativePath)
+    return readBinaryAt(abs, relativePath, size)
+  }
+
+  function readDocx(root: string, relativePath: string): Promise<DocxDocument> {
+    const { abs } = resolveFile(root, relativePath)
+    return readDocxAt(abs)
+  }
+
+  function readSheet(root: string, relativePath: string): Promise<SpreadsheetDocument> {
+    const { abs } = resolveFile(root, relativePath)
+    return readSheetAt(abs)
+  }
+
+  function readSlides(root: string, relativePath: string): Promise<SlidesDocument> {
+    const { abs } = resolveFile(root, relativePath)
+    return readSlidesAt(abs)
+  }
+
   function watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void {
     const rootAbs = resolve(root)
 
@@ -481,6 +540,10 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     listTree,
     listFiles,
     readFile,
+    readBinary,
+    readDocx,
+    readSheet,
+    readSlides,
     watchWorkspace,
     statFile,
     saveFile,

@@ -612,9 +612,13 @@ export function WorkUI({
         </div>
       </ResizablePanel>
     ),
+    // The viewer opens wide enough to actually read a document (~40% of the
+    // body) — its flex-grow ratio sits above chat's leftover so the rail/chat
+    // home split is untouched when no file is open. A 30% floor keeps
+    // docx/pdf/sheets legible even after a manual resize.
     viewer: () =>
       editor.tabs.length === 0 ? null : (
-        <ResizablePanel key="viewer" id="viewer" minSize="24%" defaultSize="25%">
+        <ResizablePanel key="viewer" id="viewer" minSize="30%" defaultSize="44%">
           <div {...paneWrapPropsFor('viewer')}>
             <EditorTabs
               tabs={editor.tabs}

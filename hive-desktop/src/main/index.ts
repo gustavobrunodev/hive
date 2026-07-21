@@ -149,6 +149,21 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:readFile', async (_event, root: string, relativePath: string) =>
     fsService.readFile(root, relativePath)
   )
+  // Rich file viewer (docx/pptx/spreadsheet/pdf/image): parsing happens here
+  // in the main process — full Node access, no renderer CSP/worker limits —
+  // and only the already-shaped result crosses the IPC boundary.
+  ipcMain.handle('fs:readBinary', async (_event, root: string, relativePath: string) =>
+    fsService.readBinary(root, relativePath)
+  )
+  ipcMain.handle('fs:readDocx', async (_event, root: string, relativePath: string) =>
+    fsService.readDocx(root, relativePath)
+  )
+  ipcMain.handle('fs:readSheet', async (_event, root: string, relativePath: string) =>
+    fsService.readSheet(root, relativePath)
+  )
+  ipcMain.handle('fs:readSlides', async (_event, root: string, relativePath: string) =>
+    fsService.readSlides(root, relativePath)
+  )
 
   // Design §2's "prefix approach": `ipcMain.handle` only preserves an Error's
   // `message`/`name` across the structured-clone boundary to the renderer —

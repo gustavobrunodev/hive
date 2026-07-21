@@ -248,6 +248,10 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
+        readBinary: vi.fn().mockResolvedValue({ base64: '', mime: 'application/octet-stream', size: 0 }),
+        readDocx: vi.fn().mockResolvedValue({ html: '', warnings: [] }),
+        readSheet: vi.fn().mockResolvedValue({ sheets: [] }),
+        readSlides: vi.fn().mockResolvedValue({ title: null, slides: [] }),
         createFile: vi.fn().mockResolvedValue(undefined),
         createDirectory: vi.fn().mockResolvedValue(undefined),
         saveFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),

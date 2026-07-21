@@ -674,3 +674,50 @@ export function LockIcon({ size, ...rest }: IconProps): React.JSX.Element {
     </svg>
   )
 }
+
+/** Zoom in — magnifier with a plus. Rich file viewer toolbar. */
+export function ZoomInIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="7" cy="7" r="4.25" />
+      <path d="m10.5 10.5 3 3M7 5.25v3.5M5.25 7h3.5" />
+    </svg>
+  )
+}
+
+/** Zoom out — magnifier with a minus. Rich file viewer toolbar. */
+export function ZoomOutIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="7" cy="7" r="4.25" />
+      <path d="m10.5 10.5 3 3M5.25 7h3.5" />
+    </svg>
+  )
+}
+
+/** Fit to view — inward-pointing corner arrows. Resets zoom in the file viewer. */
+export function FitIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3" />
+    </svg>
+  )
+}
+
+/** Chevron left — previous page / slide. */
+export function ChevronLeftIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M10 4 6 8l4 4" />
+    </svg>
+  )
+}
+
+/** Chevron right — next page / slide. */
+export function ChevronRightIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M6 4l4 4-4 4" />
+    </svg>
+  )
+}

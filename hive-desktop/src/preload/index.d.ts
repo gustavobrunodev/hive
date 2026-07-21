@@ -1,5 +1,13 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { EntryMeta, FsChangeEvent, TreeNode } from '../main/fsService'
+import type {
+  BinaryFile,
+  DocxDocument,
+  EntryMeta,
+  FsChangeEvent,
+  SlidesDocument,
+  SpreadsheetDocument,
+  TreeNode
+} from '../main/fsService'
 import type {
   AgentCapabilities,
   AgentEvent,
@@ -144,6 +152,10 @@ declare global {
        */
       fs: {
         statFile(root: string, relativePath: string): Promise<EntryMeta>
+        readBinary(root: string, relativePath: string): Promise<BinaryFile>
+        readDocx(root: string, relativePath: string): Promise<DocxDocument>
+        readSheet(root: string, relativePath: string): Promise<SpreadsheetDocument>
+        readSlides(root: string, relativePath: string): Promise<SlidesDocument>
         createFile(
           root: string,
           relativePath: string,

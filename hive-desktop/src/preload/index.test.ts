@@ -495,6 +495,10 @@ describe('preload: window.hive bridge', () => {
   // DOM lib, which isn't guaranteed under tsconfig.node.json.)
   interface HiveFs {
     statFile: (root: string, rel: string) => Promise<unknown>
+    readBinary: (root: string, rel: string) => Promise<unknown>
+    readDocx: (root: string, rel: string) => Promise<unknown>
+    readSheet: (root: string, rel: string) => Promise<unknown>
+    readSlides: (root: string, rel: string) => Promise<unknown>
     createFile: (root: string, rel: string, opts?: { overwrite?: boolean }) => Promise<void>
     createDirectory: (root: string, rel: string) => Promise<void>
     saveFile: (
@@ -524,6 +528,10 @@ describe('preload: window.hive bridge', () => {
       expect(getFs()).toEqual(
         expect.objectContaining({
           statFile: expect.any(Function),
+          readBinary: expect.any(Function),
+          readDocx: expect.any(Function),
+          readSheet: expect.any(Function),
+          readSlides: expect.any(Function),
           createFile: expect.any(Function),
           createDirectory: expect.any(Function),
           saveFile: expect.any(Function),
@@ -539,6 +547,16 @@ describe('preload: window.hive bridge', () => {
     it('fs.statFile(root, rel) invokes "fs:statFile" with matching args', async () => {
       await getFs().statFile('/root', 'a.txt')
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:statFile', '/root', 'a.txt')
+    })
+
+    it.each([
+      ['readBinary', 'fs:readBinary'],
+      ['readDocx', 'fs:readDocx'],
+      ['readSheet', 'fs:readSheet'],
+      ['readSlides', 'fs:readSlides']
+    ] as const)('fs.%s(root, rel) invokes "%s" with matching args', async (method, channel) => {
+      await getFs()[method]('/root', 'a.docx')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(channel, '/root', 'a.docx')
     })
 
     it('fs.createFile(root, rel, opts) invokes "fs:createFile" with matching args', async () => {

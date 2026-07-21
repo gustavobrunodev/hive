@@ -13,6 +13,18 @@ import {
 import { cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { FileTree, FileViewer } from './Explorer'
 
+// jsdom lacks these observers, which the rich file viewers (image/pdf) use to
+// measure their stage for fit-to-view. Stub them so opening a binary/rich file
+// mounts its viewer instead of crashing.
+class ObserverStub {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+  takeRecords = vi.fn(() => [])
+}
+vi.stubGlobal('ResizeObserver', ObserverStub)
+vi.stubGlobal('IntersectionObserver', ObserverStub)
+
 /**
  * Task T12 — Explorer + viewer UI (design.md §4, R5.1–R5.4).
  * Task T8 — create/rename/delete/move/import actions (design.md §4, FM-R1/
@@ -319,6 +331,8 @@ describe('Explorer (T12/T8)', () => {
         agents: vi.fn().mockResolvedValue([]),
         getAgent: vi.fn().mockResolvedValue(null),
         setAgent: vi.fn().mockResolvedValue(undefined),
+        getAgents: vi.fn().mockResolvedValue(['claude-cli']),
+        setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
@@ -333,6 +347,12 @@ describe('Explorer (T12/T8)', () => {
       },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 19 }),
+        readBinary: vi
+          .fn()
+          .mockResolvedValue({ base64: '', mime: 'application/octet-stream', size: 19 }),
+        readDocx: vi.fn().mockResolvedValue({ html: '', warnings: [] }),
+        readSheet: vi.fn().mockResolvedValue({ sheets: [] }),
+        readSlides: vi.fn().mockResolvedValue({ title: null, slides: [] }),
         createFile: vi.fn().mockResolvedValue(undefined),
         createDirectory: vi.fn().mockResolvedValue(undefined),
         saveFile: vi.fn().mockResolvedValue({ mtimeMs: 2000, size: 19 }),
@@ -906,6 +926,69 @@ describe('Explorer (T12/T8)', () => {
         undefined
       )
     })
+  })
+
+  // --- FM-R5: panel-wide OS-import drop overlay -----------------------------
+
+  it('an OS file drag over the tree shows the panel-wide import overlay, aimed at the workspace root', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const body = screen.getByText('a.txt').closest('.wb-tree-body') as HTMLElement
+    // An OS file drag advertises `Files` in `dataTransfer.types` during
+    // dragover (the file list itself is only readable on drop).
+    const dataTransfer = { types: ['Files'], files: [] as File[], dropEffect: '' }
+
+    fireEvent.dragEnter(body, { dataTransfer })
+    fireEvent.dragOver(body, { dataTransfer })
+
+    expect(screen.getByText('Solte para importar')).toBeTruthy()
+    // basename('/ws') === 'ws' — the root destination label.
+    expect(screen.getByText('para ws')).toBeTruthy()
+    // The over handler opts the whole body into the drop.
+    expect(dataTransfer.dropEffect).toBe('copy')
+  })
+
+  it('hovering a folder during an OS import re-aims the overlay at that folder', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const body = screen.getByText('a.txt').closest('.wb-tree-body') as HTMLElement
+    const dataTransfer = { types: ['Files'], files: [] as File[], dropEffect: '' }
+
+    fireEvent.dragEnter(body, { dataTransfer })
+    const folderRow = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.dragOver(folderRow, { dataTransfer })
+
+    expect(screen.getByText('para a pasta docs')).toBeTruthy()
+  })
+
+  it('the import overlay clears once the drag leaves the tree', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const body = screen.getByText('a.txt').closest('.wb-tree-body') as HTMLElement
+    const dataTransfer = { types: ['Files'], files: [] as File[], dropEffect: '' }
+
+    fireEvent.dragEnter(body, { dataTransfer })
+    expect(screen.getByText('Solte para importar')).toBeTruthy()
+
+    fireEvent.dragLeave(body, { dataTransfer })
+    await waitFor(() => expect(screen.queryByText('Solte para importar')).toBeNull())
+  })
+
+  it('an internal row move never lights up the OS-import overlay', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const body = screen.getByText('a.txt').closest('.wb-tree-body') as HTMLElement
+    // A tree-to-tree move carries `text/plain`, not `Files`.
+    const dataTransfer = { types: ['text/plain'], files: [] as File[], dropEffect: '' }
+
+    fireEvent.dragEnter(body, { dataTransfer })
+    fireEvent.dragOver(body, { dataTransfer })
+
+    expect(screen.queryByText('Solte para importar')).toBeNull()
   })
 
   // --- T8: conflict dialog (FM-R7), all three branches ----------------------
@@ -1906,7 +1989,7 @@ describe('Explorer (T12/T8)', () => {
     expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
   })
 
-  it('binary files have no Edit toggle (read-only, FM-R2.1)', async () => {
+  it('image files open in the rich viewer, read-only with no Edit toggle (FM-R2.1)', async () => {
     const binaryTree = [{ name: 'logo.png', path: 'logo.png', type: 'file' as const }]
     mockHive({
       listTree: vi.fn().mockResolvedValue(binaryTree),
@@ -1915,9 +1998,25 @@ describe('Explorer (T12/T8)', () => {
 
     render(createElement(ExplorerHarness, { workspace: '/ws' }))
     fireEvent.click(await screen.findByText('logo.png'))
-    await screen.findByTestId('code-viewer')
 
+    // The image viewer renders the file as an <img> (data: URL), not a text
+    // editor or the raw-bytes CodeBlock.
+    await screen.findByAltText('logo.png')
+    expect(screen.queryByTestId('code-viewer')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+  })
+
+  it('a non-previewable binary opens the graceful unsupported card, not the editor', async () => {
+    const binaryTree = [{ name: 'bundle.zip', path: 'bundle.zip', type: 'file' as const }]
+    mockHive({ listTree: vi.fn().mockResolvedValue(binaryTree) })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('bundle.zip'))
+
+    expect(await screen.findByText('Pré-visualização indisponível')).toBeTruthy()
+    expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
+    expect(screen.queryByTestId('code-viewer')).toBeNull()
   })
 
   it('editing the textarea marks the file dirty (shows the dot, Save and Discard)', async () => {
