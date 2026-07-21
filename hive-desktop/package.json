@@ -1,10 +1,37 @@
 {
-  "name": "hive-desktop",
+  "name": "@npm-user-todo/hive-desktop",
   "version": "0.1.0",
   "description": "Hive Desktop — Electron BMAD-orchestration app",
   "main": "./out/main/index.js",
   "author": "Hive",
-  "private": true,
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gustavobrunodev/hive.git",
+    "directory": "hive-desktop"
+  },
+  "homepage": "https://github.com/gustavobrunodev/hive/tree/main/hive-desktop#readme",
+  "keywords": [
+    "electron",
+    "desktop",
+    "ai-agents",
+    "bmad",
+    "claude"
+  ],
+  "files": [
+    "out/",
+    "resources/",
+    "README.md"
+  ],
+  "hiveRelease": {
+    "notes": "",
+    "platforms": {
+      "win32-x64": "@npm-user-todo/hive-desktop-win-x64"
+    }
+  },
   "engines": {
     "node": ">=20.19.0"
   },
@@ -38,6 +65,8 @@
     "pdfjs-dist": "^6.1.200",
     "react-markdown": "^9.1.0",
     "remark-gfm": "^4.0.1",
+    "semver": "^7.8.5",
+    "tar": "^7.5.20",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -49,6 +78,7 @@
     "@types/node": "^22.19.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/semver": "^7.7.1",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^2.1.8",
     "electron": "^39.2.6",

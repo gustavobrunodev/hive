@@ -289,6 +289,30 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+## Lessons (npm-distribution T1 spike)
+
+- **T1 — all four registry assumptions confirmed against the real, live
+  `registry.npmjs.org` (2026-07-21), no fallback needed.** Probed with public
+  packages (not the still-unpublished `hive-desktop`): (a) `GET /<pkg>/latest`
+  (e.g. `react`) returns the **full** version object (21 keys incl. internal
+  `_npmUser`/`_nodeVersion` fields) — confirmed distinct from the stripped
+  abbreviated form. (b) **Custom top-level `package.json` fields survive
+  publication** — verified with `np` (`ava`, `xo` preserved), `semantic-release`
+  (`ava`, `c8`, `lockfile-lint`, `prettier`, `renovate` preserved) and the
+  **scoped** `@semantic-release/npm` (same fields preserved) — so design.md's
+  `hiveRelease` custom field will round-trip as designed; the stated fallback
+  (`hive-update.json` inside the platform package) is **not needed**.
+  (c) `dist.tarball` + `dist.integrity` are both present and the tarball is
+  fetchable with a plain unauthenticated `curl`; downloaded `react-19.2.8.tgz`
+  hashed with `node:crypto` sha512 matched `dist.integrity` **byte-for-byte**.
+  (d) Scoped names: tested `@angular%2Fcli` alongside the literal unencoded
+  `@angular/cli` in the URL path — **both returned HTTP 200 with identical
+  JSON**, so `%2F` encoding is not strictly enforced by the registry itself
+  (contrary to design.md §2's phrasing that it's "needed"). Decision: still
+  **always URL-encode** (`%2F`) in the implementation regardless — it's the
+  technically-correct form, costs nothing, and avoids relying on undocumented
+  registry leniency that could tighten later.
+
 ## Blockers
 
 - **ND-B1 — OPEN (2026-07-21), blocks publish only.** The npm **username** for
