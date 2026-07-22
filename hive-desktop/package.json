@@ -52,7 +52,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "test:e2e:app": "playwright test"
+    "test:e2e:app": "playwright test",
+    "release": "node scripts/release.mjs",
+    "release:dry-run": "node scripts/release.mjs --dry-run"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^2.1.206",
