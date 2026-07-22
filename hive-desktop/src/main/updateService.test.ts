@@ -1,17 +1,8 @@
 import { createHash } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RegistryClient } from './npmRegistry'
@@ -26,70 +17,68 @@ import {
 } from './updateService'
 
 const PACKAGE_NAME = '@user/hive-desktop'
-const PLATFORM_PACKAGE = '@user/hive-desktop-win-x64'
-
-/** Builds a real gzipped npm-style tarball, same fixture shape as updateDownload.test.ts. */
-function buildFixtureTarball(workDir: string, installerContent = 'fake-installer-bytes'): Buffer {
-  const sourceRoot = join(workDir, 'source')
-  const packageDir = join(sourceRoot, 'package')
-  mkdirSync(packageDir, { recursive: true })
-  writeFileSync(
-    join(packageDir, 'hive-update.json'),
-    JSON.stringify({
-      version: '0.2.0',
-      platform: 'win32',
-      arch: 'x64',
-      installer: 'hive-desktop-0.2.0-setup.exe',
-      bytes: installerContent.length
-    })
-  )
-  writeFileSync(join(packageDir, 'hive-desktop-0.2.0-setup.exe'), installerContent)
-  const tgzPath = join(workDir, `fixture-${Date.now()}-${Math.random()}.tgz`)
-  tar.create({ file: tgzPath, gzip: true, cwd: sourceRoot, sync: true }, ['package'])
-  return readFileSync(tgzPath)
-}
+const REPO = 'user/hive'
+const ASSET_NAME = 'hive-desktop-0.2.0-setup.exe'
+const INSTALLER_URL =
+  'https://github.com/user/hive/releases/download/v0.2.0/hive-desktop-0.2.0-setup.exe'
+const MANIFEST_URL = 'https://github.com/user/hive/releases/download/v0.2.0/hive-update.json'
 
 function sha512Base64(buffer: Buffer): string {
   return createHash('sha512').update(buffer).digest('base64')
 }
 
-/** A latest-release JSON body shaped like the real `/latest` registry response. */
+/** A `/latest` JSON body shaped like the real npm registry response (design.md §2A). */
 function latestBody(
   version: string,
-  platformPackage: string | null,
-  notes: string | null = null
+  platformAsset: string | null,
+  notes: string | null = null,
+  repo: string = REPO
 ): unknown {
   return {
     version,
-    hiveRelease: platformPackage
-      ? { notes, platforms: { [`${process.platform}-${process.arch}`]: platformPackage } }
-      : { notes, platforms: {} }
+    hiveRelease: platformAsset
+      ? { notes, repo, platforms: { [`${process.platform}-${process.arch}`]: platformAsset } }
+      : { notes, repo, platforms: {} }
   }
 }
 
-/**
- * A payload-fetch JSON body shaped like the real `/<pkg>/<version>` registry
- * response. `unpackedSize: null` omits the field entirely (simulating a
- * registry response that never reports a size).
- */
-function payloadBody(tarball: Buffer, unpackedSize: number | null = tarball.length): unknown {
+/** A GitHub release-by-tag JSON body — the installer + manifest assets (design.md §2A). */
+function githubReleaseBody(installerBytes: number): unknown {
   return {
-    dist: {
-      tarball: 'https://registry.npmjs.org/x/-/x-0.2.0.tgz',
-      integrity: `sha512-${sha512Base64(tarball)}`,
-      ...(unpackedSize === null ? {} : { unpackedSize })
-    }
+    assets: [
+      { name: ASSET_NAME, browser_download_url: INSTALLER_URL, size: installerBytes },
+      { name: 'hive-update.json', browser_download_url: MANIFEST_URL, size: 200 }
+    ]
+  }
+}
+
+/** The `hive-update.json` manifest content for a given installer buffer. */
+function manifestBody(installer: Buffer, overrides: Record<string, unknown> = {}): unknown {
+  return {
+    version: '0.2.0',
+    platform: 'win32',
+    arch: 'x64',
+    installer: ASSET_NAME,
+    bytes: installer.length,
+    sha512: sha512Base64(installer),
+    ...overrides
   }
 }
 
 interface FakeRegistryOptions {
   latest?: unknown
   latestRejects?: Error
-  payload?: unknown
-  payloadRejects?: Error
+  release?: unknown
+  releaseRejects?: Error
+  manifest?: unknown
 }
 
-/** A `RegistryClient` fake that dispatches on whether the URL is a `/latest` or a `/<pkg>/<version>` lookup. */
+/**
+ * A `RegistryClient` fake that dispatches on URL shape: a `/latest` npm
+ * lookup, a `/repos/…/releases/tags/…` GitHub release lookup, or (anything
+ * else) the manifest asset's own `browser_download_url` fetch — mirroring
+ * how `updateService.ts` reuses one client for both origins.
+ */
 function createFakeRegistryClient(opts: FakeRegistryOptions): RegistryClient & { calls: string[] } {
   const calls: string[] = []
   return {
@@ -100,8 +89,11 @@ function createFakeRegistryClient(opts: FakeRegistryOptions): RegistryClient & {
         if (opts.latestRejects) throw opts.latestRejects
         return opts.latest
       }
-      if (opts.payloadRejects) throw opts.payloadRejects
-      return opts.payload
+      if (url.includes('/repos/')) {
+        if (opts.releaseRejects) throw opts.releaseRejects
+        return opts.release
+      }
+      return opts.manifest
     }
   }
 }
@@ -224,7 +216,7 @@ describe('createUpdateService', () => {
 
     it('a genuinely older/equal registry version never re-offers a downgrade (semver, not string compare)', async () => {
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.1.0', PLATFORM_PACKAGE)
+        latest: latestBody('0.1.0', ASSET_NAME)
       })
       const service = createUpdateService(baseDeps({ registryClient, currentVersion: '0.1.0' }))
       const seen: UpdateEvent[] = []
@@ -236,11 +228,12 @@ describe('createUpdateService', () => {
       expect(seen).toEqual([{ type: 'checking' }, { type: 'not-available' }])
     })
 
-    it('newer + platform payload: emits available with bytes/notes from the follow-up fetchPayload (both explicit and silent)', async () => {
-      const tarball = buildFixtureTarball(workDir)
+    it('newer + platform payload: emits available with bytes/notes from the follow-up GitHub fetch (both explicit and silent)', async () => {
+      const installer = Buffer.from('fake-installer-bytes')
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.2.0', PLATFORM_PACKAGE, '### Novidades'),
-        payload: payloadBody(tarball)
+        latest: latestBody('0.2.0', ASSET_NAME, '### Novidades'),
+        release: githubReleaseBody(installer.length),
+        manifest: manifestBody(installer)
       })
       const service = createUpdateService(baseDeps({ registryClient }))
       const seen: UpdateEvent[] = []
@@ -253,7 +246,7 @@ describe('createUpdateService', () => {
         {
           type: 'available',
           version: '0.2.0',
-          bytes: tarball.length,
+          bytes: installer.length,
           notes: '### Novidades'
         }
       ])
@@ -280,10 +273,10 @@ describe('createUpdateService', () => {
       expect(seen).toEqual([{ type: 'checking' }, { type: 'not-available' }])
     })
 
-    it('a failure at the fetchPayload follow-up step is a genuine, freshly-observed error: explicit emits error{kind:network}, silent emits nothing', async () => {
+    it('a failure at the GitHub payload follow-up step is a genuine, freshly-observed error: explicit emits error{kind:network}, silent emits nothing', async () => {
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-        payloadRejects: new Error('registry hiccup')
+        latest: latestBody('0.2.0', ASSET_NAME),
+        releaseRejects: new Error('registry hiccup')
       })
       const service = createUpdateService(baseDeps({ registryClient }))
       const seen: UpdateEvent[] = []
@@ -331,14 +324,15 @@ describe('createUpdateService', () => {
   })
 
   it('full happy path event ordering: checking -> available -> progress(es) -> verifying -> downloaded -> applying', async () => {
-    const tarball = buildFixtureTarball(workDir)
+    const installer = Buffer.from('fake-installer-bytes')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE, 'notes'),
-      payload: payloadBody(tarball)
+      latest: latestBody('0.2.0', ASSET_NAME, 'notes'),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
     })
     const applyDeps = fakeApplyDeps()
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball), applyDeps })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer), applyDeps })
     )
     const seen: UpdateEvent[] = []
     service.onEvent((e) => seen.push(e))
@@ -354,14 +348,14 @@ describe('createUpdateService', () => {
     expect(seen[1]).toEqual({
       type: 'available',
       version: '0.2.0',
-      bytes: tarball.length,
+      bytes: installer.length,
       notes: 'notes'
     })
     const progressEvents = seen.filter((e) => e.type === 'progress')
     expect(progressEvents.length).toBeGreaterThan(0)
     for (const p of progressEvents) {
       if (p.type === 'progress') {
-        expect(p.total).toBe(tarball.length)
+        expect(p.total).toBe(installer.length)
         expect(p.transferred).toBeGreaterThanOrEqual(0)
         expect(p.transferred).toBeLessThanOrEqual(p.total)
       }
@@ -374,31 +368,28 @@ describe('createUpdateService', () => {
     expect(seen[downloadedIndex]).toEqual({
       type: 'downloaded',
       version: '0.2.0',
-      installerPath: join(stagingRoot, '0.2.0', 'hive-desktop-0.2.0-setup.exe')
+      installerPath: join(stagingRoot, '0.2.0', ASSET_NAME)
     })
     expect(applyingIndex).toBeGreaterThan(downloadedIndex)
     expect(seen[applyingIndex + 1]).toBeUndefined() // apply succeeds silently (spawn+quit), no further event
 
     expect(applyDeps.spawnCalls).toEqual([
-      [
-        join(stagingRoot, '0.2.0', 'hive-desktop-0.2.0-setup.exe'),
-        [],
-        { detached: true, stdio: 'ignore' }
-      ]
+      [join(stagingRoot, '0.2.0', ASSET_NAME), [], { detached: true, stdio: 'ignore' }]
     ])
     expect(applyDeps.quitCalls).toBe(1)
   })
 
   it('falls back to emitting verifying right before downloaded when total is never known', async () => {
-    const tarball = buildFixtureTarball(workDir)
+    const installer = Buffer.from('fake-installer-bytes')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      // No unpackedSize either — the registry itself doesn't know the size,
-      // so neither the downloader's content-length nor this fallback exist.
-      payload: payloadBody(tarball, null)
+      latest: latestBody('0.2.0', ASSET_NAME),
+      // Installer asset reports no usable size either — neither the
+      // downloader's content-length nor this fallback exist.
+      release: githubReleaseBody(0),
+      manifest: manifestBody(installer)
     })
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball, null) })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer, null) })
     )
     const seen: UpdateEvent[] = []
     service.onEvent((e) => seen.push(e))
@@ -416,21 +407,18 @@ describe('createUpdateService', () => {
   })
 
   it('integrity mismatch: distinct error kind, never auto-retried, no download re-attempted on its own', async () => {
-    const tarball = buildFixtureTarball(workDir)
+    const installer = Buffer.from('fake-installer-bytes')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      // Deliberately wrong digest — the payload the download step fetches
-      // (from `payload`) will never hash-match the real tarball bytes.
-      payload: {
-        dist: {
-          tarball: 'https://x/y.tgz',
-          integrity: `sha512-${sha512Base64(Buffer.from('not the real content'))}`,
-          unpackedSize: tarball.length
-        }
-      }
+      latest: latestBody('0.2.0', ASSET_NAME),
+      release: githubReleaseBody(installer.length),
+      // Deliberately wrong digest — the manifest's sha512 will never match
+      // the real installer bytes the download step fetches.
+      manifest: manifestBody(installer, {
+        sha512: sha512Base64(Buffer.from('not the real content'))
+      })
     })
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball) })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer) })
     )
     const seen: UpdateEvent[] = []
     service.onEvent((e) => seen.push(e))
@@ -455,9 +443,11 @@ describe('createUpdateService', () => {
   })
 
   it('a non-integrity download failure emits error{kind: network}', async () => {
+    const installer = Buffer.from('irrelevant')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      payload: payloadBody(Buffer.from('irrelevant'))
+      latest: latestBody('0.2.0', ASSET_NAME),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
     })
     const failingDownloader: Downloader = {
       download: async () => {
@@ -478,13 +468,14 @@ describe('createUpdateService', () => {
   })
 
   it('cancel(): no error event at all, and the staging dir holds no partial artifact afterward', async () => {
-    const tarball = buildFixtureTarball(workDir, 'x'.repeat(200_000))
+    const installer = Buffer.from('x'.repeat(200_000))
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      payload: payloadBody(tarball)
+      latest: latestBody('0.2.0', ASSET_NAME),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
     })
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball) })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer) })
     )
     const seen: UpdateEvent[] = []
     service.onEvent((e) => {
@@ -517,14 +508,15 @@ describe('createUpdateService', () => {
 
   describe('install()', () => {
     it('never fires without an explicit install() call — check()/download() alone never emit applying', async () => {
-      const tarball = buildFixtureTarball(workDir)
+      const installer = Buffer.from('fake-installer-bytes')
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-        payload: payloadBody(tarball)
+        latest: latestBody('0.2.0', ASSET_NAME),
+        release: githubReleaseBody(installer.length),
+        manifest: manifestBody(installer)
       })
       const applyDeps = fakeApplyDeps()
       const service = createUpdateService(
-        baseDeps({ registryClient, downloader: fakeDownloader(tarball), applyDeps })
+        baseDeps({ registryClient, downloader: fakeDownloader(installer), applyDeps })
       )
       const seen: UpdateEvent[] = []
       service.onEvent((e) => seen.push(e))
@@ -551,13 +543,14 @@ describe('createUpdateService', () => {
     })
 
     it('canApply:false (non-Windows): install() defends with error{kind: apply} even after a real download', async () => {
-      const tarball = buildFixtureTarball(workDir)
+      const installer = Buffer.from('fake-installer-bytes')
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-        payload: payloadBody(tarball)
+        latest: latestBody('0.2.0', ASSET_NAME),
+        release: githubReleaseBody(installer.length),
+        manifest: manifestBody(installer)
       })
       const service = createUpdateService(
-        baseDeps({ registryClient, downloader: fakeDownloader(tarball), platform: 'darwin' })
+        baseDeps({ registryClient, downloader: fakeDownloader(installer), platform: 'darwin' })
       )
       const seen: UpdateEvent[] = []
       service.onEvent((e) => seen.push(e))
@@ -574,10 +567,11 @@ describe('createUpdateService', () => {
     })
 
     it('an apply failure emits error{kind: apply} and never deletes the installer', async () => {
-      const tarball = buildFixtureTarball(workDir)
+      const installer = Buffer.from('fake-installer-bytes')
       const registryClient = createFakeRegistryClient({
-        latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-        payload: payloadBody(tarball)
+        latest: latestBody('0.2.0', ASSET_NAME),
+        release: githubReleaseBody(installer.length),
+        manifest: manifestBody(installer)
       })
       const applyDeps: WindowsApplyDeps = {
         spawn: () => {
@@ -586,7 +580,7 @@ describe('createUpdateService', () => {
         quit: () => {}
       }
       const service = createUpdateService(
-        baseDeps({ registryClient, downloader: fakeDownloader(tarball), applyDeps })
+        baseDeps({ registryClient, downloader: fakeDownloader(installer), applyDeps })
       )
       const seen: UpdateEvent[] = []
       service.onEvent((e) => seen.push(e))
@@ -608,13 +602,14 @@ describe('createUpdateService', () => {
   })
 
   it('getInstallerPath reflects the last successful download and stays null until then', async () => {
-    const tarball = buildFixtureTarball(workDir)
+    const installer = Buffer.from('fake-installer-bytes')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      payload: payloadBody(tarball)
+      latest: latestBody('0.2.0', ASSET_NAME),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
     })
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball) })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer) })
     )
     expect(service.getInstallerPath()).toBeNull()
 
@@ -623,22 +618,21 @@ describe('createUpdateService', () => {
     service.download()
     await flush()
 
-    expect(service.getInstallerPath()).toBe(
-      join(stagingRoot, '0.2.0', 'hive-desktop-0.2.0-setup.exe')
-    )
+    expect(service.getInstallerPath()).toBe(join(stagingRoot, '0.2.0', ASSET_NAME))
   })
 
   it('stale staging cleanup: a leftover directory from a previous version is removed once a new one is pending', async () => {
     mkdirSync(join(stagingRoot, '0.1.5-stale'), { recursive: true })
     writeFileSync(join(stagingRoot, '0.1.5-stale', 'leftover.tmp'), 'x')
 
-    const tarball = buildFixtureTarball(workDir)
+    const installer = Buffer.from('fake-installer-bytes')
     const registryClient = createFakeRegistryClient({
-      latest: latestBody('0.2.0', PLATFORM_PACKAGE),
-      payload: payloadBody(tarball)
+      latest: latestBody('0.2.0', ASSET_NAME),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
     })
     const service = createUpdateService(
-      baseDeps({ registryClient, downloader: fakeDownloader(tarball) })
+      baseDeps({ registryClient, downloader: fakeDownloader(installer) })
     )
 
     service.check(true)
@@ -685,6 +679,20 @@ describe('createRegistryClient (real fetch-based implementation)', () => {
     const client = createRegistryClient()
     await expect(client.fetchJson('https://registry.npmjs.org/x/latest')).rejects.toThrow(/404/)
   })
+
+  it('sends a User-Agent header (GitHub Releases API requires one; npm ignores it)', async () => {
+    let seenInit: RequestInit | undefined
+    globalThis.fetch = vi.fn(async (_url, init?: RequestInit) => {
+      seenInit = init
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }) as typeof fetch
+
+    const client = createRegistryClient()
+    await client.fetchJson('https://api.github.com/repos/user/hive/releases/tags/v0.2.0')
+
+    const headers = new Headers(seenInit?.headers)
+    expect(headers.get('User-Agent')).toBe('hive-desktop-self-updater')
+  })
 })
 
 describe('createDownloader (real fetch-based implementation)', () => {
@@ -706,7 +714,9 @@ describe('createDownloader (real fetch-based implementation)', () => {
     ) as typeof fetch
 
     const downloader = createDownloader()
-    const source = await downloader.download('https://registry.npmjs.org/x/-/x-1.0.0.tgz')
+    const source = await downloader.download(
+      'https://github.com/user/hive/releases/download/v1.0.0/x.exe'
+    )
     expect(source.total).toBe(5)
     const chunks: Buffer[] = []
     for await (const chunk of source.stream as unknown as AsyncIterable<Buffer>) {
@@ -725,7 +735,9 @@ describe('createDownloader (real fetch-based implementation)', () => {
     globalThis.fetch = vi.fn(async () => new Response(body, { status: 200 })) as typeof fetch
 
     const downloader = createDownloader()
-    const source = await downloader.download('https://registry.npmjs.org/x/-/x-1.0.0.tgz')
+    const source = await downloader.download(
+      'https://github.com/user/hive/releases/download/v1.0.0/x.exe'
+    )
     expect(source.total).toBeNull()
   })
 
@@ -733,7 +745,7 @@ describe('createDownloader (real fetch-based implementation)', () => {
     globalThis.fetch = vi.fn(async () => new Response(null, { status: 500 })) as typeof fetch
 
     const downloader = createDownloader()
-    await expect(downloader.download('https://x/y.tgz')).rejects.toThrow(/500/)
+    await expect(downloader.download('https://x/y.exe')).rejects.toThrow(/500/)
   })
 })
 

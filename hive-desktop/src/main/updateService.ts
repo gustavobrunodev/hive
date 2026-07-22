@@ -1,18 +1,27 @@
 /**
- * App self-update service (npm-distribution, ND-C5): the app's own version +
- * self-update flow, backed by the public npm registry rather than a
- * third-party auto-update package. `UpdateEvent`, `AppInfo`, `UpdateService`
- * and `createUpdateService` keep their names — only the backing changed, and
- * the types only grew (new events/fields), so the preload bridge and today's
- * `AppSettingsSheet.tsx` keep working unmodified in spirit (see that file's
- * own doc comment for the one narrow, additive exception this forced).
+ * App self-update service (npm-distribution, ND-C5; payload host pivoted to
+ * GitHub Releases by ND-C7/D21, design.md §2A): the app's own version +
+ * self-update flow. npm stays the *version source* (`npmRegistry.ts`'s
+ * `fetchLatestRelease`, unchanged in that role); the installer + its
+ * integrity manifest are resolved from a GitHub Release instead of a second
+ * npm "platform package" (`githubReleases.ts`'s `fetchGithubPayload`) — the
+ * real ~297 MB Windows installer got a genuine `413 Payload Too Large` on
+ * the first real `npm publish` of that platform package (STATE.md D21).
+ * `UpdateEvent`, `AppInfo`, `UpdateService` and `createUpdateService` keep
+ * their names — only the backing changed, and the types only grew (new
+ * events/fields), so the preload bridge and today's `AppSettingsSheet.tsx`
+ * keep working unmodified in spirit (see that file's own doc comment for
+ * the one narrow, additive exception this forced).
  *
  * Fully Electron-free and unit-testable via DI, following the DialogLike /
  * McpProbe precedent used elsewhere in this codebase: the registry HTTP seam,
- * the tarball download seam, and the per-OS apply seam are all injected, so
+ * the installer download seam, and the per-OS apply seam are all injected, so
  * the whole state machine is exercised in tests against fakes — no network,
  * no real filesystem writes beyond a throwaway temp dir, no real installer
- * ever spawned (design.md §6, ND-R7.3).
+ * ever spawned (design.md §6, ND-R7.3). `registryClient` is reused for both
+ * the npm `/latest` lookup and the GitHub Releases API calls — both are just
+ * "fetch this URL, hand back parsed JSON", so one injected seam covers both
+ * origins rather than adding a second, near-identical dependency.
  */
 
 import { readdir, rm } from 'node:fs/promises'
@@ -20,11 +29,12 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 
-import { fetchLatestRelease, fetchPayload, isNewer, type RegistryClient } from './npmRegistry'
+import { fetchGithubPayload } from './githubReleases'
+import { fetchLatestRelease, isNewer, type RegistryClient } from './npmRegistry'
 import {
   DownloadCancelledError,
   IntegrityMismatchError,
-  downloadAndExtractUpdate,
+  downloadAndVerifyInstaller,
   type Downloader,
   type DownloadSource
 } from './updateDownload'
@@ -72,7 +82,10 @@ export interface AppInfo {
  * download HTTP seams, the per-OS apply seam, static facts about this build
  * (name/version/platform), and where to stage downloads. The real
  * implementations of `registryClient`/`downloader` are `createRegistryClient`/
- * `createDownloader` below; tests inject fakes instead.
+ * `createDownloader` below; tests inject fakes instead. `registryClient` also
+ * covers the GitHub Releases API lookups (`githubReleases.ts`'s
+ * `fetchGithubPayload` takes the same `fetchJson`-shaped client) — see this
+ * file's top doc comment for why that's one seam, not two.
  */
 export interface UpdateServiceDeps {
   registryClient: RegistryClient
@@ -113,19 +126,30 @@ export interface UpdateService {
 // (it validated response *content*, not a timeout), so this mirrors
 // `mcpProbe.ts`'s existing `PROBE_TIMEOUT_MS` convention at a slightly
 // shorter duration, since this is a single small JSON GET, not a full
-// process handshake.
+// process handshake. Also used for the GitHub Releases API calls (same
+// client, see the top doc comment) — a release-lookup or manifest fetch is
+// just as small a JSON GET as npm's `/latest`, so the same budget applies.
 const REGISTRY_TIMEOUT_MS = 8_000
 
 /**
  * Real `RegistryClient`: a time-boxed `fetch`. Non-2xx responses reject too
  * (npm returns 404 for an unpublished package/version, which should read as
- * "nothing to offer" rather than valid JSON) — `fetchLatestRelease` maps any
- * rejection to its "no update" sentinel; `fetchPayload` lets it propagate.
+ * "nothing to offer" rather than valid JSON; GitHub returns 404 for a release
+ * tag that doesn't exist yet, which `fetchGithubPayload` is allowed to let
+ * propagate) — `fetchLatestRelease` maps any rejection to its "no update"
+ * sentinel; `fetchGithubPayload` lets it propagate. A `User-Agent` header is
+ * set unconditionally: GitHub's REST API rejects requests without one, and
+ * npm's registry doesn't mind an extra header — so the one client instance
+ * this module builds is honest for either origin (design.md §2A: one seam
+ * covers both, ND-C7/D21).
  */
 export function createRegistryClient(): RegistryClient {
   return {
     async fetchJson(url: string): Promise<unknown> {
-      const response = await fetch(url, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) })
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'hive-desktop-self-updater' },
+        signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS)
+      })
       if (!response.ok) {
         throw new Error(`Registry request failed (${response.status}): ${url}`)
       }
@@ -135,18 +159,22 @@ export function createRegistryClient(): RegistryClient {
 }
 
 /**
- * Real `Downloader`: streams the registry tarball via `fetch`, converting the
- * web `ReadableStream` response body to a Node stream (`Readable.fromWeb`) so
+ * Real `Downloader`: streams the installer via `fetch`, converting the web
+ * `ReadableStream` response body to a Node stream (`Readable.fromWeb`) so
  * `updateDownload.ts` can pipe it through its hashing `Transform` unchanged.
- * `content-length` becomes `total` when the registry sends one. Deliberately
+ * `content-length` becomes `total` when the server sends one. Deliberately
  * not time-boxed — ND-R3 has no such requirement (only discovery is,
- * ND-R2.4); a ~90 MB installer over a slow connection is legitimately slow,
- * not a hang, and `cancel()` already covers the "stuck" case (ND-R3.4).
+ * ND-R2.4); a ~300 MB installer over a slow connection is legitimately slow,
+ * not a hang, and `cancel()` already covers the "stuck" case (ND-R3.4). Was
+ * npm registry tarballs before ND-C7/D21; now GitHub Release asset URLs —
+ * both are just "GET a URL, stream the body", so this needed no change in
+ * shape, only a `User-Agent` header (GitHub's CDN redirect chain is happier
+ * with one, and npm never minded it either).
  */
 export function createDownloader(): Downloader {
   return {
     async download(url: string): Promise<DownloadSource> {
-      const response = await fetch(url)
+      const response = await fetch(url, { headers: { 'User-Agent': 'hive-desktop-self-updater' } })
       if (!response.ok || response.body === null) {
         throw new Error(`Download failed (${response.status}): ${url}`)
       }
@@ -163,6 +191,11 @@ export function createDownloader(): Downloader {
 /** The staging directory for one version (design.md §2: `userData/updates/<version>/`). */
 function stagingDirFor(stagingRoot: string, version: string): string {
   return join(stagingRoot, version)
+}
+
+/** The tag `scripts/release.mjs` creates the GitHub Release under for a given version (design.md §2A). */
+function releaseTagFor(version: string): string {
+  return `v${version}`
 }
 
 /**
@@ -214,7 +247,9 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
   const canApply = applyStrategy !== null
 
   let lastCheckedAt: number | null = null
-  let pending: { version: string; platformPackage: string } | null = null
+  // repo + assetName (the platform's installer file name) are enough to
+  // re-resolve the payload from GitHub in runDownload() — design.md §2A.
+  let pending: { version: string; repo: string; assetName: string } | null = null
   let installerPath: string | null = null
   let abortController: AbortController | null = null
 
@@ -239,17 +274,27 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
     const release = await fetchLatestRelease(registryClient, packageName)
     lastCheckedAt = Date.now()
 
-    if (!isNewer(release.version, currentVersion) || release.platformPackage === null) {
+    if (
+      !isNewer(release.version, currentVersion) ||
+      release.platformAsset === null ||
+      release.repo === null
+    ) {
       pending = null
       if (explicit) emit({ type: 'not-available' })
       return
     }
 
     try {
-      // fetchPayload DOES throw on failure — the one point in check() that
-      // can surface a genuine, freshly-observed registry error (ND-R2.4).
-      const payload = await fetchPayload(registryClient, release.platformPackage, release.version)
-      pending = { version: release.version, platformPackage: release.platformPackage }
+      // fetchGithubPayload DOES throw on failure — the one point in check()
+      // that can surface a genuine, freshly-observed registry error
+      // (ND-R2.4). Was fetchPayload (npm) before ND-C7/D21.
+      const { payload } = await fetchGithubPayload(
+        registryClient,
+        release.repo,
+        releaseTagFor(release.version),
+        release.platformAsset
+      )
+      pending = { version: release.version, repo: release.repo, assetName: release.platformAsset }
       await cleanupStaleStaging(stagingRoot, pending.version)
       emit({
         type: 'available',
@@ -265,7 +310,7 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
 
   async function runDownload(): Promise<void> {
     if (pending === null) return
-    const { version, platformPackage } = pending
+    const { version, repo, assetName } = pending
     const controller = new AbortController()
     abortController = controller
 
@@ -281,7 +326,7 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
       // so by the time the stream has delivered every byte, verification is
       // effectively already underway — this is the earliest observable point
       // for a "verifying" beat (design.md §5's trust moment) without a
-      // dedicated mid-function hook from downloadAndExtractUpdate itself.
+      // dedicated mid-function hook from downloadAndVerifyInstaller itself.
       if (total !== null && progress.transferred >= total && !verifyingEmitted) {
         verifyingEmitted = true
         emit({ type: 'verifying' })
@@ -289,20 +334,26 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
     }
 
     try {
-      const payload = await fetchPayload(registryClient, platformPackage, version)
-      const result = await downloadAndExtractUpdate(
+      const { payload, descriptor } = await fetchGithubPayload(
+        registryClient,
+        repo,
+        releaseTagFor(version),
+        assetName
+      )
+      const resultInstallerPath = await downloadAndVerifyInstaller(
         downloader,
         payload,
         stagingDirFor(stagingRoot, version),
+        descriptor.installer,
         { onProgress, signal: controller.signal }
       )
       // Total was never known (no content-length, no payload.bytes) — the
       // progress-based trigger above never fired, so emit the beat now,
       // right before reporting success, as the documented fallback.
       if (!verifyingEmitted) emit({ type: 'verifying' })
-      installerPath = result.installerPath
+      installerPath = resultInstallerPath
       await cleanupStaleStaging(stagingRoot, version)
-      emit({ type: 'downloaded', version, installerPath: result.installerPath })
+      emit({ type: 'downloaded', version, installerPath: resultInstallerPath })
     } catch (err) {
       if (err instanceof DownloadCancelledError) {
         // Cancellation isn't a failure (ND-R3.4) — no error event. The

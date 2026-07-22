@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RegistryClient } from './npmRegistry'
-import { fetchLatestRelease, fetchPayload, isNewer, platformKey } from './npmRegistry'
+import { fetchLatestRelease, isNewer, platformKey } from './npmRegistry'
 
 /** A `RegistryClient` whose `fetchJson` always resolves to `response`. */
 function fakeClient(response: unknown): RegistryClient {
@@ -64,13 +64,14 @@ describe('fetchLatestRelease', () => {
     )
   })
 
-  it('reads version, notes and the platform package for this platform+arch', async () => {
+  it('reads version, notes, repo and the platform asset for this platform+arch', async () => {
     const key = platformKey(process.platform, process.arch)
     const client = fakeClient({
       version: '0.2.0',
       hiveRelease: {
         notes: '### Novidades\n- coisas',
-        platforms: { [key]: '@user/hive-desktop-win-x64' }
+        repo: 'gustavobrunodev/hive',
+        platforms: { [key]: 'hive-desktop-0.2.0-setup.exe' }
       }
     })
 
@@ -79,39 +80,54 @@ describe('fetchLatestRelease', () => {
     expect(result).toEqual({
       version: '0.2.0',
       notes: '### Novidades\n- coisas',
-      platformPackage: '@user/hive-desktop-win-x64'
+      repo: 'gustavobrunodev/hive',
+      platformAsset: 'hive-desktop-0.2.0-setup.exe'
     })
   })
 
-  it('platformPackage is null when hiveRelease is entirely missing', async () => {
+  it('platformAsset and repo are null when hiveRelease is entirely missing', async () => {
     const client = fakeClient({ version: '0.2.0' })
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.2.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.2.0', notes: null, repo: null, platformAsset: null })
   })
 
-  it('platformPackage is null when this platform has no entry', async () => {
+  it('platformAsset is null when this platform has no entry, independent of repo', async () => {
     const client = fakeClient({
       version: '0.2.0',
-      hiveRelease: { notes: 'x', platforms: { 'some-other-platform': '@user/pkg' } }
+      hiveRelease: {
+        notes: 'x',
+        repo: 'gustavobrunodev/hive',
+        platforms: { 'some-other-platform': 'hive-desktop-0.2.0-setup.exe' }
+      }
     })
     const result = await fetchLatestRelease(client, PKG)
-    expect(result.platformPackage).toBeNull()
+    expect(result.platformAsset).toBeNull()
+    expect(result.repo).toBe('gustavobrunodev/hive')
     expect(result.notes).toBe('x')
+  })
+
+  it('repo is null when hiveRelease has no usable repo field', async () => {
+    const client = fakeClient({
+      version: '0.2.0',
+      hiveRelease: { notes: 'x', platforms: {} }
+    })
+    const result = await fetchLatestRelease(client, PKG)
+    expect(result.repo).toBeNull()
   })
 
   it('degrades to no-release when hiveRelease is malformed (wrong types)', async () => {
     const client = fakeClient({
       version: '0.2.0',
-      hiveRelease: { notes: 42, platforms: 'not-an-object' }
+      hiveRelease: { notes: 42, repo: 7, platforms: 'not-an-object' }
     })
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.2.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.2.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('degrades to no-release when hiveRelease itself is not an object', async () => {
     const client = fakeClient({ version: '0.2.0', hiveRelease: 'not-an-object' })
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.2.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.2.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('degrades to the sentinel version when the response has no usable "version"', async () => {
@@ -123,87 +139,29 @@ describe('fetchLatestRelease', () => {
   it('degrades to no-release on a malformed (non-object) JSON payload', async () => {
     const client = fakeClient('just a string, not the expected object')
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.0.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.0.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('degrades to no-release on null JSON payload', async () => {
     const client = fakeClient(null)
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.0.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.0.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('degrades to no-release when fetchJson rejects (404/500-style)', async () => {
     const client = failingClient(new Error('Not Found'))
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.0.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.0.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('degrades to no-release when fetchJson rejects with a timeout-style error', async () => {
     const client = failingClient(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }))
     const result = await fetchLatestRelease(client, PKG)
-    expect(result).toEqual({ version: '0.0.0', notes: null, platformPackage: null })
+    expect(result).toEqual({ version: '0.0.0', notes: null, repo: null, platformAsset: null })
   })
 
   it('never rejects, even when fetchJson rejects', async () => {
     const client = failingClient(new Error('boom'))
     await expect(fetchLatestRelease(client, PKG)).resolves.toBeDefined()
-  })
-})
-
-describe('fetchPayload', () => {
-  const PKG = '@user/hive-desktop-win-x64'
-
-  it('requests /<pkg>/<version> for the encoded package name and version', async () => {
-    const client = fakeClient({
-      dist: { tarball: 'https://registry.npmjs.org/x/-/x-0.2.0.tgz', integrity: 'sha512-abc' }
-    })
-    await fetchPayload(client, PKG, '0.2.0')
-    expect(client.fetchJson).toHaveBeenCalledWith(
-      'https://registry.npmjs.org/@user%2Fhive-desktop-win-x64/0.2.0'
-    )
-  })
-
-  it('reads tarball, integrity and byte size from dist', async () => {
-    const client = fakeClient({
-      dist: {
-        tarball: 'https://registry.npmjs.org/x/-/x-0.2.0.tgz',
-        integrity: 'sha512-abc123',
-        unpackedSize: 96123456
-      }
-    })
-    const result = await fetchPayload(client, PKG, '0.2.0')
-    expect(result).toEqual({
-      tarballUrl: 'https://registry.npmjs.org/x/-/x-0.2.0.tgz',
-      integrity: 'sha512-abc123',
-      bytes: 96123456
-    })
-  })
-
-  it('bytes is null when dist has no unpackedSize', async () => {
-    const client = fakeClient({
-      dist: { tarball: 'https://registry.npmjs.org/x/-/x-0.2.0.tgz', integrity: 'sha512-abc' }
-    })
-    const result = await fetchPayload(client, PKG, '0.2.0')
-    expect(result.bytes).toBeNull()
-  })
-
-  it('rejects when fetchJson rejects (propagated as a network-style failure)', async () => {
-    const client = failingClient(new Error('ECONNRESET'))
-    await expect(fetchPayload(client, PKG, '0.2.0')).rejects.toThrow('ECONNRESET')
-  })
-
-  it('rejects when the response has no dist object at all', async () => {
-    const client = fakeClient({ version: '0.2.0' })
-    await expect(fetchPayload(client, PKG, '0.2.0')).rejects.toThrow(/dist/)
-  })
-
-  it('rejects when dist.tarball is missing', async () => {
-    const client = fakeClient({ dist: { integrity: 'sha512-abc' } })
-    await expect(fetchPayload(client, PKG, '0.2.0')).rejects.toThrow(/dist.tarball/)
-  })
-
-  it('rejects when dist.integrity is missing', async () => {
-    const client = fakeClient({ dist: { tarball: 'https://x/y.tgz' } })
-    await expect(fetchPayload(client, PKG, '0.2.0')).rejects.toThrow(/dist.integrity/)
   })
 })

@@ -1,21 +1,17 @@
 import { createHash } from 'node:crypto'
 import { createWriteStream } from 'node:fs'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import * as tar from 'tar'
-
-import type { PayloadInfo } from './npmRegistry'
 
 /**
  * The injectable HTTP layer this module needs (the `DialogLike` / `McpProbe` /
  * `RegistryClient` DI precedent): fetch a URL and hand back its body as a
  * Node `Readable` plus a declared content length, if known. This is the only
- * network-shaped dependency — everything else (hashing, extraction, the
- * `hive-update.json` descriptor lookup) runs against the real filesystem and
- * the real `tar` package, so tests only ever fake this one seam (no real
- * network) while exercising real fs/tar behavior end-to-end (ND-R7.3).
+ * network-shaped dependency — everything else (hashing) runs against the
+ * real filesystem, so tests only ever fake this one seam (no real network)
+ * while exercising real fs behavior end-to-end (ND-R7.3).
  */
 export interface Downloader {
   download(url: string): Promise<DownloadSource>
@@ -38,26 +34,29 @@ export interface DownloadOptions {
   signal?: AbortSignal
 }
 
-/** The `hive-update.json` descriptor published inside the platform package (design.md §4). */
-export interface UpdateDescriptor {
-  version: string
-  platform: string
-  arch: string
-  /** Installer file name, relative to the extracted package root. */
-  installer: string
-  bytes: number
-}
-
-export interface DownloadedUpdate {
-  installerPath: string
-  descriptor: UpdateDescriptor
+/**
+ * What this module needs to fetch and verify the installer (design.md §2A,
+ * ND-C7/D21's payload-host pivot). Was `npmRegistry.ts`'s `PayloadInfo` with
+ * a `tarballUrl` field before the pivot — renamed `downloadUrl` because the
+ * payload is a raw installer now, not an npm tarball. Defined here (this
+ * module's own consumer-side shape) rather than imported from
+ * `npmRegistry.ts`, since that module no longer produces payloads at all
+ * (`githubReleases.ts` does, via its structurally-identical
+ * `GithubPayloadInfo` — TypeScript's structural typing means a caller can
+ * hand either one to `downloadAndVerifyInstaller` with no conversion).
+ */
+export interface PayloadInfo {
+  downloadUrl: string
+  /** SRI string, e.g. `"sha512-…"`. */
+  integrity: string
+  bytes: number | null
 }
 
 /**
- * A verified download whose sha512 does not match the registry's
- * `dist.integrity` (ND-R3.3). Distinct from every other failure mode so a
- * caller can tell "this needs a fresh download" apart from "the network is
- * down" — it must never be silently retried.
+ * A verified download whose sha512 does not match the expected `integrity`
+ * (ND-R3.3). Distinct from every other failure mode so a caller can tell
+ * "this needs a fresh download" apart from "the network is down" — it must
+ * never be silently retried.
  */
 export class IntegrityMismatchError extends Error {
   constructor(message = 'Downloaded artifact failed integrity verification.') {
@@ -73,9 +72,6 @@ export class DownloadCancelledError extends Error {
     this.name = 'DownloadCancelledError'
   }
 }
-
-const TARBALL_FILE_NAME = 'payload.tgz'
-const DESCRIPTOR_FILE_NAME = 'hive-update.json'
 
 /**
  * Streams `source` to `destPath` while hashing with sha512, reporting
@@ -118,61 +114,47 @@ async function streamToFile(
   return hash.digest('base64')
 }
 
-/** Reads and validates the `hive-update.json` descriptor extracted alongside the installer. */
-async function readDescriptor(stagingDir: string): Promise<UpdateDescriptor> {
-  const raw = await readFile(join(stagingDir, DESCRIPTOR_FILE_NAME), 'utf-8')
-  const parsed = JSON.parse(raw) as Partial<Record<keyof UpdateDescriptor, unknown>>
-
-  if (
-    typeof parsed.version !== 'string' ||
-    typeof parsed.platform !== 'string' ||
-    typeof parsed.arch !== 'string' ||
-    typeof parsed.installer !== 'string' ||
-    typeof parsed.bytes !== 'number'
-  ) {
-    throw new Error(`${DESCRIPTOR_FILE_NAME} is missing required fields.`)
-  }
-
-  return {
-    version: parsed.version,
-    platform: parsed.platform,
-    arch: parsed.arch,
-    installer: parsed.installer,
-    bytes: parsed.bytes
-  }
-}
-
 /**
- * Downloads the platform payload into `stagingDir`, verifies it against
- * `payload.integrity` (ND-R3.3), extracts it, and locates the installer via
- * its `hive-update.json` descriptor (ND-R4.1). `stagingDir` is a plain path
- * argument (never `app.getPath(...)` called internally) so this module has
- * no Electron dependency — the caller (T6) resolves the real
- * `userData/updates/<version>/` directory.
+ * Downloads the installer directly into `stagingDir/installerFileName` and
+ * verifies it against `payload.integrity` (ND-R3.3). `stagingDir` is a plain
+ * path argument (never `app.getPath(...)` called internally) so this module
+ * has no Electron dependency — the caller (`updateService.ts`) resolves the
+ * real `userData/updates/<version>/` directory.
  *
- * On an integrity mismatch, the downloaded tarball is deleted and
+ * ND-C7/D21 (design.md §2A) simplified this from `downloadAndExtractUpdate`:
+ * the payload used to be an npm tarball that had to be extracted and then
+ * read for its `hive-update.json` descriptor; it's a raw installer now, and
+ * the descriptor is already known to the caller (`githubReleases.ts` parsed
+ * it before this function is ever invoked) — so `installerFileName` (the
+ * descriptor's `installer` field) comes in as a parameter instead, and there
+ * is no extraction step or descriptor lookup left to do here at all. The
+ * streaming-hash-while-downloading shape, `IntegrityMismatchError`/
+ * `DownloadCancelledError`, and cancellation are unchanged in spirit.
+ *
+ * On an integrity mismatch, the downloaded installer is deleted and
  * `IntegrityMismatchError` is thrown — never retried automatically. On
  * cancellation (`options.signal`), the partial download is deleted and
- * `DownloadCancelledError` is thrown. Any other failure (network, malformed
- * descriptor) propagates as-is.
+ * `DownloadCancelledError` is thrown. Any other failure (network) propagates
+ * as-is. Resolves to the installer's full path on success.
  */
-export async function downloadAndExtractUpdate(
+export async function downloadAndVerifyInstaller(
   downloader: Downloader,
   payload: PayloadInfo,
   stagingDir: string,
+  installerFileName: string,
   options: DownloadOptions = {}
-): Promise<DownloadedUpdate> {
+): Promise<string> {
   if (options.signal?.aborted) {
     throw new DownloadCancelledError()
   }
 
   await mkdir(stagingDir, { recursive: true })
-  const tarballPath = join(stagingDir, TARBALL_FILE_NAME)
+  const installerPath = join(stagingDir, installerFileName)
 
-  const source = await downloader.download(payload.tarballUrl)
+  const source = await downloader.download(payload.downloadUrl)
   const digest = await streamToFile(
     source,
-    tarballPath,
+    installerPath,
     payload.bytes,
     options.onProgress,
     options.signal
@@ -180,18 +162,9 @@ export async function downloadAndExtractUpdate(
 
   const expectedDigest = payload.integrity.replace(/^sha512-/, '')
   if (digest !== expectedDigest) {
-    await rm(tarballPath, { force: true })
+    await rm(installerPath, { force: true })
     throw new IntegrityMismatchError()
   }
 
-  // npm tarballs are rooted at a single `package/` directory (design.md §2) —
-  // `strip: 1` drops it so the descriptor and installer land directly in
-  // `stagingDir`.
-  await tar.x({ file: tarballPath, cwd: stagingDir, strip: 1 })
-  // The raw .tgz has done its job once extracted; no reason to keep ~90 MB
-  // of compressed payload sitting next to the installer it unpacked.
-  await rm(tarballPath, { force: true })
-
-  const descriptor = await readDescriptor(stagingDir)
-  return { installerPath: join(stagingDir, descriptor.installer), descriptor }
+  return installerPath
 }

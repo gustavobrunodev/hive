@@ -9,26 +9,32 @@ import semver from 'semver'
  * `node:fetch` itself, and is fully unit-testable against fixtures — no
  * network in the suite (ND-R7.3). The real implementation (T6) wires in a
  * `fetch`-based client with a timeout; tests wire in a fake that resolves or
- * rejects on cue.
+ * rejects on cue. `updateService.ts` (T22, ND-C7/D21) reuses this same
+ * concrete client for GitHub Releases API calls too — it's the identical
+ * shape ("fetch this URL, hand back parsed JSON"), so one client instance
+ * covers both origins.
  */
 export interface RegistryClient {
   fetchJson(url: string): Promise<unknown>
 }
 
-/** What the app needs to know about the `latest` dist-tag (design.md §2/§3). */
+/** What the app needs to know about the `latest` dist-tag (design.md §2/§2A). */
 export interface ReleaseInfo {
   version: string
   notes: string | null
-  /** The platform package name to fetch next, or `null` if this platform has no payload for this release. */
-  platformPackage: string | null
-}
-
-/** What the app needs to download and verify the platform payload (design.md §2/§3). */
-export interface PayloadInfo {
-  tarballUrl: string
-  /** SRI string, e.g. `"sha512-…"`. */
-  integrity: string
-  bytes: number | null
+  /**
+   * The GitHub repo (`"owner/repo"`) hosting this release's installer +
+   * `hive-update.json` manifest (design.md §2A, ND-C7/D21), or `null` if
+   * `hiveRelease` doesn't declare one.
+   */
+  repo: string | null
+  /**
+   * The installer asset file name to look up on that GitHub Release, or
+   * `null` if this platform has no payload for this release. Was
+   * `platformPackage` (an npm package name) before ND-C7's payload-host
+   * pivot — it's an asset file name now, not a package name.
+   */
+  platformAsset: string | null
 }
 
 const REGISTRY_ORIGIN = 'https://registry.npmjs.org'
@@ -37,11 +43,11 @@ const REGISTRY_ORIGIN = 'https://registry.npmjs.org'
  * A `ReleaseInfo` used whenever discovery cannot determine anything real —
  * `version: '0.0.0'` is a deliberate sentinel: `isNewer('0.0.0', current)` is
  * false against any real installed version, so a caller that naively compares
- * without checking `platformPackage` still lands on "no update" rather than a
- * false positive. `platformPackage: null` is the actual "nothing to offer"
- * signal callers are expected to check (ND-R2.4).
+ * without checking `platformAsset` still lands on "no update" rather than a
+ * false positive. `platformAsset: null` (and `repo: null`) is the actual
+ * "nothing to offer" signal callers are expected to check (ND-R2.4).
  */
-const NO_RELEASE: ReleaseInfo = { version: '0.0.0', notes: null, platformPackage: null }
+const NO_RELEASE: ReleaseInfo = { version: '0.0.0', notes: null, repo: null, platformAsset: null }
 
 /**
  * URL-encodes an npm package name for use as a registry path segment. Scoped
@@ -66,24 +72,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Reads the `hiveRelease` custom field off a `/latest` response, degrading to
  * "nothing published for this platform" at every step rather than throwing:
- * a missing/malformed `hiveRelease`, a non-object `platforms`, or a missing
- * entry for this platform+arch all resolve to `platformPackage: null`
- * (ND-R2.4). `notes` follows the same rule independently — a real version
- * with no notes (or a malformed `notes` field) is not itself a failure.
+ * a missing/malformed `hiveRelease`, a non-object `platforms`, a missing
+ * entry for this platform+arch, or a missing `repo` all resolve to their
+ * respective `null` (ND-R2.4). `notes` follows the same rule independently —
+ * a real version with no notes (or a malformed `notes` field) is not itself
+ * a failure.
  */
 function parseHiveRelease(
   json: Record<string, unknown>,
   key: string
-): { notes: string | null; platformPackage: string | null } {
+): { notes: string | null; repo: string | null; platformAsset: string | null } {
   const hiveRelease = json.hiveRelease
   if (!isRecord(hiveRelease)) {
-    return { notes: null, platformPackage: null }
+    return { notes: null, repo: null, platformAsset: null }
   }
   const notes = typeof hiveRelease.notes === 'string' ? hiveRelease.notes : null
+  const repo =
+    typeof hiveRelease.repo === 'string' && hiveRelease.repo !== '' ? hiveRelease.repo : null
   const platforms = hiveRelease.platforms
   const entry = isRecord(platforms) ? platforms[key] : undefined
-  const platformPackage = typeof entry === 'string' && entry !== '' ? entry : null
-  return { notes, platformPackage }
+  const platformAsset = typeof entry === 'string' && entry !== '' ? entry : null
+  return { notes, repo, platformAsset }
 }
 
 /**
@@ -94,6 +103,11 @@ function parseHiveRelease(
  * missing/malformed `hiveRelease` are all "couldn't determine, try again
  * later" outcomes a caller can treat uniformly (ND-R2.4) — this function
  * never throws and never leaves an unhandled rejection.
+ *
+ * Unchanged in its core npm-querying logic by ND-C7's payload-host pivot
+ * (design.md §2A) — npm remains the version source. Only `ReleaseInfo`'s
+ * shape changed (`platformPackage` -> `platformAsset`, plus the new `repo`
+ * field), both still read from this same `hiveRelease` object.
  */
 export async function fetchLatestRelease(
   client: RegistryClient,
@@ -111,47 +125,12 @@ export async function fetchLatestRelease(
   }
 
   const version = typeof json.version === 'string' && json.version !== '' ? json.version : '0.0.0'
-  const { notes, platformPackage } = parseHiveRelease(
+  const { notes, repo, platformAsset } = parseHiveRelease(
     json,
     platformKey(process.platform, process.arch)
   )
 
-  return { version, notes, platformPackage }
-}
-
-/**
- * `GET /<platform-pkg>/<version>` — resolves the download payload for an
- * already-discovered release (design.md §2). Unlike `fetchLatestRelease`,
- * this is only ever called after an explicit user action (accepting an
- * offered update, ND-R5.1) rather than silent background discovery, so it
- * deliberately does **not** swallow failures into a sentinel value: a
- * rejecting `fetchJson` or a response missing `dist.tarball`/`dist.integrity`
- * rejects here too, so the caller (T6's `updateService`) can surface it as a
- * visible `error` (kind `'network'`) rather than silently doing nothing with
- * a payload that doesn't exist.
- */
-export async function fetchPayload(
-  client: RegistryClient,
-  pkg: string,
-  version: string
-): Promise<PayloadInfo> {
-  const url = `${REGISTRY_ORIGIN}/${encodePackageName(pkg)}/${encodeURIComponent(version)}`
-  const json = await client.fetchJson(url)
-
-  if (!isRecord(json) || !isRecord(json.dist)) {
-    throw new Error(`Registry response for ${pkg}@${version} has no "dist" metadata.`)
-  }
-  const { tarball, integrity, unpackedSize } = json.dist as Record<string, unknown>
-  if (typeof tarball !== 'string' || tarball === '') {
-    throw new Error(`Registry response for ${pkg}@${version} has no dist.tarball.`)
-  }
-  if (typeof integrity !== 'string' || integrity === '') {
-    throw new Error(`Registry response for ${pkg}@${version} has no dist.integrity.`)
-  }
-  const bytes =
-    typeof unpackedSize === 'number' && Number.isFinite(unpackedSize) ? unpackedSize : null
-
-  return { tarballUrl: tarball, integrity, bytes }
+  return { version, notes, repo, platformAsset }
 }
 
 /**
