@@ -117,6 +117,9 @@ export default defineConfig({
         'src/main/npmRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/updateDownload.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/updateApply.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // npm-distribution Phase 4 (D21 pivot) T20: GitHub Releases payload
+        // resolution, replacing npmRegistry.ts's retired fetchPayload.
+        'src/main/githubReleases.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         // npm-distribution T6: the rewired update state machine + its real
         // fetch-based RegistryClient/Downloader implementations.
         'src/main/updateService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
