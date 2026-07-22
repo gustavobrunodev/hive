@@ -10,6 +10,7 @@ export default defineConfig(
     ignores: [
       '**/node_modules',
       '**/dist',
+      '**/dist-npm', // scratch release-assembly dir (scripts/release.mjs, T16) — generated, not our source
       '**/out',
       '**/coverage',
       '.claude', // vendored agent skills — not our source
@@ -55,6 +56,16 @@ export default defineConfig(
         'warn',
         { max: 150, skipBlankLines: true, skipComments: true, IIFEs: true }
       ]
+    }
+  },
+  {
+    // scripts/release.mjs (T16) is plain Node tooling, not TypeScript — the
+    // top-level `*.mjs` override in eslint-config-ts's eslint-typescript.js
+    // only matches root-level files (e.g. electron.vite.config.mjs), not
+    // nested ones, so this repeats it for the scripts/ directory.
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
     }
   },
   eslintConfigPrettier
