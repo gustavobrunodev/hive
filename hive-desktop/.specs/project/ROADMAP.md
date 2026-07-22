@@ -208,9 +208,11 @@ ND-B1 resolved (real npm scope `@gustavobrunodev`) — but the first real
 publish attempt found the payload-hosting mechanism itself doesn't survive
 contact with the real registry (`413 Payload Too Large` on a real ~297 MB
 installer). **D21 (STATE.md): payload host moves to GitHub Releases**, npm
-stays the version source — design.md §2A. New blocker ND-B2 (GitHub token)
-gates the real release-asset publish; T18 (real-Windows E2E) still needs
-real Windows hardware. The pivot's implementation is in progress.
+stays the version source — design.md §2A. The pivot (T20-T23, T25) is
+**implemented and verified** (918/918 tests, typecheck/lint clean, every
+touched file ≥90% coverage, `--dry-run` confirmed end-to-end). Only two
+items remain open: ND-B2 (GitHub token) gates the real release-asset publish
+(T24), and T18 (real-Windows E2E) still needs real Windows hardware.
 
 ---
 

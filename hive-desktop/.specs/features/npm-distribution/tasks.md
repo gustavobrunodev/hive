@@ -2,8 +2,9 @@
 
 **Feature:** `npm-distribution` · **Spec:** [spec.md](spec.md) · **Design:** [design.md](design.md)
 **Status:** ✅ T1–T16, T19 implemented (2026-07-22) · T17 hit a real `413` on
-first publish attempt → **D21 pivot to GitHub Releases as payload host**
-(Phase 4, T20-T25, in progress) · T18 still blocked (real Windows)
+first publish attempt → **D21 pivot to GitHub Releases as payload host**,
+Phase 4 (T20-T23, T25) implemented and verified (2026-07-22) · T18 (real
+Windows) and T24 (blocked on ND-B2, GitHub token) remain open
 
 Legend: `[ ]` todo · `[x]` done.
 
@@ -235,7 +236,7 @@ of Phase 2 (T10-T15's UI) are **unaffected** — they consume `PayloadInfo`/
 `UpdateEvent` shapes that stay structurally the same (a couple of field
 renames only: `tarballUrl`→`downloadUrl`, `platformPackage`→`platformAsset`).
 
-### [ ] T20 — `main/githubReleases.ts` — payload resolution via the GitHub API
+### [x] T20 — `main/githubReleases.ts` — payload resolution via the GitHub API
 
 **Refs:** ND-C7, design.md §2A
 New pure module, same DI shape as `npmRegistry.ts` (injected `fetchJson`-
@@ -250,7 +251,7 @@ avoidable and should give the caller enough to report a clean error.
 JSON), no real network: asset found, asset missing, manifest missing,
 malformed manifest, 404 release (no tag yet). Coverage ≥90%.
 
-### [ ] T21 — Simplify `updateDownload.ts` — drop tar extraction
+### [x] T21 — Simplify `updateDownload.ts` — drop tar extraction
 
 **Refs:** ND-C7, design.md §2A
 The downloaded payload is now the raw installer, not an npm tarball — remove
@@ -266,7 +267,7 @@ Remove the `tar` dependency if nothing else in the app still needs it.
 downloaded-file fixture); integrity mismatch, cancellation, progress events
 all re-verified against the simplified flow. Coverage ≥90%.
 
-### [ ] T22 — Rewire `updateService.ts` onto `githubReleases.ts`
+### [x] T22 — Rewire `updateService.ts` onto `githubReleases.ts`
 
 **Refs:** ND-C7, design.md §2A
 Swap `npmRegistry.ts`'s `fetchPayload` for T20's GitHub-based resolution;
@@ -279,7 +280,7 @@ are unaffected — this is purely a main-process wiring change.
 `githubReleases` client instead of npm platform-package fixtures); full
 event-ordering suite re-run. Coverage ≥90%.
 
-### [ ] T23 — `package.json` `hiveRelease` shape + `scripts/release.mjs` — GitHub Release publish
+### [x] T23 — `package.json` `hiveRelease` shape + `scripts/release.mjs` — GitHub Release publish
 
 **Refs:** ND-C7, ND-B2, design.md §2A
 `hiveRelease` gains `repo: "gustavobrunodev/hive"`; `platforms['win32-x64']`
@@ -309,7 +310,7 @@ package's `latest` resolves and its `hiveRelease` points at the right repo
 + tag + filenames, confirm a real unauthenticated download of the installer
 asset succeeds and its sha512 matches `hive-update.json`.
 
-### [ ] T25 — Closeout (pivot)
+### [x] T25 — Closeout (pivot)
 
 Per-file coverage on every T20-T23 touched/created file; full `npm run
 verify` green; mark this phase's tasks `[x]`; update ROADMAP/STATE.

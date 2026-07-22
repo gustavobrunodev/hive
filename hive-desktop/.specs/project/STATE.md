@@ -376,6 +376,28 @@ Updated as work progresses. Load at start of every session.
   IDs ND-R1.3/R3.1/R3.3/R4.1 in spec.md are marked superseded in place (same
   pattern) rather than rewritten, to keep the "this was tried, here's why it
   changed" record intact for whoever reads this next.
+  **Implemented 2026-07-22 (T20-T23, T25):** new `main/githubReleases.ts`
+  (`fetchGithubPayload`, same DI shape as `npmRegistry.ts`); `updateDownload.ts`
+  simplified to `downloadAndVerifyInstaller` (no more `tar` extraction — the
+  `tar` dependency was removed, confirmed unused elsewhere); `updateService.ts`
+  rewired (one `registryClient` now covers both npm and GitHub, since both are
+  just "fetch a URL, parse JSON" — a `User-Agent` header was added since
+  GitHub's API requires one); `package.json`'s `hiveRelease` gained `repo`, and
+  `platforms['win32-x64']` now names an asset file, not an npm package;
+  `scripts/release.mjs` replaced the assemble+`npm publish`-platform-package
+  step with real GitHub Release create/reuse + asset upload logic (idempotent
+  re-runs verified via a pure `decideReleaseAction` helper; confirmed live —
+  no token needed — that `gustavobrunodev/hive`'s `v0.1.0` tag does not exist
+  yet). Full suite green: 918/918 tests, typecheck/lint clean, every touched
+  file ≥90% coverage (`githubReleases.ts` 100/97.36/100/100, `npmRegistry.ts`/
+  `updateDownload.ts` 100/100/100/100, `updateService.ts` 100/97.33/100/100) —
+  zero new regressions versus the pre-pivot baseline (the same pre-existing
+  gaps in `Explorer.tsx`/viewers/`Chat.tsx`/`preload/index.ts`, from the
+  unrelated multi-agent/file-viewer features, are unchanged). `--dry-run`
+  confirmed working end-to-end with no `GITHUB_TOKEN` (only the real,
+  non-dry-run path needs one — ND-B2). `tasks.md` T20-T23/T25 marked `[x]`;
+  T24 (the actual authenticated publish) remains the only open item, blocked
+  on ND-B2 exactly as planned.
 
 ## Blockers
 
