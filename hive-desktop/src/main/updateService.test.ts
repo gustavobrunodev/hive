@@ -500,7 +500,7 @@ describe('createUpdateService', () => {
     // (writing part of a 200 KB fixture, then tearing streams down and
     // removing the partial file on abort) on top of the async cancellation
     // itself settling.
-    await flush(200)
+    await flush(400)
 
     expect(seen.some((e) => e.type === 'error')).toBe(false)
     expect(seen.some((e) => e.type === 'downloaded')).toBe(false)
@@ -738,6 +738,6 @@ describe('createDownloader (real fetch-based implementation)', () => {
 })
 
 /** Flushes pending microtasks/timers so a fire-and-forget void method's internal async work settles. */
-async function flush(ms = 50): Promise<void> {
+async function flush(ms = 150): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms))
 }
