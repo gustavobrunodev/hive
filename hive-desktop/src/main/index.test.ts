@@ -757,7 +757,12 @@ describe('main process bootstrap', () => {
       await expect(findHandler('app:info')()).resolves.toEqual({
         name: 'hive-desktop',
         version: '0.1.0',
-        updatesSupported: false
+        updatesSupported: false,
+        // canApply reflects the resolved apply strategy for this process's
+        // real platform (no v1 strategy off-Windows — this suite runs on
+        // Linux); lastCheckedAt is null since no check() has run yet.
+        canApply: false,
+        lastCheckedAt: null
       })
     })
 

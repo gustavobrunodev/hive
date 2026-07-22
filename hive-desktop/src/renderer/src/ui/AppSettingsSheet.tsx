@@ -18,13 +18,28 @@ interface AppInfo {
   updatesSupported: boolean
 }
 
-/** Structural mirror of `main/updateService.ts`'s `UpdateEvent`. */
+/**
+ * Structural mirror of `main/updateService.ts`'s `UpdateEvent`.
+ *
+ * npm-distribution (T6) added two new bare variants to the real type
+ * (`verifying`/`applying`) — additive at the source, but this mirror is used
+ * as a *closed* switch input below, and TypeScript's structural typing does
+ * not let a value of the real (wider) union pass through a callback typed
+ * against this narrower one once new standalone `type` values exist (extra
+ * *fields* on existing variants are harmlessly ignored; new *variants* are
+ * not). `verifying`/`applying` are listed here and folded into the existing
+ * `checking` spinner state below — the closest true analogue (activity, no
+ * error, nothing final yet) — so this file keeps working, unmodified in
+ * spirit, until T13 gives them their own dedicated presentation.
+ */
 type UpdateEventIn =
   | { type: 'checking' }
   | { type: 'not-available' }
   | { type: 'available'; version: string }
   | { type: 'progress'; percent: number }
+  | { type: 'verifying' }
   | { type: 'downloaded'; version: string }
+  | { type: 'applying' }
   | { type: 'error'; message: string }
 
 /** The update flow's renderer-side state machine, driven by the event stream. */
@@ -45,6 +60,8 @@ interface AppSettingsSheetProps {
 function reduceUpdateEvent(event: UpdateEventIn): UpdateState {
   switch (event.type) {
     case 'checking':
+    case 'verifying':
+    case 'applying':
       return { status: 'checking' }
     case 'not-available':
       return { status: 'upToDate' }

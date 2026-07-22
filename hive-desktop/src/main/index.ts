@@ -1,9 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { spawn } from 'child_process'
 import { statSync } from 'fs'
 import { basename, join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
+import packageJson from '../../package.json'
 import { createConfigStore } from './configStore'
 import { createChatHistoryStore } from './chatHistoryStore'
 import { createWorkspaceService } from './workspaceService'
@@ -25,7 +26,12 @@ import { createMcpService, type McpServerConfig } from './mcpService'
 import { mcpProbe } from './mcpProbe'
 import { resolveRoleActions, resolveShortcuts } from './roleCatalog'
 import { sanitizeShortcutPrefs } from './configStore'
-import { createUpdateService, type AppInfo } from './updateService'
+import {
+  createRegistryClient,
+  createDownloader,
+  createUpdateService,
+  type AppInfo
+} from './updateService'
 
 // T3 (UX-R7.3): protocols window.hive.openExternal is allowed to hand to
 // shell.openExternal — see the ipcMain.handle('shell:openExternal', ...)
@@ -497,19 +503,28 @@ app.whenReady().then(() => {
   // Error.message to the renderer (the DS §2 prefix rule keeps it intact).
   const mcpService = createMcpService({ probe: mcpProbe })
   ipcMain.handle('mcp:list', async (_event, workspace: string) => mcpService.list(workspace))
-  ipcMain.handle('mcp:add', async (_event, workspace: string, name: string, config: McpServerConfig) =>
-    mcpService.add(workspace, name, config)
+  ipcMain.handle(
+    'mcp:add',
+    async (_event, workspace: string, name: string, config: McpServerConfig) =>
+      mcpService.add(workspace, name, config)
   )
   ipcMain.handle(
     'mcp:update',
-    async (_event, workspace: string, originalName: string, name: string, config: McpServerConfig) =>
-      mcpService.update(workspace, originalName, name, config)
+    async (
+      _event,
+      workspace: string,
+      originalName: string,
+      name: string,
+      config: McpServerConfig
+    ) => mcpService.update(workspace, originalName, name, config)
   )
   ipcMain.handle('mcp:remove', async (_event, workspace: string, name: string) =>
     mcpService.remove(workspace, name)
   )
-  ipcMain.handle('mcp:setEnabled', async (_event, workspace: string, name: string, enabled: boolean) =>
-    mcpService.setEnabled(workspace, name, enabled)
+  ipcMain.handle(
+    'mcp:setEnabled',
+    async (_event, workspace: string, name: string, enabled: boolean) =>
+      mcpService.setEnabled(workspace, name, enabled)
   )
   ipcMain.handle('mcp:probe', async (_event, workspace: string, name: string) =>
     mcpService.probe(workspace, name)
@@ -569,22 +584,55 @@ app.whenReady().then(() => {
     resolveShortcuts(role, configStore.getShortcuts(), await listCatalogWithCreated(workspace))
   )
 
-  // UpdateService (app-settings): the app's own version + self-update flow,
-  // driven from the renderer's app-settings sheet. electron-updater only
-  // works from a packaged build, so `updatesSupported` mirrors
-  // `app.isPackaged` and the renderer explains instead of failing. The event
-  // stream follows the exact agent:event:* channel pattern above.
+  // UpdateService (npm-distribution, ND-C5): the app's own version +
+  // self-update flow, driven from the renderer's app-settings sheet — now
+  // backed by the public npm registry (npmRegistry.ts/updateDownload.ts/
+  // updateApply.ts) instead of electron-updater. `updatesSupported` still
+  // mirrors `app.isPackaged` (dev/unpacked builds can't self-update) and the
+  // renderer explains instead of failing. The event stream follows the exact
+  // agent:event:* channel pattern above.
   //   'update:event:start' (renderer -> main, fire-and-forget): subscribe.
   //   'update:event'        (main -> renderer, fire-and-forget, repeated): one UpdateEvent per transition.
   //   'update:event:stop'  (renderer -> main, fire-and-forget): unsubscribe.
-  const updateService = createUpdateService(autoUpdater, app.isPackaged)
+  const updateService = createUpdateService({
+    registryClient: createRegistryClient(),
+    downloader: createDownloader(),
+    // `spawn` needs no `this` and is passed as-is; `app.quit` is a real
+    // Electron object method (needs `app` as `this`), so `.bind(app)` gives a
+    // correctly-bound reference without introducing a new function literal
+    // here that only a real Windows apply run would ever invoke.
+    applyDeps: { spawn, quit: app.quit.bind(app) },
+    // The npm package to query for the `latest` release — this app's own
+    // published name (package.json's `name`, still the ND-B1 placeholder
+    // until the real npm scope is known). Deliberately NOT `app.getName()`:
+    // `electron-builder.yml` sets `productName: hive-desktop`, and Electron
+    // prefers `productName` over `name` for `app.getName()` once packaged —
+    // that's the friendly display name electron-builder bakes in for
+    // window/installer branding, unrelated to (and not equal to) the scoped
+    // npm registry identity this needs.
+    packageName: packageJson.name,
+    currentVersion: app.getVersion(),
+    platform: process.platform,
+    stagingRoot: join(app.getPath('userData'), 'updates'),
+    supported: app.isPackaged
+  })
 
   ipcMain.handle('app:info', async (): Promise<AppInfo> => ({
     name: app.getName(),
     version: app.getVersion(),
-    updatesSupported: app.isPackaged
+    updatesSupported: app.isPackaged,
+    canApply: updateService.getCanApply(),
+    lastCheckedAt: updateService.getLastCheckedAt()
   }))
-  ipcMain.handle('update:check', async () => updateService.check())
+  // `explicit` defaults to true: today's only caller is the settings sheet's
+  // manual "Verificar" button (ND-R2.3's explicit-request path). The
+  // parameter already exists on this channel (rather than adding a second
+  // channel later) so a future silent launch/periodic check (T14) can invoke
+  // this exact same handler with `false` once the renderer grows that timer
+  // — no new IPC surface needed for it.
+  ipcMain.handle('update:check', async (_event, explicit?: boolean) =>
+    updateService.check(explicit ?? true)
+  )
   ipcMain.handle('update:download', async () => updateService.download())
   ipcMain.handle('update:install', async () => updateService.install())
 
