@@ -1,6 +1,19 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // npm-distribution T11: `@hive/design-system` is a `file:../design-system`
+  // link that ships its own `node_modules/react`(-dom) — a *different
+  // physical copy* than this package's own react. Rendering a real (not
+  // `vi.mock`'d) DS component that itself calls a hook (e.g. Toast's
+  // `ToastProvider`, which `UpdateNotice.tsx` composes directly per
+  // design.md §5.1) then throws "invalid hook call" — the DS component's
+  // `useState` runs against a React module instance that never rendered the
+  // tree. `electron.vite.config.ts` already carries the identical fix for the
+  // real app bundle; vitest has its own separate config/resolution, so it
+  // needs the same `dedupe` here.
+  resolve: {
+    dedupe: ['react', 'react-dom']
+  },
   test: {
     environment: 'node',
     include: ['src/main/**/*.test.ts', 'src/preload/**/*.test.ts', 'src/renderer/src/**/*.test.ts'],
@@ -106,7 +119,23 @@ export default defineConfig({
         'src/main/updateApply.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         // npm-distribution T6: the rewired update state machine + its real
         // fetch-based RegistryClient/Downloader implementations.
-        'src/main/updateService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/main/updateService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // npm-distribution T11: the Tier 2 announcement toast (design.md §5).
+        'src/renderer/src/ui/UpdateNotice.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // npm-distribution T11: the shared event -> renderer-state reducer
+        // (split out of UpdateNotice.tsx by the react-refresh lint rule;
+        // UpdateCenter, T13, reuses it too).
+        'src/renderer/src/ui/updateFlow.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        }
       }
     }
   }

@@ -721,3 +721,12 @@ export function ChevronRightIcon({ size, ...rest }: IconProps): React.JSX.Elemen
     </svg>
   )
 }
+
+/** Arrow up — npm-distribution's `UpdateNotice` header glyph (design.md §5 Tier 2's "▲"): a new version is something to rise to, not a warning. */
+export function ArrowUpIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 13V3M4.25 6.75 8 3l3.75 3.75" />
+    </svg>
+  )
+}

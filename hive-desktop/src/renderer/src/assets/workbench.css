@@ -3097,6 +3097,269 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* ==========================================================================
+   Update notice (npm-distribution T11, design.md §5 Tier 2) — the
+   announcement toast. Its own dedicated viewport, bottom-left and anchored
+   just above the rail's gear (52px rail, gear pinned to the rail's bottom),
+   distinct from the DS's shared bottom-right default (Toast.css's
+   `.hds-toast-viewport`) so it never contends with it.
+   ========================================================================== */
+
+.wb-update-toast-viewport {
+  position: fixed;
+  left: var(--s-4);
+  bottom: var(--s-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 340px;
+  max-width: calc(100vw - var(--s-6));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+
+/* Compound selector (`.wb-update-toast.hds-toast`) so this reliably wins over
+   Toast.css's base rules regardless of stylesheet load order (the established
+   override convention in this file, e.g. `.wb-btn.hds-btn`) — in particular
+   dropping the DS default's 3px accent-colored `border-left`: design.md is
+   explicit that this card carries no side-stripe accent anywhere; emphasis
+   comes only from the accent-colored target version and the primary button. */
+.wb-update-toast.hds-toast {
+  width: 340px;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  color: var(--ink);
+  /* Deliberately an 8px blur shadow, never paired with a ≥16px border (the
+     ghost-card defect design.md calls out) — the 1px border above is the
+     only edge treatment. */
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 24%);
+  padding: var(--s-4);
+}
+
+.wb-update-toast-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink);
+}
+.wb-update-toast-glyph {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.wb-update-toast-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Reserved height (design.md: "no state change shifts layout") — sized to
+   the tallest variant (`available`, with version line + meta + notes teaser +
+   two action rows) so downloading/verifying/downloaded/error don't reflow
+   the card. */
+.wb-update-toast-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-height: 108px;
+  justify-content: center;
+}
+
+.wb-update-toast-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--ff-num);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.wb-update-toast-version[data-tone='ok'] {
+  color: var(--success);
+}
+
+/* `--faint` on `--surface` measures ~3.7:1 in the light theme (fails AA's
+   4.5:1 for normal-size text — only `--muted` clears it in both themes, see
+   design.md §5.2's own "or promoted to --muted" fallback), so every 12px
+   meta line here uses `--muted`, not `--faint`, despite the mock's caption. */
+.wb-update-toast-meta {
+  margin: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-update-toast-progress-label {
+  align-self: stretch;
+}
+
+.wb-update-toast-notes {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wb-update-toast-textlink {
+  padding: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.wb-update-toast-textlink:hover {
+  text-decoration: underline;
+}
+.wb-update-toast-textlink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
+.wb-update-toast-error {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+  border-radius: var(--rounded-md);
+}
+
+/* Refusal is first-class (ND-R6.1): "Agora não" sits beside the primary at
+   equal size — a ghost button, not a visually smaller one. */
+.wb-update-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: stretch;
+}
+.wb-update-toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-update-toast-btn:hover {
+  background: var(--surface-2);
+}
+.wb-update-toast-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-update-toast-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wb-update-toast-btn-primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, black);
+}
+
+/* Quieter than "Agora não" but always present, never tucked into a menu
+   (ND-R6.1) — a tertiary text-button under the action row. */
+.wb-update-toast-skip {
+  padding: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  align-self: flex-end;
+}
+.wb-update-toast-skip:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.wb-update-toast-skip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
+/* Motion (design.md §5.2, product register): enter drifts up + scales in,
+   200ms `--ease-quart`; exit drifts toward the gear (down-left), 160ms —
+   teaching where the card went. `[data-reduced-motion]` is a JS-driven
+   attribute (`usePrefersReducedMotion` in UpdateNotice.tsx), not a bare
+   `@media` query, precisely so this substitution is unit-testable (mock
+   `matchMedia`) the same way it's real for an actual user. */
+@keyframes wb-update-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes wb-update-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) translateX(-4px);
+  }
+}
+@keyframes wb-update-toast-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes wb-update-toast-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.wb-update-toast.hds-toast[data-state='open'] {
+  animation: wb-update-toast-in 200ms var(--ease-quart);
+}
+.wb-update-toast.hds-toast[data-state='closed'] {
+  animation: wb-update-toast-out 160ms var(--ease-quart);
+}
+.wb-update-toast.hds-toast[data-reduced-motion][data-state='open'] {
+  animation: wb-update-toast-fade-in 120ms linear;
+}
+.wb-update-toast.hds-toast[data-reduced-motion][data-state='closed'] {
+  animation: wb-update-toast-fade-out 120ms linear;
+}
+
+/* ==========================================================================
    Workspace file search — the Ctrl+P quick-open palette (rail's top action).
    ========================================================================== */
 

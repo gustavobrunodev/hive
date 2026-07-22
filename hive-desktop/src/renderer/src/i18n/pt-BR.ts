@@ -563,6 +563,13 @@ export const ptBR = {
     // ND-R6.5: a dot alone is a color-only cue, so it needs an accessible name.
     pendingDotAria: 'Atualização disponível',
 
+    // T11: `UpdateNotice` mounts its own dedicated Radix Toast viewport
+    // (bottom-left, above the gear — distinct from the DS's shared
+    // bottom-right one, design.md §5.2). The SR-only region name Radix's
+    // `ToastViewport` exposes; `{hotkey}` is a literal placeholder Radix
+    // itself substitutes (see the DS's `ToastViewport`'s own `label` default).
+    viewportLabel: 'Notificações de atualização ({hotkey})',
+
     // Tier 2 — `UpdateNotice`, `available` state (design.md §5.2 mock-up).
     noticeTitle: 'Nova versão disponível',
     versionTransition: (current: string, next: string) => `${current} → ${next}`,
@@ -589,6 +596,7 @@ export const ptBR = {
     // `downloading` — "38,4 MB de 92,1 MB · 41%", `--ff-num` in the design.
     downloadProgress: (transferredBytes: number, totalBytes: number, percent: number) =>
       `${megabytesLabel(transferredBytes)} MB de ${megabytesLabel(totalBytes)} MB · ${percent}%`,
+    downloadProgressAria: 'Progresso do download da atualização',
     cancelCta: 'Cancelar',
 
     // `verifying` — the checksum beat (design.md §5: naming the check and
