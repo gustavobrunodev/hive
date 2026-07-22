@@ -176,7 +176,7 @@ launches / workspace switches). Plan in `.specs/features/role-personalization/`.
 Impeccable-driven UX pass, error/empty/loading states hardened, signed installers
 for distribution, auto-update of the app itself.
 
-**Feature (first slice): `npm-distribution` 📝 Planned (2026-07-21)** — ship the
+**Feature (first slice): `npm-distribution` ✅ Implemented (2026-07-22), T17/T18 blocked** — ship the
 app to the **public npm registry** under the user's personal account and make a
 running install **discover, download and apply new versions by itself**, with no
 terminal and no external release server. The registry is both the version source
@@ -201,6 +201,11 @@ coverage per changed file; ND-R7.3 updater unit-tested against a fake registry
 Playwright-MCP visual pass (dark+light, every state). Release gate: the real
 Windows end-to-end run (T18), which cannot be validated in WSL2.
 **Blocked (publish only):** ND-B1 — npm username + authenticated `npm login`.
+**Status (2026-07-22):** T1–T16 + T19 done — 908 unit/component tests green,
+typecheck/lint clean, every touched file ≥90% per-file coverage (most 100%),
+visual validation done (found and fixed two real defects — see STATE.md).
+T17 (first publish) and T18 (real-Windows E2E) remain blocked exactly as
+planned.
 
 ---
 

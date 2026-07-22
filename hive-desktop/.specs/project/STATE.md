@@ -574,6 +574,136 @@ Updated as work progresses. Load at start of every session.
   need `--remote-debugging-port` on the target app *and* an MCP server
   configured with a matching `--cdp-endpoint` to be useful there at all,
   neither of which is set up in this environment.
+- **npm-distribution — a parallel worktree-isolated subagent can fork from a
+  stale `main` if the harness session restarts mid-orchestration (2026-07-22).**
+  Three subagents were launched with `isolation: "worktree"` right after two
+  commits landed on `main`; a session interruption/restart hit mid-flight, and
+  on resume two of the three worktrees' branches were still anchored 4+
+  commits behind current `main` (missing the very deps/spec-doc commits their
+  own briefs depended on), while the third (launched last) was correctly
+  based. Symptom was clean and easy to catch: `git worktree list`/`git log
+  --oneline` on each worktree before resuming showed the mismatched base
+  commit directly. Fix: resumed each stale agent via `SendMessage` with an
+  explicit instruction to `git merge main` first (a trivial fast-forward,
+  since none had diverged with commits of their own yet) before continuing —
+  no work was lost, nothing needed re-doing. Lesson: after any interruption
+  during multi-agent worktree orchestration, verify each worktree's base
+  against current `main` before resuming or re-launching — don't assume the
+  fork point is still current just because the agent was told to work from
+  `main`.
+- **A fresh git worktree of this monorepo needs `design-system` rebuilt before
+  `npm run typecheck`/`test` will pass cleanly (2026-07-22).** Two independent
+  subagents, in separate worktrees, both hit spurious `Badge`/`Logo` prop-type
+  typecheck errors that don't reproduce on the primary checkout. `design-
+  system/dist/` **is** git-tracked (not gitignored) and hive-desktop's `file:`
+  link + `npm install --install-links` copies it in — but a worktree's copy of
+  `design-system` still needs its own `node_modules` installed (untracked,
+  obviously) and, if the checked-out `dist/` predates a newer prop shape used
+  elsewhere, a rebuild (`npm install && npm run build` inside `design-system/`,
+  then `npm install` again in `hive-desktop/` to re-copy the refreshed `dist/`)
+  to actually reflect current source. Both subagents independently diagnosed
+  and fixed this locally without it being a real product bug — worth telling
+  any future worktree-isolated agent working in this repo to check for this
+  class of false-positive before trusting a typecheck failure as real.
+- **`electron-builder`'s `${name}` artifactName macro is the raw, unsanitized
+  `package.json` name — not the sanitized `productName` (2026-07-22).**
+  Scoping the npm package name (`@npm-user-todo/hive-desktop`, npm-
+  distribution's T2) silently broke `electron-builder.yml`'s
+  `nsis`/`dmg`/`appImage` `artifactName: ${name}-${version}...` templates: a
+  literal `@`/`/` in the resolved filename made NSIS packaging fail ("Can't
+  open output file"). Confirmed by reading `app-builder-lib`'s own source
+  (`appInfo.js`'s `get name()` returns `this.info.metadata.name` verbatim;
+  `macroExpander.js` substitutes `${name}` with exactly that, no sanitizing —
+  contrast `sanitizedName`/`productName`, which route through
+  `sanitizeFileName`). Fixed by switching all three templates to
+  `${productName}` (already `hive-desktop` in this file), which produces the
+  *identical* pre-existing filenames and needs no other change. Lesson: any
+  future package-name change in a project using electron-builder should grep
+  `electron-builder.yml`/`.json` for bare `${name}` in `artifactName`/
+  similar templates — it does not track a scoped/renamed npm package name
+  safely.
+- **A DS `ToastProvider` that always renders its own default `ToastViewport`
+  internally will silently steal a consumer's custom-positioned toast
+  (2026-07-22, npm-distribution T15).** `UpdateNotice.tsx` composed
+  `<Toast>`/`<ToastViewport className="wb-update-toast-viewport">` directly
+  inside `@hive/design-system`'s `<ToastProvider>` (deliberately bypassing
+  `useToast()`'s string-only API, per design.md §5.1) — the card rendered at
+  the DS's shared bottom-right default instead of the intended bottom-left
+  (above the rail gear), even though the custom viewport's own CSS
+  (`position:fixed; left:...`) computed correctly *on that element*. Root
+  cause: `ToastProvider`'s JSX always renders `{children}` then its own
+  un-classed `<ToastViewport />` after them — Radix registers whichever
+  `Toast.Viewport` mounts *last* as the active portal target, so the
+  provider's own default (mounting after the custom one in the same
+  provider) wins the race regardless of the custom one's styling being
+  perfectly correct. Diagnosed by comparing `getBoundingClientRect()` of the
+  custom viewport (correctly positioned, but empty) against the actual toast
+  element's `parentElement` chain (nested under a *second*, unstyled
+  `.hds-toast-viewport`) — a CSS-only inspection would never have caught this
+  since the custom viewport's own styles were never wrong. Fixed with a new
+  `viewport?: boolean` prop on the DS's `ToastProvider` (default `true`) that
+  skips its internal default when a consumer supplies its own. Lesson: when a
+  provider component unconditionally renders its own default of something a
+  child might also render a custom instance of (a portal target, an
+  overlay, a root), and mount order determines which "wins" via shared
+  context, that default needs to be suppressible — verify this kind of
+  composition by inspecting the *actual DOM parent* of the rendered content,
+  not just the styling of the container you intended it to land in.
+- **A conditionally-rendered "not yet available" UI element can hide the only
+  action a user has, if the fallback case is "render nothing" instead of an
+  explicit empty-state message (2026-07-22, npm-distribution T15).**
+  `UpdateCenter`'s status line + its manual refresh `IconButton` were both
+  gated behind `info?.lastCheckedAt != null` — correct once a check has ever
+  run, but before the very first one (a fresh install, or the brief window
+  before the launch check resolves) the *entire* line vanished, taking the
+  refresh button with it: a user in that window had literally no way to
+  trigger a check from this surface. Caught by deliberately testing a
+  `lastCheckedAt: null` scenario during visual validation rather than only
+  the "happy path" states. Fixed with a `neverCheckedLabel` fallback string
+  so the line (and its button) always renders. General lesson: any UI
+  element gated on "has this succeeded at least once" should default to an
+  honest empty-state message, not disappear — especially when it's also the
+  only entry point to the action that would resolve the gate.
+- **A background subagent can be cut off mid-task by an account-level session
+  usage limit, distinct from a crash or error (2026-07-21/22).** One of four
+  parallel subagents in npm-distribution's renderer-UI phase stopped with
+  `status: failed` and a message naming a session-limit reset time, mid-way
+  through a file edit — its worktree held real, uncommitted, in-progress work
+  (a new component + partial i18n/CSS edits), not corrupted or half-written
+  garbage. Resuming it later via `SendMessage` (not a fresh `Agent` call, which
+  would have started cold) picked up exactly where it left off and completed
+  normally. Lesson: on a `status: failed` notification whose message names a
+  usage/rate limit rather than describing a real error, check the worktree
+  for salvageable progress before assuming anything needs to be redone, and
+  prefer resuming the same agent over relaunching fresh.
+- **A test file's own `stubHive`/mock convention can hide a race that a
+  *product* bug and a *test-harness* bug look identical from the outside —
+  verify against real computed DOM state, not just a screenshot, before
+  concluding either way (2026-07-22, npm-distribution T15).** During visual
+  validation, an "up-to-date" scenario appeared to show `UpdateCenter`'s
+  version-block section completely empty. This looked like a real defect at
+  first glance (identical symptom to the two real ones found in the same
+  session), but inspecting the actual live state showed the component's own
+  local `flow` state was stuck at `idle` — traced to the throwaway
+  `window.hive` mock used for this manual validation pass storing only a
+  *single* `onUpdateEvent` listener variable (overwritten by whichever of
+  `useUpdateFlow`/`UpdateCenter` subscribed last), unlike the real preload's
+  `ipcRenderer.on` which supports multiple concurrent listeners natively.
+  Fixing the mock to use a `Set` (matching the real multi-listener contract)
+  resolved it with no product code change needed. Lesson: don't fix product
+  code in response to a mock-driven visual check without first confirming
+  the mock itself faithfully matches the real API's concurrency/fan-out
+  behavior, not just its call signature.
+- **`App.test.ts`'s "advances from the update gate to the ready placeholder
+  once updateBmad() reports done" test is flaky under full-suite parallel
+  load, but not on its own (confirmed 2026-07-22, pre-existing — `App.tsx`/
+  `App.test.ts` were untouched by npm-distribution).** Failed once with
+  `AssertionError: expected undefined to be truthy` during a full `npm run
+  test`/`verify` run; three consecutive isolated runs of just that file
+  (`npx vitest run src/renderer/src/App.test.ts`) all passed cleanly. Not
+  investigated further (out of scope, unrelated to any file this feature
+  touched) — flagged here so a future session doesn't mistake a repeat of
+  this specific flake for a real regression.
 
 ## Todos (cross-feature)
 
@@ -668,6 +798,42 @@ Updated as work progresses. Load at start of every session.
     "BUG 1" feature) entangled across shared files — committing cleanly per-task
     was infeasible without sweeping that in. Commit decisions deferred to the user.
   - **`tasks.md` for all three features marked `[x]`.**
+
+- **npm-distribution (M6, T1–T16 + T19) implemented on `main` (2026-07-22).**
+  Public npm publication (metadata + release pipeline) and the full in-app
+  self-update flow, sourced from `registry.npmjs.org`, replacing the
+  placeholder `electron-updater` feed end to end:
+  - **Main process:** `npmRegistry.ts` (discovery, defensive per ND-R2.4),
+    `updateDownload.ts` (stream+hash+verify+extract via `tar`, cancellable),
+    `updateApply.ts` (Windows NSIS strategy, `canApply:false` elsewhere),
+    `configStore.skippedUpdateVersion`, `updateService.ts` fully rewired onto
+    the three (real `fetch`-based `RegistryClient`/`Downloader`, stale-staging
+    cleanup, `check(explicit)`/`cancel()`), new `update:cancel`/`reveal`/`skip`
+    IPC + preload surface, `electron-updater` dependency removed.
+  - **Renderer:** `UpdateNotice.tsx` (Tier 2, DS Toast primitives composed
+    directly), ambient dot on the rail gear (Tier 1), `UpdateCenter.tsx`
+    (Tier 3, replaces `AppSettingsSheet.tsx`), `useUpdateFlow.ts` (shared
+    launch+45min-periodic silent check policy, skip suppression, never
+    auto-downloads), full `update.*` pt-BR namespace.
+  - **Release tooling:** `scripts/release.mjs` (verify→build→assemble
+    platform package→publish platform-then-main, `--dry-run` gate).
+  - **Gates:** 908 unit/component tests green, typecheck/lint clean, every
+    touched file ≥90% per-file coverage (most files 100%; `preload/index.ts`'s
+    pre-existing 89.74%-functions gap, unrelated to this feature, untouched —
+    see Lessons). Visual validation via the Playwright MCP + static-build +
+    `window.hive` mock recipe found and fixed **two real defects** (see
+    Lessons below) — dark+light, 8 scenarios.
+  - **Real bug found and fixed outside the task list, directly caused by T2:**
+    the scoped package name (`@npm-user-todo/hive-desktop`) broke
+    `electron-builder`'s NSIS/dmg/AppImage `artifactName` templates (`${name}`
+    resolves to the raw, unsanitized package name, containing `@`/`/`) —
+    fixed by switching those templates to `${productName}` (already
+    `hive-desktop`), verified with a real `npm run build:win` producing
+    `dist/hive-desktop-0.1.0-setup.exe`.
+  - **T17 (first publish) and T18 (real-Windows E2E) remain blocked** exactly
+    as planned — ND-B1 (npm username unresolved) and real Windows hardware,
+    respectively. Everything else was built and verified without them.
+  - **`tasks.md` T1–T16+T19 marked `[x]`; ROADMAP M6 updated.**
 
 ## Deferred Ideas
 
