@@ -1,5 +1,5 @@
 {
-  "name": "@npm-user-todo/hive-desktop",
+  "name": "@gustavobrunodev/hive-desktop",
   "version": "0.1.0",
   "description": "Hive Desktop — Electron BMAD-orchestration app",
   "main": "./out/main/index.js",
@@ -29,7 +29,7 @@
   "hiveRelease": {
     "notes": "",
     "platforms": {
-      "win32-x64": "@npm-user-todo/hive-desktop-win-x64"
+      "win32-x64": "@gustavobrunodev/hive-desktop-win-x64"
     }
   },
   "engines": {

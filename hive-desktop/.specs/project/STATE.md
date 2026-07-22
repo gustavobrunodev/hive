@@ -315,12 +315,15 @@ Updated as work progresses. Load at start of every session.
 
 ## Blockers
 
-- **ND-B1 — OPEN (2026-07-21), blocks publish only.** The npm **username** for
-  the package scope is unknown (`npm whoami` → 401, not authenticated in this
-  environment), and publishing needs an authenticated `npm login` / automation
-  token. Everything except tasks T17 (first publish) and T18 (real-Windows E2E)
-  can be built and verified without it — the updater is unit-tested against a
-  fake registry with no network.
+- **ND-B1 — RESOLVED (2026-07-22).** User authenticated (`npm whoami` now
+  succeeds); the real npm username is **`gustavobrunodev`** — not `gustavobgt`,
+  the unconfirmed candidate context.md's discuss phase had merely checked
+  availability for. Both `@gustavobrunodev/hive-desktop` and `@gustavobrunodev/
+  hive-desktop-win-x64` verified free (HTTP 404) on 2026-07-22. `package.json`'s
+  `name` and `hiveRelease.platforms['win32-x64']` updated from the
+  `@npm-user-todo/...` placeholder to the real scope; `package-lock.json`
+  regenerated. T17 (first real publish) is now unblocked; T18 (real-Windows
+  E2E) still needs actual Windows hardware, unavailable in this WSL2 env.
 - **B1 — RESOLVED (2026-07-09).** Real `bmad-method@6.10.0` install run in a
   scratchpad throwaway workspace confirmed: install is fully non-interactive
   (`install --directory <ws> --modules bmm --tools claude-code --yes`, zero
