@@ -27,7 +27,7 @@ import { ProfileSheet } from './ui/ProfileSheet'
 import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
-import { AppSettingsSheet } from './ui/AppSettingsSheet'
+import { UpdateCenter } from './ui/UpdateCenter'
 import { FileSearchDialog } from './ui/FileSearchDialog'
 import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
@@ -792,7 +792,7 @@ export function WorkUI({
         workspace={workspace}
         onOpenFile={editor.openFile}
       />
-      <AppSettingsSheet open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
+      <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
       <ShortcutCustomizer
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}

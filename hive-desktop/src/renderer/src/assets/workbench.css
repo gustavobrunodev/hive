@@ -2994,7 +2994,11 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* ==========================================================================
-   App settings sheet (version + self-update flow) — the bottom-left gear.
+   UpdateCenter — the app settings sheet (version + self-update flow),
+   Tier 3 of design.md §5.1 ("the deliberate visit"), the bottom-left gear.
+   Class names kept as `wb-appset-*` (still accurate — "app settings" is
+   still what this sheet is) rather than renamed wholesale with the T13
+   redesign, to avoid a pointless mass-rename of already-correct styling.
    ========================================================================== */
 
 .wb-appset-sheet {
@@ -3045,7 +3049,10 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--faint);
+  /* `--muted`, not `--faint` (ND-R6.5) — `--faint` on `--surface` measures
+     ~3.7:1 in the light theme, below AA's 4.5:1 for normal-size text (see
+     `UpdateNotice.tsx`'s identical finding, T11). */
+  color: var(--muted);
   margin: 0;
 }
 
@@ -3068,7 +3075,8 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-appset-note {
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--faint);
+  /* `--muted`, not `--faint` — same ND-R6.5 contrast finding as above. */
+  color: var(--muted);
   margin: 0;
 }
 
@@ -3110,6 +3118,66 @@ button.wb-agent-pill-btn:focus-visible {
   flex-direction: column;
   gap: var(--s-2);
   align-self: stretch;
+}
+
+.wb-appset-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Error message background tint (design.md: "never a stripe") — same
+   treatment as UpdateNotice's `.wb-update-toast-error`. */
+.wb-appset-status-error {
+  align-self: stretch;
+  padding: var(--s-2) var(--s-3);
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+  border-radius: var(--rounded-md);
+}
+
+/* npm-distribution T13 — UpdateCenter's additions over the pre-existing
+   identity/section/status/button styles above. */
+
+/* Status line: "Verificado há 2 minutos" + a quiet refresh IconButton —
+   replaces the old bare "Verificar" button with something that reports. */
+.wb-appset-statusline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  align-self: stretch;
+}
+.wb-appset-statusline-label {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* Release notes: collapsed-by-default accordion, markdown in a bounded
+   scroll area (ND-R6.4). */
+.wb-appset-notes {
+  align-self: stretch;
+}
+.wb-appset-notes-scroll {
+  max-height: 220px;
+}
+.wb-appset-notes-body {
+  padding-right: var(--s-3);
+  font-size: 0.8125rem;
+}
+
+/* Skipped-version recovery (ND-R5.5) — declining never strands the user. */
+.wb-appset-skip-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  align-self: stretch;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--rounded-md);
+  font-size: 0.8125rem;
+  color: var(--muted);
 }
 
 /* ==========================================================================

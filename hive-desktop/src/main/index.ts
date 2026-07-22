@@ -622,7 +622,12 @@ app.whenReady().then(() => {
     version: app.getVersion(),
     updatesSupported: app.isPackaged,
     canApply: updateService.getCanApply(),
-    lastCheckedAt: updateService.getLastCheckedAt()
+    lastCheckedAt: updateService.getLastCheckedAt(),
+    // UpdateCenter T13 (ND-R5.5): the renderer's only way to learn which
+    // version is currently skipped (needed even fresh after a restart, when
+    // no `available` event for it will ever arrive again — see AppInfo's
+    // own doc comment in updateService.ts).
+    skippedVersion: configStore.getSkippedUpdateVersion()
   }))
   // `explicit` defaults to true: today's only caller is the settings sheet's
   // manual "Verificar" button (ND-R2.3's explicit-request path). The

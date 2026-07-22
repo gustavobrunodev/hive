@@ -531,37 +531,27 @@ export const ptBR = {
     hint: '↑ ↓ navega · Enter abre · Esc fecha',
     openAria: (name: string) => `Abrir arquivo ${name}`
   },
-  // App settings (version + self-update flow) — the bottom-left gear.
-  appSettings: {
-    title: 'Aplicativo',
-    description: 'Versão, atualizações e informações do Hive Desktop.',
-    versionLabel: (version: string) => `Versão ${version}`,
-    updatesSectionLabel: 'Atualizações',
-    checkCta: 'Verificar atualizações',
-    checkingLabel: 'Verificando atualizações…',
-    upToDateLabel: 'Você está na versão mais recente.',
-    availableLabel: (version: string) => `Nova versão ${version} disponível.`,
-    downloadCta: 'Baixar atualização',
-    downloadingLabel: 'Baixando atualização…',
-    downloadProgressAria: 'Progresso do download da atualização',
-    downloadedLabel: (version: string) => `Versão ${version} pronta para instalar.`,
-    restartCta: 'Reiniciar e instalar',
-    errorLabel: 'Não foi possível verificar atualizações. Tente novamente.',
-    retryCta: 'Tentar novamente',
-    devNote: 'Atualizações automáticas ficam disponíveis apenas na versão instalada do aplicativo.'
-  },
-  // npm-distribution T10 (ND-R6): the redesigned self-update flow's copy —
-  // `UpdateNotice` (Tier 2, design.md §5 mock-up) and `UpdateCenter` (Tier 3,
-  // the restructured `AppSettingsSheet`). This is the eventual replacement
-  // for `appSettings.*` above (cut over in T14); nothing consumes these keys
-  // yet. Register throughout: an invitation, never a warning (ND-R6.7) —
-  // "Nova versão disponível", never "Atualização necessária". Several keys
-  // are shared verbatim between Tier 2 and Tier 3 (design.md: the center's
+  // npm-distribution T10 (ND-R6): the self-update flow's copy — `UpdateNotice`
+  // (Tier 2, design.md §5 mock-up) and `UpdateCenter` (Tier 3, T13's
+  // restructured `AppSettingsSheet` — the former `appSettings.*` namespace
+  // that lived here is retired now that nothing references it anymore).
+  // Register throughout: an invitation, never a warning (ND-R6.7) — "Nova
+  // versão disponível", never "Atualização necessária". Several keys are
+  // shared verbatim between Tier 2 and Tier 3 (design.md: the center's
   // version block is "the same state machine as the notice, roomier").
   update: {
     // Tier 1 — the ambient dot on the rail gear (T12, design.md §5 Tier 1).
     // ND-R6.5: a dot alone is a color-only cue, so it needs an accessible name.
     pendingDotAria: 'Atualização disponível',
+
+    // Tier 3 — `UpdateCenter` shell (design.md §5, "the deliberate visit").
+    // Sheet title/description + the identity block's version line + the
+    // version-block's section heading + the release-notes accordion trigger.
+    title: 'Aplicativo',
+    description: 'Versão, atualizações e informações do Hive Desktop.',
+    versionLabel: (version: string) => `Versão ${version}`,
+    updatesSectionLabel: 'Atualizações',
+    releaseNotesTrigger: 'Novidades desta versão',
 
     // T11: `UpdateNotice` mounts its own dedicated Radix Toast viewport
     // (bottom-left, above the gear — distinct from the DS's shared

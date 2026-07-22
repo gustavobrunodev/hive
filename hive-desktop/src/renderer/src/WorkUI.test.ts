@@ -426,7 +426,7 @@ function createHiveMock(): Window['hive'] {
     listFiles: vi.fn(async () => []),
     // WorkUI loads the role's actions on mount; the (closed) ProfileSheet
     // loads the agent list on mount — both need to resolve. The (closed)
-    // AppSettingsSheet loads app info + subscribes to update events on mount.
+    // UpdateCenter loads app info + subscribes to update events on mount.
     skills: { list: vi.fn(async () => []) },
     // The (closed) MCP module loads the server list on open.
     mcp: {
@@ -441,11 +441,17 @@ function createHiveMock(): Window['hive'] {
       info: vi.fn(async () => ({
         name: 'hive-desktop',
         version: '0.1.0',
-        updatesSupported: false
+        updatesSupported: false,
+        canApply: false,
+        lastCheckedAt: null,
+        skippedVersion: null
       })),
       checkForUpdates: vi.fn(async () => undefined),
       downloadUpdate: vi.fn(async () => undefined),
       installUpdate: vi.fn(async () => undefined),
+      cancelUpdate: vi.fn(async () => undefined),
+      revealInstaller: vi.fn(async () => undefined),
+      skipVersion: vi.fn(async () => undefined),
       onUpdateEvent: vi.fn(() => () => {})
     },
     profile: {

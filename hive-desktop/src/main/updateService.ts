@@ -51,6 +51,19 @@ export interface AppInfo {
   canApply: boolean
   /** `Date.now()` of the most recent check attempt (explicit or silent), or `null` before the first one. */
   lastCheckedAt: number | null
+  /**
+   * `UpdateCenter` T13 (ND-R5.5): the currently-skipped version from
+   * `ConfigStore.getSkippedUpdateVersion()`, or `null` if none is skipped.
+   * Additive field — `main/index.ts`'s `app:info` handler populates it
+   * straight from `ConfigStore`, `updateService` itself owns no policy about
+   * what was skipped (design.md §1: "the renderer and ConfigStore own
+   * consent"). The renderer needs this because a skipped version is never
+   * re-announced (ND-R5.4), including across restarts — so after a relaunch
+   * there is no `available` event to learn *which* version was skipped from;
+   * `UpdateCenter`'s "Você pulou a versão X" recovery row (ND-R5.5) has
+   * nowhere else to read X from.
+   */
+  skippedVersion: string | null
 }
 
 /**

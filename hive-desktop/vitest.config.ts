@@ -144,6 +144,14 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // npm-distribution T13: UpdateCenter, the redesigned AppSettingsSheet
+        // (design.md §5 Tier 3).
+        'src/renderer/src/ui/UpdateCenter.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

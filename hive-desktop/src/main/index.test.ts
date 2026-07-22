@@ -750,8 +750,15 @@ describe('main process bootstrap', () => {
         // real platform (no v1 strategy off-Windows — this suite runs on
         // Linux); lastCheckedAt is null since no check() has run yet.
         canApply: false,
-        lastCheckedAt: null
+        lastCheckedAt: null,
+        // T13: read straight from ConfigStore — unset by default.
+        skippedVersion: null
       })
+    })
+
+    it('app:info reports the currently-skipped version once one is persisted (T13, ND-R5.5)', async () => {
+      await findHandler('update:skip')({}, '0.2.0')
+      await expect(findHandler('app:info')()).resolves.toMatchObject({ skippedVersion: '0.2.0' })
     })
 
     it('registers the update handlers and event channels', () => {
