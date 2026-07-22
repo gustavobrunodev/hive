@@ -1,7 +1,9 @@
 # Tasks — npm Distribution & In-App Self-Update
 
 **Feature:** `npm-distribution` · **Spec:** [spec.md](spec.md) · **Design:** [design.md](design.md)
-**Status:** ✅ T1–T16, T19 implemented (2026-07-22) · T17/T18 remain blocked (ND-B1, real Windows)
+**Status:** ✅ T1–T16, T19 implemented (2026-07-22) · T17 hit a real `413` on
+first publish attempt → **D21 pivot to GitHub Releases as payload host**
+(Phase 4, T20-T25, in progress) · T18 still blocked (real Windows)
 
 Legend: `[ ]` todo · `[x]` done.
 
@@ -223,6 +225,97 @@ update ROADMAP M6 and STATE with decisions/lessons.
 
 ---
 
+## Phase 4 — Payload host pivot: GitHub Releases (D21, design.md §2A) [in progress]
+
+Triggered by a real `413 Payload Too Large` on the first real `npm publish`
+of the platform installer (T17) — see context.md ND-C7 / STATE.md D21 for
+the full account. Replaces T3/T4/T16's npm-platform-package mechanism; T2's
+main-package metadata, T6-T9's `updateService`/IPC/preload contract, and all
+of Phase 2 (T10-T15's UI) are **unaffected** — they consume `PayloadInfo`/
+`UpdateEvent` shapes that stay structurally the same (a couple of field
+renames only: `tarballUrl`→`downloadUrl`, `platformPackage`→`platformAsset`).
+
+### [ ] T20 — `main/githubReleases.ts` — payload resolution via the GitHub API
+
+**Refs:** ND-C7, design.md §2A
+New pure module, same DI shape as `npmRegistry.ts` (injected `fetchJson`-
+style client, no Electron import): resolve a release by repo+tag, find the
+installer asset + the `hive-update.json` manifest asset, fetch+parse the
+manifest for `sha512`, return a `PayloadInfo`-shaped result (`downloadUrl`,
+`integrity`, `bytes`) alongside the full descriptor. Defensive like
+`npmRegistry.ts` — malformed responses/missing assets should not throw where
+avoidable and should give the caller enough to report a clean error.
+
+**Verify:** unit tests over fixtures (fake release JSON + fake manifest
+JSON), no real network: asset found, asset missing, manifest missing,
+malformed manifest, 404 release (no tag yet). Coverage ≥90%.
+
+### [ ] T21 — Simplify `updateDownload.ts` — drop tar extraction
+
+**Refs:** ND-C7, design.md §2A
+The downloaded payload is now the raw installer, not an npm tarball — remove
+the `tar.x()` extraction step and the "read descriptor from extracted
+contents" logic; the descriptor now comes from T20 directly, already parsed,
+before the big download starts. Keep the streaming-hash-while-downloading
+shape, `IntegrityMismatchError`/`DownloadCancelledError`, and cancellation —
+none of that changes. Rename `PayloadInfo.tarballUrl` → `downloadUrl`
+everywhere it's consumed (this file, `updateService.ts`, their tests).
+Remove the `tar` dependency if nothing else in the app still needs it.
+
+**Verify:** existing test suite adapted (no more tarball fixtures — a plain
+downloaded-file fixture); integrity mismatch, cancellation, progress events
+all re-verified against the simplified flow. Coverage ≥90%.
+
+### [ ] T22 — Rewire `updateService.ts` onto `githubReleases.ts`
+
+**Refs:** ND-C7, design.md §2A
+Swap `npmRegistry.ts`'s `fetchPayload` for T20's GitHub-based resolution;
+`fetchLatestRelease` (npm, version source) is unchanged. Read `repo` +
+`platforms[key]` (now an asset filename, not a package name) off the
+`hiveRelease` field. `UpdateEvent`/`AppInfo`/IPC/preload/renderer contracts
+are unaffected — this is purely a main-process wiring change.
+
+**Verify:** `updateService.test.ts` adapted for the new dependency (fake
+`githubReleases` client instead of npm platform-package fixtures); full
+event-ordering suite re-run. Coverage ≥90%.
+
+### [ ] T23 — `package.json` `hiveRelease` shape + `scripts/release.mjs` — GitHub Release publish
+
+**Refs:** ND-C7, ND-B2, design.md §2A
+`hiveRelease` gains `repo: "gustavobrunodev/hive"`; `platforms['win32-x64']`
+becomes the installer's asset filename. `release.mjs` replaces "assemble +
+`npm publish` a platform package" with: create a GitHub Release tagged
+`v<version>` via the GitHub REST API (skip if it already exists — idempotent
+re-runs), compute the installer's real sha512, upload the installer +
+`hive-update.json` (now with `sha512`) as release assets, **then** publish
+the (unchanged, small) main npm package last (ND-R1.6's ordering still
+applies — new mechanism). Needs a GitHub token (`GITHUB_TOKEN` env var or
+however `gh`/the release operator supplies one) — refuse cleanly with an
+actionable message if absent, matching the existing `npm whoami` refusal
+pattern. `--dry-run` prints what *would* be created/uploaded without
+creating the release or publishing anything.
+
+**Verify:** `--dry-run` inspection gate (ND-R1.5/ND-R7.4's github-release
+equivalent); a real dry-run end-to-end against this repo; idempotent-rerun
+behavior (running twice doesn't create two releases) reasoned about /
+tested against a fake GitHub client where a live check isn't practical.
+
+### [ ] T24 — First publish (GitHub Release + npm) ⛔ blocked by ND-B2
+
+**Refs:** ND-C7
+Needs a GitHub token. Once available: run T23's real (non-dry-run) release,
+confirm the release + both assets exist on GitHub, confirm the main npm
+package's `latest` resolves and its `hiveRelease` points at the right repo
++ tag + filenames, confirm a real unauthenticated download of the installer
+asset succeeds and its sha512 matches `hive-update.json`.
+
+### [ ] T25 — Closeout (pivot)
+
+Per-file coverage on every T20-T23 touched/created file; full `npm run
+verify` green; mark this phase's tasks `[x]`; update ROADMAP/STATE.
+
+---
+
 ## Optional / deferred
 
 - **PRODUCT.md for `impeccable`.** `context.mjs` still reports `NO_PRODUCT_MD`
@@ -245,3 +338,9 @@ T1 ──► T2 ──► T3 ──► T4 ──► T6 ──► T8 ──► T9
 
 T3/T5/T7 can proceed in parallel after T2. T10 can start any time.
 T17 is blocked on ND-B1; T18 is blocked on T17.
+
+**Phase 4 (pivot, D21):** `T20 ──► T21 ──► T22 ──► T23 ──► T24 ──► T25`.
+T20/T21 can proceed in parallel (T21 only needs T20's `PayloadInfo` type
+shape, not its implementation); T22 needs both; T23 needs T22 (for the
+`platforms` key rename) but is otherwise independent of T20/T21's internals;
+T24 is blocked on ND-B2.

@@ -73,7 +73,92 @@ on cancel, and on startup for any version ≠ the pending one (ND-R3.5).
 retires the mandatory `vi.mock('electron-updater', …)` trap in
 `main/index.test.ts`.
 
+## 2A. SUPERSEDED (2026-07-22): payload host is GitHub Releases, not npm
+
+**Real-world finding:** publishing the real ~297 MB Windows installer as an npm
+platform-package tarball was rejected by the live registry with a genuine
+`npm error code E413 — 413 Payload Too Large` on the first real publish
+attempt — confirmed clean (neither package reached the registry; verified via
+a direct `GET` against both package names returning 404 afterward). §2's "no
+such cap" claim (ND-C1) was an **untested assumption**: T1's spike verified
+*downloading* a small existing package, never *uploading* a large one. The
+installer is also **~3× larger than this design's original ~92 MB estimate**
+(context.md ND-C4), traced to `@anthropic-ai/claude-code` — a dependency added
+by a later, unrelated feature — bundling the full Claude Code CLI binary
+(~250 MB on its own).
+
+**New split, verified against the real GitHub API (2026-07-22):** npm stays
+the **version source** (this section's `GET /<main-pkg>/latest` +
+`hiveRelease` custom field — unchanged). The **payload host** becomes a
+**GitHub Release** on `gustavobrunodev/hive`, not a per-platform npm package.
+Verified empirically, no assumption: an unauthenticated
+`GET https://api.github.com/repos/<repo>/releases/tags/<tag>` returns the
+asset list (`browser_download_url` + `size` per asset), no token needed for a
+public repo (60 req/hour unauthenticated — ample for a 45-minute periodic
+check); release assets support **up to ~2 GB** (confirmed via a real 1.86 GB
+asset on `electron/electron`'s own releases) — no practical ceiling for this
+payload, ever.
+
+**New `hiveRelease` shape** (`repo` added; `platforms` values are now asset
+filenames, not npm package names):
+```jsonc
+{
+  "notes": "…",
+  "repo": "gustavobrunodev/hive",
+  "platforms": { "win32-x64": "hive-desktop-0.2.0-setup.exe" }
+}
+```
+
+**Resolution flow (replaces this section's step 2 above):**
+1. `GET /<main-pkg>/latest` (npm, unchanged) → version + notes + `repo` + the
+   asset filename for this platform.
+2. `GET https://api.github.com/repos/<repo>/releases/tags/v<version>` (GitHub,
+   new) → the release's asset list → the installer asset's
+   `browser_download_url` + `size`, **and** a second small manifest asset
+   (`hive-update.json`, uploaded alongside the installer) → parsed for the
+   `sha512` (GitHub provides no built-in content hash; the release script
+   computes and publishes its own, same `sha512-<base64>` SRI format as
+   before — verification logic in `updateDownload.ts` is unchanged).
+3. Download the installer directly — a raw `.exe`, **not** a `.tgz`. **No
+   `tar` extraction step anymore**; that was purely an artifact of npm
+   tarball packaging and no longer applies.
+4. Hash while streaming, compare to the manifest's `sha512` — identical
+   verification logic to before.
+
+**What this simplifies:** ND-C1's whole "packument stays small, so binaries
+go in separate per-platform packages" driver no longer applies — GitHub
+Releases have no packument-style metadata cap at all, so there is no reason
+to keep the per-platform-package indirection on the npm side.
+`updateDownload.ts` sheds its tar-extraction step entirely (download + hash +
+verify only); the `tar` dependency is no longer needed for this path.
+
+**What changes in `main/`:** a new `main/githubReleases.ts` (same DI shape as
+`npmRegistry.ts` — an injected `fetchJson`-shaped client) replaces
+`npmRegistry.ts`'s `fetchPayload` for payload resolution. `PayloadInfo`'s
+`tarballUrl` field is renamed `downloadUrl` (it is not a tarball anymore)
+everywhere it's used. `npmRegistry.ts`'s `fetchLatestRelease` is otherwise
+unchanged (still the version source), but `ReleaseInfo` gains a
+`repo: string | null` field alongside a renamed `platformAsset` (was
+`platformPackage` — it is an asset filename now, not a package name).
+
+**What changes in the publish pipeline (`scripts/release.mjs`, §4 below):**
+replaces "assemble + `npm publish` a platform package" with "create a GitHub
+Release tagged `v<version>` (if it doesn't already exist) + upload the
+installer + upload a freshly computed `hive-update.json` (now including
+`sha512`) as release assets" via the GitHub REST API — **needs a token, a new
+blocker, ND-B2**, the GitHub analogue of ND-B1. The main npm package publish
+step is unchanged in spirit (small, metadata-only, still published **last** —
+release order still matters: the GitHub Release must exist before the main
+npm package's `latest` advertises it, same ND-R1.6 reasoning, new mechanism).
+
 ## 3. Main-process modules
+
+> **§2A supersedes this section's payload-fetching pieces**: `fetchPayload`
+> below is retired in favor of a new `main/githubReleases.ts`; `PayloadInfo`'s
+> `tarballUrl` is renamed `downloadUrl`; `ReleaseInfo.platformPackage` is
+> renamed `platformAsset` and gains a sibling `repo` field. `updateDownload.ts`
+> drops its `tar` extraction step. Read §2A before implementing from this
+> section as originally written.
 
 ### `main/npmRegistry.ts` — pure, injectable, no Electron
 
@@ -161,6 +246,12 @@ not on disk.
 `.revealInstaller()`, `.skipVersion(v)`.
 
 ## 4. Publish pipeline (ND-R1)
+
+> **§2A supersedes the "platform package" mechanism below**: there is no
+> platform npm package anymore. The installer + `hive-update.json` (now with
+> `sha512`) are uploaded as **GitHub Release assets** instead of being
+> `npm publish`'d from an assembled package directory. The main package
+> (immediately below) is unchanged.
 
 **Main package** (`@<user>/hive-desktop`) — metadata only, no binaries:
 

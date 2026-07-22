@@ -204,8 +204,13 @@ Windows end-to-end run (T18), which cannot be validated in WSL2.
 **Status (2026-07-22):** T1–T16 + T19 done — 908 unit/component tests green,
 typecheck/lint clean, every touched file ≥90% per-file coverage (most 100%),
 visual validation done (found and fixed two real defects — see STATE.md).
-T17 (first publish) and T18 (real-Windows E2E) remain blocked exactly as
-planned.
+ND-B1 resolved (real npm scope `@gustavobrunodev`) — but the first real
+publish attempt found the payload-hosting mechanism itself doesn't survive
+contact with the real registry (`413 Payload Too Large` on a real ~297 MB
+installer). **D21 (STATE.md): payload host moves to GitHub Releases**, npm
+stays the version source — design.md §2A. New blocker ND-B2 (GitHub token)
+gates the real release-asset publish; T18 (real-Windows E2E) still needs
+real Windows hardware. The pivot's implementation is in progress.
 
 ---
 

@@ -111,3 +111,41 @@ needs to work. macOS `.dmg` mounting + signature preservation and Linux
 `deb`/`snap` privilege escalation are each their own project; AppImage is the
 easy one and is the natural second. Agent-resolved from the environment, not a
 user preference — revisit when a second platform has real users.
+
+## ND-C7 — SUPERSEDES ND-C1: payload host moves from npm to GitHub Releases
+
+The first real `npm publish` of the platform package (2026-07-22, after ND-B1
+resolved and the user authenticated) failed with a genuine
+`npm error code E413 — 413 Payload Too Large` from the live registry —
+confirmed clean, nothing published (both package names still 404 immediately
+after). ND-C1's "the raw registry tarball URL has no such cap" was an
+**untested assumption**: T1's spike only verified *downloading* a small
+existing package, never *uploading* a large one. This is the first time that
+assumption was actually exercised, and it failed on the very first attempt.
+
+A second, compounding fact surfaced at the same time: the real installer is
+**~297 MB**, not the ~92 MB this feature's sizing (ND-C4) was built around —
+traced to `@anthropic-ai/claude-code` (added by a later, unrelated feature)
+bundling the full Claude Code CLI binary (~250 MB alone). Even a materially
+higher npm limit than what was hit might not have been enough.
+
+**Decision (user, 2026-07-22):** keep npm as the **version source** (ND-C1's
+`GET /<pkg>/latest` + custom `hiveRelease` field — this part was never in
+question and works exactly as designed) but move the **payload host** to a
+**GitHub Release** on `gustavobrunodev/hive`. This is design.md's own
+pre-approved fallback ("If npm objects... swapping to GitHub Releases is a
+contained change") — chosen over shrinking the installer to fit under
+whatever npm's real (undocumented) limit turns out to be, since that limit
+isn't published anywhere and might move; GitHub Releases have a documented,
+generous ceiling (empirically confirmed ~2 GB via a real `electron/electron`
+release asset) that comfortably outlives any plausible future installer size.
+Full technical detail (new module shapes, the revised `hiveRelease` schema,
+the simplified download flow with no more tar extraction) is design.md §2A.
+
+**New blocker — ND-B2 (OPEN, 2026-07-22):** creating a real GitHub Release
+and uploading assets to it needs a GitHub token (`gh auth login` or a PAT with
+`repo`/`contents:write` scope on `gustavobrunodev/hive`) — this environment
+has no `gh` CLI installed and no token in the environment. Everything except
+the actual release-creation + asset-upload step can be built and verified
+without it (the read side — resolving a release by tag and downloading an
+asset — needs no auth at all for a public repo, already verified live).

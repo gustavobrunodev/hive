@@ -289,6 +289,42 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+## Lessons (npm-distribution — real publish attempt, 2026-07-22)
+
+- **T1's spike verified the download side of the registry assumptions but
+  never the upload side — and the upload side is what actually failed.**
+  General lesson beyond this feature: when a design leans on "the registry
+  has no cap" (or any claim about a boundary you haven't personally pushed
+  on), a spike that only exercises the *read* path doesn't actually retire
+  that risk — it just tests the half that was never in doubt. If the real
+  risk is in an action you're about to take for the first time ever (a real
+  publish, a real large upload), the spike needs to attempt *that specific
+  action* at realistic scale, not a nearby read-only proxy for it. See D21
+  (STATE.md Decisions) for the full account — npm's real per-tarball limit
+  (undocumented anywhere) rejected a genuine ~297 MB publish with `413`.
+- **A second `build:win` on top of an already-populated `dist/` silently
+  doubled the installer size (297 MB → 594 MB), which then made the real
+  `npm publish` crash with `ERR_STRING_TOO_LONG`** before ever reaching the
+  size-limit issue above. `electron-builder` does not fully replace its
+  previous `dist/win-unpacked` output on a second consecutive build without
+  a wipe first — traced to `resources/app.asar.unpacked` growing rather than
+  being overwritten. Fixed by having `scripts/release.mjs` `rm -rf out/ dist/`
+  at the start of every build, unconditionally — a release script must never
+  depend on the working directory happening to be pristine to produce a
+  correct artifact. Caught before any bad data reached the registry (the
+  crash was local, in npm's own payload-construction step) — but it's a
+  reminder that "the last build looked right" isn't a guarantee the next one
+  will, for any packaging tool with its own incremental/cache behavior.
+- **`scripts/release.mjs`'s dirty-tree gate ran a repo-wide `git status`, not
+  scoped to the package being released, and blocked a release on unrelated
+  monorepo clutter it had no business caring about.** In this monorepo, a
+  release of `hive-desktop/` was blocked by uncommitted files at the repo
+  root belonging to neither this feature nor this package. Fixed by scoping
+  the check to `.` (relative to the script's own `ROOT` = `hive-desktop/`).
+  General lesson for any release/CI script in a monorepo: scope dirty-tree
+  and similar "is it safe to release" checks to the actual release unit, not
+  the whole repo, unless a cross-package release genuinely requires it.
+
 ## Lessons (npm-distribution T1 spike)
 
 - **T1 — all four registry assumptions confirmed against the real, live
@@ -313,8 +349,44 @@ Updated as work progresses. Load at start of every session.
   technically-correct form, costs nothing, and avoids relying on undocumented
   registry leniency that could tighten later.
 
+- **D21 — SUPERSEDES D20's payload mechanism: GitHub Releases replace the
+  per-platform npm package (2026-07-22).** The first real `npm publish` of
+  the Windows platform package (after ND-B1 resolved) failed with a genuine
+  `npm error code E413 — 413 Payload Too Large` from the live registry —
+  confirmed clean, nothing published (both package names verified still 404
+  immediately after, twice). D20/ND-C1's "the raw registry tarball URL has no
+  such cap" was an **untested assumption** — T1's spike only verified
+  *downloading* a small existing package, never *uploading* a large one; this
+  was the first real exercise of that assumption and it failed on the first
+  attempt. Compounding: the real installer is **~297 MB**, not the ~92 MB
+  ND-C4 was sized around — `@anthropic-ai/claude-code` (added by a later,
+  unrelated feature) bundles the full Claude CLI binary (~250 MB alone).
+  **User decision:** keep npm as the version source (unchanged, works exactly
+  as designed) but move the payload host to a **GitHub Release** on
+  `gustavobrunodev/hive` — design.md's own pre-approved fallback, chosen over
+  chasing npm's real (undocumented, possibly moving) limit. Verified live
+  before committing to it: unauthenticated `GET /repos/<repo>/releases/tags/
+  <tag>` works with no token for a public repo (60 req/hour, ample for a
+  45-min periodic check); a real `electron/electron` release asset at 1.86 GB
+  confirms GitHub's ~2 GB ceiling has enormous headroom. Full technical
+  design in design.md §2A (marked as superseding §2-§4's original npm-package
+  mechanism, not deleted — the original was correctly implemented and *did*
+  work end-to-end via `--dry-run`; it just can't survive contact with the
+  real registry's actual upload limit). New blocker: ND-B2 below. Requirement
+  IDs ND-R1.3/R3.1/R3.3/R4.1 in spec.md are marked superseded in place (same
+  pattern) rather than rewritten, to keep the "this was tried, here's why it
+  changed" record intact for whoever reads this next.
+
 ## Blockers
 
+- **ND-B2 — OPEN (2026-07-22), blocks the real payload publish only.** Need a
+  GitHub token (`gh auth login`, or a PAT with `repo`/`contents:write` on
+  `gustavobrunodev/hive`) to create a real GitHub Release and upload assets —
+  no `gh` CLI installed and no token available in this environment. The read
+  side (resolving a release by tag, downloading an asset) needs no auth at
+  all for a public repo — already verified live, nothing blocks building or
+  testing that half. The main npm package publish is unaffected (ND-B1
+  already resolved, that login still works).
 - **ND-B1 — RESOLVED (2026-07-22).** User authenticated (`npm whoami` now
   succeeds); the real npm username is **`gustavobrunodev`** — not `gustavobgt`,
   the unconfirmed candidate context.md's discuss phase had merely checked
