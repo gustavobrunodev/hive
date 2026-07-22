@@ -279,7 +279,15 @@ const hive = {
   // the exact watchWorkspace/agent.onEvent channel pattern above.
   app: {
     info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
-    checkForUpdates: (): Promise<void> => ipcRenderer.invoke('update:check'),
+    // npm-distribution T14: `explicit` widened from zero-arg to optional —
+    // the `update:check` IPC channel itself already accepted this param
+    // (main/index.ts's handler always has, defaulting to `true` when
+    // omitted); only this bridge method was still zero-arg. Needed so
+    // `useUpdateFlow`'s launch/periodic checks can pass `false` (silent,
+    // ND-R2.4) while every existing explicit-check caller (UpdateCenter's
+    // manual refresh, `retry`) keeps working unchanged by omitting it.
+    checkForUpdates: (explicit?: boolean): Promise<void> =>
+      ipcRenderer.invoke('update:check', explicit),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('update:download'),
     installUpdate: (): Promise<void> => ipcRenderer.invoke('update:install'),
     // npm-distribution (ND-R3.4/ND-R4.3/ND-R5.4): cancel an in-flight

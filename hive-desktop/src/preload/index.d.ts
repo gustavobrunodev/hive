@@ -118,7 +118,8 @@ declare global {
       /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
       app: {
         info(): Promise<AppInfo>
-        checkForUpdates(): Promise<void>
+        /** `explicit` (T14): omit/`true` for a user-requested check (reports errors); `false` for the silent launch/periodic check (ND-R2.4 — failures produce nothing visible). */
+        checkForUpdates(explicit?: boolean): Promise<void>
         downloadUpdate(): Promise<void>
         installUpdate(): Promise<void>
         /** npm-distribution (ND-R3.4): aborts an in-flight download; a no-op if nothing is downloading. */

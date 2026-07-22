@@ -4,6 +4,7 @@ import {
   createContext,
   createElement,
   forwardRef,
+  Fragment,
   useContext,
   useImperativeHandle,
   isValidElement,
@@ -11,7 +12,7 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 /**
  * Task T11 — resizable file-area divider + persistence (design.md §7,
@@ -298,7 +299,19 @@ vi.mock('@hive/design-system', () => ({
   // App settings sheet (version + updates).
   Progress: (props: Record<string, unknown>) =>
     createElement('div', { role: 'progressbar', 'aria-label': props['aria-label'] as string }),
-  Spinner: ({ label }: { label?: string }) => createElement('span', null, label)
+  Spinner: ({ label }: { label?: string }) => createElement('span', null, label),
+  // UpdateNotice (npm-distribution T11/T14): mounted unconditionally by
+  // WorkUI now, so it needs a stand-in regardless of whether any test here
+  // ever drives it into a visible state. `Toast` mirrors Radix's own
+  // `open`-gated presence (matching the `Sheet`/`CommandDialog` mocks above);
+  // none of these tests fire an update event, so `updateFlow.state` stays
+  // `idle` and `open` stays false throughout — this never actually renders
+  // visible content in this suite, just needs to not crash.
+  ToastProvider: ({ children }: { children?: ReactNode }) =>
+    createElement(Fragment, null, children),
+  Toast: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
+    open ? createElement('div', { role: 'status' }, children) : null,
+  ToastViewport: (props: Record<string, unknown>) => createElement('div', props)
 }))
 
 /**
@@ -1244,6 +1257,45 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
         'Atualizações automáticas ficam disponíveis apenas na versão instalada do aplicativo.'
       )
     ).toBeTruthy()
+  })
+
+  it('npm-distribution T14: an available update lights the rail dot, and "Ver novidades" on the notice opens UpdateCenter', async () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    // Both `useUpdateFlow` (this test's real target) AND `UpdateCenter`
+    // (T13, always mounted, self-subscribing independently) call
+    // `onUpdateEvent` — mirroring the real main-side fan-out (every
+    // registered listener receives every event, regardless of how many
+    // separate `update:event:start` calls registered them), this drives
+    // *every* registered callback, not just the first.
+    const onUpdateEvent = vi.mocked(window.hive.app.onUpdateEvent)
+    await waitFor(() => expect(onUpdateEvent).toHaveBeenCalled())
+    function emit(event: { type: string } & Record<string, unknown>): void {
+      for (const [listener] of onUpdateEvent.mock.calls) (listener as (e: unknown) => void)(event)
+    }
+
+    expect(screen.queryByLabelText(/Atualização disponível/)).toBeNull()
+
+    act(() => {
+      emit({ type: 'available', version: '0.2.0', bytes: 1000, notes: 'Correções.' })
+    })
+
+    // The rail's ambient dot (T12) lit up from the same shared state.
+    expect(
+      screen.getByLabelText('Configurações do aplicativo — Atualização disponível')
+    ).toBeTruthy()
+
+    // The notice's "Ver novidades" opens UpdateCenter (WorkUI wires it to
+    // the same appSettingsOpen state as the rail gear).
+    expect(screen.queryByText('Aplicativo')).toBeNull()
+    fireEvent.click(screen.getByText('Ver novidades'))
+    expect(await screen.findByText('Aplicativo')).toBeTruthy()
   })
 
   it('opens the MCP module (Servidores MCP) from the rail plug button', async () => {

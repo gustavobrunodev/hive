@@ -444,7 +444,7 @@ describe('preload: window.hive bridge', () => {
       }
       app: {
         info: () => Promise<unknown>
-        checkForUpdates: () => Promise<void>
+        checkForUpdates: (explicit?: boolean) => Promise<void>
         downloadUpdate: () => Promise<void>
         installUpdate: () => Promise<void>
         cancelUpdate: () => Promise<void>
@@ -468,8 +468,14 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setUserName', 'Gustavo')
 
     await expect(hive.app.info()).resolves.toBe('invoked:app:info')
+    // Zero-arg (explicit-by-default at the IPC layer) and the T14-widened
+    // explicit `false` (the silent launch/periodic check) both forward
+    // faithfully — `explicit` is just passed straight through as the second
+    // invoke argument, `undefined` when omitted.
     await hive.app.checkForUpdates()
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:check')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:check', undefined)
+    await hive.app.checkForUpdates(false)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:check', false)
     await hive.app.downloadUpdate()
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:download')
     await hive.app.installUpdate()

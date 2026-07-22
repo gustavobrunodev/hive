@@ -152,6 +152,14 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // npm-distribution T14: the shared update-flow hook — launch/periodic
+        // checks, skip suppression, and the Tier 1 dot's pending derivation.
+        'src/renderer/src/ui/useUpdateFlow.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

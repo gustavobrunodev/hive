@@ -28,6 +28,8 @@ import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
 import { UpdateCenter } from './ui/UpdateCenter'
+import { UpdateNotice } from './ui/UpdateNotice'
+import { useUpdateFlow } from './ui/useUpdateFlow'
 import { FileSearchDialog } from './ui/FileSearchDialog'
 import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
@@ -241,6 +243,12 @@ export function WorkUI({
 }: WorkUIProps): React.JSX.Element {
   // Multi-tab editor pane (VS Code preview/pin semantics live in the hook).
   const editor = useEditorTabs()
+  // npm-distribution T14: the shared update-flow state — launch + periodic
+  // silent checks, the Tier 2 notice's props, and the rail's ambient dot
+  // (T12) all read from this one hook. Mounted here (not App.tsx) so its own
+  // effects fire only once the real work UI is already showing, never inside
+  // or ahead of App.tsx's onboarding gate chain (ND-R2.5).
+  const updateFlow = useUpdateFlow()
   const [defaultLayout] = useState(loadWorkLayout)
   // customizable-layout: persisted left-to-right pane order + live drag state.
   const [paneOrder, setPaneOrder] = useState<PaneId[]>(loadPaneOrder)
@@ -732,10 +740,7 @@ export function WorkUI({
           onOpenStudio={() => setStudioOpen(true)}
           onOpenMcp={() => setMcpOpen(true)}
           onOpenAppSettings={() => setAppSettingsOpen(true)}
-          // TODO(T14): wire to the real `useUpdateFlow()` pending state —
-          // T12 only introduces the prop's shape on ActionRail; no update
-          // source exists in WorkUI yet.
-          updatePending={false}
+          updatePending={updateFlow.pending}
         />
         <div className="wb-body">
           <Resizable
@@ -793,6 +798,18 @@ export function WorkUI({
         onOpenFile={editor.openFile}
       />
       <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
+      <UpdateNotice
+        state={updateFlow.state}
+        currentVersion={updateFlow.currentVersion}
+        canApply={updateFlow.canApply}
+        onUpdateNow={updateFlow.updateNow}
+        onNotNow={updateFlow.notNow}
+        onSkip={updateFlow.skip}
+        onCancel={updateFlow.cancel}
+        onRetry={updateFlow.retry}
+        onOpenInstaller={updateFlow.openInstaller}
+        onViewNotes={() => setAppSettingsOpen(true)}
+      />
       <ShortcutCustomizer
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
