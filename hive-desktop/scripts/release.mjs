@@ -122,9 +122,16 @@ function readMainPackageJson() {
   return JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 }
 
-/** Throws-free: returns the clean/dirty `git status --porcelain` output. */
+/**
+ * Throws-free: returns the clean/dirty `git status --porcelain` output,
+ * scoped to this directory (`.`, i.e. `hive-desktop/`) rather than the whole
+ * monorepo — this is a release of *this* package, so uncommitted clutter
+ * elsewhere in the repo (another product, root-level scratch files) must
+ * never block it. Found live: a real dry-run failed the dirty-tree check
+ * against unrelated root-level files that predate this feature entirely.
+ */
 export function gitStatusPorcelain() {
-  return execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' })
+  return execFileSync('git', ['status', '--porcelain', '.'], { cwd: ROOT, encoding: 'utf8' })
 }
 
 function assertCleanTree() {
