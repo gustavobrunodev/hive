@@ -260,16 +260,16 @@ export function UpdateCenter({ open, onOpenChange }: UpdateCenterProps): React.J
           <p className="wb-appset-note">{t('update.devNote')}</p>
         ) : (
           <>
-            {info?.lastCheckedAt != null && (
-              <div className="wb-appset-statusline">
-                <span className="wb-appset-statusline-label">
-                  {t('update.lastCheckedLabel', relativeTimeLabel(info.lastCheckedAt))}
-                </span>
-                <IconButton label={t('update.refreshAria')} onClick={handleRefresh}>
-                  <RefreshIcon size={14} />
-                </IconButton>
-              </div>
-            )}
+            <div className="wb-appset-statusline">
+              <span className="wb-appset-statusline-label">
+                {info?.lastCheckedAt != null
+                  ? t('update.lastCheckedLabel', relativeTimeLabel(info.lastCheckedAt))
+                  : t('update.neverCheckedLabel')}
+              </span>
+              <IconButton label={t('update.refreshAria')} onClick={handleRefresh}>
+                <RefreshIcon size={14} />
+              </IconButton>
+            </div>
 
             <div className="wb-appset-section">
               <h3 className="wb-appset-section-label">{t('update.updatesSectionLabel')}</h3>

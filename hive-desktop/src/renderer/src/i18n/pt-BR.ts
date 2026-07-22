@@ -618,6 +618,13 @@ export const ptBR = {
 
     // Tier 3 — `UpdateCenter` additions (design.md §5, "the deliberate visit").
     lastCheckedLabel: (relative: string) => `Verificado ${relative}`,
+    // T15 fix: the status line (and its refresh action) is a fixed fixture
+    // of the identity block, not conditional on a check having ever
+    // succeeded — before the first one (a fresh install, or a visit to this
+    // sheet in the brief window before the launch check resolves), this
+    // fallback keeps the refresh button reachable instead of the whole line
+    // silently disappearing (found by visual validation, T15).
+    neverCheckedLabel: 'Ainda não verificado',
     refreshAria: 'Verificar atualizações agora',
     // Skipped-version recovery (ND-R5.5) — declining never strands the user.
     skippedVersionNote: (version: string) => `Você pulou a versão ${version}`,

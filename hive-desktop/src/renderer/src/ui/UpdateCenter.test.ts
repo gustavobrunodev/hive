@@ -101,11 +101,16 @@ describe('UpdateCenter — identity + status line', () => {
     expect(screen.getByText(/Verificado/)).toBeTruthy()
   })
 
-  it('omits the status line before any check has ever run (lastCheckedAt null)', async () => {
-    stubHive(defaultInfo({ lastCheckedAt: null }))
+  it('falls back to "Ainda não verificado" before any check has ever run (lastCheckedAt null), keeping the refresh button reachable', async () => {
+    const hive = stubHive(defaultInfo({ lastCheckedAt: null }))
     render(createElement(UpdateCenter, { open: true, onOpenChange: vi.fn() }))
     await screen.findByText('Versão 0.1.0')
     expect(screen.queryByText(/Verificado/)).toBeNull()
+    expect(screen.getByText('Ainda não verificado')).toBeTruthy()
+    const refreshButton = screen.getByLabelText('Verificar atualizações agora')
+    expect(refreshButton).toBeTruthy()
+    fireEvent.click(refreshButton)
+    expect(hive.checkForUpdates).toHaveBeenCalledTimes(1)
   })
 
   it('the quiet refresh IconButton triggers an explicit check', async () => {
