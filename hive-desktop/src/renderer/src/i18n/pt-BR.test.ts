@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { ptBR, intentLabel, roleMeta, roleActionLabel, shortcutLabel, agentMeta } from './pt-BR'
+import {
+  ptBR,
+  intentLabel,
+  roleMeta,
+  roleActionLabel,
+  shortcutLabel,
+  agentMeta,
+  relativeTimeLabel
+} from './pt-BR'
 
 /**
  * T10 (file-management regression pass) — `pt-BR.ts` is one of this
@@ -85,5 +93,49 @@ describe('pt-BR — shortcut-customization', () => {
     expect(ptBR.shortcuts.selectedCount(3)).toBe('3 atalhos selecionados')
     expect(ptBR.shortcuts.groupCount(2, 7)).toBe('2 de 7')
     expect(ptBR.shortcuts.toggleAria('Criar um PRD')).toBe('Alternar atalho: Criar um PRD')
+  })
+})
+
+// npm-distribution T10 (ND-R6.7): the self-update flow's copy — parameterized
+// helpers for `UpdateNotice` (Tier 2) and `UpdateCenter` (Tier 3).
+describe('pt-BR — update flow (npm-distribution)', () => {
+  it('versionTransition() composes the current → next version line', () => {
+    expect(ptBR.update.versionTransition('0.1.0', '0.2.0')).toBe('0.1.0 → 0.2.0')
+  })
+
+  it('sizeEstimate() rounds bytes to a whole megabyte and states the rough duration', () => {
+    // 92 MiB exactly.
+    expect(ptBR.update.sizeEstimate(92 * 1024 * 1024, 1)).toBe('≈ 92 MB · cerca de 1 min')
+    // Rounds rather than truncating/floors.
+    expect(ptBR.update.sizeEstimate(90_000_000, 2)).toBe('≈ 86 MB · cerca de 2 min')
+  })
+
+  it('notesTeaser() passes the release-notes teaser through unchanged', () => {
+    expect(ptBR.update.notesTeaser('Correções no explorador e no chat.')).toBe(
+      'Correções no explorador e no chat.'
+    )
+  })
+
+  it('downloadProgress() formats transferred/total as pt-BR decimal-comma megabytes plus percent', () => {
+    // 1.5 MiB of 3 MiB — one decimal place, comma separator, trailing zero kept.
+    expect(ptBR.update.downloadProgress(1.5 * 1024 * 1024, 3 * 1024 * 1024, 50)).toBe(
+      '1,5 MB de 3,0 MB · 50%'
+    )
+  })
+
+  it('verifyingHash() strips an SRI "sha512-" prefix and keeps the first 12 characters', () => {
+    expect(ptBR.update.verifyingHash('sha512-abcdefghijklmnopqrstuvwxyz==')).toBe('abcdefghijkl')
+    // No prefix present — still takes the first 12 characters.
+    expect(ptBR.update.verifyingHash('abcdefghijklmnop')).toBe('abcdefghijkl')
+  })
+
+  it('lastCheckedLabel() prefixes an already-computed relative-time string', () => {
+    expect(ptBR.update.lastCheckedLabel(relativeTimeLabel(Date.now() - 5 * 60_000))).toBe(
+      'Verificado há 5 min'
+    )
+  })
+
+  it('skippedVersionNote() names the version the user chose to skip', () => {
+    expect(ptBR.update.skippedVersionNote('0.2.0')).toBe('Você pulou a versão 0.2.0')
   })
 })

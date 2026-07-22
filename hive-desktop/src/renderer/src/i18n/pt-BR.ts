@@ -550,6 +550,85 @@ export const ptBR = {
     retryCta: 'Tentar novamente',
     devNote: 'Atualizações automáticas ficam disponíveis apenas na versão instalada do aplicativo.'
   },
+  // npm-distribution T10 (ND-R6): the redesigned self-update flow's copy —
+  // `UpdateNotice` (Tier 2, design.md §5 mock-up) and `UpdateCenter` (Tier 3,
+  // the restructured `AppSettingsSheet`). This is the eventual replacement
+  // for `appSettings.*` above (cut over in T14); nothing consumes these keys
+  // yet. Register throughout: an invitation, never a warning (ND-R6.7) —
+  // "Nova versão disponível", never "Atualização necessária". Several keys
+  // are shared verbatim between Tier 2 and Tier 3 (design.md: the center's
+  // version block is "the same state machine as the notice, roomier").
+  update: {
+    // Tier 1 — the ambient dot on the rail gear (T12, design.md §5 Tier 1).
+    // ND-R6.5: a dot alone is a color-only cue, so it needs an accessible name.
+    pendingDotAria: 'Atualização disponível',
+
+    // Tier 2 — `UpdateNotice`, `available` state (design.md §5.2 mock-up).
+    noticeTitle: 'Nova versão disponível',
+    versionTransition: (current: string, next: string) => `${current} → ${next}`,
+    // "≈ 92 MB · cerca de 1 min" — bytes rounded to a whole megabyte, a rough
+    // duration in minutes. Approximate by design (the "≈"), unlike the exact
+    // MB/percent readout of `downloadProgress` once a download is running.
+    sizeEstimate: (bytes: number, minutes: number) =>
+      `≈ ${Math.round(bytes / (1024 * 1024))} MB · cerca de ${minutes} min`,
+    notesTeaser: (notes: string) => notes,
+    viewNotesCta: 'Ver novidades',
+    // Primary/secondary/tertiary actions (ND-R6.1): refusal is a first-class
+    // choice, not a hidden one. Whoever builds T11: give "Agora não" the same
+    // visual weight as "Atualizar agora" (a ghost button beside it, not a
+    // smaller one) — "Pular esta versão" stays present, quieter, never
+    // tucked into a menu.
+    updateNowCta: 'Atualizar agora',
+    notNowCta: 'Agora não',
+    skipVersionCta: 'Pular esta versão',
+
+    // `checking` / `up-to-date` — Tier 3's status line absent a result yet.
+    checkingLabel: 'Verificando atualizações…',
+    upToDateLabel: 'Você está na versão mais recente.',
+
+    // `downloading` — "38,4 MB de 92,1 MB · 41%", `--ff-num` in the design.
+    downloadProgress: (transferredBytes: number, totalBytes: number, percent: number) =>
+      `${megabytesLabel(transferredBytes)} MB de ${megabytesLabel(totalBytes)} MB · ${percent}%`,
+    cancelCta: 'Cancelar',
+
+    // `verifying` — the checksum beat (design.md §5: naming the check and
+    // showing a hash fragment turns a dead pause into a moment of trust).
+    verifyingLabel: 'Verificando integridade',
+    verifyingHash: (integrity: string) => integrity.replace(/^sha512-/, '').slice(0, 12),
+
+    // `downloaded`
+    readyTitle: 'Pronto para instalar',
+    readyBody: 'O Hive fecha e reabre.',
+    // ND-R4.3 — platforms with no apply step (v1: everything but Windows)
+    // stop here and are told plainly that finishing the install is manual.
+    readyManualBody: 'Este sistema ainda não instala sozinho — abra o instalador para concluir.',
+    restartCta: 'Reiniciar e instalar',
+    laterCta: 'Depois',
+    openInstallerCta: 'Abrir instalador',
+
+    // `applying` — the brief beat between "Reiniciar e instalar" and the app
+    // quitting to let the installer replace it (ND-R4.2): said plainly, never
+    // a silent disappearance.
+    applyingLabel: 'Instalando — o Hive volta sozinho em instantes.',
+
+    // `error` — ND-R3.3 wants a *distinct* integrity error; network/apply
+    // failures read naturally sharing one generic recovery message.
+    errorGeneric:
+      'Não foi possível concluir a atualização. Tente de novo ou abra o instalador manualmente.',
+    errorIntegrity: 'O arquivo baixado não pôde ser confirmado como íntegro. Tente baixar de novo.',
+    retryCta: 'Tentar de novo',
+
+    // Tier 3 — `UpdateCenter` additions (design.md §5, "the deliberate visit").
+    lastCheckedLabel: (relative: string) => `Verificado ${relative}`,
+    refreshAria: 'Verificar atualizações agora',
+    // Skipped-version recovery (ND-R5.5) — declining never strands the user.
+    skippedVersionNote: (version: string) => `Você pulou a versão ${version}`,
+    installSkippedCta: 'Instalar mesmo assim',
+    // `unsupported` (dev/unpacked builds, ND-R6.8) — this namespace's own
+    // home for the honest note; `appSettings.devNote` above says the same
+    // thing for the flow this feature replaces (left untouched until T14).
+    devNote: 'Atualizações automáticas ficam disponíveis apenas na versão instalada do aplicativo.'
+  },
   // role-personalization RP-R6 + agent-selection AG-R3.2: the profile sheet.
   profile: {
     openLabel: 'Abrir configurações de perfil',
@@ -843,6 +922,21 @@ export function shortcutLabel(
     if (persona) return `Conversar com ${persona}`
   }
   return fallback ?? key
+}
+
+/**
+ * pt-BR decimal-comma megabyte formatter for the update flow's live progress
+ * readout (npm-distribution T10, design.md §5: "38,4 MB de 92,1 MB · 41%").
+ * One decimal place; unlike `relativeTimeLabel`/`shortDate` below, not
+ * exported — it's an internal formatting concern of `update.downloadProgress`
+ * alone, no other module needs it.
+ */
+const megabytesFormat = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+})
+function megabytesLabel(bytes: number): string {
+  return megabytesFormat.format(bytes / (1024 * 1024))
 }
 
 /** Compact pt-BR date for a timestamp older than a week — "12 de mai." (plus the year once it differs from the current one). */
