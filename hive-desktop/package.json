@@ -61,7 +61,6 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@hive/design-system": "file:../design-system",
-    "electron-updater": "^6.8.9",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^6.1.200",

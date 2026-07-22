@@ -585,12 +585,12 @@ app.whenReady().then(() => {
   )
 
   // UpdateService (npm-distribution, ND-C5): the app's own version +
-  // self-update flow, driven from the renderer's app-settings sheet — now
-  // backed by the public npm registry (npmRegistry.ts/updateDownload.ts/
-  // updateApply.ts) instead of electron-updater. `updatesSupported` still
-  // mirrors `app.isPackaged` (dev/unpacked builds can't self-update) and the
-  // renderer explains instead of failing. The event stream follows the exact
-  // agent:event:* channel pattern above.
+  // self-update flow, driven from the renderer's app-settings sheet — backed
+  // by the public npm registry (npmRegistry.ts/updateDownload.ts/
+  // updateApply.ts). `updatesSupported` still mirrors `app.isPackaged`
+  // (dev/unpacked builds can't self-update) and the renderer explains
+  // instead of failing. The event stream follows the exact agent:event:*
+  // channel pattern above.
   //   'update:event:start' (renderer -> main, fire-and-forget): subscribe.
   //   'update:event'        (main -> renderer, fire-and-forget, repeated): one UpdateEvent per transition.
   //   'update:event:stop'  (renderer -> main, fire-and-forget): unsubscribe.

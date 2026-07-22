@@ -51,23 +51,6 @@ vi.mock('@electron-toolkit/utils', () => ({
   is: { dev: false }
 }))
 
-// electron-updater constructs a platform updater (reading electron's app)
-// the moment `autoUpdater` is touched — mock it out entirely; index.ts only
-// hands it to createUpdateService, whose behavior updateService.test.ts
-// covers against a fake.
-const { fakeAutoUpdater } = vi.hoisted(() => ({
-  fakeAutoUpdater: {
-    autoDownload: true,
-    autoInstallOnAppQuit: true,
-    on: vi.fn(),
-    checkForUpdates: vi.fn(() => Promise.resolve(null)),
-    downloadUpdate: vi.fn(() => Promise.resolve([])),
-    quitAndInstall: vi.fn()
-  }
-}))
-
-vi.mock('electron-updater', () => ({ autoUpdater: fakeAutoUpdater }))
-
 vi.mock('../../resources/icon.png?asset', () => ({ default: 'icon-stub' }))
 
 // FsService (T11): mocked (rather than exercised against a real temp dir,
@@ -782,9 +765,12 @@ describe('main process bootstrap', () => {
       expect(ipcMain.on).toHaveBeenCalledWith('update:event:stop', expect.any(Function))
     })
 
-    it('update:check never reaches the real updater while unsupported (app not packaged)', async () => {
+    it('update:check is a safe no-op end-to-end while unsupported (app not packaged): no event ever streams back', async () => {
+      const sender = { id: 99, send: vi.fn() }
+      findOnHandler('update:event:start')({ sender })
       await findHandler('update:check')()
-      expect(fakeAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
+      expect(sender.send).not.toHaveBeenCalled()
+      findOnHandler('update:event:stop')({ sender })
     })
 
     it('update:event:start is resubscribe-safe and update:event:stop is idempotent', () => {

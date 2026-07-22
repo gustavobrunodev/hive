@@ -1,9 +1,9 @@
 /**
  * App self-update service (npm-distribution, ND-C5): the app's own version +
- * self-update flow, now backed by the public npm registry instead of
- * electron-updater. `UpdateEvent`, `AppInfo`, `UpdateService` and
- * `createUpdateService` keep their names — only the backing changed, and the
- * types only grew (new events/fields), so the preload bridge and today's
+ * self-update flow, backed by the public npm registry rather than a
+ * third-party auto-update package. `UpdateEvent`, `AppInfo`, `UpdateService`
+ * and `createUpdateService` keep their names — only the backing changed, and
+ * the types only grew (new events/fields), so the preload bridge and today's
  * `AppSettingsSheet.tsx` keep working unmodified in spirit (see that file's
  * own doc comment for the one narrow, additive exception this forced).
  *
