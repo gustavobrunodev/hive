@@ -135,6 +135,15 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // npm-distribution T12: the rail's ambient update dot — this file's
+        // first dedicated test file (previously only exercised indirectly
+        // through WorkUI.test.ts).
+        'src/renderer/src/ui/ActionRail.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

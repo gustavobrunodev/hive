@@ -1861,6 +1861,22 @@
 
 .wb-actionrail-settings {
   margin-top: auto;
+  position: relative;
+}
+
+/* Ambient update dot (npm-distribution T12, design.md §5 Tier 1) — a 6px
+   --accent dot, non-color-only (the gear's aria-label grows an addition
+   alongside it, ActionRail.tsx). Survives the Tier 2 notice being dismissed;
+   clears only when the pending version is skipped or applied. */
+.wb-rail-update-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  pointer-events: none;
 }
 
 .wb-rail-btn {

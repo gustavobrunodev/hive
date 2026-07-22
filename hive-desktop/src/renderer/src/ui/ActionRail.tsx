@@ -22,6 +22,17 @@ interface ActionRailProps {
   onOpenMcp: () => void
   /** Opens the app settings sheet (version + updates). */
   onOpenAppSettings: () => void
+  /**
+   * npm-distribution T12 (design.md §5 Tier 1, ND-R5.5): true whenever an
+   * update is pending — available, downloading, verifying, downloaded, or
+   * error, i.e. anything that isn't "nothing going on". Paints a 6px accent
+   * dot on the gear that **survives dismissal** of the Tier 2 notice
+   * (`UpdateNotice`) — that's the "declining never strands you" guarantee —
+   * and clears only when the version is skipped or successfully applied.
+   * Defaults to `false` so every other caller (and every existing test)
+   * keeps working unchanged.
+   */
+  updatePending?: boolean
 }
 
 /**
@@ -36,8 +47,16 @@ export function ActionRail({
   onOpenSearch,
   onOpenStudio,
   onOpenMcp,
-  onOpenAppSettings
+  onOpenAppSettings,
+  updatePending = false
 }: ActionRailProps): React.JSX.Element {
+  // ND-R6.5: a dot alone is a color-only cue — the gear's accessible name
+  // grows an addition (pt-BR.ts's `update.pendingDotAria`) whenever it's
+  // showing, rather than relying on the dot's color/position alone.
+  const appSettingsLabel = updatePending
+    ? `${t('actionRail.appSettingsLabel')} — ${t('update.pendingDotAria')}`
+    : t('actionRail.appSettingsLabel')
+
   return (
     <nav className="wb-actionrail" aria-label={t('actionRail.ariaLabel')} data-tour="rail">
       <button
@@ -73,11 +92,12 @@ export function ActionRail({
       <button
         type="button"
         className="wb-rail-btn wb-actionrail-settings"
-        title={t('actionRail.appSettingsLabel')}
-        aria-label={t('actionRail.appSettingsLabel')}
+        title={appSettingsLabel}
+        aria-label={appSettingsLabel}
         onClick={onOpenAppSettings}
       >
         <GearIcon size={18} />
+        {updatePending && <span className="wb-rail-update-dot" aria-hidden="true" />}
       </button>
     </nav>
   )

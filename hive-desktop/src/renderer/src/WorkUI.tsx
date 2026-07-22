@@ -732,6 +732,10 @@ export function WorkUI({
           onOpenStudio={() => setStudioOpen(true)}
           onOpenMcp={() => setMcpOpen(true)}
           onOpenAppSettings={() => setAppSettingsOpen(true)}
+          // TODO(T14): wire to the real `useUpdateFlow()` pending state —
+          // T12 only introduces the prop's shape on ActionRail; no update
+          // source exists in WorkUI yet.
+          updatePending={false}
         />
         <div className="wb-body">
           <Resizable
