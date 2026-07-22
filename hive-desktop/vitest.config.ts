@@ -97,7 +97,8 @@ export default defineConfig({
         'src/renderer/src/ui/mcpForm.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         // npm-distribution: main-process discovery/download/apply modules (T3/T4/T5).
         'src/main/npmRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
-        'src/main/updateDownload.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/main/updateDownload.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/updateApply.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
       }
     }
   }
