@@ -392,7 +392,10 @@ Updated as work progresses. Load at start of every session.
   dependency + `npm install --install-links` (copies rather than symlinks, so
   TS module resolution walks `node_modules` normally); React 18.3.x pinned to
   match the DS's own dev-tested version. Works cleanly in an electron-vite
-  renderer, ESM bundle + CSS both load without error.
+  renderer, ESM bundle + CSS both load without error. **Superseded/corrected
+  2026-07-22** (see the npm-distribution Lesson below): `node_modules/@hive/
+  design-system` is currently a real symlink, not a copy — verify with `ls -la`
+  rather than trusting either note blindly, since this evidently can change.
 - **electron-vite react-ts scaffold ships demo CSS that actively fights a real
   app** (found during T20's impeccable pass, not caught earlier): `#root`'s
   flex-centering + `body`'s hardcoded, never-`data-theme`-aware background +
@@ -595,16 +598,24 @@ Updated as work progresses. Load at start of every session.
   `npm run typecheck`/`test` will pass cleanly (2026-07-22).** Two independent
   subagents, in separate worktrees, both hit spurious `Badge`/`Logo` prop-type
   typecheck errors that don't reproduce on the primary checkout. `design-
-  system/dist/` **is** git-tracked (not gitignored) and hive-desktop's `file:`
-  link + `npm install --install-links` copies it in — but a worktree's copy of
-  `design-system` still needs its own `node_modules` installed (untracked,
-  obviously) and, if the checked-out `dist/` predates a newer prop shape used
-  elsewhere, a rebuild (`npm install && npm run build` inside `design-system/`,
-  then `npm install` again in `hive-desktop/` to re-copy the refreshed `dist/`)
-  to actually reflect current source. Both subagents independently diagnosed
-  and fixed this locally without it being a real product bug — worth telling
-  any future worktree-isolated agent working in this repo to check for this
-  class of false-positive before trusting a typecheck failure as real.
+  system/dist/` **is** git-tracked (not gitignored); `node_modules/@hive/
+  design-system` is currently a real **symlink** to `../../../design-system`
+  (confirmed via `ls -la` 2026-07-22 — this corrects the file-management-era
+  T3 lesson above, which found `--install-links` copying instead; whichever
+  npm/flag combination produced that has since changed or didn't apply here).
+  Being a symlink, a worktree's own `npm install` in `hive-desktop/` resolves
+  it relative to *that worktree's own* `design-system/` copy (correct — no
+  cross-worktree leakage) — but that copy still needs its own `node_modules`
+  installed (untracked, obviously) and, if its checked-out `dist/` predates a
+  newer prop shape used elsewhere, a rebuild (`npm install && npm run build`
+  inside `design-system/`) to actually reflect current source; no `hive-
+  desktop`-side re-copy step is needed once it's a symlink; the two subagents'
+  own `npm install` there was harmless but unnecessary. Both independently
+  diagnosed and fixed this locally without it being a real product bug — worth
+  telling any future worktree-isolated agent working in this repo to check for
+  this class of false-positive before trusting a typecheck failure as real,
+  and to verify with `ls -la node_modules/@hive/` rather than assuming
+  symlink-vs-copy from an older note (including this one, later).
 - **`electron-builder`'s `${name}` artifactName macro is the raw, unsanitized
   `package.json` name — not the sanitized `productName` (2026-07-22).**
   Scoping the npm package name (`@npm-user-todo/hive-desktop`, npm-
