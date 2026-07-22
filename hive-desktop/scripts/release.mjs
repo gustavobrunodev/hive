@@ -182,7 +182,27 @@ function verify(dryRun) {
 // Step 2 — build
 // ---------------------------------------------------------------------------
 
+/**
+ * Wipes `out/` and `dist/` before building. Found live: a second `build:win`
+ * run on top of an already-populated `dist/win-unpacked` produced an
+ * installer roughly **double** the correct size (594 MB vs. the genuine
+ * ~297 MB) — electron-builder does not fully replace its previous unpacked
+ * output on its own, so a stale `dist/` from an earlier run silently
+ * duplicates content (traced to `resources/app.asar.unpacked` growing rather
+ * than being replaced) into the next one. That oversized tarball then made
+ * `npm publish` itself crash (`ERR_STRING_TOO_LONG`) before any upload
+ * happened — so nothing was actually published, but a release must never
+ * depend on the working directory happening to be pristine to produce a
+ * correct artifact.
+ */
+function cleanBuildOutputs() {
+  log('cleaning previous build output (out/, dist/)…')
+  rmSync(path.join(ROOT, 'out'), { recursive: true, force: true })
+  rmSync(BUILDER_OUT_DIR, { recursive: true, force: true })
+}
+
 function build() {
+  cleanBuildOutputs()
   log('building the Windows installer (npm run build:win)…')
   execFileSync('npm', ['run', 'build:win'], { cwd: ROOT, stdio: 'inherit' })
 }
