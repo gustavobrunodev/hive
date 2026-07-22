@@ -121,6 +121,12 @@ declare global {
         checkForUpdates(): Promise<void>
         downloadUpdate(): Promise<void>
         installUpdate(): Promise<void>
+        /** npm-distribution (ND-R3.4): aborts an in-flight download; a no-op if nothing is downloading. */
+        cancelUpdate(): Promise<void>
+        /** npm-distribution (ND-R4.3): reveals the last-downloaded installer in the OS file manager. */
+        revealInstaller(): Promise<void>
+        /** npm-distribution (ND-R5.4): persists a version as skipped — never re-announced, still reachable on demand. */
+        skipVersion(version: string): Promise<void>
         /** Subscribes to update-flow state transitions; returns an unsubscribe function. */
         onUpdateEvent(onEvent: (evt: UpdateEvent) => void): () => void
       }

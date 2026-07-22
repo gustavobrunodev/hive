@@ -282,6 +282,12 @@ const hive = {
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke('update:check'),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('update:download'),
     installUpdate: (): Promise<void> => ipcRenderer.invoke('update:install'),
+    // npm-distribution (ND-R3.4/ND-R4.3/ND-R5.4): cancel an in-flight
+    // download, reveal the last-downloaded installer in the OS file manager,
+    // and persist a version the user explicitly chose to skip.
+    cancelUpdate: (): Promise<void> => ipcRenderer.invoke('update:cancel'),
+    revealInstaller: (): Promise<void> => ipcRenderer.invoke('update:reveal'),
+    skipVersion: (version: string): Promise<void> => ipcRenderer.invoke('update:skip', version),
     onUpdateEvent: (onEvent: (evt: UpdateEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: UpdateEvent): void => onEvent(evt)
       ipcRenderer.on('update:event', listener)

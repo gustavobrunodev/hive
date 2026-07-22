@@ -447,6 +447,9 @@ describe('preload: window.hive bridge', () => {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>
         installUpdate: () => Promise<void>
+        cancelUpdate: () => Promise<void>
+        revealInstaller: () => Promise<void>
+        skipVersion: (version: string) => Promise<void>
         onUpdateEvent: (onEvent: (evt: unknown) => void) => () => void
       }
     }
@@ -471,6 +474,14 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:download')
     await hive.app.installUpdate()
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:install')
+
+    // npm-distribution: cancel/reveal/skip.
+    await hive.app.cancelUpdate()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:cancel')
+    await hive.app.revealInstaller()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:reveal')
+    await hive.app.skipVersion('0.2.0')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('update:skip', '0.2.0')
 
     // onUpdateEvent: subscribes on 'update:event' + signals start/stop.
     const onEvent = vi.fn()

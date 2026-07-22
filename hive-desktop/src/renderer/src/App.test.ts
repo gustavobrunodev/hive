@@ -191,6 +191,9 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         checkForUpdates: vi.fn().mockResolvedValue(undefined),
         downloadUpdate: vi.fn().mockResolvedValue(undefined),
         installUpdate: vi.fn().mockResolvedValue(undefined),
+        cancelUpdate: vi.fn().mockResolvedValue(undefined),
+        revealInstaller: vi.fn().mockResolvedValue(undefined),
+        skipVersion: vi.fn().mockResolvedValue(undefined),
         onUpdateEvent: vi.fn().mockReturnValue(() => {})
       },
       workflows: { list: vi.fn().mockResolvedValue([]) },

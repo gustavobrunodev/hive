@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { ConflictError } from './fsService'
+import { createConfigStore } from './configStore'
 
 // A real temp dir (not mocked) so the ConfigStore that src/main/index.ts
 // constructs via createConfigStore(app.getPath('userData')) has somewhere
@@ -35,7 +36,11 @@ vi.mock('electron', () => {
     },
     BrowserWindow: BrowserWindowMock,
     ipcMain: { handle: vi.fn(), on: vi.fn() },
-    shell: { openExternal: vi.fn(), trashItem: vi.fn(() => Promise.resolve()) },
+    shell: {
+      openExternal: vi.fn(),
+      trashItem: vi.fn(() => Promise.resolve()),
+      showItemInFolder: vi.fn()
+    },
     dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) }
   }
 })
@@ -770,6 +775,9 @@ describe('main process bootstrap', () => {
       expect(ipcMain.handle).toHaveBeenCalledWith('update:check', expect.any(Function))
       expect(ipcMain.handle).toHaveBeenCalledWith('update:download', expect.any(Function))
       expect(ipcMain.handle).toHaveBeenCalledWith('update:install', expect.any(Function))
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:cancel', expect.any(Function))
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:reveal', expect.any(Function))
+      expect(ipcMain.handle).toHaveBeenCalledWith('update:skip', expect.any(Function))
       expect(ipcMain.on).toHaveBeenCalledWith('update:event:start', expect.any(Function))
       expect(ipcMain.on).toHaveBeenCalledWith('update:event:stop', expect.any(Function))
     })
@@ -787,6 +795,24 @@ describe('main process bootstrap', () => {
       findOnHandler('update:event:stop')({ sender })
       // Stopping again (already unsubscribed) is a no-op.
       findOnHandler('update:event:stop')({ sender })
+    })
+
+    it('update:cancel is a safe no-op when nothing is downloading', async () => {
+      await expect(findHandler('update:cancel')()).resolves.toBeUndefined()
+    })
+
+    it('update:reveal does not call shell.showItemInFolder when nothing has been downloaded yet', async () => {
+      vi.mocked(shell.showItemInFolder).mockClear()
+      await findHandler('update:reveal')()
+      expect(shell.showItemInFolder).not.toHaveBeenCalled()
+    })
+
+    it('update:skip persists the skipped version through the real ConfigStore', async () => {
+      await findHandler('update:skip')({}, '0.2.0')
+      const configStore = createConfigStore(userDataDir)
+      expect(configStore.getSkippedUpdateVersion()).toBe('0.2.0')
+      // Leaves later tests unaffected.
+      configStore.setSkippedUpdateVersion(null)
     })
   })
 

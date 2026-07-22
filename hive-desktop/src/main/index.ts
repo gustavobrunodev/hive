@@ -635,6 +635,22 @@ app.whenReady().then(() => {
   )
   ipcMain.handle('update:download', async () => updateService.download())
   ipcMain.handle('update:install', async () => updateService.install())
+  // ND-R3.4: cancels an in-flight download; a no-op if nothing is downloading.
+  ipcMain.handle('update:cancel', async () => updateService.cancel())
+  // ND-R4.3: reveals the last-downloaded installer in the OS file manager —
+  // the manual path on platforms without an apply strategy (and a fallback
+  // even on Windows, e.g. "Abrir instalador" after an apply failure keeps the
+  // installer around, ND-R4.4). A no-op if nothing has been downloaded yet.
+  ipcMain.handle('update:reveal', async () => {
+    const installerPath = updateService.getInstallerPath()
+    if (installerPath !== null) shell.showItemInFolder(installerPath)
+  })
+  // ND-R5.4: persists a version the user explicitly chose to skip — checked
+  // by the renderer (T14) before announcing, never re-nagged, but still
+  // reachable from the update surface ("Instalar mesmo assim", ND-R5.5).
+  ipcMain.handle('update:skip', async (_event, version: string) => {
+    configStore.setSkippedUpdateVersion(version)
+  })
 
   const activeUpdateEventUnsubs = new Map<number, () => void>()
 
