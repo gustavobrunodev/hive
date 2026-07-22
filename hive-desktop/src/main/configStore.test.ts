@@ -67,7 +67,8 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null
+      shortcuts: null,
+      skippedUpdateVersion: null
     })
   })
 
@@ -88,7 +89,8 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null
+      shortcuts: null,
+      skippedUpdateVersion: null
     })
   })
 
@@ -113,7 +115,8 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null
+      shortcuts: null,
+      skippedUpdateVersion: null
     })
   })
 
@@ -319,5 +322,69 @@ describe('ConfigStore — shortcuts (shortcut-customization)', () => {
     expect(sanitizeAgentList([])).toBeNull()
     expect(sanitizeAgentList(['', 7])).toBeNull()
     expect(sanitizeAgentList(['b', 'a', 'b', ''])).toEqual(['b', 'a'])
+  })
+})
+
+// npm-distribution (T7, ND-R5.4): the skipped-update-version preference.
+describe('ConfigStore — skippedUpdateVersion (npm-distribution)', () => {
+  let baseDir: string
+
+  beforeEach(() => {
+    baseDir = mkdtempSync(join(tmpdir(), 'hive-config-skipped-update-'))
+  })
+
+  afterEach(() => {
+    rmSync(baseDir, { recursive: true, force: true })
+  })
+
+  it('is unset (null) by default on a fresh config', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getSkippedUpdateVersion()).toBeNull()
+  })
+
+  it('persists across a reload: a fresh store instance over the same dir sees the write', () => {
+    const store = createConfigStore(baseDir)
+    store.setSkippedUpdateVersion('0.2.0')
+
+    expect(store.getSkippedUpdateVersion()).toBe('0.2.0')
+    expect(createConfigStore(baseDir).getSkippedUpdateVersion()).toBe('0.2.0')
+  })
+
+  it('can be cleared back to null (e.g. "Instalar mesmo assim")', () => {
+    const store = createConfigStore(baseDir)
+    store.setSkippedUpdateVersion('0.2.0')
+    store.setSkippedUpdateVersion(null)
+
+    expect(store.getSkippedUpdateVersion()).toBeNull()
+    expect(createConfigStore(baseDir).getSkippedUpdateVersion()).toBeNull()
+  })
+
+  it('back-compat: a config.json written before this field existed still loads and yields null', () => {
+    mkdirSync(baseDir, { recursive: true })
+    // Simulates an on-disk config from before npm-distribution — no
+    // `skippedUpdateVersion` key at all.
+    writeFileSync(
+      join(baseDir, 'config.json'),
+      JSON.stringify({ workspacePath: '/legacy/workspace', provisioned: true, role: 'pm' })
+    )
+
+    const store = createConfigStore(baseDir)
+
+    expect(store.getSkippedUpdateVersion()).toBeNull()
+    // The rest of the legacy config is untouched by the migration.
+    expect(store.getConfig().workspacePath).toBe('/legacy/workspace')
+    expect(store.getRole()).toBe('pm')
+  })
+
+  it('updateConfig merges a skippedUpdateVersion write without clobbering other fields', () => {
+    const store = createConfigStore(baseDir)
+    store.setRole('dev')
+    store.setSkippedUpdateVersion('0.3.0')
+
+    expect(store.getConfig()).toEqual({
+      ...DEFAULT_CONFIG,
+      role: 'dev',
+      skippedUpdateVersion: '0.3.0'
+    })
   })
 })

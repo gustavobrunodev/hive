@@ -49,6 +49,12 @@ export interface Config {
   // the user first customizes — role defaults apply then, and "Restaurar
   // padrão do papel" writes `null` back.
   shortcuts: ShortcutPrefs | null
+  // npm-distribution (ND-R5.4): a version the user explicitly chose to skip
+  // from the update notice. `null` until a version is skipped. Checked
+  // before announcing an update — a version newer than this one still
+  // announces normally, and the skipped version stays reachable from the
+  // update surface ("Instalar mesmo assim") rather than disappearing.
+  skippedUpdateVersion: string | null
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -61,7 +67,8 @@ export const DEFAULT_CONFIG: Config = {
   agents: null,
   role: null,
   userName: null,
-  shortcuts: null
+  shortcuts: null,
+  skippedUpdateVersion: null
 }
 
 /**
@@ -118,6 +125,8 @@ export interface ConfigStore {
   setUserName(name: string | null): void
   getShortcuts(): ShortcutPrefs | null
   setShortcuts(prefs: ShortcutPrefs | null): void
+  getSkippedUpdateVersion(): string | null
+  setSkippedUpdateVersion(version: string | null): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -215,6 +224,9 @@ export function createConfigStore(baseDir: string): ConfigStore {
     getShortcuts: () => sanitizeShortcutPrefs(readConfig().shortcuts),
     setShortcuts: (prefs: ShortcutPrefs | null) =>
       updateConfig({ shortcuts: sanitizeShortcutPrefs(prefs) }),
+    getSkippedUpdateVersion: () => readConfig().skippedUpdateVersion,
+    setSkippedUpdateVersion: (version: string | null) =>
+      updateConfig({ skippedUpdateVersion: version }),
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()
