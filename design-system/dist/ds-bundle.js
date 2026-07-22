@@ -11479,7 +11479,12 @@ function nextToastId() {
   toastIdCounter += 1;
   return `hds-toast-${toastIdCounter}`;
 }
-function ToastProvider2({ children, duration = 5e3, swipeDirection = "right" }) {
+function ToastProvider2({
+  children,
+  duration = 5e3,
+  swipeDirection = "right",
+  viewport = true
+}) {
   const [toasts, setToasts] = useState27([]);
   const dismiss = useCallback18((id) => {
     setToasts((current) => current.filter((item) => item.id !== id));
@@ -11510,7 +11515,7 @@ function ToastProvider2({ children, duration = 5e3, swipeDirection = "right" }) 
       },
       id
     )),
-    /* @__PURE__ */ jsx62(ToastViewport2, {})
+    viewport && /* @__PURE__ */ jsx62(ToastViewport2, {})
   ] }) });
 }
 

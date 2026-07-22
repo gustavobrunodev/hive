@@ -129,15 +129,34 @@ export interface ToastProviderProps {
   duration?: number
   /** Forwarded to Radix's `Toast.Provider` — viewport swipe-dismiss direction. */
   swipeDirection?: ComponentPropsWithoutRef<typeof ToastPrimitive.Provider>["swipeDirection"]
+  /**
+   * Set to `false` when a consumer composes its own `<Toast>`/`<ToastViewport>`
+   * directly as `children` (bypassing `useToast()`, e.g. for a toast with rich
+   * custom content or a non-default position) instead of publishing through
+   * this provider's own imperative `toast()` API. Radix portals every
+   * `Toast.Root` into whichever `Toast.Viewport` is *currently registered* in
+   * context — since this provider always used to render its own default
+   * viewport after `children`, a custom viewport rendered in `children` would
+   * register first and then immediately lose that registration to this
+   * provider's own viewport, silently portaling every toast to the wrong
+   * (default bottom-right) spot. Defaults to `true` (existing behavior,
+   * unchanged for every consumer using `useToast()`).
+   */
+  viewport?: boolean
 }
 
 /**
  * App-wide toast context — composes Radix's `Toast.Provider` with an
  * internal toast-list store so `useToast()` can publish/dismiss
  * imperatively. Mount once near the root of the tree; renders its own
- * `ToastViewport`.
+ * `ToastViewport` unless `viewport={false}` (see that prop's doc comment).
  */
-export function ToastProvider({ children, duration = 5000, swipeDirection = "right" }: ToastProviderProps) {
+export function ToastProvider({
+  children,
+  duration = 5000,
+  swipeDirection = "right",
+  viewport = true
+}: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastRecord[]>([])
 
   const dismiss = useCallback((id: string) => {
@@ -172,7 +191,7 @@ export function ToastProvider({ children, duration = 5000, swipeDirection = "rig
             <ToastClose />
           </Toast>
         ))}
-        <ToastViewport />
+        {viewport && <ToastViewport />}
       </ToastPrimitive.Provider>
     </ToastContext.Provider>
   )

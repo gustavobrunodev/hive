@@ -2,7 +2,7 @@ import { act } from "react"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ToastProvider, useToast } from "./Toast"
+import { Toast, ToastProvider, ToastViewport, useToast } from "./Toast"
 
 function Publisher(props: Parameters<ReturnType<typeof useToast>["toast"]>[0] & { label?: string } = {}) {
   const { toast } = useToast()
@@ -134,5 +134,49 @@ describe("Toast / useToast", () => {
     }
     expect(() => render(<Orphan />)).toThrow(/ToastProvider/)
     console.error = originalError
+  })
+
+  it("renders its own default viewport by default", () => {
+    render(<ToastProvider>{null}</ToastProvider>)
+    expect(document.querySelector(".hds-toast-viewport")).toBeInTheDocument()
+  })
+
+  it("viewport={false} skips the default viewport, so a custom one composed as children is the only one registered", async () => {
+    const user = userEvent.setup()
+    function CustomToast() {
+      return (
+        <>
+          <button
+            onClick={() => {
+              const root = document.getElementById("custom-toast-trigger-target")
+              root?.setAttribute("data-open", "true")
+            }}
+          >
+            Open
+          </button>
+          <Toast open className="custom-toast">
+            Custom content
+          </Toast>
+          <ToastViewport className="custom-viewport" />
+        </>
+      )
+    }
+
+    render(
+      <ToastProvider viewport={false}>
+        <CustomToast />
+      </ToastProvider>
+    )
+
+    await user.click(screen.getByText("Open"))
+
+    // Only one viewport in the whole tree: the custom one — the provider's
+    // own default was skipped, so there's no second viewport for Radix to
+    // portal the toast into instead.
+    const viewports = document.querySelectorAll('[class*="viewport"]')
+    expect(viewports).toHaveLength(1)
+    expect(viewports[0]).toHaveClass("custom-viewport")
+    expect(await screen.findByText("Custom content")).toBeInTheDocument()
+    expect(screen.getByText("Custom content").closest(".custom-viewport")).not.toBeNull()
   })
 })

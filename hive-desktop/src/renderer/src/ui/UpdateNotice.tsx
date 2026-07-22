@@ -95,12 +95,15 @@ export interface UpdateNoticeProps {
  * from DS Toast **primitives** directly (`Toast`/`ToastProvider`/
  * `ToastViewport`), deliberately NOT `useToast()`'s imperative API (which only
  * takes a string title/description — too narrow for this card's rich,
- * morphing body). Mounts its own `ToastProvider` scope so its dedicated,
- * bottom-left-positioned `ToastViewport` (above the rail gear, `wb-update-
- * toast-viewport` in workbench.css) never contends with the DS's shared
- * default bottom-right one — Radix only tracks one active viewport ref per
- * provider, so a genuinely independent stacking region needs its own scope,
- * not a second `<ToastViewport>` sharing the app's provider.
+ * morphing body). Mounts its own `ToastProvider` scope with `viewport={false}`
+ * — `ToastProvider` otherwise always renders its own default (bottom-right)
+ * `<ToastViewport>` internally regardless of what's passed as `children`, and
+ * since it mounts *after* children in the JSX tree, that default would
+ * register itself as Radix's active portal target *last*, silently stealing
+ * every toast away from this component's own dedicated, bottom-left-
+ * positioned `ToastViewport` (above the rail gear, `wb-update-toast-viewport`
+ * in workbench.css) — found by visual validation (T15): the notice rendered
+ * bottom-right instead of bottom-left until `viewport={false}` was added.
  *
  * Session-scoped dismissal (ND-R5.3) lives here, as component state
  * (`dismissedFingerprint`) — it survives the parent re-rendering with new
@@ -261,7 +264,7 @@ export function UpdateNotice({
   }
 
   return (
-    <ToastProvider duration={Infinity} swipeDirection="left">
+    <ToastProvider duration={Infinity} swipeDirection="left" viewport={false}>
       <Toast
         open={visible}
         onOpenChange={(open) => {
