@@ -165,6 +165,51 @@ const { fakeBmadService, installGate } = vi.hoisted(() => {
 
 vi.mock('./bmadService', () => ({ createBmadService: vi.fn(() => fakeBmadService) }))
 
+// GitService (git-management M10): mocked like FsService above — index.ts
+// wires window.hive.git.* to a real GitService (which imports no 'electron',
+// so it isn't mocked in production) backed by the real spawn-based
+// ProcessRunner. Without this mock the git:* handlers would shell out to real
+// git; this file only asserts index.ts routes calls to whatever GitService it
+// gets + fires git:changed after mutations (GitService's own argv/parsing is
+// covered by gitService.test.ts). importActual keeps the real GitError class
+// identity so index.ts's `err instanceof GitError` matches what the fake throws.
+const { fakeGitService } = vi.hoisted(() => ({
+  fakeGitService: {
+    detect: vi.fn(async () => ({ isRepo: true, root: '/ws', gitMissing: false })),
+    init: vi.fn(async () => {}),
+    status: vi.fn(async () => ({ branch: 'main', changes: [] })),
+    stage: vi.fn(async () => {}),
+    unstage: vi.fn(async () => {}),
+    discard: vi.fn(async () => {}),
+    commit: vi.fn(async () => ({ hash: 'abc' })),
+    branches: vi.fn(async () => ({ branches: [], current: 'main' })),
+    createBranch: vi.fn(async () => {}),
+    checkout: vi.fn(async () => {}),
+    renameBranch: vi.fn(async () => {}),
+    deleteBranch: vi.fn(async () => {}),
+    fetch: vi.fn(async () => {}),
+    pull: vi.fn(async () => {}),
+    push: vi.fn(async () => {}),
+    sync: vi.fn(async () => {}),
+    log: vi.fn(async () => []),
+    diff: vi.fn(async () => ({ hunks: [], binary: false })),
+    commitDiff: vi.fn(async () => ({ files: [], diff: { hunks: [], binary: false } })),
+    conflicts: vi.fn(async () => []),
+    resolveConflict: vi.fn(async () => {}),
+    mergeContinue: vi.fn(async () => {}),
+    mergeAbort: vi.fn(async () => {}),
+    stash: vi.fn(async () => {}),
+    stashList: vi.fn(async () => []),
+    stashApply: vi.fn(async () => {}),
+    stashDrop: vi.fn(async () => {})
+  }
+}))
+
+vi.mock('./gitService', async () => {
+  const actual = await vi.importActual<typeof import('./gitService')>('./gitService')
+  return { ...actual, createGitService: vi.fn(() => fakeGitService) }
+})
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
@@ -897,6 +942,122 @@ describe('main process bootstrap', () => {
         key: string
       }[]
       expect(actions.map((a) => a.key)).toContain('prd')
+    })
+  })
+
+  describe('git:* (git-management M10)', () => {
+    it('registers every git read + mutation handler and the changed stream', () => {
+      for (const channel of [
+        'git:detect',
+        'git:status',
+        'git:branches',
+        'git:log',
+        'git:diff',
+        'git:commitDiff',
+        'git:conflicts',
+        'git:stashList',
+        'git:init',
+        'git:stage',
+        'git:unstage',
+        'git:discard',
+        'git:commit',
+        'git:createBranch',
+        'git:checkout',
+        'git:renameBranch',
+        'git:deleteBranch',
+        'git:fetch',
+        'git:pull',
+        'git:push',
+        'git:sync',
+        'git:resolveConflict',
+        'git:mergeContinue',
+        'git:mergeAbort',
+        'git:stash',
+        'git:stashApply',
+        'git:stashDrop'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+      expect(ipcMain.on).toHaveBeenCalledWith('git:changed:start', expect.any(Function))
+      expect(ipcMain.on).toHaveBeenCalledWith('git:changed:stop', expect.any(Function))
+    })
+
+    it('injects a trashItem that routes to shell.trashItem (untracked-discard path)', async () => {
+      const { createGitService } = await import('./gitService')
+      const [deps] = vi.mocked(createGitService).mock.calls[0] as [
+        { trashItem: (abs: string) => Promise<void> }
+      ]
+      await deps.trashItem('/ws/junk.txt')
+      expect(shell.trashItem).toHaveBeenCalledWith('/ws/junk.txt')
+    })
+
+    it('routes a read handler to the service and returns its result', async () => {
+      await expect(findHandler('git:status')({}, '/ws')).resolves.toMatchObject({ branch: 'main' })
+      expect(fakeGitService.status).toHaveBeenCalledWith('/ws')
+
+      await findHandler('git:diff')({}, '/ws', 'a.txt', 'working')
+      expect(fakeGitService.diff).toHaveBeenCalledWith('/ws', 'a.txt', 'working')
+    })
+
+    it('routes a mutation handler and fires git:changed to subscribed senders', async () => {
+      const send = vi.fn()
+      const sender = { id: 42, send }
+      findOnHandler('git:changed:start')({ sender })
+
+      await findHandler('git:stage')({}, '/ws', ['a.txt'])
+      expect(fakeGitService.stage).toHaveBeenCalledWith('/ws', ['a.txt'])
+      expect(send).toHaveBeenCalledWith('git:changed', { root: '/ws' })
+
+      // Unsubscribing stops further notifications.
+      send.mockClear()
+      findOnHandler('git:changed:stop')({ sender })
+      await findHandler('git:commit')({}, '/ws', 'msg')
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('every git handler forwards to its matching service method', async () => {
+      const sender = { id: 7, send: vi.fn() }
+      findOnHandler('git:changed:start')({ sender })
+      const cases: Array<[string, unknown[], keyof typeof fakeGitService]> = [
+        ['git:detect', ['/ws'], 'detect'],
+        ['git:branches', ['/ws'], 'branches'],
+        ['git:log', ['/ws', { limit: 10 }], 'log'],
+        ['git:commitDiff', ['/ws', 'abc'], 'commitDiff'],
+        ['git:conflicts', ['/ws'], 'conflicts'],
+        ['git:stashList', ['/ws'], 'stashList'],
+        ['git:init', ['/ws'], 'init'],
+        ['git:unstage', ['/ws', ['a']], 'unstage'],
+        ['git:discard', ['/ws', ['a']], 'discard'],
+        ['git:createBranch', ['/ws', 'feat', 'main'], 'createBranch'],
+        ['git:checkout', ['/ws', 'main'], 'checkout'],
+        ['git:renameBranch', ['/ws', 'a', 'b'], 'renameBranch'],
+        ['git:deleteBranch', ['/ws', 'a', true], 'deleteBranch'],
+        ['git:fetch', ['/ws'], 'fetch'],
+        ['git:pull', ['/ws'], 'pull'],
+        ['git:sync', ['/ws'], 'sync'],
+        ['git:resolveConflict', ['/ws', 'a', 'both'], 'resolveConflict'],
+        ['git:mergeContinue', ['/ws'], 'mergeContinue'],
+        ['git:mergeAbort', ['/ws'], 'mergeAbort'],
+        ['git:stash', ['/ws', { untracked: true }], 'stash'],
+        ['git:stashApply', ['/ws', 1, true], 'stashApply'],
+        ['git:stashDrop', ['/ws', 1], 'stashDrop']
+      ]
+      for (const [channel, args, method] of cases) {
+        await findHandler(channel)({}, ...args)
+        expect(fakeGitService[method]).toHaveBeenCalledWith(...args)
+      }
+    })
+
+    it('rethrows a GitError as a GIT:-prefixed message carrying stderr', async () => {
+      const { GitError } = await vi.importActual<typeof import('./gitService')>('./gitService')
+      fakeGitService.push.mockRejectedValueOnce(
+        new GitError(128, 'fatal: Authentication failed', 'git push')
+      )
+      const err = await (findHandler('git:push')({}, '/ws') as Promise<unknown>).catch(
+        (e: Error) => e
+      )
+      expect((err as Error).message.startsWith('GIT:')).toBe(true)
+      expect((err as Error).message).toContain('Authentication failed')
     })
   })
 })

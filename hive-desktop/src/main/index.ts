@@ -10,6 +10,7 @@ import { createChatHistoryStore } from './chatHistoryStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
+import { createGitService, GitError, type GitDiffSide } from './gitService'
 import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
 import type {
@@ -291,6 +292,150 @@ app.whenReady().then(() => {
   // routes it (and lazily starts that agent's session).
   const agentRegistry = createAgentRegistry(processRunner)
   const agentService = createAgentService(agentRegistry)
+
+  // GitService (git-management, M10): drives the system git binary through the
+  // same ProcessRunner as the agents (D-GIT engine), trashing untracked
+  // discards via shell.trashItem (kept out of the Electron-free service, like
+  // fsService). Exposed as window.hive.git.* (preload T12).
+  const gitService = createGitService({
+    processRunner,
+    trashItem: (abs) => shell.trashItem(abs)
+  })
+
+  // git:changed stream — renderers subscribe (start/stop, the fs:watch
+  // pattern) and get a `{ root }` ping after every mutation so the store
+  // re-runs status without polling (design.md §3.3/§4). Keyed by sender id so
+  // each window has its own subscription.
+  const gitChangedSenders = new Map<number, Electron.WebContents>()
+  ipcMain.on('git:changed:start', (event) => {
+    gitChangedSenders.set(event.sender.id, event.sender)
+  })
+  ipcMain.on('git:changed:stop', (event) => {
+    gitChangedSenders.delete(event.sender.id)
+  })
+  function notifyGitChanged(root: string): void {
+    for (const sender of gitChangedSenders.values()) {
+      sender.send('git:changed', { root })
+    }
+  }
+
+  // A `GitError` crossing IPC loses its custom `code`/`stderr`/`command`
+  // fields (structured-clone only keeps message/name), so — mirroring
+  // `withConflictPrefix` above — rethrow it as a plain Error whose message is
+  // `GIT:` + a JSON payload the preload bridge (T12) parses back into a typed
+  // `GitBridgeError` carrying the raw stderr (G3 — surface git's real message).
+  function withGitError<Args extends unknown[], R>(
+    handler: (...args: Args) => R | Promise<R>
+  ): (...args: Args) => Promise<R> {
+    return async (...args: Args) => {
+      try {
+        return await handler(...args)
+      } catch (err) {
+        if (err instanceof GitError) {
+          throw new Error(
+            `GIT:${JSON.stringify({ code: err.code, stderr: err.stderr, command: err.command })}`
+          )
+        }
+        throw err
+      }
+    }
+  }
+
+  // Wraps a mutating git call so it fires `git:changed` for `ws` after it
+  // succeeds, so the renderer store settles on truth (design.md §3.3). The
+  // arg tuple is inferred from each callback, keeping registrations typed.
+  function gitMutation<Args extends unknown[]>(
+    run: (ws: string, ...args: Args) => Promise<unknown>
+  ): (event: unknown, ws: string, ...args: Args) => Promise<unknown> {
+    return withGitError(async (_event: unknown, ws: string, ...args: Args) => {
+      const result = await run(ws, ...args)
+      notifyGitChanged(ws)
+      return result
+    })
+  }
+
+  // Reads (no git:changed notification).
+  ipcMain.handle('git:detect', withGitError(async (_e, ws: string) => gitService.detect(ws)))
+  ipcMain.handle('git:status', withGitError(async (_e, ws: string) => gitService.status(ws)))
+  ipcMain.handle('git:branches', withGitError(async (_e, ws: string) => gitService.branches(ws)))
+  ipcMain.handle(
+    'git:log',
+    withGitError(async (_e, ws: string, opts?: { file?: string; skip?: number; limit?: number }) =>
+      gitService.log(ws, opts)
+    )
+  )
+  ipcMain.handle(
+    'git:diff',
+    withGitError(async (_e, ws: string, path: string, side: GitDiffSide) =>
+      gitService.diff(ws, path, side)
+    )
+  )
+  ipcMain.handle(
+    'git:commitDiff',
+    withGitError(async (_e, ws: string, hash: string) => gitService.commitDiff(ws, hash))
+  )
+  ipcMain.handle('git:conflicts', withGitError(async (_e, ws: string) => gitService.conflicts(ws)))
+  ipcMain.handle('git:stashList', withGitError(async (_e, ws: string) => gitService.stashList(ws)))
+
+  // Mutations (each fires git:changed on success).
+  ipcMain.handle('git:init', gitMutation((ws) => gitService.init(ws)))
+  ipcMain.handle('git:stage', gitMutation((ws, paths: string[]) => gitService.stage(ws, paths)))
+  ipcMain.handle(
+    'git:unstage',
+    gitMutation((ws, paths: string[]) => gitService.unstage(ws, paths))
+  )
+  ipcMain.handle(
+    'git:discard',
+    gitMutation((ws, paths: string[]) => gitService.discard(ws, paths))
+  )
+  ipcMain.handle(
+    'git:commit',
+    gitMutation((ws, message: string, opts?: { amend?: boolean; stageAll?: boolean }) =>
+      gitService.commit(ws, message, opts)
+    )
+  )
+  ipcMain.handle(
+    'git:createBranch',
+    gitMutation((ws, name: string, from?: string) => gitService.createBranch(ws, name, from))
+  )
+  ipcMain.handle('git:checkout', gitMutation((ws, ref: string) => gitService.checkout(ws, ref)))
+  ipcMain.handle(
+    'git:renameBranch',
+    gitMutation((ws, from: string, to: string) => gitService.renameBranch(ws, from, to))
+  )
+  ipcMain.handle(
+    'git:deleteBranch',
+    gitMutation((ws, name: string, force?: boolean) => gitService.deleteBranch(ws, name, force))
+  )
+  ipcMain.handle('git:fetch', gitMutation((ws) => gitService.fetch(ws)))
+  ipcMain.handle('git:pull', gitMutation((ws) => gitService.pull(ws)))
+  ipcMain.handle(
+    'git:push',
+    gitMutation((ws, opts?: { setUpstream?: boolean }) => gitService.push(ws, opts))
+  )
+  ipcMain.handle('git:sync', gitMutation((ws) => gitService.sync(ws)))
+  ipcMain.handle(
+    'git:resolveConflict',
+    gitMutation((ws, path: string, choice: 'current' | 'incoming' | 'both') =>
+      gitService.resolveConflict(ws, path, choice)
+    )
+  )
+  ipcMain.handle('git:mergeContinue', gitMutation((ws) => gitService.mergeContinue(ws)))
+  ipcMain.handle('git:mergeAbort', gitMutation((ws) => gitService.mergeAbort(ws)))
+  ipcMain.handle(
+    'git:stash',
+    gitMutation((ws, opts?: { message?: string; untracked?: boolean }) =>
+      gitService.stash(ws, opts)
+    )
+  )
+  ipcMain.handle(
+    'git:stashApply',
+    gitMutation((ws, index: number, pop?: boolean) => gitService.stashApply(ws, index, pop))
+  )
+  ipcMain.handle(
+    'git:stashDrop',
+    gitMutation((ws, index: number) => gitService.stashDrop(ws, index))
+  )
 
   // chat-attachments (R6.5/T16): native multi-file picker for the composer's
   // attach button. Name/size are resolved here (not in the renderer) because
