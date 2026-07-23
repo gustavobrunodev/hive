@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import { join } from 'path'
 import { createFakeProcessRunner, type FakeProcessRunner } from './processRunner'
 import { createGitService, GitError, type GitService } from './gitService'
@@ -32,7 +34,10 @@ describe('GitService — git() wrapper', () => {
 
     expect(runner.calls[0].command).toBe('git')
     expect(runner.calls[0].args.slice(0, 2)).toEqual(['-c', 'core.quotepath=false'])
-    expect(runner.calls[0].opts).toEqual({ cwd: WS, env: { GIT_TERMINAL_PROMPT: '0' } })
+    expect(runner.calls[0].opts).toEqual({
+      cwd: WS,
+      env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }
+    })
   })
 
   it('throws a GitError carrying code, stderr and command on a non-zero exit', async () => {
@@ -342,5 +347,59 @@ describe('GitService log / diff / commitDiff', () => {
     ])
     expect(result.files[0]).toMatchObject({ path: 'a.txt', added: 2, deleted: 1 })
     expect(result.diff.hunks).toHaveLength(1)
+  })
+})
+
+describe('GitService conflicts + merge', () => {
+  const tempDirs: string[] = []
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('derives conflicted paths from status', async () => {
+    const { runner, service } = make()
+    stdout(runner, 'u UU N... 100644 100644 100644 100644 a b c c.txt\0? junk\0')
+    const list = await service.conflicts(WS)
+    expect(list).toEqual([{ path: 'c.txt' }])
+  })
+
+  it('accepts current (--ours) / incoming (--theirs) then stages', async () => {
+    const ours = make()
+    ours.runner.script({ code: 0 }) // checkout --ours
+    ours.runner.script({ code: 0 }) // add
+    await ours.service.resolveConflict(WS, 'c.txt', 'current')
+    expect(ours.runner.calls[0].args.slice(2)).toEqual(['checkout', '--ours', '--', 'c.txt'])
+    expect(ours.runner.calls[1].args.slice(2)).toEqual(['add', '--', 'c.txt'])
+
+    const theirs = make()
+    theirs.runner.script({ code: 0 })
+    theirs.runner.script({ code: 0 })
+    await theirs.service.resolveConflict(WS, 'c.txt', 'incoming')
+    expect(theirs.runner.calls[0].args.slice(2)).toEqual(['checkout', '--theirs', '--', 'c.txt'])
+  })
+
+  it('accepts both by stripping conflict markers, then stages', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-git-conflict-'))
+    tempDirs.push(dir)
+    writeFileSync(
+      join(dir, 'c.txt'),
+      ['a', '<<<<<<< HEAD', 'ours', '=======', 'theirs', '>>>>>>> other', 'b'].join('\n')
+    )
+    const { runner, service } = make()
+    runner.script({ code: 0 }) // add
+    await service.resolveConflict(dir, 'c.txt', 'both')
+
+    expect(readFileSync(join(dir, 'c.txt'), 'utf-8')).toBe(['a', 'ours', 'theirs', 'b'].join('\n'))
+    expect(runner.calls[0].args.slice(2)).toEqual(['add', '--', 'c.txt'])
+  })
+
+  it('continues and aborts a merge', async () => {
+    const cont = make()
+    await cont.service.mergeContinue(WS)
+    expect(cont.runner.calls[0].args.slice(2)).toEqual(['merge', '--continue'])
+
+    const abort = make()
+    await abort.service.mergeAbort(WS)
+    expect(abort.runner.calls[0].args.slice(2)).toEqual(['merge', '--abort'])
   })
 })

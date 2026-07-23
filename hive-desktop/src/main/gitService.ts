@@ -1,4 +1,4 @@
-import { unlinkSync, writeFileSync } from 'fs'
+import { readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
@@ -121,10 +121,30 @@ export interface GitService {
   diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff>
   /** A commit's changed files + full patch (GIT-R8.2). A read. */
   commitDiff(workspace: string, hash: string): Promise<GitCommitDiff>
+  /** Conflicted paths, derived from status (GIT-R9). A read. */
+  conflicts(workspace: string): Promise<GitConflict[]>
+  /**
+   * Resolves a whole conflicted file and stages it (GIT-R9.2): `current`
+   * (`checkout --ours`), `incoming` (`checkout --theirs`), or `both` (strips
+   * the conflict markers, keeping both sides).
+   */
+  resolveConflict(workspace: string, path: string, choice: GitConflictChoice): Promise<void>
+  /** `merge --continue` — concludes the merge with the prepared message (GIT-R9.3). */
+  mergeContinue(workspace: string): Promise<void>
+  /** `merge --abort` — unwinds the in-progress merge (GIT-R9.3). */
+  mergeAbort(workspace: string): Promise<void>
 }
 
 /** Which side of a working-tree change a diff shows (GIT-R4). */
 export type GitDiffSide = 'working' | 'staged'
+
+/** One conflicted path (GIT-R9). The renderer parses the on-disk markers for the block-level UI. */
+export interface GitConflict {
+  path: string
+}
+
+/** How to resolve a whole conflicted file (GIT-R9.2). */
+export type GitConflictChoice = 'current' | 'incoming' | 'both'
 
 /** `commitDiff`'s result — a commit's changed files (numstat) + its full patch. */
 export interface GitCommitDiff {
@@ -196,7 +216,11 @@ export function createGitService(deps: GitServiceDeps): GitService {
   async function git(args: string[], opts: { cwd: string }): Promise<string> {
     const handle = processRunner.run('git', ['-c', 'core.quotepath=false', ...args], {
       cwd: opts.cwd,
-      env: { GIT_TERMINAL_PROMPT: '0' }
+      // GIT_TERMINAL_PROMPT=0 → fail fast instead of hanging on a credential
+      // prompt (D-GIT-1). GIT_EDITOR=true → merge --continue / any commit that
+      // would open an editor concludes non-interactively with the prepared
+      // message rather than hanging on a tty we don't have.
+      env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }
     })
     const { stdout, stderr, code } = await collect(handle)
     if (code !== 0) {
@@ -381,6 +405,47 @@ export function createGitService(deps: GitServiceDeps): GitService {
     return { files: parseNumstat(numstat), diff: parsedDiff }
   }
 
+  async function conflicts(workspace: string): Promise<GitConflict[]> {
+    const st = await status(workspace)
+    return st.changes.filter((c) => c.isConflict).map((c) => ({ path: c.path }))
+  }
+
+  function resolveConflict(
+    workspace: string,
+    path: string,
+    choice: GitConflictChoice
+  ): Promise<void> {
+    return enqueue(workspace, async () => {
+      if (choice === 'current') {
+        await git(['checkout', '--ours', '--', path], { cwd: workspace })
+      } else if (choice === 'incoming') {
+        await git(['checkout', '--theirs', '--', path], { cwd: workspace })
+      } else {
+        // "Aceitar ambos": drop the three conflict-marker lines, keeping both
+        // sides' content in place, then stage the resolved file.
+        const abs = join(workspace, path)
+        const kept = readFileSync(abs, 'utf-8')
+          .split('\n')
+          .filter((line) => !/^(<<<<<<<|=======|>>>>>>>)/.test(line))
+          .join('\n')
+        writeFileSync(abs, kept)
+      }
+      await git(['add', '--', path], { cwd: workspace })
+    })
+  }
+
+  function mergeContinue(workspace: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['merge', '--continue'], { cwd: workspace })
+    })
+  }
+
+  function mergeAbort(workspace: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['merge', '--abort'], { cwd: workspace })
+    })
+  }
+
   return {
     detect,
     init,
@@ -400,6 +465,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
     sync,
     log,
     diff,
-    commitDiff
+    commitDiff,
+    conflicts,
+    resolveConflict,
+    mergeContinue,
+    mergeAbort
   }
 }
