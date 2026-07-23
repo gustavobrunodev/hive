@@ -1878,6 +1878,226 @@
   overflow: hidden;
 }
 
+/* ── Source Control view (git-management §5.2/§7) ──────────────────────────
+   A dense, VS Code-familiar surface: flat, no cards for rows, git-status color
+   as semantic state. Sits on the rail's --surface layer. */
+.wb-scm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.wb-scm-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  flex-shrink: 0;
+}
+.wb-scm-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  flex: 1;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.wb-scm-branch svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.wb-scm-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-scm-branch[data-detached] .wb-scm-branch-name {
+  color: var(--wb-git-conflict);
+}
+.wb-scm-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+.wb-scm-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--s-2);
+}
+
+.wb-scm-group {
+  margin-top: var(--s-1);
+}
+.wb-scm-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  height: 24px;
+}
+.wb-scm-group-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.wb-scm-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.wb-scm-group-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+.wb-scm-group-header:hover .wb-scm-group-actions,
+.wb-scm-group-header:focus-within .wb-scm-group-actions {
+  opacity: 1;
+}
+
+.wb-scm-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding-right: var(--s-2);
+}
+.wb-scm-row:hover {
+  background: var(--surface-2);
+}
+.wb-scm-row-open {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.wb-scm-row-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-scm-glyph {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+/* Unstaged rows read the glyph as an outline (lighter weight); staged as
+   filled (bolder) — the badge-fill distinction the design calls for. */
+.wb-scm-glyph:not([data-staged]) {
+  font-weight: 500;
+  opacity: 0.85;
+}
+.wb-scm-path {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+  flex: 1;
+}
+.wb-scm-path-name {
+  color: var(--ink);
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 60%;
+}
+.wb-scm-path-dir {
+  color: var(--faint);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-scm-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-quart);
+}
+.wb-scm-row:hover .wb-scm-row-actions,
+.wb-scm-row:focus-within .wb-scm-row-actions {
+  opacity: 1;
+}
+.wb-scm-more {
+  padding: var(--s-1) var(--s-3);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-scm-group-actions,
+  .wb-scm-row-actions {
+    transition: none;
+  }
+}
+
+/* Teaching empty states — centered, calm, never a blank pane. */
+.wb-scm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  flex: 1;
+  padding: var(--s-6) var(--s-5);
+  text-align: center;
+}
+.wb-scm-empty-icon {
+  display: inline-flex;
+  color: var(--muted);
+  margin-bottom: var(--s-1);
+}
+.wb-scm-empty-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.wb-scm-empty-desc {
+  margin: 0;
+  max-width: 30ch;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.wb-scm-empty-action {
+  margin-top: var(--s-2);
+}
+
 /* git-management (GIT-R13): activity-bar view entries. Same footprint as
    wb-rail-btn, plus a left accent bar + filled state when active (VS Code
    parity) and a change-count badge on the SCM entry. */

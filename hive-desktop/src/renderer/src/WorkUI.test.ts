@@ -1735,14 +1735,14 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     renderWork()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     expect(screen.getByText('Arquivos')).toBeTruthy()
-    expect(document.querySelector('.wb-scm-placeholder')).toBeNull()
+    expect(document.querySelector('.wb-scm-empty')).toBeNull()
   })
 
   it('clicking Source Control swaps the rail body and persists the view', () => {
     renderWork()
     fireEvent.click(screen.getByLabelText('Controle de versão'))
 
-    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+    expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
     expect(screen.queryByTestId('file-tree')).toBeNull()
     expect(screen.getByText('Controle de versão')).toBeTruthy()
     expect(localStorage.getItem('hive.sidebarView')).toBe('scm')
@@ -1757,13 +1757,13 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     renderWork()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'G', ctrlKey: true, shiftKey: true })
-    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+    expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
   })
 
   it('restores the persisted Source Control view on mount', () => {
     localStorage.setItem('hive.sidebarView', 'scm')
     renderWork()
-    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+    expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
     expect(screen.queryByTestId('file-tree')).toBeNull()
   })
 })

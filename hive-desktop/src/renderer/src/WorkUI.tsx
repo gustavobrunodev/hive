@@ -26,6 +26,7 @@ import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { changeCount } from './scm/gitStatus'
+import { SourceControlPanel } from './scm/SourceControlPanel'
 import { ProfileSheet } from './ui/ProfileSheet'
 import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
@@ -634,7 +635,7 @@ export function WorkUI({
                   onOpenFile={editor.openFile}
                 />
               }
-              scm={<div className="wb-scm-placeholder" />}
+              scm={<SourceControlPanel />}
             />
           </div>
         </ResizablePanel>

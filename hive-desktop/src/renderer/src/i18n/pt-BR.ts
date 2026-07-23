@@ -520,7 +520,37 @@ export const ptBR = {
   // conversation — see chat.shortcutsLabel).
   git: {
     // git-management (M10) — the Source Control surface.
-    paneTitle: 'Controle de versão'
+    paneTitle: 'Controle de versão',
+    // Change groups (GIT-R2).
+    groupConflicts: 'Conflitos de merge',
+    groupStaged: 'Alterações prontas',
+    groupChanges: 'Alterações',
+    moreChanges: (count: number) => `e mais ${count}…`,
+    // Row (GIT-R2): the status glyph's accessible meaning per kind.
+    statusModified: 'Modificado',
+    statusAdded: 'Adicionado',
+    statusDeleted: 'Excluído',
+    statusRenamed: 'Renomeado',
+    statusUntracked: 'Não rastreado',
+    statusConflict: 'Em conflito',
+    statusIgnored: 'Ignorado',
+    rowAria: (name: string, meaning: string) => `${name} — ${meaning}`,
+    renamedFrom: (from: string) => `renomeado de ${from}`,
+    // Branch chip (GIT-R2.5/R6).
+    branchAria: (branch: string) => `Branch atual: ${branch}`,
+    detachedHead: 'HEAD desanexado',
+    refreshLabel: 'Atualizar',
+    // Empty states (GIT-R1/R2.5) — teaching, not blank.
+    emptyCleanTitle: 'Nenhuma alteração',
+    emptyCleanDescription: (branch: string) => `Tudo salvo em ${branch}. Faça uma alteração para começar.`,
+    emptyCleanDescriptionDetached: 'Tudo salvo. Faça uma alteração para começar.',
+    notARepoTitle: 'Este workspace ainda não usa git',
+    notARepoDescription:
+      'Inicialize um repositório para versionar seu trabalho — revisar, preparar e commitar sem sair do Hive.',
+    initRepo: 'Inicializar repositório',
+    gitMissingTitle: 'Git não encontrado',
+    gitMissingDescription:
+      'O Hive não conseguiu executar o git nesta máquina. Instale o git e reabra o workspace para usar o controle de versão.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
