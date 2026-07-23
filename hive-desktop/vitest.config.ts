@@ -163,6 +163,33 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // git-management (M10): the new source-control surfaces. The main-side
+        // service + pure parsers, the whole `scm/` renderer module (panel,
+        // store hook, status/color helpers), and the three app-local UI
+        // components (`DiffView`, `StatusBar`, `SidebarHost`). `main/index.ts`
+        // and `preload/index.ts` already carry the full-bar gate above, so the
+        // new `git:*` handlers/bridge are covered by their existing entries.
+        'src/main/gitService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/gitParse.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/scm/**': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/DiffView.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/StatusBar.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/SidebarHost.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }
