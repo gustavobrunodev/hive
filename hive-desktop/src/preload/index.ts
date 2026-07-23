@@ -471,26 +471,23 @@ const hive = {
   // the exact `watchWorkspace` channel-pattern (start/stop sends +
   // subscribe-returning-unsubscribe).
   git: {
-    detect: withTypedGit(
-      (workspace: string): Promise<GitDetectResult> => ipcRenderer.invoke('git:detect', workspace)
+    detect: withTypedGit((workspace: string): Promise<GitDetectResult> =>
+      ipcRenderer.invoke('git:detect', workspace)
     ),
-    status: withTypedGit(
-      (workspace: string): Promise<GitStatus> => ipcRenderer.invoke('git:status', workspace)
+    status: withTypedGit((workspace: string): Promise<GitStatus> =>
+      ipcRenderer.invoke('git:status', workspace)
     ),
-    init: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:init', workspace)
+    init: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:init', workspace)
     ),
-    stage: withTypedGit(
-      (workspace: string, paths: string[]): Promise<void> =>
-        ipcRenderer.invoke('git:stage', workspace, paths)
+    stage: withTypedGit((workspace: string, paths: string[]): Promise<void> =>
+      ipcRenderer.invoke('git:stage', workspace, paths)
     ),
-    unstage: withTypedGit(
-      (workspace: string, paths: string[]): Promise<void> =>
-        ipcRenderer.invoke('git:unstage', workspace, paths)
+    unstage: withTypedGit((workspace: string, paths: string[]): Promise<void> =>
+      ipcRenderer.invoke('git:unstage', workspace, paths)
     ),
-    discard: withTypedGit(
-      (workspace: string, paths: string[]): Promise<void> =>
-        ipcRenderer.invoke('git:discard', workspace, paths)
+    discard: withTypedGit((workspace: string, paths: string[]): Promise<void> =>
+      ipcRenderer.invoke('git:discard', workspace, paths)
     ),
     commit: withTypedGit(
       (
@@ -499,37 +496,32 @@ const hive = {
         opts?: { amend?: boolean; stageAll?: boolean }
       ): Promise<{ hash: string }> => ipcRenderer.invoke('git:commit', workspace, message, opts)
     ),
-    branches: withTypedGit(
-      (workspace: string): Promise<GitBranches> => ipcRenderer.invoke('git:branches', workspace)
+    branches: withTypedGit((workspace: string): Promise<GitBranches> =>
+      ipcRenderer.invoke('git:branches', workspace)
     ),
-    createBranch: withTypedGit(
-      (workspace: string, name: string, from?: string): Promise<void> =>
-        ipcRenderer.invoke('git:createBranch', workspace, name, from)
+    createBranch: withTypedGit((workspace: string, name: string, from?: string): Promise<void> =>
+      ipcRenderer.invoke('git:createBranch', workspace, name, from)
     ),
-    checkout: withTypedGit(
-      (workspace: string, ref: string): Promise<void> =>
-        ipcRenderer.invoke('git:checkout', workspace, ref)
+    checkout: withTypedGit((workspace: string, ref: string): Promise<void> =>
+      ipcRenderer.invoke('git:checkout', workspace, ref)
     ),
-    renameBranch: withTypedGit(
-      (workspace: string, from: string, to: string): Promise<void> =>
-        ipcRenderer.invoke('git:renameBranch', workspace, from, to)
+    renameBranch: withTypedGit((workspace: string, from: string, to: string): Promise<void> =>
+      ipcRenderer.invoke('git:renameBranch', workspace, from, to)
     ),
-    deleteBranch: withTypedGit(
-      (workspace: string, name: string, force?: boolean): Promise<void> =>
-        ipcRenderer.invoke('git:deleteBranch', workspace, name, force)
+    deleteBranch: withTypedGit((workspace: string, name: string, force?: boolean): Promise<void> =>
+      ipcRenderer.invoke('git:deleteBranch', workspace, name, force)
     ),
-    fetch: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:fetch', workspace)
+    fetch: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:fetch', workspace)
     ),
-    pull: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:pull', workspace)
+    pull: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:pull', workspace)
     ),
-    push: withTypedGit(
-      (workspace: string, opts?: { setUpstream?: boolean }): Promise<void> =>
-        ipcRenderer.invoke('git:push', workspace, opts)
+    push: withTypedGit((workspace: string, opts?: { setUpstream?: boolean }): Promise<void> =>
+      ipcRenderer.invoke('git:push', workspace, opts)
     ),
-    sync: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:sync', workspace)
+    sync: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:sync', workspace)
     ),
     log: withTypedGit(
       (
@@ -537,41 +529,37 @@ const hive = {
         opts?: { file?: string; skip?: number; limit?: number }
       ): Promise<GitCommit[]> => ipcRenderer.invoke('git:log', workspace, opts)
     ),
-    diff: withTypedGit(
-      (workspace: string, path: string, side: GitDiffSide): Promise<GitDiff> =>
-        ipcRenderer.invoke('git:diff', workspace, path, side)
+    diff: withTypedGit((workspace: string, path: string, side: GitDiffSide): Promise<GitDiff> =>
+      ipcRenderer.invoke('git:diff', workspace, path, side)
     ),
-    commitDiff: withTypedGit(
-      (workspace: string, hash: string): Promise<GitCommitDiff> =>
-        ipcRenderer.invoke('git:commitDiff', workspace, hash)
+    commitDiff: withTypedGit((workspace: string, hash: string): Promise<GitCommitDiff> =>
+      ipcRenderer.invoke('git:commitDiff', workspace, hash)
     ),
-    conflicts: withTypedGit(
-      (workspace: string): Promise<GitConflict[]> => ipcRenderer.invoke('git:conflicts', workspace)
+    conflicts: withTypedGit((workspace: string): Promise<GitConflict[]> =>
+      ipcRenderer.invoke('git:conflicts', workspace)
     ),
     resolveConflict: withTypedGit(
       (workspace: string, path: string, choice: GitConflictChoice): Promise<void> =>
         ipcRenderer.invoke('git:resolveConflict', workspace, path, choice)
     ),
-    mergeContinue: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:mergeContinue', workspace)
+    mergeContinue: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:mergeContinue', workspace)
     ),
-    mergeAbort: withTypedGit(
-      (workspace: string): Promise<void> => ipcRenderer.invoke('git:mergeAbort', workspace)
+    mergeAbort: withTypedGit((workspace: string): Promise<void> =>
+      ipcRenderer.invoke('git:mergeAbort', workspace)
     ),
     stash: withTypedGit(
       (workspace: string, opts?: { message?: string; untracked?: boolean }): Promise<void> =>
         ipcRenderer.invoke('git:stash', workspace, opts)
     ),
-    stashList: withTypedGit(
-      (workspace: string): Promise<GitStash[]> => ipcRenderer.invoke('git:stashList', workspace)
+    stashList: withTypedGit((workspace: string): Promise<GitStash[]> =>
+      ipcRenderer.invoke('git:stashList', workspace)
     ),
-    stashApply: withTypedGit(
-      (workspace: string, index: number, pop?: boolean): Promise<void> =>
-        ipcRenderer.invoke('git:stashApply', workspace, index, pop)
+    stashApply: withTypedGit((workspace: string, index: number, pop?: boolean): Promise<void> =>
+      ipcRenderer.invoke('git:stashApply', workspace, index, pop)
     ),
-    stashDrop: withTypedGit(
-      (workspace: string, index: number): Promise<void> =>
-        ipcRenderer.invoke('git:stashDrop', workspace, index)
+    stashDrop: withTypedGit((workspace: string, index: number): Promise<void> =>
+      ipcRenderer.invoke('git:stashDrop', workspace, index)
     ),
     onChanged: (onChanged: (evt: { root: string }) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: { root: string }): void => onChanged(evt)

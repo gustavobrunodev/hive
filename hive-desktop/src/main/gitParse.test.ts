@@ -39,7 +39,12 @@ describe('parseStatusV2', () => {
     const [del, add, rename, untracked] = status.changes
     expect(del).toMatchObject({ path: 'keep.txt', index: 'D', worktree: '.' })
     expect(add).toMatchObject({ path: 'new.txt', index: 'A', worktree: 'M' })
-    expect(rename).toMatchObject({ path: 'renamed.txt', origPath: 'a.txt', index: 'R', worktree: 'M' })
+    expect(rename).toMatchObject({
+      path: 'renamed.txt',
+      origPath: 'a.txt',
+      index: 'R',
+      worktree: 'M'
+    })
     expect(untracked).toMatchObject({ path: 'untracked.txt', isUntracked: true })
   })
 

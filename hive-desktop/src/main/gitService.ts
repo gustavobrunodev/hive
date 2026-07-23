@@ -178,9 +178,10 @@ const LOG_FORMAT = '%H%x1f%h%x1f%an%x1f%aI%x1f%s'
 const DIFF_CAP_BYTES = 2_000_000
 
 /** Collects a finished process's full stdout/stderr and exit code. */
-async function collect(
-  handle: { output: AsyncIterable<ProcessStreamChunk>; exitCode: Promise<{ code: number | null }> }
-): Promise<{ stdout: string; stderr: string; code: number | null }> {
+async function collect(handle: {
+  output: AsyncIterable<ProcessStreamChunk>
+  exitCode: Promise<{ code: number | null }>
+}): Promise<{ stdout: string; stderr: string; code: number | null }> {
   let stdout = ''
   let stderr = ''
   for await (const chunk of handle.output) {
@@ -287,7 +288,9 @@ export function createGitService(deps: GitServiceDeps): GitService {
       // hard-deleted) while tracked files are reverted to HEAD (GIT-R3.3).
       const out = await git(['status', '--porcelain=v2', '-z', '--', ...paths], { cwd: workspace })
       const untracked = new Set(
-        parseStatusV2(out).changes.filter((c) => c.isUntracked).map((c) => c.path)
+        parseStatusV2(out)
+          .changes.filter((c) => c.isUntracked)
+          .map((c) => c.path)
       )
       for (const path of paths) {
         if (untracked.has(path)) await deps.trashItem(join(workspace, path))
@@ -308,7 +311,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
       if (opts?.stageAll) {
         await git(['add', '-A'], { cwd: workspace })
       }
-      const messageFile = join(tmpdir(), `hive-commit-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`)
+      const messageFile = join(
+        tmpdir(),
+        `hive-commit-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+      )
       writeFileSync(messageFile, message)
       try {
         const args = ['commit', '-F', messageFile]
@@ -416,7 +422,8 @@ export function createGitService(deps: GitServiceDeps): GitService {
     // numstat / patch body the parsers expect.
     const numstat = await git(['show', hash, '--numstat', '--format=', '-z'], { cwd: workspace })
     const patch = await git(['show', hash, '--format='], { cwd: workspace })
-    const parsedDiff = patch.length > DIFF_CAP_BYTES ? parseDiff('', { tooLarge: true }) : parseDiff(patch)
+    const parsedDiff =
+      patch.length > DIFF_CAP_BYTES ? parseDiff('', { tooLarge: true }) : parseDiff(patch)
     return { files: parseNumstat(numstat), diff: parsedDiff }
   }
 

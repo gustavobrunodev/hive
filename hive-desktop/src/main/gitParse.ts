@@ -144,6 +144,26 @@ function makeChange(
   }
 }
 
+/** Applies a `# branch.*` porcelain-v2 header line to the status accumulator. */
+function applyBranchHeader(rest: string, status: GitStatus): void {
+  if (rest.startsWith('branch.oid ')) {
+    const oid = rest.slice('branch.oid '.length)
+    status.oid = oid === '(initial)' ? null : oid
+  } else if (rest.startsWith('branch.head ')) {
+    const head = rest.slice('branch.head '.length)
+    if (head === '(detached)') status.detached = true
+    else status.branch = head
+  } else if (rest.startsWith('branch.upstream ')) {
+    status.upstream = rest.slice('branch.upstream '.length) || null
+  } else if (rest.startsWith('branch.ab ')) {
+    const m = rest.slice('branch.ab '.length).match(/^\+(-?\d+) -(-?\d+)$/)
+    if (m) {
+      status.ahead = parseInt(m[1], 10)
+      status.behind = parseInt(m[2], 10)
+    }
+  }
+}
+
 /**
  * Parses `git status --porcelain=v2 --branch -z`. Records are NUL-separated;
  * a rename (`2`) record is immediately followed by its original path as the
@@ -169,26 +189,7 @@ export function parseStatusV2(output: string): GitStatus {
     if (line === '') continue
 
     if (line.startsWith('# ')) {
-      const rest = line.slice(2)
-      if (rest.startsWith('branch.oid ')) {
-        const oid = rest.slice('branch.oid '.length)
-        status.oid = oid === '(initial)' ? null : oid
-      } else if (rest.startsWith('branch.head ')) {
-        const head = rest.slice('branch.head '.length)
-        if (head === '(detached)') {
-          status.detached = true
-        } else {
-          status.branch = head
-        }
-      } else if (rest.startsWith('branch.upstream ')) {
-        status.upstream = rest.slice('branch.upstream '.length) || null
-      } else if (rest.startsWith('branch.ab ')) {
-        const m = rest.slice('branch.ab '.length).match(/^\+(-?\d+) -(-?\d+)$/)
-        if (m) {
-          status.ahead = parseInt(m[1], 10)
-          status.behind = parseInt(m[2], 10)
-        }
-      }
+      applyBranchHeader(line.slice(2), status)
       continue
     }
 

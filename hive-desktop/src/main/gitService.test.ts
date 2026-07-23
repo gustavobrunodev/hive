@@ -19,7 +19,11 @@ function stdout(runner: FakeProcessRunner, data: string): void {
   runner.script({ chunks: [{ stream: 'stdout', data }], code: 0 })
 }
 
-function make(): { runner: FakeProcessRunner; service: GitService; trashItem: ReturnType<typeof vi.fn> } {
+function make(): {
+  runner: FakeProcessRunner
+  service: GitService
+  trashItem: ReturnType<typeof vi.fn>
+} {
   const runner = createFakeProcessRunner()
   const trashItem = vi.fn(async () => {})
   const service = createGitService({ processRunner: runner, trashItem })
@@ -42,7 +46,10 @@ describe('GitService — git() wrapper', () => {
 
   it('throws a GitError carrying code, stderr and command on a non-zero exit', async () => {
     const { runner, service } = make()
-    runner.script({ chunks: [{ stream: 'stderr', data: 'fatal: not a git repository' }], code: 128 })
+    runner.script({
+      chunks: [{ stream: 'stderr', data: 'fatal: not a git repository' }],
+      code: 128
+    })
 
     const err = await service.status(WS).catch((e) => e)
     expect(err).toBeInstanceOf(GitError)
@@ -91,12 +98,7 @@ describe('GitService.status', () => {
     stdout(runner, '# branch.head main\0# branch.ab +1 -0\0? new.txt\0')
     const status = await service.status(WS)
 
-    expect(runner.calls[0].args.slice(2)).toEqual([
-      'status',
-      '--porcelain=v2',
-      '--branch',
-      '-z'
-    ])
+    expect(runner.calls[0].args.slice(2)).toEqual(['status', '--porcelain=v2', '--branch', '-z'])
     expect(status.branch).toBe('main')
     expect(status.ahead).toBe(1)
     expect(status.changes[0]).toMatchObject({ path: 'new.txt', isUntracked: true })
@@ -224,7 +226,7 @@ describe('GitService branches', () => {
     expect(b.runner.calls[0].args.slice(2)).toEqual(['switch', '-c', 'feat/y', 'main'])
   })
 
-  it('checks out a ref and surfaces git\'s dirty refusal as a GitError', async () => {
+  it("checks out a ref and surfaces git's dirty refusal as a GitError", async () => {
     const { runner, service } = make()
     await service.checkout(WS, 'main')
     expect(runner.calls[0].args.slice(2)).toEqual(['switch', 'main'])
@@ -281,7 +283,7 @@ describe('GitService remotes', () => {
     expect(runner.calls[1].args.slice(2)).toEqual(['push'])
   })
 
-  it('propagates git\'s real stderr on an auth failure (D-GIT-1)', async () => {
+  it("propagates git's real stderr on an auth failure (D-GIT-1)", async () => {
     const { runner, service } = make()
     runner.script({
       chunks: [{ stream: 'stderr', data: 'fatal: Authentication failed for https://host/repo' }],
@@ -332,7 +334,7 @@ describe('GitService log / diff / commitDiff', () => {
     expect(d).toEqual({ hunks: [], binary: false, tooLarge: true })
   })
 
-  it('returns a commit\'s numstat files and unified patch', async () => {
+  it("returns a commit's numstat files and unified patch", async () => {
     const { runner, service } = make()
     stdout(runner, '2\t1\ta.txt\0') // show --numstat -z
     stdout(runner, '@@ -1,2 +1,3 @@\n a\n+b\n c') // show patch

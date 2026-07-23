@@ -883,14 +883,20 @@ describe('main process bootstrap', () => {
       await expect(findHandler('mcp:list')({}, ws)).resolves.toEqual([])
 
       await findHandler('mcp:add')({}, ws, 'srv', { transport: 'stdio', command: 'npx' })
-      let list = (await findHandler('mcp:list')({}, ws)) as Array<{ name: string; enabled: boolean }>
+      let list = (await findHandler('mcp:list')({}, ws)) as Array<{
+        name: string
+        enabled: boolean
+      }>
       expect(list).toEqual([{ name: 'srv', transport: 'stdio', command: 'npx', enabled: true }])
 
       await findHandler('mcp:setEnabled')({}, ws, 'srv', false)
       list = (await findHandler('mcp:list')({}, ws)) as typeof list
       expect(list[0].enabled).toBe(false)
 
-      await findHandler('mcp:update')({}, ws, 'srv', 'renamed', { transport: 'stdio', command: 'npx' })
+      await findHandler('mcp:update')({}, ws, 'srv', 'renamed', {
+        transport: 'stdio',
+        command: 'npx'
+      })
       list = (await findHandler('mcp:list')({}, ws)) as typeof list
       expect(list[0].name).toBe('renamed')
 

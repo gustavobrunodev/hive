@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { FsConflictError as FsConflictErrorType, GitBridgeError as GitBridgeErrorType } from './index'
+import type {
+  FsConflictError as FsConflictErrorType,
+  GitBridgeError as GitBridgeErrorType
+} from './index'
 
 // Mocks Electron's contextBridge/ipcRenderer (and the template's
 // @electron-toolkit/preload helper, which itself imports 'electron') so the
@@ -789,9 +792,12 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.on).toHaveBeenCalledWith('git:changed', expect.any(Function))
       expect(ipcRenderer.send).toHaveBeenCalledWith('git:changed:start')
 
-      const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
-        ([ch]) => ch === 'git:changed'
-      )?.[1] as (event: unknown, evt: { root: string }) => void
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'git:changed')?.[1] as (
+        event: unknown,
+        evt: { root: string }
+      ) => void
       listener({}, { root: '/ws' })
       expect(cb).toHaveBeenCalledWith({ root: '/ws' })
 
