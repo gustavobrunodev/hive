@@ -13,12 +13,16 @@ import { ActionRail } from './ActionRail'
  */
 
 function baseProps(): {
+  activeView: 'explorer' | 'scm'
+  onSelectView: ReturnType<typeof vi.fn>
   onOpenSearch: ReturnType<typeof vi.fn>
   onOpenStudio: ReturnType<typeof vi.fn>
   onOpenMcp: ReturnType<typeof vi.fn>
   onOpenAppSettings: ReturnType<typeof vi.fn>
 } {
   return {
+    activeView: 'explorer',
+    onSelectView: vi.fn(),
     onOpenSearch: vi.fn(),
     onOpenStudio: vi.fn(),
     onOpenMcp: vi.fn(),
@@ -28,6 +32,35 @@ function baseProps(): {
 
 afterEach(() => {
   cleanup()
+})
+
+describe('ActionRail — view switcher (git-management GIT-R13)', () => {
+  it('renders Explorer + Source Control view entries with the active one pressed', () => {
+    render(createElement(ActionRail, { ...baseProps(), activeView: 'scm' }))
+    expect(screen.getByLabelText('Explorador').getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByLabelText('Controle de versão').getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('selecting a view calls onSelectView with its id', () => {
+    const props = baseProps()
+    render(createElement(ActionRail, props))
+    fireEvent.click(screen.getByLabelText('Controle de versão'))
+    expect(props.onSelectView).toHaveBeenCalledWith('scm')
+    fireEvent.click(screen.getByLabelText('Explorador'))
+    expect(props.onSelectView).toHaveBeenCalledWith('explorer')
+  })
+
+  it('shows a change-count badge + accessible count on Source Control, hidden at zero', () => {
+    const { container, rerender } = render(createElement(ActionRail, baseProps()))
+    expect(container.querySelector('.wb-rail-badge')).toBeNull()
+
+    rerender(createElement(ActionRail, { ...baseProps(), changeCount: 5 }))
+    expect(container.querySelector('.wb-rail-badge')?.textContent).toBe('5')
+    expect(screen.getByLabelText(/5 alterações pendentes/)).toBeTruthy()
+
+    rerender(createElement(ActionRail, { ...baseProps(), changeCount: 120 }))
+    expect(container.querySelector('.wb-rail-badge')?.textContent).toBe('99+')
+  })
 })
 
 describe('ActionRail — existing click wiring', () => {

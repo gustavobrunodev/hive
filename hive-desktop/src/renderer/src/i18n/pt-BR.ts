@@ -521,7 +521,12 @@ export const ptBR = {
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
     searchLabel: 'Buscar arquivos no workspace',
-    appSettingsLabel: 'Configurações do aplicativo'
+    appSettingsLabel: 'Configurações do aplicativo',
+    // git-management (M10): the activity-bar view entries + change badge.
+    explorerView: 'Explorador',
+    scmView: 'Controle de versão',
+    scmChangeCount: (count: number) =>
+      count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`
   },
   // Workspace file search (Ctrl+P palette).
   fileSearch: {

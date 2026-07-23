@@ -18,6 +18,15 @@
   --agent-claude: var(--accent);
   --agent-copilot: var(--wb-ic-teal);
   --agent-devin: var(--wb-ic-violet);
+  /* git-management (M10): one status→color vocabulary, mapped onto the
+     themeable icon palette so both themes resolve for free (design.md §7).
+     Git-status color is semantic state, never decoration. */
+  --wb-git-modified: var(--wb-ic-yellow);
+  --wb-git-added: var(--wb-ic-green);
+  --wb-git-deleted: var(--wb-ic-red);
+  --wb-git-renamed: var(--wb-ic-teal);
+  --wb-git-conflict: var(--wb-ic-orange);
+  --wb-git-ignored: var(--muted);
 }
 
 /* --- Product-register resets (this app has no brand-register surface) ---
@@ -1857,6 +1866,73 @@
   height: 1px;
   background: var(--border-strong);
   margin: var(--s-1) 0;
+}
+
+/* git-management (GIT-R13): activity-bar view entries. Same footprint as
+   wb-rail-btn, plus a left accent bar + filled state when active (VS Code
+   parity) and a change-count badge on the SCM entry. */
+.wb-rail-view {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-rail-view:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-rail-view:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.wb-rail-view[data-active] {
+  color: var(--ink);
+}
+/* The VS Code left accent bar marking the active view. */
+.wb-rail-view[data-active]::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-rail-view {
+    transition: none;
+  }
+}
+/* Change-count badge on the Source Control entry. */
+.wb-rail-badge {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .wb-actionrail-settings {
