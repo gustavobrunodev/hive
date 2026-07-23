@@ -243,3 +243,47 @@ describe('GitService branches', () => {
     expect(force.runner.calls[0].args.slice(2)).toEqual(['branch', '-D', 'gone'])
   })
 })
+
+describe('GitService remotes', () => {
+  it('fetches and pulls (--ff)', async () => {
+    const f = make()
+    await f.service.fetch(WS)
+    expect(f.runner.calls[0].args.slice(2)).toEqual(['fetch'])
+
+    const p = make()
+    await p.service.pull(WS)
+    expect(p.runner.calls[0].args.slice(2)).toEqual(['pull', '--ff'])
+  })
+
+  it('pushes plainly, and publishes with -u origin <current> when setUpstream', async () => {
+    const plain = make()
+    await plain.service.push(WS)
+    expect(plain.runner.calls[0].args.slice(2)).toEqual(['push'])
+
+    const pub = make()
+    stdout(pub.runner, 'feature/x\n') // rev-parse --abbrev-ref HEAD
+    pub.runner.script({ code: 0 }) // push -u
+    await pub.service.push(WS, { setUpstream: true })
+    expect(pub.runner.calls[1].args.slice(2)).toEqual(['push', '-u', 'origin', 'feature/x'])
+  })
+
+  it('syncs by pulling then pushing', async () => {
+    const { runner, service } = make()
+    runner.script({ code: 0 }) // pull
+    runner.script({ code: 0 }) // push
+    await service.sync(WS)
+    expect(runner.calls[0].args.slice(2)).toEqual(['pull', '--ff'])
+    expect(runner.calls[1].args.slice(2)).toEqual(['push'])
+  })
+
+  it('propagates git\'s real stderr on an auth failure (D-GIT-1)', async () => {
+    const { runner, service } = make()
+    runner.script({
+      chunks: [{ stream: 'stderr', data: 'fatal: Authentication failed for https://host/repo' }],
+      code: 128
+    })
+    const err = await service.push(WS).catch((e) => e)
+    expect(err).toBeInstanceOf(GitError)
+    expect(err.stderr).toContain('Authentication failed')
+  })
+})

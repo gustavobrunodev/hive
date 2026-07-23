@@ -93,6 +93,14 @@ export interface GitService {
   renameBranch(workspace: string, from: string, to: string): Promise<void>
   /** `branch -d` (or `-D` when `force`) (GIT-R6.4). */
   deleteBranch(workspace: string, name: string, force?: boolean): Promise<void>
+  /** `fetch` — refresh remote-tracking refs (GIT-R7). */
+  fetch(workspace: string): Promise<void>
+  /** `pull --ff` — an auth/conflict failure surfaces git's real stderr (GIT-R7, D-GIT-1). */
+  pull(workspace: string): Promise<void>
+  /** `push`, or `push -u origin <current>` when `setUpstream` ("Publicar branch", GIT-R7.3). */
+  push(workspace: string, opts?: { setUpstream?: boolean }): Promise<void>
+  /** Sync = pull then push (GIT-R7). */
+  sync(workspace: string): Promise<void>
 }
 
 /** The for-each-ref format feeding `parseBranches` (refname, short oid, upstream, track, HEAD marker). */
@@ -278,6 +286,36 @@ export function createGitService(deps: GitServiceDeps): GitService {
     })
   }
 
+  function fetch(workspace: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['fetch'], { cwd: workspace })
+    })
+  }
+
+  function pull(workspace: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['pull', '--ff'], { cwd: workspace })
+    })
+  }
+
+  function push(workspace: string, opts?: { setUpstream?: boolean }): Promise<void> {
+    return enqueue(workspace, async () => {
+      if (opts?.setUpstream) {
+        const branch = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: workspace })).trim()
+        await git(['push', '-u', 'origin', branch], { cwd: workspace })
+      } else {
+        await git(['push'], { cwd: workspace })
+      }
+    })
+  }
+
+  function sync(workspace: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['pull', '--ff'], { cwd: workspace })
+      await git(['push'], { cwd: workspace })
+    })
+  }
+
   return {
     detect,
     init,
@@ -290,6 +328,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
     createBranch,
     checkout,
     renameBranch,
-    deleteBranch
+    deleteBranch,
+    fetch,
+    pull,
+    push,
+    sync
   }
 }
