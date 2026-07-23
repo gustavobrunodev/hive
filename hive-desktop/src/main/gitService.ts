@@ -1,3 +1,6 @@
+import { unlinkSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
 import { parseStatusV2, type GitStatus } from './gitParse'
 
@@ -59,6 +62,27 @@ export interface GitService {
   init(workspace: string): Promise<void>
   /** Parsed `status --porcelain=v2 --branch -z` (GIT-R2). A read — runs directly. */
   status(workspace: string): Promise<GitStatus>
+  /** Stages the given paths (`add -- …`, GIT-R3). Serialized. */
+  stage(workspace: string, paths: string[]): Promise<void>
+  /** Unstages the given paths (`restore --staged -- …`, GIT-R3). Serialized. */
+  unstage(workspace: string, paths: string[]): Promise<void>
+  /**
+   * Discards the given paths (GIT-R3.3): a tracked path is restored to HEAD
+   * (`restore --staged --worktree`); an **untracked** path is sent to the OS
+   * trash (recoverable), never `clean -f`. Serialized.
+   */
+  discard(workspace: string, paths: string[]): Promise<void>
+  /**
+   * Commits (GIT-R5). The message is written to a temp file and passed via
+   * `-F` (safe for multi-line/large messages, no stdin dependency). `stageAll`
+   * runs `add -A` first ("preparar tudo e commitar"); `amend` amends HEAD.
+   * Resolves the new commit hash.
+   */
+  commit(
+    workspace: string,
+    message: string,
+    opts?: { amend?: boolean; stageAll?: boolean }
+  ): Promise<{ hash: string }>
 }
 
 /** Collects a finished process's full stdout/stderr and exit code. */
@@ -149,5 +173,62 @@ export function createGitService(deps: GitServiceDeps): GitService {
     return parseStatusV2(out)
   }
 
-  return { detect, init, status }
+  function stage(workspace: string, paths: string[]): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['add', '--', ...paths], { cwd: workspace })
+    })
+  }
+
+  function unstage(workspace: string, paths: string[]): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['restore', '--staged', '--', ...paths], { cwd: workspace })
+    })
+  }
+
+  function discard(workspace: string, paths: string[]): Promise<void> {
+    return enqueue(workspace, async () => {
+      // Classify the requested paths so untracked files go to the trash (never
+      // hard-deleted) while tracked files are reverted to HEAD (GIT-R3.3).
+      const out = await git(['status', '--porcelain=v2', '-z', '--', ...paths], { cwd: workspace })
+      const untracked = new Set(
+        parseStatusV2(out).changes.filter((c) => c.isUntracked).map((c) => c.path)
+      )
+      for (const path of paths) {
+        if (untracked.has(path)) await deps.trashItem(join(workspace, path))
+      }
+      const tracked = paths.filter((path) => !untracked.has(path))
+      if (tracked.length > 0) {
+        await git(['restore', '--staged', '--worktree', '--', ...tracked], { cwd: workspace })
+      }
+    })
+  }
+
+  function commit(
+    workspace: string,
+    message: string,
+    opts?: { amend?: boolean; stageAll?: boolean }
+  ): Promise<{ hash: string }> {
+    return enqueue(workspace, async () => {
+      if (opts?.stageAll) {
+        await git(['add', '-A'], { cwd: workspace })
+      }
+      const messageFile = join(tmpdir(), `hive-commit-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`)
+      writeFileSync(messageFile, message)
+      try {
+        const args = ['commit', '-F', messageFile]
+        if (opts?.amend) args.push('--amend')
+        await git(args, { cwd: workspace })
+      } finally {
+        try {
+          unlinkSync(messageFile)
+        } catch {
+          // best-effort temp cleanup
+        }
+      }
+      const hash = (await git(['rev-parse', 'HEAD'], { cwd: workspace })).trim()
+      return { hash }
+    })
+  }
+
+  return { detect, init, status, stage, unstage, discard, commit }
 }

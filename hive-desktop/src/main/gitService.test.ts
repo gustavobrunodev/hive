@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { join } from 'path'
 import { createFakeProcessRunner, type FakeProcessRunner } from './processRunner'
 import { createGitService, GitError, type GitService } from './gitService'
 
@@ -120,5 +121,74 @@ describe('GitService.init + serialization', () => {
     await Promise.all([first, second])
     expect(runner.calls).toHaveLength(2)
     expect(runner.calls.every((c) => c.args.includes('init'))).toBe(true)
+  })
+})
+
+describe('GitService.stage / unstage', () => {
+  it('stages paths with add --', async () => {
+    const { runner, service } = make()
+    await service.stage(WS, ['a.txt', 'dir/b.md'])
+    expect(runner.calls[0].args.slice(2)).toEqual(['add', '--', 'a.txt', 'dir/b.md'])
+  })
+
+  it('unstages paths with restore --staged --', async () => {
+    const { runner, service } = make()
+    await service.unstage(WS, ['a.txt'])
+    expect(runner.calls[0].args.slice(2)).toEqual(['restore', '--staged', '--', 'a.txt'])
+  })
+})
+
+describe('GitService.discard', () => {
+  it('trashes an untracked file and never calls git restore for it', async () => {
+    const { runner, service, trashItem } = make()
+    stdout(runner, '? junk.txt\0') // scoped status: the path is untracked
+    await service.discard(WS, ['junk.txt'])
+
+    expect(trashItem).toHaveBeenCalledWith(join(WS, 'junk.txt'))
+    expect(runner.calls.some((c) => c.args.includes('restore'))).toBe(false)
+  })
+
+  it('restores a tracked file to HEAD and never trashes it', async () => {
+    const { runner, service, trashItem } = make()
+    stdout(runner, '1 .M N... 100644 100644 100644 aaa bbb a.txt\0') // tracked modification
+    await service.discard(WS, ['a.txt'])
+
+    expect(trashItem).not.toHaveBeenCalled()
+    const restore = runner.calls.find((c) => c.args.includes('restore'))
+    expect(restore?.args.slice(2)).toEqual(['restore', '--staged', '--worktree', '--', 'a.txt'])
+  })
+})
+
+describe('GitService.commit', () => {
+  it('commits via a -F message file and returns the new hash', async () => {
+    const { runner, service } = make()
+    runner.script({ code: 0 }) // commit
+    stdout(runner, 'deadbeefcafe\n') // rev-parse HEAD
+    const result = await service.commit(WS, 'feat: do a thing')
+
+    expect(result).toEqual({ hash: 'deadbeefcafe' })
+    const commitCall = runner.calls[0].args.slice(2)
+    expect(commitCall[0]).toBe('commit')
+    expect(commitCall[1]).toBe('-F')
+    expect(commitCall).not.toContain('--amend')
+  })
+
+  it('runs add -A first when stageAll is set', async () => {
+    const { runner, service } = make()
+    runner.script({ code: 0 }) // add -A
+    runner.script({ code: 0 }) // commit
+    stdout(runner, 'abc123\n') // rev-parse
+    await service.commit(WS, 'msg', { stageAll: true })
+
+    expect(runner.calls[0].args.slice(2)).toEqual(['add', '-A'])
+    expect(runner.calls[1].args[2]).toBe('commit')
+  })
+
+  it('passes --amend when amending', async () => {
+    const { runner, service } = make()
+    runner.script({ code: 0 }) // commit --amend
+    stdout(runner, 'abc123\n') // rev-parse
+    await service.commit(WS, 'msg', { amend: true })
+    expect(runner.calls[0].args).toContain('--amend')
   })
 })
