@@ -130,6 +130,44 @@ export function changeCount(status: GitStatus | null): number {
   return conflicts.length + staged.length + unstaged.length
 }
 
+/** A single side-by-side diff row: a deletion/context on the left, an addition/context on the right. */
+export interface SplitRow {
+  left: GitDiffLine | null
+  right: GitDiffLine | null
+}
+
+/**
+ * Aligns a hunk's lines into two columns for the side-by-side diff (§6.1):
+ * consecutive deletions pair with the additions that follow them
+ * (row i = del[i] | add[i]); context lines sit on both sides. Pure so the
+ * alignment is unit-testable without the DOM.
+ */
+export function toSplitRows(lines: GitDiffLine[]): SplitRow[] {
+  const rows: SplitRow[] = []
+  let dels: GitDiffLine[] = []
+  let adds: GitDiffLine[] = []
+
+  const flush = (): void => {
+    const n = Math.max(dels.length, adds.length)
+    for (let i = 0; i < n; i++) {
+      rows.push({ left: dels[i] ?? null, right: adds[i] ?? null })
+    }
+    dels = []
+    adds = []
+  }
+
+  for (const line of lines) {
+    if (line.type === 'del') dels.push(line)
+    else if (line.type === 'add') adds.push(line)
+    else {
+      flush()
+      rows.push({ left: line, right: line })
+    }
+  }
+  flush()
+  return rows
+}
+
 /** Builds the path→decoration map the explorer tree consumes (design.md §6.3). */
 export function buildDecorations(status: GitStatus | null): Map<string, GitDecoration> {
   const map = new Map<string, GitDecoration>()

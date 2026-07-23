@@ -2102,6 +2102,164 @@
   }
 }
 
+/* ── Diff viewer (git-management §6.1) ─────────────────────────────────────
+   Monospace, semantic add/del tints as backgrounds with near-ink text (never
+   gray-on-tint), old/new gutters, own overflow scroll. */
+.wb-diff {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg);
+}
+.wb-diff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.wb-diff-title {
+  font-size: 0.8125rem;
+  color: var(--ink);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-diff-toolbar-spacer {
+  flex: 1;
+}
+.wb-diff-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.wb-diff-toggle button {
+  padding: 3px var(--s-2);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.12s var(--ease-quart);
+}
+.wb-diff-toggle button:hover {
+  color: var(--ink);
+}
+.wb-diff-toggle button[data-active] {
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+.wb-diff-toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.wb-diff-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.wb-diff-hunk-header {
+  padding: 2px var(--s-2);
+  color: var(--muted);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  white-space: pre;
+}
+
+/* Unified rows. */
+.wb-diff-line {
+  display: grid;
+  grid-template-columns: 44px 44px 16px 1fr;
+  align-items: start;
+}
+.wb-diff-gutter {
+  text-align: right;
+  padding: 0 var(--s-2);
+  color: var(--faint);
+  user-select: none;
+  white-space: nowrap;
+}
+.wb-diff-sign {
+  text-align: center;
+  color: var(--muted);
+  user-select: none;
+}
+.wb-diff-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  padding-right: var(--s-2);
+}
+.wb-diff-line[data-type='add'],
+.wb-diff-scell[data-type='add'] {
+  background: var(--success-bg);
+}
+.wb-diff-line[data-type='del'],
+.wb-diff-scell[data-type='del'] {
+  background: var(--danger-bg);
+}
+.wb-diff-line[data-type='add'] .wb-diff-sign {
+  color: var(--wb-git-added);
+}
+.wb-diff-line[data-type='del'] .wb-diff-sign {
+  color: var(--wb-git-deleted);
+}
+
+/* Side-by-side rows. */
+.wb-diff-srow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.wb-diff-scell {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: start;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.wb-diff-scell[data-type='empty'] {
+  background: var(--surface);
+}
+
+.wb-diff-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  flex: 1;
+  padding: var(--s-6);
+  text-align: center;
+}
+.wb-diff-state-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.wb-diff-state-desc {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-diff-toggle button {
+    transition: none;
+  }
+}
+
 /* Commit box (GIT-R5) — the always-present message input + primary split button. */
 .wb-commit {
   display: flex;

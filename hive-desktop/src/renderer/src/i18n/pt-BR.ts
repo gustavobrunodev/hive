@@ -579,7 +579,23 @@ export const ptBR = {
     amendToggle: 'Corrigir último commit (amend)',
     stageAllAndCommit: 'Preparar tudo e commitar',
     commitDisabledEmpty: 'Escreva uma mensagem de commit',
-    commitDisabledNothing: 'Nenhuma alteração para commitar'
+    commitDisabledNothing: 'Nenhuma alteração para commitar',
+    // Diff viewer (GIT-R4).
+    diffUnified: 'Unificado',
+    diffSideBySide: 'Lado a lado',
+    diffModeLabel: 'Modo de exibição das diferenças',
+    diffBinaryTitle: 'Arquivo binário',
+    diffBinaryDescription: 'As diferenças de arquivos binários não podem ser exibidas como texto.',
+    diffTooLargeTitle: 'Diferenças muito grandes',
+    diffTooLargeDescription:
+      'Este arquivo mudou demais para exibir aqui. Abra o arquivo para ver o conteúdo.',
+    diffEmptyTitle: 'Sem diferenças',
+    diffEmptyDescription: 'Nenhuma alteração de conteúdo para mostrar.',
+    diffSideWorking: 'árvore de trabalho',
+    diffSideStaged: 'preparado',
+    diffTitle: (name: string, side: string) => `${name} (${side})`,
+    diffOldLineAria: 'Linha original',
+    diffNewLineAria: 'Linha nova'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
