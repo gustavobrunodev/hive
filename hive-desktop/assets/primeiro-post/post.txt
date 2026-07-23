@@ -1,0 +1,18 @@
+🐝 HIVE agora é um framework — para transformar discovery em entrega, preservando o contexto de ponta a ponta.
+
+O desafio não é só gerar histórias.
+
+Hoje, o discovery acontece em ferramentas diferentes, o contexto se perde a cada handoff (PM → Tech Lead → QA → Dev) e as histórias chegam ao desenvolvimento sem especificação suficiente. Enquanto a IA acelerou a execução, o verdadeiro gargalo passou a ser o upstream.
+
+O HIVE conecta todo esse fluxo em um único framework:
+
+• Dados no discovery — consulta às bases democratizadas diretamente no refinamento, via MCP Athena.
+• Documentação integrada — geração de PRD, arquitetura, features e histórias dentro do mesmo fluxo.
+• Contexto preservado — cada etapa aproveita as informações da anterior, reduzindo retrabalho e perda de conhecimento.
+• Histórias prontas para o SDD — com especificações completas, permitindo que o desenvolvimento comece com mais clareza e direção.
+
+👉 Começo rápido:
+github-pages.cloud.itau.com.br/itau-uh4-doc-hive/#/downloads
+
+👉 Acesse:
+iconectados.sharepoint/sites/hive-ai
