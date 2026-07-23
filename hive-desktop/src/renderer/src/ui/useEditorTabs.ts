@@ -1,9 +1,17 @@
 import { useCallback, useRef, useState } from 'react'
 import type { FileViewerHandle } from '../explorer/Explorer'
+import type { GitDiffSide } from '../scm/gitStatus'
+
+/** What an editor tab shows (git-management §6.5). */
+export type EditorTabKind = 'file' | 'diff' | 'conflict'
 
 /** One open editor tab (state owned by `WorkUI`). */
 export interface EditorTab {
-  /** Workspace-relative file path — the tab's identity. */
+  /**
+   * The tab's identity/key. For a file it's the workspace-relative path; for a
+   * diff/conflict it's a synthetic key (`⟨diff⟩path?side`) so a file and its
+   * diff can be open at once without colliding.
+   */
   path: string
   /**
    * VS Code preview semantics: an unpinned tab (italic title) is replaced by
@@ -11,6 +19,23 @@ export interface EditorTab {
    * editing the file pins it.
    */
   pinned: boolean
+  /** file (default) / diff / conflict (git-management §6.5). */
+  kind: EditorTabKind
+  /** For diff/conflict tabs: the real file path (+ side for a diff). */
+  git?: { path: string; side?: GitDiffSide }
+  /** Display name override (diff/conflict tabs show the file's basename, not the synthetic key). */
+  label?: string
+}
+
+/** Basename of a POSIX path. */
+function baseName(path: string): string {
+  const i = path.lastIndexOf('/')
+  return i === -1 ? path : path.slice(i + 1)
+}
+
+/** Synthetic tab key for a diff so it never collides with the file tab. */
+function diffKey(path: string, side: GitDiffSide): string {
+  return `⟨diff⟩${path}?${side}`
 }
 
 /** Everything `WorkUI` needs to drive the multi-tab editor pane. */
@@ -21,6 +46,8 @@ export interface EditorTabsState {
   /** A tab close blocked behind the three-way unsaved-changes dialog. */
   pendingClose: string | null
   openFile: (path: string, opts?: { pin?: boolean }) => void
+  /** Opens (or focuses) a diff tab for `filePath` on the given side (git-management §6.5). */
+  openDiff: (filePath: string, side: GitDiffSide) => void
   selectTab: (path: string) => void
   pinTab: (path: string) => void
   /** Closes unconditionally (callers that already guarded, e.g. the viewer's own internally-guarded close). */
@@ -51,26 +78,45 @@ export function useEditorTabs(): EditorTabsState {
   const [pendingClose, setPendingClose] = useState<string | null>(null)
   const viewerRefs = useRef(new Map<string, FileViewerHandle>())
 
-  const openFile = useCallback((path: string, opts?: { pin?: boolean }) => {
+  const openTab = useCallback((next: EditorTab) => {
     setTabs((current) => {
-      const existing = current.find((tab) => tab.path === path)
+      const existing = current.find((tab) => tab.path === next.path)
       if (existing) {
-        if (opts?.pin && !existing.pinned) {
-          return current.map((tab) => (tab.path === path ? { ...tab, pinned: true } : tab))
+        if (next.pinned && !existing.pinned) {
+          return current.map((tab) => (tab.path === next.path ? { ...tab, pinned: true } : tab))
         }
         return current
       }
-      const next: EditorTab = { path, pinned: opts?.pin ?? false }
       // A plain-click open reuses the preview slot in place (VS Code): the
-      // unpinned tab, if any, is swapped for the new file.
+      // unpinned tab, if any, is swapped for the new one.
       const previewIndex = current.findIndex((tab) => !tab.pinned)
       if (!next.pinned && previewIndex !== -1) {
         return current.map((tab, index) => (index === previewIndex ? next : tab))
       }
       return [...current, next]
     })
-    setActivePath(path)
+    setActivePath(next.path)
   }, [])
+
+  const openFile = useCallback(
+    (path: string, opts?: { pin?: boolean }) => {
+      openTab({ path, pinned: opts?.pin ?? false, kind: 'file' })
+    },
+    [openTab]
+  )
+
+  const openDiff = useCallback(
+    (filePath: string, side: GitDiffSide) => {
+      openTab({
+        path: diffKey(filePath, side),
+        pinned: false,
+        kind: 'diff',
+        git: { path: filePath, side },
+        label: baseName(filePath)
+      })
+    },
+    [openTab]
+  )
 
   const pinTab = useCallback((path: string) => {
     setTabs((current) =>
@@ -165,6 +211,7 @@ export function useEditorTabs(): EditorTabsState {
     dirtyPaths,
     pendingClose,
     openFile,
+    openDiff,
     selectTab: setActivePath,
     pinTab,
     removeTab,

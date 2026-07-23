@@ -27,6 +27,9 @@ import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
+import { DiffTab } from './scm/DiffTab'
+import type { RowSide } from './scm/ChangeGroups'
+import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
 import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
@@ -635,7 +638,13 @@ export function WorkUI({
                   onOpenFile={editor.openFile}
                 />
               }
-              scm={<SourceControlPanel />}
+              scm={
+                <SourceControlPanel
+                  onOpenDiff={(change: GitFileChange, side: RowSide) =>
+                    editor.openDiff(change.path, side === 'staged' ? 'staged' : 'working')
+                  }
+                />
+              }
             />
           </div>
         </ResizablePanel>
@@ -691,18 +700,23 @@ export function WorkUI({
               dragProps={dragHandlePropsFor('viewer')}
               trailing={paneMoveMenuFor('viewer', t('workUI.paneEditor'))}
             />
-            {/* Every tab's viewer stays mounted (drafts survive switching);
-                only the active one is visible. */}
+            {/* Every tab's body stays mounted (drafts survive switching);
+                only the active one is visible. Diff tabs render a DiffView
+                (git-management §6.5); file tabs the FileViewer. */}
             {editor.tabs.map((tab) => (
               <div key={tab.path} className="wb-tab-body" hidden={tab.path !== editor.activePath}>
-                <FileViewer
-                  ref={(handle) => editor.registerViewer(tab.path, handle)}
-                  workspace={workspace}
-                  path={tab.path}
-                  active={tab.path === editor.activePath}
-                  onClose={() => editor.removeTab(tab.path)}
-                  onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
-                />
+                {tab.kind === 'diff' && tab.git ? (
+                  <DiffTab path={tab.git.path} side={tab.git.side ?? 'working'} />
+                ) : (
+                  <FileViewer
+                    ref={(handle) => editor.registerViewer(tab.path, handle)}
+                    workspace={workspace}
+                    path={tab.path}
+                    active={tab.path === editor.activePath}
+                    onClose={() => editor.removeTab(tab.path)}
+                    onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
+                  />
+                )}
               </div>
             ))}
           </div>

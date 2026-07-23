@@ -2231,6 +2231,25 @@
   background: var(--surface);
 }
 
+/* Diff loading skeleton (not a spinner, per product register). */
+.wb-diff-loading {
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(var(--surface) 0 0) padding-box;
+  opacity: 0.6;
+  animation: wb-diff-pulse 1.2s var(--ease-quart) infinite;
+}
+@keyframes wb-diff-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-diff-loading {
+    animation: none;
+  }
+}
+
 .wb-diff-state {
   display: flex;
   flex-direction: column;

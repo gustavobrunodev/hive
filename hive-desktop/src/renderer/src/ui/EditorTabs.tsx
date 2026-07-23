@@ -61,28 +61,33 @@ export function EditorTabs({
         {tabs.map((tab) => {
           const dirty = dirtyPaths.has(tab.path)
           const active = tab.path === activePath
+          // Diff/conflict tabs show the file's basename (not the synthetic
+          // key) and a git indicator; the underlying real path drives the icon.
+          const filePath = tab.git?.path ?? tab.path
+          const name = tab.label ?? tabName(tab.path)
           return (
             <div
               key={tab.path}
               role="tab"
               tabIndex={0}
               aria-selected={active}
-              title={tab.path}
+              title={filePath}
               className="wb-tab"
               data-active={active || undefined}
               data-preview={!tab.pinned || undefined}
               data-dirty={dirty || undefined}
+              data-kind={tab.kind !== 'file' ? tab.kind : undefined}
               onClick={() => onSelect(tab.path)}
               onDoubleClick={() => onPin(tab.path)}
               onAuxClick={(event) => handleAuxClick(event, tab.path)}
               onKeyDown={(event) => handleTabKeyDown(event, tab.path)}
             >
-              <FileTypeIcon path={tab.path} size={14} />
-              <span className="wb-tab-name">{tabName(tab.path)}</span>
+              <FileTypeIcon path={filePath} size={14} />
+              <span className="wb-tab-name">{name}</span>
               <button
                 type="button"
                 className="wb-tab-close"
-                aria-label={t('explorer.closeTabLabel', tabName(tab.path))}
+                aria-label={t('explorer.closeTabLabel', name)}
                 onClick={(event) => {
                   event.stopPropagation()
                   onClose(tab.path)
