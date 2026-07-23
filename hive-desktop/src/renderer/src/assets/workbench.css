@@ -1868,6 +1868,16 @@
   margin: var(--s-1) 0;
 }
 
+/* git-management (D-GIT-2): the swappable rail body host — fills the pane
+   below the header so the active view (tree or SCM panel) scrolls inside it. */
+.wb-sidebar-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* git-management (GIT-R13): activity-bar view entries. Same footprint as
    wb-rail-btn, plus a left accent bar + filled state when active (VS Code
    parity) and a change-count badge on the SCM entry. */

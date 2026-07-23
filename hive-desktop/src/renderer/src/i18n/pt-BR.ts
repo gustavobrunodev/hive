@@ -518,6 +518,10 @@ export const ptBR = {
   // The persistent left tool rail: workspace file search on top, app
   // settings bottom-anchored (the role shortcuts now live next to the
   // conversation — see chat.shortcutsLabel).
+  git: {
+    // git-management (M10) — the Source Control surface.
+    paneTitle: 'Controle de versão'
+  },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
     searchLabel: 'Buscar arquivos no workspace',

@@ -22,7 +22,10 @@ import { Chat, type ChatHandle } from './chat/Chat'
 import { SessionHistory } from './chat/SessionHistory'
 import { EditorTabs } from './ui/EditorTabs'
 import { useEditorTabs } from './ui/useEditorTabs'
-import { ActionRail, type RoleAction } from './ui/ActionRail'
+import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
+import { SidebarHost } from './ui/SidebarHost'
+import { useGitStore, GitProvider } from './scm/useGit'
+import { changeCount } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
 import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
@@ -163,6 +166,18 @@ function persistWorkLayout(layout: WorkLayout): void {
   }
 }
 
+/** localStorage key for the persisted sidebar view (git-management D-GIT-2). */
+const SIDEBAR_VIEW_STORAGE_KEY = 'hive.sidebarView'
+
+/** Reads the persisted sidebar view, defaulting to the Explorer (tolerates missing/corrupt data). */
+function loadSidebarView(): SidebarView {
+  try {
+    return localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === 'scm' ? 'scm' : 'explorer'
+  } catch {
+    return 'explorer'
+  }
+}
+
 /** The three movable workbench panes (customizable-layout). */
 type PaneId = 'rail' | 'chat' | 'viewer'
 
@@ -243,6 +258,22 @@ export function WorkUI({
 }: WorkUIProps): React.JSX.Element {
   // Multi-tab editor pane (VS Code preview/pin semantics live in the hook).
   const editor = useEditorTabs()
+  // git-management (M10): the single git store for this workspace, shared via
+  // GitProvider to the rail's Source Control view, the status bar, the
+  // explorer decorations and the editor gutter. Mounted once here (like
+  // useUpdateFlow) so all consumers see one coherent state.
+  const git = useGitStore(workspace)
+  // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
+  // it survives a reload (D-GIT-2).
+  const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
+  const setActiveView = useCallback((view: SidebarView) => {
+    setActiveViewState(view)
+    try {
+      localStorage.setItem(SIDEBAR_VIEW_STORAGE_KEY, view)
+    } catch {
+      // persistence is a nicety, not a hard requirement
+    }
+  }, [])
   // npm-distribution T14: the shared update-flow state — launch + periodic
   // silent checks, the Tier 2 notice's props, and the rail's ambient dot
   // (T12) all read from this one hook. Mounted here (not App.tsx) so its own
@@ -337,6 +368,18 @@ export function WorkUI({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
+
+  // Ctrl/Cmd+Shift+G opens the Source Control view (VS Code parity, D-GIT-2).
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'g') {
+        event.preventDefault()
+        setActiveView('scm')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [setActiveView])
 
   const replayTour = useCallback(() => {
     setProfileOpen(false)
@@ -564,30 +607,39 @@ export function WorkUI({
   // reconciles a reorder as a *move*, never a remount — the chat session and
   // the viewer's draft survive any drag.
   const paneRenderers: Record<PaneId, () => ReactNode> = {
-    rail: () => (
-      <ResizablePanel
-        key="rail"
-        id="rail"
-        className="wb-rail"
-        minSize="12%"
-        maxSize="40%"
-        defaultSize="22%"
-        aria-label={t('explorer.treeAriaLabel')}
-      >
-        <div {...paneWrapPropsFor('rail')} data-tour="files">
-          <PaneHeader
-            title={t('explorer.paneTitle')}
-            dragProps={dragHandlePropsFor('rail')}
-            actions={paneMoveMenuFor('rail', t('explorer.paneTitle'))}
-          />
-          <FileTree
-            workspace={workspace}
-            selectedPath={editor.activePath}
-            onOpenFile={editor.openFile}
-          />
-        </div>
-      </ResizablePanel>
-    ),
+    rail: () => {
+      const paneTitle = activeView === 'scm' ? t('git.paneTitle') : t('explorer.paneTitle')
+      return (
+        <ResizablePanel
+          key="rail"
+          id="rail"
+          className="wb-rail"
+          minSize="12%"
+          maxSize="40%"
+          defaultSize="22%"
+          aria-label={paneTitle}
+        >
+          <div {...paneWrapPropsFor('rail')} data-tour="files">
+            <PaneHeader
+              title={paneTitle}
+              dragProps={dragHandlePropsFor('rail')}
+              actions={paneMoveMenuFor('rail', paneTitle)}
+            />
+            <SidebarHost
+              activeView={activeView}
+              explorer={
+                <FileTree
+                  workspace={workspace}
+                  selectedPath={editor.activePath}
+                  onOpenFile={editor.openFile}
+                />
+              }
+              scm={<div className="wb-scm-placeholder" />}
+            />
+          </div>
+        </ResizablePanel>
+      )
+    },
     chat: () => (
       <ResizablePanel key="chat" id="chat" minSize="30%" defaultSize="53%">
         <div {...paneWrapPropsFor('chat')}>
@@ -659,193 +711,202 @@ export function WorkUI({
   const panels = buildPanels(visiblePanes, paneRenderers)
 
   return (
-    <div className="wb-app">
-      <header className="wb-topbar">
-        <HiveLogo mark="brain" className="wb-topbar-logo" />
-        <span className="wb-topbar-title">{t('app.title')}</span>
-        <span className="wb-topbar-sep" aria-hidden="true" />
-        <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="wb-workspace-chip"
-              title={t('workUI.workspaceChipTitle', workspace)}
-              aria-label={t('workUI.workspaceChipAria', workspace)}
-            >
-              <FolderIcon size={14} className="wb-workspace-chip-icon" />
-              <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
-              <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
-            </button>
-          </DropdownMenuTrigger>
-          {chipMenuOpen && (
-            <DropdownMenuContent align="start" className="wb-workspace-menu">
-              <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={handleChooseFolder}>
-                <span className="wb-menu-item-icon" aria-hidden="true">
-                  <FolderOpenIcon size={15} />
-                </span>
-                <span className="wb-menu-item-text">
-                  <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
-                </span>
-              </DropdownMenuItem>
-              {recents.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
-                  {recents.map((path) => (
-                    <DropdownMenuItem key={path} title={path} onSelect={() => requestSwitch(path)}>
-                      <span className="wb-menu-item-icon" aria-hidden="true">
-                        <FolderIcon size={15} />
-                      </span>
-                      <span className="wb-menu-item-text">
-                        <span className="wb-menu-item-title">{workspaceName(path)}</span>
-                        <span className="wb-menu-item-sub">{path}</span>
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          )}
-        </DropdownMenu>
-        <div className="wb-topbar-spacer" />
-        <IconButton
-          label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
-          onClick={onToggleTheme}
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </IconButton>
-        {/* Profile avatar (top-right, the desktop-app convention): the user's
+    <GitProvider store={git}>
+      <div className="wb-app">
+        <header className="wb-topbar">
+          <HiveLogo mark="brain" className="wb-topbar-logo" />
+          <span className="wb-topbar-title">{t('app.title')}</span>
+          <span className="wb-topbar-sep" aria-hidden="true" />
+          <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="wb-workspace-chip"
+                title={t('workUI.workspaceChipTitle', workspace)}
+                aria-label={t('workUI.workspaceChipAria', workspace)}
+              >
+                <FolderIcon size={14} className="wb-workspace-chip-icon" />
+                <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
+                <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
+              </button>
+            </DropdownMenuTrigger>
+            {chipMenuOpen && (
+              <DropdownMenuContent align="start" className="wb-workspace-menu">
+                <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={handleChooseFolder}>
+                  <span className="wb-menu-item-icon" aria-hidden="true">
+                    <FolderOpenIcon size={15} />
+                  </span>
+                  <span className="wb-menu-item-text">
+                    <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
+                  </span>
+                </DropdownMenuItem>
+                {recents.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
+                    {recents.map((path) => (
+                      <DropdownMenuItem
+                        key={path}
+                        title={path}
+                        onSelect={() => requestSwitch(path)}
+                      >
+                        <span className="wb-menu-item-icon" aria-hidden="true">
+                          <FolderIcon size={15} />
+                        </span>
+                        <span className="wb-menu-item-text">
+                          <span className="wb-menu-item-title">{workspaceName(path)}</span>
+                          <span className="wb-menu-item-sub">{path}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </DropdownMenuContent>
+            )}
+          </DropdownMenu>
+          <div className="wb-topbar-spacer" />
+          <IconButton
+            label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
+            onClick={onToggleTheme}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </IconButton>
+          {/* Profile avatar (top-right, the desktop-app convention): the user's
             initials open the profile sheet — who you are; the rail's gear
             below is the software's settings. */}
-        <button
-          type="button"
-          className="wb-avatar-btn"
-          data-tour="profile"
-          title={t('profile.openLabel')}
-          aria-label={t('profile.openLabel')}
-          onClick={() => setProfileOpen(true)}
-        >
-          {initialsOf(userName) ?? <UserIcon size={15} />}
-        </button>
-      </header>
-      {switchError && (
-        <div className="wb-switch-error" role="alert">
-          {switchError}
-        </div>
-      )}
-      <div className="wb-shell">
-        <ActionRail
-          onOpenSearch={() => setSearchOpen(true)}
-          onOpenStudio={() => setStudioOpen(true)}
-          onOpenMcp={() => setMcpOpen(true)}
-          onOpenAppSettings={() => setAppSettingsOpen(true)}
-          updatePending={updateFlow.pending}
-        />
-        <div className="wb-body">
-          <Resizable
-            orientation="horizontal"
-            style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-            defaultLayout={defaultLayout}
-            onLayoutChanged={persistWorkLayout}
+          <button
+            type="button"
+            className="wb-avatar-btn"
+            data-tour="profile"
+            title={t('profile.openLabel')}
+            aria-label={t('profile.openLabel')}
+            onClick={() => setProfileOpen(true)}
           >
-            {panels}
-          </Resizable>
+            {initialsOf(userName) ?? <UserIcon size={15} />}
+          </button>
+        </header>
+        {switchError && (
+          <div className="wb-switch-error" role="alert">
+            {switchError}
+          </div>
+        )}
+        <div className="wb-shell">
+          <ActionRail
+            activeView={activeView}
+            onSelectView={setActiveView}
+            changeCount={changeCount(git.status)}
+            onOpenSearch={() => setSearchOpen(true)}
+            onOpenStudio={() => setStudioOpen(true)}
+            onOpenMcp={() => setMcpOpen(true)}
+            onOpenAppSettings={() => setAppSettingsOpen(true)}
+            updatePending={updateFlow.pending}
+          />
+          <div className="wb-body">
+            <Resizable
+              orientation="horizontal"
+              style={{ flex: 1, minWidth: 0, minHeight: 0 }}
+              defaultLayout={defaultLayout}
+              onLayoutChanged={persistWorkLayout}
+            >
+              {panels}
+            </Resizable>
+          </div>
         </div>
+        {pendingSwitch !== null && (
+          <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
+            <DialogContent>
+              <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
+              <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
+              <div className="wb-dialog-actions">
+                <Button className="wb-btn" onClick={cancelSwitch}>
+                  {t('explorer.unsavedGuardCancelCta')}
+                </Button>
+                <Button className="wb-btn" onClick={handleDiscardSwitch}>
+                  {t('explorer.unsavedGuardConfirmCta')}
+                </Button>
+                <Button className="wb-btn hds-btn-primary" onClick={handleSaveSwitch}>
+                  {t('explorer.unsavedGuardSaveCta')}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {editor.pendingClose !== null && (
+          <Dialog open onOpenChange={(open: boolean) => !open && editor.cancelPendingClose()}>
+            <DialogContent>
+              <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
+              <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
+              <div className="wb-dialog-actions">
+                <Button className="wb-btn" onClick={editor.cancelPendingClose}>
+                  {t('explorer.unsavedGuardCancelCta')}
+                </Button>
+                <Button className="wb-btn" onClick={editor.discardPendingClose}>
+                  {t('explorer.unsavedGuardConfirmCta')}
+                </Button>
+                <Button className="wb-btn hds-btn-primary" onClick={editor.savePendingClose}>
+                  {t('explorer.unsavedGuardSaveCta')}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        <FileSearchDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          workspace={workspace}
+          onOpenFile={editor.openFile}
+        />
+        <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
+        <UpdateNotice
+          state={updateFlow.state}
+          currentVersion={updateFlow.currentVersion}
+          canApply={updateFlow.canApply}
+          onUpdateNow={updateFlow.updateNow}
+          onNotNow={updateFlow.notNow}
+          onSkip={updateFlow.skip}
+          onCancel={updateFlow.cancel}
+          onRetry={updateFlow.retry}
+          onOpenInstaller={updateFlow.openInstaller}
+          onViewNotes={() => setAppSettingsOpen(true)}
+        />
+        <ShortcutCustomizer
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+          workspace={workspace}
+          role={role}
+          onChanged={refreshShortcuts}
+          onOpenStudio={() => {
+            setShortcutsOpen(false)
+            setStudioOpen(true)
+          }}
+        />
+        <SkillStudio
+          open={studioOpen}
+          onOpenChange={setStudioOpen}
+          workspace={workspace}
+          role={role}
+          hasRunningConversation={runningSessionIds.length > 0}
+          onLaunch={handleStudioLaunch}
+          onShortcutsChanged={refreshShortcuts}
+          onOpenFile={editor.openFile}
+        />
+        <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
+        <ProfileSheet
+          open={profileOpen}
+          onOpenChange={setProfileOpen}
+          role={role}
+          agents={agents}
+          defaultAgent={defaultAgent}
+          userName={userName}
+          onRoleChange={onRoleChange}
+          onAgentsChange={onAgentsChange}
+          onDefaultAgentChange={onDefaultAgentChange}
+          onUserNameChange={onUserNameChange}
+          onReplayTour={replayTour}
+        />
+        <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
       </div>
-      {pendingSwitch !== null && (
-        <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
-          <DialogContent>
-            <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
-            <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
-            <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={cancelSwitch}>
-                {t('explorer.unsavedGuardCancelCta')}
-              </Button>
-              <Button className="wb-btn" onClick={handleDiscardSwitch}>
-                {t('explorer.unsavedGuardConfirmCta')}
-              </Button>
-              <Button className="wb-btn hds-btn-primary" onClick={handleSaveSwitch}>
-                {t('explorer.unsavedGuardSaveCta')}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      {editor.pendingClose !== null && (
-        <Dialog open onOpenChange={(open: boolean) => !open && editor.cancelPendingClose()}>
-          <DialogContent>
-            <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
-            <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
-            <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={editor.cancelPendingClose}>
-                {t('explorer.unsavedGuardCancelCta')}
-              </Button>
-              <Button className="wb-btn" onClick={editor.discardPendingClose}>
-                {t('explorer.unsavedGuardConfirmCta')}
-              </Button>
-              <Button className="wb-btn hds-btn-primary" onClick={editor.savePendingClose}>
-                {t('explorer.unsavedGuardSaveCta')}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      <FileSearchDialog
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        workspace={workspace}
-        onOpenFile={editor.openFile}
-      />
-      <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
-      <UpdateNotice
-        state={updateFlow.state}
-        currentVersion={updateFlow.currentVersion}
-        canApply={updateFlow.canApply}
-        onUpdateNow={updateFlow.updateNow}
-        onNotNow={updateFlow.notNow}
-        onSkip={updateFlow.skip}
-        onCancel={updateFlow.cancel}
-        onRetry={updateFlow.retry}
-        onOpenInstaller={updateFlow.openInstaller}
-        onViewNotes={() => setAppSettingsOpen(true)}
-      />
-      <ShortcutCustomizer
-        open={shortcutsOpen}
-        onOpenChange={setShortcutsOpen}
-        workspace={workspace}
-        role={role}
-        onChanged={refreshShortcuts}
-        onOpenStudio={() => {
-          setShortcutsOpen(false)
-          setStudioOpen(true)
-        }}
-      />
-      <SkillStudio
-        open={studioOpen}
-        onOpenChange={setStudioOpen}
-        workspace={workspace}
-        role={role}
-        hasRunningConversation={runningSessionIds.length > 0}
-        onLaunch={handleStudioLaunch}
-        onShortcutsChanged={refreshShortcuts}
-        onOpenFile={editor.openFile}
-      />
-      <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
-      <ProfileSheet
-        open={profileOpen}
-        onOpenChange={setProfileOpen}
-        role={role}
-        agents={agents}
-        defaultAgent={defaultAgent}
-        userName={userName}
-        onRoleChange={onRoleChange}
-        onAgentsChange={onAgentsChange}
-        onDefaultAgentChange={onDefaultAgentChange}
-        onUserNameChange={onUserNameChange}
-        onReplayTour={replayTour}
-      />
-      <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
-    </div>
+    </GitProvider>
   )
 }

@@ -13,6 +13,7 @@ import {
   type ReactNode
 } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createHiveGitMock } from './testSupport/hiveGitMock'
 
 /**
  * Task T11 — resizable file-area divider + persistence (design.md §7,
@@ -480,7 +481,11 @@ function createHiveMock(): Window['hive'] {
       get: vi.fn(async () => null),
       set: vi.fn(async () => undefined),
       actions: vi.fn(async () => [])
-    }
+    },
+    // git-management (M10): WorkUI mounts the git store (detect + onChanged +
+    // fs watch) on mount, so the bridge + watch must resolve benignly.
+    watchWorkspace: vi.fn(() => () => {}),
+    git: createHiveGitMock()
   } as unknown as Window['hive']
 }
 
@@ -1712,5 +1717,53 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
     )
 
     expect(screen.queryByRole('tab')).toBeNull()
+  })
+})
+
+describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
+  function renderWork(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+  }
+
+  it('defaults to the Explorer view (file tree visible, pane titled "Arquivos")', () => {
+    renderWork()
+    expect(screen.getByTestId('file-tree')).toBeTruthy()
+    expect(screen.getByText('Arquivos')).toBeTruthy()
+    expect(document.querySelector('.wb-scm-placeholder')).toBeNull()
+  })
+
+  it('clicking Source Control swaps the rail body and persists the view', () => {
+    renderWork()
+    fireEvent.click(screen.getByLabelText('Controle de versão'))
+
+    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+    expect(screen.queryByTestId('file-tree')).toBeNull()
+    expect(screen.getByText('Controle de versão')).toBeTruthy()
+    expect(localStorage.getItem('hive.sidebarView')).toBe('scm')
+
+    // Switching back to Explorer restores the tree.
+    fireEvent.click(screen.getByLabelText('Explorador'))
+    expect(screen.getByTestId('file-tree')).toBeTruthy()
+    expect(localStorage.getItem('hive.sidebarView')).toBe('explorer')
+  })
+
+  it('Ctrl+Shift+G opens the Source Control view', () => {
+    renderWork()
+    expect(screen.getByTestId('file-tree')).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'G', ctrlKey: true, shiftKey: true })
+    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+  })
+
+  it('restores the persisted Source Control view on mount', () => {
+    localStorage.setItem('hive.sidebarView', 'scm')
+    renderWork()
+    expect(document.querySelector('.wb-scm-placeholder')).not.toBeNull()
+    expect(screen.queryByTestId('file-tree')).toBeNull()
   })
 })
