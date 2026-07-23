@@ -2,7 +2,7 @@ import { unlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
-import { parseStatusV2, type GitStatus } from './gitParse'
+import { parseBranches, parseStatusV2, type GitBranches, type GitStatus } from './gitParse'
 
 // Re-export the parsed data types so preload/renderer import git types from
 // one place (mirrors fsService re-exporting documentReader's types).
@@ -83,7 +83,21 @@ export interface GitService {
     message: string,
     opts?: { amend?: boolean; stageAll?: boolean }
   ): Promise<{ hash: string }>
+  /** Local + remote branches with current/ahead/behind (GIT-R6). A read. */
+  branches(workspace: string): Promise<GitBranches>
+  /** `switch -c <name> [from]` — branch from HEAD (or `from`) and check out (GIT-R6.4). */
+  createBranch(workspace: string, name: string, from?: string): Promise<void>
+  /** `switch <ref>` — git's dirty-tree refusal surfaces as a `GitError` (GIT-R6.3). */
+  checkout(workspace: string, ref: string): Promise<void>
+  /** `branch -m <from> <to>` (GIT-R6.4). */
+  renameBranch(workspace: string, from: string, to: string): Promise<void>
+  /** `branch -d` (or `-D` when `force`) (GIT-R6.4). */
+  deleteBranch(workspace: string, name: string, force?: boolean): Promise<void>
 }
+
+/** The for-each-ref format feeding `parseBranches` (refname, short oid, upstream, track, HEAD marker). */
+const BRANCH_FORMAT =
+  '%(refname)%1f%(objectname:short)%1f%(upstream:short)%1f%(upstream:track)%1f%(HEAD)'
 
 /** Collects a finished process's full stdout/stderr and exit code. */
 async function collect(
@@ -230,5 +244,52 @@ export function createGitService(deps: GitServiceDeps): GitService {
     })
   }
 
-  return { detect, init, status, stage, unstage, discard, commit }
+  async function branches(workspace: string): Promise<GitBranches> {
+    const out = await git(
+      ['for-each-ref', `--format=${BRANCH_FORMAT}`, 'refs/heads', 'refs/remotes'],
+      { cwd: workspace }
+    )
+    return parseBranches(out)
+  }
+
+  function createBranch(workspace: string, name: string, from?: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      const args = ['switch', '-c', name]
+      if (from) args.push(from)
+      await git(args, { cwd: workspace })
+    })
+  }
+
+  function checkout(workspace: string, ref: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['switch', ref], { cwd: workspace })
+    })
+  }
+
+  function renameBranch(workspace: string, from: string, to: string): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['branch', '-m', from, to], { cwd: workspace })
+    })
+  }
+
+  function deleteBranch(workspace: string, name: string, force?: boolean): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['branch', force ? '-D' : '-d', name], { cwd: workspace })
+    })
+  }
+
+  return {
+    detect,
+    init,
+    status,
+    stage,
+    unstage,
+    discard,
+    commit,
+    branches,
+    createBranch,
+    checkout,
+    renameBranch,
+    deleteBranch
+  }
 }

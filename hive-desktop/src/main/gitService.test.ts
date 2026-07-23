@@ -192,3 +192,54 @@ describe('GitService.commit', () => {
     expect(runner.calls[0].args).toContain('--amend')
   })
 })
+
+describe('GitService branches', () => {
+  it('lists branches via for-each-ref and parses current/ahead', async () => {
+    const { runner, service } = make()
+    stdout(runner, 'refs/heads/main\x1fabc\x1forigin/main\x1f[ahead 1]\x1f*\n')
+    const result = await service.branches(WS)
+
+    expect(runner.calls[0].args.slice(2)).toEqual([
+      'for-each-ref',
+      '--format=%(refname)%1f%(objectname:short)%1f%(upstream:short)%1f%(upstream:track)%1f%(HEAD)',
+      'refs/heads',
+      'refs/remotes'
+    ])
+    expect(result.current).toBe('main')
+    expect(result.branches[0]).toMatchObject({ name: 'main', ahead: 1 })
+  })
+
+  it('creates a branch with switch -c, optionally from a start point', async () => {
+    const { runner, service } = make()
+    await service.createBranch(WS, 'feat/x')
+    expect(runner.calls[0].args.slice(2)).toEqual(['switch', '-c', 'feat/x'])
+
+    const b = make()
+    await b.service.createBranch(WS, 'feat/y', 'main')
+    expect(b.runner.calls[0].args.slice(2)).toEqual(['switch', '-c', 'feat/y', 'main'])
+  })
+
+  it('checks out a ref and surfaces git\'s dirty refusal as a GitError', async () => {
+    const { runner, service } = make()
+    await service.checkout(WS, 'main')
+    expect(runner.calls[0].args.slice(2)).toEqual(['switch', 'main'])
+
+    const b = make()
+    b.runner.script({ chunks: [{ stream: 'stderr', data: 'error: local changes' }], code: 1 })
+    await expect(b.service.checkout(WS, 'other')).rejects.toBeInstanceOf(GitError)
+  })
+
+  it('renames and deletes branches (soft + force)', async () => {
+    const { runner, service } = make()
+    await service.renameBranch(WS, 'old', 'new')
+    expect(runner.calls[0].args.slice(2)).toEqual(['branch', '-m', 'old', 'new'])
+
+    const soft = make()
+    await soft.service.deleteBranch(WS, 'gone')
+    expect(soft.runner.calls[0].args.slice(2)).toEqual(['branch', '-d', 'gone'])
+
+    const force = make()
+    await force.service.deleteBranch(WS, 'gone', true)
+    expect(force.runner.calls[0].args.slice(2)).toEqual(['branch', '-D', 'gone'])
+  })
+})
