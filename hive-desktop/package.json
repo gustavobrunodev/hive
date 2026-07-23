@@ -28,7 +28,7 @@
   ],
   "hiveRelease": {
     "notes": "",
-    "repo": "gustavobrunodev/hive",
+    "repo": "gustavobrunodev/hive-desktop-releases",
     "platforms": {
       "win32-x64": "hive-desktop-0.1.0-setup.exe"
     }
