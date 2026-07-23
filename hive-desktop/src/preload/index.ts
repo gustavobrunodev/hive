@@ -27,6 +27,18 @@ import type { ResolvedRoleAction } from '../main/roleCatalog'
 import type { ShortcutPrefs } from '../main/configStore'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
+import type {
+  GitBranches,
+  GitCommit,
+  GitCommitDiff,
+  GitConflict,
+  GitConflictChoice,
+  GitDetectResult,
+  GitDiff,
+  GitDiffSide,
+  GitStash,
+  GitStatus
+} from '../main/gitService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -44,6 +56,55 @@ export class FsConflictError extends Error {
 }
 
 const CONFLICT_PREFIXES = ['CONFLICT', 'STALE'] as const
+
+/**
+ * Typed counterpart to main/index.ts's `GIT:`-prefixed error convention
+ * (git-management, design.md §4). A `GitError` crossing IPC loses its custom
+ * fields, so main rethrows it as `GIT:` + a JSON payload; `withTypedGit`
+ * parses that back into this, giving the renderer the raw git `stderr` to show
+ * behind a "Detalhes" disclosure (G3 — truthful, never swallowed).
+ */
+export class GitBridgeError extends Error {
+  code: number | null
+  stderr: string
+  command: string
+
+  constructor(code: number | null, stderr: string, command: string) {
+    super(stderr.trim() || `git exited with code ${code ?? 'unknown'}`)
+    this.name = 'GitBridgeError'
+    this.code = code
+    this.stderr = stderr
+    this.command = command
+  }
+}
+
+const GIT_PREFIX = 'GIT:'
+
+function withTypedGit<Args extends unknown[], R>(
+  invoke: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args) => {
+    try {
+      return await invoke(...args)
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith(GIT_PREFIX)) {
+        try {
+          const payload = JSON.parse(err.message.slice(GIT_PREFIX.length)) as {
+            code: number | null
+            stderr: string
+            command: string
+          }
+          throw new GitBridgeError(payload.code, payload.stderr, payload.command)
+        } catch (parseErr) {
+          // A GitBridgeError we just threw must propagate; only a genuine
+          // JSON.parse failure (malformed payload) falls through to the raw error.
+          if (parseErr instanceof GitBridgeError) throw parseErr
+        }
+      }
+      throw err
+    }
+  }
+}
 
 function withTypedConflict<Args extends unknown[], R>(
   invoke: (...args: Args) => Promise<R>
@@ -400,6 +461,127 @@ const hive = {
     // main/preload-only under sandbox:true — this is the ONLY way the
     // renderer can learn a dropped file's path (FM-R5).
     pathForFile: (file: File): string => webUtils.getPathForFile(file)
+  },
+
+  // GitService (git-management M10), grouped under a `git` namespace matching
+  // design.md §4. Arg order mirrors each `git:<name>` handler in main/index.ts
+  // exactly, and every call is wrapped in `withTypedGit` so a git failure
+  // surfaces as a `GitBridgeError` carrying the raw stderr (D-GIT-1 / G3),
+  // never a stringly-typed one. `onChanged` is the streaming half, following
+  // the exact `watchWorkspace` channel-pattern (start/stop sends +
+  // subscribe-returning-unsubscribe).
+  git: {
+    detect: withTypedGit(
+      (workspace: string): Promise<GitDetectResult> => ipcRenderer.invoke('git:detect', workspace)
+    ),
+    status: withTypedGit(
+      (workspace: string): Promise<GitStatus> => ipcRenderer.invoke('git:status', workspace)
+    ),
+    init: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:init', workspace)
+    ),
+    stage: withTypedGit(
+      (workspace: string, paths: string[]): Promise<void> =>
+        ipcRenderer.invoke('git:stage', workspace, paths)
+    ),
+    unstage: withTypedGit(
+      (workspace: string, paths: string[]): Promise<void> =>
+        ipcRenderer.invoke('git:unstage', workspace, paths)
+    ),
+    discard: withTypedGit(
+      (workspace: string, paths: string[]): Promise<void> =>
+        ipcRenderer.invoke('git:discard', workspace, paths)
+    ),
+    commit: withTypedGit(
+      (
+        workspace: string,
+        message: string,
+        opts?: { amend?: boolean; stageAll?: boolean }
+      ): Promise<{ hash: string }> => ipcRenderer.invoke('git:commit', workspace, message, opts)
+    ),
+    branches: withTypedGit(
+      (workspace: string): Promise<GitBranches> => ipcRenderer.invoke('git:branches', workspace)
+    ),
+    createBranch: withTypedGit(
+      (workspace: string, name: string, from?: string): Promise<void> =>
+        ipcRenderer.invoke('git:createBranch', workspace, name, from)
+    ),
+    checkout: withTypedGit(
+      (workspace: string, ref: string): Promise<void> =>
+        ipcRenderer.invoke('git:checkout', workspace, ref)
+    ),
+    renameBranch: withTypedGit(
+      (workspace: string, from: string, to: string): Promise<void> =>
+        ipcRenderer.invoke('git:renameBranch', workspace, from, to)
+    ),
+    deleteBranch: withTypedGit(
+      (workspace: string, name: string, force?: boolean): Promise<void> =>
+        ipcRenderer.invoke('git:deleteBranch', workspace, name, force)
+    ),
+    fetch: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:fetch', workspace)
+    ),
+    pull: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:pull', workspace)
+    ),
+    push: withTypedGit(
+      (workspace: string, opts?: { setUpstream?: boolean }): Promise<void> =>
+        ipcRenderer.invoke('git:push', workspace, opts)
+    ),
+    sync: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:sync', workspace)
+    ),
+    log: withTypedGit(
+      (
+        workspace: string,
+        opts?: { file?: string; skip?: number; limit?: number }
+      ): Promise<GitCommit[]> => ipcRenderer.invoke('git:log', workspace, opts)
+    ),
+    diff: withTypedGit(
+      (workspace: string, path: string, side: GitDiffSide): Promise<GitDiff> =>
+        ipcRenderer.invoke('git:diff', workspace, path, side)
+    ),
+    commitDiff: withTypedGit(
+      (workspace: string, hash: string): Promise<GitCommitDiff> =>
+        ipcRenderer.invoke('git:commitDiff', workspace, hash)
+    ),
+    conflicts: withTypedGit(
+      (workspace: string): Promise<GitConflict[]> => ipcRenderer.invoke('git:conflicts', workspace)
+    ),
+    resolveConflict: withTypedGit(
+      (workspace: string, path: string, choice: GitConflictChoice): Promise<void> =>
+        ipcRenderer.invoke('git:resolveConflict', workspace, path, choice)
+    ),
+    mergeContinue: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:mergeContinue', workspace)
+    ),
+    mergeAbort: withTypedGit(
+      (workspace: string): Promise<void> => ipcRenderer.invoke('git:mergeAbort', workspace)
+    ),
+    stash: withTypedGit(
+      (workspace: string, opts?: { message?: string; untracked?: boolean }): Promise<void> =>
+        ipcRenderer.invoke('git:stash', workspace, opts)
+    ),
+    stashList: withTypedGit(
+      (workspace: string): Promise<GitStash[]> => ipcRenderer.invoke('git:stashList', workspace)
+    ),
+    stashApply: withTypedGit(
+      (workspace: string, index: number, pop?: boolean): Promise<void> =>
+        ipcRenderer.invoke('git:stashApply', workspace, index, pop)
+    ),
+    stashDrop: withTypedGit(
+      (workspace: string, index: number): Promise<void> =>
+        ipcRenderer.invoke('git:stashDrop', workspace, index)
+    ),
+    onChanged: (onChanged: (evt: { root: string }) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: { root: string }): void => onChanged(evt)
+      ipcRenderer.on('git:changed', listener)
+      ipcRenderer.send('git:changed:start')
+      return () => {
+        ipcRenderer.removeListener('git:changed', listener)
+        ipcRenderer.send('git:changed:stop')
+      }
+    }
   }
 }
 

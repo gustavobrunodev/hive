@@ -26,6 +26,18 @@ import type { AgentMeta } from '../main/agentRegistry'
 import type { ResolvedRoleAction } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
+import type {
+  GitBranches,
+  GitCommit,
+  GitCommitDiff,
+  GitConflict,
+  GitConflictChoice,
+  GitDetectResult,
+  GitDiff,
+  GitDiffSide,
+  GitStash,
+  GitStatus
+} from '../main/gitService'
 
 declare global {
   interface Window {
@@ -191,6 +203,50 @@ declare global {
         trash(root: string, relativePath: string): Promise<void>
         /** Turns a dropped renderer File into its absolute OS path via webUtils. */
         pathForFile(file: File): string
+      }
+      /**
+       * GitService (git-management M10) surface — see preload/index.ts for the
+       * channel design. Every call rejects with a `GitBridgeError` (exported
+       * from preload/index.ts) carrying the raw git stderr on failure (D-GIT-1).
+       * `onChanged` streams a `{ root }` ping after every mutation.
+       */
+      git: {
+        detect(workspace: string): Promise<GitDetectResult>
+        status(workspace: string): Promise<GitStatus>
+        init(workspace: string): Promise<void>
+        stage(workspace: string, paths: string[]): Promise<void>
+        unstage(workspace: string, paths: string[]): Promise<void>
+        discard(workspace: string, paths: string[]): Promise<void>
+        commit(
+          workspace: string,
+          message: string,
+          opts?: { amend?: boolean; stageAll?: boolean }
+        ): Promise<{ hash: string }>
+        branches(workspace: string): Promise<GitBranches>
+        createBranch(workspace: string, name: string, from?: string): Promise<void>
+        checkout(workspace: string, ref: string): Promise<void>
+        renameBranch(workspace: string, from: string, to: string): Promise<void>
+        deleteBranch(workspace: string, name: string, force?: boolean): Promise<void>
+        fetch(workspace: string): Promise<void>
+        pull(workspace: string): Promise<void>
+        push(workspace: string, opts?: { setUpstream?: boolean }): Promise<void>
+        sync(workspace: string): Promise<void>
+        log(
+          workspace: string,
+          opts?: { file?: string; skip?: number; limit?: number }
+        ): Promise<GitCommit[]>
+        diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff>
+        commitDiff(workspace: string, hash: string): Promise<GitCommitDiff>
+        conflicts(workspace: string): Promise<GitConflict[]>
+        resolveConflict(workspace: string, path: string, choice: GitConflictChoice): Promise<void>
+        mergeContinue(workspace: string): Promise<void>
+        mergeAbort(workspace: string): Promise<void>
+        stash(workspace: string, opts?: { message?: string; untracked?: boolean }): Promise<void>
+        stashList(workspace: string): Promise<GitStash[]>
+        stashApply(workspace: string, index: number, pop?: boolean): Promise<void>
+        stashDrop(workspace: string, index: number): Promise<void>
+        /** Subscribes to post-mutation change pings; returns an unsubscribe function. */
+        onChanged(onChanged: (evt: { root: string }) => void): () => void
       }
     }
   }

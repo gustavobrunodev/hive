@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { FsConflictError as FsConflictErrorType } from './index'
+import type { FsConflictError as FsConflictErrorType, GitBridgeError as GitBridgeErrorType } from './index'
 
 // Mocks Electron's contextBridge/ipcRenderer (and the template's
 // @electron-toolkit/preload helper, which itself imports 'electron') so the
@@ -29,10 +29,12 @@ function exposedGlobals(): Map<string, unknown> {
 
 describe('preload: window.hive bridge', () => {
   let FsConflictError: typeof FsConflictErrorType
+  let GitBridgeError: typeof GitBridgeErrorType
 
   beforeAll(async () => {
     const mod = await import('./index')
     FsConflictError = mod.FsConflictError
+    GitBridgeError = mod.GitBridgeError
   })
 
   it('exposes "hive" with a typed ping() method, as the pattern for all future IPC', () => {
@@ -676,6 +678,126 @@ describe('preload: window.hive bridge', () => {
         const call = (fs[method] as any)(...args)
         await expect(call).rejects.toBe(original)
       })
+    })
+  })
+
+  describe('hive.git.* (git-management M10)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function getGit(): Record<string, (...a: any[]) => Promise<any>> & {
+      onChanged: (cb: (evt: { root: string }) => void) => () => void
+    } {
+      return (exposedGlobals().get('hive') as { git: unknown }).git as never
+    }
+
+    it('exposes the full git namespace', () => {
+      const git = getGit()
+      for (const method of [
+        'detect',
+        'status',
+        'init',
+        'stage',
+        'unstage',
+        'discard',
+        'commit',
+        'branches',
+        'createBranch',
+        'checkout',
+        'renameBranch',
+        'deleteBranch',
+        'fetch',
+        'pull',
+        'push',
+        'sync',
+        'log',
+        'diff',
+        'commitDiff',
+        'conflicts',
+        'resolveConflict',
+        'mergeContinue',
+        'mergeAbort',
+        'stash',
+        'stashList',
+        'stashApply',
+        'stashDrop',
+        'onChanged'
+      ]) {
+        expect(git[method]).toBeInstanceOf(Function)
+      }
+    })
+
+    it.each([
+      ['detect', ['/ws'], 'git:detect'],
+      ['status', ['/ws'], 'git:status'],
+      ['init', ['/ws'], 'git:init'],
+      ['stage', ['/ws', ['a.txt']], 'git:stage'],
+      ['unstage', ['/ws', ['a.txt']], 'git:unstage'],
+      ['discard', ['/ws', ['a.txt']], 'git:discard'],
+      ['commit', ['/ws', 'msg', { amend: true }], 'git:commit'],
+      ['branches', ['/ws'], 'git:branches'],
+      ['createBranch', ['/ws', 'feat', 'main'], 'git:createBranch'],
+      ['checkout', ['/ws', 'main'], 'git:checkout'],
+      ['renameBranch', ['/ws', 'a', 'b'], 'git:renameBranch'],
+      ['deleteBranch', ['/ws', 'a', true], 'git:deleteBranch'],
+      ['fetch', ['/ws'], 'git:fetch'],
+      ['pull', ['/ws'], 'git:pull'],
+      ['push', ['/ws', { setUpstream: true }], 'git:push'],
+      ['sync', ['/ws'], 'git:sync'],
+      ['log', ['/ws', { limit: 10 }], 'git:log'],
+      ['diff', ['/ws', 'a.txt', 'working'], 'git:diff'],
+      ['commitDiff', ['/ws', 'abc'], 'git:commitDiff'],
+      ['conflicts', ['/ws'], 'git:conflicts'],
+      ['resolveConflict', ['/ws', 'a', 'both'], 'git:resolveConflict'],
+      ['mergeContinue', ['/ws'], 'git:mergeContinue'],
+      ['mergeAbort', ['/ws'], 'git:mergeAbort'],
+      ['stash', ['/ws', { untracked: true }], 'git:stash'],
+      ['stashList', ['/ws'], 'git:stashList'],
+      ['stashApply', ['/ws', 2, true], 'git:stashApply'],
+      ['stashDrop', ['/ws', 1], 'git:stashDrop']
+    ] as const)('%s forwards to ipcRenderer.invoke(%s)', async (method, args, channel) => {
+      const git = getGit()
+      await git[method](...args)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(channel, ...args)
+    })
+
+    it('maps a GIT:-prefixed rejection to a GitBridgeError carrying stderr/code', async () => {
+      vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(
+        new Error(
+          `GIT:${JSON.stringify({ code: 128, stderr: 'fatal: Authentication failed', command: 'git push' })}`
+        )
+      )
+      const call = getGit().push('/ws')
+      await expect(call).rejects.toBeInstanceOf(GitBridgeError)
+      try {
+        await call
+      } catch (err) {
+        expect((err as GitBridgeErrorType).code).toBe(128)
+        expect((err as GitBridgeErrorType).stderr).toBe('fatal: Authentication failed')
+        expect((err as GitBridgeErrorType).command).toBe('git push')
+      }
+    })
+
+    it('passes a non-git rejection through unchanged', async () => {
+      const original = new Error('boom')
+      vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(original)
+      await expect(getGit().status('/ws')).rejects.toBe(original)
+    })
+
+    it('onChanged registers a listener, sends git:changed:start, and unsubscribe tears down', () => {
+      const git = getGit()
+      const cb = vi.fn()
+      const unsubscribe = git.onChanged(cb)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('git:changed', expect.any(Function))
+      expect(ipcRenderer.send).toHaveBeenCalledWith('git:changed:start')
+
+      const listener = vi.mocked(ipcRenderer.on).mock.calls.find(
+        ([ch]) => ch === 'git:changed'
+      )?.[1] as (event: unknown, evt: { root: string }) => void
+      listener({}, { root: '/ws' })
+      expect(cb).toHaveBeenCalledWith({ root: '/ws' })
+
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('git:changed', listener)
+      expect(ipcRenderer.send).toHaveBeenCalledWith('git:changed:stop')
     })
   })
 })

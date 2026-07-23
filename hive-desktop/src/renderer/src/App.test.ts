@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, useState, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
+import { createHiveGitMock } from './testSupport/hiveGitMock'
 
 /**
  * Tasks T6 (workspace pick) + T9 (guided install) + T10 (update gate) —
@@ -263,7 +264,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         exists: vi.fn().mockResolvedValue(false),
         trash: vi.fn().mockResolvedValue(undefined),
         pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt')
-      }
+      },
+      git: createHiveGitMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }
