@@ -2,7 +2,18 @@ import { unlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
-import { parseBranches, parseStatusV2, type GitBranches, type GitStatus } from './gitParse'
+import {
+  parseBranches,
+  parseDiff,
+  parseLog,
+  parseNumstat,
+  parseStatusV2,
+  type GitBranches,
+  type GitCommit,
+  type GitDiff,
+  type GitNumstatEntry,
+  type GitStatus
+} from './gitParse'
 
 // Re-export the parsed data types so preload/renderer import git types from
 // one place (mirrors fsService re-exporting documentReader's types).
@@ -101,11 +112,35 @@ export interface GitService {
   push(workspace: string, opts?: { setUpstream?: boolean }): Promise<void>
   /** Sync = pull then push (GIT-R7). */
   sync(workspace: string): Promise<void>
+  /** Commit history, newest first; scope to one `file`, page with `skip`/`limit` (GIT-R8). A read. */
+  log(
+    workspace: string,
+    opts?: { file?: string; skip?: number; limit?: number }
+  ): Promise<GitCommit[]>
+  /** Unified diff of `path` — `working` (worktree vs index) or `staged` (index vs HEAD) (GIT-R4). A read. */
+  diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff>
+  /** A commit's changed files + full patch (GIT-R8.2). A read. */
+  commitDiff(workspace: string, hash: string): Promise<GitCommitDiff>
+}
+
+/** Which side of a working-tree change a diff shows (GIT-R4). */
+export type GitDiffSide = 'working' | 'staged'
+
+/** `commitDiff`'s result — a commit's changed files (numstat) + its full patch. */
+export interface GitCommitDiff {
+  files: GitNumstatEntry[]
+  diff: GitDiff
 }
 
 /** The for-each-ref format feeding `parseBranches` (refname, short oid, upstream, track, HEAD marker). */
 const BRANCH_FORMAT =
   '%(refname)%1f%(objectname:short)%1f%(upstream:short)%1f%(upstream:track)%1f%(HEAD)'
+
+/** The log pretty-format feeding `parseLog` (full hash, short hash, author, ISO date, subject). */
+const LOG_FORMAT = '%H%x1f%h%x1f%an%x1f%aI%x1f%s'
+
+/** Cap (bytes) beyond which a diff is reported as `tooLarge` rather than parsed/shipped (GIT-R4 perf). */
+const DIFF_CAP_BYTES = 2_000_000
 
 /** Collects a finished process's full stdout/stderr and exit code. */
 async function collect(
@@ -316,6 +351,36 @@ export function createGitService(deps: GitServiceDeps): GitService {
     })
   }
 
+  async function log(
+    workspace: string,
+    opts?: { file?: string; skip?: number; limit?: number }
+  ): Promise<GitCommit[]> {
+    const args = ['log', `--pretty=format:${LOG_FORMAT}`, '-z']
+    if (opts?.skip) args.push(`--skip=${opts.skip}`)
+    if (opts?.limit) args.push(`-n`, String(opts.limit))
+    if (opts?.file) args.push('--', opts.file)
+    const out = await git(args, { cwd: workspace })
+    return parseLog(out)
+  }
+
+  async function diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff> {
+    const args = ['diff']
+    if (side === 'staged') args.push('--staged')
+    args.push('--', path)
+    const out = await git(args, { cwd: workspace })
+    if (out.length > DIFF_CAP_BYTES) return parseDiff('', { tooLarge: true })
+    return parseDiff(out)
+  }
+
+  async function commitDiff(workspace: string, hash: string): Promise<GitCommitDiff> {
+    // `--format=` suppresses the commit header so `show` yields only the
+    // numstat / patch body the parsers expect.
+    const numstat = await git(['show', hash, '--numstat', '--format=', '-z'], { cwd: workspace })
+    const patch = await git(['show', hash, '--format='], { cwd: workspace })
+    const parsedDiff = patch.length > DIFF_CAP_BYTES ? parseDiff('', { tooLarge: true }) : parseDiff(patch)
+    return { files: parseNumstat(numstat), diff: parsedDiff }
+  }
+
   return {
     detect,
     init,
@@ -332,6 +397,9 @@ export function createGitService(deps: GitServiceDeps): GitService {
     fetch,
     pull,
     push,
-    sync
+    sync,
+    log,
+    diff,
+    commitDiff
   }
 }

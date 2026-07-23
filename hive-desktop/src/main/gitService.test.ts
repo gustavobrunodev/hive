@@ -287,3 +287,60 @@ describe('GitService remotes', () => {
     expect(err.stderr).toContain('Authentication failed')
   })
 })
+
+describe('GitService log / diff / commitDiff', () => {
+  it('logs newest-first with pagination and optional file scope', async () => {
+    const { runner, service } = make()
+    stdout(runner, 'h1\x1fs1\x1fauth\x1f2026-01-01\x1fsubject one')
+    const commits = await service.log(WS, { file: 'a.txt', skip: 10, limit: 25 })
+
+    expect(runner.calls[0].args.slice(2)).toEqual([
+      'log',
+      '--pretty=format:%H%x1f%h%x1f%an%x1f%aI%x1f%s',
+      '-z',
+      '--skip=10',
+      '-n',
+      '25',
+      '--',
+      'a.txt'
+    ])
+    expect(commits[0]).toMatchObject({ hash: 'h1', subject: 'subject one' })
+  })
+
+  it('diffs the working tree and the staged side', async () => {
+    const work = make()
+    stdout(work.runner, '@@ -1 +1 @@\n-a\n+b')
+    const d = await work.service.diff(WS, 'a.txt', 'working')
+    expect(work.runner.calls[0].args.slice(2)).toEqual(['diff', '--', 'a.txt'])
+    expect(d.hunks).toHaveLength(1)
+
+    const staged = make()
+    stdout(staged.runner, '')
+    await staged.service.diff(WS, 'a.txt', 'staged')
+    expect(staged.runner.calls[0].args.slice(2)).toEqual(['diff', '--staged', '--', 'a.txt'])
+  })
+
+  it('reports an over-cap diff as tooLarge without shipping it', async () => {
+    const { runner, service } = make()
+    stdout(runner, 'x'.repeat(2_000_001))
+    const d = await service.diff(WS, 'big.txt', 'working')
+    expect(d).toEqual({ hunks: [], binary: false, tooLarge: true })
+  })
+
+  it('returns a commit\'s numstat files and unified patch', async () => {
+    const { runner, service } = make()
+    stdout(runner, '2\t1\ta.txt\0') // show --numstat -z
+    stdout(runner, '@@ -1,2 +1,3 @@\n a\n+b\n c') // show patch
+    const result = await service.commitDiff(WS, 'abc123')
+
+    expect(runner.calls[0].args.slice(2)).toEqual([
+      'show',
+      'abc123',
+      '--numstat',
+      '--format=',
+      '-z'
+    ])
+    expect(result.files[0]).toMatchObject({ path: 'a.txt', added: 2, deleted: 1 })
+    expect(result.diff.hunks).toHaveLength(1)
+  })
+})
