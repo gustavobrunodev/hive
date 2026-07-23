@@ -569,7 +569,17 @@ export const ptBR = {
     discardMany: (count: number) =>
       `${count} arquivos serão descartados; os não rastreados vão para a lixeira e os demais voltam ao último commit.`,
     discardConfirm: 'Descartar',
-    discardCancel: 'Cancelar'
+    discardCancel: 'Cancelar',
+    // Commit box (GIT-R5).
+    commitPlaceholder: 'Mensagem (Ctrl+Enter para commitar)',
+    commit: 'Commit',
+    commitStageAll: 'Preparar tudo e commitar',
+    commitAmend: 'Corrigir commit',
+    commitMenuLabel: 'Mais opções de commit',
+    amendToggle: 'Corrigir último commit (amend)',
+    stageAllAndCommit: 'Preparar tudo e commitar',
+    commitDisabledEmpty: 'Escreva uma mensagem de commit',
+    commitDisabledNothing: 'Nenhuma alteração para commitar'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

@@ -17,6 +17,7 @@ import {
   SourceControlIcon
 } from '../ui/icons'
 import { ChangeGroups, type RowSide } from './ChangeGroups'
+import { CommitBox } from './CommitBox'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
 import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
 import { useGit } from './useGit'
@@ -84,8 +85,6 @@ function ScmHeader({
 export interface SourceControlPanelProps {
   /** Opens a change's diff in the editor pane (wired in T20). */
   onOpenDiff?: (change: GitFileChange, side: RowSide) => void
-  /** T18: the inline commit box, rendered above the change list when the repo is dirty-or-clean. */
-  commitBox?: React.ReactNode
 }
 
 /** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
@@ -102,10 +101,7 @@ function sidePaths(groups: GitGroups, side: RowSide): GitFileChange[] {
  * "no changes" state naming the branch, or the branch header + grouped change
  * list (GIT-R1/R2). Row/commit/diff wiring arrives in T17/T18/T20 via props.
  */
-export function SourceControlPanel({
-  onOpenDiff,
-  commitBox
-}: SourceControlPanelProps): React.JSX.Element {
+export function SourceControlPanel({ onOpenDiff }: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
   // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
   const [discardTarget, setDiscardTarget] = useState<GitFileChange[] | null>(null)
@@ -205,7 +201,7 @@ export function SourceControlPanel({
   return (
     <div className="wb-scm">
       <ScmHeader branch={branch} detached={detached} onRefresh={git.refresh} />
-      {commitBox}
+      <CommitBox />
       {count === 0 ? (
         <ScmEmpty
           icon={<CheckCircleIcon size={22} />}

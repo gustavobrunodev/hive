@@ -2102,6 +2102,41 @@
   }
 }
 
+/* Commit box (GIT-R5) — the always-present message input + primary split button. */
+.wb-commit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  flex-shrink: 0;
+}
+.wb-commit-input {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  font-size: 0.8125rem;
+}
+.wb-commit-input[data-amend] {
+  border-color: var(--accent);
+}
+.wb-commit-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+}
+.wb-commit-btn {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.wb-commit-caret {
+  flex-shrink: 0;
+  padding-left: var(--s-2);
+  padding-right: var(--s-2);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 /* Teaching empty states — centered, calm, never a blank pane. */
 .wb-scm-empty {
   display: flex;

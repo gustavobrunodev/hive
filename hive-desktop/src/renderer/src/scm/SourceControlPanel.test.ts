@@ -56,6 +56,7 @@ function status(changes: GitFileChange[], over: Partial<GitStatus> = {}): GitSta
 
 function store(over: Partial<GitStore> = {}): GitStore {
   return {
+    workspace: '/ws',
     repo: { isRepo: true, gitMissing: false },
     status: status([]),
     busy: null,
@@ -125,11 +126,9 @@ describe('SourceControlPanel', () => {
     expect(onOpenDiff).toHaveBeenCalledWith(expect.objectContaining({ path: 'a.txt' }), 'unstaged')
   })
 
-  it('renders the commitBox slot above the list', () => {
-    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), {
-      commitBox: createElement('div', { 'data-testid': 'commit-box' }, 'box')
-    })
-    expect(screen.getByTestId('commit-box')).toBeTruthy()
+  it('renders the commit box above the list', () => {
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
+    expect(screen.getByPlaceholderText(/Ctrl\+Enter para commitar/)).toBeTruthy()
   })
 
   it('marks a detached HEAD in the header', () => {

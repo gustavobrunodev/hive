@@ -22,6 +22,8 @@ const REFRESH_DEBOUNCE_MS = 250
  * when the op settles.
  */
 export interface GitStore {
+  /** The active workspace root (for reads a component needs to issue directly, e.g. amend prefill). */
+  workspace: string
   repo: { isRepo: boolean; gitMissing: boolean }
   status: GitStatus | null
   busy: string | null
@@ -147,7 +149,19 @@ export function useGitStore(workspace: string): GitStore {
 
   const decorations = useMemo(() => buildDecorations(status), [status])
 
-  return { repo, status, busy, decorations, refresh, init, stage, unstage, discard, commit }
+  return {
+    workspace,
+    repo,
+    status,
+    busy,
+    decorations,
+    refresh,
+    init,
+    stage,
+    unstage,
+    discard,
+    commit
+  }
 }
 
 const GitContext = createContext<GitStore | null>(null)
