@@ -730,3 +730,104 @@ export function ArrowUpIcon({ size, ...rest }: IconProps): React.JSX.Element {
     </svg>
   )
 }
+
+/* --- Source control icons (git-management, M10) ------------------------- */
+
+/**
+ * Source Control — the activity-rail view entry (git-management GIT-R13). A
+ * branch node: a commit dot with a fork line splitting to a second dot, the
+ * VS Code source-control silhouette rendered in the app's geometric family.
+ */
+export function SourceControlIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="4.25" cy="4" r="1.75" />
+      <circle cx="4.25" cy="12" r="1.75" />
+      <circle cx="11.75" cy="6" r="1.75" />
+      <path d="M4.25 5.75v4.5M11.75 7.75c0 2.4-1.9 3.4-4 3.75" />
+    </svg>
+  )
+}
+
+/** Branch — two commit dots on a forking line (branch picker, status-bar pill). */
+export function BranchIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="4.5" cy="3.5" r="1.6" />
+      <circle cx="4.5" cy="12.5" r="1.6" />
+      <circle cx="11.5" cy="4.75" r="1.6" />
+      <path d="M4.5 5.1v5.8M11.5 6.35c0 2.9-2.35 3-7 4.15" />
+    </svg>
+  )
+}
+
+/** Commit — a node centered on a horizontal line (history, commit action). */
+export function CommitIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="2.75" />
+      <path d="M1.75 8h3.5M10.75 8h3.5" />
+    </svg>
+  )
+}
+
+/** Merge — a side branch curving back into the mainline (conflict/merge surfaces). */
+export function MergeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="4.5" cy="3.5" r="1.6" />
+      <circle cx="4.5" cy="12.5" r="1.6" />
+      <circle cx="11.5" cy="7" r="1.6" />
+      <path d="M4.5 5.1v5.8M4.5 8.5c0-2.6 2.35-2.85 5.5-2.85" />
+    </svg>
+  )
+}
+
+/** Sync — two arrows chasing in a circle (fetch/pull/push/sync). */
+export function SyncIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M12.7 6.4A5 5 0 0 0 3.6 5M3.3 9.6A5 5 0 0 0 12.4 11" />
+      <path d="M12.75 2.75v3.5h-3.5M3.25 13.25v-3.5h3.5" />
+    </svg>
+  )
+}
+
+/** Stash — an inbox/tray a change is tucked into (stash list + action). */
+export function StashIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.75 8.5 3.4 3.6c.13-.4.5-.68.92-.68h7.36c.42 0 .79.28.92.68L14.25 8.5" />
+      <path d="M1.75 8.5v3.75c0 .55.45 1 1 1h10.5c.55 0 1-.45 1-1V8.5h-3.5l-.9 1.5H6.15l-.9-1.5H1.75Z" />
+    </svg>
+  )
+}
+
+/** Check-circle — a resolved/clean state (clean tree, resolved conflict). */
+export function CheckCircleIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="m5.25 8 1.9 1.9L10.9 6" />
+    </svg>
+  )
+}
+
+/** Discard — a counter-clockwise reset arrow (restore a change to HEAD). */
+export function DiscardIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3.35 6.2A5.75 5.75 0 1 1 3 8" />
+      <path d="M2.1 2.8v3.4h3.4" />
+    </svg>
+  )
+}
+
+/** Arrow down — commits behind the upstream (status-bar ↓ counter to ArrowUpIcon's ↑). */
+export function ArrowDownIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 3v10M4.25 9.25 8 13l3.75-3.75" />
+    </svg>
+  )
+}

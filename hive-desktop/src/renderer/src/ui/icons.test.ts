@@ -29,7 +29,16 @@ import {
   ToolsIcon,
   ZapIcon,
   StatusDotIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  SourceControlIcon,
+  BranchIcon,
+  CommitIcon,
+  MergeIcon,
+  SyncIcon,
+  StashIcon,
+  CheckCircleIcon,
+  DiscardIcon,
+  ArrowDownIcon
 } from './icons'
 
 /**
@@ -93,6 +102,25 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
       ZapIcon,
       StatusDotIcon,
       AlertTriangleIcon
+    ]) {
+      const { container } = render(createElement(Icon, { size: 18 }))
+      expect(container.querySelector('svg')).toBeTruthy()
+    }
+  })
+
+  // git-management (M10) — the source-control glyph set. Direct smoke renders
+  // so icons.tsx stays fully covered before the SCM UI suites (T14+) select them.
+  it('renders the git / source-control icons', () => {
+    for (const Icon of [
+      SourceControlIcon,
+      BranchIcon,
+      CommitIcon,
+      MergeIcon,
+      SyncIcon,
+      StashIcon,
+      CheckCircleIcon,
+      DiscardIcon,
+      ArrowDownIcon
     ]) {
       const { container } = render(createElement(Icon, { size: 18 }))
       expect(container.querySelector('svg')).toBeTruthy()
