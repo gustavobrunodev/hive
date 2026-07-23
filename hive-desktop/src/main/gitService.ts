@@ -7,11 +7,13 @@ import {
   parseDiff,
   parseLog,
   parseNumstat,
+  parseStashList,
   parseStatusV2,
   type GitBranches,
   type GitCommit,
   type GitDiff,
   type GitNumstatEntry,
+  type GitStash,
   type GitStatus
 } from './gitParse'
 
@@ -133,6 +135,19 @@ export interface GitService {
   mergeContinue(workspace: string): Promise<void>
   /** `merge --abort` — unwinds the in-progress merge (GIT-R9.3). */
   mergeAbort(workspace: string): Promise<void>
+  /** `stash push [-u] [-m <message>]` — the tree returns clean (GIT-R10). */
+  stash(workspace: string, opts?: { message?: string; untracked?: boolean }): Promise<void>
+  /** `stash list --format` (GIT-R10.2). A read. */
+  stashList(workspace: string): Promise<GitStash[]>
+  /** `stash apply` (or `pop`) `stash@{index}` (GIT-R10.2). */
+  stashApply(workspace: string, index: number, pop?: boolean): Promise<void>
+  /** `stash drop stash@{index}` (GIT-R10.2). */
+  stashDrop(workspace: string, index: number): Promise<void>
+}
+
+/** `stash@{N}` ref for a stash index. */
+function stashRef(index: number): string {
+  return `stash@{${index}}`
 }
 
 /** Which side of a working-tree change a diff shows (GIT-R4). */
@@ -446,6 +461,35 @@ export function createGitService(deps: GitServiceDeps): GitService {
     })
   }
 
+  function stash(
+    workspace: string,
+    opts?: { message?: string; untracked?: boolean }
+  ): Promise<void> {
+    return enqueue(workspace, async () => {
+      const args = ['stash', 'push']
+      if (opts?.untracked) args.push('-u')
+      if (opts?.message) args.push('-m', opts.message)
+      await git(args, { cwd: workspace })
+    })
+  }
+
+  async function stashList(workspace: string): Promise<GitStash[]> {
+    const out = await git(['stash', 'list', '--format=%gd%x1f%s'], { cwd: workspace })
+    return parseStashList(out)
+  }
+
+  function stashApply(workspace: string, index: number, pop?: boolean): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['stash', pop ? 'pop' : 'apply', stashRef(index)], { cwd: workspace })
+    })
+  }
+
+  function stashDrop(workspace: string, index: number): Promise<void> {
+    return enqueue(workspace, async () => {
+      await git(['stash', 'drop', stashRef(index)], { cwd: workspace })
+    })
+  }
+
   return {
     detect,
     init,
@@ -469,6 +513,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
     conflicts,
     resolveConflict,
     mergeContinue,
-    mergeAbort
+    mergeAbort,
+    stash,
+    stashList,
+    stashApply,
+    stashDrop
   }
 }

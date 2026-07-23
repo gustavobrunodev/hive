@@ -403,3 +403,37 @@ describe('GitService conflicts + merge', () => {
     expect(abort.runner.calls[0].args.slice(2)).toEqual(['merge', '--abort'])
   })
 })
+
+describe('GitService stash', () => {
+  it('pushes a stash, optionally including untracked + a message', async () => {
+    const plain = make()
+    await plain.service.stash(WS)
+    expect(plain.runner.calls[0].args.slice(2)).toEqual(['stash', 'push'])
+
+    const full = make()
+    await full.service.stash(WS, { untracked: true, message: 'wip' })
+    expect(full.runner.calls[0].args.slice(2)).toEqual(['stash', 'push', '-u', '-m', 'wip'])
+  })
+
+  it('lists stashes', async () => {
+    const { runner, service } = make()
+    stdout(runner, 'stash@{0}\x1fWIP on main: abc msg')
+    const list = await service.stashList(WS)
+    expect(runner.calls[0].args.slice(2)).toEqual(['stash', 'list', '--format=%gd%x1f%s'])
+    expect(list[0]).toMatchObject({ index: 0, message: 'WIP on main: abc msg' })
+  })
+
+  it('applies / pops / drops a stash by index', async () => {
+    const apply = make()
+    await apply.service.stashApply(WS, 2)
+    expect(apply.runner.calls[0].args.slice(2)).toEqual(['stash', 'apply', 'stash@{2}'])
+
+    const pop = make()
+    await pop.service.stashApply(WS, 0, true)
+    expect(pop.runner.calls[0].args.slice(2)).toEqual(['stash', 'pop', 'stash@{0}'])
+
+    const drop = make()
+    await drop.service.stashDrop(WS, 1)
+    expect(drop.runner.calls[0].args.slice(2)).toEqual(['stash', 'drop', 'stash@{1}'])
+  })
+})
