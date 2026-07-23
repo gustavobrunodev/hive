@@ -1,4 +1,7 @@
-import { vi } from 'vitest'
+import { vi, type Mock } from 'vitest'
+
+/** Each git bridge method as a vitest `Mock`, so tests can `.mockResolvedValue(...)` per method. */
+export type HiveGitMock = Record<keyof Window['hive']['git'], Mock>
 
 /**
  * A fully-stubbed `window.hive.git` namespace (git-management M10) for tests
@@ -7,8 +10,12 @@ import { vi } from 'vitest'
  * unsubscribe. Tests that DO drive git (useGit/SourceControlPanel/StatusBar)
  * override the specific methods they need. Kept out of the gated `scm/**` glob
  * so it isn't held to the feature coverage bar.
+ *
+ * Returns an object of `vi.fn()` mocks (typed `HiveGitMock`) so callers can
+ * `.mockResolvedValue(...)` per method; a `Mock` satisfies any function-typed
+ * field, so it stays assignable to `window.hive.git`.
  */
-export function createHiveGitMock(): Window['hive']['git'] {
+export function createHiveGitMock(): HiveGitMock {
   return {
     detect: vi.fn().mockResolvedValue({ isRepo: false, root: null, gitMissing: false }),
     status: vi.fn().mockResolvedValue({
