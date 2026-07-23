@@ -1,4 +1,12 @@
-import { Button } from '@hive/design-system'
+import { useCallback, useState } from 'react'
+import {
+  Button,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger
+} from '@hive/design-system'
 import { t } from '../i18n'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -9,8 +17,14 @@ import {
   SourceControlIcon
 } from '../ui/icons'
 import { ChangeGroups, type RowSide } from './ChangeGroups'
-import { changeCount, groupChanges, type GitFileChange } from './gitStatus'
+import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
+import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
 import { useGit } from './useGit'
+
+/** Copies text to the clipboard, tolerating environments without the async Clipboard API. */
+function copyToClipboard(text: string): void {
+  void navigator.clipboard?.writeText(text)
+}
 
 /** A teaching empty state (icon + title + description + optional action) — never a blank pane (design.md §7). */
 function ScmEmpty({
@@ -70,12 +84,15 @@ function ScmHeader({
 export interface SourceControlPanelProps {
   /** Opens a change's diff in the editor pane (wired in T20). */
   onOpenDiff?: (change: GitFileChange, side: RowSide) => void
-  /** T17: builds the group-level action cluster. */
-  renderGroupActions?: (side: RowSide) => React.ReactNode
-  /** T17: builds a row's trailing action cluster. */
-  renderRowActions?: (change: GitFileChange, side: RowSide) => React.ReactNode
   /** T18: the inline commit box, rendered above the change list when the repo is dirty-or-clean. */
   commitBox?: React.ReactNode
+}
+
+/** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
+function sidePaths(groups: GitGroups, side: RowSide): GitFileChange[] {
+  if (side === 'staged') return groups.staged
+  if (side === 'conflict') return groups.conflicts
+  return groups.unstaged
 }
 
 /**
@@ -87,11 +104,74 @@ export interface SourceControlPanelProps {
  */
 export function SourceControlPanel({
   onOpenDiff,
-  renderGroupActions,
-  renderRowActions,
   commitBox
 }: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
+  // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
+  const [discardTarget, setDiscardTarget] = useState<GitFileChange[] | null>(null)
+
+  const groups = groupChanges(git.status)
+
+  const stage = useCallback((change: GitFileChange) => void git.stage([change.path]), [git])
+  const unstage = useCallback((change: GitFileChange) => void git.unstage([change.path]), [git])
+  const requestDiscard = useCallback((change: GitFileChange) => setDiscardTarget([change]), [])
+  const confirmDiscard = useCallback(() => {
+    if (discardTarget) void git.discard(discardTarget.map((c) => c.path))
+    setDiscardTarget(null)
+  }, [discardTarget, git])
+
+  const renderRowActions = useCallback(
+    (change: GitFileChange, side: RowSide) => (
+      <RowActions
+        change={change}
+        side={side}
+        onStage={stage}
+        onUnstage={unstage}
+        onDiscard={requestDiscard}
+      />
+    ),
+    [stage, unstage, requestDiscard]
+  )
+
+  const renderGroupActions = useCallback(
+    (side: RowSide) => (
+      <GroupActions
+        side={side}
+        onStageAll={() => void git.stage(sidePaths(groups, side).map((c) => c.path))}
+        onUnstageAll={() => void git.unstage(sidePaths(groups, side).map((c) => c.path))}
+        onDiscardAll={() => setDiscardTarget(sidePaths(groups, side))}
+      />
+    ),
+    [git, groups]
+  )
+
+  const wrapRow = useCallback(
+    (change: GitFileChange, side: RowSide, node: React.ReactNode) => (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{node}</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={() => onOpenDiff?.(change, side)}>
+            {t('git.openDiff')}
+          </ContextMenuItem>
+          {side === 'staged' ? (
+            <ContextMenuItem onSelect={() => unstage(change)}>{t('git.unstage')}</ContextMenuItem>
+          ) : (
+            <ContextMenuItem onSelect={() => stage(change)}>{t('git.stage')}</ContextMenuItem>
+          )}
+          {side === 'unstaged' && (
+            <ContextMenuItem onSelect={() => requestDiscard(change)}>
+              {t('git.discard')}
+            </ContextMenuItem>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => copyToClipboard(change.path)}>
+            {t('git.copyPath')}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    ),
+    [onOpenDiff, stage, unstage, requestDiscard]
+  )
 
   if (git.repo.gitMissing) {
     return (
@@ -118,7 +198,6 @@ export function SourceControlPanel({
     )
   }
 
-  const groups = groupChanges(git.status)
   const count = changeCount(git.status)
   const branch = git.status?.branch ?? null
   const detached = git.status?.detached ?? false
@@ -142,9 +221,15 @@ export function SourceControlPanel({
             onOpenDiff={onOpenDiff}
             renderGroupActions={renderGroupActions}
             renderRowActions={renderRowActions}
+            wrapRow={wrapRow}
           />
         </div>
       )}
+      <DiscardDialog
+        target={discardTarget}
+        onCancel={() => setDiscardTarget(null)}
+        onConfirm={confirmDiscard}
+      />
     </div>
   )
 }

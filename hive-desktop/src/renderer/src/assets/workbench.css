@@ -2058,6 +2058,43 @@
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+/* Compact row / group action buttons (stage/unstage/discard). Quiet until the
+   row or group header is hovered/focused (opacity handled on the container). */
+.wb-scm-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.12s var(--ease-quart),
+    color 0.12s var(--ease-quart);
+}
+.wb-scm-act:hover {
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+.wb-scm-act:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Destructive confirm button (discard) — a clear danger affordance (G3). */
+.wb-btn-danger {
+  background: var(--danger);
+  color: var(--danger-ink, #fff);
+  border-color: var(--danger);
+}
+.wb-btn-danger:hover {
+  filter: brightness(1.05);
+}
 @media (prefers-reduced-motion: reduce) {
   .wb-scm-group-actions,
   .wb-scm-row-actions {

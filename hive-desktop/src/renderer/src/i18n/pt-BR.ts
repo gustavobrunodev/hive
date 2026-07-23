@@ -550,7 +550,26 @@ export const ptBR = {
     initRepo: 'Inicializar repositório',
     gitMissingTitle: 'Git não encontrado',
     gitMissingDescription:
-      'O Hive não conseguiu executar o git nesta máquina. Instale o git e reabra o workspace para usar o controle de versão.'
+      'O Hive não conseguiu executar o git nesta máquina. Instale o git e reabra o workspace para usar o controle de versão.',
+    // Row + group actions (GIT-R3).
+    stage: 'Preparar',
+    unstage: 'Retirar do preparo',
+    discard: 'Descartar alterações',
+    openDiff: 'Abrir diferenças',
+    copyPath: 'Copiar caminho',
+    stageAll: 'Preparar tudo',
+    unstageAll: 'Retirar tudo do preparo',
+    discardAll: 'Descartar tudo',
+    // Discard confirm (GIT-R3.3).
+    discardTitle: 'Descartar alterações?',
+    discardTrackedOne: (name: string) =>
+      `“${name}” será restaurado para o último commit. Esta ação não pode ser desfeita.`,
+    discardUntrackedOne: (name: string) =>
+      `“${name}” não está sob controle de versão e será movido para a lixeira do sistema (recuperável).`,
+    discardMany: (count: number) =>
+      `${count} arquivos serão descartados; os não rastreados vão para a lixeira e os demais voltam ao último commit.`,
+    discardConfirm: 'Descartar',
+    discardCancel: 'Cancelar'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

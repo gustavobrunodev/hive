@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { t } from '../i18n'
 import {
   gitStatusColor,
@@ -108,6 +109,8 @@ interface ChangeGroupProps {
   headerActions?: React.ReactNode
   /** Per-row trailing actions builder injected by T17. */
   renderRowActions?: (change: GitFileChange, side: RowSide) => React.ReactNode
+  /** Wraps a row (e.g. in a right-click ContextMenu) — identity when omitted. */
+  wrapRow?: (change: GitFileChange, side: RowSide, node: React.ReactNode) => React.ReactNode
 }
 
 function ChangeGroup({
@@ -116,7 +119,8 @@ function ChangeGroup({
   side,
   onOpenDiff,
   headerActions,
-  renderRowActions
+  renderRowActions,
+  wrapRow
 }: ChangeGroupProps): React.JSX.Element | null {
   if (changes.length === 0) return null
   const shown = changes.slice(0, MAX_ROWS_PER_GROUP)
@@ -130,15 +134,21 @@ function ChangeGroup({
         {headerActions && <span className="wb-scm-group-actions">{headerActions}</span>}
       </header>
       <div className="wb-scm-rows">
-        {shown.map((change) => (
-          <ChangeRow
-            key={`${side}:${change.path}`}
-            change={change}
-            side={side}
-            onOpenDiff={onOpenDiff}
-            actions={renderRowActions?.(change, side)}
-          />
-        ))}
+        {shown.map((change) => {
+          const row = (
+            <ChangeRow
+              change={change}
+              side={side}
+              onOpenDiff={onOpenDiff}
+              actions={renderRowActions?.(change, side)}
+            />
+          )
+          return (
+            <Fragment key={`${side}:${change.path}`}>
+              {wrapRow ? wrapRow(change, side, row) : row}
+            </Fragment>
+          )
+        })}
         {overflow > 0 && <div className="wb-scm-more">{t('git.moreChanges', overflow)}</div>}
       </div>
     </section>
@@ -152,6 +162,8 @@ export interface ChangeGroupsProps {
   renderGroupActions?: (side: RowSide) => React.ReactNode
   /** T17: builds a row's trailing action cluster. */
   renderRowActions?: (change: GitFileChange, side: RowSide) => React.ReactNode
+  /** T17: wraps each row in a right-click ContextMenu. */
+  wrapRow?: (change: GitFileChange, side: RowSide, node: React.ReactNode) => React.ReactNode
 }
 
 /**
@@ -164,7 +176,8 @@ export function ChangeGroups({
   groups,
   onOpenDiff,
   renderGroupActions,
-  renderRowActions
+  renderRowActions,
+  wrapRow
 }: ChangeGroupsProps): React.JSX.Element {
   return (
     <div className="wb-scm-groups">
@@ -175,6 +188,7 @@ export function ChangeGroups({
         onOpenDiff={onOpenDiff}
         headerActions={renderGroupActions?.('conflict')}
         renderRowActions={renderRowActions}
+        wrapRow={wrapRow}
       />
       <ChangeGroup
         title={t('git.groupStaged')}
@@ -183,6 +197,7 @@ export function ChangeGroups({
         onOpenDiff={onOpenDiff}
         headerActions={renderGroupActions?.('staged')}
         renderRowActions={renderRowActions}
+        wrapRow={wrapRow}
       />
       <ChangeGroup
         title={t('git.groupChanges')}
@@ -191,6 +206,7 @@ export function ChangeGroups({
         onOpenDiff={onOpenDiff}
         headerActions={renderGroupActions?.('unstaged')}
         renderRowActions={renderRowActions}
+        wrapRow={wrapRow}
       />
     </div>
   )

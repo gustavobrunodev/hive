@@ -831,3 +831,12 @@ export function ArrowDownIcon({ size, ...rest }: IconProps): React.JSX.Element {
     </svg>
   )
 }
+
+/** Minus — the "unstage" row/group action (counterpart to PlusIcon's stage). */
+export function MinusIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3 8h10" />
+    </svg>
+  )
+}

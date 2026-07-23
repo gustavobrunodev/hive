@@ -101,6 +101,21 @@ describe('ChangeGroups', () => {
     expect(screen.getByTestId('row-a.txt')).toBeTruthy()
   })
 
+  it('wraps each row via wrapRow (e.g. a context menu)', () => {
+    const seen: string[] = []
+    render(
+      createElement(ChangeGroups, {
+        groups: groups({ unstaged: [chg('a.txt', '.', 'M')] }),
+        wrapRow: (change, side, node) => {
+          seen.push(`${side}:${change.path}`)
+          return createElement('div', { 'data-testid': 'wrapped' }, node)
+        }
+      })
+    )
+    expect(seen).toEqual(['unstaged:a.txt'])
+    expect(screen.getByTestId('wrapped')).toBeTruthy()
+  })
+
   it('caps rows and summarizes the overflow (perf guard)', () => {
     const many = Array.from({ length: 501 }, (_, i) => chg(`f${i}.txt`, '.', 'M'))
     render(createElement(ChangeGroups, { groups: groups({ unstaged: many }) }))

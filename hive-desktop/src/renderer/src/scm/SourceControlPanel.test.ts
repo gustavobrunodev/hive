@@ -1,10 +1,28 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createElement } from 'react'
+import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SourceControlPanel, type SourceControlPanelProps } from './SourceControlPanel'
 import { GitProvider, type GitStore } from './useGit'
 import type { GitFileChange, GitStatus } from './gitStatus'
+
+// The DS ContextMenu (Radix) doesn't open on right-click cleanly in jsdom, so
+// — mirroring Explorer.test's approach — mock the family to render its content
+// inline (menu items become plain buttons). Everything else in the DS bundle
+// is the real component (AlertDialog, Button, IconButton).
+vi.mock('@hive/design-system', async (orig) => {
+  const actual = await orig<typeof import('@hive/design-system')>()
+  return {
+    ...actual,
+    ContextMenu: ({ children }: { children?: ReactNode }) => createElement('div', {}, children),
+    ContextMenuTrigger: ({ children }: { children?: ReactNode }) => children,
+    ContextMenuContent: ({ children }: { children?: ReactNode }) =>
+      createElement('div', { role: 'menu' }, children),
+    ContextMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+      createElement('button', { role: 'menuitem', onClick: onSelect }, children),
+    ContextMenuSeparator: () => createElement('hr')
+  }
+})
 
 function chg(
   path: string,
@@ -119,5 +137,102 @@ describe('SourceControlPanel', () => {
       store({ status: status([chg('a.txt', '.', 'M')], { branch: null, detached: true }) })
     )
     expect(screen.getByLabelText('Branch atual: HEAD desanexado')).toBeTruthy()
+  })
+})
+
+describe('SourceControlPanel — row + group actions (GIT-R3)', () => {
+  it('stages an unstaged row and unstages a staged row', () => {
+    const s = store({
+      status: status([chg('u.txt', '.', 'M'), chg('s.txt', 'A', '.')])
+    })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Preparar'))
+    expect(s.stage).toHaveBeenCalledWith(['u.txt'])
+    fireEvent.click(screen.getByLabelText('Retirar do preparo'))
+    expect(s.unstage).toHaveBeenCalledWith(['s.txt'])
+  })
+
+  it('stages all / unstages all from the group headers', () => {
+    const s = store({
+      status: status([chg('u1', '.', 'M'), chg('u2', '.', 'M'), chg('s1', 'A', '.')])
+    })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Preparar tudo'))
+    expect(s.stage).toHaveBeenCalledWith(['u1', 'u2'])
+    fireEvent.click(screen.getByLabelText('Retirar tudo do preparo'))
+    expect(s.unstage).toHaveBeenCalledWith(['s1'])
+  })
+
+  it('confirms before discarding a tracked file, then restores it', () => {
+    const s = store({ status: status([chg('a.txt', '.', 'M')]) })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Descartar alterações'))
+    // The confirm dialog explains the tracked-file restore.
+    expect(screen.getByText(/restaurado para o último commit/)).toBeTruthy()
+    expect(s.discard).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Descartar'))
+    expect(s.discard).toHaveBeenCalledWith(['a.txt'])
+  })
+
+  it('explains the trash route when discarding an untracked file', () => {
+    const s = store({
+      status: status([chg('junk.txt', '?', '?', { isUntracked: true })])
+    })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Descartar alterações'))
+    expect(screen.getByText(/movido para a lixeira/)).toBeTruthy()
+  })
+
+  it('cancelling the discard dialog leaves the file untouched', () => {
+    const s = store({ status: status([chg('a.txt', '.', 'M')]) })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Descartar alterações'))
+    fireEvent.click(screen.getByText('Cancelar'))
+    expect(s.discard).not.toHaveBeenCalled()
+    expect(screen.queryByText(/restaurado para o último commit/)).toBeNull()
+  })
+
+  it('discard-all summarizes the count in the confirmation', () => {
+    const s = store({ status: status([chg('a', '.', 'M'), chg('b', '.', 'M')]) })
+    renderPanel(s)
+    fireEvent.click(screen.getByLabelText('Descartar tudo'))
+    expect(screen.getByText(/2 arquivos serão descartados/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Descartar'))
+    expect(s.discard).toHaveBeenCalledWith(['a', 'b'])
+  })
+
+  it('offers Open diff / Stage / Copy path from the row context menu', () => {
+    const onOpenDiff = vi.fn()
+    const writeText = vi.fn()
+    Object.assign(navigator, { clipboard: { writeText } })
+    const s = store({ status: status([chg('a.txt', '.', 'M')]) })
+    renderPanel(s, { onOpenDiff })
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Abrir diferenças' }))
+    expect(onOpenDiff).toHaveBeenCalledWith(expect.objectContaining({ path: 'a.txt' }), 'unstaged')
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preparar' }))
+    expect(s.stage).toHaveBeenCalledWith(['a.txt'])
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar caminho' }))
+    expect(writeText).toHaveBeenCalledWith('a.txt')
+  })
+
+  it('offers Unstage from a staged row context menu', () => {
+    const s = store({ status: status([chg('s.txt', 'A', '.')]) })
+    renderPanel(s)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Retirar do preparo' }))
+    expect(s.unstage).toHaveBeenCalledWith(['s.txt'])
+  })
+
+  it('shows a conflict row with a mark-resolved (Stage) action and no group-level action', () => {
+    const s = store({
+      status: status([chg('c.txt', 'U', 'U', { isConflict: true })])
+    })
+    renderPanel(s)
+    expect(screen.getByText('Conflitos de merge')).toBeTruthy()
+    // The conflict group offers no header action; the row offers Stage (mark resolved).
+    fireEvent.click(screen.getByLabelText('Preparar'))
+    expect(s.stage).toHaveBeenCalledWith(['c.txt'])
   })
 })

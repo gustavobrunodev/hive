@@ -38,7 +38,8 @@ import {
   StashIcon,
   CheckCircleIcon,
   DiscardIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  MinusIcon
 } from './icons'
 
 /**
@@ -120,7 +121,8 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
       StashIcon,
       CheckCircleIcon,
       DiscardIcon,
-      ArrowDownIcon
+      ArrowDownIcon,
+      MinusIcon
     ]) {
       const { container } = render(createElement(Icon, { size: 18 }))
       expect(container.querySelector('svg')).toBeTruthy()
