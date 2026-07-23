@@ -399,6 +399,34 @@ Updated as work progresses. Load at start of every session.
   T24 (the actual authenticated publish) remains the only open item, blocked
   on ND-B2 exactly as planned.
 
+- **D22 — Feature `git-management` (new milestone M10 — Source Control).**
+  Planned 2026-07-23 via tlc-spec-driven (spec/context/design/tasks in
+  `.specs/features/git-management/`). Complete in-app git, VS Code/Cursor
+  parity. Locked gray-area decisions (context.md, from the user's
+  `AskUserQuestion`): **(D-GIT-1) remotes use system credentials only** — git's
+  own credential helper/SSH; Hive never prompts for or stores a token, builds no
+  credential UI, and surfaces git's real stderr on auth failure (`GIT_TERMINAL_
+  PROMPT=0`, fail-fast); **(D-GIT-2) switchable sidebar (VS Code style)** — the
+  `ActionRail` becomes an activity bar switching the left rail body between
+  Explorer and Source Control (rail keeps `id="rail"` so `hive.workLayout`/
+  `paneOrder` are untouched), `Ctrl/Cmd+Shift+G` opens SCM; **(D-GIT-3) full P1
+  scope** — the user chose **all four** advanced buckets for P1: commit history
+  (timeline + per-file), merge conflict resolution, stash, and explorer
+  decorations + editor gutter, on top of the core loop (status/stage/discard/
+  commit/branches/diff/sync/init). Agent's-discretion decisions (design.md):
+  **git CLI via the existing `processRunner.ts`** (not simple-git/isomorphic-git
+  — same CLI pattern as BMAD/Claude adapters, `git` present at 2.34.1, machine
+  formats `--porcelain=v2 -z`/`--format` with pure fixture-tested parsers in
+  `gitParse.ts`); new app-local `DiffView` + `StatusBar` + `ConflictView`
+  components (`CodeBlock` is not a diff renderer); tree decorations via the DS
+  `Tree`'s existing `renderLabel` (no DS change needed); gutter via `fast-diff`
+  (already in node_modules) off the keystroke path; per-repo serial mutation
+  queue for index safety. Same quality gates as prior features: no regression,
+  ≥90% per-file coverage, real-repo+bare-remote E2E, Playwright-MCP visual pass
+  (dark+light, every state), all copy pt-BR via `t()`. Deferred to P2/P3:
+  per-hunk staging, gutter hunk revert, revert-commit/cherry-pick, tags, branch
+  compare/graph, blame, provider/PR integration, multi-repo. (2026-07-23)
+
 ## Blockers
 
 - **ND-B2 — OPEN (2026-07-22), blocks the real payload publish only.** Need a
@@ -437,6 +465,47 @@ Updated as work progresses. Load at start of every session.
   is a real flag and surfaced a real bug, now fixed — see Lessons.
 
 ## Lessons
+
+- **git-management (M10) — Phase 0 + demoable slice (T1–T20) done, 2026-07-23.**
+  Detect → status → stage/unstage/discard → commit → diff works end-to-end in a
+  switchable Explorer⇄Source Control sidebar. All under `feat/git-management`,
+  one atomic commit per task, `npm run verify` green (1090 tests, typecheck +
+  0 lint errors), per-file coverage ≥90% on every touched file. Visually
+  validated dark+light via the Playwright-MCP window.hive-mock recipe
+  ([[hive-desktop-visual-validation]]): SCM dirty view (all groups, commit
+  split-button, semantic status glyphs), diff unified + side-by-side — VS
+  Code/Cursor parity confirmed. **Remaining: T21–T32** (status bar, branch
+  picker + dirty guard, sync wiring, history, conflict view, stash, tree
+  decorations, editor gutter, i18n audit, E2E, MCP visual pass, closeout).
+  Reusable lessons from this slice:
+  - **Machine-format git parsers must be captured from real `git`, not
+    guessed.** Porcelain-v2 `-z` renames emit the entry line then the origPath
+    as the *next* NUL field (consume two); numstat `-z` renames emit an empty
+    path field then origPath+newPath as two NUL fields; binary numstat is
+    `-\t-`. Captured 2.34.1 fixtures live inline in `gitParse.test.ts`.
+  - **Never let a git op hang on a prompt.** Every `git()` call sets
+    `GIT_TERMINAL_PROMPT=0` **and** `GIT_EDITOR=true` — the latter so
+    `merge --continue` / any editor-opening commit concludes non-interactively
+    against an absent tty (D-GIT-1 fail-fast).
+  - **Commit message via a temp `-F` file, not `--file=-`** — the app's
+    ProcessRunner closes stdin (`ignore`), so `-` would read an empty message.
+  - **The eslint config (`react-hooks`) forbids BOTH setState-in-effect AND
+    ref-read/mutate-during-render.** Resetting store state on a prop
+    (workspace) change is cleanest as a **workspace-tagged state object** +
+    pure derivation (`state.ws === workspace ? state : empty`) — no reset
+    effect, no render-time ref. The eager initial load in an effect must be
+    wrapped in `queueMicrotask(() => …)` so the plugin doesn't flag the async
+    setState it can't see through.
+  - **Radix DropdownMenu/ContextMenu don't open on click in jsdom** — mock the
+    DS menu family (render content inline as `role=menu/menuitem` buttons),
+    exactly like `Explorer.test`. DS `AlertDialog`/`Dialog` DO render in jsdom.
+  - **Renderer git types are derived from the `window.hive.git` bridge**
+    (`Awaited<ReturnType<Window['hive']['git']['status']>>`) — no cross-boundary
+    import, matching the Chat.tsx mirror convention.
+  - Exporting a non-component from a `.tsx` trips `react-refresh/only-export-
+    components` — pure helpers (e.g. `toSplitRows`) belong in a `.ts` module
+    (`gitStatus.ts`). Extract oversized pure functions to stay under the eslint
+    complexity cap (parseStatusV2 → `applyBranchHeader`).
 
 - **A `file:`-linked React package that ships its own `node_modules/react`
   duplicates React in the renderer → "invalid hook call" crash (2026-07-11).**
