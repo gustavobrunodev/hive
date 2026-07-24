@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { CommitBox } from './CommitBox'
 import { GitProvider, type GitStore } from './useGit'
 import type { GitFileChange, GitStatus } from './gitStatus'
+import { createGitStore } from '../testSupport/gitStoreMock'
 
 // Mock the DS DropdownMenu family (Radix doesn't open on click cleanly in
 // jsdom) so its items render inline as buttons; keep Textarea/Button real.
@@ -61,20 +62,7 @@ function status(changes: GitFileChange[]): GitStatus {
 }
 
 function store(over: Partial<GitStore> = {}): GitStore {
-  return {
-    workspace: '/ws',
-    repo: { isRepo: true, gitMissing: false },
-    status: status([]),
-    busy: null,
-    decorations: new Map(),
-    refresh: vi.fn(),
-    init: vi.fn(async () => {}),
-    stage: vi.fn(async () => {}),
-    unstage: vi.fn(async () => {}),
-    discard: vi.fn(async () => {}),
-    commit: vi.fn(async () => {}),
-    ...over
-  }
+  return createGitStore({ status: status([]), ...over })
 }
 
 function renderBox(s: GitStore): void {

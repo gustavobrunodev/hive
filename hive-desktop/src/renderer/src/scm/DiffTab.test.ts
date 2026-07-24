@@ -5,21 +5,10 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { DiffTab } from './DiffTab'
 import { GitProvider, type GitStore } from './useGit'
 import type { GitDiff } from './gitStatus'
+import { createGitStore } from '../testSupport/gitStoreMock'
 
 function store(): GitStore {
-  return {
-    workspace: '/ws',
-    repo: { isRepo: true, gitMissing: false },
-    status: null,
-    busy: null,
-    decorations: new Map(),
-    refresh: vi.fn(),
-    init: vi.fn(async () => {}),
-    stage: vi.fn(async () => {}),
-    unstage: vi.fn(async () => {}),
-    discard: vi.fn(async () => {}),
-    commit: vi.fn(async () => {})
-  }
+  return createGitStore({ status: null })
 }
 
 const diff: GitDiff = {

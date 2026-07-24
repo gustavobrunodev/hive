@@ -35,6 +35,25 @@ export interface GitStore {
   unstage: (paths: string[]) => Promise<void>
   discard: (paths: string[]) => Promise<void>
   commit: (message: string, opts?: { amend?: boolean; stageAll?: boolean }) => Promise<void>
+  // Remotes (GIT-R7) — each drives the status-bar busy label.
+  fetch: () => Promise<void>
+  pull: () => Promise<void>
+  push: () => Promise<void>
+  sync: () => Promise<void>
+  publish: () => Promise<void>
+  // Branches (GIT-R6).
+  createBranch: (name: string, from?: string) => Promise<void>
+  checkout: (ref: string) => Promise<void>
+  renameBranch: (from: string, to: string) => Promise<void>
+  deleteBranch: (name: string, force?: boolean) => Promise<void>
+  // Conflicts (GIT-R9).
+  resolveConflict: (path: string, choice: 'current' | 'incoming' | 'both') => Promise<void>
+  mergeContinue: () => Promise<void>
+  mergeAbort: () => Promise<void>
+  // Stash (GIT-R10).
+  stash: (opts?: { message?: string; untracked?: boolean }) => Promise<void>
+  stashApply: (index: number, pop?: boolean) => Promise<void>
+  stashDrop: (index: number) => Promise<void>
 }
 
 /**
@@ -140,6 +159,67 @@ export function useGitStore(workspace: string): GitStore {
     [runAction]
   )
 
+  const fetch = useCallback(
+    () => runAction('fetch', (ws) => window.hive.git.fetch(ws)),
+    [runAction]
+  )
+  const pull = useCallback(() => runAction('pull', (ws) => window.hive.git.pull(ws)), [runAction])
+  const push = useCallback(() => runAction('push', (ws) => window.hive.git.push(ws)), [runAction])
+  const sync = useCallback(() => runAction('sync', (ws) => window.hive.git.sync(ws)), [runAction])
+  const publish = useCallback(
+    () => runAction('publish', (ws) => window.hive.git.push(ws, { setUpstream: true })),
+    [runAction]
+  )
+
+  const createBranch = useCallback(
+    (name: string, from?: string) =>
+      runAction(null, (ws) => window.hive.git.createBranch(ws, name, from)),
+    [runAction]
+  )
+  const checkout = useCallback(
+    (ref: string) => runAction(null, (ws) => window.hive.git.checkout(ws, ref)),
+    [runAction]
+  )
+  const renameBranch = useCallback(
+    (from: string, to: string) =>
+      runAction(null, (ws) => window.hive.git.renameBranch(ws, from, to)),
+    [runAction]
+  )
+  const deleteBranch = useCallback(
+    (name: string, force?: boolean) =>
+      runAction(null, (ws) => window.hive.git.deleteBranch(ws, name, force)),
+    [runAction]
+  )
+
+  const resolveConflict = useCallback(
+    (path: string, choice: 'current' | 'incoming' | 'both') =>
+      runAction(null, (ws) => window.hive.git.resolveConflict(ws, path, choice)),
+    [runAction]
+  )
+  const mergeContinue = useCallback(
+    () => runAction(null, (ws) => window.hive.git.mergeContinue(ws)),
+    [runAction]
+  )
+  const mergeAbort = useCallback(
+    () => runAction(null, (ws) => window.hive.git.mergeAbort(ws)),
+    [runAction]
+  )
+
+  const stash = useCallback(
+    (opts?: { message?: string; untracked?: boolean }) =>
+      runAction(null, (ws) => window.hive.git.stash(ws, opts)),
+    [runAction]
+  )
+  const stashApply = useCallback(
+    (index: number, pop?: boolean) =>
+      runAction(null, (ws) => window.hive.git.stashApply(ws, index, pop)),
+    [runAction]
+  )
+  const stashDrop = useCallback(
+    (index: number) => runAction(null, (ws) => window.hive.git.stashDrop(ws, index)),
+    [runAction]
+  )
+
   // Pure derivation: state from a since-switched workspace reads as an empty,
   // not-yet-detected repo until `runRefresh` lands the new workspace's state
   // (GIT-R1.3) — no reset effect, no setState during render.
@@ -160,7 +240,22 @@ export function useGitStore(workspace: string): GitStore {
     stage,
     unstage,
     discard,
-    commit
+    commit,
+    fetch,
+    pull,
+    push,
+    sync,
+    publish,
+    createBranch,
+    checkout,
+    renameBranch,
+    deleteBranch,
+    resolveConflict,
+    mergeContinue,
+    mergeAbort,
+    stash,
+    stashApply,
+    stashDrop
   }
 }
 

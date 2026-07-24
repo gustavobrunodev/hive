@@ -2314,6 +2314,62 @@
   border-bottom-left-radius: 0;
 }
 
+/* ── Status bar (git-management §6.2, GIT-R12) ─────────────────────────────
+   The always-present bottom anchor. Sits on the cooler --surface layer, quiet
+   until a cluster is hovered; each cluster is a real button. */
+.wb-statusbar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  user-select: none;
+}
+.wb-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  padding: 0 var(--s-2);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.12s var(--ease-quart),
+    color 0.12s var(--ease-quart);
+}
+.wb-status-item:hover {
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+.wb-status-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.wb-status-item svg {
+  flex-shrink: 0;
+}
+.wb-status-branch {
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-status-sync,
+.wb-status-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-status-item {
+    transition: none;
+  }
+}
+
 /* Teaching empty states — centered, calm, never a blank pane. */
 .wb-scm-empty {
   display: flex;

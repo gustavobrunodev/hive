@@ -120,6 +120,62 @@ describe('useGitStore', () => {
     expect(gitMock.discard).toHaveBeenCalledWith('/ws', ['b'])
   })
 
+  it('exposes remote / branch / conflict / stash wrappers that hit the bridge', async () => {
+    const { result } = renderHook(() => useGitStore('/ws'))
+    await act(async () => {
+      await result.current.fetch()
+      await result.current.pull()
+      await result.current.push()
+      await result.current.sync()
+      await result.current.publish()
+      await result.current.createBranch('feat', 'main')
+      await result.current.checkout('main')
+      await result.current.renameBranch('a', 'b')
+      await result.current.deleteBranch('a', true)
+      await result.current.resolveConflict('c.txt', 'both')
+      await result.current.mergeContinue()
+      await result.current.mergeAbort()
+      await result.current.stash({ untracked: true })
+      await result.current.stashApply(1, true)
+      await result.current.stashDrop(0)
+    })
+    expect(gitMock.fetch).toHaveBeenCalledWith('/ws')
+    expect(gitMock.pull).toHaveBeenCalledWith('/ws')
+    expect(gitMock.push).toHaveBeenNthCalledWith(1, '/ws')
+    expect(gitMock.sync).toHaveBeenCalledWith('/ws')
+    expect(gitMock.push).toHaveBeenCalledWith('/ws', { setUpstream: true })
+    expect(gitMock.createBranch).toHaveBeenCalledWith('/ws', 'feat', 'main')
+    expect(gitMock.checkout).toHaveBeenCalledWith('/ws', 'main')
+    expect(gitMock.renameBranch).toHaveBeenCalledWith('/ws', 'a', 'b')
+    expect(gitMock.deleteBranch).toHaveBeenCalledWith('/ws', 'a', true)
+    expect(gitMock.resolveConflict).toHaveBeenCalledWith('/ws', 'c.txt', 'both')
+    expect(gitMock.mergeContinue).toHaveBeenCalledWith('/ws')
+    expect(gitMock.mergeAbort).toHaveBeenCalledWith('/ws')
+    expect(gitMock.stash).toHaveBeenCalledWith('/ws', { untracked: true })
+    expect(gitMock.stashApply).toHaveBeenCalledWith('/ws', 1, true)
+    expect(gitMock.stashDrop).toHaveBeenCalledWith('/ws', 0)
+  })
+
+  it('sets the busy label during a remote op', async () => {
+    let resolvePush: (() => void) | null = null
+    gitMock.push.mockReturnValue(
+      new Promise<void>((r) => {
+        resolvePush = () => r()
+      })
+    )
+    const { result } = renderHook(() => useGitStore('/ws'))
+    let pending: Promise<void>
+    act(() => {
+      pending = result.current.push()
+    })
+    await waitFor(() => expect(result.current.busy).toBe('push'))
+    await act(async () => {
+      resolvePush?.()
+      await pending
+    })
+    expect(result.current.busy).toBeNull()
+  })
+
   it('refreshes on a git:changed ping, an fs change, and window focus', async () => {
     gitMock.detect.mockResolvedValue({ isRepo: true, root: '/ws', gitMissing: false })
     gitMock.status.mockResolvedValue(dirtyStatus())

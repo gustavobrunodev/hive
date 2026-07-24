@@ -28,6 +28,7 @@ import { useGitStore, GitProvider } from './scm/useGit'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { DiffTab } from './scm/DiffTab'
+import { StatusBar } from './ui/StatusBar'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
@@ -828,6 +829,12 @@ export function WorkUI({
             </Resizable>
           </div>
         </div>
+        <StatusBar
+          onChanges={() => setActiveView('scm')}
+          onInit={() => void git.init()}
+          onBranch={() => setActiveView('scm')}
+          onSync={() => void git.sync()}
+        />
         {pendingSwitch !== null && (
           <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
             <DialogContent>

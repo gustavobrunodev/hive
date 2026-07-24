@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SourceControlPanel, type SourceControlPanelProps } from './SourceControlPanel'
 import { GitProvider, type GitStore } from './useGit'
 import type { GitFileChange, GitStatus } from './gitStatus'
+import { createGitStore } from '../testSupport/gitStoreMock'
 
 // The DS ContextMenu (Radix) doesn't open on right-click cleanly in jsdom, so
 // — mirroring Explorer.test's approach — mock the family to render its content
@@ -55,20 +56,7 @@ function status(changes: GitFileChange[], over: Partial<GitStatus> = {}): GitSta
 }
 
 function store(over: Partial<GitStore> = {}): GitStore {
-  return {
-    workspace: '/ws',
-    repo: { isRepo: true, gitMissing: false },
-    status: status([]),
-    busy: null,
-    decorations: new Map(),
-    refresh: vi.fn(),
-    init: vi.fn(async () => {}),
-    stage: vi.fn(async () => {}),
-    unstage: vi.fn(async () => {}),
-    discard: vi.fn(async () => {}),
-    commit: vi.fn(async () => {}),
-    ...over
-  }
+  return createGitStore({ status: status([]), ...over })
 }
 
 function renderPanel(s: GitStore, props: SourceControlPanelProps = {}): void {

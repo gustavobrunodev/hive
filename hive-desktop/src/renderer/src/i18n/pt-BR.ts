@@ -595,7 +595,31 @@ export const ptBR = {
     diffSideStaged: 'preparado',
     diffTitle: (name: string, side: string) => `${name} (${side})`,
     diffOldLineAria: 'Linha original',
-    diffNewLineAria: 'Linha nova'
+    diffNewLineAria: 'Linha nova',
+    // Status bar (GIT-R12).
+    statusBarLabel: 'Estado do controle de versão',
+    statusBranchAria: (branch: string) => `Branch atual: ${branch}. Trocar de branch`,
+    statusSyncAria: (ahead: number, behind: number) =>
+      `${ahead} à frente, ${behind} atrás. Sincronizar`,
+    statusPublishAria: 'Publicar branch no remoto',
+    statusChangesAria: (count: number) =>
+      count === 1
+        ? `${count} alteração. Abrir o controle de versão`
+        : `${count} alterações. Abrir o controle de versão`,
+    statusNoChangesAria: 'Sem alterações. Abrir o controle de versão',
+    statusInitAria: 'Inicializar repositório git neste workspace',
+    statusInit: 'Inicializar repositório',
+    publishBranch: 'Publicar branch',
+    // Op-in-flight labels (busy id → human sentence).
+    busyLabel: (op: string): string =>
+      ({
+        commit: 'Commitando…',
+        sync: 'Sincronizando…',
+        push: 'Enviando…',
+        pull: 'Recebendo…',
+        fetch: 'Buscando…',
+        publish: 'Publicando…'
+      })[op] ?? 'Processando…'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
