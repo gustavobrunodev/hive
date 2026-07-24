@@ -5,7 +5,11 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuTrigger
+  ContextMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { IconButton } from '../ui/IconButton'
@@ -13,11 +17,14 @@ import {
   AlertTriangleIcon,
   BranchIcon,
   CheckCircleIcon,
+  MoreIcon,
   RefreshIcon,
-  SourceControlIcon
+  SourceControlIcon,
+  SyncIcon
 } from '../ui/icons'
 import { ChangeGroups, type RowSide } from './ChangeGroups'
 import { CommitBox } from './CommitBox'
+import type { GitRemote } from './useGitRemote'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
 import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
 import { useGit } from './useGit'
@@ -51,15 +58,17 @@ function ScmEmpty({
   )
 }
 
-/** The panel header: the current branch chip + a refresh affordance (overflow ops land here in later tasks). */
+/** The panel header: the current branch chip, a refresh affordance, and the remote-ops overflow (GIT-R7). */
 function ScmHeader({
   branch,
   detached,
-  onRefresh
+  onRefresh,
+  remote
 }: {
   branch: string | null
   detached: boolean
   onRefresh: () => void
+  remote?: GitRemote
 }): React.JSX.Element {
   const label = detached || !branch ? t('git.detachedHead') : branch
   return (
@@ -77,6 +86,23 @@ function ScmHeader({
         <IconButton label={t('git.refreshLabel')} onClick={onRefresh}>
           <RefreshIcon size={15} />
         </IconButton>
+        {remote && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton label={t('git.moreActions')}>
+                <MoreIcon size={15} />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={remote.sync}>
+                <SyncIcon size={14} /> {t('git.syncAction')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={remote.fetch}>{t('git.fetchAction')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={remote.pull}>{t('git.pullAction')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={remote.push}>{t('git.pushAction')}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </span>
     </div>
   )
@@ -85,6 +111,8 @@ function ScmHeader({
 export interface SourceControlPanelProps {
   /** Opens a change's diff in the editor pane (wired in T20). */
   onOpenDiff?: (change: GitFileChange, side: RowSide) => void
+  /** Toast-wrapped remote ops for the header overflow menu (GIT-R7). */
+  remote?: GitRemote
 }
 
 /** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
@@ -101,7 +129,10 @@ function sidePaths(groups: GitGroups, side: RowSide): GitFileChange[] {
  * "no changes" state naming the branch, or the branch header + grouped change
  * list (GIT-R1/R2). Row/commit/diff wiring arrives in T17/T18/T20 via props.
  */
-export function SourceControlPanel({ onOpenDiff }: SourceControlPanelProps): React.JSX.Element {
+export function SourceControlPanel({
+  onOpenDiff,
+  remote
+}: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
   // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
   const [discardTarget, setDiscardTarget] = useState<GitFileChange[] | null>(null)
@@ -200,7 +231,7 @@ export function SourceControlPanel({ onOpenDiff }: SourceControlPanelProps): Rea
 
   return (
     <div className="wb-scm">
-      <ScmHeader branch={branch} detached={detached} onRefresh={git.refresh} />
+      <ScmHeader branch={branch} detached={detached} onRefresh={git.refresh} remote={remote} />
       <CommitBox />
       {count === 0 ? (
         <ScmEmpty

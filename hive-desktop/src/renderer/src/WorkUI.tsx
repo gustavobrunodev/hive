@@ -25,8 +25,10 @@ import { SourceControlPanel } from './scm/SourceControlPanel'
 import { DiffTab } from './scm/DiffTab'
 import { BranchPicker } from './scm/BranchPicker'
 import { useCheckoutGuard } from './scm/useCheckoutGuard'
+import { useGitRemote } from './scm/useGitRemote'
 import { StatusBar } from './ui/StatusBar'
 import { UnsavedGuardDialog } from './ui/UnsavedGuardDialog'
+import { GitOpToast } from './ui/GitOpToast'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
@@ -285,6 +287,9 @@ export function WorkUI({
   // three-way guard the workspace switch uses (logic in useCheckoutGuard).
   const runCheckout = useCallback((ref: string) => void git.checkout(ref), [git])
   const checkoutGuard = useCheckoutGuard(editor, runCheckout)
+  // git-management (GIT-R7): remote ops with success/error toasts (raw stderr
+  // behind "Detalhes", D-GIT-1) — shared by the status-bar pill + SCM overflow.
+  const gitRemote = useGitRemote(git)
   // npm-distribution T14: the shared update-flow state — launch + periodic
   // silent checks, the Tier 2 notice's props, and the rail's ambient dot
   // (T12) all read from this one hook. Mounted here (not App.tsx) so its own
@@ -650,6 +655,7 @@ export function WorkUI({
                   onOpenDiff={(change: GitFileChange, side: RowSide) =>
                     editor.openDiff(change.path, side === 'staged' ? 'staged' : 'working')
                   }
+                  remote={gitRemote}
                 />
               }
             />
@@ -839,7 +845,7 @@ export function WorkUI({
           onChanges={() => setActiveView('scm')}
           onInit={() => void git.init()}
           onBranch={() => setBranchPickerOpen(true)}
-          onSync={() => void git.sync()}
+          onSync={gitRemote.sync}
         />
         <BranchPicker
           open={branchPickerOpen}
@@ -849,6 +855,7 @@ export function WorkUI({
           onCreate={(name) => void git.createBranch(name)}
           onDelete={(name) => void git.deleteBranch(name, true)}
         />
+        <GitOpToast result={gitRemote.result} onClose={gitRemote.clear} />
         <UnsavedGuardDialog
           open={pendingSwitch !== null}
           onCancel={cancelSwitch}

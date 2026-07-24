@@ -21,7 +21,32 @@ vi.mock('@hive/design-system', async (orig) => {
       createElement('div', { role: 'menu' }, children),
     ContextMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
       createElement('button', { role: 'menuitem', onClick: onSelect }, children),
-    ContextMenuSeparator: () => createElement('hr')
+    ContextMenuSeparator: () => createElement('hr'),
+    // The SCM header overflow (GIT-R7) uses the DropdownMenu family.
+    DropdownMenu: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+    DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => children,
+    DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
+      createElement('div', { role: 'menu' }, children),
+    DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+      createElement('button', { role: 'menuitem', onClick: onSelect }, children),
+    DropdownMenuCheckboxItem: ({
+      children,
+      checked,
+      onCheckedChange
+    }: {
+      children?: ReactNode
+      checked?: boolean
+      onCheckedChange?: (next: boolean) => void
+    }) =>
+      createElement(
+        'button',
+        {
+          role: 'menuitemcheckbox',
+          'aria-checked': checked,
+          onClick: () => onCheckedChange?.(!checked)
+        },
+        children
+      )
   }
 })
 
@@ -124,6 +149,31 @@ describe('SourceControlPanel', () => {
       store({ status: status([chg('a.txt', '.', 'M')], { branch: null, detached: true }) })
     )
     expect(screen.getByLabelText('Branch atual: HEAD desanexado')).toBeTruthy()
+  })
+
+  it('renders the remote overflow menu and routes each op (GIT-R7)', () => {
+    const remote = {
+      result: null,
+      clear: vi.fn(),
+      fetch: vi.fn(),
+      pull: vi.fn(),
+      push: vi.fn(),
+      sync: vi.fn()
+    }
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { remote })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sincronizar' }))
+    expect(remote.sync).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Buscar (fetch)' }))
+    expect(remote.fetch).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Receber (pull)' }))
+    expect(remote.pull).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Enviar (push)' }))
+    expect(remote.push).toHaveBeenCalled()
+  })
+
+  it('omits the overflow menu when no remote handlers are given', () => {
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
+    expect(screen.queryByLabelText('Mais ações')).toBeNull()
   })
 })
 

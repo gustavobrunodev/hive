@@ -625,6 +625,21 @@ export const ptBR = {
       `O branch local “${name}” será excluído. Commits que só existem nele podem ser perdidos.`,
     deleteBranchConfirm: 'Excluir',
     deleteBranchCancel: 'Cancelar',
+    // Remote sync (GIT-R7): overflow menu + op-result toasts.
+    moreActions: 'Mais ações',
+    fetchAction: 'Buscar (fetch)',
+    pullAction: 'Receber (pull)',
+    pushAction: 'Enviar (push)',
+    syncAction: 'Sincronizar',
+    toastFetchOk: 'Busca concluída',
+    toastPullOk: 'Atualizado com o remoto',
+    toastPushOk: 'Enviado para o remoto',
+    toastSyncOk: 'Sincronizado com o remoto',
+    toastPublishOk: 'Branch publicado',
+    opFailed: 'A operação de git falhou',
+    opDetails: 'Detalhes',
+    opToastClose: 'Fechar aviso',
+    opToastLabel: 'Resultado da operação de git',
     // Op-in-flight labels (busy id → human sentence).
     busyLabel: (op: string): string =>
       ({
