@@ -610,6 +610,21 @@ export const ptBR = {
     statusInitAria: 'Inicializar repositório git neste workspace',
     statusInit: 'Inicializar repositório',
     publishBranch: 'Publicar branch',
+    // Branch picker (GIT-R6).
+    branchPickerLabel: 'Trocar de branch',
+    branchFilterPlaceholder: 'Buscar ou criar branch…',
+    branchEmpty: 'Nenhum branch encontrado.',
+    createBranchItem: (name: string) => `Criar branch “${name}”`,
+    localBranches: 'Locais',
+    remoteBranches: 'Remotos',
+    currentBranchAria: (name: string) => `${name} (branch atual)`,
+    checkoutAria: (name: string) => `Trocar para ${name}`,
+    deleteBranchLabel: (name: string) => `Excluir branch ${name}`,
+    deleteBranchTitle: 'Excluir branch?',
+    deleteBranchDescription: (name: string) =>
+      `O branch local “${name}” será excluído. Commits que só existem nele podem ser perdidos.`,
+    deleteBranchConfirm: 'Excluir',
+    deleteBranchCancel: 'Cancelar',
     // Op-in-flight labels (busy id → human sentence).
     busyLabel: (op: string): string =>
       ({

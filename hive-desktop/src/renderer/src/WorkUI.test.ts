@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createHiveGitMock } from './testSupport/hiveGitMock'
+import { makeStatus } from './testSupport/gitStoreMock'
 
 /**
  * Task T11 — resizable file-area divider + persistence (design.md §7,
@@ -253,7 +254,53 @@ vi.mock('@hive/design-system', () => ({
     label?: string
     children?: ReactNode
   }) => (open ? createElement('div', { role: 'dialog', 'aria-label': label }, children) : null),
-  CommandInput: (props: Record<string, unknown>) => createElement('input', props),
+  CommandInput: ({
+    onValueChange,
+    ...props
+  }: Record<string, unknown> & { onValueChange?: (v: string) => void }) =>
+    createElement('input', {
+      ...props,
+      onChange: (e: { target: { value: string } }) => onValueChange?.(e.target.value)
+    }),
+  // git-management: BranchPicker's delete-confirm uses the AlertDialog family.
+  AlertDialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
+    open ? createElement('div', { role: 'alertdialog' }, children) : null,
+  AlertDialogContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  AlertDialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
+  AlertDialogDescription: ({ children }: { children?: ReactNode }) =>
+    createElement('p', null, children),
+  AlertDialogAction: ({ children, onClick }: { children?: ReactNode; onClick?: () => void }) =>
+    createElement('button', { type: 'button', onClick }, children),
+  AlertDialogCancel: ({ children, onClick }: { children?: ReactNode; onClick?: () => void }) =>
+    createElement('button', { type: 'button', onClick }, children),
+  // git-management: the SCM panel's commit box + change-row context menus.
+  Textarea: (props: Record<string, unknown>) => createElement('textarea', props),
+  DropdownMenuCheckboxItem: ({
+    children,
+    checked,
+    onCheckedChange
+  }: {
+    children?: ReactNode
+    checked?: boolean
+    onCheckedChange?: (next: boolean) => void
+  }) =>
+    createElement(
+      'button',
+      {
+        role: 'menuitemcheckbox',
+        'aria-checked': checked,
+        onClick: () => onCheckedChange?.(!checked)
+      },
+      children
+    ),
+  ContextMenu: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
+  ContextMenuTrigger: ({ children }: { children?: ReactNode }) => children,
+  ContextMenuContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'menu' }, children),
+  ContextMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+    createElement('button', { role: 'menuitem', onClick: onSelect }, children),
+  ContextMenuSeparator: () => createElement('hr'),
   CommandList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   CommandEmpty: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   CommandItem: ({
@@ -1765,5 +1812,143 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     renderWork()
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
     expect(screen.queryByTestId('file-tree')).toBeNull()
+  })
+})
+
+describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
+  type GitMock = ReturnType<typeof createHiveGitMock>
+
+  function renderRepoWork(overrides: (git: GitMock) => void = () => {}): GitMock {
+    const hive = createHiveMock()
+    const git = hive.git as unknown as GitMock
+    git.detect.mockResolvedValue({ isRepo: true, root: '/ws', gitMissing: false })
+    git.status.mockResolvedValue(
+      makeStatus({
+        branch: 'main',
+        upstream: 'origin/main',
+        ahead: 1,
+        behind: 0,
+        changes: [
+          {
+            path: 'a.txt',
+            index: '.',
+            worktree: 'M',
+            isConflict: false,
+            isUntracked: false,
+            isIgnored: false
+          }
+        ]
+      })
+    )
+    git.branches.mockResolvedValue({
+      branches: [
+        {
+          name: 'main',
+          oid: 'a',
+          upstream: 'origin/main',
+          isRemote: false,
+          isHead: true,
+          ahead: 1,
+          behind: 0,
+          gone: false
+        },
+        {
+          name: 'feature/x',
+          oid: 'b',
+          upstream: null,
+          isRemote: false,
+          isHead: false,
+          ahead: 0,
+          behind: 0,
+          gone: false
+        }
+      ],
+      current: 'main'
+    })
+    overrides(git)
+    vi.stubGlobal('hive', hive)
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+    return git
+  }
+
+  it('shows the branch pill + sync counts and routes sync/changes clicks', async () => {
+    const git = renderRepoWork()
+    fireEvent.click(await screen.findByLabelText('1 à frente, 0 atrás. Sincronizar'))
+    expect(git.sync).toHaveBeenCalledWith('/home/user/my-workspace')
+    fireEvent.click(screen.getByLabelText('1 alteração. Abrir o controle de versão'))
+    expect(document.querySelector('.wb-scm')).not.toBeNull()
+  })
+
+  it('opens the branch picker from the pill and checks out a clean tree directly', async () => {
+    const git = renderRepoWork()
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.click(await screen.findByLabelText('Trocar para feature/x'))
+    expect(git.checkout).toHaveBeenCalledWith('/home/user/my-workspace', 'feature/x')
+  })
+
+  it('guards a dirty checkout behind the three-way dialog (Salvar proceeds)', async () => {
+    const git = renderRepoWork()
+    // Make an editor tab dirty first.
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.click(await screen.findByLabelText('Trocar para feature/x'))
+    // The guard appears; checkout hasn't happened yet.
+    expect(screen.getByText('Alterações não salvas')).toBeTruthy()
+    expect(git.checkout).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Salvar'))
+    await waitFor(() =>
+      expect(git.checkout).toHaveBeenCalledWith('/home/user/my-workspace', 'feature/x')
+    )
+  })
+
+  it('guards a dirty checkout — Descartar proceeds, Cancelar aborts', async () => {
+    const git = renderRepoWork()
+    fireEvent.click(screen.getByTestId('file-tree'))
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+
+    // Cancelar: no checkout.
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.click(await screen.findByLabelText('Trocar para feature/x'))
+    fireEvent.click(screen.getByText('Cancelar'))
+    expect(git.checkout).not.toHaveBeenCalled()
+
+    // Descartar: checks out, dropping drafts.
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.click(await screen.findByLabelText('Trocar para feature/x'))
+    fireEvent.click(screen.getByText('Descartar alterações'))
+    expect(git.checkout).toHaveBeenCalledWith('/home/user/my-workspace', 'feature/x')
+  })
+
+  it('creates a branch from the filter query', async () => {
+    const git = renderRepoWork()
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.change(await screen.findByPlaceholderText('Buscar ou criar branch…'), {
+      target: { value: 'feat/new' }
+    })
+    fireEvent.click(screen.getByLabelText('Criar branch “feat/new”'))
+    expect(git.createBranch).toHaveBeenCalledWith('/home/user/my-workspace', 'feat/new', undefined)
+  })
+
+  it('deletes a branch after confirmation', async () => {
+    const git = renderRepoWork()
+    fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
+    fireEvent.click(await screen.findByLabelText('Excluir branch feature/x'))
+    fireEvent.click(screen.getByText('Excluir'))
+    expect(git.deleteBranch).toHaveBeenCalledWith('/home/user/my-workspace', 'feature/x', true)
+  })
+
+  it('offers an initialize affordance in the status bar for a non-repo', async () => {
+    const git = renderRepoWork((g) => {
+      g.detect.mockResolvedValue({ isRepo: false, root: null, gitMissing: false })
+    })
+    fireEvent.click(await screen.findByLabelText('Inicializar repositório git neste workspace'))
+    expect(git.init).toHaveBeenCalledWith('/home/user/my-workspace')
   })
 })

@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, HTMLAttributes, ReactNode } from 'react'
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,7 +23,10 @@ import { useGitStore, GitProvider } from './scm/useGit'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { DiffTab } from './scm/DiffTab'
+import { BranchPicker } from './scm/BranchPicker'
+import { useCheckoutGuard } from './scm/useCheckoutGuard'
 import { StatusBar } from './ui/StatusBar'
+import { UnsavedGuardDialog } from './ui/UnsavedGuardDialog'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
@@ -271,6 +269,9 @@ export function WorkUI({
   // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
   // it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
+  // git-management (GIT-R6): the branch quick-pick + a branch checkout parked
+  // behind the three-way unsaved-work guard (mirrors the workspace switch).
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false)
   const setActiveView = useCallback((view: SidebarView) => {
     setActiveViewState(view)
     try {
@@ -279,6 +280,11 @@ export function WorkUI({
       // persistence is a nicety, not a hard requirement
     }
   }, [])
+
+  // Branch checkout (GIT-R6.3): dirty editor drafts park behind the same
+  // three-way guard the workspace switch uses (logic in useCheckoutGuard).
+  const runCheckout = useCallback((ref: string) => void git.checkout(ref), [git])
+  const checkoutGuard = useCheckoutGuard(editor, runCheckout)
   // npm-distribution T14: the shared update-flow state — launch + periodic
   // silent checks, the Tier 2 notice's props, and the rail's ambient dot
   // (T12) all read from this one hook. Mounted here (not App.tsx) so its own
@@ -832,47 +838,35 @@ export function WorkUI({
         <StatusBar
           onChanges={() => setActiveView('scm')}
           onInit={() => void git.init()}
-          onBranch={() => setActiveView('scm')}
+          onBranch={() => setBranchPickerOpen(true)}
           onSync={() => void git.sync()}
         />
-        {pendingSwitch !== null && (
-          <Dialog open onOpenChange={(open: boolean) => !open && cancelSwitch()}>
-            <DialogContent>
-              <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
-              <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
-              <div className="wb-dialog-actions">
-                <Button className="wb-btn" onClick={cancelSwitch}>
-                  {t('explorer.unsavedGuardCancelCta')}
-                </Button>
-                <Button className="wb-btn" onClick={handleDiscardSwitch}>
-                  {t('explorer.unsavedGuardConfirmCta')}
-                </Button>
-                <Button className="wb-btn hds-btn-primary" onClick={handleSaveSwitch}>
-                  {t('explorer.unsavedGuardSaveCta')}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-        {editor.pendingClose !== null && (
-          <Dialog open onOpenChange={(open: boolean) => !open && editor.cancelPendingClose()}>
-            <DialogContent>
-              <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
-              <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
-              <div className="wb-dialog-actions">
-                <Button className="wb-btn" onClick={editor.cancelPendingClose}>
-                  {t('explorer.unsavedGuardCancelCta')}
-                </Button>
-                <Button className="wb-btn" onClick={editor.discardPendingClose}>
-                  {t('explorer.unsavedGuardConfirmCta')}
-                </Button>
-                <Button className="wb-btn hds-btn-primary" onClick={editor.savePendingClose}>
-                  {t('explorer.unsavedGuardSaveCta')}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        <BranchPicker
+          open={branchPickerOpen}
+          onOpenChange={setBranchPickerOpen}
+          workspace={workspace}
+          onCheckout={checkoutGuard.request}
+          onCreate={(name) => void git.createBranch(name)}
+          onDelete={(name) => void git.deleteBranch(name, true)}
+        />
+        <UnsavedGuardDialog
+          open={pendingSwitch !== null}
+          onCancel={cancelSwitch}
+          onDiscard={handleDiscardSwitch}
+          onSave={handleSaveSwitch}
+        />
+        <UnsavedGuardDialog
+          open={checkoutGuard.pending !== null}
+          onCancel={checkoutGuard.cancel}
+          onDiscard={checkoutGuard.discard}
+          onSave={checkoutGuard.save}
+        />
+        <UnsavedGuardDialog
+          open={editor.pendingClose !== null}
+          onCancel={editor.cancelPendingClose}
+          onDiscard={editor.discardPendingClose}
+          onSave={editor.savePendingClose}
+        />
         <FileSearchDialog
           open={searchOpen}
           onOpenChange={setSearchOpen}
