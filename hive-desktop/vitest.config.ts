@@ -190,6 +190,24 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        'src/renderer/src/ui/ConflictView.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/GitOpToast.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/UnsavedGuardDialog.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

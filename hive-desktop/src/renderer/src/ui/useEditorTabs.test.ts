@@ -32,6 +32,17 @@ describe('useEditorTabs — diff tabs (git-management §6.5)', () => {
     expect(result.current.activePath).toBe(tab.path)
   })
 
+  it('opens a conflict view tab (GIT-R9) with the file descriptor', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openConflict('src/c.txt'))
+
+    const tab = result.current.tabs[0]
+    expect(tab.kind).toBe('conflict')
+    expect(tab.git).toEqual({ path: 'src/c.txt' })
+    expect(tab.label).toBe('c.txt')
+    expect(tab.path).toContain('src/c.txt')
+  })
+
   it('keeps a diff tab and its file tab open at once (distinct keys)', () => {
     const { result } = renderHook(() => useEditorTabs())
     act(() => result.current.openFile('a.txt', { pin: true }))

@@ -24,6 +24,7 @@ import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { DiffTab } from './scm/DiffTab'
 import { CommitDiffTab } from './scm/CommitDiffTab'
+import { ConflictView } from './ui/ConflictView'
 import { BranchPicker } from './scm/BranchPicker'
 import { useCheckoutGuard } from './scm/useCheckoutGuard'
 import { useGitRemote } from './scm/useGitRemote'
@@ -654,7 +655,9 @@ export function WorkUI({
               scm={
                 <SourceControlPanel
                   onOpenDiff={(change: GitFileChange, side: RowSide) =>
-                    editor.openDiff(change.path, side === 'staged' ? 'staged' : 'working')
+                    side === 'conflict'
+                      ? editor.openConflict(change.path)
+                      : editor.openDiff(change.path, side === 'staged' ? 'staged' : 'working')
                   }
                   onOpenCommit={editor.openCommitDiff}
                   remote={gitRemote}
@@ -724,6 +727,8 @@ export function WorkUI({
                   <DiffTab path={tab.git.path} side={tab.git.side ?? 'working'} />
                 ) : tab.kind === 'commit' && tab.git?.hash ? (
                   <CommitDiffTab hash={tab.git.hash} />
+                ) : tab.kind === 'conflict' && tab.git?.path ? (
+                  <ConflictView path={tab.git.path} />
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}

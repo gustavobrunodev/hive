@@ -175,21 +175,40 @@ describe('SourceControlPanel', () => {
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
     expect(screen.queryByLabelText('Mais ações')).toBeNull()
   })
+
+  it('shows the merge banner and continues/aborts (GIT-R9.3)', () => {
+    const s = store({
+      status: status([chg('c.txt', 'U', 'U', { isConflict: true })], { mergeInProgress: true })
+    })
+    renderPanel(s)
+    expect(screen.getByText('Resolução de merge em andamento')).toBeTruthy()
+    // Continue is disabled while a conflict remains.
+    expect((screen.getByText('Continuar') as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByText('Abortar'))
+    expect(s.mergeAbort).toHaveBeenCalled()
+  })
+
+  it('enables merge continue once conflicts are resolved', () => {
+    const s = store({ status: status([chg('a.txt', 'M', '.')], { mergeInProgress: true }) })
+    renderPanel(s)
+    const cont = screen.getByText('Continuar') as HTMLButtonElement
+    expect(cont.disabled).toBe(false)
+    fireEvent.click(cont)
+    expect(s.mergeContinue).toHaveBeenCalled()
+  })
 })
 
 describe('SourceControlPanel — history (GIT-R8)', () => {
   it('toggles the history timeline and opens a commit diff', async () => {
-    const log = vi
-      .fn()
-      .mockResolvedValue([
-        {
-          hash: 'h1',
-          shortHash: 'h1',
-          author: 'T',
-          date: new Date().toISOString(),
-          subject: 'first'
-        }
-      ])
+    const log = vi.fn().mockResolvedValue([
+      {
+        hash: 'h1',
+        shortHash: 'h1',
+        author: 'T',
+        date: new Date().toISOString(),
+        subject: 'first'
+      }
+    ])
     window.hive = { git: { log } } as unknown as typeof window.hive
     const onOpenCommit = vi.fn()
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onOpenCommit })
@@ -205,17 +224,15 @@ describe('SourceControlPanel — history (GIT-R8)', () => {
   })
 
   it('scopes history to a file from the row menu, then clears the scope', async () => {
-    const log = vi
-      .fn()
-      .mockResolvedValue([
-        {
-          hash: 'h1',
-          shortHash: 'h1',
-          author: 'T',
-          date: new Date().toISOString(),
-          subject: 'edit a'
-        }
-      ])
+    const log = vi.fn().mockResolvedValue([
+      {
+        hash: 'h1',
+        shortHash: 'h1',
+        author: 'T',
+        date: new Date().toISOString(),
+        subject: 'edit a'
+      }
+    ])
     window.hive = { git: { log } } as unknown as typeof window.hive
     renderPanel(store({ status: status([chg('src/a.txt', '.', 'M')]) }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Ver histórico' }))

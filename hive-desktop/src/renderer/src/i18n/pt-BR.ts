@@ -653,6 +653,22 @@ export const ptBR = {
     commitFilesHeader: (count: number) =>
       count === 1 ? `${count} arquivo alterado` : `${count} arquivos alterados`,
     commitDiffTitle: (hash: string) => `Commit ${hash}`,
+    // Conflict resolution (GIT-R9).
+    conflictOurs: 'Atual (HEAD)',
+    conflictTheirs: 'Recebido',
+    acceptCurrent: 'Aceitar atual',
+    acceptIncoming: 'Aceitar recebido',
+    acceptBoth: 'Aceitar ambos',
+    conflictBlockAria: (n: number) => `Conflito ${n}`,
+    conflictRemaining: (n: number) =>
+      n === 1 ? '1 conflito não resolvido' : `${n} conflitos não resolvidos`,
+    markResolved: 'Marcar como resolvido',
+    conflictResolvedTitle: 'Sem conflitos neste arquivo',
+    conflictResolvedDesc: 'Prepare-o para concluir o merge.',
+    conflictLoadError: 'Não foi possível abrir o arquivo com conflitos.',
+    mergeInProgress: 'Resolução de merge em andamento',
+    mergeContinue: 'Continuar',
+    mergeAbort: 'Abortar',
     // Op-in-flight labels (busy id → human sentence).
     busyLabel: (op: string): string =>
       ({

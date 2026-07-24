@@ -43,6 +43,11 @@ function commitKey(hash: string): string {
   return `⟨commit⟩${hash}`
 }
 
+/** Synthetic tab key for a conflict view. */
+function conflictKey(path: string): string {
+  return `⟨conflict⟩${path}`
+}
+
 /** Everything `WorkUI` needs to drive the multi-tab editor pane. */
 export interface EditorTabsState {
   tabs: EditorTab[]
@@ -55,6 +60,8 @@ export interface EditorTabsState {
   openDiff: (filePath: string, side: GitDiffSide) => void
   /** Opens (or focuses) a commit's diff tab (git-management GIT-R8.2). */
   openCommitDiff: (hash: string, label: string) => void
+  /** Opens (or focuses) a merge-conflict view tab (git-management GIT-R9). */
+  openConflict: (filePath: string) => void
   selectTab: (path: string) => void
   pinTab: (path: string) => void
   /** Closes unconditionally (callers that already guarded, e.g. the viewer's own internally-guarded close). */
@@ -128,6 +135,19 @@ export function useEditorTabs(): EditorTabsState {
   const openCommitDiff = useCallback(
     (hash: string, label: string) => {
       openTab({ path: commitKey(hash), pinned: false, kind: 'commit', git: { hash }, label })
+    },
+    [openTab]
+  )
+
+  const openConflict = useCallback(
+    (filePath: string) => {
+      openTab({
+        path: conflictKey(filePath),
+        pinned: false,
+        kind: 'conflict',
+        git: { path: filePath },
+        label: baseName(filePath)
+      })
     },
     [openTab]
   )
@@ -227,6 +247,7 @@ export function useEditorTabs(): EditorTabsState {
     openFile,
     openDiff,
     openCommitDiff,
+    openConflict,
     selectTab: setActivePath,
     pinTab,
     removeTab,

@@ -267,7 +267,16 @@ export function createGitService(deps: GitServiceDeps): GitService {
 
   async function status(workspace: string): Promise<GitStatus> {
     const out = await git(['status', '--porcelain=v2', '--branch', '-z'], { cwd: workspace })
-    return parseStatusV2(out)
+    const parsed = parseStatusV2(out)
+    // MERGE_HEAD present ⇒ a merge is mid-flight (needs continue/abort, GIT-R9.3).
+    // `rev-parse --verify` exits non-zero when the ref is absent → GitError → false.
+    try {
+      await git(['rev-parse', '-q', '--verify', 'MERGE_HEAD'], { cwd: workspace })
+      parsed.mergeInProgress = true
+    } catch {
+      parsed.mergeInProgress = false
+    }
+    return parsed
   }
 
   function stage(workspace: string, paths: string[]): Promise<void> {

@@ -532,6 +532,8 @@ function createHiveMock(): Window['hive'] {
     // git-management (M10): WorkUI mounts the git store (detect + onChanged +
     // fs watch) on mount, so the bridge + watch must resolve benignly.
     watchWorkspace: vi.fn(() => () => {}),
+    // ConflictView reads the conflicted file; default to no markers.
+    readFile: vi.fn(async () => ''),
     git: createHiveGitMock()
   } as unknown as Window['hive']
 }
@@ -1950,5 +1952,46 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
     })
     fireEvent.click(await screen.findByLabelText('Inicializar repositório git neste workspace'))
     expect(git.init).toHaveBeenCalledWith('/home/user/my-workspace')
+  })
+
+  it('opens a conflict view and a commit diff from the Source Control view', async () => {
+    renderRepoWork((g) => {
+      g.status.mockResolvedValue(
+        makeStatus({
+          branch: 'main',
+          changes: [
+            {
+              path: 'c.txt',
+              index: 'U',
+              worktree: 'U',
+              isConflict: true,
+              isUntracked: false,
+              isIgnored: false
+            }
+          ]
+        })
+      )
+      g.log.mockResolvedValue([
+        {
+          hash: 'h1',
+          shortHash: 'h1',
+          author: 'T',
+          date: new Date().toISOString(),
+          subject: 'first'
+        }
+      ])
+      g.commitDiff.mockResolvedValue({ files: [], diff: { binary: false, hunks: [] } })
+    })
+
+    // Switch to the Source Control view via the rail entry.
+    fireEvent.click(await screen.findByLabelText(/Controle de versão/))
+    // Click the conflict row → a conflict tab opens (readFile '' → resolved state).
+    fireEvent.click(await screen.findByRole('button', { name: /c\.txt/ }))
+    expect(await screen.findByText('Sem conflitos neste arquivo')).toBeTruthy()
+
+    // Open history and select a commit → a commit-diff tab opens.
+    fireEvent.click(screen.getByLabelText('Histórico'))
+    fireEvent.click(await screen.findByText('first'))
+    expect(await screen.findByText('0 arquivos alterados')).toBeTruthy()
   })
 })

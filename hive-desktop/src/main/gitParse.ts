@@ -50,6 +50,8 @@ export interface GitStatus {
   behind: number
   /** Every changed/untracked/unmerged entry, in git's own order. */
   changes: GitFileChange[]
+  /** A merge is in progress (MERGE_HEAD present) — set by the service, not the porcelain parser (GIT-R9.3). */
+  mergeInProgress?: boolean
 }
 
 /** One commit record from `log --pretty=format:'%H%x1f%h%x1f%an%x1f%aI%x1f%s' -z`. */

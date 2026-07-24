@@ -93,15 +93,26 @@ describe('GitService.detect', () => {
 })
 
 describe('GitService.status', () => {
-  it('runs the porcelain-v2 command and returns the parsed status', async () => {
+  it('runs the porcelain-v2 command and returns the parsed status (no merge)', async () => {
     const { runner, service } = make()
     stdout(runner, '# branch.head main\0# branch.ab +1 -0\0? new.txt\0')
+    runner.script({ code: 1 }) // rev-parse MERGE_HEAD → absent
     const status = await service.status(WS)
 
     expect(runner.calls[0].args.slice(2)).toEqual(['status', '--porcelain=v2', '--branch', '-z'])
     expect(status.branch).toBe('main')
     expect(status.ahead).toBe(1)
     expect(status.changes[0]).toMatchObject({ path: 'new.txt', isUntracked: true })
+    expect(status.mergeInProgress).toBe(false)
+  })
+
+  it('flags mergeInProgress when MERGE_HEAD exists', async () => {
+    const { runner, service } = make()
+    stdout(runner, '# branch.head main\0')
+    runner.script({ chunks: [{ stream: 'stdout', data: 'abc\n' }], code: 0 }) // rev-parse succeeds
+    const status = await service.status(WS)
+    expect(runner.calls[1].args.slice(2)).toEqual(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
+    expect(status.mergeInProgress).toBe(true)
   })
 })
 

@@ -280,6 +280,23 @@ export function SourceControlPanel({
         </div>
       ) : (
         <>
+          {git.status?.mergeInProgress && (
+            <div className="wb-merge-banner" role="status">
+              <span className="wb-merge-banner-label">{t('git.mergeInProgress')}</span>
+              <span className="wb-merge-banner-actions">
+                <Button className="wb-btn" onClick={() => void git.mergeAbort()}>
+                  {t('git.mergeAbort')}
+                </Button>
+                <Button
+                  className="wb-btn hds-btn-primary"
+                  disabled={groups.conflicts.length > 0}
+                  onClick={() => void git.mergeContinue()}
+                >
+                  {t('git.mergeContinue')}
+                </Button>
+              </span>
+            </div>
+          )}
           <CommitBox />
           {count === 0 ? (
             <ScmEmpty
