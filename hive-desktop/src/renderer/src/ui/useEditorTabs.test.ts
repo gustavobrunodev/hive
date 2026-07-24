@@ -20,6 +20,18 @@ describe('useEditorTabs — diff tabs (git-management §6.5)', () => {
     expect(result.current.activePath).toBe(tab.path)
   })
 
+  it('opens a commit diff tab (GIT-R8.2) with the hash descriptor', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openCommitDiff('abc1234', 'fix: a thing'))
+
+    const tab = result.current.tabs[0]
+    expect(tab.kind).toBe('commit')
+    expect(tab.git).toEqual({ hash: 'abc1234' })
+    expect(tab.label).toBe('fix: a thing')
+    expect(tab.path).toContain('abc1234')
+    expect(result.current.activePath).toBe(tab.path)
+  })
+
   it('keeps a diff tab and its file tab open at once (distinct keys)', () => {
     const { result } = renderHook(() => useEditorTabs())
     act(() => result.current.openFile('a.txt', { pin: true }))

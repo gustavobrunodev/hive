@@ -17,6 +17,7 @@ import {
   AlertTriangleIcon,
   BranchIcon,
   CheckCircleIcon,
+  HistoryIcon,
   MoreIcon,
   RefreshIcon,
   SourceControlIcon,
@@ -24,6 +25,7 @@ import {
 } from '../ui/icons'
 import { ChangeGroups, type RowSide } from './ChangeGroups'
 import { CommitBox } from './CommitBox'
+import { HistoryPanel } from './HistoryPanel'
 import type { GitRemote } from './useGitRemote'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
 import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
@@ -63,12 +65,16 @@ function ScmHeader({
   branch,
   detached,
   onRefresh,
-  remote
+  remote,
+  showHistory,
+  onToggleHistory
 }: {
   branch: string | null
   detached: boolean
   onRefresh: () => void
   remote?: GitRemote
+  showHistory: boolean
+  onToggleHistory: () => void
 }): React.JSX.Element {
   const label = detached || !branch ? t('git.detachedHead') : branch
   return (
@@ -83,6 +89,13 @@ function ScmHeader({
         <span className="wb-scm-branch-name">{label}</span>
       </span>
       <span className="wb-scm-header-actions">
+        <IconButton
+          label={showHistory ? t('git.changesToggle') : t('git.historyToggle')}
+          data-active={showHistory || undefined}
+          onClick={onToggleHistory}
+        >
+          <HistoryIcon size={15} />
+        </IconButton>
         <IconButton label={t('git.refreshLabel')} onClick={onRefresh}>
           <RefreshIcon size={15} />
         </IconButton>
@@ -111,6 +124,8 @@ function ScmHeader({
 export interface SourceControlPanelProps {
   /** Opens a change's diff in the editor pane (wired in T20). */
   onOpenDiff?: (change: GitFileChange, side: RowSide) => void
+  /** Opens a commit's diff in the editor pane (GIT-R8.2). */
+  onOpenCommit?: (hash: string, label: string) => void
   /** Toast-wrapped remote ops for the header overflow menu (GIT-R7). */
   remote?: GitRemote
 }
@@ -131,11 +146,19 @@ function sidePaths(groups: GitGroups, side: RowSide): GitFileChange[] {
  */
 export function SourceControlPanel({
   onOpenDiff,
+  onOpenCommit,
   remote
 }: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
   // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
   const [discardTarget, setDiscardTarget] = useState<GitFileChange[] | null>(null)
+  // History timeline vs the change list, and an optional single-file scope (GIT-R8).
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyFile, setHistoryFile] = useState<string | null>(null)
+  const openFileHistory = useCallback((path: string) => {
+    setHistoryFile(path)
+    setShowHistory(true)
+  }, [])
 
   const groups = groupChanges(git.status)
 
@@ -190,6 +213,9 @@ export function SourceControlPanel({
               {t('git.discard')}
             </ContextMenuItem>
           )}
+          <ContextMenuItem onSelect={() => openFileHistory(change.path)}>
+            {t('git.viewHistory')}
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => copyToClipboard(change.path)}>
             {t('git.copyPath')}
@@ -197,7 +223,7 @@ export function SourceControlPanel({
         </ContextMenuContent>
       </ContextMenu>
     ),
-    [onOpenDiff, stage, unstage, requestDiscard]
+    [onOpenDiff, stage, unstage, requestDiscard, openFileHistory]
   )
 
   if (git.repo.gitMissing) {
@@ -229,28 +255,54 @@ export function SourceControlPanel({
   const branch = git.status?.branch ?? null
   const detached = git.status?.detached ?? false
 
+  const toggleHistory = (): void => {
+    setShowHistory((prev) => !prev)
+    setHistoryFile(null)
+  }
+
   return (
     <div className="wb-scm">
-      <ScmHeader branch={branch} detached={detached} onRefresh={git.refresh} remote={remote} />
-      <CommitBox />
-      {count === 0 ? (
-        <ScmEmpty
-          icon={<CheckCircleIcon size={22} />}
-          title={t('git.emptyCleanTitle')}
-          description={
-            branch ? t('git.emptyCleanDescription', branch) : t('git.emptyCleanDescriptionDetached')
-          }
-        />
-      ) : (
+      <ScmHeader
+        branch={branch}
+        detached={detached}
+        onRefresh={git.refresh}
+        remote={remote}
+        showHistory={showHistory}
+        onToggleHistory={toggleHistory}
+      />
+      {showHistory ? (
         <div className="wb-scm-scroll">
-          <ChangeGroups
-            groups={groups}
-            onOpenDiff={onOpenDiff}
-            renderGroupActions={renderGroupActions}
-            renderRowActions={renderRowActions}
-            wrapRow={wrapRow}
+          <HistoryPanel
+            onOpenCommit={(hash, label) => onOpenCommit?.(hash, label)}
+            file={historyFile ?? undefined}
+            onClearScope={() => setHistoryFile(null)}
           />
         </div>
+      ) : (
+        <>
+          <CommitBox />
+          {count === 0 ? (
+            <ScmEmpty
+              icon={<CheckCircleIcon size={22} />}
+              title={t('git.emptyCleanTitle')}
+              description={
+                branch
+                  ? t('git.emptyCleanDescription', branch)
+                  : t('git.emptyCleanDescriptionDetached')
+              }
+            />
+          ) : (
+            <div className="wb-scm-scroll">
+              <ChangeGroups
+                groups={groups}
+                onOpenDiff={onOpenDiff}
+                renderGroupActions={renderGroupActions}
+                renderRowActions={renderRowActions}
+                wrapRow={wrapRow}
+              />
+            </div>
+          )}
+        </>
       )}
       <DiscardDialog
         target={discardTarget}

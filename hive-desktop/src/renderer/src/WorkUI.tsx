@@ -23,6 +23,7 @@ import { useGitStore, GitProvider } from './scm/useGit'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { DiffTab } from './scm/DiffTab'
+import { CommitDiffTab } from './scm/CommitDiffTab'
 import { BranchPicker } from './scm/BranchPicker'
 import { useCheckoutGuard } from './scm/useCheckoutGuard'
 import { useGitRemote } from './scm/useGitRemote'
@@ -655,6 +656,7 @@ export function WorkUI({
                   onOpenDiff={(change: GitFileChange, side: RowSide) =>
                     editor.openDiff(change.path, side === 'staged' ? 'staged' : 'working')
                   }
+                  onOpenCommit={editor.openCommitDiff}
                   remote={gitRemote}
                 />
               }
@@ -718,8 +720,10 @@ export function WorkUI({
                 (git-management §6.5); file tabs the FileViewer. */}
             {editor.tabs.map((tab) => (
               <div key={tab.path} className="wb-tab-body" hidden={tab.path !== editor.activePath}>
-                {tab.kind === 'diff' && tab.git ? (
+                {tab.kind === 'diff' && tab.git?.path ? (
                   <DiffTab path={tab.git.path} side={tab.git.side ?? 'working'} />
+                ) : tab.kind === 'commit' && tab.git?.hash ? (
+                  <CommitDiffTab hash={tab.git.hash} />
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}

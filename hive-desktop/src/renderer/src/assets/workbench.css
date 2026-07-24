@@ -2454,6 +2454,152 @@
   word-break: break-word;
 }
 
+/* ── History timeline (GIT-R8) ─────────────────────────────────────────── */
+.wb-history {
+  padding: var(--s-1) 0 var(--s-3);
+}
+.wb-history-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-history-scope-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-history-scope-clear {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.wb-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wb-history-commit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.wb-history-commit:hover {
+  background: var(--surface-2);
+}
+.wb-history-commit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.wb-history-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: var(--rounded-full);
+  background: var(--wb-git-modified);
+}
+.wb-history-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wb-history-subject {
+  color: var(--ink);
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-history-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.wb-history-hash {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.wb-history-more {
+  display: block;
+  margin: var(--s-2) auto 0;
+  padding: 4px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.wb-history-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Commit-diff tab: changed-files header over the full patch. */
+.wb-commitdiff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.wb-commitdiff-files {
+  flex-shrink: 0;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.wb-commitdiff-files-title {
+  margin: 0 0 var(--s-1);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.wb-commitdiff-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.wb-commitdiff-file {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 2px 0;
+  font-size: 0.8125rem;
+}
+.wb-commitdiff-file-name {
+  color: var(--ink);
+}
+.wb-commitdiff-file-stat {
+  display: inline-flex;
+  gap: var(--s-1);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+}
+.wb-commitdiff-add {
+  color: var(--wb-git-added);
+}
+.wb-commitdiff-del {
+  color: var(--wb-git-deleted);
+}
+
 /* Branch quick-pick rows (GIT-R6). */
 .wb-branch-icon {
   display: inline-flex;

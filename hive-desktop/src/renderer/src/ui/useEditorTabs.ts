@@ -3,7 +3,7 @@ import type { FileViewerHandle } from '../explorer/Explorer'
 import type { GitDiffSide } from '../scm/gitStatus'
 
 /** What an editor tab shows (git-management §6.5). */
-export type EditorTabKind = 'file' | 'diff' | 'conflict'
+export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit'
 
 /** One open editor tab (state owned by `WorkUI`). */
 export interface EditorTab {
@@ -21,8 +21,8 @@ export interface EditorTab {
   pinned: boolean
   /** file (default) / diff / conflict (git-management §6.5). */
   kind: EditorTabKind
-  /** For diff/conflict tabs: the real file path (+ side for a diff). */
-  git?: { path: string; side?: GitDiffSide }
+  /** For diff/conflict tabs: the real file path (+ side for a diff); for a commit tab: the commit hash. */
+  git?: { path?: string; side?: GitDiffSide; hash?: string }
   /** Display name override (diff/conflict tabs show the file's basename, not the synthetic key). */
   label?: string
 }
@@ -38,6 +38,11 @@ function diffKey(path: string, side: GitDiffSide): string {
   return `⟨diff⟩${path}?${side}`
 }
 
+/** Synthetic tab key for a commit's diff. */
+function commitKey(hash: string): string {
+  return `⟨commit⟩${hash}`
+}
+
 /** Everything `WorkUI` needs to drive the multi-tab editor pane. */
 export interface EditorTabsState {
   tabs: EditorTab[]
@@ -48,6 +53,8 @@ export interface EditorTabsState {
   openFile: (path: string, opts?: { pin?: boolean }) => void
   /** Opens (or focuses) a diff tab for `filePath` on the given side (git-management §6.5). */
   openDiff: (filePath: string, side: GitDiffSide) => void
+  /** Opens (or focuses) a commit's diff tab (git-management GIT-R8.2). */
+  openCommitDiff: (hash: string, label: string) => void
   selectTab: (path: string) => void
   pinTab: (path: string) => void
   /** Closes unconditionally (callers that already guarded, e.g. the viewer's own internally-guarded close). */
@@ -114,6 +121,13 @@ export function useEditorTabs(): EditorTabsState {
         git: { path: filePath, side },
         label: baseName(filePath)
       })
+    },
+    [openTab]
+  )
+
+  const openCommitDiff = useCallback(
+    (hash: string, label: string) => {
+      openTab({ path: commitKey(hash), pinned: false, kind: 'commit', git: { hash }, label })
     },
     [openTab]
   )
@@ -212,6 +226,7 @@ export function useEditorTabs(): EditorTabsState {
     pendingClose,
     openFile,
     openDiff,
+    openCommitDiff,
     selectTab: setActivePath,
     pinTab,
     removeTab,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SourceControlPanel, type SourceControlPanelProps } from './SourceControlPanel'
 import { GitProvider, type GitStore } from './useGit'
 import type { GitFileChange, GitStatus } from './gitStatus'
@@ -174,6 +174,60 @@ describe('SourceControlPanel', () => {
   it('omits the overflow menu when no remote handlers are given', () => {
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
     expect(screen.queryByLabelText('Mais ações')).toBeNull()
+  })
+})
+
+describe('SourceControlPanel — history (GIT-R8)', () => {
+  it('toggles the history timeline and opens a commit diff', async () => {
+    const log = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          hash: 'h1',
+          shortHash: 'h1',
+          author: 'T',
+          date: new Date().toISOString(),
+          subject: 'first'
+        }
+      ])
+    window.hive = { git: { log } } as unknown as typeof window.hive
+    const onOpenCommit = vi.fn()
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onOpenCommit })
+
+    fireEvent.click(screen.getByLabelText('Histórico'))
+    expect(await screen.findByText('first')).toBeTruthy()
+    fireEvent.click(screen.getByText('first'))
+    expect(onOpenCommit).toHaveBeenCalledWith('h1', 'first')
+
+    // Toggle back to the change list.
+    fireEvent.click(screen.getByLabelText('Alterações'))
+    expect(screen.getByText('Alterações')).toBeTruthy()
+  })
+
+  it('scopes history to a file from the row menu, then clears the scope', async () => {
+    const log = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          hash: 'h1',
+          shortHash: 'h1',
+          author: 'T',
+          date: new Date().toISOString(),
+          subject: 'edit a'
+        }
+      ])
+    window.hive = { git: { log } } as unknown as typeof window.hive
+    renderPanel(store({ status: status([chg('src/a.txt', '.', 'M')]) }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ver histórico' }))
+    await waitFor(() =>
+      expect(log).toHaveBeenCalledWith('/ws', { skip: 0, limit: 30, file: 'src/a.txt' })
+    )
+    expect(await screen.findByText('Histórico de a.txt')).toBeTruthy()
+    // Clearing the scope re-loads the whole-repo history.
+    fireEvent.click(screen.getByText('Ver todo o histórico'))
+    await waitFor(() =>
+      expect(log).toHaveBeenCalledWith('/ws', { skip: 0, limit: 30, file: undefined })
+    )
   })
 })
 

@@ -640,6 +640,19 @@ export const ptBR = {
     opDetails: 'Detalhes',
     opToastClose: 'Fechar aviso',
     opToastLabel: 'Resultado da operação de git',
+    // History timeline (GIT-R8).
+    historyToggle: 'Histórico',
+    changesToggle: 'Alterações',
+    historyEmpty: 'Nenhum commit ainda.',
+    historyFileScope: (name: string) => `Histórico de ${name}`,
+    historyClearScope: 'Ver todo o histórico',
+    loadMore: 'Carregar mais',
+    viewHistory: 'Ver histórico',
+    commitAria: (subject: string, author: string, when: string) =>
+      `${subject}, por ${author}, ${when}`,
+    commitFilesHeader: (count: number) =>
+      count === 1 ? `${count} arquivo alterado` : `${count} arquivos alterados`,
+    commitDiffTitle: (hash: string) => `Commit ${hash}`,
     // Op-in-flight labels (busy id → human sentence).
     busyLabel: (op: string): string =>
       ({
