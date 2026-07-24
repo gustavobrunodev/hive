@@ -4,6 +4,7 @@ import {
   changeCount,
   gitStatusColor,
   groupChanges,
+  rollupChangedFolders,
   statusKind,
   statusLetter,
   type GitFileChange,
@@ -116,5 +117,21 @@ describe('buildDecorations', () => {
 
   it('returns an empty map for null', () => {
     expect(buildDecorations(null).size).toBe(0)
+  })
+})
+
+describe('rollupChangedFolders', () => {
+  it('collects every ancestor folder of a changed path, skipping ignored', () => {
+    const map = buildDecorations(
+      status([
+        chg('src/deep/a.txt', '.', 'M'),
+        chg('top.txt', '.', 'M'),
+        chg('build/out.js', '!', '!', { isIgnored: true })
+      ])
+    )
+    const folders = rollupChangedFolders(map)
+    expect([...folders].sort()).toEqual(['src', 'src/deep'])
+    // A root-level file contributes no folder; an ignored file's folder is skipped.
+    expect(folders.has('build')).toBe(false)
   })
 })

@@ -1324,6 +1324,50 @@ describe('Explorer (T12/T8)', () => {
     expect(onOpenFile).toHaveBeenCalledWith('a.txt', { pin: true })
   })
 
+  it('decorates changed files with a status badge + color and rolls a dot up to folders (GIT-R11)', async () => {
+    const decorations = new Map([
+      ['a.txt', { kind: 'modified', letter: 'M', staged: false, conflict: false }],
+      ['docs/prd.md', { kind: 'added', letter: 'A', staged: true, conflict: false }]
+    ]) as unknown as Parameters<typeof FileTree>[0]['decorations']
+    render(
+      createElement(FileTree, {
+        workspace: '/ws',
+        selectedPath: null,
+        onOpenFile: vi.fn(),
+        decorations
+      })
+    )
+    await screen.findByText('a.txt')
+
+    // a.txt carries an 'M' badge with the modified color.
+    const aRow = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    const badge = aRow.querySelector('.wb-tree-git-badge') as HTMLElement
+    expect(badge?.textContent).toBe('M')
+    expect(badge.getAttribute('style')).toContain('--wb-git-modified')
+
+    // The docs folder (containing a changed file) shows the rollup dot.
+    const docsRow = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+    expect(docsRow.querySelector('.wb-tree-git-dot')).not.toBeNull()
+  })
+
+  it('dims an ignored file and shows no badge color (GIT-R11)', async () => {
+    const decorations = new Map([
+      ['a.txt', { kind: 'ignored', letter: '!', staged: false, conflict: false }]
+    ]) as unknown as Parameters<typeof FileTree>[0]['decorations']
+    render(
+      createElement(FileTree, {
+        workspace: '/ws',
+        selectedPath: null,
+        onOpenFile: vi.fn(),
+        decorations
+      })
+    )
+    const label = await screen.findByText('a.txt')
+    expect(label.getAttribute('data-git-ignored')).toBe('true')
+    // Ignored labels are not tinted with a status color.
+    expect(label.getAttribute('style')).toBeNull()
+  })
+
   it('an empty folder renders the folder icon (not the generic file icon)', async () => {
     mockHive({
       listTree: vi.fn().mockResolvedValue([

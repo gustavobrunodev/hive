@@ -2454,6 +2454,41 @@
   word-break: break-word;
 }
 
+/* ── Explorer git decorations (GIT-R11) ────────────────────────────────── */
+/* Ignored files are dimmed; changed files' names take the status color (set
+   inline). The letter badge sits at the row's right edge (VS Code parity). */
+.hds-tree-label-text[data-git-ignored] {
+  color: var(--muted);
+  opacity: 0.65;
+}
+.wb-tree-git-badge {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+/* Unstaged badges read lighter (outline feel) than staged ones. */
+.wb-tree-git-badge:not([data-staged]) {
+  font-weight: 500;
+  opacity: 0.85;
+}
+/* When a badge is present it already pushes to the right; the row menu button
+   (which also uses margin-left:auto on hover) sits after it. */
+.wb-tree-git-badge + .wb-tree-row-menu-btn,
+.wb-tree-git-dot + .wb-tree-row-menu-btn {
+  margin-left: var(--s-1);
+}
+.wb-tree-git-dot {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--wb-git-modified);
+}
+
 /* ── Stash (GIT-R10) ───────────────────────────────────────────────────── */
 .wb-stash {
   flex-shrink: 0;

@@ -168,6 +168,23 @@ export function toSplitRows(lines: GitDiffLine[]): SplitRow[] {
   return rows
 }
 
+/**
+ * The set of folder paths that have at least one changed (non-ignored)
+ * descendant — the explorer's folder rollup dot (design.md §6.3). Walks each
+ * decorated path up to the root, collecting every ancestor directory.
+ */
+export function rollupChangedFolders(decorations: Map<string, GitDecoration>): Set<string> {
+  const folders = new Set<string>()
+  for (const [path, decoration] of decorations) {
+    if (decoration.kind === 'ignored') continue
+    const parts = path.split('/')
+    for (let i = 1; i < parts.length; i++) {
+      folders.add(parts.slice(0, i).join('/'))
+    }
+  }
+  return folders
+}
+
 /** Builds the path→decoration map the explorer tree consumes (design.md §6.3). */
 export function buildDecorations(status: GitStatus | null): Map<string, GitDecoration> {
   const map = new Map<string, GitDecoration>()

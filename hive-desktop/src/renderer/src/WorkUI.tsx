@@ -650,6 +650,7 @@ export function WorkUI({
                   workspace={workspace}
                   selectedPath={editor.activePath}
                   onOpenFile={editor.openFile}
+                  decorations={git.decorations}
                 />
               }
               scm={

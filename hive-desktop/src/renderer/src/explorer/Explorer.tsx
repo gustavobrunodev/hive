@@ -28,6 +28,7 @@ import {
   Tree
 } from '@hive/design-system'
 import { t } from '../i18n'
+import { gitStatusColor, rollupChangedFolders, type GitDecoration } from '../scm/gitStatus'
 import { Markdown } from '../ui/markdown'
 import { HtmlPreview } from './HtmlPreview'
 import { DocumentViewer } from './DocumentViewer'
@@ -189,6 +190,13 @@ export interface FileTreeProps {
    * a double-click passes `pin: true` so the parent keeps the tab fixed.
    */
   onOpenFile: (path: string, opts?: { pin?: boolean }) => void
+  /**
+   * git-management (GIT-R11): per-path git decorations for the tree rows
+   * (status badge + color; ignored dimmed; folders roll up a change dot). An
+   * empty map (the default) leaves the tree undecorated, so the explorer works
+   * outside a git repo and in tests that don't drive git.
+   */
+  decorations?: Map<string, GitDecoration>
 }
 
 /** What the pointer was over when the tree's right-click context menu opened: a row, or the empty area (`null`). */
@@ -273,11 +281,40 @@ function injectNode(
  * itself is a sibling pane (`FileViewer`) so the chat column never has to
  * share width with an empty placeholder.
  */
+const EMPTY_DECORATIONS: Map<string, GitDecoration> = new Map()
+
+/** A tree row's git decoration (GIT-R11): a file's status letter, or a folder's rollup dot. */
+function GitTreeDecoration({
+  deco,
+  isDir,
+  folderChanged
+}: {
+  deco: GitDecoration | undefined
+  isDir: boolean
+  folderChanged: boolean
+}): React.JSX.Element | null {
+  if (folderChanged) return <span className="wb-tree-git-dot" aria-hidden="true" />
+  if (!deco || isDir) return null
+  return (
+    <span
+      className="wb-tree-git-badge"
+      data-staged={deco.staged || undefined}
+      style={{ color: gitStatusColor(deco.kind) }}
+      aria-hidden="true"
+    >
+      {deco.letter}
+    </span>
+  )
+}
+
 export function FileTree({
   workspace,
   selectedPath,
-  onOpenFile
+  onOpenFile,
+  decorations = EMPTY_DECORATIONS
 }: FileTreeProps): React.JSX.Element {
+  // git-management (GIT-R11): folders showing a rollup dot when a descendant changed.
+  const changedFolders = useMemo(() => rollupChangedFolders(decorations), [decorations])
   const [treeState, setTreeState] = useState<TreeState>({ status: 'loading' })
   const [refreshToken, setRefreshToken] = useState(0)
   // Which directory a bare "New file"/"New folder" toolbar action targets —
@@ -1127,6 +1164,11 @@ export function FileTree({
     ): React.JSX.Element => {
       const isDir = fileTypes.get(node.id) === 'directory' || state.hasChildren
       const label = String(node.label)
+      // git-management (GIT-R11): a file's own decoration; a folder's rollup dot.
+      const deco = decorations.get(node.id)
+      const folderChanged = isDir && !deco && changedFolders.has(node.id)
+      const gitLabelStyle =
+        deco && deco.kind !== 'ignored' ? { color: gitStatusColor(deco.kind) } : undefined
 
       return (
         <span
@@ -1160,7 +1202,14 @@ export function FileTree({
           ) : (
             <FileTypeIcon path={node.id} />
           )}
-          <span className="hds-tree-label-text">{node.label}</span>
+          <span
+            className="hds-tree-label-text"
+            data-git-ignored={deco?.kind === 'ignored' || undefined}
+            style={gitLabelStyle}
+          >
+            {node.label}
+          </span>
+          <GitTreeDecoration deco={deco} isDir={isDir} folderChanged={folderChanged} />
           <DropdownMenu
             open={menuFor === node.id}
             onOpenChange={(open) => setMenuFor(open ? node.id : null)}
@@ -1220,7 +1269,9 @@ export function FileTree({
       startCreate,
       startRename,
       requestDelete,
-      onOpenFile
+      onOpenFile,
+      decorations,
+      changedFolders
     ]
   )
 
@@ -1327,9 +1378,7 @@ export function FileTree({
                   <span className="wb-rail-dropzone-icon">
                     <DownloadIcon size={24} />
                   </span>
-                  <span className="wb-rail-dropzone-title">
-                    {t('explorer.importDropTitle')}
-                  </span>
+                  <span className="wb-rail-dropzone-title">{t('explorer.importDropTitle')}</span>
                   <span className="wb-rail-dropzone-dest">
                     {dragOverPath
                       ? t('explorer.importDropToFolder', basename(dragOverPath))
