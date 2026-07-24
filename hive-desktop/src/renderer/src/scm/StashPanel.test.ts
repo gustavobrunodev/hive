@@ -11,21 +11,18 @@ import type { GitStash } from './gitStatus'
 // inline when open (matching WorkUI.test's approach). Button/Textarea stay real.
 vi.mock('@hive/design-system', async (orig) => {
   const actual = await orig<typeof import('@hive/design-system')>()
-  const passthrough =
-    (role?: string) =>
-    ({ children }: { children?: ReactNode }) =>
-      createElement('div', role ? { role } : null, children)
   return {
     ...actual,
     Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
       open ? createElement('div', { role: 'dialog' }, children) : null,
-    DialogContent: passthrough(),
+    DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
     DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
     DialogDescription: ({ children }: { children?: ReactNode }) =>
       createElement('p', null, children),
     AlertDialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
       open ? createElement('div', { role: 'alertdialog' }, children) : null,
-    AlertDialogContent: passthrough(),
+    AlertDialogContent: ({ children }: { children?: ReactNode }) =>
+      createElement('div', null, children),
     AlertDialogTitle: ({ children }: { children?: ReactNode }) =>
       createElement('h2', null, children),
     AlertDialogDescription: ({ children }: { children?: ReactNode }) =>
