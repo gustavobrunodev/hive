@@ -2454,6 +2454,36 @@
   word-break: break-word;
 }
 
+/* ── Editor change gutter (GIT-R11.2) ──────────────────────────────────── */
+/* When the gutter is active the surface stops wrapping so lines map 1:1 to
+   gutter rows (VS Code parity); the gutter's scroll is synced in JS. */
+.wb-editor-fill[data-gutter] .wb-editor-surface {
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.wb-editor-gutter {
+  flex-shrink: 0;
+  width: 10px;
+  padding-top: var(--s-4);
+  overflow: hidden;
+  background: var(--bg);
+}
+.wb-editor-gutter-mark {
+  display: block;
+  height: calc(0.9rem * 1.65);
+  box-sizing: border-box;
+}
+.wb-editor-gutter-mark[data-mark='add'] {
+  border-left: 3px solid var(--wb-git-added);
+}
+.wb-editor-gutter-mark[data-mark='modified'] {
+  border-left: 3px solid var(--wb-git-modified);
+}
+.wb-editor-gutter-mark[data-mark='deleted'] {
+  border-top: 3px solid var(--wb-git-deleted);
+}
+
 /* ── Explorer git decorations (GIT-R11) ────────────────────────────────── */
 /* Ignored files are dimmed; changed files' names take the status color (set
    inline). The letter badge sits at the row's right edge (VS Code parity). */

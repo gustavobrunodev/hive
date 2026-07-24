@@ -2082,6 +2082,31 @@ describe('Explorer (T12/T8)', () => {
 
   // --- WS-R5.1 enablement: FileViewer.onDirtyChange (T6, workspace-switching) ---
 
+  it('shows the change gutter when gitEnabled and the file differs from HEAD (GIT-R11.2)', async () => {
+    mockHive({ readFile: vi.fn().mockResolvedValue('a\nb\nc') })
+    window.hive.git.fileAtHead = vi.fn().mockResolvedValue('a\nX\nc')
+    render(
+      createElement(FileViewer, {
+        workspace: '/ws',
+        path: 'a.txt',
+        onClose: vi.fn(),
+        gitEnabled: true
+      })
+    )
+    await screen.findByLabelText('Conteúdo do arquivo')
+    await waitFor(() =>
+      expect(document.querySelector('.wb-editor-gutter-mark[data-mark="modified"]')).not.toBeNull()
+    )
+  })
+
+  it('shows no gutter when gitEnabled is false', async () => {
+    mockHive({ readFile: vi.fn().mockResolvedValue('a\nb') })
+    render(createElement(FileViewer, { workspace: '/ws', path: 'a.txt', onClose: vi.fn() }))
+    await screen.findByLabelText('Conteúdo do arquivo')
+    await new Promise((r) => setTimeout(r, 160))
+    expect(document.querySelector('.wb-editor-gutter')).toBeNull()
+  })
+
   it('onDirtyChange(true) fires when the draft diverges from the saved content', async () => {
     const onDirtyChange = vi.fn()
     render(createElement(ExplorerHarness, { workspace: '/ws', onDirtyChange }))

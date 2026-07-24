@@ -361,6 +361,17 @@ describe('GitService log / diff / commitDiff', () => {
     expect(result.files[0]).toMatchObject({ path: 'a.txt', added: 2, deleted: 1 })
     expect(result.diff.hunks).toHaveLength(1)
   })
+
+  it('reads a file at HEAD, returning empty when it has no HEAD version', async () => {
+    const ok = make()
+    stdout(ok.runner, 'line1\nline2\n')
+    expect(await ok.service.fileAtHead(WS, 'a.txt')).toBe('line1\nline2\n')
+    expect(ok.runner.calls[0].args.slice(2)).toEqual(['show', 'HEAD:a.txt'])
+
+    const missing = make()
+    missing.runner.script({ chunks: [{ stream: 'stderr', data: 'fatal: path...' }], code: 128 })
+    expect(await missing.service.fileAtHead(WS, 'new.txt')).toBe('')
+  })
 })
 
 describe('GitService conflicts + merge', () => {

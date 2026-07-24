@@ -29,6 +29,8 @@ import {
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { gitStatusColor, rollupChangedFolders, type GitDecoration } from '../scm/gitStatus'
+import { hasGutterMarks } from '../scm/gutter'
+import { useGutter } from '../scm/useGutter'
 import { Markdown } from '../ui/markdown'
 import { HtmlPreview } from './HtmlPreview'
 import { DocumentViewer } from './DocumentViewer'
@@ -282,6 +284,11 @@ function injectNode(
  * share width with an empty placeholder.
  */
 const EMPTY_DECORATIONS: Map<string, GitDecoration> = new Map()
+
+/** Whether the editor gutter should run for this file (a tracked, editable text file in a repo, GIT-R11.2). */
+function gutterEligible(gitEnabled: boolean, editable: boolean, isDocView: boolean): boolean {
+  return gitEnabled && editable && !isDocView
+}
 
 /** A tree row's git decoration (GIT-R11): a file's status letter, or a folder's rollup dot. */
 function GitTreeDecoration({
@@ -1520,6 +1527,12 @@ export interface FileViewerProps {
   paneDragProps?: React.HTMLAttributes<HTMLElement>
   /** customizable-layout: the pane's ↔ move menu, rendered with the header actions. */
   paneControls?: ReactNode
+  /**
+   * git-management (GIT-R11.2): when the workspace is a git repo, the editor
+   * shows a per-line change gutter (added/modified/deleted vs HEAD). Off (the
+   * default) outside a repo and in tests that don't drive git.
+   */
+  gitEnabled?: boolean
 }
 
 /**
@@ -1610,7 +1623,7 @@ type ViewerMode = 'edit' | 'preview'
  * user confirms discarding.
  */
 export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function FileViewer(
-  { workspace, path, onClose, active, onDirtyChange, paneDragProps, paneControls },
+  { workspace, path, onClose, active, onDirtyChange, paneDragProps, paneControls, gitEnabled },
   ref
 ): React.JSX.Element {
   const [displayedPath, setDisplayedPath] = useState(path)
@@ -1636,6 +1649,15 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // the textarea editor / raw `CodeBlock` — so the editor machinery (Copy,
   // mode toggle, text read) all switches off for it.
   const isDocView = isDocViewPath(displayedPath)
+  // git-management (GIT-R11.2): per-line change gutter vs HEAD, live as you
+  // type. Only for editable text files inside a git repo.
+  const gutterMarks = useGutter(
+    workspace,
+    displayedPath,
+    draft,
+    gutterEligible(Boolean(gitEnabled), editable, isDocView)
+  )
+  const gutterRef = useRef<HTMLDivElement>(null)
   // `isDocView` files never enter edit mode (draft stays empty and equal to
   // content), so `dirty` is inherently false for them — no extra guard needed.
   const dirty = editable && viewerState.status === 'ready' && draft !== viewerState.content
@@ -1991,12 +2013,23 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
       // Full-bleed editing surface (no reading-measure cap, no inner card):
       // the textarea IS the pane body, VS Code-style, so the whole block is
       // writable regardless of pane width.
+      const showGutter = hasGutterMarks(gutterMarks)
       return (
-        <div className="wb-editor-fill">
+        <div className="wb-editor-fill" data-gutter={showGutter || undefined}>
+          {showGutter && (
+            <div className="wb-editor-gutter" ref={gutterRef} aria-hidden="true">
+              {gutterMarks.map((mark, index) => (
+                <span key={index} className="wb-editor-gutter-mark" data-mark={mark ?? undefined} />
+              ))}
+            </div>
+          )}
           <textarea
             className="wb-editor-surface"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
+            onScroll={(event) => {
+              if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop
+            }}
             aria-label={t('explorer.editorAriaLabel')}
             spellCheck={false}
           />

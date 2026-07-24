@@ -237,6 +237,7 @@ declare global {
         ): Promise<GitCommit[]>
         diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff>
         commitDiff(workspace: string, hash: string): Promise<GitCommitDiff>
+        fileAtHead(workspace: string, path: string): Promise<string>
         conflicts(workspace: string): Promise<GitConflict[]>
         resolveConflict(workspace: string, path: string, choice: GitConflictChoice): Promise<void>
         mergeContinue(workspace: string): Promise<void>

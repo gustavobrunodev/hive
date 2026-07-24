@@ -738,6 +738,7 @@ export function WorkUI({
                     active={tab.path === editor.activePath}
                     onClose={() => editor.removeTab(tab.path)}
                     onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
+                    gitEnabled={git.repo.isRepo}
                   />
                 )}
               </div>

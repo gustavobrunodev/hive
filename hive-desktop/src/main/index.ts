@@ -355,9 +355,18 @@ app.whenReady().then(() => {
   }
 
   // Reads (no git:changed notification).
-  ipcMain.handle('git:detect', withGitError(async (_e, ws: string) => gitService.detect(ws)))
-  ipcMain.handle('git:status', withGitError(async (_e, ws: string) => gitService.status(ws)))
-  ipcMain.handle('git:branches', withGitError(async (_e, ws: string) => gitService.branches(ws)))
+  ipcMain.handle(
+    'git:detect',
+    withGitError(async (_e, ws: string) => gitService.detect(ws))
+  )
+  ipcMain.handle(
+    'git:status',
+    withGitError(async (_e, ws: string) => gitService.status(ws))
+  )
+  ipcMain.handle(
+    'git:branches',
+    withGitError(async (_e, ws: string) => gitService.branches(ws))
+  )
   ipcMain.handle(
     'git:log',
     withGitError(async (_e, ws: string, opts?: { file?: string; skip?: number; limit?: number }) =>
@@ -374,12 +383,28 @@ app.whenReady().then(() => {
     'git:commitDiff',
     withGitError(async (_e, ws: string, hash: string) => gitService.commitDiff(ws, hash))
   )
-  ipcMain.handle('git:conflicts', withGitError(async (_e, ws: string) => gitService.conflicts(ws)))
-  ipcMain.handle('git:stashList', withGitError(async (_e, ws: string) => gitService.stashList(ws)))
+  ipcMain.handle(
+    'git:fileAtHead',
+    withGitError(async (_e, ws: string, path: string) => gitService.fileAtHead(ws, path))
+  )
+  ipcMain.handle(
+    'git:conflicts',
+    withGitError(async (_e, ws: string) => gitService.conflicts(ws))
+  )
+  ipcMain.handle(
+    'git:stashList',
+    withGitError(async (_e, ws: string) => gitService.stashList(ws))
+  )
 
   // Mutations (each fires git:changed on success).
-  ipcMain.handle('git:init', gitMutation((ws) => gitService.init(ws)))
-  ipcMain.handle('git:stage', gitMutation((ws, paths: string[]) => gitService.stage(ws, paths)))
+  ipcMain.handle(
+    'git:init',
+    gitMutation((ws) => gitService.init(ws))
+  )
+  ipcMain.handle(
+    'git:stage',
+    gitMutation((ws, paths: string[]) => gitService.stage(ws, paths))
+  )
   ipcMain.handle(
     'git:unstage',
     gitMutation((ws, paths: string[]) => gitService.unstage(ws, paths))
@@ -398,7 +423,10 @@ app.whenReady().then(() => {
     'git:createBranch',
     gitMutation((ws, name: string, from?: string) => gitService.createBranch(ws, name, from))
   )
-  ipcMain.handle('git:checkout', gitMutation((ws, ref: string) => gitService.checkout(ws, ref)))
+  ipcMain.handle(
+    'git:checkout',
+    gitMutation((ws, ref: string) => gitService.checkout(ws, ref))
+  )
   ipcMain.handle(
     'git:renameBranch',
     gitMutation((ws, from: string, to: string) => gitService.renameBranch(ws, from, to))
@@ -407,21 +435,36 @@ app.whenReady().then(() => {
     'git:deleteBranch',
     gitMutation((ws, name: string, force?: boolean) => gitService.deleteBranch(ws, name, force))
   )
-  ipcMain.handle('git:fetch', gitMutation((ws) => gitService.fetch(ws)))
-  ipcMain.handle('git:pull', gitMutation((ws) => gitService.pull(ws)))
+  ipcMain.handle(
+    'git:fetch',
+    gitMutation((ws) => gitService.fetch(ws))
+  )
+  ipcMain.handle(
+    'git:pull',
+    gitMutation((ws) => gitService.pull(ws))
+  )
   ipcMain.handle(
     'git:push',
     gitMutation((ws, opts?: { setUpstream?: boolean }) => gitService.push(ws, opts))
   )
-  ipcMain.handle('git:sync', gitMutation((ws) => gitService.sync(ws)))
+  ipcMain.handle(
+    'git:sync',
+    gitMutation((ws) => gitService.sync(ws))
+  )
   ipcMain.handle(
     'git:resolveConflict',
     gitMutation((ws, path: string, choice: 'current' | 'incoming' | 'both') =>
       gitService.resolveConflict(ws, path, choice)
     )
   )
-  ipcMain.handle('git:mergeContinue', gitMutation((ws) => gitService.mergeContinue(ws)))
-  ipcMain.handle('git:mergeAbort', gitMutation((ws) => gitService.mergeAbort(ws)))
+  ipcMain.handle(
+    'git:mergeContinue',
+    gitMutation((ws) => gitService.mergeContinue(ws))
+  )
+  ipcMain.handle(
+    'git:mergeAbort',
+    gitMutation((ws) => gitService.mergeAbort(ws))
+  )
   ipcMain.handle(
     'git:stash',
     gitMutation((ws, opts?: { message?: string; untracked?: boolean }) =>

@@ -123,6 +123,8 @@ export interface GitService {
   diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff>
   /** A commit's changed files + full patch (GIT-R8.2). A read. */
   commitDiff(workspace: string, hash: string): Promise<GitCommitDiff>
+  /** The file's content at HEAD (`show HEAD:<path>`), or `''` when it doesn't exist there — the editor-gutter baseline (GIT-R11.2). A read. */
+  fileAtHead(workspace: string, path: string): Promise<string>
   /** Conflicted paths, derived from status (GIT-R9). A read. */
   conflicts(workspace: string): Promise<GitConflict[]>
   /**
@@ -426,6 +428,15 @@ export function createGitService(deps: GitServiceDeps): GitService {
     return parseDiff(out)
   }
 
+  async function fileAtHead(workspace: string, path: string): Promise<string> {
+    try {
+      return await git(['show', `HEAD:${path}`], { cwd: workspace })
+    } catch {
+      // No HEAD version (new/untracked file, or unborn branch) → empty baseline.
+      return ''
+    }
+  }
+
   async function commitDiff(workspace: string, hash: string): Promise<GitCommitDiff> {
     // `--format=` suppresses the commit header so `show` yields only the
     // numstat / patch body the parsers expect.
@@ -526,6 +537,7 @@ export function createGitService(deps: GitServiceDeps): GitService {
     log,
     diff,
     commitDiff,
+    fileAtHead,
     conflicts,
     resolveConflict,
     mergeContinue,

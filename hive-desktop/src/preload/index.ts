@@ -535,6 +535,9 @@ const hive = {
     commitDiff: withTypedGit((workspace: string, hash: string): Promise<GitCommitDiff> =>
       ipcRenderer.invoke('git:commitDiff', workspace, hash)
     ),
+    fileAtHead: withTypedGit((workspace: string, path: string): Promise<string> =>
+      ipcRenderer.invoke('git:fileAtHead', workspace, path)
+    ),
     conflicts: withTypedGit((workspace: string): Promise<GitConflict[]> =>
       ipcRenderer.invoke('git:conflicts', workspace)
     ),

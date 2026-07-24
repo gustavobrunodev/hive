@@ -172,6 +172,7 @@ export default defineConfig({
         // new `git:*` handlers/bridge are covered by their existing entries.
         'src/main/gitService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/gitParse.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // `scm/**` covers gitStatus/useGit/ChangeGroups/…/gutter/useGutter etc.
         'src/renderer/src/scm/**': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/renderer/src/ui/DiffView.tsx': {
           statements: 90,

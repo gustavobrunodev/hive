@@ -44,6 +44,7 @@ export function createHiveGitMock(): HiveGitMock {
     log: vi.fn().mockResolvedValue([]),
     diff: vi.fn().mockResolvedValue({ hunks: [], binary: false }),
     commitDiff: vi.fn().mockResolvedValue({ files: [], diff: { hunks: [], binary: false } }),
+    fileAtHead: vi.fn().mockResolvedValue(''),
     conflicts: vi.fn().mockResolvedValue([]),
     resolveConflict: vi.fn().mockResolvedValue(undefined),
     mergeContinue: vi.fn().mockResolvedValue(undefined),
