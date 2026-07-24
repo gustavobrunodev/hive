@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SourceControlPanel, type SourceControlPanelProps } from './SourceControlPanel'
@@ -87,6 +87,14 @@ function store(over: Partial<GitStore> = {}): GitStore {
 function renderPanel(s: GitStore, props: SourceControlPanelProps = {}): void {
   render(createElement(GitProvider, { store: s }, createElement(SourceControlPanel, props)))
 }
+
+beforeEach(() => {
+  // The panel mounts StashPanel (stashList) + HistoryPanel (log on toggle);
+  // give both a benign default. Tests override .git.log for history cases.
+  window.hive = {
+    git: { stashList: vi.fn().mockResolvedValue([]), log: vi.fn().mockResolvedValue([]) }
+  } as unknown as typeof window.hive
+})
 
 afterEach(() => {
   cleanup()
@@ -209,7 +217,7 @@ describe('SourceControlPanel — history (GIT-R8)', () => {
         subject: 'first'
       }
     ])
-    window.hive = { git: { log } } as unknown as typeof window.hive
+    window.hive.git.log = log
     const onOpenCommit = vi.fn()
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onOpenCommit })
 
@@ -233,7 +241,7 @@ describe('SourceControlPanel — history (GIT-R8)', () => {
         subject: 'edit a'
       }
     ])
-    window.hive = { git: { log } } as unknown as typeof window.hive
+    window.hive.git.log = log
     renderPanel(store({ status: status([chg('src/a.txt', '.', 'M')]) }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Ver histórico' }))
     await waitFor(() =>

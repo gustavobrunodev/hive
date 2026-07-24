@@ -26,6 +26,7 @@ import {
 import { ChangeGroups, type RowSide } from './ChangeGroups'
 import { CommitBox } from './CommitBox'
 import { HistoryPanel } from './HistoryPanel'
+import { StashPanel } from './StashPanel'
 import type { GitRemote } from './useGitRemote'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
 import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
@@ -319,6 +320,7 @@ export function SourceControlPanel({
               />
             </div>
           )}
+          <StashPanel />
         </>
       )}
       <DiscardDialog

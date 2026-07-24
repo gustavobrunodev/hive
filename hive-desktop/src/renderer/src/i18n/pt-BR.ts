@@ -669,6 +669,24 @@ export const ptBR = {
     mergeInProgress: 'Resolução de merge em andamento',
     mergeContinue: 'Continuar',
     mergeAbort: 'Abortar',
+    // Stash (GIT-R10).
+    stashSection: 'Stash',
+    stashCreate: 'Guardar alterações',
+    stashApply: 'Aplicar',
+    stashPop: 'Pop',
+    stashDrop: 'Descartar',
+    stashAria: (index: number, message: string) => `Stash ${index}: ${message}`,
+    stashDialogTitle: 'Guardar alterações (stash)',
+    stashMessagePlaceholder: 'Mensagem (opcional)',
+    stashIncludeUntracked: 'Incluir arquivos não rastreados',
+    stashConfirm: 'Guardar',
+    stashCancel: 'Cancelar',
+    stashDropTitle: 'Descartar stash?',
+    stashDropDescription: (message: string) =>
+      `O stash “${message}” será removido definitivamente. Esta ação não pode ser desfeita.`,
+    stashDropConfirm: 'Descartar',
+    stashDropCancel: 'Cancelar',
+    stashToggle: (count: number) => (count === 1 ? '1 stash' : `${count} stashes`),
     // Op-in-flight labels (busy id → human sentence).
     busyLabel: (op: string): string =>
       ({

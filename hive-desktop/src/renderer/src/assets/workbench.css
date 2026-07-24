@@ -2454,6 +2454,119 @@
   word-break: break-word;
 }
 
+/* ── Stash (GIT-R10) ───────────────────────────────────────────────────── */
+.wb-stash {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+.wb-stash-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
+}
+.wb-stash-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wb-stash-toggle:disabled {
+  cursor: default;
+}
+.wb-stash-caret {
+  transition: transform 0.15s var(--ease-quart);
+}
+.wb-stash-caret[data-collapsed] {
+  transform: rotate(-90deg);
+}
+.wb-stash-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.wb-stash-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.wb-stash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--s-2);
+}
+.wb-stash-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 2px var(--s-3);
+  height: 26px;
+}
+.wb-stash-item:hover {
+  background: var(--surface-2);
+}
+.wb-stash-message {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+.wb-stash-actions {
+  display: inline-flex;
+  gap: var(--s-1);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-quart);
+}
+.wb-stash-item:hover .wb-stash-actions,
+.wb-stash-item:focus-within .wb-stash-actions {
+  opacity: 1;
+}
+.wb-stash-act {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.6875rem;
+}
+.wb-stash-act-danger {
+  color: var(--danger);
+}
+.wb-stash-message[value],
+.wb-stash-untracked {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-stash-actions,
+  .wb-stash-caret {
+    transition: none;
+  }
+}
+
 /* ── Merge conflict resolution (GIT-R9) ────────────────────────────────── */
 .wb-merge-banner {
   display: flex;
