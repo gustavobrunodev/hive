@@ -216,6 +216,45 @@ items remain open: ND-B2 (GitHub token) gates the real release-asset publish
 
 ---
 
+## M10 — Source Control ✅ Done (2026-07-24)
+
+**Feature:** `git-management`
+
+Complete in-app git version control for the active workspace, with **VS Code/
+Cursor parity** — planned via tlc-spec-driven (spec/context/design/tasks in
+`.specs/features/git-management/`). The `ActionRail` becomes a VS Code-style
+**activity bar** that switches the left rail between the Explorer and a new
+**Source Control** view (rail keeps `id="rail"`, so the persisted layout is
+untouched); a new bottom **status bar** makes branch + sync state ambient. P1
+(user chose the full set) covers the whole loop: repo detect/`init`, grouped
+change list (conflicts/staged/changes) with stage/unstage/discard, inline
+commit (amend, stage-all, commit & sync), a new **`DiffView`** (unified +
+side-by-side) opened as an editor tab, branches (quick-pick create/switch/
+rename/delete with dirty-guard), remote **sync** (fetch/pull/push/publish via
+**system credentials only** — no in-app token, D-GIT-1), commit **history**
+(timeline + per-file → commit diff), merge **conflict resolution** (accept
+current/incoming/both), **stash**, and ambient **decorations** (explorer tree
+status badges/colors + editor gutter marks). Engine is the system `git` CLI
+driven through the existing `processRunner.ts` (machine formats + pure
+fixture-tested parsers in `gitParse.ts`); a per-repo serial queue protects the
+index. Shaped with `impeccable` (product register): git-status color as
+semantic state, inline-not-modal, every control with all states, motion
+150–250ms. Decisions in STATE.md **D22** (D-GIT-1 credentials, D-GIT-2 sidebar,
+D-GIT-3 full-P1). Deferred to P2/P3: per-hunk staging, revert/cherry-pick,
+tags, branch graph, blame, PR integration.
+
+**Exit criteria:** GIT-R1–R13 implemented and demonstrated in the running app;
+GIT-R14.4 no regression; GIT-R14.5 ≥90% coverage per changed file; GIT-R14.6
+E2E (real throwaway repo + local bare remote, `_electron.launch`, asserting
+`git`/on-disk state through detect→stage→commit→diff→branch→push→pull→conflict→
+stash); GIT-R14.7 Playwright-MCP visual pass (dark+light, every SCM state);
+GIT-R14.8 all copy pt-BR via `t()`. **Met** — shipped on `feat/git-management`
+(T1–T32): `npm run verify` green (73 files / 1180 tests, 0 lint errors, per-file
+coverage gates held), real-Electron E2E passing (`e2e/git-management.spec.ts`),
+and all SCM states visually validated in both themes via the Playwright MCP.
+
+---
+
 ## Dependency Graph
 
 ```

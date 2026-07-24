@@ -2,7 +2,10 @@
 
 **Design:** `.specs/features/git-management/design.md` · **Spec:** `spec.md` ·
 **Context:** `context.md`
-**Status:** Executing — Phase 0 + demoable slice (T1–T20) DONE; T21–T32 pending
+**Status:** DONE — all tasks T1–T32 complete. Full loop (detect→stage→commit→
+diff→branch→sync→history→conflict→stash) shipped on `feat/git-management`;
+`npm run verify` green (73 files / 1180 tests, 0 lint errors), real-Electron E2E
+passing, all SCM states visually validated in dark + light.
 
 Atomic, ordered by dependency. Each task = one focused change + its tests + one
 atomic commit. Verification is concrete (a command or an observable). `[P]` = can
@@ -315,7 +318,10 @@ Phase 5 — Gates & closeout (sequential)
 - **Dep:** T14–T28  **GIT-R:** R14.8
 - **Verify:** `noInlineStrings.test.ts` + `pt-BR.test.ts` green; typecheck/lint clean.
 
-### T30 — E2E: real repo + local bare remote
+### T30 — E2E: real repo + local bare remote ✅
+- **Done:** `e2e/git-management.spec.ts` drives the built app (real `_electron.launch`
+  under xvfb) against a throwaway repo + bare remote through flip→diff→stage→commit→
+  sync(push)→stash, asserting real git/on-disk state at each step. Passes in 5.6s.
 - **Do:** `e2e/git-management.spec.ts` — build a throwaway repo + `git init --bare`
   origin; `_electron.launch` the built app; drive detect→stage→commit→diff→branch→
   push→pull→conflict→resolve→stash/pop; assert `git`/on-disk state. Add to the
@@ -325,7 +331,13 @@ Phase 5 — Gates & closeout (sequential)
   Electron launch is unstable here, record in STATE + keep as local gate, per the
   file-management T11 precedent).
 
-### T31 — Playwright-MCP visual validation (dark + light)
+### T31 — Playwright-MCP visual validation (dark + light) ✅
+- **Done:** booted the built renderer via the Playwright MCP with a full `window.hive`
+  mock (rich git fixtures: merge in progress, all 3 change groups, 2 stashes, branch
+  list, history, conflict-with-markers). Captured + validated overview, diff, branch
+  picker, history, and conflict-resolution views. No visual defects — the shared git
+  status token vocabulary reads correctly in both themes (overview + diff + conflict
+  shot in dark **and** light). Artifacts in `.playwright-mcp/` (gitignored).
 - **Do:** drive the running app via the **Playwright MCP** (window.hive mock
   recipe in memory); capture + validate every SCM state in both themes: empty/
   clean/dirty(all groups)/diff(unified+side-by-side)/conflict/history/stash/
@@ -335,7 +347,10 @@ Phase 5 — Gates & closeout (sequential)
 - **Verify:** screenshots captured for each state × theme; defects fixed and
   re-shot; summary logged in STATE.
 
-### T32 — Closeout
+### T32 — Closeout ✅
+- **Done:** `npm run verify` green (typecheck + lint 0 errors + 73 files / 1180 tests);
+  per-file coverage gates for every touched `scm/**` + `ui/*` file held under vitest's
+  gated globs. ROADMAP M10 + STATE (decisions/lessons) + spec traceability updated.
 - **Do:** confirm full-suite green (`npm run verify`), per-file coverage ≥90% on
   every touched file, typecheck/lint clean; update ROADMAP M10 status + STATE
   (decisions/lessons); mark spec traceability rows Verified.

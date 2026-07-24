@@ -466,18 +466,42 @@ Updated as work progresses. Load at start of every session.
 
 ## Lessons
 
-- **git-management (M10) — Phase 0 + demoable slice (T1–T20) done, 2026-07-23.**
-  Detect → status → stage/unstage/discard → commit → diff works end-to-end in a
-  switchable Explorer⇄Source Control sidebar. All under `feat/git-management`,
-  one atomic commit per task, `npm run verify` green (1090 tests, typecheck +
-  0 lint errors), per-file coverage ≥90% on every touched file. Visually
-  validated dark+light via the Playwright-MCP window.hive-mock recipe
-  ([[hive-desktop-visual-validation]]): SCM dirty view (all groups, commit
-  split-button, semantic status glyphs), diff unified + side-by-side — VS
-  Code/Cursor parity confirmed. **Remaining: T21–T32** (status bar, branch
-  picker + dirty guard, sync wiring, history, conflict view, stash, tree
-  decorations, editor gutter, i18n audit, E2E, MCP visual pass, closeout).
-  Reusable lessons from this slice:
+- **git-management (M10) — COMPLETE (T1–T32), 2026-07-24.** The whole VS Code/
+  Cursor-parity loop ships on `feat/git-management`: detect → status → stage/
+  unstage/discard → commit (amend/stage-all/commit&sync) → diff (unified + side-
+  by-side) → branches (create/switch/rename/delete + dirty guard) → remote sync
+  (fetch/pull/push/publish, system credentials only) → history → conflict
+  resolution → stash → ambient decorations (tree badges + editor gutter) + status
+  bar, in a switchable Explorer⇄Source Control sidebar. One atomic commit per
+  task, `npm run verify` green (**73 files / 1180 tests**, typecheck + 0 lint
+  errors), per-file coverage gates held on every touched file. Real-Electron E2E
+  (`e2e/git-management.spec.ts`) drives the built app against a throwaway repo +
+  bare remote through flip→diff→stage→commit→sync(push)→stash asserting real
+  git/on-disk state (passes ~5.6s). All SCM states visually validated dark+light
+  via the Playwright-MCP window.hive-mock recipe
+  ([[hive-desktop-visual-validation]]). Reusable lessons:
+  - **A mock-boot visual pass needs the *whole* `window.hive` surface, not just
+    `git`.** Booting the built renderer past onboarding means mocking every
+    namespace App/WorkUI touch at startup (getWorkspace/isProvisioned/
+    provisionState, profile.getAgents+getRole, `updateBmad` **must** fire
+    `{type:'done'}`, plus workflows/skills/studio/mcp/chatHistory/app/shortcuts/
+    fs). Seed `localStorage['hive.tourSeen']='1'` to suppress the first-run tour
+    and `['hive-desktop-theme']` to pin the theme (a stale value persists in the
+    browser profile). The `ConflictView` reads on-disk markers, so its file's
+    `readFile` mock must contain real `<<<<<<< / ======= / >>>>>>>` blocks or it
+    renders the (also-valid) "no conflicts, mark resolved" empty state.
+  - **E2E must boot past the same gate chain + the guided tour.** Seed
+    `config.json` with `agent`/`agents`/`role` to skip agent+role setup; the
+    first-run tour overlay intercepts pointer events, so `click()` its skip
+    button (auto-waits — don't race an early `isVisible`) and wait for `.wb-tour`
+    hidden before driving the UI. The running app provisions untracked `_bmad/*`
+    files, so a post-stash "clean tree" assert must be **path-scoped**
+    (`status --porcelain -- README.md`), never a bare empty-status check.
+  - **Store growth is a test-maintenance tax — centralize the fake.** Every new
+    `useGit` action broke hand-rolled fake stores; a single
+    `testSupport/gitStoreMock.ts createGitStore()` made adding a field a
+    one-file change. Same for the bridge: `testSupport/hiveGitMock.ts`.
+  - Original demoable-slice (T1–T20) lessons still hold:
   - **Machine-format git parsers must be captured from real `git`, not
     guessed.** Porcelain-v2 `-z` renames emit the entry line then the origPath
     as the *next* NUL field (consume two); numstat `-z` renames emit an empty
