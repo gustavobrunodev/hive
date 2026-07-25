@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
-import { basename, join } from 'path'
+import { basename, join, sep } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import packageJson from '../../package.json'
@@ -11,6 +11,8 @@ import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
 import { createGitService, GitError, type GitDiffSide } from './gitService'
+import { createCheckpointService } from './checkpointService'
+import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
 import type {
@@ -480,6 +482,115 @@ app.whenReady().then(() => {
     gitMutation((ws, index: number) => gitService.stashDrop(ws, index))
   )
 
+  // ── Agent Change Review (M11) ────────────────────────────────────────────
+  // CheckpointService (shadow-git snapshot engine) + ReviewService (the single
+  // pending set + accept/reject) over the same ProcessRunner as git/agents.
+  // The shadow store lives under userData, independent of the user's .git
+  // (ACR-C2). Exposed as window.hive.review.* (preload T7).
+  const checkpointService = createCheckpointService({
+    processRunner,
+    userDataDir: app.getPath('userData')
+  })
+
+  // review:changed stream — renderers subscribe (start/stop, the git:changed
+  // pattern) and get the fresh snapshot after every recompute/decision so all
+  // four surfaces re-render from one source (ACR-R2.5). Keyed by sender id.
+  const reviewChangedSenders = new Map<number, Electron.WebContents>()
+  ipcMain.on('review:changed:start', (event) => {
+    reviewChangedSenders.set(event.sender.id, event.sender)
+  })
+  ipcMain.on('review:changed:stop', (event) => {
+    reviewChangedSenders.delete(event.sender.id)
+  })
+  const reviewService = createReviewService({
+    checkpoint: checkpointService,
+    onChanged: (workspace: string, snapshot: ReviewSnapshot) => {
+      for (const sender of reviewChangedSenders.values()) {
+        sender.send('review:changed', { workspace, ...snapshot })
+      }
+    }
+  })
+
+  // One debounced fs watcher per workspace feeds `onFsActivity` so the pending
+  // set recomputes as the agent's writes stream in (design.md §4). Lazily
+  // started on the first turn for a workspace; `onFsActivity` self-gates (a
+  // no-op when there's no baseline), so idle edits after a clean review are
+  // cheap. Keyed by workspace so a switch tears the old one down.
+  const reviewWatchStops = new Map<string, () => void>()
+  const reviewDebounce = new Map<string, ReturnType<typeof setTimeout>>()
+  function ensureReviewWatch(workspace: string): void {
+    if (reviewWatchStops.has(workspace)) return
+    const stop = fsService.watchWorkspace(workspace, () => {
+      clearTimeout(reviewDebounce.get(workspace))
+      reviewDebounce.set(
+        workspace,
+        setTimeout(() => {
+          void reviewService.onFsActivity(workspace)
+        }, 250)
+      )
+    })
+    reviewWatchStops.set(workspace, stop)
+  }
+
+  // Rejects a review path that would escape the workspace root (defense in
+  // depth — the paths come from our own diff output, but every handler is
+  // path-checked, mirroring FsService's `resolveSafe`).
+  function assertWithinWorkspace(workspace: string, path: string): void {
+    const resolved = join(workspace, path)
+    if (resolved !== workspace && !resolved.startsWith(workspace + sep)) {
+      throw new Error(`Path escapes workspace root: ${path}`)
+    }
+  }
+
+  ipcMain.handle('review:get', async (_e, ws: string) => reviewService.get(ws))
+  ipcMain.handle('review:acceptFile', async (_e, ws: string, path: string) => {
+    assertWithinWorkspace(ws, path)
+    return reviewService.acceptFile(ws, path)
+  })
+  ipcMain.handle('review:rejectFile', async (_e, ws: string, path: string) => {
+    assertWithinWorkspace(ws, path)
+    return reviewService.rejectFile(ws, path)
+  })
+  ipcMain.handle('review:acceptHunk', async (_e, ws: string, path: string, hunkId: string) => {
+    assertWithinWorkspace(ws, path)
+    return reviewService.acceptHunk(ws, path, hunkId)
+  })
+  ipcMain.handle('review:rejectHunk', async (_e, ws: string, path: string, hunkId: string) => {
+    assertWithinWorkspace(ws, path)
+    return reviewService.rejectHunk(ws, path, hunkId)
+  })
+  ipcMain.handle('review:acceptAll', async (_e, ws: string) => reviewService.acceptAll(ws))
+  ipcMain.handle('review:rejectAll', async (_e, ws: string) => reviewService.rejectAll(ws))
+
+  // Turn lifecycle wiring: take the checkpoint *before* the CLI spawns
+  // (race-free pre-image, ACR-R1.1) and finalize the set on the turn's terminal
+  // event. The workspace is the active one (Hive drives one workspace at a
+  // time); a turn without an explicit id gets a synthesized one so its terminal
+  // event can be matched back. Best-effort touched `paths` land in T17.
+  const activeReviewTurns = new Map<string, string>() // turnId -> workspace
+  let reviewTurnCounter = 0
+  function beginReviewTurn(turnId: string): void {
+    const ws = workspaceService.getWorkspace()
+    if (!ws) return
+    ensureReviewWatch(ws)
+    activeReviewTurns.set(turnId, ws)
+    void reviewService.beginTurn(ws, turnId)
+  }
+  agentService.onEvent((agentEvent: AgentEvent) => {
+    if (
+      agentEvent.type === 'done' ||
+      agentEvent.type === 'error' ||
+      agentEvent.type === 'interrupted'
+    ) {
+      const turnId = agentEvent.turnId
+      if (turnId === undefined) return
+      const ws = activeReviewTurns.get(turnId)
+      if (!ws) return
+      activeReviewTurns.delete(turnId)
+      void reviewService.endTurn(ws, turnId, [])
+    }
+  })
+
   // chat-attachments (R6.5/T16): native multi-file picker for the composer's
   // attach button. Name/size are resolved here (not in the renderer) because
   // the sandboxed renderer only ever sees the returned metadata — it can't
@@ -514,10 +625,17 @@ app.whenReady().then(() => {
     agentService.startSession(opts)
   })
   ipcMain.handle('agent:send', async (_event, text: string, opts?: TurnOpts) => {
-    agentService.send(text, opts)
+    // Checkpoint before the turn spawns (ACR-R1.1). Synthesize a turnId when
+    // the caller didn't supply one so the terminal event can be matched back;
+    // pass it through to the agent so its events carry the same id.
+    const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
+    beginReviewTurn(turnId)
+    agentService.send(text, { ...opts, turnId })
   })
   ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand, opts?: TurnOpts) => {
-    agentService.runWorkflow(cmd, opts)
+    const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
+    beginReviewTurn(turnId)
+    agentService.runWorkflow(cmd, { ...opts, turnId })
   })
   // T8 (WS-R5.2): explicit session teardown, called by Chat's unmount
   // cleanup so a switched-away-from workspace's session doesn't keep

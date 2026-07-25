@@ -211,6 +211,31 @@ vi.mock('./gitService', async () => {
   return { ...actual, createGitService: vi.fn(() => fakeGitService) }
 })
 
+// Agent Change Review (M11): CheckpointService + ReviewService mocked like
+// GitService above — index.ts wires window.hive.review.* to a real
+// ReviewService (no 'electron' import) over the real ProcessRunner. This file
+// only asserts index.ts routes review:* calls to whatever service it's given
+// and drives begin/endTurn on the turn lifecycle (the service's own math is
+// covered by reviewService.test.ts). `onChanged` is captured so the turn-wiring
+// tests can also confirm the emit path is registered.
+const { fakeReviewService } = vi.hoisted(() => ({
+  fakeReviewService: {
+    beginTurn: vi.fn(async () => {}),
+    onFsActivity: vi.fn(async () => {}),
+    endTurn: vi.fn(async () => {}),
+    get: vi.fn(async () => ({ changes: [], turns: [] })),
+    acceptFile: vi.fn(async () => ({ ok: true })),
+    rejectFile: vi.fn(async () => ({ ok: true })),
+    acceptHunk: vi.fn(async () => ({ ok: true })),
+    rejectHunk: vi.fn(async () => ({ ok: true })),
+    acceptAll: vi.fn(async () => ({ ok: true })),
+    rejectAll: vi.fn(async () => ({ ok: true })),
+    teardown: vi.fn()
+  }
+}))
+vi.mock('./checkpointService', () => ({ createCheckpointService: vi.fn(() => ({})) }))
+vi.mock('./reviewService', () => ({ createReviewService: vi.fn(() => fakeReviewService) }))
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
@@ -598,16 +623,33 @@ describe('main process bootstrap', () => {
     await findHandler('agent:start')(fakeInvokeEvent, opts)
     expect(fakeAgentService.startSession).toHaveBeenCalledWith(opts)
 
-    // session-history: the resume id (2nd renderer arg) rides through to
-    // AgentService — undefined for a fresh conversation.
+    // session-history: the caller's opts (resume/turnId/…) ride through to
+    // AgentService. Agent Change Review (T6) ensures a turnId is always present
+    // (synthesized when absent) so the turn's terminal event can be matched
+    // back to its checkpoint — the renderer always supplies one in practice.
     await findHandler('agent:send')(fakeInvokeEvent, 'hello agent')
-    expect(fakeAgentService.send).toHaveBeenCalledWith('hello agent', undefined)
-    await findHandler('agent:send')(fakeInvokeEvent, 'continue', 'cli-sess-1')
-    expect(fakeAgentService.send).toHaveBeenCalledWith('continue', 'cli-sess-1')
+    expect(fakeAgentService.send).toHaveBeenCalledWith(
+      'hello agent',
+      expect.objectContaining({ turnId: expect.stringMatching(/^review-turn-/) })
+    )
+    await findHandler('agent:send')(fakeInvokeEvent, 'continue', {
+      resume: 'cli-sess-1',
+      turnId: 'r1'
+    })
+    expect(fakeAgentService.send).toHaveBeenCalledWith('continue', {
+      resume: 'cli-sess-1',
+      turnId: 'r1'
+    })
 
     const cmd = { key: 'prd' }
-    await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd, 'cli-sess-2')
-    expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd, 'cli-sess-2')
+    await findHandler('agent:runWorkflow')(fakeInvokeEvent, cmd, {
+      resume: 'cli-sess-2',
+      turnId: 'r2'
+    })
+    expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(cmd, {
+      resume: 'cli-sess-2',
+      turnId: 'r2'
+    })
   })
 
   // T8 (WS-R5.2): explicit session-teardown handler, called by Chat's
@@ -1067,6 +1109,98 @@ describe('main process bootstrap', () => {
       )
       expect((err as Error).message.startsWith('GIT:')).toBe(true)
       expect((err as Error).message).toContain('Authentication failed')
+    })
+  })
+
+  // Agent Change Review (M11, T6): the review:* handlers route to the injected
+  // ReviewService, and the turn lifecycle drives begin/endTurn.
+  describe('review:* handlers + turn wiring', () => {
+    it('registers the review:* request/response handlers and the changed stream', () => {
+      for (const ch of [
+        'review:get',
+        'review:acceptFile',
+        'review:rejectFile',
+        'review:acceptHunk',
+        'review:rejectHunk',
+        'review:acceptAll',
+        'review:rejectAll'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
+      }
+      expect(ipcMain.on).toHaveBeenCalledWith('review:changed:start', expect.any(Function))
+      expect(ipcMain.on).toHaveBeenCalledWith('review:changed:stop', expect.any(Function))
+    })
+
+    it('routes accept/reject calls to the ReviewService', async () => {
+      await findHandler('review:get')({}, '/ws')
+      expect(fakeReviewService.get).toHaveBeenCalledWith('/ws')
+
+      await findHandler('review:acceptFile')({}, '/ws', 'a.txt')
+      expect(fakeReviewService.acceptFile).toHaveBeenCalledWith('/ws', 'a.txt')
+
+      await findHandler('review:rejectFile')({}, '/ws', 'a.txt')
+      expect(fakeReviewService.rejectFile).toHaveBeenCalledWith('/ws', 'a.txt')
+
+      await findHandler('review:acceptHunk')({}, '/ws', 'a.txt', '0:1:1')
+      expect(fakeReviewService.acceptHunk).toHaveBeenCalledWith('/ws', 'a.txt', '0:1:1')
+
+      await findHandler('review:rejectHunk')({}, '/ws', 'a.txt', '0:1:1')
+      expect(fakeReviewService.rejectHunk).toHaveBeenCalledWith('/ws', 'a.txt', '0:1:1')
+
+      await findHandler('review:acceptAll')({}, '/ws')
+      expect(fakeReviewService.acceptAll).toHaveBeenCalledWith('/ws')
+
+      await findHandler('review:rejectAll')({}, '/ws')
+      expect(fakeReviewService.rejectAll).toHaveBeenCalledWith('/ws')
+    })
+
+    it('rejects a review path that escapes the workspace root', async () => {
+      const err = await (
+        findHandler('review:acceptFile')({}, '/ws', '../../etc/passwd') as Promise<unknown>
+      ).catch((e: Error) => e)
+      expect((err as Error).message).toContain('escapes workspace root')
+      expect(fakeReviewService.acceptFile).not.toHaveBeenCalledWith('/ws', '../../etc/passwd')
+    })
+
+    it('begins a review turn on agent:send (checkpoint before spawn) and ends it on the terminal event', async () => {
+      // Activate a workspace so getWorkspace() resolves for the turn wiring.
+      const dir = mkdtempSync(join(tmpdir(), 'hive-main-review-turn-'))
+      await findHandler('workspace:open')({}, dir)
+
+      fakeReviewService.beginTurn.mockClear()
+      fakeReviewService.endTurn.mockClear()
+
+      await findHandler('agent:send')({}, 'do the thing', { turnId: 't-xyz' })
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-xyz')
+      // The agent still receives the (same) turnId.
+      expect(fakeAgentService.send).toHaveBeenCalledWith(
+        'do the thing',
+        expect.objectContaining({ turnId: 't-xyz' })
+      )
+      // A watcher was started for the workspace.
+      expect(watchWorkspaceCalls.some((c) => c.root === dir)).toBe(true)
+
+      // The bootstrap review listener (index's first agentService.onEvent) ends
+      // the turn on the terminal event.
+      const reviewListener = agentOnEventCalls[0].listener
+      reviewListener({ type: 'done', turnId: 't-xyz' })
+      expect(fakeReviewService.endTurn).toHaveBeenCalledWith(dir, 't-xyz', [])
+
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('synthesizes a turnId when agent:send omits one', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'hive-main-review-synth-'))
+      await findHandler('workspace:open')({}, dir)
+      fakeReviewService.beginTurn.mockClear()
+
+      await findHandler('agent:send')({}, 'no turn id', undefined)
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(
+        dir,
+        expect.stringMatching(/^review-turn-/)
+      )
+
+      rmSync(dir, { recursive: true, force: true })
     })
   })
 })
