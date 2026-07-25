@@ -7416,3 +7416,116 @@ button.wb-agent-pill-btn:focus-visible {
   margin-left: auto;
   align-self: center;
 }
+
+/* In-chat change card (Claude-Desktop tier, ACR-R2.2) — a compact per-turn
+   diff summary in the transcript. */
+.wb-change-card {
+  margin: var(--s-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2, 10px);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.wb-change-card[data-reviewed] {
+  opacity: 0.75;
+}
+
+.wb-change-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+}
+
+.wb-change-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  flex: 1 1 auto;
+}
+
+.wb-change-card[data-reviewed] .wb-change-card-title {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.wb-change-card-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1, 6px);
+  cursor: pointer;
+}
+
+.wb-change-card-expand:hover {
+  color: var(--ink);
+}
+
+.wb-change-card-files {
+  margin: 0;
+  padding: 0 var(--s-3) var(--s-2);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wb-change-card-file {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.wb-change-card-file[data-reviewed] {
+  color: var(--muted);
+}
+
+.wb-change-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.wb-change-card-dot[data-status='created'] {
+  background: var(--wb-git-added);
+}
+.wb-change-card-dot[data-status='modified'] {
+  background: var(--accent);
+}
+.wb-change-card-dot[data-status='deleted'] {
+  background: var(--wb-git-deleted);
+}
+
+.wb-change-card-check {
+  color: var(--wb-git-added);
+  flex: 0 0 auto;
+}
+
+.wb-change-card-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-change-card-counts {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.wb-change-card-diff {
+  border-top: 1px solid var(--border);
+  max-height: 320px;
+  overflow: auto;
+}

@@ -36,6 +36,8 @@ import { extractMentions, formatFileSize, mentionSegments } from './composerMent
 import { useAttachments } from './useAttachments'
 import { useMentions } from './useMentions'
 import type { ChatSessionMeta } from './sessionMeta'
+import { ChangeCard } from './ChangeCard'
+import { useReviewOptional } from '../scm/useReview'
 
 interface ChatMessageEntry {
   id: string
@@ -423,6 +425,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [effort, setEffort] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
   const [streamingText, setStreamingText] = useState<string | null>(null)
+  // Agent Change Review (ACR-R2.2): the shared review store when present (the
+  // app wraps Chat in a ReviewProvider); null in isolated tests → no cards.
+  const review = useReviewOptional()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // multi-agent: which agent drives THIS conversation. `null` → fall back to the
   // app default (`defaultAgent`); set explicitly by the composer switcher (fresh
@@ -1149,6 +1154,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 )}
               </ChatMessage>
             )}
+            {/* Agent Change Review (ACR-R2.2): a change card per turn that
+                touched files, keyed off its TurnMark — Claude-Desktop tier. */}
+            {review?.turns.map((turn) => (
+              <ChangeCard key={turn.turnId} turn={turn} />
+            ))}
           </div>
         </MessageList>
       </div>

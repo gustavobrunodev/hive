@@ -160,3 +160,13 @@ export function useReview(): ReviewStore {
   if (!ctx) throw new Error('useReview must be used within a ReviewProvider')
   return ctx
 }
+
+/**
+ * Reads the review store if a `ReviewProvider` is present, else `null`. For
+ * surfaces (like the in-chat card) that live inside the provider in the real
+ * app but are also mounted standalone in isolated tests — they simply render
+ * nothing review-related when there's no store.
+ */
+export function useReviewOptional(): ReviewStore | null {
+  return useContext(ReviewContext)
+}

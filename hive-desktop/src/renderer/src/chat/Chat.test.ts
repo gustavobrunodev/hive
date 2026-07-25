@@ -4,6 +4,7 @@ import { createContext, createElement, createRef, useContext, type ReactNode } f
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { Chat, type ChatHandle } from './Chat'
 import type { RoleAction } from '../ui/ActionRail'
+import { ReviewProvider, type ReviewStore } from '../scm/useReview'
 
 /**
  * Chat UI tests. Covers the role-personalized hero (RP-R4), the launch handle
@@ -280,18 +281,16 @@ describe('Chat', () => {
         })
       },
       profile: {
-        agents: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'claude-cli',
-              displayName: 'Claude Code',
-              description: '',
-              available: true,
-              installHint: '',
-              docsUrl: ''
-            }
-          ])
+        agents: vi.fn().mockResolvedValue([
+          {
+            id: 'claude-cli',
+            displayName: 'Claude Code',
+            description: '',
+            available: true,
+            installHint: '',
+            docsUrl: ''
+          }
+        ])
       },
       skills: {
         list: vi.fn().mockResolvedValue(options.skills ?? [])
@@ -1298,5 +1297,69 @@ describe('Chat', () => {
         turnId: expect.any(String)
       })
     )
+  })
+
+  // Agent Change Review (M11, T16): a change card renders in the transcript for
+  // a turn that touched files, when Chat is inside a ReviewProvider.
+  it('renders an in-chat change card for a pending turn (ACR-R2.2)', async () => {
+    mockHive({})
+    const store: ReviewStore = {
+      workspace: '/ws',
+      changes: [
+        {
+          path: 'src/a.txt',
+          status: 'modified',
+          diff: { hunks: [], binary: false },
+          adds: 3,
+          dels: 1
+        }
+      ],
+      turns: [{ turnId: 't1', at: 1, paths: ['src/a.txt'] }],
+      pendingCount: 1,
+      byStatus: {
+        created: [],
+        modified: [
+          {
+            path: 'src/a.txt',
+            status: 'modified',
+            diff: { hunks: [], binary: false },
+            adds: 3,
+            dels: 1
+          }
+        ],
+        deleted: []
+      },
+      isStale: false,
+      refresh: vi.fn(),
+      acceptFile: vi.fn(async () => ({ ok: true })),
+      rejectFile: vi.fn(async () => ({ ok: true })),
+      acceptHunk: vi.fn(async () => ({ ok: true })),
+      rejectHunk: vi.fn(async () => ({ ok: true })),
+      acceptAll: vi.fn(async () => ({ ok: true })),
+      rejectAll: vi.fn(async () => ({ ok: true }))
+    }
+    render(
+      createElement(
+        ReviewProvider,
+        { store },
+        createElement(Chat, {
+          workspace: '/ws',
+          roleActions: [],
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          onCustomizeShortcuts: vi.fn()
+        })
+      )
+    )
+    // Send a message so the transcript (not the empty hero) renders — the card
+    // lives in the message list.
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'refatore os arquivos' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    expect(await screen.findByText('Editei 1 arquivo')).toBeTruthy()
+    expect(screen.getByText('a.txt')).toBeTruthy()
   })
 })
