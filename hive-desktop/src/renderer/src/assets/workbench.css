@@ -7310,3 +7310,109 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
   max-width: 30ch;
 }
+
+/* Inline editor diff (Cursor tier, ACR-R2.1) — the agent's changes rendered in
+   place over the open file, per-hunk ✓/✗ + ‹ n de m › nav. */
+.wb-inline-diff {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wb-inline-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  align-self: flex-end;
+  margin: var(--s-1) var(--s-2);
+  padding: 2px 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1, 6px);
+}
+
+.wb-inline-nav-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-inline-nav-btn {
+  display: inline-flex;
+  padding: 2px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.wb-inline-nav-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2, var(--surface));
+}
+
+.wb-inline-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wb-inline-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  padding: 0 var(--s-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wb-inline-row[data-type='add'] {
+  background: var(--success-bg);
+}
+
+.wb-inline-row[data-type='del'] {
+  background: var(--danger-bg, color-mix(in oklab, var(--wb-git-deleted) 12%, transparent));
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.wb-inline-row[data-current] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.wb-inline-lineno {
+  flex: 0 0 3ch;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+
+.wb-inline-sign {
+  flex: 0 0 1ch;
+  user-select: none;
+}
+
+.wb-inline-row[data-type='add'] .wb-inline-sign {
+  color: var(--wb-git-added);
+}
+
+.wb-inline-row[data-type='del'] .wb-inline-sign {
+  color: var(--wb-git-deleted);
+}
+
+.wb-inline-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wb-inline-row .wb-hunk-actions {
+  margin-left: auto;
+  align-self: center;
+}
