@@ -515,6 +515,44 @@ Updated as work progresses. Load at start of every session.
   debt (Chat.tsx 88.98% branches in untouched composer/mention code; the M7
   explorer viewers) is real but out of scope and unchanged by M11. (2026-07-25)
 
+## Lessons (second-brain — T1 spike: real `skills` CLI, 2026-07-25)
+
+- **T1 — OQ1 CLOSED against the real, live vercel-labs `skills` CLI
+  (`npx -y skills`, 2026-07-25).** Ran the real install/update in throwaway
+  git-init'd workspaces. Confirmed:
+  - **The `skills` CLI auto-detects the agent and installs non-interactively**
+    when a coding agent is present — first stdout line is
+    `●  claude-code_<ver>_agent  Agent detected — installing non-interactively`.
+    No pty-driving needed (like BMAD's B1). `-y` still passed for safety.
+  - **DIVERGENCE from design.md §2's literal command, resolved by the spike
+    (its whole purpose):** the `nicholasspisak/second-brain` repo ships **four
+    separate skills**, not one skill with sub-skills — `second-brain` (the
+    onboarding wizard), `second-brain-ingest`, `second-brain-lint`,
+    `second-brain-query` (exactly the four `/second-brain*` commands the spec's
+    acceptance criteria require). design.md §2's `--skill second-brain`
+    (singular) installs **only 1 of 4**, which would leave ingest/query/lint
+    undiscoverable (breaks SB-R2.4/R6.1). The design's spike box already
+    anticipated "SKILL.md + the four sub-skills", so this is the imprecise-flag
+    the spike was meant to pin, not an approach change. **Correct install
+    command (T3 uses this):**
+    `npx -y skills add https://github.com/nicholasspisak/second-brain --skill '*' -a claude-code -y`
+    (cwd = workspace) → installs all four to `<ws>/.claude/skills/<name>/` (copy,
+    not symlink) + writes `<ws>/skills-lock.json`. `--all` was rejected (it forces
+    `--agent '*'`, installing to every agent, not just claude-code).
+  - **Update subcommand exists and is distinct** (design OQ1's open question):
+    `npx -y skills update -p -y` (`-p` = project scope, `-y` = skip scope
+    prompt). Updates every skill in `skills-lock.json` — which contains exactly
+    our four (BMAD does NOT use this CLI, so no cross-contamination). Verified it
+    re-syncs all four. Preferred over re-running `add` (design's fallback).
+  - **Detect marker:** `<ws>/.claude/skills/second-brain/SKILL.md` (present after
+    install), analogous to BMAD's `_bmad/_config/manifest.yaml`.
+  - **Stdout markers for the line-buffered parser (ANSI/spinner-stripped):**
+    _add_ → `Agent detected`, `Found <N> skills`, `Installation complete`,
+    `Installed <N> skill(s)`, per-skill `✓ <name> (copied)`, `Done!`;
+    _update_ → `Checking for skill updates…`, per-skill `✓ Updated <name>`,
+    `✓ Updated <N> skill(s)`. Errors surface as non-zero exit + `error`-bearing
+    lines. Fixtures captured for `secondBrainService.test.ts`.
+
 ## Blockers
 
 - **ND-B2 — OPEN (2026-07-22), blocks the real payload publish only.** Need a
