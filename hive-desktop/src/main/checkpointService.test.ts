@@ -223,6 +223,65 @@ describe('applyReverseHunk (over the GitDiffHunk patch builder, T4)', () => {
   })
 })
 
+describe('advanceBaseline (accept-file primitive)', () => {
+  it('advances one path so it stops diffing, leaving others pending', async () => {
+    write('a.txt', 'a-original\n')
+    write('b.txt', 'b-original\n')
+    const ref = await svc.snapshot(ws)
+    write('a.txt', 'a-agent\n')
+    write('b.txt', 'b-agent\n')
+
+    const newRef = await svc.advanceBaseline(ws, ref, ['a.txt'])
+    // a.txt now matches the new baseline; b.txt still pending. Bytes untouched.
+    expect(read('a.txt')).toBe('a-agent\n')
+    const changes = await svc.diffToWorkTree(ws, newRef)
+    expect(changes.map((c) => c.path)).toEqual(['b.txt'])
+  })
+
+  it('accepts a created file (it becomes part of the baseline)', async () => {
+    write('base.txt', 'x\n')
+    const ref = await svc.snapshot(ws)
+    write('new.txt', 'created\n')
+
+    const newRef = await svc.advanceBaseline(ws, ref, ['new.txt'])
+    expect(await svc.diffToWorkTree(ws, newRef)).toEqual([])
+  })
+
+  it('accepts a deletion (the path leaves the baseline)', async () => {
+    write('gone.txt', 'bye\n')
+    const ref = await svc.snapshot(ws)
+    rmSync(join(ws, 'gone.txt'))
+
+    const newRef = await svc.advanceBaseline(ws, ref, ['gone.txt'])
+    expect(await svc.diffToWorkTree(ws, newRef)).toEqual([])
+  })
+})
+
+describe('advanceBaselineHunk (accept-hunk primitive)', () => {
+  it('accepts one hunk into the baseline, leaving the file’s other hunk pending', async () => {
+    const base = Array.from({ length: 12 }, (_, i) => `l${i + 1}`)
+    write('f.txt', base.join('\n') + '\n')
+    const ref = await svc.snapshot(ws)
+    const edited = [...base]
+    edited[0] = 'L1_NEW'
+    edited[11] = 'L12_NEW'
+    write('f.txt', edited.join('\n') + '\n')
+
+    const [change] = await svc.diffToWorkTree(ws, ref)
+    expect(change.diff.hunks).toHaveLength(2)
+    // Accept the first hunk (line 1) into the baseline.
+    const newRef = await svc.advanceBaselineHunk(ws, ref, 'f.txt', change.diff.hunks[0])
+
+    // Bytes on disk untouched; only the second hunk (line 12) still pending.
+    expect(read('f.txt')).toBe(edited.join('\n') + '\n')
+    const after = await svc.diffToWorkTree(ws, newRef)
+    expect(after).toHaveLength(1)
+    const remaining = after[0].diff.hunks.flatMap((h) => h.lines)
+    expect(remaining.some((l) => l.type === 'add' && l.text === 'L12_NEW')).toBe(true)
+    expect(remaining.some((l) => l.type === 'add' && l.text === 'L1_NEW')).toBe(false)
+  })
+})
+
 describe('purgeCheckpointStore (test helper)', () => {
   it('removes a workspace store', async () => {
     write('a.txt', 'x\n')

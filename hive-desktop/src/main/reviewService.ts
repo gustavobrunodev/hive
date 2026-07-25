@@ -1,0 +1,325 @@
+import { statSync } from 'fs'
+import { join } from 'path'
+import type { CheckpointService } from './checkpointService'
+import { findHunk, type GitDiff } from './gitParse'
+
+/**
+ * The single **pending review set** per workspace and the accept/reject
+ * semantics over it (Agent Change Review, design.md §3, ACR-C1/C5). Optimistic
+ * model: the agent already wrote to disk; reviewing means **keep** (advance the
+ * baseline) or **revert** (restore the pre-turn bytes) against a `CheckpointService`
+ * baseline tree.
+ *
+ * Invariant (ACR-C5 accumulation): `changes = diff(baseline → now)` always.
+ * Accept/reject only move the baseline (accept) or the work tree (reject) — the
+ * set is never hand-mutated, so no surface can drift and a re-touched file never
+ * duplicates. There is exactly one live pending set per workspace; it
+ * accumulates across turns until reviewed.
+ *
+ * `CheckpointService` is injected (composed over real git in tests); the file is
+ * Electron-free and unit-tested against a throwaway workspace + store.
+ */
+
+/** One turn that ran while the set was pending — annotates the in-chat change card (ACR-R2.2). */
+export interface TurnMark {
+  turnId: string
+  /** Epoch ms when the turn started. */
+  at: number
+  /** Paths the turn touched (best-effort from the adapter's tool_use, ACR-C7; empty is fine). */
+  paths: string[]
+}
+
+/** One pending change, as the renderer consumes it (design.md §3). */
+export interface ReviewChange {
+  /** Workspace-relative POSIX path. */
+  path: string
+  status: 'created' | 'modified' | 'deleted'
+  /** Parsed pre-turn→now diff (hunks / binary / tooLarge), from `gitParse`. */
+  diff: GitDiff
+  /** Added / deleted line counts (for the +/- pills). */
+  adds: number
+  dels: number
+  /** ACR-R3.2 — the user edited this file by hand after the last recompute. */
+  staleUserEdit?: boolean
+}
+
+/** The renderer-facing snapshot of the set (what `review:get`/`review:changed` ship). */
+export interface ReviewSnapshot {
+  changes: ReviewChange[]
+  turns: TurnMark[]
+}
+
+/** The result of a decision op. `stale` short-circuits a clobber into a UI choice (ACR-R3.2). */
+export interface ReviewResult {
+  ok: boolean
+  /** Set when a concurrent hand-edit was detected — the UI turns this into keep-mine/take-agent/cancel. */
+  stale?: boolean
+}
+
+export interface ReviewServiceDeps {
+  checkpoint: CheckpointService
+  /** Emits the fresh snapshot to the renderer (`review:changed` push). */
+  onChanged: (workspace: string, snapshot: ReviewSnapshot) => void
+  /** Injected clock (tests pin it); defaults to `Date.now`. */
+  now?: () => number
+}
+
+export interface ReviewService {
+  /** Turn start: if the set is clean, snapshot a fresh baseline; record a turn mark (ACR-R1.1). */
+  beginTurn(workspace: string, turnId: string): Promise<void>
+  /** A file-system change during/after a turn: recompute the set + emit (debounce lives at the caller/IPC layer). */
+  onFsActivity(workspace: string): Promise<void>
+  /** Turn end: final recompute; attach the turn's touched `paths` to its mark (ACR-R1.2). */
+  endTurn(workspace: string, turnId: string, paths: string[]): Promise<void>
+  /** The current snapshot (rehydrate on mount / workspace switch). Recomputes if a baseline exists. */
+  get(workspace: string): Promise<ReviewSnapshot>
+  /** Keep a file's current bytes; advance the baseline for it so it leaves the set (ACR-R1.5). */
+  acceptFile(workspace: string, path: string): Promise<ReviewResult>
+  /** Restore a file's pre-turn bytes on disk; it leaves the set (ACR-R1.6). */
+  rejectFile(workspace: string, path: string): Promise<ReviewResult>
+  /** Keep one hunk; advance the baseline for it (ACR-R3.1). */
+  acceptHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
+  /** Reverse-apply one hunk on disk; the rest of the file stays pending (ACR-R3.1). */
+  rejectHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
+  /** Keep everything: re-baseline the whole work tree; clear the set (ACR-R1.7). */
+  acceptAll(workspace: string): Promise<ReviewResult>
+  /** Revert everything to the baseline; clear the set (ACR-R1.7, confirmed in UI). */
+  rejectAll(workspace: string): Promise<ReviewResult>
+  /** Tear down a workspace's in-memory state (workspace switch / close, ACR-R4.3). */
+  teardown(workspace: string): void
+}
+
+/** Per-workspace in-memory state. `baseline` null = clean (no un-reviewed turn yet). */
+interface WorkspaceState {
+  baseline: string | null
+  turns: TurnMark[]
+  changes: ReviewChange[]
+  /** path → mtimeMs captured at the last recompute, for the STALE guard (ACR-R3.2). */
+  mtimes: Map<string, number>
+}
+
+/** Sums a diff's add/del line counts (binary/tooLarge → 0/0, rendered as a state, never a count). */
+function countLines(diff: GitDiff): { adds: number; dels: number } {
+  let adds = 0
+  let dels = 0
+  for (const hunk of diff.hunks) {
+    for (const line of hunk.lines) {
+      if (line.type === 'add') adds++
+      else if (line.type === 'del') dels++
+    }
+  }
+  return { adds, dels }
+}
+
+export function createReviewService(deps: ReviewServiceDeps): ReviewService {
+  const { checkpoint, onChanged } = deps
+  const now = deps.now ?? Date.now
+  const states = new Map<string, WorkspaceState>()
+
+  function stateFor(workspace: string): WorkspaceState {
+    let s = states.get(workspace)
+    if (!s) {
+      s = { baseline: null, turns: [], changes: [], mtimes: new Map() }
+      states.set(workspace, s)
+    }
+    return s
+  }
+
+  /** Current on-disk mtime of a workspace-relative path, or `null` if it's gone. */
+  function mtimeOf(workspace: string, path: string): number | null {
+    try {
+      return statSync(join(workspace, path)).mtimeMs
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Recomputes `changes` from `diff(baseline → now)` and refreshes the mtime
+   * baseline. The single source of truth — every decision ends here so the set
+   * can never drift. Emits nothing on its own; callers decide when to `emit`.
+   * Only ever called with a non-null baseline (every caller guards).
+   */
+  async function recompute(workspace: string): Promise<void> {
+    const s = stateFor(workspace)
+    const raw = await checkpoint.diffToWorkTree(workspace, s.baseline as string)
+    const mtimes = new Map<string, number>()
+    s.changes = raw.map((c) => {
+      const { adds, dels } = countLines(c.diff)
+      const m = mtimeOf(workspace, c.path)
+      if (m !== null) mtimes.set(c.path, m)
+      return { path: c.path, status: c.status, diff: c.diff, adds, dels }
+    })
+    s.mtimes = mtimes
+    // The set went empty (everything reviewed) → drop the baseline so the next
+    // turn starts a fresh accumulation (ACR-C5).
+    if (s.changes.length === 0) {
+      s.baseline = null
+      s.turns = []
+    }
+  }
+
+  function snapshotOf(s: WorkspaceState): ReviewSnapshot {
+    return { changes: s.changes, turns: s.turns }
+  }
+
+  function emit(workspace: string): void {
+    onChanged(workspace, snapshotOf(stateFor(workspace)))
+  }
+
+  async function beginTurn(workspace: string, turnId: string): Promise<void> {
+    const s = stateFor(workspace)
+    // Only the first un-reviewed turn establishes the baseline; later turns
+    // accumulate into the same set (ACR-C5).
+    if (s.baseline === null) {
+      s.baseline = await checkpoint.snapshot(workspace)
+      s.changes = []
+      s.turns = []
+    }
+    s.turns.push({ turnId, at: now(), paths: [] })
+    emit(workspace)
+  }
+
+  async function onFsActivity(workspace: string): Promise<void> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return // idle manual edits don't spin up a set
+    await recompute(workspace)
+    emit(workspace)
+  }
+
+  async function endTurn(workspace: string, turnId: string, paths: string[]): Promise<void> {
+    const s = stateFor(workspace)
+    const mark = s.turns.find((t) => t.turnId === turnId)
+    if (mark) mark.paths = paths
+    if (s.baseline !== null) await recompute(workspace)
+    emit(workspace)
+  }
+
+  async function get(workspace: string): Promise<ReviewSnapshot> {
+    const s = stateFor(workspace)
+    if (s.baseline !== null) await recompute(workspace)
+    return snapshotOf(s)
+  }
+
+  /**
+   * True when `path`'s current on-disk mtime differs from the one captured at
+   * the last recompute — a hand-edit landed after the turn (ACR-R3.2). Returns
+   * false when we have no baseline mtime (nothing to protect).
+   */
+  function isStale(workspace: string, path: string): boolean {
+    const s = stateFor(workspace)
+    const known = s.mtimes.get(path)
+    if (known === undefined) return false
+    const current = mtimeOf(workspace, path)
+    return current !== null && current !== known
+  }
+
+  /** Marks a path stale in-place + emits, returning the STALE result the UI turns into a choice. */
+  function staleResult(workspace: string, path: string): ReviewResult {
+    const s = stateFor(workspace)
+    const change = s.changes.find((c) => c.path === path)
+    if (change) change.staleUserEdit = true
+    emit(workspace)
+    return { ok: false, stale: true }
+  }
+
+  async function acceptFile(workspace: string, path: string): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    if (isStale(workspace, path)) return staleResult(workspace, path)
+    s.baseline = await checkpoint.advanceBaseline(workspace, s.baseline, [path])
+    await recompute(workspace)
+    emit(workspace)
+    return { ok: true }
+  }
+
+  async function rejectFile(workspace: string, path: string): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    if (isStale(workspace, path)) return staleResult(workspace, path)
+    await checkpoint.revertPath(workspace, s.baseline, path)
+    await recompute(workspace)
+    emit(workspace)
+    return { ok: true }
+  }
+
+  /** Resolves a hunk object from the current change set by its stable id, or null. */
+  function resolveHunk(workspace: string, path: string, hunkId: string) {
+    const change = stateFor(workspace).changes.find((c) => c.path === path)
+    if (!change) return null
+    return findHunk(change.diff, hunkId)
+  }
+
+  async function acceptHunk(
+    workspace: string,
+    path: string,
+    hunkId: string
+  ): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    if (isStale(workspace, path)) return staleResult(workspace, path)
+    const hunk = resolveHunk(workspace, path, hunkId)
+    if (!hunk) return { ok: false }
+    s.baseline = await checkpoint.advanceBaselineHunk(workspace, s.baseline, path, hunk)
+    await recompute(workspace)
+    emit(workspace)
+    return { ok: true }
+  }
+
+  async function rejectHunk(
+    workspace: string,
+    path: string,
+    hunkId: string
+  ): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    if (isStale(workspace, path)) return staleResult(workspace, path)
+    const hunk = resolveHunk(workspace, path, hunkId)
+    if (!hunk) return { ok: false }
+    await checkpoint.applyReverseHunk(workspace, path, hunk)
+    await recompute(workspace)
+    emit(workspace)
+    return { ok: true }
+  }
+
+  async function acceptAll(workspace: string): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    // Keep every current byte: the whole work tree becomes the new baseline.
+    s.baseline = await checkpoint.snapshot(workspace)
+    await recompute(workspace) // → empty → clears baseline + turns
+    emit(workspace)
+    return { ok: true }
+  }
+
+  async function rejectAll(workspace: string): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null) return { ok: true }
+    // Revert each pending path to its baseline bytes (created→delete,
+    // modified→revert, deleted→restore), then the set diffs clean.
+    for (const change of s.changes) {
+      await checkpoint.revertPath(workspace, s.baseline, change.path)
+    }
+    await recompute(workspace) // → empty → clears baseline + turns
+    emit(workspace)
+    return { ok: true }
+  }
+
+  function teardown(workspace: string): void {
+    states.delete(workspace)
+  }
+
+  return {
+    beginTurn,
+    onFsActivity,
+    endTurn,
+    get,
+    acceptFile,
+    rejectFile,
+    acceptHunk,
+    rejectHunk,
+    acceptAll,
+    rejectAll,
+    teardown
+  }
+}

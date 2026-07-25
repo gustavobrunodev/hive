@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { buildHunkPatch, parseDiff, type GitDiff, type GitDiffHunk } from './gitParse'
@@ -96,6 +96,21 @@ export interface CheckpointService {
    * per-hunk reject primitive.
    */
   applyReverseHunk(ws: string, path: string, hunk: GitDiffHunk): Promise<void>
+  /**
+   * Advances the baseline so `paths` no longer diff — the **accept-file**
+   * primitive (ACR-R1.5). Builds a new baseline tree from `ref` with just
+   * `paths` set to their current work-tree state (created/modified staged,
+   * deleted removed), leaving every other path at `ref`. Returns the new tree
+   * OID. On-disk bytes are untouched (accept = keep).
+   */
+  advanceBaseline(ws: string, ref: string, paths: string[]): Promise<string>
+  /**
+   * Advances the baseline so one accepted `hunk` of `path` no longer diffs, the
+   * file's other hunks still pending — the **accept-hunk** primitive
+   * (ACR-R3.1). Forward-applies the hunk to the baseline content of `path` and
+   * splices the result back into a new baseline tree. On-disk bytes untouched.
+   */
+  advanceBaselineHunk(ws: string, ref: string, path: string, hunk: GitDiffHunk): Promise<string>
 }
 
 /** Heavy dirs / noise kept out of every snapshot so `add -A` stays cheap (OQ2, design §2). The workspace's own `.gitignore` is honored automatically on top of this. */
@@ -149,15 +164,20 @@ export function createCheckpointService(deps: CheckpointServiceDeps): Checkpoint
    * `GIT_INDEX_FILE` isolate every operation from the user's git;
    * `core.quotepath=false` keeps non-ASCII paths literal; `GIT_TERMINAL_PROMPT=0`
    * never hangs on a prompt (the store is local — there's nothing to prompt for).
+   *
+   * `opts.indexFile` overrides the persistent index with a scratch one — used
+   * by the baseline-advance primitives (accept), which build a new tree from
+   * `read-tree <baseline>` without disturbing the persistent index that
+   * `snapshot`/`diffToWorkTree` refresh.
    */
-  async function git(ws: string, args: string[]): Promise<string> {
+  async function git(ws: string, args: string[], opts?: { indexFile?: string }): Promise<string> {
     const { gitDir, indexFile } = storeFor(ws)
     const handle = processRunner.run('git', ['-c', 'core.quotepath=false', ...args], {
       cwd: ws,
       env: {
         GIT_DIR: gitDir,
         GIT_WORK_TREE: ws,
-        GIT_INDEX_FILE: indexFile,
+        GIT_INDEX_FILE: opts?.indexFile ?? indexFile,
         GIT_TERMINAL_PROMPT: '0'
       }
     })
@@ -168,17 +188,33 @@ export function createCheckpointService(deps: CheckpointServiceDeps): Checkpoint
     return stdout
   }
 
-  /** Lazily inits the private store (first snapshot): `git init` at the shadow `GIT_DIR` + the heavy-dir `info/exclude`. Idempotent. */
+  /** Runs `fn` with a fresh scratch index (temp `GIT_INDEX_FILE`), cleaned up afterward. */
+  async function withScratchIndex<T>(fn: (indexFile: string) => Promise<T>): Promise<T> {
+    const scratch = join(
+      tmpdir(),
+      `hive-cp-idx-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    )
+    try {
+      return await fn(scratch)
+    } finally {
+      try {
+        unlinkSync(scratch)
+      } catch {
+        // best-effort temp cleanup (it may never have been created)
+      }
+    }
+  }
+
+  /**
+   * Prepares the store's directory tree before the first `git init` (called by
+   * `initStore`, which already guards on `isInitialized`, so this only ever runs
+   * for an uninitialized store). `git init` itself is issued by the caller — it
+   * honors `GIT_DIR`, so the object db lands at the shadow path, never in the
+   * workspace. `mkdirSync({recursive})` is idempotent.
+   */
   function ensureInit(ws: string): void {
     const { store, gitDir } = storeFor(ws)
-    if (existsSync(gitDir)) return
     mkdirSync(store, { recursive: true })
-    // `git init` honors GIT_DIR, so the object db is created at the shadow path,
-    // never in the workspace. Run synchronously via the exclude write below —
-    // but init itself must go through git; callers await snapshot which awaits
-    // this through `git(...)`, so ensureInit only prepares the filesystem and
-    // the actual `git init` is issued by the caller. Keep it simple: create the
-    // dir tree, the caller's first `git init` populates it.
     mkdirSync(join(gitDir, 'info'), { recursive: true })
   }
 
@@ -291,7 +327,69 @@ export function createCheckpointService(deps: CheckpointServiceDeps): Checkpoint
     }
   }
 
-  return { snapshot, diffToWorkTree, fileAtRef, revertPath, applyReverseHunk }
+  async function advanceBaseline(ws: string, ref: string, paths: string[]): Promise<string> {
+    return withScratchIndex(async (indexFile) => {
+      await git(ws, ['read-tree', ref], { indexFile })
+      // `add -A -- <paths>` stages each path's current work-tree state into the
+      // baseline-loaded scratch index: a modified/created file updates, a
+      // deleted file is removed. Everything else stays at `ref`.
+      await git(ws, ['add', '-A', '--', ...paths], { indexFile })
+      return (await git(ws, ['write-tree'], { indexFile })).trim()
+    })
+  }
+
+  async function advanceBaselineHunk(
+    ws: string,
+    ref: string,
+    path: string,
+    hunk: GitDiffHunk
+  ): Promise<string> {
+    // Materialize the baseline content of `path`, forward-apply just this hunk
+    // to it (so the accepted region matches "now"), then splice the result back
+    // into a new baseline tree. Other hunks of the file remain pending.
+    const pre = (await fileAtRef(ws, ref, path)) ?? ''
+    const work = mkdtempSync(join(tmpdir(), 'hive-cp-hunk-'))
+    try {
+      const target = join(work, 'blob')
+      writeFileSync(target, pre)
+      const patchFile = join(work, 'p.patch')
+      // Rewrite the patch's file headers to the temp basename so `git apply`
+      // (run in the temp dir, plain — no shadow env) targets our scratch file.
+      const patch = buildHunkPatch('blob', hunk)
+      writeFileSync(patchFile, patch)
+      await plainGitApply(work, patchFile)
+      // Hash the forward-applied content into the shadow object db.
+      const blobOid = (await git(ws, ['hash-object', '-w', target])).trim()
+      return withScratchIndex(async (indexFile) => {
+        await git(ws, ['read-tree', ref], { indexFile })
+        await git(ws, ['update-index', '--add', '--cacheinfo', `100644,${blobOid},${path}`], {
+          indexFile
+        })
+        return (await git(ws, ['write-tree'], { indexFile })).trim()
+      })
+    } finally {
+      rmSync(work, { recursive: true, force: true })
+    }
+  }
+
+  /** Runs a plain `git apply --unidiff-zero <patchFile>` in `dir` (no shadow env — operates on the scratch file directly). */
+  async function plainGitApply(dir: string, patchFile: string): Promise<void> {
+    const handle = processRunner.run('git', ['apply', '--unidiff-zero', patchFile], { cwd: dir })
+    const { stderr, code } = await collect(handle)
+    if (code !== 0) {
+      throw new CheckpointError(code, stderr, `git apply --unidiff-zero ${patchFile}`)
+    }
+  }
+
+  return {
+    snapshot,
+    diffToWorkTree,
+    fileAtRef,
+    revertPath,
+    applyReverseHunk,
+    advanceBaseline,
+    advanceBaselineHunk
+  }
 }
 
 /**
