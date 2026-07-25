@@ -2168,12 +2168,80 @@
   line-height: 1.5;
 }
 .wb-diff-hunk-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   padding: 2px var(--s-2);
   color: var(--muted);
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+}
+
+.wb-diff-hunk-range {
   white-space: pre;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Agent Change Review (M11): the one accept/reject gesture (HunkActions) ── */
+/* The ✓/✗ pair reused inline, in the card, and in the panel. Quiet by default
+   (the diff is the interface), the success/danger role tokens only on hover/
+   focus so a big diff never screams (design.md §7). */
+.wb-hunk-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: 0 0 auto;
+}
+
+.wb-hunk-count {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.wb-hunk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1, 6px);
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.wb-hunk-actions[data-compact] .wb-hunk-btn {
+  padding: 2px 4px;
+}
+
+.wb-hunk-btn[data-kind='accept']:hover,
+.wb-hunk-btn[data-kind='accept']:focus-visible {
+  color: var(--wb-git-added);
+  background: color-mix(in oklab, var(--wb-git-added) 12%, transparent);
+  border-color: color-mix(in oklab, var(--wb-git-added) 40%, transparent);
+}
+
+.wb-hunk-btn[data-kind='reject']:hover,
+.wb-hunk-btn[data-kind='reject']:focus-visible {
+  color: var(--wb-git-deleted);
+  background: color-mix(in oklab, var(--wb-git-deleted) 12%, transparent);
+  border-color: color-mix(in oklab, var(--wb-git-deleted) 40%, transparent);
+}
+
+.wb-hunk-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 20%, transparent);
 }
 
 /* Unified rows. */

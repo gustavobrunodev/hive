@@ -1,8 +1,23 @@
 import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
-import { toSplitRows, type GitDiff, type GitDiffHunk, type GitDiffLine } from '../scm/gitStatus'
+import {
+  hunkKey,
+  toSplitRows,
+  type GitDiff,
+  type GitDiffHunk,
+  type GitDiffLine
+} from '../scm/gitStatus'
+import { HunkActions } from './HunkActions'
 
 type DiffMode = 'unified' | 'split'
+
+/** Optional per-hunk accept/reject callbacks (Agent Change Review, ACR-R3.1). When absent, DiffView is the plain M10 renderer (backward compatible). */
+interface HunkHandlers {
+  onHunkAccept: (hunkId: string) => void
+  onHunkReject: (hunkId: string) => void
+  /** Total hunk count, for the "Trecho n de m" label. */
+  total: number
+}
 
 /** The `+`/`-`/` ` sign for a line type. */
 function sign(type: GitDiffLine['type']): string {
@@ -43,10 +58,44 @@ function UnifiedLine({ line }: { line: GitDiffLine }): React.JSX.Element {
   )
 }
 
-function UnifiedHunk({ hunk }: { hunk: GitDiffHunk }): React.JSX.Element {
+/** A per-hunk control strip rendered in the hunk header when handlers are provided (ACR-R2.1/R3.1). */
+function HunkHeader({
+  hunk,
+  index,
+  hunks
+}: {
+  hunk: GitDiffHunk
+  index: number
+  hunks?: HunkHandlers
+}): React.JSX.Element {
+  return (
+    <div className="wb-diff-hunk-header">
+      <span className="wb-diff-hunk-range">{hunk.header}</span>
+      {hunks && (
+        <HunkActions
+          compact
+          target={t('review.hunkLabel', index + 1, hunks.total)}
+          label={t('review.hunkLabel', index + 1, hunks.total)}
+          onAccept={() => hunks.onHunkAccept(hunkKey(hunk, index))}
+          onReject={() => hunks.onHunkReject(hunkKey(hunk, index))}
+        />
+      )}
+    </div>
+  )
+}
+
+function UnifiedHunk({
+  hunk,
+  index,
+  hunks
+}: {
+  hunk: GitDiffHunk
+  index: number
+  hunks?: HunkHandlers
+}): React.JSX.Element {
   return (
     <div className="wb-diff-hunk">
-      <div className="wb-diff-hunk-header">{hunk.header}</div>
+      <HunkHeader hunk={hunk} index={index} hunks={hunks} />
       {hunk.lines.map((line, i) => (
         <UnifiedLine key={i} line={line} />
       ))}
@@ -71,11 +120,19 @@ function SplitCell({
   )
 }
 
-function SplitHunk({ hunk }: { hunk: GitDiffHunk }): React.JSX.Element {
+function SplitHunk({
+  hunk,
+  index,
+  hunks
+}: {
+  hunk: GitDiffHunk
+  index: number
+  hunks?: HunkHandlers
+}): React.JSX.Element {
   const rows = toSplitRows(hunk.lines)
   return (
     <div className="wb-diff-hunk">
-      <div className="wb-diff-hunk-header">{hunk.header}</div>
+      <HunkHeader hunk={hunk} index={index} hunks={hunks} />
       {rows.map((row, i) => (
         <div className="wb-diff-srow" key={i}>
           <SplitCell line={row.left} side="old" />
@@ -92,6 +149,13 @@ export interface DiffViewProps {
   title?: string
   /** Toolbar action slot (stage/unstage this file, open the actual file) — wired in T20. */
   actions?: ReactNode
+  /**
+   * Per-hunk accept/reject (Agent Change Review, ACR-R3.1). When both are
+   * given, each hunk header gains a ✓/✗ strip; the `hunkId` matches main's
+   * `gitParse.hunkId`. Omit for the plain M10 SCM diff (backward compatible).
+   */
+  onHunkAccept?: (hunkId: string) => void
+  onHunkReject?: (hunkId: string) => void
 }
 
 /**
@@ -101,8 +165,21 @@ export interface DiffViewProps {
  * rather than garbled text (GIT-R4.3). Scrolls inside its own container — never
  * the page (GIT-R4).
  */
-export function DiffView({ diff, title, actions }: DiffViewProps): React.JSX.Element {
+export function DiffView({
+  diff,
+  title,
+  actions,
+  onHunkAccept,
+  onHunkReject
+}: DiffViewProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
+
+  // Per-hunk controls render only when both handlers are supplied (the review
+  // surfaces pass them; M10 SCM callers don't).
+  const hunks: HunkHandlers | undefined =
+    onHunkAccept && onHunkReject
+      ? { onHunkAccept, onHunkReject, total: diff.hunks.length }
+      : undefined
 
   let body: ReactNode
   if (diff.binary) {
@@ -123,9 +200,9 @@ export function DiffView({ diff, title, actions }: DiffViewProps): React.JSX.Ele
       <div className="wb-diff-scroll" data-mode={mode}>
         {diff.hunks.map((hunk, i) =>
           mode === 'unified' ? (
-            <UnifiedHunk key={i} hunk={hunk} />
+            <UnifiedHunk key={i} hunk={hunk} index={i} hunks={hunks} />
           ) : (
-            <SplitHunk key={i} hunk={hunk} />
+            <SplitHunk key={i} hunk={hunk} index={i} hunks={hunks} />
           )
         )}
       </div>

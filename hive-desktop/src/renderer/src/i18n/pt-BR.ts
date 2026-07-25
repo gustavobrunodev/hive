@@ -542,7 +542,8 @@ export const ptBR = {
     refreshLabel: 'Atualizar',
     // Empty states (GIT-R1/R2.5) — teaching, not blank.
     emptyCleanTitle: 'Nenhuma alteração',
-    emptyCleanDescription: (branch: string) => `Tudo salvo em ${branch}. Faça uma alteração para começar.`,
+    emptyCleanDescription: (branch: string) =>
+      `Tudo salvo em ${branch}. Faça uma alteração para começar.`,
     emptyCleanDescriptionDetached: 'Tudo salvo. Faça uma alteração para começar.',
     notARepoTitle: 'Este workspace ainda não usa git',
     notARepoDescription:
@@ -697,6 +698,66 @@ export const ptBR = {
         fetch: 'Buscando…',
         publish: 'Publicando…'
       })[op] ?? 'Processando…'
+  },
+  // Agent Change Review (M11) — the tiered review surface (bar, panel, card,
+  // inline diff) over the single pending set.
+  review: {
+    // Per-hunk / per-file controls (HunkActions, one gesture everywhere, G3).
+    accept: 'Aceitar',
+    reject: 'Rejeitar',
+    acceptAria: (target: string) => `Aceitar ${target}`,
+    rejectAria: (target: string) => `Rejeitar ${target}`,
+    hunkLabel: (n: number, total: number) => `Trecho ${n} de ${total}`,
+    // Status labels (shape + text, never color alone, a11y).
+    statusCreated: 'novo',
+    statusModified: 'modificado',
+    statusDeleted: 'removido',
+    // +adds/-dels pills.
+    addsDels: (adds: number, dels: number) => `+${adds} −${dels}`,
+    // Review bar (ACR-R2.3).
+    barPending: (n: number) => (n === 1 ? `${n} mudança pendente` : `${n} mudanças pendentes`),
+    barReview: 'Revisar',
+    barAcceptAll: 'Aceitar tudo',
+    barRejectAll: 'Rejeitar tudo',
+    barLabel: 'Mudanças do agente para revisar',
+    // Sidebar panel (ACR-R2.4).
+    panelTitle: 'Revisão do agente',
+    railLabel: 'Revisão do agente',
+    groupCreated: 'Criados',
+    groupModified: 'Modificados',
+    groupRemoved: 'Removidos',
+    openDiffAria: (path: string) => `Abrir diferenças de ${path}`,
+    // Empty state (ACR-R1.8) — teaches, never a void.
+    emptyTitle: 'Sem mudanças para revisar',
+    emptyDescription:
+      'Quando o agente editar arquivos, as mudanças aparecem aqui para você aceitar ou rejeitar.',
+    // Reject-all confirmation (the one destructive modal, G4).
+    rejectAllTitle: 'Rejeitar todas as mudanças?',
+    rejectAllDescription: (n: number) =>
+      n === 1
+        ? 'A mudança do agente será desfeita e o arquivo voltará ao estado anterior ao turno.'
+        : `As ${n} mudanças do agente serão desfeitas e os arquivos voltarão ao estado anterior ao turno.`,
+    rejectAllConfirm: 'Rejeitar tudo',
+    rejectAllCancel: 'Cancelar',
+    // In-chat change card (ACR-R2.2).
+    cardTitle: (n: number) => (n === 1 ? 'Editei 1 arquivo' : `Editei ${n} arquivos`),
+    cardReviewed: 'Revisado',
+    cardExpand: 'Ver diferenças',
+    cardCollapse: 'Ocultar diferenças',
+    // Inline editor diff nav (ACR-R2.1).
+    inlinePrevAria: 'Trecho anterior',
+    inlineNextAria: 'Próximo trecho',
+    inlineNav: (n: number, total: number) => `${n} de ${total}`,
+    // STALE concurrent-edit guard (ACR-R3.2).
+    staleTitle: 'Arquivo alterado por você',
+    staleDescription: (path: string) =>
+      `Você editou “${path}” depois do turno do agente. O que fazer com as mudanças do agente?`,
+    staleKeepMine: 'Manter minhas edições',
+    staleTakeAgent: 'Usar a do agente',
+    staleCancel: 'Cancelar',
+    // Undo-accept toast (ACR-R4.2).
+    undoAccept: 'Mudança aceita',
+    undoAction: 'Desfazer'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

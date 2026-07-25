@@ -169,6 +169,16 @@ export function toSplitRows(lines: GitDiffLine[]): SplitRow[] {
 }
 
 /**
+ * The stable per-file hunk key, matching main's `gitParse.hunkId` exactly
+ * (`index:oldStart:newStart`) so the renderer and main agree on which hunk a
+ * per-hunk accept/reject targets (Agent Change Review, ACR-R3.1). Kept here
+ * next to the diff-derived types the review surfaces already import.
+ */
+export function hunkKey(hunk: GitDiffHunk, index: number): string {
+  return `${index}:${hunk.oldStart}:${hunk.newStart}`
+}
+
+/**
  * The set of folder paths that have at least one changed (non-ignored)
  * descendant — the explorer's folder rollup dot (design.md §6.3). Walks each
  * decorated path up to the root, collecting every ancestor directory.
