@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { parseDiff, type GitDiff } from './gitParse'
+import { buildHunkPatch, parseDiff, type GitDiff, type GitDiffHunk } from './gitParse'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
 
 /**
@@ -90,11 +90,12 @@ export interface CheckpointService {
    */
   revertPath(ws: string, ref: string, path: string): Promise<void>
   /**
-   * Reverse-applies one hunk's `patch` to `path` on disk (`git apply -R
-   * --unidiff-zero`), leaving every other hunk untouched (ACR-R3.1). The patch
-   * is built by `gitParse.buildHunkPatch` (T3/T4); this is the apply primitive.
+   * Reverse-applies one `hunk` to `path` on disk, leaving every other hunk
+   * untouched (ACR-R3.1). Builds the hunk's minimal patch via
+   * `gitParse.buildHunkPatch` and `git apply -R --unidiff-zero`s it — the
+   * per-hunk reject primitive.
    */
-  applyReverseHunk(ws: string, path: string, patch: string): Promise<void>
+  applyReverseHunk(ws: string, path: string, hunk: GitDiffHunk): Promise<void>
 }
 
 /** Heavy dirs / noise kept out of every snapshot so `add -A` stays cheap (OQ2, design §2). The workspace's own `.gitignore` is honored automatically on top of this. */
@@ -269,10 +270,8 @@ export function createCheckpointService(deps: CheckpointServiceDeps): Checkpoint
     await git(ws, ['checkout', ref, '--', path])
   }
 
-  async function applyReverseHunk(ws: string, _path: string, patch: string): Promise<void> {
-    // `_path` (part of the interface signature) is embedded in the patch's own
-    // `---`/`+++` headers, so the raw-patch primitive doesn't need it directly;
-    // T4 layers a `GitDiffHunk`-taking overload that uses it to build the patch.
+  async function applyReverseHunk(ws: string, path: string, hunk: GitDiffHunk): Promise<void> {
+    const patch = buildHunkPatch(path, hunk)
     // `git apply` reads the patch from a file (the injected ProcessRunner closes
     // stdin), mirroring how `gitService.commit` passes its message via `-F`.
     // `--unidiff-zero` allows zero-context hunks; `-R` reverse-applies (reject).

@@ -186,19 +186,40 @@ describe('revertPath', () => {
   })
 })
 
-describe('applyReverseHunk (raw patch primitive)', () => {
-  it('reverse-applies a unified patch, restoring the pre-image bytes', async () => {
+describe('applyReverseHunk (over the GitDiffHunk patch builder, T4)', () => {
+  it('rejects one hunk, restoring its bytes and leaving the file clean', async () => {
     write('f.txt', 'line1\nline2\nline3\n')
     const ref = await svc.snapshot(ws)
     write('f.txt', 'line1\nCHANGED\nline3\n')
 
-    // A minimal unified patch describing the change we want to reject.
-    const patch = ['--- a/f.txt', '+++ b/f.txt', '@@ -2 +2 @@', '-line2', '+CHANGED', ''].join('\n')
+    // The single-hunk diff of the change we want to reject.
+    const [change] = await svc.diffToWorkTree(ws, ref)
+    await svc.applyReverseHunk(ws, 'f.txt', change.diff.hunks[0])
 
-    await svc.applyReverseHunk(ws, 'f.txt', patch)
     expect(read('f.txt')).toBe('line1\nline2\nline3\n')
-    // ref is unused by the primitive but the baseline still diffs clean now.
     expect(await svc.diffToWorkTree(ws, ref)).toEqual([])
+  })
+
+  it('rejects one hunk of a two-hunk file, leaving the other hunk intact', async () => {
+    // 12 lines so the two edited regions (line 1, line 12) are far enough
+    // apart that git's default 3-line context keeps them as separate hunks.
+    const base = Array.from({ length: 12 }, (_, i) => `l${i + 1}`)
+    write('f.txt', base.join('\n') + '\n')
+    const ref = await svc.snapshot(ws)
+    const edited = [...base]
+    edited[0] = 'L1_NEW'
+    edited[11] = 'L12_NEW'
+    write('f.txt', edited.join('\n') + '\n')
+
+    const [change] = await svc.diffToWorkTree(ws, ref)
+    expect(change.diff.hunks).toHaveLength(2)
+    // Reject only the second hunk (line 12).
+    await svc.applyReverseHunk(ws, 'f.txt', change.diff.hunks[1])
+
+    // The first hunk's change (L1_NEW) stays; the second is reverted to l12.
+    const expected = [...base]
+    expected[0] = 'L1_NEW'
+    expect(read('f.txt')).toBe(expected.join('\n') + '\n')
   })
 })
 
