@@ -39,6 +39,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
+import type { ReviewResult, ReviewSnapshot } from '../main/reviewService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -571,6 +572,41 @@ const hive = {
       return () => {
         ipcRenderer.removeListener('git:changed', listener)
         ipcRenderer.send('git:changed:stop')
+      }
+    }
+  },
+
+  // Agent Change Review (M11, T7): the pending-set query + accept/reject
+  // bridge, arg order mirroring each `review:<name>` handler in main/index.ts.
+  // Plain invoke/response (no GitError-style wrapping — decisions return a
+  // `ReviewResult`, `{stale:true}` and all). `onChanged` is the streaming half,
+  // the `git.onChanged` pattern: it carries the fresh snapshot for the workspace
+  // so all four review surfaces re-render from one source (ACR-R2.5).
+  review: {
+    get: (workspace: string): Promise<ReviewSnapshot> =>
+      ipcRenderer.invoke('review:get', workspace),
+    acceptFile: (workspace: string, path: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:acceptFile', workspace, path),
+    rejectFile: (workspace: string, path: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:rejectFile', workspace, path),
+    acceptHunk: (workspace: string, path: string, hunkId: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:acceptHunk', workspace, path, hunkId),
+    rejectHunk: (workspace: string, path: string, hunkId: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:rejectHunk', workspace, path, hunkId),
+    acceptAll: (workspace: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:acceptAll', workspace),
+    rejectAll: (workspace: string): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:rejectAll', workspace),
+    onChanged: (onChanged: (evt: { workspace: string } & ReviewSnapshot) => void): (() => void) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        evt: { workspace: string } & ReviewSnapshot
+      ): void => onChanged(evt)
+      ipcRenderer.on('review:changed', listener)
+      ipcRenderer.send('review:changed:start')
+      return () => {
+        ipcRenderer.removeListener('review:changed', listener)
+        ipcRenderer.send('review:changed:stop')
       }
     }
   }

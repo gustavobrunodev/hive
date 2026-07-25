@@ -808,4 +808,50 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.send).toHaveBeenCalledWith('git:changed:stop')
     })
   })
+
+  // Agent Change Review (M11, T7): the review bridge — plain invoke/response
+  // decisions + the review:changed snapshot stream.
+  describe('hive.review bridge', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const review = (): any => (exposedGlobals().get('hive') as any).review
+
+    it('routes get/accept/reject calls through the matching review:* channels', async () => {
+      const r = review()
+      await r.get('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:get', '/ws')
+      await r.acceptFile('/ws', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:acceptFile', '/ws', 'a.txt')
+      await r.rejectFile('/ws', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:rejectFile', '/ws', 'a.txt')
+      await r.acceptHunk('/ws', 'a.txt', '0:1:1')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:acceptHunk', '/ws', 'a.txt', '0:1:1')
+      await r.rejectHunk('/ws', 'a.txt', '0:1:1')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:rejectHunk', '/ws', 'a.txt', '0:1:1')
+      await r.acceptAll('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:acceptAll', '/ws')
+      await r.rejectAll('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:rejectAll', '/ws')
+    })
+
+    it('subscribes to review:changed, relays the snapshot, and unsubscribes', () => {
+      const cb = vi.fn()
+      const unsubscribe = review().onChanged(cb)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('review:changed', expect.any(Function))
+      expect(ipcRenderer.send).toHaveBeenCalledWith('review:changed:start')
+
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'review:changed')?.[1] as (
+        event: unknown,
+        evt: unknown
+      ) => void
+      const payload = { workspace: '/ws', changes: [], turns: [] }
+      listener({}, payload)
+      expect(cb).toHaveBeenCalledWith(payload)
+
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('review:changed', listener)
+      expect(ipcRenderer.send).toHaveBeenCalledWith('review:changed:stop')
+    })
+  })
 })

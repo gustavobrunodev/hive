@@ -38,6 +38,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
+import type { ReviewResult, ReviewSnapshot } from '../main/reviewService'
 
 declare global {
   interface Window {
@@ -248,6 +249,24 @@ declare global {
         stashDrop(workspace: string, index: number): Promise<void>
         /** Subscribes to post-mutation change pings; returns an unsubscribe function. */
         onChanged(onChanged: (evt: { root: string }) => void): () => void
+      }
+      /**
+       * Agent Change Review (M11) surface — the single pending set + accept/
+       * reject at hunk/file/set granularity. `onChanged` streams the fresh
+       * snapshot for a workspace after every recompute/decision so all four
+       * review surfaces read one source (ACR-R2.5). Decisions resolve to a
+       * `ReviewResult` (`{stale:true}` when a hand-edit would be clobbered).
+       */
+      review: {
+        get(workspace: string): Promise<ReviewSnapshot>
+        acceptFile(workspace: string, path: string): Promise<ReviewResult>
+        rejectFile(workspace: string, path: string): Promise<ReviewResult>
+        acceptHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
+        rejectHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
+        acceptAll(workspace: string): Promise<ReviewResult>
+        rejectAll(workspace: string): Promise<ReviewResult>
+        /** Subscribes to snapshot pushes; returns an unsubscribe function. */
+        onChanged(onChanged: (evt: { workspace: string } & ReviewSnapshot) => void): () => void
       }
     }
   }
