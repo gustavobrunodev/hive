@@ -1,4 +1,4 @@
-import { configDefaults, defineConfig } from 'vitest/config'
+import { coverageConfigDefaults, configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   // npm-distribution T11: `@hive/design-system` is a `file:../design-system`
@@ -26,6 +26,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
+      // agent-change-review (M11): the two large shell components live under
+      // `scm/` and would otherwise be caught by the `src/renderer/src/scm/**`
+      // 90/90/90/90 glob below. They follow the `SkillStudio`/`McpManager`
+      // precedent (presentational shells, ungated) — excluded from coverage
+      // collection so the directory glob only gates the module's logic files
+      // (`useReview.ts`, `inlineDiff.ts`). Their behavior is still exercised by
+      // their `.test.tsx` siblings; only the numeric gate is lifted. T1, R9.2.
+      exclude: [
+        ...coverageConfigDefaults.exclude,
+        'src/renderer/src/scm/AgentReviewPanel.tsx',
+        'src/renderer/src/scm/InlineAgentDiff.tsx'
+      ],
       // Global thresholds stay low/off — this feature (file-management)
       // enforces coverage per-file only on the files it touches; the rest
       // of the codebase isn't held to this gate yet. T1, FM-R8.2.
@@ -205,6 +217,27 @@ export default defineConfig({
           lines: 90
         },
         'src/renderer/src/ui/UnsavedGuardDialog.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // agent-change-review (M11): the shadow-git snapshot engine + the
+        // pending-set/decision service (main), and the ✓/✗ per-hunk control
+        // (renderer). `gitParse.ts` (hunk-id + patch builder, T3) and the whole
+        // `scm/**` module (`useReview.ts`, `inlineDiff.ts`, T8/T13) are already
+        // gated above; `main/index.ts`/`preload/index.ts` cover the new
+        // `review:*` handlers/bridge (T6/T7). The larger renderer shells
+        // (`AgentReviewPanel`, `InlineAgentDiff`, `ChangeCard`, `ReviewBar`)
+        // follow the `SkillStudio`/`McpManager` precedent (ungated). T1, R9.2.
+        'src/main/checkpointService.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/reviewService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/HunkActions.tsx': {
           statements: 90,
           branches: 90,
           functions: 90,
