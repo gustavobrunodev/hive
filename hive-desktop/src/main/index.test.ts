@@ -236,6 +236,36 @@ const { fakeReviewService } = vi.hoisted(() => ({
 vi.mock('./checkpointService', () => ({ createCheckpointService: vi.fn(() => ({})) }))
 vi.mock('./reviewService', () => ({ createReviewService: vi.fn(() => fakeReviewService) }))
 
+// SecondBrainService/Vault (second-brain): mocked so index.test.ts asserts the
+// wiring only — each module's own math is covered by secondBrainService.test.ts
+// / secondBrainVault.test.ts. install/update are async generators yielding a
+// scripted SkillEvent stream so the streamed-handler path (runSbStream) is
+// exercised without spawning a real `npx`.
+const { fakeSecondBrainService, fakeSecondBrainVault } = vi.hoisted(() => ({
+  fakeSecondBrainService: {
+    detect: vi.fn(() => false),
+    resolveVault: vi.fn(() => null as { path: string; name: string } | null),
+
+    install: vi.fn(async function* () {
+      yield { type: 'step', id: 'found', label: 'Found 4 skills' }
+      yield { type: 'done', ok: true }
+    }),
+    update: vi.fn(async function* () {
+      yield { type: 'done', ok: true }
+    })
+  },
+  fakeSecondBrainVault: {
+    stageRaw: vi.fn(() => ({ relPath: 'second-brain/raw/ingest-x.md', absPath: '/abs/x.md' })),
+    countRawPending: vi.fn(() => 0)
+  }
+}))
+vi.mock('./secondBrainService', () => ({
+  createSecondBrainService: vi.fn(() => fakeSecondBrainService)
+}))
+vi.mock('./secondBrainVault', () => ({
+  createSecondBrainVault: vi.fn(() => fakeSecondBrainVault)
+}))
+
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
   if (!call) throw new Error(`no ipcMain.handle registered for "${channel}"`)
@@ -1209,6 +1239,97 @@ describe('main process bootstrap', () => {
       )
 
       rmSync(dir, { recursive: true, force: true })
+    })
+  })
+
+  describe('secondBrain:* handlers (second-brain)', () => {
+    it('registers the streamed install/update channels and the request/response handlers', () => {
+      for (const ch of [
+        'secondBrain:install:start',
+        'secondBrain:install:stop',
+        'secondBrain:update:start',
+        'secondBrain:update:stop'
+      ]) {
+        expect(ipcMain.on).toHaveBeenCalledWith(ch, expect.any(Function))
+      }
+      for (const ch of [
+        'secondBrain:isProvisioned',
+        'secondBrain:getVault',
+        'secondBrain:stageRaw'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
+      }
+    })
+
+    it('isProvisioned routes to the service.detect', async () => {
+      fakeSecondBrainService.detect.mockReturnValueOnce(true)
+      expect(await findHandler('secondBrain:isProvisioned')({}, '/ws')).toBe(true)
+      expect(fakeSecondBrainService.detect).toHaveBeenCalledWith('/ws')
+    })
+
+    it('getVault combines resolveVault with the vault raw-pending count', async () => {
+      fakeSecondBrainService.resolveVault.mockReturnValueOnce({
+        path: '/ws/second-brain',
+        name: 'second-brain'
+      })
+      fakeSecondBrainVault.countRawPending.mockReturnValueOnce(3)
+
+      expect(await findHandler('secondBrain:getVault')({}, '/ws')).toEqual({
+        path: '/ws/second-brain',
+        name: 'second-brain',
+        rawPending: 3
+      })
+    })
+
+    it('getVault returns null path/name when no vault is configured', async () => {
+      fakeSecondBrainService.resolveVault.mockReturnValueOnce(null)
+      fakeSecondBrainVault.countRawPending.mockReturnValueOnce(0)
+      expect(await findHandler('secondBrain:getVault')({}, '/ws')).toEqual({
+        path: null,
+        name: null,
+        rawPending: 0
+      })
+    })
+
+    it('stageRaw routes to the vault and returns only the relPath', async () => {
+      fakeSecondBrainVault.stageRaw.mockReturnValueOnce({
+        relPath: 'second-brain/raw/ingest-y.md',
+        absPath: '/ws/second-brain/raw/ingest-y.md'
+      })
+      expect(await findHandler('secondBrain:stageRaw')({}, '/ws', 'hello')).toEqual({
+        relPath: 'second-brain/raw/ingest-y.md'
+      })
+      expect(fakeSecondBrainVault.stageRaw).toHaveBeenCalledWith('/ws', 'hello')
+    })
+
+    it('install:start streams SkillEvents to the sender, and install:stop halts forwarding', async () => {
+      const send = vi.fn()
+      const event = { sender: { id: 4242, send } }
+
+      findOnHandler('secondBrain:install:start')(event, '/ws')
+      await new Promise((r) => setTimeout(r, 0))
+
+      expect(fakeSecondBrainService.install).toHaveBeenCalledWith('/ws')
+      expect(send).toHaveBeenCalledWith('secondBrain:install:event', {
+        type: 'step',
+        id: 'found',
+        label: 'Found 4 skills'
+      })
+      expect(send).toHaveBeenCalledWith('secondBrain:install:event', { type: 'done', ok: true })
+
+      // stop is a no-throw no-op (the stream already finished).
+      expect(() => findOnHandler('secondBrain:install:stop')(event)).not.toThrow()
+    })
+
+    it('update:start streams via the update channel', async () => {
+      const send = vi.fn()
+      findOnHandler('secondBrain:update:start')({ sender: { id: 99, send } }, '/ws')
+      await new Promise((r) => setTimeout(r, 0))
+      expect(fakeSecondBrainService.update).toHaveBeenCalledWith('/ws')
+      expect(send).toHaveBeenCalledWith('secondBrain:update:event', { type: 'done', ok: true })
+      expect(() =>
+        findOnHandler('secondBrain:update:stop')({ sender: { id: 99, send } })
+      ).not.toThrow()
     })
   })
 })

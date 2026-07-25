@@ -40,6 +40,7 @@ import type {
   GitStatus
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
+import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -609,6 +610,37 @@ const hive = {
         ipcRenderer.send('review:changed:stop')
       }
     }
+  },
+
+  // Second Brain (second-brain). install/update stream SkillEvents on a
+  // start/event/stop channel trio (the installBmad/updateBmad pattern);
+  // isProvisioned/getVault/stageRaw are plain invoke/response. Arg order
+  // mirrors each `secondBrain:*` handler in main/index.ts.
+  secondBrain: {
+    install: (workspace: string, onEvent: (evt: SkillEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: SkillEvent): void => onEvent(evt)
+      ipcRenderer.on('secondBrain:install:event', listener)
+      ipcRenderer.send('secondBrain:install:start', workspace)
+      return () => {
+        ipcRenderer.removeListener('secondBrain:install:event', listener)
+        ipcRenderer.send('secondBrain:install:stop')
+      }
+    },
+    update: (workspace: string, onEvent: (evt: SkillEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: SkillEvent): void => onEvent(evt)
+      ipcRenderer.on('secondBrain:update:event', listener)
+      ipcRenderer.send('secondBrain:update:start', workspace)
+      return () => {
+        ipcRenderer.removeListener('secondBrain:update:event', listener)
+        ipcRenderer.send('secondBrain:update:stop')
+      }
+    },
+    isProvisioned: (workspace: string): Promise<boolean> =>
+      ipcRenderer.invoke('secondBrain:isProvisioned', workspace),
+    getVault: (workspace: string): Promise<VaultStatus> =>
+      ipcRenderer.invoke('secondBrain:getVault', workspace),
+    stageRaw: (workspace: string, content: string): Promise<{ relPath: string }> =>
+      ipcRenderer.invoke('secondBrain:stageRaw', workspace, content)
   }
 }
 

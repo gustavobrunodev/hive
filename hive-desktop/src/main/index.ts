@@ -23,6 +23,8 @@ import type {
   WorkflowCommand
 } from './agentAdapter'
 import { createBmadService, type BmadInstallOptions } from './bmadService'
+import { createSecondBrainService } from './secondBrainService'
+import { createSecondBrainVault } from './secondBrainVault'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
@@ -761,6 +763,77 @@ app.whenReady().then(() => {
   ipcMain.on('bmad:update:stop', (event) => {
     activeUpdateStops.get(event.sender.id)?.()
     activeUpdateStops.delete(event.sender.id)
+  })
+
+  // SecondBrainService (second-brain, SB-R1/R2/R3): reuses the same
+  // ProcessRunner. install/update stream SkillEvents on the exact same
+  // start/event/stop shape as bmad:install/update:*; isProvisioned/getVault/
+  // stageRaw are request/response. getVault combines the service's
+  // resolveVault with the vault module's raw-pending count (SB-R2.5).
+  const secondBrainService = createSecondBrainService(processRunner)
+  const secondBrainVault = createSecondBrainVault()
+  const activeSbInstallStops = new Map<number, () => void>()
+  const activeSbUpdateStops = new Map<number, () => void>()
+
+  const runSbStream = (
+    event: Electron.IpcMainEvent,
+    stops: Map<number, () => void>,
+    channel: string,
+    stream: AsyncIterable<import('./secondBrainTypes').SkillEvent>
+  ): void => {
+    stops.get(event.sender.id)?.()
+    let stopped = false
+    void (async () => {
+      for await (const skillEvent of stream) {
+        if (stopped) return
+        event.sender.send(channel, skillEvent)
+      }
+    })()
+    stops.set(event.sender.id, () => {
+      stopped = true
+    })
+  }
+
+  ipcMain.on('secondBrain:install:start', (event, workspace: string) => {
+    runSbStream(
+      event,
+      activeSbInstallStops,
+      'secondBrain:install:event',
+      secondBrainService.install(workspace)
+    )
+  })
+  ipcMain.on('secondBrain:install:stop', (event) => {
+    activeSbInstallStops.get(event.sender.id)?.()
+    activeSbInstallStops.delete(event.sender.id)
+  })
+
+  ipcMain.on('secondBrain:update:start', (event, workspace: string) => {
+    runSbStream(
+      event,
+      activeSbUpdateStops,
+      'secondBrain:update:event',
+      secondBrainService.update(workspace)
+    )
+  })
+  ipcMain.on('secondBrain:update:stop', (event) => {
+    activeSbUpdateStops.get(event.sender.id)?.()
+    activeSbUpdateStops.delete(event.sender.id)
+  })
+
+  ipcMain.handle('secondBrain:isProvisioned', async (_event, workspace: string) =>
+    secondBrainService.detect(workspace)
+  )
+  ipcMain.handle('secondBrain:getVault', async (_event, workspace: string) => {
+    const vault = secondBrainService.resolveVault(workspace)
+    return {
+      path: vault?.path ?? null,
+      name: vault?.name ?? null,
+      rawPending: secondBrainVault.countRawPending(workspace)
+    }
+  })
+  ipcMain.handle('secondBrain:stageRaw', async (_event, workspace: string, content: string) => {
+    const { relPath } = secondBrainVault.stageRaw(workspace, content)
+    return { relPath }
   })
 
   // ChatHistoryStore (session-history): request/response, same

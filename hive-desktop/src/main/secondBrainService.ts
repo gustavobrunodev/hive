@@ -1,24 +1,9 @@
 import { existsSync, statSync, readdirSync } from 'fs'
 import { join } from 'path'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
+import type { SkillEvent, VaultInfo } from './secondBrainTypes'
 
-/**
- * Second-brain skill lifecycle events (SB-R1) — the guided provisioning gate
- * renders these exactly like BMAD's `BmadEvent`. Shape matches design.md §8.
- * `done`/`error` are synthesized from the process exit result, not parsed from
- * text; `step`/`progress` come from the CLI's line output (T1-captured markers).
- */
-export type SkillEvent =
-  | { type: 'step'; id: string; label: string }
-  | { type: 'progress'; pct?: number; message: string }
-  | { type: 'done'; ok: true }
-  | { type: 'error'; message: string; detail?: string }
-
-/** Where the vault lives and what it's called (SB-R2.1/2.3, design §2). */
-export interface VaultInfo {
-  path: string
-  name: string
-}
+export type { SkillEvent, VaultInfo } from './secondBrainTypes'
 
 export interface SecondBrainService {
   /** SB-R1.1: is the `second-brain` skill installed in this workspace? */

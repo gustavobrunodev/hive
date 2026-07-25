@@ -39,6 +39,7 @@ import type {
   GitStatus
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
+import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
 
 declare global {
   interface Window {
@@ -267,6 +268,23 @@ declare global {
         rejectAll(workspace: string): Promise<ReviewResult>
         /** Subscribes to snapshot pushes; returns an unsubscribe function. */
         onChanged(onChanged: (evt: { workspace: string } & ReviewSnapshot) => void): () => void
+      }
+      /**
+       * Second Brain (SB-R1/R2/R3): skill provisioning (streamed, like
+       * install/updateBmad), vault status, and raw staging. See
+       * preload/index.ts for the channel design.
+       */
+      secondBrain: {
+        /** SB-R1.1: install the four second-brain skills; streams SkillEvents, returns unsubscribe. */
+        install(workspace: string, onEvent: (evt: SkillEvent) => void): () => void
+        /** SB-R1.2: update the installed skills; streams SkillEvents, returns unsubscribe. */
+        update(workspace: string, onEvent: (evt: SkillEvent) => void): () => void
+        /** SB-R1.1: is the second-brain skill installed in this workspace? */
+        isProvisioned(workspace: string): Promise<boolean>
+        /** SB-R2: the vault path/name + count of raw files awaiting ingestion. */
+        getVault(workspace: string): Promise<VaultStatus>
+        /** SB-R3.2: stage raw content into the vault's raw/ inbox; returns the workspace-relative path. */
+        stageRaw(workspace: string, content: string): Promise<{ relPath: string }>
       }
     }
   }

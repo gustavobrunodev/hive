@@ -854,4 +854,48 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.send).toHaveBeenCalledWith('review:changed:stop')
     })
   })
+
+  // Second Brain (M12): streamed install/update + invoke isProvisioned/getVault/stageRaw.
+  describe('hive.secondBrain bridge', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = (): any => (exposedGlobals().get('hive') as any).secondBrain
+
+    it('routes isProvisioned/getVault/stageRaw through the matching secondBrain:* channels', async () => {
+      await sb().isProvisioned('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('secondBrain:isProvisioned', '/ws')
+      await sb().getVault('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('secondBrain:getVault', '/ws')
+      await sb().stageRaw('/ws', 'hello')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('secondBrain:stageRaw', '/ws', 'hello')
+    })
+
+    for (const kind of ['install', 'update'] as const) {
+      it(`${kind} subscribes to secondBrain:${kind}:event, relays SkillEvents, and unsubscribes`, () => {
+        const onEvent = vi.fn()
+        const unsubscribe = sb()[kind]('/ws', onEvent)
+        expect(ipcRenderer.on).toHaveBeenCalledWith(
+          `secondBrain:${kind}:event`,
+          expect.any(Function)
+        )
+        expect(ipcRenderer.send).toHaveBeenCalledWith(`secondBrain:${kind}:start`, '/ws')
+
+        const listener = vi
+          .mocked(ipcRenderer.on)
+          .mock.calls.find(([ch]) => ch === `secondBrain:${kind}:event`)?.[1] as (
+          event: unknown,
+          evt: unknown
+        ) => void
+        const evt = { type: 'done', ok: true }
+        listener({}, evt)
+        expect(onEvent).toHaveBeenCalledWith(evt)
+
+        unsubscribe()
+        expect(ipcRenderer.removeListener).toHaveBeenCalledWith(
+          `secondBrain:${kind}:event`,
+          listener
+        )
+        expect(ipcRenderer.send).toHaveBeenCalledWith(`secondBrain:${kind}:stop`)
+      })
+    }
+  })
 })
