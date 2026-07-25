@@ -33,6 +33,8 @@ function makeStore(changes: ReviewChange[], over?: Partial<ReviewStore>): Review
     rejectHunk: vi.fn(async () => ({ ok: true })),
     acceptAll: vi.fn(async () => ({ ok: true })),
     rejectAll: vi.fn(async () => ({ ok: true })),
+    staleConflict: null,
+    resolveStale: vi.fn(async () => {}),
     ...over
   }
 }

@@ -1336,7 +1336,9 @@ describe('Chat', () => {
       acceptHunk: vi.fn(async () => ({ ok: true })),
       rejectHunk: vi.fn(async () => ({ ok: true })),
       acceptAll: vi.fn(async () => ({ ok: true })),
-      rejectAll: vi.fn(async () => ({ ok: true }))
+      rejectAll: vi.fn(async () => ({ ok: true })),
+      staleConflict: null,
+      resolveStale: vi.fn(async () => {})
     }
     render(
       createElement(

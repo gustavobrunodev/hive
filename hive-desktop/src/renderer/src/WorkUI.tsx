@@ -26,6 +26,7 @@ import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
 import { ReviewDiffTab } from './scm/ReviewDiffTab'
 import { ReviewBar } from './ui/ReviewBar'
+import { StaleGuardDialog } from './ui/StaleGuardDialog'
 import { DiffTab } from './scm/DiffTab'
 import { CommitDiffTab } from './scm/CommitDiffTab'
 import { ConflictView } from './ui/ConflictView'
@@ -879,6 +880,7 @@ export function WorkUI({
             work-surface footer, above the status bar — present only while the
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
           <ReviewBar onReview={() => setActiveView('review')} />
+          <StaleGuardDialog />
           <StatusBar
             onChanges={() => setActiveView('scm')}
             onInit={() => void git.init()}

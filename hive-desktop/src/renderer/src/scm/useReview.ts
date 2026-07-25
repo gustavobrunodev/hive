@@ -48,6 +48,18 @@ export interface ReviewStore {
   rejectHunk: (path: string, hunkId: string) => Promise<ReviewResult>
   acceptAll: () => Promise<ReviewResult>
   rejectAll: () => Promise<ReviewResult>
+  /**
+   * A file whose accept/reject was blocked because it was hand-edited after the
+   * turn (ACR-R3.2) — non-null drives the STALE guard dialog (T18). Any
+   * decision that returns `{stale:true}` sets this.
+   */
+  staleConflict: { path: string } | null
+  /**
+   * Resolves the STALE guard: `mine` keeps the current (hand-edited) bytes,
+   * `agent` restores the pre-turn state, `cancel` dismisses. Re-syncs the
+   * baseline mtime first so the retried decision isn't re-flagged.
+   */
+  resolveStale: (choice: 'mine' | 'agent' | 'cancel') => Promise<void>
 }
 
 /** Snapshot tagged with the workspace it belongs to (stale-switch filtering, the useGit pattern). */
@@ -105,24 +117,51 @@ export function useReviewStore(workspace: string): ReviewStore {
   const pendingCount = changes.length
   const isStale = useMemo(() => changes.some((c) => c.staleUserEdit), [changes])
 
+  const [staleConflict, setStaleConflict] = useState<{ path: string } | null>(null)
+
+  // A decision that returns {stale:true} was blocked to protect a concurrent
+  // hand-edit (ACR-R3.2) — record it so the STALE guard dialog can offer a
+  // choice instead of silently clobbering.
+  const guard = useCallback((path: string, result: ReviewResult): ReviewResult => {
+    if (result.stale) setStaleConflict({ path })
+    return result
+  }, [])
+
   const acceptFile = useCallback(
-    (path: string) => window.hive.review.acceptFile(workspace, path),
-    [workspace]
+    async (path: string) => guard(path, await window.hive.review.acceptFile(workspace, path)),
+    [workspace, guard]
   )
   const rejectFile = useCallback(
-    (path: string) => window.hive.review.rejectFile(workspace, path),
-    [workspace]
+    async (path: string) => guard(path, await window.hive.review.rejectFile(workspace, path)),
+    [workspace, guard]
   )
   const acceptHunk = useCallback(
-    (path: string, hunkId: string) => window.hive.review.acceptHunk(workspace, path, hunkId),
-    [workspace]
+    async (path: string, hunkId: string) =>
+      guard(path, await window.hive.review.acceptHunk(workspace, path, hunkId)),
+    [workspace, guard]
   )
   const rejectHunk = useCallback(
-    (path: string, hunkId: string) => window.hive.review.rejectHunk(workspace, path, hunkId),
-    [workspace]
+    async (path: string, hunkId: string) =>
+      guard(path, await window.hive.review.rejectHunk(workspace, path, hunkId)),
+    [workspace, guard]
   )
   const acceptAll = useCallback(() => window.hive.review.acceptAll(workspace), [workspace])
   const rejectAll = useCallback(() => window.hive.review.rejectAll(workspace), [workspace])
+
+  const resolveStale = useCallback(
+    async (choice: 'mine' | 'agent' | 'cancel'): Promise<void> => {
+      const path = staleConflict?.path
+      setStaleConflict(null)
+      if (!path || choice === 'cancel') return
+      // Re-sync the baseline mtime on main (a `get` recomputes + re-captures it)
+      // so the retried decision isn't flagged stale again, then apply the choice:
+      // `mine` keeps the current hand-edited bytes, `agent` restores pre-turn.
+      await window.hive.review.get(workspace)
+      if (choice === 'mine') await window.hive.review.acceptFile(workspace, path)
+      else await window.hive.review.rejectFile(workspace, path)
+    },
+    [workspace, staleConflict]
+  )
 
   return {
     workspace,
@@ -137,7 +176,9 @@ export function useReviewStore(workspace: string): ReviewStore {
     acceptHunk,
     rejectHunk,
     acceptAll,
-    rejectAll
+    rejectAll,
+    staleConflict,
+    resolveStale
   }
 }
 

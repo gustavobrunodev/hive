@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { ReviewProvider, useReview, useReviewStore } from './useReview'
+import { ReviewProvider, useReview, useReviewOptional, useReviewStore } from './useReview'
 import type { ReviewChange, ReviewSnapshot } from './reviewTypes'
 
 const WS = '/ws'
@@ -153,6 +153,68 @@ describe('useReviewStore', () => {
     })
     expect(res).toEqual({ ok: false, stale: true })
   })
+
+  it('records a staleConflict when a decision is blocked (ACR-R3.2)', async () => {
+    reviewMock.acceptFile.mockResolvedValueOnce({ ok: false, stale: true })
+    const { result } = renderHook(() => useReviewStore(WS))
+    await waitFor(() => expect(reviewMock.get).toHaveBeenCalled())
+
+    await act(async () => {
+      await result.current.acceptFile('a.txt')
+    })
+    expect(result.current.staleConflict).toEqual({ path: 'a.txt' })
+  })
+
+  it('resolveStale "mine" re-syncs then keeps the current bytes (acceptFile)', async () => {
+    reviewMock.rejectHunk.mockResolvedValueOnce({ ok: false, stale: true })
+    const { result } = renderHook(() => useReviewStore(WS))
+    await waitFor(() => expect(reviewMock.get).toHaveBeenCalled())
+    await act(async () => {
+      await result.current.rejectHunk('a.txt', '0:1:1')
+    })
+    reviewMock.get.mockClear()
+
+    await act(async () => {
+      await result.current.resolveStale('mine')
+    })
+    // A get() re-syncs the mtime, then acceptFile keeps the user's bytes.
+    expect(reviewMock.get).toHaveBeenCalledWith(WS)
+    expect(reviewMock.acceptFile).toHaveBeenCalledWith(WS, 'a.txt')
+    expect(result.current.staleConflict).toBeNull()
+  })
+
+  it('resolveStale "agent" restores the pre-turn state (rejectFile)', async () => {
+    reviewMock.acceptFile.mockResolvedValueOnce({ ok: false, stale: true })
+    const { result } = renderHook(() => useReviewStore(WS))
+    await waitFor(() => expect(reviewMock.get).toHaveBeenCalled())
+    await act(async () => {
+      await result.current.acceptFile('a.txt')
+    })
+
+    await act(async () => {
+      await result.current.resolveStale('agent')
+    })
+    expect(reviewMock.rejectFile).toHaveBeenCalledWith(WS, 'a.txt')
+    expect(result.current.staleConflict).toBeNull()
+  })
+
+  it('resolveStale "cancel" dismisses without acting', async () => {
+    reviewMock.acceptFile.mockResolvedValueOnce({ ok: false, stale: true })
+    const { result } = renderHook(() => useReviewStore(WS))
+    await waitFor(() => expect(reviewMock.get).toHaveBeenCalled())
+    await act(async () => {
+      await result.current.acceptFile('a.txt')
+    })
+    reviewMock.acceptFile.mockClear()
+    reviewMock.rejectFile.mockClear()
+
+    await act(async () => {
+      await result.current.resolveStale('cancel')
+    })
+    expect(reviewMock.acceptFile).not.toHaveBeenCalled()
+    expect(reviewMock.rejectFile).not.toHaveBeenCalled()
+    expect(result.current.staleConflict).toBeNull()
+  })
 })
 
 describe('ReviewProvider / useReview', () => {
@@ -175,7 +237,9 @@ describe('ReviewProvider / useReview', () => {
               acceptHunk: vi.fn(),
               rejectHunk: vi.fn(),
               acceptAll: vi.fn(),
-              rejectAll: vi.fn()
+              rejectAll: vi.fn(),
+              staleConflict: null,
+              resolveStale: vi.fn()
             }
           },
           children
@@ -186,5 +250,32 @@ describe('ReviewProvider / useReview', () => {
 
   it('throws when used outside a provider', () => {
     expect(() => renderHook(() => useReview())).toThrow('within a ReviewProvider')
+  })
+
+  it('useReviewOptional returns null outside a provider and the store within', () => {
+    const { result: outside } = renderHook(() => useReviewOptional())
+    expect(outside.current).toBeNull()
+
+    const store = {
+      workspace: WS,
+      changes: [],
+      turns: [],
+      pendingCount: 0,
+      byStatus: { created: [], modified: [], deleted: [] },
+      isStale: false,
+      refresh: vi.fn(),
+      acceptFile: vi.fn(),
+      rejectFile: vi.fn(),
+      acceptHunk: vi.fn(),
+      rejectHunk: vi.fn(),
+      acceptAll: vi.fn(),
+      rejectAll: vi.fn(),
+      staleConflict: null,
+      resolveStale: vi.fn()
+    } as unknown as Parameters<typeof ReviewProvider>[0]['store']
+    const { result: inside } = renderHook(() => useReviewOptional(), {
+      wrapper: ({ children }) => createElement(ReviewProvider, { store }, children)
+    })
+    expect(inside.current).toBe(store)
   })
 })
