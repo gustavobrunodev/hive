@@ -1,5 +1,13 @@
 import { t } from '../i18n'
-import { FolderIcon, GearIcon, PlugIcon, SearchIcon, SourceControlIcon, SparkleIcon } from './icons'
+import {
+  FolderIcon,
+  GearIcon,
+  PlugIcon,
+  ReviewIcon,
+  SearchIcon,
+  SourceControlIcon,
+  SparkleIcon
+} from './icons'
 
 /** Structural mirror of `main/roleCatalog.ts`'s `ResolvedRoleAction`.
  *  `label` (shortcut-customization): catalog display name carried by
@@ -13,8 +21,8 @@ export interface RoleAction {
   custom?: boolean
 }
 
-/** The swappable left-sidebar views (git-management D-GIT-2). */
-export type SidebarView = 'explorer' | 'scm'
+/** The swappable left-sidebar views (git-management D-GIT-2; +review, M11). */
+export type SidebarView = 'explorer' | 'scm' | 'review'
 
 interface ActionRailProps {
   /**
@@ -27,6 +35,8 @@ interface ActionRailProps {
   onSelectView?: (view: SidebarView) => void
   /** Number of pending changes — a badge on the Source Control entry (0 hides it). */
   changeCount?: number
+  /** Agent Change Review (M11): pending review count — a badge on the Revisão entry (0 hides it). */
+  reviewCount?: number
   /** Opens the workspace file-search palette (also reachable via Ctrl+P). */
   onOpenSearch: () => void
   /** Opens the Skill Studio (skill-studio): create skills/agents + evals. */
@@ -62,6 +72,7 @@ export function ActionRail({
   activeView = 'explorer',
   onSelectView = () => {},
   changeCount = 0,
+  reviewCount = 0,
   onOpenSearch,
   onOpenStudio,
   onOpenMcp,
@@ -82,6 +93,13 @@ export function ActionRail({
     changeCount > 0
       ? `${t('actionRail.scmView')} — ${t('actionRail.scmChangeCount', changeCount)}`
       : t('actionRail.scmView')
+
+  // The Revisão entry folds its pending count into the accessible name too
+  // (a badge alone is a visual-only cue).
+  const reviewLabel =
+    reviewCount > 0
+      ? `${t('review.railLabel')} — ${t('review.barPending', reviewCount)}`
+      : t('review.railLabel')
 
   return (
     <nav className="wb-actionrail" aria-label={t('actionRail.ariaLabel')} data-tour="rail">
@@ -111,6 +129,23 @@ export function ActionRail({
         {changeCount > 0 && (
           <span className="wb-rail-badge" aria-hidden="true">
             {changeCount > 99 ? '99+' : changeCount}
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        className="wb-rail-view"
+        data-active={activeView === 'review' || undefined}
+        data-tour="review"
+        aria-pressed={activeView === 'review'}
+        title={reviewLabel}
+        aria-label={reviewLabel}
+        onClick={() => onSelectView('review')}
+      >
+        <ReviewIcon size={18} />
+        {reviewCount > 0 && (
+          <span className="wb-rail-badge" aria-hidden="true">
+            {reviewCount > 99 ? '99+' : reviewCount}
           </span>
         )}
       </button>

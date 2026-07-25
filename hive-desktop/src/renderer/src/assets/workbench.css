@@ -7139,3 +7139,174 @@ button.wb-agent-pill-btn:focus-visible {
     animation: none;
   }
 }
+
+/* "Revisão do agente" sidebar panel (ACR-R2.4) — grouped list over the pending
+   set, the dedicated home sibling of Explorer/Source Control. */
+.wb-review-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.wb-review-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.wb-review-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex: 1 1 auto;
+}
+
+.wb-review-panel-bulk {
+  display: inline-flex;
+  gap: var(--s-1);
+}
+
+.wb-review-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-1) 0;
+}
+
+.wb-review-group {
+  margin-bottom: var(--s-1);
+}
+
+.wb-review-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 2px var(--s-3);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wb-review-group-count {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.wb-review-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 1px var(--s-2) 1px var(--s-3);
+}
+
+.wb-review-row:hover {
+  background: var(--surface-2, var(--surface));
+}
+
+.wb-review-row-main {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-review-row-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.wb-review-row-status[data-status='created'] {
+  background: var(--wb-git-added);
+}
+
+.wb-review-row-status[data-status='modified'] {
+  background: var(--accent);
+}
+
+.wb-review-row-status[data-status='deleted'] {
+  background: var(--wb-git-deleted);
+}
+
+.wb-review-row-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-review-row-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.wb-review-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.wb-review-row-badge {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.wb-review-row-counts {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.wb-review-row[data-stale] .wb-review-row-name {
+  text-decoration: underline dotted var(--wb-git-deleted);
+}
+
+/* Empty state that teaches (ACR-R1.8). */
+.wb-review-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  padding: var(--s-5) var(--s-4);
+  text-align: center;
+}
+
+.wb-review-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-review-empty-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 30ch;
+}

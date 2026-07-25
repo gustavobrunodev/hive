@@ -13,7 +13,7 @@ import { ActionRail } from './ActionRail'
  */
 
 function baseProps(): {
-  activeView: 'explorer' | 'scm'
+  activeView: 'explorer' | 'scm' | 'review'
   onSelectView: ReturnType<typeof vi.fn>
   onOpenSearch: ReturnType<typeof vi.fn>
   onOpenStudio: ReturnType<typeof vi.fn>
@@ -60,6 +60,39 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
 
     rerender(createElement(ActionRail, { ...baseProps(), changeCount: 120 }))
     expect(container.querySelector('.wb-rail-badge')?.textContent).toBe('99+')
+  })
+
+  // Agent Change Review (M11, T11): the third "Revisão do agente" view entry.
+  it('renders the Revisão entry, selects it, and shows its pending badge', () => {
+    const props = baseProps()
+    const { rerender } = render(createElement(ActionRail, { ...props, activeView: 'review' }))
+    const entry = screen.getByLabelText('Revisão do agente')
+    expect(entry.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(entry)
+    expect(props.onSelectView).toHaveBeenCalledWith('review')
+
+    // The badge + accessible count appear only when reviewCount > 0.
+    rerender(createElement(ActionRail, { ...props, reviewCount: 3 }))
+    expect(screen.getByLabelText(/3 mudanças pendentes/)).toBeTruthy()
+
+    // Caps the badge at 99+.
+    rerender(createElement(ActionRail, { ...props, reviewCount: 120 }))
+    const badges = Array.from(document.querySelectorAll('.wb-rail-badge')).map((b) => b.textContent)
+    expect(badges).toContain('99+')
+  })
+
+  it('tolerates omitting onSelectView (defaults to a no-op)', () => {
+    render(
+      createElement(ActionRail, {
+        onOpenSearch: vi.fn(),
+        onOpenStudio: vi.fn(),
+        onOpenMcp: vi.fn(),
+        onOpenAppSettings: vi.fn()
+      })
+    )
+    // Clicking a view with no handler must not throw (the default no-op runs).
+    expect(() => fireEvent.click(screen.getByLabelText('Controle de versão'))).not.toThrow()
   })
 })
 
