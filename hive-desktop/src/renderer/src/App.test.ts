@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, useState, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
-import { createHiveGitMock } from './testSupport/hiveGitMock'
+import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMock'
 
 /**
  * Tasks T6 (workspace pick) + T9 (guided install) + T10 (update gate) —
@@ -236,7 +236,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
-        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        getAgents: vi.fn().mockResolvedValue(['claude-cli']),
         setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue('pm'),
         setRole: vi.fn().mockResolvedValue(undefined),
@@ -252,7 +252,9 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       },
       fs: {
         statFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
-        readBinary: vi.fn().mockResolvedValue({ base64: '', mime: 'application/octet-stream', size: 0 }),
+        readBinary: vi
+          .fn()
+          .mockResolvedValue({ base64: '', mime: 'application/octet-stream', size: 0 }),
         readDocx: vi.fn().mockResolvedValue({ html: '', warnings: [] }),
         readSheet: vi.fn().mockResolvedValue({ sheets: [] }),
         readSlides: vi.fn().mockResolvedValue({ title: null, slides: [] }),
@@ -265,7 +267,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         trash: vi.fn().mockResolvedValue(undefined),
         pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt')
       },
-      git: createHiveGitMock()
+      git: createHiveGitMock(),
+      review: createHiveReviewMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }
@@ -483,7 +486,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
-        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        getAgents: vi.fn().mockResolvedValue(['claude-cli']),
         setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole: vi.fn().mockResolvedValue(undefined),
@@ -511,7 +514,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           ]),
         getAgent: vi.fn().mockResolvedValue('claude-cli'),
         setAgent: vi.fn().mockResolvedValue(undefined),
-        getAgents: vi.fn().mockResolvedValue(["claude-cli"]),
+        getAgents: vi.fn().mockResolvedValue(['claude-cli']),
         setAgents: vi.fn().mockResolvedValue(undefined),
         getRole: vi.fn().mockResolvedValue(null),
         setRole,

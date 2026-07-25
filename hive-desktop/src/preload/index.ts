@@ -39,7 +39,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
-import type { ReviewResult, ReviewSnapshot } from '../main/reviewService'
+import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix

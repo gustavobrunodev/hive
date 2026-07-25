@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import type { FileViewerHandle } from '../explorer/Explorer'
 import type { GitDiffSide } from '../scm/gitStatus'
 
-/** What an editor tab shows (git-management §6.5). */
-export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit'
+/** What an editor tab shows (git-management §6.5; +review, Agent Change Review). */
+export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit' | 'review'
 
 /** One open editor tab (state owned by `WorkUI`). */
 export interface EditorTab {
@@ -48,6 +48,11 @@ function conflictKey(path: string): string {
   return `⟨conflict⟩${path}`
 }
 
+/** Synthetic tab key for an agent-review diff (never collides with the file tab). */
+function reviewKey(path: string): string {
+  return `⟨review⟩${path}`
+}
+
 /** Everything `WorkUI` needs to drive the multi-tab editor pane. */
 export interface EditorTabsState {
   tabs: EditorTab[]
@@ -62,6 +67,8 @@ export interface EditorTabsState {
   openCommitDiff: (hash: string, label: string) => void
   /** Opens (or focuses) a merge-conflict view tab (git-management GIT-R9). */
   openConflict: (filePath: string) => void
+  /** Opens (or focuses) an agent-review diff tab for `filePath` (Agent Change Review, ACR-R2.4). */
+  openReviewDiff: (filePath: string) => void
   selectTab: (path: string) => void
   pinTab: (path: string) => void
   /** Closes unconditionally (callers that already guarded, e.g. the viewer's own internally-guarded close). */
@@ -145,6 +152,19 @@ export function useEditorTabs(): EditorTabsState {
         path: conflictKey(filePath),
         pinned: false,
         kind: 'conflict',
+        git: { path: filePath },
+        label: baseName(filePath)
+      })
+    },
+    [openTab]
+  )
+
+  const openReviewDiff = useCallback(
+    (filePath: string) => {
+      openTab({
+        path: reviewKey(filePath),
+        pinned: false,
+        kind: 'review',
         git: { path: filePath },
         label: baseName(filePath)
       })
@@ -248,6 +268,7 @@ export function useEditorTabs(): EditorTabsState {
     openDiff,
     openCommitDiff,
     openConflict,
+    openReviewDiff,
     selectTab: setActivePath,
     pinTab,
     removeTab,

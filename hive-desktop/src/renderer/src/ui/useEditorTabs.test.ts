@@ -43,6 +43,19 @@ describe('useEditorTabs — diff tabs (git-management §6.5)', () => {
     expect(tab.path).toContain('src/c.txt')
   })
 
+  it('opens an agent-review diff tab with a synthetic key, kind and file descriptor', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openReviewDiff('src/r.txt'))
+
+    const tab = result.current.tabs[0]
+    expect(tab.kind).toBe('review')
+    expect(tab.git).toEqual({ path: 'src/r.txt' })
+    expect(tab.label).toBe('r.txt')
+    // Distinct synthetic key so the file tab and its review diff can coexist.
+    expect(tab.path).toContain('src/r.txt')
+    expect(tab.path).not.toBe('src/r.txt')
+  })
+
   it('keeps a diff tab and its file tab open at once (distinct keys)', () => {
     const { result } = renderHook(() => useEditorTabs())
     act(() => result.current.openFile('a.txt', { pin: true }))

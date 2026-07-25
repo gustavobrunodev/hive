@@ -56,3 +56,26 @@ export function createHiveGitMock(): HiveGitMock {
     onChanged: vi.fn().mockReturnValue(() => {})
   }
 }
+
+/** Each review bridge method as a vitest `Mock` (Agent Change Review, M11). */
+export type HiveReviewMock = Record<keyof Window['hive']['review'], Mock>
+
+/**
+ * A fully-stubbed `window.hive.review` namespace for tests that mount UI which
+ * reads `window.hive` but doesn't exercise the review flow — `get` resolves to
+ * an empty pending set, decisions resolve `{ ok: true }`, and `onChanged`
+ * returns a no-op unsubscribe. Tests that DO drive review override the methods
+ * they need.
+ */
+export function createHiveReviewMock(): HiveReviewMock {
+  return {
+    get: vi.fn().mockResolvedValue({ changes: [], turns: [] }),
+    acceptFile: vi.fn().mockResolvedValue({ ok: true }),
+    rejectFile: vi.fn().mockResolvedValue({ ok: true }),
+    acceptHunk: vi.fn().mockResolvedValue({ ok: true }),
+    rejectHunk: vi.fn().mockResolvedValue({ ok: true }),
+    acceptAll: vi.fn().mockResolvedValue({ ok: true }),
+    rejectAll: vi.fn().mockResolvedValue({ ok: true }),
+    onChanged: vi.fn().mockReturnValue(() => {})
+  }
+}

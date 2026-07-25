@@ -38,7 +38,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
-import type { ReviewResult, ReviewSnapshot } from '../main/reviewService'
+import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 
 declare global {
   interface Window {

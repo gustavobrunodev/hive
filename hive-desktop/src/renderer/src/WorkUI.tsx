@@ -24,6 +24,7 @@ import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
+import { ReviewDiffTab } from './scm/ReviewDiffTab'
 import { ReviewBar } from './ui/ReviewBar'
 import { DiffTab } from './scm/DiffTab'
 import { CommitDiffTab } from './scm/CommitDiffTab'
@@ -679,7 +680,9 @@ export function WorkUI({
                   remote={gitRemote}
                 />
               }
-              review={<AgentReviewPanel onOpenDiff={(path: string) => editor.openFile(path)} />}
+              review={
+                <AgentReviewPanel onOpenDiff={(path: string) => editor.openReviewDiff(path)} />
+              }
             />
           </div>
         </ResizablePanel>
@@ -746,6 +749,8 @@ export function WorkUI({
                   <CommitDiffTab hash={tab.git.hash} />
                 ) : tab.kind === 'conflict' && tab.git?.path ? (
                   <ConflictView path={tab.git.path} />
+                ) : tab.kind === 'review' && tab.git?.path ? (
+                  <ReviewDiffTab path={tab.git.path} />
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}

@@ -2,6 +2,11 @@ import { statSync } from 'fs'
 import { join } from 'path'
 import type { CheckpointService } from './checkpointService'
 import { findHunk, type GitDiff } from './gitParse'
+import type { ReviewChange, ReviewResult, ReviewSnapshot, TurnMark } from './reviewTypes'
+
+// Re-export the data types so preload/renderer import them from one place
+// (mirrors gitService re-exporting gitParse's types).
+export type { ReviewChange, ReviewResult, ReviewSnapshot, TurnMark } from './reviewTypes'
 
 /**
  * The single **pending review set** per workspace and the accept/reject
@@ -19,42 +24,6 @@ import { findHunk, type GitDiff } from './gitParse'
  * `CheckpointService` is injected (composed over real git in tests); the file is
  * Electron-free and unit-tested against a throwaway workspace + store.
  */
-
-/** One turn that ran while the set was pending — annotates the in-chat change card (ACR-R2.2). */
-export interface TurnMark {
-  turnId: string
-  /** Epoch ms when the turn started. */
-  at: number
-  /** Paths the turn touched (best-effort from the adapter's tool_use, ACR-C7; empty is fine). */
-  paths: string[]
-}
-
-/** One pending change, as the renderer consumes it (design.md §3). */
-export interface ReviewChange {
-  /** Workspace-relative POSIX path. */
-  path: string
-  status: 'created' | 'modified' | 'deleted'
-  /** Parsed pre-turn→now diff (hunks / binary / tooLarge), from `gitParse`. */
-  diff: GitDiff
-  /** Added / deleted line counts (for the +/- pills). */
-  adds: number
-  dels: number
-  /** ACR-R3.2 — the user edited this file by hand after the last recompute. */
-  staleUserEdit?: boolean
-}
-
-/** The renderer-facing snapshot of the set (what `review:get`/`review:changed` ship). */
-export interface ReviewSnapshot {
-  changes: ReviewChange[]
-  turns: TurnMark[]
-}
-
-/** The result of a decision op. `stale` short-circuits a clobber into a UI choice (ACR-R3.2). */
-export interface ReviewResult {
-  ok: boolean
-  /** Set when a concurrent hand-edit was detected — the UI turns this into keep-mine/take-agent/cancel. */
-  stale?: boolean
-}
 
 export interface ReviewServiceDeps {
   checkpoint: CheckpointService
@@ -244,7 +213,11 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
   }
 
   /** Resolves a hunk object from the current change set by its stable id, or null. */
-  function resolveHunk(workspace: string, path: string, hunkId: string) {
+  function resolveHunk(
+    workspace: string,
+    path: string,
+    hunkId: string
+  ): ReturnType<typeof findHunk> {
     const change = stateFor(workspace).changes.find((c) => c.path === path)
     if (!change) return null
     return findHunk(change.diff, hunkId)
