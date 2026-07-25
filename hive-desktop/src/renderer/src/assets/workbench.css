@@ -7030,3 +7030,112 @@ button.wb-agent-pill-btn:focus-visible {
     transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Agent Change Review (M11) — the tiered review surface.
+   Ambient, calm, legible; the diff is the interface, controls quiet until
+   hovered/focused. Success/danger via the git role tokens at diff-surface
+   tints so a big set never screams (design.md §7). Theme-aware for free
+   through the Layer-2 role tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Persistent review bar (ACR-R2.3) — docked above the composer, present only
+   while the set is non-empty. */
+.wb-review-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px var(--s-3);
+  font-size: 13px;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--accent) 8%, var(--surface));
+  border-top: 1px solid color-mix(in oklab, var(--accent) 24%, var(--border));
+  animation: wb-review-bar-in 0.18s ease;
+}
+
+@keyframes wb-review-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wb-review-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.wb-review-bar-count {
+  font-weight: 600;
+}
+
+.wb-review-bar-spacer {
+  flex: 1 1 auto;
+}
+
+.wb-review-bar-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1, 6px);
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.wb-review-bar-btn[data-kind='accept']:hover,
+.wb-review-bar-btn[data-kind='accept']:focus-visible {
+  color: var(--wb-git-added);
+  border-color: color-mix(in oklab, var(--wb-git-added) 50%, transparent);
+}
+
+.wb-review-bar-btn[data-kind='reject']:hover,
+.wb-review-bar-btn[data-kind='reject']:focus-visible {
+  color: var(--wb-git-deleted);
+  border-color: color-mix(in oklab, var(--wb-git-deleted) 50%, transparent);
+}
+
+.wb-review-bar-review {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.wb-review-bar-btn:focus-visible,
+.wb-review-bar-review:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+/* Destructive confirm CTA (reject-all, stale-clobber) — the one place friction
+   is warranted (G4). */
+.wb-btn-danger {
+  color: #fff;
+  background: var(--wb-git-deleted);
+  border-color: var(--wb-git-deleted);
+}
+
+.wb-btn-danger:hover {
+  background: color-mix(in oklab, var(--wb-git-deleted) 88%, black);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-review-bar {
+    animation: none;
+  }
+}
