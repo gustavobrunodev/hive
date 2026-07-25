@@ -27,6 +27,7 @@ import { AgentReviewPanel } from './scm/AgentReviewPanel'
 import { ReviewDiffTab } from './scm/ReviewDiffTab'
 import { ReviewBar } from './ui/ReviewBar'
 import { StaleGuardDialog } from './ui/StaleGuardDialog'
+import { ReviewSwitchDialog } from './ui/ReviewSwitchDialog'
 import { DiffTab } from './scm/DiffTab'
 import { CommitDiffTab } from './scm/CommitDiffTab'
 import { ConflictView } from './ui/ConflictView'
@@ -455,11 +456,13 @@ export function WorkUI({
     [onCandidateWorkspace]
   )
 
-  // T8 (WS-R5.1/R5.3): the switch guard's entry point, shared by both the
-  // chip menu's "Abrir pasta…" and its Recentes entries. Dirty parks the
-  // candidate behind the three-way dialog; clean proceeds straight to
-  // `proceedSwitch`.
-  const requestSwitch = useCallback(
+  // The candidate parked behind the agent-review pending-set switch guard
+  // (ACR-R4.3), separate from the editor-dirty guard below.
+  const [pendingReviewSwitch, setPendingReviewSwitch] = useState<string | null>(null)
+
+  // T8 (WS-R5.1/R5.3): the editor-dirty half of the switch guard — dirty parks
+  // the candidate behind the three-way unsaved dialog; clean proceeds.
+  const continueSwitch = useCallback(
     (path: string) => {
       if (editor.dirtyPaths.size > 0) {
         setPendingSwitch(path)
@@ -468,6 +471,20 @@ export function WorkUI({
       }
     },
     [editor.dirtyPaths, proceedSwitch]
+  )
+
+  // The switch guard's entry point, shared by "Abrir pasta…" and Recentes. A
+  // non-empty pending review set (ACR-R4.3) is guarded first; then the
+  // editor-dirty guard runs.
+  const requestSwitch = useCallback(
+    (path: string) => {
+      if (review.pendingCount > 0) {
+        setPendingReviewSwitch(path)
+      } else {
+        continueSwitch(path)
+      }
+    },
+    [review.pendingCount, continueSwitch]
   )
 
   /** WS-R1.2: "Abrir pasta…" resolves a candidate via the native picker; a cancelled picker (null) is a no-op (WS-R4.5). */
@@ -881,6 +898,27 @@ export function WorkUI({
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
           <ReviewBar onReview={() => setActiveView('review')} />
           <StaleGuardDialog />
+          {pendingReviewSwitch !== null && (
+            <ReviewSwitchDialog
+              count={review.pendingCount}
+              onCancel={() => setPendingReviewSwitch(null)}
+              onKeep={() => {
+                const path = pendingReviewSwitch
+                setPendingReviewSwitch(null)
+                continueSwitch(path)
+              }}
+              onAcceptAll={() => {
+                const path = pendingReviewSwitch
+                setPendingReviewSwitch(null)
+                void review.acceptAll().then(() => continueSwitch(path))
+              }}
+              onRejectAll={() => {
+                const path = pendingReviewSwitch
+                setPendingReviewSwitch(null)
+                void review.rejectAll().then(() => continueSwitch(path))
+              }}
+            />
+          )}
           <StatusBar
             onChanges={() => setActiveView('scm')}
             onInit={() => void git.init()}

@@ -757,7 +757,22 @@ export const ptBR = {
     staleCancel: 'Cancelar',
     // Undo-accept toast (ACR-R4.2).
     undoAccept: 'Mudança aceita',
-    undoAction: 'Desfazer'
+    undoAction: 'Desfazer',
+    // Workspace-switch guard for a pending set (ACR-R4.3).
+    switchTitle: 'Sair com mudanças pendentes?',
+    switchDescription: (n: number) =>
+      n === 1
+        ? 'Há 1 mudança do agente ainda não revisada neste workspace.'
+        : `Há ${n} mudanças do agente ainda não revisadas neste workspace.`,
+    switchAcceptAll: 'Aceitar tudo e sair',
+    switchRejectAll: 'Rejeitar tudo e sair',
+    switchKeep: 'Sair mantendo pendentes',
+    switchCancel: 'Cancelar',
+    // Keyboard-flow tooltips (ACR-R4.1).
+    keyAcceptHint: 'Aceitar (A)',
+    keyRejectHint: 'Rejeitar (R)',
+    keyNextHint: 'Próximo (J / ↓)',
+    keyPrevHint: 'Anterior (K / ↑)'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

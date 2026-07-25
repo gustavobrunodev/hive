@@ -872,6 +872,82 @@ describe('WorkUI — workspace chip menu (T7)', () => {
     )
   })
 
+  // Agent Change Review (M11, T19): switching away with a non-empty pending set
+  // is guarded (ACR-R4.3).
+  it('guards a workspace switch when the review set is non-empty, then continues on keep', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
+      '/home/user/my-workspace',
+      '/home/user/other-project'
+    ])
+    ;(window.hive.review.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      changes: [
+        { path: 'a.txt', status: 'modified', diff: { hunks: [], binary: false }, adds: 1, dels: 0 }
+      ],
+      turns: []
+    })
+    const onCandidateWorkspace = vi.fn()
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+    // Wait for the pending set to load.
+    await screen.findByText('1 mudança pendente')
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
+    fireEvent.click(screen.getByText('other-project'))
+
+    // The switch is parked behind the review guard — not yet handed off.
+    expect(await screen.findByText('Sair com mudanças pendentes?')).toBeTruthy()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+
+    // "Sair mantendo pendentes" continues the switch (the set survives).
+    fireEvent.click(screen.getByText('Sair mantendo pendentes'))
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('reject-all-and-leave clears the set before switching', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
+      '/home/user/my-workspace',
+      '/home/user/other-project'
+    ])
+    ;(window.hive.review.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      changes: [
+        { path: 'a.txt', status: 'modified', diff: { hunks: [], binary: false }, adds: 1, dels: 0 }
+      ],
+      turns: []
+    })
+    const onCandidateWorkspace = vi.fn()
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn(),
+        onCandidateWorkspace
+      })
+    )
+    await screen.findByText('1 mudança pendente')
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
+    fireEvent.click(screen.getByText('other-project'))
+    await screen.findByText('Sair com mudanças pendentes?')
+
+    fireEvent.click(screen.getByText('Rejeitar tudo e sair'))
+    await waitFor(() =>
+      expect(window.hive.review.rejectAll).toHaveBeenCalledWith('/home/user/my-workspace')
+    )
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
   it('shows the full path as a tooltip on each recent entry', async () => {
     vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
       '/home/user/my-workspace',
