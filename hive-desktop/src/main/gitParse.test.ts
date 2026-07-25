@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { execFileSync } from 'child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  buildHunkPatch,
+  findHunk,
+  hunkId,
   parseBranches,
   parseDiff,
   parseLog,
@@ -238,5 +245,75 @@ describe('parseDiff', () => {
 
   it('returns no hunks for an empty diff', () => {
     expect(parseDiff('')).toEqual({ hunks: [], binary: false })
+  })
+})
+
+describe('hunkId / findHunk', () => {
+  const diff = parseDiff(
+    ['@@ -1 +1 @@', '-old', '+new', '@@ -10,2 +10,2 @@', ' ctx', '-x', '+y'].join('\n')
+  )
+
+  it('derives a stable per-file id from index + old/new starts', () => {
+    expect(hunkId(diff.hunks[0], 0)).toBe('0:1:1')
+    expect(hunkId(diff.hunks[1], 1)).toBe('1:10:10')
+  })
+
+  it('finds a hunk by id and returns null for an unknown id', () => {
+    expect(findHunk(diff, '1:10:10')).toBe(diff.hunks[1])
+    expect(findHunk(diff, '9:9:9')).toBeNull()
+  })
+})
+
+describe('buildHunkPatch — round-trip through real `git apply`', () => {
+  // T3 verify: parse a diff, rebuild one hunk's patch, and confirm real
+  // `git apply` reproduces the post-image while `-R` restores the pre-image.
+  // This is the correctness spine for per-hunk accept/reject (ACR-R3.1), so it
+  // is exercised against the actual git binary, not just string-asserted.
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'hive-hunkpatch-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function apply(patch: string, ...flags: string[]): void {
+    const patchFile = join(dir, 'p.patch')
+    writeFileSync(patchFile, patch)
+    execFileSync('git', ['apply', '--unidiff-zero', ...flags, patchFile], { cwd: dir })
+  }
+
+  it('rebuilds a patch that applies forward (pre→post) and reverses (post→pre)', () => {
+    const pre = 'a\nB\nc\nd\ne\n'
+    const post = 'a\nBB\nc\n'
+    // A real git diff of pre→post (captured shape).
+    const diff = parseDiff(['@@ -1,5 +1,3 @@', ' a', '-B', '+BB', ' c', '-d', '-e'].join('\n'))
+    const patch = buildHunkPatch('f.txt', diff.hunks[0])
+
+    // Forward: applying to the pre-image yields the post-image.
+    writeFileSync(join(dir, 'f.txt'), pre)
+    apply(patch)
+    expect(readFileSync(join(dir, 'f.txt'), 'utf-8')).toBe(post)
+
+    // Reverse: applying -R to the post-image restores the pre-image.
+    apply(patch, '-R')
+    expect(readFileSync(join(dir, 'f.txt'), 'utf-8')).toBe(pre)
+  })
+
+  it('reverse-applies just one hunk of a two-hunk file, leaving the other', () => {
+    // pre → post touches two independent regions; rejecting only the 2nd hunk
+    // must restore its lines while keeping the 1st hunk's change.
+    const post = ['L1_NEW', 'l2', 'l3', 'l4', 'l5', 'l6', 'L7_NEW', 'l8'].join('\n') + '\n'
+    const diff = parseDiff(
+      ['@@ -1 +1 @@', '-l1', '+L1_NEW', '@@ -7 +7 @@', '-l7', '+L7_NEW'].join('\n')
+    )
+    writeFileSync(join(dir, 'g.txt'), post)
+    const secondHunk = findHunk(diff, hunkId(diff.hunks[1], 1))!
+    apply(buildHunkPatch('g.txt', secondHunk), '-R')
+
+    expect(readFileSync(join(dir, 'g.txt'), 'utf-8')).toBe(
+      ['L1_NEW', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8'].join('\n') + '\n'
+    )
   })
 })

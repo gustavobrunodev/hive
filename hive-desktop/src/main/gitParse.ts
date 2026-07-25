@@ -355,3 +355,63 @@ export function parseDiff(output: string, opts?: { tooLarge?: boolean }): GitDif
 
   return { hunks, binary }
 }
+
+/**
+ * A stable, per-file key for one hunk (Agent Change Review, design.md §5, T3).
+ * Derived from the hunk's position (`index`) plus its old/new start lines, so
+ * main and renderer agree on which hunk a per-hunk accept/reject targets
+ * (ACR-R3.1) without shipping object identity across the IPC boundary. Two
+ * hunks in the same file can't share an old *and* new start, so this is unique
+ * within a file; the leading index keeps it stable/ordered even if two hunks
+ * somehow collided on both starts.
+ */
+export function hunkId(hunk: GitDiffHunk, index: number): string {
+  return `${index}:${hunk.oldStart}:${hunk.newStart}`
+}
+
+/** Finds the hunk in `diff` whose `hunkId(...)` equals `id`, or `null`. */
+export function findHunk(diff: GitDiff, id: string): GitDiffHunk | null {
+  const index = diff.hunks.findIndex((h, i) => hunkId(h, i) === id)
+  return index === -1 ? null : diff.hunks[index]
+}
+
+/**
+ * Reconstructs a minimal, `git apply`-able unified patch for **one** hunk
+ * (Agent Change Review, design.md §2/§5, T3) — the patch-math primitive behind
+ * per-hunk accept/reject (ACR-R3.1). The body is rebuilt from the parsed typed
+ * lines (` `/`-`/`+` prefixes) and the `@@` header is recomputed from the
+ * actual line counts so it's self-consistent even if the original header
+ * carried a section-heading suffix. `path` supplies the `---`/`+++` file
+ * headers (a `GitDiff` doesn't record its own path — the file headers are
+ * skipped during parsing).
+ *
+ * Applying this patch onto the pre-image reproduces the post-image; `-R`
+ * reverse-applies it (the reject direction). Every hunk here carries real
+ * context lines (git's default 3), so it applies unambiguously against the
+ * full current file even when other hunks remain.
+ */
+export function buildHunkPatch(path: string, hunk: GitDiffHunk): string {
+  let oldCount = 0
+  let newCount = 0
+  const body: string[] = []
+  for (const line of hunk.lines) {
+    if (line.type === 'ctx') {
+      body.push(` ${line.text}`)
+      oldCount++
+      newCount++
+    } else if (line.type === 'del') {
+      body.push(`-${line.text}`)
+      oldCount++
+    } else {
+      body.push(`+${line.text}`)
+      newCount++
+    }
+  }
+  const header = `@@ -${formatRange(hunk.oldStart, oldCount)} +${formatRange(hunk.newStart, newCount)} @@`
+  return [`--- a/${path}`, `+++ b/${path}`, header, ...body, ''].join('\n')
+}
+
+/** Formats a unified-diff range: `start` when the count is 1, else `start,count` (git's own convention). */
+function formatRange(start: number, count: number): string {
+  return count === 1 ? `${start}` : `${start},${count}`
+}
