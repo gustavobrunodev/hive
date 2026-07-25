@@ -7,6 +7,7 @@ import { AgentSetup } from './onboarding/AgentSetup'
 import { RoleSetup } from './onboarding/RoleSetup'
 import { GuidedInstall } from './onboarding/GuidedInstall'
 import { UpdateGate } from './onboarding/UpdateGate'
+import { SecondBrainGate } from './onboarding/SecondBrainGate'
 import { WorkUI } from './WorkUI'
 
 type Theme = 'dark' | 'light'
@@ -36,6 +37,7 @@ type OnboardingState =
   | { status: 'checkingProvisioned'; workspacePath: string }
   | { status: 'installing'; workspacePath: string }
   | { status: 'updating'; workspacePath: string }
+  | { status: 'provisioningSecondBrain'; workspacePath: string }
   | { status: 'ready'; workspacePath: string }
 
 /**
@@ -188,18 +190,24 @@ function App(): React.JSX.Element {
     setUserNameState(trimmed === '' ? null : trimmed)
   }, [])
 
-  // A just-completed install doesn't need an update in the same launch —
-  // goes straight to ready. A completed (or "continue anyway"-dismissed)
-  // update also goes to ready; both handlers converge on the same
-  // transition, kept separate for readability at each call site.
+  // BMAD provisioning done — hand off to the second-brain step (SB-R1.4,
+  // D-SB-7): BMAD first, then second-brain, in one continuous gate. Both the
+  // install and update BMAD paths converge here rather than jumping straight
+  // to `ready`.
   const handleInstallComplete = useCallback((workspacePath: string) => {
     // The install form may have just captured the user's name (persisted in
     // main when the install kicked off) — pick it up for the hero greeting.
     void window.hive.profile.getUserName().then(setUserNameState)
-    setOnboarding({ status: 'ready', workspacePath })
+    setOnboarding({ status: 'provisioningSecondBrain', workspacePath })
   }, [])
 
   const handleUpdateComplete = useCallback((workspacePath: string) => {
+    setOnboarding({ status: 'provisioningSecondBrain', workspacePath })
+  }, [])
+
+  // Second-brain provisioning done (or "continue anyway" after a failure,
+  // SB-R1.3) — the last gate step, into the work UI.
+  const handleSecondBrainComplete = useCallback((workspacePath: string) => {
     setOnboarding({ status: 'ready', workspacePath })
   }, [])
 
@@ -266,6 +274,16 @@ function App(): React.JSX.Element {
       <UpdateGate
         workspace={workspacePath}
         onComplete={() => handleUpdateComplete(workspacePath)}
+      />
+    )
+  }
+
+  if (onboarding.status === 'provisioningSecondBrain') {
+    const { workspacePath } = onboarding
+    return (
+      <SecondBrainGate
+        workspace={workspacePath}
+        onComplete={() => handleSecondBrainComplete(workspacePath)}
       />
     )
   }

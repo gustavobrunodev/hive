@@ -12,9 +12,19 @@ export type HiveSecondBrainMock = Record<keyof Window['hive']['secondBrain'], Mo
  * Centralized so a new bridge method is a one-file change (the M10 lesson).
  */
 export function createHiveSecondBrainMock(): HiveSecondBrainMock {
+  // install/update fire a `done` immediately so the provisioning gate passes
+  // straight through for tests that only mount the work UI (they don't drive
+  // Second Brain provisioning); gate-specific tests override these.
+  const streamDone = (
+    _ws: string,
+    onEvent: (evt: { type: string; ok?: true }) => void
+  ): (() => void) => {
+    onEvent({ type: 'done', ok: true })
+    return () => {}
+  }
   return {
-    install: vi.fn().mockReturnValue(() => {}),
-    update: vi.fn().mockReturnValue(() => {}),
+    install: vi.fn(streamDone),
+    update: vi.fn(streamDone),
     isProvisioned: vi.fn().mockResolvedValue(false),
     getVault: vi.fn().mockResolvedValue({ path: null, name: null, rawPending: 0 }),
     stageRaw: vi.fn().mockResolvedValue({ relPath: 'second-brain/raw/ingest.md' })

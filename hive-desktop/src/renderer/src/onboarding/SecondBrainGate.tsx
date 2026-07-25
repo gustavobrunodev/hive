@@ -1,0 +1,110 @@
+import { useEffect, useState } from 'react'
+import { Alert, Button, Progress } from '@hive/design-system'
+import { t } from '../i18n'
+
+interface SecondBrainGateProps {
+  /** Workspace path to provision the second-brain skills in. */
+  workspace: string
+  /** Invoked once provisioning ends with `done`, or the user chooses to continue anyway after an error. */
+  onComplete: () => void
+}
+
+type Phase = { status: 'deciding' } | { status: 'running' } | { status: 'error'; message: string }
+
+/**
+ * Second step of the "Preparando o workspace" gate (SB-R1.4, D-SB-7). Runs
+ * immediately after the BMAD install/update gate, in the same surface, so the
+ * two read as one continuous preparation. It disk-checks
+ * `secondBrain.isProvisioned()` to pick install (skill absent, SB-R1.1) vs
+ * update (present, SB-R1.2), then renders the streamed `SkillEvent`s exactly
+ * like `UpdateGate`: `step`/`progress` drive the caption under an indeterminate
+ * `Progress`, `done` calls `onComplete()`, and `error` shows an Alert with
+ * retry + **continue anyway** — the work UI is never permanently blocked by a
+ * failed skill provision (SB-R1.3, mirroring the BMAD gate).
+ */
+export function SecondBrainGate({
+  workspace,
+  onComplete
+}: SecondBrainGateProps): React.JSX.Element {
+  const [caption, setCaption] = useState<string | null>(null)
+  const [phase, setPhase] = useState<Phase>({ status: 'deciding' })
+  const [runToken, setRunToken] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    let unsubscribe: (() => void) | undefined
+
+    function resetForNewRun(): void {
+      setCaption(null)
+      setPhase({ status: 'deciding' })
+    }
+    resetForNewRun()
+
+    const handleEvent = (event: { type: string; label?: string; message?: string }): void => {
+      if (!active) return
+      switch (event.type) {
+        case 'step':
+          setCaption(event.label ?? null)
+          break
+        case 'progress':
+          setCaption(event.message ?? null)
+          break
+        case 'done':
+          onComplete()
+          break
+        case 'error':
+          setPhase({ status: 'error', message: event.message ?? '' })
+          break
+      }
+    }
+
+    void window.hive.secondBrain.isProvisioned(workspace).then((provisioned) => {
+      if (!active) return
+      setPhase({ status: 'running' })
+      unsubscribe = provisioned
+        ? window.hive.secondBrain.update(workspace, handleEvent)
+        : window.hive.secondBrain.install(workspace, handleEvent)
+    })
+
+    return () => {
+      active = false
+      unsubscribe?.()
+    }
+  }, [workspace, runToken, onComplete])
+
+  return (
+    <main className="wb-gate">
+      <div className="wb-gate-card">
+        <h1 className="wb-gate-title">{t('secondBrainGate.title')}</h1>
+        <p className="wb-gate-desc">{t('secondBrainGate.description')}</p>
+
+        {phase.status === 'error' ? (
+          <>
+            <Alert variant="danger" title={t('secondBrainGate.errorTitle')} role="alert">
+              {phase.message || t('secondBrainGate.errorDescriptionFallback')}
+            </Alert>
+            <div className="wb-gate-error-actions">
+              <Button
+                cut={false}
+                className="wb-btn"
+                onClick={() => setRunToken((current) => current + 1)}
+              >
+                {t('secondBrainGate.retryCta')}
+              </Button>
+              <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
+                {t('secondBrainGate.continueAnywayCta')}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Progress value={null} />
+            <p className="wb-gate-progress-caption" role="status">
+              {caption ?? t('secondBrainGate.progressLabel')}
+            </p>
+          </>
+        )}
+      </div>
+    </main>
+  )
+}

@@ -190,6 +190,15 @@ export const ptBR = {
     retryCta: 'Tentar novamente',
     continueAnywayCta: 'Continuar mesmo assim'
   },
+  secondBrainGate: {
+    title: 'Preparando a base de conhecimento',
+    description: 'Instalando e atualizando o Second Brain da squad para este workspace.',
+    progressLabel: 'Preparando o Second Brain…',
+    errorTitle: 'Não foi possível preparar o Second Brain',
+    errorDescriptionFallback: 'Algo deu errado ao provisionar as skills do Second Brain.',
+    retryCta: 'Tentar novamente',
+    continueAnywayCta: 'Continuar mesmo assim'
+  },
   chat: {
     promptPlaceholder: 'Escreva uma mensagem…',
     sendLabel: 'Enviar',
