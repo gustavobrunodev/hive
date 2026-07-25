@@ -427,6 +427,94 @@ Updated as work progresses. Load at start of every session.
   per-hunk staging, gutter hunk revert, revert-commit/cherry-pick, tags, branch
   compare/graph, blame, provider/PR integration, multi-repo. (2026-07-23)
 
+- **D23 — Feature `agent-change-review` (new milestone M11).** Planned 2026-07-24
+  (spec/context/design/tasks in `.specs/features/agent-change-review/`). A
+  Cursor/Claude-Desktop-style flow to review the agent's file changes and
+  accept/reject them. Gray-area decisions (context.md, from the user via
+  `AskUserQuestion` 2026-07-24):
+  (ACR-C1) **Apply model = optimistic (apply + revert).** `claude` keeps writing
+  to disk (`--permission-mode acceptEdits` unchanged); "review" = keep or revert
+  against a pre-turn checkpoint (the Cursor mental model). A **gated/pre-approval**
+  model (hold writes via a Claude Code `PreToolUse` hook) was evaluated and
+  **rejected** — it changes the execution model, fights `acceptEdits`, and is
+  Claude-hook-specific. Consequence: the checkpoint is load-bearing and must be
+  race-free + always recoverable until explicit accept.
+  (ACR-C2) **Capture = app-managed, git-independent snapshots.** Concrete
+  realization (design's call, honoring the intent): a **shadow-git checkpoint
+  store** — a private `GIT_DIR`/`GIT_INDEX_FILE` under `userData/checkpoints/
+  <sha1(ws)>/` with the workspace as `GIT_WORK_TREE`, used purely as a fast,
+  incremental, race-free snapshot + diff engine (reuses git's hashing + `gitParse`
+  for free), **invisible to and independent of the user's `.git`** and working
+  even in non-repo folders. `info/exclude` (node_modules/.git/dist/out/coverage/
+  .playwright-mcp) + the workspace `.gitignore` keep snapshots cheap; reviewable
+  artifacts (`_bmad-output`, docs) stay visible. Chosen over the literal per-file
+  `git diff --no-index` because **pre-images must be captured before the write**,
+  and the only race-free adapter-agnostic source is a turn-start whole-tree
+  baseline (lazy FS-watcher capture is inherently racy — the event arrives after
+  the write). The **user's git working tree was rejected** as the basis — it would
+  require a repo and conflate the user's uncommitted edits with the agent's. git
+  is already a hard dep (M10). Capture is **adapter-agnostic** (observes the FS).
+  (ACR-C3) **Surface = tiered** — inline editor diff w/ per-hunk ✓/✗ (Cursor tier,
+  on the M10 gutter), in-chat change card per turn (Claude Desktop tier), a
+  persistent "N pendentes" review bar, and a switchable "Revisão do agente"
+  sidebar view (sibling of Source Control via `SidebarHost`) — all over one
+  pending set (single source of truth).
+  Derived (design's, not separate user inputs): (ACR-C4) granularity = hunk+file+
+  set (per-hunk revert via reverse-applying the parsed hunk's patch); (ACR-C5) one
+  **accumulating** pending set per workspace = `diff(baseline → work-tree)`, accept
+  advances the baseline, reject restores it; (ACR-C6) shaped with `impeccable` +
+  validated in the Playwright MCP (dark+light); (ACR-C7) Claude `tool_use`
+  attribution is best-effort **enrichment/plumbing only** in v1, never the capture
+  basis. New main `CheckpointService` + `ReviewService` + `review:*` IPC; new
+  renderer `useReview` store + `InlineAgentDiff`/`ChangeCard`/`ReviewBar`/
+  `AgentReviewPanel` + `HunkActions`; `DiffView` extended with per-hunk actions.
+  Reuses M4 STALE + M8 unsaved-guard. Same gates as prior features (no regression,
+  ≥90% per-file coverage on non-UI files, `_electron.launch` E2E asserting on-disk
+  accept/reject, Playwright-MCP visual pass, pt-BR via `t()`). Deferred to P2/P3:
+  gated pre-approval, multi-turn undo stack, semantic diffs, inline edit-before-
+  accept, rename pairing, auto-commit. Implement on a new `feat/agent-change-review`
+  branch. (2026-07-24)
+  **DONE 2026-07-25** — all 25 tasks (T1–T25) shipped as atomic commits on
+  `feat/agent-change-review` (branched off `feat/git-management`/M10, **not yet
+  merged** — M10 itself isn't merged, and M11 builds on its `DiffView`/`gitParse`/
+  gutter/`SidebarHost`). `npm run verify` green: typecheck + **0 lint errors** +
+  **1299** unit/component tests. Every changed non-UI file ≥90/90/90/90
+  (`checkpointService`, `reviewService`, `gitParse`, `main/index`, `preload`,
+  `cliAdapterCore`, `useReview`, `inlineDiff`, `gitStatus`, `HunkActions`,
+  `DiffView`); the large renderer shells (`AgentReviewPanel`, `InlineAgentDiff`,
+  `ChangeCard`, `ReviewBar`, `WorkUI`, `Chat`) follow the SkillStudio/McpManager
+  gating precedent. Real-Electron E2E (`e2e/agent-change-review.spec.ts`) passes
+  under xvfb (surface smoke: view switch + empty state + `review.get` over real
+  IPC); the on-disk **accept keeps bytes / reject restores bytes / reject-all
+  restores all** round-trip is asserted authoritatively against **real git** in
+  `reviewService.test.ts` — the turn checkpoint (`beginTurn`) can't be driven
+  deterministically in the sandbox (no agent CLI; the error-path `endTurn` races
+  file writes), the E2E instability the design's R3 anticipated. Visual: 10
+  Playwright-MCP screenshots under `.playwright-mcp/review-{dark,light}-*.png`
+  (panel, inline diff, card ±expanded, bar, empty, reject-all confirm, STALE) —
+  every state legible + first-party in both themes.
+  **OQ4 resolved:** the undo-accept toast (ACR-R4.2) is **deferred to a
+  follow-up** rather than faked — our accept is *immediately final*
+  (`advanceBaseline`/`snapshot` commits the new baseline tree at once, no deferred
+  window), so a real "undo" would need retaining the pre-accept baseline; reject
+  is already fully recoverable via the pending set, and the keyboard flow
+  (ACR-R4.1, A/R/J/K on `InlineAgentDiff`) shipped.
+  **Lessons:** (1) the vitest suite's `include` is `**/*.test.ts` only —
+  `.test.tsx` files silently never run; write React component tests as `.test.ts`
+  with `createElement`. (2) A component exercised through two import paths (direct
+  test + transitively via a parent) mis-merges in v8 per-file coverage across
+  workers — co-locate its unit tests in the same file that renders it transitively
+  (moved `HunkActions` tests into `DiffView.test.ts`). (3) `npm run typecheck`
+  uses `--composite false`; a bare `tsc -p tsconfig.web.json` floods false
+  `TS6307` project-boundary errors — always use the npm script. (4) Renderer must
+  not import `src/main/*` (composite boundary) — derive types from the
+  `window.hive` global (`gitStatus.ts`/`reviewTypes.ts` pattern), and keep the
+  preload `.d.ts` importing only pure type modules (split `reviewTypes.ts` out of
+  `reviewService.ts` so it doesn't drag `checkpointService`/`fs` into the web
+  program). (5) `verify` does **not** run `test:coverage`; pre-existing coverage
+  debt (Chat.tsx 88.98% branches in untouched composer/mention code; the M7
+  explorer viewers) is real but out of scope and unchanged by M11. (2026-07-25)
+
 ## Blockers
 
 - **ND-B2 — OPEN (2026-07-22), blocks the real payload publish only.** Need a

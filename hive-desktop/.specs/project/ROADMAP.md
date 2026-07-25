@@ -255,6 +255,64 @@ and all SCM states visually validated in both themes via the Playwright MCP.
 
 ---
 
+## M11 — Agent Change Review ✅ Done (2026-07-25)
+
+**Feature:** `agent-change-review`
+
+A Cursor/Claude-Desktop-style review flow for the changes the **agent** makes to
+workspace files. The agent writes to disk optimistically (`--permission-mode
+acceptEdits` unchanged); the app takes a **race-free pre-turn checkpoint** via an
+app-managed **shadow-git store** (its own `GIT_DIR`, invisible to and independent
+of the user's git — works even in non-repo folders), and surfaces the resulting
+changes as a single **pending set** the user reviews and **accepts (keeps)** or
+**rejects (reverts)** at **hunk / file / set** granularity. The set lives across
+four synchronized surfaces: an **inline editor diff** with per-hunk ✓/✗ (Cursor
+tier, on the M10 gutter), an **in-chat change card** per turn (Claude Desktop
+tier), a **persistent review bar** ("N pendentes" + accept/reject-all), and a
+switchable **"Revisão do agente" sidebar view** (sibling of Source Control via
+`SidebarHost`). Diffs reuse M10's `DiffView`/`gitParse`; guards reuse M4 STALE +
+M8 unsaved-guard. Capture is **adapter-agnostic** (observes the filesystem, not
+the agent); Claude `tool_use` attribution is best-effort P2 plumbing.
+
+Planned via tlc-spec-driven (spec/context/design/tasks in
+`.specs/features/agent-change-review/`). Gray-area decisions (context.md, from
+the user 2026-07-24): **ACR-C1** optimistic apply+revert (gated pre-approval
+rejected), **ACR-C2** app-managed git-independent snapshots via a shadow
+checkpoint store (user-git working-tree rejected — would conflate the user's
+edits with the agent's), **ACR-C3** tiered surface. Derived: **ACR-C4** hunk+file
++set granularity, **ACR-C5** one accumulating pending set, **ACR-C6** impeccable +
+Playwright MCP, **ACR-C7** attribution as enrichment only. Shaped with `impeccable`
+(product register); STATE.md **D23**.
+
+**Exit criteria:** ACR-R1–R4 implemented and demonstrated in the running app;
+ACR-R9.1 no regression; ACR-R9.2 ≥90% coverage per changed non-UI file; ACR-R9.4
+E2E (`_electron.launch`, scripted-adapter turn → assert pending set → accept keeps
+bytes / reject restores bytes **on disk**); ACR-R9.5 Playwright-MCP visual pass
+(dark+light, every review state); ACR-R9.3 all copy pt-BR via `t()`. Implement on
+a new `feat/agent-change-review` branch.
+
+**Shipped (2026-07-25, T1–T25 on `feat/agent-change-review`, not yet merged):**
+all 25 tasks landed as atomic commits. Spine: `CheckpointService` (shadow-git
+snapshot engine, real git in temp dirs) + `gitParse` hunk-id/patch-builder (real
+`git apply` round-trip) + `ReviewService` (single accumulating pending set,
+accept advances the baseline tree via a scratch index, reject reverts, STALE
+mtime guard). IPC `review:*` + turn wiring (checkpoint before the CLI spawns,
+`tool_use` → `tool` event attribution) + preload bridge + `useReview` store.
+Four synchronized surfaces: `HunkActions`/`DiffView` per-hunk ✓/✗, `ReviewBar`,
+`AgentReviewPanel` (third `SidebarHost` view + rail badge), `InlineAgentDiff`
+(Cursor-tier, over `inlineDiff` model, keyboard A/R/J/K) opened as a `review`
+`DiffTab`, `ChangeCard` in the chat transcript. Guards: `StaleGuardDialog`
+(ACR-R3.2), `ReviewSwitchDialog` (ACR-R4.3). `npm run verify` green (typecheck +
+0 lint errors + 1299 unit/component tests); every changed non-UI file ≥90%.
+E2E: real-Electron surface smoke passes under xvfb (the on-disk accept/reject/
+reject-all round-trip is asserted against **real git** in `reviewService.test.ts`
+— the turn checkpoint can't be driven deterministically in the sandbox). Visual:
+10 Playwright-MCP screenshots (panel, inline diff, card ±expanded, bar, empty,
+reject-all confirm, STALE) in dark + light, first-party quality. STATE.md **D23**
+updated; OQ4 resolved (undo-accept toast deferred — accept is immediately final).
+
+---
+
 ## Dependency Graph
 
 ```
