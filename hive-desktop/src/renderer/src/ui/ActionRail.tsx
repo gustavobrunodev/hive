@@ -24,6 +24,51 @@ export interface RoleAction {
 /** The swappable left-sidebar views (git-management D-GIT-2; +review, M11). */
 export type SidebarView = 'explorer' | 'scm' | 'review'
 
+/** Appends `— <detail>` to a rail entry's accessible name when a badge is showing (folds the count in for screen readers). */
+function withDetail(base: string, detail: string | null): string {
+  return detail ? `${base} — ${detail}` : base
+}
+
+/** One activity-bar view switcher (Explorer / Source Control / Revisão) with an optional count badge. Extracted so `ActionRail` stays within its complexity budget. */
+function RailViewButton({
+  view,
+  active,
+  label,
+  icon,
+  count = 0,
+  onSelect,
+  ...extra
+}: {
+  view: SidebarView
+  active: boolean
+  label: string
+  icon: React.ReactNode
+  count?: number
+  onSelect: (view: SidebarView) => void
+  'data-tour'?: string
+  'aria-keyshortcuts'?: string
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="wb-rail-view"
+      data-active={active || undefined}
+      aria-pressed={active}
+      title={label}
+      aria-label={label}
+      onClick={() => onSelect(view)}
+      {...extra}
+    >
+      {icon}
+      {count > 0 && (
+        <span className="wb-rail-badge" aria-hidden="true">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </button>
+  )
+}
+
 interface ActionRailProps {
   /**
    * git-management (GIT-R13): the active sidebar view — Explorer or Source
@@ -79,76 +124,49 @@ export function ActionRail({
   onOpenAppSettings,
   updatePending = false
 }: ActionRailProps): React.JSX.Element {
-  // ND-R6.5: a dot alone is a color-only cue — the gear's accessible name
-  // grows an addition (pt-BR.ts's `update.pendingDotAria`) whenever it's
-  // showing, rather than relying on the dot's color/position alone.
-  const appSettingsLabel = updatePending
-    ? `${t('actionRail.appSettingsLabel')} — ${t('update.pendingDotAria')}`
-    : t('actionRail.appSettingsLabel')
-
-  // The SCM entry's accessible name folds in the change count (a badge alone
-  // is a visual-only cue), so a screen reader hears "Controle de versão, N
-  // alterações pendentes".
-  const scmLabel =
-    changeCount > 0
-      ? `${t('actionRail.scmView')} — ${t('actionRail.scmChangeCount', changeCount)}`
-      : t('actionRail.scmView')
-
-  // The Revisão entry folds its pending count into the accessible name too
-  // (a badge alone is a visual-only cue).
-  const reviewLabel =
-    reviewCount > 0
-      ? `${t('review.railLabel')} — ${t('review.barPending', reviewCount)}`
-      : t('review.railLabel')
+  // Accessible names fold any badge count into the label (a badge alone is a
+  // visual-only cue): "Controle de versão — N alterações pendentes", etc.
+  const appSettingsLabel = withDetail(
+    t('actionRail.appSettingsLabel'),
+    updatePending ? t('update.pendingDotAria') : null
+  )
+  const scmLabel = withDetail(
+    t('actionRail.scmView'),
+    changeCount > 0 ? t('actionRail.scmChangeCount', changeCount) : null
+  )
+  const reviewLabel = withDetail(
+    t('review.railLabel'),
+    reviewCount > 0 ? t('review.barPending', reviewCount) : null
+  )
 
   return (
     <nav className="wb-actionrail" aria-label={t('actionRail.ariaLabel')} data-tour="rail">
-      <button
-        type="button"
-        className="wb-rail-view"
-        data-active={activeView === 'explorer' || undefined}
-        aria-pressed={activeView === 'explorer'}
-        title={t('actionRail.explorerView')}
-        aria-label={t('actionRail.explorerView')}
-        onClick={() => onSelectView('explorer')}
-      >
-        <FolderIcon size={18} />
-      </button>
-      <button
-        type="button"
-        className="wb-rail-view"
-        data-active={activeView === 'scm' || undefined}
+      <RailViewButton
+        view="explorer"
+        active={activeView === 'explorer'}
+        label={t('actionRail.explorerView')}
+        icon={<FolderIcon size={18} />}
+        onSelect={onSelectView}
+      />
+      <RailViewButton
+        view="scm"
+        active={activeView === 'scm'}
+        label={scmLabel}
+        icon={<SourceControlIcon size={18} />}
+        count={changeCount}
+        onSelect={onSelectView}
         data-tour="scm"
-        aria-pressed={activeView === 'scm'}
-        title={scmLabel}
-        aria-label={scmLabel}
         aria-keyshortcuts="Control+Shift+G"
-        onClick={() => onSelectView('scm')}
-      >
-        <SourceControlIcon size={18} />
-        {changeCount > 0 && (
-          <span className="wb-rail-badge" aria-hidden="true">
-            {changeCount > 99 ? '99+' : changeCount}
-          </span>
-        )}
-      </button>
-      <button
-        type="button"
-        className="wb-rail-view"
-        data-active={activeView === 'review' || undefined}
+      />
+      <RailViewButton
+        view="review"
+        active={activeView === 'review'}
+        label={reviewLabel}
+        icon={<ReviewIcon size={18} />}
+        count={reviewCount}
+        onSelect={onSelectView}
         data-tour="review"
-        aria-pressed={activeView === 'review'}
-        title={reviewLabel}
-        aria-label={reviewLabel}
-        onClick={() => onSelectView('review')}
-      >
-        <ReviewIcon size={18} />
-        {reviewCount > 0 && (
-          <span className="wb-rail-badge" aria-hidden="true">
-            {reviewCount > 99 ? '99+' : reviewCount}
-          </span>
-        )}
-      </button>
+      />
 
       <span className="wb-actionrail-divider" aria-hidden="true" />
 
