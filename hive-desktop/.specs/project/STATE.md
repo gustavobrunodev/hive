@@ -553,6 +553,75 @@ Updated as work progresses. Load at start of every session.
     `✓ Updated <N> skill(s)`. Errors surface as non-zero exit + `error`-bearing
     lines. Fixtures captured for `secondBrainService.test.ts`.
 
+## Lessons (second-brain — T2 spike: Transformers.js under the Electron CSP, 2026-07-25)
+
+- **T2 — OQ2 + OQ3 CLOSED. A real, correct transcript came out of a
+  local-only ONNX Whisper model, no network, under the renderer CSP, served
+  by a custom `hive-model:` protocol, on the WASM/CPU path (2026-07-25).**
+  Built a throwaway Electron harness (scratchpad, not committed): a
+  `sandbox:true` BrowserWindow loading a `file://` page with the design's
+  target CSP, a `hive-model:` protocol serving a hand-placed
+  `Xenova/whisper-tiny` model dir, `@huggingface/transformers` (installed as a
+  real dep) bundled with esbuild (`--platform=browser --conditions=browser`),
+  transcribing the 11 s `jfk.wav`. Output: *"And so my fellow Americans ask not
+  what your country can do for you ask what you can do for your country."* —
+  the correct JFK line. ~50 s total (model load + inference), single-thread
+  WASM, run under `xvfb-run` with `ELECTRON_RUN_AS_NODE` stripped (the T2-era
+  gotcha). **The spike surfaced FOUR corrections to design.md that T11 must
+  bake in — none change the approach (D-SB-1 holds), they pin the exact
+  config:**
+  1. **`hive-model:` needs `corsEnabled: true` in its privileged-scheme
+     registration** (design §4.3 listed only `standard/secure/supportFetchAPI/
+     bypassCSP:false`). The renderer is a `file://` origin; a `fetch()` from
+     `file://` to a custom scheme is refused by Chromium ("Cross origin
+     requests are only supported for protocol schemes: chrome…, http, https")
+     **unless the scheme is CORS-enabled**. Full privilege set that worked:
+     `{ standard:true, secure:true, supportFetchAPI:true, corsEnabled:true,
+     stream:true, bypassCSP:false }`.
+  2. **The scheme is HOST-based, not path-based.** A `standard` scheme
+     normalizes `hive-model:///models/x` → **host=`models`**, path=`/x` (the
+     first segment becomes the URL authority). design §4.1's
+     `env.localModelPath='hive-model:///'` is wrong — the repo owner (`Xenova`)
+     would silently become the host. Use `env.localModelPath='hive-model://models/'`
+     and have `protocol.handle` resolve **`new URL(req.url).hostname` as the
+     store-root key + `.pathname` as the rest** (path-escape-guarded). The T11
+     handler serves `userData/whisper-models/` as the `models` host.
+  3. **ORT WASM assets are SAME-ORIGIN app bundles, NOT served via
+     `hive-model:`.** ORT loads its `ort-wasm-simd-threaded*.mjs` glue by
+     dynamic `import()` — a **script** load governed by `script-src`, not a
+     `connect-src` fetch. Serving it from `hive-model:` fails ("Failed to fetch
+     dynamically imported module"). Point `env.backends.onnx.wasm.wasmPaths` at
+     a **same-origin** URL (the app bundles the `onnxruntime-web/dist/ort-wasm-
+     simd-threaded.*` `.mjs`+`.wasm` next to the renderer; `script-src 'self'`
+     covers it). This *confirms* design §4.4's CSP was right to put only
+     `hive-model:` in `connect-src` (models) and nothing extra in `script-src`
+     beyond `'wasm-unsafe-eval'`. T11 must copy the ORT assets into the renderer
+     build output (a vite `publicDir`/copy step) and set `wasmPaths` to them.
+  4. **On WASM, `dtype` must be `fp32`, not `q8`.** design §4.1's
+     `dtype: device==='webgpu'?'fp32':'q8'` fails on the WASM path: the
+     uint8-`quantized` (and `q4`) Whisper **decoder** uses a `MatMulNBits` op
+     onnxruntime-web's WASM build can't create ("qdq_actions.cc … Missing
+     required scale … TransposeDQWeightsForMatMulNBits"). `fp32` transcribes
+     cleanly. **Consequence for the T12 catalog + model store:** the WASM path
+     downloads the **fp32** ONNX files (tiny decoder is ~118 MB fp32 vs ~30 MB
+     quantized), so the catalog's `sizeMB` must reflect fp32, and
+     `downloadModel` must fetch `encoder_model.onnx` +
+     `decoder_model_merged.onnx` (not the `_quantized` variants) for the WASM
+     default. WebGPU may accept q8/fp16 — kept as a per-device `dtype` choice
+     (fp32 on wasm, fp32/fp16 on webgpu), but the **guaranteed** path is
+     fp32/WASM. (WebGPU itself was NOT validated — `navigator.gpu` is truthy
+     even headless, but no real adapter exists under xvfb; the WASM fallback is
+     the load-bearing path and it works, exactly as the design intends.)
+  - Also: **`env.useBrowserCache = false`** (the Cache API can't store a
+    `hive-model:` response — "Request scheme 'hive-model' is unsupported"; our
+    `userData` model store *is* the cache, so browser caching is redundant
+    noise). Plus `env.allowRemoteModels=false` + `env.allowLocalModels=true`.
+  - Verified `net.fetch(pathToFileURL(file))` inside `protocol.handle` streams
+    local model bytes correctly. The HF **tree API**
+    (`/api/models/<repo>/tree/main` + `/tree/main/onnx`) returns the file list
+    unauthenticated (de-risks T12's `downloadModel`); model files fetch from
+    `https://huggingface.co/<repo>/resolve/main/<path>` with a plain `curl`.
+
 ## Blockers
 
 - **ND-B2 — OPEN (2026-07-22), blocks the real payload publish only.** Need a
