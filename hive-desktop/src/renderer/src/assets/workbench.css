@@ -7122,17 +7122,8 @@ button.wb-agent-pill-btn:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
 }
 
-/* Destructive confirm CTA (reject-all, stale-clobber) — the one place friction
-   is warranted (G4). */
-.wb-btn-danger {
-  color: #fff;
-  background: var(--wb-git-deleted);
-  border-color: var(--wb-git-deleted);
-}
-
-.wb-btn-danger:hover {
-  background: color-mix(in oklab, var(--wb-git-deleted) 88%, black);
-}
+/* Reject-all / stale-clobber reuse the shared `.wb-btn-danger` (defined above
+   with the DS --danger role tokens) — the one place friction is warranted (G4). */
 
 @media (prefers-reduced-motion: reduce) {
   .wb-review-bar {

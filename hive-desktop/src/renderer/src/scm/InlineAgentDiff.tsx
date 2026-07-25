@@ -47,7 +47,13 @@ export function InlineAgentDiff({
   const go = (dir: 'next' | 'prev'): void => {
     const next = stepHunk(current, total, dir)
     setCurrent(next)
-    anchorRefs.current[next]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // Respect reduced-motion: jump instantly rather than smooth-scrolling.
+    const reduce =
+      typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    anchorRefs.current[next]?.scrollIntoView({
+      block: 'center',
+      behavior: reduce ? 'auto' : 'smooth'
+    })
   }
 
   const currentHunk = change.diff.hunks[current]
