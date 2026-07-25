@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createHiveGitMock } from './testSupport/hiveGitMock'
+import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
 import { makeStatus } from './testSupport/gitStoreMock'
 
 /**
@@ -546,7 +547,9 @@ function createHiveMock(): Window['hive'] {
       acceptAll: vi.fn(async () => ({ ok: true })),
       rejectAll: vi.fn(async () => ({ ok: true })),
       onChanged: vi.fn(() => () => {})
-    }
+    },
+    // Second Brain (M12): WorkUI mounts useSecondBrain (getVault) on mount.
+    secondBrain: createHiveSecondBrainMock()
   } as unknown as Window['hive']
 }
 

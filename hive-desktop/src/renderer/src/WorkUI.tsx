@@ -21,6 +21,7 @@ import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
+import { useSecondBrain } from './secondBrain/useSecondBrain'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
@@ -186,7 +187,7 @@ const SIDEBAR_VIEW_STORAGE_KEY = 'hive.sidebarView'
 function loadSidebarView(): SidebarView {
   try {
     const stored = localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY)
-    return stored === 'scm' || stored === 'review' ? stored : 'explorer'
+    return stored === 'scm' || stored === 'review' || stored === 'brain' ? stored : 'explorer'
   } catch {
     return 'explorer'
   }
@@ -283,6 +284,9 @@ export function WorkUI({
   // "Revisão do agente" panel, the in-chat card, and the inline editor diff —
   // so they never drift (ACR-R2.5).
   const review = useReviewStore(workspace)
+  // Second Brain (M12, SB-R2): vault status + raw-pending count for the rail
+  // badge and the Second Brain panel.
+  const secondBrain = useSecondBrain(workspace)
   // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
   // it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
@@ -701,6 +705,8 @@ export function WorkUI({
               review={
                 <AgentReviewPanel onOpenDiff={(path: string) => editor.openReviewDiff(path)} />
               }
+              // Second Brain body (M12): T7 fills this slot with SecondBrainPanel.
+              brain={null}
             />
           </div>
         </ResizablePanel>
@@ -876,6 +882,7 @@ export function WorkUI({
               onSelectView={setActiveView}
               changeCount={changeCount(git.status)}
               reviewCount={review.pendingCount}
+              rawPendingCount={secondBrain.rawPending}
               onOpenSearch={() => setSearchOpen(true)}
               onOpenStudio={() => setStudioOpen(true)}
               onOpenMcp={() => setMcpOpen(true)}

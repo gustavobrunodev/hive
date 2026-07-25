@@ -1,5 +1,6 @@
 import { t } from '../i18n'
 import {
+  BrainIcon,
   FolderIcon,
   GearIcon,
   PlugIcon,
@@ -21,8 +22,8 @@ export interface RoleAction {
   custom?: boolean
 }
 
-/** The swappable left-sidebar views (git-management D-GIT-2; +review, M11). */
-export type SidebarView = 'explorer' | 'scm' | 'review'
+/** The swappable left-sidebar views (git-management D-GIT-2; +review, M11; +brain, M12). */
+export type SidebarView = 'explorer' | 'scm' | 'review' | 'brain'
 
 /** Appends `— <detail>` to a rail entry's accessible name when a badge is showing (folds the count in for screen readers). */
 function withDetail(base: string, detail: string | null): string {
@@ -82,6 +83,8 @@ interface ActionRailProps {
   changeCount?: number
   /** Agent Change Review (M11): pending review count — a badge on the Revisão entry (0 hides it). */
   reviewCount?: number
+  /** Second Brain (M12, SB-R2.5): count of raw items staged for ingestion — a badge on the Second Brain entry (0 hides it). */
+  rawPendingCount?: number
   /** Opens the workspace file-search palette (also reachable via Ctrl+P). */
   onOpenSearch: () => void
   /** Opens the Skill Studio (skill-studio): create skills/agents + evals. */
@@ -118,6 +121,7 @@ export function ActionRail({
   onSelectView = () => {},
   changeCount = 0,
   reviewCount = 0,
+  rawPendingCount = 0,
   onOpenSearch,
   onOpenStudio,
   onOpenMcp,
@@ -137,6 +141,10 @@ export function ActionRail({
   const reviewLabel = withDetail(
     t('review.railLabel'),
     reviewCount > 0 ? t('review.barPending', reviewCount) : null
+  )
+  const brainLabel = withDetail(
+    t('secondBrain.railLabel'),
+    rawPendingCount > 0 ? t('secondBrain.railPending', rawPendingCount) : null
   )
 
   return (
@@ -166,6 +174,16 @@ export function ActionRail({
         count={reviewCount}
         onSelect={onSelectView}
         data-tour="review"
+      />
+      <RailViewButton
+        view="brain"
+        active={activeView === 'brain'}
+        label={brainLabel}
+        icon={<BrainIcon size={18} />}
+        count={rawPendingCount}
+        onSelect={onSelectView}
+        data-tour="brain"
+        aria-keyshortcuts="Control+Shift+B"
       />
 
       <span className="wb-actionrail-divider" aria-hidden="true" />

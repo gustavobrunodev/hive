@@ -339,6 +339,19 @@ export function ReviewIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/** Second Brain — a brain silhouette with a central sulcus (knowledge base). */
+export function BrainIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 3.25v9.5" />
+      <path d="M8 4.2A2.1 2.1 0 0 0 4.3 5.1 2 2 0 0 0 3 7a2 2 0 0 0 .5 3.3A2.1 2.1 0 0 0 8 12" />
+      <path d="M8 4.2A2.1 2.1 0 0 1 11.7 5.1 2 2 0 0 1 13 7a2 2 0 0 1-.5 3.3A2.1 2.1 0 0 1 8 12" />
+      <path d="M5.5 6.7c.7.3 1.3.3 2 0" />
+      <path d="M10.5 6.7c-.7.3-1.3.3-2 0" />
+    </svg>
+  )
+}
+
 /** Persona conversation — speech bubble with three dots. */
 export function PersonaChatIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (

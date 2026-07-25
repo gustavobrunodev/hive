@@ -783,6 +783,11 @@ export const ptBR = {
     keyNextHint: 'Próximo (J / ↓)',
     keyPrevHint: 'Anterior (K / ↑)'
   },
+  secondBrain: {
+    // Activity-bar entry (SB-R2.1) + staged-raw badge (SB-R2.5).
+    railLabel: 'Second Brain',
+    railPending: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`)
+  },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
     searchLabel: 'Buscar arquivos no workspace',

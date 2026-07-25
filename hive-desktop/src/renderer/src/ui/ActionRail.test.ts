@@ -13,7 +13,7 @@ import { ActionRail } from './ActionRail'
  */
 
 function baseProps(): {
-  activeView: 'explorer' | 'scm' | 'review'
+  activeView: 'explorer' | 'scm' | 'review' | 'brain'
   onSelectView: ReturnType<typeof vi.fn>
   onOpenSearch: ReturnType<typeof vi.fn>
   onOpenStudio: ReturnType<typeof vi.fn>
@@ -80,6 +80,25 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
     rerender(createElement(ActionRail, { ...props, reviewCount: 120 }))
     const badges = Array.from(document.querySelectorAll('.wb-rail-badge')).map((b) => b.textContent)
     expect(badges).toContain('99+')
+  })
+
+  // Second Brain (M12, T6): the fourth "Second Brain" view entry + raw-pending badge.
+  it('renders the Second Brain entry, selects it, and shows its raw-pending badge with Ctrl+Shift+B', () => {
+    const props = baseProps()
+    const { rerender } = render(createElement(ActionRail, { ...props, activeView: 'brain' }))
+    const entry = screen.getByLabelText('Second Brain')
+    expect(entry.getAttribute('aria-pressed')).toBe('true')
+    expect(entry.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+B')
+
+    fireEvent.click(entry)
+    expect(props.onSelectView).toHaveBeenCalledWith('brain')
+
+    // No badge at zero; appears with an accessible count once > 0.
+    expect(screen.getByLabelText('Second Brain').textContent).toBe('')
+    rerender(createElement(ActionRail, { ...props, rawPendingCount: 2 }))
+    expect(screen.getByLabelText(/2 itens para ingerir/)).toBeTruthy()
+    rerender(createElement(ActionRail, { ...props, rawPendingCount: 1 }))
+    expect(screen.getByLabelText(/1 item para ingerir/)).toBeTruthy()
   })
 
   it('tolerates omitting onSelectView (defaults to a no-op)', () => {
