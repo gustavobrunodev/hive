@@ -115,6 +115,15 @@ function initLine(sessionId = 'cli-sess-1'): string {
   return jsonLine({ type: 'system', subtype: 'init', session_id: sessionId })
 }
 
+/** An `assistant` message carrying a `tool_use` block (Agent Change Review attribution, ACR-C7). */
+function toolUseLine(name: string, filePath: string, sessionId = 'cli-sess-1'): string {
+  return jsonLine({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { content: [{ type: 'tool_use', name, input: { file_path: filePath } }] }
+  })
+}
+
 describe('ClaudeCliAdapter — session turns (stream-json)', () => {
   it('a successful turn: init → session event, text deltas → tokens, then done', async () => {
     const fakeRunner = createFakeProcessRunner()
@@ -151,6 +160,41 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     expect(fakeRunner.calls[0].command).toBe('claude')
     expect(fakeRunner.calls[0].args).toEqual(['-p', 'hi there', ...BASE_FLAGS])
     expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws' })
+  })
+
+  it('emits a tool event per file-editing tool_use block, without disturbing token streaming (ACR-C7)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: initLine() },
+        { stream: 'stdout', data: textDelta('Editing…') },
+        { stream: 'stdout', data: toolUseLine('Write', '/ws/src/a.txt') },
+        { stream: 'stdout', data: toolUseLine('MultiEdit', '/ws/src/b.txt') },
+        // A non-file tool (Bash) is not attributed.
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            message: { content: [{ type: 'tool_use', name: 'Bash', input: {} }] }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'm', effort: 'medium' })
+
+    session.send({ text: 'edit the files' })
+    const events = await take(session.events, 5)
+
+    expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1' },
+      { type: 'token', text: 'Editing…' },
+      { type: 'tool', name: 'Write', detail: '/ws/src/a.txt' },
+      { type: 'tool', name: 'MultiEdit', detail: '/ws/src/b.txt' },
+      { type: 'done' }
+    ])
   })
 
   it('send({resume}) appends --resume <id> so the turn continues the CLI conversation', async () => {

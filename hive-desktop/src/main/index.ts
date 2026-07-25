@@ -568,15 +568,23 @@ app.whenReady().then(() => {
   // time); a turn without an explicit id gets a synthesized one so its terminal
   // event can be matched back. Best-effort touched `paths` land in T17.
   const activeReviewTurns = new Map<string, string>() // turnId -> workspace
+  const reviewTurnPaths = new Map<string, Set<string>>() // turnId -> touched file paths (attribution, ACR-C7)
   let reviewTurnCounter = 0
   function beginReviewTurn(turnId: string): void {
     const ws = workspaceService.getWorkspace()
     if (!ws) return
     ensureReviewWatch(ws)
     activeReviewTurns.set(turnId, ws)
+    reviewTurnPaths.set(turnId, new Set())
     void reviewService.beginTurn(ws, turnId)
   }
   agentService.onEvent((agentEvent: AgentEvent) => {
+    // Attribution plumbing (ACR-C7): accumulate the paths the agent's file-edit
+    // tools touched, keyed by turn, so `endTurn` can annotate the change card.
+    if (agentEvent.type === 'tool' && agentEvent.turnId !== undefined && agentEvent.detail) {
+      reviewTurnPaths.get(agentEvent.turnId)?.add(agentEvent.detail)
+      return
+    }
     if (
       agentEvent.type === 'done' ||
       agentEvent.type === 'error' ||
@@ -587,7 +595,20 @@ app.whenReady().then(() => {
       const ws = activeReviewTurns.get(turnId)
       if (!ws) return
       activeReviewTurns.delete(turnId)
-      void reviewService.endTurn(ws, turnId, [])
+      // The tool_use paths are absolute; make them workspace-relative POSIX to
+      // match the pending set's path convention (the diff is authoritative — an
+      // empty/partial list is fine).
+      const paths = [...(reviewTurnPaths.get(turnId) ?? [])]
+        .filter((p) => p.startsWith(ws))
+        .map((p) =>
+          p
+            .slice(ws.length)
+            .replace(/^[/\\]/, '')
+            .split('\\')
+            .join('/')
+        )
+      reviewTurnPaths.delete(turnId)
+      void reviewService.endTurn(ws, turnId, paths)
     }
   })
 

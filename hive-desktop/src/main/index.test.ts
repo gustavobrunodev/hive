@@ -1180,11 +1180,19 @@ describe('main process bootstrap', () => {
       // A watcher was started for the workspace.
       expect(watchWorkspaceCalls.some((c) => c.root === dir)).toBe(true)
 
-      // The bootstrap review listener (index's first agentService.onEvent) ends
-      // the turn on the terminal event.
+      // The bootstrap review listener (index's first agentService.onEvent)
+      // accumulates tool_use file paths (ACR-C7) then ends the turn on the
+      // terminal event, passing the touched paths as workspace-relative POSIX.
       const reviewListener = agentOnEventCalls[0].listener
+      reviewListener({ type: 'tool', name: 'Write', detail: `${dir}/src/a.txt`, turnId: 't-xyz' })
+      reviewListener({ type: 'tool', name: 'Edit', detail: `${dir}/src/b.txt`, turnId: 't-xyz' })
+      // A tool path outside the workspace is dropped.
+      reviewListener({ type: 'tool', name: 'Write', detail: '/elsewhere/c.txt', turnId: 't-xyz' })
       reviewListener({ type: 'done', turnId: 't-xyz' })
-      expect(fakeReviewService.endTurn).toHaveBeenCalledWith(dir, 't-xyz', [])
+      expect(fakeReviewService.endTurn).toHaveBeenCalledWith(dir, 't-xyz', [
+        'src/a.txt',
+        'src/b.txt'
+      ])
 
       rmSync(dir, { recursive: true, force: true })
     })

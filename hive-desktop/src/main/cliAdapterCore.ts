@@ -66,7 +66,18 @@ interface StreamJsonLine {
     type?: string
     delta?: { type?: string; text?: string }
   }
+  /** An `assistant` message's content blocks — parsed for `tool_use` attribution (ACR-C7). */
+  message?: {
+    content?: Array<{
+      type?: string
+      name?: string
+      input?: { file_path?: string }
+    }>
+  }
 }
+
+/** Claude tool names whose `input.file_path` attributes a workspace file change (Agent Change Review, ACR-C7). */
+const FILE_EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
 /**
  * Routes one stdout line into the session's event queue, tagging every event
@@ -106,6 +117,33 @@ function handleStdoutLine(
     typeof parsed.event.delta.text === 'string'
   ) {
     queue.push({ type: 'token', text: parsed.event.delta.text, turnId })
+  }
+  // Attribution groundwork (ACR-C7, plumbing only): emit a `tool` event per
+  // file-editing tool_use so the turn wiring can attribute touched paths.
+  emitToolUse(parsed, queue, turnId)
+}
+
+/**
+ * Emits a `tool` event for each file-editing `tool_use` block in a complete
+ * `assistant` message (name + `input.file_path`), for change attribution
+ * (ACR-C7). Text blocks are ignored (they already streamed as deltas); this
+ * never affects token streaming. Split out to keep `handleStdoutLine` simple.
+ */
+function emitToolUse(
+  parsed: StreamJsonLine,
+  queue: ReturnType<typeof createAgentEventQueue>,
+  turnId: string | undefined
+): void {
+  if (parsed.type !== 'assistant' || !Array.isArray(parsed.message?.content)) return
+  for (const block of parsed.message.content) {
+    if (
+      block.type === 'tool_use' &&
+      typeof block.name === 'string' &&
+      FILE_EDIT_TOOLS.has(block.name) &&
+      typeof block.input?.file_path === 'string'
+    ) {
+      queue.push({ type: 'tool', name: block.name, detail: block.input.file_path, turnId })
+    }
   }
 }
 
