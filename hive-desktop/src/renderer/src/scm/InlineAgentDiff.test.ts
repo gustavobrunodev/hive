@@ -114,6 +114,32 @@ describe('InlineAgentDiff', () => {
     expect(screen.getByText('1 de 2')).toBeTruthy()
   })
 
+  it('supports the keyboard flow: A/R accept/reject the current hunk, J/K navigate', () => {
+    const store = makeStore([change()])
+    renderInline(store)
+    const surface = document.querySelector('.wb-inline-diff') as HTMLElement
+
+    fireEvent.keyDown(surface, { key: 'a' })
+    expect(store.acceptHunk).toHaveBeenCalledWith('a.txt', '0:1:1')
+
+    fireEvent.keyDown(surface, { key: 'j' })
+    expect(screen.getByText('2 de 2')).toBeTruthy()
+    fireEvent.keyDown(surface, { key: 'r' })
+    expect(store.rejectHunk).toHaveBeenCalledWith('a.txt', '1:5:5')
+
+    fireEvent.keyDown(surface, { key: 'k' })
+    expect(screen.getByText('1 de 2')).toBeTruthy()
+    fireEvent.keyDown(surface, { key: 'ArrowDown' })
+    expect(screen.getByText('2 de 2')).toBeTruthy()
+    fireEvent.keyDown(surface, { key: 'ArrowUp' })
+    expect(screen.getByText('1 de 2')).toBeTruthy()
+
+    // An unrelated key is ignored — no further accept/reject calls.
+    fireEvent.keyDown(surface, { key: 'x' })
+    expect(store.acceptHunk).toHaveBeenCalledTimes(1)
+    expect(store.rejectHunk).toHaveBeenCalledTimes(1)
+  })
+
   it('renders the calm affordance for a binary change (no inline rows)', () => {
     const { container } = render(
       createElement(

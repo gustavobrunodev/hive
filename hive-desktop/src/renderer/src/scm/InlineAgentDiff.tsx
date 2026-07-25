@@ -50,6 +50,27 @@ export function InlineAgentDiff({
     anchorRefs.current[next]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 
+  const currentHunk = change.diff.hunks[current]
+  const acceptCurrent = (): void => {
+    if (currentHunk) void review.acceptHunk(path, hunkKey(currentHunk, current))
+  }
+  const rejectCurrent = (): void => {
+    if (currentHunk) void review.rejectHunk(path, hunkKey(currentHunk, current))
+  }
+
+  // Keyboard flow (ACR-R4.1, Cursor parity): A/R accept/reject the current
+  // hunk; J/↓ and K/↑ step between changes. Discoverable via the control
+  // tooltips (title) below.
+  const onKeyDown = (e: React.KeyboardEvent): void => {
+    const key = e.key.toLowerCase()
+    if (key === 'a') acceptCurrent()
+    else if (key === 'r') rejectCurrent()
+    else if (key === 'j' || e.key === 'ArrowDown') go('next')
+    else if (key === 'k' || e.key === 'ArrowUp') go('prev')
+    else return
+    e.preventDefault()
+  }
+
   // Which model-row index starts each hunk (for anchoring the controls + nav).
   const hunkFirstRow = new Map<number, number>()
   model.rows.forEach((row, i) => {
@@ -58,13 +79,19 @@ export function InlineAgentDiff({
   })
 
   return (
-    <div className="wb-inline-diff" aria-label={t('review.panelTitle')}>
+    <div
+      className="wb-inline-diff"
+      aria-label={t('review.panelTitle')}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+    >
       {total > 1 && (
         <div className="wb-inline-nav">
           <button
             type="button"
             className="wb-inline-nav-btn"
             aria-label={t('review.inlinePrevAria')}
+            title={t('review.keyPrevHint')}
             onClick={() => go('prev')}
           >
             <ChevronRightIcon size={14} style={{ transform: 'rotate(180deg)' }} />
@@ -74,6 +101,7 @@ export function InlineAgentDiff({
             type="button"
             className="wb-inline-nav-btn"
             aria-label={t('review.inlineNextAria')}
+            title={t('review.keyNextHint')}
             onClick={() => go('next')}
           >
             <ChevronRightIcon size={14} />
