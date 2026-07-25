@@ -20,8 +20,11 @@ import { useEditorTabs } from './ui/useEditorTabs'
 import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
+import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
+import { AgentReviewPanel } from './scm/AgentReviewPanel'
+import { ReviewBar } from './ui/ReviewBar'
 import { DiffTab } from './scm/DiffTab'
 import { CommitDiffTab } from './scm/CommitDiffTab'
 import { ConflictView } from './ui/ConflictView'
@@ -179,7 +182,8 @@ const SIDEBAR_VIEW_STORAGE_KEY = 'hive.sidebarView'
 /** Reads the persisted sidebar view, defaulting to the Explorer (tolerates missing/corrupt data). */
 function loadSidebarView(): SidebarView {
   try {
-    return localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === 'scm' ? 'scm' : 'explorer'
+    const stored = localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY)
+    return stored === 'scm' || stored === 'review' ? stored : 'explorer'
   } catch {
     return 'explorer'
   }
@@ -270,6 +274,12 @@ export function WorkUI({
   // explorer decorations and the editor gutter. Mounted once here (like
   // useUpdateFlow) so all consumers see one coherent state.
   const git = useGitStore(workspace)
+
+  // Agent Change Review (M11): the single pending-set store for this workspace,
+  // shared via ReviewProvider to all four surfaces — the review bar, the
+  // "Revisão do agente" panel, the in-chat card, and the inline editor diff —
+  // so they never drift (ACR-R2.5).
+  const review = useReviewStore(workspace)
   // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
   // it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
@@ -626,7 +636,12 @@ export function WorkUI({
   // the viewer's draft survive any drag.
   const paneRenderers: Record<PaneId, () => ReactNode> = {
     rail: () => {
-      const paneTitle = activeView === 'scm' ? t('git.paneTitle') : t('explorer.paneTitle')
+      const paneTitle =
+        activeView === 'scm'
+          ? t('git.paneTitle')
+          : activeView === 'review'
+            ? t('review.panelTitle')
+            : t('explorer.paneTitle')
       return (
         <ResizablePanel
           key="rail"
@@ -664,6 +679,7 @@ export function WorkUI({
                   remote={gitRemote}
                 />
               }
+              review={<AgentReviewPanel onOpenDiff={(path: string) => editor.openFile(path)} />}
             />
           </div>
         </ResizablePanel>
@@ -751,196 +767,203 @@ export function WorkUI({
 
   return (
     <GitProvider store={git}>
-      <div className="wb-app">
-        <header className="wb-topbar">
-          <HiveLogo mark="brain" className="wb-topbar-logo" />
-          <span className="wb-topbar-title">{t('app.title')}</span>
-          <span className="wb-topbar-sep" aria-hidden="true" />
-          <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="wb-workspace-chip"
-                title={t('workUI.workspaceChipTitle', workspace)}
-                aria-label={t('workUI.workspaceChipAria', workspace)}
-              >
-                <FolderIcon size={14} className="wb-workspace-chip-icon" />
-                <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
-                <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
-              </button>
-            </DropdownMenuTrigger>
-            {chipMenuOpen && (
-              <DropdownMenuContent align="start" className="wb-workspace-menu">
-                <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
-                <DropdownMenuItem onSelect={handleChooseFolder}>
-                  <span className="wb-menu-item-icon" aria-hidden="true">
-                    <FolderOpenIcon size={15} />
-                  </span>
-                  <span className="wb-menu-item-text">
-                    <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
-                  </span>
-                </DropdownMenuItem>
-                {recents.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
-                    {recents.map((path) => (
-                      <DropdownMenuItem
-                        key={path}
-                        title={path}
-                        onSelect={() => requestSwitch(path)}
-                      >
-                        <span className="wb-menu-item-icon" aria-hidden="true">
-                          <FolderIcon size={15} />
-                        </span>
-                        <span className="wb-menu-item-text">
-                          <span className="wb-menu-item-title">{workspaceName(path)}</span>
-                          <span className="wb-menu-item-sub">{path}</span>
-                        </span>
-                      </DropdownMenuItem>
-                    ))}
-                  </>
-                )}
-              </DropdownMenuContent>
-            )}
-          </DropdownMenu>
-          <div className="wb-topbar-spacer" />
-          <IconButton
-            label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
-            onClick={onToggleTheme}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </IconButton>
-          {/* Profile avatar (top-right, the desktop-app convention): the user's
+      <ReviewProvider store={review}>
+        <div className="wb-app">
+          <header className="wb-topbar">
+            <HiveLogo mark="brain" className="wb-topbar-logo" />
+            <span className="wb-topbar-title">{t('app.title')}</span>
+            <span className="wb-topbar-sep" aria-hidden="true" />
+            <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="wb-workspace-chip"
+                  title={t('workUI.workspaceChipTitle', workspace)}
+                  aria-label={t('workUI.workspaceChipAria', workspace)}
+                >
+                  <FolderIcon size={14} className="wb-workspace-chip-icon" />
+                  <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
+                  <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
+                </button>
+              </DropdownMenuTrigger>
+              {chipMenuOpen && (
+                <DropdownMenuContent align="start" className="wb-workspace-menu">
+                  <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={handleChooseFolder}>
+                    <span className="wb-menu-item-icon" aria-hidden="true">
+                      <FolderOpenIcon size={15} />
+                    </span>
+                    <span className="wb-menu-item-text">
+                      <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
+                    </span>
+                  </DropdownMenuItem>
+                  {recents.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
+                      {recents.map((path) => (
+                        <DropdownMenuItem
+                          key={path}
+                          title={path}
+                          onSelect={() => requestSwitch(path)}
+                        >
+                          <span className="wb-menu-item-icon" aria-hidden="true">
+                            <FolderIcon size={15} />
+                          </span>
+                          <span className="wb-menu-item-text">
+                            <span className="wb-menu-item-title">{workspaceName(path)}</span>
+                            <span className="wb-menu-item-sub">{path}</span>
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              )}
+            </DropdownMenu>
+            <div className="wb-topbar-spacer" />
+            <IconButton
+              label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
+              onClick={onToggleTheme}
+            >
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </IconButton>
+            {/* Profile avatar (top-right, the desktop-app convention): the user's
             initials open the profile sheet — who you are; the rail's gear
             below is the software's settings. */}
-          <button
-            type="button"
-            className="wb-avatar-btn"
-            data-tour="profile"
-            title={t('profile.openLabel')}
-            aria-label={t('profile.openLabel')}
-            onClick={() => setProfileOpen(true)}
-          >
-            {initialsOf(userName) ?? <UserIcon size={15} />}
-          </button>
-        </header>
-        {switchError && (
-          <div className="wb-switch-error" role="alert">
-            {switchError}
-          </div>
-        )}
-        <div className="wb-shell">
-          <ActionRail
-            activeView={activeView}
-            onSelectView={setActiveView}
-            changeCount={changeCount(git.status)}
-            onOpenSearch={() => setSearchOpen(true)}
-            onOpenStudio={() => setStudioOpen(true)}
-            onOpenMcp={() => setMcpOpen(true)}
-            onOpenAppSettings={() => setAppSettingsOpen(true)}
-            updatePending={updateFlow.pending}
-          />
-          <div className="wb-body">
-            <Resizable
-              orientation="horizontal"
-              style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-              defaultLayout={defaultLayout}
-              onLayoutChanged={persistWorkLayout}
+            <button
+              type="button"
+              className="wb-avatar-btn"
+              data-tour="profile"
+              title={t('profile.openLabel')}
+              aria-label={t('profile.openLabel')}
+              onClick={() => setProfileOpen(true)}
             >
-              {panels}
-            </Resizable>
+              {initialsOf(userName) ?? <UserIcon size={15} />}
+            </button>
+          </header>
+          {switchError && (
+            <div className="wb-switch-error" role="alert">
+              {switchError}
+            </div>
+          )}
+          <div className="wb-shell">
+            <ActionRail
+              activeView={activeView}
+              onSelectView={setActiveView}
+              changeCount={changeCount(git.status)}
+              reviewCount={review.pendingCount}
+              onOpenSearch={() => setSearchOpen(true)}
+              onOpenStudio={() => setStudioOpen(true)}
+              onOpenMcp={() => setMcpOpen(true)}
+              onOpenAppSettings={() => setAppSettingsOpen(true)}
+              updatePending={updateFlow.pending}
+            />
+            <div className="wb-body">
+              <Resizable
+                orientation="horizontal"
+                style={{ flex: 1, minWidth: 0, minHeight: 0 }}
+                defaultLayout={defaultLayout}
+                onLayoutChanged={persistWorkLayout}
+              >
+                {panels}
+              </Resizable>
+            </div>
           </div>
+          {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
+            work-surface footer, above the status bar — present only while the
+            pending set is non-empty; `Revisar →` opens the sidebar panel. */}
+          <ReviewBar onReview={() => setActiveView('review')} />
+          <StatusBar
+            onChanges={() => setActiveView('scm')}
+            onInit={() => void git.init()}
+            onBranch={() => setBranchPickerOpen(true)}
+            onSync={gitRemote.sync}
+          />
+          <BranchPicker
+            open={branchPickerOpen}
+            onOpenChange={setBranchPickerOpen}
+            workspace={workspace}
+            onCheckout={checkoutGuard.request}
+            onCreate={(name) => void git.createBranch(name)}
+            onDelete={(name) => void git.deleteBranch(name, true)}
+          />
+          <GitOpToast result={gitRemote.result} onClose={gitRemote.clear} />
+          <UnsavedGuardDialog
+            open={pendingSwitch !== null}
+            onCancel={cancelSwitch}
+            onDiscard={handleDiscardSwitch}
+            onSave={handleSaveSwitch}
+          />
+          <UnsavedGuardDialog
+            open={checkoutGuard.pending !== null}
+            onCancel={checkoutGuard.cancel}
+            onDiscard={checkoutGuard.discard}
+            onSave={checkoutGuard.save}
+          />
+          <UnsavedGuardDialog
+            open={editor.pendingClose !== null}
+            onCancel={editor.cancelPendingClose}
+            onDiscard={editor.discardPendingClose}
+            onSave={editor.savePendingClose}
+          />
+          <FileSearchDialog
+            open={searchOpen}
+            onOpenChange={setSearchOpen}
+            workspace={workspace}
+            onOpenFile={editor.openFile}
+          />
+          <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
+          <UpdateNotice
+            state={updateFlow.state}
+            currentVersion={updateFlow.currentVersion}
+            canApply={updateFlow.canApply}
+            onUpdateNow={updateFlow.updateNow}
+            onNotNow={updateFlow.notNow}
+            onSkip={updateFlow.skip}
+            onCancel={updateFlow.cancel}
+            onRetry={updateFlow.retry}
+            onOpenInstaller={updateFlow.openInstaller}
+            onViewNotes={() => setAppSettingsOpen(true)}
+          />
+          <ShortcutCustomizer
+            open={shortcutsOpen}
+            onOpenChange={setShortcutsOpen}
+            workspace={workspace}
+            role={role}
+            onChanged={refreshShortcuts}
+            onOpenStudio={() => {
+              setShortcutsOpen(false)
+              setStudioOpen(true)
+            }}
+          />
+          <SkillStudio
+            open={studioOpen}
+            onOpenChange={setStudioOpen}
+            workspace={workspace}
+            role={role}
+            hasRunningConversation={runningSessionIds.length > 0}
+            onLaunch={handleStudioLaunch}
+            onShortcutsChanged={refreshShortcuts}
+            onOpenFile={editor.openFile}
+          />
+          <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
+          <ProfileSheet
+            open={profileOpen}
+            onOpenChange={setProfileOpen}
+            role={role}
+            agents={agents}
+            defaultAgent={defaultAgent}
+            userName={userName}
+            onRoleChange={onRoleChange}
+            onAgentsChange={onAgentsChange}
+            onDefaultAgentChange={onDefaultAgentChange}
+            onUserNameChange={onUserNameChange}
+            onReplayTour={replayTour}
+          />
+          <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
         </div>
-        <StatusBar
-          onChanges={() => setActiveView('scm')}
-          onInit={() => void git.init()}
-          onBranch={() => setBranchPickerOpen(true)}
-          onSync={gitRemote.sync}
-        />
-        <BranchPicker
-          open={branchPickerOpen}
-          onOpenChange={setBranchPickerOpen}
-          workspace={workspace}
-          onCheckout={checkoutGuard.request}
-          onCreate={(name) => void git.createBranch(name)}
-          onDelete={(name) => void git.deleteBranch(name, true)}
-        />
-        <GitOpToast result={gitRemote.result} onClose={gitRemote.clear} />
-        <UnsavedGuardDialog
-          open={pendingSwitch !== null}
-          onCancel={cancelSwitch}
-          onDiscard={handleDiscardSwitch}
-          onSave={handleSaveSwitch}
-        />
-        <UnsavedGuardDialog
-          open={checkoutGuard.pending !== null}
-          onCancel={checkoutGuard.cancel}
-          onDiscard={checkoutGuard.discard}
-          onSave={checkoutGuard.save}
-        />
-        <UnsavedGuardDialog
-          open={editor.pendingClose !== null}
-          onCancel={editor.cancelPendingClose}
-          onDiscard={editor.discardPendingClose}
-          onSave={editor.savePendingClose}
-        />
-        <FileSearchDialog
-          open={searchOpen}
-          onOpenChange={setSearchOpen}
-          workspace={workspace}
-          onOpenFile={editor.openFile}
-        />
-        <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
-        <UpdateNotice
-          state={updateFlow.state}
-          currentVersion={updateFlow.currentVersion}
-          canApply={updateFlow.canApply}
-          onUpdateNow={updateFlow.updateNow}
-          onNotNow={updateFlow.notNow}
-          onSkip={updateFlow.skip}
-          onCancel={updateFlow.cancel}
-          onRetry={updateFlow.retry}
-          onOpenInstaller={updateFlow.openInstaller}
-          onViewNotes={() => setAppSettingsOpen(true)}
-        />
-        <ShortcutCustomizer
-          open={shortcutsOpen}
-          onOpenChange={setShortcutsOpen}
-          workspace={workspace}
-          role={role}
-          onChanged={refreshShortcuts}
-          onOpenStudio={() => {
-            setShortcutsOpen(false)
-            setStudioOpen(true)
-          }}
-        />
-        <SkillStudio
-          open={studioOpen}
-          onOpenChange={setStudioOpen}
-          workspace={workspace}
-          role={role}
-          hasRunningConversation={runningSessionIds.length > 0}
-          onLaunch={handleStudioLaunch}
-          onShortcutsChanged={refreshShortcuts}
-          onOpenFile={editor.openFile}
-        />
-        <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
-        <ProfileSheet
-          open={profileOpen}
-          onOpenChange={setProfileOpen}
-          role={role}
-          agents={agents}
-          defaultAgent={defaultAgent}
-          userName={userName}
-          onRoleChange={onRoleChange}
-          onAgentsChange={onAgentsChange}
-          onDefaultAgentChange={onDefaultAgentChange}
-          onUserNameChange={onUserNameChange}
-          onReplayTour={replayTour}
-        />
-        <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
-      </div>
+      </ReviewProvider>
     </GitProvider>
   )
 }

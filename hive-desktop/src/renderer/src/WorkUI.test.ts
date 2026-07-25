@@ -534,7 +534,19 @@ function createHiveMock(): Window['hive'] {
     watchWorkspace: vi.fn(() => () => {}),
     // ConflictView reads the conflicted file; default to no markers.
     readFile: vi.fn(async () => ''),
-    git: createHiveGitMock()
+    git: createHiveGitMock(),
+    // Agent Change Review (M11): WorkUI mounts the review store (get + onChanged)
+    // on mount, so the bridge must resolve to an empty pending set benignly.
+    review: {
+      get: vi.fn(async () => ({ changes: [], turns: [] })),
+      acceptFile: vi.fn(async () => ({ ok: true })),
+      rejectFile: vi.fn(async () => ({ ok: true })),
+      acceptHunk: vi.fn(async () => ({ ok: true })),
+      rejectHunk: vi.fn(async () => ({ ok: true })),
+      acceptAll: vi.fn(async () => ({ ok: true })),
+      rejectAll: vi.fn(async () => ({ ok: true })),
+      onChanged: vi.fn(() => () => {})
+    }
   } as unknown as Window['hive']
 }
 
@@ -1993,5 +2005,45 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
     fireEvent.click(screen.getByLabelText('Histórico'))
     fireEvent.click(await screen.findByText('first'))
     expect(await screen.findByText('0 arquivos alterados')).toBeTruthy()
+  })
+})
+
+describe('WorkUI — Agent Change Review (M11)', () => {
+  it('surfaces the review bar and opens the panel + a file when the set is non-empty', async () => {
+    // The review store loads a one-file pending set on mount.
+    ;(window.hive.review.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      changes: [
+        {
+          path: 'src/a.txt',
+          status: 'modified',
+          diff: { hunks: [], binary: false },
+          adds: 2,
+          dels: 1
+        }
+      ],
+      turns: []
+    })
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    // The ambient review bar shows the pending count.
+    expect(await screen.findByText('1 mudança pendente')).toBeTruthy()
+
+    // Revisar → opens the "Revisão do agente" sidebar view (its grouped list).
+    fireEvent.click(screen.getByText(/Revisar/))
+    expect(await screen.findByText('Modificados')).toBeTruthy()
+    expect(screen.getByText('a.txt')).toBeTruthy()
+
+    // Clicking the row opens the file in the editor (T15 layers the inline
+    // diff) — an editor tab for it appears.
+    fireEvent.click(screen.getByLabelText('Abrir diferenças de src/a.txt'))
+    const tabs = await screen.findAllByText('a.txt')
+    expect(tabs.length).toBeGreaterThan(1) // the panel row + the new editor tab
   })
 })
