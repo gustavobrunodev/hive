@@ -22,6 +22,7 @@ import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { useSecondBrain } from './secondBrain/useSecondBrain'
+import { SecondBrainPanel } from './secondBrain/SecondBrainPanel'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
@@ -705,8 +706,13 @@ export function WorkUI({
               review={
                 <AgentReviewPanel onOpenDiff={(path: string) => editor.openReviewDiff(path)} />
               }
-              // Second Brain body (M12): T7 fills this slot with SecondBrainPanel.
-              brain={null}
+              brain={
+                <SecondBrainPanel
+                  store={secondBrain}
+                  onLaunch={(action) => chatRef.current?.launchAction(action)}
+                  onOpenFile={editor.openFile}
+                />
+              }
             />
           </div>
         </ResizablePanel>

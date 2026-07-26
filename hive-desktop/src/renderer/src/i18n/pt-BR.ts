@@ -786,7 +786,28 @@ export const ptBR = {
   secondBrain: {
     // Activity-bar entry (SB-R2.1) + staged-raw badge (SB-R2.5).
     railLabel: 'Second Brain',
-    railPending: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`)
+    railPending: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
+    // Panel header (SB-R2.3).
+    panelTitle: 'Second Brain',
+    pendingChip: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
+    // Empty state (SB-R2.2) — inviting, not a void.
+    emptyTitle: 'A base de conhecimento da squad',
+    emptyDescription:
+      'Reúna decisões, aprendizados e domínio num wiki versionado que o agente organiza pra você. Comece configurando a base.',
+    emptyCta: 'Configurar base',
+    // Action row (SB-R2.4) — launch the agent commands.
+    actionsTitle: 'Ações',
+    ingest: 'Ingerir',
+    ingestHint: 'Adicionar conhecimento à base',
+    query: 'Consultar',
+    queryHint: 'Perguntar à base de conhecimento',
+    lint: 'Organizar',
+    lintHint: 'Revisar e sanear o wiki',
+    // Wiki browser (SB-R2.3, T8).
+    wikiTitle: 'Wiki',
+    indexTitle: 'Índice',
+    wikiEmpty: 'O wiki ainda não tem páginas. Ingira algum conhecimento para começar.',
+    openFileAria: (path: string) => `Abrir ${path}`
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
