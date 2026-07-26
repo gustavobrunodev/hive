@@ -7666,6 +7666,68 @@ button.wb-agent-pill-btn:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* In-app recorder (SB-R5) — record, live timer, honest mic errors. */
+.wb-brain-recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  padding: var(--s-3) 0 var(--s-2);
+}
+
+.wb-brain-recorder-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.wb-brain-audio-pick[data-recording] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  color: var(--accent);
+}
+
+.wb-brain-recorder-elapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.wb-brain-recorder-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: wb-brain-rec-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes wb-brain-rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.wb-brain-recorder-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger, var(--wb-git-deleted));
+  max-width: 44ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-recorder-dot {
+    animation: none;
+  }
+}
+
 /* Model selector (SB-R4.4). */
 .wb-brain-ingest-model {
   display: flex;

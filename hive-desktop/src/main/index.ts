@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net, session } from 'electron'
 import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
@@ -106,6 +106,15 @@ app.whenReady().then(() => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  // Second Brain recorder (SB-R5.1): a sandboxed renderer's getUserMedia() is
+  // refused unless main answers the permission request. Only `media` is
+  // granted, and only to our own renderer — every other permission (geolocation,
+  // notifications, midi, …) is denied outright rather than left to Electron's
+  // default, so adding the microphone doesn't widen anything else.
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(permission === 'media')
   })
 
   // IPC: request/response round trip for window.hive.ping()

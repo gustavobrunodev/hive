@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it, vi, beforeAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net, session } from 'electron'
 import { ConflictError } from './fsService'
 import { createConfigStore } from './configStore'
 
@@ -45,6 +45,8 @@ vi.mock('electron', () => {
     // Second Brain / Whisper: the `hive-model:` scheme registration (pre-ready)
     // + its request handler (in whenReady).
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
+    // Second Brain recorder: the microphone permission handler.
+    session: { defaultSession: { setPermissionRequestHandler: vi.fn() } },
     net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) }
   }
 })
@@ -1354,6 +1356,38 @@ describe('main process bootstrap', () => {
       const denied = await handler({ url: 'hive-model://secrets/id_rsa' })
       expect((denied as Response).status).toBe(404)
       expect(net.fetch).not.toHaveBeenCalled()
+    })
+
+    it('grants ONLY the microphone permission, denying everything else (SB-R5.1)', () => {
+      const handler = vi.mocked(session.defaultSession.setPermissionRequestHandler).mock
+        .calls[0]?.[0] as (
+        contents: unknown,
+        permission: string,
+        callback: (granted: boolean) => void
+      ) => void
+      expect(handler).toBeTypeOf('function')
+
+      const granted: Record<string, boolean> = {}
+      for (const permission of [
+        'media',
+        'geolocation',
+        'notifications',
+        'midi',
+        'clipboard-read',
+        'openExternal'
+      ]) {
+        handler({}, permission, (ok) => {
+          granted[permission] = ok
+        })
+      }
+      expect(granted).toEqual({
+        media: true,
+        geolocation: false,
+        notifications: false,
+        midi: false,
+        'clipboard-read': false,
+        openExternal: false
+      })
     })
 
     it('registers the whisper:* model-store handlers and the streamed download channels', () => {

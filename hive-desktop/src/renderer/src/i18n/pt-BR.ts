@@ -840,7 +840,17 @@ export const ptBR = {
     ingestAudioUnsupported: 'Não foi possível ler esse áudio. Tente wav, mp3, m4a, ogg ou webm.',
     ingestAudioSilent: 'Não há som nesse áudio.',
     ingestTranscribeFailed: 'Não foi possível transcrever o áudio.',
-    // Record tab — wired in Phase 5.
+    // Recorder (SB-R5).
+    recordStart: 'Gravar',
+    recordStop: 'Parar',
+    recordAgain: 'Gravar de novo',
+    recordElapsed: 'Tempo de gravação',
+    recordHint: 'Fale à vontade — o áudio é transcrito no seu computador.',
+    recordDenied:
+      'O microfone está bloqueado. Libere o acesso ao microfone nas configurações do sistema e tente de novo.',
+    recordUnavailable: 'Nenhum microfone foi encontrado neste computador.',
+    recordRetry: 'Tentar de novo',
+    recordingLabel: 'Gravando',
     ingestAudioSoon: 'O gravador chega já já.'
   },
   actionRail: {
