@@ -102,6 +102,21 @@ export function SecondBrainGate({
             <p className="wb-gate-progress-caption" role="status">
               {caption ?? t('secondBrainGate.progressLabel')}
             </p>
+            {/*
+              SB-R1.3, in full: "never permanently blocked" has to hold while
+              provisioning is RUNNING, not only after it errors. This step
+              shells out to a network-backed CLI, and it also re-runs on every
+              workspace switch — without an escape here, a slow or stalled
+              network traps the user on a spinner with no way into the work UI.
+              Second-brain is an enhancement, so waiting for it is always
+              optional; the quiet ghost button keeps it from competing with the
+              (usually brief) happy path.
+            */}
+            <div className="wb-gate-error-actions">
+              <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
+                {t('secondBrainGate.continueAnywayCta')}
+              </Button>
+            </div>
           </>
         )}
       </div>

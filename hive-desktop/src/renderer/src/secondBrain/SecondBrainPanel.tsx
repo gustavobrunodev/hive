@@ -117,6 +117,7 @@ export function SecondBrainPanel({
           workspace={store.workspace}
           rootRelPath={`${vaultRel}/wiki`}
           onOpenFile={onOpenFile}
+          omitRootFile="index.md"
         />
       </section>
     </div>

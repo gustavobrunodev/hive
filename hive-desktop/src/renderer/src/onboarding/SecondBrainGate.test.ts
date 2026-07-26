@@ -104,6 +104,23 @@ describe('SecondBrainGate (T5)', () => {
     )
   })
 
+  it('offers an escape WHILE provisioning is still running, not only after an error (SB-R1.3)', async () => {
+    const m = mockSecondBrain(false)
+    const onComplete = vi.fn()
+    render(createElement(SecondBrainGate, { workspace: '/ws', onComplete }))
+
+    await waitFor(() => expect(m.install).toHaveBeenCalled())
+    // Mid-run: no error yet, but the user must never be trapped on a spinner
+    // waiting for a network-backed CLI — this gate also re-runs on every
+    // workspace switch.
+    m.emitInstall({ type: 'progress', message: 'Cloning repository…' })
+    await waitFor(() => expect(screen.getByText('Cloning repository…')).toBeTruthy())
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    fireEvent.click(screen.getByText('Continuar mesmo assim'))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
   it('calls onComplete once the stream reports done', async () => {
     const m = mockSecondBrain(false)
     const onComplete = vi.fn()

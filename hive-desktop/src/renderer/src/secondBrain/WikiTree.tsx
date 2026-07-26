@@ -12,6 +12,12 @@ interface WikiTreeProps {
   rootRelPath: string
   /** Opens a file in the editor (SB-R2.3). */
   onOpenFile: (path: string) => void
+  /**
+   * A root-level filename the caller already surfaces itself (the panel gives
+   * `index.md` its own prominent "Índice" row). Hidden here so the same file
+   * doesn't appear twice in one list.
+   */
+  omitRootFile?: string
 }
 
 /** One row: a file (opens in the editor) or a folder (expands lazily). */
@@ -91,25 +97,38 @@ function WikiNode({
  * a file opens it in the **existing editor/viewer** (so Markdown gets M7's real
  * preview) — the tree here only navigates.
  */
-export function WikiTree({ workspace, rootRelPath, onOpenFile }: WikiTreeProps): React.JSX.Element {
+export function WikiTree({
+  workspace,
+  rootRelPath,
+  onOpenFile,
+  omitRootFile
+}: WikiTreeProps): React.JSX.Element {
   const [nodes, setNodes] = useState<TreeNode[] | null>(null)
+  // Whether the directory itself was empty, as opposed to emptied by
+  // `omitRootFile` — a wiki holding only `index.md` is NOT an empty wiki, and
+  // saying so right under the Índice row would contradict what's on screen.
+  const [dirEmpty, setDirEmpty] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     void window.hive
       .listTree(workspace, rootRelPath)
       .then((entries) => {
-        if (!cancelled) setNodes(entries)
+        if (cancelled) return
+        setDirEmpty(entries.length === 0)
+        setNodes(omitRootFile ? entries.filter((entry) => entry.name !== omitRootFile) : entries)
       })
       .catch(() => {
-        if (!cancelled) setNodes([])
+        if (cancelled) return
+        setDirEmpty(true)
+        setNodes([])
       })
     return () => {
       cancelled = true
     }
-  }, [workspace, rootRelPath])
+  }, [workspace, rootRelPath, omitRootFile])
 
-  if (nodes !== null && nodes.length === 0) {
+  if (dirEmpty && nodes !== null) {
     return <p className="wb-brain-wiki-empty">{t('secondBrain.wikiEmpty')}</p>
   }
 

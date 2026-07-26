@@ -75,6 +75,47 @@ describe('WikiTree (T8)', () => {
     expect(listTree.mock.calls.length).toBe(callsAfterFirstExpand)
   })
 
+  it('omits a root file the caller already surfaces, so it is not listed twice', async () => {
+    mockListTree({
+      'second-brain/wiki': [
+        { name: 'index.md', path: 'second-brain/wiki/index.md', type: 'file' },
+        { name: 'concepts', path: 'second-brain/wiki/concepts', type: 'directory' }
+      ]
+    })
+    render(
+      createElement(WikiTree, {
+        workspace: '/ws',
+        rootRelPath: 'second-brain/wiki',
+        onOpenFile: vi.fn(),
+        omitRootFile: 'index.md'
+      })
+    )
+
+    await waitFor(() => expect(screen.getByText('concepts')).toBeTruthy())
+    expect(screen.queryByText('index.md')).toBeNull()
+  })
+
+  it('a wiki holding ONLY the omitted file is not called empty', async () => {
+    // Filtering must not turn "one page" into "no pages" — the caller is
+    // rendering that page immediately above this list.
+    mockListTree({
+      'second-brain/wiki': [{ name: 'index.md', path: 'second-brain/wiki/index.md', type: 'file' }]
+    })
+    render(
+      createElement(WikiTree, {
+        workspace: '/ws',
+        rootRelPath: 'second-brain/wiki',
+        onOpenFile: vi.fn(),
+        omitRootFile: 'index.md'
+      })
+    )
+
+    await waitFor(() => expect(screen.queryByText('index.md')).toBeNull())
+    expect(
+      screen.queryByText('O wiki ainda não tem páginas. Ingira algum conhecimento para começar.')
+    ).toBeNull()
+  })
+
   it('shows the teaching empty state when the wiki has no pages', async () => {
     mockListTree({})
     render(

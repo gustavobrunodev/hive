@@ -669,7 +669,9 @@ export function WorkUI({
           ? t('git.paneTitle')
           : activeView === 'review'
             ? t('review.panelTitle')
-            : t('explorer.paneTitle')
+            : activeView === 'brain'
+              ? t('secondBrain.panelTitle')
+              : t('explorer.paneTitle')
       return (
         <ResizablePanel
           key="rail"

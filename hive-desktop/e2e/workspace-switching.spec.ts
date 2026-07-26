@@ -56,7 +56,12 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
     const workspaceB = path.join(tmpRoot, 'workspace-b')
     const workspaceC = path.join(tmpRoot, 'workspace-c')
     const userDataDir = path.join(tmpRoot, 'userData')
-    const screenshotsDir = path.join(__dirname, '..', 'test-results', 'workspace-switching-screenshots')
+    const screenshotsDir = path.join(
+      __dirname,
+      '..',
+      'test-results',
+      'workspace-switching-screenshots'
+    )
 
     fs.mkdirSync(workspaceA, { recursive: true })
     fs.mkdirSync(workspaceB, { recursive: true })
@@ -168,9 +173,9 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
       // GuidedInstall, whose Act 1 (InstallConfigForm) renders immediately,
       // before anything is actually installed (GuidedInstall.tsx's own
       // header comment) — sufficient real-DOM proof of the routing decision.
-      await expect(
-        window.getByRole('heading', { name: 'Configurar o BMAD' })
-      ).toBeVisible({ timeout: 30_000 })
+      await expect(window.getByRole('heading', { name: 'Configurar o BMAD' })).toBeVisible({
+        timeout: 30_000
+      })
       await expect(window.locator('.wb-rail')).toHaveCount(0)
 
       // --- Assert: config.json reflects C as active + MRU head -------------
@@ -218,13 +223,20 @@ async function waitForWorkUI(window: Page): Promise<void> {
   const rail = window.locator('.wb-rail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
 
-  await Promise.race([
-    rail.waitFor({ state: 'visible', timeout: 200_000 }),
-    continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
-  ])
-
-  if (await continueAnyway.isVisible().catch(() => false)) {
-    await continueAnyway.click()
+  // The provisioning gate has TWO steps (BMAD, then second-brain / M12), each
+  // shelling out to a real network-backed CLI, and each offering "Continuar
+  // mesmo assim". Loop rather than clicking once, so a stalled or failing step
+  // never leaves the app parked on the gate.
+  for (let step = 0; step < 2; step++) {
+    await Promise.race([
+      rail.waitFor({ state: 'visible', timeout: 200_000 }),
+      continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
+    ])
+    if (await rail.isVisible().catch(() => false)) break
+    if (await continueAnyway.isVisible().catch(() => false)) {
+      await continueAnyway.click()
+      await window.waitForTimeout(300)
+    }
   }
 
   await rail.waitFor({ state: 'visible', timeout: 30_000 })
