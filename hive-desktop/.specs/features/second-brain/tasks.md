@@ -4,14 +4,18 @@
 **Status:** 🚧 IN PROGRESS (2026-07-25) on `feat/second-brain` (branched off
 `feat/agent-change-review`/M11, unmerged). **Done:** Phase 0 spikes T1–T2 (OQ1/2/3
 closed, findings in STATE.md), Phase 1 provisioning spine T3–T5, Phase 2 vault
-sidebar view T6–T8. Reuses M8 rebind, M10 `FileTree`/gutter, M11
+sidebar view T6–T8, Phase 3 text ingestion via the FAB T9–T10. Reuses M8 rebind, M10 `FileTree`/gutter, M11
 `SidebarHost`/`launchAction`.
 
-Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅
+Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅ T9 ✅ T10 ✅
 
-Note: T7 and T8 landed in one commit — the wiki browser is a section of the same
-`SecondBrainPanel` component, so splitting them would have meant committing a
-knowingly-incomplete panel.
+Notes on task seams:
+- T7 and T8 landed in one commit — the wiki browser is a section of the same
+  `SecondBrainPanel` component, so splitting them would have meant committing a
+  knowingly-incomplete panel.
+- T9 shipped the FAB component alone; the "mount in WorkUI" half moved to T10,
+  which mounts it together with the sheet its modes open (mounting at T9 would
+  have committed dead wiring).
 
 Atomic, ordered by dependency. Each task = one focused change + its tests + one
 atomic commit. Verification is concrete (a command or an observable). `[P]` = can
