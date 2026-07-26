@@ -4,10 +4,11 @@
 **Status:** 🚧 IN PROGRESS (2026-07-25) on `feat/second-brain` (branched off
 `feat/agent-change-review`/M11, unmerged). **Done:** Phase 0 spikes T1–T2 (OQ1/2/3
 closed, findings in STATE.md), Phase 1 provisioning spine T3–T5, Phase 2 vault
-sidebar view T6–T8, Phase 3 text ingestion via the FAB T9–T10. Reuses M8 rebind, M10 `FileTree`/gutter, M11
+sidebar view T6–T8, Phase 3 text ingestion via the FAB T9–T10,
+Phase 4 Whisper engine + audio-file ingestion T11–T15. Reuses M8 rebind, M10 `FileTree`/gutter, M11
 `SidebarHost`/`launchAction`.
 
-Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅ T9 ✅ T10 ✅
+Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅ T9 ✅ T10 ✅ T11 ✅ T12 ✅ T13 ✅ T14 ✅ T15 ✅
 
 Notes on task seams:
 - T7 and T8 landed in one commit — the wiki browser is a section of the same
