@@ -7613,6 +7613,109 @@ button.wb-agent-pill-btn:focus-visible {
   padding-top: var(--s-2);
 }
 
+/* Audio-file capture (SB-R4) — pick, transcribe locally, edit, ingest. */
+.wb-brain-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  padding: var(--s-3) 0 var(--s-2);
+}
+
+.wb-brain-audio-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-2, 8px);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.wb-brain-audio-pick:hover:not(:disabled) {
+  background: var(--surface-2, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.wb-brain-audio-pick:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.wb-brain-audio-pick:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-audio-hint,
+.wb-brain-audio-progress {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.wb-brain-audio-progress {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Model selector (SB-R4.4). */
+.wb-brain-ingest-model {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+}
+
+.wb-brain-ingest-model-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-brain-ingest-model-select {
+  flex: 0 1 auto;
+  padding: 4px var(--s-2);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1, 6px);
+}
+
+.wb-brain-ingest-model-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* Visually-hidden file input — the styled button is the real affordance. */
+.wb-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-audio-pick {
+    transition: none;
+  }
+}
+
 /* No-vault guard (SB-R3.3) — offer setup instead of writing to a missing path. */
 .wb-brain-ingest-guard {
   display: flex;

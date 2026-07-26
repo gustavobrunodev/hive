@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   Sheet,
@@ -12,6 +12,11 @@ import type { RoleAction } from '../ui/ActionRail'
 import type { IngestMode } from './SecondBrainFab'
 import type { SecondBrainStore } from './useSecondBrain'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_SETUP } from './secondBrainPrompts'
+import { AudioFileTab } from './whisper/AudioFileTab'
+import { DEFAULT_MODEL, useWhisper, type WhisperModelId } from './whisper/useWhisper'
+
+/** Catalog entry as the bridge returns it (renderer never imports `src/main/*`). */
+type WhisperModelInfo = Awaited<ReturnType<Window['hive']['whisper']['listModels']>>[number]
 
 interface IngestPanelProps {
   /** The mode the FAB opened on, or null when the sheet is closed. */
@@ -54,6 +59,11 @@ export function IngestPanel({
   const [content, setContent] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Whisper (SB-R4.4): the selected model, defaulting to `base` (D-SB-4), and
+  // the catalog for the picker (loaded lazily once the sheet opens).
+  const [model, setModel] = useState<WhisperModelId>(DEFAULT_MODEL)
+  const [models, setModels] = useState<WhisperModelInfo[]>([])
+  const whisper = useWhisper()
 
   // The sheet is open whenever the FAB handed it a mode; opening re-syncs the
   // active tab to that mode (derived during render, no effect — the
@@ -65,6 +75,19 @@ export function IngestPanel({
     setActiveMode(mode)
   }
   if (mode === null && lastMode !== null) setLastMode(null)
+
+  // The catalog only matters once the sheet is open, and it changes when a
+  // model is downloaded — refetch on open rather than holding it app-wide.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void window.hive.whisper.listModels().then((list) => {
+      if (!cancelled) setModels(list)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, whisper.phase.status])
 
   const close = useCallback(() => {
     setContent('')
@@ -143,20 +166,57 @@ export function IngestPanel({
               id={`wb-ingest-panel-${activeMode}`}
               aria-labelledby={`wb-ingest-tab-${activeMode}`}
             >
-              {activeMode === 'text' ? (
-                <Textarea
-                  className="wb-brain-ingest-textarea"
-                  value={content}
-                  placeholder={t('secondBrain.ingestTextPlaceholder')}
-                  aria-label={t('secondBrain.ingestTextPlaceholder')}
-                  onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-                    setContent(event.target.value)
-                  }
+              {activeMode === 'audioFile' && (
+                <AudioFileTab
+                  phase={whisper.phase}
+                  transcribe={(pcm) => whisper.transcribe(pcm, { model })}
+                  onStart={() => setError(null)}
+                  onTranscript={setContent}
+                  onError={setError}
                 />
-              ) : (
+              )}
+              {activeMode === 'record' && (
                 <p className="wb-brain-ingest-soon">{t('secondBrain.ingestAudioSoon')}</p>
               )}
+
+              {/* One editable transcript field, shared by every mode: typed
+                  text lands here directly, and a transcription fills it so the
+                  user can correct it before ingesting (SB-R4.3/4.5). */}
+              <Textarea
+                className="wb-brain-ingest-textarea"
+                value={content}
+                placeholder={t('secondBrain.ingestTextPlaceholder')}
+                aria-label={
+                  activeMode === 'text'
+                    ? t('secondBrain.ingestTextPlaceholder')
+                    : t('secondBrain.ingestTranscriptLabel')
+                }
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setContent(event.target.value)
+                }
+              />
             </div>
+
+            {activeMode !== 'text' && (
+              <div className="wb-brain-ingest-model">
+                <label className="wb-brain-ingest-model-label" htmlFor="wb-ingest-model">
+                  {t('secondBrain.ingestModelLabel')}
+                </label>
+                <select
+                  id="wb-ingest-model"
+                  className="wb-brain-ingest-model-select"
+                  value={model}
+                  onChange={(event) => setModel(event.target.value as WhisperModelId)}
+                >
+                  {models.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.id} · {entry.params}
+                      {entry.downloaded ? ' ✓' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {error && (
               <p className="wb-brain-ingest-error" role="alert">

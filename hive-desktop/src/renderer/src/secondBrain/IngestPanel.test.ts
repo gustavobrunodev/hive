@@ -5,6 +5,26 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { IngestPanel } from './IngestPanel'
 import type { SecondBrainStore } from './useSecondBrain'
 
+// Real WebAudio doesn't exist in jsdom; the decode path has its own tests.
+const decodeToWhisperPcm = vi.hoisted(() => vi.fn())
+vi.mock('./whisper/audio', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./whisper/audio')>()),
+  decodeToWhisperPcm
+}))
+
+// The transformers library is multi-megabyte WASM — stub the pipeline so the
+// panel's own wiring (model choice → transcript → shared field) is what's tested.
+vi.mock('@huggingface/transformers', () => ({
+  pipeline: vi.fn(async () => async () => ({ text: 'ata da reunião' })),
+  env: {
+    allowRemoteModels: true,
+    allowLocalModels: false,
+    useBrowserCache: true,
+    localModelPath: '',
+    backends: { onnx: { wasm: { wasmPaths: '' } } }
+  }
+}))
+
 // The DS Sheet renders through Radix; stand it in with plain DOM so the sheet's
 // body is assertable in jsdom (the Explorer/McpManager convention).
 vi.mock('@hive/design-system', () => ({
@@ -65,7 +85,16 @@ describe('IngestPanel (T10)', () => {
     stageRaw = vi.fn().mockResolvedValue({ relPath: 'second-brain/raw/ingest-x.md' })
     window.hive = {
       ...window.hive,
-      secondBrain: { ...window.hive?.secondBrain, stageRaw }
+      secondBrain: { ...window.hive?.secondBrain, stageRaw },
+      whisper: {
+        ...window.hive?.whisper,
+        listModels: vi.fn().mockResolvedValue([
+          { id: 'base', params: '74 M', downloaded: true },
+          { id: 'small', params: '244 M', downloaded: false }
+        ]),
+        modelStatus: vi.fn().mockResolvedValue({ downloaded: true, variant: 'fp32' }),
+        downloadModel: vi.fn().mockReturnValue(() => {})
+      }
     } as typeof window.hive
   })
 
@@ -182,7 +211,7 @@ describe('IngestPanel (T10)', () => {
     expect(stageRaw).not.toHaveBeenCalled()
   })
 
-  it('switching tabs shows the audio placeholder until Phase 4/5 fills them', () => {
+  it('the transcript field is SHARED — every mode edits and ingests the same text', async () => {
     render(
       createElement(IngestPanel, {
         mode: 'text',
@@ -191,9 +220,87 @@ describe('IngestPanel (T10)', () => {
         onLaunch: vi.fn()
       })
     )
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'digitado' } })
+
+    // Switching to the audio tab keeps the field (and its content) in place, so
+    // a transcript can fill the very same box the user then edits.
     fireEvent.click(screen.getByRole('tab', { name: 'Áudio (arquivo)' }))
-    expect(screen.getByText('A transcrição de áudio chega já já.')).toBeTruthy()
-    expect(screen.queryByRole('textbox')).toBeNull()
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('digitado')
+    expect(screen.getByText('Escolher arquivo de áudio')).toBeTruthy()
+
+    // The recorder tab is still an honest placeholder until Phase 5.
+    fireEvent.click(screen.getByRole('tab', { name: 'Gravar áudio' }))
+    expect(screen.getByText('O gravador chega já já.')).toBeTruthy()
+  })
+
+  it('a transcription lands in the shared field, is editable, and ingests like typed text (SB-R4.3/4.5)', async () => {
+    decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.1, 0.2]))
+    const onLaunch = vi.fn()
+    const store = makeStore()
+    render(createElement(IngestPanel, { mode: 'audioFile', onClose: vi.fn(), store, onLaunch }))
+
+    const input = screen.getByLabelText('Escolher arquivo de áudio') as HTMLInputElement
+    Object.defineProperty(input, 'files', {
+      value: [new File(['x'], 'reuniao.wav')],
+      configurable: true
+    })
+    fireEvent.change(input)
+
+    // The transcript fills the shared textarea…
+    const field = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    await waitFor(() => expect(field.value).toBe('ata da reunião'))
+
+    // …the user corrects it…
+    fireEvent.change(field, { target: { value: 'ata da reunião (revisada)' } })
+
+    // …and Ingerir takes the exact same path as typed text.
+    fireEvent.click(screen.getByText('Ingerir'))
+    await waitFor(() => expect(stageRaw).toHaveBeenCalledWith('/ws', 'ata da reunião (revisada)'))
+    expect(onLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+      })
+    )
+  })
+
+  it('uses the selected model for the transcription', async () => {
+    decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.1]))
+    render(
+      createElement(IngestPanel, {
+        mode: 'audioFile',
+        onClose: vi.fn(),
+        store: makeStore(),
+        onLaunch: vi.fn()
+      })
+    )
+
+    fireEvent.change(await screen.findByLabelText('Modelo'), { target: { value: 'small' } })
+    const input = screen.getByLabelText('Escolher arquivo de áudio') as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [new File(['x'], 'a.wav')], configurable: true })
+    fireEvent.change(input)
+
+    await waitFor(() => expect(window.hive.whisper.modelStatus).toHaveBeenCalledWith('small'))
+  })
+
+  it('offers the model picker on audio modes only, defaulting to base (SB-R4.4)', async () => {
+    render(
+      createElement(IngestPanel, {
+        mode: 'text',
+        onClose: vi.fn(),
+        store: makeStore(),
+        onLaunch: vi.fn()
+      })
+    )
+    // Typed text needs no model.
+    expect(screen.queryByLabelText('Modelo')).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Áudio (arquivo)' }))
+    const select = (await screen.findByLabelText('Modelo')) as HTMLSelectElement
+    expect(select.value).toBe('base')
+    await waitFor(() => expect(screen.getByRole('option', { name: /small/ })).toBeTruthy())
+
+    fireEvent.change(select, { target: { value: 'small' } })
+    expect(select.value).toBe('small')
   })
 
   it('dismissing the sheet (overlay/Escape) closes it; an open-change to true is a no-op', () => {

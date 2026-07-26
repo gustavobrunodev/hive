@@ -826,8 +826,22 @@ export const ptBR = {
     ingestNoVaultTitle: 'Configure a base primeiro',
     ingestNoVaultDescription:
       'Ainda não existe uma base de conhecimento neste workspace. Configure-a e depois volte para ingerir.',
-    // Audio tabs — wired in Phase 4/5.
-    ingestAudioSoon: 'A transcrição de áudio chega já já.'
+    // Audio-file tab (SB-R4.3–4.6).
+    ingestPickAudio: 'Escolher arquivo de áudio',
+    ingestAudioHint: 'wav, mp3, m4a, ogg ou webm — a transcrição acontece no seu computador.',
+    ingestTranscribing: 'Transcrevendo…',
+    ingestModelLoading: (pct: number) => `Preparando o modelo… ${pct}%`,
+    ingestModelDownloading: (pct: number) => `Baixando o modelo… ${pct}%`,
+    ingestTranscriptLabel: 'Transcrição (edite antes de ingerir)',
+    ingestModelLabel: 'Modelo',
+    ingestManageModels: 'Gerenciar modelos',
+    // Honest, specific decode failures (SB-R4.6).
+    ingestAudioEmpty: 'O arquivo de áudio está vazio.',
+    ingestAudioUnsupported: 'Não foi possível ler esse áudio. Tente wav, mp3, m4a, ogg ou webm.',
+    ingestAudioSilent: 'Não há som nesse áudio.',
+    ingestTranscribeFailed: 'Não foi possível transcrever o áudio.',
+    // Record tab — wired in Phase 5.
+    ingestAudioSoon: 'O gravador chega já já.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
