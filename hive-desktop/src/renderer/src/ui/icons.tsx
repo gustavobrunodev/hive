@@ -352,6 +352,30 @@ export function BrainIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/** Microphone — live audio capture (the in-app recorder). */
+export function MicIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="6" y="1.75" width="4" height="7.5" rx="2" />
+      <path d="M3.75 7.25a4.25 4.25 0 0 0 8.5 0" />
+      <path d="M8 11.5v2.75" />
+    </svg>
+  )
+}
+
+/** Waveform — an audio file to transcribe. */
+export function WaveformIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2 6.5v3" />
+      <path d="M5 4v8" />
+      <path d="M8 2.25v11.5" />
+      <path d="M11 4.5v7" />
+      <path d="M14 6.5v3" />
+    </svg>
+  )
+}
+
 /** Persona conversation — speech bubble with three dots. */
 export function PersonaChatIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (

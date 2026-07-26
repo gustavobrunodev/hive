@@ -807,7 +807,13 @@ export const ptBR = {
     wikiTitle: 'Wiki',
     indexTitle: 'Índice',
     wikiEmpty: 'O wiki ainda não tem páginas. Ingira algum conhecimento para começar.',
-    openFileAria: (path: string) => `Abrir ${path}`
+    openFileAria: (path: string) => `Abrir ${path}`,
+    // Floating ingestion button + mode menu (SB-R3.1, SB-R3.5).
+    fabLabel: 'Ingerir conhecimento',
+    fabMenuLabel: 'Formas de ingerir',
+    fabText: 'Colar texto',
+    fabAudioFile: 'Áudio (arquivo)',
+    fabRecord: 'Gravar áudio'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
