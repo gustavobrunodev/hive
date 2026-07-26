@@ -313,6 +313,56 @@ updated; OQ4 resolved (undo-accept toast deferred — accept is immediately fina
 
 ---
 
+## M12 — Second Brain ✅ Done (2026-07-26)
+
+**Feature:** `second-brain`
+
+A squad knowledge base the team grows by feeding it raw material — typed,
+pasted, or **spoken** — and an agent that files it into a structured,
+cross-linked Markdown wiki living in the workspace and versioned in git
+(D-SB-2). Four capabilities:
+
+1. **Auto-provisioning** — the `second-brain` skill pack installs on first open
+   and updates on every launch, as a second step of the same "Preparando o
+   workspace" gate BMAD already uses, fail-soft throughout (SB-R1).
+2. **A "Second Brain" activity-bar view** — sibling of Explorer / Source Control
+   / Revisão via `SidebarHost`: an inviting empty state that launches the
+   `/second-brain` wizard, or the vault's wiki index + lazily-expanding tree,
+   plus Ingerir / Consultar / Organizar launchers and a staged-raw badge (SB-R2).
+3. **Floating ingestion** — a quiet accent FAB anywhere in the work UI opens one
+   sheet with three capture modes (paste / audio file / record) sharing ONE
+   editable field and ONE **Ingerir**, which writes the content to the vault's
+   `raw/` inbox and launches `/second-brain-ingest` (SB-R3, D-SB-5).
+4. **Embedded, offline Whisper** — Transformers.js in the renderer (WebGPU when
+   a real adapter answers, else WASM), models downloaded on demand into
+   `userData` by **main** and served back over a privileged `hive-model:`
+   protocol so the renderer never touches the network, plus an in-app recorder
+   and a model manager with a hardware-aware recommendation (SB-R4/R5/R7).
+
+Planned via tlc-spec-driven (spec/context/design/tasks in
+`.specs/features/second-brain/`). Locked decisions (context.md, from the user
+2026-07-25): **D-SB-1** Transformers.js over whisper.cpp (zero native toolchain,
+no ffmpeg — WebAudio decodes/resamples), **D-SB-2** vault in the workspace,
+git-versioned, **D-SB-3** P1 = FAB **plus** management view, **D-SB-4** models
+download on demand, `base` first. Derived: D-SB-5…9. STATE.md **D24**.
+
+**Exit criteria:** SB-R1–R7 implemented and demonstrated in the running app;
+SB-R8.1 no regression; SB-R8.2 ≥90% coverage per changed non-UI file; SB-R8.3
+real-Electron E2E; SB-R8.4 Playwright-MCP visual pass (dark+light); SB-R8.5 all
+copy pt-BR via `t()`. **Met** — shipped on `feat/second-brain` (T1–T22):
+`npm run verify` green (typecheck + **0 lint errors** + **1507** tests, vs the
+1299 baseline), every changed non-UI file ≥90% (most 100%), E2E passing under
+xvfb, 11 screenshots in both themes.
+
+Both spikes ran against reality before anything was built on them, and both
+corrected the design: the skill repo ships **four** skills (so `--skill '*'`,
+not `--skill second-brain`), and the Whisper stack needed four pinned
+corrections — `corsEnabled`, a **host-based** scheme, **same-origin** ORT
+assets, and **fp32 on WASM**. Deferred to P2/P3: a rendered query-answer
+surface, speaker diarization, word-level transcript editing, Obsidian graph.
+
+---
+
 ## Dependency Graph
 
 ```

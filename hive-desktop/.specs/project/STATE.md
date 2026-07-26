@@ -515,6 +515,99 @@ Updated as work progresses. Load at start of every session.
   debt (Chat.tsx 88.98% branches in untouched composer/mention code; the M7
   explorer viewers) is real but out of scope and unchanged by M11. (2026-07-25)
 
+- **D24 — Feature `second-brain` (new milestone M12).** Planned 2026-07-25,
+  shipped 2026-07-26 on `feat/second-brain` (branched off
+  `feat/agent-change-review`/M11, **not yet merged** — M10/M11 aren't merged
+  either, and M12 builds on M11's `SidebarHost`/`launchAction` and M10's
+  `FileTree`). A squad knowledge base (Markdown vault in the workspace, git-
+  versioned) fed by typed, pasted or **spoken** material and filed into a wiki
+  by the `second-brain` agent skill. Locked gray-area decisions (context.md,
+  from the user via `AskUserQuestion` 2026-07-25): **D-SB-1** Whisper via
+  Transformers.js (WASM/WebGPU) rather than whisper.cpp — zero native toolchain,
+  no ffmpeg (WebAudio decodes/resamples); **D-SB-2** the vault lives at
+  `<ws>/second-brain/`, committed and shared, one per repo; **D-SB-3** P1 =
+  floating ingestion FAB **plus** a management sidebar view (query/lint launch
+  into the chat; a rendered answer surface is P3); **D-SB-4** no model in the
+  installer — download on demand, `base` first. Derived (design's): **D-SB-5**
+  ingestion = write to `raw/` then launch `/second-brain-ingest` via
+  `launchAction`; **D-SB-6** pt-BR default, `task: transcribe`; **D-SB-7**
+  provisioning folds into the existing BMAD gate; **D-SB-8/9** impeccable +
+  Playwright-MCP, free to extend the DS.
+  **One decision taken during implementation (user, 2026-07-26):** the model
+  catalog uses **fp32 on WASM and q8 on WebGPU** — a per-device variant rather
+  than one precision everywhere — because the T2 spike proved the quantized
+  decoder cannot create a session on onnxruntime-web's WASM backend, while
+  WebGPU can take the ~4× smaller weights. `downloadModel` therefore takes a
+  variant, and `status()` records which one is on disk so a device that needs
+  the other one re-downloads.
+  **Shipped (T1–T22):** main `secondBrainService` (the `skills` CLI) +
+  `secondBrainVault` (raw staging) + `whisperModelStore` (catalog, atomic
+  download, delete) + `whisperHardware` (advisory recommendation) +
+  `whisperProtocol` (`hive-model:`); `secondBrain:*` / `whisper:*` IPC + preload;
+  renderer `SecondBrainGate`, `useSecondBrain`, `SecondBrainPanel` + `WikiTree`,
+  `SecondBrainFab`, `IngestPanel`, and a `whisper/` folder (`audio`,
+  `useWhisper`, `useAudioIngest`, `AudioFileTab`, `AudioRecorder`,
+  `ModelManager`). `npm run verify` green: typecheck + **0 lint errors** +
+  **1507** tests (baseline 1299). Every changed non-UI file ≥90%; every
+  `secondBrain/` renderer file 100% statements/functions/lines. Real-Electron
+  E2E passes under xvfb; 11 Playwright-MCP screenshots in dark + light.
+  (2026-07-26)
+
+## Lessons (second-brain — implementation, 2026-07-26)
+
+- **Three real defects were found by tests I wrote to describe intent, and one
+  more by looking at the running app — none by the type checker.** Worth
+  recording because each was a silent-failure class:
+  (1) `whisperModelStore.download()` looked up the catalog entry *outside* its
+  `try`, so an unknown model id **rejected the promise** instead of emitting the
+  `error` event every other failure emits — an unhandled rejection at the IPC
+  layer. (2) `useWhisper`'s download used the `unsubscribe` handle inside the
+  callback that assigns it, which is a **temporal-dead-zone crash** the moment
+  the callback fires synchronously (an already-complete download, or any future
+  in-process implementation). (3) `whisperProtocol`'s escape guard: literal
+  `../` is normalized away by `new URL()` itself, so the guard only earns its
+  keep against **percent-encoded** `%2e%2e%2f`, which survives parsing and is
+  decoded afterwards — the test had to be corrected to assert the real attack
+  shape rather than the one that can't happen. (4) The visual pass caught the
+  sidebar pane header still reading "Arquivos" on the new view, and `index.md`
+  listed twice (a dedicated "Índice" row plus the tree) — neither visible from
+  any test.
+- **A gate step that shells out to a network-backed CLI needs an escape hatch
+  while it is RUNNING, not just after it errors.** The second-brain provisioning
+  step re-runs on every workspace switch; without a "Continuar mesmo assim"
+  during the wait, a stalled network parks the user on a spinner indefinitely.
+  Generalizes to any blocking gate over an operation that can hang rather than
+  fail.
+- **Four of the repo's E2E specs (file-management, explorer-editor-ux ×2,
+  workspace-switching) fail in this sandbox waiting on the BMAD provisioning
+  CLI — confirmed PRE-EXISTING, not an M12 regression**, by checking out the
+  branch base (`ae5551e`) into a clean worktree, building it, and running
+  `file-management.spec.ts` there: it fails identically, at the same
+  `waitForWorkUI` timeout. Worth doing rather than assuming in either direction
+  — the symptom (work UI never appears) looked exactly like something M12's new
+  gate step would cause, and reasoning alone would have pointed the wrong way.
+  `second-brain`, `agent-change-review` and `app-launch` specs all pass.
+- **`git add -u` stages the whole repo, not the directory you're working in.**
+  During a commit amend it swept 1075 unrelated repo-root deletions (pre-existing
+  BMAD/scratch clutter) into an M12 feature commit. Caught by diffing the branch
+  against its base and counting files outside `hive-desktop/`; fixed with a
+  restore commit, leaving the user's uncommitted deletions exactly as found.
+  This is the same "scope to the release unit" lesson npm-distribution already
+  recorded for `scripts/release.mjs` — it applies to interactive git too. Verify
+  a feature branch with `git diff --name-only <base>..HEAD | grep -v '^<dir>/'`
+  before declaring it clean.
+- **The HF tree API is not optional cleverness for the model downloader.**
+  `onnx-community/whisper-large-v3-turbo` ships the **external-data** format:
+  `encoder_model.onnx` is a **0-byte stub** and the real 2.4 GB lives in
+  `encoder_model.onnx_data`. A hard-coded two-file list would "succeed" and then
+  fail at session-create with a confusing error. Catalog sizes are likewise
+  measured from the live API rather than estimated.
+- **A `.tsx` that exports a non-component trips `react-refresh/only-export-
+    components`** — hit three times here (`phaseCaption`, `formatElapsed`,
+  `recommendationCopy`), each resolved by moving the helper to its own `.ts`
+  (the `gitStatus.ts` precedent). Worth reaching for the separate module
+  immediately rather than waiting for lint.
+
 ## Lessons (second-brain — T1 spike: real `skills` CLI, 2026-07-25)
 
 - **T1 — OQ1 CLOSED against the real, live vercel-labs `skills` CLI

@@ -1,24 +1,40 @@
 # Tasks — Second Brain
 
 **Design:** `design.md` · **Spec:** `spec.md` · **Context:** `context.md`
-**Status:** 🚧 IN PROGRESS (2026-07-25) on `feat/second-brain` (branched off
-`feat/agent-change-review`/M11, unmerged). **Done:** Phase 0 spikes T1–T2 (OQ1/2/3
-closed, findings in STATE.md), Phase 1 provisioning spine T3–T5, Phase 2 vault
-sidebar view T6–T8, Phase 3 text ingestion via the FAB T9–T10,
-Phase 4 Whisper engine + audio-file ingestion T11–T15,
-Phase 5 live recorder T16–T17,
-Phase 6 model manager + hardware recommendation T18–T19. Reuses M8 rebind, M10 `FileTree`/gutter, M11
-`SidebarHost`/`launchAction`.
+**Status:** ✅ DONE — all T1–T22 shipped 2026-07-26 on `feat/second-brain`
+(branched off `feat/agent-change-review`/M11, unmerged). Reuses M8 rebind, M10
+`FileTree`, M11 `SidebarHost`/`launchAction`. ROADMAP **M12**; STATE **D24**.
 
-Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅ T9 ✅ T10 ✅ T11 ✅ T12 ✅ T13 ✅ T14 ✅ T15 ✅ T16 ✅ T17 ✅ T18 ✅ T19 ✅
+Completed: T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅ T6 ✅ T7 ✅ T8 ✅ T9 ✅ T10 ✅ T11 ✅
+T12 ✅ T13 ✅ T14 ✅ T15 ✅ T16 ✅ T17 ✅ T18 ✅ T19 ✅ T20 ✅ T21 ✅ T22 ✅
 
-Notes on task seams:
+**Gates:** `npm run verify` green — typecheck + **0 lint errors** + **1507**
+unit/component tests (baseline 1299, +208). Every changed non-UI file ≥90%;
+every `secondBrain/` renderer file 100% statements/functions/lines.
+`noInlineStrings` green (all copy pt-BR via `t()`). Real-Electron E2E
+(`e2e/second-brain.spec.ts`) passes under xvfb alongside `agent-change-review`
+and `app-launch`; 11 Playwright-MCP screenshots in dark + light under
+`.playwright-mcp/second-brain-{dark,light}-*.png`.
+
+Notes on task seams and deviations:
+- **T1/T2 both corrected the design**, which is what spikes are for. T1: the
+  skill repo ships FOUR skills, so the install flag is `--skill '*'`, not
+  `--skill second-brain`. T2: four pinned Whisper corrections (`corsEnabled`,
+  host-based scheme, same-origin ORT assets, fp32-on-WASM). Both recorded in
+  STATE.md before anything was built on them.
 - T7 and T8 landed in one commit — the wiki browser is a section of the same
-  `SecondBrainPanel` component, so splitting them would have meant committing a
-  knowingly-incomplete panel.
-- T9 shipped the FAB component alone; the "mount in WorkUI" half moved to T10,
+  `SecondBrainPanel`, so splitting would have meant committing a knowingly
+  incomplete panel.
+- T9 shipped the FAB component alone; its "mount in WorkUI" half moved to T10,
   which mounts it together with the sheet its modes open (mounting at T9 would
   have committed dead wiring).
+- T15/T17 changed T10's design slightly: the transcript field is **shared by
+  every mode**, not text-tab-only — that is what makes "edit before ingest"
+  work for a transcription.
+- T20 also fixed two defects the visual pass found (pane header, duplicated
+  wiki index) and added a "Continuar mesmo assim" escape *during* provisioning.
+- Four older E2E specs fail in this sandbox on the BMAD CLI; verified
+  pre-existing against the branch base in a clean worktree (STATE.md lesson).
 
 Atomic, ordered by dependency. Each task = one focused change + its tests + one
 atomic commit. Verification is concrete (a command or an observable). `[P]` = can
