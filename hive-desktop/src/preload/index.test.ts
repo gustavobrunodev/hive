@@ -898,4 +898,41 @@ describe('preload: window.hive bridge', () => {
       })
     }
   })
+
+  // Whisper model store (M12): invoke-based catalog/status/delete + a streamed
+  // download.
+  describe('hive.whisper bridge', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whisper = (): any => (exposedGlobals().get('hive') as any).whisper
+
+    it('routes listModels/modelStatus/deleteModel through the matching whisper:* channels', async () => {
+      await whisper().listModels()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:listModels')
+      await whisper().modelStatus('base')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:modelStatus', 'base')
+      await whisper().deleteModel('base')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:deleteModel', 'base')
+    })
+
+    it('downloadModel subscribes, relays progress, and unsubscribes', () => {
+      const onEvent = vi.fn()
+      const unsubscribe = whisper().downloadModel('base', 'fp32', onEvent)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('whisper:download:event', expect.any(Function))
+      expect(ipcRenderer.send).toHaveBeenCalledWith('whisper:download:start', 'base', 'fp32')
+
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'whisper:download:event')?.[1] as (
+        event: unknown,
+        evt: unknown
+      ) => void
+      const evt = { type: 'progress', id: 'base', loaded: 10, total: 20, file: 'config.json' }
+      listener({}, evt)
+      expect(onEvent).toHaveBeenCalledWith(evt)
+
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('whisper:download:event', listener)
+      expect(ipcRenderer.send).toHaveBeenCalledWith('whisper:download:stop')
+    })
+  })
 })

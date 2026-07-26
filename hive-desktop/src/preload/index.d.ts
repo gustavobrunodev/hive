@@ -40,6 +40,12 @@ import type {
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
+import type {
+  WhisperDownloadEvent,
+  WhisperModelId,
+  WhisperModelInfo,
+  WhisperVariant
+} from '../main/whisperTypes'
 
 declare global {
   interface Window {
@@ -285,6 +291,25 @@ declare global {
         getVault(workspace: string): Promise<VaultStatus>
         /** SB-R3.2: stage raw content into the vault's raw/ inbox; returns the workspace-relative path. */
         stageRaw(workspace: string, content: string): Promise<{ relPath: string }>
+      }
+      /**
+       * Whisper model store (SB-R4.2/R7.2). Transcription runs in the renderer;
+       * only model-file management crosses IPC (bytes reach the renderer over
+       * the `hive-model:` protocol, not here).
+       */
+      whisper: {
+        /** The catalog, each entry flagged with whether it's downloaded. */
+        listModels(): Promise<WhisperModelInfo[]>
+        modelStatus(
+          id: WhisperModelId
+        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }>
+        /** Downloads a model; streams byte progress, returns an unsubscribe. */
+        downloadModel(
+          id: WhisperModelId,
+          variant: WhisperVariant,
+          onEvent: (evt: WhisperDownloadEvent) => void
+        ): () => void
+        deleteModel(id: WhisperModelId): Promise<void>
       }
     }
   }

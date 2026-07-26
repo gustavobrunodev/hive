@@ -32,6 +32,8 @@ import {
   WHISPER_SCHEME,
   WHISPER_SCHEME_PRIVILEGES
 } from './whisperProtocol'
+import { createWhisperModelStore } from './whisperModelStore'
+import type { WhisperModelId, WhisperVariant } from './whisperTypes'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
@@ -861,6 +863,36 @@ app.whenReady().then(() => {
   ipcMain.handle('secondBrain:stageRaw', async (_event, workspace: string, content: string) => {
     const { relPath } = secondBrainVault.stageRaw(workspace, content)
     return { relPath }
+  })
+
+  // Whisper model store (D-SB-4): the catalog + which models are on disk, and
+  // download/delete. Downloads stream byte progress on their own channel (the
+  // bmad/secondBrain streamed pattern); everything else is request/response.
+  const whisperStore = createWhisperModelStore(whisperRoots.models)
+
+  ipcMain.handle('whisper:listModels', async () => whisperStore.list())
+  ipcMain.handle('whisper:modelStatus', async (_event, id: WhisperModelId) =>
+    whisperStore.status(id)
+  )
+  ipcMain.handle('whisper:deleteModel', async (_event, id: WhisperModelId) => {
+    whisperStore.remove(id)
+  })
+
+  const activeWhisperDownloads = new Map<number, () => void>()
+  ipcMain.on('whisper:download:start', (event, id: WhisperModelId, variant: WhisperVariant) => {
+    activeWhisperDownloads.get(event.sender.id)?.()
+    let stopped = false
+    void whisperStore.download(id, variant, (downloadEvent) => {
+      if (stopped) return
+      event.sender.send('whisper:download:event', downloadEvent)
+    })
+    activeWhisperDownloads.set(event.sender.id, () => {
+      stopped = true
+    })
+  })
+  ipcMain.on('whisper:download:stop', (event) => {
+    activeWhisperDownloads.get(event.sender.id)?.()
+    activeWhisperDownloads.delete(event.sender.id)
   })
 
   // ChatHistoryStore (session-history): request/response, same

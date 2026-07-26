@@ -41,6 +41,12 @@ import type {
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
+import type {
+  WhisperDownloadEvent,
+  WhisperModelId,
+  WhisperModelInfo,
+  WhisperVariant
+} from '../main/whisperTypes'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -641,6 +647,33 @@ const hive = {
       ipcRenderer.invoke('secondBrain:getVault', workspace),
     stageRaw: (workspace: string, content: string): Promise<{ relPath: string }> =>
       ipcRenderer.invoke('secondBrain:stageRaw', workspace, content)
+  },
+
+  // Whisper model store (D-SB-4). Transcription itself is renderer-local (the
+  // model bytes cross via the `hive-model:` protocol, not IPC); only model-file
+  // management lives here. `downloadModel` streams byte progress and returns an
+  // unsubscribe, like the other streamed bridges.
+  whisper: {
+    listModels: (): Promise<WhisperModelInfo[]> => ipcRenderer.invoke('whisper:listModels'),
+    modelStatus: (
+      id: WhisperModelId
+    ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }> =>
+      ipcRenderer.invoke('whisper:modelStatus', id),
+    deleteModel: (id: WhisperModelId): Promise<void> =>
+      ipcRenderer.invoke('whisper:deleteModel', id),
+    downloadModel: (
+      id: WhisperModelId,
+      variant: WhisperVariant,
+      onEvent: (evt: WhisperDownloadEvent) => void
+    ): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: WhisperDownloadEvent): void => onEvent(evt)
+      ipcRenderer.on('whisper:download:event', listener)
+      ipcRenderer.send('whisper:download:start', id, variant)
+      return () => {
+        ipcRenderer.removeListener('whisper:download:event', listener)
+        ipcRenderer.send('whisper:download:stop')
+      }
+    }
   }
 }
 

@@ -14,6 +14,7 @@ import { cleanup, render, screen, fireEvent, waitFor, within } from '@testing-li
 import { FileTree, FileViewer } from './Explorer'
 import { createHiveGitMock, createHiveReviewMock } from '../testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from '../testSupport/hiveSecondBrainMock'
+import { createHiveWhisperMock } from '../testSupport/hiveWhisperMock'
 
 // jsdom lacks these observers, which the rich file viewers (image/pdf) use to
 // measure their stage for fit-to-view. Stub them so opening a binary/rich file
@@ -369,7 +370,8 @@ describe('Explorer (T12/T8)', () => {
       },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
-      secondBrain: createHiveSecondBrainMock()
+      secondBrain: createHiveSecondBrainMock(),
+      whisper: createHiveWhisperMock()
     }
     window.hive = Object.assign(defaults, overrides)
     return { watchListeners }

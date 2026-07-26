@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App'
 import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
+import { createHiveWhisperMock } from './testSupport/hiveWhisperMock'
 
 /**
  * Tasks T6 (workspace pick) + T9 (guided install) + T10 (update gate) —
@@ -270,7 +271,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
-      secondBrain: createHiveSecondBrainMock()
+      secondBrain: createHiveSecondBrainMock(),
+      whisper: createHiveWhisperMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }

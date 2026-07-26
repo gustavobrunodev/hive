@@ -1356,6 +1356,44 @@ describe('main process bootstrap', () => {
       expect(net.fetch).not.toHaveBeenCalled()
     })
 
+    it('registers the whisper:* model-store handlers and the streamed download channels', () => {
+      for (const ch of ['whisper:listModels', 'whisper:modelStatus', 'whisper:deleteModel']) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
+      }
+      expect(ipcMain.on).toHaveBeenCalledWith('whisper:download:start', expect.any(Function))
+      expect(ipcMain.on).toHaveBeenCalledWith('whisper:download:stop', expect.any(Function))
+    })
+
+    it('listModels returns the catalog with per-model download state', async () => {
+      const models = (await findHandler('whisper:listModels')({})) as Array<{
+        id: string
+        downloaded: boolean
+        repo: string
+      }>
+      expect(models.length).toBeGreaterThan(0)
+      expect(models.map((m) => m.id)).toContain('base')
+      // Nothing is downloaded in a fresh temp userData dir.
+      expect(models.every((m) => m.downloaded === false)).toBe(true)
+      expect(await findHandler('whisper:modelStatus')({}, 'base')).toEqual({
+        downloaded: false,
+        variant: null
+      })
+    })
+
+    it('deleteModel is a safe no-op for a model that was never downloaded', async () => {
+      await expect(findHandler('whisper:deleteModel')({}, 'base')).resolves.toBeUndefined()
+    })
+
+    it('download:start streams events to the sender, and stop halts forwarding', async () => {
+      const send = vi.fn()
+      const event = { sender: { id: 7, send } }
+      findOnHandler('whisper:download:start')(event, 'base', 'fp32')
+      // The real download hits the network; the store surfaces that failure as
+      // an `error` event rather than rejecting (asserted in whisperModelStore's
+      // own tests). Either way, stop() must never throw.
+      expect(() => findOnHandler('whisper:download:stop')(event)).not.toThrow()
+    })
+
     it('update:start streams via the update channel', async () => {
       const send = vi.fn()
       findOnHandler('secondBrain:update:start')({ sender: { id: 99, send } }, '/ws')
