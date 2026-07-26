@@ -13,6 +13,9 @@ import type { IngestMode } from './SecondBrainFab'
 import type { SecondBrainStore } from './useSecondBrain'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_SETUP } from './secondBrainPrompts'
 import { AudioFileTab } from './whisper/AudioFileTab'
+import { AudioRecorder } from './whisper/AudioRecorder'
+import { useAudioIngest } from './whisper/useAudioIngest'
+import { phaseCaption } from './whisper/phaseCaption'
 import { DEFAULT_MODEL, useWhisper, type WhisperModelId } from './whisper/useWhisper'
 
 /** Catalog entry as the bridge returns it (renderer never imports `src/main/*`). */
@@ -37,6 +40,68 @@ const TABS: ReadonlyArray<{
   { mode: 'audioFile', labelKey: 'fabAudioFile' },
   { mode: 'record', labelKey: 'fabRecord' }
 ]
+
+/** The three capture-mode tabs (extracted to keep `IngestPanel` within its complexity budget). */
+function ModeTabs({
+  activeMode,
+  onSelect
+}: {
+  activeMode: IngestMode
+  onSelect: (mode: IngestMode) => void
+}): React.JSX.Element {
+  return (
+    <div className="wb-brain-ingest-tabs" role="tablist" aria-label={t('secondBrain.fabMenuLabel')}>
+      {TABS.map(({ mode, labelKey }) => (
+        <button
+          key={mode}
+          type="button"
+          role="tab"
+          id={`wb-ingest-tab-${mode}`}
+          aria-selected={activeMode === mode}
+          aria-controls={`wb-ingest-panel-${mode}`}
+          className="wb-brain-ingest-tab"
+          data-active={activeMode === mode || undefined}
+          onClick={() => onSelect(mode)}
+        >
+          {t(`secondBrain.${labelKey}`)}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The active capture affordance: a file picker, the recorder, or nothing at all
+ * for typed text (the shared transcript field below is the whole UI there).
+ * Both audio modes hand their Blob to the same `onAudio` and share one caption.
+ */
+function CaptureMode({
+  mode,
+  busy,
+  caption,
+  onAudio
+}: {
+  mode: IngestMode
+  busy: boolean
+  caption: string | null
+  onAudio: (blob: Blob) => void
+}): React.JSX.Element | null {
+  if (mode === 'text') return null
+  return (
+    <>
+      {mode === 'audioFile' ? (
+        <AudioFileTab onFile={onAudio} busy={busy} />
+      ) : (
+        <AudioRecorder onRecorded={onAudio} busy={busy} />
+      )}
+      {caption && (
+        <p className="wb-brain-audio-progress" role="status">
+          {caption}
+        </p>
+      )}
+    </>
+  )
+}
 
 /**
  * The ingestion sheet (SB-R3.2–3.4) — one editable field and one **Ingerir**
@@ -64,6 +129,11 @@ export function IngestPanel({
   const [model, setModel] = useState<WhisperModelId>(DEFAULT_MODEL)
   const [models, setModels] = useState<WhisperModelInfo[]>([])
   const whisper = useWhisper()
+  // One audio→transcript path for both the file picker and the recorder
+  // (SB-R4.5 / SB-R5.5), so an upload and a recording behave identically.
+  const transcribeAudio = useAudioIngest(whisper, model, setContent, setError)
+  const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
+  const caption = phaseCaption(whisper.phase)
 
   // The sheet is open whenever the FAB handed it a mode; opening re-syncs the
   // active tab to that mode (derived during render, no effect — the
@@ -138,27 +208,7 @@ export function IngestPanel({
           </div>
         ) : (
           <>
-            <div
-              className="wb-brain-ingest-tabs"
-              role="tablist"
-              aria-label={t('secondBrain.fabMenuLabel')}
-            >
-              {TABS.map(({ mode: tabMode, labelKey }) => (
-                <button
-                  key={tabMode}
-                  type="button"
-                  role="tab"
-                  id={`wb-ingest-tab-${tabMode}`}
-                  aria-selected={activeMode === tabMode}
-                  aria-controls={`wb-ingest-panel-${tabMode}`}
-                  className="wb-brain-ingest-tab"
-                  data-active={activeMode === tabMode || undefined}
-                  onClick={() => setActiveMode(tabMode)}
-                >
-                  {t(`secondBrain.${labelKey}`)}
-                </button>
-              ))}
-            </div>
+            <ModeTabs activeMode={activeMode} onSelect={setActiveMode} />
 
             <div
               className="wb-brain-ingest-body"
@@ -166,18 +216,12 @@ export function IngestPanel({
               id={`wb-ingest-panel-${activeMode}`}
               aria-labelledby={`wb-ingest-tab-${activeMode}`}
             >
-              {activeMode === 'audioFile' && (
-                <AudioFileTab
-                  phase={whisper.phase}
-                  transcribe={(pcm) => whisper.transcribe(pcm, { model })}
-                  onStart={() => setError(null)}
-                  onTranscript={setContent}
-                  onError={setError}
-                />
-              )}
-              {activeMode === 'record' && (
-                <p className="wb-brain-ingest-soon">{t('secondBrain.ingestAudioSoon')}</p>
-              )}
+              <CaptureMode
+                mode={activeMode}
+                busy={engineBusy}
+                caption={caption}
+                onAudio={(blob) => void transcribeAudio(blob)}
+              />
 
               {/* One editable transcript field, shared by every mode: typed
                   text lands here directly, and a transcription fills it so the

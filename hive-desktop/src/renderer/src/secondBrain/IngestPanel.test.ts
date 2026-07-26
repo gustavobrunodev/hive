@@ -228,9 +228,58 @@ describe('IngestPanel (T10)', () => {
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('digitado')
     expect(screen.getByText('Escolher arquivo de áudio')).toBeTruthy()
 
-    // The recorder tab is still an honest placeholder until Phase 5.
+    // The recorder tab now offers the real recorder, and the field persists.
     fireEvent.click(screen.getByRole('tab', { name: 'Gravar áudio' }))
-    expect(screen.getByText('O gravador chega já já.')).toBeTruthy()
+    expect(screen.getByText('Gravar')).toBeTruthy()
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('digitado')
+  })
+
+  it('a recorded take flows through the same transcript → ingest path (SB-R5.5)', async () => {
+    decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.3]))
+    const tracks = [{ stop: vi.fn() }]
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn(async () => ({ getTracks: () => tracks })) }
+    })
+    vi.stubGlobal(
+      'MediaRecorder',
+      vi.fn(function (this: Record<string, unknown>) {
+        this.mimeType = 'audio/webm'
+        this.start = vi.fn()
+        this.stop = vi.fn(() => {
+          ;(this.ondataavailable as (e: { data: Blob }) => void)?.({ data: new Blob(['take']) })
+          ;(this.onstop as () => void)?.()
+        })
+      })
+    )
+
+    const onLaunch = vi.fn()
+    render(
+      createElement(IngestPanel, {
+        mode: 'record',
+        onClose: vi.fn(),
+        store: makeStore(),
+        onLaunch
+      })
+    )
+
+    fireEvent.click(screen.getByText('Gravar'))
+    await waitFor(() => expect(screen.getByText('Parar')).toBeTruthy())
+    fireEvent.click(screen.getByText('Parar'))
+
+    // The recording's transcript lands in the same shared field…
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('ata da reunião')
+    )
+
+    // …and ingests exactly like typed text.
+    fireEvent.click(screen.getByText('Ingerir'))
+    await waitFor(() => expect(stageRaw).toHaveBeenCalledWith('/ws', 'ata da reunião'))
+    expect(onLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+      })
+    )
+    vi.unstubAllGlobals()
   })
 
   it('a transcription lands in the shared field, is editable, and ingests like typed text (SB-R4.3/4.5)', async () => {
