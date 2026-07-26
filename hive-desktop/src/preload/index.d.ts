@@ -41,6 +41,7 @@ import type {
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
 import type {
+  HardwareRecommendation,
   WhisperDownloadEvent,
   WhisperModelId,
   WhisperModelInfo,
@@ -310,6 +311,8 @@ declare global {
           onEvent: (evt: WhisperDownloadEvent) => void
         ): () => void
         deleteModel(id: WhisperModelId): Promise<void>
+        /** SB-R7.1: advisory best-model-for-this-machine; falls back to `base`. */
+        recommend(): Promise<HardwareRecommendation>
       }
     }
   }

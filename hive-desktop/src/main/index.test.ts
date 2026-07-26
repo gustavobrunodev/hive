@@ -32,6 +32,7 @@ vi.mock('electron', () => {
       getPath: vi.fn(() => userDataDir),
       getName: vi.fn(() => 'hive-desktop'),
       getVersion: vi.fn(() => '0.1.0'),
+      getGPUInfo: vi.fn(async () => ({ gpuDevice: [] })),
       isPackaged: false
     },
     BrowserWindow: BrowserWindowMock,
@@ -1391,7 +1392,12 @@ describe('main process bootstrap', () => {
     })
 
     it('registers the whisper:* model-store handlers and the streamed download channels', () => {
-      for (const ch of ['whisper:listModels', 'whisper:modelStatus', 'whisper:deleteModel']) {
+      for (const ch of [
+        'whisper:listModels',
+        'whisper:modelStatus',
+        'whisper:deleteModel',
+        'whisper:recommend'
+      ]) {
         expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
       }
       expect(ipcMain.on).toHaveBeenCalledWith('whisper:download:start', expect.any(Function))
@@ -1412,6 +1418,18 @@ describe('main process bootstrap', () => {
         downloaded: false,
         variant: null
       })
+    })
+
+    it('recommend returns an advisory model and never throws, even with no GPU probe', async () => {
+      const recommendation = (await findHandler('whisper:recommend')({})) as {
+        recommendedId: string
+        reason: string
+        gpu: boolean
+        ramGB: number
+      }
+      expect(recommendation.recommendedId).toBeTruthy()
+      expect(typeof recommendation.gpu).toBe('boolean')
+      expect(recommendation.ramGB).toBeGreaterThanOrEqual(0)
     })
 
     it('deleteModel is a safe no-op for a model that was never downloaded', async () => {

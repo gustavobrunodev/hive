@@ -912,6 +912,8 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:modelStatus', 'base')
       await whisper().deleteModel('base')
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:deleteModel', 'base')
+      await whisper().recommend()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:recommend')
     })
 
     it('downloadModel subscribes, relays progress, and unsubscribes', () => {

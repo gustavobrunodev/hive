@@ -42,6 +42,7 @@ import type {
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
 import type {
+  HardwareRecommendation,
   WhisperDownloadEvent,
   WhisperModelId,
   WhisperModelInfo,
@@ -661,6 +662,7 @@ const hive = {
       ipcRenderer.invoke('whisper:modelStatus', id),
     deleteModel: (id: WhisperModelId): Promise<void> =>
       ipcRenderer.invoke('whisper:deleteModel', id),
+    recommend: (): Promise<HardwareRecommendation> => ipcRenderer.invoke('whisper:recommend'),
     downloadModel: (
       id: WhisperModelId,
       variant: WhisperVariant,

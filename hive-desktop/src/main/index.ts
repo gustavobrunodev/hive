@@ -33,6 +33,7 @@ import {
   WHISPER_SCHEME_PRIVILEGES
 } from './whisperProtocol'
 import { createWhisperModelStore } from './whisperModelStore'
+import { recommendWhisperModel } from './whisperHardware'
 import type { WhisperModelId, WhisperVariant } from './whisperTypes'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
@@ -886,6 +887,11 @@ app.whenReady().then(() => {
   ipcMain.handle('whisper:deleteModel', async (_event, id: WhisperModelId) => {
     whisperStore.remove(id)
   })
+  // Advisory hardware recommendation (SB-R7.1/7.3) — never blocks anything;
+  // `app.getGPUInfo` is the injected probe so whisperHardware stays Electron-free.
+  ipcMain.handle('whisper:recommend', async () =>
+    recommendWhisperModel({ gpuInfo: () => app.getGPUInfo('basic') })
+  )
 
   const activeWhisperDownloads = new Map<number, () => void>()
   ipcMain.on('whisper:download:start', (event, id: WhisperModelId, variant: WhisperVariant) => {

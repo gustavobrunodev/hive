@@ -14,6 +14,9 @@ export function createHiveWhisperMock(): HiveWhisperMock {
     listModels: vi.fn().mockResolvedValue([]),
     modelStatus: vi.fn().mockResolvedValue({ downloaded: false, variant: null }),
     downloadModel: vi.fn().mockReturnValue(() => {}),
-    deleteModel: vi.fn().mockResolvedValue(undefined)
+    deleteModel: vi.fn().mockResolvedValue(undefined),
+    recommend: vi
+      .fn()
+      .mockResolvedValue({ recommendedId: 'base', reason: 'unknown', gpu: false, ramGB: 0 })
   }
 }

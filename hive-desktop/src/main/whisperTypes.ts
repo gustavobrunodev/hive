@@ -66,10 +66,13 @@ export type WhisperDownloadEvent =
   | { type: 'done'; id: WhisperModelId }
   | { type: 'error'; id: WhisperModelId; message: string }
 
+/** Why a model was recommended — a key the renderer maps to pt-BR copy. */
+export type RecommendationReason = 'lowMemory' | 'noGpu' | 'discreteGpu' | 'balanced' | 'unknown'
+
 /** Best-effort hardware recommendation (P2, SB-R7). */
 export interface HardwareRecommendation {
   recommendedId: WhisperModelId
-  reason: string
+  reason: RecommendationReason
   gpu: boolean
   ramGB: number
 }
