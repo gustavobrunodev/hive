@@ -4,9 +4,19 @@
     <meta charset="UTF-8" />
     <title>Hive Desktop</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <!--
+      `'wasm-unsafe-eval'` (script-src): the ONNX Runtime Web WASM backend that
+      powers offline Whisper transcription (D-SB-1). ORT's own `.mjs`/`.wasm`
+      assets ship SAME-ORIGIN with the renderer (they load via dynamic
+      `import()`, a script-src concern), so no extra origin is needed for them.
+      `hive-model:` (connect-src): the privileged scheme that serves locally
+      downloaded model files from userData — the renderer still never reaches
+      the network. `blob:` (media-src/worker-src): recorder playback and ORT's
+      worker. No remote origins.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' hive-model:; worker-src 'self' blob:"
     />
   </head>
 

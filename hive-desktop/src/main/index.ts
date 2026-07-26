@@ -1,4 +1,5 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
 import { basename, join, sep } from 'path'
@@ -25,6 +26,12 @@ import type {
 import { createBmadService, type BmadInstallOptions } from './bmadService'
 import { createSecondBrainService } from './secondBrainService'
 import { createSecondBrainVault } from './secondBrainVault'
+import {
+  resolveWhisperRequest,
+  WHISPER_MODELS_DIRNAME,
+  WHISPER_SCHEME,
+  WHISPER_SCHEME_PRIVILEGES
+} from './whisperProtocol'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
@@ -76,6 +83,14 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
+
+// Second Brain / Whisper (D-SB-1): the `hive-model:` scheme MUST be declared
+// privileged BEFORE `app.whenReady()` — Chromium reads the scheme registry
+// during startup, so a later call has no effect. The handler itself is wired
+// inside `whenReady` below, once `userData` is resolvable.
+protocol.registerSchemesAsPrivileged([
+  WHISPER_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme
+])
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -772,6 +787,18 @@ app.whenReady().then(() => {
   // resolveVault with the vault module's raw-pending count (SB-R2.5).
   const secondBrainService = createSecondBrainService(processRunner)
   const secondBrainVault = createSecondBrainVault()
+
+  // Whisper model bytes → the sandboxed renderer (D-SB-1, design §4.3). The
+  // renderer sets `env.localModelPath = 'hive-model://models/'`, so every model
+  // file Transformers.js asks for arrives through here, read off the local
+  // store in userData — no network from the renderer, ever. Unknown hosts and
+  // escaping paths are refused by `resolveWhisperRequest` (see its tests).
+  const whisperRoots = { models: join(app.getPath('userData'), WHISPER_MODELS_DIRNAME) }
+  protocol.handle(WHISPER_SCHEME, (request) => {
+    const file = resolveWhisperRequest(whisperRoots, request.url)
+    if (!file) return new Response(null, { status: 404 })
+    return net.fetch(pathToFileURL(file).toString())
+  })
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()
 

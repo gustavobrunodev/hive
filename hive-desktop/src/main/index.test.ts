@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it, vi, beforeAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net } from 'electron'
 import { ConflictError } from './fsService'
 import { createConfigStore } from './configStore'
 
@@ -41,7 +41,11 @@ vi.mock('electron', () => {
       trashItem: vi.fn(() => Promise.resolve()),
       showItemInFolder: vi.fn()
     },
-    dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) }
+    dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) },
+    // Second Brain / Whisper: the `hive-model:` scheme registration (pre-ready)
+    // + its request handler (in whenReady).
+    protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
+    net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) }
   }
 })
 
@@ -1319,6 +1323,37 @@ describe('main process bootstrap', () => {
 
       // stop is a no-throw no-op (the stream already finished).
       expect(() => findOnHandler('secondBrain:install:stop')(event)).not.toThrow()
+    })
+
+    it('registers the hive-model: scheme as privileged, CORS-enabled and non-CSP-bypassing', () => {
+      expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
+        expect.objectContaining({
+          scheme: 'hive-model',
+          privileges: expect.objectContaining({
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+            corsEnabled: true,
+            bypassCSP: false
+          })
+        })
+      ])
+    })
+
+    it('serves a model file from the userData store, and refuses an unknown host', async () => {
+      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
+      expect(call).toBeTruthy()
+      const handler = call![1] as (req: { url: string }) => Promise<Response> | Response
+
+      await handler({ url: 'hive-model://models/Xenova/whisper-base/config.json' })
+      expect(net.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('whisper-models/Xenova/whisper-base/config.json')
+      )
+
+      vi.mocked(net.fetch).mockClear()
+      const denied = await handler({ url: 'hive-model://secrets/id_rsa' })
+      expect((denied as Response).status).toBe(404)
+      expect(net.fetch).not.toHaveBeenCalled()
     })
 
     it('update:start streams via the update channel', async () => {

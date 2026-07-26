@@ -1,6 +1,39 @@
-import { resolve } from 'path'
+import { resolve, join } from 'path'
+import { copyFileSync, mkdirSync, readdirSync } from 'fs'
 import { defineConfig } from 'electron-vite'
+import type { PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
+
+/**
+ * Second Brain / Whisper (D-SB-1): ships ONNX Runtime Web's WASM binaries and
+ * their JS glue **same-origin** with the renderer.
+ *
+ * This is load-bearing and not interchangeable with the `hive-model:` protocol
+ * that serves model weights: ORT loads its glue with a dynamic `import()`,
+ * which the CSP governs as `script-src` (not `connect-src`), so serving it from
+ * a custom scheme fails outright ("Failed to fetch dynamically imported
+ * module") — verified in the T2 spike, see STATE.md. Copied into the renderer
+ * output as `ort/`, which `whisperEnv.ts` points `env.backends.onnx.wasm
+ * .wasmPaths` at; `script-src 'self'` then covers them with no CSP additions.
+ */
+function copyOrtAssets(): PluginOption {
+  return {
+    name: 'hive-copy-ort-assets',
+    apply: 'build',
+    closeBundle() {
+      const from = resolve('node_modules/onnxruntime-web/dist')
+      const to = resolve('out/renderer/ort')
+      mkdirSync(to, { recursive: true })
+      for (const file of readdirSync(from)) {
+        // Only the threaded-SIMD build ORT actually resolves at runtime, plus
+        // its glue — copying the full dist would add >100 MB of variants.
+        if (file.startsWith('ort-wasm-simd-threaded')) {
+          copyFileSync(join(from, file), join(to, file))
+        }
+      }
+    }
+  }
+}
 
 export default defineConfig({
   main: {},
@@ -31,6 +64,6 @@ export default defineConfig({
       // react/react-dom import to resolve to the app's single copy.
       dedupe: ['react', 'react-dom']
     },
-    plugins: [react()]
+    plugins: [react(), copyOrtAssets()]
   }
 })
