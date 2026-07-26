@@ -813,7 +813,21 @@ export const ptBR = {
     fabMenuLabel: 'Formas de ingerir',
     fabText: 'Colar texto',
     fabAudioFile: 'Áudio (arquivo)',
-    fabRecord: 'Gravar áudio'
+    fabRecord: 'Gravar áudio',
+    // Ingestion sheet (SB-R3.2–3.4).
+    ingestTitle: 'Ingerir conhecimento',
+    ingestDescription: 'O conteúdo vai para a base e o agente organiza no wiki.',
+    ingestTextPlaceholder: 'Cole aqui o que a squad precisa lembrar…',
+    ingestConfirm: 'Ingerir',
+    ingestCancel: 'Cancelar',
+    ingestStaging: 'Ingerindo…',
+    ingestError: 'Não foi possível ingerir o conteúdo.',
+    // No-vault guard (SB-R3.3).
+    ingestNoVaultTitle: 'Configure a base primeiro',
+    ingestNoVaultDescription:
+      'Ainda não existe uma base de conhecimento neste workspace. Configure-a e depois volte para ingerir.',
+    // Audio tabs — wired in Phase 4/5.
+    ingestAudioSoon: 'A transcrição de áudio chega já já.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

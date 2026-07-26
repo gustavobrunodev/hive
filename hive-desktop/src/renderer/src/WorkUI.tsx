@@ -23,6 +23,8 @@ import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { useSecondBrain } from './secondBrain/useSecondBrain'
 import { SecondBrainPanel } from './secondBrain/SecondBrainPanel'
+import { SecondBrainFab, type IngestMode } from './secondBrain/SecondBrainFab'
+import { IngestPanel } from './secondBrain/IngestPanel'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
@@ -288,6 +290,8 @@ export function WorkUI({
   // Second Brain (M12, SB-R2): vault status + raw-pending count for the rail
   // badge and the Second Brain panel.
   const secondBrain = useSecondBrain(workspace)
+  // Which ingestion mode the FAB opened the sheet on — null while closed (SB-R3.1).
+  const [ingestMode, setIngestMode] = useState<IngestMode | null>(null)
   // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
   // it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
@@ -910,6 +914,16 @@ export function WorkUI({
             work-surface footer, above the status bar — present only while the
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
           <ReviewBar onReview={() => setActiveView('review')} />
+          {/* Second Brain (SB-R3): the floating ingestion button + its sheet.
+            Both sit OUTSIDE the resizable body so `hive.workLayout` is
+            untouched; the FAB picks a capture mode, the sheet does the work. */}
+          <SecondBrainFab onSelectMode={setIngestMode} />
+          <IngestPanel
+            mode={ingestMode}
+            onClose={() => setIngestMode(null)}
+            store={secondBrain}
+            onLaunch={(action) => chatRef.current?.launchAction(action)}
+          />
           <StaleGuardDialog />
           {pendingReviewSwitch !== null && (
             <ReviewSwitchDialog
