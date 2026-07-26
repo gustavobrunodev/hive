@@ -7759,6 +7759,158 @@ button.wb-agent-pill-btn:focus-visible {
   box-shadow: 0 0 0 2px var(--focus);
 }
 
+.wb-brain-ingest-manage {
+  margin-left: auto;
+  padding: 0;
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.wb-brain-ingest-manage:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+  border-radius: 2px;
+}
+
+/* Model manager (SB-R7.1/7.2) — dense, comparable facts, so: a real table. */
+.wb-brain-models {
+  width: min(760px, 94vw);
+}
+
+.wb-brain-models-scroll {
+  max-height: 52vh;
+  overflow: auto;
+  margin-top: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2, 8px);
+}
+
+.wb-brain-models-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.wb-brain-models-table th,
+.wb-brain-models-table td {
+  padding: var(--s-2) var(--s-2);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.wb-brain-models-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-brain-models-table tbody tr:last-child th,
+.wb-brain-models-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.wb-brain-models-row[data-recommended] {
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+}
+
+.wb-brain-models-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-models-badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.wb-brain-models-badge[data-kind='recommended'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.wb-brain-models-badge[data-kind='downloaded'] {
+  color: var(--muted);
+  background: var(--surface-2, color-mix(in oklab, var(--ink) 8%, var(--surface)));
+}
+
+.wb-brain-models-note {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.wb-brain-models-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wb-brain-models-btn {
+  padding: 3px var(--s-2);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-1, 6px);
+  cursor: pointer;
+}
+
+.wb-brain-models-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.wb-brain-models-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  padding: 4px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-1, 6px);
+  cursor: pointer;
+}
+
+.wb-brain-models-icon-btn:hover {
+  color: var(--danger, var(--wb-git-deleted));
+  background: var(--surface-2, var(--surface));
+}
+
+.wb-brain-models-btn:focus-visible,
+.wb-brain-models-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-models-progress {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.wb-brain-models-reason {
+  margin: var(--s-2) 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 /* Visually-hidden file input — the styled button is the real affordance. */
 .wb-visually-hidden {
   position: absolute;

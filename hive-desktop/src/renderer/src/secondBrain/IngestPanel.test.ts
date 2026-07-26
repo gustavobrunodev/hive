@@ -63,7 +63,15 @@ vi.mock('@hive/design-system', () => ({
   SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', rest, children),
-  Textarea: (props: Record<string, unknown>) => createElement('textarea', props)
+  Textarea: (props: Record<string, unknown>) => createElement('textarea', props),
+  // The embedded ModelManager (T19) renders through the DS Dialog family; it
+  // has its own dedicated tests, so here it only needs to not blow up.
+  Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
+    open ? createElement('div', null, children) : null,
+  DialogContent: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('div', rest, children),
+  DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
+  DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children)
 }))
 
 function makeStore(overrides: Partial<SecondBrainStore> = {}): SecondBrainStore {
@@ -89,11 +97,31 @@ describe('IngestPanel (T10)', () => {
       whisper: {
         ...window.hive?.whisper,
         listModels: vi.fn().mockResolvedValue([
-          { id: 'base', params: '74 M', downloaded: true },
-          { id: 'small', params: '244 M', downloaded: false }
+          {
+            id: 'base',
+            params: '74 M',
+            sizeMB: { fp32: 278, q8: 73 },
+            approxVramGB: 1,
+            relativeSpeed: '~7x',
+            multilingual: true,
+            downloaded: true
+          },
+          {
+            id: 'small',
+            params: '244 M',
+            sizeMB: { fp32: 923, q8: 238 },
+            approxVramGB: 2,
+            relativeSpeed: '~4x',
+            multilingual: true,
+            downloaded: false
+          }
         ]),
         modelStatus: vi.fn().mockResolvedValue({ downloaded: true, variant: 'fp32' }),
-        downloadModel: vi.fn().mockReturnValue(() => {})
+        downloadModel: vi.fn().mockReturnValue(() => {}),
+        deleteModel: vi.fn().mockResolvedValue(undefined),
+        recommend: vi
+          .fn()
+          .mockResolvedValue({ recommendedId: 'base', reason: 'noGpu', gpu: false, ramGB: 16 })
       }
     } as typeof window.hive
   })
@@ -329,6 +357,27 @@ describe('IngestPanel (T10)', () => {
     fireEvent.change(input)
 
     await waitFor(() => expect(window.hive.whisper.modelStatus).toHaveBeenCalledWith('small'))
+  })
+
+  it('opens the model manager from the audio tab and refreshes the picker on close', async () => {
+    render(
+      createElement(IngestPanel, {
+        mode: 'audioFile',
+        onClose: vi.fn(),
+        store: makeStore(),
+        onLaunch: vi.fn()
+      })
+    )
+
+    fireEvent.click(await screen.findByText('Gerenciar modelos'))
+    expect(await screen.findByText('Modelos de transcrição')).toBeTruthy()
+
+    // Closing it re-reads the catalog, so a just-downloaded model shows in the picker.
+    const before = vi.mocked(window.hive.whisper.listModels).mock.calls.length
+    fireEvent.click(screen.getByText('Fechar'))
+    await waitFor(() =>
+      expect(vi.mocked(window.hive.whisper.listModels).mock.calls.length).toBeGreaterThan(before)
+    )
   })
 
   it('offers the model picker on audio modes only, defaulting to base (SB-R4.4)', async () => {

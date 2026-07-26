@@ -851,7 +851,33 @@ export const ptBR = {
     recordUnavailable: 'Nenhum microfone foi encontrado neste computador.',
     recordRetry: 'Tentar de novo',
     recordingLabel: 'Gravando',
-    ingestAudioSoon: 'O gravador chega já já.'
+    ingestAudioSoon: 'O gravador chega já já.',
+    // Model manager (SB-R7.1/7.2).
+    modelsTitle: 'Modelos de transcrição',
+    modelsDescription:
+      'Os modelos rodam no seu computador. Baixe uma vez e a transcrição funciona offline.',
+    modelsColModel: 'Modelo',
+    modelsColParams: 'Parâmetros',
+    modelsColSize: 'Tamanho',
+    modelsColVram: 'VRAM',
+    modelsColSpeed: 'Velocidade',
+    modelsRecommended: 'Recomendado',
+    modelsDownloaded: 'Baixado',
+    modelsEnglishOnly: 'só inglês',
+    modelsDownload: 'Baixar',
+    modelsDelete: 'Excluir',
+    modelsDownloading: (pct: number) => `Baixando… ${pct}%`,
+    modelsSizeMb: (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`),
+    modelsVramGb: (gb: number) => `~${gb} GB`,
+    modelsClose: 'Fechar',
+    modelsDeleteAria: (id: string) => `Excluir o modelo ${id}`,
+    modelsDownloadAria: (id: string) => `Baixar o modelo ${id}`,
+    // Why a model was recommended — keyed by whisperHardware's reason union.
+    modelsReasonLowMemory: (ram: number) => `Recomendado: pouca memória disponível (${ram} GB).`,
+    modelsReasonNoGpu: 'Recomendado: sem GPU dedicada, um modelo leve responde melhor.',
+    modelsReasonDiscreteGpu: (ram: number) => `Recomendado: GPU dedicada e ${ram} GB de memória.`,
+    modelsReasonBalanced: 'Recomendado: bom equilíbrio entre velocidade e qualidade aqui.',
+    modelsReasonUnknown: 'Não foi possível avaliar seu hardware — usando o padrão.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',

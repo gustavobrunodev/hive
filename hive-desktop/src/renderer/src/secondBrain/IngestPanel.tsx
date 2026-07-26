@@ -16,7 +16,14 @@ import { AudioFileTab } from './whisper/AudioFileTab'
 import { AudioRecorder } from './whisper/AudioRecorder'
 import { useAudioIngest } from './whisper/useAudioIngest'
 import { phaseCaption } from './whisper/phaseCaption'
-import { DEFAULT_MODEL, useWhisper, type WhisperModelId } from './whisper/useWhisper'
+import { ModelManager } from './whisper/ModelManager'
+import {
+  DEFAULT_MODEL,
+  probeWebGpu,
+  useWhisper,
+  type WhisperModelId,
+  type WhisperVariant
+} from './whisper/useWhisper'
 
 /** Catalog entry as the bridge returns it (renderer never imports `src/main/*`). */
 type WhisperModelInfo = Awaited<ReturnType<Window['hive']['whisper']['listModels']>>[number]
@@ -134,6 +141,8 @@ export function IngestPanel({
   const transcribeAudio = useAudioIngest(whisper, model, setContent, setError)
   const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
   const caption = phaseCaption(whisper.phase)
+  const [modelsOpen, setModelsOpen] = useState(false)
+  const [engineVariant, setEngineVariant] = useState<WhisperVariant>('fp32')
 
   // The sheet is open whenever the FAB handed it a mode; opening re-syncs the
   // active tab to that mode (derived during render, no effect — the
@@ -158,6 +167,20 @@ export function IngestPanel({
       cancelled = true
     }
   }, [open, whisper.phase.status])
+
+  // Which precision this machine will actually download/run. fp32 is the safe
+  // default until a WebGPU adapter is confirmed — it's the only variant that
+  // builds a session on the WASM backend (T2 spike).
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void probeWebGpu().then((gpu) => {
+      if (!cancelled) setEngineVariant(gpu ? 'q8' : 'fp32')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   const close = useCallback(() => {
     setContent('')
@@ -259,8 +282,25 @@ export function IngestPanel({
                     </option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  className="wb-brain-ingest-manage"
+                  onClick={() => setModelsOpen(true)}
+                >
+                  {t('secondBrain.ingestManageModels')}
+                </button>
               </div>
             )}
+
+            <ModelManager
+              open={modelsOpen}
+              onOpenChange={(next) => {
+                setModelsOpen(next)
+                // Downloads/deletions in the manager change the picker's list.
+                if (!next) void window.hive.whisper.listModels().then(setModels)
+              }}
+              variant={engineVariant}
+            />
 
             {error && (
               <p className="wb-brain-ingest-error" role="alert">
