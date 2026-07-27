@@ -1,0 +1,47 @@
+- generic [ref=f11e3]:
+  - banner [ref=f11e4]:
+    - img "Hive" [ref=f11e6]
+    - generic [ref=f11e14]: Hive Desktop
+    - 'button "Workspace ativo: /tmp/demo-workspace. Clique para trocar de workspace." [ref=f11e16] [cursor=pointer]':
+      - generic [ref=f11e19]: demo-workspace
+    - 'button "Alternar tema (atual: claro)" [ref=f11e22] [cursor=pointer]'
+    - button "Abrir configurações de perfil" [ref=f11e25] [cursor=pointer]: A
+  - generic [ref=f11e26]:
+    - navigation "Ferramentas do workspace" [ref=f11e27]:
+      - button "Buscar arquivos no workspace" [ref=f11e28] [cursor=pointer]
+      - button "Estúdio de skills" [ref=f11e32] [cursor=pointer]
+      - button "Servidores MCP" [ref=f11e36] [cursor=pointer]
+      - button "Configurações do aplicativo" [ref=f11e40] [cursor=pointer]
+    - generic [ref=f11e45]:
+      - generic "Arquivos do workspace" [ref=f11e46]:
+        - generic [ref=f11e48]:
+          - banner [ref=f11e49]:
+            - generic [ref=f11e57]: Arquivos
+            - button "Mover o painel Arquivos" [ref=f11e59] [cursor=pointer]
+          - generic [ref=f11e63]:
+            - button "Novo arquivo" [ref=f11e64] [cursor=pointer]
+            - button "Nova pasta" [ref=f11e67] [cursor=pointer]
+          - generic [ref=f11e73]:
+            - generic [ref=f11e74]: Nenhum arquivo ainda
+            - generic [ref=f11e75]: Os arquivos criados no workspace vão aparecer aqui.
+      - separator "Redimensionar painéis" [ref=f11e76]
+      - generic [ref=f11e83]:
+        - banner [ref=f11e84]:
+          - generic [ref=f11e92]: Conversa
+          - generic [ref=f11e93]:
+            - button "Nova conversa" [ref=f11e94] [cursor=pointer]
+            - button "Histórico de conversas" [ref=f11e97] [cursor=pointer]
+          - button "Mover o painel Conversa" [ref=f11e103] [cursor=pointer]
+        - generic [ref=f11e109]:
+          - heading "Olá Ana, o que você quer fazer hoje?" [level=1] [ref=f11e114]
+          - paragraph [ref=f11e115]: Escreva sua mensagem ou comece por um fluxo guiado do BMAD.
+          - list [ref=f11e116]:
+            - button "Personalizar atalhos" [ref=f11e117] [cursor=pointer]: Personalizar
+          - generic [ref=f11e124]:
+            - textbox "Escreva uma mensagem…" [ref=f11e126]
+            - generic [ref=f11e127]:
+              - 'button "Agente da conversa: claude-cli. Clique para trocar." [ref=f11e129] [cursor=pointer]':
+                - generic [ref=f11e133]: claude-cli
+              - button "Enviar" [disabled] [ref=f11e136]
+  - region "Notificações de atualização (F8)":
+    - list

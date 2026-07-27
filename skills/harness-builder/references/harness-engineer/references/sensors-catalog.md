@@ -13,6 +13,7 @@ harness-engineering article), extended across ecosystems.
 1. The one idea that multiplies every sensor: self-correction messages
 2. Managing warnings without drowning in them
 3. Sensors by concern
+   - **L. The hygiene floor (CI-04, HYG-02, HYG-08) — check these on every run**
    - A. File & function static analysis (linters)
    - B. Type checking
    - C. Module / architecture / dependency rules
@@ -92,6 +93,153 @@ manage warnings deliberately:
 ## 3. Sensors by concern
 
 For each: what it catches · execution type · cost · when to run · notes.
+
+### L. The hygiene floor — check on every run
+
+Sections A–K are *candidates*: propose them only against an observed failure.
+These three are different. They are **cheap, universal, and their absence is
+itself the evidence** — the failure they prevent (a leaked credential, a mistake
+that only surfaces after a commit exists) is catastrophic-and-common enough that
+"we haven't hit it yet" is not a reason to skip. Check all three on every
+assessment, in every mode, and report each as pass/fail.
+
+They map to the harness-score checks of the same IDs; `scripts/harness_inventory.py`
+emits them by ID so you don't have to remember them.
+
+#### CI-04 — Pre-commit checks installed
+
+**What it catches:** everything the fast sensors would have caught *before a
+commit exists* — the earliest feedback loop available. Without it, in-session
+agent mistakes reach the repo history and only CI notices, minutes later.
+
+**Detection:** any pre-commit hook tooling wired — `husky` + `lint-staged`,
+`pre-commit` (`.pre-commit-config.yaml`), `lefthook`, `simple-git-hooks`, or a
+committed `.githooks/` + `core.hooksPath`. A `.husky/` directory with no commands
+in it does **not** count.
+
+**Fix, by ecosystem** (match the project's package manager; never introduce a
+second hook runner alongside an existing one):
+
+```bash
+# Node — husky + lint-staged
+npm install --save-dev husky lint-staged
+npx husky init
+echo 'npx lint-staged' > .husky/pre-commit
+```
+
+```json
+// package.json — scope the checks to staged files, keep it under ~5s
+{
+  "lint-staged": {
+    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{json,md}": ["prettier --write"]
+  }
+}
+```
+
+```yaml
+# Python (or polyglot) — .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks: [{ id: ruff, args: [--fix] }, { id: ruff-format }]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks: [{ id: gitleaks }]
+```
+
+```yaml
+# Any stack — lefthook.yml (fast, parallel, scoped to staged files)
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{ts,tsx}"
+      run: npx eslint {staged_files}
+    secrets:
+      run: gitleaks protect --staged --redact
+```
+
+**Keep it fast and scoped.** A pre-commit hook that runs the whole suite is a
+hook people bypass with `--no-verify`; that's worse than none, because it looks
+like coverage. Heavy checks (mutation, broad AI review, full e2e) belong in CI.
+
+Execution: computational · Cost: ¢ · When: **pre-commit** (it *is* the stage) ·
+Gating: yes, that's the point.
+
+#### HYG-02 — `.gitignore` covers environment files
+
+**What it catches:** an agent staging credentials by accident. An agent running
+`git add .` after creating a `.env.local` for a test is a mundane, high-frequency
+event; the blast radius is a leaked secret in immutable history.
+
+**Detection:** `.gitignore` contains both a `.env` pattern and a `.env.*`
+pattern. A single `.env` line is **not** enough — it doesn't cover `.env.local`,
+`.env.production`, `.env.test`.
+
+**Fix:**
+
+```gitignore
+# Environment files — never commit
+.env
+.env.*
+!.env.example
+```
+
+The `!.env.example` negation keeps the documented template tracked, which is what
+makes the rule survivable: developers need *somewhere* to see the variable names.
+Verify the example file holds only names and dummy values.
+
+**If a `.env` is already tracked**, ignoring it changes nothing — `git rm --cached
+.env` first, and tell the user the values in history must be treated as
+compromised and rotated. Don't silently "fix" it and imply the leak is closed.
+
+**Pair with a sensor.** `.gitignore` is a *guide*; the matching *sensor* is secret
+scanning at pre-commit (§G). Both, not either.
+
+Execution: computational · Cost: ¢ (one line) · When: **pre-commit / always
+active** · Gating: implicit.
+
+#### HYG-08 — MCP config uses env interpolation for credentials
+
+**What it catches:** credentials written literally into an MCP config that lives
+in the repo. Also rewards deliberate tool-access configuration: a project with a
+reviewed `.mcp.json` has thought about what its agent can reach.
+
+**Detection:** look for `.cursor/mcp.json`, `.mcp.json`, or
+`.agents/mcp_config.json`. If none exists, the check can't pass — and if the
+project uses MCP servers at all, the config belongs in the repo so the whole
+squad gets the same tool access. If one exists, every credential-shaped value
+(`*_KEY`, `*_TOKEN`, `*_SECRET`, `password`, `api-key`, bearer strings) must be a
+`${ENV_VAR}` reference.
+
+**Fix:**
+
+```json
+{
+  "mcpServers": {
+    "example": {
+      "command": "npx",
+      "args": ["-y", "example-mcp"],
+      "env": { "EXAMPLE_API_KEY": "${EXAMPLE_API_KEY}" }
+    }
+  }
+}
+```
+
+Then document the required env vars (`.env.example` + a line in `AGENTS.md`
+boundaries), and confirm HYG-02 covers the file that will hold them.
+
+**A literal already in the file** is a live incident, not a lint finding: replace
+it, and say plainly that the value is in git history and must be rotated.
+
+**Don't manufacture a config to pass the check.** If the project genuinely uses
+no MCP servers, say so — an empty `.mcp.json` added for a score is harness
+theater. The finding is worth raising as "no MCP config found"; adding servers
+is a separate, user-approved decision (see `stack-presets`).
+
+Execution: computational · Cost: ¢ · When: **always active / reviewed at
+assessment** · Gating: no (report + fix).
 
 ### A. File & function static analysis (linters)
 
@@ -282,6 +430,8 @@ before recommending; match the package manager and existing setup.
 For each candidate, answer — and put the answers in the assessment:
 
 1. **Which observed failure does it catch?** No real failure → don't add it.
+   *(Exception: the §L hygiene floor. Those three are checked and fixed
+   unconditionally — their absence is the finding.)*
 2. **Computational or inferential?** Prefer computational when the rule is
    objective; reserve inferential for genuine semantic judgment.
 3. **What's the cost, and so where does it run?** Keep it as far left as it can

@@ -5,6 +5,12 @@ Checks the failure modes that research links to context files *hurting* agents:
 oversized always-loaded content, redundancy with the README, vague/non-actionable
 language, broken docs/ pointers, and missing executable commands.
 
+It also checks the two unconditional blocks from references/mandatory-blocks.md —
+the memory contract (a STATE-style file the agent is told to read at session
+start) and the general rules ("Writing implementation plans" with real commands).
+The architecture block is conditional on the project having architecture
+principles at all, so it is not auto-checked.
+
 Every finding is a prompt to *cut or sharpen* — not a hard gate. Usage:
 
     python3 audit_rules.py <repo-path>
@@ -45,7 +51,29 @@ VAGUE_PHRASES = [
     "mantenha limpo", "escreva código limpo",
 ]
 
+# Canonical sections mandated by references/mandatory-blocks.md. Their wording
+# reads as vague in isolation ("high quality", "industry standards") but each
+# phrase is immediately followed by a concrete clause and exact commands, so
+# flagging it would punish the required text. Vague-language checks are skipped
+# inside these subsections only — the rest of the file is checked normally.
+_CANON_SECTION = re.compile(
+    r"(?i)^(#+)\s*(writing implementation plans|implementation and testing"
+    r"|escrevendo planos de implementa[çc][ãa]o)\b")
+_HEADING = re.compile(r"^(#+)\s")
+
 RULE_FILENAMES = ["AGENTS.md", "CLAUDE.md"]
+
+# --- mandatory blocks -----------------------------------------------------
+# Block 1 — memory contract: a session-start pointer to a living state file.
+_MEMORY_POINTER = re.compile(
+    r"(?i)(state\.md|steering|constitution\.md|decisions?\.md|memory)")
+_SESSION_IMPERATIVE = re.compile(
+    r"(?i)(in[ií]cio de cada sess[ãa]o|antes de come[çc]ar|start of (?:each|every) "
+    r"session|read (?:this )?first|leia (?:antes|no in[ií]cio))")
+# Block 3 — general rules: the implementation-plan section.
+_PLAN_SECTION = re.compile(
+    r"(?im)^#+\s*(writing implementation plans|implementation plans"
+    r"|escrevendo planos de implementa[çc][ãa]o)\b")
 
 
 @dataclass
@@ -112,7 +140,20 @@ def check_size(root: str, agents_files: list[str], findings: list[Finding]) -> N
 
 
 def check_vague(path: str, label: str, findings: list[Finding]) -> None:
+    canon_level = 0          # 0 = outside a canonical section
     for i, line in enumerate(read(path).splitlines(), 1):
+        heading = _HEADING.match(line)
+        if heading:
+            level = len(heading.group(1))
+            # A heading at or above the canonical section's level ends it.
+            if canon_level and level <= canon_level:
+                canon_level = 0
+            canon = _CANON_SECTION.match(line)
+            if canon:
+                canon_level = len(canon.group(1))
+                continue
+        if canon_level:
+            continue          # inside mandated wording — not ours to flag
         low = line.lower()
         for phrase in VAGUE_PHRASES:
             if phrase in low:
@@ -190,6 +231,33 @@ def check_commands(root: str, findings: list[Finding]) -> None:
             "with flags."))
 
 
+def check_mandatory_blocks(root: str, findings: list[Finding]) -> None:
+    """The blocks that go in every AGENTS.md (see references/mandatory-blocks.md)."""
+    agents = os.path.join(root, "AGENTS.md")
+    if not os.path.exists(agents):
+        return
+    text = read(agents)
+
+    # Block 1 — memory contract.
+    if not _MEMORY_POINTER.search(text):
+        findings.append(Finding("WARN", "AGENTS.md",
+            "no memory contract found — the agent is never pointed at a living "
+            "decision/lessons file. Add the STATE block (see mandatory-blocks.md "
+            "block 1) with paths resolved from the project's SDD tool."))
+    elif not _SESSION_IMPERATIVE.search(text):
+        findings.append(Finding("WARN", "AGENTS.md",
+            "a memory file is mentioned but not as a session-start instruction. "
+            'Make it imperative — "**leia no início de cada sessão**" — or the '
+            "agent will treat it as background, not an action."))
+
+    # Block 3 — general rules.
+    if not _PLAN_SECTION.search(text):
+        findings.append(Finding("INFO", "AGENTS.md",
+            'no "Writing implementation plans" section — it is mandatory (see '
+            "mandatory-blocks.md block 3) and must carry this project's real "
+            "build/lint/e2e commands."))
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print(__doc__)
@@ -211,6 +279,7 @@ def main(argv: list[str]) -> int:
         check_readme_redundancy(root, findings)
         check_pointers(root, agents_files, findings)
         check_commands(root, findings)
+        check_mandatory_blocks(root, findings)
         for af in agents_files:
             check_vague(af, rel(root, af), findings)
         for cf in find_files(root, "CLAUDE.md"):

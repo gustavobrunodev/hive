@@ -70,6 +70,70 @@ Heuristics for good categorization:
 - **Mirror how work is actually sliced.** If people say "I'm working on the
   billing service," `docs/billing.md` will trigger naturally.
 
+## Granularity: by aspect, by scope — never one catch-all
+
+The most common failure of this layer isn't too many files, it's **one big
+file**. A `docs/architecture.md` that covers layering, entity naming, transaction
+handling, external clients, logging, and testing is an always-relevant file, and
+"always relevant" means it gets loaded on every task — you've reinvented the
+bloated always-loaded layer, one indirection down.
+
+So when a broad topic has real depth, shard it by **aspect** and keep each shard
+scoped:
+
+| Instead of one… | Ship these |
+| --- | --- |
+| `docs/architecture.md` | `docs/coding-patterns.md` (repository pattern, lean controllers, transactions, entity naming) · `docs/integration-patterns.md` (external clients, injection, logging, metrics, circuit breakers) · `docs/module-structure.md` (folder layout, suffixes, where a new file goes) · `docs/persistence.md` (migrations, datasource) |
+| `docs/testing.md` (in a repo with real e2e) | `docs/testing.md` (unit/integration) + a nested e2e `AGENTS.md` with its own `docs/` (below) |
+
+The test for a shard: **name the task that opens it.** "Adding a controller"
+opens `coding-patterns.md`. "Wiring a third-party API" opens
+`integration-patterns.md`. If you can't name a task, or two shards answer the
+same task, the cut is wrong.
+
+Pair the shard with a **routing table** in `AGENTS.md` (task → file), not just a
+trigger list — see mandatory block 2 in `mandatory-blocks.md`. The table *is* the
+interface to this layer.
+
+## E2E: a nested AGENTS.md with its own docs/
+
+When a project has e2e tests, they get more than a category — they get their own
+**nested rule root**, because e2e work has a different runner, different setup,
+different selectors, and different failure modes than the rest of the codebase,
+and it lives in its own directory.
+
+Create `AGENTS.md` **at the root of the e2e config/specs directory** — wherever
+`playwright.config.ts` / `cypress.config.ts` / `wdio.conf.js` actually lives
+(`e2e/`, `tests/e2e/`, `cypress/`, `apps/<app>-e2e/`) — plus a `docs/` folder
+beside it:
+
+```text
+e2e/
+├── AGENTS.md              # commands, required setup, selectors, boundaries + index
+├── docs/
+│   ├── fixtures-e-auth.md     # test users, login bypass, seeded state
+│   ├── network-mocking.md     # what to intercept, what never to mock
+│   ├── flakiness.md           # retry policy, isolation, how to reproduce
+│   ├── visual-testing.md      # snapshot baselines, when to regenerate
+│   └── ci.md                  # shards, artifacts, timeouts, env targets
+├── playwright.config.ts
+└── specs/
+```
+
+Why nested rather than `docs/e2e-testing.md` at the root: agents load the
+**nearest** file, so a spec author gets these rules automatically and every other
+task pays nothing for them. Keep a single one-line pointer in the root
+`AGENTS.md` ("Escrevendo testes e2e → ler `e2e/AGENTS.md`") so it's discoverable
+from the top.
+
+Create only the shards the project actually needs — a suite with no visual
+testing doesn't get `visual-testing.md`. Use `assets/AGENTS.md.e2e.template` for
+the nested file and `assets/docs-rule.template.md` for each shard.
+
+The same pattern applies to any other area with a genuinely distinct workflow and
+its own directory (a mobile app, an infra/terraform tree, a data-pipeline
+package): nested `AGENTS.md` + local `docs/`, root file keeps one pointer.
+
 ## Writing the index in AGENTS.md
 
 The index is the only always-loaded part of this layer, so it must be tiny and
@@ -133,6 +197,8 @@ The user-facing default is a `docs/` directory at the repo root, referenced from
 ## Sanity check
 
 After building the layer, verify: every index pointer resolves to a file that
-exists; every `docs/` file has a clear matching trigger in the index; no file
-duplicates README/human-doc content; and the always-loaded index stayed tiny.
+exists; every `docs/` file has a clear matching trigger in the index; **every
+file is single-concern and you can name the task that opens it**; no file
+duplicates README/human-doc content; the e2e directory has its own `AGENTS.md` +
+`docs/` if e2e tests exist; and the always-loaded index stayed tiny.
 `scripts/audit_rules.py` checks the resolvable-pointer and size parts for you.

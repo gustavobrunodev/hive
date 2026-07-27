@@ -8,6 +8,12 @@ still gets one copy of each server.
 All three are configured in the project's `.mcp.json` under `mcpServers`. Check
 presence by the server key before adding; if the key already exists, skip it.
 
+> **Credentials are never literals.** Any credential-shaped value in an MCP
+> config goes in as `${ENV_VAR}` interpolation — this is harness check **HYG-08**
+> and it applies to every MCP you add, not just Figma. A literal key is a leak
+> waiting for a `git add .`; a fake placeholder like `YOUR-KEY` is only marginally
+> better, because it invites someone to paste the real one in its place.
+
 ## Detect if already configured (per server, skip if present)
 
 - Open the project `.mcp.json` (or the agent's MCP config).
@@ -17,8 +23,8 @@ presence by the server key before adding; if the key already exists, skip it.
 ## 1. Figma — Framelink MCP (`figma-developer-mcp`)
 
 Design-to-code: reads Figma frames/nodes so the agent implements from the real
-design instead of guessing. **Needs a Figma API key** — write a placeholder and
-tell the user to supply their own; never commit a real key.
+design instead of guessing. **Needs a Figma API key** — reference it through
+`${FIGMA_API_KEY}`; never write the token itself into the file.
 
 **macOS / Linux:**
 
@@ -27,7 +33,7 @@ tell the user to supply their own; never commit a real key.
   "mcpServers": {
     "Framelink MCP for Figma": {
       "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
+      "args": ["-y", "figma-developer-mcp", "--figma-api-key=${FIGMA_API_KEY}", "--stdio"]
     }
   }
 }
@@ -40,16 +46,30 @@ tell the user to supply their own; never commit a real key.
   "mcpServers": {
     "Framelink MCP for Figma": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
+      "args": ["/c", "npx", "-y", "figma-developer-mcp", "--figma-api-key=${FIGMA_API_KEY}", "--stdio"]
     }
   }
 }
 ```
 
-Replace `YOUR-KEY` with the developer's Figma personal access token (or wire it
-through an env var per the agent's secret-handling convention). Leave the
-placeholder until the user provides one — report it as "needs a Figma API key
-before it works."
+Some agents prefer an explicit `env` block over argv interpolation — same rule
+applies, the value stays a `${…}` reference:
+
+```json
+{
+  "mcpServers": {
+    "Framelink MCP for Figma": {
+      "command": "npx",
+      "args": ["-y", "figma-developer-mcp", "--stdio"],
+      "env": { "FIGMA_API_KEY": "${FIGMA_API_KEY}" }
+    }
+  }
+}
+```
+
+Then tell the user to export `FIGMA_API_KEY` (their Figma personal access token)
+in their shell or `.env` — and confirm `.env` is gitignored (HYG-02). Report the
+server as "needs `FIGMA_API_KEY` exported before it works."
 
 ## 2. Playwright — `@playwright/mcp`
 
@@ -93,5 +113,10 @@ interactive DevTools access — the org's baseline **performance/debug** MCP.
 
 Merge only the missing server blocks into the project `.mcp.json` (don't clobber
 servers already there). Inside `/build-harness`, propose each addition as a step
-to confirm. After adding, report which servers need a secret before they work
-(Figma) versus which are ready to use (Playwright, Chrome DevTools).
+to confirm. After adding, report which servers need an env var before they work
+(Figma → `FIGMA_API_KEY`) versus which are ready to use (Playwright, Chrome
+DevTools).
+
+If the project already has an `.mcp.json` with a **literal** credential in it,
+that's an HYG-08 finding: replace the literal with `${ENV_VAR}`, tell the user to
+export it, and treat the old value as compromised — it's in git history.

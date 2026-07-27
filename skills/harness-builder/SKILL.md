@@ -1,6 +1,6 @@
 ---
 name: harness-builder
-description: Creates or improves a project's coding-agent harness (guides + sensors) or handles scoped harness tasks via four bundled reference modules. Full playbook — assess, rules, baselines, gap skills, sensors, steering loop. Scoped — rules/AGENTS.md only (agent-rules-architect); find/install ecosystem skills (find-skills); harness assess/audit/sensors/timing (harness-engineer); org stack ai-tool presets — skills + MCPs — React/Angular/.NET/SDD (stack-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, sensors, linters, stack presets, or skill discovery.
+description: Creates or improves a project's coding-agent harness (guides + sensors) or handles scoped harness tasks via three bundled reference modules. Full playbook — assess, rules, presets, sensors, steering loop. Scoped — rules/AGENTS.md only (agent-rules-architect); harness assess/audit/sensors/timing/hygiene (harness-engineer); org stack ai-tool presets — skills + MCPs — React/Angular/.NET/SDD (stack-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, architecture principles, SDD/spec-driven setup, sensors, linters, pre-commit hooks, or stack presets.
 ---
 
 # Harness Builder
@@ -13,10 +13,9 @@ load **only** what that mode needs. Never read all reference modules up front.
 | Mode | User intent (examples) | Load |
 | --- | --- | --- |
 | **Full** | Build/improve the *complete* harness; setup from scratch; run build-harness; no narrower scope stated | [`references/full-playbook.md`](references/full-playbook.md) |
-| **Rules** | Create/improve/audit/trim `AGENTS.md`, `.cursor/rules`, agent instructions; "só rules"; optimize rules | [`references/agent-rules-architect/SKILL.md`](references/agent-rules-architect/SKILL.md) |
-| **Find** | Find/search/install a skill; "tem skill para X?"; skills.sh; extend agent capabilities | [`references/find-skills/SKILL.md`](references/find-skills/SKILL.md) |
-| **Harness** | Assess/audit harness; add sensors; timing/placement; steering loop; harness gaps — *without* full playbook or rules-only job | [`references/harness-engineer/SKILL.md`](references/harness-engineer/SKILL.md) |
-| **Presets** | Apply org ai-tool presets (skills + MCPs); install stack tools; "presets React/Angular/.NET"; SDD baseline | [`references/stack-presets/SKILL.md`](references/stack-presets/SKILL.md) |
+| **Rules** | Create/improve/audit/trim `AGENTS.md`, `.cursor/rules`, agent instructions; "só rules"; optimize rules; architecture principles | [`references/agent-rules-architect/SKILL.md`](references/agent-rules-architect/SKILL.md) |
+| **Harness** | Assess/audit harness; add sensors; timing/placement; hygiene floor (pre-commit, `.gitignore`, MCP secrets); steering loop — *without* full playbook or rules-only job | [`references/harness-engineer/SKILL.md`](references/harness-engineer/SKILL.md) |
+| **Presets** | Apply org ai-tool presets (skills + MCPs); install stack tools; "presets React/Angular/.NET"; SDD / spec-driven baseline | [`references/stack-presets/SKILL.md`](references/stack-presets/SKILL.md) |
 
 **Routing rules:**
 
@@ -43,20 +42,18 @@ Read `references/full-playbook.md`. It orchestrates phases 0–5 and tells you
 ### Rules
 
 Read `references/agent-rules-architect/SKILL.md` only. Run its workflow and
-audit script. Skip harness assessment, presets, and find-skills unless the user
-expands scope.
-
-### Find
-
-Read `references/find-skills/SKILL.md` only. Search, vet, present, install with
-go-ahead.
+audit script. Skip harness assessment and presets unless the user expands scope.
+Its three **mandatory blocks** (memory/SDD contract, architecture principles when
+they exist, general rules) apply in this mode too.
 
 ### Harness
 
 Read `references/harness-engineer/SKILL.md` only. For orientation on concepts,
 also read `references/harness-engineer/references/harness-model.md` — not the
-full playbook or other modules. Delegate rule-file writing to Rules mode if that
-surfaces as a separate ask.
+full playbook or other modules. Always check its **hygiene floor** (pre-commit
+tooling, `.env` in `.gitignore`, MCP credentials via `${ENV_VAR}`) — those three
+are checked on every run, not only when asked. Delegate rule-file writing to
+Rules mode if that surfaces as a separate ask.
 
 ### Presets
 
@@ -64,8 +61,10 @@ Read `references/stack-presets/SKILL.md` only. Detect stack (or use what
 the user stated), then load **only** the matching reference file(s) from its
 baseline map — e.g. React → `references/frontend-react.md` (+ the shared
 `references/frontend-mcps.md` for its MCP set) inside that module. Always
-evaluate `references/sdd.md` for cross-cutting SDD. Idempotent: install only
-what's missing (skills *and* MCPs); confirm with user.
+evaluate `references/sdd.md` for cross-cutting SDD — it installs
+`tlc-spec-driven` by default when the project has no SDD tool, keeps any existing
+one, and ensures the memory contract lands in `AGENTS.md` either way. Idempotent:
+install only what's missing (skills *and* MCPs); confirm with user.
 
 ## Prime directive (all modes)
 
@@ -78,6 +77,17 @@ what's missing (skills *and* MCPs); confirm with user.
 - In **Full** mode, `harness-engineer` is the spine; other modules serve its
   assessment. In scoped modes, stay inside the one module unless the user widens.
 
+**Two named exceptions**, and only these — both are *unconditional*, not
+"thorough":
+
+- The **hygiene floor** (CI-04 pre-commit tooling, HYG-02 `.env` ignored,
+  HYG-08 MCP credentials via `${ENV_VAR}`) — checked and fixed on every run.
+- The **three mandatory blocks** in `AGENTS.md` (memory/SDD contract; architecture
+  principles *when the project has them*; general rules) — written on every run.
+
+Their absence *is* the evidence, and each costs minutes. Everything else still
+has to earn its place.
+
 ## Module index (load on demand)
 
 | Path | Scope |
@@ -85,8 +95,7 @@ what's missing (skills *and* MCPs); confirm with user.
 | `references/full-playbook.md` | Full mode only — 6-phase orchestration |
 | `references/harness-engineer/` | Harness mode; also phases 0–1, 4–5 in Full |
 | `references/agent-rules-architect/` | Rules mode; phase 2 in Full |
-| `references/stack-presets/` | Presets mode; phase 3a in Full |
-| `references/find-skills/` | Find mode; phase 3b in Full |
+| `references/stack-presets/` | Presets mode; phase 3 in Full |
 
 Each module folder is a verbatim, independently-updatable copy — replace the
 folder to update without touching this router.

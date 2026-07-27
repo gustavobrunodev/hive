@@ -11,7 +11,8 @@ command is worse than no command).
 
 ## What you're trying to walk away with
 
-A short, factual inventory:
+A short, factual inventory (items 1–7 feed triage; 8–10 decide the mandatory
+blocks and where nested files go):
 
 1. **Stack & versions** — languages, frameworks, runtime/version pins, package
    manager.
@@ -31,8 +32,28 @@ A short, factual inventory:
    whether its commands/stack/conventions actually diverge from the rest —
    that's the signal for a nested `AGENTS.md` (see "Monorepo note" below).
 8. **E2E test frameworks** — Playwright, Cypress, Selenium/WebdriverIO,
-   Puppeteer, TestCafe, etc. (see the cheat-sheet entry below). Presence of one
-   is a standing signal to create or improve a dedicated e2e rule file.
+   Puppeteer, TestCafe, etc. (see the cheat-sheet entry below). Record **where
+   the config lives**, not just that it exists: that directory becomes the root
+   of a nested `AGENTS.md` + its own `docs/`.
+9. **Architecture principles — do they exist?** This decides whether mandatory
+   block 2 ships. Evidence, in descending strength (see the checklist in
+   `mandatory-blocks.md`):
+   - **Enforcement**: `.dependency-cruiser.*`, `eslint-plugin-boundaries`,
+     `.importlinter`, ArchUnit tests, Nx tags / `implicitDependencies`,
+     `project.json` boundary rules. Enforcement is proof — someone cared enough
+     to encode it.
+   - **Written intent**: ADRs (`docs/adr/`, `docs/decisions/`), an architecture
+     doc, an architecture-focused skill in `.claude/skills/` or `.agents/skills/`.
+   - **A repeated structural convention** visible across the tree: layered
+     (`routes/`→`services/`→`repositories/`), modular (`packages/<module>/`),
+     hexagonal (`domain/`, `application/`, `infrastructure/`), vertical slices.
+     Verify it's *consistent*, not two folders that happen to match.
+
+   None of the three → the project has no architecture principles. Record that
+   and skip block 2. Do not promote an incidental folder layout into doctrine.
+10. **The real build / lint / e2e commands** — mandatory block 3 hard-codes them.
+    Take them from `package.json` scripts / `pyproject.toml` / `Makefile` / CI,
+    and **verify each runs** before writing it down.
 
 ## A fast, reliable order of operations
 
@@ -123,7 +144,8 @@ always confirm against the repo's own scripts/CI rather than pasting defaults.
   custom test runner rather than its own CLI.
 - **TestCafe:** `.testcaferc.json`, `testcafe` dependency.
 
-Any of these found → flag for step 5's e2e rule-file handling: required target
+Any of these found → note the **directory holding the config** and flag it for
+step 5's nested e2e rule root (`AGENTS.md` + its own `docs/`). Required target
 (dev server URL, seeded test env), auth/login bypass if any, selector
 convention, and how to run one spec headless/headed are the usual high-value,
 non-obvious content — never restate what the framework's own config declares.

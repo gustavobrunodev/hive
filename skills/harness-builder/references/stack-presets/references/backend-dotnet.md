@@ -4,9 +4,10 @@
 > .NET best-practices baseline (chosen among several skills sharing that name).
 >
 > **No MCP preset.** The org's baseline MCP set (Figma, Playwright, Chrome
-> DevTools) is frontend-only. A .NET backend gets **no MCP by default** — add one
-> later only if the assessment surfaces a real gap (e.g. a DB or observability
-> MCP), via `find-skills`, not here.
+> DevTools) is frontend-only. A .NET backend gets **no MCP by default** — if the
+> assessment surfaces a real gap (e.g. a DB or observability MCP), record it as
+> one deferred line for the user to decide on, don't install it from here. Any
+> MCP eventually added still follows HYG-08: credentials as `${ENV_VAR}`.
 
 **Applies when:** the backend is .NET / C#.
 

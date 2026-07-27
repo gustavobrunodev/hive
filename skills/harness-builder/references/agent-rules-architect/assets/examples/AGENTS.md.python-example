@@ -1,5 +1,26 @@
 # AGENTS.md
 
+<!--
+  EXEMPLO CALIBRADO — Python. Complementa o exemplo Node mostrando os dois casos
+  que ele não mostra:
+   • Memória no BRANCH C (sem ferramenta de SDD): os caminhos apontam para a
+     convenção que o projeto JÁ tinha (`docs/adr/`, `ROADMAP.md`) — nada foi
+     duplicado; só `STATE.md` foi criado, porque memória viva era o que faltava.
+   • Bloco de Architecture Principles PRESENTE, porque há enforcement real
+     (import-linter) — e ele ROTEIA em vez de explicar.
+   • Sem suíte e2e: a cláusula de e2e sai do bloco de general rules.
+-->
+
+Decisões, blockers e lições que se repetem
+vivem em `docs/STATE.md` — **leia no início de cada sessão**.
+
+## Onde está o resto
+
+- `README.md` (seção "Por quê") — visão, goals e não-goals.
+- `ROADMAP.md` — marcos.
+- `docs/STATE.md` — memória viva (blockers + lições) — **leia antes de começar**.
+- `docs/adr/` — decisões arquiteturais registradas (uma ADR por decisão).
+
 ## Stack
 Serviço FastAPI, Python 3.12, gerenciado com `uv`. Assíncrono em tudo — exceto
 `app/legacy/`, que é só síncrono; não converter.
@@ -20,6 +41,51 @@ Serviço FastAPI, Python 3.12, gerenciado com `uv`. Assíncrono em tudo — exce
 - Nunca editar arquivos em `app/_generated/` (regenerados a partir do spec OpenAPI).
 - Nunca commitar `.env` ou qualquer coisa em `secrets/`.
 
-## Regras especializadas — ler o arquivo quando o gatilho se aplicar
-- Adicionando/modificando um endpoint de API → ler `docs/api.md`
-- Alterando models ou escrevendo uma migration Alembic → ler `docs/database.md`
+## Architecture Principles
+
+**Structure:**
+- Camadas em uma direção só: `app/api/` → `app/services/` → `app/repositories/`.
+  Nunca o contrário, nunca pular camada.
+- `app/domain/` é puro: sem I/O, sem SDK, sem import de qualquer outra camada.
+- Enforçado por `.importlinter` — a violação aparece no lint com o recap da camada.
+
+**Module Structure:**
+- Um conceito de negócio = uma pasta em cada camada, com o mesmo nome
+  (`app/services/billing.py` ↔ `app/repositories/billing.py`).
+- Arquivo novo fora dessas pastas quebra o contrato `layers` do import-linter.
+
+**Key Principles:**
+1. Fronteiras explícitas | 2. Domínio sem I/O | 3. Repositório é o único a falar
+com o BD | 4. Transação começa e termina no service | 5. Falha isolada por módulo
+
+### Progressive Documentation Loading
+
+**CRITICAL**: Only load documents relevant to your current task. Do NOT load all
+documentation at once.
+
+| Tarefa | Ler |
+| --- | --- |
+| Novo endpoint / mudança de contrato de API | `docs/api.md` |
+| Novo service, repository ou transação | `docs/coding-patterns.md` |
+| Model novo ou migration Alembic | `docs/database.md` |
+| Integrar API externa, logging, métricas | `docs/integration-patterns.md` |
+| Violação de camada apontada pelo lint | `docs/layering.md` |
+
+## General Rules
+
+### Writing implementation plans
+
+Remember that you are writing high quality and maintainable code while avoiding
+overengineering. You must be pragmatic and follow the guidelines in the docs
+first before blindly following industry standards.
+
+Implementation plans should always include build and lint tests when necessary.
+To run build add `uv build` and `uv run ruff check . && uv run mypy app`.
+
+### Implementation and Testing
+
+IMPORTANT: this project has no e2e suite — cover the important paths with the
+integration tests in `tests/integration/` instead. You should always make sure
+that the plans include a test suite that covers the happy paths and edge cases.
+Your tests should be high quality and give confidence while covering most of the
+implementation.

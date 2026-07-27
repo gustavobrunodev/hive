@@ -23,6 +23,14 @@
 | <e.g. ESLint> | feedback | computational | maint. | CI | no | no (raw codes) | <style only; no AI-failure rules> |
 | <e.g. AGENTS.md> | feedforward | inferential | maint. | in-session | — | — | <what it steers> |
 
+## 2b. Hygiene floor (always reported — pass/fail, no exceptions)
+
+| ID | Control | Status | Evidence / fix |
+| --- | --- | --- | --- |
+| **CI-04** | Pre-commit tooling installed | <✓ / ✗> | <e.g. "`.husky/pre-commit` runs `lint-staged`" / "no hook tooling detected → add husky + lint-staged"> |
+| **HYG-02** | `.gitignore` covers `.env` and `.env.*` | <✓ / ✗> | <e.g. "`.env` only — `.env.local` still stages → add `.env.*` + `!.env.example`"> |
+| **HYG-08** | MCP credentials via `${ENV_VAR}` | <✓ / ✗ / n/a> | <e.g. "`.mcp.json` has a literal Figma key → interpolate + rotate" / "no MCP config found"> |
+
 ## 3. Coverage map
 
 **Direction × execution** — is the loop balanced?
@@ -44,6 +52,8 @@
 
 Anchor each to evidence (a file, a config, an observed failure). Tag the type.
 
+- **[Hygiene] <CI-04 | HYG-02 | HYG-08>** — <what's missing; the fix inline>.
+  Only for the ones that failed above; drop this line if all three pass.
 - **[Gap] <title>** — <failure mode with no guide *and* no sensor; the evidence>.
 - **[Imbalance] <title>** — <guides without sensors, or vice versa>.
 - **[Timing] <title>** — <misplaced or unwired control; where it runs vs. should>.

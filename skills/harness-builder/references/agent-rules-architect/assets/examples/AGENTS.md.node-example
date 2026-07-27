@@ -1,5 +1,24 @@
 # AGENTS.md
 
+<!--
+  EXEMPLO CALIBRADO — Node/TS. Mostra os três blocos obrigatórios (memória no
+  topo, arquitetura ausente por decisão, general rules no fim) convivendo com as
+  seções de menu, ainda abaixo de 60 linhas.
+  Aqui NÃO há bloco de Architecture Principles: este projeto é um Next.js app
+  sem convenção estrutural imposta nem enforcement. Ausência é uma decisão
+  válida — inventar seria pior.
+-->
+
+Decisões, blockers e lições que se repetem
+vivem em `.specs/project/STATE.md` — **leia no início de cada sessão**.
+
+## Onde está o resto
+
+- `.specs/project/PROJECT.md` — visão, goals e não-goals.
+- `.specs/project/ROADMAP.md` — marcos.
+- `.specs/project/STATE.md` — memória viva (decisões + lições) — **leia antes de começar**.
+- `.specs/features/` — specs por feature (requisitos, design, tasks).
+
 ## Stack
 Next.js 14 (App Router) + tRPC + Drizzle ORM. Acesso ao BD é só server-side —
 nunca importar `src/server/db` de um client component.
@@ -25,4 +44,24 @@ nunca importar `src/server/db` de um client component.
 ## Regras especializadas — ler o arquivo quando o gatilho se aplicar
 - Alterando o schema do BD ou escrevendo uma migration → ler `docs/database.md`
 - Adicionando/modificando um procedure tRPC → ler `docs/trpc.md`
-- Escrevendo testes → ler `docs/testing.md`
+- Escrevendo testes unitários → ler `docs/testing.md`
+- Escrevendo testes e2e → ler `e2e/AGENTS.md`
+
+## General Rules
+
+### Writing implementation plans
+
+Remember that you are writing high quality and maintainable code while avoiding
+overengineering. You must be pragmatic and follow the guidelines in the docs
+first before blindly following industry standards.
+
+Implementation plans should always include build and lint and e2e tests when
+necessary. To run build add `pnpm build` and `pnpm check` and
+`pnpm playwright test`.
+
+### Implementation and Testing
+
+IMPORTANT: always include e2e tests to cover important paths. You should always
+make sure that the plans include a test suite that covers the happy paths and
+edge cases. Your tests should be high quality and give confidence while covering
+most of the implementation.

@@ -5,9 +5,32 @@
   Seções vazias ou inferíveis são negativas. Meta: < ~150 linhas no total.
   Rode o teste de inferência em cada linha: "o agente aprenderia isso lendo
   o código / os manifests / a documentação existente?" Se sim, apague.
+
+  EXCEÇÕES — os três blocos obrigatórios (ver references/mandatory-blocks.md):
+    1. Memória/STATE  — SEMPRE (caminhos vêm da decisão de SDD)
+    2. Architecture Principles — só se o projeto REALMENTE tiver princípios
+    3. General Rules — SEMPRE ("Writing implementation plans" com os comandos
+       REAIS deste projeto)
+  Eles não passam pelo teste de inferência, mas passam pelo de minimalismo:
+  o aprofundamento vai para `docs/`.
+
   Escreva o conteúdo final em português do Brasil (pt-BR) — comandos, código,
-  caminhos e flags ficam como estão, sem tradução.
+  caminhos e flags ficam como estão, sem tradução. O bloco "General Rules" é
+  a exceção: mantenha o texto canônico em inglês, trocando só os comandos.
 -->
+
+<!-- BLOCO 1 — obrigatório. Substitua os caminhos pelos resolvidos na decisão de
+     SDD (stack-presets/references/sdd-memory-contract.md). Todo caminho aqui
+     precisa existir de verdade. -->
+Decisões, blockers e lições que se repetem
+vivem em `.specs/project/STATE.md` — **leia no início de cada sessão**.
+
+## Onde está o resto
+
+- `.specs/project/PROJECT.md` — visão, goals e não-goals.
+- `.specs/project/ROADMAP.md` — marcos.
+- `.specs/project/STATE.md` — memória viva (decisões + lições) — **leia antes de começar**.
+- `.specs/features/` — specs por feature (requisitos, design, tasks).
 
 ## Stack
 <!-- Uma linha, só a parte não óbvia (arquitetura incomum, versão fixada). Apague se genérico. -->
@@ -20,6 +43,7 @@
 - Build: ``
 - Testes (todos): ``
 - Testes (um só): ``      <!-- sintaxe de teste único é o que o agente mais erra -->
+- Testes e2e: ``          <!-- apague se não houver suíte e2e -->
 - Lint / Format / Types: ``
 
 ## Limites
@@ -34,12 +58,59 @@
 
 ## Testes
 <!-- Só regras não óbvias: setup necessário, o que mockar ou não, onde os testes vivem.
-     Apague se não houver nada que o agente não consiga inferir. -->
+     E2E fica em uma linha aqui e aprofunda em docs/ (ou no AGENTS.md aninhado da
+     raiz de e2e). Apague se não houver nada que o agente não consiga inferir. -->
 
 ## Git / PR
 <!-- Só se fora do padrão: formato de commit, nomenclatura de branch, checks pré-PR obrigatórios. -->
+
+<!-- BLOCO 2 — SÓ se o projeto tiver princípios de arquitetura de verdade
+     (convenção estrutural repetida, enforcement por lint/arch-rules, ADR, ou o
+     usuário os forneceu). Se não tiver, APAGUE a seção inteira — não invente.
+     Ver references/mandatory-blocks.md bloco 2 para o formato calibrado. -->
+## Architecture Principles
+
+**Structure:**
+- <a regra de camadas em 3–5 linhas, com caminhos concretos>
+
+**Module Structure:**
+- <layout de pasta, sufixos de arquivo, onde um arquivo novo entra>
+
+**Key Principles:**
+1. <um por linha, sem parágrafo>
+
+### Progressive Documentation Loading
+
+**CRITICAL**: Only load documents relevant to your current task. Do NOT load all
+documentation at once.
+
+| Task | Read |
+| --- | --- |
+| <tarefa concreta> | `docs/<aspecto>.md` |
+| <tarefa concreta> | `docs/<aspecto>.md` |
 
 ## Regras especializadas — ler o arquivo quando o gatilho se aplicar
 <!-- O índice sob demanda. Uma linha cada, gatilho concreto → arquivo. Apague se não houver docs/. -->
 - <gatilho, ex.: "Alterando o schema do BD ou escrevendo uma migration"> → ler `docs/<area>.md`
 - <gatilho> → ler `docs/<area>.md`
+
+<!-- BLOCO 3 — obrigatório. Texto canônico: troque APENAS os comandos pelos
+     reais deste projeto (verifique que existem). Se não houver suíte e2e,
+     remova a cláusula de e2e — build e lint ficam sempre. -->
+## General Rules
+
+### Writing implementation plans
+
+Remember that you are writing high quality and maintainable code while avoiding
+overengineering. You must be pragmatic and follow the guidelines in the docs
+first before blindly following industry standards.
+
+Implementation plans should always include build and lint and e2e tests when
+necessary. To run build add `<build cmd>` and `<lint cmd>` and `<e2e cmd>`.
+
+### Implementation and Testing
+
+IMPORTANT: always include e2e tests to cover important paths. You should always
+make sure that the plans include a test suite that covers the happy paths and
+edge cases. Your tests should be high quality and give confidence while covering
+most of the implementation.

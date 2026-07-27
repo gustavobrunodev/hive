@@ -1,0 +1,3 @@
+[   17652ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8123/favicon.ico:0
+[11330630ms] TypeError: window.hive.profile.roleActions is not a function
+    at load (http://localhost:8123/assets/index-CHgo28S3.js:45059:50)

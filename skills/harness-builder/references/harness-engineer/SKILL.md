@@ -70,7 +70,7 @@ the evidence behind `agent-rules-architect`: *less, but sharper, wins.*
 
 ## Non-negotiables in every assessment
 
-These four hold on every run, no matter the prompt. They are precisely where a
+These five hold on every run, no matter the prompt. They are precisely where a
 capable model left to itself drifts — so do not skip them:
 
 1. **Answer the question, scope ruthlessly.** Tie every recommendation to the
@@ -84,7 +84,21 @@ capable model left to itself drifts — so do not skip them:
 3. **Delegate all rule-file authoring** (`AGENTS.md` / `CLAUDE.md` /
    `.cursor/rules`) to `agent-rules-architect`. Decide *what* the guide must say
    and *where* it's wired, but do not hand-roll or re-derive the rules here.
-4. **End with honest limits — including intent.** Sensors verify *form* and catch
+4. **Check the hygiene floor, always.** Three baseline controls are exempt from
+   rule 1 — their absence *is* the observed failure, and each is cheap enough that
+   scope is never a reason to skip them. Report each as pass/fail in the
+   assessment; see `references/sensors-catalog.md` §L for detection and fixes.
+
+   | ID | Control | Why it's unconditional |
+   | --- | --- | --- |
+   | **CI-04** | Pre-commit tooling installed (husky + lint-staged, pre-commit, lefthook) | The earliest feedback loop there is — fast checks running *before a commit exists*. |
+   | **HYG-02** | `.gitignore` covers `.env` **and** `.env.*` | Stops an agent staging credentials by accident; blast radius is immutable history. |
+   | **HYG-08** | MCP config references credentials via `${ENV_VAR}`, never literals | Keeps secrets out of the repo and makes tool access a deliberate, reviewable choice. |
+
+   Fixing them is in scope by default; only the *how* needs confirming. If the
+   project genuinely has no MCP servers, report HYG-08 as "no MCP config found"
+   rather than fabricating one to pass.
+5. **End with honest limits — including intent.** Sensors verify *form* and catch
    *regressions*; they do not verify *correctness*. A test (AI- or human-written)
    can assert the **wrong** behaviour and still pass — and still kill mutants — so
    human review of *intent* never goes away. State plainly what the harness does
@@ -134,8 +148,9 @@ python3 <skill-dir>/scripts/harness_inventory.py <repo-path>
 
 It detects the stack and existing controls (linters, formatters, type checkers,
 test/coverage/mutation config, dependency & architecture rules, SAST & secret
-scanning, pre-commit hooks, CI steps, agent rule files) and prints a first-cut
-**coverage matrix** with obvious gaps. Then read the key configs and CI yourself
+scanning, pre-commit hooks, CI steps, agent rule files), runs the **hygiene floor
+checks (CI-04, HYG-02, HYG-08)** by ID, and prints a first-cut **coverage matrix**
+with obvious gaps. Then read the key configs and CI yourself
 to confirm *what each control actually enforces*, whether its output is
 **LLM-friendly**, and **where in the lifecycle it runs today**. Follow
 `references/assessment-playbook.md`, and reuse `agent-rules-architect`'s
@@ -170,6 +185,11 @@ existing-but-mute sensors into agent-readable ones. Prefer a few high-signal
 changes over a sweep. For each recommendation, state: *what, why (which failure it
 prevents), type, category, where it runs, gating or not, concrete implementation,
 and effort.*
+
+**Failing hygiene-floor checks rank above everything else** — they're the
+cheapest fixes on the list and two of the three are security-shaped. A `.env`
+line and a hook config cost minutes; put them first regardless of what else the
+assessment found.
 
 ### 5. Implement (with the user's go-ahead)
 
@@ -218,7 +238,9 @@ Load as the workflow directs; don't read them all up front.
   human's role, and what each control type can and can't catch. Read early.
 - `references/sensors-catalog.md` — concrete sensors by concern and ecosystem:
   what each catches, computational vs. inferential, cost, when to run, example
-  config, and self-correction message patterns. Read when proposing/adding sensors.
+  config, and self-correction message patterns. Read when proposing/adding
+  sensors — and read **§L (the hygiene floor: CI-04, HYG-02, HYG-08)** on every
+  run, since those three are checked unconditionally.
 - `references/timing-and-placement.md` — "keep quality left": lifecycle stages, how
   to choose placement, and how to *encode* timing in rules, hooks, and CI.
 - `references/assessment-playbook.md` — how to inventory, score coverage, find

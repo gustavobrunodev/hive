@@ -7,6 +7,13 @@ scanning, hook runners, CI, agent rule files), infers *where each runs* in the
 lifecycle (in-session / pre-commit / CI / continuous), and prints a coverage map
 plus likely gaps.
 
+It also runs the three **hygiene-floor** checks, which are reported by ID on
+every run regardless of stack or scope:
+
+    CI-04   pre-commit hook tooling installed and actually wired
+    HYG-02  .gitignore covers .env AND .env.*
+    HYG-08  MCP config exists and references credentials via ${ENV_VAR}
+
 It is a fast, deterministic first pass for the harness-engineer skill — not a
 verdict. Confirm what each control *actually enforces* by reading the configs, and
 treat every gap as a prompt to investigate, not an order to add a tool.
@@ -20,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
@@ -153,6 +161,17 @@ GUIDE_DIRS = (".cursor/rules/", ".github/", ".clinerules/")
 HOOK_FILES = (".pre-commit-config.yaml", ".pre-commit-config.yml", "lefthook.yml",
               "lefthook.yaml", "lefthook.toml", ".lefthook.yml")
 HOOK_DIRS = (".husky/", ".githooks/")
+
+# --- hygiene floor ---------------------------------------------------------
+# HYG-08: where MCP configuration is expected to live.
+MCP_CONFIG_PATHS = (".cursor/mcp.json", ".mcp.json", ".agents/mcp_config.json",
+                    ".vscode/mcp.json", ".claude/mcp.json")
+# Keys whose *value* must never be a literal in a committed MCP config.
+CREDENTIAL_KEY_HINTS = ("key", "token", "secret", "password", "passwd", "apikey",
+                        "api_key", "credential", "auth", "pat", "bearer")
+# Values that are fine even under a credential-shaped key: env interpolation, or
+# an obviously non-secret pointer.
+_ENV_INTERP = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Z_][A-Z0-9_]*$")
 
 CI_DIRS = (".github/workflows/",)
 CI_FILES = (".gitlab-ci.yml", "azure-pipelines.yml", "Jenkinsfile", ".travis.yml")
@@ -370,11 +389,7 @@ def gap_findings(s: Scan, present: dict, stack: list, findings: list) -> None:
             "No secret scanning detected. Add GitLeaks (or similar) as a pre-commit "
             "gate — cheap, high blast-radius."))
 
-    if not s.hook_text.strip():
-        findings.append(("GAP", "no-hooks",
-            "No pre-commit/pre-push hook runner detected (pre-commit, lefthook, "
-            "husky). Nothing is gating before code leaves the machine — sensors "
-            "aren't shifted left."))
+    # Pre-commit hook tooling is covered by the CI-04 hygiene check, not here.
 
     if not s.guide_text.strip():
         findings.append(("GAP", "no-guides",
@@ -394,6 +409,156 @@ def gap_findings(s: Scan, present: dict, stack: list, findings: list) -> None:
             findings.append(("INFO", "inert",
                 f"{c.label} is configured but not wired to any stage "
                 "(hook/CI/agent-rule). It's present but inert — wire it or drop it."))
+
+
+# ---------------------------------------------------------------------------
+# Hygiene floor — CI-04, HYG-02, HYG-08. Checked on every run, by ID.
+# These are exempt from the "must trace to an observed failure" rule: they are
+# cheap, universal, and their absence is itself the evidence.
+# ---------------------------------------------------------------------------
+
+DOC_BASE = "https://paladini.github.io/harness-score/guide/measure-and-improve"
+
+
+def check_ci04(s: Scan) -> tuple:
+    """CI-04 — pre-commit hook tooling installed AND actually wired."""
+    # A config file for a hook runner is wiring by itself.
+    for name in HOOK_FILES:
+        if s.basenames.get(name):
+            return "PASS", f"hook runner configured ({name})."
+
+    # .husky/ or .githooks/ count only if a hook script carries a real command.
+    for prefix in HOOK_DIRS:
+        for rel in files_under(s, prefix):
+            if "/_/" in rel or rel.endswith(("/.gitignore", "/husky.sh")):
+                continue          # husky's own internals, not a hook
+            body = [ln.strip() for ln in read(os.path.join(s.root, rel)).splitlines()]
+            if any(ln and not ln.startswith("#") and not ln.startswith("#!")
+                   for ln in body):
+                return "PASS", f"hook script with commands present ({rel})."
+
+    pkg = ""
+    for rel in s.basenames.get("package.json", []):
+        pkg += read(os.path.join(s.root, rel))
+    if '"simple-git-hooks"' in pkg and '"pre-commit"' in pkg:
+        return "PASS", "simple-git-hooks pre-commit configured in package.json."
+
+    if "lint-staged" in pkg.lower():
+        return "FAIL", ("lint-staged is configured but no hook runner invokes it "
+                        "— nothing runs it at commit time. Wire husky "
+                        "(`npx husky init` + `.husky/pre-commit` running "
+                        "`npx lint-staged`).")
+    if "husky" in pkg.lower():
+        return "FAIL", ("husky is a dependency but no hook script with commands "
+                        "was found — run `npx husky init` and add the checks.")
+    return "FAIL", "No pre-commit hook tooling detected."
+
+
+def check_hyg02(s: Scan) -> tuple:
+    """HYG-02 — .gitignore covers `.env` AND `.env.*`."""
+    paths = s.basenames.get(".gitignore", [])
+    if not paths:
+        return "FAIL", "No .gitignore found."
+
+    base = glob = False
+    for rel in paths:
+        for raw in read(os.path.join(s.root, rel)).splitlines():
+            ln = raw.strip()
+            if not ln or ln.startswith("#") or ln.startswith("!"):
+                continue          # a negation is an exception, not coverage
+            core = ln.lstrip("/").removeprefix("**/").rstrip("/")
+            if core in (".env", "*.env"):
+                base = True
+            elif core.startswith(".env") and "*" in core:
+                glob = True
+                if core.startswith(".env*"):   # `.env*` also covers bare `.env`
+                    base = True
+
+    if base and glob:
+        return "PASS", ".gitignore covers `.env` and `.env.*`."
+    if base:
+        return "FAIL", ("`.gitignore` matches `.env` but not `.env.*` — "
+                        "`.env.local` / `.env.production` still stage.")
+    if glob:
+        return "FAIL", "`.gitignore` matches `.env.*` but not bare `.env`."
+    return "FAIL", ".gitignore has no .env pattern."
+
+
+def _literal_credentials(node, trail: str = "") -> list:
+    """Walk parsed JSON; return trails whose credential-shaped value is a literal."""
+    out = []
+    if isinstance(node, dict):
+        for k, v in node.items():
+            where = f"{trail}.{k}" if trail else str(k)
+            key_is_cred = any(h in str(k).lower() for h in CREDENTIAL_KEY_HINTS)
+            if key_is_cred and isinstance(v, str):
+                if v and not _ENV_INTERP.search(v):
+                    out.append(where)
+            else:
+                out += _literal_credentials(v, where)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            where = f"{trail}[{i}]"
+            # CLI-style `--figma-api-key=xxx` hides the credential in an argv string.
+            if isinstance(v, str) and "=" in v:
+                argk, _, argv_ = v.partition("=")
+                if any(h in argk.lower() for h in CREDENTIAL_KEY_HINTS):
+                    if argv_ and not _ENV_INTERP.search(argv_):
+                        out.append(f"{where} ({argk.lstrip('-')})")
+                        continue
+            out += _literal_credentials(v, where)
+    return out
+
+
+def check_hyg08(s: Scan) -> tuple:
+    """HYG-08 — MCP config exists and uses ${ENV_VAR} for credentials."""
+    found = [p for p in MCP_CONFIG_PATHS if p in s.rel_files]
+    if not found:
+        return "FAIL", ("No MCP config found (.cursor/mcp.json, .mcp.json, or "
+                        ".agents/mcp_config.json).")
+
+    offenders, unparsed = [], []
+    for rel in found:
+        try:
+            data = json.loads(read(os.path.join(s.root, rel)) or "{}")
+        except ValueError:
+            unparsed.append(rel)
+            continue
+        offenders += [f"{rel}:{t}" for t in _literal_credentials(data)]
+
+    if offenders:
+        return "FAIL", ("credential-shaped value(s) written literally: "
+                        + ", ".join(offenders[:5])
+                        + (" …" if len(offenders) > 5 else "")
+                        + ". Replace with ${ENV_VAR} interpolation and rotate the "
+                          "old value — it is in git history.")
+    if unparsed:
+        return "WARN", f"MCP config present but unparseable: {', '.join(unparsed)}."
+    return "PASS", f"MCP config uses env interpolation ({', '.join(found)})."
+
+
+HYGIENE_CHECKS = [
+    ("CI-04", "Pre-commit checks installed", check_ci04,
+     "Add pre-commit tooling (husky + lint-staged, pre-commit, lefthook) so fast "
+     "checks run before a commit exists — the earliest possible feedback loop."),
+    ("HYG-02", ".gitignore covers environment files", check_hyg02,
+     'Add ".env" and ".env.*" to .gitignore so an agent can never stage '
+     "credentials by accident."),
+    ("HYG-08", "MCP config uses env interpolation for credentials", check_hyg08,
+     "Reference credential-shaped values in MCP config via ${ENV_VAR} "
+     "interpolation instead of literals — this rewards deliberate, safe "
+     "tool-access configuration."),
+]
+
+
+def hygiene_report(s: Scan) -> list:
+    out = []
+    for check_id, label, fn, remedy in HYGIENE_CHECKS:
+        status, detail = fn(s)
+        out.append({"id": check_id, "label": label, "status": status,
+                    "detail": detail, "remedy": remedy,
+                    "doc": f"{DOC_BASE}#{check_id.lower()}"})
+    return out
 
 
 def build_report(root: str) -> dict:
@@ -431,7 +596,7 @@ def build_report(root: str) -> dict:
     gap_findings(s, present, stack, findings)
 
     return {"root": os.path.abspath(root), "stack": stack,
-            "controls": controls_out, "findings":
+            "controls": controls_out, "hygiene": hygiene_report(s), "findings":
             [{"level": lv, "code": code, "message": m} for lv, code, m in findings]}
 
 
@@ -494,6 +659,18 @@ def render(rep: dict) -> str:
             row += f"{('●×' + str(n)) if n else '·':<12}"
         L.append(row)
 
+    # hygiene floor — always reported, pass or fail
+    L.append("\nHygiene floor (checked on every run — fix failures first)")
+    L.append("-" * 72)
+    hyg_icon = {"PASS": "✓", "FAIL": "✗", "WARN": "!"}
+    for h in rep["hygiene"]:
+        L.append(f"  {hyg_icon.get(h['status'], '·')} {h['id']} {h['label']}")
+        if h["status"] != "PASS":
+            L.append(f"     {h['remedy']}")
+        L.append(f"     {h['detail']}")
+        if h["status"] != "PASS":
+            L.append(f"     {h['doc']}")
+
     # findings
     L.append("\nFindings (gaps & flags)")
     L.append("-" * 72)
@@ -503,10 +680,11 @@ def render(rep: dict) -> str:
         L.append(f"  [{f['level']:<4}] {icon.get(f['level'], '·')} {f['message']}")
     gaps = sum(1 for f in rep["findings"] if f["level"] == "GAP")
     warns = sum(1 for f in rep["findings"] if f["level"] == "WARN")
-    L.append(f"\nSummary: {gaps} gap(s), {warns} config flag(s), "
-             f"{len(rep['findings']) - gaps - warns} info.")
-    L.append("Next: confirm findings against the code, then assess & prioritize "
-             "(see references/assessment-playbook.md).\n")
+    hyg_fail = sum(1 for h in rep["hygiene"] if h["status"] != "PASS")
+    L.append(f"\nSummary: {hyg_fail} hygiene failure(s), {gaps} gap(s), "
+             f"{warns} config flag(s), {len(rep['findings']) - gaps - warns} info.")
+    L.append("Next: fix hygiene failures, then confirm the rest against the code "
+             "and assess & prioritize (see references/assessment-playbook.md).\n")
     return "\n".join(L)
 
 

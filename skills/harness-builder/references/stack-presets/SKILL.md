@@ -1,6 +1,6 @@
 ---
 name: stack-presets
-description: Org baseline ai-tools (skills + MCPs) that every project should carry, mapped by stack. Ensures the mandatory skills for each detected stack (React, Angular, .NET) plus the frontend MCP set (Figma, Playwright, Chrome DevTools) are installed when missing, and an SDD skill when no SDD tool is present. Progressive — loads only the reference matching the detected stack. Use during harness setup (the /build-harness Phase 3a) or whenever standardizing a project's baseline ai-tools.
+description: Org baseline ai-tools (skills + MCPs) that every project should carry, mapped by stack. Ensures the mandatory skills for each detected stack (React, Angular, .NET) plus the frontend MCP set (Figma, Playwright, Chrome DevTools) are installed when missing, installs tlc-spec-driven by default when the project has no SDD tool (keeping any existing one), and guarantees the STATE/ROADMAP memory contract reaches AGENTS.md either way. Progressive — loads only the reference matching the detected stack. Use during harness setup (the /build-harness Phase 3) or whenever standardizing a project's baseline ai-tools.
 ---
 
 # Stack presets (org ai-tool baseline)
@@ -33,10 +33,16 @@ Two hard rules:
 
 | Applies when… | Read only | Baseline skills | Baseline MCPs |
 |---|---|---|---|
-| **Any project** (cross-cutting) | `references/sdd.md` | `tlc-spec-driven` (only if **no SDD tool**) | — |
+| **Any project** (cross-cutting) | `references/sdd.md` | `tlc-spec-driven` — installed by default when **no SDD tool** is present | — |
 | Frontend uses **React** | `references/frontend-react.md` | `vercel-react-best-practices` + testing + performance | Figma · Playwright · Chrome DevTools |
 | Frontend uses **Angular** | `references/frontend-angular.md` | `angular-developer` + testing + performance | Figma · Playwright · Chrome DevTools |
 | Backend uses **.NET / C#** | `references/backend-dotnet.md` | `dotnet-best-practices` + testing + performance | — (no MCP preset) |
+
+**The SDD row always runs**, whatever the stack. Like every other row it's a
+floor, not a question: no SDD tool found → install `tlc-spec-driven`; one already
+there → keep it. It's also the only row that produces a *guide* artifact — the
+memory contract in `AGENTS.md` — which lands even when nothing gets installed.
+Read `references/sdd.md` on every run.
 
 A project can match several rows (e.g. a React frontend + .NET backend → load
 `frontend-react.md` **and** `backend-dotnet.md`, and always evaluate `sdd.md`).
@@ -61,21 +67,30 @@ time (install count, reputable source) rather than hard-coded blind.
      `.agents/skills/`, `.claude/skills/`) and `skills-lock.json`.
    - **MCPs:** look for the server key in the project's `.mcp.json` (or the
      agent's MCP config). For SDD, also check for SDD tooling/config.
-4. **Install only what's missing.**
+4. **Don't ask which tools to adopt.** Every row here is the org's mandated
+   floor, SDD included — the choice was made upstream. Confirm *installs* the
+   way you'd confirm any repo change; don't reopen *which* tool.
+5. **Install only what's missing.**
    - **Skills:** use the exact command in the reference. Default to a
      **project-level** install (the baseline travels with the repo).
-   - **MCPs:** add the server block from the reference to `.mcp.json`. MCPs that
-     need a secret (Figma API key) must use a placeholder — **never** write a real
-     key; tell the user which env/key to supply.
+   - **MCPs:** add the server block from the reference to `.mcp.json`. Any
+     credential-shaped value must be an **`${ENV_VAR}` interpolation, never a
+     literal** (harness check HYG-08) — write `"${FIGMA_API_KEY}"`, not the key
+     and not a fake-looking placeholder string. Tell the user which env var to
+     export.
    - When running inside `/build-harness`, treat each install as a **proposed step
      to confirm**, not a silent edit.
-5. **Report.** List what was already present, what you installed, what needs a
-   secret before it works, and anything you deferred (with a one-line reason).
+6. **Close the SDD row.** Whatever the branch, the memory contract must reach
+   `AGENTS.md` with paths that resolve — see `references/sdd.md` step 4.
+7. **Report.** List what was already present, what you installed, what needs an
+   env var before it works, which SDD branch the project landed in, and anything
+   you deferred (with a one-line reason).
 
 ## Anti-overengineering
 
 - Presets are a **floor, not a catalog.** Don't add tools beyond the matched rows
-  here — additional capability gaps are `find-skills`' job.
+  here. A genuine capability gap outside the floor is worth **one deferred line**
+  naming it — not a shopping list, and not a silent install.
 - **Skill vs. MCP overlap.** Don't install both a testing *skill* and a testing
   *MCP* that do the same job. Playwright ships as the MCP; a separate
   "playwright testing" skill is usually redundant — prefer one, note the other as
@@ -87,10 +102,17 @@ time (install count, reputable source) rather than hard-coded blind.
 
 ## Reference files
 
-Load only as the baseline map directs; never read them all up front.
+Load only as the baseline map directs; never read them all up front — except
+`sdd.md`, which is cross-cutting and always applies.
 
-- `references/sdd.md` — spec-driven-development baseline + how to detect an
-  existing SDD tool. (No MCP.)
+- `references/sdd.md` — the SDD row: detect, install `tlc-spec-driven` when
+  absent, and guarantee the memory contract. **Read on every run.** (No MCP.)
+- `references/sdd-memory-contract.md` — the `AGENTS.md` block, per-tool mapping
+  of STATE/LESSONS/ROADMAP conventions, and the fallback scaffold. Read from
+  `sdd.md` step 4.
 - `references/frontend-react.md` — React skills set + frontend MCP set.
 - `references/frontend-angular.md` — Angular skills set + frontend MCP set.
 - `references/backend-dotnet.md` — .NET / C# skills set. (No MCP preset.)
+
+Assets: `assets/memory-scaffold/` (`STATE.md`, `PROJECT.md`, `ROADMAP.md` stubs
+for projects that have no memory convention yet).

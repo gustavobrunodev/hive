@@ -91,6 +91,10 @@ strongest form of "in-session sensor"; use them when available.
 
 ### 2. In git hooks (so it gates before code leaves the machine)
 
+**A project with no hook runner at all fails hygiene check CI-04** — that's the
+first thing to fix here, before tuning *which* checks run. Installation recipes
+per ecosystem are in `sensors-catalog.md` §L.
+
 Use the project's hook runner (`pre-commit`, `lefthook`, `husky`, `.githooks`).
 Keep hooks **fast and scoped to changed files** — a Stripe-style heuristic of
 "run the relevant linters based on what changed" keeps the gate from becoming a

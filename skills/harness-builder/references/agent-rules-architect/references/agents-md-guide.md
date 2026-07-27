@@ -37,6 +37,12 @@ files. Treat these as a *menu*, not a checklist — include a section only if yo
 have non-inferable content for it. Order the most-used commands early; agents
 reference them constantly.
 
+**Exception — three blocks are not on the menu.** The memory contract (top of
+file), architecture principles (only when the project has them), and general
+rules (end of file) go in regardless. See `mandatory-blocks.md`; the ordering is
+memory contract → the menu sections below → architecture principles → `docs/`
+index → general rules.
+
 1. **One-line project/stack context** *(optional, ≤2 lines).* Only the part the
    agent can't cheaply infer — e.g. an unusual architecture or a version
    constraint. Skip a generic "this is a web app" sentence.
@@ -47,8 +53,9 @@ reference them constantly.
    `docker compose up -d db` first"), what to mock vs. not, where tests live, how
    to run one. Skip "write tests for new code" unless that's genuinely a project
    norm worth stating. If an e2e framework (Playwright, Cypress, …) is present,
-   keep only a one-line pointer here and push the depth into its own on-demand
-   `docs/e2e-testing.md` (see `progressive-rules.md`).
+   keep only a one-line pointer here (`Escrevendo testes e2e → ler
+   \`e2e/AGENTS.md\``) and push the depth into a **nested `AGENTS.md` + `docs/`
+   at the e2e root** (see `progressive-rules.md`).
 4. **Code style — exceptions only.** *Only* conventions that differ from defaults
    and that the linter/formatter does **not** already enforce. If Prettier/Ruff
    handles it, say nothing. A 3–10 line snippet beats prose.
@@ -71,6 +78,10 @@ reference them constantly.
 - Length is a *symptom*, not the disease — the disease is low-signal content.
   Don't pad to look thorough; don't keep a line you can't justify with the
   inference test. When torn between two phrasings, pick the shorter.
+- **The mandatory blocks cost ~40 lines together** — that's the budget they're
+  designed for. If they push you over ~150, the fix is never to drop them: it's
+  that the architecture block is explaining instead of routing, or a menu section
+  is carrying detail that belongs in `docs/`. Shard, don't cut.
 
 ## Writing style that performs
 

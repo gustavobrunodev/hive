@@ -10,17 +10,16 @@ acts) and **sensors** (feedback — checks that let it self-correct after). The
 deliverable is a harness that is **small, sharp, and trusted**, plus a short
 plan the squad can keep evolving.
 
-This playbook coordinates four reference modules under `references/`. **Do not
+This playbook coordinates three reference modules under `references/`. **Do not
 run them in parallel or blindly in sequence** — `harness-engineer` is the spine
 that decides *what the harness needs*, and it *calls* the others only to fill
 gaps it has actually identified.
 
 | Module | Role |
 | --- | --- |
-| `harness-engineer` | **Spine.** Frames, assesses, wires sensors, closes steering loop. |
-| `agent-rules-architect` | **Guides.** Authors/trims `AGENTS.md` + `docs/` for guide gaps found. |
-| `stack-presets` | **Presets.** Org mandatory ai-tools (skills + MCPs) per stack (progressive, idempotent). |
-| `find-skills` | **Gaps.** Vets ecosystem skills for gaps baselines/rules don't cover. |
+| `harness-engineer` | **Spine.** Frames, assesses, enforces the hygiene floor, wires sensors, closes steering loop. |
+| `agent-rules-architect` | **Guides.** Authors/trims `AGENTS.md` + `docs/` for guide gaps found, and carries the three mandatory blocks. |
+| `stack-presets` | **Presets.** Org mandatory ai-tools (skills + MCPs) per stack, plus the SDD decision (progressive, idempotent). |
 
 Load each module's `SKILL.md` only when its phase starts — never all up front.
 
@@ -58,7 +57,11 @@ Follow `references/harness-engineer/SKILL.md` steps 1–3.
    lifecycle timing.
 3. **Map** controls: direction × execution × category × timing. Find gaps,
    imbalance, misplacement, redundancy, weak signal quality.
-4. **Write Harness Assessment** using
+4. **Check the hygiene floor** — the three baseline controls that hold on every
+   run regardless of stack or stated goal (`CI-04` pre-commit tooling, `HYG-02`
+   `.env` in `.gitignore`, `HYG-08` MCP credentials via `${ENV_VAR}`). See
+   `references/harness-engineer/references/sensors-catalog.md` §L.
+5. **Write Harness Assessment** using
    `references/harness-engineer/assets/harness-assessment.template.md`.
 
 **Gate:** Present assessment + prioritized shortlist. **Get user go-ahead before
@@ -70,39 +73,47 @@ For **guide gaps only**, load `references/agent-rules-architect/SKILL.md` and
 follow its workflow. `harness-engineer` decides *what*; this module decides *how*
 minimally.
 
+Three blocks are **mandatory**, independent of the gaps found (see that module's
+`references/mandatory-blocks.md`):
+
+1. **Memory / SDD contract** — `STATE.md` read at session start, plus the map to
+   `PROJECT.md` / `ROADMAP.md` / feature specs. Paths come from Phase 3's SDD
+   decision, so write this block *after* Phase 3 (or revisit it then).
+2. **Architecture principles** — only when the project actually has them;
+   summarized in `AGENTS.md`, sharded into granular `docs/` files.
+3. **General rules** — "Writing implementation plans" (always, with *this*
+   project's real build/lint/e2e commands) + "Implementation and Testing".
+
 Validate:
 
 ```bash
 python3 references/agent-rules-architect/scripts/audit_rules.py <repo-path>
 ```
 
-**Guard:** Rules only for identified gaps. No linter restatement, no README
-copy, keep `AGENTS.md` ruthlessly small.
+**Guard:** Beyond the three mandatory blocks, rules only for identified gaps. No
+linter restatement, no README copy, keep `AGENTS.md` ruthlessly small — depth
+goes into `docs/`.
 
-## Phase 3 — Skills: baselines first, then gaps
-
-**3a before 3b**, always.
-
-### 3a — Presets (`stack-presets`)
+## Phase 3 — Stack presets (`stack-presets`)
 
 Load `references/stack-presets/SKILL.md`. Progressive + idempotent. Presets are
 **skills + MCPs** keyed by stack:
 
 | Stack | Baseline skills | Baseline MCPs | Condition |
 | --- | --- | --- | --- |
-| Any | `tlc-spec-driven` | — | only if no SDD tool |
+| Any | `tlc-spec-driven` (org default) | — | only if no SDD tool present |
 | React | `vercel-react-best-practices` + testing/perf on gap | Figma · Playwright · Chrome DevTools | if missing |
 | Angular | `angular-developer` + testing/perf on gap | Figma · Playwright · Chrome DevTools | if missing |
 | .NET / C# | `dotnet-best-practices` + testing/perf on gap | — (frontend-only MCP set) | if missing |
 
-Skills install project-level; MCPs go in `.mcp.json` (Figma needs an API-key
-placeholder — never a real key). Confirm each step with user.
+Skills install project-level; MCPs go in `.mcp.json` with **credentials as
+`${ENV_VAR}` interpolation, never literals** (HYG-08). Confirm each step with the
+user.
 
-### 3b — Gap discovery (`find-skills`)
-
-Load `references/find-skills/SKILL.md` for gaps baselines don't cover.
-Vet before recommending (1K+ installs, reputable source). Install only with
-go-ahead (`npx skills add <owner/repo@skill> -g -y`).
+The SDD row runs on every project and doesn't ask which tool to adopt: no SDD
+tool found → install `tlc-spec-driven`; one already there → keep it. Either way
+the memory contract lands in `AGENTS.md` via Phase 2 — see
+`references/stack-presets/references/sdd.md`.
 
 ## Phase 4 — Sensors & timing (`harness-engineer`)
 
@@ -130,10 +141,17 @@ python3 references/harness-engineer/scripts/harness_inventory.py <repo-path>
 - [ ] Harness Assessment with all controls classified; findings tied to goal or
       observed failure.
 - [ ] Only prioritized items implemented; deferrals are one line each.
-- [ ] Minimal `AGENTS.md` + `docs/` via `agent-rules-architect`, audit passing.
+- [ ] Minimal `AGENTS.md` + granular `docs/` via `agent-rules-architect`, audit
+      passing.
+- [ ] The three mandatory blocks present in `AGENTS.md`: memory/SDD contract
+      (pointing at real, existing files), architecture principles (if the project
+      has any), general rules with this project's real commands.
+- [ ] Nested `AGENTS.md` + its own `docs/` at the e2e root, when e2e tests exist.
+- [ ] Hygiene floor green: pre-commit tooling (CI-04), `.env`/`.env.*` ignored
+      (HYG-02), MCP credentials via `${ENV_VAR}` (HYG-08).
 - [ ] Sensors with self-correction messages; gating only where justified.
 - [ ] Stack presets present — skills + MCPs (via `stack-presets` if missing).
-- [ ] Additional skills vetted and fill real gaps.
+- [ ] SDD in place — existing tool kept, or `tlc-spec-driven` installed.
 - [ ] Steering loop documented; inventory re-run confirms coverage.
 - [ ] Honest limits stated.
 

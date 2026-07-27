@@ -26,9 +26,19 @@ Start deterministic, then read for nuance.
    `docs/` actually steer? (For depth here, lean on `agent-rules-architect`.)
 6. **Note harnessability.** Typed? Clear boundaries? Framework? Greenfield vs.
    legacy? Monorepo? This bounds what you can recommend.
+7. **Record the hygiene floor** as three explicit pass/fail lines. The script
+   emits them by ID; confirm each by reading the file, because presence isn't
+   compliance:
+   - **CI-04** — is hook tooling actually wired *with commands*, or is there an
+     empty `.husky/` nobody finished?
+   - **HYG-02** — does `.gitignore` cover `.env` **and** `.env.*`? A lone `.env`
+     line fails: `.env.local` still stages.
+   - **HYG-08** — does an MCP config exist, and is every credential-shaped value
+     a `${ENV_VAR}` reference rather than a literal?
 
 Output: a factual table of controls — name · direction · execution · category ·
-stage(s) · gating? · LLM-actionable? · what it really enforces.
+stage(s) · gating? · LLM-actionable? · what it really enforces — plus the three
+hygiene lines.
 
 ## Step B — Map onto the harness (the coverage matrix)
 
@@ -59,6 +69,11 @@ AI-heavy TS service.
 
 Hunt specifically for these, with evidence:
 
+- **Hygiene-floor failures** — any of CI-04 / HYG-02 / HYG-08 not passing. These
+  are findings *by default*, exempt from the "must trace to an observed failure"
+  rule below, because their cost is minutes and their failure mode is a leaked
+  credential or a feedback loop that starts too late. Write each as a finding with
+  the fix inline (`sensors-catalog.md` §L).
 - **Coverage gaps** — a real, observed failure mode with *no guide and no sensor*.
   Anchor each to a failure the user or the codebase actually exhibits (sprawling
   files, assertion-light tests, layer violations, secret leaks). Resist inventing
@@ -83,6 +98,8 @@ Hunt specifically for these, with evidence:
 
 Rank, don't dump. Bias toward:
 
+0. **Failing hygiene-floor checks first.** Minutes of effort, security-shaped
+   blast radius. They outrank everything below.
 1. **Fixes to observed failures** over hypothetical coverage. The best harnesses
    grow from real mistakes, not imagination.
 2. **Cheapest control that catches the most.** A self-correction message on an
