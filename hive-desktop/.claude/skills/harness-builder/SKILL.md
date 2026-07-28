@@ -1,6 +1,6 @@
 ---
 name: harness-builder
-description: Creates or improves a project's coding-agent harness (guides + sensors) or handles scoped harness tasks via four bundled reference modules. Full playbook — assess, rules, baselines, gap skills, sensors, steering loop. Scoped — rules/AGENTS.md only (agent-rules-architect); find/install ecosystem skills (find-skills); harness assess/audit/sensors/timing (harness-engineer); org stack ai-tool presets — skills + MCPs — React/Angular/.NET/SDD (stack-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, sensors, linters, stack presets, or skill discovery.
+description: Creates, improves, or maintains a project's coding-agent harness (guides + sensors) via four bundled reference modules, recording it all in a living HARNESS.md — what guides the agent, what measures it, and what deliberately does not exist. Full playbook — assess, rules, baselines, gap skills, sensors, steering loop. Scoped — update the existing HARNESS.md after a control changes or a failure recurs; rules/AGENTS.md only (agent-rules-architect); find/install ecosystem skills (find-skills); harness assess/audit/sensors/timing (harness-engineer); org stack ai-tool presets — skills + MCPs — React/Angular/.NET/SDD (stack-presets). Progressive loading — each mode loads only what it needs. Use for build-harness, harness setup, agent rules, AGENTS.md, sensors, linters, stack presets, skill discovery — or to update/evolve the harness record when the user says the agent keeps repeating a mistake, asks to add or drop a check, or ships work that changed how the project is checked.
 ---
 
 # Harness Builder
@@ -12,6 +12,7 @@ load **only** what that mode needs. Never read all reference modules up front.
 
 | Mode | User intent (examples) | Load |
 | --- | --- | --- |
+| **Update** | The project already has a `HARNESS.md` and something specific changed: "the agent keeps doing X", "add/drop this check", "we just shipped Y — does the harness need to change?", "update the harness record" | [`references/harness-engineer/SKILL.md`](references/harness-engineer/SKILL.md) **step 7 only** |
 | **Full** | Build/improve the *complete* harness; setup from scratch; run build-harness; no narrower scope stated | [`references/full-playbook.md`](references/full-playbook.md) |
 | **Rules** | Create/improve/audit/trim `AGENTS.md`, `.cursor/rules`, agent instructions; "só rules"; optimize rules | [`references/agent-rules-architect/SKILL.md`](references/agent-rules-architect/SKILL.md) |
 | **Find** | Find/search/install a skill; "tem skill para X?"; skills.sh; extend agent capabilities | [`references/find-skills/SKILL.md`](references/find-skills/SKILL.md) |
@@ -21,6 +22,10 @@ load **only** what that mode needs. Never read all reference modules up front.
 **Routing rules:**
 
 - Match the **narrowest** mode that fits. "Só quero rules" → **Rules**, not Full.
+- **Check for an existing `HARNESS.md` first** (`.specs/project/`, `docs/`, repo
+  root). If one exists, read it before anything else — it already records what
+  was tried, what was rejected, and why — and prefer **Update** over Full unless
+  the user asked for a fresh end-to-end review. Never open a second one.
 - If the user names a stack for presets ("aplicar presets num app React"), use
   **Presets** — inside that module, load **only** the matching stack reference
   (e.g. `references/stack-presets/references/frontend-react.md`), never all.
@@ -34,6 +39,16 @@ load **only** what that mode needs. Never read all reference modules up front.
 Load the single file from the table and follow it end-to-end. **Do not** load
 other module `SKILL.md` files unless the active workflow explicitly delegates
 (Full playbook does; scoped modes do not).
+
+### Update
+
+Read `references/harness-engineer/SKILL.md` and work from its **step 7** — the
+trigger table and the in-place edit discipline. Do **not** re-run the full
+assessment: read the existing `HARNESS.md`, confirm the specific claim against
+the repo, make the change, update the affected sections (§2 for what a control
+now enforces, §5b for a dated log row, §7 when the answer is "we're not building
+that, because…"). Escalate to **Full** only if the request turns out to need a
+whole re-map.
 
 ### Full
 
@@ -77,6 +92,13 @@ what's missing (skills *and* MCPs); confirm with user.
 - Out-of-scope ideas → **one deferred line**, never a catalog.
 - In **Full** mode, `harness-engineer` is the spine; other modules serve its
   assessment. In scoped modes, stay inside the one module unless the user widens.
+
+**One unconditional output:** a **`HARNESS.md` kept current** — the project's
+living record of what guides the agent, what measures it, and what deliberately
+does not exist. Written on the first pass, linked from `AGENTS.md`, and updated
+in place whenever a control changes (see `harness-engineer/SKILL.md` step 7). Its
+§7 is what stops each new run from re-proposing controls an earlier one already
+rejected.
 
 ## Module index (load on demand)
 

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "first-pass-writes-harness-md",
+    "input": "Run headless. preciso melhorar o harness desse projeto aqui (o orders-api, ta tudo na raiz). ve o que da pra fazer e ja aplica o que for barato, nao precisa me perguntar item por item — considera aprovado.",
+    "files": [
+      "package.json",
+      ".gitignore",
+      "tsconfig.json",
+      "eslint.config.mjs",
+      "AGENTS.md",
+      "src/index.ts",
+      "src/index.test.ts"
+    ],
+    "rubric": [
+      "A file named HARNESS.md exists somewhere in the working directory (docs/HARNESS.md, .specs/project/HARNESS.md, or repo root are all acceptable), and it is non-empty prose, not a stub",
+      "HARNESS.md contains a section listing controls that deliberately do NOT exist, and that section names at least one specific control with a stated reason for not building it — an empty or placeholder section fails",
+      "HARNESS.md reports all three hygiene-floor IDs by name (CI-04, HYG-02, HYG-08) with a pass/fail verdict for each",
+      "HARNESS.md correctly reports HYG-02 as failing, because the fixture .gitignore has no .env pattern",
+      "HARNESS.md classifies each inventoried control on both direction (feedforward/guide vs feedback/sensor) AND execution (computational vs inferential) — a table missing the computational/inferential axis fails",
+      "HARNESS.md identifies that tsconfig.json lacks \"strict\", citing the file",
+      "HARNESS.md identifies that no CI and no pre-commit hook exist, i.e. every control runs only in-session",
+      "AGENTS.md was edited to include a pointer to the HARNESS.md path that was actually created, and that path resolves to the file on disk",
+      "The final response states honest limits — that the harness does not verify correctness or intent — rather than claiming the project is now safe",
+      "No control is recommended without a stated reason tied to something observed in the fixture; a generic catalog of 8+ tools with no per-item justification fails this"
+    ],
+    "state_prefix": null
+  },
+  {
+    "id": "narrow-ask-still-checks-hygiene",
+    "input": "Run headless. só uma coisa rapida: quero uma regra de lint que impeça `any` nesse projeto. so isso, nao mexe em mais nada.",
+    "files": [
+      "package.json",
+      ".gitignore",
+      "tsconfig.json",
+      "eslint.config.mjs",
+      "AGENTS.md",
+      "src/index.ts",
+      "src/index.test.ts"
+    ],
+    "rubric": [
+      "The requested no-explicit-any lint rule was actually added to eslint.config.mjs — the narrow ask is honored, not replaced by an assessment",
+      "Despite the user scoping the request to one rule, the response still reports the hygiene floor, naming HYG-02 and the missing .env pattern in .gitignore",
+      "The hygiene finding is reported as a short flag with its fix, not expanded into a full multi-phase harness assessment the user did not ask for",
+      "The response does not pile on unrequested controls beyond the hygiene floor: no CI, mutation testing, or secret scanning is installed without being asked",
+      "The response notes that src/index.ts uses `any` (loadConfig returns any, priceOrder takes any[]), so the new rule has real work to do rather than being decorative"
+    ],
+    "state_prefix": null
+  },
+  {
+    "id": "mid-workflow-gate-respected",
+    "input": "esse aqui pode ir, mas o mutation testing nao — deixa de fora.",
+    "state_prefix": "[the harness-builder skill has already run its assessment on this repo and presented a prioritized shortlist: P1 enable tsc strict, P2 add a pre-commit hook running lint, P3 mutation testing via Stryker. It is now waiting at the go-ahead gate. The user replies:]",
+    "files": [
+      "package.json",
+      ".gitignore",
+      "tsconfig.json",
+      "eslint.config.mjs",
+      "AGENTS.md",
+      "src/index.ts",
+      "src/index.test.ts"
+    ],
+    "rubric": [
+      "tsconfig.json now contains \"strict\": true — the approved P1 landed",
+      "No Stryker config file was written and no stryker dependency was added to package.json — the declined item stayed declined",
+      "The declined mutation testing appears in the HARNESS.md section for what deliberately does not exist, attributed to the user's decision rather than to an invented technical reason",
+      "A pre-commit hook was set up (husky, lefthook, or a committed hooks directory with a hook file) — the approved P2 landed",
+      "The response does not re-ask for approval on the items already approved in the prime"
+    ]
+  }
+]

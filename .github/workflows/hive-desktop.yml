@@ -1,0 +1,98 @@
+name: hive-desktop
+
+# The harness had exactly one stage before this file existed: whatever the agent
+# or the human remembered to run in-session. This is the clean-infra column —
+# nothing here should be news to someone who ran `npm run verify` locally.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hive-desktop/**'
+      - 'design-system/**' # consumed as a file: link, and its dist/ is committed
+      - '.github/workflows/hive-desktop.yml'
+  pull_request:
+    # Kept in sync with push.paths by hand — GitHub Actions' parser does not
+    # support YAML anchors.
+    paths:
+      - 'hive-desktop/**'
+      - 'design-system/**'
+      - '.github/workflows/hive-desktop.yml'
+
+concurrency:
+  group: hive-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: hive-desktop
+
+jobs:
+  verify:
+    name: verify (typecheck + lint + tests + coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # node-version-file pins to .nvmrc (22.22.1) — a hard floor, not a
+      # preference: below it BMAD and Vitest die on
+      # `node:util does not provide an export named 'styleText'`.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: hive-desktop/.nvmrc
+          cache: npm
+          cache-dependency-path: hive-desktop/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run verify
+
+      # Reported, not gated — and that is a finding, not a preference. Because
+      # `verify` never ran coverage, nobody saw that the per-file 90% gate the
+      # project documents as its convention is currently red in 14 places
+      # (Explorer + its viewers, WorkUI, Chat, preload/index). See
+      # .specs/project/HARNESS.md for the list. Flip this to a gate — drop the
+      # continue-on-error — once it's clean; a permanently-red gate teaches
+      # everyone to ignore it.
+      - name: coverage (per-file 90% — reporting known debt)
+        run: npm run test:coverage
+        continue-on-error: true
+
+  e2e:
+    name: e2e (real Electron)
+    runs-on: ubuntu-latest
+    needs: verify
+    # Four specs (file-management, explorer-editor-ux ×2, workspace-switching)
+    # are known-red waiting on the BMAD provisioning CLI — confirmed
+    # pre-existing, not a regression (STATE.md, 2026-07-26). Reporting, not
+    # gating, until they're green; flip this to a gate when they are.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: hive-desktop/.nvmrc
+          cache: npm
+          cache-dependency-path: hive-desktop/package-lock.json
+
+      - run: npm ci
+
+      - name: Install Electron's runtime libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libgbm1 libasound2t64 libgtk-3-0 libxshmfence1
+
+      - run: npm run build
+
+      # xvfb because Electron needs a display; the specs strip
+      # ELECTRON_RUN_AS_NODE themselves (a WSL-interop leak that would otherwise
+      # boot Electron as plain Node — see AGENTS.md).
+      - run: xvfb-run -a npm run test:e2e:app
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: hive-desktop/playwright-report/
+          retention-days: 7

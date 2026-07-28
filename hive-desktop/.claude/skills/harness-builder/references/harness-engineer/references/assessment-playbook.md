@@ -97,7 +97,8 @@ harness the agent trusts beats a big one that fires noise.
 
 ## Step E — Write it up
 
-Use `assets/harness-assessment.template.md`. For every recommendation, make it
+Use `assets/HARNESS.template.md`, written to the project as `HARNESS.md` (path
+resolution in `SKILL.md` step 3). For every recommendation, make it
 *implementable*: what · why (which failure it prevents) · type (guide/sensor,
 computational/inferential) · category · stage + gate/report · concrete steps
 (exact tool, config snippet, self-correction message, where it's wired) · effort.

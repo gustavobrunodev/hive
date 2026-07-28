@@ -26,6 +26,7 @@ import type {
 import { createBmadService, type BmadInstallOptions } from './bmadService'
 import { createSecondBrainService } from './secondBrainService'
 import { createSecondBrainVault } from './secondBrainVault'
+import { createSecondBrainHealthStore } from './secondBrainHealth'
 import {
   resolveWhisperRequest,
   WHISPER_MODELS_DIRNAME,
@@ -799,6 +800,9 @@ app.whenReady().then(() => {
   // resolveVault with the vault module's raw-pending count (SB-R2.5).
   const secondBrainService = createSecondBrainService(processRunner)
   const secondBrainVault = createSecondBrainVault()
+  // SB-R10: the health-check cadence ledger, per workspace, in userData (never
+  // in the git-versioned vault — see secondBrainHealth.ts for why).
+  const secondBrainHealth = createSecondBrainHealthStore(app.getPath('userData'))
 
   // Whisper model bytes → the sandboxed renderer (D-SB-1, design §4.3). The
   // renderer sets `env.localModelPath = 'hive-model://models/'`, so every model
@@ -874,6 +878,22 @@ app.whenReady().then(() => {
     const { relPath } = secondBrainVault.stageRaw(workspace, content)
     return { relPath }
   })
+
+  // Health-check cadence (SB-R10): the ledger behind the skill's own "run
+  // after every 10 ingests or monthly" practice. The rule is derived here, in
+  // one place; the renderer only renders the result and launches the command.
+  ipcMain.handle('secondBrain:getHealth', async (_event, workspace: string) =>
+    secondBrainHealth.get(workspace)
+  )
+  ipcMain.handle('secondBrain:noteIngest', async (_event, workspace: string) =>
+    secondBrainHealth.noteIngest(workspace)
+  )
+  ipcMain.handle('secondBrain:noteLint', async (_event, workspace: string) =>
+    secondBrainHealth.noteLint(workspace)
+  )
+  ipcMain.handle('secondBrain:snoozeHealth', async (_event, workspace: string) =>
+    secondBrainHealth.snooze(workspace)
+  )
 
   // Whisper model store (D-SB-4): the catalog + which models are on disk, and
   // download/delete. Downloads stream byte progress on their own channel (the

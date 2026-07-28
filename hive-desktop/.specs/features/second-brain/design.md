@@ -194,9 +194,12 @@ remote origins — the renderer still never talks to the network.
 - **Vault present** → header (vault name + raw-pending chip), the `wiki/index.md`
   rendered via the existing Markdown viewer, and a compact `wiki/` tree (reuse
   `explorer` `FileTree`) that opens files in the editor.
-- Action row: **Ingerir** (opens the FAB's `IngestPanel`), **Consultar**
-  (`/second-brain-query`), **Organizar** (`/second-brain-lint`) — all via
-  `launchAction`. Reuses `ui/studioPrompts.ts` conventions for prompt strings.
+- Action row (revised by SB-R9/R10): **Perguntar à base** as the single primary
+  action (opens the ask surface, §5.7), then a quiet pair — **Ingerir**
+  (`/second-brain-ingest`) and **Revisar** (`/second-brain-lint`) — then the
+  health card (§5.8), then the wiki. Ordered by how often each is worth doing.
+  The panel is a container-query root (`container: wb-brain / inline-size`), so a
+  dragged-narrow rail drops the key cap and stacks the pair.
 
 ### 5.3 `SecondBrainFab.tsx` (SB-R3.1, 3.5)
 - Fixed floating button, bottom-right of the work area, **outside** the resizable
@@ -232,6 +235,54 @@ and one **"Ingerir"** action:
   **downloaded / recomendado** badges + download/delete with progress. Opens from
   `IngestPanel` and (optionally) the app settings sheet.
 
+### 5.7 `AskSecondBrain.tsx` — perguntar à base (SB-R9)
+
+A DS `Dialog` with one field and one verb, reachable three ways:
+`Ctrl/Cmd+Shift+K` (a `WorkUI` window listener, beside `Ctrl+Shift+G`), the
+panel's primary CTA, and the floating button's first menu item. `Ctrl+Shift+B`
+opens the sidebar view — the shortcut the rail's `aria-keyshortcuts` had
+advertised since M12 with nothing behind it.
+
+- **The question rides in the command.** `secondBrainQuery(q)` builds
+  `/second-brain-query <q>` (whitespace collapsed so the argument can't fall onto
+  its own line), launched through the same `ChatHandle.launchAction` path as every
+  other shortcut (D-SB-5). The transcript therefore shows the question that was
+  asked, and the **answer renders in the chat** — this surface never becomes a
+  second answer viewport (spec's explicit non-goal).
+- **Progressive content.** Empty field + no history → four openers that teach what
+  a knowledge base answers (decisions, mechanics, ownership, synthesis); picking
+  one fills the field with the stem and puts the caret at the end. Once the
+  workspace has history, recents replace the openers (`askHistory.ts`,
+  `localStorage['hive.brainQuestions']`, per workspace, deduped case-insensitively,
+  max 5). Picking a recent **fills**, never fires — a click must not silently start
+  an agent turn.
+- **Honesty.** With `rawPending > 0` the surface says the staged material isn't in
+  the wiki yet; with no vault it shows the setup guard instead of a field.
+- Placeholder uses `--muted`, not the DS default `--faint` (3.7:1 in light — below
+  the 4.5:1 floor for an instruction); secondary text on the accent-tinted CTA
+  steps toward `--ink` for the same reason (both verified in-browser).
+
+### 5.8 `VaultHealthCard.tsx` + `HealthNudge.tsx` — the lint cadence (SB-R10)
+
+The `second-brain` skill documents "run `/second-brain-lint` after every 10 ingests
+or monthly"; the app keeps that ledger so nobody has to.
+
+- **One recording point.** `WorkUI.launchBrainAction` wraps every Second Brain
+  launch: `second-brain-ingest` → `noteIngest`, `second-brain-lint` → `noteLint`,
+  then `launchAction`. The panel, the ingestion sheet, the health card and the
+  reminder all go through it, so no surface can forget to keep the ledger, and
+  nothing is counted twice.
+- **Two surfaces, one derivation.** `VaultHealthCard` in the panel is the standing
+  truth (meter + count + last check + what's next); `HealthNudge` rides the FAB's
+  own fixed stack (hidden while its menu is open) and appears only while `due`,
+  with **Revisar agora** / **Depois**. The rail entry carries a persistent accent
+  dot so dismissing the floating reminder never strands the user — the same
+  guarantee the update flow makes.
+- **Snooze ≠ done.** `Depois` sets `snoozedUntil = now + 7d`, which suppresses
+  `due` but never clears `reason`: the panel keeps saying the base needs a review.
+- Meter segments carry a `--seg` index so the fill runs left-to-right after an
+  ingest instead of snapping (transition-delay only; reduced-motion drops it).
+
 ---
 
 ## 6. Provisioning gate wiring (D-SB-7, SB-R1.4)
@@ -261,6 +312,11 @@ secondBrain: {
   // vault
   getVault(ws): Promise<{ path: string | null, name: string | null, rawPending: number }>
   stageRaw(ws, content): Promise<{ relPath: string }>
+  // health-check cadence (SB-R10) — the rule is derived in main, once
+  getHealth(ws):    Promise<VaultHealth>
+  noteIngest(ws):   Promise<VaultHealth>   // each mutation returns the fresh
+  noteLint(ws):     Promise<VaultHealth>   // derivation, so one round trip both
+  snoozeHealth(ws): Promise<VaultHealth>   // records and refreshes every surface
 }
 whisper: {
   listModels(): Promise<WhisperModelInfo[]>              // catalog + downloaded flag
@@ -293,6 +349,23 @@ interface WhisperModelInfo {
   downloaded: boolean
 }
 interface HardwareRecommendation { recommendedId: WhisperModelInfo['id']; reason: string; gpu: boolean; ramGB: number }
+
+// SB-R10 — persisted per workspace in userData (`second-brain-health.json`),
+// NOT in the vault: the vault is git-versioned and shared, and a counter that
+// bumps on every capture would mean a diff per ingest and a conflict per pull.
+interface HealthRecord {
+  ingestsSinceLint: number
+  lastLintAt: string | null
+  cycleStartedAt: string | null   // first ingest of the cycle — the calendar anchor
+  snoozedUntil: string | null     // when a brand-new vault would otherwise read "overdue"
+}
+// What the UI renders; `deriveHealth(record, now)` is pure and the only place
+// the "10 ingests or monthly" rule exists.
+interface VaultHealth {
+  ingestsSinceLint: number; ingestThreshold: number; intervalDays: number
+  lastLintAt: string | null; daysSinceLint: number | null; daysUntilInterval: number | null
+  reason: 'ingests' | 'time' | null; due: boolean; snoozedUntil: string | null
+}
 ```
 
 ---

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Monorepo pre-commit. Enabled by `core.hooksPath=.githooks`, which
+# hive-desktop's `prepare` script sets on every npm install — no per-clone
+# setup step to forget.
+#
+# Deliberately scoped: it runs lint-staged from inside hive-desktop/, so
+# lint-staged only ever sees files staged *under that directory*. This repo has
+# been bitten three times by tooling that ignores the unit of work
+# (`prettier --write .` rewriting 200 unrelated files, `git add -u` sweeping
+# 1075 repo-root deletions into a feature commit) — a hook is the worst place
+# to repeat it. lint-staged also stashes unstaged changes, so a partially
+# staged file keeps its unstaged half intact.
+set -e
+
+root=$(git rev-parse --show-toplevel)
+cd "$root/hive-desktop" 2>/dev/null || exit 0
+
+# Nothing staged under hive-desktop/ — this commit isn't ours to check.
+if git diff --cached --quiet -- .; then
+  exit 0
+fi
+
+exec npx --no-install lint-staged

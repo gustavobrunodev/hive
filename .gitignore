@@ -1,0 +1,6 @@
+# Monorepo-wide floor. Each subproject keeps its own .gitignore for build
+# artifacts; this one exists so credentials can never stage from anywhere in
+# the tree, including paths no subproject claims.
+.env
+.env.*
+!.env.example

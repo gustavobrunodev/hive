@@ -34,9 +34,19 @@
     }
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.22.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "scripts": {
+    "prepare": "node scripts/setupHooks.mjs",
     "format": "prettier --write .",
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -91,6 +101,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "jsdom": "^25.0.1",
+    "lint-staged": "^17.2.0",
     "prettier": "^3.7.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

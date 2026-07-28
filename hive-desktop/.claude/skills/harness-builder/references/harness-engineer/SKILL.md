@@ -1,6 +1,6 @@
 ---
 name: harness-engineer
-description: Evaluate and improve a project's coding-agent *harness* — its guides (feedforward controls that steer the agent before it acts) and sensors (feedback controls that let it self-correct after). Researches the repo, maps existing controls by direction, execution, and category, finds gaps, redundancies, and conflicts, and wires the highest-leverage fixes at the right timing (in-session, pre-commit, CI, continuous). Use whenever the user wants to assess, audit, design, strengthen, or optimize their agent harness or says "harness engineering"; add sensors / feedback loops (linters with self-correction messages, type/dependency/architecture checks, coverage, mutation testing, AI review, secret scanning); decide when/where a check runs; or make a repo more self-correcting and "agent-proof" with less review — even when only describing the symptom ("the agent repeats the same mistake", "I spend too long reviewing AI PRs"). For authoring rule files alone (AGENTS.md/CLAUDE.md/.cursor), defer to agent-rules-architect.
+description: Evaluate, improve, and maintain a project's coding-agent *harness* — its guides (feedforward controls that steer the agent before it acts) and sensors (feedback controls that let it self-correct after). Researches the repo, maps existing controls by direction, execution, and category, finds gaps, redundancies, and conflicts, wires the highest-leverage fixes at the right timing (in-session, pre-commit, CI, continuous), and records all of it in a living HARNESS.md — what guides the agent, what measures it, and what deliberately does not exist. Use whenever the user wants to assess, audit, design, strengthen, or optimize their agent harness or says "harness engineering"; add sensors / feedback loops (linters with self-correction messages, type/dependency/architecture checks, coverage, mutation testing, AI review, secret scanning); decide when/where a check runs; or make a repo more self-correcting and "agent-proof" with less review — even when only describing the symptom ("the agent repeats the same mistake", "I spend too long reviewing AI PRs"). Also use to **keep the record current** — update HARNESS.md, or reconsider a control, whenever the user asks, a failure recurs, or a change adds/removes/retunes a check — including as a side effect of ordinary feature work. For authoring rule files alone (AGENTS.md/CLAUDE.md/.cursor), defer to agent-rules-architect.
 ---
 
 # Harness Engineer
@@ -11,11 +11,13 @@ Evaluate and improve a project's **coding-agent harness** — the system of
 harness raises the chance the agent gets it right the first time and catches the
 rest before a human has to, so review toil drops and trust in the output goes up.
 
-The deliverable is a **Harness Assessment**: an evidence-based map of the
-project's current controls, the gaps / redundancies / conflicts in them, and a
-prioritized, concrete plan to improve them — followed (with the user's go-ahead)
-by wiring the highest-leverage improvements in at the right point in the
-lifecycle.
+The deliverable is a **`HARNESS.md` committed to the project** — a living record,
+not a chat answer, of three things: what **guides** the agent, what **measures**
+it, and what deliberately **does not exist**. It carries the evidence-based map of
+current controls, the gaps / redundancies / conflicts in them, and a prioritized
+plan — followed (with the user's go-ahead) by wiring the highest-leverage
+improvements in at the right point in the lifecycle, logged back into the same
+file.
 
 This skill is grounded in Birgitta Böckeler's *"Harness engineering for coding
 agent users"* and its follow-up on maintainability sensors. The core ideas live
@@ -70,7 +72,7 @@ the evidence behind `agent-rules-architect`: *less, but sharper, wins.*
 
 ## Non-negotiables in every assessment
 
-These four hold on every run, no matter the prompt. They are precisely where a
+These five hold on every run, no matter the prompt. They are precisely where a
 capable model left to itself drifts — so do not skip them:
 
 1. **Answer the question, scope ruthlessly.** Tie every recommendation to the
@@ -89,6 +91,13 @@ capable model left to itself drifts — so do not skip them:
    can assert the **wrong** behaviour and still pass — and still kill mutants — so
    human review of *intent* never goes away. State plainly what the harness does
    **not** cover; a good harness redirects human attention, it doesn't remove it.
+5. **Leave a living `HARNESS.md`, and record what you did *not* build.** The
+   assessment is a project artifact, not a chat reply — write it to disk (step 3)
+   and link it from `AGENTS.md`. Its §7 lists every control you considered and
+   rejected, with the reason and a revisit trigger. This is what stops the next
+   run — human or agent — from re-proposing the same rejected controls as fresh
+   ideas, and lets a reader tell a deliberate absence from an oversight. A
+   `HARNESS.md` with an empty §7 means the analysis was never done.
 
 ## Relationship to `agent-rules-architect`
 
@@ -160,7 +169,21 @@ architecture / behaviour) × **timing** (in-session / pre-commit / CI / continuo
 - **Signal quality** — sensors whose output isn't optimized for self-correction.
   This is the highest-ROI, most-overlooked fix; see the catalog.
 
-Capture this with `assets/harness-assessment.template.md`.
+Capture this in **`HARNESS.md`**, using `assets/HARNESS.template.md`.
+
+**Where the file goes** — resolve once, then keep using that path:
+
+| If the project has | Write to |
+| --- | --- |
+| a memory/spec directory already holding project docs (`.specs/project/`, `.agents/`, `docs/project/`) | `<that dir>/HARNESS.md`, beside its siblings |
+| a `docs/` directory | `docs/HARNESS.md` |
+| neither | create `docs/HARNESS.md` |
+
+Never invent a second location: if a `HARNESS.md` already exists anywhere in the
+project, **update that file in place** rather than starting a new one.
+
+Then add one line to `AGENTS.md` pointing at it (delegate the actual edit to
+`agent-rules-architect`). A harness record the agent never opens is not a control.
 
 ### 4. Prioritize improvements
 
@@ -192,7 +215,39 @@ Apply the agreed items smallest-step first, keeping quality left:
 Leave the project able to *evolve* its harness: note what to watch, how to add a
 control when a new failure recurs, how to retire noisy ones, and how to keep
 guides and sensors from drifting apart. Re-run the inventory script to confirm the
-new coverage.
+new coverage — and record the script's false negatives for this repo, so the next
+run doesn't re-chase them.
+
+### 7. Keep `HARNESS.md` alive
+
+`HARNESS.md` is **living memory**, in the same sense as the project's decision
+log: it describes the harness as it *is* right now, and it goes stale the moment
+someone changes a control without touching it. Treat a stale harness record as a
+defect — it is a guide that lies, which is worse than no guide.
+
+**Update it on any of these triggers**, without waiting for a new assessment:
+
+| Trigger | What to write |
+| --- | --- |
+| The user asks directly ("the agent keeps doing X", "add/remove this check", "update the harness") | The finding, then the change or the reasoned refusal in §7 |
+| A control was added, removed, retuned, or moved to another stage — **including as a side effect of ordinary feature work** | A §5b row + the §2 line for that control |
+| A failure recurred a second time | A §4 finding; then either a new control or a §7 row saying why not |
+| A sensor started firing noise nobody acts on | Retire it, and record in §7 that it was tried and why it was dropped |
+| A guide and a sensor began disagreeing | Resolve, and shrink the guide to a pointer if the sensor now owns the rule |
+| An assumption in the file turned out false (a "known false negative", a threshold, a stage) | Correct it in place — the file must never describe a harness that no longer exists |
+
+**After implementing anything that touches a control, updating `HARNESS.md` is
+part of that work, not a follow-up.** A change that alters what guides or
+measures the agent, and leaves §2/§5b untouched, is unfinished.
+
+Keep the edits small and in place. §5b accumulates as a dated log; §7 keeps
+rejected controls with their reasons — neither is ever silently pruned, because
+the rejections are what stop the next run from re-litigating them.
+
+When the trigger is a targeted request rather than a full review, **do not
+re-run the whole workflow**: read `HARNESS.md`, confirm the specific claim
+against the repo, make the change, update the affected sections. Steps 1–5 are
+for the first pass and for periodic re-assessments, not for every edit.
 
 ## Anti-patterns (cut on sight)
 
@@ -208,6 +263,11 @@ new coverage.
   delegating to `agent-rules-architect`.
 - **Imagined failures** — controls for mistakes that never happen. Harden against
   observed ones.
+- **A stale `HARNESS.md`** — a record describing controls that were since changed,
+  or silent about ones that were added. It reads authoritative and is wrong, so
+  the agent trusts it and acts on a harness that no longer exists.
+- **Re-proposing rejected controls** — pitching mutation testing (or any §7 entry)
+  as a fresh idea because nobody read why it was declined last time.
 
 ## Reference files
 
@@ -224,5 +284,6 @@ Load as the workflow directs; don't read them all up front.
 - `references/assessment-playbook.md` — how to inventory, score coverage, find
   gaps/conflicts, and prioritize. Read when assessing.
 
-Assets: `assets/harness-assessment.template.md` (output template) and
+Assets: `assets/HARNESS.template.md` (the output template — the project's living
+harness memory) and
 `assets/examples/` (a calibrated example). Script: `scripts/harness_inventory.py`.

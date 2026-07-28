@@ -1,0 +1,19 @@
+[
+  { "query": "quero montar um harness de agente pra esse repo, do zero", "should_trigger": true },
+  { "query": "o agente fica repetindo o mesmo erro toda semana, como eu faço pra ele parar?", "should_trigger": true },
+  { "query": "queria um pre-commit que rodasse o lint antes de cada commit aqui", "should_trigger": true },
+  { "query": "atualiza o registro de harness, a gente mudou o gate do CI ontem", "should_trigger": true },
+  { "query": "audita o nosso AGENTS.md, ele cresceu demais e ninguém lê", "should_trigger": true },
+  { "query": "que sensores estão faltando nesse projeto pra eu revisar menos PR gerado por IA?", "should_trigger": true },
+  { "query": "acabei de subir a feature de billing — o harness precisa mudar por causa dela?", "should_trigger": true },
+  { "query": "quero adotar spec-driven development nesse projeto", "should_trigger": true },
+
+  { "query": "o pre-commit hook está falhando com erro de permissão, debuga pra mim", "should_trigger": false },
+  { "query": "roda o lint e corrige os erros que aparecerem", "should_trigger": false },
+  { "query": "escreve um teste unitário pra função priceOrder", "should_trigger": false },
+  { "query": "o CI está vermelho, vê o que quebrou no último push", "should_trigger": false },
+  { "query": "me explica o que essa regra do eslint faz e por que ela reclamou aqui", "should_trigger": false },
+  { "query": "cria um harness de testes pra esse componente React, com mocks e fixtures", "should_trigger": false },
+  { "query": "revisa esse PR pra mim e me diz se pode mergear", "should_trigger": false },
+  { "query": "configura o deploy do serviço pra staging quando a branch main atualizar", "should_trigger": false }
+]

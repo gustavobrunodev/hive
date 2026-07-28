@@ -7,10 +7,19 @@ import { SecondBrainFab } from './SecondBrainFab'
 describe('SecondBrainFab (T9)', () => {
   afterEach(() => cleanup())
 
-  function renderFab(): { onSelectMode: ReturnType<typeof vi.fn>; trigger: HTMLElement } {
+  function renderFab(): {
+    onSelectMode: ReturnType<typeof vi.fn>
+    onAsk: ReturnType<typeof vi.fn>
+    trigger: HTMLElement
+  } {
     const onSelectMode = vi.fn()
-    render(createElement(SecondBrainFab, { onSelectMode }))
-    return { onSelectMode, trigger: screen.getByLabelText('Ingerir conhecimento') }
+    const onAsk = vi.fn()
+    render(createElement(SecondBrainFab, { onSelectMode, onAsk }))
+    return {
+      onSelectMode,
+      onAsk,
+      trigger: screen.getByLabelText('Second Brain — perguntar ou capturar')
+    }
   }
 
   it('is a quiet closed button until activated (aria-haspopup/expanded)', () => {
@@ -20,14 +29,44 @@ describe('SecondBrainFab (T9)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('opens a three-item menu with the ingestion modes (SB-R3.1)', () => {
+  it('leads the menu with "Perguntar à base", then the three capture modes (SB-R3.1, SB-R9.1)', () => {
     const { trigger } = renderFab()
     fireEvent.click(trigger)
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByRole('menu')).toBeTruthy()
     const items = screen.getAllByRole('menuitem').map((i) => i.textContent)
-    expect(items).toEqual(['Colar texto', 'Áudio (arquivo)', 'Gravar áudio'])
+    expect(items).toEqual([
+      'Perguntar à baseCtrl+Shift+K',
+      'Colar texto',
+      'Áudio (arquivo)',
+      'Gravar áudio'
+    ])
+  })
+
+  it('opens the ask surface from the menu and closes (SB-R9.1)', () => {
+    const { onAsk, onSelectMode, trigger } = renderFab()
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByText('Perguntar à base'))
+
+    expect(onAsk).toHaveBeenCalledTimes(1)
+    expect(onSelectMode).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('shows the health-check reminder in its own stack, and hides it while the menu is open (SB-R10.4)', () => {
+    render(
+      createElement(SecondBrainFab, {
+        onSelectMode: vi.fn(),
+        onAsk: vi.fn(),
+        nudge: createElement('div', { 'data-testid': 'nudge' })
+      })
+    )
+    const trigger = screen.getByLabelText('Second Brain — perguntar ou capturar')
+
+    expect(screen.getByTestId('nudge')).toBeTruthy()
+    fireEvent.click(trigger)
+    expect(screen.queryByTestId('nudge')).toBeNull()
   })
 
   it('reports the picked mode and closes the menu', () => {
@@ -80,9 +119,10 @@ describe('SecondBrainFab (T9)', () => {
 
   it('unsubscribes its document listeners on unmount', () => {
     const remove = vi.spyOn(document, 'removeEventListener')
-    const onSelectMode = vi.fn()
-    const { unmount } = render(createElement(SecondBrainFab, { onSelectMode }))
-    fireEvent.click(screen.getByLabelText('Ingerir conhecimento'))
+    const { unmount } = render(
+      createElement(SecondBrainFab, { onSelectMode: vi.fn(), onAsk: vi.fn() })
+    )
+    fireEvent.click(screen.getByLabelText('Second Brain — perguntar ou capturar'))
     unmount()
     expect(remove).toHaveBeenCalledWith('keydown', expect.any(Function))
     expect(remove).toHaveBeenCalledWith('mousedown', expect.any(Function))

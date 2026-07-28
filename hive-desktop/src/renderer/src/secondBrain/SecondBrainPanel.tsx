@@ -1,39 +1,41 @@
 import { Button } from '@hive/design-system'
 import { t } from '../i18n'
 import type { RoleAction } from '../ui/ActionRail'
-import { BrainIcon, FileTextIcon } from '../ui/icons'
+import { BrainIcon, FileTextIcon, GaugeIcon, PlusIcon } from '../ui/icons'
 import type { SecondBrainStore } from './useSecondBrain'
+import { VaultHealthCard } from './VaultHealthCard'
 import { WikiTree } from './WikiTree'
-import {
-  SECOND_BRAIN_INGEST,
-  SECOND_BRAIN_LINT,
-  SECOND_BRAIN_QUERY,
-  SECOND_BRAIN_SETUP
-} from './secondBrainPrompts'
+import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT, SECOND_BRAIN_SETUP } from './secondBrainPrompts'
 
 interface SecondBrainPanelProps {
-  /** Vault status for the active workspace (SB-R2). */
+  /** Vault status + health for the active workspace (SB-R2, SB-R10). */
   store: SecondBrainStore
   /** Launches a Second Brain slash command through the chat (SB-R2.4, D-SB-5). */
   onLaunch: (action: RoleAction) => void
+  /** Opens the ask surface (SB-R9.1) — the panel's primary action. */
+  onAsk: () => void
   /** Opens a vault file in the editor (SB-R2.3, wired by the T8 wiki browser). */
   onOpenFile: (path: string) => void
 }
 
-/** One action launcher: label + one-line hint, launches its slash command. */
+/** One secondary launcher: icon + label, launches its slash command. */
 function ActionButton({
   label,
   hint,
+  icon,
   onClick
 }: {
   label: string
   hint: string
+  icon: React.ReactNode
   onClick: () => void
 }): React.JSX.Element {
   return (
-    <button type="button" className="wb-brain-action" onClick={onClick}>
+    <button type="button" className="wb-brain-action" title={hint} onClick={onClick}>
+      <span className="wb-brain-action-icon" aria-hidden="true">
+        {icon}
+      </span>
       <span className="wb-brain-action-label">{label}</span>
-      <span className="wb-brain-action-hint">{hint}</span>
     </button>
   )
 }
@@ -41,14 +43,18 @@ function ActionButton({
 /**
  * The "Second Brain" sidebar view (M12, SB-R2): the squad knowledge base's home.
  * With no vault it shows an inviting empty state whose CTA launches the
- * `/second-brain` setup wizard (SB-R2.2). With a vault it shows a header (name +
- * raw-pending chip) and the Ingerir / Consultar / Organizar action row, each
- * launching its slash command through the chat (SB-R2.4). The wiki browser
- * (index + tree) is layered in by T8.
+ * `/second-brain` setup wizard (SB-R2.2).
+ *
+ * With a vault, the view is ordered by how often each thing is worth doing.
+ * **Perguntar à base** leads — a knowledge base is read far more often than it
+ * is written, so asking is the primary action here and everywhere else
+ * (`Ctrl+Shift+K`, the floating button). Feeding and tending it follow as a
+ * quieter pair, then the base's own health (SB-R10), then the wiki itself.
  */
 export function SecondBrainPanel({
   store,
   onLaunch,
+  onAsk,
   onOpenFile
 }: SecondBrainPanelProps): React.JSX.Element {
   if (!store.hasVault) {
@@ -82,22 +88,42 @@ export function SecondBrainPanel({
       </header>
 
       <section className="wb-brain-actions" aria-label={t('secondBrain.actionsTitle')}>
-        <ActionButton
-          label={t('secondBrain.ingest')}
-          hint={t('secondBrain.ingestHint')}
-          onClick={() => onLaunch(SECOND_BRAIN_INGEST)}
-        />
-        <ActionButton
-          label={t('secondBrain.query')}
-          hint={t('secondBrain.queryHint')}
-          onClick={() => onLaunch(SECOND_BRAIN_QUERY)}
-        />
-        <ActionButton
-          label={t('secondBrain.lint')}
-          hint={t('secondBrain.lintHint')}
-          onClick={() => onLaunch(SECOND_BRAIN_LINT)}
-        />
+        {/* SB-R9.1: asking is the base's reason to exist — it gets the weight,
+            the accent, and the keyboard shortcut printed right on it. */}
+        <button type="button" className="wb-brain-ask-cta" data-tour="brain-ask" onClick={onAsk}>
+          <span className="wb-brain-ask-cta-icon" aria-hidden="true">
+            <BrainIcon size={16} />
+          </span>
+          <span className="wb-brain-ask-cta-text">
+            <span className="wb-brain-ask-cta-label">{t('secondBrain.ask')}</span>
+            <span className="wb-brain-ask-cta-hint">{t('secondBrain.askHint')}</span>
+          </span>
+          <kbd className="wb-brain-ask-cta-kbd">{t('secondBrain.askShortcut')}</kbd>
+        </button>
+
+        <div className="wb-brain-action-pair">
+          <ActionButton
+            label={t('secondBrain.ingest')}
+            hint={t('secondBrain.ingestHint')}
+            icon={<PlusIcon size={14} />}
+            onClick={() => onLaunch(SECOND_BRAIN_INGEST)}
+          />
+          <ActionButton
+            label={t('secondBrain.lint')}
+            hint={t('secondBrain.lintHint')}
+            icon={<GaugeIcon size={14} />}
+            onClick={() => onLaunch(SECOND_BRAIN_LINT)}
+          />
+        </div>
       </section>
+
+      {/* SB-R10: the documented lint cadence, tracked and shown rather than
+          left to memory. Its CTA launches the same `/second-brain-lint`. */}
+      <VaultHealthCard
+        health={store.health}
+        onLint={() => onLaunch(SECOND_BRAIN_LINT)}
+        onSnooze={store.snoozeHealth}
+      />
 
       {/* SB-R2.3: the vault's structure — the wiki index and the wiki/ tree.
           Both open in the existing editor/viewer on click (Markdown gets M7's

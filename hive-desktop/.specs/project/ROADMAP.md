@@ -358,8 +358,29 @@ Both spikes ran against reality before anything was built on them, and both
 corrected the design: the skill repo ships **four** skills (so `--skill '*'`,
 not `--skill second-brain`), and the Whisper stack needed four pinned
 corrections — `corsEnabled`, a **host-based** scheme, **same-origin** ORT
-assets, and **fp32 on WASM**. Deferred to P2/P3: a rendered query-answer
+assets, and **fp32 on WASM**. Deferred to P2/P3: a rendered query-**answer**
 surface, speaker diarization, word-level transcript editing, Obsidian graph.
+
+### M12.1 — Ask + health cadence ✅ Done (2026-07-27)
+
+A post-M12 increment (T23–T26, same branch), both halves from the user:
+
+5. **Perguntar à base (SB-R9)** — `Ctrl/Cmd+Shift+K` anywhere, the panel's
+   primary action, or the floating button's first menu item opens a one-field
+   ask surface; the question rides inside `/second-brain-query <pergunta>` so
+   the transcript shows what was asked and the agent's synthesis lands in the
+   chat. Remembers the workspace's recent questions; teaches openers when there
+   are none; admits when staged material hasn't reached the wiki yet.
+6. **Health-check cadence (SB-R10)** — the app keeps the skill's own practice
+   ("after every 10 ingests or monthly"): a health card in the panel, an ambient
+   reminder above the floating button when it comes due, a persistent dot on the
+   activity-bar entry, and "Depois" for a week of quiet that never pretends the
+   check ran. The ledger lives in `userData`, never in the shared vault.
+
+**Met:** `npm run verify` green (typecheck + 0 lint errors + **1569** tests),
+Playwright-MCP pass in both themes — which caught a duplicate CTA, two
+sub-4.5:1 text colors in light theme, wrong guard copy, and a narrow-rail
+button squeeze. STATE.md **D25**.
 
 ---
 

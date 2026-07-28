@@ -1,0 +1,43 @@
+# AGENTS.md — testes e2e
+
+<!--
+  TEMPLATE para o AGENTS.md ANINHADO, na raiz da configuração/specs de e2e
+  (`e2e/`, `tests/e2e/`, `cypress/`, `apps/<app>-e2e/` — onde o config vive).
+  O agente lê o arquivo mais próximo do código editado, então isto carrega
+  automaticamente para quem mexe em spec e para mais ninguém.
+
+  Mesma disciplina do arquivo raiz: só o NÃO INFERÍVEL. Nunca reafirme o que o
+  `playwright.config.ts` / `cypress.config.ts` já declara — o agente lê o config.
+  O aprofundamento vai para `docs/` AQUI DENTRO, um arquivo por aspecto.
+  Escreva em pt-BR; comandos, caminhos e flags ficam verbatim.
+-->
+
+## Comandos
+<!-- Exatos, com flags. O erro mais comum do agente é a sintaxe de spec único. -->
+- Suíte inteira: ``
+- Um spec só: ``
+- Modo headed/debug: ``
+- Alvo (URL/ambiente) e como subir: ``   <!-- ex.: precisa de `pnpm dev` antes -->
+
+## Setup obrigatório antes de rodar
+<!-- Seed de dados, containers, bypass de auth, mock server. Linha de maior valor
+     do arquivo — sem isso a suíte falha de forma confusa. Apague se não houver. -->
+-
+
+## Convenções
+<!-- Só o que diverge do padrão do framework. Snippet > prosa. -->
+- Seletores: ``            <!-- ex.: sempre `data-testid`, nunca texto/CSS -->
+- Onde os specs vivem: ``
+- O que mockar / o que nunca mockar: ``
+
+## Limites
+- Nunca editar: ``          <!-- ex.: baselines de screenshot sem confirmar -->
+- Perguntar antes de: ``    <!-- ex.: regravar snapshots, rodar contra produção -->
+
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+<!-- Índice granular, um arquivo por ASPECTO. Apague as linhas sem arquivo real. -->
+- Escrevendo ou alterando fixtures / login de teste → ler `docs/fixtures-e-auth.md`
+- Interceptando ou mockando rede → ler `docs/network-mocking.md`
+- Teste intermitente (flaky) ou política de retry → ler `docs/flakiness.md`
+- Testes visuais / snapshots → ler `docs/visual-testing.md`
+- Rodando e2e no CI (shards, artefatos, timeouts) → ler `docs/ci.md`

@@ -25,6 +25,9 @@ import { useSecondBrain } from './secondBrain/useSecondBrain'
 import { SecondBrainPanel } from './secondBrain/SecondBrainPanel'
 import { SecondBrainFab, type IngestMode } from './secondBrain/SecondBrainFab'
 import { IngestPanel } from './secondBrain/IngestPanel'
+import { AskSecondBrain } from './secondBrain/AskSecondBrain'
+import { HealthNudge } from './secondBrain/HealthNudge'
+import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT } from './secondBrain/secondBrainPrompts'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
@@ -292,6 +295,9 @@ export function WorkUI({
   const secondBrain = useSecondBrain(workspace)
   // Which ingestion mode the FAB opened the sheet on — null while closed (SB-R3.1).
   const [ingestMode, setIngestMode] = useState<IngestMode | null>(null)
+  // "Perguntar à base" (SB-R9.1) — reachable from Ctrl+Shift+K, the sidebar's
+  // primary action and the floating button's menu.
+  const [askOpen, setAskOpen] = useState(false)
   // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
   // it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
@@ -358,6 +364,24 @@ export function WorkUI({
   // reported up by Chat, shown as "Em andamento" in the history panel.
   const [runningSessionIds, setRunningSessionIds] = useState<string[]>([])
 
+  // Second Brain (SB-R10.2/10.3): every Second Brain command the app launches
+  // funnels through here, so the health-check cadence is recorded at the one
+  // point where an ingest or a check actually starts — the panel's buttons, the
+  // ingestion sheet, the health card and the floating reminder all share it,
+  // and none of them has to remember to keep the ledger.
+  const { noteIngest, noteLint } = secondBrain
+  // SB-R10.4: one derivation feeding both ambient surfaces — the rail's dot and
+  // the floating reminder — so they can never disagree.
+  const brainHealthDue = secondBrain.health?.due === true
+  const launchBrainAction = useCallback(
+    (action: RoleAction) => {
+      if (action.key === SECOND_BRAIN_INGEST.key) noteIngest()
+      else if (action.key === SECOND_BRAIN_LINT.key) noteLint()
+      chatRef.current?.launchAction(action)
+    },
+    [noteIngest, noteLint]
+  )
+
   const handleNewConversation = useCallback(() => {
     chatRef.current?.newConversation()
   }, [])
@@ -415,6 +439,27 @@ export function WorkUI({
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'g') {
         event.preventDefault()
         setActiveView('scm')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [setActiveView])
+
+  // Second Brain keyboard reach (SB-R9.1): Ctrl/Cmd+Shift+K asks the base
+  // anything from anywhere — the whole point of a knowledge base is that
+  // consulting it costs nothing. Ctrl/Cmd+Shift+B opens its sidebar view,
+  // the shortcut the activity-bar entry has always advertised
+  // (`aria-keyshortcuts`).
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if (!(event.ctrlKey || event.metaKey) || !event.shiftKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        setAskOpen(true)
+      } else if (key === 'b') {
+        event.preventDefault()
+        setActiveView('brain')
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -715,7 +760,8 @@ export function WorkUI({
               brain={
                 <SecondBrainPanel
                   store={secondBrain}
-                  onLaunch={(action) => chatRef.current?.launchAction(action)}
+                  onLaunch={launchBrainAction}
+                  onAsk={() => setAskOpen(true)}
                   onOpenFile={editor.openFile}
                 />
               }
@@ -895,6 +941,7 @@ export function WorkUI({
               changeCount={changeCount(git.status)}
               reviewCount={review.pendingCount}
               rawPendingCount={secondBrain.rawPending}
+              healthDue={brainHealthDue}
               onOpenSearch={() => setSearchOpen(true)}
               onOpenStudio={() => setStudioOpen(true)}
               onOpenMcp={() => setMcpOpen(true)}
@@ -916,15 +963,32 @@ export function WorkUI({
             work-surface footer, above the status bar — present only while the
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
           <ReviewBar onReview={() => setActiveView('review')} />
-          {/* Second Brain (SB-R3): the floating ingestion button + its sheet.
-            Both sit OUTSIDE the resizable body so `hive.workLayout` is
-            untouched; the FAB picks a capture mode, the sheet does the work. */}
-          <SecondBrainFab onSelectMode={setIngestMode} />
+          {/* Second Brain (SB-R3/R9/R10): the floating button and everything it
+            carries — the ask surface, the capture sheet, and the ambient
+            health-check reminder. All sit OUTSIDE the resizable body so
+            `hive.workLayout` is untouched. */}
+          <SecondBrainFab
+            onSelectMode={setIngestMode}
+            onAsk={() => setAskOpen(true)}
+            nudge={
+              <HealthNudge
+                health={secondBrain.health}
+                onLint={() => launchBrainAction(SECOND_BRAIN_LINT)}
+                onSnooze={secondBrain.snoozeHealth}
+              />
+            }
+          />
+          <AskSecondBrain
+            open={askOpen}
+            onOpenChange={setAskOpen}
+            store={secondBrain}
+            onLaunch={launchBrainAction}
+          />
           <IngestPanel
             mode={ingestMode}
             onClose={() => setIngestMode(null)}
             store={secondBrain}
-            onLaunch={(action) => chatRef.current?.launchAction(action)}
+            onLaunch={launchBrainAction}
           />
           <StaleGuardDialog />
           {pendingReviewSwitch !== null && (

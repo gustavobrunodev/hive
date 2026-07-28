@@ -25,9 +25,10 @@ export interface RoleAction {
 /** The swappable left-sidebar views (git-management D-GIT-2; +review, M11; +brain, M12). */
 export type SidebarView = 'explorer' | 'scm' | 'review' | 'brain'
 
-/** Appends `— <detail>` to a rail entry's accessible name when a badge is showing (folds the count in for screen readers). */
-function withDetail(base: string, detail: string | null): string {
-  return detail ? `${base} — ${detail}` : base
+/** Appends `— <detail>` to a rail entry's accessible name when a badge is showing (folds the count in for screen readers). Multiple details read as one list. */
+function withDetail(base: string, ...details: Array<string | null>): string {
+  const present = details.filter((detail): detail is string => detail !== null && detail !== '')
+  return present.length > 0 ? `${base} — ${present.join(' · ')}` : base
 }
 
 /** One activity-bar view switcher (Explorer / Source Control / Revisão) with an optional count badge. Extracted so `ActionRail` stays within its complexity budget. */
@@ -37,6 +38,7 @@ function RailViewButton({
   label,
   icon,
   count = 0,
+  dot = false,
   onSelect,
   ...extra
 }: {
@@ -45,6 +47,8 @@ function RailViewButton({
   label: string
   icon: React.ReactNode
   count?: number
+  /** An ambient "needs attention" dot (Second Brain health-check, SB-R10.4) — quieter than a count, and stacks with one. */
+  dot?: boolean
   onSelect: (view: SidebarView) => void
   'data-tour'?: string
   'aria-keyshortcuts'?: string
@@ -66,6 +70,7 @@ function RailViewButton({
           {count > 99 ? '99+' : count}
         </span>
       )}
+      {dot && <span className="wb-rail-attention-dot" aria-hidden="true" />}
     </button>
   )
 }
@@ -85,6 +90,8 @@ interface ActionRailProps {
   reviewCount?: number
   /** Second Brain (M12, SB-R2.5): count of raw items staged for ingestion — a badge on the Second Brain entry (0 hides it). */
   rawPendingCount?: number
+  /** Second Brain (SB-R10.4): the vault is due for a health-check — an ambient dot on the entry that survives dismissing the floating reminder. */
+  healthDue?: boolean
   /** Opens the workspace file-search palette (also reachable via Ctrl+P). */
   onOpenSearch: () => void
   /** Opens the Skill Studio (skill-studio): create skills/agents + evals. */
@@ -122,6 +129,7 @@ export function ActionRail({
   changeCount = 0,
   reviewCount = 0,
   rawPendingCount = 0,
+  healthDue = false,
   onOpenSearch,
   onOpenStudio,
   onOpenMcp,
@@ -144,7 +152,8 @@ export function ActionRail({
   )
   const brainLabel = withDetail(
     t('secondBrain.railLabel'),
-    rawPendingCount > 0 ? t('secondBrain.railPending', rawPendingCount) : null
+    rawPendingCount > 0 ? t('secondBrain.railPending', rawPendingCount) : null,
+    healthDue ? t('secondBrain.railHealthDue') : null
   )
 
   return (
@@ -181,6 +190,7 @@ export function ActionRail({
         label={brainLabel}
         icon={<BrainIcon size={18} />}
         count={rawPendingCount}
+        dot={healthDue}
         onSelect={onSelectView}
         data-tour="brain"
         aria-keyshortcuts="Control+Shift+B"

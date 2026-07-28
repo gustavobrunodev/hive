@@ -281,6 +281,50 @@ to hand off/merge.
 
 ---
 
+## Phase 8 — Ask + health cadence (post-M12 increment, 2026-07-27)
+
+Two gaps M12 left open, both raised by the user: asking the base was a
+question-less command, and the skill's own maintenance practice lived only in its
+docs. Shipped together because both are the same idea — the app doing the
+remembering.
+
+### T23 [x] — Ask surface (`AskSecondBrain.tsx` + `askHistory.ts`)
+**Dep:** T10 · **SB-R:** R9.1–R9.6
+`secondBrainQuery(q)` → `/second-brain-query <q>`; DS Dialog with one field
+(Enter asks, Shift+Enter breaks), openers → recents (`localStorage`, per
+workspace), staged-material caveat, no-vault guard. Reached from
+`Ctrl/Cmd+Shift+K`, the panel's primary CTA and the FAB menu's first item;
+`Ctrl/Cmd+Shift+B` finally implements the rail's advertised shortcut.
+**Verify:** `AskSecondBrain.test.ts` (9) + `askHistory.test.ts` (7) + the WorkUI
+wiring tests; the transcript shows the question, the answer lands in the chat.
+
+### T24 [x] — Health cadence ledger (`secondBrainHealth.ts` + IPC/preload)
+**Dep:** T4 · **SB-R:** R10.1–R10.3, R10.6
+Pure `deriveHealth(record, now)` ("10 ingests **or** 30 days with an ingest in the
+window") over an atomic per-workspace JSON in `userData` — never in the
+git-versioned vault. `getHealth`/`noteIngest`/`noteLint`/`snoozeHealth` each
+return the fresh derivation. **Verify:** `secondBrainHealth.test.ts` (18),
+including corrupt/hand-edited ledgers and an unwritable dir.
+
+### T25 [x] — Health surfaces (`VaultHealthCard` + `HealthNudge` + rail dot)
+**Dep:** T24 · **SB-R:** R10.1, R10.4, R10.5
+Panel card (meter + count + last check + what's next; the ask when due), the
+reminder in the FAB's stack, and a persistent accent dot on the activity-bar entry.
+One recording point in `WorkUI.launchBrainAction` so no surface can drift.
+**Verify:** `VaultHealthCard.test.ts` (8), `healthCopy.test.ts` (6), the WorkUI
+suite's five M12 wiring tests.
+
+### T26 [x] — Visual pass (dark + light) for both increments
+**Dep:** T23, T25 · **SB-R:** R8.1, R8.4, R8.5
+Playwright-MCP over the static build. Found and fixed: a duplicate "Revisar"
+CTA (action row + healthy card), 3.9:1/3.5:1 secondary text on the accent-tinted
+CTA in light theme, the ask guard reusing the *ingestion* copy, and health buttons
+squeezing onto two lines in a narrow rail (now a container query + wrap).
+**Verify:** `npm run verify` green — typecheck, 0 lint errors, **1569** tests
+(baseline 1507); screenshots at `.playwright-mcp/sb2-{dark,light}-*.png`.
+
+---
+
 ## Traceability (requirement → task)
 
 | SB-R | Task(s) |
@@ -319,9 +363,21 @@ to hand off/merge.
 | R8.2 ≥90% coverage | T3, T4, T12, T13, T18 (+ all) |
 | R8.3 E2E | T20 |
 | R8.4 visual pass | T21 |
-| R8.5 pt-BR | every UI task + T21 |
+| R8.5 pt-BR | every UI task + T21, T26 |
+| R9.1 ask reachable (shortcut/panel/FAB) | T23 |
+| R9.2 question inside the command | T23 |
+| R9.3 openers; empty never launches | T23 |
+| R9.4 recent questions per workspace | T23 |
+| R9.5 staged-but-unfiled caveat | T23 |
+| R9.6 no-vault guard | T23 |
+| R10.1 cadence shown | T24, T25 |
+| R10.2 ingests recorded | T24, T25 |
+| R10.3 check resets | T24, T25 |
+| R10.4 ambient reminder + rail marker | T25 |
+| R10.5 snooze | T24, T25 |
+| R10.6 fresh/corrupt ledger | T24 |
 
-**Coverage:** all 33 functional requirements map to tasks; R6.1/R6.2 are satisfied
-by existing skill-discovery/workflow-turn machinery (asserted, not rebuilt). 22
+**Coverage:** all 45 functional requirements map to tasks; R6.1/R6.2 are satisfied
+by existing skill-discovery/workflow-turn machinery (asserted, not rebuilt). 26
 tasks, 2 of them de-risking spikes (T1, T2) that must land findings in STATE.md
-before their dependents.
+before their dependents; T23–T26 are the post-M12 ask + cadence increment.

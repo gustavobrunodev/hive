@@ -784,9 +784,11 @@ export const ptBR = {
     keyPrevHint: 'Anterior (K / ↑)'
   },
   secondBrain: {
-    // Activity-bar entry (SB-R2.1) + staged-raw badge (SB-R2.5).
+    // Activity-bar entry (SB-R2.1) + staged-raw badge (SB-R2.5) + the
+    // health-check dot (SB-R10.4), both folded into the accessible name.
     railLabel: 'Second Brain',
     railPending: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
+    railHealthDue: 'revisão pendente',
     // Panel header (SB-R2.3).
     panelTitle: 'Second Brain',
     pendingChip: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
@@ -801,16 +803,75 @@ export const ptBR = {
     ingestHint: 'Adicionar conhecimento à base',
     query: 'Consultar',
     queryHint: 'Perguntar à base de conhecimento',
-    lint: 'Organizar',
-    lintHint: 'Revisar e sanear o wiki',
+    lint: 'Revisar',
+    lintHint: 'Health-check: organiza e sanea o wiki',
+
+    // --- Ask surface (SB-R9): perguntar qualquer coisa à base, de qualquer
+    // lugar do app. A resposta é sintetizada pelo agente e sai no chat.
+    ask: 'Perguntar à base',
+    askHint: 'Busca e sintetiza a partir do wiki',
+    askShortcut: 'Ctrl+Shift+K',
+    askOpenLabel: 'Perguntar à base (Ctrl+Shift+K)',
+    askDescription: 'O agente lê o wiki, sintetiza e responde no chat.',
+    askPlaceholder: 'O que você quer saber?',
+    askFieldLabel: 'Sua pergunta',
+    askSubmit: 'Perguntar',
+    askSubmitHint: 'Enter para perguntar · Shift+Enter para quebrar linha',
+    askStartersTitle: 'Comece por',
+    // Cada starter vira o começo do campo (o '…' é removido na inserção).
+    askStarterDecision: 'O que decidimos sobre…',
+    askStarterHow: 'Como funciona…',
+    askStarterOwner: 'Quem cuida de…',
+    askStarterSummary: 'Resuma o que sabemos sobre…',
+    askRecentTitle: 'Perguntas recentes',
+    // Mesmo guard da folha de ingestão, com o verbo desta superfície.
+    askNoVaultDescription:
+      'Ainda não existe uma base de conhecimento neste workspace. Configure-a e depois volte para perguntar.',
+    askUseRecent: (question: string) => `Perguntar de novo: ${question}`,
+    askPendingNote: (n: number) =>
+      n === 1
+        ? '1 item ainda não foi organizado no wiki — a resposta pode não considerá-lo.'
+        : `${n} itens ainda não foram organizados no wiki — a resposta pode não considerá-los.`,
+
+    // --- Health-check cadence (SB-R10). A prática do skill: rodar
+    // /second-brain-lint a cada 10 ingestões ou uma vez por mês.
+    healthTitle: 'Saúde da base',
+    healthPractice: 'A cada 10 ingestões ou uma vez por mês',
+    healthMeterAria: (n: number, total: number) =>
+      `${n} de ${total} ingestões desde a última revisão`,
+    healthCount: (n: number, total: number) =>
+      n === 1 ? `1 de ${total} ingestões` : `${n} de ${total} ingestões`,
+    healthNeverLinted: 'Nunca revisada',
+    healthLintedToday: 'Revisada hoje',
+    healthLintedYesterday: 'Revisada ontem',
+    healthLintedDays: (n: number) => `Revisada há ${n} dias`,
+    healthNextBoth: (ingests: number, days: number) =>
+      `Próxima revisão em ${ingests === 1 ? '1 ingestão' : `${ingests} ingestões`} ou ${
+        days === 1 ? '1 dia' : `${days} dias`
+      }`,
+    healthNextIngests: (n: number) =>
+      n === 1 ? 'Próxima revisão em 1 ingestão' : `Próxima revisão em ${n} ingestões`,
+    healthDueTitle: 'Hora do health-check',
+    healthDueIngests: (n: number) =>
+      n === 1 ? '1 ingestão desde a última revisão' : `${n} ingestões desde a última revisão`,
+    healthDueTime: (n: number) => `A última revisão foi há ${n} dias`,
+    healthDueNever: 'A base nunca passou por uma revisão',
+    healthCta: 'Revisar agora',
+    healthSnooze: 'Depois',
+    healthSnoozed: 'Lembrete adiado — a base segue precisando de revisão',
+    healthNudgeDismiss: 'Dispensar lembrete',
     // Wiki browser (SB-R2.3, T8).
     wikiTitle: 'Wiki',
     indexTitle: 'Índice',
     wikiEmpty: 'O wiki ainda não tem páginas. Ingira algum conhecimento para começar.',
     openFileAria: (path: string) => `Abrir ${path}`,
-    // Floating ingestion button + mode menu (SB-R3.1, SB-R3.5).
-    fabLabel: 'Ingerir conhecimento',
-    fabMenuLabel: 'Formas de ingerir',
+    // Floating Second Brain button + its menu (SB-R3.1, SB-R3.5, SB-R9.1):
+    // perguntar à base no topo, formas de capturar logo abaixo.
+    // Distinct from the activity-bar entry's plain "Second Brain": two
+    // controls with the same accessible name would be indistinguishable.
+    fabLabel: 'Second Brain — perguntar ou capturar',
+    fabMenuLabel: 'Ações do Second Brain',
+    fabCaptureTitle: 'Capturar',
     fabText: 'Colar texto',
     fabAudioFile: 'Áudio (arquivo)',
     fabRecord: 'Gravar áudio',

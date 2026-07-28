@@ -58,8 +58,10 @@ Follow `references/harness-engineer/SKILL.md` steps 1–3.
    lifecycle timing.
 3. **Map** controls: direction × execution × category × timing. Find gaps,
    imbalance, misplacement, redundancy, weak signal quality.
-4. **Write Harness Assessment** using
-   `references/harness-engineer/assets/harness-assessment.template.md`.
+4. **Write `HARNESS.md`** — the project's living harness memory — using
+   `references/harness-engineer/assets/HARNESS.template.md`. Resolve its path per
+   `harness-engineer/SKILL.md` step 3 (`.specs/project/`, `docs/`, …); if one
+   already exists, update it in place instead of creating a second.
 
 **Gate:** Present assessment + prioritized shortlist. **Get user go-ahead before
 changing anything.**
@@ -114,21 +116,31 @@ go-ahead (`npx skills add <owner/repo@skill> -g -y`).
   `references/harness-engineer/references/timing-and-placement.md`
 - Encode timing in rules, hooks, CI. Confirm heavy changes with user.
 
-## Phase 5 — Steering loop (`harness-engineer`)
+## Phase 5 — Steering loop + living memory (`harness-engineer`)
 
-Step 6: re-run inventory, document how to evolve the harness, state honest
-limits (sensors verify form, not intent).
+Steps 6–7: re-run the inventory, log what landed in `HARNESS.md` §5b, record in
+§7 every control considered and *not* built (with its revisit trigger), and state
+honest limits (sensors verify form, not intent).
 
 ```bash
 python3 references/harness-engineer/scripts/harness_inventory.py <repo-path>
 ```
 
+Then hand over the maintenance contract: `HARNESS.md` is **living memory**, so it
+gets updated whenever a control changes — on the user's request, when a failure
+recurs, or as fallout from ordinary feature work — not only at the next full
+review. See `harness-engineer/SKILL.md` step 7 for the trigger table.
+
 ---
 
 ## Definition of done
 
-- [ ] Harness Assessment with all controls classified; findings tied to goal or
-      observed failure.
+- [ ] `HARNESS.md` written to a resolved project path (not a chat reply) and
+      linked from `AGENTS.md`, with all controls classified and findings tied to
+      the goal or an observed failure.
+- [ ] Its §7 lists what deliberately **does not** exist — every control
+      considered and rejected, with the reason and a revisit trigger.
+- [ ] Its §5b logs, dated, what actually landed and how it was verified.
 - [ ] Only prioritized items implemented; deferrals are one line each.
 - [ ] Minimal `AGENTS.md` + `docs/` via `agent-rules-architect`, audit passing.
 - [ ] Sensors with self-correction messages; gating only where justified.

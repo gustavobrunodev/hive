@@ -118,15 +118,20 @@ test.describe('second-brain E2E (real Electron)', () => {
       // state: the vault name and the three action launchers. (The no-vault
       // empty state is covered by SecondBrainPanel's unit tests — a single
       // launch can only be in one of the two states.)
-      await window.getByRole('button', { name: /Second Brain/ }).click()
+      // `exact` matters: the floating button's own name also starts with
+      // "Second Brain" (it is "Second Brain — perguntar ou capturar").
+      await window.getByRole('button', { name: 'Second Brain', exact: true }).click()
       await expect(window.getByRole('button', { name: /Ingerir/ }).first()).toBeVisible({
         timeout: 15_000
       })
-      await expect(window.getByText('Consultar')).toBeVisible()
-      await expect(window.getByText('Organizar')).toBeVisible()
+      await expect(window.getByText('Perguntar à base')).toBeVisible()
+      await expect(window.getByText('Revisar', { exact: true })).toBeVisible()
+      // SB-R10.1: a fresh vault's cadence renders from the real main-process
+      // ledger (no ingests recorded yet on this brand-new userData dir).
+      await expect(window.getByText('0 de 10 ingestões')).toBeVisible()
 
       // ── 2. FAB → paste → Ingerir writes a REAL file (SB-R3.2) ────────────
-      await window.getByRole('button', { name: 'Ingerir conhecimento' }).click()
+      await window.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }).click()
       await window.getByRole('menuitem', { name: 'Colar texto' }).click()
 
       const knowledge = 'Decisão da squad: o vault vive no workspace, versionado no git.'
@@ -152,6 +157,38 @@ test.describe('second-brain E2E (real Electron)', () => {
         workspace
       )
       expect(vault).toMatchObject({ name: 'second-brain', rawPending: 1 })
+
+      // ── 2b. The ingest advanced the REAL health ledger (SB-R10.2) ────────
+      // Written by main into this run's throwaway userData, then read back —
+      // the whole cadence contract over real IPC, not a mock.
+      await expect
+        .poll(
+          async () =>
+            (await window.evaluate(async (ws) => window.hive.secondBrain.getHealth(ws), workspace))
+              .ingestsSinceLint,
+          { timeout: 15_000 }
+        )
+        .toBe(1)
+      await expect(window.getByText('1 de 10 ingestões')).toBeVisible({ timeout: 10_000 })
+
+      // ── 2c. Ctrl+Shift+K asks the base, question inside the command (SB-R9) ─
+      await window.keyboard.press('Control+Shift+K')
+      const question = window.getByRole('textbox', { name: 'Sua pergunta' })
+      await expect(question).toBeVisible({ timeout: 10_000 })
+      await question.fill('Onde vive o vault?')
+      await window.getByRole('button', { name: 'Perguntar', exact: true }).click()
+      // The dialog closes and the chat carries the turn as the user would have
+      // typed it — `/second-brain-query <pergunta>`.
+      await expect(question).toBeHidden({ timeout: 10_000 })
+      await expect(window.getByText('/second-brain-query Onde vive o vault?')).toBeVisible({
+        timeout: 20_000
+      })
+      // Reopening offers the question back (SB-R9.4).
+      await window.keyboard.press('Control+Shift+K')
+      await expect(window.getByText('Onde vive o vault?', { exact: true })).toBeVisible({
+        timeout: 10_000
+      })
+      await window.keyboard.press('Escape')
 
       // ── 3. The hive-model: protocol under the production CSP (T11) ───────
       const served = await window.evaluate(async () => {

@@ -1,0 +1,36 @@
+# AGENTS.md — testes e2e
+
+<!--
+  EXEMPLO CALIBRADO do arquivo aninhado, em `e2e/AGENTS.md` (onde o
+  `playwright.config.ts` vive). Repare no que NÃO está aqui: nada de browsers
+  configurados, timeouts ou lista de projects — isso está no config e o agente lê.
+  O aprofundamento por aspecto está em `e2e/docs/`, um arquivo por gatilho.
+-->
+
+## Comandos
+- Suíte inteira: `pnpm playwright test`
+- Um spec só: `pnpm playwright test specs/checkout.spec.ts -g "aplica cupom"`
+- Headed/debug: `pnpm playwright test --headed --debug`
+- Alvo: `http://localhost:3000` — suba com `pnpm dev` antes; não hardcode outra origem.
+
+## Setup obrigatório antes de rodar
+- Banco de teste com seed: `pnpm db:seed:e2e` (idempotente; roda de novo sem medo).
+- `STRIPE_MOCK=1` no ambiente — sem isso os specs de pagamento batem na Stripe real.
+
+## Convenções
+- Selecionar por `data-testid`, nunca por texto visível ou classe CSS — copy muda,
+  `data-testid` não.
+- Specs em `specs/<fluxo>.spec.ts`; helpers compartilhados em `fixtures/`.
+- Mockar rede externa com `page.route()`; **nunca** mockar rotas da própria aplicação
+  (é justamente o que o e2e existe para exercitar).
+
+## Limites
+- Nunca editar `__screenshots__/` na mão — regenerar só via comando.
+- Perguntar antes de: rodar a suíte contra staging/produção.
+
+## Regras especializadas — ler o arquivo quando o gatilho se aplicar
+- Escrevendo ou alterando fixtures / login de teste → ler `docs/fixtures-e-auth.md`
+- Interceptando ou mockando rede → ler `docs/network-mocking.md`
+- Teste intermitente ou política de retry → ler `docs/flakiness.md`
+- Snapshots visuais → ler `docs/visual-testing.md`
+- Ajustando e2e no CI (shards, artefatos) → ler `docs/ci.md`

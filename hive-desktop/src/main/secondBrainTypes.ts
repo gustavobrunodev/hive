@@ -28,3 +28,31 @@ export interface VaultStatus {
   /** Count of raw files awaiting ingestion — drives the activity-bar badge (SB-R2.5). */
   rawPending: number
 }
+
+/**
+ * The health-check cadence the `second-brain` skill documents for
+ * `/second-brain-lint` — "run after every 10 ingests or monthly" — as the app
+ * tracks it per workspace (SB-R10). Everything here is **derived** in the main
+ * process from the stored ledger so the renderer never re-implements the rule;
+ * it only renders and launches.
+ */
+export interface VaultHealth {
+  /** Ingests recorded since the last health-check (0 right after one). */
+  ingestsSinceLint: number
+  /** The ingest-count rule's threshold (10) — copy reads "N de 10". */
+  ingestThreshold: number
+  /** The calendar rule's interval in days (30 — "monthly"). */
+  intervalDays: number
+  /** ISO timestamp of the last recorded health-check, or null if never run. */
+  lastLintAt: string | null
+  /** Whole days since the last health-check; null when one was never recorded. */
+  daysSinceLint: number | null
+  /** Whole days until the calendar rule trips (0 once due); null with no clock running. */
+  daysUntilInterval: number | null
+  /** Which rule tripped (or would trip, while snoozed); null when the base is healthy. */
+  reason: 'ingests' | 'time' | null
+  /** `reason !== null` AND not snoozed — the only flag the nudge/rail dot read. */
+  due: boolean
+  /** ISO timestamp the user postponed the reminder until, or null. */
+  snoozedUntil: string | null
+}

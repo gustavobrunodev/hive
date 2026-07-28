@@ -14,7 +14,8 @@ import {
 } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createHiveGitMock } from './testSupport/hiveGitMock'
-import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
+import { createHiveSecondBrainMock, FRESH_HEALTH } from './testSupport/hiveSecondBrainMock'
+import type { VaultHealth } from './secondBrain/useSecondBrain'
 import { makeStatus } from './testSupport/gitStoreMock'
 
 /**
@@ -174,27 +175,35 @@ vi.mock('@hive/design-system', () => ({
   // not just the explicit "Cancelar" button.
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', { type: 'button', ...rest }, children),
+  // Honors `open` like the real Radix-backed component (which portals nothing
+  // while closed) — WorkUI now mounts more than one Dialog-based surface
+  // (the guards plus M12's "Perguntar à base"), so a mock that always rendered
+  // would put several `role="dialog"` nodes on screen at once.
   Dialog: ({
+    open,
     children,
     onOpenChange
   }: {
+    open?: boolean
     children?: ReactNode
     onOpenChange?: (open: boolean) => void
   }) =>
-    createElement(
-      'div',
-      { role: 'dialog' },
-      children,
-      createElement(
-        'button',
-        {
-          type: 'button',
-          'data-testid': 'dialog-dismiss',
-          onClick: () => onOpenChange?.(false)
-        },
-        'dismiss'
-      )
-    ),
+    open
+      ? createElement(
+          'div',
+          { role: 'dialog' },
+          children,
+          createElement(
+            'button',
+            {
+              type: 'button',
+              'data-testid': 'dialog-dismiss',
+              onClick: () => onOpenChange?.(false)
+            },
+            'dismiss'
+          )
+        )
+      : null,
   DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
   DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
@@ -548,8 +557,10 @@ function createHiveMock(): Window['hive'] {
       rejectAll: vi.fn(async () => ({ ok: true })),
       onChanged: vi.fn(() => () => {})
     },
-    // Second Brain (M12): WorkUI mounts useSecondBrain (getVault) on mount.
-    secondBrain: createHiveSecondBrainMock()
+    // Second Brain (M12): WorkUI mounts useSecondBrain (getVault + getHealth)
+    // on mount, and the panel's wiki browser reads the vault's tree.
+    secondBrain: createHiveSecondBrainMock(),
+    listTree: vi.fn(async () => [])
   } as unknown as Window['hive']
 }
 
@@ -2124,5 +2135,100 @@ describe('WorkUI — Agent Change Review (M11)', () => {
     fireEvent.click(screen.getByLabelText('Abrir diferenças de src/a.txt'))
     const tabs = await screen.findAllByText('a.txt')
     expect(tabs.length).toBeGreaterThan(1) // the panel row + the new editor tab
+  })
+})
+
+/**
+ * Second Brain — asking from anywhere (SB-R9) and the health-check cadence
+ * (SB-R10). This suite covers the *wiring* WorkUI owns: the two keyboard
+ * reaches, the single launch point that keeps the cadence ledger, and the two
+ * ambient surfaces that read from it. The surfaces themselves are covered by
+ * their own suites in `secondBrain/`.
+ */
+describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
+  type BrainMock = ReturnType<typeof createHiveSecondBrainMock>
+
+  /** A workspace whose vault exists, with the health the test wants. */
+  function withVault(health: Partial<VaultHealth> = {}): BrainMock {
+    const brain = window.hive.secondBrain as unknown as BrainMock
+    brain.getVault.mockResolvedValue({
+      path: '/home/user/my-workspace/second-brain',
+      name: 'second-brain',
+      rawPending: 0
+    })
+    brain.getHealth.mockResolvedValue({ ...FRESH_HEALTH, ...health })
+    return brain
+  }
+
+  function renderWork(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+  }
+
+  it('Ctrl+Shift+B opens the Second Brain view, the shortcut the rail advertises', async () => {
+    withVault()
+    renderWork()
+
+    expect(screen.getByTestId('file-tree')).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
+
+    expect(await screen.findByText('Perguntar à base')).toBeTruthy()
+    expect(screen.queryByTestId('file-tree')).toBeNull()
+  })
+
+  it('Ctrl+Shift+K opens the ask surface from anywhere, without touching the sidebar', async () => {
+    withVault()
+    renderWork()
+
+    expect(screen.queryByLabelText('Sua pergunta')).toBeNull()
+    fireEvent.keyDown(window, { key: 'K', ctrlKey: true, shiftKey: true })
+
+    expect(await screen.findByLabelText('Sua pergunta')).toBeTruthy()
+    // The Explorer stays where it was — asking is not a navigation.
+    expect(screen.getByTestId('file-tree')).toBeTruthy()
+  })
+
+  it('records the cadence at the single launch point: ingest counts, a check resets (SB-R10.2/10.3)', async () => {
+    const brain = withVault()
+    renderWork()
+    fireEvent.click(screen.getByLabelText('Second Brain'))
+
+    fireEvent.click(await screen.findByText('Ingerir'))
+    await waitFor(() => expect(brain.noteIngest).toHaveBeenCalledWith('/home/user/my-workspace'))
+    expect(brain.noteLint).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Revisar'))
+    await waitFor(() => expect(brain.noteLint).toHaveBeenCalledWith('/home/user/my-workspace'))
+  })
+
+  it('a due base marks the rail entry and floats the reminder, whose "Depois" snoozes it (SB-R10.4/10.5)', async () => {
+    const brain = withVault({ ingestsSinceLint: 10, reason: 'ingests', due: true })
+    brain.snoozeHealth.mockResolvedValue({ ...FRESH_HEALTH, ingestsSinceLint: 10 })
+    renderWork()
+
+    // The reminder announces itself, and the rail says so in its own name.
+    expect(await screen.findByRole('status', { name: 'Hora do health-check' })).toBeTruthy()
+    expect(screen.getByLabelText('Second Brain — revisão pendente')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Depois'))
+    await waitFor(() => expect(brain.snoozeHealth).toHaveBeenCalledWith('/home/user/my-workspace'))
+    await waitFor(() =>
+      expect(screen.queryByRole('status', { name: 'Hora do health-check' })).toBeNull()
+    )
+  })
+
+  it('"Revisar agora" on the reminder launches the check and clears it', async () => {
+    const brain = withVault({ ingestsSinceLint: 12, reason: 'ingests', due: true })
+    brain.noteLint.mockResolvedValue(FRESH_HEALTH)
+    renderWork()
+
+    fireEvent.click(await screen.findByText('Revisar agora'))
+    await waitFor(() => expect(brain.noteLint).toHaveBeenCalledWith('/home/user/my-workspace'))
+    await waitFor(() => expect(screen.queryByText('Hora do health-check')).toBeNull())
   })
 })

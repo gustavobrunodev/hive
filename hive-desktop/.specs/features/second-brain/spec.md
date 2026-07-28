@@ -30,7 +30,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 | --- | --- |
-| A rendered in-app query/answer surface for `/second-brain-query` | The chosen P1 scope (context.md D-SB-3, option A) is FAB + vault-management sidebar; query/lint are **launched into the chat** where the agent already renders results. A dedicated answer-rendering surface is deferred to P3. |
+| A rendered in-app **answer** surface for `/second-brain-query` | Answers stay in the chat, where the agent already renders them. P1.1 adds a place to *compose the question* (SB-R9) — never a second answer viewport. |
 | Bundling any Whisper model inside the installer | User chose **download-on-demand** (context.md D-SB-4); the installer stays lean, `base` is fetched on first transcription. |
 | whisper.cpp / native ASR bindings, ffmpeg | User chose **Transformers.js (WASM/WebGPU)** (D-SB-1); audio is decoded/resampled with the browser's WebAudio, so no native toolchain and no ffmpeg. |
 | Obsidian graph view / Obsidian Web Clipper integration | The vault is Obsidian-**compatible** Markdown, but Hive renders it with its own explorer/viewers; the Obsidian app itself is not embedded. |
@@ -239,6 +239,77 @@ on one row appropriate to the machine; download/delete a model updates its state
 
 ---
 
+### P1.1: Ask the base anything, from anywhere ⭐ (post-M12 increment)
+
+**User Story**: As a squad member, I want one shortcut that lets me ask the
+knowledge base anything without leaving what I'm doing, so consulting the squad's
+memory costs nothing.
+
+**Why P1.1**: A knowledge base is read far more often than it is written. M12
+shipped a `Consultar` button that launched a *question-less* `/second-brain-query`
+and left the user to type the question into a chat the agent had already asked
+about — one indirection too many for the most frequent action.
+
+**Acceptance Criteria**:
+
+1. WHEN the user presses `Ctrl/Cmd+Shift+K` anywhere in the work UI, or activates
+   "Perguntar à base" from the Second Brain view or the floating button, THEN the
+   system SHALL open an ask surface focused on a single question field.
+2. WHEN the user submits a question THEN the system SHALL launch
+   `/second-brain-query <pergunta>` as a chat turn (whitespace collapsed to one
+   line), and the answer SHALL render in the chat like any other agent turn.
+3. WHEN the field is empty THEN the surface SHALL offer question openers that
+   teach what the base can answer, and picking one SHALL fill the field (caret at
+   the end) rather than asking immediately; an empty question SHALL never launch.
+4. WHEN the workspace has previously asked questions THEN the surface SHALL offer
+   them back (newest first, deduplicated), per workspace.
+5. WHEN raw material is staged but not yet filed into the wiki THEN the surface
+   SHALL say so, since the answer cannot include it.
+6. WHEN no vault exists THEN the surface SHALL offer "Configurar base" instead of
+   a question field.
+
+**Independent Test**: `Ctrl+Shift+K` from the Explorer → type a question → Enter →
+the chat shows a `/second-brain-query <pergunta>` turn; reopen → the question is
+listed under "Perguntas recentes".
+
+---
+
+### P1.2: The app keeps the health-check cadence ⭐ (post-M12 increment)
+
+**User Story**: As a squad member, I want the app to track the `second-brain`
+skill's documented maintenance practice — run `/second-brain-lint` after every 10
+ingests or monthly — and remind me when it comes due, so the wiki stays healthy
+without anyone remembering the rule.
+
+**Why P1.2**: The practice is documented in the skill and nowhere in the product.
+An un-tended wiki degrades silently, which is exactly the failure the knowledge
+base exists to prevent.
+
+**Acceptance Criteria**:
+
+1. WHEN the Second Brain view is open THEN it SHALL show the base's health: ingests
+   since the last check (against the threshold of 10), when it was last checked,
+   and what would make the next check due.
+2. WHEN an ingest is launched from the app THEN the system SHALL record it against
+   the active workspace's cadence.
+3. WHEN a health-check is launched from any surface THEN the system SHALL record it,
+   resetting the ingest count and both clocks.
+4. WHEN the cadence comes due — 10 ingests since the last check, or 30 days with at
+   least one ingest in the window — THEN the system SHALL surface an ambient,
+   non-blocking reminder with a shortcut that starts the agent session
+   (`/second-brain-lint`), plus a persistent marker on the activity-bar entry.
+5. WHEN the user postpones the reminder THEN it SHALL stay quiet for a week without
+   pretending the check ran; the sidebar SHALL keep showing the truth and keep the
+   action available.
+6. WHEN the cadence has never been recorded, or its ledger is lost/corrupt, THEN
+   the system SHALL read as a fresh base rather than nagging or failing.
+
+**Independent Test**: Launch 10 ingests → the reminder appears with the rail dot;
+"Depois" quiets it for a week (panel still says the base needs a review);
+"Revisar agora" launches `/second-brain-lint` and the counter returns to 0/10.
+
+---
+
 ## Edge Cases
 
 - WHEN the `skills` CLI is unavailable / offline at startup THEN provisioning SHALL
@@ -298,10 +369,22 @@ on one row appropriate to the machine; download/delete a model updates its state
 | SB-R8.3 | NFR: real-Electron E2E | Tasks | Pending |
 | SB-R8.4 | NFR: Playwright-MCP visual pass (dark+light) | Tasks | Pending |
 | SB-R8.5 | NFR: all copy pt-BR via `t()` | Tasks | Pending |
+| SB-R9.1 | P1.1: Ask — reachable from shortcut/panel/FAB | Tasks | Verified |
+| SB-R9.2 | P1.1: Ask — question inside `/second-brain-query`, answer in chat | Tasks | Verified |
+| SB-R9.3 | P1.1: Ask — openers teach; empty never launches | Tasks | Verified |
+| SB-R9.4 | P1.1: Ask — recent questions per workspace | Tasks | Verified |
+| SB-R9.5 | P1.1: Ask — staged-but-unfiled caveat | Tasks | Verified |
+| SB-R9.6 | P1.1: Ask — no-vault guard | Tasks | Verified |
+| SB-R10.1 | P1.2: Health — cadence shown in the panel | Tasks | Verified |
+| SB-R10.2 | P1.2: Health — ingests recorded | Tasks | Verified |
+| SB-R10.3 | P1.2: Health — a check resets count + clocks | Tasks | Verified |
+| SB-R10.4 | P1.2: Health — ambient reminder + rail marker when due | Tasks | Verified |
+| SB-R10.5 | P1.2: Health — snooze without faking a run | Tasks | Verified |
+| SB-R10.6 | P1.2: Health — fresh/corrupt ledger reads as healthy | Tasks | Verified |
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 33 functional + 5 NFR = 38 total; mapping to tasks happens in `tasks.md`.
+**Coverage:** 45 functional + 5 NFR = 50 total; mapping to tasks happens in `tasks.md`.
 
 ---
 

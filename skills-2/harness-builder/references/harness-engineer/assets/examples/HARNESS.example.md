@@ -1,9 +1,12 @@
-# Harness Assessment — Analytics Dashboard (example)
+# Harness — Analytics Dashboard (example)
 
 > A calibrated example showing the expected shape and level of specificity.
 > Fictional TypeScript/Next.js service rebuilt largely by an AI agent — close to
 > the kind of app the sensors article describes. Use it to gauge tone, evidence,
 > and the implementability bar; don't copy it literally.
+>
+> Shown mid-life: the first pass has landed (§5b has one dated block) and §7
+> already carries rejections, which is the state most real files are in.
 
 ## 1. Context
 
@@ -20,7 +23,7 @@
   architecture-fitness (logging). Behaviour out of scope this round.
 - **Target agent(s)/tools:** Cursor + Claude Code.
 
-## 2. Current harness inventory
+## 2. What guides and what measures the agent
 
 | Control | Direction | Execution | Category | Stage(s) | Gating? | LLM-actionable? | What it actually enforces |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -115,6 +118,35 @@
 - **Stage & gating:** pre-commit · gate
 - **Effort:** S
 
+## 5b. Change log
+
+### 2026-03-04 — initial pass
+
+| # | Change | Where |
+| --- | --- | --- |
+| P1 | `no-explicit-any` + `complexity: 15` as errors, with fix-shaped messages | `eslint.config.mjs` |
+| P2 | `dependency-cruiser` forbidding `app/** → db/**`, message names the service layer to route through | `.dependency-cruiser.cjs` |
+| P4 | secret scanning wired into the existing pre-commit hook | `.husky/pre-commit` |
+
+**Not implemented, and why:** P3 (AI modularity review in CI) — the trial run
+flagged the legitimate `lib/telemetry` hub on every PR. Parked in §7 rather than
+shipped as noise.
+
+**Verification:** `npm run verify` green (412 tests); the dependency-cruiser rule
+was proved by staging a deliberate `app/ → db/` import and watching it fail.
+
+**State after the change:** maintainability now covers in-session + pre-commit +
+CI; behaviour is still in-session only, and architecture gained its first sensor.
+Runtime stays empty on purpose (§7).
+
+### 2026-04-19 — user: "the agent keeps re-adding the barrel file"
+
+| # | Change | Where |
+| --- | --- | --- |
+| — | `no-restricted-imports` banning `lib/index.ts` re-exports, message pointing at the direct path | `eslint.config.mjs` |
+
+**Verification:** rule fires on the exact import the agent kept writing.
+
 ## 6. Steering loop — keeping the harness alive
 
 - **Watch:** how often the agent bumps lint thresholds (signals a weak message),
@@ -126,9 +158,20 @@
   pattern the linter punishes), fix one.
 - **Re-measure:** re-run `harness_inventory.py` after wiring P1–P4.
 
-## 7. Honest limits
+## 7. What deliberately does not exist
 
-This round raises maintainability and the in-session feedback loop, but does
+| Control | Why not | Revisit when |
+| --- | --- | --- |
+| AI modularity review in CI (was P3) | Tried 2026-03; flagged the legitimate `lib/telemetry` hub on every PR. Cost per run is real, signal was not. | The hub is split, or the tool supports per-path suppression |
+| Mutation testing (Stryker) | The suite is assertion-light — mutation scores would measure the tests' weakness we already know about, at ~20 min per run. Fix assertions first. | Assertions are strengthened and a green test still hides a bug |
+| Runtime/SLO sensors | Internal dashboard, no SLOs, no on-call. Nothing to regulate. | It gets external users or an availability target |
+| A rule forbidding `any` in tests | Deliberate: test fixtures use `any` for partial mocks, and the lint block already exempts `**/*.test.*`. Banning it would push noise into every PR. | Test fixtures stop needing partial mocks |
+
+**Honest limits** — what *no* control here covers:
+
+This harness raises maintainability and the in-session feedback loop, but does
 **not** verify functional correctness. The tests assert little; until that's
 addressed (approved scenarios + stronger assertions), human verification of
-behaviour is still required — the harness just tells you *where* to look.
+behaviour is still required — the harness just tells you *where* to look. Nothing
+here catches a misdiagnosed bug or an over-engineered solution either; those stay
+human work by construction.

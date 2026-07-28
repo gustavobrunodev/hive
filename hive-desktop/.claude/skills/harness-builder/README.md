@@ -43,7 +43,7 @@ realmente identificou:
 ```
 SKILL.md (playbook)
   └─ Fase 0  Orientar      → harness-engineer (modelo mental)
-  └─ Fase 1  Avaliar       → harness-engineer (inventário + Harness Assessment)
+  └─ Fase 1  Avaliar       → harness-engineer (inventário + HARNESS.md no projeto)
                              ↳ [gate] aprova prioridades antes de mudar nada
   └─ Fase 2  Guides/Rules  → agent-rules-architect (AGENTS.md + docs/ mínimos)
   └─ Fase 3  Skills

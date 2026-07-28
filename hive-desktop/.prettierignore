@@ -4,3 +4,13 @@ pnpm-lock.yaml
 LICENSE.md
 tsconfig.json
 tsconfig.*.json
+
+# `npm run format` is `prettier --write .` — anything not listed here is fair
+# game for a rewrite. These are ours to read, not ours to reformat; leaving them
+# out once rewrote 200 files outside the change under way (STATE.md, 2026-07-27).
+.claude
+.specs
+.scratch
+coverage
+test-results
+playwright-report

@@ -553,6 +553,67 @@ Updated as work progresses. Load at start of every session.
   E2E passes under xvfb; 11 Playwright-MCP screenshots in dark + light.
   (2026-07-26)
 
+- **D25 — Second Brain increment: ask-anything + the health-check cadence
+  (T23–T26, same `feat/second-brain` branch).** Two gaps the user raised after
+  M12 landed, both the same idea — *the app does the remembering*.
+  **(a) Perguntar à base (SB-R9).** M12's `Consultar` launched a question-less
+  `/second-brain-query`. Now `Ctrl/Cmd+Shift+K` (plus the panel's primary CTA and
+  the FAB menu's first item) opens a one-field ask surface, and the question
+  rides *inside* the command (`/second-brain-query <pergunta>`) so the transcript
+  reads as what was asked. The **answer still renders in the chat** — the spec's
+  non-goal (a second answer viewport) stands. It remembers the workspace's recent
+  questions and teaches openers when there are none.
+  **(b) Cadência do health-check (SB-R10).** The skill documents "run
+  `/second-brain-lint` after every 10 ingests or monthly"; the app now keeps that
+  ledger. **Where it lives is the load-bearing choice: `userData`, NOT the
+  vault** — the vault is git-versioned and shared, so a counter bumping on every
+  capture would mean a diff per ingest and a conflict per pull. The rule is one
+  pure `deriveHealth(record, now)` in main; the renderer only renders. The
+  calendar rule additionally requires ≥1 ingest in the window, so a base nobody
+  feeds never nags (a reminder people learn to ignore is worse than none).
+  Recording happens at **one** interception point (`WorkUI.launchBrainAction`),
+  so no surface can forget the ledger or double-count. `Depois` snoozes 7 days
+  and suppresses `due` but never clears `reason` — the panel keeps telling the
+  truth, and the rail keeps its dot, so dismissing never strands the user (the
+  same guarantee the update flow makes). Also implemented `Ctrl/Cmd+Shift+B`,
+  which the rail had advertised via `aria-keyshortcuts` since M12 with nothing
+  behind it. `npm run verify` green: **1569** tests (from 1507). (2026-07-27)
+
+## Lessons (second-brain — ask + cadence increment, 2026-07-27)
+
+- **`npm run format` is `prettier --write .` — it rewrote 200 files outside the
+  change** (the vendored `.claude/skills/**`, every `.specs/**` doc, `.scratch/`).
+  Same shape as the `git add -u` lesson below: repo-wide tooling doesn't respect
+  the unit of work. Reverted with a scoped `git checkout --` and used
+  `npx prettier --write "src/**/*.{ts,tsx,css}"` instead. Check
+  `git status --short | grep -v '^ M src/'` after any repo-wide command.
+- **Four defects the tests could not have caught, all found by looking at the
+  running app** (the M12 lesson repeating, so it is worth institutionalizing the
+  visual pass rather than treating it as a formality): (1) the healthy health
+  card repeated the action row's "Revisar" as its own CTA — one affordance
+  pretending to be two, 60px apart; (2) secondary text on the accent-tinted CTA
+  measured **3.93:1** (hint) and **3.46:1** (key cap) in **light** theme — both
+  below the 4.5:1 floor, invisible to any test and to the eye until measured;
+  (3) the ask surface's no-vault guard reused the ingestion sheet's copy and told
+  the user to come back "para ingerir" when they had asked a question; (4) in a
+  dragged-narrow rail the due-state buttons squeezed "Revisar agora" onto two
+  lines inside its own button.
+- **Sample pixels, don't trust `getComputedStyle().color` parsing.** A
+  `color-mix()` value comes back as `color(srgb 0.75 0.71 0.71)` — floats in
+  0–1, not `rgb(0-255)`. A naive contrast probe read those as near-black and
+  reported 1.1:1 in dark and 13:1 in light for the *same* declaration. Both
+  numbers were nonsense; the parser has to branch on the `color(` form. This is
+  the general-purpose version of the M12 "sample real pixels" lesson.
+- **A component that self-gates on `null` keeps branches out of its caller.**
+  `WorkUI` was already at the lint's complexity ceiling (15); making `HealthNudge`
+  return `null` unless `health.due` — the shape `VaultHealthCard` already had —
+  removed the caller's ternary entirely instead of extracting a helper.
+- **A DS mock that ignores `open` becomes a liability the moment a second
+  dialog mounts.** `WorkUI.test.ts`'s `Dialog` stand-in always rendered, which was
+  invisible while the guards were the only Dialog consumers and broke nine tests
+  the moment "Perguntar à base" joined the tree (`Found multiple elements with
+  the role "dialog"`). Mocks should honor the prop the real component honors.
+
 ## Lessons (second-brain — implementation, 2026-07-26)
 
 - **Three real defects were found by tests I wrote to describe intent, and one

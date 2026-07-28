@@ -3132,6 +3132,21 @@
   pointer-events: none;
 }
 
+/* Ambient "needs attention" dot (Second Brain health-check, SB-R10.4). Sits
+   bottom-right so it stacks with the top-right count badge instead of fighting
+   it, and is ringed in the rail's own background so it reads on any icon. */
+.wb-rail-attention-dot {
+  position: absolute;
+  right: 7px;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-2);
+  pointer-events: none;
+}
+
 .wb-rail-btn {
   display: inline-flex;
   align-items: center;
@@ -6715,7 +6730,11 @@ button.wb-agent-pill-btn:focus-visible {
     linear-gradient(45deg, transparent 75%, var(--border) 75%),
     linear-gradient(-45deg, transparent 75%, var(--border) 75%);
   background-size: 22px 22px;
-  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+  background-position:
+    0 0,
+    0 11px,
+    11px -11px,
+    -11px 0;
 }
 .wb-image-stage.is-panning {
   cursor: grabbing;
@@ -6879,7 +6898,9 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
   cursor: pointer;
   border-top: 2px solid transparent;
-  transition: color 160ms ease, background 160ms ease;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
   white-space: nowrap;
 }
 .wb-sheet-tab:hover {
@@ -6953,10 +6974,18 @@ button.wb-agent-pill-btn:focus-visible {
   border-radius: 50%;
   background: var(--accent);
 }
-.wb-slide-bullet[data-level='1'] { margin-left: 1.5rem; }
-.wb-slide-bullet[data-level='2'] { margin-left: 3rem; }
-.wb-slide-bullet[data-level='3'] { margin-left: 4.5rem; }
-.wb-slide-bullet[data-level='4'] { margin-left: 6rem; }
+.wb-slide-bullet[data-level='1'] {
+  margin-left: 1.5rem;
+}
+.wb-slide-bullet[data-level='2'] {
+  margin-left: 3rem;
+}
+.wb-slide-bullet[data-level='3'] {
+  margin-left: 4.5rem;
+}
+.wb-slide-bullet[data-level='4'] {
+  margin-left: 6rem;
+}
 .wb-slide-bullet[data-level]:not([data-level='0'])::before {
   background: var(--muted);
 }
@@ -6999,7 +7028,10 @@ button.wb-agent-pill-btn:focus-visible {
   background: var(--bg);
   color: var(--muted);
   cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 .wb-slide-thumb:hover {
   color: var(--ink);
@@ -7308,6 +7340,9 @@ button.wb-agent-pill-btn:focus-visible {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  /* The rail is user-resizable (12%–40%), so this view adapts to its own
+     width, not the viewport's. */
+  container: wb-brain / inline-size;
 }
 
 .wb-brain-head {
@@ -7373,32 +7408,124 @@ button.wb-agent-pill-btn:focus-visible {
   max-width: 34ch;
 }
 
-/* Action launchers (SB-R2.4). */
+/* Action launchers (SB-R2.4, SB-R9.1). One primary verb — asking — over a
+   quieter pair. The panel is a container query root so the shortcut cap and the
+   pair's direction adapt to a dragged-narrow rail (structural responsiveness,
+   never fluid type). */
 .wb-brain-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--s-1);
+  gap: var(--s-2);
   padding: var(--s-2);
+}
+
+/* "Perguntar à base" — the one accent-carrying control in the panel. */
+.wb-brain-ask-cta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 9px var(--s-2) 9px var(--s-3);
+  text-align: left;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart);
+}
+
+.wb-brain-ask-cta:hover {
+  background: color-mix(in srgb, var(--accent) 17%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
+.wb-brain-ask-cta:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-ask-cta-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.wb-brain-ask-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wb-brain-ask-cta-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Secondary text ON the accent tint: plain `--muted` measures 3.9:1 there in
+   light theme (verified in the browser), so it steps toward `--ink` — which
+   raises contrast in BOTH themes, since `--ink` is dark on light and light on
+   dark. Size + weight still carry the hierarchy. */
+.wb-brain-ask-cta-hint {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--muted) 55%, var(--ink));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shared key-cap treatment (panel CTA + FAB menu). */
+.wb-brain-ask-cta-kbd,
+.wb-brain-fab-kbd {
+  flex: 0 0 auto;
+  font-family: var(--ff-body);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.6;
+  /* Same reason as `.wb-brain-ask-cta-hint`: a 10px cap has to clear 4.5:1 on
+     the accent tint it sits on. */
+  color: color-mix(in srgb, var(--muted) 55%, var(--ink));
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+/* The secondary pair: feed the base, tend the base. */
+.wb-brain-action-pair {
+  display: flex;
+  gap: var(--s-1);
 }
 
 .wb-brain-action {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: var(--s-2) var(--s-3);
-  text-align: left;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px var(--s-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius-2, 8px);
+  border-radius: var(--rounded-md);
   cursor: pointer;
   transition:
-    background 160ms ease,
-    border-color 160ms ease;
+    background 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart);
 }
 
 .wb-brain-action:hover {
   background: var(--surface-2, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-color: var(--border-strong);
 }
 
 .wb-brain-action:focus-visible {
@@ -7406,15 +7533,176 @@ button.wb-agent-pill-btn:focus-visible {
   box-shadow: inset 0 0 0 2px var(--focus);
 }
 
+.wb-brain-action-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
 .wb-brain-action-label {
-  font-size: 13px;
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Saúde da base (SB-R10.1) — the lint cadence, tracked rather than remembered.
+   Healthy it reads as status; due it becomes the ask, in place. */
+.wb-brain-health {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0 var(--s-2) var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  transition:
+    background 200ms var(--ease-quart),
+    border-color 200ms var(--ease-quart);
+}
+
+.wb-brain-health[data-due] {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.wb-brain-health .wb-brain-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0 0 var(--s-1);
+}
+
+.wb-brain-health[data-due] .wb-brain-section-title {
+  color: var(--accent);
+}
+
+.wb-brain-health-icon {
+  flex: 0 0 auto;
+}
+
+/* Ten segments, one per ingest — the count read without reading. */
+.wb-brain-health-meter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 0 var(--s-1);
+}
+
+.wb-brain-health-seg {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: 4px;
+  border-radius: var(--rounded-full);
+  background: var(--border-strong);
+  /* Filling runs left-to-right after an ingest instead of snapping all at once. */
+  transition: background-color 260ms var(--ease-quart) calc(var(--seg, 0) * 22ms);
+}
+
+.wb-brain-health-seg[data-filled] {
+  background: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.wb-brain-health[data-due] .wb-brain-health-seg[data-filled] {
+  background: var(--accent);
+}
+
+.wb-brain-health-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 12px;
+}
+
+.wb-brain-health-count {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.wb-brain-health-since {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.wb-brain-health-reason {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--ink);
 }
 
-.wb-brain-action-hint {
+.wb-brain-health-note {
+  margin: 0;
   font-size: 11px;
+  line-height: 1.45;
   color: var(--muted);
+}
+
+.wb-brain-health-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  padding-top: var(--s-1);
+}
+
+.wb-brain-health-btn {
+  /* Wrap to a second line in a dragged-narrow rail rather than squeezing
+     "Revisar agora" onto two lines inside its own button. */
+  flex: 0 0 auto;
+  padding: 5px var(--s-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition:
+    background 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart);
+}
+
+.wb-brain-health-btn:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.wb-brain-health-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-health-btn[data-primary] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.wb-brain-health-btn[data-primary]:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Narrow rail: the key cap and the side-by-side pair are the first things to go. */
+@container wb-brain (max-width: 220px) {
+  .wb-brain-ask-cta-kbd {
+    display: none;
+  }
+
+  .wb-brain-action-pair {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-ask-cta,
+  .wb-brain-health,
+  .wb-brain-health-seg,
+  .wb-brain-health-btn {
+    transition: none;
+  }
 }
 
 /* Floating ingestion button (SB-R3.1, SB-R3.5) — quiet accent disc, fixed to
@@ -7520,6 +7808,120 @@ button.wb-agent-pill-btn:focus-visible {
   flex: 0 0 auto;
 }
 
+/* "Perguntar à base" leads the menu: accent glyph, its shortcut on the right,
+   and a hairline separating it from the capture group below. */
+.wb-brain-fab-ask {
+  font-weight: 600;
+}
+
+.wb-brain-fab-ask .wb-brain-fab-item-icon {
+  color: var(--accent);
+}
+
+.wb-brain-fab-kbd {
+  margin-left: auto;
+}
+
+.wb-brain-fab-group {
+  margin: var(--s-1) 0 2px;
+  padding: var(--s-1) var(--s-2) 0;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The ambient health-check reminder (SB-R10.4) — rides the floating button's
+   own stack, above the brain that caused it. */
+.wb-brain-nudge {
+  width: 264px;
+  max-width: calc(100vw - var(--s-6));
+  padding: var(--s-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 16%);
+  animation: wb-brain-nudge-in 220ms var(--ease-quart);
+}
+
+@keyframes wb-brain-nudge-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wb-brain-nudge-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-nudge-glyph {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: var(--rounded-full);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.wb-brain-nudge-body {
+  margin: 0 0 var(--s-3);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.wb-brain-nudge-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.wb-brain-nudge-btn {
+  padding: 5px var(--s-3);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition: background 160ms var(--ease-quart);
+}
+
+.wb-brain-nudge-btn:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.wb-brain-nudge-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-nudge-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.wb-brain-nudge-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wb-brain-fab {
     transition: none;
@@ -7531,6 +7933,23 @@ button.wb-agent-pill-btn:focus-visible {
 
   .wb-brain-fab-menu {
     animation: none;
+  }
+
+  .wb-brain-nudge {
+    animation-name: wb-brain-nudge-fade;
+  }
+
+  .wb-brain-nudge-btn {
+    transition: none;
+  }
+}
+
+@keyframes wb-brain-nudge-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -8046,6 +8465,231 @@ button.wb-agent-pill-btn:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .wb-brain-wiki-chevron,
   .wb-brain-action {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Perguntar à base (SB-R9) — the ask surface. One field, one verb, and enough
+   context to trust the answer that lands in the chat.
+   ========================================================================== */
+.wb-brain-ask-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: min(560px, calc(100vw - var(--s-6)));
+  padding: var(--s-4);
+}
+
+.wb-brain-ask-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.wb-brain-ask-glyph {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--rounded-md);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.wb-brain-ask-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wb-brain-ask-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-ask-desc {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.wb-brain-ask-vault {
+  flex: 0 0 auto;
+  max-width: 38%;
+  padding: 2px var(--s-2);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The field carries the surface's weight: sunken, roomy, and readable — the
+   placeholder is the instruction, so it takes `--muted` (4.5:1) rather than the
+   DS default `--faint`, which is a tertiary tier. */
+.wb-brain-ask-field {
+  padding: var(--s-3);
+  font-size: 14px;
+  line-height: 1.55;
+  background: var(--surface-2);
+  border-radius: var(--rounded-md);
+}
+
+.wb-brain-ask-field::placeholder {
+  color: var(--muted);
+}
+
+/* Honest caveat: staged material the agent hasn't filed yet can't be answered from. */
+.wb-brain-ask-note {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--warning-ink);
+  background: var(--warning-bg);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+  border-radius: var(--rounded-sm);
+}
+
+.wb-brain-ask-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-brain-ask-block-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-brain-ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.wb-brain-ask-chip {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    color 160ms var(--ease-quart),
+    background 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart);
+}
+
+.wb-brain-ask-chip:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.wb-brain-ask-chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-ask-recents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-brain-ask-recent {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 6px var(--s-2);
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: var(--rounded-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms var(--ease-quart);
+}
+
+.wb-brain-ask-recent:hover {
+  background: var(--surface-2);
+}
+
+.wb-brain-ask-recent:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.wb-brain-ask-recent-icon {
+  flex: 0 0 auto;
+  color: var(--faint);
+}
+
+.wb-brain-ask-recent-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-brain-ask-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+
+.wb-brain-ask-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.wb-brain-ask-guard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding-bottom: var(--s-1);
+}
+
+.wb-brain-ask-guard-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-ask-guard-desc {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-ask-chip,
+  .wb-brain-ask-recent {
     transition: none;
   }
 }

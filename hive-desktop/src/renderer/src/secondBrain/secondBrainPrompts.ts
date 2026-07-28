@@ -20,3 +20,24 @@ export const SECOND_BRAIN_INGEST = secondBrainCommand('second-brain-ingest')
 export const SECOND_BRAIN_QUERY = secondBrainCommand('second-brain-query')
 /** SB-R2.4: health-check / organize the wiki. */
 export const SECOND_BRAIN_LINT = secondBrainCommand('second-brain-lint')
+
+/**
+ * SB-R9.2: `/second-brain-query <pergunta>` — the ask surface's launch. The
+ * question rides **in the slash command itself**, exactly as if it had been
+ * typed in the composer, so the transcript reads as the question that was
+ * asked rather than a bare command.
+ *
+ * Whitespace is collapsed to keep the invocation on one line (a pasted
+ * multi-line question would otherwise split the command from its argument);
+ * an empty question falls back to the bare command, which makes the skill ask
+ * what the user wants to know.
+ */
+export function secondBrainQuery(question: string): RoleAction {
+  const normalized = question.replace(/\s+/g, ' ').trim()
+  const key = 'second-brain-query'
+  return {
+    key,
+    kind: 'workflow',
+    command: { key, prompt: normalized === '' ? `/${key}` : `/${key} ${normalized}` }
+  }
+}

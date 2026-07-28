@@ -237,6 +237,13 @@ export default defineConfig({
           lines: 90
         },
         'src/main/reviewService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // harness (P3): the contrast probe behind docs/visual-validation.md.
+        'src/renderer/src/ui/contrast.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         'src/renderer/src/ui/HunkActions.tsx': {
           statements: 90,
           branches: 90,

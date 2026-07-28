@@ -39,7 +39,7 @@ import type {
   GitStatus
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
-import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
+import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type {
   HardwareRecommendation,
   WhisperDownloadEvent,
@@ -292,6 +292,14 @@ declare global {
         getVault(workspace: string): Promise<VaultStatus>
         /** SB-R3.2: stage raw content into the vault's raw/ inbox; returns the workspace-relative path. */
         stageRaw(workspace: string, content: string): Promise<{ relPath: string }>
+        /** SB-R10.1: the derived health-check cadence for this workspace. */
+        getHealth(workspace: string): Promise<VaultHealth>
+        /** SB-R10.2: records one ingest launched from Hive; returns the new health. */
+        noteIngest(workspace: string): Promise<VaultHealth>
+        /** SB-R10.3: records a health-check run (resets the count + clocks). */
+        noteLint(workspace: string): Promise<VaultHealth>
+        /** SB-R10.5: postpones the ambient reminder ("Depois") without faking a run. */
+        snoozeHealth(workspace: string): Promise<VaultHealth>
       }
       /**
        * Whisper model store (SB-R4.2/R7.2). Transcription runs in the renderer;

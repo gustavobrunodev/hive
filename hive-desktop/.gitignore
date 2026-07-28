@@ -11,3 +11,9 @@ playwright-report
 blob-report
 playwright/.cache
 .playwright-mcp
+
+# Credentials never stage by accident. `.env.example` stays tracked as the
+# documented shape.
+.env
+.env.*
+!.env.example

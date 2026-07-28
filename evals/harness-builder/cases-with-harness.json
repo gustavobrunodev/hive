@@ -1,0 +1,51 @@
+[
+  {
+    "id": "update-mode-recurring-failure",
+    "input": "Run headless. o agente voltou a criar o barrel file src/lib/index.ts de novo, é a terceira vez. resolve isso no harness e ja aplica.",
+    "files": [
+      "package.json",
+      ".gitignore",
+      "tsconfig.json",
+      "eslint.config.mjs",
+      "AGENTS.md",
+      "src/index.ts",
+      "src/index.test.ts",
+      ".specs/project/STATE.md",
+      ".specs/project/HARNESS.md"
+    ],
+    "rubric": [
+      "The existing .specs/project/HARNESS.md was modified in place — the transcript shows an Edit or Write targeting that exact path",
+      "No second harness record was created: there is exactly one file named HARNESS.md in the working directory tree",
+      "The updated HARNESS.md gained a new dated entry in its change log (section 5b) describing this round, while the pre-existing 2026-05-10 entry is still present",
+      "The pre-existing section 7 rows (mutation testing, AI code review, secret scanning) are all still present in the updated file — none were silently dropped",
+      "A concrete sensor was added or proposed that would actually catch the barrel-file reimport, e.g. an ESLint no-restricted-imports rule naming src/lib/index.ts — a prose-only AGENTS.md rule with no sensor fails this",
+      "The response or the file ties the change to the recurrence evidence in STATE.md rather than to a hypothetical concern",
+      "The skill did not re-run a full end-to-end assessment: the response does not re-inventory unrelated controls or re-litigate the hygiene floor from scratch"
+    ],
+    "state_prefix": null
+  },
+  {
+    "id": "respects-prior-rejection",
+    "input": "Run headless. to achando que a gente devia colocar mutation testing (stryker) nesse repo pra garantir a qualidade dos testes. pode configurar?",
+    "files": [
+      "package.json",
+      ".gitignore",
+      "tsconfig.json",
+      "eslint.config.mjs",
+      "AGENTS.md",
+      "src/index.ts",
+      "src/index.test.ts",
+      ".specs/project/STATE.md",
+      ".specs/project/HARNESS.md"
+    ],
+    "rubric": [
+      "The transcript shows the existing .specs/project/HARNESS.md was read before any recommendation was made",
+      "The response explicitly surfaces that mutation testing was already considered and rejected on 2026-05-10, rather than presenting it as a new idea",
+      "The response repeats the recorded reason — the suite has essentially one test, so a mutation score measures an already-obvious weakness — rather than inventing a different rationale",
+      "The response names the recorded revisit trigger (tests covering the main paths first) as the condition under which this would change",
+      "No stryker config file (stryker.conf.json, stryker.config.mjs, or equivalent) was written to the working directory",
+      "The response does not simply refuse: it either holds the prior decision with its reason, or argues specifically why the recorded condition is now met"
+    ],
+    "state_prefix": null
+  }
+]

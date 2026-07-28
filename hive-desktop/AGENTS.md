@@ -18,10 +18,13 @@ source ~/.nvm/nvm.sh && nvm use 22.22.1 && npm run <script>
 ## Comandos
 
 - `npm run verify` — gate único (typecheck + lint + test). **Rode antes de dar
-  qualquer tarefa como pronta.**
+  qualquer tarefa como pronta.** Ele **não** inclui cobertura — o CI roda
+  `test:coverage` à parte, hoje como relatório porque o gate está vermelho em 14
+  arquivos herdados (lista em `.specs/project/HARNESS.md`). Não aumente a lista.
 - `npm run test -- <arquivo>` — roda um teste só (Vitest).
   `npm run test:coverage` aplica o gate de cobertura **per-file 90%** nos
-  arquivos que a feature toca (não global).
+  arquivos que a feature toca (não global) — acrescente o glob do arquivo novo
+  em `vitest.config.ts`, senão ele não é medido.
 - `npm run dev` — app em modo dev.
 - **E2E** (Electron real via Playwright):
 
@@ -42,6 +45,11 @@ funções focadas.
 - **Desacople o agente.** Tudo que fala com um CLI de agente passa pelo contrato
   `AgentAdapter` (`src/main/agentAdapter.ts`). Nunca hardcode specifics do Claude
   na UI ou em `AgentService` — modelos/efforts vêm de `capabilities()`.
+- **Processos não se importam.** `main`, `preload` e `renderer` são bundles
+  separados; o renderer fala com o main **só** pela bridge `window.hive` e deriva
+  tipos dela (`Awaited<ReturnType<Window['hive'][…]>>`). Só o preload pode
+  `import type` do main — é o contrato. `moduleBoundaries.test.ts` falha se
+  escapar, com o caminho da correção na mensagem.
 - **BMAD é source of truth.** Orquestramos o `bmad-method`; não reimplementamos
   workflows. Mudou o BMAD → ajuste o adapter, não o domínio. Integração com
   Claude Code é via **`.claude/skills/`** (Skills, não slash commands).
@@ -63,6 +71,12 @@ funções focadas.
 
 ## Onde está o resto
 
+- `docs/visual-validation.md` — como olhar a UI de verdade (mock de `window.hive`
+  + build estático) e medir contraste. **Todo trabalho de UI fecha com esse
+  passe** — nos dois temas; é a classe de defeito que mais reincidiu aqui.
+- `.specs/project/HARNESS.md` — o que guia e o que mede o agente, e o que
+  deliberadamente não existe — **atualize quando mudar um controle**, inclusive
+  se a mudança for efeito colateral de outro trabalho.
 - `.specs/project/PROJECT.md` — visão, goals e não-goals.
 - `.specs/project/ROADMAP.md` — marcos.
 - `.specs/project/STATE.md` — memória viva (decisões + lições) — **leia antes de começar**.

@@ -40,7 +40,7 @@ import type {
   GitStatus
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
-import type { SkillEvent, VaultStatus } from '../main/secondBrainTypes'
+import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type {
   HardwareRecommendation,
   WhisperDownloadEvent,
@@ -647,7 +647,15 @@ const hive = {
     getVault: (workspace: string): Promise<VaultStatus> =>
       ipcRenderer.invoke('secondBrain:getVault', workspace),
     stageRaw: (workspace: string, content: string): Promise<{ relPath: string }> =>
-      ipcRenderer.invoke('secondBrain:stageRaw', workspace, content)
+      ipcRenderer.invoke('secondBrain:stageRaw', workspace, content),
+    getHealth: (workspace: string): Promise<VaultHealth> =>
+      ipcRenderer.invoke('secondBrain:getHealth', workspace),
+    noteIngest: (workspace: string): Promise<VaultHealth> =>
+      ipcRenderer.invoke('secondBrain:noteIngest', workspace),
+    noteLint: (workspace: string): Promise<VaultHealth> =>
+      ipcRenderer.invoke('secondBrain:noteLint', workspace),
+    snoozeHealth: (workspace: string): Promise<VaultHealth> =>
+      ipcRenderer.invoke('secondBrain:snoozeHealth', workspace)
   },
 
   // Whisper model store (D-SB-4). Transcription itself is renderer-local (the

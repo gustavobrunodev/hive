@@ -81,7 +81,11 @@ function makeStore(overrides: Partial<SecondBrainStore> = {}): SecondBrainStore 
     vaultName: 'second-brain',
     rawPending: 0,
     hasVault: true,
+    health: null,
     refresh: vi.fn(),
+    noteIngest: vi.fn(),
+    noteLint: vi.fn(),
+    snoozeHealth: vi.fn(),
     ...overrides
   }
 }
