@@ -35,6 +35,24 @@ export default defineConfig({
       // their `.test.tsx` siblings; only the numeric gate is lifted. T1, R9.2.
       exclude: [
         ...coverageConfigDefaults.exclude,
+        // P0-011 / R-04 (test-design-architecture.md). The global number was an
+        // artifact of the denominator, not a measure of this codebase: the
+        // report instrumented the BUILD OUTPUT. Measured 2026-07-30 —
+        // out/renderer/assets/transformers.web-*.js (33,521 statements),
+        // out/renderer/assets/index-*.js (32,760), out/renderer/assets/pdf-*.js
+        // (27,417), out/main/index.js (4,820), out/preload/index.js (579) — all
+        // at 0%, together ~98.5k of 120,430 total statements. That is what
+        // produced a "16.31%" global. Bundled vendor output is not source and
+        // was never going to be tested; measuring it just measured bundle size.
+        // Sanitising this is a precondition for any aggregate target meaning
+        // anything, which is why it lands before the per-file cleanup.
+        'out/**',
+        'dist/**',
+        'dist-npm/**',
+        'scripts/**',
+        'e2e/**',
+        '*.config.ts',
+        '*.config.mjs',
         'src/renderer/src/scm/AgentReviewPanel.tsx',
         'src/renderer/src/scm/InlineAgentDiff.tsx'
       ],
@@ -245,6 +263,52 @@ export default defineConfig({
           lines: 90
         },
         'src/renderer/src/ui/HunkActions.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // R-06/P0-003: the scripted-agent seam. It decides which binary the app
+        // executes, so it is held to the full bar like its B-1 sibling.
+        'src/main/e2eAgentSeam.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // P1-004/P1-010/P1-011/P1-013/P1-024 (R-03, R-15): the surfaces that had
+        // no co-located test. Onboarding was the weakest module in the project
+        // (F 72.7 / B 80.6) and it is the first thing a user touches; the agent
+        // picker/switcher, the profile sheet and the Ctrl+P palette are the rest
+        // of the untested set — `FileSearchDialog` did not even appear in the
+        // coverage report, because nothing loaded it. Gated now so they cannot
+        // drift back.
+        'src/renderer/src/onboarding/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/AgentPicker.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/AgentSwitcher.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/ChoiceCard.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/ProfileSheet.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/FileSearchDialog.tsx': {
           statements: 90,
           branches: 90,
           functions: 90,

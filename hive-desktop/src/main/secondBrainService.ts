@@ -1,5 +1,6 @@
 import { existsSync, statSync, readdirSync } from 'fs'
 import { join } from 'path'
+import { isE2ESeamEnabled } from './bmadService'
 import type { ProcessRunner, ProcessStreamChunk } from './processRunner'
 import type { SkillEvent, VaultInfo } from './secondBrainTypes'
 
@@ -105,7 +106,12 @@ export function parseSkillLine(rawLine: string): SkillEvent | null {
  */
 export function createSecondBrainService(
   processRunner: ProcessRunner,
-  deps: SecondBrainDeps = {}
+  deps: SecondBrainDeps = {},
+  // B-1's second half. The launch gate has two steps, and bypassing only the
+  // BMAD one still parks every E2E on this one. Same contract as
+  // `bmadService`: explicit launcher opt-in AND genuinely seeded state (here,
+  // the skill marker on disk) — see `isE2ESeamEnabled` in bmadService.ts.
+  e2eSeam: boolean = isE2ESeamEnabled()
 ): SecondBrainService {
   const pathExists = deps.pathExists ?? existsSync
   const isDirectory = deps.isDirectory ?? ((p: string) => statSync(p).isDirectory())
@@ -197,7 +203,14 @@ export function createSecondBrainService(
     )
   }
 
+  async function* seamedDone(): AsyncIterable<SkillEvent> {
+    yield { type: 'done', ok: true }
+  }
+
   function update(workspace: string): AsyncIterable<SkillEvent> {
+    if (e2eSeam && detect(workspace)) {
+      return seamedDone()
+    }
     return runSkillCommand('npx', ['-y', 'skills', 'update', '-p', '-y'], workspace, 'update')
   }
 

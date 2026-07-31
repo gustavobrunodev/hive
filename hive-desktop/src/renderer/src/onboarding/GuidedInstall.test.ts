@@ -199,4 +199,26 @@ describe('GuidedInstall (T9)', () => {
 
     expect(unsubscribe).toHaveBeenCalled()
   })
+
+  // P1-004: the variant the installer stream carries but this screen has no
+  // place for, and the late-event guard. Both were uncovered branches.
+  it('ignores a prompt event and drops events that arrive after unmount', async () => {
+    const { emit } = mockInstallBmad()
+    const onComplete = vi.fn()
+
+    const { unmount } = render(createElement(GuidedInstall, { workspace: '/ws', onComplete }))
+    submitConfigForm()
+
+    emit({ type: 'prompt', id: 'q1', question: 'pergunta do CLI' })
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.queryByText('pergunta do CLI')).toBeNull()
+
+    // …whereas a `progress` message is surfaced verbatim.
+    emit({ type: 'progress', message: 'Instalando bmm' })
+    await waitFor(() => expect(screen.getByText('Instalando bmm')).toBeTruthy())
+
+    unmount()
+    emit({ type: 'done', ok: true })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
 })

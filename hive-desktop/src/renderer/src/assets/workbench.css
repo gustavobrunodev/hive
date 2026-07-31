@@ -1471,6 +1471,11 @@
   border-color: var(--focus);
   box-shadow: inset 0 0 0 1px var(--focus);
 }
+@media (prefers-reduced-motion: reduce) {
+  .wb-pill {
+    transition: none;
+  }
+}
 
 /* Planned pills: one quiet shared "Em breve" tag, entries at --faint —
    a roadmap whisper, not four repeated badges. */
@@ -2096,6 +2101,7 @@
   filter: brightness(1.05);
 }
 @media (prefers-reduced-motion: reduce) {
+  .wb-scm-act,
   .wb-scm-group-actions,
   .wb-scm-row-actions {
     transition: none;
@@ -2237,6 +2243,12 @@
   color: var(--wb-git-deleted);
   background: color-mix(in oklab, var(--wb-git-deleted) 12%, transparent);
   border-color: color-mix(in oklab, var(--wb-git-deleted) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-hunk-btn {
+    transition: none;
+  }
 }
 
 .wb-hunk-btn:focus-visible {
@@ -3011,6 +3023,11 @@
 .wb-branch-delete:hover {
   color: var(--danger);
 }
+@media (prefers-reduced-motion: reduce) {
+  .wb-branch-delete {
+    transition: none;
+  }
+}
 
 /* Teaching empty states — centered, calm, never a blank pane. */
 .wb-scm-empty {
@@ -3402,11 +3419,20 @@
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--faint);
+  /* --muted, not --faint: at 0.6875rem this is small text, so the 4.5:1 floor
+     applies, and theme.css documents --faint as tertiary/large-text-only
+     (~4.6:1 on dark, 3:1 floor). On the light surface it measured 3.29:1 —
+     the same washed-out-secondary-label defect that recurred in M12 and M12.1.
+     Caught by the contrast sweep in e2e/contrast.spec.ts (P0-010). */
+  color: var(--muted);
 }
 .wb-pill[data-persona] {
   color: var(--accent);
-  background: var(--selected-bg);
+  /* A lighter tint than the shared --selected-bg: coral text on the 14% tint
+     measured 4.40:1 on graphite — under the floor by a hair, and this pill
+     carries real label text rather than a selection highlight. Scoped here so
+     selection elsewhere keeps its usual weight. */
+  background: oklch(65.9% 0.114 42.2 / 8%);
   border-color: transparent;
 }
 .wb-pill[data-persona] svg {
@@ -3548,6 +3574,11 @@ button.wb-agent-pill-btn:hover {
 button.wb-agent-pill-btn:focus-visible {
   outline: 0;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--agent-accent) 40%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  button.wb-agent-pill-btn {
+    transition: none;
+  }
 }
 .wb-agent-pill-locked {
   color: var(--muted);
@@ -4624,6 +4655,11 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-update-toast-btn:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-update-toast-btn {
+    transition: none;
+  }
 }
 .wb-update-toast-btn-primary {
   color: var(--accent-ink);
@@ -6396,9 +6432,15 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-mcp-status-spin {
     animation-duration: 1.6s;
   }
+  .wb-mcp-expand,
   .wb-mcp-expand svg,
   .wb-mcp-preset,
-  .wb-mcp-row {
+  .wb-mcp-row,
+  .wb-mcp-testbtn,
+  .wb-mcp-toolchip,
+  .wb-mcp-linkbtn,
+  .wb-mcp-empty-scratch,
+  .wb-mcp-back {
     transition: none;
   }
   .wb-mcp-preset:hover {
@@ -6570,6 +6612,12 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-agent-default-btn:focus-visible {
   outline: 0;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--agent-accent) 40%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-agent-card,
+  .wb-agent-default-btn {
+    transition: none;
+  }
 }
 
 .wb-agent-card-check {
@@ -7152,6 +7200,12 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-review-bar-review:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-review-bar-btn {
+    transition: none;
+  }
 }
 
 /* Reject-all / stale-clobber reuse the shared `.wb-btn-danger` (defined above

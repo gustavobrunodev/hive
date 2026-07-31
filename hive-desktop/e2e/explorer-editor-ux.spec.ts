@@ -1,8 +1,7 @@
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
-import os from 'node:os'
+import { test, expect, waitForWorkUI, launchSeededApp } from './fixtures/workspace'
 
 // T14 — E2E + Playwright MCP validation (explorer-editor-ux, UX-R9.3/9.4).
 // Extends the file-management E2E harness (`e2e/file-management.spec.ts`,
@@ -24,59 +23,20 @@ import os from 'node:os'
 // per Electron launch) down; scenario 6 needs its own dedicated launch since
 // it explicitly closes and relaunches the app to prove persistence.
 
-test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)', () => {
-  let tmpRoot: string
-  let workspaceDir: string
-  let app: ElectronApplication
-  let window: Page
-
-  test.beforeAll(async () => {
-    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-e2e-ux-'))
-    workspaceDir = path.join(tmpRoot, 'workspace')
-    const userDataDir = path.join(tmpRoot, 'userData')
-    fs.mkdirSync(workspaceDir, { recursive: true })
-    fs.mkdirSync(userDataDir, { recursive: true })
-
-    // T9 (workspace-switching, WS-R3.3): onboarding routing is now
-    // disk-based (`<workspace>/_bmad/_config/manifest.yaml`), not the
-    // `provisioned` config flag alone — see file-management.spec.ts's
-    // matching comment for the full rationale. Written directly, no real
-    // `bmad-method install` run needed for this UX-focused spec.
-    const manifestDir = path.join(workspaceDir, '_bmad', '_config')
-    fs.mkdirSync(manifestDir, { recursive: true })
-    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
-
-    fs.writeFileSync(
-      path.join(userDataDir, 'config.json'),
-      JSON.stringify({
-        workspacePath: workspaceDir,
-        provisioned: true,
-        lastModel: null,
-        lastEffort: null
-      }),
-      'utf-8'
-    )
-
-    const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
-    const launchEnv = { ...process.env }
-    delete launchEnv.ELECTRON_RUN_AS_NODE
-
-    app = await electron.launch({
-      args: [appPath, `--user-data-dir=${userDataDir}`],
-      env: launchEnv
-    })
-    window = await app.firstWindow()
-    await window.waitForLoadState('domcontentloaded')
-    await waitForWorkUI(window)
-  })
-
-  test.afterAll(async () => {
-    await app.close()
-    fs.rmSync(tmpRoot, { recursive: true, force: true })
-  })
-
-  test('1 — editable file opens in edit mode by default; Ctrl+S saves to disk', async () => {
-    test.setTimeout(60_000)
+// R-16 (test-design-architecture.md): this block used to be `describe.serial`
+// over ONE shared workspace and one shared app instance, to amortise the real
+// provisioning gate that ran on every launch. The cost of that was measured —
+// a single `beforeAll` failure erased six cases, so the suite reported one
+// failure where there were seven unknowns. With the B-1 seam a launch is ~2
+// seconds, so the amortisation buys nothing: each case now gets its own
+// workspace, its own `userData` and its own app. Independent, parallelisable,
+// and honest about which case actually failed.
+test.describe('explorer-editor-ux E2E (real Electron, one workspace per case)', () => {
+  test('@p0 1 — editable file opens in edit mode by default; Ctrl+S saves to disk', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
+    const workspaceDir = seeded.workspace
     await createEntry(window, 'Novo arquivo', 'doc1.txt')
     await openFile(window, 'doc1.txt')
 
@@ -95,8 +55,11 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     expect(onDisk).toBe('hello from ctrl+s\n')
   })
 
-  test('2 — closing a dirty file shows the 3-way dialog; Salvar persists then closes', async () => {
-    test.setTimeout(60_000)
+  test('@p0 2 — closing a dirty file shows the 3-way dialog; Salvar persists then closes', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
+    const workspaceDir = seeded.workspace
     await createEntry(window, 'Novo arquivo', 'doc2.txt')
     await openFile(window, 'doc2.txt')
 
@@ -117,8 +80,11 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     expect(onDisk).toBe('unsaved edit\n')
   })
 
-  test('3 — rename via inline input + blur (not Enter) persists on disk', async () => {
-    test.setTimeout(60_000)
+  test('@p0 3 — rename via inline input + blur (not Enter) persists on disk', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
+    const workspaceDir = seeded.workspace
     await createEntry(window, 'Novo arquivo', 'before-blur.txt')
 
     await window.getByRole('button', { name: 'Mais ações para before-blur.txt' }).click()
@@ -136,8 +102,11 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     expect(fs.existsSync(path.join(workspaceDir, 'after-blur.txt'))).toBe(true)
   })
 
-  test('4 — Ctrl-click multi-select drives bulk delete of every selected file', async () => {
-    test.setTimeout(60_000)
+  test('@p0 4 — Ctrl-click multi-select drives bulk delete of every selected file', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
+    const workspaceDir = seeded.workspace
     await createEntry(window, 'Novo arquivo', 'bulk-a.txt')
     await createEntry(window, 'Novo arquivo', 'bulk-b.txt')
     await createEntry(window, 'Novo arquivo', 'bulk-c.txt')
@@ -149,7 +118,12 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
         .locator(`[id="hds-tree-item-${name}"] .wb-tree-row-content`)
         .click({ modifiers: ['Control'] })
     }
-    await expect(window.locator('[aria-selected="true"]')).toHaveCount(3)
+    // Scoped to the tree: a plain click also opens the file, and the editor's
+    // tab strip carries its own `aria-selected`. Counting document-wide made
+    // this assertion depend on whether a previous test had left a tab open —
+    // invisible while the block shared one app, and the reason it broke first
+    // when the cases were isolated.
+    await expect(window.locator('.wb-tree-body [aria-selected="true"]')).toHaveCount(3)
 
     // Row menu on any row that's part of a >1 selection deletes the whole
     // selection (Explorer.tsx: `selectedIds.includes(node.id) && selectedIds.length > 1`).
@@ -165,8 +139,8 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     }
   })
 
-  test('5 — Shift-click selects the visible range from an anchor', async () => {
-    test.setTimeout(60_000)
+  test('@p0 5 — Shift-click selects the visible range from an anchor', async ({ hiveApp }) => {
+    const { window } = hiveApp
     await createEntry(window, 'Novo arquivo', 'range-a.txt')
     await createEntry(window, 'Novo arquivo', 'range-b.txt')
     await createEntry(window, 'Novo arquivo', 'range-c.txt')
@@ -178,7 +152,12 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
       .locator('[id="hds-tree-item-range-c.txt"] .wb-tree-row-content')
       .click({ modifiers: ['Shift'] })
 
-    await expect(window.locator('[aria-selected="true"]')).toHaveCount(3)
+    // Scoped to the tree: a plain click also opens the file, and the editor's
+    // tab strip carries its own `aria-selected`. Counting document-wide made
+    // this assertion depend on whether a previous test had left a tab open —
+    // invisible while the block shared one app, and the reason it broke first
+    // when the cases were isolated.
+    await expect(window.locator('.wb-tree-body [aria-selected="true"]')).toHaveCount(3)
     for (const name of ['range-a.txt', 'range-b.txt', 'range-c.txt']) {
       await expect(window.locator(`[id="hds-tree-item-${name}"]`)).toHaveAttribute(
         'aria-selected',
@@ -187,8 +166,8 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     }
   })
 
-  test('7 — .md file with a table renders correctly in preview', async () => {
-    test.setTimeout(60_000)
+  test('@p0 7 — .md file with a table renders correctly in preview', async ({ hiveApp }) => {
+    const { window } = hiveApp
     await createEntry(window, 'Novo arquivo', 'table.md')
     await openFile(window, 'table.md')
 
@@ -213,8 +192,11 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
     await dialog.getByRole('button', { name: 'Descartar alterações' }).click()
   })
 
-  test('8 — .html file live-previews, reflects app edits instantly, reloads real disk edits on reopen', async () => {
-    test.setTimeout(60_000)
+  test('@p0 8 — .html file live-previews, reflects app edits instantly, reloads real disk edits on reopen', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
+    const workspaceDir = seeded.workspace
     const htmlPath = path.join(workspaceDir, 'page.html')
     fs.writeFileSync(htmlPath, '<p id="content">v1</p>', 'utf-8')
 
@@ -256,36 +238,14 @@ test.describe.serial('explorer-editor-ux E2E (real Electron, shared workspace)',
 })
 
 test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app instance)', () => {
-  test('6 — dragging the rail resize handle persists its width across a reload', async () => {
-    test.setTimeout(120_000)
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-e2e-ux-resize-'))
-    const workspaceDir = path.join(tmpRoot, 'workspace')
-    const userDataDir = path.join(tmpRoot, 'userData')
-    fs.mkdirSync(workspaceDir, { recursive: true })
-    fs.mkdirSync(userDataDir, { recursive: true })
-    // T9 (workspace-switching, WS-R3.3): disk-based provisioning marker
-    // required alongside the config flag — see the top of this file's
-    // matching comment.
-    const manifestDir = path.join(workspaceDir, '_bmad', '_config')
-    fs.mkdirSync(manifestDir, { recursive: true })
-    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
-    fs.writeFileSync(
-      path.join(userDataDir, 'config.json'),
-      JSON.stringify({
-        workspacePath: workspaceDir,
-        provisioned: true,
-        lastModel: null,
-        lastEffort: null
-      }),
-      'utf-8'
-    )
-
-    const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
-    const launchEnv = { ...process.env }
-    delete launchEnv.ELECTRON_RUN_AS_NODE
-    const launchArgs = [appPath, `--user-data-dir=${userDataDir}`]
-
-    let app = await electron.launch({ args: launchArgs, env: launchEnv })
+  // Keeps its own launch: it deliberately closes and relaunches the app to
+  // prove the layout survives a restart, which the shared `hiveApp` fixture
+  // cannot express. It still takes its workspace from the fixture, so the seam
+  // and the per-case isolation apply.
+  test('@p0 6 — dragging the rail resize handle persists its width across a reload', async ({
+    seeded
+  }) => {
+    let app = await launchSeededApp(seeded)
     try {
       let window = await app.firstWindow()
       await window.waitForLoadState('domcontentloaded')
@@ -319,7 +279,7 @@ test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app
 
       await app.close()
 
-      app = await electron.launch({ args: launchArgs, env: launchEnv })
+      app = await launchSeededApp(seeded)
       window = await app.firstWindow()
       await window.waitForLoadState('domcontentloaded')
       await waitForWorkUI(window)
@@ -333,42 +293,9 @@ test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app
         .toBeGreaterThan(before.width + 50)
     } finally {
       await app.close()
-      fs.rmSync(tmpRoot, { recursive: true, force: true })
     }
   })
 })
-
-/**
- * Waits out the onboarding gate (`App.tsx`'s `checking`/`checkingProvisioned`
- * spinner, then `UpdateGate` since the seeded config is `provisioned: true`)
- * until the real work UI (`WorkUI`'s file-tree rail) is on screen — or, per
- * `e2e/file-management.spec.ts`'s own version of this helper, clicks
- * UpdateGate's "continue anyway" escape hatch if the real `npx bmad-method`
- * update errors out. Duplicated (not imported) to keep this spec
- * self-contained, matching the existing file's own convention.
- */
-async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
-  const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
-
-  // The provisioning gate has TWO steps (BMAD, then second-brain / M12), each
-  // shelling out to a real network-backed CLI, and each offering "Continuar
-  // mesmo assim". Loop rather than clicking once, so a stalled or failing step
-  // never leaves the app parked on the gate.
-  for (let step = 0; step < 2; step++) {
-    await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
-      continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
-    ])
-    if (await rail.isVisible().catch(() => false)) break
-    if (await continueAnyway.isVisible().catch(() => false)) {
-      await continueAnyway.click()
-      await window.waitForTimeout(300)
-    }
-  }
-
-  await rail.waitFor({ state: 'visible', timeout: 30_000 })
-}
 
 /** Creates a root-level file or folder via the tree toolbar and its inline-name input (Enter-committed — T7's blur-commit path is exercised directly in scenario 3 above). */
 async function createEntry(window: Page, toolbarLabel: string, name: string): Promise<void> {

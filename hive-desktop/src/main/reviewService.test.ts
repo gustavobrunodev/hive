@@ -213,6 +213,47 @@ describe('acceptHunk / rejectHunk', () => {
     expect(remaining.some((l) => l.type === 'add' && l.text === 'L1_NEW')).toBe(false)
   })
 
+  /**
+   * P0-005 (test-design-qa.md, risk R-08 — DATA, score 6).
+   *
+   * Accept-then-reject is the ordinary review gesture — the user keeps one
+   * change and throws away another in the same file — and it is the only one
+   * that combines two operations over the same bytes. Each half is tested
+   * above in isolation; the interaction was not. If rejecting recomputed the
+   * reverse patch against the ORIGINAL baseline rather than the one that
+   * `acceptHunk` advanced, it would take the accepted change down with it, and
+   * the user would watch work they explicitly kept disappear.
+   */
+  it('rejecting a hunk after accepting a neighbour does not undo the accepted one', async () => {
+    const base = Array.from({ length: 12 }, (_, i) => `l${i + 1}`)
+    write('f.txt', base.join('\n') + '\n')
+    await svc.beginTurn(ws, 't1')
+    const edited = [...base]
+    edited[0] = 'L1_KEEP'
+    edited[11] = 'L12_DROP'
+    write('f.txt', edited.join('\n') + '\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['f.txt'])
+
+    const change = latest().changes.find((c) => c.path === 'f.txt')!
+    const firstId = `0:${change.diff.hunks[0].oldStart}:${change.diff.hunks[0].newStart}`
+    expect(await svc.acceptHunk(ws, 'f.txt', firstId)).toEqual({ ok: true })
+
+    // Re-derive the surviving hunk's id from the POST-accept snapshot: the
+    // indices shift, and rejecting a stale id is its own way to lose data.
+    const afterAccept = latest().changes.find((c) => c.path === 'f.txt')!
+    const survivor = afterAccept.diff.hunks[0]
+    const survivorId = `0:${survivor.oldStart}:${survivor.newStart}`
+    expect(await svc.rejectHunk(ws, 'f.txt', survivorId)).toEqual({ ok: true })
+
+    const final = read('f.txt')
+    expect(final).toContain('L1_KEEP') // the accepted change survived
+    expect(final).not.toContain('L12_DROP') // the rejected one is gone
+    expect(final).toContain('l12') // …restored to its pre-turn bytes
+    // And nothing else in the file moved.
+    expect(final.split('\n').filter((l) => l.length > 0)).toHaveLength(12)
+  })
+
   it('returns not-ok for an unknown hunk id', async () => {
     await svc.beginTurn(ws, 't1')
     write('f.txt', 'x\n')
@@ -240,6 +281,108 @@ describe('acceptAll / rejectAll', () => {
     expect(read('new.txt')).toBe('agent new\n')
     expect(latest().changes).toEqual([])
     expect(latest().turns).toEqual([])
+  })
+
+  /**
+   * P0-006 (test-design-qa.md, risk R-08 — DATA, score 6).
+   *
+   * Before the authorship guard, both of these destroyed the user's own work
+   * while reporting success (measured 2026-07-30): `rejectAll` deleted a file
+   * the user created with a turn open, and `rejectFile` silently reverted a
+   * user edit to a file the agent never touched. Nothing was committed and the
+   * trash is not involved — the checkpoint restore unlinks — so there was no
+   * way back.
+   *
+   * The guard classifies by TURN WINDOW: the agent only writes while a turn is
+   * in flight, so a change first observed with no turn open is the user's.
+   * See `reviewService.ts` for why `TurnMark.paths` is not the signal.
+   */
+  it('rejectAll leaves a user-created file alone and reports what it skipped', async () => {
+    await threeChanges()
+    // The user creates their own file — no turn is open, the agent is idle.
+    write('my-notes.md', 'written by the human\n')
+    await svc.onFsActivity(ws)
+    expect(latest().changes.find((c) => c.path === 'my-notes.md')!.userAuthored).toBe(true)
+
+    const res = await svc.rejectAll(ws)
+
+    expect(res).toEqual({ ok: true, skipped: 1 })
+    expect(read('my-notes.md')).toBe('written by the human\n')
+    // The agent's own changes are still fully reverted.
+    expect(read('mod.txt')).toBe('ORIGINAL\n')
+    expect(existsSync(join(ws, 'new.txt'))).toBe(false)
+    // What was NOT reverted stays visible in the set rather than vanishing.
+    expect(latest().changes.map((c) => c.path)).toEqual(['my-notes.md'])
+  })
+
+  it('rejectFile refuses a file the agent never touched instead of reverting it', async () => {
+    write('mine.txt', 'my original\n')
+    await svc.beginTurn(ws, 't1')
+    write('agent.txt', 'agent output\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['agent.txt'])
+
+    // User edits their own file with no turn in flight.
+    write('mine.txt', 'my edit\n')
+    await svc.onFsActivity(ws)
+
+    expect(await svc.rejectFile(ws, 'mine.txt')).toEqual({ ok: false, unattributed: true })
+    expect(read('mine.txt')).toBe('my edit\n')
+    // The agent's file is unaffected by the refusal and still rejectable.
+    expect(await svc.rejectFile(ws, 'agent.txt')).toEqual({ ok: true })
+    expect(existsSync(join(ws, 'agent.txt'))).toBe(false)
+  })
+
+  it('rejectHunk is refused on a user-authored file too', async () => {
+    write('mine.txt', 'l1\nl2\nl3\n')
+    await svc.beginTurn(ws, 't1')
+    write('agent.txt', 'agent\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['agent.txt'])
+
+    write('mine.txt', 'l1\nMINE\nl3\n')
+    await svc.onFsActivity(ws)
+    const change = latest().changes.find((c) => c.path === 'mine.txt')!
+    const h = change.diff.hunks[0]
+
+    expect(await svc.rejectHunk(ws, 'mine.txt', `0:${h.oldStart}:${h.newStart}`)).toEqual({
+      ok: false,
+      unattributed: true
+    })
+    expect(read('mine.txt')).toBe('l1\nMINE\nl3\n')
+  })
+
+  it('a file the agent wrote stays the agent\u2019s even after the user edits it (STALE still governs)', async () => {
+    // First observation wins. Otherwise a user touching an agent file would
+    // make it permanently un-rejectable, and the STALE guard — which exists to
+    // handle exactly that overlap — would never get a chance to run.
+    write('f.txt', 'ORIGINAL\n')
+    await svc.beginTurn(ws, 't1')
+    write('f.txt', 'agent wrote\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['f.txt'])
+    expect(latest().changes[0].userAuthored).toBeUndefined()
+
+    write('f.txt', 'user hand-edit\n')
+    utimesSync(join(ws, 'f.txt'), new Date(), new Date(Date.now() + 60_000))
+
+    // Not "unattributed" — STALE, which is the right conversation to have.
+    expect(await svc.rejectFile(ws, 'f.txt')).toEqual({ ok: false, stale: true })
+    expect(read('f.txt')).toBe('user hand-edit\n')
+  })
+
+  it('accepting a user-authored change is allowed — keeping bytes destroys nothing', async () => {
+    await threeChanges()
+    write('my-notes.md', 'written by the human\n')
+    await svc.onFsActivity(ws)
+
+    expect(await svc.acceptFile(ws, 'my-notes.md')).toEqual({ ok: true })
+    expect(read('my-notes.md')).toBe('written by the human\n')
+    expect(
+      latest()
+        .changes.map((c) => c.path)
+        .sort()
+    ).toEqual(['mod.txt', 'new.txt'])
   })
 
   it('rejectAll restores every pre-turn byte and clears the set', async () => {

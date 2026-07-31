@@ -12,6 +12,12 @@ export interface HunkActionsProps {
   label?: string
   /** Compact variant (icons only, tighter) for dense rows (panel/inline). */
   compact?: boolean
+  /**
+   * R-08 — this change is the user's own, so there is nothing for the agent
+   * review to throw away. Rejecting is disabled with the reason on the
+   * control, rather than left as a button that quietly does nothing.
+   */
+  rejectDisabledReason?: string
 }
 
 /**
@@ -27,7 +33,8 @@ export function HunkActions({
   onReject,
   target,
   label,
-  compact
+  compact,
+  rejectDisabledReason
 }: HunkActionsProps): React.JSX.Element {
   return (
     <div className="wb-hunk-actions" data-compact={compact || undefined}>
@@ -47,6 +54,9 @@ export function HunkActions({
         className="wb-hunk-btn"
         data-kind="reject"
         aria-label={t('review.rejectAria', target)}
+        title={rejectDisabledReason}
+        aria-description={rejectDisabledReason}
+        disabled={rejectDisabledReason !== undefined}
         onClick={onReject}
       >
         <CloseIcon size={14} aria-hidden="true" />

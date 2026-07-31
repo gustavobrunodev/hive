@@ -170,7 +170,14 @@ const { fakeBmadService, installGate } = vi.hoisted(() => {
   }
 })
 
-vi.mock('./bmadService', () => ({ createBmadService: vi.fn(() => fakeBmadService) }))
+// Partial-mocked (the `gitService` shape above), not wholesale: only the
+// factory is faked. `bmadService` also exports `isE2ESeamEnabled`, the B-1 flag
+// that `e2eAgentSeam.ts` reads while index.ts builds the agent registry — a
+// full replacement would make it `undefined` and take the bootstrap down.
+vi.mock('./bmadService', async () => {
+  const actual = await vi.importActual<typeof import('./bmadService')>('./bmadService')
+  return { ...actual, createBmadService: vi.fn(() => fakeBmadService) }
+})
 
 // GitService (git-management M10): mocked like FsService above — index.ts
 // wires window.hive.git.* to a real GitService (which imports no 'electron',

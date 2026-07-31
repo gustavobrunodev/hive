@@ -1,114 +1,150 @@
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { Page } from '@playwright/test'
-import path from 'node:path'
 import fs from 'node:fs'
-import os from 'node:os'
+import path from 'node:path'
+import { test, expect, launchSeededApp, waitForWorkUI } from './fixtures/workspace'
+import { armScriptedAgent } from './fixtures/scriptedAgent'
 
-// Agent Change Review (M11) E2E, ACR-R9.4 — Playwright driving the real built
-// Electron app. Mirrors git-management.spec.ts's `_electron.launch` +
-// seeded-config.json boot recipe (STATE.md T2/T11 lessons: strip
-// ELECTRON_RUN_AS_NODE, provision via the on-disk manifest marker).
+// Agent Change Review (M11) E2E — ACR-R9.4 and P1-018.
 //
-// Scope note: the pending set's *capture* is established by the turn checkpoint
-// (`reviewService.beginTurn`, taken when the agent CLI spawns) — which can't be
-// driven deterministically in the sandbox (no agent CLI is installed, and the
-// error-path `endTurn` races any file writes). The full on-disk round-trip
-// (acceptFile keeps bytes, rejectFile restores bytes, rejectAll restores all)
-// is therefore asserted authoritatively against **real git** in
-// `reviewService.test.ts` (design.md §9). This spec covers what a real launch
-// uniquely proves: the tiered review surface is wired end-to-end through
-// Electron + IPC + the renderer — the "Revisão do agente" activity-bar view
-// switches in and shows the calm teaching empty state (ACR-R1.8), and the
-// review bar stays absent while the set is clean (ACR-R2.3).
+// This spec's original scope note said the pending set's *capture* could not be
+// driven deterministically here, "no agent CLI is installed", so only the empty
+// state was reachable and the on-disk round-trip lived in reviewService.test.ts
+// alone. The scripted-agent seam (R-06, src/main/e2eAgentSeam.ts) retires that
+// premise: a real turn now writes real files under a real turn checkpoint, so
+// accept/reject is asserted here through the whole stack — IPC, shadow git,
+// panel — with the **disk** as the witness. The unit-level round-trip stays;
+// this is the deliberate defence-in-depth of R-08, not duplication.
+//
+// Seeding/launch come from the shared fixture (P0-001/R-16): one workspace and
+// one userData per case. The hand-rolled boot this file used to carry — which
+// clicked "Continuar mesmo assim", i.e. drove the gate's ERROR path — is gone.
 
-async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
-  const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
-  // The provisioning gate has TWO steps (BMAD, then second-brain / M12), each
-  // shelling out to a real network-backed CLI, and each offering "Continuar
-  // mesmo assim". Loop rather than clicking once, so a stalled or failing step
-  // never leaves the app parked on the gate.
-  for (let step = 0; step < 2; step++) {
-    await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
-      continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
-    ])
-    if (await rail.isVisible().catch(() => false)) break
-    if (await continueAnyway.isVisible().catch(() => false)) {
-      await continueAnyway.click()
-      await window.waitForTimeout(300)
-    }
-  }
-  await rail.waitFor({ state: 'visible', timeout: 30_000 })
+/** Sends one composer turn and waits for the agent's reply to land. */
+async function sendTurn(window: import('@playwright/test').Page, text: string): Promise<void> {
+  await window.getByPlaceholder('Escreva uma mensagem…').fill(text)
+  await window.getByRole('button', { name: 'Enviar' }).click()
 }
 
 test.describe('agent-change-review E2E (real Electron)', () => {
-  test('the Revisão do agente view switches in and shows the empty state; no bar when clean', async () => {
-    test.setTimeout(300_000)
+  test('a view Revisão do agente entra e mostra o estado vazio; sem barra quando limpo', async ({
+    hiveApp
+  }) => {
+    const { window, seeded } = hiveApp
 
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-e2e-review-'))
-    const workspace = path.join(tmpRoot, 'ws')
-    const userDataDir = path.join(tmpRoot, 'userData')
-    fs.mkdirSync(workspace, { recursive: true })
-    fs.mkdirSync(userDataDir, { recursive: true })
+    // The pending set is clean → the ambient review bar is not present.
+    await expect(window.locator('.wb-review-bar')).toHaveCount(0)
 
-    // Provisioned marker so the app boots straight into the work UI.
-    fs.mkdirSync(path.join(workspace, '_bmad', '_config'), { recursive: true })
-    fs.writeFileSync(path.join(workspace, '_bmad', '_config', 'manifest.yaml'), 'version: test\n')
-    fs.writeFileSync(path.join(workspace, 'README.md'), 'hello\n')
+    // Flip to the "Revisão do agente" activity-bar view (ACR-R2.4).
+    await window.getByRole('button', { name: /Revisão do agente/ }).click()
 
-    fs.writeFileSync(
-      path.join(userDataDir, 'config.json'),
-      JSON.stringify({
-        workspacePath: workspace,
-        provisioned: true,
-        recentWorkspaces: [],
-        agent: 'claude',
-        agents: ['claude'],
-        role: 'dev',
-        lastModel: null,
-        lastEffort: null
-      })
+    // The dedicated panel teaches instead of showing a void (ACR-R1.8).
+    await expect(window.getByText('Sem mudanças para revisar')).toBeVisible({ timeout: 15_000 })
+    await expect(
+      window.getByText('Quando o agente editar arquivos', { exact: false })
+    ).toBeVisible()
+
+    // The review bridge is exposed on window.hive (ACR-R2.5): a get on the
+    // clean workspace returns an empty pending set through real IPC.
+    const snapshot = await window.evaluate(
+      async (ws) => window.hive.review.get(ws),
+      seeded.workspace
     )
+    expect(snapshot).toEqual({ changes: [], turns: [] })
+  })
 
-    const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
-    const launchEnv = { ...process.env }
-    delete launchEnv.ELECTRON_RUN_AS_NODE
+  test('@p0 @destructive P1-018 aceitar um arquivo e rejeitar outro, asseverado em disco', async ({
+    seeded
+  }) => {
+    // A file that exists *before* the turn, so the set carries a modification
+    // as well as a creation — reject means two different things (restore the
+    // pre-turn bytes / remove the file) and both have to be right.
+    const readmePath = path.join(seeded.workspace, 'README.md')
+    fs.writeFileSync(readmePath, 'linha original\n', 'utf-8')
 
-    const app = await electron.launch({
-      args: [appPath, `--user-data-dir=${userDataDir}`],
-      env: launchEnv
+    const agent = armScriptedAgent(seeded, {
+      chunks: ['Editei os dois arquivos.'],
+      writes: [
+        { path: 'README.md', content: 'linha reescrita pelo agente\n' },
+        { path: 'docs/spec.md', content: '# Spec do agente\n' }
+      ]
     })
 
-    try {
-      const window = await app.firstWindow()
-      await window.waitForLoadState('domcontentloaded')
-      await waitForWorkUI(window)
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
 
-      // Dismiss the first-run guided tour (its overlay intercepts clicks).
-      await window.getByRole('button', { name: 'Pular tour' }).click({ timeout: 20_000 })
-      await window.locator('.wb-tour').waitFor({ state: 'hidden', timeout: 10_000 })
+    await sendTurn(window, 'reescreva o README e crie docs/spec.md')
 
-      // The pending set is clean → the ambient review bar is not present.
-      await expect(window.locator('.wb-review-bar')).toHaveCount(0)
+    // Both landed optimistically — that is the M11 model: the agent writes, the
+    // review decides afterwards.
+    const specPath = path.join(seeded.workspace, 'docs', 'spec.md')
+    await expect.poll(() => fs.existsSync(specPath), { timeout: 30_000 }).toBe(true)
 
-      // Flip to the "Revisão do agente" activity-bar view (ACR-R2.4).
-      await window.getByRole('button', { name: /Revisão do agente/ }).click()
+    // The ambient bar counts the pending set (ACR-R2.3).
+    await expect(window.locator('.wb-review-bar')).toContainText('2 mudanças pendentes', {
+      timeout: 20_000
+    })
 
-      // The dedicated panel shows the calm teaching empty state (ACR-R1.8),
-      // never a blank void.
-      await expect(window.getByText('Sem mudanças para revisar')).toBeVisible({ timeout: 15_000 })
-      await expect(
-        window.getByText('Quando o agente editar arquivos', { exact: false })
-      ).toBeVisible()
+    await window.getByRole('button', { name: /Revisão do agente/ }).click()
 
-      // The review bridge is exposed on window.hive (ACR-R2.5): a get on the
-      // clean workspace returns an empty pending set through real IPC.
-      const snapshot = await window.evaluate(async (ws) => window.hive.review.get(ws), workspace)
-      expect(snapshot).toEqual({ changes: [], turns: [] })
-    } finally {
-      await app.close()
-      fs.rmSync(tmpRoot, { recursive: true, force: true })
-    }
+    // --- Accept the modification: the agent's bytes stay ---------------------
+    await window.getByRole('button', { name: 'Aceitar README.md' }).click()
+    await expect(window.getByRole('button', { name: 'Aceitar README.md' })).toHaveCount(0, {
+      timeout: 15_000
+    })
+    expect(fs.readFileSync(readmePath, 'utf-8')).toBe('linha reescrita pelo agente\n')
+
+    // --- Reject the creation: the file goes away ----------------------------
+    await window.getByRole('button', { name: 'Rejeitar docs/spec.md' }).click()
+    await expect.poll(() => fs.existsSync(specPath), { timeout: 15_000 }).toBe(false)
+    // The accepted half is untouched by the rejection of its neighbour — the
+    // exact interaction P0-005 pins at hunk level, here at file level.
+    expect(fs.readFileSync(readmePath, 'utf-8')).toBe('linha reescrita pelo agente\n')
+
+    // Set emptied → the ambient bar retires itself.
+    await expect(window.locator('.wb-review-bar')).toHaveCount(0, { timeout: 15_000 })
+
+    await app.close()
+  })
+
+  test('@p0 @destructive P1-018 rejeitar o set inteiro devolve todos os arquivos ao pré-turno', async ({
+    seeded
+  }) => {
+    const readmePath = path.join(seeded.workspace, 'README.md')
+    fs.writeFileSync(readmePath, 'linha original\n', 'utf-8')
+
+    const agent = armScriptedAgent(seeded, {
+      chunks: ['Mexi em tudo.'],
+      writes: [
+        { path: 'README.md', content: 'reescrito\n' },
+        { path: 'docs/spec.md', content: '# Spec\n' }
+      ]
+    })
+
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
+
+    await sendTurn(window, 'mexa nos dois arquivos')
+
+    const specPath = path.join(seeded.workspace, 'docs', 'spec.md')
+    await expect.poll(() => fs.existsSync(specPath), { timeout: 30_000 }).toBe(true)
+    await expect(window.locator('.wb-review-bar')).toContainText('2 mudanças pendentes', {
+      timeout: 20_000
+    })
+
+    // The one destructive modal in the module (G4): it names what it will undo
+    // and asks before doing it.
+    await window.locator('.wb-review-bar').getByRole('button', { name: 'Rejeitar tudo' }).click()
+    await expect(window.getByText('Rejeitar todas as mudanças?')).toBeVisible()
+    await window.getByRole('button', { name: 'Rejeitar tudo', exact: true }).last().click()
+
+    // Disk is the witness: the pre-turn bytes are back and the created file is gone.
+    await expect
+      .poll(() => fs.readFileSync(readmePath, 'utf-8'), { timeout: 20_000 })
+      .toBe('linha original\n')
+    expect(fs.existsSync(specPath)).toBe(false)
+    await expect(window.locator('.wb-review-bar')).toHaveCount(0, { timeout: 15_000 })
+
+    await app.close()
   })
 })

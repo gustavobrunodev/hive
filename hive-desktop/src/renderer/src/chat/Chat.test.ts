@@ -220,6 +220,12 @@ describe('Chat', () => {
       workspaceFiles?: string[]
       /** chat-attachments: what the native picker resolves with. */
       pickedAttachments?: Array<{ path: string; name: string; size: number }>
+      /**
+       * multi-agent: an adapter's advertised model/effort menus. Overridable
+       * because Devin and Copilot advertise NEITHER, and the composer's
+       * "hide the picker, leave the value null" path only exists for them.
+       */
+      capabilities?: { models: unknown[]; efforts: unknown[]; supportsAttachments?: boolean }
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
@@ -256,14 +262,16 @@ describe('Chat', () => {
       ...window.hive,
       listFiles: vi.fn().mockResolvedValue(options.workspaceFiles ?? []),
       agent: {
-        capabilities: vi.fn().mockResolvedValue({
-          models: [
-            { id: 'model-a', label: 'Modelo A' },
-            { id: 'model-b', label: 'Modelo B' }
-          ],
-          efforts: [{ id: 'low', label: 'Baixo' }],
-          supportsAttachments: true
-        }),
+        capabilities: vi.fn().mockResolvedValue(
+          options.capabilities ?? {
+            models: [
+              { id: 'model-a', label: 'Modelo A' },
+              { id: 'model-b', label: 'Modelo B' }
+            ],
+            efforts: [{ id: 'low', label: 'Baixo' }],
+            supportsAttachments: true
+          }
+        ),
         chooseAttachments: vi.fn().mockResolvedValue(options.pickedAttachments ?? []),
         start: vi.fn(
           (opts: { agentId?: string; workspace: string; model?: string; effort?: string }) => {
@@ -381,6 +389,28 @@ describe('Chat', () => {
     renderChat()
     expect(await screen.findByText('Modelo A')).toBeTruthy()
     expect(screen.getByText('Baixo')).toBeTruthy()
+  })
+
+  // P0-011 (R-03): an adapter that advertises no model and no effort menus.
+  // This is not a hypothetical edge — Chat.tsx's own comment names Devin and
+  // Copilot as exactly this shape, and both are shipped agents. The composer
+  // has to hide both pickers and keep the values null so they are omitted from
+  // the turn, rather than sending an empty string the CLI will reject.
+  it('hides the model and effort pickers for an adapter that advertises neither', async () => {
+    renderChat({ capabilities: { models: [], efforts: [], supportsAttachments: true } })
+
+    await screen.findByPlaceholderText('Escreva uma mensagem…')
+    expect(screen.queryByText('Modelo A')).toBeNull()
+    expect(screen.queryByText('Baixo')).toBeNull()
+
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'oi' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    const [, opts] = vi.mocked(window.hive.agent.send).mock.calls[0]
+    expect((opts as { model?: unknown }).model ?? null).toBeNull()
+    expect((opts as { effort?: unknown }).effort ?? null).toBeNull()
   })
 
   it('clicking a workflow action calls runWorkflow and renders a user message + typing indicator', async () => {
@@ -631,6 +661,58 @@ describe('Chat', () => {
     expect(await screen.findByText('Nenhum comando disponível neste workspace.')).toBeTruthy()
   })
 
+  // P2-002: the two empty states are different diagnoses and must not collapse
+  // into one. "Nothing installed" tells the user to provision the workspace;
+  // "nothing matched" tells them the skill they typed was never discovered —
+  // reading the first when the catalogue is fine would send them to fix a
+  // workspace that has no problem.
+  it('a query matching no installed skill reads as "no match", not "nothing installed"', async () => {
+    renderChat({ skills: [{ key: 'bmad-prd', label: 'Create PRD', description: '' }] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+
+    fireEvent.change(input, { target: { value: '/naoexiste' } })
+
+    expect(await screen.findByText('Nenhum comando encontrado.')).toBeTruthy()
+    expect(screen.queryByText('Nenhum comando disponível neste workspace.')).toBeNull()
+    expect(screen.queryByText('/bmad-prd')).toBeNull()
+  })
+
+  it('an undiscovered skill leaves nothing selectable — Enter does not launch a turn', async () => {
+    renderChat({ skills: [{ key: 'bmad-prd', label: 'Create PRD', description: '' }] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/naoexiste' } })
+    await screen.findByText('Nenhum comando encontrado.')
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(window.hive.agent.runWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('the mention menu says so when the workspace has no files at all', async () => {
+    renderChat({ workspaceFiles: [] })
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'veja #' }
+    })
+
+    expect(await screen.findByText('Nenhum arquivo encontrado no workspace.')).toBeTruthy()
+    expect(screen.queryByText('Nenhum arquivo corresponde à busca.')).toBeNull()
+  })
+
+  it('the mention menu reads as "no match" when the workspace has files but none match', async () => {
+    renderChat({ workspaceFiles: ['README.md'] })
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'veja #naoexiste' }
+    })
+
+    expect(await screen.findByText('Nenhum arquivo corresponde à busca.')).toBeTruthy()
+    expect(screen.queryByText('Nenhum arquivo encontrado no workspace.')).toBeNull()
+  })
+
   // chat-attachments — `#` workspace-file references.
   it('opens the file mention menu on # listing workspace files, and filters', async () => {
     renderChat({ workspaceFiles: ['README.md', 'docs/prd.md'] })
@@ -770,6 +852,31 @@ describe('Chat', () => {
         attachments: ['docs/prd.md']
       })
     )
+  })
+
+  // P0-011 (R-03): the drop test above uses a nested path, so the chip's
+  // "which folder is this in?" caption only ever took its nested arm. A file
+  // at the workspace root has no parent to name — rendering an empty caption
+  // line, or falling through to the file-size branch (size is 0 for a
+  // workspace drop, so it would read "0 B"), is the visible failure.
+  it('a dropped root-level file shows its name with no parent-folder caption', async () => {
+    renderChat({ workspaceFiles: ['README.md'] })
+    await screen.findByText('Modelo A')
+
+    const wrap = document.querySelector('.wb-composer-wrap') as HTMLElement
+    fireEvent.drop(wrap, {
+      dataTransfer: {
+        types: ['application/x-hive-workspace-file'],
+        getData: () => JSON.stringify(['README.md']),
+        files: []
+      }
+    })
+
+    const chip = (await screen.findByText('README.md')).closest('.wb-composer-chip') as HTMLElement
+    expect(chip).not.toBeNull()
+    expect(chip.textContent).toContain('README.md')
+    // No size fallback leaking in where a folder name would go.
+    expect(chip.textContent).not.toContain('B')
   })
 
   it('a dropped workspace chip and its typed #reference dedupe into one context file', async () => {

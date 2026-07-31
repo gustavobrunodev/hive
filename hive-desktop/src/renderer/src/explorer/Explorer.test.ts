@@ -172,8 +172,31 @@ vi.mock('@hive/design-system', () => ({
     ),
   CodeBlock: ({ children }: { children?: ReactNode }) =>
     createElement('pre', { 'data-testid': 'code-viewer' }, children),
-  Dialog: ({ children }: { children?: ReactNode }) =>
-    createElement('div', { role: 'dialog' }, children),
+  // Honours `onOpenChange` (via an explicit dismiss affordance) rather than
+  // dropping it: Radix fires it on Escape and backdrop-click, and Explorer
+  // relies on that to cancel a delete and to cancel a name conflict. Dropping
+  // the prop made those dismissal paths unreachable from a test.
+  Dialog: ({
+    children,
+    onOpenChange
+  }: {
+    children?: ReactNode
+    onOpenChange?: (open: boolean) => void
+  }) =>
+    createElement(
+      'div',
+      { role: 'dialog' },
+      children,
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'dialog-dismiss',
+          onClick: () => onOpenChange?.(false)
+        },
+        'dismiss'
+      )
+    ),
   DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
   DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
@@ -491,6 +514,32 @@ describe('Explorer (T12/T8)', () => {
     expect(window.hive.readFile).not.toHaveBeenCalled()
     expect(aRow.className).not.toContain('hds-tree-item-selected')
     expect(prdRow.className).toContain('hds-tree-item-selected')
+  })
+
+  // P0-011 (R-03): the delete confirmation's plural wording. Every existing
+  // delete test deletes one item, so the dialog only ever rendered the
+  // singular "\"nome\" será movido…" arm. On a bulk selection that copy would
+  // name one file while the action trashes several — the user confirms a
+  // destructive operation on the strength of a sentence that understates it.
+  it('deleting a multi-selection confirms with the plural wording and trashes every item', async () => {
+    mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+
+    const aRow = (await screen.findByText('a.txt')).closest('[role="treeitem"]') as HTMLElement
+    const prdRow = (await screen.findByText('prd.md')).closest('[role="treeitem"]') as HTMLElement
+    fireEvent.click(aRow, { ctrlKey: true })
+    fireEvent.click(prdRow, { ctrlKey: true })
+
+    fireEvent.contextMenu(screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Excluir/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('2 itens serão movidos')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover para a lixeira' }))
+    await waitFor(() => {
+      expect(window.hive.fs.trash).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('a plain click on a directory still sets activeDirPath and never opens the viewer', async () => {
@@ -1293,6 +1342,137 @@ describe('Explorer (T12/T8)', () => {
     await waitFor(() => {
       expect(window.hive.fs.createDirectory).toHaveBeenCalledWith('/ws', 'raiz')
     })
+  })
+
+  // P0-011 (R-03): the context menu was half-tested — "Novo arquivo" only from
+  // a row, "Nova pasta" only from the empty area, and neither Renomear nor
+  // Excluir at all. Each item is its own callback with its own scoping rule,
+  // and the row/area split is exactly where a wrong scope hides.
+  it('right-clicking a row and picking "Nova pasta" creates inside that row\'s folder', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const row = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Nova pasta/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'sub' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createDirectory).toHaveBeenCalledWith('/ws', 'docs/sub')
+    })
+  })
+
+  it('right-clicking the empty area and picking "Novo arquivo" creates at the workspace root', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const area = document.querySelector('.wb-tree-body') as HTMLElement
+    fireEvent.contextMenu(area)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Novo arquivo/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'raiz.md' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'raiz.md', undefined)
+    })
+  })
+
+  it('right-clicking a FILE row scopes create actions to its parent folder, not to the file', async () => {
+    // The row actions branch on whether the row is a directory. Only the
+    // directory arm was tested; on a file the target has to fall back to the
+    // parent, or the app tries to create a child of a file.
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('prd.md')
+
+    const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Nova pasta/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'ao-lado' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    // Sibling of prd.md (inside docs/), not docs/prd.md/ao-lado.
+    await waitFor(() => {
+      expect(window.hive.fs.createDirectory).toHaveBeenCalledWith('/ws', 'docs/ao-lado')
+    })
+  })
+
+  it('right-clicking a FILE row and picking "Novo arquivo" also targets the parent folder', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('prd.md')
+
+    const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Novo arquivo/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'irmao.md' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'docs/irmao.md', undefined)
+    })
+  })
+
+  it('the kebab menu on a FOLDER row creates inside that folder', async () => {
+    // The kebab carries its own copy of the is-this-a-directory scoping rule,
+    // separate from the context menu's. It was only ever driven from a file
+    // row, so the directory arm went unexercised.
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('docs')
+
+    fireEvent.click(screen.getByLabelText(/Mais ações para docs/))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Nova pasta/ }))
+
+    const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+    fireEvent.change(input, { target: { value: 'dentro' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.createDirectory).toHaveBeenCalledWith('/ws', 'docs/dentro')
+    })
+  })
+
+  it('right-clicking a row and picking "Renomear" opens the inline rename on that row', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Renomear/ }))
+
+    const input = (await screen.findByPlaceholderText('Novo nome')) as HTMLInputElement
+    // Pre-filled with the current name — renaming starts from what is there.
+    expect(input.value).toBe('a.txt')
+    fireEvent.change(input, { target: { value: 'b.txt' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'b.txt')
+    })
+  })
+
+  it('right-clicking a row and picking "Excluir" asks for confirmation, and dismissing aborts it', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+    fireEvent.contextMenu(row)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Excluir/ }))
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+
+    // Dismissing (Escape / backdrop, not the Cancelar button) must abort —
+    // this is a destructive action, so a dismissal that deletes anyway is the
+    // worst possible failure.
+    fireEvent.click(screen.getByTestId('dialog-dismiss'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(window.hive.fs.trash).not.toHaveBeenCalled()
   })
 
   it('typing inside the inline create input never bubbles keys to the tree (no typeahead exit)', async () => {
@@ -2317,6 +2497,53 @@ describe('Explorer (T12/T8)', () => {
     expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
+    expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+      'edited content'
+    )
+  })
+
+  // P0-011 (R-03). Both guards below were only ever tested by clicking one of
+  // their buttons. Radix also closes on Escape and backdrop-click, and that
+  // path runs different code — for two dialogs whose whole job is to stop the
+  // user losing work, "dismissed" resolving to the destructive answer is the
+  // failure that matters.
+  it('dismissing the STALE dialog keeps the local edits and does not overwrite the disk', async () => {
+    window.hive.fs.saveFile = vi
+      .fn()
+      .mockRejectedValue({ name: 'FsConflictError', code: 'STALE', message: 'x' })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }))
+    await screen.findByRole('dialog')
+
+    const savesBefore = vi.mocked(window.hive.fs.saveFile).mock.calls.length
+    fireEvent.click(screen.getByTestId('dialog-dismiss'))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // Edits survive, and no second save was attempted behind the user's back.
+    expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+      'edited content'
+    )
+    expect(vi.mocked(window.hive.fs.saveFile).mock.calls).toHaveLength(savesBefore)
+  })
+
+  it('dismissing the unsaved-changes guard aborts the switch and keeps the edits', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('a.txt'))
+    fireEvent.change(await screen.findByLabelText('Conteúdo do arquivo'), {
+      target: { value: 'edited content' }
+    })
+
+    fireEvent.click(screen.getByText('prd.md'))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByTestId('dialog-dismiss'))
+
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(window.hive.readFile).not.toHaveBeenCalledWith('/ws', 'docs/prd.md')
     expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(

@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
@@ -377,6 +385,100 @@ describe('createUpdateService', () => {
       [join(stagingRoot, '0.2.0', ASSET_NAME), [], { detached: true, stdio: 'ignore' }]
     ])
     expect(applyDeps.quitCalls).toBe(1)
+  })
+
+  /**
+   * P0-012 (test-design-qa.md, risk R-10 — OPS, score 6): "applying a
+   * downloaded update swaps the payload and the app comes up on the new
+   * version", against a fake registry.
+   *
+   * The happy path above proves the event ORDER and that the right *path* is
+   * handed to the platform strategy. What it cannot see is whether the bytes
+   * at that path are the ones the registry advertised — a swap that stages the
+   * wrong payload, or reuses a stale one, produces exactly the same event
+   * sequence and the same path. The native apply itself stays manual (no
+   * Windows hardware, ND T18); everything up to handing the installer over is
+   * automatable, and that is what these two pin.
+   */
+  it('stages the exact advertised payload — bytes on disk match the manifest sha512', async () => {
+    const installer = Buffer.from('the real 0.2.0 installer payload')
+    const registryClient = createFakeRegistryClient({
+      latest: latestBody('0.2.0', ASSET_NAME, 'notes'),
+      release: githubReleaseBody(installer.length),
+      manifest: manifestBody(installer)
+    })
+    const applyDeps = fakeApplyDeps()
+    const service = createUpdateService(
+      baseDeps({ registryClient, downloader: fakeDownloader(installer), applyDeps })
+    )
+
+    service.check(true)
+    await flush()
+    service.download()
+    await flush()
+    service.install()
+    await flush()
+
+    const staged = join(stagingRoot, '0.2.0', ASSET_NAME)
+    // The installer handed to the platform strategy is the file on disk…
+    expect(applyDeps.spawnCalls[0][0]).toBe(staged)
+    // …and its bytes are the advertised payload, not a truncated or stale one.
+    const onDisk = readFileSync(staged)
+    expect(onDisk.equals(installer)).toBe(true)
+    expect(sha512Base64(onDisk)).toBe(sha512Base64(installer))
+    expect(applyDeps.quitCalls).toBe(1)
+  })
+
+  it('a second, newer release stages its own payload rather than re-applying the first', async () => {
+    // The upgrade-twice bug: a service that keys staging on "already
+    // downloaded" rather than on the version happily re-applies the previous
+    // installer, and the user stays on the old build while every event says
+    // the update succeeded.
+    const first = Buffer.from('installer for 0.2.0')
+    const second = Buffer.from('a DIFFERENT installer, for 0.3.0')
+
+    const firstRun = createUpdateService(
+      baseDeps({
+        registryClient: createFakeRegistryClient({
+          latest: latestBody('0.2.0', ASSET_NAME),
+          release: githubReleaseBody(first.length),
+          manifest: manifestBody(first)
+        }),
+        downloader: fakeDownloader(first)
+      })
+    )
+    firstRun.check(true)
+    await flush()
+    firstRun.download()
+    await flush()
+    expect(readFileSync(join(stagingRoot, '0.2.0', ASSET_NAME)).equals(first)).toBe(true)
+
+    // A later session, now running 0.2.0, finds 0.3.0 — same staging root.
+    const applyDeps = fakeApplyDeps()
+    const secondRun = createUpdateService(
+      baseDeps({
+        currentVersion: '0.2.0',
+        applyDeps,
+        registryClient: createFakeRegistryClient({
+          latest: latestBody('0.3.0', ASSET_NAME),
+          release: githubReleaseBody(second.length),
+          manifest: manifestBody(second, { version: '0.3.0', bytes: second.length })
+        }),
+        downloader: fakeDownloader(second)
+      })
+    )
+    secondRun.check(true)
+    await flush()
+    secondRun.download()
+    await flush()
+    secondRun.install()
+    await flush()
+
+    const staged = join(stagingRoot, '0.3.0', ASSET_NAME)
+    expect(applyDeps.spawnCalls[0][0]).toBe(staged)
+    expect(readFileSync(staged).equals(second)).toBe(true)
+    // The 0.2.0 payload is not what got applied.
+    expect(readFileSync(staged).equals(first)).toBe(false)
   })
 
   it('falls back to emitting verifying right before downloaded when total is never known', async () => {

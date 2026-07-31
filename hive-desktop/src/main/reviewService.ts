@@ -65,6 +65,16 @@ interface WorkspaceState {
   changes: ReviewChange[]
   /** path → mtimeMs captured at the last recompute, for the STALE guard (ACR-R3.2). */
   mtimes: Map<string, number>
+  /**
+   * R-08 authorship tracking. `classified` is every path we have already made a
+   * call on (first observation wins — a file the agent created stays the
+   * agent's even if the user edits it afterwards, which is what the STALE guard
+   * is for); `userAuthored` is the subset attributed to the user.
+   */
+  classified: Set<string>
+  userAuthored: Set<string>
+  /** Turn ids currently in flight — empty means the agent is not writing. */
+  openTurns: Set<string>
 }
 
 /** Sums a diff's add/del line counts (binary/tooLarge → 0/0, rendered as a state, never a count). */
@@ -88,7 +98,15 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
   function stateFor(workspace: string): WorkspaceState {
     let s = states.get(workspace)
     if (!s) {
-      s = { baseline: null, turns: [], changes: [], mtimes: new Map() }
+      s = {
+        baseline: null,
+        turns: [],
+        changes: [],
+        mtimes: new Map(),
+        classified: new Set(),
+        userAuthored: new Set(),
+        openTurns: new Set()
+      }
       states.set(workspace, s)
     }
     return s
@@ -113,11 +131,21 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     const s = stateFor(workspace)
     const raw = await checkpoint.diffToWorkTree(workspace, s.baseline as string)
     const mtimes = new Map<string, number>()
+    // R-08 authorship. The agent only writes while a turn is in flight, so a
+    // change first seen with no turn open cannot be the agent's. First
+    // observation wins — see `classified`.
+    const agentWriting = s.openTurns.size > 0
     s.changes = raw.map((c) => {
       const { adds, dels } = countLines(c.diff)
       const m = mtimeOf(workspace, c.path)
       if (m !== null) mtimes.set(c.path, m)
-      return { path: c.path, status: c.status, diff: c.diff, adds, dels }
+      if (!s.classified.has(c.path)) {
+        s.classified.add(c.path)
+        if (!agentWriting) s.userAuthored.add(c.path)
+      }
+      const change: ReviewChange = { path: c.path, status: c.status, diff: c.diff, adds, dels }
+      if (s.userAuthored.has(c.path)) change.userAuthored = true
+      return change
     })
     s.mtimes = mtimes
     // The set went empty (everything reviewed) → drop the baseline so the next
@@ -125,7 +153,37 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     if (s.changes.length === 0) {
       s.baseline = null
       s.turns = []
+      s.classified.clear()
+      s.userAuthored.clear()
     }
+  }
+
+  /**
+   * R-08 (DATA, score 6) — refuse to throw away a change the agent did not make.
+   *
+   * The review model is "baseline tree × work tree", so *anything* newer than
+   * the baseline read as agent output. Measured 2026-07-30: `rejectAll` deleted
+   * a file the user created while a turn was open, and `rejectFile` silently
+   * reverted a user edit to a file the agent never touched — both reporting
+   * success, with nothing committed and the trash not involved.
+   *
+   * The signal is the TURN WINDOW, not `TurnMark.paths`. The paths come from
+   * the adapter's tool_use and their own doc-comment calls them "best-effort …
+   * empty is fine" — scoping a revert to a list that is allowed to be empty
+   * would silently turn reject into a no-op. Whether a turn was in flight is
+   * something this service knows first-hand.
+   *
+   * Direction of failure is chosen deliberately: a misclassified agent change
+   * is left on disk, visible in the pending set, and the user can still reject
+   * it per-file after accepting the rest — annoying and recoverable. A
+   * misclassified user file is deleted with no undo. So when in doubt, keep.
+   */
+  function unattributedResult(): ReviewResult {
+    return { ok: false, unattributed: true }
+  }
+
+  function isUserAuthored(workspace: string, path: string): boolean {
+    return stateFor(workspace).userAuthored.has(path)
   }
 
   function snapshotOf(s: WorkspaceState): ReviewSnapshot {
@@ -146,6 +204,7 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
       s.turns = []
     }
     s.turns.push({ turnId, at: now(), paths: [] })
+    s.openTurns.add(turnId)
     emit(workspace)
   }
 
@@ -160,7 +219,11 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     const s = stateFor(workspace)
     const mark = s.turns.find((t) => t.turnId === turnId)
     if (mark) mark.paths = paths
+    // Recompute BEFORE closing the window: the writes this turn just made are
+    // the agent's, and a file first observed here must not be misread as the
+    // user's.
     if (s.baseline !== null) await recompute(workspace)
+    s.openTurns.delete(turnId)
     emit(workspace)
   }
 
@@ -205,6 +268,7 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
   async function rejectFile(workspace: string, path: string): Promise<ReviewResult> {
     const s = stateFor(workspace)
     if (s.baseline === null) return { ok: true }
+    if (isUserAuthored(workspace, path)) return unattributedResult()
     if (isStale(workspace, path)) return staleResult(workspace, path)
     await checkpoint.revertPath(workspace, s.baseline, path)
     await recompute(workspace)
@@ -246,6 +310,7 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
   ): Promise<ReviewResult> {
     const s = stateFor(workspace)
     if (s.baseline === null) return { ok: true }
+    if (isUserAuthored(workspace, path)) return unattributedResult()
     if (isStale(workspace, path)) return staleResult(workspace, path)
     const hunk = resolveHunk(workspace, path, hunkId)
     if (!hunk) return { ok: false }
@@ -269,13 +334,20 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     const s = stateFor(workspace)
     if (s.baseline === null) return { ok: true }
     // Revert each pending path to its baseline bytes (created→delete,
-    // modified→revert, deleted→restore), then the set diffs clean.
+    // modified→revert, deleted→restore), then the set diffs clean — EXCEPT the
+    // user's own changes (R-08), which are left on disk and stay in the set so
+    // the user can see exactly what "reject all" did not touch.
+    let skipped = 0
     for (const change of s.changes) {
+      if (s.userAuthored.has(change.path)) {
+        skipped++
+        continue
+      }
       await checkpoint.revertPath(workspace, s.baseline, change.path)
     }
-    await recompute(workspace) // → empty → clears baseline + turns
+    await recompute(workspace) // → empty (unless skips remain) → clears baseline
     emit(workspace)
-    return { ok: true }
+    return skipped > 0 ? { ok: true, skipped } : { ok: true }
   }
 
   function teardown(workspace: string): void {

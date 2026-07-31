@@ -123,4 +123,35 @@ describe('UpdateGate (T10)', () => {
 
     expect(unsubscribe).toHaveBeenCalled()
   })
+
+  // P1-004: the two variants the gate deliberately ignores, and the guard that
+  // makes a late event harmless. Both were uncovered branches — and the second
+  // is the difference between a clean unmount and a state update on a dead tree.
+  it('ignores the stream variants it has no screen for', async () => {
+    const { emit } = mockUpdateBmad()
+    const onComplete = vi.fn()
+
+    render(createElement(UpdateGate, { workspace: '/ws', onComplete }))
+
+    emit({ type: 'step', id: 'x', label: 'passo' })
+    emit({ type: 'prompt', id: 'q1', question: 'pergunta' })
+    // …while a `progress` message is the one thing it does surface.
+    emit({ type: 'progress', message: 'Baixando módulos' })
+    await waitFor(() => expect(screen.getByText('Baixando módulos')).toBeTruthy())
+
+    await waitFor(() => expect(screen.getByText('Atualizando o BMAD')).toBeTruthy())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('drops events that arrive after unmount', () => {
+    const { emit } = mockUpdateBmad()
+    const onComplete = vi.fn()
+
+    const { unmount } = render(createElement(UpdateGate, { workspace: '/ws', onComplete }))
+    unmount()
+    emit({ type: 'done', ok: true })
+
+    expect(onComplete).not.toHaveBeenCalled()
+  })
 })

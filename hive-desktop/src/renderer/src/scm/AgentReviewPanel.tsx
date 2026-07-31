@@ -48,6 +48,7 @@ function ReviewRow({
       className="wb-review-row"
       data-status={change.status}
       data-stale={change.staleUserEdit || undefined}
+      data-user-authored={change.userAuthored || undefined}
     >
       <button
         type="button"
@@ -72,6 +73,9 @@ function ReviewRow({
         target={change.path}
         onAccept={() => onAccept(change.path)}
         onReject={() => onReject(change.path)}
+        rejectDisabledReason={
+          change.userAuthored ? t('review.rejectUserAuthoredReason') : undefined
+        }
       />
     </div>
   )

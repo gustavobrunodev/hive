@@ -44,18 +44,17 @@ jobs:
 
       - run: npm ci
 
+      # P0-011 (test-design-qa.md, risks R-03/R-04). `verify` now RUNS coverage
+      # — the separate reporting-only step below is gone, and with it the
+      # `continue-on-error` that made the gate advisory.
+      #
+      # It was advisory because it was red in 14 places, and a permanently-red
+      # gate teaches everyone to ignore it. Both halves are now fixed: the
+      # denominator was sanitised first (it was instrumenting `out/**`, which
+      # is what produced a meaningless 16.31% global — see vitest.config.ts),
+      # and then the 14 per-file violations were cleared. Measured 2026-07-30:
+      # 1649 tests, `npm run test:coverage` exit 0, global 97.07%.
       - run: npm run verify
-
-      # Reported, not gated — and that is a finding, not a preference. Because
-      # `verify` never ran coverage, nobody saw that the per-file 90% gate the
-      # project documents as its convention is currently red in 14 places
-      # (Explorer + its viewers, WorkUI, Chat, preload/index). See
-      # .specs/project/HARNESS.md for the list. Flip this to a gate — drop the
-      # continue-on-error — once it's clean; a permanently-red gate teaches
-      # everyone to ignore it.
-      - name: coverage (per-file 90% — reporting known debt)
-        run: npm run test:coverage
-        continue-on-error: true
 
   e2e:
     name: e2e (real Electron)
@@ -90,9 +89,18 @@ jobs:
       # boot Electron as plain Node — see AGENTS.md).
       - run: xvfb-run -a npm run test:e2e:app
 
+      # B-2: this used to upload only `playwright-report/`, which the `list`
+      # reporter never creates — the upload was a no-op and four red specs went
+      # undiagnosed. The config now emits the html report AND the per-test
+      # trace/screenshot/video under `test-results/`; both paths are uploaded.
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: hive-desktop/playwright-report/
+          path: |
+            hive-desktop/playwright-report/
+            hive-desktop/test-results/
+          # if-no-files-found: error is deliberate — a silent empty upload is
+          # exactly the failure mode B-2 exists to kill.
+          if-no-files-found: error
           retention-days: 7

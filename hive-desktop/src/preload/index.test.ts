@@ -400,6 +400,22 @@ describe('preload: window.hive bridge', () => {
     await hive.profile.setAgent('claude-cli')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setAgent', 'claude-cli')
 
+    // P0-011: the *enabled set* pair, distinct from the default-agent pair
+    // above and previously untested. Confusing the two is the difference
+    // between changing which agent runs and changing which are offered.
+    const profile = hive.profile as unknown as {
+      getAgents: () => Promise<unknown>
+      setAgents: (ids: string[]) => Promise<unknown>
+    }
+    await expect(profile.getAgents()).resolves.toBe('invoked:profile:getAgents')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:getAgents')
+
+    await profile.setAgents(['claude-cli', 'copilot-cli'])
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setAgents', [
+      'claude-cli',
+      'copilot-cli'
+    ])
+
     await expect(hive.profile.getRole()).resolves.toBe('invoked:profile:getRole')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:getRole')
 
@@ -855,6 +871,45 @@ describe('preload: window.hive bridge', () => {
     })
   })
 
+  // P0-011 (R-03): the MCP module's bridge had no test at all — six methods
+  // whose only job is to carry the right channel and the right argument order.
+  // A transposed argument here is invisible until a user's `.mcp.json` is
+  // written wrong.
+  describe('hive.mcp bridge', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mcp = (): any => (exposedGlobals().get('hive') as any).mcp
+
+    it('routes every mcp:* method with its arguments in handler order', async () => {
+      const config = { command: 'npx', args: ['-y', 'some-server'] }
+
+      await mcp().list('/ws')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('mcp:list', '/ws')
+
+      await mcp().add('/ws', 'srv', config)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('mcp:add', '/ws', 'srv', config)
+
+      // update carries BOTH names — the original (to find the entry) and the
+      // new one (to rename it). Swapping them silently renames the wrong server.
+      await mcp().update('/ws', 'old-name', 'new-name', config)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        'mcp:update',
+        '/ws',
+        'old-name',
+        'new-name',
+        config
+      )
+
+      await mcp().remove('/ws', 'srv')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('mcp:remove', '/ws', 'srv')
+
+      await mcp().setEnabled('/ws', 'srv', false)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('mcp:setEnabled', '/ws', 'srv', false)
+
+      await mcp().probe('/ws', 'srv')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('mcp:probe', '/ws', 'srv')
+    })
+  })
+
   // Second Brain (M12): streamed install/update + invoke isProvisioned/getVault/stageRaw.
   describe('hive.secondBrain bridge', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -867,6 +922,16 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('secondBrain:getVault', '/ws')
       await sb().stageRaw('/ws', 'hello')
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('secondBrain:stageRaw', '/ws', 'hello')
+    })
+
+    // P0-011 (R-03): the health-cadence quartet (SB-R10) shipped with a bridge
+    // but no bridge test. An unwired channel name here fails silently at
+    // runtime — the renderer just never hears back.
+    it('routes the health-cadence quartet through the matching secondBrain:* channels', async () => {
+      for (const method of ['getHealth', 'noteIngest', 'noteLint', 'snoozeHealth'] as const) {
+        await sb()[method]('/ws')
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith(`secondBrain:${method}`, '/ws')
+      }
     })
 
     for (const kind of ['install', 'update'] as const) {

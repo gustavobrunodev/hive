@@ -169,4 +169,41 @@ describe('SecondBrainGate (T5)', () => {
     unmount()
     expect(m.installUnsub).toHaveBeenCalled()
   })
+
+  // P1-004: the stream's optional fields and the late-event guard. A `step`
+  // without a label must clear the caption rather than print "undefined", and
+  // an event after unmount must not touch state on a dead tree.
+  it('tolerates label-less events and drops late ones', async () => {
+    const m = mockSecondBrain(false)
+    const onComplete = vi.fn()
+    const { unmount } = render(createElement(SecondBrainGate, { workspace: '/ws', onComplete }))
+    await waitFor(() => expect(m.install).toHaveBeenCalled())
+
+    m.emitInstall({ type: 'step', id: 'x', label: 'com rótulo' })
+    await waitFor(() => expect(screen.getByText('com rótulo')).toBeTruthy())
+    // `SkillEvent` says label/message are always present, but these events
+    // cross IPC at runtime: the component's `?? null` is what stands between a
+    // malformed stream and a caption reading "undefined". Casting is the only
+    // way to reach that defence from the typed emitter.
+    m.emitInstall({ type: 'step', id: 'y' } as unknown as SkillEvent)
+    await waitFor(() => expect(screen.queryByText('com rótulo')).toBeNull())
+    m.emitInstall({ type: 'progress' } as unknown as SkillEvent)
+    await waitFor(() => expect(screen.getByText('Preparando a base de conhecimento')).toBeTruthy())
+
+    unmount()
+    m.emitInstall({ type: 'done', ok: true })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('an error without a message still leaves the way out', async () => {
+    const m = mockSecondBrain(false)
+    render(createElement(SecondBrainGate, { workspace: '/ws', onComplete: vi.fn() }))
+    await waitFor(() => expect(m.install).toHaveBeenCalled())
+
+    m.emitInstall({ type: 'error' } as unknown as SkillEvent)
+
+    // R4.2's rule applies here too: a failed gate never traps the user.
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
+    expect(screen.getByText('Continuar mesmo assim')).toBeTruthy()
+  })
 })

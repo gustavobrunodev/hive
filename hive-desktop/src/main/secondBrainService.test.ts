@@ -277,4 +277,56 @@ describe('SecondBrainService', () => {
       expect(service2.resolveVault('/x')).toBeNull()
     })
   })
+
+  // B-1's second half (test-design-architecture.md, R-01). The launch gate has
+  // two steps; bypassing only the BMAD one still parks every E2E here.
+  describe('E2E test seam (B-1)', () => {
+    function seedSkill(workspace: string): void {
+      const skillDir = join(workspace, '.claude', 'skills', 'second-brain')
+      mkdirSync(skillDir, { recursive: true })
+      writeFileSync(join(skillDir, 'SKILL.md'), '# test fixture\n', 'utf-8')
+    }
+
+    it('seam on + skill present on disk: resolves done without spawning anything', async () => {
+      seedSkill(baseDir)
+      const service = createSecondBrainService(processRunner, {}, true)
+
+      const events = await collect(service.update(baseDir))
+
+      expect(events).toEqual([{ type: 'done', ok: true }])
+      expect(processRunner.calls).toEqual([])
+    })
+
+    it('seam on but skill absent: still runs the real command', async () => {
+      processRunner.script({ code: 0 })
+      const service = createSecondBrainService(processRunner, {}, true)
+
+      await collect(service.update(baseDir))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain('skills')
+    })
+
+    it('seam off + skill present: still runs the real command (production path)', async () => {
+      seedSkill(baseDir)
+      processRunner.script({ code: 0 })
+      const service = createSecondBrainService(processRunner, {}, false)
+
+      await collect(service.update(baseDir))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain('skills')
+    })
+
+    it('the seam never touches install() — first-run provisioning always runs for real', async () => {
+      seedSkill(baseDir)
+      processRunner.script({ code: 0 })
+      const service = createSecondBrainService(processRunner, {}, true)
+
+      await collect(service.install(baseDir))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain(SECOND_BRAIN_REPO)
+    })
+  })
 })

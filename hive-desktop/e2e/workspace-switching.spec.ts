@@ -1,8 +1,8 @@
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from './fixtures/workspace'
+import { launchSeededApp } from './fixtures/workspace'
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
-import os from 'node:os'
 
 // T9 (workspace-switching, M8) — E2E + visual validation, WS-R8.3/WS-R8.4.
 // Extends the file-management/explorer-editor-ux E2E harness conventions
@@ -44,29 +44,22 @@ import os from 'node:os'
 // a second live install run in the same spec (workspace B's switch already
 // exercises one real update-gate cycle).
 test.describe('workspace switching E2E (real Electron, throwaway workspaces)', () => {
-  test('switch A -> provisioned B (update, rebind) -> unprovisioned C (guided install)', async () => {
-    // Two onboarding-gate transitions in one test (A's initial UpdateGate +
-    // B's post-switch UpdateGate), each potentially running a real `npx
-    // bmad-method install` — give this real headroom, matching the other
-    // specs' single-transition 240s budget roughly doubled.
-    test.setTimeout(400_000)
-
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-e2e-ws-'))
-    const workspaceA = path.join(tmpRoot, 'workspace-a')
-    const workspaceB = path.join(tmpRoot, 'workspace-b')
-    const workspaceC = path.join(tmpRoot, 'workspace-c')
-    const userDataDir = path.join(tmpRoot, 'userData')
+  test('@p0 switch A -> provisioned B (update, rebind) -> unprovisioned C (guided install)', async ({
+    seeded
+  }) => {
+    // The fixture's workspace is A. B and C are siblings under the same
+    // throwaway root, so teardown still removes everything in one go.
+    const workspaceA = seeded.workspace
+    const workspaceB = path.join(seeded.root, 'workspace-b')
+    const workspaceC = path.join(seeded.root, 'workspace-c')
     const screenshotsDir = path.join(
       __dirname,
       '..',
       'test-results',
       'workspace-switching-screenshots'
     )
-
-    fs.mkdirSync(workspaceA, { recursive: true })
     fs.mkdirSync(workspaceB, { recursive: true })
     fs.mkdirSync(workspaceC, { recursive: true })
-    fs.mkdirSync(userDataDir, { recursive: true })
     fs.mkdirSync(screenshotsDir, { recursive: true })
 
     // Distinguishing content per workspace, so the file tree post-switch
@@ -75,48 +68,22 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
     fs.writeFileSync(path.join(workspaceA, 'a-only.txt'), 'lives only in workspace A\n', 'utf-8')
     fs.writeFileSync(path.join(workspaceB, 'b-only.txt'), 'lives only in workspace B\n', 'utf-8')
 
-    // Workspaces A and B: provisioned via the on-disk marker only (T11's
-    // lesson) — no real `bmad-method install` run. WS-R3.3 made onboarding
-    // routing disk-based (`WorkspaceService.provisionState()`), so A's own
-    // `provisioned: true` config flag below is not by itself enough to skip
-    // `GuidedInstall` on boot — the marker has to actually exist too (see
-    // the same fix applied to file-management.spec.ts/explorer-editor-ux.
-    // spec.ts's fixtures).
-    for (const ws of [workspaceA, workspaceB]) {
-      const manifestDir = path.join(ws, '_bmad', '_config')
-      fs.mkdirSync(manifestDir, { recursive: true })
-      fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
-    }
+    // B is provisioned via the on-disk marker only — WS-R3.3 made onboarding
+    // routing disk-based, so the config flag alone would not skip
+    // `GuidedInstall`. C stays a plain empty directory with no `_bmad/` at
+    // all, which is exactly what its leg of this test asserts.
+    const manifestDir = path.join(workspaceB, '_bmad', '_config')
+    fs.mkdirSync(manifestDir, { recursive: true })
+    fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
 
-    // Workspace C stays a plain empty directory — no `_bmad/` at all, so
-    // `provisionState()` (a disk check) is false for it.
-
-    // Seed `config.json` (`ConfigStore`'s `Config` shape, `configStore.ts`):
-    // boot straight into workspace A (skips WorkspacePicker), with B and C
-    // already in the MRU so the chip menu's Recentes section shows both
+    // Put B and C in the MRU so the chip menu's Recentes section offers both
     // without ever needing the native picker dialog.
-    fs.writeFileSync(
-      path.join(userDataDir, 'config.json'),
-      JSON.stringify({
-        workspacePath: workspaceA,
-        provisioned: true,
-        recentWorkspaces: [workspaceB, workspaceC],
-        lastModel: null,
-        lastEffort: null
-      }),
-      'utf-8'
-    )
+    const configPath = path.join(seeded.userData, 'config.json')
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+    config.recentWorkspaces = [workspaceB, workspaceC]
+    fs.writeFileSync(configPath, JSON.stringify(config), 'utf-8')
 
-    const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
-
-    // Same ELECTRON_RUN_AS_NODE-stripping as the other specs (STATE.md T2).
-    const launchEnv = { ...process.env }
-    delete launchEnv.ELECTRON_RUN_AS_NODE
-
-    const app = await electron.launch({
-      args: [appPath, `--user-data-dir=${userDataDir}`],
-      env: launchEnv
-    })
+    const app = await launchSeededApp(seeded)
 
     try {
       const window = await app.firstWindow()
@@ -127,7 +94,7 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
       await expect(window.locator('[id="hds-tree-item-a-only.txt"]')).toBeVisible({
         timeout: 15_000
       })
-      await expect(window.locator('.wb-workspace-chip-name')).toHaveText('workspace-a')
+      await expect(window.locator('.wb-workspace-chip-name')).toHaveText(path.basename(workspaceA))
 
       // --- WS-R8.4: screenshot the chip menu open, showing Recentes --------
       await openChipMenu(window)
@@ -155,9 +122,9 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
 
       // --- Assert: config.json reflects B as active + MRU head -------------
       await expect
-        .poll(() => readConfig(userDataDir).workspacePath, { timeout: 10_000 })
+        .poll(() => readConfig(seeded.userData).workspacePath, { timeout: 10_000 })
         .toBe(workspaceB)
-      expect(readConfig(userDataDir).recentWorkspaces[0]).toBe(workspaceB)
+      expect(readConfig(seeded.userData).recentWorkspaces[0]).toBe(workspaceB)
 
       // --- WS-R8.4: screenshot the post-switch work UI ----------------------
       await window.screenshot({
@@ -180,12 +147,11 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
 
       // --- Assert: config.json reflects C as active + MRU head -------------
       await expect
-        .poll(() => readConfig(userDataDir).workspacePath, { timeout: 10_000 })
+        .poll(() => readConfig(seeded.userData).workspacePath, { timeout: 10_000 })
         .toBe(workspaceC)
-      expect(readConfig(userDataDir).recentWorkspaces[0]).toBe(workspaceC)
+      expect(readConfig(seeded.userData).recentWorkspaces[0]).toBe(workspaceC)
     } finally {
       await app.close()
-      fs.rmSync(tmpRoot, { recursive: true, force: true })
     }
   })
 })

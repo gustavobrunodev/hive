@@ -139,11 +139,30 @@ export async function readSheetAt(absPath: string): Promise<SpreadsheetDocument>
     const range = ref ? XLSX.utils.decode_range(ref) : null
     const rowCount = range ? range.e.r - range.s.r + 1 : 0
     const colCount = range ? range.e.c - range.s.c + 1 : 0
+    // The cap has to be applied to the range HANDED TO SheetJS, not to the grid
+    // it returns. A worksheet's declared `<dimension>` is attacker-controlled
+    // and unrelated to how many cells the file actually holds: a ~6 KB .xlsx
+    // that claims `A1:ZZ1048576` made `sheet_to_json` materialise the full
+    // declared grid before any slicing, hanging the MAIN process indefinitely
+    // (measured 2026-07-30: still running after 180 s, whole app frozen). Found
+    // by P0-008; risk R-09. Reading one extra row/col so `truncated` can still
+    // tell "exactly at the cap" from "more than the cap".
+    const cappedRange =
+      range && (rowCount > MAX_SHEET_ROWS || colCount > MAX_SHEET_COLS)
+        ? {
+            s: { r: range.s.r, c: range.s.c },
+            e: {
+              r: Math.min(range.e.r, range.s.r + MAX_SHEET_ROWS),
+              c: Math.min(range.e.c, range.s.c + MAX_SHEET_COLS)
+            }
+          }
+        : undefined
     const grid = XLSX.utils.sheet_to_json<string[]>(worksheet, {
       header: 1,
       raw: false,
       defval: '',
-      blankrows: false
+      blankrows: false,
+      ...(cappedRange ? { range: XLSX.utils.encode_range(cappedRange) } : {})
     })
     const truncated = grid.length > MAX_SHEET_ROWS || colCount > MAX_SHEET_COLS
     const rows = grid.slice(0, MAX_SHEET_ROWS).map((row) => {

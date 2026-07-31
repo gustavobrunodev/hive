@@ -16,6 +16,7 @@ import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
+import { withScriptedAgentCli } from './e2eAgentSeam'
 import type {
   AgentEvent,
   AttachmentPick,
@@ -322,7 +323,13 @@ app.whenReady().then(() => {
   // sessions — one per agent — so several agents can drive different
   // conversations concurrently. Each turn names its `agentId`; the service
   // routes it (and lazily starts that agent's session).
-  const agentRegistry = createAgentRegistry(processRunner)
+  //
+  // R-06/P0-003: the registry — and only the registry — gets its runner wrapped
+  // by the scripted-agent seam, so an armed E2E launch redirects agent-CLI
+  // spawns (turns and `--version` probes) to a stand-in binary while every
+  // other spawner here keeps the unwrapped `processRunner`. Disarmed, the wrap
+  // returns that same object; see e2eAgentSeam.ts for the two conditions.
+  const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner))
   const agentService = createAgentService(agentRegistry)
 
   // GitService (git-management, M10): drives the system git binary through the

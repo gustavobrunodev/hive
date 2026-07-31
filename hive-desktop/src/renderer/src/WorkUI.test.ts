@@ -499,6 +499,23 @@ function createHiveMock(): Window['hive'] {
     // loads the agent list on mount — both need to resolve. The (closed)
     // UpdateCenter loads app info + subscribes to update events on mount.
     skills: { list: vi.fn(async () => []) },
+    // The Skill Studio reads the active adapter's capabilities (for its
+    // model/effort pickers) and lists the workspace's creations on open.
+    agent: {
+      capabilities: vi.fn(async () => ({ models: [], efforts: [] }))
+    },
+    studio: {
+      list: vi.fn(async () => []),
+      create: vi.fn(async () => undefined),
+      run: vi.fn(() => () => {})
+    },
+    // The ingestion sheet's audio tabs mount the Whisper model store on open.
+    whisper: {
+      listModels: vi.fn(async () => []),
+      modelStatus: vi.fn(async () => ({ installed: false })),
+      deleteModel: vi.fn(async () => undefined),
+      downloadModel: vi.fn(() => () => {})
+    },
     // The (closed) MCP module loads the server list on open.
     mcp: {
       list: vi.fn(async () => []),
@@ -1467,6 +1484,69 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
     // The module opens on its empty state (the mock lists no servers).
     expect(await screen.findByText('Nenhum servidor MCP ainda')).toBeTruthy()
+  })
+
+  // P0-011 (R-03): three surfaces WorkUI wires up but no test ever opened.
+  // Each is a one-line callback whose only job is to flip the right piece of
+  // state — the class of wiring that fails silently, because the button is
+  // there and simply does nothing.
+  it('opens the Estúdio de skills from the rail sparkle button', async () => {
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    expect(screen.queryByRole('heading', { name: 'Estúdio de skills' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Estúdio de skills' }))
+    expect(await screen.findByRole('heading', { name: 'Estúdio de skills' })).toBeTruthy()
+  })
+
+  it('opens "Perguntar à base" from the floating Second Brain button', async () => {
+    // A vault has to exist, or the ask surface renders its setup guard instead
+    // of the question field — a different path from the one under test.
+    vi.mocked(window.hive.secondBrain.getVault).mockResolvedValue({
+      path: '/home/user/my-workspace/second-brain',
+      name: 'second-brain',
+      rawPending: 0
+    })
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    expect(screen.queryByPlaceholderText('O que você quer saber?')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Perguntar à base/ }))
+    expect(await screen.findByPlaceholderText('O que você quer saber?')).toBeTruthy()
+  })
+
+  it('opens the capture sheet from the FAB and closes it again', async () => {
+    vi.mocked(window.hive.secondBrain.getVault).mockResolvedValue({
+      path: '/home/user/my-workspace/second-brain',
+      name: 'second-brain',
+      rawPending: 0
+    })
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onToggleTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Colar texto' }))
+    expect(await screen.findByText('Ingerir conhecimento')).toBeTruthy()
+
+    // Closing has to actually clear the mode, or the sheet can never reopen.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByText('Ingerir conhecimento')).toBeNull())
   })
 
   it('opens the file search from the rail button, and picking a file opens it in the viewer', async () => {

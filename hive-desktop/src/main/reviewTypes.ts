@@ -30,6 +30,14 @@ export interface ReviewChange {
   dels: number
   /** ACR-R3.2 — the user edited this file by hand after the last recompute. */
   staleUserEdit?: boolean
+  /**
+   * R-08 — this change first appeared while NO agent turn was in flight, so
+   * the agent cannot have written it. Shown, but never reverted automatically:
+   * a reject targeting it is refused rather than silently destroying the
+   * user's own work. See `reviewService.ts` for why the turn window is the
+   * signal and `TurnMark.paths` is not.
+   */
+  userAuthored?: boolean
 }
 
 /** The renderer-facing snapshot of the set (what `review:get`/`review:changed` ship). */
@@ -43,4 +51,12 @@ export interface ReviewResult {
   ok: boolean
   /** Set when a concurrent hand-edit was detected — the UI turns this into keep-mine/take-agent/cancel. */
   stale?: boolean
+  /**
+   * R-08 — the reject was refused because the target is the user's own change
+   * (`ReviewChange.userAuthored`), not the agent's. Refusing is deliberate:
+   * the change is not the agent's to throw away.
+   */
+  unattributed?: boolean
+  /** R-08 — `rejectAll` only: how many user-authored changes it deliberately left alone. */
+  skipped?: number
 }

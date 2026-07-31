@@ -232,5 +232,38 @@ describe('DiffView', () => {
       const accept = screen.getByRole('button', { name: 'Aceitar o trecho 1 de 2' })
       expect(accept.textContent).toBe('')
     })
+
+    // P0-006 / R-08, renderer half. The service refuses to reject a change the
+    // agent never made; without this the button would still be there, still
+    // clickable, and would quietly do nothing — a dead affordance is worse than
+    // no affordance, because the user reads the silence as "it worked".
+    it('disables Rejeitar with a stated reason when the change is the user’s own', () => {
+      const onReject = vi.fn()
+      render(
+        createElement(HunkActions, {
+          onAccept: () => {},
+          onReject,
+          target: 'o arquivo minhas-notas.md',
+          rejectDisabledReason: 'Esta alteração é sua, não do agente'
+        })
+      )
+
+      const reject = screen.getByRole('button', {
+        name: 'Rejeitar o arquivo minhas-notas.md'
+      }) as HTMLButtonElement
+      expect(reject.disabled).toBe(true)
+      expect(reject.getAttribute('title')).toBe('Esta alteração é sua, não do agente')
+      fireEvent.click(reject)
+      expect(onReject).not.toHaveBeenCalled()
+
+      // Accepting is still offered — keeping the user's own bytes is harmless.
+      expect(
+        (
+          screen.getByRole('button', {
+            name: 'Aceitar o arquivo minhas-notas.md'
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false)
+    })
   })
 })

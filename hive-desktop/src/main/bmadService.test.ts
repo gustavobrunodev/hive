@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createConfigStore, type ConfigStore } from './configStore'
 import { createFakeProcessRunner, type FakeProcessRunner } from './processRunner'
-import { createBmadService, type BmadEvent } from './bmadService'
+import { createBmadService, isE2ESeamEnabled, type BmadEvent } from './bmadService'
 
 // `createBmadService` takes both its `ProcessRunner` and `ConfigStore` as
 // plain injected arguments (mirroring configStore.ts/workspaceService.ts's
@@ -277,6 +277,66 @@ describe('BmadService', () => {
       type: 'step',
       id: 'module-directories-created',
       label: 'Module directories created'
+    })
+  })
+
+  // B-1 / P0-001 (test-design-architecture.md, R-01 score 9). The seam that
+  // lets an E2E reach the work UI without a real `npx bmad-method install`.
+  // The assertion that matters in every case below is `processRunner.calls` —
+  // whether anything was spawned at all — not the event shape.
+  describe('E2E test seam (B-1)', () => {
+    it('seam on + provisioned workspace: resolves done without spawning anything', async () => {
+      configStore.setProvisioned(true)
+      const service = createBmadService(processRunner, configStore, true)
+
+      const events = await collect(service.update('/ws'))
+
+      expect(events).toEqual([{ type: 'done', ok: true }])
+      expect(processRunner.calls).toEqual([])
+      // The seam reports the workspace as provisioned; it must not also be
+      // what makes it provisioned.
+      expect(configStore.getConfig().provisioned).toBe(true)
+    })
+
+    it('seam on but workspace NOT provisioned: still runs the real command', async () => {
+      // The flag alone must never fake provisioning — otherwise the seam
+      // hides the exact failure the gate exists to catch.
+      processRunner.script({ code: 0 })
+      const service = createBmadService(processRunner, configStore, true)
+
+      await collect(service.update('/ws'))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain('bmad-method')
+    })
+
+    it('seam off + provisioned workspace: still runs the real command (production path)', async () => {
+      // R4.1's whole point: a provisioned workspace still updates on launch.
+      configStore.setProvisioned(true)
+      processRunner.script({ code: 0 })
+      const service = createBmadService(processRunner, configStore, false)
+
+      await collect(service.update('/ws'))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain('bmad-method')
+    })
+
+    it('the seam never touches install() — first-run provisioning always runs for real', async () => {
+      processRunner.script({ code: 0 })
+      const service = createBmadService(processRunner, configStore, true)
+
+      await collect(service.install('/ws', { modules: ['bmm'] }))
+
+      expect(processRunner.calls).toHaveLength(1)
+      expect(processRunner.calls[0].args).toContain('install')
+    })
+
+    it('isE2ESeamEnabled reads HIVE_E2E=1 and nothing looser', () => {
+      expect(isE2ESeamEnabled({ HIVE_E2E: '1' })).toBe(true)
+      expect(isE2ESeamEnabled({ HIVE_E2E: 'true' })).toBe(false)
+      expect(isE2ESeamEnabled({ HIVE_E2E: '0' })).toBe(false)
+      expect(isE2ESeamEnabled({})).toBe(false)
     })
   })
 })

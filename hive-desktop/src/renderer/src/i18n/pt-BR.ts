@@ -716,6 +716,9 @@ export const ptBR = {
     reject: 'Rejeitar',
     acceptAria: (target: string) => `Aceitar ${target}`,
     rejectAria: (target: string) => `Rejeitar ${target}`,
+    // R-08: a change the agent never made is not the review's to throw away.
+    rejectUserAuthoredReason:
+      'Esta alteração é sua, não do agente — a revisão não descarta o seu trabalho.',
     hunkLabel: (n: number, total: number) => `Trecho ${n} de ${total}`,
     // Status labels (shape + text, never color alone, a11y).
     statusCreated: 'novo',

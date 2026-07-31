@@ -147,9 +147,34 @@ function parseLine(rawLine: string): BmadEvent | null {
  * plus a real `ConfigStore` on a temp dir — no process spawning or module
  * mocking required.
  */
+/**
+ * B-1, the test seam (test-design-architecture.md, R-01 score 9).
+ *
+ * Every launch fell into `UpdateGate`, which fired a real
+ * `npx bmad-method install` — so no E2E could reach the work UI without the
+ * network and the real CLI, and four specs timed out waiting for a screen they
+ * could never get to. The seam: when the launcher explicitly asks for it
+ * (`HIVE_E2E=1`) **and** the workspace is genuinely seeded as provisioned, the
+ * update short-circuits to `done` without spawning anything.
+ *
+ * Both conditions are required, on purpose:
+ *   - the flag alone must never fake provisioning of an unprovisioned
+ *     workspace — that would hide the very bug the gate exists to catch;
+ *   - `provisioned` alone must never skip the update in production — R4.1's
+ *     whole point is that a provisioned workspace still updates on launch.
+ *
+ * Precedent for shipping a test hook in production code: `fs.importEntry`
+ * (design.md §8). And per the design's own constraint, the seam does not erase
+ * the path it bypasses — `bmadCli.e2e.test.ts` still crosses the real CLI.
+ */
+export function isE2ESeamEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.HIVE_E2E === '1'
+}
+
 export function createBmadService(
   processRunner: ProcessRunner,
-  configStore: ConfigStore
+  configStore: ConfigStore,
+  e2eSeam: boolean = isE2ESeamEnabled()
 ): BmadService {
   async function* runInstallCommand(
     workspace: string,
@@ -216,7 +241,17 @@ export function createBmadService(
     )
   }
 
+  async function* seamedDone(): AsyncIterable<BmadEvent> {
+    yield { type: 'done', ok: true }
+  }
+
   function update(workspace: string): AsyncIterable<BmadEvent> {
+    // B-1: seeded-provisioned + an explicit launcher opt-in means the gate
+    // resolves without spawning `npx`. See `isE2ESeamEnabled` for why both
+    // conditions are required.
+    if (e2eSeam && configStore.getConfig().provisioned) {
+      return seamedDone()
+    }
     // Already provisioned going in (R4.1 only runs update on a provisioned
     // workspace) — a successful update doesn't need to re-flip the flag, and
     // a failed one (R4.2's "continue anyway") must not unset it either.
