@@ -372,6 +372,21 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // voice-prompt (M13): the dictation module's logic files. The pure ones
+        // (segmenter/transcriptJoin/dictationCopy/composerBackdrop) carry 100 —
+        // they are the modules whose defects are invisible on screen and only a
+        // test can see (a segment cut on a breath, a doubled space, a backdrop
+        // drifting out of alignment with the value it shadows). The
+        // presentational `DictationBar.tsx` follows the ungated
+        // `SkillStudio`/`McpManager` precedent and is exercised by its sibling
+        // test; `LevelMeter` lives in design-system, under that package's own
+        // gate.
+        'src/renderer/src/dictation/segmenter.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
       }
     }
