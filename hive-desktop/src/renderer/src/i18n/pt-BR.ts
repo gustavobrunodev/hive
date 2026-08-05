@@ -1295,6 +1295,51 @@ export const ptBR = {
       'Não foi possível trocar de workspace: o caminho selecionado não é uma pasta.',
     switchErrorUnreadable:
       'Não foi possível trocar de workspace: não foi possível ler a pasta selecionada.'
+  },
+
+  /**
+   * voice-prompt (M13): ditar direto no compositor. Toda a copy passa por
+   * `dictationCopy.ts` ou pelos controles do `DictationBar` (VP-R6.5).
+   *
+   * O tom segue o produto: quieto quando não importa, explícito quando o
+   * usuário pode perder algo. Duas frases carregam a promessa da feature e por
+   * isso não são enxugadas — `preparingKeep` e `errorKeep` dizem, em voz alta,
+   * que o áudio continua guardado. É a única coisa que o usuário não pode ver
+   * por conta própria, e um take perdido é a falha imperdoável (VP-R4.4).
+   */
+  dictation: {
+    /** Botão do microfone na barra do compositor (VP-R1.1). */
+    start: 'Ditar',
+    startHint: 'Ditar em voz alta',
+    /** Estados do transporte (VP-R4.1–4.5). */
+    listening: 'Ouvindo…',
+    preparing: 'Preparando o motor…',
+    preparingKeep: 'Pode falar — estou guardando seu áudio.',
+    transcribing: (n: number) =>
+      n === 1 ? 'Transcrevendo 1 trecho…' : `Transcrevendo ${n} trechos…`,
+    finalizing: 'Finalizando…',
+    queue: (n: number) => (n === 1 ? '1 trecho na fila' : `${n} trechos na fila`),
+    silent: 'Não estou ouvindo nada',
+    silentHint: 'Verifique o microfone ou fale mais perto.',
+    autoStop: (seconds: number) => `Encerrando em ${seconds}…`,
+    autoStopHint: 'Fale para continuar.',
+    /** Controles do transporte. */
+    finish: 'Concluir',
+    discard: 'Descartar',
+    retry: 'Tentar de novo',
+    /** Tempo decorrido, exposto como `role="timer"` (VP-R4.5). */
+    elapsed: (clock: string) => `Gravando há ${clock}`,
+    /** Rótulo do medidor de nível — números viram barras, isto vira nome. */
+    meterLabel: 'Nível do microfone',
+    /** Falhas, cada uma com a sua causa (VP-R4.3–4.4). */
+    denied: 'Sem acesso ao microfone',
+    deniedHint: 'Autorize o microfone nas configurações do sistema e tente de novo.',
+    unavailable: 'Nenhum microfone encontrado',
+    unavailableHint: 'Conecte um microfone e tente de novo.',
+    error: 'Não consegui transcrever este trecho',
+    errorKeep: 'Seu áudio está guardado — pode tentar de novo.',
+    /** Enviar durante o ditado finaliza antes de enviar (VP-R1.6). */
+    finishAndSend: 'Concluindo o ditado antes de enviar…'
   }
 } as const
 
