@@ -79,6 +79,16 @@ export interface Segmenter {
   flush(): SegmenterEvent[]
   /** Current noise floor, exposed so the meter can be honest about the gate. */
   noiseFloor(): number
+  /**
+   * Continuous silence so far, in ms.
+   *
+   * The `notice`/`autostop` events mark the two boundaries, but the transport
+   * also has to *count down* to the automatic stop (VP-R4.2), and a countdown
+   * needs the running value rather than the moment it was crossed. Reading it
+   * from here keeps the accumulation in one place — the hook re-deriving it
+   * from ticks would be the same rule implemented twice.
+   */
+  silentMs(): number
 }
 
 /**
@@ -248,5 +258,5 @@ export function createSegmenter(config: SegmenterConfig = DEFAULT_SEGMENTER_CONF
     return [cut()]
   }
 
-  return { push, flush, noiseFloor }
+  return { push, flush, noiseFloor, silentMs: () => silenceMs }
 }

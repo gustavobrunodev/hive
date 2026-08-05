@@ -219,6 +219,27 @@ describe('process boundaries between main, preload and renderer', () => {
     expect(violations).toEqual([])
   })
 
+  // voice-prompt / VP-R5.1. Reusability decided after the fact is a refactor;
+  // decided up front it is free — and this is the sensor that keeps it free.
+  // `useDictation` takes a `DictationTarget` precisely so the chat composer is
+  // one caller rather than the owner, so an import of `chat/` from inside
+  // `dictation/` is the exact regression that would make wiring the next field
+  // ("Perguntar à base", a commit message, search) a rewrite instead of a
+  // wiring change. The cross-process rules above already cover `src/main`.
+  it('src/renderer/src/dictation/** does not import from chat/', () => {
+    const dictationDir = resolve(__dirname, '..', 'renderer', 'src', 'dictation')
+    const files = collectSourceFiles(dictationDir)
+    expect(files.length).toBeGreaterThan(0)
+
+    const offenders = files.flatMap((absolutePath) => {
+      const source = readFileSync(absolutePath, 'utf-8')
+      const matches = [...source.matchAll(/from\s+'([^']*\/chat\/[^']*)'/g)]
+      return matches.map((match) => `${relative(dictationDir, absolutePath)} → ${match[1]}`)
+    })
+
+    expect(offenders).toEqual([])
+  })
+
   it('src/**/*.{ts,tsx} has no cross-process imports', () => {
     const packageRoot = resolve(__dirname, '..', '..')
     const files = collectSourceFiles(join(packageRoot, 'src'))
