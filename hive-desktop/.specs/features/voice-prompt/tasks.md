@@ -1,7 +1,7 @@
 # Tasks — Voice Prompt
 
 **Design:** `design.md` · **Spec:** `spec.md` · **Context:** `context.md`
-**Status:** 🚧 In progress (2026-08-04) — T1 done. Branch `feat/voice-prompt`, **off
+**Status:** 🚧 In progress — Batch A complete (T1–T7, 2026-08-05). Branch `feat/voice-prompt`, **off
 `feat/second-brain`** — the Whisper stack it consumes exists only there, never
 merged to `main`. ROADMAP **M13**; STATE **D26**.
 
@@ -73,7 +73,7 @@ single end-of-take segment on WASM) **before** T7 is written.
 
 ## P1 — Pure core
 
-### T2 [P] — `segmenter.ts`: silence → segment boundaries
+### [x] T2 [P] — `segmenter.ts`: silence → segment boundaries
 
 **Dep:** T1 · **VP-R:** VP-R2.1, VP-R2.6–2.8, VP-R4.1–4.2
 
@@ -86,7 +86,7 @@ autostop events. No WebAudio, no DOM.
 notice, autostop, and pre-roll/tail-pad inclusion in the emitted PCM. **100%**
 statements/branches/functions/lines; glob added to `vitest.config.ts`.
 
-### T3 [P] — `transcriptJoin.ts`: segment text → composer value + caret
+### [x] T3 [P] — `transcriptJoin.ts`: segment text → composer value + caret
 
 **Dep:** T1 · **VP-R:** VP-R2.2
 
@@ -97,7 +97,7 @@ Pure `joinTranscript(value, selectionStart, selectionEnd, text)` returning
 plus selection-replacement, accented/multi-byte boundaries, and an empty
 incoming segment (no-op, caret unmoved). **100%** coverage; glob added.
 
-### T4 [P] — `dictationCopy.ts` + pt-BR strings
+### [x] T4 [P] — `dictationCopy.ts` + pt-BR strings
 
 **Dep:** T1 · **VP-R:** VP-R4.5, VP-R6.5
 
@@ -114,7 +114,7 @@ key missing from `pt-BR.ts`; **100%** coverage; glob added.
 
 ## P2 — Capture + engine
 
-### T5 — `micCapture.ts`: mic → 16 kHz Float32 frames + levels
+### [x] T5 — `micCapture.ts`: mic → 16 kHz Float32 frames + levels
 
 **Dep:** T1, T2 · **VP-R:** VP-R4.3, VP-R4.6
 
@@ -126,7 +126,7 @@ from `unavailable` (`getUserMedia`'s `NotFoundError`/`DevicesNotFoundError` →
 `stop()` stops **every** track **and** closes the `AudioContext` on all exit
 paths (normal stop, error during start, double-stop). ≥90% coverage; glob added.
 
-### T6 — `useDictation.ts`: lifecycle, phases, finalize, discard
+### [x] T6 — `useDictation.ts`: lifecycle, phases, finalize, discard
 
 **Dep:** T5, T3 · **VP-R:** VP-R1.2, VP-R1.4–1.5, VP-R4.1–4.3, VP-R4.6, VP-R5.1
 
@@ -139,7 +139,7 @@ capture: start→listening, silence→notice→autostop, discard restores the dr
 byte-for-byte, unmount stops tracks. `moduleBoundaries.test.ts` green (no import
 from `chat/` or `src/main`). ≥90% coverage; glob added.
 
-### T7 — Transcription queue: serial, in-order, cold-start buffering, retry
+### [x] T7 — Transcription queue: serial, in-order, cold-start buffering, retry
 
 **Dep:** T6 · **VP-R:** VP-R2.3–2.5, VP-R3.1–3.5, VP-R4.4
 

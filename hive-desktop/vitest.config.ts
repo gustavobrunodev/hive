@@ -417,6 +417,18 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        'src/renderer/src/dictation/useDictationSink.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/dictation/transcriptionQueue.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

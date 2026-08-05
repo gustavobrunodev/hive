@@ -86,8 +86,8 @@ function fakeCapture(): FakeCapture {
   return state
 }
 
-function fakeEngine(phase: WhisperPhase = { status: 'idle' }): DictationEngine {
-  return { phase, transcribe: async () => '' }
+function fakeEngine(text = '', phase: WhisperPhase = { status: 'idle' }): DictationEngine {
+  return { phase, transcribe: async () => text }
 }
 
 function fakeDeps(capture: FakeCapture, overrides: Partial<DictationDeps> = {}): DictationDeps {
@@ -149,7 +149,7 @@ describe('useDictation', () => {
     const { result } = renderHook(() =>
       useDictation(
         target,
-        fakeEngine({ status: 'downloading', pct: 3, file: 'x' }),
+        fakeEngine('', { status: 'downloading', pct: 3, file: 'x' }),
         fakeDeps(capture)
       )
     )
@@ -169,7 +169,7 @@ describe('useDictation', () => {
 
   it('turns the engine’s own progress into the preparing phase (VP-R3.2)', async () => {
     const capture = fakeCapture()
-    const engine = fakeEngine({ status: 'downloading', pct: 41, file: 'encoder.onnx' })
+    const engine = fakeEngine('', { status: 'downloading', pct: 41, file: 'encoder.onnx' })
     const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
     await startTake(result, capture)
 
@@ -226,7 +226,13 @@ describe('useDictation', () => {
 
   it('counts a segment as pending the moment the segmenter cuts it', async () => {
     const capture = fakeCapture()
-    const { result } = renderHook(() => useDictation(fakeTarget(), fakeEngine(), fakeDeps(capture)))
+    // An engine that never settles, so the segment stays in the queue where the
+    // assertion can see it — with an instant engine it would already be written.
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: () => new Promise(() => {})
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
     await startTake(result, capture)
 
     await act(async () => {
@@ -248,9 +254,42 @@ describe('useDictation', () => {
       capture.emitFor(DEFAULT_SEGMENTER_CONFIG.autoStopMs + 100, QUIET)
     })
 
-    expect(result.current.phase.status).toBe('finalizing')
     // Never left open: the microphone is released by the automatic stop too.
     expect(capture.stopped).toBe(1)
+    // This engine transcribes instantly, so the queue is already drained by the
+    // time the stop lands and the take is simply over.
+    expect(result.current.phase.status).toBe('idle')
+  })
+
+  it('shows the drain while the queue still has work, then settles (VP-R1.4)', async () => {
+    const capture = fakeCapture()
+    let settle: ((text: string) => void) | undefined
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: () =>
+        new Promise<string>((resolve) => {
+          settle = resolve
+        })
+    }
+    const target = fakeTarget('revisa o ')
+    const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+    act(() => {
+      result.current.finish()
+    })
+    // Still transcribing: the transport says so instead of pretending it is done.
+    expect(result.current.phase).toMatchObject({ status: 'finalizing', pending: 1 })
+
+    await act(async () => {
+      settle?.('arquivo de configuração')
+    })
+    expect(target.current.value).toBe('revisa o arquivo de configuração')
+    expect(result.current.phase.status).toBe('idle')
   })
 
   it('flushes the trailing phrase on finish, so Concluir never drops it (VP-R1.4)', async () => {
@@ -459,5 +498,200 @@ describe('useDictation', () => {
       result.current.finish()
     })
     expect(result.current.levels).toEqual([])
+  })
+
+  // ---- T7: the queue, as the composer actually experiences it --------------
+
+  it('lands a transcribed phrase at the caret while the take continues (VP-R2.1-2.2)', async () => {
+    const capture = fakeCapture()
+    const target = fakeTarget('revisa o ')
+    const { result } = renderHook(() =>
+      useDictation(target, fakeEngine('arquivo'), fakeDeps(capture))
+    )
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+
+    // Joined to what was typed, no doubled space — and capture is still open.
+    expect(target.current.value).toBe('revisa o arquivo')
+    expect(result.current.phase.status).toBe('listening')
+    expect(capture.stopped).toBe(0)
+  })
+
+  it('inserts everything captured while the engine was cold, in spoken order (VP-R3.1-3.3)', async () => {
+    const capture = fakeCapture()
+    const target = fakeTarget()
+    const settlers: ((text: string) => void)[] = []
+    const engine: DictationEngine = {
+      phase: { status: 'warming' },
+      transcribe: () => new Promise<string>((resolve) => settlers.push(resolve))
+    }
+    const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    // Three phrases spoken while the pipeline is still building its session.
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        capture.emitFor(2500, LOUD)
+        capture.emitFor(800, QUIET)
+      })
+    }
+    act(() => {
+      vi.advanceTimersByTime(250)
+    })
+    expect(result.current.phase).toMatchObject({ status: 'preparing', pending: 3 })
+    expect(target.current.value).toBe('')
+
+    // The engine warms up: nothing spoken was lost, and the order is the spoken one.
+    await act(async () => {
+      settlers[0]('Primeira.')
+    })
+    await act(async () => {
+      settlers[1]('Segunda.')
+    })
+    await act(async () => {
+      settlers[2]('Terceira.')
+    })
+    expect(target.current.value).toBe('Primeira. Segunda. Terceira.')
+  })
+
+  it('surfaces a segment failure while capture continues, and retries the same audio (VP-R4.4)', async () => {
+    const capture = fakeCapture()
+    const target = fakeTarget()
+    let attempt = 0
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: async () => {
+        attempt += 1
+        if (attempt === 1) throw new Error('sessão falhou')
+        return 'recuperada'
+      }
+    }
+    const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+
+    // Visible, and the microphone is STILL open — the take is not over.
+    expect(result.current.failure).toBe('sessão falhou')
+    expect(result.current.phase.status).toBe('listening')
+    expect(capture.stopped).toBe(0)
+
+    await act(async () => {
+      result.current.retry()
+    })
+    expect(result.current.failure).toBeNull()
+    expect(target.current.value).toBe('Recuperada')
+  })
+
+  it('rests in the error phase when a take ends with a failure unresolved', async () => {
+    const capture = fakeCapture()
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: async () => {
+        throw new Error('modelo sumiu')
+      }
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(600, LOUD)
+    })
+    await act(async () => {
+      result.current.finish()
+    })
+
+    expect(result.current.phase).toMatchObject({
+      status: 'error',
+      kind: 'engine',
+      message: 'modelo sumiu'
+    })
+    expect(result.current.failure).toBe('modelo sumiu')
+  })
+
+  it('never writes a result that resolves after the user discarded (VP-R1.5)', async () => {
+    const capture = fakeCapture()
+    const target = fakeTarget('rascunho')
+    let settle: ((text: string) => void) | undefined
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: () =>
+        new Promise<string>((resolve) => {
+          settle = resolve
+        })
+    }
+    const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+    act(() => {
+      result.current.discard()
+    })
+
+    await act(async () => {
+      settle?.('texto fantasma')
+    })
+    // The composer was rewound; a late result must not resurrect the take.
+    expect(target.current.value).toBe('rascunho')
+    expect(result.current.phase.status).toBe('idle')
+  })
+
+  it('pre-warms only on intent, only once, and never during a take (D-VP-6)', async () => {
+    const capture = fakeCapture()
+    const transcribe = vi.fn<(pcm: Float32Array) => Promise<string>>(async () => '')
+    const { result } = renderHook(() =>
+      useDictation(fakeTarget(), { phase: { status: 'idle' }, transcribe }, fakeDeps(capture))
+    )
+
+    // Nothing at mount: a user who never dictates downloads nothing.
+    expect(transcribe).not.toHaveBeenCalled()
+
+    await act(async () => {
+      result.current.prewarm()
+    })
+    expect(transcribe).toHaveBeenCalledTimes(1)
+    // Silence, not a take.
+    const prewarmPcm = transcribe.mock.calls[0][0]
+    expect(prewarmPcm.length).toBeGreaterThan(0)
+    expect([...prewarmPcm].every((sample) => sample === 0)).toBe(true)
+
+    // Hovering again costs nothing.
+    await act(async () => {
+      result.current.prewarm()
+    })
+    expect(transcribe).toHaveBeenCalledTimes(1)
+
+    // And it never steals the single pipeline slot from a live take.
+    await startTake(result, capture)
+    await act(async () => {
+      result.current.prewarm()
+    })
+    expect(transcribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets a failed pre-warm be retried on the next intent', async () => {
+    const capture = fakeCapture()
+    const transcribe = vi.fn().mockRejectedValueOnce(new Error('rede caiu')).mockResolvedValue('')
+    const { result } = renderHook(() =>
+      useDictation(fakeTarget(), { phase: { status: 'idle' }, transcribe }, fakeDeps(capture))
+    )
+
+    await act(async () => {
+      result.current.prewarm()
+    })
+    await act(async () => {
+      result.current.prewarm()
+    })
+    expect(transcribe).toHaveBeenCalledTimes(2)
   })
 })

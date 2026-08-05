@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { browserCaptureDeps, CaptureFailure, startCapture, type Capture } from './micCapture'
+import { useDictationSink } from './useDictationSink'
+import type { QueueState } from './transcriptionQueue'
 import {
   createSegmenter,
   DEFAULT_SEGMENTER_CONFIG,
@@ -61,6 +63,17 @@ export interface Dictation {
   finish: () => void
   /** Drops everything and rewinds the field (VP-R1.5, D-VP-9). */
   discard: () => void
+  /**
+   * The last unresolved segment failure. Carried alongside `phase` rather than
+   * inside it: a failure mid-take must be visible *while capture continues*
+   * (VP-R4.4), which a single phase value cannot express. Once the take is over
+   * and the failure is still unresolved, it becomes the resting `error` phase.
+   */
+  failure: string | null
+  /** Re-runs the failed segments, reusing their buffered audio (VP-R4.4). */
+  retry: () => void
+  /** Starts engine readiness in the background, on intent only (D-VP-6). */
+  prewarm: () => void
 }
 
 /** How often the transport's clock and silence countdown are refreshed. */
@@ -106,13 +119,29 @@ export function useDictation(
    * 250 ms, so the ref is read fresh.
    */
   const enginePhaseRef = useRef(engine.phase)
-  /** Captured segments, in spoken order. T7 drains them. */
-  const queueRef = useRef<{ index: number; pcm: Float32Array }[]>([])
-  const pendingRef = useRef(0)
-
   useEffect(() => {
     enginePhaseRef.current = engine.phase
   }, [engine.phase])
+
+  /**
+   * How a stopped take ends (VP-R1.4): it shows the drain while work remains,
+   * then settles into `idle` — or into `error` if a segment failed and was never
+   * retried, so the failure and its retry survive the end of the take instead of
+   * vanishing with it. Driven from the queue's own change callback rather than an
+   * effect, because that is a subscription to an external system.
+   */
+  const settle = useCallback((state: QueueState) => {
+    setPhase((current) => {
+      if (current.status !== 'finalizing') return current
+      if (state.pending > 0) return { status: 'finalizing', pending: state.pending }
+      return state.failure !== null
+        ? { status: 'error', kind: 'engine', message: state.failure }
+        : { status: 'idle' }
+    })
+  }, [])
+
+  /** The text half: the queue and the writing (VP-R2.3–2.5, VP-R3, VP-R4.4). */
+  const sink = useDictationSink(engine, target, settle)
 
   /** Everything the hook owns that has to stop. Safe to call repeatedly. */
   const release = useCallback(() => {
@@ -141,34 +170,48 @@ export function useDictation(
     if (segmenter === null) return
     const silentMs = segmenter.silentMs()
     const seconds = Math.floor((Date.now() - startedAtRef.current) / 1000)
-    const pending = pendingRef.current
+    // Read live, not from React state: this runs inside a capture callback,
+    // before the render that would have refreshed a state value.
+    const pending = sink.count()
     const enginePhase = enginePhaseRef.current
+
     setPhase(
       isPreparing(enginePhase)
         ? { status: 'preparing', seconds, silentMs, pending, engine: enginePhase }
         : { status: 'listening', seconds, silentMs, pending }
     )
-  }, [])
+  }, [sink])
 
   const finish = useCallback(() => {
     const segmenter = segmenterRef.current
     // Concluir must not drop the phrase still being spoken (VP-R1.4).
     if (segmenter !== null) {
       for (const event of segmenter.flush()) {
-        if (event.type === 'segment') {
-          queueRef.current.push({ index: event.index, pcm: event.pcm })
-          pendingRef.current += 1
-        }
+        if (event.type === 'segment') sink.enqueue(event.index, event.pcm)
       }
     }
     release()
-    setPhase({ status: 'finalizing', pending: pendingRef.current })
-  }, [release])
+
+    // A take with nothing left to wait for ends here: no further queue change is
+    // coming, so `settle` would never be called and the drain would hang on
+    // screen forever.
+    const pending = sink.count()
+    if (pending === 0 && !sink.busy()) {
+      setPhase(
+        sink.failure !== null
+          ? { status: 'error', kind: 'engine', message: sink.failure }
+          : { status: 'idle' }
+      )
+      return
+    }
+    setPhase({ status: 'finalizing', pending })
+  }, [release, sink])
 
   const discard = useCallback(() => {
     takeRef.current += 1
-    queueRef.current = []
-    pendingRef.current = 0
+    // Every queued and in-flight segment goes, so a result that resolves after
+    // the rewind cannot write into the composer (VP-R1.5).
+    sink.clear()
     release()
 
     // The exact pre-dictation value AND caret. An empty range means no landing
@@ -183,14 +226,15 @@ export function useDictation(
     }
     snapshotRef.current = null
     setPhase({ status: 'idle' })
-  }, [release, target])
+  }, [release, sink, target])
 
   const handleEvents = useCallback(
     (events: SegmenterEvent[]) => {
       for (const event of events) {
         if (event.type === 'segment') {
-          queueRef.current.push({ index: event.index, pcm: event.pcm })
-          pendingRef.current += 1
+          // Handed off without interrupting capture — the user may keep talking
+          // straight through it (VP-R2.1).
+          sink.enqueue(event.index, event.pcm)
         } else if (event.type === 'autostop') {
           // VP-R4.2 — never leave a microphone open indefinitely. The countdown
           // that preceded this is the transport's, driven by `silentMs`.
@@ -200,7 +244,7 @@ export function useDictation(
       }
       publishPhase()
     },
-    [finish, publishPhase]
+    [finish, publishPhase, sink]
   )
 
   const start = useCallback(() => {
@@ -212,8 +256,7 @@ export function useDictation(
       const { value, selectionStart } = target.read()
       return { value, selectionStart }
     })()
-    queueRef.current = []
-    pendingRef.current = 0
+    sink.clear()
     startedAtRef.current = Date.now()
     // Capture is announced as live *before* the engine is consulted: pressing
     // the microphone never waits on a download or a 51 s session build
@@ -248,7 +291,18 @@ export function useDictation(
           kind: error instanceof CaptureFailure ? error.kind : 'denied'
         })
       })
-  }, [deps, handleEvents, publishPhase, release, target])
+  }, [deps, handleEvents, publishPhase, release, sink, target])
+
+  const retry = useCallback(() => {
+    sink.retry()
+    // A failed take rests in the `error` phase; retrying puts it back to
+    // draining, so the transport stops offering the same button twice.
+    setPhase((current) =>
+      current.status === 'error' && current.kind === 'engine'
+        ? { status: 'finalizing', pending: sink.count() }
+        : current
+    )
+  }, [sink])
 
   return {
     phase,
@@ -256,6 +310,9 @@ export function useDictation(
     active: phase.status !== 'idle',
     start,
     finish,
-    discard
+    discard,
+    failure: sink.failure,
+    retry,
+    prewarm: useCallback(() => sink.prewarm(captureRef.current !== null), [sink])
   }
 }
