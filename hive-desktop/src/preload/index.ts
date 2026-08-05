@@ -12,6 +12,7 @@ import type {
 import type {
   AgentCapabilities,
   AgentEvent,
+  ApprovalDecision,
   AttachmentPick,
   SessionOpts,
   TurnOpts,
@@ -230,6 +231,11 @@ const hive = {
     // button's channel (never 'agent:stop', which would leave the chat with
     // no session to send the next message to).
     interrupt: (turnId?: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', turnId),
+    // agent-approvals: answers one blocked permission request. The turn's CLI
+    // child is parked until this lands, so the approval card is the only thing
+    // that can move it — there is no timeout the user can win by waiting.
+    respondApproval: (requestId: string, decision: ApprovalDecision): Promise<void> =>
+      ipcRenderer.invoke('agent:approve', requestId, decision),
     onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
       ipcRenderer.on('agent:event', listener)
@@ -597,6 +603,10 @@ const hive = {
       ipcRenderer.invoke('review:acceptFile', workspace, path),
     rejectFile: (workspace: string, path: string): Promise<ReviewResult> =>
       ipcRenderer.invoke('review:rejectFile', workspace, path),
+    acceptFiles: (workspace: string, paths: string[]): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:acceptFiles', workspace, paths),
+    rejectFiles: (workspace: string, paths: string[]): Promise<ReviewResult> =>
+      ipcRenderer.invoke('review:rejectFiles', workspace, paths),
     acceptHunk: (workspace: string, path: string, hunkId: string): Promise<ReviewResult> =>
       ipcRenderer.invoke('review:acceptHunk', workspace, path, hunkId),
     rejectHunk: (workspace: string, path: string, hunkId: string): Promise<ReviewResult> =>

@@ -1,11 +1,14 @@
 /* Popover — product-register floating panel (DESIGN.md's Overlays surface
    treatment: --surface background, --border outline, --shadow-2, portalled
-   on --z-overlay). Radix's Popover.Root/Trigger/Portal/Content/Arrow/Close
-   supply focus handling, Escape/outside-click dismiss, and edge-aware
-   positioning (avoidCollisions on by default) — this file styles on top. */
+   on --z-dropdown, the transient-layer step: a popover opened from inside a
+   Dialog/Sheet must paint over it, and Radix portals it to the body as a
+   sibling of that dialog — see the note on the scale in tokens.css).
+   Radix's Popover.Root/Trigger/Portal/Content/Arrow/Close supply focus
+   handling, Escape/outside-click dismiss, and edge-aware positioning
+   (avoidCollisions on by default) — this file styles on top. */
 
 .hds-popover-content {
-  z-index: var(--z-overlay);
+  z-index: var(--z-dropdown);
   min-width: 220px;
   max-width: min(360px, calc(100vw - var(--s-5)));
   background: var(--surface);

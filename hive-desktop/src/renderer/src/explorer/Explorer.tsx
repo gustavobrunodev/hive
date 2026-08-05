@@ -28,6 +28,7 @@ import {
   Tree
 } from '@hive/design-system'
 import { t } from '../i18n'
+import { watchWorkspaceShared } from '../workspaceWatch'
 import { gitStatusColor, rollupChangedFolders, type GitDecoration } from '../scm/gitStatus'
 import { hasGutterMarks } from '../scm/gutter'
 import { useGutter } from '../scm/useGutter'
@@ -416,9 +417,12 @@ export function FileTree({
 
   // Live updates (R5.3): a change anywhere under the workspace re-fetches
   // the tree so files created by an agent workflow (T19) show up without a
-  // manual reload. Unsubscribes on unmount / workspace change.
+  // manual reload. Unsubscribes on unmount / workspace change — through the
+  // shared multiplexer, since the sidebar unmounts this view whenever the user
+  // switches to Source Control / Second Brain and the raw bridge call would
+  // take *their* watchers down with it.
   useEffect(() => {
-    const unsubscribe = window.hive.watchWorkspace(workspace, () => {
+    const unsubscribe = watchWorkspaceShared(workspace, () => {
       setRefreshToken((current) => current + 1)
     })
     return unsubscribe

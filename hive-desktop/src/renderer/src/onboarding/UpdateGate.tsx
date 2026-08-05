@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Progress } from '@hive/design-system'
-import { t } from '../i18n'
+import { Button } from '@hive/design-system'
+import { provisionMessages, t } from '../i18n'
+import { ProvisionScene } from './ProvisionScene'
 
 interface UpdateGateProps {
   /** Workspace path to update BMAD in. */
@@ -65,38 +66,36 @@ export function UpdateGate({ workspace, onComplete }: UpdateGateProps): React.JS
   }, [workspace, runToken, onComplete])
 
   return (
-    <main className="wb-gate">
-      <div className="wb-gate-card">
-        <h1 className="wb-gate-title">{t('updateGate.title')}</h1>
-        <p className="wb-gate-desc">{t('updateGate.description')}</p>
-
-        {phase.status === 'error' ? (
+    <ProvisionScene
+      title={t('updateGate.title')}
+      messages={provisionMessages.update}
+      caption={progressMessage}
+      captionFallback={t('updateGate.progressLabel')}
+      stage={[1, 2]}
+      error={
+        phase.status === 'error'
+          ? {
+              title: t('updateGate.errorTitle'),
+              message: phase.message || t('updateGate.errorDescriptionFallback')
+            }
+          : null
+      }
+      actions={
+        phase.status === 'error' ? (
           <>
-            <Alert variant="danger" title={t('updateGate.errorTitle')} role="alert">
-              {phase.message || t('updateGate.errorDescriptionFallback')}
-            </Alert>
-            <div className="wb-gate-error-actions">
-              <Button
-                cut={false}
-                className="wb-btn"
-                onClick={() => setRunToken((current) => current + 1)}
-              >
-                {t('updateGate.retryCta')}
-              </Button>
-              <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
-                {t('updateGate.continueAnywayCta')}
-              </Button>
-            </div>
+            <Button
+              cut={false}
+              className="wb-btn"
+              onClick={() => setRunToken((current) => current + 1)}
+            >
+              {t('updateGate.retryCta')}
+            </Button>
+            <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
+              {t('updateGate.continueAnywayCta')}
+            </Button>
           </>
-        ) : (
-          <>
-            <Progress value={null} />
-            <p className="wb-gate-progress-caption" role="status">
-              {progressMessage ?? t('updateGate.progressLabel')}
-            </p>
-          </>
-        )}
-      </div>
-    </main>
+        ) : null
+      }
+    />
   )
 }

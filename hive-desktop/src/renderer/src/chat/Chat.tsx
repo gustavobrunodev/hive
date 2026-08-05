@@ -19,13 +19,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner,
-  TypingIndicator
+  Spinner
 } from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
-import { HiveCellIcon, PaperclipIcon, SlidersIcon } from '../ui/icons'
+import { HiveCellIcon, PaperclipIcon, SlashIcon, SlidersIcon } from '../ui/icons'
 import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
+import { ScrollableRow } from '../ui/ScrollableRow'
 import { shortcutIcon } from '../ui/roleVisuals'
 import { FileTypeIcon } from '../ui/fileIcons'
 import type { RoleAction } from '../ui/ActionRail'
@@ -33,10 +33,24 @@ import { IntentGrid } from './IntentGrid'
 import { SlashMenu, type SlashSkill } from './SlashMenu'
 import { FileMentionMenu } from './FileMentionMenu'
 import { extractMentions, formatFileSize, mentionSegments } from './composerMentions'
+import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
 import { useMentions } from './useMentions'
 import type { ChatSessionMeta } from './sessionMeta'
 import { ChangeCard } from './ChangeCard'
+import { TurnTimeline } from './TurnTimeline'
+import type { ToolActivityEvent } from './toolActivity'
+import {
+  answerTurnApproval,
+  appendTurnApproval,
+  appendTurnText,
+  applyTurnTool,
+  settleTurnBlocks,
+  trailingTurnText,
+  turnText,
+  type TurnBlock
+} from './turnTimeline'
+import { useSmoothStream } from './useSmoothStream'
 import { useReviewOptional } from '../scm/useReview'
 
 interface ChatMessageEntry {
@@ -45,6 +59,14 @@ interface ChatMessageEntry {
   text: string
   /** Display names of files attached to this (user) turn — rendered as chips in the bubble. */
   attachments?: string[]
+  /**
+   * The (assistant) turn's timeline — its prose, tool calls and permission
+   * cards in the order they happened, kept with the finished message so the
+   * transcript still shows *how* the answer was produced after the turn
+   * settles. Live-only, not persisted: a reopened conversation falls back to
+   * rendering `text`.
+   */
+  blocks?: TurnBlock[]
 }
 
 interface AgentOption {
@@ -67,7 +89,24 @@ interface WorkflowCommand {
 /** Structural mirror of `main/agentAdapter.ts`'s `AgentEvent` (renderer files mirror main types instead of importing across the boundary). */
 type AgentEventIn =
   | { type: 'token'; text: string; turnId?: string }
-  | { type: 'tool'; name: string; detail?: string; turnId?: string }
+  | {
+      type: 'tool'
+      name: string
+      detail?: string
+      toolId?: string
+      phase?: 'start' | 'end'
+      ok?: boolean
+      filePath?: string
+      turnId?: string
+    }
+  | {
+      type: 'approval'
+      requestId: string
+      tool: string
+      detail?: string
+      input?: Record<string, unknown>
+      turnId?: string
+    }
   | { type: 'done'; turnId?: string }
   | { type: 'error'; message: string; turnId?: string }
   | { type: 'interrupted'; turnId?: string }
@@ -194,7 +233,13 @@ function nextTurnId(): string {
  */
 interface ActiveTurn {
   id: string
-  buffer: string
+  /**
+   * Everything this turn has produced, in arrival order: prose, tool calls and
+   * permission cards interleaved exactly as they happened (see
+   * `turnTimeline.ts`). Replaces the old `buffer` + `activities` pair, which
+   * could only ever be rendered as two separate slabs.
+   */
+  blocks: TurnBlock[]
   visible: boolean
   session: Promise<string | null>
   hiveId: string | null
@@ -205,7 +250,8 @@ interface TurnEventCtx {
   turns: ActiveTurn[]
   workspace: string
   currentSessionId: () => string | null
-  setStreamingText: (value: string | null) => void
+  /** Publishes the *visible* turn's timeline to the pane; `null` when no turn is on screen. */
+  setStreamingBlocks: (blocks: TurnBlock[] | null) => void
   setErrorMessage: (message: string) => void
   appendMessage: (entry: ChatMessageEntry) => void
   /** Updates the live conversation's CLI session id (conversation memory) — only called for a *visible* turn's `session` event. */
@@ -261,10 +307,19 @@ function settleTurn(
 ): void {
   const turn = takeTurn(ctx.turns, turnId)
   if (!turn) return
-  const text = turn.buffer
+  const text = turnText(turn.blocks)
   persistAssistantText(ctx, turn, text)
-  if (turn.visible && (terminal === 'done' || text.length > 0)) {
-    ctx.appendMessage({ id: nextMessageId(), role: 'assistant', text })
+  // A turn that ends leaves nothing spinning and nothing answerable — an
+  // interrupt settles its in-flight steps as failed, a clean finish as done,
+  // and either way a permission nobody answered is recorded as refused.
+  const blocks = settleTurnBlocks(turn.blocks, terminal === 'done' ? 'ok' : 'failed')
+  if (turn.visible && (terminal === 'done' || text.length > 0 || blocks.length > 0)) {
+    ctx.appendMessage({
+      id: nextMessageId(),
+      role: 'assistant',
+      text,
+      blocks: blocks.length > 0 ? blocks : undefined
+    })
   }
   syncStreamingUi(ctx)
   ctx.notifyRunning()
@@ -288,6 +343,22 @@ function adoptCliSession(ctx: TurnEventCtx, cliId: string, turnId: string | unde
 }
 
 /**
+ * Appends to the event's turn timeline and republishes it when that turn is
+ * the one on screen. The single write path for everything a running turn
+ * produces — text, steps, permission cards — so they can never again drift
+ * into separate, separately-ordered stores.
+ */
+function growTurn(
+  ctx: TurnEventCtx,
+  turnId: string | undefined,
+  grow: (blocks: TurnBlock[]) => TurnBlock[]
+): void {
+  const turn = findTurn(ctx.turns, turnId, 'newest') ?? openImplicitTurn(ctx, turnId)
+  turn.blocks = grow(turn.blocks)
+  if (turn.visible) ctx.setStreamingBlocks(turn.blocks)
+}
+
+/**
  * Agent-event reducer (module scope for the same complexity-budget reason as
  * `handleSlashKey`). Every event routes to its turn via `turnId`
  * (background-turns) — tokens open an implicit turn only for a stray stream
@@ -296,31 +367,16 @@ function adoptCliSession(ctx: TurnEventCtx, cliId: string, turnId: string | unde
  * the partial-keep behavior, session-history for the persistence).
  */
 function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
-  const { turns } = ctx
   switch (event.type) {
-    case 'token': {
-      let turn = findTurn(turns, event.turnId, 'newest')
-      if (!turn) {
-        turn = {
-          id: event.turnId ?? nextTurnId(),
-          buffer: '',
-          visible: true,
-          session: Promise.resolve(ctx.currentSessionId()),
-          hiveId: ctx.currentSessionId()
-        }
-        turns.push(turn)
-        ctx.notifyRunning()
-      }
-      turn.buffer += event.text
-      if (turn.visible) ctx.setStreamingText(turn.buffer)
+    case 'token':
+      growTurn(ctx, event.turnId, (blocks) => appendTurnText(blocks, event.text))
       break
-    }
     case 'done':
     case 'interrupted':
       settleTurn(ctx, event.type, event.turnId)
       break
     case 'error': {
-      const turn = takeTurn(turns, event.turnId)
+      const turn = takeTurn(ctx.turns, event.turnId)
       if (!turn || turn.visible) ctx.setErrorMessage(event.message)
       syncStreamingUi(ctx)
       ctx.notifyRunning()
@@ -330,14 +386,52 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
       adoptCliSession(ctx, event.id, event.turnId)
       break
     case 'tool':
+      // The feed belongs to the turn's timeline, so a background turn keeps
+      // accumulating steps and shows its full history — in order — when the
+      // user switches back to it.
+      growTurn(ctx, event.turnId, (blocks) => applyTurnTool(blocks, event as ToolActivityEvent))
+      break
+    case 'approval':
+      // agent-approvals: the card opens *inside its turn*, at the point the
+      // agent asked — not in a pile at the bottom of the conversation. A
+      // request raised by a background turn stays blocked and simply comes
+      // back into view with that conversation; it is never auto-answered.
+      growTurn(ctx, event.turnId, (blocks) =>
+        appendTurnApproval(blocks, {
+          requestId: event.requestId,
+          tool: event.tool,
+          detail: event.detail,
+          input: event.input,
+          turnId: event.turnId,
+          answer: null
+        })
+      )
       break
   }
+}
+
+/**
+ * A stray stream with no live turn at all (an event arriving after a reload, or
+ * from an adapter that reports no `turnId`) still deserves a bubble — open one
+ * bound to the conversation on screen rather than dropping its output.
+ */
+function openImplicitTurn(ctx: TurnEventCtx, turnId: string | undefined): ActiveTurn {
+  const turn: ActiveTurn = {
+    id: turnId ?? nextTurnId(),
+    blocks: [],
+    visible: true,
+    session: Promise.resolve(ctx.currentSessionId()),
+    hiveId: ctx.currentSessionId()
+  }
+  ctx.turns.push(turn)
+  ctx.notifyRunning()
+  return turn
 }
 
 /** After a terminal event: hand the streaming bubble to the newest still-visible in-flight turn, or clear it. */
 function syncStreamingUi(ctx: TurnEventCtx): void {
   const visible = [...ctx.turns].reverse().find((turn) => turn.visible)
-  ctx.setStreamingText(visible ? visible.buffer : null)
+  ctx.setStreamingBlocks(visible ? visible.blocks : null)
 }
 
 /**
@@ -374,14 +468,53 @@ function activeOptionId(
   return open && count > 0 ? `${listboxId}-opt-${Math.min(highlight, count - 1)}` : undefined
 }
 
-/** A message that is exactly one slash command (`/bmad-prd`) — rendered as a command token, mirroring what launching a shortcut or picking a skill "types". */
-const SLASH_COMMAND_RE = /^\/[A-Za-z0-9][\w:-]*$/
+/**
+ * A sent invocation: the command token, whatever rode on its line, and the
+ * material the user actually wrote underneath.
+ *
+ * The two halves get deliberately different weight (see `.wb-invocation` in
+ * workbench.css) because a launched turn is two things at once — a skill being
+ * run and a message being sent — and a single flat run of text hides which is
+ * which. Everything sent is still shown verbatim; a long body just collapses.
+ */
+function CommandInvocation({ invocation }: { invocation: CommandMessage }): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  const collapsible = isLongBody(invocation.body)
+  return (
+    <span className="wb-invocation">
+      {/* One unbroken text run, `/` included: the token has to select, copy
+          and read aloud as the exact command that was invoked. */}
+      <span className="wb-command-token">
+        <SlashIcon size={13} aria-hidden="true" />
+        <span className="wb-command-token-name">/{invocation.command}</span>
+        {invocation.args !== '' && <span className="wb-command-token-args">{invocation.args}</span>}
+      </span>
+      {invocation.body !== '' && (
+        <span className="wb-invocation-body">
+          <span
+            className="wb-invocation-text"
+            data-clamped={collapsible && !expanded ? '' : undefined}
+          >
+            {invocation.body}
+          </span>
+          {collapsible && (
+            <button
+              type="button"
+              className="wb-invocation-more"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? t('chat.invocationLess') : t('chat.invocationMore')}
+            </button>
+          )}
+        </span>
+      )}
+    </span>
+  )
+}
 
 /** A sent user message's text with its valid `#file` references styled as inline pills. */
 function renderUserText(text: string, fileSet: ReadonlySet<string>): React.ReactNode {
-  if (SLASH_COMMAND_RE.test(text)) {
-    return <span className="wb-user-command">{text}</span>
-  }
   return mentionSegments(text, fileSet).map((segment, index) =>
     segment.mention ? (
       <span key={index} className="wb-user-mention">
@@ -424,7 +557,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [model, setModel] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
-  const [streamingText, setStreamingText] = useState<string | null>(null)
+  // The on-screen turn's live timeline (prose + steps + permission cards, in
+  // order). `null` when no turn is running in this conversation.
+  const [streamingBlocks, setStreamingBlocks] = useState<TurnBlock[] | null>(null)
   // Agent Change Review (ACR-R2.2): the shared review store when present (the
   // app wraps Chat in a ReviewProvider); null in isolated tests → no cards.
   const review = useReviewOptional()
@@ -545,7 +680,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       turns,
       workspace,
       currentSessionId: () => sessionIdRef.current,
-      setStreamingText,
+      setStreamingBlocks,
       setErrorMessage,
       appendMessage: (entry) => setMessages((current) => [...current, entry]),
       setCliSession: (id) => {
@@ -605,7 +740,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       ])
       const turn: ActiveTurn = {
         id: nextTurnId(),
-        buffer: '',
+        blocks: [],
         visible: true,
         session: persistUserMessage(label, attachmentNames),
         hiveId: sessionIdRef.current
@@ -617,7 +752,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         turn.hiveId = id
         refreshRunning()
       })
-      setStreamingText('')
+      setStreamingBlocks([])
       refreshRunning()
       return turn.id
     },
@@ -693,9 +828,49 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // interrupted here (that's exactly the behavior users expect from
   // Claude Desktop: leave a conversation thinking, come back later).
   const detachTurns = useCallback(() => {
+    // In-place on purpose. An `ActiveTurn` is aliased by the async callbacks
+    // that outlive this render — `beginTurn`'s `turn.session.then` writes
+    // `turn.hiveId`, and the event stream appends to `turn.blocks` — so
+    // swapping in fresh objects would land those late writes on orphans and
+    // silently lose a background conversation's reply.
+    // eslint-disable-next-line react-hooks/immutability
     for (const turn of turnsRef.current) turn.visible = false
-    setStreamingText(null)
+    // A pending permission card belongs to the conversation that raised it, so
+    // it leaves with the pane. The request itself stays blocked in main and
+    // comes back with the transcript — it is never silently auto-answered.
+    setStreamingBlocks(null)
   }, [])
+
+  // agent-approvals: releases the CLI child parked on this request. The card
+  // keeps its answered state in place — in the transcript, where it was asked
+  // — so the record of what was authorized survives the decision.
+  const handleApprovalDecision = useCallback(
+    (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => {
+      // The card may live in a still-running turn or in one that has already
+      // settled into a message (a request can outlive its turn), so both
+      // stores are updated; whichever holds it, the answer lands in place.
+      // In-place for the same reason as `detachTurns`: the turn object is the
+      // identity the running stream keeps writing to.
+      for (const turn of turnsRef.current) {
+        // eslint-disable-next-line react-hooks/immutability
+        turn.blocks = answerTurnApproval(turn.blocks, requestId, decision)
+        if (turn.visible) setStreamingBlocks(turn.blocks)
+      }
+      setMessages((current) =>
+        current.map((message) =>
+          message.blocks === undefined
+            ? message
+            : { ...message, blocks: answerTurnApproval(message.blocks, requestId, decision) }
+        )
+      )
+      void window.hive.agent.respondApproval(requestId, {
+        behavior: decision === 'deny' ? 'deny' : 'allow',
+        scope: decision === 'allow-always' ? 'always' : 'once',
+        message: decision === 'deny' ? t('approval.deniedMessage') : undefined
+      })
+    },
+    []
+  )
 
   const newConversation = useCallback(() => {
     detachTurns()
@@ -753,7 +928,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const running = turnsRef.current.find((turn) => turn.hiveId === stored.id)
       if (running) {
         running.visible = true
-        setStreamingText(running.buffer)
+        setStreamingBlocks(running.blocks)
       }
     },
     [workspace, detachTurns]
@@ -766,8 +941,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     openSession
   ])
 
-  const isStreaming = streamingText !== null
-  const isEmpty = messages.length === 0 && streamingText === null
+  const isStreaming = streamingBlocks !== null
+  const isEmpty = messages.length === 0 && streamingBlocks === null
+  // agent-activity AA-R4: the CLI delivers a reply in fat, irregular chunks;
+  // this paces them into a continuous reveal so the text flows instead of
+  // appearing in blocks. Grapheme-safe, so an emoji never renders half-formed.
+  // Only the *trailing* text block is paced — prose the agent already finished
+  // (because a tool call interrupted it) must not re-type itself.
+  const revealedText = useSmoothStream(streamingBlocks && trailingTurnText(streamingBlocks))
 
   // multi-agent: the composer switcher's pool — enabled agents (in order) with
   // their display names resolved.
@@ -880,6 +1061,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // complexity-budget reason as `renderToolbar`.
   function userBody(message: ChatMessageEntry): React.JSX.Element {
     const hasAttachments = message.attachments !== undefined && message.attachments.length > 0
+    // A message that STARTS with a command is not prose in a bubble — it's an
+    // invocation, and possibly an invocation carrying material. It gets its own
+    // compact token (see `.wb-msg-command`) rather than a tinted chip nested
+    // inside the accent bubble, which put dark ink on a darkened accent at
+    // 4.2:1 — under the WCAG AA floor.
+    const invocation = hasAttachments ? null : splitCommandMessage(message.text)
+    if (invocation !== null) return <CommandInvocation invocation={invocation} />
     return (
       <>
         {message.text !== '' && renderUserText(message.text, mentions.fileSet)}
@@ -1081,22 +1269,26 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         </button>
       )
     }
-    // The chips scroll horizontally in their own inner track; the customize
-    // control stays pinned at the end so it's reachable no matter how many
-    // shortcuts are selected.
+    // The chips scroll horizontally in their own inner track — with paddles and
+    // edge fades, since a role with many shortcuts can hide most of them past
+    // the pane's edge; the customize control stays pinned after that track so
+    // it's reachable no matter how many shortcuts are selected.
     return (
       <div className="wb-shortcut-strip">
-        <div
-          className="wb-shortcut-strip-scroll"
+        <ScrollableRow
+          className="wb-shortcut-strip-row"
+          trackClassName="wb-shortcut-strip-scroll"
           role="toolbar"
-          aria-label={t('chat.shortcutsLabel')}
+          ariaLabel={t('chat.shortcutsLabel')}
+          scrollBackLabel={t('chat.shortcutsScrollBack')}
+          scrollForwardLabel={t('chat.shortcutsScrollForward')}
         >
           {workflows.map(renderChip)}
           {workflows.length > 0 && personas.length > 0 && (
             <span className="wb-shortcut-strip-divider" aria-hidden="true" />
           )}
           {personas.map(renderChip)}
-        </div>
+        </ScrollableRow>
         {onCustomizeShortcuts && (
           <button
             type="button"
@@ -1140,18 +1332,44 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               <ChatMessage
                 key={message.id}
                 role={message.role}
+                className={
+                  message.role === 'user' && splitCommandMessage(message.text) !== null
+                    ? 'wb-msg-command'
+                    : undefined
+                }
                 avatar={message.role === 'assistant' ? assistantAvatar : undefined}
               >
-                {message.role === 'assistant' ? assistantBody(message.text) : userBody(message)}
+                {message.role === 'assistant' ? (
+                  // A finished turn replays its own timeline. A conversation
+                  // restored from disk has no blocks (they aren't persisted),
+                  // so it falls back to the prose it does have.
+                  message.blocks !== undefined ? (
+                    <TurnTimeline
+                      blocks={message.blocks}
+                      live={false}
+                      renderText={assistantBody}
+                      onApprovalDecide={handleApprovalDecision}
+                    />
+                  ) : (
+                    message.text !== '' && assistantBody(message.text)
+                  )
+                ) : (
+                  userBody(message)
+                )}
               </ChatMessage>
             ))}
-            {streamingText !== null && (
+            {streamingBlocks !== null && (
               <ChatMessage role="assistant" avatar={assistantAvatar}>
-                {streamingText.length > 0 ? (
-                  assistantBody(streamingText)
-                ) : (
-                  <TypingIndicator label={t('chat.typingLabel')} />
-                )}
+                {/* The live turn, in the order it is happening: what it says,
+                    what it asks permission for, and what it runs — never
+                    hoisted, never pinned to the bottom of the screen. */}
+                <TurnTimeline
+                  blocks={streamingBlocks}
+                  live
+                  revealedText={revealedText}
+                  renderText={assistantBody}
+                  onApprovalDecide={handleApprovalDecision}
+                />
               </ChatMessage>
             )}
             {/* Agent Change Review (ACR-R2.2): a change card per turn that

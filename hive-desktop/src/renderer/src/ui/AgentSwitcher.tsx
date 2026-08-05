@@ -108,9 +108,17 @@ export function AgentSwitcher({
           })}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        {/* The DS `DropdownMenuItem` wraps its children in one nowrap/ellipsis
+            label span, so icon + text handed to it as siblings collapse against
+            each other. Both go inside the same `wb-agent-menu-inner` row the
+            radio items use — one icon column, one gap rule, one alignment. */}
         <DropdownMenuItem className="wb-agent-menu-manage" onSelect={onManage}>
-          <GearIcon size={15} />
-          {t('chat.agentManageCta')}
+          <span className="wb-agent-menu-inner">
+            <span className="wb-agent-menu-mark" aria-hidden="true">
+              <GearIcon size={15} />
+            </span>
+            {t('chat.agentManageCta')}
+          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

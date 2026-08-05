@@ -261,12 +261,22 @@
    Popover/Sheet/Dialog, Toast, Tooltip, ...). See design.md's
    "Shared Primitives (F4)". Not theme-dependent, so it lives outside the
    data-theme blocks above.
+
+   The ladder's invariant: **a transient layer belongs to whatever surface
+   opened it**, so it stacks above that surface. A Select/DropdownMenu opened
+   *inside* a Dialog is the clearest case — it must paint over the dialog, not
+   under it. Ranking dropdowns below `--z-modal` (as this scale did until the
+   Skill Studio's model picker rendered behind its own dialog overlay,
+   unclickable) makes every in-modal picker silently unusable, because Radix
+   portals the listbox to `document.body` as a *sibling* of the dialog.
+   Closed menus don't render at all, so nothing is ever wrongly covered.
    ========================================================================== */
 :root {
-  --z-dropdown: 1000;
-  --z-sticky: 1100;
-  --z-overlay: 1200;
-  --z-modal: 1300;
+  --z-sticky: 1000;
+  --z-overlay: 1100;
+  --z-modal: 1200;
+  /* Above `--z-modal`: menus/listboxes belong to the surface that opened them. */
+  --z-dropdown: 1300;
   --z-toast: 1400;
   --z-tooltip: 1500;
 }

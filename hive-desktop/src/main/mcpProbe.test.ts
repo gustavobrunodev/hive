@@ -62,10 +62,7 @@ describe('mcpProbe — stdio handshake', () => {
 
 describe('mcpProbe — remote handshake', () => {
   it('reports a connection failure for an unreachable endpoint', async () => {
-    const result = await mcpProbe(
-      { transport: 'http', url: 'http://127.0.0.1:1/mcp' },
-      { cwd }
-    )
+    const result = await mcpProbe({ transport: 'http', url: 'http://127.0.0.1:1/mcp' }, { cwd })
     expect(result.ok).toBe(false)
     expect(result.error).toBeTruthy()
   })

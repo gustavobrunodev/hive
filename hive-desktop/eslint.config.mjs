@@ -18,6 +18,10 @@ export default defineConfig(
       'build',
       'test-results',
       'playwright-report',
+      // Visual-pass harness (docs/visual-validation.md): these are bare
+      // function *expressions* handed to the Playwright MCP tool, not modules —
+      // the app's TS/ESM rules don't apply to them.
+      'tools/visual/**',
       '**/__fixtures__/**' // test fixtures (e.g. the MCP probe's fake stdio server)
     ]
   },

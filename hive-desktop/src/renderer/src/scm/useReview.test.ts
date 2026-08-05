@@ -27,6 +27,8 @@ let reviewMock: {
   get: ReturnType<typeof vi.fn>
   acceptFile: ReturnType<typeof vi.fn>
   rejectFile: ReturnType<typeof vi.fn>
+  acceptFiles: ReturnType<typeof vi.fn>
+  rejectFiles: ReturnType<typeof vi.fn>
   acceptHunk: ReturnType<typeof vi.fn>
   rejectHunk: ReturnType<typeof vi.fn>
   acceptAll: ReturnType<typeof vi.fn>
@@ -40,6 +42,8 @@ beforeEach(() => {
     get: vi.fn(async () => ({ changes: [], turns: [] })),
     acceptFile: vi.fn(async () => ({ ok: true })),
     rejectFile: vi.fn(async () => ({ ok: true })),
+    acceptFiles: vi.fn(async () => ({ ok: true })),
+    rejectFiles: vi.fn(async () => ({ ok: true })),
     acceptHunk: vi.fn(async () => ({ ok: true })),
     rejectHunk: vi.fn(async () => ({ ok: true })),
     acceptAll: vi.fn(async () => ({ ok: true })),
@@ -234,6 +238,8 @@ describe('ReviewProvider / useReview', () => {
               refresh: vi.fn(),
               acceptFile: vi.fn(),
               rejectFile: vi.fn(),
+              acceptFiles: vi.fn(),
+              rejectFiles: vi.fn(),
               acceptHunk: vi.fn(),
               rejectHunk: vi.fn(),
               acceptAll: vi.fn(),

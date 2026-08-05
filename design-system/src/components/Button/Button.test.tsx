@@ -1,3 +1,4 @@
+import { createRef } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
@@ -81,5 +82,24 @@ describe("Button", () => {
     const link = screen.getByRole("link", { name: "Docs" })
     expect(link).toHaveAttribute("target", "_blank")
     expect(link).toHaveAttribute("rel", "noreferrer")
+  })
+
+  // Every Radix `asChild` trigger hands the child a ref; dropping it leaves the
+  // popper with no anchor, which is how a wired-up split button ends up opening
+  // its menu off-screen. Both branches must forward.
+  it("forwards its ref to the underlying button", () => {
+    const ref = createRef<HTMLButtonElement>()
+    render(<Button ref={ref}>Press</Button>)
+    expect(ref.current).toBe(screen.getByRole("button", { name: "Press" }))
+  })
+
+  it("forwards its ref to the underlying anchor for the link branch", () => {
+    const ref = createRef<HTMLAnchorElement>()
+    render(
+      <Button ref={ref} href="/docs">
+        Docs
+      </Button>
+    )
+    expect(ref.current).toBe(screen.getByRole("link", { name: "Docs" }))
   })
 })

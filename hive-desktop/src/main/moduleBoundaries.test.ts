@@ -80,10 +80,7 @@ function correction(from: Zone, to: Zone, typeOnly: boolean): string {
  * boundary without an exception covering it. `filePath` is relative to the
  * package root (e.g. `src/renderer/src/chat/Chat.tsx`).
  */
-export function findBoundaryViolations(
-  sourceText: string,
-  filePath: string
-): BoundaryViolation[] {
+export function findBoundaryViolations(sourceText: string, filePath: string): BoundaryViolation[] {
   const from = zoneOf(filePath)
   if (!from) return []
 

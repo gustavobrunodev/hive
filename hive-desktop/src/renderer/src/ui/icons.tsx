@@ -403,8 +403,21 @@ export function CompassIcon({ size, ...rest }: IconProps): React.JSX.Element {
 export function GearIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
-      <circle cx="8" cy="8" r="2.15" />
-      <path d="M8 1.5l.62 1.72 1.8-.5 1.16 1.4 1.72.62-.5 1.8L14.5 8l-1.3 1.3.5 1.8-1.72.62-1.16 1.4-1.8-.5L8 14.5l-1.3-1.06-1.8.5-1.16-1.4-1.72-.62.5-1.8L1.5 8l1.06-1.3-.5-1.8 1.72-.62L5.9 2.5l1.8.5L8 1.5Z" />
+      <circle cx="8" cy="8" r="2.4" />
+      <path d="M6.95 1.38A6.7 6.7 0 0 1 9.05 1.38L9.2 2.99A5.15 5.15 0 0 1 10.69 3.61L11.94 2.58A6.7 6.7 0 0 1 13.42 4.06L12.39 5.31A5.15 5.15 0 0 1 13.01 6.8L14.62 6.95A6.7 6.7 0 0 1 14.62 9.05L13.01 9.2A5.15 5.15 0 0 1 12.39 10.69L13.42 11.94A6.7 6.7 0 0 1 11.94 13.42L10.69 12.39A5.15 5.15 0 0 1 9.2 13.01L9.05 14.62A6.7 6.7 0 0 1 6.95 14.62L6.8 13.01A5.15 5.15 0 0 1 5.31 12.39L4.06 13.42A6.7 6.7 0 0 1 2.58 11.94L3.61 10.69A5.15 5.15 0 0 1 2.99 9.2L1.38 9.05A6.7 6.7 0 0 1 1.38 6.95L2.99 6.8A5.15 5.15 0 0 1 3.61 5.31L2.58 4.06A6.7 6.7 0 0 1 4.06 2.58L5.31 3.61A5.15 5.15 0 0 1 6.8 2.99L6.95 1.38Z" />
+    </svg>
+  )
+}
+
+/**
+ * Opens something outside the app — the departure arrow on links that hand off
+ * to the host browser.
+ */
+export function ExternalLinkIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M9.25 2.75h4v4M13.25 2.75 7.5 8.5" />
+      <path d="M12 9.75v2.5a1.5 1.5 0 0 1-1.5 1.5H3.75a1.5 1.5 0 0 1-1.5-1.5V5.5A1.5 1.5 0 0 1 3.75 4h2.5" />
     </svg>
   )
 }

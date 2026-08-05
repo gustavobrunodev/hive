@@ -23,7 +23,10 @@ vi.mock('@hive/design-system', () => ({
       createElement('strong', null, title),
       children
     ),
-  Progress: () => createElement('div', { role: 'progressbar' })
+  Progress: ({ className }: { className?: string }) =>
+    createElement('div', { role: 'progressbar', className }),
+  // The provisioning scene renders the Hive mark inside its lattice.
+  Logo: () => createElement('span', { 'data-testid': 'logo' })
 }))
 
 describe('UpdateGate (T10)', () => {

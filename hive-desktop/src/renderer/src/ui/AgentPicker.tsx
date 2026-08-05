@@ -1,7 +1,7 @@
 import { Switch } from '@hive/design-system'
 import { t } from '../i18n'
 import { agentVisual } from './agentVisuals'
-import { CheckIcon, StarIcon } from './icons'
+import { ExternalLinkIcon, StarIcon } from './icons'
 
 /** Structural mirror of `main/agentRegistry.ts`'s `AgentMeta` (renderer-side mirror convention). */
 export interface AgentMeta {
@@ -40,6 +40,10 @@ interface AgentPickerProps {
  *
  * Availability is honest: an unavailable agent can't be enabled or defaulted —
  * it shows exactly how to turn it on instead of pretending to work.
+ *
+ * Enabled state is carried by the `Switch` plus the card's accent tint, and by
+ * nothing else: a trailing check mark used to say it a third time, spending the
+ * width the agent's name needed to stay on one line in the 420px profile sheet.
  */
 export function AgentPicker({
   agents,
@@ -86,6 +90,7 @@ export function AgentPicker({
                 aria-label={t('agentSetup.installCtaAria', agent.displayName)}
               >
                 {t('agentSetup.installCta')}
+                <ExternalLinkIcon size={12} />
               </button>
             </span>
           )}
@@ -110,11 +115,6 @@ export function AgentPicker({
               onCheckedChange={(checked) => onToggle(agent.id, checked === true)}
               aria-label={t('agentSetup.toggleAria', agent.displayName)}
             />
-          </span>
-        )}
-        {isEnabled && (
-          <span className="wb-agent-card-check" aria-hidden="true">
-            <CheckIcon size={13} />
           </span>
         )}
       </li>

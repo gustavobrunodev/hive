@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../../i18n'
 import { MicIcon, StopIcon } from '../../ui/icons'
 import { formatElapsed } from './recorderFormat'
+import { Waveform } from './Waveform'
 
 /** Why the microphone is unavailable, so the message can be specific (SB-R5.3). */
 type MicError = 'denied' | 'unavailable'
@@ -26,17 +27,23 @@ function micErrorKind(error: unknown): MicError {
 
 /**
  * In-app microphone recorder (SB-R5). Records with `MediaRecorder`, shows a
- * live elapsed timer, and hands the finished Blob to the caller, which runs it
- * through the very same decode → transcribe → editable-transcript path as an
- * uploaded file.
+ * live waveform and elapsed timer, and hands the finished Blob to the caller,
+ * which runs it through the very same decode → transcribe → editable-transcript
+ * path as an uploaded file.
  *
- * Lifecycle discipline is the substance here (SB-R5.4): every take stops **all**
- * of its media tracks — on stop, on re-record, and on unmount — because a
- * surviving track keeps the OS microphone indicator lit and holds the device
- * open. The timer is cleared on the same paths.
+ * The waveform is not decoration: a timer counts up identically whether the
+ * microphone is capturing a voice or muted, so the meter is the only thing on
+ * screen that answers "is this working?" before the take is already lost.
+ *
+ * Lifecycle discipline is the other substance here (SB-R5.4): every take stops
+ * **all** of its media tracks — on stop, on re-record, and on unmount —
+ * because a surviving track keeps the OS microphone indicator lit and holds
+ * the device open. The timer is cleared on the same paths.
  */
 export function AudioRecorder({ onRecorded, busy }: AudioRecorderProps): React.JSX.Element {
   const [state, setState] = useState<RecorderState>({ status: 'idle' })
+  // The live stream is state, not just a ref: the meter renders from it.
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -50,6 +57,7 @@ export function AudioRecorder({ onRecorded, busy }: AudioRecorderProps): React.J
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
     recorderRef.current = null
+    setStream(null)
   }, [])
 
   // A component torn down mid-take must not leave the microphone open.
@@ -59,10 +67,10 @@ export function AudioRecorder({ onRecorded, busy }: AudioRecorderProps): React.J
     // Discard any previous take cleanly before opening a new stream.
     release()
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = media
 
-      const recorder = new MediaRecorder(stream)
+      const recorder = new MediaRecorder(media)
       recorderRef.current = recorder
       const chunks: Blob[] = []
 
@@ -77,6 +85,7 @@ export function AudioRecorder({ onRecorded, busy }: AudioRecorderProps): React.J
       }
 
       recorder.start()
+      setStream(media)
       setState({ status: 'recording', seconds: 0 })
       timerRef.current = setInterval(() => {
         setState((current) =>
@@ -115,30 +124,34 @@ export function AudioRecorder({ onRecorded, busy }: AudioRecorderProps): React.J
   const recording = state.status === 'recording'
 
   return (
-    <div className="wb-brain-recorder">
-      <div className="wb-brain-recorder-controls">
-        <button
-          type="button"
-          className="wb-brain-audio-pick"
-          data-recording={recording || undefined}
-          disabled={busy && !recording}
-          onClick={() => (recording ? stop() : void start())}
-        >
-          {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
-          {recording ? t('secondBrain.recordStop') : t('secondBrain.recordStart')}
-        </button>
-        {recording && (
-          <span
-            className="wb-brain-recorder-elapsed"
-            role="timer"
-            aria-label={t('secondBrain.recordElapsed')}
-          >
-            <span className="wb-brain-recorder-dot" aria-hidden="true" />
-            {formatElapsed(state.seconds)}
-          </span>
+    <div className="wb-brain-recorder" data-recording={recording || undefined}>
+      <div className="wb-brain-recorder-stage">
+        {recording ? (
+          <>
+            <Waveform stream={stream} silentLabel={t('secondBrain.recordSilent')} />
+            <span
+              className="wb-brain-recorder-elapsed"
+              role="timer"
+              aria-label={t('secondBrain.recordElapsed')}
+            >
+              <span className="wb-brain-recorder-dot" aria-hidden="true" />
+              {formatElapsed(state.seconds)}
+            </span>
+          </>
+        ) : (
+          <p className="wb-brain-recorder-idle">{t('secondBrain.recordHint')}</p>
         )}
       </div>
-      <p className="wb-brain-audio-hint">{t('secondBrain.recordHint')}</p>
+      <button
+        type="button"
+        className="wb-brain-record-btn"
+        data-recording={recording || undefined}
+        disabled={busy && !recording}
+        onClick={() => (recording ? stop() : void start())}
+      >
+        {recording ? <StopIcon size={16} /> : <MicIcon size={16} />}
+        {recording ? t('secondBrain.recordStop') : t('secondBrain.recordStart')}
+      </button>
     </div>
   )
 }

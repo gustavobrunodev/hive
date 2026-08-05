@@ -121,10 +121,14 @@ export interface AgentInput {
  *   stdout chunk from the underlying CLI process to one `token` event
  *   (simplest reasonable mapping; no attempt to parse structured
  *   token/message boundaries out of the CLI's stdout).
- * - `tool` — the agent invoked a tool. Not populated by `ClaudeCliAdapter`
- *   in this task (its stdout is treated as opaque text), but the variant is
- *   modeled now so a future adapter/parser can start emitting it without an
- *   `AgentEvent` shape change.
+ * - `tool` — the agent invoked a tool, or that invocation came back. Emitted
+ *   as a **pair** (`phase: 'start'` on the `tool_use` block, `phase: 'end'` on
+ *   its `tool_result`) correlated by `toolId`, so the UI can show work as it
+ *   happens instead of a silent gap (agent-activity AA-R1).
+ * - `approval` — the agent asked permission to run a tool that isn't
+ *   pre-authorized (agent-approvals). The turn's CLI process is **blocked**
+ *   until `AgentSession.respondApproval` answers with the matching
+ *   `requestId`; nothing else in the stream moves until then.
  * - `done` — the turn/session's underlying process finished successfully.
  * - `error` — the turn/session's underlying process failed (non-zero exit,
  *   killed by an *unexpected* signal, or failed to spawn).
@@ -145,11 +149,70 @@ export interface AgentInput {
  */
 export type AgentEvent =
   | { type: 'token'; text: string; turnId?: string }
-  | { type: 'tool'; name: string; detail?: string; turnId?: string }
+  | ToolEvent
+  | ApprovalEvent
   | { type: 'done'; turnId?: string }
   | { type: 'error'; message: string; turnId?: string }
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
+
+/**
+ * One tool invocation, reported twice (agent-activity): `start` when the agent
+ * decided to call it, `end` when its result came back. `toolId` is the CLI's
+ * own `tool_use.id`, which is what pairs the two halves — the UI keys its live
+ * activity rows on it.
+ */
+export interface ToolEvent {
+  type: 'tool'
+  /** As the CLI names it: `Bash`, `Read`, `Edit`, `Grep`, `mcp__<server>__<tool>`. */
+  name: string
+  /** The call's headline argument, already flattened to one line: the command for `Bash`, the path for file tools, the pattern for `Grep`. */
+  detail?: string
+  /** Correlates `start` with `end`. Absent on adapters that don't expose tool ids. */
+  toolId?: string
+  phase?: 'start' | 'end'
+  /** `end` only — whether the tool reported an error result. */
+  ok?: boolean
+  /**
+   * The absolute workspace path this tool wrote to. Set **only** for
+   * file-editing tools, and deliberately separate from `detail`: change
+   * attribution (ACR-C7) consumes paths, and a `Bash` command line is not one.
+   */
+  filePath?: string
+  turnId?: string
+}
+
+/**
+ * The agent asked to run a tool it isn't pre-authorized for (agent-approvals).
+ * The turn is blocked until answered — this is the same interaction Claude Code
+ * shows in its own TUI, surfaced in Hive instead of nowhere.
+ */
+export interface ApprovalEvent {
+  type: 'approval'
+  /** Answer key: `respondApproval(requestId, …)` releases exactly this request. */
+  requestId: string
+  /** The tool the agent wants to run (`Bash`, `WebFetch`, `mcp__…`). */
+  tool: string
+  /** One-line headline for the card: the command, the URL, the path. */
+  detail?: string
+  /** The tool's full input, for the card's expandable detail. Already JSON-safe. */
+  input?: Record<string, unknown>
+  turnId?: string
+}
+
+/** How the user answered an `ApprovalEvent`. */
+export interface ApprovalDecision {
+  behavior: 'allow' | 'deny'
+  /**
+   * `always` also records a standing rule for this tool (persisted, app-wide),
+   * so the same class of call stops asking. `once` covers only this request.
+   * Ignored on `deny` — refusing is never remembered, so a mistaken "no" can't
+   * quietly block the agent forever.
+   */
+  scope?: 'once' | 'always'
+  /** Shown to the agent as the reason on `deny`, so it can adapt instead of retrying blind. */
+  message?: string
+}
 
 /**
  * A guided-intent entry point (R7.2) — "run BMAD workflow X". The full
@@ -220,6 +283,24 @@ export interface AgentSession {
   interrupt(turnId?: string): void
   /** Stop the session's underlying process(es). Safe to call more than once. */
   stop(): void
+}
+
+/**
+ * The permission-prompt endpoint an adapter can point its CLI at
+ * (agent-approvals). Supplied by the main process, implemented by
+ * `ApprovalService`; adapters treat it as opaque argv material and never learn
+ * how approvals are actually delivered.
+ */
+export interface PermissionPromptEndpoint {
+  /** The CLI flag value naming the tool (`mcp__hive_approvals__approve`). */
+  promptToolName: string
+  /** MCP server config JSON for one turn, or `null` while the bridge isn't listening. */
+  mcpConfig(turnId?: string): string | null
+}
+
+/** Optional collaborators handed to an adapter factory. Every field is opt-in. */
+export interface AgentAdapterDeps {
+  permissionPrompt?: PermissionPromptEndpoint
 }
 
 /** Contract any agent CLI implements (C1). MVP: `ClaudeCliAdapter`. */

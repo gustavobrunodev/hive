@@ -44,7 +44,10 @@ const resizableProps: {
 /** Minimal context bridge so the mocked `DropdownMenuTrigger` can toggle its sibling `DropdownMenu`'s open state — mirrors the same pattern already used in `explorer/Explorer.test.ts` (real Radix does this internally; nothing else here needs to know about it). */
 const DropdownMenuMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 /** multi-agent: bridges the mocked radio group's onValueChange to its items. */
-const RadioGroupMockCtx = createContext<{ onValueChange?: (value: string) => void }>({})
+const RadioGroupMockCtx = createContext<{
+  value?: string
+  onValueChange?: (value: string) => void
+}>({})
 
 /** Same bridge for the session-history Popover (the chat pane header mounts the real `SessionHistory`, which rides DS `Popover`). */
 const PopoverMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
@@ -140,16 +143,26 @@ vi.mock('@hive/design-system', () => ({
   // multi-agent: the composer's AgentSwitcher radio group + the AgentPicker Switch.
   DropdownMenuRadioGroup: ({
     children,
+    value,
     onValueChange
   }: {
     children?: ReactNode
+    value?: string
     onValueChange?: (value: string) => void
-  }) => createElement(RadioGroupMockCtx.Provider, { value: { onValueChange } }, children),
+  }) => createElement(RadioGroupMockCtx.Provider, { value: { value, onValueChange } }, children),
+  // `aria-checked` is mirrored from the group's value the way Radix does it:
+  // without it the mock renders a radio group where nothing is selected, and a
+  // test asserting "the current theme is the checked one" would pass vacuously.
   DropdownMenuRadioItem: ({ value, children }: { value: string; children?: ReactNode }) => {
     const ctx = useContext(RadioGroupMockCtx)
     return createElement(
       'button',
-      { type: 'button', role: 'menuitemradio', onClick: () => ctx.onValueChange?.(value) },
+      {
+        type: 'button',
+        role: 'menuitemradio',
+        'aria-checked': ctx.value === value,
+        onClick: () => ctx.onValueChange?.(value)
+      },
       children
     )
   },
@@ -440,20 +453,51 @@ vi.mock('./explorer/Explorer', () => ({
   })
 }))
 
+/**
+ * The Chat stand-in's imperative handle — the surface WorkUI drives from
+ * outside the chat subtree (`launchAction` continues the on-screen
+ * conversation, `launchCreation` opens a fresh one, `openSession` restores a
+ * stored one). Hoisted so tests can assert *which* of them a launch used.
+ */
+const chatHandle = vi.hoisted(() => ({
+  launchAction: vi.fn(),
+  launchCreation: vi.fn(),
+  newConversation: vi.fn(),
+  openSession: vi.fn()
+}))
+
+/** Named so the forwardRef stand-in satisfies react/display-name. */
+function ChatStandIn(
+  {
+    onCustomizeShortcuts,
+    onSessionChange
+  }: { onCustomizeShortcuts?: () => void; onSessionChange?: (id: string | null) => void },
+  ref: React.Ref<typeof chatHandle>
+): ReactElement {
+  useImperativeHandle(ref, () => chatHandle, [])
+  return createElement(
+    'div',
+    { 'data-testid': 'chat' },
+    'Chat',
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onCustomizeShortcuts?.() },
+      'abrir personalizar'
+    ),
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onSessionChange?.('conversa-atual') },
+      'simular conversa em andamento'
+    )
+  )
+}
+
 vi.mock('./chat/Chat', () => ({
   // The mock exposes the customize hook (shortcut-customization) so WorkUI's
-  // "open the picker" wiring can be driven without the real Chat surface.
-  Chat: ({ onCustomizeShortcuts }: { onCustomizeShortcuts?: () => void }) =>
-    createElement(
-      'div',
-      { 'data-testid': 'chat' },
-      'Chat',
-      createElement(
-        'button',
-        { type: 'button', onClick: () => onCustomizeShortcuts?.() },
-        'abrir personalizar'
-      )
-    )
+  // "open the picker" wiring can be driven without the real Chat surface, and
+  // reports a stored conversation on demand (session-history) so tests can put
+  // a real conversation "on screen" before launching something over it.
+  Chat: forwardRef(ChatStandIn)
 }))
 
 const STORAGE_KEY = 'hive.workLayout'
@@ -598,6 +642,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.resetModules()
+  for (const spy of Object.values(chatHandle)) spy.mockReset()
 })
 
 describe('WorkUI — resizable rail persistence (T11)', () => {
@@ -606,7 +651,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -622,7 +667,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -637,7 +682,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -652,7 +697,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -664,7 +709,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -681,7 +726,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -700,7 +745,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -712,20 +757,40 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
     expect(screen.queryByTestId('panel-viewer')).toBeNull()
   })
 
-  it('renders the light-theme toggle icon/label and forwards toggle clicks', () => {
-    const onToggleTheme = vi.fn()
+  it('names the active theme on the appearance trigger', () => {
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'light',
-        onToggleTheme
+        onSelectTheme: vi.fn()
       })
     )
 
-    const toggle = screen.getByRole('button', { name: /tema/i })
-    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Aparência (atual: Claro)' })).toBeTruthy()
+  })
 
-    expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  it('offers all three themes, marks the active one, and reports the pick', () => {
+    const onSelectTheme = vi.fn()
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'light',
+        onSelectTheme
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+
+    const options = screen.getAllByRole('menuitemradio')
+    expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual([
+      'false',
+      'true',
+      'false'
+    ])
+
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^Hive/ }))
+
+    expect(onSelectTheme).toHaveBeenCalledWith('hive')
   })
 
   it('swallows a localStorage.setItem failure when persisting the layout', () => {
@@ -733,7 +798,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -768,7 +833,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -792,7 +857,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -819,7 +884,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -839,7 +904,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -864,7 +929,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -888,7 +953,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -922,7 +987,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -960,7 +1025,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -989,7 +1054,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1006,7 +1071,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1047,7 +1112,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1072,7 +1137,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1097,7 +1162,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1122,7 +1187,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1151,7 +1216,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1181,7 +1246,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1207,7 +1272,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1235,7 +1300,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
         createElement(WorkUI, {
           workspace: '/home/user/my-workspace',
           theme: 'dark',
-          onToggleTheme: vi.fn()
+          onSelectTheme: vi.fn()
         })
       )
 
@@ -1255,7 +1320,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         onCandidateWorkspace
       })
     )
@@ -1282,7 +1347,7 @@ describe('WorkUI — guided tour (first access)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         role: 'pm',
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli'
@@ -1337,7 +1402,7 @@ describe('WorkUI — shortcut customization', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         role: 'pm',
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli'
@@ -1386,7 +1451,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn(),
+        onSelectTheme: vi.fn(),
         role: 'pm',
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
@@ -1416,7 +1481,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1437,7 +1502,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1476,7 +1541,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1495,7 +1560,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1516,12 +1581,14 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
     expect(screen.queryByPlaceholderText('O que você quer saber?')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+    )
     fireEvent.click(await screen.findByRole('menuitem', { name: /Perguntar à base/ }))
     expect(await screen.findByPlaceholderText('O que você quer saber?')).toBeTruthy()
   })
@@ -1536,11 +1603,13 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+    )
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Colar texto' }))
     expect(await screen.findByText('Ingerir conhecimento')).toBeTruthy()
 
@@ -1556,7 +1625,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1575,7 +1644,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -1598,7 +1667,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
   }
@@ -1801,7 +1870,7 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
   }
@@ -1957,7 +2026,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
   }
@@ -2055,7 +2124,7 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
     return git
@@ -2198,7 +2267,7 @@ describe('WorkUI — Agent Change Review (M11)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
 
@@ -2245,7 +2314,7 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
-        onToggleTheme: vi.fn()
+        onSelectTheme: vi.fn()
       })
     )
   }
@@ -2273,10 +2342,53 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     expect(screen.getByTestId('file-tree')).toBeTruthy()
   })
 
+  it('a Second Brain command opens a conversation of its OWN instead of hijacking the one on screen', async () => {
+    withVault()
+    renderWork()
+    // A conversation is on screen and (per background-turns) keeps running.
+    fireEvent.click(screen.getByText('simular conversa em andamento'))
+    fireEvent.click(screen.getByLabelText('Bases de conhecimento'))
+
+    fireEvent.click(await screen.findByText('Ingerir'))
+
+    expect(chatHandle.launchCreation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+      })
+    )
+    // Never the append-to-the-current-conversation path.
+    expect(chatHandle.launchAction).not.toHaveBeenCalled()
+  })
+
+  it('says the previous conversation went to the background, and takes the user back to it', async () => {
+    withVault()
+    renderWork()
+    fireEvent.click(screen.getByText('simular conversa em andamento'))
+    fireEvent.click(screen.getByLabelText('Bases de conhecimento'))
+    fireEvent.click(await screen.findByText('Revisar'))
+
+    expect(await screen.findByText(/abriu uma conversa nova/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Voltar para ela'))
+
+    expect(chatHandle.openSession).toHaveBeenCalledWith('conversa-atual')
+    await waitFor(() => expect(screen.queryByText(/abriu uma conversa nova/)).toBeNull())
+  })
+
+  it('stays quiet when there was no conversation to background', async () => {
+    withVault()
+    renderWork()
+    fireEvent.click(screen.getByLabelText('Bases de conhecimento'))
+
+    fireEvent.click(await screen.findByText('Ingerir'))
+
+    expect(chatHandle.launchCreation).toHaveBeenCalled()
+    expect(screen.queryByText(/abriu uma conversa nova/)).toBeNull()
+  })
+
   it('records the cadence at the single launch point: ingest counts, a check resets (SB-R10.2/10.3)', async () => {
     const brain = withVault()
     renderWork()
-    fireEvent.click(screen.getByLabelText('Second Brain'))
+    fireEvent.click(screen.getByLabelText('Bases de conhecimento'))
 
     fireEvent.click(await screen.findByText('Ingerir'))
     await waitFor(() => expect(brain.noteIngest).toHaveBeenCalledWith('/home/user/my-workspace'))
@@ -2293,7 +2405,7 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
 
     // The reminder announces itself, and the rail says so in its own name.
     expect(await screen.findByRole('status', { name: 'Hora do health-check' })).toBeTruthy()
-    expect(screen.getByLabelText('Second Brain — revisão pendente')).toBeTruthy()
+    expect(screen.getByLabelText('Bases de conhecimento — revisão pendente')).toBeTruthy()
 
     fireEvent.click(screen.getByText('Depois'))
     await waitFor(() => expect(brain.snoozeHealth).toHaveBeenCalledWith('/home/user/my-workspace'))

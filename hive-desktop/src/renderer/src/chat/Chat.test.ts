@@ -17,6 +17,15 @@ import { ReviewProvider, type ReviewStore } from '../scm/useReview'
  * test. `PromptInput` is a controlled `value`/`onChange` input plus a send
  * button, so tests can type `/` (opening the slash menu) and submit.
  */
+/** Drops the DS Button's brand-register props before they reach the DOM stand-in. */
+function omitButtonProps(props: Record<string, unknown>): Record<string, unknown> {
+  const { cut, arrow, variant, ...rest } = props
+  void cut
+  void arrow
+  void variant
+  return rest
+}
+
 const SelectContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
 const DropdownRadioContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
 
@@ -131,6 +140,15 @@ vi.mock('@hive/design-system', () => ({
       toolbar
     )
   },
+  Button: ({ children, ...rest }: { children?: ReactNode }) =>
+    // The DS Button's brand-register props (`cut`/`arrow`/`variant`) are
+    // dropped: they'd land on the DOM node as unknown attributes and React
+    // would warn on every render.
+    createElement(
+      'button',
+      { type: 'button', ...omitButtonProps(rest as Record<string, unknown>) },
+      children
+    ),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   TypingIndicator: ({ label }: { label?: string }) =>
     createElement('span', { 'data-testid': 'typing-indicator' }, label),
@@ -162,6 +180,16 @@ describe('Chat', () => {
     text?: string
     message?: string
     id?: string
+    // agent-activity `tool` fields.
+    name?: string
+    detail?: string
+    toolId?: string
+    phase?: 'start' | 'end'
+    ok?: boolean
+    // agent-approvals `approval` fields.
+    requestId?: string
+    tool?: string
+    input?: Record<string, unknown>
   }
 
   // Mirrors roleCatalog's real shape: every action's prompt is its skill's
@@ -283,6 +311,7 @@ describe('Chat', () => {
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
         interrupt: vi.fn().mockResolvedValue(undefined),
+        respondApproval: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn((onEvent: (event: AgentEventLike) => void) => {
           capturedOnEvent = onEvent
           return vi.fn()
@@ -457,6 +486,72 @@ describe('Chat', () => {
       expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
     expect(await screen.findByText('/bmad-prd')).toBeTruthy()
+  })
+
+  /**
+   * A launched skill can carry the material it was launched with — the
+   * ingestion sheet sends the staged path *and* the text. The transcript has
+   * to show both, and has to make it obvious which half is the command: a
+   * bare `/second-brain-ingest` with the user's notes nowhere on screen was
+   * the reported defect.
+   */
+  describe('an invocation that carries material', () => {
+    const ingest = (body: string): RoleAction => ({
+      key: 'second-brain-ingest',
+      kind: 'workflow',
+      command: {
+        key: 'second-brain-ingest',
+        prompt: `/second-brain-ingest second-brain/raw/ingest-x.md\n\n${body}`
+      }
+    })
+
+    async function launch(body: string): Promise<void> {
+      mockHive()
+      const ref = createRef<ChatHandle>()
+      render(
+        createElement(Chat, {
+          workspace: '/ws',
+          roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          ref
+        })
+      )
+      await screen.findByText('Criar um PRD')
+      ref.current?.launchAction(ingest(body))
+    }
+
+    it('shows the command, its argument and the text as three distinct things', async () => {
+      await launch('A squad decidiu migrar o billing.')
+
+      expect(await screen.findByText('/second-brain-ingest')).toBeTruthy()
+      expect(screen.getByText('second-brain/raw/ingest-x.md')).toBeTruthy()
+      expect(screen.getByText('A squad decidiu migrar o billing.')).toBeTruthy()
+    })
+
+    it('leaves a short body fully expanded', async () => {
+      await launch('Uma nota curta.')
+      await screen.findByText('/second-brain-ingest')
+      expect(screen.queryByText('Mostrar tudo')).toBeNull()
+    })
+
+    it('collapses a transcript-sized body behind a toggle, and expands it back', async () => {
+      const long = 'Detalhe da reunião. '.repeat(60)
+      await launch(long)
+
+      const more = await screen.findByText('Mostrar tudo')
+      const text = document.querySelector('.wb-invocation-text')
+      expect(text?.hasAttribute('data-clamped')).toBe(true)
+
+      fireEvent.click(more)
+      expect(document.querySelector('.wb-invocation-text')?.hasAttribute('data-clamped')).toBe(
+        false
+      )
+      expect(screen.getByText('Mostrar menos')).toBeTruthy()
+
+      fireEvent.click(screen.getByText('Mostrar menos'))
+      expect(document.querySelector('.wb-invocation-text')?.hasAttribute('data-clamped')).toBe(true)
+    })
   })
 
   // skill-studio: launchCreation opens a *fresh* conversation (the prior
@@ -1439,6 +1534,8 @@ describe('Chat', () => {
       isStale: false,
       refresh: vi.fn(),
       acceptFile: vi.fn(async () => ({ ok: true })),
+      acceptFiles: vi.fn(async () => ({ ok: true })),
+      rejectFiles: vi.fn(async () => ({ ok: true })),
       rejectFile: vi.fn(async () => ({ ok: true })),
       acceptHunk: vi.fn(async () => ({ ok: true })),
       rejectHunk: vi.fn(async () => ({ ok: true })),
@@ -1470,5 +1567,240 @@ describe('Chat', () => {
 
     expect(await screen.findByText('Editei 1 arquivo')).toBeTruthy()
     expect(screen.getByText('a.txt')).toBeTruthy()
+  })
+
+  // --- agent-activity: the live "what the agent is doing" feed --------------
+
+  it("narrates the agent's tool calls while it works, instead of a silent typing indicator", async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'organize o vault' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+    // Before any tool runs, the turn is just "responding".
+    expect(await screen.findByTestId('typing-indicator')).toBeTruthy()
+
+    act(() => {
+      emit({
+        type: 'tool',
+        name: 'Read',
+        detail: '/ws/docs/prd.md',
+        toolId: 'tu-1',
+        phase: 'start'
+      })
+    })
+    expect(await screen.findByText('Lendo')).toBeTruthy()
+    expect(screen.getByText('docs/prd.md')).toBeTruthy()
+    // The feed replaces the dots — the turn is no longer opaque.
+    expect(screen.queryByTestId('typing-indicator')).toBeNull()
+
+    act(() => {
+      emit({ type: 'tool', name: '', toolId: 'tu-1', phase: 'end', ok: true })
+      emit({ type: 'tool', name: 'Bash', detail: 'npm test', toolId: 'tu-2', phase: 'start' })
+    })
+    expect(await screen.findByText('Rodando')).toBeTruthy()
+    expect(screen.getByText('npm test')).toBeTruthy()
+  })
+
+  it("keeps the turn's steps in the transcript after it finishes, with none left spinning", async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'edite o arquivo' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      emit({ type: 'tool', name: 'Edit', detail: '/ws/src/a.ts', toolId: 'tu-1', phase: 'start' })
+      emit({ type: 'token', text: 'pronto' })
+      emit({ type: 'done' })
+    })
+
+    expect(await screen.findByText('pronto')).toBeTruthy()
+    // The turn ended without a `tool_result`, so the row settles rather than
+    // spinning forever — and it says so in the past tense, which is the one
+    // state channel that survives a screenshot and a screen reader.
+    const row = screen.getByText('Editou').closest('li')
+    expect(row?.getAttribute('data-state')).toBe('ok')
+  })
+
+  // --- agent-approvals: the prompt that used to appear nowhere --------------
+
+  it('surfaces a blocked permission request as a decision the user can actually answer', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'crie o vault' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({
+        type: 'approval',
+        requestId: 'req-1',
+        tool: 'Bash',
+        detail: 'mkdir -p ~/vault',
+        input: { command: 'mkdir -p ~/vault', description: 'Cria o vault' }
+      })
+    })
+
+    expect(await screen.findByText('Rodar um comando no terminal')).toBeTruthy()
+    // The literal command is shown, never summarized — a command the user
+    // can't read is a command they can't consent to.
+    expect(screen.getByText('mkdir -p ~/vault')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Permitir'))
+    expect(window.hive.agent.respondApproval).toHaveBeenCalledWith('req-1', {
+      behavior: 'allow',
+      scope: 'once',
+      message: undefined
+    })
+    // The card stays as the record of what was authorized.
+    expect(await screen.findByText('Permitido')).toBeTruthy()
+    expect(screen.queryByText('Permitir')).toBeNull()
+  })
+
+  it('records a standing grant on "Sempre permitir", and a refusal carries a reason back to the agent', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'busque na web' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({
+        type: 'approval',
+        requestId: 'req-a',
+        tool: 'WebFetch',
+        detail: 'https://example.dev'
+      })
+    })
+    fireEvent.click(await screen.findByText('Sempre permitir'))
+    expect(window.hive.agent.respondApproval).toHaveBeenCalledWith('req-a', {
+      behavior: 'allow',
+      scope: 'always',
+      message: undefined
+    })
+    expect(await screen.findByText('Permitido sempre')).toBeTruthy()
+
+    act(() => {
+      hive.emit({ type: 'approval', requestId: 'req-b', tool: 'Bash', detail: 'rm -rf /' })
+    })
+    fireEvent.click(await screen.findByText('Recusar'))
+    expect(window.hive.agent.respondApproval).toHaveBeenCalledWith('req-b', {
+      behavior: 'deny',
+      scope: 'once',
+      message: 'Recusado pelo usuário no Hive Desktop.'
+    })
+    expect(await screen.findByText('Recusado')).toBeTruthy()
+  })
+
+  it('Esc refuses a pending request, so the blocked turn is always answerable from the keyboard', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'rode algo' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({ type: 'approval', requestId: 'req-esc', tool: 'Bash', detail: 'ls' })
+    })
+    const card = (await screen.findByText('Rodar um comando no terminal')).closest(
+      '[role="group"]'
+    ) as HTMLElement
+    fireEvent.keyDown(card, { key: 'Escape' })
+
+    expect(window.hive.agent.respondApproval).toHaveBeenCalledWith(
+      'req-esc',
+      expect.objectContaining({ behavior: 'deny' })
+    )
+  })
+
+  // --- the transcript is a log, not three slabs -----------------------------
+
+  it('renders a turn in the order it happened: prose, then the ask, then the work', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'crie a pasta' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({ type: 'token', text: 'Vou criar a pasta.' })
+      hive.emit({ type: 'approval', requestId: 'req-order', tool: 'Bash', detail: 'mkdir out' })
+      hive.emit({ type: 'tool', name: 'Bash', detail: 'mkdir out', toolId: 't1', phase: 'start' })
+      hive.emit({ type: 'tool', name: '', toolId: 't1', phase: 'end', ok: true })
+      hive.emit({ type: 'token', text: ' Pronto.' })
+      hive.emit({ type: 'done' })
+    })
+
+    const turn = (await screen.findByText('Vou criar a pasta.')).closest('.wb-turn') as HTMLElement
+    // Walk the rendered nodes and record which kind of block each one is. The
+    // regression this pins: the ask used to be pinned to the bottom of the
+    // whole conversation and the command hoisted above the sentence that
+    // explained it, so a turn could never be read as the story it tells.
+    const kinds = [...turn.children].map((node) =>
+      node.classList.contains('wb-approval') || node.classList.contains('wb-approval-note')
+        ? 'ask'
+        : node.classList.contains('wb-activity')
+          ? 'work'
+          : 'prose'
+    )
+    expect(kinds).toEqual(['prose', 'ask', 'work', 'prose'])
+    // And the prose is two separate blocks, not one run reflowed around the
+    // step — the second sentence belongs after the command, where it was said.
+    expect(screen.getByText('Pronto.')).toBeTruthy()
+  })
+
+  it('answers a permission card that already settled into the transcript', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'rode algo' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({
+        type: 'approval',
+        requestId: 'req-late',
+        tool: 'WebFetch',
+        detail: 'https://x.dev'
+      })
+    })
+    await screen.findByText('Acessar um endereço na web')
+    fireEvent.click(screen.getByText('Permitir'))
+
+    // The card stays where it was asked, carrying its verdict, rather than
+    // disappearing or drifting to the foot of the conversation.
+    expect(await screen.findByText('Permitido')).toBeTruthy()
+    expect(window.hive.agent.respondApproval).toHaveBeenCalledWith('req-late', {
+      behavior: 'allow',
+      scope: 'once',
+      message: undefined
+    })
+  })
+
+  it('a stopped turn leaves no permission looking answerable', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'rode algo' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    act(() => {
+      hive.emit({ type: 'approval', requestId: 'req-dead', tool: 'Bash', detail: 'ls' })
+      hive.emit({ type: 'interrupted' })
+    })
+
+    // main already denied it on the interrupt; the card must agree instead of
+    // offering buttons that answer a process that is gone.
+    expect(await screen.findByText('Recusado')).toBeTruthy()
+    expect(screen.queryByText('Permitir')).toBeNull()
   })
 })

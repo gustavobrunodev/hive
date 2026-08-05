@@ -44,7 +44,13 @@ describe('CopilotCliAdapter', () => {
     session.send({ text: 'continua', resume: 'sess-9' })
     await take(session.events, 1)
 
-    expect(runner.calls[0].args).toEqual(['-p', 'continua', '--allow-all-tools', '--resume', 'sess-9'])
+    expect(runner.calls[0].args).toEqual([
+      '-p',
+      'continua',
+      '--allow-all-tools',
+      '--resume',
+      'sess-9'
+    ])
   })
 
   it('a non-zero exit surfaces an error labeled `copilot`', async () => {

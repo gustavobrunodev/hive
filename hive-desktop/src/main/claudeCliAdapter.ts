@@ -1,5 +1,5 @@
 import type { ProcessRunner } from './processRunner'
-import type { AgentAdapter, AgentCapabilities, SessionOpts } from './agentAdapter'
+import type { AgentAdapter, AgentAdapterDeps, AgentCapabilities, SessionOpts } from './agentAdapter'
 import { createCliAgentSession } from './cliAdapterCore'
 
 /**
@@ -28,6 +28,12 @@ import { createCliAgentSession } from './cliAdapterCore'
  *     opaque-text behavior.
  *   - `-r, --resume [sessionId]` — resume a conversation by session id
  *     (works with --print).
+ *   - `--permission-prompt-tool <mcp tool>` + `--mcp-config <json>` — the
+ *     supported way to answer permission prompts in print mode: the CLI calls
+ *     the named MCP tool and blocks the turn on its verdict instead of
+ *     silently refusing the call. Hive hosts that tool itself (see
+ *     `approvalService.ts`), which is what turns "the agent needs permission"
+ *     into a real interaction rather than a stalled turn.
  */
 
 const CLAUDE_COMMAND = 'claude'
@@ -60,8 +66,17 @@ function capabilities(): AgentCapabilities {
  * (constructor/factory-injection, matching `createConfigStore`/
  * `createWorkspaceService`) so this module is fully testable against
  * `createFakeProcessRunner()`.
+ *
+ * `deps.permissionPrompt` (agent-approvals) is optional on purpose: without it
+ * the adapter behaves exactly as before (edits auto-accepted, everything else
+ * refused by the CLI), so nothing that constructs an adapter without a live
+ * approval bridge — tests, the availability probe — has to know about one.
  */
-export function createClaudeCliAdapter(processRunner: ProcessRunner): AgentAdapter {
+export function createClaudeCliAdapter(
+  processRunner: ProcessRunner,
+  deps?: AgentAdapterDeps
+): AgentAdapter {
+  const prompt = deps?.permissionPrompt
   return {
     id: 'claude-cli',
     displayName: 'Claude CLI',
@@ -70,25 +85,37 @@ export function createClaudeCliAdapter(processRunner: ProcessRunner): AgentAdapt
       createCliAgentSession(processRunner, opts, {
         command: CLAUDE_COMMAND,
         errorLabel: 'claude',
-        buildArgs: (prompt, { model, effort, resume }) => [
-          '-p',
-          prompt,
-          ...(model ? ['--model', model] : []),
-          ...(effort ? ['--effort', effort] : []),
-          // Verified live: without a permission-mode flag, `-p` silently
-          // refuses tool-driven writes. `acceptEdits` is the minimum that lets
-          // BMAD skills (e.g. bmad-prd) actually write their output artifact.
-          '--permission-mode',
-          'acceptEdits',
-          // session-history: structured output exposes the CLI's `session_id`
-          // and true token streaming. `--verbose` is required for stream-json
-          // with --print; `--include-partial-messages` adds text deltas.
-          '--output-format',
-          'stream-json',
-          '--include-partial-messages',
-          '--verbose',
-          ...(resume ? ['--resume', resume] : [])
-        ]
+        buildArgs: (turnPrompt, { model, effort, resume, turnId }) => {
+          // agent-approvals: only wire the prompt tool once the bridge is
+          // actually listening — a config pointing at no port would fail the
+          // whole turn, which is strictly worse than today's behavior.
+          const mcpConfig = prompt?.mcpConfig(turnId) ?? null
+          return [
+            '-p',
+            turnPrompt,
+            ...(model ? ['--model', model] : []),
+            ...(effort ? ['--effort', effort] : []),
+            // Verified live: without a permission-mode flag, `-p` silently
+            // refuses tool-driven writes. `acceptEdits` is the minimum that lets
+            // BMAD skills (e.g. bmad-prd) actually write their output artifact.
+            // Kept alongside the prompt tool below, which deliberately narrows
+            // the ask to what `acceptEdits` does *not* cover (Bash, network,
+            // MCP tools) — editing a file the user asked for stays frictionless.
+            '--permission-mode',
+            'acceptEdits',
+            // session-history: structured output exposes the CLI's `session_id`
+            // and true token streaming. `--verbose` is required for stream-json
+            // with --print; `--include-partial-messages` adds text deltas.
+            '--output-format',
+            'stream-json',
+            '--include-partial-messages',
+            '--verbose',
+            ...(mcpConfig && prompt
+              ? ['--mcp-config', mcpConfig, '--permission-prompt-tool', prompt.promptToolName]
+              : []),
+            ...(resume ? ['--resume', resume] : [])
+          ]
+        }
       })
   }
 }

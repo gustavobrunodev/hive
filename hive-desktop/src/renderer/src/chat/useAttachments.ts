@@ -130,7 +130,8 @@ export function useAttachments(enabled: boolean, workspace: string): Attachments
       } else {
         for (const file of Array.from(event.dataTransfer.files)) {
           const path = window.hive.fs.pathForFile(file)
-          if (path !== '') dropped.push({ path, name: file.name, size: file.size, kind: 'external' })
+          if (path !== '')
+            dropped.push({ path, name: file.name, size: file.size, kind: 'external' })
         }
       }
       merge(dropped)

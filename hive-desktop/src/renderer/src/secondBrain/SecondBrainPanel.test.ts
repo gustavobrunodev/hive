@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SecondBrainPanel } from './SecondBrainPanel'
+import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore, VaultHealth } from './useSecondBrain'
 import { FRESH_HEALTH } from '../testSupport/hiveSecondBrainMock'
 
@@ -38,21 +39,40 @@ function health(overrides: Partial<VaultHealth> = {}): VaultHealth {
   return { ...FRESH_HEALTH, ...overrides }
 }
 
+function setup(phase: BrainSetupPhase = 'idle'): BrainSetup {
+  return { phase, start: vi.fn(), recheck: vi.fn(), dismiss: vi.fn() }
+}
+
 function renderPanel(
   overrides: Partial<SecondBrainStore> = {},
-  handlers: { onLaunch?: () => void; onAsk?: () => void; onOpenFile?: () => void } = {}
-): { onLaunch: ReturnType<typeof vi.fn>; onAsk: ReturnType<typeof vi.fn> } {
+  handlers: {
+    onLaunch?: () => void
+    onAsk?: () => void
+    onOpenFile?: () => void
+    setup?: BrainSetup
+    onIngest?: () => void
+  } = {}
+): {
+  onLaunch: ReturnType<typeof vi.fn>
+  onAsk: ReturnType<typeof vi.fn>
+  onIngest: ReturnType<typeof vi.fn>
+  setup: BrainSetup
+} {
   const onLaunch = vi.fn(handlers.onLaunch)
   const onAsk = vi.fn(handlers.onAsk)
+  const onIngest = vi.fn(handlers.onIngest)
+  const brainSetup = handlers.setup ?? setup()
   render(
     createElement(SecondBrainPanel, {
       store: store(overrides),
       onLaunch,
       onAsk,
-      onOpenFile: vi.fn(handlers.onOpenFile)
+      onOpenFile: vi.fn(handlers.onOpenFile),
+      setup: brainSetup,
+      onIngest
     })
   )
-  return { onLaunch, onAsk }
+  return { onLaunch, onAsk, onIngest, setup: brainSetup }
 }
 
 const VAULT = { hasVault: true, vaultPath: '/ws/second-brain', vaultName: 'second-brain' }
@@ -60,14 +80,50 @@ const VAULT = { hasVault: true, vaultPath: '/ws/second-brain', vaultName: 'secon
 describe('SecondBrainPanel (T7)', () => {
   afterEach(() => cleanup())
 
-  it('renders the inviting empty state when there is no vault, launching /second-brain from the CTA', () => {
-    const { onLaunch } = renderPanel()
+  it('renders the inviting empty state when there is no vault, starting setup from the CTA', () => {
+    const brainSetup = setup()
+    const { onLaunch } = renderPanel({}, { setup: brainSetup })
 
-    expect(screen.getByText('A base de conhecimento da squad')).toBeTruthy()
+    expect(screen.getByText('A squad ainda não tem uma base aqui')).toBeTruthy()
+    // The invitation says what the button will do before it does it: the
+    // command takes over a NEW conversation, not the one on screen.
+    expect(screen.getByText(/conversa nova com o agente/)).toBeTruthy()
+
     fireEvent.click(screen.getByText('Configurar base'))
-    expect(onLaunch).toHaveBeenCalledWith(
-      expect.objectContaining({ command: expect.objectContaining({ prompt: '/second-brain' }) })
-    )
+    expect(brainSetup.start).toHaveBeenCalledTimes(1)
+    // Setup is launched through the flow, never as a bare command from here.
+    expect(onLaunch).not.toHaveBeenCalled()
+  })
+
+  it('while the wizard runs, waits on it instead of re-inviting — with a re-probe and a relaunch (bug: "configure a base primeiro" over a base being created)', () => {
+    const brainSetup = setup('running')
+    renderPanel({}, { setup: brainSetup })
+
+    expect(screen.getByRole('status').textContent).toBe('Configurando a base…')
+    expect(screen.queryByText('Configurar base')).toBeNull()
+
+    fireEvent.click(screen.getByText('Verificar de novo'))
+    expect(brainSetup.recheck).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByText('Rodar o comando de novo'))
+    expect(brainSetup.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('confirms a just-created base and hands over the next step, then gets out of the way', () => {
+    const brainSetup = setup('ready')
+    const { onIngest } = renderPanel(VAULT, { setup: brainSetup })
+
+    expect(screen.getByText('Base pronta — second-brain')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Ingerir agora'))
+    expect(onIngest).toHaveBeenCalledTimes(1)
+    // Taking the hand-off also acknowledges it — the banner has done its job.
+    expect(brainSetup.dismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not celebrate a base that was already there (phase idle)', () => {
+    renderPanel(VAULT)
+    expect(screen.queryByText(/Base pronta/)).toBeNull()
   })
 
   it('shows the vault header with name and, when > 0, the raw-pending chip', () => {
@@ -76,7 +132,9 @@ describe('SecondBrainPanel (T7)', () => {
         store: store({ ...VAULT, rawPending: 0 }),
         onLaunch: vi.fn(),
         onAsk: vi.fn(),
-        onOpenFile: vi.fn()
+        onOpenFile: vi.fn(),
+        setup: setup(),
+        onIngest: vi.fn()
       })
     )
     expect(screen.getByText('second-brain')).toBeTruthy()
@@ -87,7 +145,9 @@ describe('SecondBrainPanel (T7)', () => {
         store: store({ ...VAULT, rawPending: 3 }),
         onLaunch: vi.fn(),
         onAsk: vi.fn(),
-        onOpenFile: vi.fn()
+        onOpenFile: vi.fn(),
+        setup: setup(),
+        onIngest: vi.fn()
       })
     )
     expect(screen.getByText('3 itens para ingerir')).toBeTruthy()
@@ -119,7 +179,9 @@ describe('SecondBrainPanel (T7)', () => {
         store: store({ hasVault: true, vaultPath: '/ws/kb', vaultName: 'kb' }),
         onLaunch: vi.fn(),
         onAsk: vi.fn(),
-        onOpenFile
+        onOpenFile,
+        setup: setup(),
+        onIngest: vi.fn()
       })
     )
 
@@ -131,8 +193,8 @@ describe('SecondBrainPanel (T7)', () => {
 
   it('falls back to the panel title when the vault has no name', () => {
     renderPanel({ hasVault: true, vaultPath: '/ws/x', vaultName: null })
-    // Header falls back to "Second Brain".
-    expect(screen.getByLabelText('Second Brain')).toBeTruthy()
+    // Header falls back to "Bases de conhecimento".
+    expect(screen.getByLabelText('Bases de conhecimento')).toBeTruthy()
   })
 
   it('shows the health card once the cadence lands (SB-R10.1)', () => {

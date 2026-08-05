@@ -7,7 +7,7 @@ export interface IconButtonProps extends Omit<ComponentPropsWithoutRef<'button'>
 }
 
 /**
- * Quiet 30×30 icon-only button for app chrome (theme toggle, pane actions).
+ * Quiet 30×30 icon-only button for app chrome (pane actions, toolbars).
  * The DS `Button` is a 48px-tall text CTA — the wrong shape for toolbar
  * chrome — so this app-level control fills the gap using the same role
  * tokens and the full state set (hover/focus-visible/active/disabled).

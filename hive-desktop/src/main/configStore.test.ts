@@ -68,7 +68,8 @@ describe('ConfigStore', () => {
       role: null,
       userName: null,
       shortcuts: null,
-      skippedUpdateVersion: null
+      skippedUpdateVersion: null,
+      approvalRules: []
     })
   })
 
@@ -90,7 +91,8 @@ describe('ConfigStore', () => {
       role: null,
       userName: null,
       shortcuts: null,
-      skippedUpdateVersion: null
+      skippedUpdateVersion: null,
+      approvalRules: []
     })
   })
 
@@ -116,7 +118,8 @@ describe('ConfigStore', () => {
       role: null,
       userName: null,
       shortcuts: null,
-      skippedUpdateVersion: null
+      skippedUpdateVersion: null,
+      approvalRules: []
     })
   })
 

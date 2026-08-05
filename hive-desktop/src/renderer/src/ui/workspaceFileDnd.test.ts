@@ -38,12 +38,10 @@ describe('workspaceFileDnd', () => {
 
   it('is not fooled by other drags, and reads malformed payloads as no files', () => {
     expect(isWorkspaceFileDrag(fakeEvent({ 'text/plain': 'docs' }))).toBe(false)
-    expect(
-      readWorkspaceFileDrag(fakeEvent({ [WORKSPACE_FILE_DRAG_MIME]: 'not-json{' }))
-    ).toEqual([])
-    expect(
-      readWorkspaceFileDrag(fakeEvent({ [WORKSPACE_FILE_DRAG_MIME]: '{"a":1}' }))
-    ).toEqual([])
+    expect(readWorkspaceFileDrag(fakeEvent({ [WORKSPACE_FILE_DRAG_MIME]: 'not-json{' }))).toEqual(
+      []
+    )
+    expect(readWorkspaceFileDrag(fakeEvent({ [WORKSPACE_FILE_DRAG_MIME]: '{"a":1}' }))).toEqual([])
   })
 
   it('survives a dataTransfer whose setData throws (jsdom quirk)', () => {

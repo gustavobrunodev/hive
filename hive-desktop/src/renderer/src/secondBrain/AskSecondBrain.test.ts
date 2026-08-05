@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, forwardRef, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { AskSecondBrain } from './AskSecondBrain'
+import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 
 /**
@@ -74,9 +75,18 @@ function store(overrides: Partial<SecondBrainStore> = {}): SecondBrainStore {
   }
 }
 
-function renderAsk(overrides: Partial<SecondBrainStore> = {}): {
+/** A stand-in for the vault-setup flow — the dialog only reads its phase and calls back. */
+function setup(phase: BrainSetupPhase = 'idle'): BrainSetup {
+  return { phase, start: vi.fn(), recheck: vi.fn(), dismiss: vi.fn() }
+}
+
+function renderAsk(
+  overrides: Partial<SecondBrainStore> = {},
+  brainSetup: BrainSetup = setup()
+): {
   onLaunch: ReturnType<typeof vi.fn>
   onOpenChange: ReturnType<typeof vi.fn>
+  setup: BrainSetup
   field: HTMLTextAreaElement
 } {
   const onLaunch = vi.fn()
@@ -86,12 +96,14 @@ function renderAsk(overrides: Partial<SecondBrainStore> = {}): {
       open: true,
       onOpenChange,
       store: store(overrides),
-      onLaunch
+      onLaunch,
+      setup: brainSetup
     })
   )
   return {
     onLaunch,
     onOpenChange,
+    setup: brainSetup,
     field: screen.queryByLabelText('Sua pergunta') as HTMLTextAreaElement
   }
 }
@@ -106,7 +118,8 @@ describe('AskSecondBrain (SB-R9)', () => {
         open: false,
         onOpenChange: vi.fn(),
         store: store(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -199,10 +212,29 @@ describe('AskSecondBrain (SB-R9)', () => {
   })
 
   it('offers setup instead of a field when there is no vault (SB-R3.3 parity)', () => {
-    const { onLaunch } = renderAsk({ hasVault: false, vaultPath: null, vaultName: null })
+    const { setup: brainSetup, onOpenChange } = renderAsk({
+      hasVault: false,
+      vaultPath: null,
+      vaultName: null
+    })
 
     expect(screen.queryByLabelText('Sua pergunta')).toBeNull()
     fireEvent.click(screen.getByText('Configurar base'))
-    expect(onLaunch.mock.calls[0][0].command.prompt).toBe('/second-brain')
+    expect(brainSetup.start).toHaveBeenCalledTimes(1)
+    // The chat takes over from here, so the dialog steps aside.
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('says the base is being created while the wizard runs, rather than demanding a setup (SB-R3.3 parity)', () => {
+    const { setup: brainSetup } = renderAsk(
+      { hasVault: false, vaultPath: null, vaultName: null },
+      setup('running')
+    )
+
+    expect(screen.getByRole('status').textContent).toBe('Configurando a base…')
+    expect(screen.queryByText('Configurar base')).toBeNull()
+
+    fireEvent.click(screen.getByText('Verificar de novo'))
+    expect(brainSetup.recheck).toHaveBeenCalledTimes(1)
   })
 })

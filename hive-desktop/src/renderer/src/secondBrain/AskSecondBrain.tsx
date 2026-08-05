@@ -11,8 +11,10 @@ import { t } from '../i18n'
 import type { RoleAction } from '../ui/ActionRail'
 import { BrainIcon, HistoryIcon } from '../ui/icons'
 import { loadRecentQuestions, rememberQuestion } from './askHistory'
-import { secondBrainQuery, SECOND_BRAIN_SETUP } from './secondBrainPrompts'
+import { secondBrainQuery } from './secondBrainPrompts'
+import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
+import { VaultGuard } from './VaultGuard'
 
 /**
  * Question openers shown to someone facing an empty field (SB-R9.3). They
@@ -40,6 +42,8 @@ interface AskSecondBrainProps {
   store: SecondBrainStore
   /** Launches a slash command through the chat (D-SB-5) — where the answer lands. */
   onLaunch: (action: RoleAction) => void
+  /** The vault-setup flow — drives the no-vault guard's two states. */
+  setup: BrainSetup
 }
 
 /** The four openers, as a chip row that fills the field instead of submitting. */
@@ -100,19 +104,6 @@ function AskRecents({
   )
 }
 
-/** The "set the base up first" guard, mirroring the ingestion sheet's (SB-R3.3). */
-function AskGuard({ onSetup }: { onSetup: () => void }): React.JSX.Element {
-  return (
-    <div className="wb-brain-ask-guard">
-      <p className="wb-brain-ask-guard-title">{t('secondBrain.ingestNoVaultTitle')}</p>
-      <p className="wb-brain-ask-guard-desc">{t('secondBrain.askNoVaultDescription')}</p>
-      <Button cut={false} className="wb-btn hds-btn-primary" onClick={onSetup}>
-        {t('secondBrain.emptyCta')}
-      </Button>
-    </div>
-  )
-}
-
 /**
  * **Perguntar à base** (SB-R9) — ask the Second Brain anything, from anywhere:
  * `Ctrl+Shift+K`, the sidebar's primary action, or the floating button's menu.
@@ -132,7 +123,8 @@ export function AskSecondBrain({
   open,
   onOpenChange,
   store,
-  onLaunch
+  onLaunch,
+  setup
 }: AskSecondBrainProps): React.JSX.Element {
   const [question, setQuestion] = useState('')
   const [recents, setRecents] = useState<string[]>([])
@@ -176,10 +168,10 @@ export function AskSecondBrain({
     onOpenChange(false)
   }, [question, store.workspace, onLaunch, onOpenChange])
 
-  const setup = useCallback(() => {
-    onLaunch(SECOND_BRAIN_SETUP)
+  const startSetup = useCallback(() => {
+    setup.start()
     onOpenChange(false)
-  }, [onLaunch, onOpenChange])
+  }, [setup, onOpenChange])
 
   const empty = question.trim() === ''
 
@@ -209,7 +201,7 @@ export function AskSecondBrain({
         </header>
 
         {!store.hasVault ? (
-          <AskGuard onSetup={setup} />
+          <VaultGuard setup={setup} verb="ask" onStart={startSetup} />
         ) : (
           <>
             <Textarea

@@ -247,7 +247,7 @@ export function UpdateCenter({ open, onOpenChange }: UpdateCenterProps): React.J
         <SheetDescription>{t('update.description')}</SheetDescription>
 
         <div className="wb-appset-identity">
-          <HiveLogo mark="brain" className="wb-appset-logo" />
+          <HiveLogo mark="mark" className="wb-appset-logo" />
           <div className="wb-appset-identity-text">
             <span className="wb-appset-name">{t('app.title')}</span>
             {info !== null && (

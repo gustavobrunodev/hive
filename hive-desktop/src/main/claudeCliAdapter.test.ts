@@ -115,12 +115,17 @@ function initLine(sessionId = 'cli-sess-1'): string {
   return jsonLine({ type: 'system', subtype: 'init', session_id: sessionId })
 }
 
-/** An `assistant` message carrying a `tool_use` block (Agent Change Review attribution, ACR-C7). */
-function toolUseLine(name: string, filePath: string, sessionId = 'cli-sess-1'): string {
+/** An `assistant` message carrying a `tool_use` block (agent-activity + ACR-C7 attribution). */
+function toolUseLine(
+  name: string,
+  filePath: string,
+  id = 'tu-1',
+  sessionId = 'cli-sess-1'
+): string {
   return jsonLine({
     type: 'assistant',
     session_id: sessionId,
-    message: { content: [{ type: 'tool_use', name, input: { file_path: filePath } }] }
+    message: { content: [{ type: 'tool_use', id, name, input: { file_path: filePath } }] }
   })
 }
 
@@ -162,21 +167,25 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws' })
   })
 
-  it('emits a tool event per file-editing tool_use block, without disturbing token streaming (ACR-C7)', async () => {
+  it('emits a tool start per tool_use block — every tool, with filePath only for file-editing ones (agent-activity + ACR-C7)', async () => {
     const fakeRunner = createFakeProcessRunner()
     fakeRunner.script({
       chunks: [
         { stream: 'stdout', data: initLine() },
         { stream: 'stdout', data: textDelta('Editing…') },
-        { stream: 'stdout', data: toolUseLine('Write', '/ws/src/a.txt') },
-        { stream: 'stdout', data: toolUseLine('MultiEdit', '/ws/src/b.txt') },
-        // A non-file tool (Bash) is not attributed.
+        { stream: 'stdout', data: toolUseLine('Write', '/ws/src/a.txt', 'tu-1') },
+        // A non-file tool still surfaces as activity — it just carries no
+        // `filePath`, so change attribution never mistakes a command for a path.
         {
           stream: 'stdout',
           data: jsonLine({
             type: 'assistant',
             session_id: 'cli-sess-1',
-            message: { content: [{ type: 'tool_use', name: 'Bash', input: {} }] }
+            message: {
+              content: [
+                { type: 'tool_use', id: 'tu-2', name: 'Bash', input: { command: 'npm test' } }
+              ]
+            }
           })
         }
       ],
@@ -189,12 +198,87 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     const events = await take(session.events, 5)
 
     expect(events).toEqual([
-      { type: 'session', id: 'cli-sess-1' },
-      { type: 'token', text: 'Editing…' },
-      { type: 'tool', name: 'Write', detail: '/ws/src/a.txt' },
-      { type: 'tool', name: 'MultiEdit', detail: '/ws/src/b.txt' },
-      { type: 'done' }
+      { type: 'session', id: 'cli-sess-1', turnId: undefined },
+      { type: 'token', text: 'Editing…', turnId: undefined },
+      {
+        type: 'tool',
+        name: 'Write',
+        detail: '/ws/src/a.txt',
+        toolId: 'tu-1',
+        phase: 'start',
+        filePath: '/ws/src/a.txt',
+        turnId: undefined
+      },
+      {
+        type: 'tool',
+        name: 'Bash',
+        detail: 'npm test',
+        toolId: 'tu-2',
+        phase: 'start',
+        filePath: undefined,
+        turnId: undefined
+      },
+      { type: 'done', turnId: undefined }
     ])
+  })
+
+  it('pairs each tool_result back to its tool_use as a tool end, carrying the error flag (agent-activity)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: initLine() },
+        { stream: 'stdout', data: toolUseLine('Read', '/ws/src/a.txt', 'tu-1') },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'user',
+            session_id: 'cli-sess-1',
+            message: {
+              content: [{ type: 'tool_result', tool_use_id: 'tu-1', is_error: true }]
+            }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws' })
+
+    session.send({ text: 'read it' })
+    const events = await take(session.events, 4)
+
+    expect(events[2]).toEqual({
+      type: 'tool',
+      name: '',
+      toolId: 'tu-1',
+      phase: 'end',
+      ok: false,
+      turnId: undefined
+    })
+  })
+
+  it('wires the permission-prompt tool when an approval bridge is listening, and omits it otherwise (agent-approvals)', () => {
+    const withBridge = createFakeProcessRunner()
+    createClaudeCliAdapter(withBridge, {
+      permissionPrompt: {
+        promptToolName: 'mcp__hive_approvals__approve',
+        mcpConfig: (turnId) => `{"turn":"${turnId ?? ''}"}`
+      }
+    })
+      .startSession({ workspace: '/ws' })
+      .send({ text: 'hi', turnId: 'turn-7' })
+
+    const args = withBridge.calls[0].args
+    expect(args).toContain('--permission-prompt-tool')
+    expect(args[args.indexOf('--permission-prompt-tool') + 1]).toBe('mcp__hive_approvals__approve')
+    // The turn rides along in the config, so an approval routes back to the
+    // conversation that raised it.
+    expect(args[args.indexOf('--mcp-config') + 1]).toBe('{"turn":"turn-7"}')
+
+    const withoutBridge = createFakeProcessRunner()
+    createClaudeCliAdapter(withoutBridge).startSession({ workspace: '/ws' }).send({ text: 'hi' })
+    expect(withoutBridge.calls[0].args).not.toContain('--permission-prompt-tool')
+    expect(withoutBridge.calls[0].args).not.toContain('--mcp-config')
   })
 
   it('send({resume}) appends --resume <id> so the turn continues the CLI conversation', async () => {

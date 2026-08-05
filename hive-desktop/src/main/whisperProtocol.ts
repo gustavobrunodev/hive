@@ -90,3 +90,29 @@ export function resolveWhisperRequest(roots: WhisperProtocolRoots, url: string):
   if (full !== root && !full.startsWith(root.endsWith(sep) ? root : root + sep)) return null
   return full
 }
+
+/**
+ * Headers every model-file response must carry — above all `Content-Length`.
+ *
+ * `net.fetch(file://…)` answers without one, and that single missing header is
+ * what made transcription look broken: Transformers.js logs *"Unable to
+ * determine content-length from response headers. Will expand buffer when
+ * needed"* and then reads the body by repeatedly reallocating a growing
+ * buffer. On the 208 MB fp32 decoder that turns a ~20 s model load into
+ * minutes of dead air — the UI sits at "Preparando o modelo… 100%" while the
+ * copy grinds. It also means the renderer can't compute honest progress,
+ * because the total size is unknown.
+ *
+ * Kept pure (size in, headers out) so the contract is unit-testable without
+ * Electron or a real file.
+ */
+export function whisperFileHeaders(file: string, size: number): Record<string, string> {
+  return {
+    'content-length': String(size),
+    'content-type': file.endsWith('.json')
+      ? 'application/json'
+      : file.endsWith('.txt')
+        ? 'text/plain'
+        : 'application/octet-stream'
+  }
+}

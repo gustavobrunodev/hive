@@ -55,6 +55,11 @@ export interface Config {
   // announces normally, and the skipped version stays reachable from the
   // update surface ("Instalar mesmo assim") rather than disappearing.
   skippedUpdateVersion: string | null
+  // agent-approvals: tool calls the user answered "Sempre permitir" to, as
+  // `Tool` or `Bash:<executable>` rules (see `approvalRuleFor`). Standing
+  // grants, so they persist; a denial never lands here, so a mistaken "no"
+  // can't quietly block the agent forever.
+  approvalRules: string[]
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -68,7 +73,8 @@ export const DEFAULT_CONFIG: Config = {
   role: null,
   userName: null,
   shortcuts: null,
-  skippedUpdateVersion: null
+  skippedUpdateVersion: null,
+  approvalRules: []
 }
 
 /**
@@ -127,6 +133,9 @@ export interface ConfigStore {
   setShortcuts(prefs: ShortcutPrefs | null): void
   getSkippedUpdateVersion(): string | null
   setSkippedUpdateVersion(version: string | null): void
+  /** agent-approvals: the standing "Sempre permitir" rules (sanitized). */
+  getApprovalRules(): string[]
+  setApprovalRules(rules: string[]): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -227,6 +236,12 @@ export function createConfigStore(baseDir: string): ConfigStore {
     getSkippedUpdateVersion: () => readConfig().skippedUpdateVersion,
     setSkippedUpdateVersion: (version: string | null) =>
       updateConfig({ skippedUpdateVersion: version }),
+    // Same read-and-write sanitization as `shortcuts`: these grant the agent
+    // standing permission, so a hand-edited (or older-schema) config can never
+    // put a non-string into the rule set.
+    getApprovalRules: () => sanitizeAgentList(readConfig().approvalRules) ?? [],
+    setApprovalRules: (rules: string[]) =>
+      updateConfig({ approvalRules: sanitizeAgentList(rules) ?? [] }),
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()

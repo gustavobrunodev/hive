@@ -38,4 +38,132 @@
 
   /* Selection tint stays coral, slightly quieter on graphite. */
   --selected-bg: oklch(65.9% 0.114 42.2 / 14%);
+
+  --danger-ink: var(--wb-danger-ink-on-dark);
+}
+
+/**
+ * Error *text* on a dark theme, lightened away from the fill it sits on.
+ *
+ * The DS uses one value for both roles: `--danger` fills a destructive button,
+ * and `--danger-ink` writes the error message on the `--danger-bg` tint. That
+ * works on a bare background (`#ef4444` measures 4.60:1 on graphite, 4.92:1 on
+ * bordo) and fails inside its own banner — the 14% red tint lifts the
+ * background just enough to drop the pair to 3.98:1 / 4.18:1, which is where a
+ * failed BMAD install actually renders its message. Lightening only the *ink*
+ * clears the body floor on both (5.20:1 and 5.47:1) and leaves every red fill
+ * exactly as saturated as it was, since `--danger` is untouched.
+ *
+ * Light theme needs none of this: its ink is already darker than its tint
+ * (4.95:1 on the banner), so it keeps the DS value.
+ */
+:root {
+  --wb-danger-ink-on-dark: oklch(70% 0.17 25.3); /* #f66d66 */
+}
+
+/**
+ * Third theme — "Hive": the brand's own dark, not a neutral one.
+ *
+ * The graphite `dark` above exists because an ambient bordo is a lot to sit
+ * inside for eight hours; it deliberately drains the hue out of the workspace
+ * and leaves coral as the only brand color on screen. That is the right
+ * default and the wrong only option — the app also gets opened to be *shown*,
+ * and a squad that runs on the Zup identity should be able to work inside it.
+ * So this restates the design system's bordo ledger explicitly rather than
+ * leaning on `tokens.css`'s bare-`:root` fallback: an unknown `data-theme`
+ * inheriting the right colors by accident is not a contract, and the surfaces
+ * below are tuned for a workbench (a fourth, deeper tier for nested chrome)
+ * rather than for a marketing page.
+ *
+ * Every value traces to a Layer-1 primitive in the DS ramp — nothing new is
+ * invented here, which is what keeps it reading as Hive and not as "dark red".
+ *
+ * Contrast (WCAG relative-luminance, measured against `--bg` #260a12; the
+ * light-on-dark ratios only improve on the raised surfaces):
+ *   --ink    #ded4d4 ≈ 12.8:1  (body floor 4.5:1 ✓)
+ *   --muted  #ad9797 ≈  6.7:1  (body floor ✓)
+ *   --faint  #93807f ≈  4.6:1  (tertiary / large text, 3:1 floor ✓)
+ *   --accent #cc7958 ≈  6.9:1  as text/icon (3:1 UI floor ✓)
+ * The e2e contrast sweep runs this theme alongside the other two, so these
+ * are gated, not asserted.
+ */
+:root[data-theme='hive'] {
+  --bg: var(--bordo);
+  --bg-2: #1c060b;
+  --surface: #30121a;
+  --surface-2: #3a1620;
+  --surface-3: #44192b;
+
+  --ink: var(--cinza-impacto);
+  --muted: var(--cinza-conhecimento);
+  --faint: #93807f;
+
+  /* Hairlines keep the ink's own warmth here (the graphite theme flattens the
+     chroma to 0; on bordo a neutral gray hairline reads as a foreign line). */
+  --border: oklch(87.8% 0.011 17.4 / 14%);
+  --border-strong: oklch(87.8% 0.011 17.4 / 26%);
+
+  --accent: var(--coral);
+  --accent-hover: var(--coral-hover);
+  --accent-ink: oklch(20.6% 0.036 352.3);
+  --focus: var(--accent);
+
+  --danger: oklch(63.7% 0.208 25.3);
+  --danger-bg: oklch(63.7% 0.208 25.3 / 14%);
+  /* Same reasoning as the graphite theme above — the tint lifts the banner
+     background out from under the DS's shared danger value. */
+  --danger-ink: var(--wb-danger-ink-on-dark);
+
+  --warning: oklch(76.7% 0.157 71.7);
+  --warning-bg: oklch(76.7% 0.157 71.7 / 14%);
+  --warning-ink: oklch(76.7% 0.157 71.7);
+
+  --success: var(--verde);
+  --success-bg: oklch(75.5% 0.13 163.2 / 14%);
+  --success-ink: var(--verde);
+
+  --info: oklch(71.4% 0.104 246.2);
+  --info-bg: oklch(71.4% 0.104 246.2 / 14%);
+  --info-ink: oklch(71.4% 0.104 246.2);
+
+  --selected: var(--accent);
+  --selected-bg: oklch(65.9% 0.114 42.2 / 16%);
+
+  --overlay: oklch(0% 0 0 / 60%);
+
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
+  --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
+  --shadow-3: 0 12px 32px oklch(0% 0 0 / 40%);
+}
+
+/**
+ * Emoji fallback, appended to every family the app renders text with.
+ *
+ * The DS stacks (`--ff-body`/`--ff-num`/`--ff-display`) end at a generic
+ * (`sans-serif`/`serif`), which on a host with no system emoji font resolves
+ * to a face that has no emoji glyphs — so every emoji in an agent reply
+ * painted as a tofu rectangle. `Noto Color Emoji` (bundled, see fonts.css)
+ * is appended *after* the system emoji faces, so a machine that already has
+ * one keeps its native look and only the machines missing one pay the
+ * download.
+ *
+ * Redefining the Layer-1 primitives is deliberate and safe: every DS
+ * component reads these same three variables, so one definition covers the
+ * whole app (the alternative — a `font-family` override per component — is
+ * exactly the drift this token layer exists to prevent).
+ */
+:root {
+  --ff-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --ff-display: 'Funnel Display', Georgia, 'Times New Roman', var(--ff-emoji), serif;
+  --ff-body: 'Inter', 'Helvetica Neue', Arial, var(--ff-emoji), sans-serif;
+  --ff-num: 'Inter Tight', 'Inter', var(--ff-emoji), sans-serif;
+  /* The app's own monospace stack (agent output, commands, paths) — the DS
+     has no `--ff-mono` token. Deliberately *not* the list `CodeBlock` inlines,
+     which leads with the proportional `Inter Tight`: a command line has to be
+     monospaced to be read as one, and on a host with none of the named faces
+     installed that stack falls all the way through. The two Linux defaults are
+     named explicitly so it lands on a real monospace before the generic. */
+  --ff-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'DejaVu Sans Mono',
+    'Liberation Mono', var(--ff-emoji), monospace;
 }

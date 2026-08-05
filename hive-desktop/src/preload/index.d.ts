@@ -11,6 +11,7 @@ import type {
 import type {
   AgentCapabilities,
   AgentEvent,
+  ApprovalDecision,
   AttachmentPick,
   SessionOpts,
   TurnOpts,
@@ -84,6 +85,8 @@ declare global {
         stop(): Promise<void>
         /** chat-controls CC-R1 + background-turns: interrupts one turn by id (or all), keeping the session alive. */
         interrupt(turnId?: string): Promise<void>
+        /** agent-approvals: answers one blocked permission request — the only thing that unblocks the turn's CLI child. */
+        respondApproval(requestId: string, decision: ApprovalDecision): Promise<void>
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
@@ -269,6 +272,9 @@ declare global {
         get(workspace: string): Promise<ReviewSnapshot>
         acceptFile(workspace: string, path: string): Promise<ReviewResult>
         rejectFile(workspace: string, path: string): Promise<ReviewResult>
+        /** One turn's whole set in a single pass — the change card's "Aceitar tudo" / "Rejeitar tudo". */
+        acceptFiles(workspace: string, paths: string[]): Promise<ReviewResult>
+        rejectFiles(workspace: string, paths: string[]): Promise<ReviewResult>
         acceptHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
         rejectHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
         acceptAll(workspace: string): Promise<ReviewResult>

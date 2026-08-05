@@ -22,6 +22,8 @@ import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { useSecondBrain } from './secondBrain/useSecondBrain'
+import { useBrainSetup } from './secondBrain/useBrainSetup'
+import { BrainLaunchToast } from './secondBrain/BrainLaunchToast'
 import { SecondBrainPanel } from './secondBrain/SecondBrainPanel'
 import { SecondBrainFab, type IngestMode } from './secondBrain/SecondBrainFab'
 import { IngestPanel } from './secondBrain/IngestPanel'
@@ -56,18 +58,12 @@ import { useUpdateFlow } from './ui/useUpdateFlow'
 import { FileSearchDialog } from './ui/FileSearchDialog'
 import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
-import { IconButton } from './ui/IconButton'
 import { PaneHeader, PaneMoveMenu } from './ui/PaneHeader'
 import { PANE_DRAG_MIME } from './ui/paneDnd'
 import { HiveLogo } from './ui/HiveLogo'
-import {
-  ChevronDownIcon,
-  FolderIcon,
-  FolderOpenIcon,
-  MoonIcon,
-  SunIcon,
-  UserIcon
-} from './ui/icons'
+import { ThemePicker } from './ui/ThemePicker'
+import type { Theme } from './ui/theme'
+import { ChevronDownIcon, FolderIcon, FolderOpenIcon, UserIcon } from './ui/icons'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -84,8 +80,8 @@ function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'
 interface WorkUIProps {
   /** Absolute path to the provisioned, up-to-date workspace. */
   workspace: string
-  theme: 'dark' | 'light'
-  onToggleTheme: () => void
+  theme: Theme
+  onSelectTheme: (theme: Theme) => void
   /**
    * T7 (WS-R1/R7): reports a resolved candidate workspace path once the user
    * picks "Abrir pasta…" or a Recentes entry from the workspace chip menu.
@@ -244,7 +240,7 @@ function persistPaneOrder(order: PaneId[]): void {
 /**
  * The app's main work surface (task T19, design.md §4 layout — "File Tree |
  * Chat | File Viewer"): a slim top bar (brand mark, active-workspace chip,
- * theme toggle) over three zones, all resizable panes of one group. The
+ * theme picker) over three zones, all resizable panes of one group. The
  * file tree is the left rail; chat owns the remaining width; the file
  * viewer is a right pane that *only exists while a file is open* (no
  * permanently empty middle column).
@@ -266,7 +262,7 @@ function persistPaneOrder(order: PaneId[]): void {
 export function WorkUI({
   workspace,
   theme,
-  onToggleTheme,
+  onSelectTheme,
   onCandidateWorkspace,
   role = null,
   agents = [],
@@ -363,6 +359,10 @@ export function WorkUI({
   // background-turns: conversations whose reply is still being generated —
   // reported up by Chat, shown as "Em andamento" in the history panel.
   const [runningSessionIds, setRunningSessionIds] = useState<string[]>([])
+  // Second Brain: the "opened in a new conversation" hand-off — which command
+  // ran, and the conversation it moved to the background (so the toast can
+  // bring it back).
+  const [brainToast, setBrainToast] = useState<{ key: string; resumeId: string } | null>(null)
 
   // Second Brain (SB-R10.2/10.3): every Second Brain command the app launches
   // funnels through here, so the health-check cadence is recorded at the one
@@ -373,14 +373,47 @@ export function WorkUI({
   // SB-R10.4: one derivation feeding both ambient surfaces — the rail's dot and
   // the floating reminder — so they can never disagree.
   const brainHealthDue = secondBrain.health?.due === true
+  // SB-R2.4 / D-SB-5: a Second Brain command is a *task of its own*, not a
+  // reply in whatever conversation happens to be on screen. Launching one
+  // therefore opens a fresh conversation (the skill-studio `launchCreation`
+  // path) and leaves the previous one running in the background — a
+  // `/second-brain` setup interview landing in the middle of someone's PRD
+  // discussion is exactly the surprise this app avoids. The toast below names
+  // what happened and offers the way back, so "in the background" never means
+  // "gone".
   const launchBrainAction = useCallback(
     (action: RoleAction) => {
       if (action.key === SECOND_BRAIN_INGEST.key) noteIngest()
       else if (action.key === SECOND_BRAIN_LINT.key) noteLint()
-      chatRef.current?.launchAction(action)
+      const backgrounded = activeSessionId
+      chatRef.current?.launchCreation(action)
+      // Nothing to announce when the pane held no stored conversation: the
+      // "new conversation" was an empty one, and a toast for that is noise.
+      if (backgrounded !== null) setBrainToast({ key: action.key, resumeId: backgrounded })
     },
-    [noteIngest, noteLint]
+    [noteIngest, noteLint, activeSessionId]
   )
+
+  // The vault-setup flow, shared by the three surfaces that gate on a vault
+  // (panel, ingestion sheet, ask dialog) so a setup in flight reads the same
+  // everywhere instead of each one insisting the base doesn't exist.
+  const brainSetup = useBrainSetup(secondBrain, launchBrainAction)
+
+  // Opening a capture/ask surface is the moment a stale vault probe would be
+  // most visible ("configure a base primeiro" over a base that exists), so both
+  // re-probe on the way in — cheap insurance on top of the store's watcher.
+  const refreshBrain = secondBrain.refresh
+  const openIngest = useCallback(
+    (mode: IngestMode | null) => {
+      if (mode !== null) refreshBrain()
+      setIngestMode(mode)
+    },
+    [refreshBrain]
+  )
+  const openAsk = useCallback(() => {
+    refreshBrain()
+    setAskOpen(true)
+  }, [refreshBrain])
 
   const handleNewConversation = useCallback(() => {
     chatRef.current?.newConversation()
@@ -456,7 +489,7 @@ export function WorkUI({
       const key = event.key.toLowerCase()
       if (key === 'k') {
         event.preventDefault()
-        setAskOpen(true)
+        openAsk()
       } else if (key === 'b') {
         event.preventDefault()
         setActiveView('brain')
@@ -464,7 +497,7 @@ export function WorkUI({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setActiveView])
+  }, [setActiveView, openAsk])
 
   const replayTour = useCallback(() => {
     setProfileOpen(false)
@@ -761,8 +794,10 @@ export function WorkUI({
                 <SecondBrainPanel
                   store={secondBrain}
                   onLaunch={launchBrainAction}
-                  onAsk={() => setAskOpen(true)}
+                  onAsk={openAsk}
                   onOpenFile={editor.openFile}
+                  setup={brainSetup}
+                  onIngest={() => openIngest('text')}
                 />
               }
             />
@@ -857,8 +892,12 @@ export function WorkUI({
       <ReviewProvider store={review}>
         <div className="wb-app">
           <header className="wb-topbar">
-            <HiveLogo mark="brain" className="wb-topbar-logo" />
-            <span className="wb-topbar-title">{t('app.title')}</span>
+            {/* The identity itself carries the app's name — the wordmark IS
+            the word — so the title bar shows the lockup instead of a mark
+            plus "Hive Desktop" set in the same 13px label as everything else
+            around it. `aria-label` keeps the full product name for anyone
+            reading the accessibility tree, where the drawing says nothing. */}
+            <HiveLogo className="wb-topbar-logo" aria-label={t('app.title')} />
             <span className="wb-topbar-sep" aria-hidden="true" />
             <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
               <DropdownMenuTrigger asChild>
@@ -909,12 +948,7 @@ export function WorkUI({
               )}
             </DropdownMenu>
             <div className="wb-topbar-spacer" />
-            <IconButton
-              label={t('theme.toggle', theme === 'dark' ? t('theme.dark') : t('theme.light'))}
-              onClick={onToggleTheme}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </IconButton>
+            <ThemePicker theme={theme} onSelectTheme={onSelectTheme} />
             {/* Profile avatar (top-right, the desktop-app convention): the user's
             initials open the profile sheet — who you are; the rail's gear
             below is the software's settings. */}
@@ -968,8 +1002,8 @@ export function WorkUI({
             health-check reminder. All sit OUTSIDE the resizable body so
             `hive.workLayout` is untouched. */}
           <SecondBrainFab
-            onSelectMode={setIngestMode}
-            onAsk={() => setAskOpen(true)}
+            onSelectMode={openIngest}
+            onAsk={openAsk}
             nudge={
               <HealthNudge
                 health={secondBrain.health}
@@ -983,12 +1017,21 @@ export function WorkUI({
             onOpenChange={setAskOpen}
             store={secondBrain}
             onLaunch={launchBrainAction}
+            setup={brainSetup}
           />
           <IngestPanel
             mode={ingestMode}
             onClose={() => setIngestMode(null)}
             store={secondBrain}
             onLaunch={launchBrainAction}
+            setup={brainSetup}
+          />
+          {/* The "your conversation is safe, here's the way back" hand-off for
+              every Second Brain command that opened its own conversation. */}
+          <BrainLaunchToast
+            launch={brainToast}
+            onResume={handleOpenSession}
+            onClose={() => setBrainToast(null)}
           />
           <StaleGuardDialog />
           {pendingReviewSwitch !== null && (

@@ -13,16 +13,16 @@ import {
  * T10 (file-management regression pass) — `pt-BR.ts` is one of this
  * feature's gated files (design.md §"Coverage config note": 90/90/90/90 on
  * every touched file), but not every export in it is file-management copy —
- * `theme.toggle`/`workUI.workspaceChipTitle` predate this feature and
- * `intentLabel`'s fallback branch is exercised only for a runtime-discovered
+ * `theme.pickerLabelWithCurrent`/`workUI.workspaceChipTitle` predate this
+ * feature and `intentLabel`'s fallback branch is exercised only for a runtime-discovered
  * (not statically known) workflow key, neither of which any existing suite
  * happened to reach. These are direct unit tests of the exported data/pure
  * functions themselves (no app component touched) purely to close that gate.
  */
 describe('pt-BR copy — pure helpers', () => {
-  it('theme.toggle() interpolates the current theme name into the label', () => {
-    expect(ptBR.theme.toggle('escuro')).toBe('Alternar tema (atual: escuro)')
-    expect(ptBR.theme.toggle('claro')).toBe('Alternar tema (atual: claro)')
+  it('theme.pickerLabelWithCurrent() interpolates the active theme name into the label', () => {
+    expect(ptBR.theme.pickerLabelWithCurrent('Escuro')).toBe('Aparência (atual: Escuro)')
+    expect(ptBR.theme.pickerLabelWithCurrent('Hive')).toBe('Aparência (atual: Hive)')
   })
 
   it('workUI.workspaceChipTitle() interpolates the workspace path into the label', () => {

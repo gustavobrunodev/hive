@@ -41,3 +41,31 @@ export function secondBrainQuery(question: string): RoleAction {
     command: { key, prompt: normalized === '' ? `/${key}` : `/${key} ${normalized}` }
   }
 }
+
+/**
+ * `/second-brain-ingest <arquivo>` **plus the staged text itself** — the
+ * ingestion sheet's launch.
+ *
+ * The material used to be invisible: the sheet wrote it to `raw/` and then
+ * launched a *bare* `/second-brain-ingest`, so the transcript showed a command
+ * with no trace of what the user had just typed or dictated. Sending the text
+ * along is the same choice `secondBrainQuery` makes — what you sent is what
+ * the transcript shows — and it is what the `#file` composer does too.
+ *
+ * The staged path rides on the command line because the skill documents
+ * exactly that argument ("if the user specifies a file, use those"), which
+ * pins the run to *this* file instead of leaving the skill to rediscover which
+ * of `raw/`'s files are unprocessed. Content follows after a blank line, so
+ * the invocation itself stays on one line and the renderer can split the two
+ * apart (`splitCommandMessage`).
+ */
+export function secondBrainIngest(relPath: string, content: string): RoleAction {
+  const key = 'second-brain-ingest'
+  const body = content.trim()
+  const invocation = `/${key} ${relPath}`
+  return {
+    key,
+    kind: 'workflow',
+    command: { key, prompt: body === '' ? invocation : `${invocation}\n\n${body}` }
+  }
+}

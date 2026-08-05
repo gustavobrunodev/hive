@@ -33,7 +33,10 @@ vi.mock('@hive/design-system', () => ({
       createElement('strong', null, title),
       children
     ),
-  Progress: () => createElement('div', { role: 'progressbar' }),
+  Progress: ({ className }: { className?: string }) =>
+    createElement('div', { role: 'progressbar', className }),
+  // The provisioning scene renders the Hive mark inside its lattice.
+  Logo: () => createElement('span', { 'data-testid': 'logo' }),
   SteppedList: ({ children }: { children?: ReactNode }) => createElement('ol', null, children),
   SteppedListItem: ({ title }: { title?: ReactNode }) => createElement('li', null, title),
   // Guided-install form (BUG 1) controls — trivial DOM stand-ins.

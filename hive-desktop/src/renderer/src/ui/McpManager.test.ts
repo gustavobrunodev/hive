@@ -83,7 +83,14 @@ type McpApi = {
 let api: McpApi
 
 function stdioServer(over: Partial<McpServer> = {}): McpServer {
-  return { name: 'playwright', transport: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp'], enabled: true, ...over }
+  return {
+    name: 'playwright',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@playwright/mcp'],
+    enabled: true,
+    ...over
+  }
 }
 
 function probeOk(over: Partial<McpProbeResult> = {}): McpProbeResult {
@@ -198,7 +205,10 @@ describe('McpManager — add form', () => {
     fireEvent.change(screen.getByPlaceholderText('ex.: npx'), { target: { value: 'npx' } })
     fireEvent.click(screen.getByText('Adicionar', { selector: 'button' }))
     await waitFor(() =>
-      expect(api.add).toHaveBeenCalledWith('/ws', 'myserver', { transport: 'stdio', command: 'npx' })
+      expect(api.add).toHaveBeenCalledWith('/ws', 'myserver', {
+        transport: 'stdio',
+        command: 'npx'
+      })
     )
   })
 
@@ -227,7 +237,9 @@ describe('McpManager — edit + delete', () => {
     fireEvent.click(await screen.findByRole('button', { name: /ver detalhes de playwright/i }))
     fireEvent.click(await screen.findByText('Editar'))
     expect(await screen.findByText('Editar servidor MCP')).toBeTruthy()
-    expect((screen.getByPlaceholderText('ex.: playwright') as HTMLInputElement).value).toBe('playwright')
+    expect((screen.getByPlaceholderText('ex.: playwright') as HTMLInputElement).value).toBe(
+      'playwright'
+    )
   })
 
   it('removes a server after confirmation', async () => {

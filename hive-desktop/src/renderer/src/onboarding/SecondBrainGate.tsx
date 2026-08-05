@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Progress } from '@hive/design-system'
-import { t } from '../i18n'
+import { Button } from '@hive/design-system'
+import { provisionMessages, t } from '../i18n'
+import { ProvisionScene } from './ProvisionScene'
 
 interface SecondBrainGateProps {
   /** Workspace path to provision the second-brain skills in. */
@@ -73,53 +74,46 @@ export function SecondBrainGate({
   }, [workspace, runToken, onComplete])
 
   return (
-    <main className="wb-gate">
-      <div className="wb-gate-card">
-        <h1 className="wb-gate-title">{t('secondBrainGate.title')}</h1>
-        <p className="wb-gate-desc">{t('secondBrainGate.description')}</p>
-
-        {phase.status === 'error' ? (
-          <>
-            <Alert variant="danger" title={t('secondBrainGate.errorTitle')} role="alert">
-              {phase.message || t('secondBrainGate.errorDescriptionFallback')}
-            </Alert>
-            <div className="wb-gate-error-actions">
-              <Button
-                cut={false}
-                className="wb-btn"
-                onClick={() => setRunToken((current) => current + 1)}
-              >
-                {t('secondBrainGate.retryCta')}
-              </Button>
-              <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
-                {t('secondBrainGate.continueAnywayCta')}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <Progress value={null} />
-            <p className="wb-gate-progress-caption" role="status">
-              {caption ?? t('secondBrainGate.progressLabel')}
-            </p>
-            {/*
-              SB-R1.3, in full: "never permanently blocked" has to hold while
-              provisioning is RUNNING, not only after it errors. This step
-              shells out to a network-backed CLI, and it also re-runs on every
-              workspace switch — without an escape here, a slow or stalled
-              network traps the user on a spinner with no way into the work UI.
-              Second-brain is an enhancement, so waiting for it is always
-              optional; the quiet ghost button keeps it from competing with the
-              (usually brief) happy path.
-            */}
-            <div className="wb-gate-error-actions">
-              <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
-                {t('secondBrainGate.continueAnywayCta')}
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </main>
+    <ProvisionScene
+      title={t('secondBrainGate.title')}
+      messages={provisionMessages.secondBrain}
+      caption={caption}
+      captionFallback={t('secondBrainGate.progressLabel')}
+      stage={[2, 2]}
+      error={
+        phase.status === 'error'
+          ? {
+              title: t('secondBrainGate.errorTitle'),
+              message: phase.message || t('secondBrainGate.errorDescriptionFallback')
+            }
+          : null
+      }
+      actions={
+        <>
+          {phase.status === 'error' && (
+            <Button
+              cut={false}
+              className="wb-btn"
+              onClick={() => setRunToken((current) => current + 1)}
+            >
+              {t('secondBrainGate.retryCta')}
+            </Button>
+          )}
+          {/*
+            SB-R1.3, in full: "never permanently blocked" has to hold while
+            provisioning is RUNNING, not only after it errors. This step shells
+            out to a network-backed CLI, and it also re-runs on every workspace
+            switch — without an escape here, a slow or stalled network traps
+            the user on a spinner with no way into the work UI. Second-brain is
+            an enhancement, so waiting for it is always optional; the quiet
+            ghost button keeps it from competing with the (usually brief) happy
+            path.
+          */}
+          <Button cut={false} variant="ghost" className="wb-btn" onClick={onComplete}>
+            {t('secondBrainGate.continueAnywayCta')}
+          </Button>
+        </>
+      }
+    />
   )
 }

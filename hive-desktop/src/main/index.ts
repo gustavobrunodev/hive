@@ -16,9 +16,12 @@ import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
 import { createAgentService } from './agentService'
+import { createApprovalService } from './approvalService'
+import { grantAgentPermission } from './agentPermissions'
 import { withScriptedAgentCli } from './e2eAgentSeam'
 import type {
   AgentEvent,
+  ApprovalDecision,
   AttachmentPick,
   SessionOpts,
   TurnOpts,
@@ -30,6 +33,7 @@ import { createSecondBrainVault } from './secondBrainVault'
 import { createSecondBrainHealthStore } from './secondBrainHealth'
 import {
   resolveWhisperRequest,
+  whisperFileHeaders,
   WHISPER_MODELS_DIRNAME,
   WHISPER_SCHEME,
   WHISPER_SCHEME_PRIVILEGES
@@ -329,7 +333,47 @@ app.whenReady().then(() => {
   // spawns (turns and `--version` probes) to a stand-in binary while every
   // other spawner here keeps the unwrapped `processRunner`. Disarmed, the wrap
   // returns that same object; see e2eAgentSeam.ts for the two conditions.
-  const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner))
+  //
+  // agent-approvals: the CLI drives turns non-interactively, so a tool it
+  // isn't pre-authorized for has nowhere to ask — it used to be refused
+  // silently while the agent told the user to "approve the prompt" that never
+  // appeared. `ApprovalService` hosts the MCP tool the CLI's
+  // `--permission-prompt-tool` calls, which blocks the turn on a real answer
+  // from the chat UI. Standing "sempre" rules live in the config store, so a
+  // decision survives a restart.
+  //
+  // A "sempre" decision is *also* written into the agent's own permission
+  // config for the workspace (`agentPermissions.ts`) — a standing grant the
+  // user can find in `.claude/`, that the CLI honours without round-tripping
+  // through Hive, and that survives running the same agent outside Hive. The
+  // write is best-effort: Hive's own rule is already recorded by the time this
+  // runs, so a read-only workspace costs the file, never the grant.
+  const turnAgents = new Map<string, string>() // turnId -> the agent that ran it
+  const approvalService = createApprovalService({
+    rules: configStore.getApprovalRules(),
+    onRulesChanged: (rules) => configStore.setApprovalRules(rules),
+    onGranted: (grant) => {
+      const workspace = workspaceService.getWorkspace()
+      if (!workspace) return
+      const agentId =
+        (grant.turnId !== undefined ? turnAgents.get(grant.turnId) : undefined) ??
+        agentRegistry.defaultId()
+      void grantAgentPermission({
+        agentId,
+        workspace,
+        tool: grant.tool,
+        input: grant.input
+      }).catch(() => null)
+    }
+  })
+  // Non-blocking: adapters read `mcpConfig()` per turn and simply omit the
+  // flags while it returns `null`, so a listener that is slow (or fails) costs
+  // the approval UX, never the turn.
+  void approvalService.listen().catch(() => {})
+
+  const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner), {
+    permissionPrompt: approvalService
+  })
   const agentService = createAgentService(agentRegistry)
 
   // GitService (git-management, M10): drives the system git binary through the
@@ -588,6 +632,17 @@ app.whenReady().then(() => {
     assertWithinWorkspace(ws, path)
     return reviewService.rejectFile(ws, path)
   })
+  // One turn's whole set, in one pass (the change card's "Aceitar tudo" /
+  // "Rejeitar tudo") — see `acceptFiles` for why this is not a loop over
+  // `review:acceptFile` in the renderer.
+  ipcMain.handle('review:acceptFiles', async (_e, ws: string, paths: string[]) => {
+    ensureReviewWatch(ws)
+    return reviewService.acceptFiles(ws, paths)
+  })
+  ipcMain.handle('review:rejectFiles', async (_e, ws: string, paths: string[]) => {
+    ensureReviewWatch(ws)
+    return reviewService.rejectFiles(ws, paths)
+  })
   ipcMain.handle('review:acceptHunk', async (_e, ws: string, path: string, hunkId: string) => {
     assertWithinWorkspace(ws, path)
     return reviewService.acceptHunk(ws, path, hunkId)
@@ -615,11 +670,24 @@ app.whenReady().then(() => {
     reviewTurnPaths.set(turnId, new Set())
     void reviewService.beginTurn(ws, turnId)
   }
+  /**
+   * agent-approvals: which agent a turn runs on, so a "sempre permitir" raised
+   * by that turn is written into *that* agent's permission config and not
+   * whichever one happens to be the default. Entries are dropped on the turn's
+   * terminal event below; an approval always arrives while its turn is live.
+   */
+  function rememberTurnAgent(turnId: string, agentId: string | undefined): void {
+    turnAgents.set(turnId, agentId ?? agentRegistry.defaultId())
+  }
   agentService.onEvent((agentEvent: AgentEvent) => {
     // Attribution plumbing (ACR-C7): accumulate the paths the agent's file-edit
     // tools touched, keyed by turn, so `endTurn` can annotate the change card.
-    if (agentEvent.type === 'tool' && agentEvent.turnId !== undefined && agentEvent.detail) {
-      reviewTurnPaths.get(agentEvent.turnId)?.add(agentEvent.detail)
+    // Keyed on `filePath`, never `detail` — since agent-activity every tool
+    // reports, and a `Bash` command line is not a path.
+    if (agentEvent.type === 'tool') {
+      if (agentEvent.turnId !== undefined && agentEvent.filePath) {
+        reviewTurnPaths.get(agentEvent.turnId)?.add(agentEvent.filePath)
+      }
       return
     }
     if (
@@ -629,6 +697,7 @@ app.whenReady().then(() => {
     ) {
       const turnId = agentEvent.turnId
       if (turnId === undefined) return
+      turnAgents.delete(turnId)
       const ws = activeReviewTurns.get(turnId)
       if (!ws) return
       activeReviewTurns.delete(turnId)
@@ -688,11 +757,13 @@ app.whenReady().then(() => {
     // pass it through to the agent so its events carry the same id.
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
     beginReviewTurn(turnId)
+    rememberTurnAgent(turnId, opts?.agentId)
     agentService.send(text, { ...opts, turnId })
   })
   ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand, opts?: TurnOpts) => {
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
     beginReviewTurn(turnId)
+    rememberTurnAgent(turnId, opts?.agentId)
     agentService.runWorkflow(cmd, { ...opts, turnId })
   })
   // T8 (WS-R5.2): explicit session teardown, called by Chat's unmount
@@ -706,7 +777,17 @@ app.whenReady().then(() => {
   // alive (see AgentService.interrupt's doc for why this must not be
   // 'agent:stop').
   ipcMain.handle('agent:interrupt', async (_event, turnId?: string) => {
+    // A stopped turn can be blocked on an approval the user will now never
+    // answer — release it as a denial so the CLI child exits instead of
+    // waiting on a card that just disappeared.
+    approvalService.cancel(turnId)
     agentService.interrupt(turnId)
+  })
+  // agent-approvals: the chat card's verdict, released back to the blocked CLI
+  // child. Unknown/expired ids are a deliberate no-op (the card may have
+  // outlived its turn).
+  ipcMain.handle('agent:approve', async (_event, requestId: string, decision: ApprovalDecision) => {
+    approvalService.respond(requestId, decision)
   })
 
   // Streaming IPC for agent events — same channel-pattern as fs:watch:* above
@@ -728,7 +809,18 @@ app.whenReady().then(() => {
     const unsubscribe = agentService.onEvent((agentEvent: AgentEvent) => {
       event.sender.send('agent:event', agentEvent)
     })
-    activeAgentEventUnsubs.set(event.sender.id, unsubscribe)
+    // agent-approvals rides the same channel: an approval request is just
+    // another event in the turn's stream as far as the renderer is concerned,
+    // routed by the same `turnId`. It originates outside the adapter (the CLI
+    // calls Hive's MCP tool), which is the only reason it needs its own
+    // subscription here.
+    const unsubscribeApprovals = approvalService.onRequest((request) => {
+      event.sender.send('agent:event', request)
+    })
+    activeAgentEventUnsubs.set(event.sender.id, () => {
+      unsubscribe()
+      unsubscribeApprovals()
+    })
   })
 
   ipcMain.on('agent:event:stop', (event) => {
@@ -817,10 +909,24 @@ app.whenReady().then(() => {
   // store in userData — no network from the renderer, ever. Unknown hosts and
   // escaping paths are refused by `resolveWhisperRequest` (see its tests).
   const whisperRoots = { models: join(app.getPath('userData'), WHISPER_MODELS_DIRNAME) }
-  protocol.handle(WHISPER_SCHEME, (request) => {
+  protocol.handle(WHISPER_SCHEME, async (request) => {
     const file = resolveWhisperRequest(whisperRoots, request.url)
     if (!file) return new Response(null, { status: 404 })
-    return net.fetch(pathToFileURL(file).toString())
+    // `Content-Length` is re-attached deliberately — see `whisperFileHeaders`.
+    // Without it Transformers.js reads the 208 MB decoder by growing a buffer,
+    // which is the difference between a ~20 s model load and minutes of what
+    // looks to the user like a hang.
+    let size: number
+    try {
+      size = statSync(file).size
+    } catch {
+      return new Response(null, { status: 404 })
+    }
+    const response = await net.fetch(pathToFileURL(file).toString())
+    return new Response(response.body, {
+      status: response.status,
+      headers: whisperFileHeaders(file, size)
+    })
   })
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()

@@ -384,6 +384,56 @@ button squeeze. STATE.md **D25**.
 
 ---
 
+## M13 — Voice Prompt 📝 Planned (2026-08-04)
+
+**Feature:** `voice-prompt` · branch `feat/voice-prompt`, **off
+`feat/second-brain`** (the Whisper stack it consumes lives only there).
+
+Speak a prompt straight into the chat composer: press once, talk, and watch the
+words land **while you are still talking** — offline, pt-BR, without leaving the
+field. M12 gave the app ears (embedded Whisper for the second brain); this gives
+it a mouth in the one place every request already passes through.
+
+1. **In-place dictation (VP-R1)** — a quiet mic in the composer toolbar puts the
+   composer into a dictation mode where it already is: accent ring, the toolbar's
+   left cluster replaced by a transport, the textarea keeping its value, caret
+   and geometry. `Esc` restores the draft exactly; submitting finalizes first.
+2. **Streaming by pause (VP-R2)** — silence cuts a segment, the segment is
+   transcribed in the background while capture continues, and the text lands at
+   the caret in spoken order. Pending segments are shown as a **count**, never as
+   guessed words.
+3. **The first press never waits (VP-R3)** — capture starts before the engine is
+   ready and the audio is buffered; the transport shows real download progress
+   with an explicit promise that nothing is being lost, and the queue drains the
+   moment the pipeline warms. The engine pre-warms on pointer/focus intent, never
+   at app start.
+4. **Honest states (VP-R4)** — silence notice, auto-stop with a visible
+   countdown, permission-denied distinguished from no-device, a failed segment
+   that stays retryable from its buffered audio, and a microphone released on
+   every exit path.
+
+Planned via tlc-spec-driven (spec/context/design/tasks in
+`.specs/features/voice-prompt/`). Locked decisions (context.md, from the user
+2026-08-04): **D-VP-1** Whisper only — **Windows Voice Typing cut** after
+validation (no public API, Azure-cloud, un-instrumentable, no guaranteed pt-BR;
+evidence in context.md), **D-VP-2** streaming by pause over one block at the end,
+**D-VP-3** chat composer first on a reusable hook + DS primitives, **D-VP-4**
+pt-BR fixed, no selector. Derived: D-VP-5…10. Renderer + design system only —
+**zero new main-process code and zero new IPC**.
+
+**Exit criteria:** VP-R1–R6 implemented and demonstrated in the running app;
+VP-R7.1 no regression against the 1570-test baseline; VP-R7.2 ≥90% coverage per
+changed non-UI file with the inherited 14-file failing list **not** growing;
+VP-R7.3 real-Electron E2E; VP-R7.4 Playwright-MCP visual pass (dark+light);
+VP-R7.5 all copy pt-BR via `t()`.
+
+T1 is a spike, per the M12 precedent: it must close OQ1 (a real 16 kHz
+`AudioContext`), OQ2 (`AudioWorklet` under this CSP from `file://`) and OQ3 (the
+**measured** real-time factor of one segment through Whisper) before anything is
+built on them — OQ3 carries a defined fallback that keeps the same UI.
+
+---
+
 ## Dependency Graph
 
 ```

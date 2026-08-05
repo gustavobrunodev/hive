@@ -86,7 +86,7 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
   it('renders the Second Brain entry, selects it, and shows its raw-pending badge with Ctrl+Shift+B', () => {
     const props = baseProps()
     const { rerender } = render(createElement(ActionRail, { ...props, activeView: 'brain' }))
-    const entry = screen.getByLabelText('Second Brain')
+    const entry = screen.getByLabelText('Bases de conhecimento')
     expect(entry.getAttribute('aria-pressed')).toBe('true')
     expect(entry.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+B')
 
@@ -94,7 +94,7 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
     expect(props.onSelectView).toHaveBeenCalledWith('brain')
 
     // No badge at zero; appears with an accessible count once > 0.
-    expect(screen.getByLabelText('Second Brain').textContent).toBe('')
+    expect(screen.getByLabelText('Bases de conhecimento').textContent).toBe('')
     rerender(createElement(ActionRail, { ...props, rawPendingCount: 2 }))
     expect(screen.getByLabelText(/2 itens para ingerir/)).toBeTruthy()
     rerender(createElement(ActionRail, { ...props, rawPendingCount: 1 }))

@@ -18,7 +18,7 @@ export function WorkspacePicker({ onChooseWorkspace }: WorkspacePickerProps): Re
   return (
     <div className="wb-gate">
       <div className="wb-gate-inner">
-        <HiveLogo mark="brain" className="wb-gate-logo" />
+        <HiveLogo className="wb-gate-logo" />
         <h1 className="wb-gate-title">{t('onboarding.pickerTitle')}</h1>
         <p className="wb-gate-desc">{t('onboarding.pickerDescription')}</p>
         <Button cut={false} className="wb-btn-lg" onClick={onChooseWorkspace}>

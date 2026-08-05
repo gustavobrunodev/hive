@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, vi, beforeAll } from 'vitest'
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net, session } from 'electron'
@@ -129,6 +129,7 @@ const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
       send: vi.fn(),
       runWorkflow: vi.fn(),
       stop: vi.fn(),
+      interrupt: vi.fn(),
       onEvent: vi.fn((listener: (event: unknown) => void) => {
         const unsubscribe = vi.fn()
         agentOnEventCalls.push({ listener, unsubscribe })
@@ -139,6 +140,44 @@ const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
 })
 
 vi.mock('./agentService', () => ({ createAgentService: vi.fn(() => fakeAgentService) }))
+
+// agent-approvals: the real bridge binds a loopback HTTP listener (covered by
+// approvalService.test.ts). Here only the *wiring* matters — that index.ts
+// relays its requests onto the renderer's event channel and routes verdicts
+// and turn cancellations back into it.
+const { fakeApprovalService, approvalRequestListeners } = vi.hoisted(() => {
+  const approvalRequestListeners: Array<(request: unknown) => void> = []
+  return {
+    approvalRequestListeners,
+    fakeApprovalService: {
+      promptToolName: 'mcp__hive_approvals__approve',
+      mcpConfig: vi.fn(() => null),
+      listen: vi.fn(() => Promise.resolve()),
+      onRequest: vi.fn((listener: (request: unknown) => void) => {
+        approvalRequestListeners.push(listener)
+        return vi.fn()
+      }),
+      respond: vi.fn(),
+      cancel: vi.fn(),
+      rules: vi.fn(() => []),
+      clearRules: vi.fn(),
+      close: vi.fn(() => Promise.resolve())
+    }
+  }
+})
+
+vi.mock('./approvalService', () => ({
+  createApprovalService: vi.fn(() => fakeApprovalService)
+}))
+
+// agent-approvals: the "sempre permitir" → agent-config writer. Its own file
+// format/syntax is covered by agentPermissions.test.ts against real files; here
+// only the wiring matters — that a standing grant reaches it with the agent
+// that actually asked and the active workspace.
+const { grantAgentPermission } = vi.hoisted(() => ({ grantAgentPermission: vi.fn() }))
+vi.mock('./agentPermissions', () => ({
+  grantAgentPermission: grantAgentPermission.mockResolvedValue(null)
+}))
 
 // BmadService (T8/T9/T10): mocked the same way FsService/AgentService are
 // above. Without this, index.ts's real (un-mocked, since bmadService.ts
@@ -728,6 +767,107 @@ describe('main process bootstrap', () => {
     expect(call.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
+  // agent-approvals: a permission request originates outside the adapter (the
+  // CLI calls Hive's own MCP tool), so it rides the same 'agent:event' channel
+  // through its own subscription — and the verdict comes back on its own
+  // handle. Both sides must be wired, or the turn blocks with nothing on screen.
+  it('relays approval requests to the renderer and releases the blocked turn on agent:approve', async () => {
+    const send = vi.fn()
+    findOnHandler('agent:event:start')({ sender: { id: 101, send } })
+
+    const request = {
+      type: 'approval' as const,
+      requestId: 'req-1',
+      tool: 'Bash',
+      detail: 'mkdir vault'
+    }
+    approvalRequestListeners[approvalRequestListeners.length - 1](request)
+    expect(send).toHaveBeenCalledWith('agent:event', request)
+
+    await findHandler('agent:approve')({}, 'req-1', { behavior: 'allow', scope: 'once' })
+    expect(fakeApprovalService.respond).toHaveBeenCalledWith('req-1', {
+      behavior: 'allow',
+      scope: 'once'
+    })
+
+    // Stopping a turn releases whatever it was blocked on, so a killed CLI
+    // child isn't left waiting on a card that just disappeared.
+    await findHandler('agent:interrupt')({}, 't-1')
+    expect(fakeApprovalService.cancel).toHaveBeenCalledWith('t-1')
+
+    findOnHandler('agent:event:stop')({ sender: { id: 101, send } })
+  })
+
+  it('persists a standing "sempre permitir" rule, so the grant survives a restart', async () => {
+    const { createApprovalService } = await import('./approvalService')
+    const options = vi.mocked(createApprovalService).mock.calls[0][0]
+    // Seeded from disk on boot…
+    expect(options?.rules).toEqual([])
+
+    // …and written back when the bridge records a new one.
+    options?.onRulesChanged?.(['Bash:npm'])
+    const { createConfigStore } = await import('./configStore')
+    expect(createConfigStore(app.getPath('userData')).getApprovalRules()).toEqual(['Bash:npm'])
+  })
+
+  // The defect: "Sempre permitir" recorded the grant only inside Hive, so
+  // `.claude/` stayed empty and the CLI kept round-tripping through Hive for a
+  // call it had been told to stop asking about.
+  it('writes a standing grant into the permission config of the agent that asked', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-grant-'))
+    await findHandler('workspace:open')({}, dir)
+    grantAgentPermission.mockClear()
+
+    // The turn names its agent; the grant has to follow that agent, not the
+    // app default — a permission written into the wrong CLI's config is worse
+    // than none, because it looks like it worked.
+    await findHandler('agent:send')({}, 'crie a pasta', {
+      turnId: 't-grant',
+      agentId: 'claude-cli'
+    })
+    const { createApprovalService } = await import('./approvalService')
+    const options = vi.mocked(createApprovalService).mock.calls[0][0]
+    options?.onGranted?.({
+      rule: 'Bash:mkdir',
+      tool: 'Bash',
+      input: { command: 'mkdir -p out' },
+      turnId: 't-grant'
+    })
+
+    expect(grantAgentPermission).toHaveBeenCalledWith({
+      agentId: 'claude-cli',
+      workspace: dir,
+      tool: 'Bash',
+      input: { command: 'mkdir -p out' }
+    })
+  })
+
+  it('falls back to the default agent when the grant cannot name the turn that asked', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-grant-fallback-'))
+    await findHandler('workspace:open')({}, dir)
+    const { createApprovalService } = await import('./approvalService')
+    const options = vi.mocked(createApprovalService).mock.calls[0][0]
+
+    // A turn id nothing registered (it already finished, or the adapter
+    // reported none at all).
+    for (const turnId of ['never-started', undefined]) {
+      grantAgentPermission.mockClear()
+      options?.onGranted?.({ rule: 'WebFetch', tool: 'WebFetch', turnId })
+      expect(grantAgentPermission).toHaveBeenCalledWith(
+        expect.objectContaining({ workspace: dir, tool: 'WebFetch', agentId: expect.any(String) })
+      )
+    }
+
+    // A workflow turn that names no agent still registers one, so its own
+    // grants resolve without falling through to this branch.
+    await findHandler('agent:runWorkflow')({}, { key: 'bmad-prd' }, { turnId: 't-wf' })
+    grantAgentPermission.mockClear()
+    options?.onGranted?.({ rule: 'Read', tool: 'Read', turnId: 't-wf' })
+    expect(grantAgentPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ tool: 'Read', agentId: expect.any(String) })
+    )
+  })
+
   it('starting a new agent event subscription for the same sender tears down its previous subscription first (no leaked subscriptions)', () => {
     const send = vi.fn()
     const fakeEvent = { sender: { id: 100, send } }
@@ -1227,11 +1367,20 @@ describe('main process bootstrap', () => {
       // The bootstrap review listener (index's first agentService.onEvent)
       // accumulates tool_use file paths (ACR-C7) then ends the turn on the
       // terminal event, passing the touched paths as workspace-relative POSIX.
+      // Attribution reads `filePath`, never `detail`: since agent-activity
+      // every tool reports, and a Bash command line is not a path.
       const reviewListener = agentOnEventCalls[0].listener
-      reviewListener({ type: 'tool', name: 'Write', detail: `${dir}/src/a.txt`, turnId: 't-xyz' })
-      reviewListener({ type: 'tool', name: 'Edit', detail: `${dir}/src/b.txt`, turnId: 't-xyz' })
+      reviewListener({ type: 'tool', name: 'Write', filePath: `${dir}/src/a.txt`, turnId: 't-xyz' })
+      reviewListener({ type: 'tool', name: 'Edit', filePath: `${dir}/src/b.txt`, turnId: 't-xyz' })
       // A tool path outside the workspace is dropped.
-      reviewListener({ type: 'tool', name: 'Write', detail: '/elsewhere/c.txt', turnId: 't-xyz' })
+      reviewListener({ type: 'tool', name: 'Write', filePath: '/elsewhere/c.txt', turnId: 't-xyz' })
+      // A non-file tool contributes nothing, however chatty its detail.
+      reviewListener({
+        type: 'tool',
+        name: 'Bash',
+        detail: `rm -rf ${dir}/src/c.txt`,
+        turnId: 't-xyz'
+      })
       reviewListener({ type: 'done', turnId: 't-xyz' })
       expect(fakeReviewService.endTurn).toHaveBeenCalledWith(dir, 't-xyz', [
         'src/a.txt',
@@ -1355,6 +1504,12 @@ describe('main process bootstrap', () => {
       expect(call).toBeTruthy()
       const handler = call![1] as (req: { url: string }) => Promise<Response> | Response
 
+      // A real file, because the handler now measures what it is about to
+      // serve (see below) and cannot answer for a path it can't stat.
+      const modelDir = join(userDataDir, 'whisper-models', 'Xenova', 'whisper-base')
+      mkdirSync(modelDir, { recursive: true })
+      writeFileSync(join(modelDir, 'config.json'), '{"model_type":"whisper"}')
+
       await handler({ url: 'hive-model://models/Xenova/whisper-base/config.json' })
       expect(net.fetch).toHaveBeenCalledWith(
         expect.stringContaining('whisper-models/Xenova/whisper-base/config.json')
@@ -1363,6 +1518,37 @@ describe('main process bootstrap', () => {
       vi.mocked(net.fetch).mockClear()
       const denied = await handler({ url: 'hive-model://secrets/id_rsa' })
       expect((denied as Response).status).toBe(404)
+      expect(net.fetch).not.toHaveBeenCalled()
+    })
+
+    /**
+     * The regression behind "a transcrição não funciona": `net.fetch(file://…)`
+     * answers without a `Content-Length`, and Transformers.js responds to a missing
+     * one by reading the body into a buffer it keeps reallocating. On the
+     * 208 MB fp32 decoder that turned a ~20 s model load into minutes of what
+     * looked like a hang. The handler now re-attaches the real size.
+     */
+    it('attaches the real Content-Length to a served model file', async () => {
+      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
+      const handler = call![1] as (req: { url: string }) => Promise<Response>
+
+      const modelDir = join(userDataDir, 'whisper-models', 'base', 'onnx')
+      mkdirSync(modelDir, { recursive: true })
+      const bytes = 'x'.repeat(4096)
+      writeFileSync(join(modelDir, 'encoder_model.onnx'), bytes)
+
+      const response = await handler({ url: 'hive-model://models/base/onnx/encoder_model.onnx' })
+      expect(response.headers.get('content-length')).toBe(String(bytes.length))
+      expect(response.headers.get('content-type')).toBe('application/octet-stream')
+    })
+
+    it('404s a resolvable path that is not on disk, instead of a fetch that fails later', async () => {
+      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
+      const handler = call![1] as (req: { url: string }) => Promise<Response>
+
+      vi.mocked(net.fetch).mockClear()
+      const missing = await handler({ url: 'hive-model://models/base/nope.json' })
+      expect(missing.status).toBe(404)
       expect(net.fetch).not.toHaveBeenCalled()
     })
 

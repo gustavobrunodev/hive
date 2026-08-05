@@ -127,11 +127,11 @@ vi.mock('@hive/design-system', () => ({
 vi.mock('./WorkUI', () => ({
   WorkUI: ({
     workspace,
-    onToggleTheme,
+    onSelectTheme,
     onCandidateWorkspace
   }: {
     workspace: string
-    onToggleTheme?: () => void
+    onSelectTheme?: (theme: string) => void
     onCandidateWorkspace?: (path: string) => void
   }) => {
     const [instanceId] = useState(() => Math.random().toString(36).slice(2))
@@ -139,7 +139,15 @@ vi.mock('./WorkUI', () => ({
       'div',
       { 'data-testid': 'work-ui', 'data-instance-id': instanceId },
       `WorkUI: ${workspace}`,
-      createElement('button', { onClick: onToggleTheme }, 'toggle theme'),
+      // One button per theme — the real control is a radio menu, and what App
+      // owns is only "a theme was picked → paint it and remember it".
+      ...['dark', 'light', 'hive'].map((theme) =>
+        createElement(
+          'button',
+          { key: theme, onClick: () => onSelectTheme?.(theme) },
+          `pick ${theme}`
+        )
+      ),
       createElement(
         'button',
         { onClick: () => onCandidateWorkspace?.('/home/user/switched-workspace') },
@@ -183,6 +191,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         runWorkflow: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
         interrupt: vi.fn().mockResolvedValue(undefined),
+        respondApproval: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
@@ -318,14 +327,15 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
 
-    const initialTheme = document.documentElement.getAttribute('data-theme')
-    fireEvent.click(screen.getByText('toggle theme'))
-    const toggledTheme = document.documentElement.getAttribute('data-theme')
-    expect(toggledTheme).not.toBe(initialTheme)
+    // All three themes, including the brand one: each paints the root and is
+    // remembered for the next launch.
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
 
-    // Toggle back — exercises both branches of the dark/light ternary.
-    fireEvent.click(screen.getByText('toggle theme'))
-    expect(document.documentElement.getAttribute('data-theme')).toBe(initialTheme)
+    for (const theme of ['light', 'hive', 'dark']) {
+      fireEvent.click(screen.getByText(`pick ${theme}`))
+      expect(document.documentElement.getAttribute('data-theme')).toBe(theme)
+      expect(window.localStorage.getItem('hive-desktop-theme')).toBe(theme)
+    }
   })
 
   it('"continue anyway" on a failed update advances to ready without retrying (R4.2)', async () => {

@@ -3,7 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { IngestPanel } from './IngestPanel'
+import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
+
+/** A stand-in for the vault-setup flow — the panel only reads its phase and calls back. */
+function setup(phase: BrainSetupPhase = 'idle'): BrainSetup {
+  return { phase, start: vi.fn(), recheck: vi.fn(), dismiss: vi.fn() }
+}
 
 // Real WebAudio doesn't exist in jsdom; the decode path has its own tests.
 const decodeToWhisperPcm = vi.hoisted(() => vi.fn())
@@ -141,7 +147,8 @@ describe('IngestPanel (T10)', () => {
         mode: null,
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     expect(screen.queryByText('Ingerir conhecimento')).toBeNull()
@@ -153,7 +160,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'record',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     const recordTab = screen.getByRole('tab', { name: 'Gravar áudio' })
@@ -166,7 +174,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     const confirm = screen.getByText('Ingerir') as HTMLButtonElement
@@ -183,16 +192,20 @@ describe('IngestPanel (T10)', () => {
     const onLaunch = vi.fn()
     const onClose = vi.fn()
     const store = makeStore()
-    render(createElement(IngestPanel, { mode: 'text', onClose, store, onLaunch }))
+    render(createElement(IngestPanel, { mode: 'text', onClose, store, onLaunch, setup: setup() }))
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'decisão da squad' } })
     fireEvent.click(screen.getByText('Ingerir'))
 
     await waitFor(() => expect(stageRaw).toHaveBeenCalledWith('/ws', 'decisão da squad'))
+    // The staged path pins the skill to this file, and the text rides along so
+    // the transcript shows what was actually sent rather than a bare command.
     await waitFor(() =>
       expect(onLaunch).toHaveBeenCalledWith(
         expect.objectContaining({
-          command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+          command: expect.objectContaining({
+            prompt: '/second-brain-ingest second-brain/raw/ingest-x.md\n\ndecisão da squad'
+          })
         })
       )
     )
@@ -208,7 +221,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose,
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
 
@@ -221,14 +235,15 @@ describe('IngestPanel (T10)', () => {
   })
 
   it('offers "Configurar base" instead of writing when there is no vault (SB-R3.3)', () => {
-    const onLaunch = vi.fn()
+    const brainSetup = setup()
     const onClose = vi.fn()
     render(
       createElement(IngestPanel, {
         mode: 'text',
         onClose,
         store: makeStore({ hasVault: false, vaultPath: null, vaultName: null }),
-        onLaunch
+        onLaunch: vi.fn(),
+        setup: brainSetup
       })
     )
 
@@ -236,11 +251,28 @@ describe('IngestPanel (T10)', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
 
     fireEvent.click(screen.getByText('Configurar base'))
-    expect(onLaunch).toHaveBeenCalledWith(
-      expect.objectContaining({ command: expect.objectContaining({ prompt: '/second-brain' }) })
-    )
+    expect(brainSetup.start).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalled()
     expect(stageRaw).not.toHaveBeenCalled()
+  })
+
+  it('waits on a setup already in flight instead of demanding one (the "Configure a base primeiro" bug)', () => {
+    const brainSetup = setup('running')
+    render(
+      createElement(IngestPanel, {
+        mode: 'text',
+        onClose: vi.fn(),
+        store: makeStore({ hasVault: false, vaultPath: null, vaultName: null }),
+        onLaunch: vi.fn(),
+        setup: brainSetup
+      })
+    )
+
+    expect(screen.getByRole('status').textContent).toBe('Configurando a base…')
+    expect(screen.queryByText('Configure a base primeiro')).toBeNull()
+
+    fireEvent.click(screen.getByText('Verificar de novo'))
+    expect(brainSetup.recheck).toHaveBeenCalledTimes(1)
   })
 
   it('the transcript field is SHARED — every mode edits and ingests the same text', async () => {
@@ -249,7 +281,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'digitado' } })
@@ -290,7 +323,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'record',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch
+        onLaunch,
+        setup: setup()
       })
     )
 
@@ -308,7 +342,9 @@ describe('IngestPanel (T10)', () => {
     await waitFor(() => expect(stageRaw).toHaveBeenCalledWith('/ws', 'ata da reunião'))
     expect(onLaunch).toHaveBeenCalledWith(
       expect.objectContaining({
-        command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+        command: expect.objectContaining({
+          prompt: '/second-brain-ingest second-brain/raw/ingest-x.md\n\nata da reunião'
+        })
       })
     )
     vi.unstubAllGlobals()
@@ -318,7 +354,15 @@ describe('IngestPanel (T10)', () => {
     decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.1, 0.2]))
     const onLaunch = vi.fn()
     const store = makeStore()
-    render(createElement(IngestPanel, { mode: 'audioFile', onClose: vi.fn(), store, onLaunch }))
+    render(
+      createElement(IngestPanel, {
+        mode: 'audioFile',
+        onClose: vi.fn(),
+        store,
+        onLaunch,
+        setup: setup()
+      })
+    )
 
     const input = screen.getByLabelText('Escolher arquivo de áudio') as HTMLInputElement
     Object.defineProperty(input, 'files', {
@@ -339,7 +383,9 @@ describe('IngestPanel (T10)', () => {
     await waitFor(() => expect(stageRaw).toHaveBeenCalledWith('/ws', 'ata da reunião (revisada)'))
     expect(onLaunch).toHaveBeenCalledWith(
       expect.objectContaining({
-        command: expect.objectContaining({ prompt: '/second-brain-ingest' })
+        command: expect.objectContaining({
+          prompt: '/second-brain-ingest second-brain/raw/ingest-x.md\n\nata da reunião (revisada)'
+        })
       })
     )
   })
@@ -351,7 +397,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'audioFile',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
 
@@ -369,7 +416,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'audioFile',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
 
@@ -390,7 +438,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose: vi.fn(),
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     // Typed text needs no model.
@@ -412,7 +461,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose,
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
 
@@ -427,7 +477,8 @@ describe('IngestPanel (T10)', () => {
     const props = {
       onClose: vi.fn(),
       store: makeStore(),
-      onLaunch: vi.fn()
+      onLaunch: vi.fn(),
+      setup: setup()
     }
     const { rerender } = render(createElement(IngestPanel, { ...props, mode: 'text' as const }))
     expect(screen.getByRole('tab', { name: 'Colar texto' }).getAttribute('aria-selected')).toBe(
@@ -452,7 +503,8 @@ describe('IngestPanel (T10)', () => {
         mode: 'text',
         onClose,
         store: makeStore(),
-        onLaunch: vi.fn()
+        onLaunch: vi.fn(),
+        setup: setup()
       })
     )
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'rascunho' } })

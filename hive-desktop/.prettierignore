@@ -14,3 +14,4 @@ tsconfig.*.json
 coverage
 test-results
 playwright-report
+tools/visual

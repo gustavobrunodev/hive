@@ -10,6 +10,7 @@ import {
   type ReactNode
 } from 'react'
 import { buildDecorations, type GitDecoration, type GitStatus } from './gitStatus'
+import { watchWorkspaceShared } from '../workspaceWatch'
 
 /** Debounce for coalescing refresh triggers (fs events / git:changed / focus) — design.md §3.3/§8. */
 const REFRESH_DEBOUNCE_MS = 250
@@ -114,7 +115,7 @@ export function useGitStore(workspace: string): GitStore {
   // (agent/editor), and window focus — all funneled through the debounce.
   useEffect(() => {
     const offGit = window.hive.git.onChanged(() => refresh())
-    const offFs = window.hive.watchWorkspace(workspace, () => refresh())
+    const offFs = watchWorkspaceShared(workspace, () => refresh())
     const onFocus = (): void => refresh()
     window.addEventListener('focus', onFocus)
     return () => {

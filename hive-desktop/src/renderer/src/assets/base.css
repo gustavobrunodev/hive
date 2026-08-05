@@ -22,16 +22,51 @@ ul {
   list-style: none;
 }
 
+/**
+ * Form controls do not inherit typography, and a `<button>` with no explicit
+ * `background`/`border` falls back to the platform's chrome — on this host,
+ * `buttonface` grey with a 2px outset border in Arial. Every custom control in
+ * the app was therefore one forgotten declaration away from rendering as a
+ * native OS button: the profile sheet's "Padrão" star and "Como instalar" link
+ * both shipped that way, opaque light-grey chips on the dark theme.
+ * Neutralising the UA defaults once here means a control looks like *nothing*
+ * until its own rule dresses it — a missing style reads as a missing style,
+ * not as a foreign widget. Padding is deliberately not reset: sizing is each
+ * control's own business, and DS/app rules already set it where it matters.
+ */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+button {
+  background: none;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+
 html,
 body,
 #root {
   height: 100%;
 }
 
+/* Size and measure are the product-register reset's business (workbench.css);
+   this rule owns colour and the family stack. */
 body {
   color: var(--ink);
   background: var(--bg);
-  line-height: 1.6;
+  /* The emoji faces sit last, after the system stack: a host that has its own
+     emoji font keeps it; one that doesn't falls through to the bundled
+     `Noto Color Emoji` (fonts.css) instead of painting tofu rectangles. */
   font-family:
     Inter,
     -apple-system,
@@ -44,6 +79,10 @@ body {
     'Fira Sans',
     'Droid Sans',
     'Helvetica Neue',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    'Noto Color Emoji',
     sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

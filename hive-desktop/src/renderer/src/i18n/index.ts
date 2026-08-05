@@ -5,11 +5,15 @@ import {
   roleActionLabel,
   relativeTimeLabel,
   shortcutLabel,
-  agentMeta
+  agentMeta,
+  provisionMessagesPtBR
 } from './pt-BR'
 
 export { intentLabel, roleMeta, roleActionLabel, relativeTimeLabel, shortcutLabel, agentMeta }
-export type { RoleMeta } from './pt-BR'
+export type { RoleMeta, ProvisionStage } from './pt-BR'
+
+/** Rotating reassurance for the provisioning gate, keyed by stage. */
+export const provisionMessages = provisionMessagesPtBR
 
 /** The (only, for MVP) locale's strings. Exposed for tests/tooling; components should use `t()`. */
 export const strings = ptBR
@@ -46,7 +50,7 @@ type ReturnFor<V> = V extends AnyStringFn ? string : V
  * Typed accessor into the pt-BR strings module.
  *
  *   t('app.title')                    // -> 'Hive Desktop'
- *   t('theme.toggle', t('theme.dark')) // -> 'Alternar tema (atual: escuro)'
+ *   t('theme.pickerLabelWithCurrent', t('theme.dark')) // -> 'Aparência (atual: Escuro)'
  *
  * There is only one locale in MVP scope, so this is a thin typed lookup over
  * `pt-BR.ts` — not a runtime i18n library. Adding a locale later means adding

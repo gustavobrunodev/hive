@@ -44,11 +44,14 @@ export interface CliAdapterConfig {
    * (per-turn override falling back to the session default) and may be
    * `undefined` when the adapter exposes no such choice — `buildArgs` then
    * omits the corresponding flag. `resume` is the CLI-native session id to
-   * continue, or `null`/`undefined` for a fresh conversation.
+   * continue, or `null`/`undefined` for a fresh conversation. `turnId` is the
+   * caller's turn identity, which an adapter wiring a permission-prompt tool
+   * (agent-approvals) stamps onto that tool's config so an approval raised by
+   * this child routes back to the conversation that started it.
    */
   buildArgs(
     prompt: string,
-    turn: { model?: string; effort?: string; resume?: string | null }
+    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
   ): string[]
 }
 
@@ -66,18 +69,51 @@ interface StreamJsonLine {
     type?: string
     delta?: { type?: string; text?: string }
   }
-  /** An `assistant` message's content blocks — parsed for `tool_use` attribution (ACR-C7). */
+  /**
+   * A message's content blocks. `assistant` messages carry `tool_use` blocks
+   * (the agent calling a tool); `user` messages carry the matching
+   * `tool_result` blocks (the call coming back) — together they're the live
+   * activity feed (agent-activity) and the file-change attribution (ACR-C7).
+   */
   message?: {
     content?: Array<{
       type?: string
+      id?: string
       name?: string
-      input?: { file_path?: string }
+      input?: Record<string, unknown>
+      tool_use_id?: string
+      is_error?: boolean
     }>
   }
 }
 
 /** Claude tool names whose `input.file_path` attributes a workspace file change (Agent Change Review, ACR-C7). */
 const FILE_EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
+
+/**
+ * The headline argument of a tool call, flattened to one line for the activity
+ * row. Ordered by how tools are actually named in Claude's schema — the path
+ * for file tools, the command for `Bash`, the pattern for search tools — with
+ * a plain-string fallback so an unknown (or MCP) tool still shows *something*
+ * rather than an empty row.
+ */
+export function toolDetailOf(input: Record<string, unknown> | undefined): string | undefined {
+  if (!input) return undefined
+  for (const key of [
+    'file_path',
+    'path',
+    'command',
+    'pattern',
+    'url',
+    'query',
+    'description',
+    'prompt'
+  ]) {
+    const value = input[key]
+    if (typeof value === 'string' && value.trim() !== '') return value.trim().split('\n')[0]
+  }
+  return undefined
+}
 
 /**
  * Routes one stdout line into the session's event queue, tagging every event
@@ -118,31 +154,61 @@ function handleStdoutLine(
   ) {
     queue.push({ type: 'token', text: parsed.event.delta.text, turnId })
   }
-  // Attribution groundwork (ACR-C7, plumbing only): emit a `tool` event per
-  // file-editing tool_use so the turn wiring can attribute touched paths.
-  emitToolUse(parsed, queue, turnId)
+  emitToolEvents(parsed, queue, turnId)
 }
 
 /**
- * Emits a `tool` event for each file-editing `tool_use` block in a complete
- * `assistant` message (name + `input.file_path`), for change attribution
- * (ACR-C7). Text blocks are ignored (they already streamed as deltas); this
- * never affects token streaming. Split out to keep `handleStdoutLine` simple.
+ * Emits the `tool` half of the stream (agent-activity + ACR-C7 attribution):
+ * a `start` per `tool_use` block on a complete `assistant` message, and an
+ * `end` per `tool_result` block on the `user` message that answers it, paired
+ * by the CLI's own `tool_use.id`.
+ *
+ * Every tool is reported, not just the file-editing ones: reading, searching
+ * and running commands is most of what the agent does, and a UI that only knew
+ * about writes showed a silent gap for all of it. `filePath` stays reserved
+ * for the file-editing tools so change attribution keeps consuming paths only.
+ * Text blocks are ignored (they already streamed as deltas); this never
+ * affects token streaming.
  */
-function emitToolUse(
+function emitToolEvents(
   parsed: StreamJsonLine,
   queue: ReturnType<typeof createAgentEventQueue>,
   turnId: string | undefined
 ): void {
-  if (parsed.type !== 'assistant' || !Array.isArray(parsed.message?.content)) return
-  for (const block of parsed.message.content) {
-    if (
-      block.type === 'tool_use' &&
-      typeof block.name === 'string' &&
-      FILE_EDIT_TOOLS.has(block.name) &&
-      typeof block.input?.file_path === 'string'
-    ) {
-      queue.push({ type: 'tool', name: block.name, detail: block.input.file_path, turnId })
+  const blocks = parsed.message?.content
+  if (!Array.isArray(blocks)) return
+  if (parsed.type === 'assistant') {
+    for (const block of blocks) {
+      if (block.type !== 'tool_use' || typeof block.name !== 'string') continue
+      const filePath =
+        FILE_EDIT_TOOLS.has(block.name) && typeof block.input?.file_path === 'string'
+          ? block.input.file_path
+          : undefined
+      queue.push({
+        type: 'tool',
+        name: block.name,
+        detail: toolDetailOf(block.input),
+        toolId: block.id,
+        phase: 'start',
+        filePath,
+        turnId
+      })
+    }
+    return
+  }
+  if (parsed.type === 'user') {
+    for (const block of blocks) {
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
+      queue.push({
+        type: 'tool',
+        // The result block doesn't repeat the tool's name; the UI already has
+        // it from the `start` it pairs with via `toolId`.
+        name: '',
+        toolId: block.tool_use_id,
+        phase: 'end',
+        ok: block.is_error !== true,
+        turnId
+      })
     }
   }
 }
@@ -227,7 +293,7 @@ export function createCliAgentSession(
     const handleKey = turnId ?? `anon-${anonymousTurnCounter}`
     const handle = processRunner.run(
       config.command,
-      config.buildArgs(prompt, { model, effort, resume }),
+      config.buildArgs(prompt, { model, effort, resume, turnId }),
       {
         cwd: opts.workspace
       }

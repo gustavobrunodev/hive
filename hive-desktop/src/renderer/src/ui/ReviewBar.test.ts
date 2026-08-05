@@ -15,6 +15,8 @@ function makeStore(over?: Partial<ReviewStore>): ReviewStore {
     isStale: false,
     refresh: vi.fn(),
     acceptFile: vi.fn(async () => ({ ok: true })),
+    acceptFiles: vi.fn(async () => ({ ok: true })),
+    rejectFiles: vi.fn(async () => ({ ok: true })),
     rejectFile: vi.fn(async () => ({ ok: true })),
     acceptHunk: vi.fn(async () => ({ ok: true })),
     rejectHunk: vi.fn(async () => ({ ok: true })),

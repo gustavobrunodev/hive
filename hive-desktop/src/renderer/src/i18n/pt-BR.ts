@@ -18,9 +18,14 @@ export const ptBR = {
       'Sistema de design conectado — conteúdo temporário, substituído em tarefas futuras.'
   },
   theme: {
-    dark: 'escuro',
-    light: 'claro',
-    toggle: (current: string) => `Alternar tema (atual: ${current})`
+    pickerLabel: 'Aparência',
+    pickerLabelWithCurrent: (current: string) => `Aparência (atual: ${current})`,
+    dark: 'Escuro',
+    darkHint: 'Grafite neutro, para horas de leitura',
+    light: 'Claro',
+    lightHint: 'Para ambientes bem iluminados',
+    hive: 'Hive',
+    hiveHint: 'Escuro, nas cores da marca'
   },
   common: {
     loading: 'Carregando…',
@@ -33,7 +38,11 @@ export const ptBR = {
     pickerDescription:
       'Escolha uma pasta no seu computador para ser o seu workspace — é nela que o BMAD e os agentes vão trabalhar e salvar os artefatos do seu projeto.',
     pickerNote: 'Na primeira vez, o BMAD será instalado automaticamente no workspace escolhido.',
-    chooseWorkspaceCta: 'Escolher workspace'
+    chooseWorkspaceCta: 'Escolher workspace',
+    // Provisioning gate (install/update → bases de conhecimento): one continuous
+    // preparation, so the screens say how many steps are left instead of
+    // flashing past as three unrelated loading screens.
+    stageLabel: (current: number, total: number) => `Etapa ${current} de ${total}`
   },
   explorer: {
     paneTitle: 'Arquivos',
@@ -191,11 +200,14 @@ export const ptBR = {
     continueAnywayCta: 'Continuar mesmo assim'
   },
   secondBrainGate: {
-    title: 'Preparando a base de conhecimento',
-    description: 'Instalando e atualizando o Second Brain da squad para este workspace.',
-    progressLabel: 'Preparando o Second Brain…',
-    errorTitle: 'Não foi possível preparar o Second Brain',
-    errorDescriptionFallback: 'Algo deu errado ao provisionar as skills do Second Brain.',
+    title: 'Preparando as bases de conhecimento',
+    description:
+      'Instalando e atualizando as skills de base de conhecimento da squad para este workspace.',
+    // O caption embaixo da barra diz o que está literalmente acontecendo — eco
+    // do título aqui seria a mesma frase duas vezes na mesma tela.
+    progressLabel: 'Instalando as skills de base de conhecimento…',
+    errorTitle: 'Não foi possível preparar as bases de conhecimento',
+    errorDescriptionFallback: 'Algo deu errado ao provisionar as skills de base de conhecimento.',
     retryCta: 'Tentar novamente',
     continueAnywayCta: 'Continuar mesmo assim'
   },
@@ -206,6 +218,10 @@ export const ptBR = {
     modelLabel: 'Modelo',
     effortLabel: 'Esforço',
     jumpToLatestLabel: 'Ir para a última mensagem',
+    // A launched skill can carry the material it was launched with; a long
+    // one collapses so it doesn't bury the conversation it started.
+    invocationMore: 'Mostrar tudo',
+    invocationLess: 'Mostrar menos',
     errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
     loadingCapabilities: 'Carregando opções do agente…',
     composerHint: 'Enter envia · Shift+Enter quebra a linha · / para skills · # para arquivos',
@@ -241,7 +257,70 @@ export const ptBR = {
     // always-at-hand home now that the left rail hosts workspace tools).
     // "Seus atalhos" (not "do seu papel"): since shortcut-customization the
     // set may be the user's own selection, not the role defaults.
-    shortcutsLabel: 'Seus atalhos'
+    shortcutsLabel: 'Seus atalhos',
+    // The strip's scroll paddles — they only exist while that edge is hiding
+    // something, so the names say which way, not "rolar".
+    shortcutsScrollBack: 'Ver atalhos anteriores',
+    shortcutsScrollForward: 'Ver mais atalhos'
+  },
+  // agent-activity: what the agent is doing while it answers — the live feed
+  // that replaced a minute of silent typing dots. Two tenses, not one: the
+  // present continuous narrates work in progress, and a settled row switches
+  // to the past. The tense is a state channel that survives a screenshot, a
+  // screen reader and a user who can't tell a spinner from a tick.
+  activity: {
+    read: 'Lendo',
+    edit: 'Editando',
+    search: 'Buscando',
+    run: 'Rodando',
+    web: 'Consultando a web',
+    task: 'Planejando',
+    other: 'Usando',
+    readDone: 'Leu',
+    editDone: 'Editou',
+    searchDone: 'Buscou',
+    runDone: 'Rodou',
+    webDone: 'Consultou',
+    taskDone: 'Planejou',
+    otherDone: 'Usou',
+    // An adapter that reports a tool call with no name still gets a legible row.
+    unnamedTool: 'ferramenta',
+    // The collapsed header, once a turn has produced more steps than fit.
+    stepsCount: (count: number) => (count === 1 ? '1 passo' : `${count} passos`),
+    expandCta: 'Ver todos os passos',
+    collapseCta: 'Recolher passos',
+    // Screen-reader status for a row, so the feed is narrated, not just seen.
+    runningAria: (label: string) => `${label} — em andamento`,
+    okAria: (label: string) => `${label} — concluído`,
+    failedAria: (label: string) => `${label} — falhou`,
+    regionLabel: 'Atividade do agente'
+  },
+  // agent-approvals: the agent asked to run something it isn't pre-authorized
+  // for. Copy is deliberately concrete about *what* is being asked — a vague
+  // "permitir ação?" is how people click yes to anything.
+  approval: {
+    titleRun: 'Rodar um comando no terminal',
+    titleWeb: 'Acessar um endereço na web',
+    titleEdit: 'Alterar um arquivo',
+    titleRead: 'Ler um arquivo',
+    titleOther: (tool: string) => `Usar a ferramenta ${tool}`,
+    description: 'O agente precisa da sua autorização para continuar.',
+    allowCta: 'Permitir',
+    allowAlwaysCta: 'Sempre permitir',
+    denyCta: 'Recusar',
+    // Says where the grant goes, not just that it is remembered: a standing
+    // permission is written into the agent's own settings for this workspace,
+    // which is a file the user can open, read and undo.
+    allowAlwaysHint: (scope: string) =>
+      `Não perguntar de novo para ${scope} — salvo nas permissões do agente neste workspace`,
+    detailsCta: 'Ver detalhes',
+    detailsHideCta: 'Ocultar detalhes',
+    keyboardHint: 'Enter permite · Esc recusa',
+    allowedState: 'Permitido',
+    allowedAlwaysState: 'Permitido sempre',
+    deniedState: 'Recusado',
+    deniedMessage: 'Recusado pelo usuário no Hive Desktop.',
+    pendingAria: (title: string) => `Autorização pendente: ${title}`
   },
   intentGrid: {
     title: 'O que você quer fazer hoje?',
@@ -751,9 +830,22 @@ export const ptBR = {
         : `As ${n} mudanças do agente serão desfeitas e os arquivos voltarão ao estado anterior ao turno.`,
     rejectAllConfirm: 'Rejeitar tudo',
     rejectAllCancel: 'Cancelar',
-    // In-chat change card (ACR-R2.2).
+    // In-chat change card (ACR-R2.2). Two scopes, stated as two scopes: the
+    // header decides the whole turn, each row decides its own file. The header
+    // used to say plain "Aceitar" while acting on everything — which read as a
+    // per-file control and behaved like a batch one.
     cardTitle: (n: number) => (n === 1 ? 'Editei 1 arquivo' : `Editei ${n} arquivos`),
     cardReviewed: 'Revisado',
+    cardAcceptAll: 'Aceitar tudo',
+    cardRejectAll: 'Rejeitar tudo',
+    cardAcceptAllAria: (n: number) =>
+      n === 1 ? 'Aceitar a alteração deste turno' : `Aceitar as ${n} alterações deste turno`,
+    cardRejectAllAria: (n: number) =>
+      n === 1 ? 'Rejeitar a alteração deste turno' : `Rejeitar as ${n} alterações deste turno`,
+    cardPendingCount: (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`),
+    cardFileExpandAria: (path: string) => `Ver diferenças de ${path}`,
+    cardFileCollapseAria: (path: string) => `Ocultar diferenças de ${path}`,
+    cardFileReviewedAria: (path: string) => `${path} — já revisado`,
     cardExpand: 'Ver diferenças',
     cardCollapse: 'Ocultar diferenças',
     // Inline editor diff nav (ACR-R2.1).
@@ -789,17 +881,50 @@ export const ptBR = {
   secondBrain: {
     // Activity-bar entry (SB-R2.1) + staged-raw badge (SB-R2.5) + the
     // health-check dot (SB-R10.4), both folded into the accessible name.
-    railLabel: 'Second Brain',
+    railLabel: 'Bases de conhecimento',
     railPending: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
     railHealthDue: 'revisão pendente',
     // Panel header (SB-R2.3).
-    panelTitle: 'Second Brain',
+    panelTitle: 'Bases de conhecimento',
     pendingChip: (n: number) => (n === 1 ? `${n} item para ingerir` : `${n} itens para ingerir`),
-    // Empty state (SB-R2.2) — inviting, not a void.
-    emptyTitle: 'A base de conhecimento da squad',
+    // Empty state (SB-R2.2) — inviting, not a void. O header do painel já diz
+    // "Bases de conhecimento", então o título aqui reconhece o estado (não há
+    // base ainda, e ela é por workspace) e deixa o valor para a descrição.
+    emptyTitle: 'A squad ainda não tem uma base aqui',
     emptyDescription:
-      'Reúna decisões, aprendizados e domínio num wiki versionado que o agente organiza pra você. Comece configurando a base.',
+      'Reúna decisões, aprendizados e domínio num wiki versionado que o agente organiza pra você.',
     emptyCta: 'Configurar base',
+    // O que a base devolve, na ordem em que o usuário encontra: perguntar,
+    // alimentar, manter. Substituem um parágrafo genérico por três promessas.
+    promiseAsk: 'Pergunte e receba a síntese no chat',
+    promiseCapture: 'Cole texto ou grave áudio — transcrição no seu computador',
+    promiseOwn: 'Markdown versionado, dentro do seu workspace',
+    // Todo comando da base de conhecimento abre uma conversa própria — dizer isso
+    // ANTES do clique evita a surpresa de ver o chat atual ser sequestrado.
+    emptyCtaNote:
+      'Abre uma conversa nova com o agente. A conversa atual continua em segundo plano.',
+    // Configuração em andamento: o agente está entrevistando o usuário no chat
+    // e a base aparece aqui sozinha quando tocar o disco.
+    setupRunningTitle: 'Configurando a base…',
+    setupRunningDescription:
+      'O agente está conduzindo a configuração na conversa. Responda as perguntas dele — a base aparece aqui assim que for criada.',
+    setupRecheck: 'Verificar de novo',
+    setupRelaunch: 'Rodar o comando de novo',
+    // A base acabou de nascer: confirmar e entregar o próximo passo.
+    readyTitle: (name: string) => `Base pronta — ${name}`,
+    readyDescription: 'Ingira o primeiro conhecimento para ela começar a ser útil.',
+    readyCta: 'Ingerir agora',
+    readyDismiss: 'Dispensar aviso',
+    // Aviso de que o comando abriu conversa própria (e como voltar).
+    launchSetup: 'Configuração da base',
+    launchIngest: 'Ingestão',
+    launchQuery: 'Pergunta à base',
+    launchLint: 'Revisão da base',
+    launchToastTitle: (label: string) => `${label} abriu uma conversa nova`,
+    launchToastDescription: 'A conversa anterior continua rodando em segundo plano.',
+    launchToastResume: 'Voltar para ela',
+    launchToastClose: 'Dispensar aviso',
+    launchToastLabel: 'Avisos da base de conhecimento',
     // Action row (SB-R2.4) — launch the agent commands.
     actionsTitle: 'Ações',
     ingest: 'Ingerir',
@@ -868,12 +993,12 @@ export const ptBR = {
     indexTitle: 'Índice',
     wikiEmpty: 'O wiki ainda não tem páginas. Ingira algum conhecimento para começar.',
     openFileAria: (path: string) => `Abrir ${path}`,
-    // Floating Second Brain button + its menu (SB-R3.1, SB-R3.5, SB-R9.1):
+    // Botão flutuante da base + seu menu (SB-R3.1, SB-R3.5, SB-R9.1):
     // perguntar à base no topo, formas de capturar logo abaixo.
-    // Distinct from the activity-bar entry's plain "Second Brain": two
-    // controls with the same accessible name would be indistinguishable.
-    fabLabel: 'Second Brain — perguntar ou capturar',
-    fabMenuLabel: 'Ações do Second Brain',
+    // Distinto da entrada da activity bar ("Bases de conhecimento"): dois
+    // controles com o mesmo nome acessível seriam indistinguíveis.
+    fabLabel: 'Base de conhecimento — perguntar ou capturar',
+    fabMenuLabel: 'Ações da base de conhecimento',
     fabCaptureTitle: 'Capturar',
     fabText: 'Colar texto',
     fabAudioFile: 'Áudio (arquivo)',
@@ -893,10 +1018,33 @@ export const ptBR = {
     // Audio-file tab (SB-R4.3–4.6).
     ingestPickAudio: 'Escolher arquivo de áudio',
     ingestAudioHint: 'wav, mp3, m4a, ogg ou webm — a transcrição acontece no seu computador.',
-    ingestTranscribing: 'Transcrevendo…',
-    ingestModelLoading: (pct: number) => `Preparando o modelo… ${pct}%`,
-    ingestModelDownloading: (pct: number) => `Baixando o modelo… ${pct}%`,
+    ingestDropTitle: 'Arraste seus áudios aqui',
+    ingestDropRejected: (n: number) =>
+      n === 1 ? '1 arquivo ignorado: não é áudio.' : `${n} arquivos ignorados: não são áudio.`,
     ingestTranscriptLabel: 'Transcrição (edite antes de ingerir)',
+    ingestCharCount: (n: number) => (n === 1 ? '1 caractere' : `${n} caracteres`),
+    // What the local engine is doing. Each phase says whether it can be
+    // measured — an honest indeterminate state is what replaced the old
+    // "Preparando o modelo… 100%" that then sat still (SB-R4.2).
+    phaseDownloading: 'Baixando o modelo',
+    phaseDownloadingHint: 'Só na primeira vez — depois ele fica salvo no seu computador.',
+    phaseLoading: 'Carregando o modelo',
+    phaseWarming: 'Preparando o modelo',
+    phaseWarmingHint: 'Esta etapa não tem porcentagem. Na primeira vez pode levar alguns minutos.',
+    phaseTranscribing: 'Transcrevendo o áudio',
+    phaseTranscribingHint: 'Tudo acontece no seu computador — nada é enviado para a internet.',
+    // Per-audio status in the queue (one row per file, SB-R4.5).
+    jobQueued: 'Na fila',
+    jobDecoding: 'Lendo o áudio…',
+    jobTranscribing: 'Transcrevendo…',
+    jobDone: (chars: number) => `Transcrito · ${chars} caracteres`,
+    jobDetails: 'Detalhes técnicos',
+    jobRemove: (name: string) => `Remover ${name} da lista`,
+    // Why "Ingerir" cannot run yet — stated in words beside the button.
+    ingestBlockedWorking: 'Aguarde a transcrição terminar.',
+    ingestBlockedEmptyText: 'Escreva ou cole algo para ingerir.',
+    ingestBlockedEmptyAudio: 'Grave ou escolha um áudio para ingerir.',
+    ingestReady: 'Pronto para ingerir.',
     ingestModelLabel: 'Modelo',
     ingestManageModels: 'Gerenciar modelos',
     // Honest, specific decode failures (SB-R4.6).
@@ -910,6 +1058,9 @@ export const ptBR = {
     recordAgain: 'Gravar de novo',
     recordElapsed: 'Tempo de gravação',
     recordHint: 'Fale à vontade — o áudio é transcrito no seu computador.',
+    recordSilent: 'Nenhum som detectado — verifique o microfone.',
+    recordTakeName: (at: Date) =>
+      `Gravação ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
     recordDenied:
       'O microfone está bloqueado. Libere o acesso ao microfone nas configurações do sistema e tente de novo.',
     recordUnavailable: 'Nenhum microfone foi encontrado neste computador.',
@@ -1169,6 +1320,40 @@ const intentLabelsPtBR: Record<string, string> = {
 /** Resolves an intent's pt-BR label by `WorkflowEntry.key`, falling back to the key itself for an unrecognized/discovered-at-runtime entry. */
 export function intentLabel(key: string): string {
   return intentLabelsPtBR[key] ?? key
+}
+
+/** The three runs the provisioning gate is made of, in the order they happen. */
+export type ProvisionStage = 'install' | 'update' | 'secondBrain'
+
+/**
+ * Reassurance copy for the provisioning gate, one sequence per stage — a
+ * sibling export rather than a leaf of `ptBR` for the same reason as
+ * `intentLabelsPtBR`: an array leaf would widen `t()`'s literal path union.
+ *
+ * Each sequence advances every few seconds and then *holds on its last line*,
+ * so the tone has to survive an arbitrarily long wait. Hence the closing line
+ * of each is written to stay true at ten seconds and at four minutes, and the
+ * word "quase" only appears where the remaining work really is the tail of the
+ * run. Nothing here promises a duration the app cannot keep — the honest
+ * technical line runs directly underneath it.
+ */
+export const provisionMessagesPtBR: Record<ProvisionStage, readonly string[]> = {
+  install: [
+    'Estamos preparando o ambiente Hive para você trabalhar.',
+    'Baixando o BMAD e os módulos que você escolheu.',
+    'Ensinando os agentes o jeito da sua squad.',
+    'Já está quase — deixando tudo pronto no seu workspace.'
+  ],
+  update: [
+    'Conferindo se o BMAD deste workspace está em dia.',
+    'Trazendo as novidades da squad.',
+    'Quase lá — só alinhando as últimas peças.'
+  ],
+  secondBrain: [
+    'Agora a base de conhecimento da squad.',
+    'Preparando o lugar onde as decisões do time vão morar.',
+    'Último passo — já abrimos o Hive em seguida.'
+  ]
 }
 
 /**

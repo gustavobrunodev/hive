@@ -44,8 +44,8 @@ recusas que impedem a próxima rodada de re-propor o que já foi decidido.
 | `tsc --noEmit` (node + web) | feedback | comput. | manut. | in-session | sim | sim | `strict: true` nos **dois** projetos |
 | ESLint 9 flat + bloco anti-sprawl | feedback | comput. | manut. | in-session | sim (errors) | parcial | `no-explicit-any` **error**, `complexity: 15` **error**, `max-lines-per-function: 150` **warn**, react-hooks/react-refresh |
 | Prettier | feedforward | comput. | manut. | manual | não | n/a | estilo — **ignore list não cobre `.claude/`, `.specs/`, `.scratch/`** |
-| Vitest (108 arquivos, ~1570 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
-| Coverage v8 per-file 90% | feedback | comput. | manut. | in-session | **só em `test:coverage`** | sim | ~35 globs **curados à mão** (≈200 linhas de config) |
+| Vitest (123 arquivos, ~1805 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
+| Coverage v8 per-file 90% | feedback | comput. | manut. | in-session | **só em `test:coverage`** | sim | ~37 globs **curados à mão** (≈200 linhas de config) |
 | `noInlineStrings.test.ts` | feedback | comput. | arch. fitness | in-session | sim | sim | zero literais de UI fora do `t()` — **o padrão de sensor caseiro a replicar** |
 | Playwright E2E (7 specs, Electron real) | feedback | comput. | comportamento | manual | não | sim | fluxos reais contra disco/git de verdade |
 | `AGENTS.md` | feedforward | inferencial | cross | in-session | — | — | ambiente/Node, comandos, 4 convenções, fronteiras |

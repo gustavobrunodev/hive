@@ -33,7 +33,12 @@ describe('mentionQueryAt', () => {
 
 describe('insertMention', () => {
   it('replaces the open token with #path plus a trailing space and places the caret after it', () => {
-    const result = insertMention('veja #pr por favor'.slice(0, 8), { start: 5, query: 'pr' }, 8, 'docs/prd.md')
+    const result = insertMention(
+      'veja #pr por favor'.slice(0, 8),
+      { start: 5, query: 'pr' },
+      8,
+      'docs/prd.md'
+    )
     expect(result.value).toBe('veja #docs/prd.md ')
     expect(result.caret).toBe('veja #docs/prd.md '.length)
   })

@@ -1,19 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Progress, Spinner } from '@hive/design-system'
-import { t } from '../i18n'
-import { CheckIcon } from '../ui/icons'
+import { Button } from '@hive/design-system'
+import { provisionMessages, t } from '../i18n'
 import { InstallConfigForm, type BmadInstallConfig } from './InstallConfigForm'
+import { ProvisionScene, type ProvisionStep } from './ProvisionScene'
 
 interface GuidedInstallProps {
   /** Workspace path to install BMAD into. */
   workspace: string
   /** Invoked once the install stream ends with a success (`done`) event. */
   onComplete: () => void
-}
-
-interface StepEntry {
-  id: string
-  label: string
 }
 
 type Phase = { status: 'running' } | { status: 'error'; message: string; detail?: string }
@@ -27,16 +22,18 @@ type Phase = { status: 'running' } | { status: 'error'; message: string; detail?
  *     until the user submits it — fixing the previous behaviour where the base
  *     package was installed silently with no input requested.
  *  2. **Run**: once submitted, `window.hive.installBmad()`'s BmadEvent stream
- *     renders as a step checklist (one row per `step` event — earlier steps
- *     marked done, the latest one active with an inline spinner) over a single
- *     indeterminate Progress bar whose caption tracks `progress` events, with
- *     an Alert + retry on `error`. `prompt` events stay unhandled — the run
- *     itself is non-interactive (all answers passed as flags up front, see
- *     bmadService.ts), so BMAD emits none.
+ *     drives the shared `ProvisionScene` — one row per `step` event (earlier
+ *     ones marked done, the latest active), the caption tracking `progress`
+ *     events, and an Alert + retry on `error`. `prompt` events stay unhandled
+ *     — the run itself is non-interactive (all answers passed as flags up
+ *     front, see bmadService.ts), so BMAD emits none.
+ *
+ * This is stage 1 of 2: the Second Brain gate runs straight after it, in the
+ * same surface, so the two read as one preparation rather than two waits.
  */
 export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): React.JSX.Element {
   const [config, setConfig] = useState<BmadInstallConfig | null>(null)
-  const [steps, setSteps] = useState<StepEntry[]>([])
+  const [steps, setSteps] = useState<ProvisionStep[]>([])
   const [progressMessage, setProgressMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>({ status: 'running' })
   const [runToken, setRunToken] = useState(0)
@@ -46,7 +43,7 @@ export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): Re
     // form — until then this screen is the form itself (rendered below).
     if (!config) return
     let active = true
-    const collectedSteps: StepEntry[] = []
+    const collectedSteps: ProvisionStep[] = []
 
     // Reset lives inside a locally-defined function invoked immediately
     // below (mirrors explorer/Explorer.tsx's `load()` pattern), not as a
@@ -92,54 +89,32 @@ export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): Re
 
   // Act 2: the install is running (or errored).
   return (
-    <main className="wb-gate">
-      <div className="wb-gate-card">
-        <h1 className="wb-gate-title">{t('guidedInstall.title')}</h1>
-        <p className="wb-gate-desc">{t('guidedInstall.description')}</p>
-
-        {phase.status === 'error' ? (
-          <>
-            <Alert variant="danger" title={t('guidedInstall.errorTitle')} role="alert">
-              {phase.message || t('guidedInstall.errorDescriptionFallback')}
-            </Alert>
-            <div className="wb-gate-error-actions">
-              <Button
-                cut={false}
-                className="wb-btn"
-                onClick={() => setRunToken((current) => current + 1)}
-              >
-                {t('guidedInstall.retryCta')}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            {steps.length > 0 && (
-              <ol className="wb-steps">
-                {steps.map((step, index) => {
-                  const isActive = index === steps.length - 1
-                  return (
-                    <li key={step.id} className="wb-step" data-state={isActive ? 'active' : 'done'}>
-                      <span className="wb-step-marker" aria-hidden="true">
-                        {isActive ? (
-                          <Spinner size="sm" label={t('guidedInstall.progressLabel')} />
-                        ) : (
-                          <CheckIcon size={12} />
-                        )}
-                      </span>
-                      {step.label}
-                    </li>
-                  )
-                })}
-              </ol>
-            )}
-            <Progress value={null} />
-            <p className="wb-gate-progress-caption" role="status">
-              {progressMessage ?? t('guidedInstall.progressLabel')}
-            </p>
-          </>
-        )}
-      </div>
-    </main>
+    <ProvisionScene
+      title={t('guidedInstall.title')}
+      messages={provisionMessages.install}
+      caption={progressMessage}
+      captionFallback={t('guidedInstall.progressLabel')}
+      steps={steps}
+      stage={[1, 2]}
+      error={
+        phase.status === 'error'
+          ? {
+              title: t('guidedInstall.errorTitle'),
+              message: phase.message || t('guidedInstall.errorDescriptionFallback')
+            }
+          : null
+      }
+      actions={
+        phase.status === 'error' ? (
+          <Button
+            cut={false}
+            className="wb-btn"
+            onClick={() => setRunToken((current) => current + 1)}
+          >
+            {t('guidedInstall.retryCta')}
+          </Button>
+        ) : null
+      }
+    />
   )
 }

@@ -56,9 +56,10 @@ test.describe('second-brain E2E (real Electron)', () => {
     fs.mkdirSync(path.join(workspace, '_bmad', '_config'), { recursive: true })
     fs.writeFileSync(path.join(workspace, '_bmad', '_config', 'manifest.yaml'), 'version: test\n')
 
-    // A vault, as the skill's own wizard would scaffold it. It must exist
-    // BEFORE launch: the vault status is read once at mount, so a directory
-    // created mid-session would (correctly) still read as "no vault".
+    // A vault, as the skill's own wizard would scaffold it. Seeded before
+    // launch so the app boots straight into the configured panel — a vault
+    // created mid-session is now picked up on its own (the store watches the
+    // workspace tree), which `useSecondBrain.test.ts` covers directly.
     fs.mkdirSync(path.join(workspace, 'second-brain', 'raw'), { recursive: true })
 
     // A model file placed exactly where the store keeps them, to prove the
@@ -118,9 +119,9 @@ test.describe('second-brain E2E (real Electron)', () => {
       // state: the vault name and the three action launchers. (The no-vault
       // empty state is covered by SecondBrainPanel's unit tests — a single
       // launch can only be in one of the two states.)
-      // `exact` matters: the floating button's own name also starts with
-      // "Second Brain" (it is "Second Brain — perguntar ou capturar").
-      await window.getByRole('button', { name: 'Second Brain', exact: true }).click()
+      // `exact` matters: the floating button carries a near-identical name
+      // ("Base de conhecimento — perguntar ou capturar").
+      await window.getByRole('button', { name: 'Bases de conhecimento', exact: true }).click()
       await expect(window.getByRole('button', { name: /Ingerir/ }).first()).toBeVisible({
         timeout: 15_000
       })
@@ -131,7 +132,9 @@ test.describe('second-brain E2E (real Electron)', () => {
       await expect(window.getByText('0 de 10 ingestões')).toBeVisible()
 
       // ── 2. FAB → paste → Ingerir writes a REAL file (SB-R3.2) ────────────
-      await window.getByRole('button', { name: 'Second Brain — perguntar ou capturar' }).click()
+      await window
+        .getByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+        .click()
       await window.getByRole('menuitem', { name: 'Colar texto' }).click()
 
       const knowledge = 'Decisão da squad: o vault vive no workspace, versionado no git.'
@@ -178,16 +181,22 @@ test.describe('second-brain E2E (real Electron)', () => {
       await question.fill('Onde vive o vault?')
       await window.getByRole('button', { name: 'Perguntar', exact: true }).click()
       // The dialog closes and the chat carries the turn as the user would have
-      // typed it — `/second-brain-query <pergunta>`.
+      // typed it — `/second-brain-query <pergunta>`. The transcript renders the
+      // command name and its args as SIBLING spans (`CommandInvocation`), and
+      // the space between them is flex `gap`, not text — so neither the joined
+      // string nor the token's textContent ever matches. Assert each span.
       await expect(question).toBeHidden({ timeout: 10_000 })
-      await expect(window.getByText('/second-brain-query Onde vive o vault?')).toBeVisible({
+      const command = window.locator('.wb-command-token').last()
+      await expect(command.locator('.wb-command-token-name')).toHaveText('/second-brain-query', {
         timeout: 20_000
       })
-      // Reopening offers the question back (SB-R9.4).
+      await expect(command.locator('.wb-command-token-args')).toHaveText('Onde vive o vault?')
+      // Reopening offers the question back (SB-R9.4). Target the recent-question
+      // control by role: the same text is also on screen in the transcript.
       await window.keyboard.press('Control+Shift+K')
-      await expect(window.getByText('Onde vive o vault?', { exact: true })).toBeVisible({
-        timeout: 10_000
-      })
+      await expect(
+        window.getByRole('button', { name: 'Perguntar de novo: Onde vive o vault?' })
+      ).toBeVisible({ timeout: 10_000 })
       await window.keyboard.press('Escape')
 
       // ── 3. The hive-model: protocol under the production CSP (T11) ───────

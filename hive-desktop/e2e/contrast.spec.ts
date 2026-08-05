@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/workspace'
 import { checkContrast, WCAG_AA_LARGE, WCAG_AA_NORMAL } from '../src/renderer/src/ui/contrast'
 import type { Page } from '@playwright/test'
+import { THEMES, type Theme } from '../src/renderer/src/ui/theme'
 
 /**
  * P0-010 (test-design-qa.md, risk R-05 — BUS, score 6).
@@ -16,8 +17,9 @@ import type { Page } from '@playwright/test'
  * reads as near-black, and it once produced confident nonsense (1.1:1 dark,
  * 13:1 light for the same declaration).
  *
- * Both themes, every time. Half the recorded contrast defects appeared in only
- * one of the two.
+ * All three themes, every time. Half the recorded contrast defects appeared in
+ * only one of the two that existed then, and `hive` — the brand's bordo ledger
+ * — is the newest and least-looked-at of the three.
  */
 
 interface Sample {
@@ -196,8 +198,11 @@ async function freezeMotion(window: Page): Promise<void> {
   )
 }
 
+/** The picker's pt-BR label for each theme, to click the right menu entry. */
+const THEME_OPTION_LABEL = { dark: 'Escuro', light: 'Claro', hive: 'Hive' } as const
+
 /**
- * Switches the app to `theme` through the real toggle, and only if it is not
+ * Switches the app to `theme` through the real picker, and only if it is not
  * already there.
  *
  * Setting `data-theme` on the root by hand looks equivalent and is not: the CSS
@@ -207,16 +212,19 @@ async function freezeMotion(window: Page): Promise<void> {
  * light theme, which is what a dark-theme foreground looks like sitting on a
  * light-theme surface. Drive the affordance the user drives.
  */
-async function setTheme(window: Page, theme: 'dark' | 'light'): Promise<void> {
+async function setTheme(window: Page, theme: Theme): Promise<void> {
   const current = await window.evaluate(
     () => document.documentElement.getAttribute('data-theme') ?? 'dark'
   )
   if (current === theme) return
-  await window.getByRole('button', { name: /^Alternar tema/ }).click()
+  await window.getByRole('button', { name: /^Aparência/ }).click()
+  await window
+    .getByRole('menuitemradio', { name: new RegExp(`^${THEME_OPTION_LABEL[theme]}`) })
+    .click()
   await expect(window.locator(`:root[data-theme="${theme}"]`)).toHaveCount(1)
 }
 
-for (const theme of ['dark', 'light'] as const) {
+for (const theme of THEMES) {
   test(`@p0 @a11y work UI text meets WCAG AA in the ${theme} theme`, async ({ hiveApp }) => {
     const { window } = hiveApp
 

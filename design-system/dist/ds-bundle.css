@@ -192,10 +192,10 @@
   }
 }
 :root {
-  --z-dropdown: 1000;
-  --z-sticky: 1100;
-  --z-overlay: 1200;
-  --z-modal: 1300;
+  --z-sticky: 1000;
+  --z-overlay: 1100;
+  --z-modal: 1200;
+  --z-dropdown: 1300;
   --z-toast: 1400;
   --z-tooltip: 1500;
 }
@@ -378,7 +378,13 @@ a:hover {
 .hds-logo svg {
   display: block;
   width: auto;
-  height: 2rem;
+  height: var(--hds-logo-height, 2rem);
+}
+.hds-logo[data-tone=current] .hds-logo-mark path {
+  fill: var(--hds-logo-mark, currentColor);
+}
+.hds-logo[data-tone=current] .hds-logo-wordmark path {
+  fill: var(--hds-logo-wordmark, currentColor);
 }
 
 /* src/components/Button/Button.css */
@@ -2246,7 +2252,7 @@ a:hover {
 
 /* src/components/Popover/Popover.css */
 .hds-popover-content {
-  z-index: var(--z-overlay);
+  z-index: var(--z-dropdown);
   min-width: 220px;
   max-width: min(360px, calc(100vw - var(--s-5)));
   background: var(--surface);

@@ -163,6 +163,80 @@ describe('acceptFile / rejectFile', () => {
     expect(await svc.rejectHunk(ws, 'x', '0:1:1')).toEqual({ ok: true })
     expect(await svc.acceptAll(ws)).toEqual({ ok: true })
     expect(await svc.rejectAll(ws)).toEqual({ ok: true })
+    expect(await svc.acceptFiles(ws, ['x'])).toEqual({ ok: true })
+    expect(await svc.rejectFiles(ws, ['x'])).toEqual({ ok: true })
+  })
+})
+
+/**
+ * The change card's "Aceitar tudo" / "Rejeitar tudo" — one turn's whole set as
+ * one decision. The card used to loop the single-file calls from the renderer,
+ * so the user clicked once and watched the files being reviewed one at a time,
+ * each on its own baseline advance and its own emit.
+ */
+describe('acceptFiles / rejectFiles (one turn, one decision)', () => {
+  async function threeFileTurn(): Promise<void> {
+    write('mine.txt', 'ORIGINAL\n')
+    await svc.beginTurn(ws, 't1')
+    write('a.txt', 'agent a\n')
+    write('b.txt', 'agent b\n')
+    write('mine.txt', 'agent edited\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['a.txt', 'b.txt', 'mine.txt'])
+  }
+
+  it('accepts every named file at once — one emit, not one per file', async () => {
+    await threeFileTurn()
+    const before = emitted.length
+
+    const res = await svc.acceptFiles(ws, ['a.txt', 'b.txt', 'mine.txt'])
+
+    expect(res).toEqual({ ok: true })
+    expect(latest().changes).toEqual([])
+    expect(read('a.txt')).toBe('agent a\n')
+    // The single-emit contract is the fix: N emits meant N intermediate
+    // renders, which is exactly what "aceita 1 arquivo por 1" looked like.
+    expect(emitted.length - before).toBe(1)
+  })
+
+  it('accepts only the named subset, leaving the rest pending', async () => {
+    await threeFileTurn()
+    await svc.acceptFiles(ws, ['a.txt'])
+    expect(latest().changes.map((c) => c.path)).toEqual(['b.txt', 'mine.txt'])
+  })
+
+  it('rejects every named file at once, restoring pre-turn bytes', async () => {
+    await threeFileTurn()
+    const before = emitted.length
+
+    const res = await svc.rejectFiles(ws, ['a.txt', 'b.txt', 'mine.txt'])
+
+    expect(res).toEqual({ ok: true })
+    expect(existsSync(join(ws, 'a.txt'))).toBe(false) // created → deleted
+    expect(read('mine.txt')).toBe('ORIGINAL\n') // modified → restored
+    expect(latest().changes).toEqual([])
+    expect(emitted.length - before).toBe(1)
+  })
+
+  it('stops on a file hand-edited after the turn instead of clobbering it', async () => {
+    await threeFileTurn()
+    // The user edits one of the turn's files afterwards (STALE, ACR-R3.2).
+    const future = new Date(Date.now() + 60_000)
+    writeFileSync(join(ws, 'b.txt'), 'my own edit\n')
+    utimesSync(join(ws, 'b.txt'), future, future)
+
+    expect(await svc.acceptFiles(ws, ['a.txt', 'b.txt'])).toEqual({ ok: false, stale: true })
+    // Nothing was decided — the batch is all-or-ask, so `a.txt` is untouched.
+    expect(latest().changes.map((c) => c.path)).toContain('a.txt')
+    expect(read('b.txt')).toBe('my own edit\n')
+  })
+
+  it('an empty set is a no-op', async () => {
+    await threeFileTurn()
+    const before = emitted.length
+    expect(await svc.acceptFiles(ws, [])).toEqual({ ok: true })
+    expect(await svc.rejectFiles(ws, [])).toEqual({ ok: true })
+    expect(emitted.length).toBe(before)
   })
 })
 

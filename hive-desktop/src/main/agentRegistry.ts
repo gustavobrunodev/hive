@@ -1,5 +1,5 @@
 import type { ProcessRunner } from './processRunner'
-import type { AgentAdapter } from './agentAdapter'
+import type { AgentAdapter, AgentAdapterDeps } from './agentAdapter'
 import { createClaudeCliAdapter } from './claudeCliAdapter'
 import { createCopilotCliAdapter } from './copilotCliAdapter'
 import { createDevinCliAdapter } from './devinCliAdapter'
@@ -40,7 +40,7 @@ interface RegistryEntry {
   docsUrl: string
   /** The binary probed by `detect()` and spawned by the adapter. */
   detectCommand: string
-  create: (processRunner: ProcessRunner) => AgentAdapter
+  create: (processRunner: ProcessRunner, deps?: AgentAdapterDeps) => AgentAdapter
 }
 
 export interface AgentRegistry {
@@ -91,8 +91,16 @@ async function probe(processRunner: ProcessRunner, command: string): Promise<boo
 /**
  * Builds the registry over an injected `ProcessRunner`. Adapters are memoized
  * on first `get`; detection results are memoized after the first `detect()`.
+ *
+ * `deps` is forwarded to every adapter factory (agent-approvals hands the
+ * permission-prompt endpoint through here). Adapters that have no use for a
+ * given collaborator ignore it, so this stays one optional argument rather
+ * than a per-adapter wiring table.
  */
-export function createAgentRegistry(processRunner: ProcessRunner): AgentRegistry {
+export function createAgentRegistry(
+  processRunner: ProcessRunner,
+  deps?: AgentAdapterDeps
+): AgentRegistry {
   const entries: RegistryEntry[] = [
     {
       id: 'claude-cli',
@@ -131,7 +139,7 @@ export function createAgentRegistry(processRunner: ProcessRunner): AgentRegistry
     if (!entry) return null
     let adapter = adapterCache.get(id)
     if (!adapter) {
-      adapter = entry.create(processRunner)
+      adapter = entry.create(processRunner, deps)
       adapterCache.set(id, adapter)
     }
     return adapter

@@ -130,6 +130,15 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // The shortcut strip's overflow affordances. Its whole job is a state
+        // machine over measurements the eye can't check (which edge is hiding
+        // something, how far one press moves), so it carries the full bar.
+        'src/renderer/src/ui/ScrollableRow.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         // mcp: the MCP-server module's logic files. The service (parallel to
         // the gated fsService) and the pure form helpers are held to the full
         // bar; the presentational `McpManager.tsx` follows its sibling
@@ -309,6 +318,56 @@ export default defineConfig({
           lines: 90
         },
         'src/renderer/src/ui/FileSearchDialog.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // agent-activity + agent-approvals: the logic files this work added.
+        // `approvalService.ts` is the permission bridge (a blocked turn hangs
+        // on it, so it is held to the full bar); `toolActivity.ts` is the pure
+        // activity reducer. The two presentational components
+        // (`ToolActivityFeed.tsx`, `ApprovalCard.tsx`) are exercised through
+        // Chat.test and follow the ungated `SkillStudio.tsx` precedent — their
+        // many tiny render-callback arrows make a 90% *function* gate noise,
+        // not signal. `useSmoothStream.ts` is rAF-driven presentation with no
+        // branch worth gating; its grapheme handling is covered by its own test.
+        'src/main/approvalService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/chat/toolActivity.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // brand-identity + third theme + provisioning gate. `theme.ts` is the
+        // theme vocabulary (persistence, the guard that rejects a value an
+        // older build wrote, and the swatch table the picker paints from);
+        // `ThemePicker.tsx` and `ProvisionScene.tsx` are small enough that the
+        // full bar is signal rather than noise, and the gate screens are the
+        // one surface where a regression is invisible until a first run.
+        // `HiveHoneycomb.tsx` earns it too: its geometry is arithmetic no
+        // screenshot review reliably catches (the first cut scaled a unit hex
+        // and turned every hairline into a slab).
+        'src/renderer/src/ui/theme.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/ThemePicker.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/HiveLogo.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/onboarding/ProvisionScene.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/onboarding/HiveHoneycomb.tsx': {
           statements: 90,
           branches: 90,
           functions: 90,

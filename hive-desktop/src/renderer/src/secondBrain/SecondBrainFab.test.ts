@@ -18,7 +18,7 @@ describe('SecondBrainFab (T9)', () => {
     return {
       onSelectMode,
       onAsk,
-      trigger: screen.getByLabelText('Second Brain — perguntar ou capturar')
+      trigger: screen.getByLabelText('Base de conhecimento — perguntar ou capturar')
     }
   }
 
@@ -62,7 +62,7 @@ describe('SecondBrainFab (T9)', () => {
         nudge: createElement('div', { 'data-testid': 'nudge' })
       })
     )
-    const trigger = screen.getByLabelText('Second Brain — perguntar ou capturar')
+    const trigger = screen.getByLabelText('Base de conhecimento — perguntar ou capturar')
 
     expect(screen.getByTestId('nudge')).toBeTruthy()
     fireEvent.click(trigger)
@@ -122,7 +122,7 @@ describe('SecondBrainFab (T9)', () => {
     const { unmount } = render(
       createElement(SecondBrainFab, { onSelectMode: vi.fn(), onAsk: vi.fn() })
     )
-    fireEvent.click(screen.getByLabelText('Second Brain — perguntar ou capturar'))
+    fireEvent.click(screen.getByLabelText('Base de conhecimento — perguntar ou capturar'))
     unmount()
     expect(remove).toHaveBeenCalledWith('keydown', expect.any(Function))
     expect(remove).toHaveBeenCalledWith('mousedown', expect.any(Function))

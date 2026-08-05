@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { join } from 'path'
 import {
   resolveWhisperRequest,
+  whisperFileHeaders,
   WHISPER_SCHEME,
   WHISPER_SCHEME_PRIVILEGES,
   type WhisperProtocolRoots
@@ -92,6 +93,42 @@ describe('whisperProtocol', () => {
       const trailing: WhisperProtocolRoots = { models: join('/data', 'whisper-models') + '/' }
       expect(resolveWhisperRequest(trailing, 'hive-model://models/x.json')).toBe(
         join('/data/whisper-models', 'x.json')
+      )
+    })
+  })
+
+  /**
+   * `net.fetch(file://…)` answers without a `Content-Length`, and Transformers.js
+   * reacts to a missing one by reading the body into a buffer it keeps growing.
+   * On the 208 MB fp32 decoder that turned a ~20 s model load into minutes of
+   * apparent hang — the reason transcription looked broken. The header is the
+   * fix, so it is pinned here.
+   */
+  describe('whisperFileHeaders', () => {
+    it('always states the byte length', () => {
+      expect(whisperFileHeaders('/m/onnx/decoder.onnx', 208560983)['content-length']).toBe(
+        '208560983'
+      )
+    })
+
+    it('states a zero length rather than omitting the header', () => {
+      expect(whisperFileHeaders('/m/empty.onnx', 0)['content-length']).toBe('0')
+    })
+
+    it('types the model metadata as JSON', () => {
+      expect(whisperFileHeaders('/m/config.json', 10)['content-type']).toBe('application/json')
+    })
+
+    it('types the merges/vocab text files as text', () => {
+      expect(whisperFileHeaders('/m/merges.txt', 10)['content-type']).toBe('text/plain')
+    })
+
+    it('leaves weights as opaque bytes', () => {
+      expect(whisperFileHeaders('/m/onnx/encoder_model.onnx', 10)['content-type']).toBe(
+        'application/octet-stream'
+      )
+      expect(whisperFileHeaders('/m/onnx/encoder_model.onnx_data', 10)['content-type']).toBe(
+        'application/octet-stream'
       )
     })
   })

@@ -5,6 +5,8 @@ import { useSecondBrain, type VaultHealth } from './useSecondBrain'
 import { FRESH_HEALTH } from '../testSupport/hiveSecondBrainMock'
 
 interface Bridge {
+  /** Fires one fs change to every live `watchWorkspaceShared` listener. */
+  emitFsChange: () => void
   getVault: ReturnType<typeof vi.fn>
   getHealth: ReturnType<typeof vi.fn>
   noteIngest: ReturnType<typeof vi.fn>
@@ -17,16 +19,30 @@ function mockBridge(
   health: VaultHealth = FRESH_HEALTH
 ): Bridge {
   const bridge: Bridge = {
+    emitFsChange: () => {},
     getVault: vi.fn().mockResolvedValue(status),
     getHealth: vi.fn().mockResolvedValue(health),
     noteIngest: vi.fn().mockResolvedValue({ ...health, ingestsSinceLint: 1 }),
     noteLint: vi.fn().mockResolvedValue({ ...health, ingestsSinceLint: 0, due: false }),
     snoozeHealth: vi.fn().mockResolvedValue({ ...health, due: false })
   }
+  const sinks: Array<(change: { type: string; path: string }) => void> = []
   window.hive = {
     ...window.hive,
+    watchWorkspace: vi.fn(
+      (_root: string, onChange: (change: { type: string; path: string }) => void) => {
+        sinks.push(onChange)
+        return () => {
+          const index = sinks.indexOf(onChange)
+          if (index >= 0) sinks.splice(index, 1)
+        }
+      }
+    ),
     secondBrain: { ...window.hive?.secondBrain, ...bridge }
-  } as typeof window.hive
+  } as unknown as typeof window.hive
+  bridge.emitFsChange = () => {
+    for (const sink of [...sinks]) sink({ type: 'add', path: 'second-brain/wiki/index.md' })
+  }
   return bridge
 }
 
@@ -79,6 +95,74 @@ describe('useSecondBrain', () => {
     })
     result.current.refresh()
     await waitFor(() => expect(result.current.rawPending).toBe(1))
+  })
+
+  it('picks the vault up as soon as the agent writes it, without a click (the "Configure a base primeiro" bug)', async () => {
+    vi.useFakeTimers()
+    try {
+      const bridge = mockBridge({ path: null, name: null, rawPending: 0 })
+      const { result } = renderHook(() => useSecondBrain('/ws'))
+      await vi.waitFor(() => expect(result.current.health).not.toBeNull())
+      expect(result.current.hasVault).toBe(false)
+
+      // `/second-brain` finishes: the vault appears on disk and the workspace
+      // watcher reports the write.
+      bridge.getVault.mockResolvedValue({
+        path: '/ws/second-brain',
+        name: 'second-brain',
+        rawPending: 0
+      })
+      act(() => bridge.emitFsChange())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400)
+      })
+
+      expect(result.current.hasVault).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('coalesces a burst of fs events into one re-probe', async () => {
+    vi.useFakeTimers()
+    try {
+      const bridge = mockBridge({ path: null, name: null, rawPending: 0 })
+      renderHook(() => useSecondBrain('/ws'))
+      await vi.waitFor(() => expect(bridge.getVault).toHaveBeenCalledTimes(1))
+
+      act(() => {
+        bridge.emitFsChange()
+        bridge.emitFsChange()
+        bridge.emitFsChange()
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400)
+      })
+
+      expect(bridge.getVault).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('re-probes on window focus — the base may have been created outside Hive', async () => {
+    vi.useFakeTimers()
+    try {
+      const bridge = mockBridge({ path: null, name: null, rawPending: 0 })
+      renderHook(() => useSecondBrain('/ws'))
+      await vi.waitFor(() => expect(bridge.getVault).toHaveBeenCalledTimes(1))
+
+      act(() => {
+        window.dispatchEvent(new Event('focus'))
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400)
+      })
+
+      expect(bridge.getVault).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('records an ingest and adopts the health the main process recomputed (SB-R10.2)', async () => {

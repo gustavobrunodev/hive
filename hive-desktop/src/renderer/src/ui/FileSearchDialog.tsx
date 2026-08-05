@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { CommandDialog, CommandEmpty, CommandInput, CommandItem, CommandList } from '@hive/design-system'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@hive/design-system'
 import { t } from '../i18n'
 import { FileTypeIcon } from './fileIcons'
 

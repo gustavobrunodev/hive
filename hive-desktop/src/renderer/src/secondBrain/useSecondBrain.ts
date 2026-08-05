@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { watchWorkspaceShared } from '../workspaceWatch'
 
 /**
  * The vault status the bridge returns — derived from `window.hive` rather than
@@ -33,13 +34,24 @@ export interface SecondBrainStore {
 
 const EMPTY: VaultStatus = { path: null, name: null, rawPending: 0 }
 
+/** Coalesces the burst of fs events an agent turn produces into one re-probe (the `useGit` debounce, same reason). */
+const REFRESH_DEBOUNCE_MS = 300
+
 type Tagged = VaultStatus & { ws: string; health: VaultHealth | null }
 
 /**
  * Reads and keeps current the Second Brain vault status + health-check cadence
- * for the active workspace (SB-R2, SB-R10). There is no push channel for vault
- * changes, so it fetches on mount / workspace change and exposes `refresh` for
- * callers that mutate the vault (the FAB after staging, the panel's actions).
+ * for the active workspace (SB-R2, SB-R10).
+ *
+ * The vault is scaffolded by the *agent*, not by Hive — `/second-brain` writes
+ * `<vault>/wiki/index.md` some minutes after the user launches it, and nothing
+ * tells the renderer when that lands. So this store watches the workspace tree
+ * (debounced, via the shared multiplexer) and re-probes on window focus, the
+ * same three-trigger recipe the git store uses. Without it every guard in the
+ * feature kept saying "configure a base primeiro" over a base that already
+ * existed on disk. `refresh` stays exported for callers that mutate the vault
+ * themselves (staging from the sheet) and for a user-driven "check again".
+ *
  * Follows the workspace-tagged-state + pure-derivation pattern (no reset
  * effect, no setState-during-render — the M10 react-hooks lesson): a
  * since-switched workspace reads as empty until `refresh` lands the new status.
@@ -72,6 +84,27 @@ export function useSecondBrain(workspace: string): SecondBrainStore {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  // Debounced re-probe shared by both ambient triggers below.
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleRefresh = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(refresh, REFRESH_DEBOUNCE_MS)
+  }, [refresh])
+
+  // Trigger 1: the agent writing the vault into the workspace tree. Trigger 2:
+  // coming back to Hive after doing something outside it (a `git pull` that
+  // brought the squad's base in, the wizard finished in another window).
+  useEffect(() => {
+    const unwatch = watchWorkspaceShared(workspace, scheduleRefresh)
+    const onFocus = (): void => scheduleRefresh()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      unwatch()
+      window.removeEventListener('focus', onFocus)
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [workspace, scheduleRefresh])
 
   const noteIngest = useCallback(() => {
     void window.hive.secondBrain.noteIngest(workspace).then(applyHealth)

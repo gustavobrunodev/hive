@@ -32,37 +32,47 @@
 /* --- Product-register resets (this app has no brand-register surface) ---
    The DS marketing base.css puts Funnel Display on h1–h3 and a 1.0625rem
    marketing measure on body; both are wrong for dense product UI (the One
-   Family Rule / Fixed-Scale Rule). Scoped under #root to win regardless of
-   CSS import order. */
-#root {
+   Family Rule / Fixed-Scale Rule).
+
+   Anchored on `body`, not `#root`: Radix portals every Sheet, Dialog, popover
+   and menu to `document.body`, *outside* the React root, so a `#root`-scoped
+   reset silently stops at the portal boundary. The profile sheet shipped with
+   its section headings ("Seu nome", "Seu papel", "Seus agentes") in the
+   marketing serif for exactly that reason, next to sibling labels in Inter.
+   Two element names still beat the DS's one, so import order stays irrelevant. */
+body {
   font-size: 0.9375rem;
   line-height: 1.55;
 }
-#root h1,
-#root h2,
-#root h3 {
+body h1,
+body h2,
+body h3 {
   font-family: var(--ff-body);
   letter-spacing: -0.01em;
   line-height: 1.3;
   text-wrap: balance;
 }
 
-/* Native scrollbars, recolored to the theme (never rebehaved). */
-#root ::-webkit-scrollbar {
+/* Native scrollbars, recolored to the theme (never rebehaved). On `body` for
+   the same reason as the heading reset above: a portalled Dialog/Sheet that
+   overflows — the Skill Studio's create form does — otherwise scrolls behind a
+   raw platform scrollbar, which is exactly the mismatched-chrome tell
+   PRODUCT.md lists as an anti-reference. */
+body ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-#root ::-webkit-scrollbar-thumb {
+body ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: var(--rounded-full);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-#root ::-webkit-scrollbar-thumb:hover {
+body ::-webkit-scrollbar-thumb:hover {
   background-color: var(--faint);
   background-clip: padding-box;
 }
-#root ::-webkit-scrollbar-corner {
+body ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -88,15 +98,16 @@
   flex-shrink: 0;
 }
 
-.wb-topbar-logo .hds-logo svg {
-  height: 20px;
-}
-
-.wb-topbar-title {
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  color: var(--ink);
+/* The identity, in two colors: the symbol in the accent, the wordmark in the
+   reading ink. A logo is the one element on this surface where brand color is
+   identity rather than decoration — everywhere else `--accent` stays reserved
+   for primary actions and selection (PRODUCT.md). Both tiers resolve per
+   theme, so the coral title bar becomes bordo-sensatez on light for free. */
+.wb-topbar-logo {
+  --hds-logo-height: 19px;
+  --hds-logo-mark: var(--accent);
+  --hds-logo-wordmark: var(--ink);
+  flex-shrink: 0;
 }
 
 .wb-topbar-sep {
@@ -218,6 +229,64 @@
 
 .wb-topbar-spacer {
   flex: 1;
+}
+
+/* Theme menu: a swatch, a name, and one line saying what the theme is *for*,
+   so the choice is made by looking rather than by trying all three. The swatch
+   paints literal hex values (ThemePicker.tsx) — a preview of a theme you are
+   not in cannot be drawn with the tokens of the theme you are in. */
+.wb-theme-menu {
+  min-width: 240px;
+}
+.wb-theme-menu .hds-dropdown-menu-item {
+  align-items: center;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  padding-bottom: var(--s-2);
+}
+/* The DS radio dot is `currentColor` — correct as a default, invisible as a
+   *selection* cue in a list where every row already carries a colored swatch.
+   The active row gets the accent dot plus a tint, so "which one am I on" is
+   answered without reading. */
+.wb-theme-menu .hds-dropdown-menu-item-indicator {
+  color: var(--accent);
+}
+.wb-theme-menu .hds-dropdown-menu-item[data-state='checked'] {
+  background: var(--selected-bg);
+}
+.wb-theme-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+  background: var(--wb-swatch-bg);
+  /* Hairline in the app's own border token, not the swatch's: the ring exists
+     so a near-black swatch stays visible on a near-black menu surface. */
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.wb-theme-swatch::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--rounded-full);
+  background: var(--wb-swatch-accent);
+}
+.wb-theme-option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-theme-option-name {
+  color: var(--ink);
+  font-weight: 550;
+}
+.wb-theme-option-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .wb-icon-btn {
@@ -1565,18 +1634,6 @@
   color: var(--muted);
 }
 
-/* Theme-aware logo swap (HiveLogo.tsx) — the SVG lockups have baked-in
-   fills, so the right tone is chosen per theme here. */
-.wb-logo-light {
-  display: none;
-}
-:root[data-theme='light'] .wb-logo-light {
-  display: inline-flex;
-}
-:root[data-theme='light'] .wb-logo-dark {
-  display: none;
-}
-
 /* ==========================================================================
    Onboarding (picker / install / update / splash)
    ========================================================================== */
@@ -1599,11 +1656,10 @@
 }
 
 .wb-gate-logo {
+  --hds-logo-height: 34px;
+  --hds-logo-mark: var(--accent);
+  --hds-logo-wordmark: var(--ink);
   margin-bottom: var(--s-5);
-}
-.wb-gate-logo .hds-logo svg,
-.wb-gate-logo.hds-logo svg {
-  height: 44px;
 }
 
 .wb-gate-title {
@@ -1625,6 +1681,234 @@
   margin-top: var(--s-4);
   font-size: 0.75rem;
   color: var(--faint);
+}
+
+/* --------------------------------------------------------------------------
+   Provisioning scene (ProvisionScene.tsx) — the shared surface behind the
+   BMAD install, the BMAD update and the Second Brain gate.
+
+   No card. The three gates used to be small bordered boxes flashing past one
+   after another; giving the preparation the whole window instead makes a
+   multi-minute wait feel like a deliberate moment rather than a modal in the
+   way. Everything is centred on the lattice, and the depth in the background
+   is a single wide radial tint in the accent, at an alpha low enough that no
+   text ever sits on a measurably different background than `--bg`.
+   -------------------------------------------------------------------------- */
+.wb-provision {
+  position: relative;
+  overflow: hidden;
+}
+.wb-provision::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    68% 52% at 50% 34%,
+    color-mix(in oklab, var(--accent) 9%, transparent) 0%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.wb-provision-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: min(440px, 100%);
+}
+
+.wb-provision-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 184px;
+  height: 184px;
+  margin-bottom: var(--s-5);
+}
+.wb-honeycomb {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+}
+/* A breath of the page background under the mark, so the ring-1 cells don't
+   crowd its outer strokes. Wide and very soft on purpose: the first version
+   punched a visible disc into the lattice, which read as a lens flare rather
+   than as depth. */
+.wb-provision-halo {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, var(--bg) 14%, transparent 33%);
+}
+.wb-provision-mark {
+  grid-area: 1 / 1;
+  --hds-logo-height: 40px;
+  --hds-logo-mark: var(--accent);
+}
+
+/* Wireframe, not fill. The lattice is the room the mark stands in; the moment
+   its cells carry solid colour it becomes a coral blob competing with the
+   thing it frames. So the rest state is a hairline, and the charge wave moves
+   the stroke — plus the barest tint — and nothing else. */
+/* The lattice is drawn in the accent at low alpha rather than in the generic
+   hairline token: on the light theme `--border-strong` is bordo at 24% and the
+   whole honeycomb faded to a ghost, and a neutral grey grid reads as chrome
+   anyway. At 30% of the accent it stays quiet in all three themes and belongs
+   to the brand in all three. */
+.wb-honeycomb-cell {
+  fill: transparent;
+  stroke: color-mix(in oklab, var(--accent) 30%, transparent);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+/* One cheap keyframe per cell, offset by ring distance, on properties that
+   never trigger layout. It starts and ends at the cell's rest appearance, so
+   the lattice is fully drawn on the very first frame — a reveal that exists
+   only inside a transition is a section that ships blank wherever transitions
+   don't run. */
+.wb-honeycomb[data-state='running'] .wb-honeycomb-cell {
+  animation: wb-cell-charge 2800ms var(--ease-quart) infinite;
+  animation-delay: var(--wb-cell-delay, 0s);
+}
+@keyframes wb-cell-charge {
+  0%,
+  50%,
+  100% {
+    fill: transparent;
+    stroke: color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  18% {
+    fill: color-mix(in oklab, var(--accent) 9%, transparent);
+    stroke: var(--accent);
+  }
+}
+
+.wb-provision-title {
+  font-size: 1.375rem;
+  margin-bottom: var(--s-3);
+}
+
+/* Reassurance line. Keyed on the message index in React, so each new line is
+   a fresh element and the entrance plays per message rather than once. */
+.wb-provision-message {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 46ch;
+  /* Balanced, so a two-line reassurance never leaves a one-word second line —
+     these strings change every few seconds and each one has to land well. */
+  text-wrap: balance;
+  margin: 0 0 var(--s-6);
+  /* Holds two lines' worth of space so a shorter message doesn't jump the
+     whole scene up and down on every rotation. */
+  min-height: 3.2em;
+  animation: wb-message-in 420ms var(--ease-quart) both;
+}
+@keyframes wb-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wb-provision-progress {
+  width: 100%;
+}
+
+/* The honest line: whatever the CLI is actually doing, verbatim, in the
+   monospace stack that says "this is machine output" — so the warm rotating
+   copy above is never mistaken for a claim about progress. */
+.wb-provision-caption {
+  margin-top: var(--s-3);
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+  min-height: 1.5em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.wb-provision-steps {
+  margin: var(--s-5) 0 0;
+  text-align: left;
+  align-self: center;
+  gap: var(--s-1);
+}
+/* A finished install step is *done*, not a success. The green bubble the
+   generic step list uses is a state colour, and spending one here puts three
+   green badges on a screen whose only real signal is "which row is running" —
+   so completed rows recede to a bare, muted check. */
+.wb-provision-steps .wb-step[data-state='done'] {
+  color: var(--faint);
+}
+.wb-provision-steps .wb-step[data-state='done'] .wb-step-marker {
+  background: transparent;
+  color: var(--faint);
+}
+
+/* Active step marker: a dot that breathes, instead of a spinner. Three
+   spinners on one screen (bar, spinner, lattice) all say "waiting" and none
+   says anything different. */
+.wb-step-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  animation: wb-step-pulse 1400ms var(--ease-quart) infinite;
+}
+@keyframes wb-step-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.7);
+  }
+}
+
+.wb-provision-alert {
+  align-self: stretch;
+  text-align: left;
+}
+
+.wb-provision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+/* `--muted`, not `--faint`: DESIGN.md is explicit that `--faint` sits below
+   the 4.5:1 body floor on purpose (placeholder/disabled use only), and it
+   measured 3.29:1 here on the light theme. "How much is left" is information
+   the user reads, so it takes a reading colour. */
+.wb-provision-stage {
+  margin-top: var(--s-6);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* Reduced motion: the scene keeps every bit of its information, and loses only
+   the parts that move. The lattice holds its rest state (still drawn, still
+   the brand shape), the message swaps instantly, and the active step marker
+   stays a solid dot. */
+@media (prefers-reduced-motion: reduce) {
+  .wb-honeycomb[data-state='running'] .wb-honeycomb-cell,
+  .wb-provision-message,
+  .wb-step-pulse {
+    animation: none;
+  }
 }
 
 /* Progress card (guided install / update) */
@@ -3208,7 +3492,7 @@
    ========================================================================== */
 
 .wb-setup-card {
-  width: min(720px, 100%);
+  width: min(880px, 100%);
   text-align: left;
 }
 .wb-setup-card .wb-gate-title {
@@ -3227,21 +3511,34 @@
   margin-top: var(--s-6);
 }
 
-/* Role card action preview chips */
+/* Role card action preview chips — what picking this role puts in reach.
+   They read as a list of samples, so they stack rather than wrap raggedly, and
+   each one truncates rather than escaping the card: a workflow label is a
+   translated string of unbounded length, and `nowrap` alone let the longest
+   ("Desenhar cenários de teste") run past the border. */
 .wb-role-preview {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: var(--s-2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: var(--s-3);
+  max-width: 100%;
 }
 .wb-role-preview-chip {
+  max-width: 100%;
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--muted);
   background: var(--surface-2);
   border-radius: var(--rounded-full);
-  padding: 2px 8px;
+  padding: 2px 9px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-choice-card[data-selected] .wb-role-preview-chip {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
 /* ==========================================================================
@@ -3252,8 +3549,16 @@
   display: grid;
   gap: var(--s-3);
 }
+/* Flex, not grid: the role picker holds five cards, and an auto-fit grid puts
+   three on the first row and leaves the second row's two hanging at the left
+   beside an empty cell. Wrapping flex items centre their own last row, so the
+   orphan row reads as deliberate. `max-width` keeps those two the same size as
+   the three above instead of stretching to fill. */
 .wb-choice-grid[data-variant='cards'] {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
 }
 .wb-choice-grid[data-variant='list'] {
   grid-template-columns: 1fr;
@@ -3279,6 +3584,22 @@
 .wb-choice-grid[data-variant='list'] .wb-choice-card {
   padding: var(--s-3) var(--s-4);
   align-items: center;
+}
+/* The onboarding cards stack instead of sitting the icon beside the text.
+   Side-by-side, a 210px column left the copy roughly 140px to work in: role
+   names broke across two lines, one-line descriptions became four ragged ones,
+   and the preview chips — which can't wrap mid-label — ran straight out
+   through the card's right border. Stacked, the same card gives the copy its
+   full width and every role ends up the same height. */
+.wb-choice-grid[data-variant='cards'] .wb-choice-card {
+  /* A fixed basis, not `1 1`: letting the cards grow makes the orphan row's
+     two wider than the three above them, which reads as a mistake. They still
+     wrap (and cap at the container) on a narrow window. */
+  flex: 0 1 260px;
+  max-width: 100%;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-5);
 }
 .wb-choice-card:hover {
   border-color: var(--border-strong);
@@ -3372,6 +3693,24 @@
   opacity: 1;
   transform: scale(1);
 }
+/* Stacked cards put the tick in the corner the icon leaves free, so it never
+   pushes the copy or claims a row of its own. */
+.wb-choice-grid[data-variant='cards'] .wb-choice-card-check {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  transform: scale(0.6);
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card[data-selected] .wb-choice-card-check {
+  transform: scale(1);
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card-icon {
+  width: 42px;
+  height: 42px;
+}
+.wb-choice-grid[data-variant='cards'] .wb-choice-card-body {
+  gap: 5px;
+}
 
 /* Staggered entrance for the onboarding card grids — legitimate list stagger. */
 .wb-choice-grid[data-variant='cards'] .wb-choice-card {
@@ -3452,12 +3791,114 @@
   position: relative;
 }
 
+/* ==========================================================================
+   ScrollableRow — a horizontal track that admits it has more content.
+   Suppressing the scrollbar on a one-row strip is right (a web scrollbar in
+   desktop chrome is the "Electron jank" PRODUCT.md names as an anti-reference);
+   suppressing it *and* saying nothing else is how the shortcut strip came to
+   hide six of its ten chips behind an edge that looked like a rendering fault.
+   Two affordances replace it: the content dissolves into an overflowing edge,
+   and a paddle appears over it. Both are driven by `data-overflow-*`, set from
+   real measurements, so neither shows when there's nothing to reach.
+   ========================================================================== */
+.wb-scroll-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.wb-scroll-row-track {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.wb-scroll-row-track::-webkit-scrollbar {
+  display: none;
+}
+/* A mask, not a gradient overlay: it works over any background the strip is
+   docked on, and it fades only the edge that actually has content past it. */
+.wb-scroll-row-track[data-overflow-start] {
+  mask-image: linear-gradient(to right, transparent 0, #000 34px);
+}
+.wb-scroll-row-track[data-overflow-end] {
+  mask-image: linear-gradient(to left, transparent 0, #000 34px);
+}
+.wb-scroll-row-track[data-overflow-start][data-overflow-end] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 34px,
+    #000 calc(100% - 34px),
+    transparent 100%
+  );
+}
+
+.wb-scroll-row-paddle {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  box-shadow: 0 1px 3px var(--shadow-1);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s var(--ease-quart),
+    transform 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart),
+    background-color 0.16s var(--ease-quart);
+}
+.wb-scroll-row-paddle[data-edge='start'] {
+  left: 0;
+  transform: translate(-2px, -50%) scale(0.9);
+}
+.wb-scroll-row-paddle[data-edge='end'] {
+  right: 0;
+  transform: translate(2px, -50%) scale(0.9);
+}
+.wb-scroll-row-paddle[data-visible] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.wb-scroll-row-paddle[data-edge='start'][data-visible],
+.wb-scroll-row-paddle[data-edge='end'][data-visible] {
+  transform: translate(0, -50%) scale(1);
+}
+.wb-scroll-row-paddle:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+.wb-scroll-row-paddle:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--focus) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-scroll-row-paddle {
+    transition: opacity 0.16s linear;
+  }
+  .wb-scroll-row-paddle[data-edge='start'],
+  .wb-scroll-row-paddle[data-edge='end'] {
+    transform: translate(0, -50%);
+  }
+}
+
 /* Role-shortcut strip — the shortcuts' always-at-hand home, docked right
    above the composer in an active conversation (the hero pills cover the
    empty state). Quiet chips that read as part of the composer's furniture:
    resting in --muted with hairline borders, ink on hover, the persona chip
-   carrying the accent (the warm, human entry). Overflow scrolls
-   horizontally with the scrollbar suppressed — the strip is one row, ever. */
+   carrying the accent (the warm, human entry). Overflow is handled by the
+   `ScrollableRow` above — the strip is one row, ever. */
 .wb-shortcut-strip {
   display: flex;
   align-items: center;
@@ -3465,18 +3906,19 @@
   margin-bottom: var(--s-2);
 }
 /* Only the chips scroll — the customize control after this track stays put
-   (shortcut-customization), so it's reachable with any number of chips. */
+   (shortcut-customization), so it's reachable with any number of chips. The
+   scroll affordances themselves live on `.wb-scroll-row` below. */
+.wb-shortcut-strip-row {
+  flex: 1;
+  min-width: 0;
+}
 .wb-shortcut-strip-scroll {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.wb-shortcut-strip-scroll::-webkit-scrollbar {
-  display: none;
+  /* Room for the paddles to sit over the edges without covering a chip's
+     focus ring, and for that ring not to be clipped by the scroll box. */
+  padding: 3px 0;
 }
 .wb-shortcut-strip-divider {
   flex-shrink: 0;
@@ -3589,22 +4031,41 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--agent-accent);
 }
 
-/* The switcher's dropdown menu (DS DropdownMenu content). */
+/* The switcher's dropdown menu (DS DropdownMenu content). Every row — the
+   agent radios and the "Gerenciar agentes…" action — shares one 16px icon
+   column so the marks and the gear line up down the menu, and the panel is
+   wide enough that no label ever gets squeezed against the panel edge. */
+.wb-agent-menu {
+  min-width: 244px;
+}
 .wb-agent-menu-inner {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  min-width: 8rem;
+  min-width: 0;
 }
 .wb-agent-menu-mark {
   display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  width: 16px;
   color: var(--agent-accent);
 }
+/* Matches the leading-indicator inset the DS reserves on radio/checkbox rows
+   (`--s-3` + 20px), so the gear sits in the same column as the agent marks
+   even though this row has no indicator of its own. */
 .wb-agent-menu-manage {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  padding-left: calc(var(--s-3) + 20px);
   color: var(--muted);
+}
+.wb-agent-menu-manage .wb-agent-menu-mark {
+  color: var(--faint);
+}
+.wb-agent-menu-manage[data-highlighted] {
+  color: var(--ink);
+}
+.wb-agent-menu-manage[data-highlighted] .wb-agent-menu-mark {
+  color: var(--accent);
 }
 
 /* Slash-command menu — a listbox anchored above the composer, opening
@@ -3841,24 +4302,127 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--accent);
 }
 
-/* A sent slash command (`/bmad-prd`) — the whole bubble is the command
-   token: launching a shortcut and typing the command look identical. */
-.wb-user-command {
-  font-family: 'Inter Tight', ui-monospace, monospace;
-  font-weight: 600;
-  letter-spacing: 0.005em;
-  background: oklch(0% 0 0 / 14%);
-  border-radius: var(--rounded-sm);
-  padding: 1px 6px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+/* A sent slash command (`/bmad-prd`) is an *invocation*, not prose: it drops
+   the accent bubble entirely for a quiet command token on the panel surface.
+   Two reasons, one of them measurable — a tinted chip nested inside the accent
+   bubble put `--accent-ink` on a darkened accent at 4.23:1, under the 4.5:1 AA
+   floor for its 15px/600 text; on the neutral surface the same ink clears
+   11:1 in both themes. The other is that a chip inside a bubble was two
+   containers doing one container's job. */
+.wb-msg-command .hds-chat-message-bubble {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.wb-command-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  /* The accent lives on the edge, not in the label: coral text on this
+     surface measures 4.48:1 in dark — under the AA floor — while `--ink`
+     clears 10:1 in both themes. A border is a UI component (3:1 floor), so
+     the accent still reads as "this is an invocation" without costing
+     legibility. */
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, var(--border-strong));
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.wb-command-token svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.wb-command-token-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Whatever rode on the command's own line — a staged path, a question. Quieter
+   than the command and in the numeric face, so it reads as an argument rather
+   than as part of the name. */
+.wb-command-token-args {
+  min-width: 0;
+  font-weight: 500;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* An invocation that carries material is two things at once, so it is drawn as
+   two: a neutral outlined token for what was *run*, and the ordinary accent
+   bubble for what was *said*. The pair is deliberately differentiated by more
+   than intensity — fill vs. outline, accent vs. neutral — because "which part
+   is the command" has to survive at a glance and in both themes. Each half
+   clears AA on its own ground: `--ink` on `--surface-2` measures >10:1, and
+   the body keeps the DS's own `--accent-ink`-on-`--accent` pairing. */
+.wb-invocation {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.wb-invocation-body {
+  max-width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--rounded-lg);
+  border-bottom-right-radius: var(--rounded-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.wb-invocation-text {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wb-invocation-text[data-clamped] {
+  display: -webkit-box;
+  -webkit-line-clamp: 7;
+  line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wb-invocation-more {
+  margin-top: var(--s-2);
+  padding: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--accent-ink);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.wb-invocation-more:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Sent user bubble: `#file` references as quiet inline pills on the accent
-   surface, attachments as one chip row under the text. Tints are ink-black
-   translucency so they hold on the solid coral bubble in both themes. */
+   surface, attachments as one chip row under the text. The tint is a *white*
+   wash, not the ink-black one it started as: black darkened the accent under
+   the bubble's own ink (4.2:1 in dark), while lightening it lifts the same
+   pair to ~6.8:1 dark / ~6:1 light. Same quiet chip, legible in both themes. */
 .wb-user-mention {
-  background: oklch(0% 0 0 / 14%);
+  background: oklch(100% 0 0 / 16%);
   border-radius: var(--rounded-sm);
   padding: 1px 4px;
   font-weight: 600;
@@ -3883,7 +4447,8 @@ button.wb-agent-pill-btn:focus-visible {
   padding: 3px 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: oklch(0% 0 0 / 14%);
+  /* Same white wash as `.wb-user-mention`, for the same contrast reason. */
+  background: oklch(100% 0 0 / 16%);
   border-radius: var(--rounded-md);
 }
 .wb-bubble-attachment svg {
@@ -4216,7 +4781,7 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-profile-sheet {
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  gap: var(--s-5);
   width: min(420px, 92vw);
 }
 .wb-profile-section {
@@ -4224,17 +4789,31 @@ button.wb-agent-pill-btn:focus-visible {
   flex-direction: column;
   gap: var(--s-2);
 }
+/* A section heading, read as a heading: ink-weight and sentence case. It used
+   to be a faint tracked all-caps eyebrow — the same treatment the *group*
+   labels nested one level inside it already use, which left the agents section
+   stacking two eyebrows ("SEUS AGENTES" over "DISPONÍVEIS NO SEU COMPUTADOR")
+   with no level between them. One eyebrow tier, one heading tier. */
 .wb-profile-section-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--faint);
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--ink);
   margin: 0;
 }
+/* Hairline above each section after the first — separation without a divider
+   element per block. */
+.wb-profile-section + .wb-profile-section {
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--border);
+}
+/* `--muted`, not `--faint`: measured at 4.18:1 (dark) / 3.71:1 (light), faint
+   text sits under PRODUCT.md's 4.5:1 floor. It's the right tier for icons and
+   rules, where the 3:1 non-text floor applies — not for a sentence. Size and
+   placement carry the "this is a footnote" signal instead. */
 .wb-profile-scope-note {
   font-size: 0.75rem;
-  color: var(--faint);
+  color: var(--muted);
   margin: 0;
 }
 
@@ -4316,8 +4895,9 @@ button.wb-agent-pill-btn:focus-visible {
   background: var(--surface-2);
   border-radius: var(--rounded-lg);
 }
-.wb-appset-logo .hds-logo svg {
-  height: 30px;
+.wb-appset-logo {
+  --hds-logo-height: 28px;
+  --hds-logo-mark: var(--accent);
 }
 .wb-appset-identity-text {
   display: flex;
@@ -6466,12 +7046,14 @@ button.wb-agent-pill-btn:focus-visible {
   flex-direction: column;
   gap: var(--s-2);
 }
+/* See `.wb-profile-scope-note` — faint is below the text contrast floor; the
+   micro size, tracking and caps already set this apart from the card copy. */
 .wb-agent-group-label {
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
   margin: 0;
 }
 .wb-agent-list {
@@ -6503,6 +7085,10 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-agent-card[data-unavailable] {
   background: var(--surface);
   border-style: dashed;
+  /* This row is three lines tall (description + hint + install link); a
+     centred mark would float opposite the middle of the text instead of
+     reading as its label. */
+  align-items: flex-start;
 }
 
 .wb-agent-card-mark {
@@ -6555,28 +7141,55 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-top: 3px;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
 }
 .wb-agent-card-hint {
   font-size: 0.75rem;
-  color: var(--faint);
+  /* The one instruction that gets an unavailable agent working — it has to
+     clear the text floor; see `.wb-profile-scope-note`. */
+  color: var(--muted);
+  line-height: 1.4;
 }
+/* "Como instalar" leaves the app for the vendor's docs in the host browser —
+   a real action, so it gets a real control (outlined chip + departure arrow)
+   rather than the underlined run of text it used to be. */
 .wb-agent-install-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
   font-size: 0.75rem;
   font-weight: 650;
   color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
+  border-radius: var(--rounded-full);
   cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart);
 }
 .wb-agent-install-link:hover {
   color: var(--accent-hover);
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 52%, transparent);
+}
+.wb-agent-install-link:active {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
 }
 .wb-agent-install-link:focus-visible {
   outline: 0;
-  border-radius: var(--rounded-sm);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.wb-agent-install-link svg {
+  flex-shrink: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-agent-install-link {
+    transition: none;
+  }
 }
 
 .wb-agent-card-controls {
@@ -6585,6 +7198,9 @@ button.wb-agent-pill-btn:focus-visible {
   gap: var(--s-2);
   flex-shrink: 0;
 }
+/* The "make this the default" star. Off it is a quiet outline; on it fills and
+   sits in a tint of the agent's own accent, so the chosen default is legible
+   at a glance without reading the badge next to the name. */
 .wb-agent-default-btn {
   display: inline-flex;
   align-items: center;
@@ -6593,6 +7209,7 @@ button.wb-agent-pill-btn:focus-visible {
   height: 28px;
   border-radius: var(--rounded-md);
   color: var(--faint);
+  background: transparent;
   cursor: pointer;
   transition:
     color 0.16s var(--ease-quart),
@@ -6604,6 +7221,7 @@ button.wb-agent-pill-btn:focus-visible {
 }
 .wb-agent-default-btn[data-active] {
   color: var(--agent-accent);
+  background: color-mix(in oklab, var(--agent-accent) 14%, transparent);
 }
 .wb-agent-default-btn:disabled {
   opacity: 0.35;
@@ -6618,11 +7236,6 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-agent-default-btn {
     transition: none;
   }
-}
-
-.wb-agent-card-check {
-  display: inline-flex;
-  color: var(--agent-accent);
 }
 
 /* Onboarding + profile supporting bits. */
@@ -7125,7 +7738,10 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: 6px var(--s-3);
+  /* The Second Brain FAB is fixed over this corner (44px + its own right
+     inset), so the bar's own actions have to end before it — "Revisar" was
+     rendering underneath the button and reading as clipped. */
+  padding: 6px calc(44px + var(--s-4) * 2) 6px var(--s-3);
   font-size: 13px;
   color: var(--ink);
   background: color-mix(in oklab, var(--accent) 8%, var(--surface));
@@ -7429,22 +8045,47 @@ button.wb-agent-pill-btn:focus-visible {
   border-radius: 999px;
 }
 
-/* Empty state that invites (SB-R2.2). */
+/* Empty state that invites (SB-R2.2), and its second face: the setup the user
+   just launched, still running in the chat. Left-aligned rather than centered —
+   the rail is 200-400px wide, and a centered column with a list in it reads
+   ragged at every width. */
 .wb-brain-empty {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: var(--s-2);
   padding: var(--s-5) var(--s-4);
-  text-align: center;
 }
 
-.wb-brain-empty-icon {
-  color: var(--accent);
-  opacity: 0.9;
+/* The glyph gets a tinted tile instead of floating alone: at 26px an outline
+   brain in a wide empty panel reads as a stray icon, not as the subject. */
+.wb-brain-empty-glyph {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   margin-bottom: var(--s-1);
+  border-radius: var(--rounded-md);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.wb-brain-empty-glyph[data-pulse='true'] {
+  animation: wb-brain-breathe 2.4s var(--ease-quart) infinite;
+}
+
+@keyframes wb-brain-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  50% {
+    opacity: 0.72;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
 }
 
 .wb-brain-empty-title {
@@ -7452,14 +8093,243 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .wb-brain-empty-desc {
-  margin: 0 0 var(--s-2);
+  margin: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
-  max-width: 34ch;
+  max-width: 42ch;
+  text-wrap: pretty;
+}
+
+/* What the base gives back — three lines, not three cards. */
+.wb-brain-promises {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: var(--s-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-brain-promise {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+  /* Tertiary text that still has to clear the 4.5:1 body floor: `--muted`, not
+     `--faint` (which is licensed for large text only, see theme.css). */
+  color: var(--muted);
+}
+
+.wb-brain-promise-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+/* In a narrow rail the primary action earns the full width — there is nothing
+   to sit beside it, and a hugged button reads as one more option. */
+.wb-brain-empty-cta {
+  width: 100%;
+  margin-top: var(--s-1);
+}
+
+.wb-brain-empty-note,
+.wb-brain-guard-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42ch;
+}
+
+/* "Still waiting on the agent" — three dots that carry state, nothing else. */
+.wb-brain-waiting {
+  display: inline-flex;
+  gap: 5px;
+  margin: var(--s-1) 0;
+}
+
+.wb-brain-waiting i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.35;
+  animation: wb-brain-wait 1.4s var(--ease-quart) infinite;
+}
+
+.wb-brain-waiting i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.wb-brain-waiting i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes wb-brain-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.wb-brain-empty-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  margin-top: var(--s-1);
+}
+
+/* Quiet text action — the escape hatches next to a live state, which must not
+   compete with the primary path. */
+.wb-brain-textlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: color 160ms var(--ease-quart);
+}
+
+.wb-brain-textlink:hover {
+  color: var(--ink);
+}
+
+.wb-brain-textlink:focus-visible {
+  outline: none;
+  color: var(--ink);
+  box-shadow: 0 0 0 2px var(--focus);
+  border-radius: var(--rounded-sm);
+}
+
+/* "Base pronta" — the one moment in this panel worth celebrating, and the one
+   place to hand over the next step. Dismissible: it has a job, then it goes. */
+.wb-brain-ready {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: var(--s-2) var(--s-2) 0;
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid color-mix(in srgb, var(--success) 34%, transparent);
+  border-radius: var(--rounded-md);
+  background: var(--success-bg);
+  animation: wb-brain-ready-in 220ms var(--ease-quart);
+}
+
+@keyframes wb-brain-ready-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.wb-brain-ready-glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--success);
+}
+
+.wb-brain-ready-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wb-brain-ready-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.wb-brain-ready-desc {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  /* On the success tint `--muted` measures under 4.5:1 in light theme — the
+     same step-toward-ink fix the ask CTA's hint documents. */
+  color: color-mix(in srgb, var(--muted) 55%, var(--ink));
+}
+
+.wb-brain-ready-cta {
+  margin-top: var(--s-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wb-brain-ready-cta:hover {
+  text-decoration: underline;
+}
+
+.wb-brain-ready-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+  border-radius: var(--rounded-sm);
+}
+
+.wb-brain-ready-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.wb-brain-ready-close:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.wb-brain-ready-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* Reduced motion: the states still *read*, they just stop moving. */
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-empty-glyph[data-pulse='true'],
+  .wb-brain-waiting i,
+  .wb-brain-ready {
+    animation: none;
+  }
+  .wb-brain-waiting i {
+    opacity: 0.6;
+  }
+  .wb-brain-textlink {
+    transition: none;
+  }
 }
 
 /* Action launchers (SB-R2.4, SB-R9.1). One primary verb — asking — over a
@@ -8007,43 +8877,57 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
-/* Ingestion sheet (SB-R3.2–3.4) — one field, one action, three capture modes. */
+/* Ingestion sheet (SB-R3.2–3.4) — three capture modes feeding one field and
+   one action. The sheet is a vertical sequence: choose how to capture, watch
+   the capture happen, read what came out, send it. Each stage only occupies
+   space once it has something to say, which is what keeps a 520px column from
+   feeling like a form. */
 .wb-brain-ingest {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
-  width: min(480px, 92vw);
+  gap: var(--s-3);
+  width: min(520px, 94vw);
 }
 
+/* Segmented control rather than underlined tabs: three peer capture modes are
+   a choice between equals, and a segmented track shows all three as one
+   control instead of three separate links. */
 .wb-brain-ingest-tabs {
-  display: flex;
-  gap: var(--s-1);
-  margin-top: var(--s-2);
-  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  margin-top: var(--s-1);
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
 }
 
 .wb-brain-ingest-tab {
-  padding: var(--s-2) var(--s-2);
-  font-size: 13px;
+  padding: 7px var(--s-2);
+  font-size: 0.8125rem;
+  font-weight: 550;
   color: var(--muted);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: var(--rounded-md);
   cursor: pointer;
   transition:
     color 160ms ease,
-    border-color 160ms ease;
+    background 160ms ease;
 }
 
-.wb-brain-ingest-tab:hover {
+.wb-brain-ingest-tab:hover:not([data-active]) {
   color: var(--ink);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
 }
 
 .wb-brain-ingest-tab[data-active] {
   color: var(--ink);
-  font-weight: 600;
-  border-bottom-color: var(--accent);
+  font-weight: 650;
+  background: var(--surface);
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 18%);
 }
 
 .wb-brain-ingest-tab:focus-visible {
@@ -8056,115 +8940,450 @@ button.wb-agent-pill-btn:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--s-3);
+}
+
+.wb-brain-ingest-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.wb-brain-ingest-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.wb-brain-ingest-field-label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-brain-ingest-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .wb-brain-ingest-textarea {
   width: 100%;
-  min-height: 220px;
+  min-height: 180px;
   resize: vertical;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 0.8125rem;
+  line-height: 1.65;
 }
 
-.wb-brain-ingest-soon,
 .wb-brain-ingest-error {
   margin: 0;
-  padding: var(--s-3) 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
+  color: var(--danger);
+}
+
+/* Action bar: the reason a send is blocked sits on the same line as the
+   button that is blocked, so it is read before the click is attempted. */
+.wb-brain-ingest-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.wb-brain-ingest-block {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
   color: var(--muted);
 }
 
-.wb-brain-ingest-error {
-  color: var(--danger, var(--wb-git-deleted));
-}
-
-.wb-brain-ingest-actions {
+.wb-brain-ingest-buttons {
   display: flex;
-  justify-content: flex-end;
   gap: var(--s-2);
-  padding-top: var(--s-2);
+  flex: none;
 }
 
-/* Audio-file capture (SB-R4) — pick, transcribe locally, edit, ingest. */
+/* A blocked primary has to look decisively unavailable. The DS default —
+   the same filled accent at reduced opacity — still reads as "a button,
+   pressed dimly", which is exactly the ambiguity reported here. Dropping the
+   fill entirely changes the *shape* of the control, not just its intensity. */
+.wb-brain-ingest-confirm:disabled {
+  opacity: 1;
+  background: var(--surface-2);
+  color: var(--faint);
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Audio-file capture (SB-R4) — drop or pick, transcribe locally, edit, ingest. */
 .wb-brain-audio {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-1);
-  padding: var(--s-3) 0 var(--s-2);
+  justify-content: center;
+  gap: var(--s-2);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.wb-brain-audio-pick {
-  display: inline-flex;
+/* The zone claims the room the sheet has spare — a drop target you have to aim
+   for is a worse drop target — but stops growing before it turns into an empty
+   field, and yields once a transcript needs the space. */
+.wb-brain-dropzone {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  font-size: 13px;
-  font-weight: 600;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 140px;
+  max-height: 300px;
+  padding: var(--s-4) var(--s-3);
   color: var(--ink);
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-2, 8px);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-lg);
   cursor: pointer;
+  text-align: center;
   transition:
     border-color 160ms ease,
     background 160ms ease;
 }
 
-.wb-brain-audio-pick:hover:not(:disabled) {
-  background: var(--surface-2, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+.wb-brain-dropzone svg {
+  color: var(--accent);
 }
 
-.wb-brain-audio-pick:disabled {
-  opacity: 0.55;
-  cursor: default;
+.wb-brain-dropzone:hover:not(:disabled),
+.wb-brain-dropzone[data-over] {
+  background: var(--selected-bg);
+  border-color: var(--accent);
+  border-style: solid;
 }
 
-.wb-brain-audio-pick:focus-visible {
+.wb-brain-dropzone:disabled {
+  cursor: not-allowed;
+  color: var(--faint);
+}
+
+.wb-brain-dropzone:disabled svg {
+  color: var(--faint);
+}
+
+.wb-brain-dropzone:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus);
+  box-shadow: 0 0 0 2px var(--focus);
 }
 
-.wb-brain-audio-hint,
-.wb-brain-audio-progress {
+.wb-brain-dropzone-title {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.wb-brain-dropzone-action {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wb-brain-dropzone:disabled .wb-brain-dropzone-action {
+  color: var(--faint);
+}
+
+.wb-brain-dropzone-hint,
+.wb-brain-audio-hint {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42ch;
+}
+
+.wb-brain-audio-rejected {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--danger);
+}
+
+/* Per-audio queue (SB-R4.5) — one row per file, each with its own state, so a
+   batch never reads as one frozen operation. */
+.wb-brain-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-brain-job {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--surface-2);
+  border-radius: var(--rounded-md);
+}
+
+.wb-brain-job-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--rounded-sm);
+  color: var(--muted);
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+}
+
+.wb-brain-job[data-status='decoding'] .wb-brain-job-mark,
+.wb-brain-job[data-status='transcribing'] .wb-brain-job-mark {
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+
+.wb-brain-job[data-status='done'] .wb-brain-job-mark {
+  color: var(--success-ink);
+  background: var(--success-bg);
+}
+
+.wb-brain-job[data-status='error'] .wb-brain-job-mark {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+
+.wb-brain-job-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wb-brain-job-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-brain-job-status {
+  font-size: 0.6875rem;
   color: var(--muted);
 }
 
-.wb-brain-audio-progress {
+.wb-brain-job[data-status='error'] .wb-brain-job-status {
+  color: var(--danger-ink);
+}
+
+/* Inherits `--muted` from the status line rather than dropping to `--faint`:
+   at 11px this is body text, so it owes the 4.5:1 floor, and `--faint` on the
+   row's own surface measures 3.27:1 in light. The `·` already separates it. */
+.wb-brain-job-size {
+  color: inherit;
+}
+
+.wb-brain-job-detail {
+  margin-top: 3px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.wb-brain-job-detail summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.wb-brain-job-detail code {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--ff-mono);
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.wb-brain-job-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+}
+
+.wb-brain-job-remove:hover {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+.wb-brain-job-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* Engine progress (SB-R4.2) — determinate where there is a real total,
+   indeterminate where there genuinely is not. */
+.wb-brain-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--rounded-lg);
+}
+
+.wb-brain-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.wb-brain-progress-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-progress-pct {
+  font-size: 0.75rem;
+  font-weight: 650;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
-/* In-app recorder (SB-R5) — record, live timer, honest mic errors. */
+.wb-brain-progress-track {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--ink) 12%, transparent);
+  border-radius: var(--rounded-full);
+}
+
+.wb-brain-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* No total to report: a travelling sweep says "working, no estimate" without
+   ever claiming a percentage it cannot keep. */
+.wb-brain-progress-fill[data-indeterminate] {
+  width: 40%;
+  transition: none;
+  animation: wb-brain-sweep 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes wb-brain-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.wb-brain-progress-hint {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* In-app recorder (SB-R5) — live waveform, timer, honest mic errors. */
 .wb-brain-recorder {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-1);
-  padding: var(--s-3) 0 var(--s-2);
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.wb-brain-recorder-controls {
+/* The stage is where the take is *seen*. It fills the sheet's spare height so
+   the waveform has room to read as a signal rather than a strip, and centres
+   its idle copy so the empty state looks composed rather than half-filled. */
+.wb-brain-recorder-stage {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--s-3);
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: 200px;
+  padding: var(--s-4) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  transition: border-color 200ms ease;
 }
 
-.wb-brain-audio-pick[data-recording] {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
-  color: var(--accent);
+.wb-brain-recorder[data-recording] .wb-brain-recorder-stage {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+}
+
+.wb-brain-recorder-idle {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 32ch;
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* The meter itself. `--wave-color` is read by the canvas painter, which needs
+   a resolved colour rather than a custom property it cannot parse. */
+.wb-brain-wave {
+  flex: 1 1 auto;
+  min-width: 0;
+  --wave-color: var(--accent);
+}
+
+.wb-brain-wave[data-silent] {
+  --wave-color: var(--faint);
+}
+
+.wb-brain-wave-canvas {
+  display: block;
+  width: 100%;
+  height: 96px;
+}
+
+.wb-brain-wave-silent {
+  margin: 4px 0 0;
+  font-size: 0.6875rem;
+  color: var(--danger-ink);
 }
 
 .wb-brain-recorder-elapsed {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-1);
-  font-size: 13px;
+  gap: 6px;
+  flex: none;
+  font-family: var(--ff-num);
+  font-size: 0.9375rem;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
@@ -8173,7 +9392,7 @@ button.wb-agent-pill-btn:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--danger);
   animation: wb-brain-rec-pulse 1.4s ease-in-out infinite;
 }
 
@@ -8187,17 +9406,100 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
+/* The record control: filled while idle (it is the one thing to do here),
+   outlined danger while running (it now means "stop"). */
+.wb-brain-record-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.wb-brain-record-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.wb-brain-record-btn[data-recording] {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+.wb-brain-record-btn:disabled {
+  color: var(--faint);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  cursor: not-allowed;
+}
+
+.wb-brain-record-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* Retry affordance on the mic-error state. */
+.wb-brain-audio-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.wb-brain-audio-pick:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.wb-brain-audio-pick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
 .wb-brain-recorder-error {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
-  color: var(--danger, var(--wb-git-deleted));
+  color: var(--danger-ink);
   max-width: 44ch;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .wb-brain-recorder-dot {
     animation: none;
+  }
+  /* The sweep is the only thing saying "still working" here, so it becomes a
+     static filled track rather than disappearing: the state stays legible,
+     the movement does not. */
+  .wb-brain-progress-fill[data-indeterminate] {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+  .wb-brain-progress-fill,
+  .wb-brain-dropzone,
+  .wb-brain-recorder-stage,
+  .wb-brain-record-btn {
+    transition: none;
   }
 }
 
@@ -8404,27 +9706,167 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* No-vault guard (SB-R3.3) — offer setup instead of writing to a missing path. */
-.wb-brain-ingest-guard {
+/* The shared "no base yet" guard (`VaultGuard`) — one vocabulary for the
+   ingestion sheet and the ask dialog, in both of its states. */
+.wb-brain-guard {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s-2);
-  padding: var(--s-4) 0;
+  padding: var(--s-4) 0 var(--s-2);
 }
 
-.wb-brain-ingest-guard-title {
+.wb-brain-guard-glyph {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--rounded-md);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.wb-brain-guard-glyph[data-pulse='true'] {
+  animation: wb-brain-breathe 2.4s var(--ease-quart) infinite;
+}
+
+.wb-brain-guard-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
 }
 
-.wb-brain-ingest-guard-desc {
-  margin: 0 0 var(--s-1);
+.wb-brain-guard-desc {
+  margin: 4px 0 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
-  max-width: 42ch;
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-guard-glyph[data-pulse='true'] {
+    animation: none;
+  }
+}
+
+/* The "opened in its own conversation" hand-off (bottom-right, like the git
+   toast — one toast vocabulary for the whole app). */
+.wb-brain-toast-viewport {
+  position: fixed;
+  bottom: 34px;
+  right: var(--s-4);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 340px;
+  max-width: calc(100vw - 2 * var(--s-4));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-brain-toast {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
+.wb-brain-toast-glyph {
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.wb-brain-toast-text {
+  min-width: 0;
+}
+
+.wb-brain-toast-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-brain-toast-desc {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* The way back sits under the message, full-row, so it reads as the offer it
+   is rather than a second title. */
+.wb-brain-toast-action {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: var(--s-2);
+  padding: 3px var(--s-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart);
+}
+
+.wb-brain-toast-action:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.wb-brain-toast-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.wb-brain-toast-close {
+  /* Pinned to the first row: auto-placement would otherwise flow it after the
+     action button and park it in the bottom corner. */
+  grid-row: 1;
+  grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.wb-brain-toast-close:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.wb-brain-toast-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-brain-toast-action {
+    transition: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8718,29 +10160,6 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
 }
 
-.wb-brain-ask-guard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-2);
-  padding-bottom: var(--s-1);
-}
-
-.wb-brain-ask-guard-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.wb-brain-ask-guard-desc {
-  margin: 0;
-  max-width: 52ch;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wb-brain-ask-chip,
   .wb-brain-ask-recent {
@@ -8854,71 +10273,172 @@ button.wb-agent-pill-btn:focus-visible {
   align-self: center;
 }
 
-/* In-chat change card (Claude-Desktop tier, ACR-R2.2) — a compact per-turn
-   diff summary in the transcript. */
+/* ===========================================================================
+   In-chat change card (Cursor / Claude-Desktop tier, ACR-R2.2) — what one turn
+   changed, reviewable in the transcript.
+
+   Two scopes, drawn as two scopes. The header owns the turn ("Aceitar tudo" /
+   "Rejeitar tudo") and sits above a hairline; each file row owns itself and
+   carries its own ✓/✗ on the right. The previous card had one pair of controls
+   labelled per-file and behaving per-turn, which is exactly the confusion this
+   layout removes.
+   =========================================================================== */
 .wb-change-card {
-  margin: var(--s-2) 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-2, 10px);
+  border-radius: var(--rounded-lg);
   background: var(--surface);
   overflow: hidden;
 }
 
 .wb-change-card[data-reviewed] {
-  opacity: 0.75;
+  background: var(--surface-2);
+  border-color: color-mix(in oklab, var(--border) 60%, transparent);
 }
 
 .wb-change-card-head {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.wb-change-card[data-reviewed] .wb-change-card-head {
+  border-bottom: 0;
+}
+
+.wb-change-card-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.wb-change-card[data-reviewed] .wb-change-card-mark {
+  color: var(--wb-git-added);
+}
+
+.wb-change-card-titles {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .wb-change-card-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 650;
   color: var(--ink);
-  flex: 1 1 auto;
 }
 
 .wb-change-card[data-reviewed] .wb-change-card-title {
-  font-weight: 400;
+  font-weight: 500;
   color: var(--muted);
 }
 
-.wb-change-card-expand {
-  display: inline-flex;
+.wb-change-card-sub {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The turn-level pair. Quiet, equal weight: accepting and rejecting a turn are
+   both ordinary review outcomes, and a filled "Aceitar tudo" would push people
+   through a decision they are supposed to be making. */
+.wb-change-card-bulk {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-1, 6px);
-  cursor: pointer;
+  gap: 2px;
+  flex: 0 0 auto;
 }
-
-.wb-change-card-expand:hover {
-  color: var(--ink);
+.wb-change-card-bulk-btn {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-change-card-bulk-btn[data-kind='accept']:hover {
+  color: var(--success-ink);
+  background: var(--success-bg);
+}
+.wb-change-card-bulk-btn[data-kind='reject']:hover {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+.wb-change-card-bulk-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .wb-change-card-files {
   margin: 0;
-  padding: 0 var(--s-3) var(--s-2);
+  padding: var(--s-1) 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .wb-change-card-file {
   display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  font-size: 12px;
+  flex-direction: column;
+  font-size: 0.75rem;
   color: var(--ink);
+}
+
+.wb-change-card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 1px var(--s-2) 1px var(--s-3);
+  min-width: 0;
+}
+.wb-change-card-row:hover {
+  background: var(--surface-2);
+}
+.wb-change-card[data-reviewed] .wb-change-card-row:hover {
+  background: none;
+}
+
+/* The file name IS the disclosure — a separate chevron-only button beside a
+   dead label would be two targets for one intent. */
+.wb-change-card-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+span.wb-change-card-open {
+  cursor: default;
+}
+.wb-change-card-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-radius: var(--rounded-sm);
+}
+
+.wb-change-card-chevron {
+  flex: 0 0 auto;
+  color: var(--faint);
+  transition: transform 0.16s var(--ease-quart);
+}
+.wb-change-card-chevron[data-open] {
+  transform: rotate(90deg);
 }
 
 .wb-change-card-file[data-reviewed] {
@@ -8926,8 +10446,8 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 .wb-change-card-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 2px;
   flex: 0 0 auto;
 }
@@ -8942,9 +10462,12 @@ button.wb-agent-pill-btn:focus-visible {
   background: var(--wb-git-deleted);
 }
 
+/* Sits where the pending row's chevron + status dot sit, so a reviewed file
+   does not shift left out of the column its neighbours are in. */
 .wb-change-card-check {
   color: var(--wb-git-added);
   flex: 0 0 auto;
+  margin-left: 11px;
 }
 
 .wb-change-card-name {
@@ -8952,17 +10475,589 @@ button.wb-agent-pill-btn:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--ff-mono);
+}
+/* The directory is context, the basename is the file — the prefix steps back
+   so the eye lands on the part that identifies it. `--muted`, not `--faint`:
+   measured 3.71:1 in the light theme at 12px, under the 4.5:1 body floor, and
+   a path the user cannot read is not context, it is noise. */
+.wb-change-card-dir {
+  color: var(--muted);
+}
+.wb-change-card-file[data-reviewed] .wb-change-card-name {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
 }
 
 .wb-change-card-counts {
   margin-left: auto;
-  font-size: 11px;
+  padding-left: var(--s-2);
+  font-size: 0.6875rem;
+  font-family: var(--ff-mono);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 
+/* The per-file ✓/✗ stays out of the way until the row is under the pointer or
+   holds focus — forty rows of always-on buttons is a control panel, not a
+   list. It is always present for keyboard and assistive tech. */
+.wb-change-card-row .wb-hunk-actions {
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+.wb-change-card-row:hover .wb-hunk-actions,
+.wb-change-card-row:focus-within .wb-hunk-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .wb-change-card-row .wb-hunk-actions {
+    opacity: 1;
+  }
+}
+
 .wb-change-card-diff {
-  border-top: 1px solid var(--border);
+  margin: var(--s-1) var(--s-3) var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
   max-height: 320px;
   overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-change-card-chevron,
+  .wb-change-card-bulk-btn,
+  .wb-change-card-row .wb-hunk-actions {
+    transition: none;
+  }
+}
+
+/* ===========================================================================
+   The turn timeline — one assistant turn laid out in the order it happened.
+
+   The transcript used to render a turn in three fixed slabs (every tool call
+   hoisted to the top, prose in the middle, every permission card pinned below
+   the whole conversation). A turn is a log: the rhythm here is just even
+   vertical spacing between whatever the agent produced next, so the eye reads
+   it straight down.
+   =========================================================================== */
+
+.wb-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+/* ===========================================================================
+   Agent activity (agent-activity) — the live feed of what the agent is doing
+   while it answers: reading, searching, editing, running commands.
+
+   Shape: a threaded rail, not a card. The steps are *part of* the assistant's
+   turn, so boxing them would read as a second message; a hairline rail with a
+   status node per row keeps them subordinate to the reply they produce.
+
+   Motion is scoped to what it means. A row *arrives* (a short slide + fade,
+   staggered by arrival order). A row *is running* (its mark carries a real
+   rotating arc and its label sweeps a shimmer — the difference between
+   "working" and "frozen", which a static dot cannot make). A row *settles*
+   once (a small pop, or a single shake for a failure) and then never moves
+   again. Nothing loops that isn't still happening.
+
+   State is never carried by motion alone: the glyph changes shape (tool icon
+   → ✓ / ✗) and the verb changes tense, so a screenshot, a printout and a
+   screen reader all still say which rows finished.
+   =========================================================================== */
+
+.wb-activity {
+  margin: 0;
+}
+
+.wb-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wb-activity-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: 3px 0 3px 26px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+  animation: wb-activity-in 0.26s var(--ease-quart) both;
+  animation-delay: calc(var(--activity-seq, 0) * 26ms);
+}
+
+/* The rail: one continuous hairline behind the marks, drawn per row so it
+   grows with the list and stops cleanly at the ends. */
+.wb-activity-row::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+}
+.wb-activity-row:first-child::before {
+  top: 50%;
+}
+.wb-activity-row:last-child::before {
+  bottom: 50%;
+}
+.wb-activity-row:first-child:last-child::before {
+  display: none;
+}
+
+/* The mark sits ON the rail and carries both meanings: the glyph is the state
+   (tool icon while it runs, ✓ / ✗ once it settles), its treatment says how
+   urgently. A finished step keeps a quiet neutral tick — a completed list
+   shouldn't read as a wall of green — while a failure takes the danger role,
+   because that is the one row worth finding in a list of forty. */
+.wb-activity-mark {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--faint);
+}
+
+/* Settling is a one-shot: the mark pops as its result lands, a failure gives
+   a single shake. Both run once, on the frame the state attribute changes. */
+.wb-activity-row[data-state='ok'] .wb-activity-mark {
+  animation: wb-activity-settle 0.32s var(--ease-quart) both;
+}
+.wb-activity-row[data-state='failed'] .wb-activity-mark {
+  color: var(--danger);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 45%, transparent);
+  animation: wb-activity-shake 0.3s var(--ease-quart) both;
+}
+
+.wb-activity-row[data-state='running'] .wb-activity-mark {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+/* The running arc. A conic gradient masked to a 2px ring, rotating: this is
+   the signal that reads as "something is happening right now" from across the
+   room, and no amount of colour on a static dot substitutes for it. Drawn on
+   a pseudo-element so the glyph inside stays upright. */
+.wb-activity-row[data-state='running'] .wb-activity-mark {
+  background: color-mix(in oklab, var(--accent) 10%, var(--surface-2));
+}
+.wb-activity-row[data-state='running'] .wb-activity-mark::after {
+  content: '';
+  position: absolute;
+  inset: -2.5px;
+  border-radius: var(--rounded-full);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 140deg,
+    color-mix(in oklab, var(--accent) 30%, transparent) 260deg,
+    var(--accent) 358deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: wb-activity-spin 1.05s linear infinite;
+}
+/* Only the newest still-running row spins: one live signal, not a disco. */
+.wb-activity-row[data-state='running']:not([data-live]) .wb-activity-mark::after {
+  animation-play-state: paused;
+  opacity: 0.45;
+}
+
+.wb-activity-text {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.wb-activity-verb {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-activity-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The live row also gets a quiet tint so the eye lands on it without reading
+   the arc first. Static: the arc is already the moving part, and a second
+   loop on the same row competes with it instead of reinforcing it. */
+.wb-activity-row[data-live] {
+  color: var(--ink);
+}
+.wb-activity-row[data-live] .wb-activity-detail {
+  color: var(--ink);
+}
+
+/* Collapse control for a long turn — quiet by default, since it is metadata
+   about the feed rather than part of it. */
+.wb-activity-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wb-activity-toggle-count {
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-activity-toggle-cta {
+  color: var(--faint);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s var(--ease-quart);
+}
+.wb-activity-toggle:hover .wb-activity-toggle-cta {
+  text-decoration-color: currentColor;
+}
+.wb-activity-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
+@keyframes wb-activity-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-activity-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* The result landing: a small pop, once. Big enough to catch the eye mid-scan,
+   small enough that four rows settling in a second don't read as a jitter. */
+@keyframes wb-activity-settle {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.4;
+  }
+  55% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* A failure gets one shake — the same gesture a person makes for "no". It runs
+   once and never repeats; a looping error is nagging, not informative. */
+@keyframes wb-activity-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  22% {
+    transform: translateX(-2.5px);
+  }
+  55% {
+    transform: translateX(2.5px);
+  }
+  80% {
+    transform: translateX(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-activity-row {
+    animation: none;
+  }
+  /* Every distinction survives; only the movement goes. The live row keeps a
+     static accent ring where the arc was, and the settle/shake become their
+     end state immediately. */
+  .wb-activity-row[data-state='running'] .wb-activity-mark::after {
+    animation: none;
+    background: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  .wb-activity-row[data-state='ok'] .wb-activity-mark,
+  .wb-activity-row[data-state='failed'] .wb-activity-mark {
+    animation: none;
+  }
+  .wb-activity-toggle-cta {
+    transition: none;
+  }
+}
+
+/* ===========================================================================
+   Approval card (agent-approvals) — the agent is blocked on this decision.
+
+   Loud enough to be unmissable in a scrolling transcript (warning-tinted
+   surface, accent-free so it can't be mistaken for the agent's own reply),
+   quiet enough not to read as an error. The payload is verbatim in a mono
+   block: a command the user cannot read is a command they cannot consent to.
+   =========================================================================== */
+
+.wb-approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid color-mix(in oklab, var(--warning) 38%, transparent);
+  border-radius: var(--rounded-lg);
+  background: var(--warning-bg);
+  animation: wb-approval-in 0.24s var(--ease-quart) both;
+}
+
+/* Answered: the question is closed, so the panel is gone. What is left is one
+   line of the log, on the same 26px indent as the tool rows around it — the
+   command being authorized and the command running then read as consecutive
+   entries in one story. A long transcript must not be a stack of warning
+   panels about decisions the user already made. */
+.wb-approval-note {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  position: relative;
+  padding: 2px 0 2px 26px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-approval-note-mark {
+  position: absolute;
+  left: 1px;
+  top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--success-ink);
+}
+.wb-approval-note[data-answer='deny'] .wb-approval-note-mark {
+  color: var(--danger-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 40%, transparent);
+}
+.wb-approval-note-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  /* `min-width: 0` + `overflow: hidden` is what lets the mono payload ellipsize
+     instead of pushing "Ver detalhes" onto a second line. */
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+.wb-approval-note-verdict {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--success-ink);
+}
+.wb-approval-note[data-answer='deny'] .wb-approval-note-verdict {
+  color: var(--danger-ink);
+}
+.wb-approval-note-payload {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+/* `--muted`, not `--faint`: measured 3.29:1 in the light theme at 11px, under
+   the 4.5:1 body floor. Secondary is not the same as unreadable. */
+.wb-approval-note-toggle {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  cursor: pointer;
+  transition: text-decoration-color 0.15s var(--ease-quart);
+}
+.wb-approval-note-toggle:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.wb-approval-note-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-approval-note-details {
+  flex: 1 1 100%;
+  margin-top: 2px;
+}
+
+.wb-approval-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.wb-approval-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warning-ink);
+}
+.wb-approval-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-approval-title {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-approval-desc {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-approval-payload {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wb-approval-details-toggle {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wb-approval-details-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-approval-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  font-size: 0.75rem;
+}
+.wb-approval-details-row {
+  display: flex;
+  gap: var(--s-2);
+  min-width: 0;
+}
+/* `--muted`, not `--faint`: these sit on the warning tint, where the faint
+   rung measures 3.29:1 in the light theme — under the 4.5:1 body floor for
+   12px text. Secondary is not the same as unreadable. */
+.wb-approval-details-row dt {
+  flex-shrink: 0;
+  min-width: 5.5rem;
+  color: var(--muted);
+  font-family: var(--ff-mono);
+}
+.wb-approval-details-row dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.wb-approval-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+/* The two alternatives are ghosts on a tinted panel, so their hover has to
+   come from the panel's own surface — the DS ghost's default `--surface`
+   hover reads as a hole punched in the card. */
+.wb-approval-actions .hds-btn-ghost:hover {
+  background: color-mix(in oklab, var(--warning) 12%, transparent);
+}
+/* Same reason as the detail labels above — on the warning tint the faint
+   rung falls under the body floor in light. */
+.wb-approval-keys {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@keyframes wb-approval-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-approval {
+    animation: none;
+  }
+  /* The answered note's underline fade is decoration on top of a colour
+     change that already carries the hover state — dropping it loses nothing. */
+  .wb-approval-note-toggle {
+    transition: none;
+  }
 }

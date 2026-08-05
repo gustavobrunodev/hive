@@ -39,7 +39,10 @@ import {
   CheckCircleIcon,
   DiscardIcon,
   ArrowDownIcon,
-  MinusIcon
+  MinusIcon,
+  ExternalLinkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from './icons'
 
 /**
@@ -47,7 +50,7 @@ import {
  * feature's gated files (design.md §"Coverage config note": 90/90/90/90 on
  * every touched file). Most of its icons are exercised indirectly through
  * Explorer.test.ts (the file-management UI); a handful predate/sit outside
- * file-management (theme toggle icons used by `WorkUI`, intent icons used by
+ * file-management (theme picker icons used by `WorkUI`, intent icons used by
  * `IntentGrid` for keys no existing suite selects) and weren't reached by any
  * suite. Direct smoke renders of those exports only — no app component
  * touched — purely to close that gate.
@@ -57,7 +60,7 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
     cleanup()
   })
 
-  it('renders SunIcon and MoonIcon (theme toggle icons)', () => {
+  it('renders SunIcon and MoonIcon (theme picker icons)', () => {
     const { container: sun } = render(createElement(SunIcon))
     expect(sun.querySelector('svg')).toBeTruthy()
 
@@ -125,6 +128,15 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
       MinusIcon
     ]) {
       const { container } = render(createElement(Icon, { size: 18 }))
+      expect(container.querySelector('svg')).toBeTruthy()
+    }
+  })
+
+  // The overflow/hand-off glyphs: the `ScrollableRow` paddles and the departure
+  // arrow on links that leave for the host browser.
+  it('renders the scroll-affordance and external-link icons', () => {
+    for (const Icon of [ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon]) {
+      const { container } = render(createElement(Icon, { size: 14 }))
       expect(container.querySelector('svg')).toBeTruthy()
     }
   })

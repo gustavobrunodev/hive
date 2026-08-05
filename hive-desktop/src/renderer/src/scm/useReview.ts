@@ -44,6 +44,14 @@ export interface ReviewStore {
   refresh: () => void
   acceptFile: (path: string) => Promise<ReviewResult>
   rejectFile: (path: string) => Promise<ReviewResult>
+  /**
+   * The same decision over a set of files — one change card's whole turn — as
+   * a single operation. Never a `paths.forEach(acceptFile)` at the call site:
+   * that fires N independent, racing decisions and the user watches them land
+   * one file at a time.
+   */
+  acceptFiles: (paths: string[]) => Promise<ReviewResult>
+  rejectFiles: (paths: string[]) => Promise<ReviewResult>
   acceptHunk: (path: string, hunkId: string) => Promise<ReviewResult>
   rejectHunk: (path: string, hunkId: string) => Promise<ReviewResult>
   acceptAll: () => Promise<ReviewResult>
@@ -135,6 +143,25 @@ export function useReviewStore(workspace: string): ReviewStore {
     async (path: string) => guard(path, await window.hive.review.rejectFile(workspace, path)),
     [workspace, guard]
   )
+  // Batch decisions carry the same STALE guard as the single-file ones; main
+  // reports the first hand-edited path in the set, and that path is what the
+  // dialog offers a choice about.
+  const acceptFiles = useCallback(
+    async (paths: string[]) => {
+      const result = await window.hive.review.acceptFiles(workspace, paths)
+      if (result.stale) setStaleConflict({ path: paths[0] })
+      return result
+    },
+    [workspace]
+  )
+  const rejectFiles = useCallback(
+    async (paths: string[]) => {
+      const result = await window.hive.review.rejectFiles(workspace, paths)
+      if (result.stale) setStaleConflict({ path: paths[0] })
+      return result
+    },
+    [workspace]
+  )
   const acceptHunk = useCallback(
     async (path: string, hunkId: string) =>
       guard(path, await window.hive.review.acceptHunk(workspace, path, hunkId)),
@@ -173,6 +200,8 @@ export function useReviewStore(workspace: string): ReviewStore {
     refresh,
     acceptFile,
     rejectFile,
+    acceptFiles,
+    rejectFiles,
     acceptHunk,
     rejectHunk,
     acceptAll,

@@ -46,6 +46,15 @@ export interface ReviewService {
   acceptFile(workspace: string, path: string): Promise<ReviewResult>
   /** Restore a file's pre-turn bytes on disk; it leaves the set (ACR-R1.6). */
   rejectFile(workspace: string, path: string): Promise<ReviewResult>
+  /**
+   * The same decision over a *set* of files — one turn's worth — settled in a
+   * single pass. Not a loop over `acceptFile` at the caller: that fires N
+   * independent baseline advances that each recompute and emit, and the
+   * intermediate snapshots race each other, which is what made "Aceitar" on a
+   * change card visibly approve one file at a time.
+   */
+  acceptFiles(workspace: string, paths: string[]): Promise<ReviewResult>
+  rejectFiles(workspace: string, paths: string[]): Promise<ReviewResult>
   /** Keep one hunk; advance the baseline for it (ACR-R3.1). */
   acceptHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
   /** Reverse-apply one hunk on disk; the rest of the file stays pending (ACR-R3.1). */
@@ -276,6 +285,55 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     return { ok: true }
   }
 
+  /**
+   * "Aceitar tudo" scoped to one turn's files: a single baseline advance over
+   * the whole set, then one recompute and one emit.
+   *
+   * The card used to do this by firing `acceptFile` per path from the
+   * renderer. Each of those advances the baseline, recomputes and emits on its
+   * own, so the UI redrew between them and the user watched files being
+   * approved one at a time — and a decision landing mid-flight raced the
+   * others. Batching is both the fix and the honest model: the user made *one*
+   * decision.
+   *
+   * A file hand-edited since the turn still stops the batch (the STALE guard,
+   * ACR-R3.2) — silently clobbering the user's own edit is the one outcome
+   * worse than asking.
+   */
+  async function acceptFiles(workspace: string, paths: string[]): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null || paths.length === 0) return { ok: true }
+    const stale = paths.find((path) => isStale(workspace, path))
+    if (stale !== undefined) return staleResult(workspace, stale)
+    s.baseline = await checkpoint.advanceBaseline(workspace, s.baseline, paths)
+    await recompute(workspace)
+    emit(workspace)
+    return { ok: true }
+  }
+
+  /**
+   * "Rejeitar tudo" scoped to one turn's files. Files the user authored are
+   * skipped and reported (R-08) rather than reverted — same rule as
+   * `rejectAll`, applied to a subset.
+   */
+  async function rejectFiles(workspace: string, paths: string[]): Promise<ReviewResult> {
+    const s = stateFor(workspace)
+    if (s.baseline === null || paths.length === 0) return { ok: true }
+    const stale = paths.find((path) => isStale(workspace, path))
+    if (stale !== undefined) return staleResult(workspace, stale)
+    let skipped = 0
+    for (const path of paths) {
+      if (s.userAuthored.has(path)) {
+        skipped++
+        continue
+      }
+      await checkpoint.revertPath(workspace, s.baseline, path)
+    }
+    await recompute(workspace)
+    emit(workspace)
+    return skipped > 0 ? { ok: true, skipped } : { ok: true }
+  }
+
   /** Resolves a hunk object from the current change set by its stable id, or null. */
   function resolveHunk(
     workspace: string,
@@ -361,6 +419,8 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     get,
     acceptFile,
     rejectFile,
+    acceptFiles,
+    rejectFiles,
     acceptHunk,
     rejectHunk,
     acceptAll,

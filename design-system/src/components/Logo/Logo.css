@@ -6,5 +6,21 @@
 .hds-logo svg {
   display: block;
   width: auto;
-  height: 2rem;
+  /* Sized from the wrapper so a call site never has to reach past the
+     component into its inlined `svg` to change one number. */
+  height: var(--hds-logo-height, 2rem);
+}
+
+/* The `current` lockups ship every path as `currentColor`, so the whole logo
+   follows its container's text color by default — one element, every theme,
+   instead of one lockup per theme with the wrong one hidden. The two overrides
+   below are the escape hatch for the one place a brand deserves two colors: a
+   mark in the accent against a wordmark in the reading ink. Scoped to
+   `data-tone="current"` because the `black`/`white`/`color` artwork bakes its
+   fills in and has to keep them. */
+.hds-logo[data-tone="current"] .hds-logo-mark path {
+  fill: var(--hds-logo-mark, currentColor);
+}
+.hds-logo[data-tone="current"] .hds-logo-wordmark path {
+  fill: var(--hds-logo-wordmark, currentColor);
 }

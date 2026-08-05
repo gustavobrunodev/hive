@@ -6,11 +6,20 @@ type WhisperBridge = Window['hive']['whisper']
 export type WhisperModelId = Parameters<WhisperBridge['modelStatus']>[0]
 export type WhisperVariant = Parameters<WhisperBridge['downloadModel']>[1]
 
-/** What the UI needs to render an honest progress caption. */
+/**
+ * What the UI needs to render an honest progress caption.
+ *
+ * `warming` is the state whose absence made transcription *look* broken: once
+ * every model file has been read the engine still has to build an ONNX
+ * session, which on the WASM backend is tens of seconds of silent CPU work.
+ * Without a phase for it the UI sat on "Preparando o modelo… 100%" and then
+ * said nothing at all — the exact dead air a user reads as a hang.
+ */
 export type WhisperPhase =
   | { status: 'idle' }
   | { status: 'downloading'; pct: number; file: string }
   | { status: 'loading'; pct: number }
+  | { status: 'warming' }
   | { status: 'transcribing' }
   | { status: 'error'; message: string }
 
@@ -165,12 +174,41 @@ export function useWhisper(deps: WhisperDeps = browserWhisperDeps()): WhisperEng
           setPhase({ status: 'loading', pct: 0 })
           const { pipeline, env } = await deps.loadLibrary()
           configureWhisperEnv(env, deps.baseHref())
+          // Per-file progress, averaged — the library reports each weight file
+          // separately and they interleave, so reporting the last event's
+          // percentage alone made the bar jump backwards. Capped at 99 while
+          // files are still arriving: "100%" is a promise the next phase has
+          // to keep, and claiming it early is what made the wait feel broken.
+          const seen = new Set<string>()
+          const finished = new Set<string>()
+          const pctByFile = new Map<string, number>()
+          const publish = (): void => {
+            const values = [...pctByFile.values()]
+            const mean = values.reduce((sum, value) => sum + value, 0) / (values.length || 1)
+            setPhase({ status: 'loading', pct: Math.min(99, Math.round(mean)) })
+          }
           asr = await pipeline('automatic-speech-recognition', model, {
             device,
             dtype: variant === 'q8' ? 'q8' : 'fp32',
-            progress_callback: (progress: { status?: string; progress?: number }) => {
-              if (progress.status === 'progress') {
-                setPhase({ status: 'loading', pct: Math.round(progress.progress ?? 0) })
+            progress_callback: (progress: {
+              status?: string
+              progress?: number
+              file?: string
+            }) => {
+              const file = progress.file
+              if (file === undefined) return
+              if (progress.status === 'initiate') {
+                seen.add(file)
+              } else if (progress.status === 'progress') {
+                pctByFile.set(file, progress.progress ?? 0)
+                publish()
+              } else if (progress.status === 'done') {
+                finished.add(file)
+                pctByFile.set(file, 100)
+                // Everything announced has arrived, so whatever happens next is
+                // session/graph work, not I/O. Say so.
+                if (seen.size > 0 && finished.size >= seen.size) setPhase({ status: 'warming' })
+                else publish()
               }
             }
           })

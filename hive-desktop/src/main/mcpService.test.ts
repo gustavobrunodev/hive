@@ -50,7 +50,14 @@ describe('McpService.list', () => {
     )
     const servers = await service.list(workspace)
     expect(servers).toEqual([
-      { name: 'local', transport: 'stdio', command: 'npx', args: ['-y', 'pkg'], env: { K: 'v' }, enabled: true },
+      {
+        name: 'local',
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', 'pkg'],
+        env: { K: 'v' },
+        enabled: true
+      },
       {
         name: 'remote',
         transport: 'http',
@@ -63,7 +70,10 @@ describe('McpService.list', () => {
   })
 
   it('reflects the disabled denylist as enabled:false', async () => {
-    writeFileSync(join(workspace, '.mcp.json'), JSON.stringify({ mcpServers: { a: { command: 'x' } } }))
+    writeFileSync(
+      join(workspace, '.mcp.json'),
+      JSON.stringify({ mcpServers: { a: { command: 'x' } } })
+    )
     mkdirSync(join(workspace, '.claude'), { recursive: true })
     writeFileSync(
       join(workspace, '.claude', 'settings.local.json'),
@@ -100,7 +110,9 @@ describe('McpService.add', () => {
       url: 'https://x',
       headers: { A: 'b' }
     })
-    expect(readMcp()).toEqual({ mcpServers: { r: { type: 'http', url: 'https://x', headers: { A: 'b' } } } })
+    expect(readMcp()).toEqual({
+      mcpServers: { r: { type: 'http', url: 'https://x', headers: { A: 'b' } } }
+    })
   })
 
   it('preserves other servers and unknown top-level keys', async () => {
@@ -115,9 +127,9 @@ describe('McpService.add', () => {
   })
 
   it('rejects a blank name', async () => {
-    await expect(service.add(workspace, '  ', { transport: 'stdio', command: 'x' })).rejects.toThrow(
-      /nome/i
-    )
+    await expect(
+      service.add(workspace, '  ', { transport: 'stdio', command: 'x' })
+    ).rejects.toThrow(/nome/i)
   })
 
   it('rejects an stdio server without a command', async () => {
@@ -127,14 +139,16 @@ describe('McpService.add', () => {
   })
 
   it('rejects a remote server without a url', async () => {
-    await expect(service.add(workspace, 'x', { transport: 'http', url: '' })).rejects.toThrow(/URL/i)
+    await expect(service.add(workspace, 'x', { transport: 'http', url: '' })).rejects.toThrow(
+      /URL/i
+    )
   })
 
   it('rejects a duplicate name', async () => {
     await service.add(workspace, 'dup', { transport: 'stdio', command: 'x' })
-    await expect(service.add(workspace, 'dup', { transport: 'stdio', command: 'y' })).rejects.toThrow(
-      /já existe/i
-    )
+    await expect(
+      service.add(workspace, 'dup', { transport: 'stdio', command: 'y' })
+    ).rejects.toThrow(/já existe/i)
   })
 })
 

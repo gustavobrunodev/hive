@@ -8,11 +8,8 @@ import { RoleSetup } from './onboarding/RoleSetup'
 import { GuidedInstall } from './onboarding/GuidedInstall'
 import { UpdateGate } from './onboarding/UpdateGate'
 import { SecondBrainGate } from './onboarding/SecondBrainGate'
+import { THEME_STORAGE_KEY, readStoredTheme, type Theme } from './ui/theme'
 import { WorkUI } from './WorkUI'
-
-type Theme = 'dark' | 'light'
-
-const THEME_STORAGE_KEY = 'hive-desktop-theme'
 
 /**
  * First-run + relaunch gate state (design.md §5.1–§5.2, tasks T6 + T9 + T10):
@@ -58,10 +55,7 @@ function routeAfterWorkspace(
 }
 
 function App(): React.JSX.Element {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-    return stored === 'light' || stored === 'dark' ? stored : 'dark'
-  })
+  const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const [onboarding, setOnboarding] = useState<OnboardingState>({ status: 'checking' })
   // Lifted, app-wide profile state (multi-agent + role-personalization).
   // `agents` is the enabled set (the composer switcher's pool); `defaultAgent`
@@ -227,7 +221,7 @@ function App(): React.JSX.Element {
     return (
       <main className="wb-gate">
         <div className="wb-gate-inner">
-          <HiveLogo mark="brain" className="wb-gate-logo" />
+          <HiveLogo className="wb-gate-logo" />
           <Spinner label={t('onboarding.checkingWorkspace')} />
         </div>
       </main>
@@ -297,7 +291,7 @@ function App(): React.JSX.Element {
       key={onboarding.workspacePath}
       workspace={onboarding.workspacePath}
       theme={theme}
-      onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+      onSelectTheme={setTheme}
       onCandidateWorkspace={handleSwitchWorkspace}
       // Lifted profile state (multi-agent + role-personalization): the role,
       // the enabled agent set + default, and change handlers, so the action
