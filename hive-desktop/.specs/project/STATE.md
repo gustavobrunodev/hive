@@ -578,6 +578,102 @@ Updated as work progresses. Load at start of every session.
   same guarantee the update flow makes). Also implemented `Ctrl/Cmd+Shift+B`,
   which the rail had advertised via `aria-keyshortcuts` since M12 with nothing
   behind it. `npm run verify` green: **1569** tests (from 1507). (2026-07-27)
+- **D26 — Feature `voice-prompt` (new milestone M13).** Planned 2026-08-04,
+  branch `feat/voice-prompt` **off `feat/second-brain`** (the Whisper stack it
+  consumes lives only there, never merged to `main`). Speak a prompt straight
+  into the chat composer: press once, talk, watch phrases land at the caret
+  while you are still talking — offline, pt-BR, no modal.
+  **D-VP-1 is the decision to protect: Windows Voice Typing (`Win+H`) was
+  researched and CUT.** Do not re-propose it. There is no public API (the only
+  trigger is synthesizing the keystroke via `SendInput`, needing a native addon
+  or a PowerShell shim), it **requires internet and runs in Azure** (which
+  contradicts D-SB-1's offline posture and ships the squad's speech to
+  Microsoft), it is a black box (text arrives as synthetic keystrokes — no
+  start/stop events, no partials, no cancel, no error surface, no waveform),
+  and its language follows the OS input language, not the app. `webkitSpeech-
+  Recognition` is separately dead in Electron (electron#7758) and WinRT's
+  dictation constraint is also a cloud grammar capped at ~10 s. One engine on
+  every platform: the embedded Whisper already in the app.
+  Other locked calls: streaming by pause, not one block at the end (D-VP-2);
+  Chat composer first but built as a Chat-agnostic hook + presentational
+  transport (D-VP-3); pt-BR fixed, no language picker (D-VP-4); capture starts
+  **before** the engine is ready and the audio is buffered (D-VP-5); the engine
+  pre-warms on `pointerenter`/`focus`, never at app start (D-VP-6); in-place
+  mode change, never a modal (D-VP-7); no guessed partials, only a pending
+  count (D-VP-8); discard restores the exact pre-dictation value *and* caret
+  (D-VP-9); the design system is extended, never forked (D-VP-10). Renderer +
+  design-system only — **zero new main-process code, zero new IPC**. Full
+  evidence in `.specs/features/voice-prompt/context.md`. (2026-08-04)
+
+## Lessons (voice-prompt — T1 spike: the capture path and the real Whisper clock, 2026-08-04)
+
+Measured in the **real built Electron app** (`out/main/index.js` launched with
+Playwright's `_electron`), its real CSP, its real `hive-model://` model store and
+its own built Transformers.js chunk. Audio input was Chromium's fake device fed a
+real speech WAV (`--use-fake-device-for-media-stream --use-file-for-fake-audio-
+capture=…`), so every number is against actual signal, not silence.
+
+- **OQ1 — CLOSED, YES. `new AudioContext({ sampleRate: 16000 })` really
+  delivers a 16 kHz graph with a live `getUserMedia` source attached.**
+  `ctx.sampleRate === 16000`, `state === 'running'`, `baseLatency` 11.6 ms —
+  while the *track* itself negotiated 48 kHz (`getSettings().sampleRate: 48000`).
+  The graph resamples on the way in, correctly. **Consequence: the design's
+  `OfflineAudioContext` per-segment resample fallback is NOT needed** — the
+  16 kHz PCM Whisper wants comes straight out of the graph. (Note for
+  `micCapture.ts`: the `MediaStreamAudioSourceNode` reports
+  `channelCount: 2` even with `channelCount: 1` requested and honoured on the
+  track — read channel 0 and do not assert on the node's channel count.)
+- **OQ2 — CLOSED, YES. `audioWorklet.addModule()` loads a same-origin worklet
+  asset under this app's CSP from the `file://` renderer.** No CSP change is
+  needed (`script-src 'self'` covers it, the same way it covers ORT's `.mjs`
+  glue — the M12 T2 lesson generalizes). Measured cadence at 4 render quanta per
+  tick: **63 ticks in 2006 ms = 512 samples / 32.0 ms**, exactly the tick rate
+  `segmenter.ts` is specified against, with real signal (peak RMS 0.56).
+  `ScriptProcessorNode` also worked (61 ticks / 2007 ms) but is **not needed** —
+  `AudioWorklet` is the path, the deprecated fallback stays unbuilt.
+- **⚠️ The audio graph's clock is starved under `xvfb-run`.** The identical run
+  headless produced **1 tick in 2 s** (worklet) and 3 (script processor) instead
+  of 63 — the render quantum is driven by the output device, and under xvfb
+  there is none. `ctx.state` still reads `'running'`, so nothing errors; the
+  audio simply does not flow. **This is why T15's E2E must fake capture at a
+  seam** (as `tasks.md` already prescribes) — an E2E that pushes real audio
+  through a real `AudioContext` cannot work in this environment. For manual
+  runs, use the WSLg display (`DISPLAY=:0`, WSLg exposes a real PulseAudio
+  sink + an `RDPSource` mic) instead of xvfb.
+- **OQ3 — CLOSED with numbers. Streaming stays on WASM. The cost per segment is
+  ~3.5–4 s and it is essentially INDEPENDENT of segment length**, because
+  Whisper pads every window to 30 s. Same machine, `base`/fp32/WASM,
+  `numThreads: 1`, no WebGPU adapter (`requestAdapter()` → null even on WSLg):
+
+  | Audio | Wall clock | RTF |
+  | --- | --- | --- |
+  | 2 s segment | 3441 ms | **1.72×** |
+  | 5 s segment (first) | 4055 ms | **0.81×** |
+  | 5 s segment (repeat, warm) | 3715 ms | **0.74×** |
+  | 11 s take | 3948 ms | **0.36×** |
+
+  At 5 s per segment the RTF is **0.74×**, comfortably under the design's 1.5×
+  fallback bar — so **D-VP-2's streaming premise holds on the guaranteed WASM
+  path and the "single end-of-take segment" fallback is NOT taken.** The real
+  lesson is the flat cost: **a segment shorter than ~4 s of speech costs the
+  same as a 4 s one**, so short segments are what make the queue fall behind,
+  not long ones. `minSpeechMs` is therefore a *throughput* control as much as a
+  "don't cut on a breath" control — raised **1200 → 2000 ms** in `design.md` §2
+  on this evidence. `maxSegmentMs: 15000` is confirmed safe (11 s cost 3.9 s).
+- **The pipeline warm-up is the real wait: 51065 ms (51 s)** to build the ONNX
+  session, with the model already on disk and the library import costing 32 ms.
+  This is the single measured fact that validates **D-VP-5** (capture starts
+  immediately, audio is buffered) and **D-VP-6** (pre-warm on
+  `pointerenter`/`focus`): a 51 s gate in front of the microphone would make the
+  feature unusable, and pre-warming on intent is what hides it. A second
+  `transcribe()` on the cached pipeline paid none of it.
+- Caveat, stated rather than hidden: the fixture is English speech
+  (`jfk.wav`), so the pt-BR runs transcribe it as nonsense ("E então, meus
+  amigas felos americanos") — expected, and irrelevant to the timings, which is
+  what OQ3 asked. Wall clock was materially the same for `language: 'portuguese'`
+  (3715 ms) and `'english'` (3489 ms) on the same 5 s audio. The `base` fp32
+  model was already in the store from M12, so the first-download time was not
+  re-measured here (M12 already owns that path).
 
 ## Lessons (second-brain — ask + cadence increment, 2026-07-27)
 

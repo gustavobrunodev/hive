@@ -1,7 +1,7 @@
 # Tasks — Voice Prompt
 
 **Design:** `design.md` · **Spec:** `spec.md` · **Context:** `context.md`
-**Status:** 📝 Planned (2026-08-04). Branch `feat/voice-prompt`, **off
+**Status:** 🚧 In progress (2026-08-04) — T1 done. Branch `feat/voice-prompt`, **off
 `feat/second-brain`** — the Whisper stack it consumes exists only there, never
 merged to `main`. ROADMAP **M13**; STATE **D26**.
 
@@ -42,7 +42,7 @@ Batch A's **T1 gates everything** — its findings can change T5 and T7.
 
 ## P0 — Spike
 
-### T1 — Spike: prove the capture path and measure streaming latency
+### T1 [x] — Spike: prove the capture path and measure streaming latency
 
 **Dep:** — · **VP-R:** VP-R2 (premise), VP-R3 · **[no production code]**
 

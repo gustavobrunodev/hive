@@ -54,8 +54,11 @@ export interface SegmenterConfig {
   rmsMargin: number
   /** Continuous silence that closes a segment. */
   silenceHoldMs: number      // 700
-  /** Below this much *speech*, a pause does not cut (breath ≠ boundary). */
-  minSpeechMs: number        // 1200
+  /** Below this much *speech*, a pause does not cut (breath ≠ boundary).
+   *  Also a THROUGHPUT floor — see §6, T1/OQ3: a segment costs ~3.5–4 s to
+   *  transcribe regardless of its length, so short segments are what make the
+   *  queue fall behind. Raised 1200 → 2000 on that measurement. */
+  minSpeechMs: number        // 2000
   /** Hard ceiling for one segment. */
   maxSegmentMs: number       // 15000
   /** Audio kept from before onset, so the first phoneme survives. */
@@ -92,7 +95,10 @@ Whisper renders as a dropped first word — the defect is silent and constant.
 
 **Why `minSpeechMs`.** VP-R2.6. A 700 ms pause is common *inside* a sentence
 ("então… a gente precisa"). Cutting there yields two fragments Whisper
-transcribes without shared context, which reads worse than one segment.
+transcribes without shared context, which reads worse than one segment. The T1
+spike added a second, quantified reason: transcription costs ~3.5–4 s per
+segment **whatever its length** (Whisper pads to 30 s), so cutting early buys
+nothing and spends a whole pipeline slot.
 
 ### `transcriptJoin.ts` — pure
 
@@ -138,11 +144,20 @@ noiseSuppression: true, autoGainControl: true } })` →
 `fftSize: 256`), worklet/processor (frames) }.
 
 **Requesting 16 kHz at the `AudioContext` removes the resample step entirely** —
-the browser does it correctly, and `audio.ts`'s `OfflineAudioContext` path stays
-the fallback. `MediaRecorder` is deliberately not used: a mid-stream WebM chunk
-carries no container header and is not independently decodable, which is exactly
-what streaming needs. **Both of these assumptions are OQ1/OQ2 and are settled by
-the T1 spike before anything is built on them.**
+the browser does it correctly. `MediaRecorder` is deliberately not used: a
+mid-stream WebM chunk carries no container header and is not independently
+decodable, which is exactly what streaming needs.
+
+> **Settled by the T1 spike (2026-08-04), measured in the real app — see
+> STATE.md for the numbers.** OQ1: **yes**, `ctx.sampleRate === 16000` with a
+> live `getUserMedia` source attached (the track itself negotiates 48 kHz and
+> the graph resamples), so the `OfflineAudioContext` fallback is **not built**.
+> OQ2: **yes**, `audioWorklet.addModule()` loads a same-origin asset under this
+> CSP from `file://` — measured 512 samples / **32.0 ms** per tick, exactly the
+> cadence the segmenter is specified against — so `ScriptProcessorNode` is
+> **not built** either. One gotcha for `micCapture.ts`: the
+> `MediaStreamAudioSourceNode` reports `channelCount: 2` even when the track is
+> mono; read channel 0 and never assert on the node's channel count.
 
 The two teardown-critical facts, both learned by `AudioRecorder` already:
 `stop()` must stop **every** track (a surviving track keeps the OS microphone
@@ -355,9 +370,11 @@ New file globs go into `vitest.config.ts` — an unlisted file is not measured
 
 | Risk | Mitigation |
 | --- | --- |
-| **Streaming is slower than speech on WASM** (the premise of D-VP-2) | **OQ3**, measured by the T1 spike before any UI exists. Defined fallback: streaming on WebGPU, single end-of-take segment on WASM — same UI, one segment, no redesign. |
-| `AudioWorklet` blocked by CSP from `file://` | **OQ2**; `ScriptProcessorNode` fallback, deprecated but sufficient at 16 kHz mono. The M12 T2 spike proved this class of assumption is where this app breaks. |
-| `AudioContext({ sampleRate: 16000 })` ignored | **OQ1**; fall back to `OfflineAudioContext` resampling per segment, the path `audio.ts` already proves. |
+| ~~**Streaming is slower than speech on WASM**~~ | **CLOSED by T1/OQ3 — streaming holds.** A 5 s segment costs 3.7 s (**RTF 0.74×**) on `base`/fp32/WASM, under the 1.5× fallback bar, so the "single end-of-take segment" fallback is not taken. What the numbers *did* change: the cost is ~3.5–4 s **per segment regardless of length** (Whisper pads to 30 s), so a 2 s segment runs at 1.72× — short segments are the throughput risk, and `minSpeechMs` was raised to 2000 ms as the mitigation. |
+| ~~`AudioWorklet` blocked by CSP from `file://`~~ | **CLOSED by T1/OQ2 — it loads.** No CSP change; measured 32.0 ms ticks with real signal. The `ScriptProcessorNode` fallback is not built. |
+| ~~`AudioContext({ sampleRate: 16000 })` ignored~~ | **CLOSED by T1/OQ1 — honoured.** The graph runs at 16 kHz from a 48 kHz track; the `OfflineAudioContext` resample path is not built. |
+| **A 51 s pipeline warm-up** (measured, model already on disk) | The largest number the spike produced, and exactly what **D-VP-5** (capture first, buffer the audio) and **D-VP-6** (pre-warm on `pointerenter`/`focus`) exist for. A cached pipeline pays none of it. |
+| **Real audio does not flow under `xvfb-run`** — the render quantum is driven by an output device and there is none (1 tick / 2 s instead of 63, with `ctx.state === 'running'` and no error) | T15's E2E fakes capture at a seam, as planned. Manual runs use the WSLg display (`DISPLAY=:0`). |
 | Cold start still feels slow despite buffering | Pre-warm on intent (D-VP-6) + honest progress copy. The audio is never lost, which is the property that matters. |
 | Segment boundaries fragment sentences | `minSpeechMs` + pre-roll + tail pad, each an explicit AC and an explicit test. |
 | Backdrop drift misaligns the mention highlight | Character-exact unit test on `composerBackdrop`; the risk is called out on the prop itself. |
