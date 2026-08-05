@@ -22,6 +22,22 @@ export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, 
   attachments?: ReactNode
   /** Slot for extra toolbar controls (e.g. an attach-file trigger), rendered leading the send button. */
   toolbar?: ReactNode
+  /**
+   * Replaces the toolbar's extra-controls slot and spans the row, for a mode
+   * that takes the composer over temporarily (a transport, a confirmation, an
+   * inline prompt) while the send control keeps its exact position and
+   * behaviour. When set, `toolbar` is not rendered — the two are alternatives,
+   * not layers, which is what keeps the row's height and the send button from
+   * moving.
+   */
+  toolbarOverlay?: ReactNode
+  /**
+   * Emphasis state for the composer frame: an accent ring, for when the app
+   * needs the composer to read as *active* rather than merely focused. Purely
+   * presentational and orthogonal to focus — a highlighted composer that loses
+   * focus stays highlighted.
+   */
+  highlighted?: boolean
   sendLabel?: string
   /**
    * Interrupt handler for the in-flight response. When provided together with
@@ -73,6 +89,11 @@ function StopIcon() {
  * with keyboard submit (spec.md's P3 AC4). Generic per D4: no transport,
  * no model calls — the app owns `onSubmit` and provides `attachments` as
  * already-rendered `Attachment` chips.
+ *
+ * `toolbarOverlay` and `highlighted` support an app putting the composer into a
+ * temporary mode in place, without a modal and without a layout shift. Both are
+ * additive and named for what they do to the composer, not for any one caller's
+ * feature.
  */
 export function PromptInput({
   value: valueProp,
@@ -86,6 +107,8 @@ export function PromptInput({
   maxRows = 8,
   attachments,
   toolbar,
+  toolbarOverlay,
+  highlighted = false,
   sendLabel = "Send",
   onStop,
   stopLabel = "Stop",
@@ -156,7 +179,12 @@ export function PromptInput({
   )
 
   return (
-    <div className={cx("hds-prompt-input", className)} data-disabled={disabled || undefined} {...rest}>
+    <div
+      className={cx("hds-prompt-input", className)}
+      data-disabled={disabled || undefined}
+      data-highlighted={highlighted || undefined}
+      {...rest}
+    >
       {attachments && <div className="hds-prompt-input-attachments">{attachments}</div>}
       {highlight ? (
         <div className="hds-prompt-input-editor">
@@ -169,7 +197,11 @@ export function PromptInput({
         textarea
       )}
       <div className="hds-prompt-input-toolbar">
-        <div className="hds-prompt-input-toolbar-extra">{toolbar}</div>
+        {toolbarOverlay === undefined ? (
+          <div className="hds-prompt-input-toolbar-extra">{toolbar}</div>
+        ) : (
+          <div className="hds-prompt-input-toolbar-overlay">{toolbarOverlay}</div>
+        )}
         <button
           type="button"
           className="hds-prompt-input-send"

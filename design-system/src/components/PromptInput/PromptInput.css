@@ -13,6 +13,13 @@
   border-color: var(--focus);
 }
 
+/* Emphasis: the composer is in a mode, not merely focused. Orthogonal to
+   :focus-within, and it outranks it — losing focus mid-mode must not make the
+   ring flicker off. */
+.hds-prompt-input[data-highlighted] {
+  border-color: var(--accent);
+}
+
 .hds-prompt-input[data-disabled] {
   background: var(--surface-2);
   cursor: not-allowed;
@@ -71,6 +78,17 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
+}
+
+/* The overlay spans the row rather than sitting in the leading cluster, so the
+   mode it carries has the width to say something — while the send control keeps
+   its position, which is what makes the change read as in-place. */
+.hds-prompt-input-toolbar-overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .hds-prompt-input-send {

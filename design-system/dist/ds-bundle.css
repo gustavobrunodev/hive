@@ -4089,6 +4089,9 @@ button.hds-breadcrumb-segment:hover {
 .hds-prompt-input:focus-within {
   border-color: var(--focus);
 }
+.hds-prompt-input[data-highlighted] {
+  border-color: var(--accent);
+}
 .hds-prompt-input[data-disabled] {
   background: var(--surface-2);
   cursor: not-allowed;
@@ -4136,6 +4139,13 @@ button.hds-breadcrumb-segment:hover {
   display: flex;
   align-items: center;
   gap: var(--s-1);
+}
+.hds-prompt-input-toolbar-overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .hds-prompt-input-send {
   position: relative;

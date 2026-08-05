@@ -192,4 +192,67 @@ describe("PromptInput", () => {
     render(<PromptInput onSubmit={() => {}} textareaRef={ref} />)
     expect(ref.current).toBe(screen.getByRole("textbox"))
   })
+
+  // voice-prompt (D-VP-7/D-VP-10): a mode taken over in place, with no layout
+  // shift and no dictation vocabulary entering the design system.
+  describe("toolbarOverlay", () => {
+    it("replaces the toolbar's extra-controls slot", () => {
+      const { container } = render(
+        <PromptInput
+          onSubmit={() => {}}
+          toolbar={<button type="button">Attach</button>}
+          toolbarOverlay={<span data-testid="transport">Listening</span>}
+        />
+      )
+
+      expect(screen.getByTestId("transport")).toBeInTheDocument()
+      // Alternatives, not layers — otherwise the row grows and the send button moves.
+      expect(screen.queryByText("Attach")).not.toBeInTheDocument()
+      expect(container.querySelector(".hds-prompt-input-toolbar-extra")).not.toBeInTheDocument()
+      expect(container.querySelector(".hds-prompt-input-toolbar-overlay")).toBeInTheDocument()
+    })
+
+    it("keeps the toolbar slot when no overlay is set", () => {
+      const { container } = render(
+        <PromptInput onSubmit={() => {}} toolbar={<button type="button">Attach</button>} />
+      )
+      expect(screen.getByText("Attach")).toBeInTheDocument()
+      expect(container.querySelector(".hds-prompt-input-toolbar-overlay")).not.toBeInTheDocument()
+    })
+
+    it("leaves the send control in place and still submitting", async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn()
+      render(
+        <PromptInput
+          onSubmit={onSubmit}
+          defaultValue="pronto"
+          toolbarOverlay={<span>Listening</span>}
+        />
+      )
+
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      expect(onSubmit).toHaveBeenCalledWith("pronto")
+    })
+  })
+
+  describe("highlighted", () => {
+    it("marks the frame, and does not by default", () => {
+      const { container: plain } = render(<PromptInput onSubmit={() => {}} />)
+      expect(plain.querySelector(".hds-prompt-input")).not.toHaveAttribute("data-highlighted")
+
+      const { container } = render(<PromptInput onSubmit={() => {}} highlighted />)
+      expect(container.querySelector(".hds-prompt-input")).toHaveAttribute(
+        "data-highlighted",
+        "true"
+      )
+    })
+
+    it("is independent of disabled, so both can be read separately", () => {
+      const { container } = render(<PromptInput onSubmit={() => {}} highlighted disabled />)
+      const frame = container.querySelector(".hds-prompt-input")
+      expect(frame).toHaveAttribute("data-highlighted", "true")
+      expect(frame).toHaveAttribute("data-disabled", "true")
+    })
+  })
 })

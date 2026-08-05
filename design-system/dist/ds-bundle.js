@@ -16908,6 +16908,8 @@ function PromptInput({
   maxRows = 8,
   attachments,
   toolbar,
+  toolbarOverlay,
+  highlighted = false,
   sendLabel = "Send",
   onStop,
   stopLabel = "Stop",
@@ -16967,32 +16969,41 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs53("div", { className: cx("hds-prompt-input", className), "data-disabled": disabled || void 0, ...rest, children: [
-    attachments && /* @__PURE__ */ jsx93("div", { className: "hds-prompt-input-attachments", children: attachments }),
-    highlight ? /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-editor", children: [
-      /* @__PURE__ */ jsx93("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
-      textarea
-    ] }) : textarea,
-    /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-toolbar", children: [
-      /* @__PURE__ */ jsx93("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }),
-      /* @__PURE__ */ jsxs53(
-        "button",
-        {
-          type: "button",
-          className: "hds-prompt-input-send",
-          "data-mode": stopMode ? "stop" : "send",
-          disabled: stopMode ? disabled : sendDisabled,
-          "aria-label": stopMode ? stopLabel : sendLabel,
-          title: stopMode ? stopLabel : sendLabel,
-          onClick: stopMode ? onStop : submit,
-          children: [
-            /* @__PURE__ */ jsx93(SendIcon, {}),
-            /* @__PURE__ */ jsx93(StopIcon, {})
-          ]
-        }
-      )
-    ] })
-  ] });
+  return /* @__PURE__ */ jsxs53(
+    "div",
+    {
+      className: cx("hds-prompt-input", className),
+      "data-disabled": disabled || void 0,
+      "data-highlighted": highlighted || void 0,
+      ...rest,
+      children: [
+        attachments && /* @__PURE__ */ jsx93("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight ? /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx93("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
+          textarea
+        ] }) : textarea,
+        /* @__PURE__ */ jsxs53("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx93("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx93("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs53(
+            "button",
+            {
+              type: "button",
+              className: "hds-prompt-input-send",
+              "data-mode": stopMode ? "stop" : "send",
+              disabled: stopMode ? disabled : sendDisabled,
+              "aria-label": stopMode ? stopLabel : sendLabel,
+              title: stopMode ? stopLabel : sendLabel,
+              onClick: stopMode ? onStop : submit,
+              children: [
+                /* @__PURE__ */ jsx93(SendIcon, {}),
+                /* @__PURE__ */ jsx93(StopIcon, {})
+              ]
+            }
+          )
+        ] })
+      ]
+    }
+  );
 }
 export {
   Accordion2 as Accordion,
