@@ -1,0 +1,36 @@
+.hds-level-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+  min-width: 64px;
+}
+
+.hds-level-meter-bar {
+  flex: 1 1 0;
+  /* A bar never disappears: an empty slot would read as a broken meter rather
+     than as a quiet moment. */
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: var(--rounded-full);
+  transition: height 0.08s var(--ease-quart);
+}
+
+/* No signal at all. The bars flatten to one quiet rule in the neutral ramp —
+   unmistakably "nothing is being heard", and quiet enough that it does not
+   compete with the surface it sits in.
+
+   `--muted`, not `--border-strong`: the flat line is a *meaningful* non-text
+   indicator (it is the answer to "is this hearing me?"), so it owes 3:1 against
+   its background, and the border tokens are translucent hairline colors that
+   cannot carry that. */
+.hds-level-meter[data-signal="none"] .hds-level-meter-bar {
+  background: var(--muted);
+  height: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-level-meter-bar {
+    transition-duration: 0.01ms;
+  }
+}

@@ -3617,6 +3617,31 @@ button.hds-breadcrumb-segment:hover {
   }
 }
 
+/* src/components/LevelMeter/LevelMeter.css */
+.hds-level-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+  min-width: 64px;
+}
+.hds-level-meter-bar {
+  flex: 1 1 0;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: var(--rounded-full);
+  transition: height 0.08s var(--ease-quart);
+}
+.hds-level-meter[data-signal=none] .hds-level-meter-bar {
+  background: var(--muted);
+  height: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-level-meter-bar {
+    transition-duration: 0.01ms;
+  }
+}
+
 /* src/components/Alert/Alert.css */
 .hds-alert {
   display: flex;

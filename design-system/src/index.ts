@@ -114,6 +114,8 @@ export { Breadcrumb, BreadcrumbItem } from "./components/Breadcrumb/Breadcrumb";
 export { Tree } from "./components/Tree/Tree";
 export { Avatar } from "./components/Avatar/Avatar";
 export { Progress } from "./components/Progress/Progress";
+export { LevelMeter } from "./components/LevelMeter/LevelMeter";
+export type { LevelMeterProps } from "./components/LevelMeter/LevelMeter";
 export { Alert } from "./components/Alert/Alert";
 export { Empty } from "./components/Empty/Empty";
 export { Kbd } from "./components/Kbd/Kbd";
