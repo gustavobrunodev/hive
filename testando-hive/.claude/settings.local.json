@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv:*)",
+      "Write",
+      "Bash(npm:*)",
+      "Bash(qmd:*)",
+      "Bash(/home/gustavobgt/.nvm/versions/node/v22.22.1/bin/qmd:*)",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(pwd:*)"
+    ]
+  }
+}

@@ -1,11 +1,13 @@
 # Ingestion Log
 
-## [2026-08-01] ingest | User Profile & Hub Squad Context
+## [2026-08-05] ingest | Squad Frontend Specialist
 
-Processed ingest-20260801-140331-blofk9.md. Created 9 new pages, updated 0 existing pages.
+Processed ingest-20260805-132108-y7a0r6.md. Created 2 new pages, updated 0 existing pages.
 
-**New entities:** [[Gustavo]], [[Hub Squad]], [[Simulator Webview]], [[Operations History Webview]], [[PF Exchange Hub]]
+New entities: [[Gustavo]]. New concepts: none.
 
-**New concepts:** [[Frontend Specialization]], [[Squad Structure]]
+## [2026-08-05] ingest | Lucas — Tech Lead Backend (Hub PF)
 
-**Summary pages:** [[User Profile & Hub Squad Context]]
+Processed ingest-20260805-132622-be276r.md. Created 3 new pages, updated 0 existing pages.
+
+New entities: [[Lucas]], [[Squad Hub PF]]. New concepts: none.

@@ -11,7 +11,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 [core]
-document_output_language = "Português"
+document_output_language = "English"
 project_name = "testando-hive"
 output_folder = "{project-root}/_bmad-output"
 

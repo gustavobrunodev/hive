@@ -1,29 +1,25 @@
 ---
-tags: [person, frontend-specialist, team-member]
-sources: [ingest-20260801-140331-blofk9.md]
-created: 2026-08-01
-updated: 2026-08-01
+tags: [person, frontend-specialist, squad-member]
+sources: [ingest-20260805-132108-y7a0r6.md]
+created: 2026-08-05
+updated: 2026-08-05
 ---
 
 # Gustavo
 
-**Role:** Frontend specialist  
-**Squad:** [[Hub Squad]]
+**Role:** Frontend Specialist  
+**Expertise:** All frontend components and systems
 
-## Profile
+## Overview
 
-Frontend specialist working in the hub squad. Responsible for development across multiple core frontend applications.
+Gustavo is the frontend specialist of the squad with comprehensive knowledge across all frontend pieces and components.
 
-## Expertise
+## Expertise Areas
 
-- Frontend development and specialization
+- Frontend architecture and systems
+- All frontend components within the squad
+- Frontend technical decision-making
 
-## Affiliated Applications
+## Sources
 
-- [[Simulator Webview]]
-- [[Operations History Webview]]
-- [[PF Exchange Hub]]
-
-## Related Concepts
-
-- [[Frontend Specialization]]
+- [[squad-frontend-specialist]] — Initial reference establishing his role

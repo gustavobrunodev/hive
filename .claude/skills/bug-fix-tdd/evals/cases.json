@@ -1,0 +1,82 @@
+[
+  {
+    "id": "bft-001-off-by-one",
+    "input": "Bug: slice() method in JavaScript. The function `sliceArray(arr, start, end)` should return elements from index `start` up to (but not including) index `end`, like standard slice(). Currently it includes the end index.\n\nCode:\n```javascript\nfunction sliceArray(arr, start, end) {\n  const result = [];\n  for (let i = start; i <= end; i++) {\n    result.push(arr[i]);\n  }\n  return result;\n}\n\nsliceArray([1, 2, 3, 4, 5], 1, 3); // Expected: [2, 3], Got: [2, 3, 4]\n```\n\nFix this using red-green-refactor TDD.",
+    "rubric": {
+      "red_phase": "Must write a test that fails on current code, proving the off-by-one bug. Test should assert `sliceArray([1, 2, 3, 4, 5], 1, 3)` equals `[2, 3]` (not `[2, 3, 4]`).",
+      "green_phase": "Minimal fix: change loop condition from `i <= end` to `i < end`. No other changes.",
+      "refactor_phase": "Optional: code is already clear. If included, should not change behavior.",
+      "outcome": "Test passes. Function correctly excludes the end index. No behavior changes to other cases.",
+      "rejection_criteria": [
+        "Red phase is missing or test doesn't fail on current code",
+        "Green phase includes unnecessary refactoring or behavior changes",
+        "Final code still has the off-by-one error",
+        "Test never actually passes after the fix"
+      ]
+    }
+  },
+  {
+    "id": "bft-002-null-check",
+    "input": "Bug: null reference error in Python. Function `getUserEmail(user)` crashes when `user` is None or when `user['profile']` is None.\n\nCode:\n```python\ndef getUserEmail(user):\n  return user['profile']['email']\n\nprint(getUserEmail(None))  # Crashes: TypeError\nprint(getUserEmail({'profile': None}))  # Crashes: TypeError\nprint(getUserEmail({'profile': {'email': 'test@example.com'}}))  # Works\n```\n\nFix this using red-green-refactor TDD. Should return None or a safe default when data is missing.",
+    "rubric": {
+      "red_phase": "Write tests that fail and demonstrate crashes: test with None user, test with missing profile, test with missing email. Show failures.",
+      "green_phase": "Add safe access: check if user exists, if profile exists, if email exists. Return None (or default) for missing data. Minimal change only.",
+      "refactor_phase": "Optional: simplify nested checks if helpful (e.g., use dict.get() chain or utility).",
+      "outcome": "All tests pass. No crashes. Returns None/default for missing data, email for valid data.",
+      "rejection_criteria": [
+        "No red-phase test demonstrating crashes",
+        "Solution uses generic try-except without explaining the error cases",
+        "Tests don't actually pass (still crashes in one case)",
+        "Adds error handling (try-except) instead of explicit null checks"
+      ]
+    }
+  },
+  {
+    "id": "bft-003-edge-case-empty",
+    "input": "Bug: calculateAverage() ignores edge case. Function crashes when given empty list.\n\nCode:\n```python\ndef calculateAverage(numbers):\n  total = sum(numbers)\n  return total / len(numbers)  # Crashes: ZeroDivisionError when numbers is []\n\nprint(calculateAverage([10, 20, 30]))  # Works: 20.0\nprint(calculateAverage([]))  # Crashes\n```\n\nFix using TDD. Return 0 when list is empty.",
+    "rubric": {
+      "red_phase": "Write failing test: `calculateAverage([])` should return 0, not crash. Show the ZeroDivisionError failure.",
+      "green_phase": "Add early check: if not numbers (or len(numbers) == 0), return 0. Nothing else changes.",
+      "refactor_phase": "Optional.",
+      "outcome": "Test passes. Empty list returns 0. Non-empty lists still calculate correctly.",
+      "rejection_criteria": [
+        "No red-phase test for empty list",
+        "Catches ZeroDivisionError instead of preventing it",
+        "Refactoring in green phase (e.g., using numpy.mean or math.fsum)",
+        "Empty list returns something other than 0 (e.g., None, raises exception)"
+      ]
+    }
+  },
+  {
+    "id": "bft-004-type-conversion",
+    "input": "Bug: parsePrice() returns wrong type. Function receives price as string but returns string instead of number.\n\nCode:\n```javascript\nfunction parsePrice(priceStr) {\n  return priceStr.replace('$', '').replace(',', '');\n}\n\nconsole.log(parsePrice('$1,234.56'));  // Returns '1234.56' (string), should return 1234.56 (number)\nconsole.log(typeof parsePrice('$1,234.56'));  // 'string', should be 'number'\n```\n\nFix using TDD.",
+    "rubric": {
+      "red_phase": "Write test that asserts result is a number: `typeof parsePrice('$1,234.56') === 'number'` and value equals 1234.56 (not '1234.56').",
+      "green_phase": "Wrap result in parseFloat(): add `return parseFloat(...)` around the existing string manipulation.",
+      "refactor_phase": "Optional: code is clear.",
+      "outcome": "Test passes. Returns number, not string. Value is correct (1234.56).",
+      "rejection_criteria": [
+        "No red-phase test checking type",
+        "Returns string instead of number",
+        "Value incorrect (e.g., 1234 instead of 1234.56)",
+        "Refactoring changes logic (e.g., regex overhaul in green phase)"
+      ]
+    }
+  },
+  {
+    "id": "bft-005-logic-inversion",
+    "input": "Bug: isValidEmail() logic is inverted. Function rejects valid emails and accepts invalid ones.\n\nCode:\n```python\nimport re\n\ndef isValidEmail(email):\n  pattern = r'^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$'\n  return not re.match(pattern, email)  # BUG: 'not' inverts the result\n\nprint(isValidEmail('user@example.com'))  # Returns False, should be True\nprint(isValidEmail('invalid.email'))  # Returns True, should be False\n```\n\nFix using TDD.",
+    "rubric": {
+      "red_phase": "Write tests: valid emails should return True, invalid should return False. Show both failing.",
+      "green_phase": "Remove the `not` operator. Minimal one-word fix.",
+      "refactor_phase": "Optional.",
+      "outcome": "Tests pass. Valid emails return True. Invalid return False.",
+      "rejection_criteria": [
+        "Red phase missing or doesn't test both valid and invalid emails",
+        "Green phase changes the regex instead of just removing `not`",
+        "Tests still fail (logic still inverted)",
+        "Valid emails still return False"
+      ]
+    }
+  }
+]
