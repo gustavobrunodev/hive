@@ -22,6 +22,12 @@ export default defineConfig(
       // function *expressions* handed to the Playwright MCP tool, not modules —
       // the app's TS/ESM rules don't apply to them.
       'tools/visual/**',
+      // voice-prompt: the dictation capture worklet. A shipped static asset
+      // (copied same-origin by the renderer's publicDir, loaded by URL through
+      // `audioWorklet.addModule` — never imported), running on the audio render
+      // thread against `AudioWorkletGlobalScope`, not the app's TS/DOM globals.
+      // Same category as `out/`: an artifact the app serves, not app source.
+      'src/renderer/public/**',
       '**/__fixtures__/**' // test fixtures (e.g. the MCP probe's fake stdio server)
     ]
   },

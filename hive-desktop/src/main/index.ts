@@ -1,4 +1,14 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net, session } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  protocol,
+  net,
+  screen,
+  session
+} from 'electron'
 import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
@@ -59,6 +69,42 @@ import {
 // registration below for the full rationale.
 const OPEN_EXTERNAL_ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 
+/**
+ * Opens the window filling the screen, treating `maximize()` as a *request*
+ * rather than a result.
+ *
+ * On WSLg (Electron's window manager on WSL2 is Weston in RAIL mode)
+ * `maximize()` is accepted at the protocol level — the window's
+ * `_NET_WM_STATE` gains the MAXIMIZED_VERT/HORZ atoms and `isMaximized()`
+ * returns true — but it is resized to a fixed ~1012x687 whatever the display
+ * measures. Because the window then *believes* it is maximized, the titlebar's
+ * maximize button only toggles that bogus state, so it can't be filled by hand
+ * either. Measured on that host: workArea 1920x1080, bounds 1012x687.
+ *
+ * The correction has to wait for the WM's own resize to land: Weston applies
+ * its (wrong) geometry asynchronously, so bounds set synchronously after
+ * `maximize()` are simply overwritten a frame later. Hence the check hangs off
+ * the first `resize` — there, the WM has committed and an explicit `setBounds`
+ * sticks, keeping the real maximized state intact.
+ *
+ * On Windows/macOS/normal Linux DEs that same resize reports the work area
+ * already covered, the guard is false, and nothing is touched. `isMaximized()`
+ * additionally scopes this to the maximize path: a window the user resized by
+ * hand is un-maximized first, so a later resize can never snap back to full
+ * screen.
+ */
+function fillWorkArea(window: BrowserWindow): void {
+  window.once('resize', () => {
+    if (!window.isMaximized()) return
+    const { workArea } = screen.getDisplayMatching(window.getBounds())
+    const { width, height } = window.getBounds()
+    if (width < workArea.width * 0.9 || height < workArea.height * 0.9) {
+      window.setBounds(workArea)
+    }
+  })
+  window.maximize()
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -76,7 +122,12 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    // The 900x670 above is only the *restored* size: the app's shell (rail +
+    // chat + viewer) needs the whole screen to be usable, so the window opens
+    // filling the work area. F11 (the default menu's accelerator) still toggles
+    // real fullscreen.
     mainWindow.show()
+    fillWorkArea(mainWindow)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

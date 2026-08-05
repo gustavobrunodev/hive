@@ -15,11 +15,29 @@ const userDataDir = mkdtempSync(join(tmpdir(), 'hive-main-index-test-'))
 // Mocks Electron + the electron-toolkit helpers + the ?asset icon import so
 // src/main/index.ts can be imported and its bootstrap logic exercised in
 // plain Node, without a real Electron main process.
+// The window geometry the BrowserWindow/screen mocks below report, shared with
+// the tests so they can play both the WM that honours maximize() and the one
+// (WSLg's Weston) that only pretends to — see fillWorkArea() in index.ts.
+const { windowGeometry } = vi.hoisted(() => ({
+  windowGeometry: {
+    workArea: { x: 0, y: 0, width: 1920, height: 1080 },
+    bounds: { x: 0, y: 0, width: 900, height: 670 },
+    isMaximized: true
+  }
+}))
+
 vi.mock('electron', () => {
   const BrowserWindowMock = vi.fn().mockImplementation(() => ({
     webContents: { setWindowOpenHandler: vi.fn() },
     on: vi.fn(),
+    once: vi.fn(),
     show: vi.fn(),
+    maximize: vi.fn(),
+    isMaximized: vi.fn(() => windowGeometry.isMaximized),
+    getBounds: vi.fn(() => windowGeometry.bounds),
+    setBounds: vi.fn((bounds: typeof windowGeometry.bounds) => {
+      windowGeometry.bounds = { ...bounds }
+    }),
     loadURL: vi.fn(),
     loadFile: vi.fn()
   }))
@@ -48,6 +66,7 @@ vi.mock('electron', () => {
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
     // Second Brain recorder: the microphone permission handler.
     session: { defaultSession: { setPermissionRequestHandler: vi.fn() } },
+    screen: { getDisplayMatching: vi.fn(() => ({ workArea: windowGeometry.workArea })) },
     net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) }
   }
 })
@@ -572,7 +591,10 @@ describe('main process bootstrap', () => {
   it("wires up the BrowserWindow's ready-to-show/window-open/browser-window-created callbacks", () => {
     const mainWindowInstance = vi.mocked(BrowserWindow).mock.results[0].value as {
       on: ReturnType<typeof vi.fn>
+      once: ReturnType<typeof vi.fn>
       show: ReturnType<typeof vi.fn>
+      maximize: ReturnType<typeof vi.fn>
+      setBounds: ReturnType<typeof vi.fn>
       webContents: { setWindowOpenHandler: ReturnType<typeof vi.fn> }
     }
 
@@ -580,7 +602,17 @@ describe('main process bootstrap', () => {
       ([channel]) => channel === 'ready-to-show'
     )?.[1] as () => void
     readyToShow()
+    expect(mainWindowInstance.maximize).toHaveBeenCalled()
     expect(mainWindowInstance.show).toHaveBeenCalled()
+
+    // The WM's resize lands afterwards: here it reports a still-900x670 window
+    // on a 1920x1080 work area — the WSLg case — so the bounds are set
+    // explicitly.
+    const onResize = mainWindowInstance.once.mock.calls.find(
+      ([channel]) => channel === 'resize'
+    )?.[1] as () => void
+    onResize()
+    expect(mainWindowInstance.setBounds).toHaveBeenCalledWith(windowGeometry.workArea)
 
     const windowOpenHandler = mainWindowInstance.webContents.setWindowOpenHandler.mock
       .calls[0][0] as (details: { url: string }) => { action: string }
@@ -595,6 +627,39 @@ describe('main process bootstrap', () => {
     ) => void
     expect(browserWindowCreated).toBeInstanceOf(Function)
     browserWindowCreated(undefined, mainWindowInstance)
+  })
+
+  it('leaves the window alone when the WM does honour maximize()', () => {
+    const mainWindowInstance = vi.mocked(BrowserWindow).mock.results[0].value as {
+      on: ReturnType<typeof vi.fn>
+      once: ReturnType<typeof vi.fn>
+      setBounds: ReturnType<typeof vi.fn>
+    }
+    const readyToShow = mainWindowInstance.on.mock.calls.find(
+      ([channel]) => channel === 'ready-to-show'
+    )?.[1] as () => void
+    const lastResizeHandler = (): (() => void) => {
+      const calls = mainWindowInstance.once.mock.calls.filter(([channel]) => channel === 'resize')
+      return calls[calls.length - 1][1] as () => void
+    }
+
+    // A WM that actually maximizes: the window already covers the work area, so
+    // fillWorkArea() must not touch its bounds — overriding them would drop the
+    // genuine maximized state on Windows/macOS/normal Linux DEs.
+    windowGeometry.bounds = { ...windowGeometry.workArea }
+    mainWindowInstance.setBounds.mockClear()
+    readyToShow()
+    lastResizeHandler()()
+    expect(mainWindowInstance.setBounds).not.toHaveBeenCalled()
+
+    // And a resize on a window that is *not* maximized (the user dragged it
+    // smaller) is never snapped back to full screen.
+    windowGeometry.bounds = { x: 0, y: 0, width: 600, height: 400 }
+    windowGeometry.isMaximized = false
+    readyToShow()
+    lastResizeHandler()()
+    expect(mainWindowInstance.setBounds).not.toHaveBeenCalled()
+    windowGeometry.isMaximized = true
   })
 
   it("app 'activate' recreates a window only when none are open (macOS dock-click behavior)", () => {
