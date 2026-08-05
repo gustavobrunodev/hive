@@ -387,6 +387,12 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        'src/renderer/src/dictation/transcriptJoin.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
       }
     }
