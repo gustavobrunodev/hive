@@ -243,11 +243,29 @@ runner e o `xvfb-run` só se provam no primeiro push.
 | Categoria \ Stage | In-session | Pre-commit | CI | Contínuo | Runtime |
 | --- | --- | --- | --- | --- | --- |
 | Manutenibilidade | tsc, ESLint, coverage | ESLint --fix, Prettier | verify + coverage (report) | — | — |
-| Arquitetura | `noInlineStrings`, `moduleBoundaries`, `contrast` | — | verify | — | — |
+| Arquitetura | `noInlineStrings`, `moduleBoundaries` (+ fronteira `dictation/`↛`chat/`), `contrast` (+ transporte de ditado, 3 temas), `reducedMotion` (+ sem animar layout) | — | verify | — | — |
 | Comportamento | Vitest | — | verify + E2E (report) | — | — |
 | Segurança | — | — | — | — | — |
 
 Segurança segue vazia **de propósito** — ver §7.
+
+### 2026-08-05 — voice-prompt (M13): três sensores novos
+
+Nenhuma ferramenta nova; três regras que antes eram **comentário** viraram
+teste. Cada uma nasceu de um defeito real desta feature ou de um que ela
+tornaria fácil de introduzir.
+
+| # | Sensor | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Nenhum módulo de `dictation/` importa de `chat/` | `src/main/moduleBoundaries.test.ts` | VP-R5.1. Reusabilidade decidida depois é refatoração; o `DictationTarget` existe justamente pra o compositor ser **um** chamador e não o dono. Um import de `chat/` lá dentro é a regressão que transformaria "ligar o próximo campo" em reescrita. |
+| — | O bloco de ditado não anima nenhuma propriedade de layout (`findLayoutTransitions`) | `src/renderer/src/assets/reducedMotion.test.ts` | VP-R6.1 era uma promessa em comentário, sem nada checando. Pega `width/height/inset/margin/padding/font-size/line-height/gap` — e `all`, que é a mesma promessa sem a evidência. Verificado que morde: uma `transition: width` no medidor derruba o teste. |
+| — | Sweep de contraste **com o transporte aberto**, nos três temas | `e2e/contrast.spec.ts` | O sweep que já existia só via a work UI ociosa, então nunca viu o transporte — que só existe durante uma tomada. Inclui os três indicadores não-textuais (anel, ponto, barras) no piso próprio de 3:1. |
+
+O passe visual achou **dois** defeitos que nenhum teste pegaria (terceira
+milestone seguida — M12, M12.1, M13): o medidor "sem sinal" renderizando como
+régua pontilhada, e o seam de E2E cobrindo só dois dos três canais do
+`Capture`. O item de contraste acima é a parte disso que dá pra
+institucionalizar; o resto continua sendo **olhar**.
 
 ## 6. Steering loop
 

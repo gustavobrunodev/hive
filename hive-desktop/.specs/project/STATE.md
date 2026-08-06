@@ -605,6 +605,70 @@ Updated as work progresses. Load at start of every session.
   design-system only — **zero new main-process code, zero new IPC**. Full
   evidence in `.specs/features/voice-prompt/context.md`. (2026-08-04)
 
+## Lessons (voice-prompt — implementation, 2026-08-05)
+
+M13 shipped T1–T17 on `feat/voice-prompt` (branched off `feat/second-brain`,
+neither merged). `npm run verify` green: **2118 tests / 146 files**, 0 lint
+errors, coverage gate passing.
+
+- **The planned test baseline was stale, and nobody would have noticed.**
+  spec.md's VP-R7.1 said "no regression against 1570 tests" — M12's number,
+  written before `feat/second-brain` grew. Measuring the real branch base
+  (`59bfbca`) in a clean worktree took four minutes and gave **1959 / 135**.
+  A regression gate against a number 389 tests stale is not a gate. **Measure
+  the baseline at the start of the feature, not at planning time.**
+- **Four defects the tests caught that review would not have**, all in the same
+  family — state that outlives the render that produced it:
+  1. `capture.onTick` is registered **once**, so a `publishPhase` closing over
+     `engine.phase` freezes at whatever the phase was when capture opened — and
+     the phase that matters most, the 51 s warm-up, always arrives *after*
+     that. Mirror ref, with its own test.
+  2. A capture that resolves **after** the user discarded re-opened the
+     microphone. Fixed with a take-generation counter checked in every async
+     continuation.
+  3. In the transcription queue, once the write gate passes a **failed**
+     segment its slot is gone — so a successful retry had no slot to wait for
+     and was written *nowhere*. Retried segments are released at the caret.
+  4. `joinTranscript` handled only the left seam, so dictating in front of
+     existing text welded onto it ("Oláabc").
+- **The segmenter's noise floor cannot bootstrap from "silence" ticks.** The
+  first cut calibrated the floor from ticks *classified as silence*; in a room
+  with any real noise the very first tick already reads as speech, so nothing
+  ever teaches the floor and the gate stays open forever. Tracking the minimum
+  instead — instant downward, glacial upward, seeded by the first tick — needs
+  no bootstrap and no blocking calibration window in front of the microphone.
+- **Two lint rules paid for themselves and should be trusted, not worked
+  around.** `max-lines-per-function` caught `useDictation` at 202 lines and the
+  split it forced (`useDictationSink`) is the better design — it is the same
+  audio/text seam the task list itself drew. And the rule against synchronous
+  `setState` in an effect was right: the phase now settles through the queue's
+  own change callback, which is a subscription to an external system and is
+  where React wants that `setState` to live.
+- **The visual pass found two defects again, and again neither was reachable by
+  a test** (the M12 and M12.1 pattern, now three for three): the meter's
+  "no signal" state rendered as a *dotted* rule rather than a flat line — and
+  collapsing the gap was not enough, because a 2px bar with full pill rounding
+  notches itself away from its neighbour — and the E2E seam stood in for only
+  two of `Capture`'s three channels, so the meter looked dead while the take
+  was plainly live. **Institutionalized:** `contrast.spec.ts` now opens a take
+  and sweeps with the transport on screen in all three themes, because the
+  existing sweep only ever sees an idle work UI.
+- **⚠️ The Playwright MCP was not connected in this session.** The pass ran on
+  the installed Playwright library instead — same browser, same init-script
+  injection (`tools/visual/boot.mjs`), same contrast math. Worth knowing that
+  the recipe in `docs/visual-validation.md` works either way; the MCP is a
+  convenience, not a dependency.
+- **`prettier`/`eslint` note that cost a cycle:** this package has **no
+  jest-dom**. Renderer component tests assert on plain DOM
+  (`el.textContent`, `getAttribute`), unlike `design-system/`, which does have
+  it. Writing `toBeInTheDocument()` in a renderer test fails with "Invalid Chai
+  property", not with a helpful message.
+- Feature shape, for whoever wires the next field: `dictation/` is
+  Chat-agnostic and `moduleBoundaries.test.ts` now enforces that it imports
+  nothing from `chat/`. Adding dictation to "Perguntar à base", a commit
+  message or search is `useComposerDictation({ value, setValue, textareaRef,
+  engine })` plus rendering `<DictationBar>` in a `toolbarOverlay`.
+
 ## Lessons (voice-prompt — T1 spike: the capture path and the real Whisper clock, 2026-08-04)
 
 Measured in the **real built Electron app** (`out/main/index.js` launched with

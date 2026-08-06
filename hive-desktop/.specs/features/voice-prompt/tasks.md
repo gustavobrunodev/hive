@@ -1,7 +1,16 @@
 # Tasks — Voice Prompt
 
 **Design:** `design.md` · **Spec:** `spec.md` · **Context:** `context.md`
-**Status:** 🚧 In progress — Batches A and B complete, T14 green (T1–T14, 2026-08-05). Branch `feat/voice-prompt`, **off
+**Status:** ✅ **Done (2026-08-05)** — T1–T17 all landed on `feat/voice-prompt`
+(off `feat/second-brain`; neither merged). `npm run verify` green at **2118
+tests / 146 files**, 0 lint errors, coverage gate passing. ROADMAP M13 carries
+the exit-criteria verdict; STATE.md carries the T1 measurements and the
+implementation lessons.
+
+Two deviations worth knowing, both recorded where they happened: the planned
+1570-test baseline was stale and was re-measured at **1959** on the real branch
+base, and the visual pass ran on the Playwright **library** because the MCP was
+not connected — same recipe, same probe. Branch `feat/voice-prompt`, **off
 `feat/second-brain`** — the Whisper stack it consumes exists only there, never
 merged to `main`. ROADMAP **M13**; STATE **D26**.
 
@@ -42,7 +51,7 @@ Batch A's **T1 gates everything** — its findings can change T5 and T7.
 
 ## P0 — Spike
 
-### T1 [x] — Spike: prove the capture path and measure streaming latency
+### [x] T1 — Spike: prove the capture path and measure streaming latency
 
 **Dep:** — · **VP-R:** VP-R2 (premise), VP-R3 · **[no production code]**
 
@@ -253,7 +262,7 @@ tests / 135 files (the planned "1570" was stale — see spec.md VP-R7.1). `npm r
 test:coverage` shows every changed non-UI file ≥90%; **the inherited 14-file
 failing list has not grown**.
 
-### T15 — Real-Electron E2E
+### [x] T15 — Real-Electron E2E
 
 **Dep:** T14 · **VP-R:** VP-R7.3
 
@@ -267,7 +276,7 @@ from the env passed to `_electron.launch` (WSL interop leak, AGENTS.md). Any
 pre-existing failure is confirmed pre-existing against the branch base in a clean
 worktree before being called unrelated.
 
-### T16 — Playwright-MCP visual pass, dark + light
+### [x] T16 — Playwright-MCP visual pass, dark + light
 
 **Dep:** T15 · **VP-R:** VP-R6.2–6.3, VP-R7.4
 
@@ -280,7 +289,7 @@ likely to fail. Fix what the pass finds, in this task.
 `contrast.spec.ts` extended over the transport and green; every defect found is
 either fixed here or logged in STATE.md with a reason.
 
-### T17 — Close out: ROADMAP, STATE, spec status
+### [x] T17 — Close out: ROADMAP, STATE, spec status
 
 **Dep:** T16 · **VP-R:** VP-R7.1–7.5
 

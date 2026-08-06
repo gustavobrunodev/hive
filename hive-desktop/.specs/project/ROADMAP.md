@@ -384,7 +384,7 @@ button squeeze. STATE.md **D25**.
 
 ---
 
-## M13 — Voice Prompt 📝 Planned (2026-08-04)
+## M13 — Voice Prompt ✅ Done (2026-08-05)
 
 **Feature:** `voice-prompt` · branch `feat/voice-prompt`, **off
 `feat/second-brain`** (the Whisper stack it consumes lives only there).
@@ -421,16 +421,26 @@ evidence in context.md), **D-VP-2** streaming by pause over one block at the end
 pt-BR fixed, no selector. Derived: D-VP-5…10. Renderer + design system only —
 **zero new main-process code and zero new IPC**.
 
-**Exit criteria:** VP-R1–R6 implemented and demonstrated in the running app;
-VP-R7.1 no regression against the 1570-test baseline; VP-R7.2 ≥90% coverage per
-changed non-UI file with the inherited 14-file failing list **not** growing;
-VP-R7.3 real-Electron E2E; VP-R7.4 Playwright-MCP visual pass (dark+light);
-VP-R7.5 all copy pt-BR via `t()`.
+**Exit criteria and the verdict on each (2026-08-05, T1–T17 all landed):**
 
-T1 is a spike, per the M12 precedent: it must close OQ1 (a real 16 kHz
-`AudioContext`), OQ2 (`AudioWorklet` under this CSP from `file://`) and OQ3 (the
-**measured** real-time factor of one segment through Whisper) before anything is
-built on them — OQ3 carries a defined fallback that keeps the same UI.
+| Criterion | Met? |
+| --- | --- |
+| VP-R1–R6 implemented and demonstrated in the running app | **Yes.** Driven end to end in the real built app by `e2e/voice-prompt.spec.ts` and looked at in both themes (screenshots in `.playwright-mcp/`). |
+| VP-R7.1 no regression against the baseline | **Yes** — with the baseline corrected. The planned "1570" was M12's number and `feat/second-brain` grew afterwards; measured on the real branch base (`59bfbca`) in a clean worktree: **1959 tests / 135 files**. Now **2118 / 146**, `npm run verify` green, 0 lint errors. |
+| VP-R7.2 ≥90% per changed non-UI file, inherited 14-file list not growing | **Yes.** Every new module is gated in `vitest.config.ts`; the six pure ones (`segmenter`, `transcriptJoin`, `dictationCopy`, `phase`, `composerBackdrop`, `e2eDictationSeam`) sit at 100%. The coverage gate is part of `verify` and it passes, so the inherited list did not grow. |
+| VP-R7.3 real-Electron E2E | **Yes.** `e2e/voice-prompt.spec.ts` passes under `xvfb-run`. The one failure in the app suite (`agent-change-review.spec.ts`) was confirmed **pre-existing** by building the branch base in a clean worktree and watching it fail identically. |
+| VP-R7.4 visual pass, dark + light | **Yes**, with a deviation: the Playwright **MCP** was not connected in the session, so the same recipe ran on the installed Playwright library — same browser, same init-script injection, same probe. It found two real defects (see STATE.md). `contrast.spec.ts` now also sweeps with the transport open, across all three themes. |
+| VP-R7.5 all copy pt-BR via `t()` | **Yes.** `noInlineStrings` green. |
+
+**Deferred, unchanged from the plan:** the global push-to-talk hotkey, dictation
+in other fields (the hook and transport carry no Chat coupling, so it is wiring),
+and insert-position control.
+
+T1 was a spike, per the M12 precedent, and it earned its place: it closed OQ1
+(a real 16 kHz `AudioContext` — the resample fallback was never built), OQ2
+(`AudioWorklet` loads under this CSP from `file://` — the `ScriptProcessorNode`
+fallback was never built) and OQ3 with numbers that **changed the design**
+(`minSpeechMs` 1200 → 2000). Full measurements in STATE.md.
 
 ---
 
