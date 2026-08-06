@@ -429,6 +429,15 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // The backdrop composition lives on the Chat side (dictation may not
+        // import from `chat/`), and its contract is character-exact: a single
+        // character of drift misaligns every highlight after it, invisibly.
+        'src/renderer/src/chat/composerBackdrop.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
       }
     }
