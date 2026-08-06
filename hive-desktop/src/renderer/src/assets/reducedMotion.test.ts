@@ -41,6 +41,64 @@ export interface MotionViolation {
   properties: string[]
 }
 
+/**
+ * Properties whose animation forces layout on every frame. Animating them
+ * hands the main thread a reflow 60 times a second, and in a composer that is
+ * also running an audio graph and a transcription queue that is the difference
+ * between a mode change and a stutter (VP-R6.1).
+ */
+const LAYOUT_PROPERTIES = [
+  'width',
+  'height',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'padding',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'inset',
+  'font-size',
+  'line-height',
+  'gap'
+]
+
+/**
+ * Every `transition` that names a layout-affecting property, as
+ * `selector (property)`. `transition: all` counts: it animates whatever
+ * changes, which is the same promise with the evidence removed.
+ */
+export function findLayoutTransitions(cssText: string): string[] {
+  const source = cssText.replace(/\/\*[\s\S]*?\*\//g, '')
+  const found: string[] = []
+  for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = normalise(match[1])
+      .replace(/^.*[{;]/, '')
+      .trim()
+    for (const declaration of match[2].split(';')) {
+      const [rawProperty, rawValue] = declaration.split(':')
+      if (rawProperty === undefined || rawValue === undefined) continue
+      if (normalise(rawProperty) !== 'transition') continue
+      const value = normalise(rawValue)
+      if (value === 'none') continue
+      for (const property of value.split(',')) {
+        const name = normalise(property).split(' ')[0]
+        if (name === 'all' || LAYOUT_PROPERTIES.includes(name)) {
+          found.push(`${selector} (${name})`)
+        }
+      }
+    }
+  }
+  return found
+}
+
 interface Frame {
   head: string
   isReducedMedia: boolean
@@ -175,6 +233,28 @@ describe('prefers-reduced-motion alternatives (P2-016, PRODUCT.md a11y floor)', 
 
   it('ignores a rule that only turns motion off', () => {
     expect(findMotionViolations(`.wb-thing { transition: none; }`)).toEqual([])
+  })
+
+  it('flags a transition on a layout-affecting property, and on `all`', () => {
+    expect(
+      findLayoutTransitions(`
+        .wb-a { transition: height 0.2s ease; }
+        .wb-b { transition: all 0.2s ease; }
+        .wb-c { transition: opacity 0.2s ease, transform 0.2s ease; }
+        .wb-d { transition: none; }
+      `)
+    ).toEqual(['.wb-a (height)', '.wb-b (all)'])
+  })
+
+  // VP-R6.1: the dictation surface animates opacity and transform only. The
+  // whole point of the in-place mode change is that nothing moves that the
+  // user was already looking at.
+  it('the dictation block animates no layout property', () => {
+    const stylesheet = readFileSync(join(__dirname, 'workbench.css'), 'utf-8')
+    const dictationRules = findLayoutTransitions(stylesheet).filter(
+      (entry) => entry.includes('wb-dictation') || entry.includes('wb-composer-fresh')
+    )
+    expect(dictationRules).toEqual([])
   })
 
   it('every animated rule in workbench.css has a reduced-motion alternative', () => {
