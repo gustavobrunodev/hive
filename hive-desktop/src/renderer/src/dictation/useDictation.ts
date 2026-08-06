@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { browserCaptureDeps, CaptureFailure, startCapture, type Capture } from './micCapture'
 import { useDictationSink } from './useDictationSink'
+import { e2eStartCapture } from './e2eDictationSeam'
 import type { QueueState } from './transcriptionQueue'
 import {
   createSegmenter,
@@ -44,8 +45,12 @@ export interface DictationDeps {
 }
 
 export function browserDictationDeps(): DictationDeps {
+  // Under the E2E harness the microphone is a stand-in the test drives: real
+  // audio cannot flow headless (see `e2eDictationSeam.ts`). Everything above
+  // capture — segmenter, queue, join, transport — stays production code.
+  const scripted = e2eStartCapture()
   return {
-    startCapture: (deps = browserCaptureDeps(), rate) => startCapture(deps, rate),
+    startCapture: scripted ?? ((deps = browserCaptureDeps(), rate) => startCapture(deps, rate)),
     createSegmenter,
     config: DEFAULT_SEGMENTER_CONFIG
   }

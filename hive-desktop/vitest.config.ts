@@ -444,6 +444,16 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // The E2E stand-in for the microphone and the transcriber. Held to the
+        // full bar for the same reason as `e2eAgentSeam.ts`: its whole contract
+        // is "off unless armed", and a seam that leaked into a real run would
+        // replace the user's microphone with silence.
+        'src/renderer/src/dictation/e2eDictationSeam.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
       }
     }

@@ -37,6 +37,7 @@ import { composerBackdrop } from './composerBackdrop'
 import { DictationBar } from '../dictation/DictationBar'
 import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
+import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
@@ -603,10 +604,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // else lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
   const { phase: whisperPhase, transcribe: whisperTranscribe } = useWhisper()
   const dictationEngine = useMemo<DictationEngine>(
-    () => ({
-      phase: whisperPhase,
-      transcribe: (pcm) => whisperTranscribe(pcm, { language: DEFAULT_LANGUAGE })
-    }),
+    () =>
+      // A real Whisper pass would add a 278 MB download and ~4 s to every E2E
+      // run; the seam returns null in every other context.
+      e2eDictationEngine() ?? {
+        phase: whisperPhase,
+        transcribe: (pcm) => whisperTranscribe(pcm, { language: DEFAULT_LANGUAGE })
+      },
     [whisperPhase, whisperTranscribe]
   )
   const dictation = useComposerDictation({
