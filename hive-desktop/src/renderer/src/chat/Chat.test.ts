@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createContext, createElement, createRef, useContext, type ReactNode } from 'react'
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { Chat, type ChatHandle } from './Chat'
@@ -91,6 +91,8 @@ vi.mock('@hive/design-system', () => ({
     onStop,
     stopLabel,
     toolbar,
+    toolbarOverlay,
+    highlighted,
     attachments,
     allowEmptySubmit,
     highlight,
@@ -106,6 +108,8 @@ vi.mock('@hive/design-system', () => ({
     onStop?: () => void
     stopLabel?: string
     toolbar?: ReactNode
+    toolbarOverlay?: ReactNode
+    highlighted?: boolean
     attachments?: ReactNode
     allowEmptySubmit?: boolean
     highlight?: (value: string) => ReactNode
@@ -117,7 +121,7 @@ vi.mock('@hive/design-system', () => ({
     const stopMode = Boolean(streaming) && onStop !== undefined
     return createElement(
       'div',
-      rest,
+      { ...rest, 'data-highlighted': highlighted === true ? 'true' : undefined },
       attachments,
       highlight && createElement('div', { 'aria-hidden': true }, highlight(value ?? '')),
       createElement('input', {
@@ -137,9 +141,16 @@ vi.mock('@hive/design-system', () => ({
         },
         stopMode ? stopLabel : sendLabel
       ),
-      toolbar
+      // Alternatives, not layers — mirrors the real component (VP-R5.4).
+      toolbarOverlay === undefined ? toolbar : toolbarOverlay
     )
   },
+  LevelMeter: ({ label, levels }: { label?: string; levels?: number[] }) =>
+    createElement('div', {
+      role: 'meter',
+      'aria-label': label,
+      'data-signal': (levels ?? []).some((level) => level > 0.02) ? 'live' : 'none'
+    }),
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     // The DS Button's brand-register props (`cut`/`arrow`/`variant`) are
     // dropped: they'd land on the DOM node as unknown attributes and React
@@ -167,6 +178,71 @@ vi.mock('@hive/design-system', () => ({
     const ctx = useContext(SelectContext)
     return createElement('button', { onClick: () => ctx?.onValueChange?.(value) }, children)
   }
+}))
+
+/**
+ * voice-prompt: the microphone is faked at `micCapture`'s own seam, so these
+ * tests exercise the real hook, the real segmenter and the real join — only
+ * WebAudio is stood in for, since jsdom has none.
+ */
+const capture = vi.hoisted(() => {
+  const state = {
+    tickListeners: [] as ((tick: { rms: number; samples: Float32Array }) => void)[],
+    levelListeners: [] as ((levels: number[]) => void)[],
+    stopped: 0,
+    fail: null as Error | null
+  }
+  return {
+    state,
+    reset(): void {
+      state.tickListeners = []
+      state.levelListeners = []
+      state.stopped = 0
+      state.fail = null
+    },
+    /** Feeds `ms` of audio at one level, in 32 ms ticks. */
+    emit(ms: number, rms: number): void {
+      for (let i = 0; i < Math.ceil(ms / 32); i += 1) {
+        for (const listener of state.tickListeners) {
+          listener({ rms, samples: new Float32Array(512).fill(rms) })
+        }
+      }
+    }
+  }
+})
+
+vi.mock('../dictation/micCapture', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../dictation/micCapture')>()
+  return {
+    ...actual,
+    startCapture: async () => {
+      if (capture.state.fail !== null) throw capture.state.fail
+      return {
+        onTick: (listener: (tick: { rms: number; samples: Float32Array }) => void) =>
+          capture.state.tickListeners.push(listener),
+        onLevels: (listener: (levels: number[]) => void) =>
+          capture.state.levelListeners.push(listener),
+        stop: () => {
+          capture.state.stopped += 1
+        }
+      }
+    }
+  }
+})
+
+/** The Whisper engine, faked so a transcript is deterministic and instant. */
+const whisper = vi.hoisted(() => ({ text: 'arquivo de configuração', calls: 0 }))
+
+vi.mock('../secondBrain/whisper/useWhisper', () => ({
+  DEFAULT_LANGUAGE: 'portuguese',
+  useWhisper: () => ({
+    phase: { status: 'idle' },
+    transcribe: async () => {
+      whisper.calls += 1
+      return whisper.text
+    },
+    reset: () => undefined
+  })
 }))
 
 describe('Chat', () => {
@@ -1802,5 +1878,160 @@ describe('Chat', () => {
     // offering buttons that answer a process that is gone.
     expect(await screen.findByText('Recusado')).toBeTruthy()
     expect(screen.queryByText('Permitir')).toBeNull()
+  })
+
+  // ── voice-prompt (M13) ────────────────────────────────────────────────────
+  describe('dictation in the composer', () => {
+    // The fakes are module-level, so a previous test's teardown (which stops
+    // the capture on unmount) would otherwise be counted by the next one.
+    beforeEach(() => {
+      capture.reset()
+      whisper.calls = 0
+    })
+
+    /** Starts a take and speaks one phrase followed by a real pause. */
+    async function speak(): Promise<void> {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Ditar' }))
+      })
+      await act(async () => {
+        // The room first: this is what seeds the segmenter's noise floor.
+        capture.emit(100, 0.002)
+        capture.emit(2500, 0.4)
+        capture.emit(800, 0.002)
+      })
+    }
+
+    function composer(): HTMLInputElement {
+      return screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
+    }
+
+    it('shows a quiet mic control in the toolbar, unpressed (VP-R1.1)', async () => {
+      renderChat()
+      const mic = await screen.findByRole('button', { name: 'Ditar' })
+      expect(mic.getAttribute('aria-pressed')).toBe('false')
+      // Same visual weight as the attach control — never an accent-filled CTA.
+      expect(mic.classList.contains('wb-attach-btn')).toBe(true)
+    })
+
+    it('puts the composer into dictation mode in place (VP-R1.2)', async () => {
+      renderChat()
+      const mic = await screen.findByRole('button', { name: 'Ditar' })
+      await act(async () => {
+        fireEvent.click(mic)
+      })
+
+      // The transport replaced the toolbar cluster, the frame took the ring…
+      expect(document.body.querySelector('[data-highlighted="true"]')).toBeTruthy()
+      // …and the paperclip is gone with the cluster it lived in.
+      expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Descartar' })).toBeTruthy()
+    })
+
+    it('lands the transcribed phrase at the caret, joined to what was typed', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
+      fireEvent.change(composer(), { target: { value: 'revisa o ' } })
+      await speak()
+
+      await waitFor(() => {
+        expect(composer().value).toBe('revisa o arquivo de configuração')
+      })
+      // Capture continues — the phrase arrived while the take is still live.
+      expect(capture.state.stopped).toBe(0)
+    })
+
+    it('restores the exact draft when Esc discards the take (VP-R1.5, D-VP-9)', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
+      fireEvent.change(composer(), { target: { value: 'revisa o ' } })
+      await speak()
+      await waitFor(() => {
+        expect(composer().value).toBe('revisa o arquivo de configuração')
+      })
+
+      await act(async () => {
+        fireEvent.keyDown(composer(), { key: 'Escape' })
+      })
+
+      expect(composer().value).toBe('revisa o ')
+      expect(capture.state.stopped).toBe(1)
+      // Back to the ordinary toolbar.
+      expect(screen.getByRole('button', { name: 'Ditar' }).getAttribute('aria-pressed')).toBe(
+        'false'
+      )
+    })
+
+    it('finalizes before sending, never a half-transcribed prompt (VP-R1.6)', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
+      await speak()
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+      })
+
+      await waitFor(() => {
+        expect(window.hive.agent.send).toHaveBeenCalled()
+      })
+      // What was sent is the transcript, not the empty value the send saw.
+      const [sent] = vi.mocked(window.hive.agent.send).mock.calls[0]
+      expect(sent).toContain('Arquivo de configuração')
+      expect(capture.state.stopped).toBe(1)
+    })
+
+    it('toggles with the composer shortcut, concluding rather than discarding', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
+      fireEvent.change(composer(), { target: { value: 'antes ' } })
+
+      await act(async () => {
+        fireEvent.keyDown(composer(), { key: 'D', ctrlKey: true, shiftKey: true })
+      })
+      expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
+
+      await act(async () => {
+        capture.emit(100, 0.002)
+        capture.emit(2500, 0.4)
+      })
+      await act(async () => {
+        fireEvent.keyDown(composer(), { key: 'D', ctrlKey: true, shiftKey: true })
+      })
+
+      // Concluded: the take's text is kept, unlike Esc.
+      await waitFor(() => {
+        expect(composer().value).toContain('arquivo de configuração')
+      })
+    })
+
+    it('warms the engine on intent, and not before (D-VP-6)', async () => {
+      renderChat()
+      const mic = await screen.findByRole('button', { name: 'Ditar' })
+      whisper.calls = 0
+
+      fireEvent.pointerEnter(mic)
+      await waitFor(() => {
+        expect(whisper.calls).toBe(1)
+      })
+      // Hovering again costs nothing.
+      fireEvent.pointerEnter(mic)
+      expect(whisper.calls).toBe(1)
+    })
+
+    it('explains a refused microphone and leaves the draft untouched (VP-R4.3)', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
+      fireEvent.change(composer(), { target: { value: 'meu rascunho' } })
+      capture.state.fail = new (await import('../dictation/micCapture')).CaptureFailure('denied')
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Ditar' }))
+      })
+
+      expect(screen.getByRole('status').textContent).toContain('Sem acesso ao microfone')
+      expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
+      expect(composer().value).toBe('meu rascunho')
+    })
   })
 })

@@ -23,7 +23,7 @@ import {
 } from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
-import { HiveCellIcon, PaperclipIcon, SlashIcon, SlidersIcon } from '../ui/icons'
+import { HiveCellIcon, MicIcon, PaperclipIcon, SlashIcon, SlidersIcon } from '../ui/icons'
 import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
 import { ScrollableRow } from '../ui/ScrollableRow'
 import { shortcutIcon } from '../ui/roleVisuals'
@@ -33,6 +33,11 @@ import { IntentGrid } from './IntentGrid'
 import { SlashMenu, type SlashSkill } from './SlashMenu'
 import { FileMentionMenu } from './FileMentionMenu'
 import { extractMentions, formatFileSize, mentionSegments } from './composerMentions'
+import { composerBackdrop } from './composerBackdrop'
+import { DictationBar } from '../dictation/DictationBar'
+import { useComposerDictation } from '../dictation/useComposerDictation'
+import type { DictationEngine } from '../dictation/useDictation'
+import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
 import { useMentions } from './useMentions'
@@ -440,16 +445,30 @@ function syncStreamingUi(ctx: TurnEventCtx): void {
  * (see PromptInput's `highlight` contract). Module scope — pure function of
  * its inputs.
  */
-function renderMentionBackdrop(value: string, fileSet: ReadonlySet<string>): React.ReactNode {
-  return mentionSegments(value, fileSet).map((segment, index) =>
-    segment.mention ? (
-      <mark key={index} className="wb-mention-token">
+function renderMentionBackdrop(
+  value: string,
+  fileSet: ReadonlySet<string>,
+  freshRange: readonly [number, number] | null
+): React.ReactNode {
+  return composerBackdrop(value, fileSet, freshRange).map((segment, index) => {
+    const className = [
+      segment.mention ? 'wb-mention-token' : null,
+      segment.fresh ? 'wb-composer-fresh' : null
+    ]
+      .filter((name) => name !== null)
+      .join(' ')
+    // A mention still renders as <mark>; the freshly-landed run is a plain
+    // span, because it is a transient glance and not a semantic token.
+    return segment.mention ? (
+      <mark key={index} className={className}>
         {segment.text}
       </mark>
     ) : (
-      <span key={index}>{segment.text}</span>
+      <span key={index} className={className === '' ? undefined : className}>
+        {segment.text}
+      </span>
     )
-  )
+  })
 }
 
 /** Parent-folder line for a workspace attachment chip; `undefined` for a root-level file (the chip then shows only the name). */
@@ -579,6 +598,23 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const attachments = useAttachments(capabilities?.supportsAttachments ?? false, workspace)
   const mentions = useMentions(workspace, composerValue, setComposerValue, composerTextareaRef)
+  // voice-prompt (M13): the composer gains dictation. The engine is M12's
+  // embedded Whisper, reused as-is and pinned to pt-BR (D-VP-4); everything
+  // else lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
+  const { phase: whisperPhase, transcribe: whisperTranscribe } = useWhisper()
+  const dictationEngine = useMemo<DictationEngine>(
+    () => ({
+      phase: whisperPhase,
+      transcribe: (pcm) => whisperTranscribe(pcm, { language: DEFAULT_LANGUAGE })
+    }),
+    [whisperPhase, whisperTranscribe]
+  )
+  const dictation = useComposerDictation({
+    value: composerValue,
+    setValue: setComposerValue,
+    textareaRef: composerTextareaRef,
+    engine: dictationEngine
+  })
   // session-history: which stored conversation the pane is showing (null =
   // fresh, not yet persisted — it materializes on the first sent message).
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -814,6 +850,41 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [beginTurn, attachments, mentions.fileSet, activeAgent, model, effort]
   )
 
+  /**
+   * VP-R1.6: submitting during a take finalizes it first and sends what the
+   * transcription actually produced — never a half-transcribed prompt. The
+   * send is deferred until the queue drains; `handleDictationSettled` below
+   * performs it.
+   */
+  const pendingSendRef = useRef(false)
+  const handleComposerSubmit = useCallback(
+    (value: string) => {
+      if (dictation.active) {
+        pendingSendRef.current = true
+        dictation.finish()
+        return
+      }
+      handleSubmit(value)
+    },
+    [dictation, handleSubmit]
+  )
+
+  // The deferred half of VP-R1.6. A take that ended cleanly sends what the
+  // composer now holds; a take that ended in an error does NOT — the failure
+  // and its retry are on screen, and sending a prompt missing a segment is the
+  // silent data loss this whole feature is built to avoid.
+  const dictationStatus = dictation.phase.status
+  const composerValueRef = useRef(composerValue)
+  useEffect(() => {
+    composerValueRef.current = composerValue
+  }, [composerValue])
+  useEffect(() => {
+    if (!pendingSendRef.current) return
+    if (dictationStatus === 'finalizing') return
+    pendingSendRef.current = false
+    if (dictationStatus === 'idle') handleSubmit(composerValueRef.current)
+  }, [dictationStatus, handleSubmit])
+
   const handleStop = useCallback(() => {
     // CC-R1: interrupt only the on-screen conversation's turn, never
     // `stop()` (which would tear down the whole session) and never a blanket
@@ -1038,8 +1109,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         dismiss: mentions.dismiss,
         select: mentions.select
       })
+      // Last, and only if a menu did not already claim the event: Esc belongs
+      // to an open menu before it belongs to the take (VP-R1.5, VP-R1.7).
+      dictation.handleKeyDown(event)
     },
-    [slashOpen, filteredSkills, slashHighlight, selectSlashSkill, mentions]
+    [slashOpen, filteredSkills, slashHighlight, selectSlashSkill, mentions, dictation]
   )
 
   const assistantAvatar = (
@@ -1091,6 +1165,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     if (!capabilities) return <Spinner label={t('chat.loadingCapabilities')} />
     return (
       <>
+        {/* Leading the paperclip and sharing its weight: dictation is an
+            alternative to typing, not a campaign (VP-R1.1). Hover or focus
+            starts the engine warming in the background (D-VP-6) — nothing is
+            downloaded for a user who never reaches for it. */}
+        <button
+          type="button"
+          className="wb-attach-btn wb-mic-btn"
+          aria-label={t('dictation.start')}
+          aria-pressed={dictation.active}
+          title={t('dictation.startHint')}
+          onPointerEnter={dictation.prewarm}
+          onFocus={dictation.prewarm}
+          onClick={() => (dictation.active ? dictation.finish() : dictation.start())}
+        >
+          <MicIcon size={15} />
+        </button>
         {capabilities.supportsAttachments && (
           <button
             type="button"
@@ -1144,8 +1234,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   }
 
   const highlightComposer = useCallback(
-    (value: string) => renderMentionBackdrop(value, mentions.fileSet),
-    [mentions.fileSet]
+    (value: string) => renderMentionBackdrop(value, mentions.fileSet, dictation.freshRange),
+    [mentions.fileSet, dictation.freshRange]
   )
 
   // Nested so the menus'/attachments' conditionals stay off the Chat
@@ -1208,7 +1298,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         <PromptInput
           value={composerValue}
           onChange={handleComposerChange}
-          onSubmit={handleSubmit}
+          onSubmit={handleComposerSubmit}
           streaming={isStreaming}
           onStop={handleStop}
           stopLabel={t('chat.stopAria')}
@@ -1231,6 +1321,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           highlight={highlightComposer}
           textareaRef={composerTextareaRef}
           toolbar={renderToolbar()}
+          highlighted={dictation.active}
+          toolbarOverlay={
+            dictation.active ? (
+              <DictationBar
+                phase={dictation.phase}
+                levels={dictation.levels}
+                failure={dictation.failure}
+                onFinish={dictation.finish}
+                onDiscard={dictation.discard}
+                onRetry={dictation.retry}
+                onRequestMic={dictation.start}
+              />
+            ) : undefined
+          }
         />
         {attachments.dragActive && (
           <div className="wb-composer-dropzone">

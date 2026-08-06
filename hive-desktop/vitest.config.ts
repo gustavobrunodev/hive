@@ -438,6 +438,12 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        'src/renderer/src/dictation/useComposerDictation.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }
