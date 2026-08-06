@@ -37,8 +37,17 @@ describe('the dictation E2E seam', () => {
     // The harness's own array is the wire: the spec pushes through it.
     for (const listener of scope.__hiveDictationE2E.ticks ?? []) listener(tick)
     expect(seen).toEqual([tick])
-    // No levels: the meter has no signal to show when there is no device.
-    expect(() => capture.onLevels(() => undefined)).not.toThrow()
+  })
+
+  // The meter reads the analyser, not the worklet, so a stand-in that only
+  // carried ticks left the meter flat while the take was plainly live.
+  it('carries levels as well as ticks', async () => {
+    const scope: { __hiveDictationE2E: DictationE2EHarness } = { __hiveDictationE2E: {} }
+    const capture = await e2eStartCapture(scope)!()
+    const seen: number[][] = []
+    capture.onLevels((value) => seen.push(value))
+    for (const listener of scope.__hiveDictationE2E.levels ?? []) listener([0.3, 0.9])
+    expect(seen).toEqual([[0.3, 0.9]])
   })
 
   it('counts stops, so the E2E can still assert the release path ran', async () => {
@@ -47,8 +56,9 @@ describe('the dictation E2E seam', () => {
     capture.stop()
     capture.stop()
     expect(scope.__hiveDictationE2E.stops).toBe(2)
-    // And a stopped stand-in stops delivering, like the real one.
+    // And a stopped stand-in stops delivering on both channels, like the real one.
     expect(scope.__hiveDictationE2E.ticks).toEqual([])
+    expect(scope.__hiveDictationE2E.levels).toEqual([])
   })
 
   it('transcribes to the harness transcript, and to nothing when none is set', async () => {

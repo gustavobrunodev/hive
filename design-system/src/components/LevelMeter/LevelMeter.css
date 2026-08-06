@@ -23,10 +23,22 @@
    `--muted`, not `--border-strong`: the flat line is a *meaningful* non-text
    indicator (it is the answer to "is this hearing me?"), so it owes 3:1 against
    its background, and the border tokens are translucent hairline colors that
-   cannot carry that. */
+   cannot carry that.
+
+   The gap collapses with them, and so does the pill rounding — with either one
+   left in place the bars read as a dashed rule rather than a flat line, which
+   is decoration, the one thing this state must not look like. Both were found
+   by looking at the rendered composer, not by a test; the first fix (gap only)
+   was not enough, because a 2px-tall bar with full rounding notches itself
+   away from its neighbour. */
+.hds-level-meter[data-signal="none"] {
+  gap: 0;
+}
+
 .hds-level-meter[data-signal="none"] .hds-level-meter-bar {
   background: var(--muted);
   height: 2px;
+  border-radius: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

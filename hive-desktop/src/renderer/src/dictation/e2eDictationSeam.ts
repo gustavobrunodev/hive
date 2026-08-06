@@ -37,6 +37,13 @@ import type { Tick } from './segmenter'
 export interface DictationE2EHarness {
   /** Pushed by the test to drive the segmenter, in place of a microphone. */
   ticks?: ((tick: Tick) => void)[]
+  /**
+   * Pushed by the test to drive the level meter. Separate from `ticks` because
+   * it is separate in the real capture too — the segmenter reads the worklet,
+   * the meter reads the analyser — and a stand-in that covered only two of the
+   * three channels made the meter look dead while the take was plainly live.
+   */
+  levels?: ((levels: number[]) => void)[]
   /** What the stand-in transcriber returns for every segment. */
   transcript?: string
   /** Set by the seam so the test can assert the microphone was released. */
@@ -63,13 +70,15 @@ export function e2eStartCapture(scope?: SeamScope): (() => Promise<Capture>) | n
   const harness = dictationHarness(scope)
   if (harness === null) return null
   return async () => {
-    const listeners = (harness.ticks ??= [])
+    const ticks = (harness.ticks ??= [])
+    const levels = (harness.levels ??= [])
     return {
-      onTick: (listener) => listeners.push(listener),
-      onLevels: () => undefined,
+      onTick: (listener) => ticks.push(listener),
+      onLevels: (listener) => levels.push(listener),
       stop: () => {
         harness.stops = (harness.stops ?? 0) + 1
-        listeners.length = 0
+        ticks.length = 0
+        levels.length = 0
       }
     }
   }

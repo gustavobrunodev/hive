@@ -242,3 +242,74 @@ for (const theme of THEMES) {
     ).toEqual([])
   })
 }
+
+/**
+ * voice-prompt (VP-R6.3, VP-R7.4). The sweep above never sees the dictation
+ * transport: it only exists while a take is live, and the work UI it samples is
+ * idle. So the take is opened first, with the microphone and the transcriber
+ * standing in (`e2eDictationSeam.ts` — real audio cannot flow headless, T1),
+ * and the sweep then runs with the transport on screen.
+ *
+ * The pair most likely to fail is checked by name as well as by sweep: the
+ * light theme's `--accent` (`--bordo-sensatez`) carrying the frame ring, the
+ * record dot and the meter bars, all of which are *meaningful non-text
+ * indicators* and owe 3:1 against the composer surface rather than the 4.5:1
+ * the text around them owes.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the dictation transport meets WCAG AA in the ${theme} theme`, async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+
+    await window.addInitScript(() => {
+      ;(window as unknown as { __hiveDictationE2E: unknown }).__hiveDictationE2E = {
+        transcript: 'arquivo de configuração'
+      }
+    })
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+    await window.locator('.wb-composer-wrap').waitFor({ state: 'visible', timeout: 60_000 })
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    await window.getByRole('button', { name: 'Ditar' }).click()
+    await window.locator('.wb-dictation').waitFor({ state: 'visible' })
+
+    const samples = await sampleTextContrast(window)
+    expect(samples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(samples),
+      `contrast failures in ${theme} with the transport open:\n${failuresIn(samples).join('\n')}`
+    ).toEqual([])
+
+    // The non-text indicators, at their own 3:1 floor.
+    const indicators = await window.evaluate(() => {
+      const surface = document.querySelector('.hds-prompt-input')
+      const background = getComputedStyle(surface ?? document.body).backgroundColor
+      const read = (
+        selector: string,
+        property: 'backgroundColor' | 'borderColor'
+      ): [string, string] | null => {
+        const node = document.querySelector(selector)
+        if (node === null) return null
+        return [getComputedStyle(node)[property], background]
+      }
+      return {
+        ring: read('.hds-prompt-input[data-highlighted]', 'borderColor'),
+        dot: read('.wb-dictation-dot', 'backgroundColor'),
+        meter: read('.hds-level-meter-bar', 'backgroundColor')
+      }
+    })
+
+    for (const [name, pair] of Object.entries(indicators)) {
+      if (pair === null) continue
+      const result = checkContrast(pair[0], pair[1])
+      expect(
+        result.ratio ?? 0,
+        `${name} in ${theme}: ${pair[0]} on ${pair[1]}`
+      ).toBeGreaterThanOrEqual(WCAG_AA_LARGE)
+    }
+  })
+}
