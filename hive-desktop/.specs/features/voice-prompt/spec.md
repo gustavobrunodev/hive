@@ -285,8 +285,11 @@ animations.
 Non-negotiable exit conditions, mirroring M12's:
 
 1. **VP-R7.1** — `npm run verify` green (typecheck node+web, **0 lint errors**,
-   full Vitest suite) with **no regression** against the pre-feature baseline of
-   1570 tests.
+   full Vitest suite) with **no regression** against the pre-feature baseline.
+   ⚠️ The baseline written here at planning time (1570) was **stale** — it was
+   M12's number, and `feat/second-brain` grew after it. Measured on the actual
+   branch base (`59bfbca`) in a clean worktree before T14: **1959 tests across
+   135 files**. That is the number "no regression" is against.
 2. **VP-R7.2** — every **changed non-UI file** at ≥90% coverage per-file, with
    the new files' globs added to `vitest.config.ts` (an unlisted file is not
    measured). The inherited 14-file failing list SHALL NOT grow.

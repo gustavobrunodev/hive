@@ -1,7 +1,7 @@
 # Tasks — Voice Prompt
 
 **Design:** `design.md` · **Spec:** `spec.md` · **Context:** `context.md`
-**Status:** 🚧 In progress — Batch A complete (T1–T7, 2026-08-05). Branch `feat/voice-prompt`, **off
+**Status:** 🚧 In progress — Batches A and B complete, T14 green (T1–T14, 2026-08-05). Branch `feat/voice-prompt`, **off
 `feat/second-brain`** — the Whisper stack it consumes exists only there, never
 merged to `main`. ROADMAP **M13**; STATE **D26**.
 
@@ -158,7 +158,7 @@ a failing segment leaves the queue running and `retry()` reuses the same audio;
 
 ## P3 — Design system
 
-### T8 — DS: `LevelMeter`
+### [x] T8 — DS: `LevelMeter`
 
 **Dep:** T1 · **VP-R:** VP-R5.3, VP-R6.2
 
@@ -168,7 +168,7 @@ line when signal is ~0. No media knowledge. Component + CSS + story + test.
 **Verify:** `design-system` test green; the story renders in Storybook; **`dist`
 rebuilt and committed**; `npx prettier` **not** run in `design-system/`.
 
-### T9 — DS: `PromptInput` gains `toolbarOverlay` + `highlighted`
+### [x] T9 — DS: `PromptInput` gains `toolbarOverlay` + `highlighted`
 
 **Dep:** T8 (serialized: both rebuild the same `dist`) · **VP-R:** VP-R5.4, VP-R1.2
 
@@ -185,7 +185,7 @@ committed.
 
 ## P4 — Surface
 
-### T10 — `DictationBar.tsx` + CSS
+### [x] T10 — `DictationBar.tsx` + CSS
 
 **Dep:** T7, T8 · **VP-R:** VP-R1.3, VP-R4.1–4.5, VP-R5.2, VP-R6.4
 
@@ -198,7 +198,7 @@ stays the row's only accent-filled element**.
 autostop, finalizing, denied, unavailable, error); a11y roles asserted;
 `noInlineStrings` green.
 
-### T11 — `composerBackdrop`: mentions + freshly-inserted run
+### [x] T11 — `composerBackdrop`: mentions + freshly-inserted run
 
 **Dep:** T3 · **VP-R:** VP-R2.3
 
@@ -210,7 +210,7 @@ range, feeding `PromptInput`'s `highlight` backdrop.
 input value exactly (drift misaligns the backdrop — the prop's own contract).
 **100%** coverage; glob added.
 
-### T12 — Wire dictation into the chat composer
+### [x] T12 — Wire dictation into the chat composer
 
 **Dep:** T9, T10, T11 · **VP-R:** VP-R1.1, VP-R1.2, VP-R1.4–1.7, VP-R3.4
 
@@ -225,7 +225,7 @@ inserted text lands at the caret, Esc restores the draft, submit-during-dictatio
 finalizes first. `npm run lint` green — `Chat.tsx` must stay under
 `complexity: 15` / `max-lines-per-function: 150`. `noInlineStrings` green.
 
-### T13 — Motion, reduced motion, theme polish (`impeccable`)
+### [x] T13 — Motion, reduced motion, theme polish (`impeccable`)
 
 **Dep:** T12 · **VP-R:** VP-R6.1–6.4
 
@@ -241,14 +241,15 @@ before T16 runs for real.
 
 ## P5 — Closing
 
-### T14 — Coverage globs + `npm run verify` green
+### [x] T14 — Coverage globs + `npm run verify` green
 
 **Dep:** T13 · **VP-R:** VP-R7.1–7.2
 
 Every new non-UI file's glob in `vitest.config.ts`; full gate run.
 
 **Verify:** `npm run verify` green — typecheck (node + web), **0 lint errors**,
-full suite with **no regression** against the 1570 baseline. `npm run
+full suite with **no regression** against the **measured** baseline of 1959
+tests / 135 files (the planned "1570" was stale — see spec.md VP-R7.1). `npm run
 test:coverage` shows every changed non-UI file ≥90%; **the inherited 14-file
 failing list has not grown**.
 
