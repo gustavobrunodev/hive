@@ -11061,3 +11061,198 @@ span.wb-change-card-open {
     transition: none;
   }
 }
+
+/* ── Dictation transport (voice-prompt / M13) ───────────────────────────────
+   Replaces the composer toolbar's leading cluster while a take is live
+   (D-VP-7: in place, never a modal). It spans the row through PromptInput's
+   generic `toolbarOverlay` slot, and the send control keeps its position — the
+   change of mode must not move anything the user was looking at (VP-R1.2). */
+.wb-dictation {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  flex: 1 1 auto;
+  /* Enter: a crossfade plus a short slide, on the project's easing. Only
+     opacity and transform — no layout property is animated (VP-R6.1). */
+  animation: wb-dictation-in 0.18s var(--ease-expo) both;
+}
+
+.wb-dictation-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+/* The record indicator. `--accent`, not `--danger`: this is the Restrained
+   strategy — dictation is a mode of the composer, not an alarm. */
+.wb-dictation-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: wb-dictation-pulse 1.6s ease-in-out infinite;
+}
+
+.wb-dictation-elapsed {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.wb-dictation-meter {
+  flex-shrink: 0;
+  width: 72px;
+  height: 14px;
+  min-width: 0;
+}
+
+.wb-dictation-status {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wb-dictation-status-line {
+  font-size: 12px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The second line carries the promises that make the feature trustworthy
+   ("estou guardando seu áudio", "seu áudio está guardado"), so it is quieter
+   than the status but never below the AA floor. */
+.wb-dictation-hint {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-dictation[data-state='error'] .wb-dictation-status-line {
+  color: var(--danger-ink);
+}
+
+.wb-dictation-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+/* Ghost buttons, all of them. The send control stays the row's only
+   accent-filled element (VP-R6.4) — two filled buttons in one 32 px row is
+   noise, and the mode is already unmistakable from the ring, the dot and the
+   meter. `data-emphasis="primary"` gives Concluir ink weight, not fill. */
+.wb-dictation-btn {
+  height: 26px;
+  padding: 0 var(--s-2);
+  font-size: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+
+.wb-dictation-btn[data-emphasis='primary'] {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.wb-dictation-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.wb-dictation-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The microphone control in the idle toolbar: as quiet as the paperclip it
+   leads, never an accent-filled call to action (VP-R1.1). It reuses
+   `.wb-attach-btn`'s shape through its own class so the pressed state can be
+   styled without touching the attach control. */
+.wb-mic-btn[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+/* The run of text a segment just landed, marked briefly so the user can see
+   what arrived, then cleared (VP-R2.3). Painted in PromptInput's highlight
+   backdrop, under the real glyphs. */
+.wb-composer-fresh {
+  background: var(--selected-bg);
+  border-radius: 2px;
+  animation: wb-dictation-fresh 0.6s var(--ease-quart) both;
+}
+
+@keyframes wb-dictation-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-dictation-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes wb-dictation-fresh {
+  from {
+    background-color: var(--selected-bg);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Every dictation animation keeps a non-motion alternative (VP-R6.2): the
+     transport crossfades without sliding, the record dot holds at full
+     opacity, and the landing mark is applied and removed with no transition —
+     the state stays legible, only the movement goes. */
+  .wb-dictation {
+    animation: wb-dictation-fade 0.18s var(--ease-quart) both;
+  }
+  .wb-dictation-dot {
+    animation: none;
+    opacity: 1;
+  }
+  .wb-composer-fresh {
+    animation: none;
+    background: transparent;
+  }
+  .wb-dictation-btn {
+    transition: none;
+  }
+}
+
+@keyframes wb-dictation-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
