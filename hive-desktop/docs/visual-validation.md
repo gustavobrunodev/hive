@@ -159,6 +159,50 @@ adapte a lista de seletores/estados quando reaproveitar.
 autorização pendente e respondido, card de alterações). Resolve cor por pixel
 em vez de parsear, então cobre `oklch()` além de `color-mix()`.
 
+[`tools/visual/timing-contrast.mjs`](../tools/visual/timing-contrast.mjs) faz o
+mesmo pelas superfícies de M14 — relógio por passo, medidor do turno (vivo e
+liquidado), fila de mensagens, medidor de contexto e sua folha de detalhe. Rode
+depois de [`tools/visual/chat-timing.mjs`](../tools/visual/chat-timing.mjs), que
+dirige a cena inteira (um turno liquidado com recibo, um turno vivo em pleno
+passo, duas mensagens na fila e uso de contexto) e tem três variantes —
+`live`, `tight` (janela quase cheia, que é o único estado em que a folha mostra
+o aviso) e `held` (fila pausada por interrupção). Cena e tema são constantes
+**dentro** da função: o arquivo é uma expressão de função entregue ao tool do
+MCP, não um módulo, então um `const` no topo do arquivo quebra o parse e um
+`globalThis` de uma chamada anterior já não existe.
+
+[`tools/visual/patch-contrast.mjs`](../tools/visual/patch-contrast.mjs) cobre o
+patch em linha do transcript (agent-patch) — cabeçalho, diffstat, número de
+linha, sinal, código de contexto/adicionado/removido, marca de palavra alterada,
+rodapé e o aviso de falha — nos **três** temas num run só, medindo também os
+portadores não-textuais (os segmentos da barra) contra o piso de 3:1. A cena vem
+de [`tools/visual/chat-patch.mjs`](../tools/visual/chat-patch.mjs), que põe na
+tela de uma vez um edit de dois hunks com marcas de palavra, um arquivo criado,
+um edit que falhou (patch proposto e não aplicado) e um patch estourando o teto
+de linhas.
+
+**A lição de contraste que essas sondas produziram (M14):** `--faint` só limpa
+o piso de 4.5:1 contra `--bg` **escuro**. No tema claro mede 3,29:1, e sobre a
+`--surface` elevada de um popover mede 4,18:1 em qualquer tema. Não é papel de
+texto de corpo fora do fundo mais escuro — use `--muted` e carregue a hierarquia
+por tamanho e peso.
+
+**E de novo, terceira vez (agent-patch):** o número de linha do patch nasceu em
+`--faint` e mediu **2,95:1** no tema claro. Três módulos diferentes, mesma
+armadilha — o token *parece* certo porque o papel ("metadado, subordinado")
+parece certo. A regra que resolve não é sobre papel, é sobre quem lê: **se
+alguém lê o texto, ele é `--muted` ou mais escuro; `--faint` é só para ícone e
+marca inativa.** Hierarquia se carrega por posição, largura e peso — no caso do
+número, a calha estreita alinhada à direita já faz esse trabalho sozinha.
+
+**Uma segunda lição de token, da mesma sonda:** `--success-bg` e `--danger-bg`
+**não** formam um par. São tints de banner e carregam croma muito diferente
+(0,208 no vermelho contra 0,13 no verde), então na mesma opacidade as remoções
+gritam mais alto que as adições — o que inverte a ênfase de um diff, já que o
+código *novo* é o que se está pedindo para aceitar. Para tingir dois lados que
+precisam ter o mesmo peso, derive do par `--wb-git-added`/`--wb-git-deleted`,
+que é casado por construção.
+
 O mesmo módulo serve em teste unitário: dá para fixar o contraste de um par de
 tokens sem passe visual nenhum.
 
@@ -187,3 +231,46 @@ A lição para o passe visual: **teste com texto que não é emoji** — um cami
 com `*`, um número, um `#` — sempre que mexer em pilha de fontes. O olho passa
 batido por um asterisco levemente diferente; um screenshot de um comando com
 glob não passa.
+
+## Sonda do Console MCP (M15)
+
+[`tools/visual/mcp-console-contrast.mjs`](../tools/visual/mcp-console-contrast.mjs)
+varre 26 seletores do console MCP — stream, faixas de sessão, rail por servidor,
+cluster da status bar e os filtros do design system — nos **três** temas, e
+mede também os portadores não-textuais (os pontos de nível, o preenchimento do
+medidor de duração) contra o piso de 3:1. As fixtures vêm do `boot.mjs`, que
+agora planta `mcpLogs` com a redação real da CLI e expõe `window.__mcpLog(e)`
+para empurrar um evento ao vivo.
+
+Ela nasceu de dois erros que valem mais que a sonda:
+
+**1. Trocar tema por `localStorage` + reload mede o tema do boot três vezes.**
+O init script do `boot.mjs` regrava `hive-desktop-theme` a *cada* navegação, então
+o valor volta ao default antes do React montar. A primeira passada deu PASS nos
+três temas com **seis** falhas de contraste no tema claro na tela. A sonda agora
+dirige o menu "Aparência" do próprio app. Vale para qualquer estado que o
+harness também controla: **se a sonda seta o que o harness já seta, ela está
+medindo o default dela mesma.**
+
+**2. Uma sonda que não lê `oklch()` reporta PASS, não erro.** `getComputedStyle`
+devolve `oklch(...)` literal para tokens escritos assim (`--danger-ink`,
+`--success`), e o parser por regex retornava `null` e *pulava* a amostra — em
+silêncio. O texto de erro e os pontos de nível nunca foram medidos. A sonda pinta
+um pixel num canvas e lê de volta, o que resolve qualquer sintaxe de cor que o
+browser aceite. **Amostra pulada e amostra aprovada têm a mesma cara num
+relatório — faça o pulo aparecer** (a sonda lista `missing` separado de
+`failures`, e o veredito exige os dois vazios).
+
+**A lição de token que ela produziu:** o par `*-ink` sobre `*-bg` não aguenta
+texto pequeno em negrito. As contagens de erro mediram 3,91:1 (status bar) e
+4,44:1 (contagem do `SegmentedControl`, tema claro) — `--danger-ink` fica perto
+demais em luminância do próprio tint, e o da status bar piora quando o estado
+pressionado do cluster compõe por baixo. Ambos passaram a usar preenchimento
+**opaco** (`color-mix(… var(--danger) 26%, var(--surface))`) com texto `--ink`:
+o tom carrega o significado, o número continua legível, e o badge deixa de
+depender do que está atrás dele.
+
+E, de novo, `--faint`: a hora, a categoria e a faixa de sessão foram parar nele
+por serem metadados, e mediram 2,95:1 no claro. Mesma lição do M14 (L-TI-1),
+módulo novo. A regra prática: **`--faint` é para ícone e marca inativa; o que
+alguém lê é `--muted` ou mais escuro.**

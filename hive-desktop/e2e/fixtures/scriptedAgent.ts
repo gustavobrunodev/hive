@@ -16,12 +16,36 @@ export interface AgentScript {
   writes?: Array<{ path: string; content: string }>
   /** Pause before each chunk, for streaming/interrupt timing. */
   delayMs?: number
+  /**
+   * Pause after each write's `tool_use`. The stand-in reports no
+   * `tool_result`, so without this a step starts and settles in the same
+   * instant and the per-step clock — which only shows past a second — has
+   * nothing to report (chat-timing).
+   */
+  writeDelayMs?: number
   /** Stream the chunks, then never exit — the state an interrupt test needs. */
   hang?: boolean
   /** Non-zero turns the adapter's terminal event into `error`. */
   exitCode?: number
   /** Written to stderr; the adapter appends its tail to the error message. */
   stderr?: string
+  /**
+   * session-usage: token accounting, in the CLI's own wire names. Emitted on
+   * an `assistant` message and again on the closing `result` line, which is
+   * where cost and duration live — so the app's parser, its `usage` event and
+   * the context meter are all exercised for real.
+   */
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_read_input_tokens?: number
+    cache_creation_input_tokens?: number
+    total_cost_usd?: number
+    duration_ms?: number
+    duration_api_ms?: number
+  }
+  /** The model name the stand-in reports on its assistant messages. */
+  model?: string
 }
 
 export interface ScriptedAgent {

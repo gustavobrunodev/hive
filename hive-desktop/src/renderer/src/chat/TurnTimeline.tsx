@@ -1,13 +1,21 @@
-import { TypingIndicator } from '@hive/design-system'
-import { t } from '../i18n'
 import { ApprovalCard } from './ApprovalCard'
 import { ToolActivityFeed } from './ToolActivityFeed'
-import { hasPendingApproval, type TurnBlock } from './turnTimeline'
+import { TurnMeter } from './TurnMeter'
+import { type TurnBlock } from './turnTimeline'
+import type { TurnMetrics } from './turnTiming'
 
 interface TurnTimelineProps {
   blocks: TurnBlock[]
-  /** `true` while this turn is still running — drives the live row's motion and the typing indicator. */
+  /** `true` while this turn is still running — drives the live row's motion and the meter's tense. */
   live: boolean
+  /**
+   * The turn's execution record — what the meter at the foot of the turn
+   * reports. Absent on a conversation restored from disk (metrics are
+   * live-only, like the blocks themselves), which simply renders no meter.
+   */
+  metrics?: TurnMetrics
+  /** The shared clock every live duration in the turn counts against (`useTicker`). */
+  now?: number
   /**
    * The smoothed reveal of the trailing text block (agent-activity AA-R4).
    * Only the tail is paced; every earlier text block is settled prose and
@@ -17,24 +25,8 @@ interface TurnTimelineProps {
   /** Renders one text block (the app owns markdown rendering). */
   renderText: (text: string) => React.ReactNode
   onApprovalDecide: (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => void
-}
-
-/**
- * Whether the bouncing dots are the *only* honest signal left.
- *
- * They are not shown while a tool row is spinning (the feed already says what
- * is happening) nor while a permission is open — a turn parked on the user is
- * not "typing", and saying so is the kind of small lie that makes an interface
- * untrustworthy. What's left is the real gap: a step finished, nothing is
- * running, and no prose has started yet.
- */
-function waitingWithoutSignal(blocks: TurnBlock[]): boolean {
-  if (blocks.length === 0) return true
-  if (hasPendingApproval(blocks)) return false
-  const last = blocks[blocks.length - 1]
-  if (last.kind === 'text') return false
-  if (last.kind === 'tools') return !last.activities.some((a) => a.state === 'running')
-  return true
+  /** agent-patch: opens an edited file (absolute path) in the editor. */
+  onOpenFile?: (path: string) => void
 }
 
 /**
@@ -49,14 +41,23 @@ function waitingWithoutSignal(blocks: TurnBlock[]): boolean {
  * This is a log, the way every coding agent renders one. Blocks come out of
  * `turnTimeline.ts` in arrival order and are drawn in that order, so a turn
  * reads top to bottom as: *what I'm about to do* → *may I?* → *doing it* →
- * *what came of it*.
+ * *what came of it* → *what it took* (the `TurnMeter` foot).
+ *
+ * The meter replaced the bouncing typing dots that used to close a live turn.
+ * The dots said one thing ("something is happening") and could only say it
+ * when nothing else was; the meter always has something truer to say — which
+ * phase the turn is in and how long it has been there — and it settles into
+ * the turn's receipt instead of vanishing.
  */
 export function TurnTimeline({
   blocks,
   live,
+  metrics,
+  now = 0,
   revealedText,
   renderText,
-  onApprovalDecide
+  onApprovalDecide,
+  onOpenFile
 }: TurnTimelineProps): React.JSX.Element {
   const lastIndex = blocks.length - 1
 
@@ -69,6 +70,8 @@ export function TurnTimeline({
               key={block.id}
               activities={block.activities}
               live={live && index === lastIndex}
+              now={now}
+              onOpenFile={onOpenFile}
             />
           )
         }
@@ -81,7 +84,7 @@ export function TurnTimeline({
         if (text === '') return null
         return <div key={block.id}>{renderText(text)}</div>
       })}
-      {live && waitingWithoutSignal(blocks) && <TypingIndicator label={t('chat.typingLabel')} />}
+      {metrics && <TurnMeter metrics={metrics} blocks={blocks} live={live} now={now} />}
     </div>
   )
 }

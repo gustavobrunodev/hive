@@ -444,6 +444,127 @@ fallback was never built) and OQ3 with numbers that **changed the design**
 
 ---
 
+## M14 — Turn Instrumentation ✅ Done (2026-08-06)
+
+**Feature:** `turn-instrumentation` · branch `feat/voice-prompt` (continues M13).
+
+Three things a Claude Code user has and a Hive user did not: **how long this is
+taking**, **somewhere to put the follow-up you already thought of**, and **how
+much room is left before the agent starts forgetting**. All three are the same
+gap — the app orchestrated long agent runs while telling the user nothing about
+their cost in time, attention or context.
+
+1. **Execution times, live and settled (TI-R1)** — every step on the activity
+   rail carries its own clock, ticking while it runs; every turn ends on a meter
+   that counts the phase and elapsed while live (`Executando · 1min 12s ·
+   3 passos · 8,4 mil tokens de contexto`) and settles into a receipt
+   (`Concluído em 1min 12s · 3 passos · 1,2 mil tokens gerados · US$ 0,09`).
+   The meter **replaced the typing dots**: the dots could only say "something is
+   happening" and only when nothing else was; the meter always has something
+   truer to say. Durations are measured in the renderer off the adapter's own
+   events — the number a user wants is *time since I pressed Enter* — while the
+   CLI's own `duration_api_ms` is shown separately, labelled as what it is.
+2. **A send queue (TI-R2)** — the composer stays open while a turn runs. Enter
+   (or the primary button, now a queue glyph) parks the message in a strip
+   docked to the composer's top edge, and it goes out on its own when the turn
+   finishes. **A stop or a failure holds the queue** instead of draining it —
+   firing three more messages into a session someone just interrupted is the
+   opposite of what Stop meant — with one control to resume. A queue is parked
+   with its conversation, not discarded, when the pane moves. The interrupt
+   moved out of the send button into its own control beside it, so the primary
+   button keeps one job: commit what was typed.
+3. **Context-window usage (TI-R3)** — a meter on the composer's footer strip
+   (`▬▬ 38% de contexto`) opening a sheet with the real breakdown: what the model
+   read on its last call, split into reused-from-cache / written-to-cache /
+   sent-fresh plus free space, then the session's totals (runtime, API time,
+   turns, tokens generated, cost). Past 80% it turns advisory and offers the one
+   real remedy. The numbers are the model's own accounting, parsed off the CLI's
+   `stream-json` `usage` blocks — nothing is estimated.
+
+**New in the adapter contract:** a `usage` `AgentEvent` (per assistant message,
+plus a `final` one off the CLI's `result` line) and `contextWindow` on
+`AgentOption`. An adapter that declares neither degrades honestly: absolute
+token counts with no percentage, or no meter at all.
+
+**Exit criteria and the verdict on each (2026-08-06):**
+
+| Criterion | Met? |
+| --- | --- |
+| TI-R1–R3 implemented and demonstrated in the running app | **Yes.** `e2e/chat-timing.spec.ts` drives all three in the real built Electron app against a stand-in CLI printing real `stream-json` — so the parser, the `usage` event, the IPC bridge and the meter are all production code inside the test. |
+| No regression against the baseline | **Yes.** `npm run verify` green: **2172 tests / 149 files** (was 2118 / 146), 0 lint errors. |
+| ≥90% per changed non-UI file | **Yes.** `turnTiming`, `sessionUsage` and `messageQueue` are gated in `vitest.config.ts`; all three sit at 100% statements. |
+| Real-Electron E2E | **Yes.** The three new specs pass; the two failures in the full app suite (`agent-change-review.spec.ts:54`, one `git-conflict.spec.ts` variant) were confirmed **pre-existing** by running the same suite on `HEAD` in a clean worktree — it fails identically there. |
+| Visual pass, all three themes | **Yes.** Dark, light and hive, driven through `tools/visual/chat-timing.mjs`, with `tools/visual/timing-contrast.mjs` sweeping 25 selectors per theme. It caught four sub-4.5:1 colours (see STATE.md **L-TI-1**). |
+| Second Brain (M12/M12.1) intact | **Yes.** Vault detection, ingest counter, health card, wiki tree and `Ctrl+Shift+K` ask-flow all exercised in the visual pass; `e2e/second-brain.spec.ts` green. |
+| All copy pt-BR via `t()` | **Yes.** `noInlineStrings` green. |
+
+**Deferred:** reordering the queue by drag (removal + retype covers it), editing
+a queued message in place, and per-conversation persistence of the queue across
+app restarts (it is live-only, like the turn timeline it sits under).
+
+---
+
+## M15 — MCP Console ✅ Done (2026-08-07)
+
+**Feature:** `mcp-logs` · branch `feat/voice-prompt` (continues M13/M14).
+
+The MCP module could already answer *"can this server connect?"* — a one-shot
+handshake we start ourselves (`mcpProbe.ts`). It could not answer the question
+people actually ask, which is *"what did this server just do, and why is the
+turn slow?"* The record of that already existed and the app was ignoring it:
+the Claude Code CLI writes a per-server diagnostic log for every workspace it
+runs in, at `<cache>/claude-cli-nodejs/<slug(cwd)>/mcp-logs-<server>/*.jsonl`,
+covering every connection, every tool call and its duration, and everything the
+server printed to stderr — while the agent works. Since `cliAdapterCore` starts
+the CLI with `cwd: workspace`, the slug for the open workspace *is* the
+directory to read. No second copy of the truth, no instrumentation to add.
+
+1. **A typed event stream, not a log dump (ML-R1)** — `mcpLogParse.ts` recovers
+   structure from the CLI's free text: 16 kinds, four levels, and the facts
+   worth their own column (tool, duration, transport, server version).
+   Unrecognized wording degrades to a verbatim `notice` rather than to a blank
+   console. `PRODUCT.md` names "log-dump UIs" as an anti-reference, and this is
+   what makes obeying it possible.
+2. **A dock, not a dialog (ML-R2)** — the console lives under the work area,
+   resizable, with a maximize that takes the pane and adds a per-server rail
+   (calls, errors, median and peak latency, whether it's connected, and whether
+   it's even in this workspace's `.mcp.json`). A modal would cover the
+   transcript you're asking about. Reachable from the status bar, from
+   `Ctrl+Shift+M`, and from "Ver logs de uso" in the MCP manager.
+3. **An ambient signal while it's closed (ML-R3)** — the status bar carries the
+   last server that spoke, a live pulse, and the error tally. That is the whole
+   reason to dock rather than hide: you learn MCP is working without opening
+   anything.
+4. **Duration bars scaled to the view (ML-R4)** — timed tool rows draw a
+   hairline meter against the slowest call currently in view, so "which call ate
+   the turn" is a column you scan rather than numbers you compare. Drawn with
+   `transform: scaleX()`; a rescale never touches layout.
+5. **A live tail (ML-R5)** — only appended bytes are parsed, so a turn in flight
+   streams in without re-sending history. Follows the tail when pinned; offers
+   `N eventos novos` when you've scrolled away.
+
+**New in the design system:** `SegmentedControl` — a single-select filter with
+optional toned counts, exposed as a `radiogroup` (one tab stop, arrows move,
+Home/End for the ends) with an indicator positioned from measured geometry.
+
+**Exit criteria and the verdict on each (2026-08-07):**
+
+| Criterion | Met? |
+| --- | --- |
+| ML-R1–R5 implemented and demonstrated | **Yes.** Driven in the served renderer against fixtures whose every sentence is the CLI's real wording; the filters, search, disclosure, rail scoping, follow-pill and live tail were each exercised. |
+| Classification holds against real logs | **Yes.** `mcpLogCorpus.test.ts` runs the table over whatever real CLI logs exist on the machine and fails if over 2% land unclassified. It found 30% on the first pass — including connection *failures* filed as debug notices — and is what drove the table to its current shape. |
+| No regression against the baseline | **Yes.** `npm run verify` green: **2401 tests / 155 files** (was 2262 / 152), 0 lint errors. Design system: 670 tests, typecheck clean. |
+| Coverage on new logic files | **Yes.** `mcpLogParse.ts` and `logConsole.ts` at 100/100/100/100; `mcpLogService.ts` and `useMcpLogs.ts` gated at 90. All four added to `vitest.config.ts`. |
+| Visual pass, all three themes | **Yes.** `tools/visual/mcp-console-contrast.mjs` sweeps 26 selectors per theme and reports PASS on dark, light and hive — after finding 6 light-theme and 2 hive-theme failures (see STATE.md **L-ML-2**). |
+
+**Deferred:** clearing a server's log files from the console (destructive, and
+the folder is one click away), correlating a console event with the chat turn
+that caused it (the CLI's `sessionId` is there, but the app does not yet store
+its own turn boundaries against it), and persisting the dock's height across
+restarts (live-only, like the chat's send queue).
+
+---
+
 ## Dependency Graph
 
 ```

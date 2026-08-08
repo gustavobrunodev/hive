@@ -32,6 +32,7 @@ import {
   type McpTransport
 } from './mcpForm'
 import {
+  ActivityIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
   BroadcastIcon,
@@ -49,6 +50,8 @@ interface McpManagerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   workspace: string
+  /** Opens the MCP console dock (mcp-logs) — the manager's link to real usage. */
+  onOpenConsole: () => void
 }
 
 /** The live connection state of one server, driven by the probe. */
@@ -86,7 +89,8 @@ function ServerRow({
   onToggleEnabled,
   onTest,
   onEdit,
-  onDelete
+  onDelete,
+  onOpenConsole
 }: {
   server: McpServer
   probe: ProbeState | undefined
@@ -96,6 +100,7 @@ function ServerRow({
   onTest: () => void
   onEdit: () => void
   onDelete: () => void
+  onOpenConsole: () => void
 }): React.JSX.Element {
   const status = rowStatus(server, probe)
   const toolCount = probe?.status === 'ok' ? (probe.result?.tools.length ?? 0) : null
@@ -177,6 +182,7 @@ function ServerRow({
           onTest={onTest}
           onEdit={onEdit}
           onDelete={onDelete}
+          onOpenConsole={onOpenConsole}
         />
       )}
     </div>
@@ -190,7 +196,8 @@ function ServerDetails({
   probe,
   onTest,
   onEdit,
-  onDelete
+  onDelete,
+  onOpenConsole
 }: {
   id: string
   server: McpServer
@@ -198,6 +205,7 @@ function ServerDetails({
   onTest: () => void
   onEdit: () => void
   onDelete: () => void
+  onOpenConsole: () => void
 }): React.JSX.Element {
   const checking = probe?.status === 'checking'
   const result = probe?.result ?? null
@@ -233,6 +241,14 @@ function ServerDetails({
       <ServerConfigSummary server={server} />
 
       <div className="wb-mcp-detail-actions">
+        {/* mcp-logs: the bridge to the console. The probe above answers "can it
+          connect"; the console answers "what did it actually do during real
+          turns" — different questions, so the manager points at it rather
+          than trying to show both here. */}
+        <button type="button" className="wb-mcp-linkbtn" onClick={onOpenConsole}>
+          <ActivityIcon size={13} />
+          {t('mcp.openConsoleCta')}
+        </button>
         <button type="button" className="wb-mcp-linkbtn" onClick={onEdit}>
           <PencilIcon size={13} />
           {t('mcp.editCta')}
@@ -622,7 +638,12 @@ export function McpManager(props: McpManagerProps): React.JSX.Element | null {
   return <McpDialog {...props} />
 }
 
-function McpDialog({ open, onOpenChange, workspace }: McpManagerProps): React.JSX.Element {
+function McpDialog({
+  open,
+  onOpenChange,
+  workspace,
+  onOpenConsole
+}: McpManagerProps): React.JSX.Element {
   const [servers, setServers] = useState<McpServer[] | null>(null)
   const [probes, setProbes] = useState<Record<string, ProbeState>>({})
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -777,6 +798,7 @@ function McpDialog({ open, onOpenChange, workspace }: McpManagerProps): React.JS
               setDeleteError(false)
               setPendingDelete(server)
             }}
+            onOpenConsole={onOpenConsole}
           />
         ))}
       </div>
@@ -790,7 +812,8 @@ function McpDialog({ open, onOpenChange, workspace }: McpManagerProps): React.JS
     handleTest,
     handleToggleEnabled,
     openAdd,
-    openEdit
+    openEdit,
+    onOpenConsole
   ])
 
   return (

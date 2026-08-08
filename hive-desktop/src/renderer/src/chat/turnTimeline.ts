@@ -75,7 +75,11 @@ export function appendTurnText(blocks: TurnBlock[], text: string): TurnBlock[] {
  * finishes a tool three paragraphs after it started it, so the search runs over
  * every group, not just the last.
  */
-export function applyTurnTool(blocks: TurnBlock[], event: ToolActivityEvent): TurnBlock[] {
+export function applyTurnTool(
+  blocks: TurnBlock[],
+  event: ToolActivityEvent,
+  now: number = Date.now()
+): TurnBlock[] {
   const index = event.phase === 'end' ? findToolBlock(blocks, event) : trailingToolBlock(blocks)
   if (index === -1) {
     // An `end` with nothing to settle is dropped rather than inventing a
@@ -86,13 +90,13 @@ export function applyTurnTool(blocks: TurnBlock[], event: ToolActivityEvent): Tu
       {
         kind: 'tools',
         id: blockId('tools', blocks.length),
-        activities: reduceToolActivity([], event)
+        activities: reduceToolActivity([], event, now)
       }
     ]
   }
   const block = blocks[index]
   if (block.kind !== 'tools') return blocks
-  const activities = reduceToolActivity(block.activities, event)
+  const activities = reduceToolActivity(block.activities, event, now)
   if (activities === block.activities) return blocks
   const next = [...blocks]
   next[index] = { ...block, activities }
@@ -151,11 +155,15 @@ function findApproval(blocks: TurnBlock[], requestId: string): number {
  * never answered (the turn was stopped, or it timed out in main) is recorded as
  * refused rather than left looking answerable.
  */
-export function settleTurnBlocks(blocks: TurnBlock[], outcome: 'ok' | 'failed'): TurnBlock[] {
+export function settleTurnBlocks(
+  blocks: TurnBlock[],
+  outcome: 'ok' | 'failed',
+  now: number = Date.now()
+): TurnBlock[] {
   let changed = false
   const next = blocks.map((block) => {
     if (block.kind === 'tools') {
-      const activities = settleToolActivity(block.activities, outcome)
+      const activities = settleToolActivity(block.activities, outcome, now)
       if (activities === block.activities) return block
       changed = true
       return { ...block, activities }

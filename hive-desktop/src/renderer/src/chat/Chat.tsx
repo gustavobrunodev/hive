@@ -23,7 +23,15 @@ import {
 } from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
-import { HiveCellIcon, MicIcon, PaperclipIcon, SlashIcon, SlidersIcon } from '../ui/icons'
+import {
+  HiveCellIcon,
+  MicIcon,
+  PaperclipIcon,
+  QueueIcon,
+  SlashIcon,
+  SlidersIcon,
+  StopIcon
+} from '../ui/icons'
 import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
 import { ScrollableRow } from '../ui/ScrollableRow'
 import { shortcutIcon } from '../ui/roleVisuals'
@@ -45,7 +53,7 @@ import { useMentions } from './useMentions'
 import type { ChatSessionMeta } from './sessionMeta'
 import { ChangeCard } from './ChangeCard'
 import { TurnTimeline } from './TurnTimeline'
-import type { ToolActivityEvent } from './toolActivity'
+import { workspaceRelative, type ToolActivityEvent, type ToolPatch } from './toolActivity'
 import {
   answerTurnApproval,
   appendTurnApproval,
@@ -58,6 +66,19 @@ import {
 } from './turnTimeline'
 import { useSmoothStream } from './useSmoothStream'
 import { useReviewOptional } from '../scm/useReview'
+import { ContextMeter } from './ContextMeter'
+import { QueuedMessages } from './QueuedMessages'
+import { useMessageQueue } from './useMessageQueue'
+import { useTicker } from './useTicker'
+import type { QueuedMessage } from './messageQueue'
+import { countSteps, type TurnMetrics, type TurnUsage } from './turnTiming'
+import {
+  EMPTY_SESSION_USAGE,
+  applyTurnRuntime,
+  applyUsage,
+  withContextWindow,
+  type SessionUsage
+} from './sessionUsage'
 
 interface ChatMessageEntry {
   id: string
@@ -73,11 +94,19 @@ interface ChatMessageEntry {
    * rendering `text`.
    */
   blocks?: TurnBlock[]
+  /**
+   * What the turn took — time, steps, tokens, cost — frozen at its terminal
+   * event so the settled bubble can carry its receipt. Live-only for the same
+   * reason as `blocks`.
+   */
+  metrics?: TurnMetrics
 }
 
 interface AgentOption {
   id: string
   label: string
+  /** session-usage: the model's context window in tokens, when the adapter declares one. */
+  contextWindow?: number
 }
 
 interface AgentCapabilities {
@@ -103,6 +132,7 @@ type AgentEventIn =
       phase?: 'start' | 'end'
       ok?: boolean
       filePath?: string
+      patch?: ToolPatch
       turnId?: string
     }
   | {
@@ -117,6 +147,7 @@ type AgentEventIn =
   | { type: 'error'; message: string; turnId?: string }
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
+  | { type: 'usage'; usage: TurnUsage; final?: boolean; turnId?: string }
 
 /** Imperative handle so the work UI (action rail + session-history header controls, outside this subtree) can drive the chat. */
 export interface ChatHandle {
@@ -153,6 +184,12 @@ interface ChatProps {
   onRunningSessionsChange?: (ids: string[]) => void
   /** shortcut-customization: opens the "Personalizar atalhos" picker (hero pill + strip trailing control). */
   onCustomizeShortcuts?: () => void
+  /**
+   * agent-patch: opens a file the agent edited, by workspace-relative path —
+   * the editor's own `openFile`. Lets a path named in the transcript be a way
+   * into the file instead of a dead end.
+   */
+  onOpenFile?: (relPath: string) => void
 }
 
 const SLASH_LISTBOX_ID = 'wb-slash-listbox'
@@ -246,6 +283,13 @@ interface ActiveTurn {
    * could only ever be rendered as two separate slabs.
    */
   blocks: TurnBlock[]
+  /**
+   * What it is costing (session-usage): when it started, and the newest token
+   * report the CLI has sent for it. Lives on the turn — not on the component —
+   * for the same reason `blocks` does: a backgrounded turn keeps accumulating,
+   * and its receipt has to be right when the user comes back to it.
+   */
+  metrics: TurnMetrics
   visible: boolean
   session: Promise<string | null>
   hiveId: string | null
@@ -258,6 +302,14 @@ interface TurnEventCtx {
   currentSessionId: () => string | null
   /** Publishes the *visible* turn's timeline to the pane; `null` when no turn is on screen. */
   setStreamingBlocks: (blocks: TurnBlock[] | null) => void
+  /** Publishes the *visible* turn's execution record (the live meter); `null` when no turn is on screen. */
+  setStreamingMetrics: (metrics: TurnMetrics | null) => void
+  /** Folds one token report into this conversation's session totals (session-usage). */
+  recordUsage: (usage: TurnUsage, opts: { final: boolean; runtimeMs: number }) => void
+  /** Records a turn that ended with no token report at all — the wall-clock still counts. */
+  recordRuntime: (runtimeMs: number) => void
+  /** Releases (or holds) the next queued send once a turn reaches its terminal event. */
+  settleQueue: (outcome: 'done' | 'interrupted' | 'error') => void
   setErrorMessage: (message: string) => void
   appendMessage: (entry: ChatMessageEntry) => void
   /** Updates the live conversation's CLI session id (conversation memory) — only called for a *visible* turn's `session` event. */
@@ -319,16 +371,48 @@ function settleTurn(
   // interrupt settles its in-flight steps as failed, a clean finish as done,
   // and either way a permission nobody answered is recorded as refused.
   const blocks = settleTurnBlocks(turn.blocks, terminal === 'done' ? 'ok' : 'failed')
+  const metrics = closeMetrics(ctx, turn, terminal)
   if (turn.visible && (terminal === 'done' || text.length > 0 || blocks.length > 0)) {
     ctx.appendMessage({
       id: nextMessageId(),
       role: 'assistant',
       text,
-      blocks: blocks.length > 0 ? blocks : undefined
+      blocks: blocks.length > 0 ? blocks : undefined,
+      metrics
     })
   }
   syncStreamingUi(ctx)
   ctx.notifyRunning()
+  // Only the conversation ON SCREEN releases its queue. A backgrounded turn
+  // finishing must not fire the visible conversation's next queued message —
+  // the two belong to different transcripts and different CLI sessions.
+  if (turn.visible) ctx.settleQueue(terminal)
+}
+
+/**
+ * Freezes a finished turn's execution record and folds its wall-clock into
+ * the session totals.
+ *
+ * A turn that never reported usage — an adapter that emits none, or one
+ * interrupted before the CLI printed its result line — still contributes its
+ * time: time spent is time spent, whether or not anyone billed for it. A turn
+ * that *did* report is already accumulated (its `final` usage event arrived
+ * before this terminal one), so counting it again here would double it.
+ */
+function closeMetrics(
+  ctx: TurnEventCtx,
+  turn: ActiveTurn,
+  outcome: 'done' | 'interrupted' | 'error'
+): TurnMetrics {
+  const endedAt = Date.now()
+  turn.metrics = {
+    ...turn.metrics,
+    endedAt,
+    outcome,
+    steps: countSteps(turn.blocks)
+  }
+  if (!turn.metrics.usage) ctx.recordRuntime(endedAt - turn.metrics.startedAt)
+  return turn.metrics
 }
 
 /**
@@ -365,6 +449,30 @@ function growTurn(
 }
 
 /**
+ * Files one token report (session-usage): onto the turn it belongs to, so its
+ * meter and its receipt can read it, and into the conversation's running
+ * totals. Only the `final` report — one per turn, off the CLI's own `result`
+ * line — advances turns/tokens/cost; the intermediate snapshots restate the
+ * same growing request and would quadruple the count if summed.
+ */
+function recordTurnUsage(
+  ctx: TurnEventCtx,
+  turnId: string | undefined,
+  usage: TurnUsage,
+  final: boolean
+): void {
+  const turn = findTurn(ctx.turns, turnId, 'newest')
+  if (turn) {
+    turn.metrics = { ...turn.metrics, usage }
+    if (turn.visible) ctx.setStreamingMetrics(turn.metrics)
+  }
+  ctx.recordUsage(usage, {
+    final,
+    runtimeMs: turn ? Date.now() - turn.metrics.startedAt : 0
+  })
+}
+
+/**
  * Agent-event reducer (module scope for the same complexity-budget reason as
  * `handleSlashKey`). Every event routes to its turn via `turnId`
  * (background-turns) — tokens open an implicit turn only for a stray stream
@@ -383,13 +491,20 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
       break
     case 'error': {
       const turn = takeTurn(ctx.turns, event.turnId)
+      if (turn) closeMetrics(ctx, turn, 'error')
       if (!turn || turn.visible) ctx.setErrorMessage(event.message)
       syncStreamingUi(ctx)
       ctx.notifyRunning()
+      // A failed turn holds the queue rather than draining it into a session
+      // that is already erroring — and, as above, only its own conversation's.
+      if (!turn || turn.visible) ctx.settleQueue('error')
       break
     }
     case 'session':
       adoptCliSession(ctx, event.id, event.turnId)
+      break
+    case 'usage':
+      recordTurnUsage(ctx, event.turnId, event.usage, event.final === true)
       break
     case 'tool':
       // The feed belongs to the turn's timeline, so a background turn keeps
@@ -425,6 +540,9 @@ function openImplicitTurn(ctx: TurnEventCtx, turnId: string | undefined): Active
   const turn: ActiveTurn = {
     id: turnId ?? nextTurnId(),
     blocks: [],
+    // The stream is already under way, so this clock starts late by whatever
+    // the first event took to arrive. It is the only start this turn has.
+    metrics: { startedAt: Date.now(), steps: 0 },
     visible: true,
     session: Promise.resolve(ctx.currentSessionId()),
     hiveId: ctx.currentSessionId()
@@ -438,6 +556,7 @@ function openImplicitTurn(ctx: TurnEventCtx, turnId: string | undefined): Active
 function syncStreamingUi(ctx: TurnEventCtx): void {
   const visible = [...ctx.turns].reverse().find((turn) => turn.visible)
   ctx.setStreamingBlocks(visible ? visible.blocks : null)
+  ctx.setStreamingMetrics(visible ? visible.metrics : null)
 }
 
 /**
@@ -569,7 +688,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     userName = null,
     onSessionChange,
     onRunningSessionsChange,
-    onCustomizeShortcuts
+    onCustomizeShortcuts,
+    onOpenFile
   },
   ref
 ) {
@@ -580,6 +700,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // The on-screen turn's live timeline (prose + steps + permission cards, in
   // order). `null` when no turn is running in this conversation.
   const [streamingBlocks, setStreamingBlocks] = useState<TurnBlock[] | null>(null)
+  // The on-screen turn's execution record (elapsed, steps, tokens) — the live
+  // meter at the foot of the turn. `null` when no turn is running here.
+  const [streamingMetrics, setStreamingMetrics] = useState<TurnMetrics | null>(null)
+  // session-usage: how full the context window is and what the conversation
+  // has spent. Reset with the conversation, since both are properties of the
+  // CLI session a conversation resumes, not of the app.
+  const [sessionUsage, setSessionUsage] = useState<SessionUsage>(EMPTY_SESSION_USAGE)
   // Agent Change Review (ACR-R2.2): the shared review store when present (the
   // app wraps Chat in a ReviewProvider); null in isolated tests → no cards.
   const review = useReviewOptional()
@@ -657,6 +784,36 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onRunningSessionsChange?.(runningSessionIds)
   }, [runningSessionIds, onRunningSessionsChange])
 
+  // session-usage: the denominator behind the context meter follows whichever
+  // model this conversation is on — it is a property of the model, not of the
+  // session, and switching model mid-conversation moves the ceiling. Composed
+  // at read time rather than stored, so the measured half of the state stays
+  // the only thing the event stream writes to.
+  const sessionUsageView = useMemo(() => {
+    const window = capabilities?.models.find((option) => option.id === model)?.contextWindow ?? null
+    return withContextWindow(sessionUsage, window)
+  }, [sessionUsage, capabilities, model])
+
+  const recordUsage = useCallback(
+    (usage: TurnUsage, opts: { final: boolean; runtimeMs: number }) => {
+      setSessionUsage((current) => applyUsage(current, usage, opts))
+    },
+    []
+  )
+  const recordRuntime = useCallback((runtimeMs: number) => {
+    setSessionUsage((current) => applyTurnRuntime(current, runtimeMs))
+  }, [])
+
+  // chat-queue: sends the user committed to while a turn was running. The
+  // actual dispatcher is defined further down (it needs `beginTurn` and this
+  // conversation's resume handle), so it is reached through a ref — the queue
+  // owns the list, never the sending, and the two are wired in that order.
+  const dispatchQueuedRef = useRef<(message: QueuedMessage) => void>(() => {})
+  const queue = useMessageQueue(
+    useCallback((message: QueuedMessage) => dispatchQueuedRef.current(message), [])
+  )
+  const settleQueue = queue.settle
+
   // multi-agent: capabilities reflect THIS conversation's agent. Model/effort
   // reset to the new agent's defaults on a switch — model ids aren't portable
   // across agents (Claude's `opus` means nothing to Copilot), and an agent may
@@ -721,6 +878,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       workspace,
       currentSessionId: () => sessionIdRef.current,
       setStreamingBlocks,
+      setStreamingMetrics,
+      recordUsage,
+      recordRuntime,
+      settleQueue,
       setErrorMessage,
       appendMessage: (entry) => setMessages((current) => [...current, entry]),
       setCliSession: (id) => {
@@ -737,7 +898,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       refreshRunning()
       void window.hive.agent.stop()
     }
-  }, [workspace, refreshRunning])
+  }, [workspace, refreshRunning, recordUsage, recordRuntime, settleQueue])
 
   // session-history: persists a user turn into its stored conversation,
   // creating the conversation on the very first message (lazy — no empty
@@ -781,6 +942,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const turn: ActiveTurn = {
         id: nextTurnId(),
         blocks: [],
+        // The clock starts here — at the press of Enter, which is the moment
+        // the user is timing, not whenever the CLI process gets around to
+        // reporting its own.
+        metrics: { startedAt: Date.now(), steps: 0 },
         visible: true,
         session: persistUserMessage(label, attachmentNames),
         hiveId: sessionIdRef.current
@@ -793,6 +958,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         refreshRunning()
       })
       setStreamingBlocks([])
+      setStreamingMetrics(turn.metrics)
       refreshRunning()
       return turn.id
     },
@@ -826,6 +992,62 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [startWorkflowTurn]
   )
 
+  /**
+   * Hands one send to the agent, now. Shared by the composer's immediate path
+   * and by the queue's deferred one, so a message that waited behaves exactly
+   * like one that didn't — same bubble, same context files, same resume
+   * handle (read at dispatch time, so a queued follow-up resumes the
+   * conversation as it stands *then*, not as it stood when it was typed).
+   */
+  const sendNow = useCallback(
+    (message: QueuedMessage) => {
+      const resume = cliSessionRef.current
+      const turnId = beginTurn(message.text, message.attachmentNames)
+      if (message.workflow) {
+        window.hive.agent.runWorkflow(message.workflow, {
+          agentId: activeAgent ?? undefined,
+          resume,
+          turnId,
+          model: model ?? undefined,
+          effort: effort ?? undefined
+        })
+        return
+      }
+      window.hive.agent.send(message.text, {
+        agentId: activeAgent ?? undefined,
+        resume,
+        turnId,
+        attachments: message.contextFiles?.length ? message.contextFiles : undefined,
+        model: model ?? undefined,
+        effort: effort ?? undefined
+      })
+    },
+    [beginTurn, activeAgent, model, effort]
+  )
+
+  useEffect(() => {
+    dispatchQueuedRef.current = sendNow
+  }, [sendNow])
+
+  // chat-queue: a send committed while this conversation already has a turn
+  // running joins the queue instead of racing it. Two turns of the same
+  // conversation in flight at once would interleave two replies into one
+  // transcript and fork the CLI session's memory — which is the failure the
+  // old "the send button becomes Stop" behaviour was avoiding by simply
+  // refusing the send. Queueing keeps the refusal's guarantee and drops its
+  // cost: nothing is lost, and nothing has to be re-typed.
+  const isStreaming = streamingBlocks !== null
+  const submitOrQueue = useCallback(
+    (message: Omit<QueuedMessage, 'id'>) => {
+      if (isStreaming) {
+        queue.add(message)
+        return
+      }
+      sendNow({ ...message, id: '' })
+    },
+    [isStreaming, queue, sendNow]
+  )
+
   const handleSubmit = useCallback(
     (value: string) => {
       const pending = attachments.items
@@ -838,20 +1060,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const references = extractMentions(value, mentions.fileSet)
       const contextFiles = [...new Set([...pending.map((entry) => entry.path), ...references])]
       const names = pending.length > 0 ? pending.map((entry) => entry.name) : undefined
-      const resume = cliSessionRef.current
-      const turnId = beginTurn(value, names)
       setComposerValue('')
       attachments.clear()
-      window.hive.agent.send(value, {
-        agentId: activeAgent ?? undefined,
-        resume,
-        turnId,
-        attachments: contextFiles.length > 0 ? contextFiles : undefined,
-        model: model ?? undefined,
-        effort: effort ?? undefined
-      })
+      submitOrQueue({ text: value, contextFiles, attachmentNames: names })
     },
-    [beginTurn, attachments, mentions.fileSet, activeAgent, model, effort]
+    [attachments, mentions.fileSet, submitOrQueue]
   )
 
   /**
@@ -914,7 +1127,28 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     // it leaves with the pane. The request itself stays blocked in main and
     // comes back with the transcript — it is never silently auto-answered.
     setStreamingBlocks(null)
+    setStreamingMetrics(null)
   }, [])
+
+  /**
+   * agent-patch: opens a file the agent edited, from its patch header.
+   *
+   * The CLI reports absolute paths and the editor addresses files relative to
+   * the workspace, so this is where the two meet. A path outside the workspace
+   * (the agent read something from elsewhere on disk) resolves to nothing
+   * rather than to a wrong file — and `undefined` when the host has no editor
+   * at all, which is what makes the control disappear instead of misfiring.
+   */
+  const openEditedFile = useMemo(
+    () =>
+      onOpenFile === undefined
+        ? undefined
+        : (path: string): void => {
+            const relative = workspaceRelative(workspace, path)
+            if (relative !== null) onOpenFile(relative)
+          },
+    [onOpenFile, workspace]
+  )
 
   // agent-approvals: releases the CLI child parked on this request. The card
   // keeps its answered state in place — in the transcript, where it was asked
@@ -948,6 +1182,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   )
 
   const newConversation = useCallback(() => {
+    const leaving = sessionIdRef.current
     detachTurns()
     setMessages([])
     setErrorMessage(null)
@@ -955,10 +1190,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setSessionId(null)
     sessionChainRef.current = Promise.resolve(null)
     cliSessionRef.current = null
+    // The context reading belongs to the CLI session being left; a fresh
+    // conversation starts from nothing known. The queue is *parked*, not
+    // dropped — those messages were written for the conversation that keeps
+    // running in the background, and they come back with it.
+    setSessionUsage(EMPTY_SESSION_USAGE)
+    queue.switchConversation(leaving, null)
     // multi-agent: a fresh conversation reverts to the app default agent (the
     // switcher can then re-pick before the first message).
     setConversationAgent(null)
-  }, [detachTurns])
+  }, [detachTurns, queue])
 
   // skill-studio: launching a creation/generation opens a *fresh* conversation
   // rather than appending to whatever is on screen — the builder gets a clean
@@ -978,6 +1219,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     async (id: string): Promise<void> => {
       const stored = await window.hive.chatHistory.get(workspace, id)
       if (!stored) return
+      const leaving = sessionIdRef.current
       detachTurns()
       // multi-agent: restore the agent this conversation ran on (falls back to
       // the app default when the stored agent is unknown/blank).
@@ -997,6 +1239,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // Conversation memory: the next turn resumes this conversation's CLI
       // session, so the agent picks up right where this transcript left off.
       cliSessionRef.current = stored.cliSessionId ?? null
+      // The usage reading belongs to the conversation being left: a restored
+      // transcript's real occupancy is unknown until its next turn reports one,
+      // and showing the previous conversation's number would be a lie about
+      // this one. The queue swaps with the pane — each conversation gets back
+      // whatever it had waiting.
+      setSessionUsage(EMPTY_SESSION_USAGE)
+      queue.switchConversation(leaving, stored.id)
       // background-turns: if THIS conversation still has a turn running,
       // re-attach its live stream — the user returns to find the reply
       // exactly where it is, still streaming.
@@ -1004,9 +1253,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       if (running) {
         running.visible = true
         setStreamingBlocks(running.blocks)
+        setStreamingMetrics(running.metrics)
       }
     },
-    [workspace, detachTurns]
+    [workspace, detachTurns, queue]
   )
 
   useImperativeHandle(ref, () => ({ launchAction, launchCreation, newConversation, openSession }), [
@@ -1016,8 +1266,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     openSession
   ])
 
-  const isStreaming = streamingBlocks !== null
   const isEmpty = messages.length === 0 && streamingBlocks === null
+  // One clock for every live duration on screen (the turn meter, each running
+  // step), running only while something is.
+  const now = useTicker(isStreaming)
   // agent-activity AA-R4: the CLI delivers a reply in fat, irregular chunks;
   // this paces them into a continuous reveal so the text flows instead of
   // appearing in blocks. Grapheme-safe, so an emoji never renders half-formed.
@@ -1083,12 +1335,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const selectSlashSkill = useCallback(
     (skill: SlashSkill) => {
       // Picking a row sends the slash command itself — menu, shortcut and
-      // typed command all converge on the same `/bmad-*` invocation.
-      startWorkflowTurn({ key: skill.key, prompt: `/${skill.key}` }, `/${skill.key}`)
+      // typed command all converge on the same `/bmad-*` invocation. It goes
+      // through the queue like any other composer send: launching a second
+      // workflow into a conversation that is already running one is the same
+      // collision a typed follow-up would cause.
+      submitOrQueue({
+        text: `/${skill.key}`,
+        workflow: { key: skill.key, prompt: `/${skill.key}` }
+      })
       setComposerValue('')
       setSlashDismissed(true)
     },
-    [startWorkflowTurn]
+    [submitOrQueue]
   )
 
   // Capture-phase so these fire before the textarea's own Enter-to-submit.
@@ -1233,6 +1491,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             </SelectContent>
           </Select>
         )}
+        {/* chat-queue: the interrupt moves out of the primary button and into
+            its own control, because the primary button now has a job that
+            outranks it — committing what you just typed. Two controls, each
+            with one meaning: this stops the agent, that one sends. It appears
+            only while there is something to stop. */}
+        {isStreaming && (
+          <button
+            type="button"
+            className="wb-stop-btn"
+            aria-label={t('chat.stopAria')}
+            title={t('chat.stopTitle')}
+            onClick={handleStop}
+          >
+            <StopIcon size={12} />
+          </button>
+        )}
       </>
     )
   }
@@ -1241,6 +1515,21 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     (value: string) => renderMentionBackdrop(value, mentions.fileSet, dictation.freshRange),
     [mentions.fileSet, dictation.freshRange]
   )
+
+  // chat-queue: while a turn runs the composer stays open and its primary
+  // control promises the queue instead of an immediate send. Resolved here so
+  // `renderComposer` stays a layout function rather than a decision tree.
+  const sendAffordance = isStreaming
+    ? {
+        placeholder: t('chat.promptPlaceholderBusy'),
+        label: t('chat.queueLabel'),
+        icon: <QueueIcon size={16} />
+      }
+    : {
+        placeholder: t('chat.promptPlaceholder'),
+        label: t('chat.sendLabel'),
+        icon: undefined
+      }
 
   // Nested so the menus'/attachments' conditionals stay off the Chat
   // component's complexity budget (same pattern as `renderToolbar`).
@@ -1299,15 +1588,24 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             listboxId={MENTION_LISTBOX_ID}
           />
         )}
+        {/* Docked to the composer's top edge: what is waiting to be sent sits
+            between the box it came out of and the transcript it is going to. */}
+        <QueuedMessages
+          queue={queue.queue}
+          onRemove={queue.remove}
+          onClear={queue.clear}
+          onResume={queue.resume}
+        />
         <PromptInput
           value={composerValue}
           onChange={handleComposerChange}
           onSubmit={handleComposerSubmit}
-          streaming={isStreaming}
-          onStop={handleStop}
-          stopLabel={t('chat.stopAria')}
-          placeholder={t('chat.promptPlaceholder')}
-          sendLabel={t('chat.sendLabel')}
+          placeholder={sendAffordance.placeholder}
+          // chat-queue: the composer never takes the stop role now (that moved
+          // to its own toolbar control), so the primary button always commits
+          // what is typed — it only changes what it promises to do with it.
+          sendLabel={sendAffordance.label}
+          sendIcon={sendAffordance.icon}
           aria-controls={
             slashOpen ? SLASH_LISTBOX_ID : mentionOpen ? MENTION_LISTBOX_ID : undefined
           }
@@ -1455,8 +1753,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     <TurnTimeline
                       blocks={message.blocks}
                       live={false}
+                      metrics={message.metrics}
                       renderText={assistantBody}
                       onApprovalDecide={handleApprovalDecision}
+                      onOpenFile={openEditedFile}
                     />
                   ) : (
                     message.text !== '' && assistantBody(message.text)
@@ -1474,9 +1774,12 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 <TurnTimeline
                   blocks={streamingBlocks}
                   live
+                  metrics={streamingMetrics ?? undefined}
+                  now={now}
                   revealedText={revealedText}
                   renderText={assistantBody}
                   onApprovalDecide={handleApprovalDecision}
+                  onOpenFile={openEditedFile}
                 />
               </ChatMessage>
             )}
@@ -1492,7 +1795,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       <div className="wb-chat-col wb-composer">
         {renderShortcutStrip()}
         {composer}
-        <p className="wb-composer-hint">{t('chat.composerHint')}</p>
+        {/* The strip under the composer: session status on the left, keyboard
+            grammar on the right. The hints used to own the whole line and were
+            read once and never again; the meter is the half of it that keeps
+            being worth a glance. */}
+        <div className="wb-composer-footer">
+          <ContextMeter usage={sessionUsageView} onNewConversation={newConversation} />
+          <p className="wb-composer-hint">{t('chat.composerHint')}</p>
+        </div>
       </div>
     </div>
   )

@@ -17,6 +17,8 @@ import { createHiveGitMock } from './testSupport/hiveGitMock'
 import { createHiveSecondBrainMock, FRESH_HEALTH } from './testSupport/hiveSecondBrainMock'
 import type { VaultHealth } from './secondBrain/useSecondBrain'
 import { makeStatus } from './testSupport/gitStoreMock'
+import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
+import type { McpLogEntry } from './mcpLogs/logConsole'
 
 /**
  * Task T11 — resizable file-area divider + persistence (design.md §7,
@@ -239,6 +241,45 @@ vi.mock('@hive/design-system', () => ({
     children?: ReactNode
   }) => createElement('label', null, label, children, description),
   Input: (props: Record<string, unknown>) => createElement('input', props),
+  // The MCP manager wraps its row controls in the tooltip family; passthroughs
+  // are enough here (the tooltip's own behaviour is DS-tested).
+  TooltipProvider: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  Tooltip: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  TooltipTrigger: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  TooltipContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  // mcp-logs: the console's filter bar. Mocked faithfully enough for the
+  // radiogroup queries its own test file uses — WorkUI only needs it to render.
+  SegmentedControl: ({
+    options,
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    options: { id: string; label: string; count?: number }[]
+    value: string
+    onChange: (id: string) => void
+    ariaLabel: string
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'aria-label': ariaLabel },
+      ...options.map((option) =>
+        createElement(
+          'button',
+          {
+            key: option.id,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': option.id === value,
+            onClick: () => onChange(option.id)
+          },
+          option.count === undefined ? option.label : `${option.label} ${option.count}`
+        )
+      )
+    ),
   // session-history: the chat pane header mounts the real `SessionHistory`,
   // which rides DS Popover — same context-bridge pattern as DropdownMenu
   // above. Content renders only while the component holds `open`, matching
@@ -569,6 +610,9 @@ function createHiveMock(): Window['hive'] {
       setEnabled: vi.fn(async () => undefined),
       probe: vi.fn(async () => ({ ok: true, tools: [], logs: '', durationMs: 0 }))
     },
+    // mcp-logs: the console's dock and the status bar's cluster both read this
+    // on mount; `watch` must return a real disposer (it runs on unmount).
+    mcpLogs: createHiveMcpLogsMock(),
     app: {
       info: vi.fn(async () => ({
         name: 'hive-desktop',
@@ -2422,5 +2466,142 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     fireEvent.click(await screen.findByText('Revisar agora'))
     await waitFor(() => expect(brain.noteLint).toHaveBeenCalledWith('/home/user/my-workspace'))
     await waitFor(() => expect(screen.queryByText('Hora do health-check')).toBeNull())
+  })
+})
+
+/**
+ * mcp-logs — the MCP console's shell wiring: the status-bar cluster that
+ * reports MCP activity while the dock is closed, the dock itself, and the two
+ * other ways in (the Ctrl+Shift+M shortcut and the manager's "Ver logs de
+ * uso"). The console's own behaviour lives in `mcpLogs/McpConsole.test.ts`;
+ * what's asserted here is only that WorkUI opens, closes and feeds it.
+ */
+describe('WorkUI — MCP console dock (mcp-logs)', () => {
+  /** One classified log entry, as the bridge would deliver it. */
+  function logEntry(overrides: Partial<McpLogEntry> = {}): McpLogEntry {
+    return {
+      id: 'f#1',
+      server: 'playwright',
+      at: Date.parse('2026-08-06T16:41:18Z'),
+      level: 'info',
+      kind: 'tool-call',
+      text: 'browser_navigate',
+      detail: '',
+      sessionId: 's1',
+      tool: 'browser_navigate',
+      durationMs: null,
+      transport: null,
+      serverVersion: null,
+      raw: '{}',
+      ...overrides
+    }
+  }
+
+  function renderWork(entries: McpLogEntry[] = []): Window['hive'] {
+    const hive = createHiveMock()
+    hive.mcpLogs.read = vi.fn(async () => entries)
+    hive.mcpLogs.sources = vi.fn(async () =>
+      entries.length === 0 ? [] : [{ server: 'playwright', dir: '/d', files: 1, lastActivityAt: 1 }]
+    )
+    vi.stubGlobal('hive', hive)
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+    return hive
+  }
+
+  const clusterName = 'Abrir o console de atividade dos servidores MCP'
+
+  it('keeps the dock closed until asked, reporting the last server in the status bar', async () => {
+    renderWork([logEntry()])
+    const cluster = await screen.findByRole('button', { name: clusterName })
+    expect(within(cluster).getByText('playwright')).toBeTruthy()
+    expect(document.querySelector('.wb-mcplog')).toBeNull()
+  })
+
+  it('counts errors in the status bar without opening anything', async () => {
+    renderWork([logEntry({ level: 'error', kind: 'stderr', text: 'boom' })])
+    const cluster = await screen.findByRole('button', { name: clusterName })
+    await waitFor(() => expect(within(cluster).getByText('1')).toBeTruthy())
+  })
+
+  it('opens and closes the dock from the status-bar cluster', async () => {
+    renderWork([logEntry()])
+    fireEvent.click(await screen.findByRole('button', { name: clusterName }))
+
+    expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
+    expect(screen.getByText('browser_navigate')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar o console MCP' }))
+    await waitFor(() => expect(document.querySelector('.wb-mcplog')).toBeNull())
+  })
+
+  it('toggles the dock with Ctrl+Shift+M', async () => {
+    renderWork([logEntry()])
+    await screen.findByRole('button', { name: clusterName })
+
+    fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
+    expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(document.querySelector('.wb-mcplog')).toBeNull())
+  })
+
+  it('teaches the console when a workspace has never used an MCP server', async () => {
+    renderWork([])
+    fireEvent.click(await screen.findByRole('button', { name: clusterName }))
+    // Scoped to the dock: the status cluster carries the same idle sentence.
+    const dock = await screen.findByRole('region', { name: 'Console MCP' })
+    expect(within(dock).getByText('Nenhuma atividade MCP ainda')).toBeTruthy()
+    expect(within(dock).getByRole('button', { name: 'Configurar servidores MCP' })).toBeTruthy()
+  })
+})
+
+/**
+ * mcp-logs — the console's other two entry points: the manager's "Ver logs de
+ * uso" bridge, and the `.mcp.json` catalog read that lets the console flag a
+ * server logging here that this workspace never configured.
+ */
+describe('WorkUI — MCP manager ↔ console bridge (mcp-logs)', () => {
+  function renderWithServer(listResult?: Promise<unknown>): Window['hive'] {
+    const hive = createHiveMock()
+    hive.mcp.list = vi.fn(
+      () =>
+        (listResult ??
+          Promise.resolve([
+            { name: 'playwright', transport: 'stdio', command: 'npx', enabled: true }
+          ])) as ReturnType<typeof hive.mcp.list>
+    )
+    vi.stubGlobal('hive', hive)
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+    return hive
+  }
+
+  it('opens the console from the manager and closes the manager behind it', async () => {
+    renderWithServer()
+    fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
+
+    // Expand the server row to reach its detail actions.
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver detalhes de playwright' }))
+    fireEvent.click(await screen.findByText('Ver logs de uso'))
+
+    expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText('Ver logs de uso')).toBeNull())
+  })
+
+  it('shows the console even when the server catalog cannot be read', async () => {
+    renderWithServer(Promise.reject(new Error('sem .mcp.json')))
+    fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
+    expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
   })
 })

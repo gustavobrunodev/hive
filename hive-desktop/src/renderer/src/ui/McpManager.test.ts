@@ -119,14 +119,30 @@ beforeEach(() => {
 
 afterEach(() => cleanup())
 
+/** The console bridge's spy, asserted by the "abre o console" test below. */
+let onOpenConsole: ReturnType<typeof vi.fn>
+
 function renderManager(): void {
-  render(createElement(McpManager, { open: true, onOpenChange: vi.fn(), workspace: '/ws' }))
+  onOpenConsole = vi.fn()
+  render(
+    createElement(McpManager, {
+      open: true,
+      onOpenChange: vi.fn(),
+      workspace: '/ws',
+      onOpenConsole
+    })
+  )
 }
 
 describe('McpManager — closed gate', () => {
   it('renders nothing when closed', () => {
     const { container } = render(
-      createElement(McpManager, { open: false, onOpenChange: vi.fn(), workspace: '/ws' })
+      createElement(McpManager, {
+        open: false,
+        onOpenChange: vi.fn(),
+        workspace: '/ws',
+        onOpenConsole: vi.fn()
+      })
     )
     expect(container.firstChild).toBeNull()
     expect(api.list).not.toHaveBeenCalled()
@@ -227,6 +243,16 @@ describe('McpManager — add form', () => {
     fireEvent.click(await screen.findByText('Configurar do zero'))
     fireEvent.click(screen.getByText('Remoto (HTTP)'))
     expect(await screen.findByPlaceholderText('https://exemplo.com/mcp')).toBeTruthy()
+  })
+})
+
+describe('McpManager — console bridge (mcp-logs)', () => {
+  it('hands off to the MCP console from an expanded row', async () => {
+    api.list.mockResolvedValue([stdioServer()])
+    renderManager()
+    fireEvent.click(await screen.findByRole('button', { name: /ver detalhes de playwright/i }))
+    fireEvent.click(await screen.findByText('Ver logs de uso'))
+    expect(onOpenConsole).toHaveBeenCalled()
   })
 })
 

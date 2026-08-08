@@ -1,4 +1,6 @@
+import { readFileSync, statSync } from 'fs'
 import type { ProcessHandle, ProcessRunner } from './processRunner'
+import { buildToolPatch, MAX_SOURCE_BYTES } from './toolPatch'
 import {
   composeTurnPrompt,
   createAgentEventQueue,
@@ -6,6 +8,7 @@ import {
   type AgentSession,
   type SessionOpts,
   type TurnOpts,
+  type TurnUsage,
   type WorkflowCommand
 } from './agentAdapter'
 
@@ -76,6 +79,8 @@ interface StreamJsonLine {
    * activity feed (agent-activity) and the file-change attribution (ACR-C7).
    */
   message?: {
+    /** The model that produced this message, as the CLI names it (session-usage). */
+    model?: string
     content?: Array<{
       type?: string
       id?: string
@@ -84,11 +89,110 @@ interface StreamJsonLine {
       tool_use_id?: string
       is_error?: boolean
     }>
+    /** Per-message token accounting — a live snapshot of context occupancy. */
+    usage?: StreamJsonUsage
   }
+  /** `result` only: the turn's totals, plus the CLI's own timings and cost. */
+  usage?: StreamJsonUsage
+  total_cost_usd?: number
+  duration_ms?: number
+  duration_api_ms?: number
+}
+
+/** The Anthropic-shaped `usage` object, as it appears on both message and result lines. */
+interface StreamJsonUsage {
+  input_tokens?: number
+  output_tokens?: number
+  cache_read_input_tokens?: number
+  cache_creation_input_tokens?: number
+}
+
+/** A number off the wire, coerced to a non-negative integer — an absent or malformed field is 0, never `NaN`. */
+function tokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0
+}
+
+/** A CLI-reported millisecond/currency figure, or `undefined` when the CLI didn't report one. */
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
+}
+
+/**
+ * Reads a `usage` object into the adapter's own shape, or returns `null` when
+ * the line carries none — every field is optional off the wire, and a usage
+ * block with nothing in it is not worth an event.
+ */
+function readUsage(raw: StreamJsonUsage | undefined, model?: string): TurnUsage | null {
+  if (!raw || typeof raw !== 'object') return null
+  const usage: TurnUsage = {
+    inputTokens: tokenCount(raw.input_tokens),
+    cacheReadTokens: tokenCount(raw.cache_read_input_tokens),
+    cacheCreationTokens: tokenCount(raw.cache_creation_input_tokens),
+    outputTokens: tokenCount(raw.output_tokens),
+    model: typeof model === 'string' && model !== '' ? model : undefined
+  }
+  const total =
+    usage.inputTokens + usage.cacheReadTokens + usage.cacheCreationTokens + usage.outputTokens
+  return total === 0 ? null : usage
+}
+
+/**
+ * Emits the turn's token accounting (session-usage): a live snapshot per
+ * completed `assistant` message, and the authoritative `final` one off the
+ * `result` line, which is where the CLI puts the turn's cost and its own
+ * duration. Consumers accumulate only the `final` ones — the intermediate
+ * snapshots are restatements of the same growing request, not separate costs.
+ */
+function emitUsageEvents(
+  parsed: StreamJsonLine,
+  queue: ReturnType<typeof createAgentEventQueue>,
+  turnId: string | undefined
+): void {
+  if (parsed.type === 'assistant') {
+    const usage = readUsage(parsed.message?.usage, parsed.message?.model)
+    if (usage) queue.push({ type: 'usage', usage, turnId })
+    return
+  }
+  if (parsed.type !== 'result') return
+  const usage = readUsage(parsed.usage)
+  if (!usage) return
+  queue.push({
+    type: 'usage',
+    usage: {
+      ...usage,
+      costUsd: optionalNumber(parsed.total_cost_usd),
+      durationMs: optionalNumber(parsed.duration_ms),
+      apiDurationMs: optionalNumber(parsed.duration_api_ms)
+    },
+    final: true,
+    turnId
+  })
 }
 
 /** Claude tool names whose `input.file_path` attributes a workspace file change (Agent Change Review, ACR-C7). */
 const FILE_EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
+
+/**
+ * The pre-edit image of a file a tool is about to change (agent-patch AP-C1).
+ *
+ * Read synchronously and on purpose: this runs inside the stdout line handler,
+ * and an `await` here would let the *next* line's events be queued before this
+ * one's, which reorders the transcript. The cost is bounded on both ends — only
+ * the four file-editing tools reach it, and anything over
+ * `MAX_SOURCE_BYTES` is refused before the read rather than after.
+ *
+ * Every failure — file doesn't exist yet (a `Write` creating one), a permission
+ * error, a directory, a binary blob — is the same answer: `null`, meaning "diff
+ * without line numbers". A patch the user can read beats a stack trace.
+ */
+function readPatchSource(path: string): string | null {
+  try {
+    if (statSync(path).size > MAX_SOURCE_BYTES) return null
+    return readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
 
 /**
  * The headline argument of a tool call, flattened to one line for the activity
@@ -122,8 +226,10 @@ export function toolDetailOf(input: Record<string, unknown> | undefined): string
  *  - a changed `session_id` → `session` (persisted per conversation, handed
  *    back as `resume` on the next turn),
  *  - `stream_event` text deltas → `token` (true incremental streaming),
- *  - complete `assistant`/`result`/`user` objects → ignored (their text
- *    already streamed as deltas; re-emitting would duplicate every reply),
+ *  - complete `assistant`/`result`/`user` objects → their *text* is ignored
+ *    (it already streamed as deltas; re-emitting would duplicate every reply),
+ *    but their `tool_use`/`tool_result` blocks become `tool` events and their
+ *    `usage` blocks become `usage` events,
  *  - a non-JSON line → emitted verbatim as a `token` (defensive fallback so a
  *    CLI without stream-json degrades to plain output instead of vanishing).
  */
@@ -155,6 +261,7 @@ function handleStdoutLine(
     queue.push({ type: 'token', text: parsed.event.delta.text, turnId })
   }
   emitToolEvents(parsed, queue, turnId)
+  emitUsageEvents(parsed, queue, turnId)
 }
 
 /**
@@ -191,6 +298,9 @@ function emitToolEvents(
         toolId: block.id,
         phase: 'start',
         filePath,
+        // The change itself, diffed against the file as it stands right now —
+        // the CLI has not run the tool yet (agent-patch AP-C1).
+        patch: buildToolPatch(block.name, block.input, readPatchSource),
         turnId
       })
     }

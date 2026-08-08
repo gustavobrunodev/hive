@@ -225,9 +225,16 @@ export const ptBR = {
     errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
     loadingCapabilities: 'Carregando opções do agente…',
     composerHint: 'Enter envia · Shift+Enter quebra a linha · / para skills · # para arquivos',
-    // chat-controls CC-R1: interrupt the running response — the composer's
-    // unified send⇄stop control's stop-state label.
+    // chat-queue: while a turn runs the composer keeps accepting input — the
+    // placeholder says where it lands, so the send button's new glyph isn't
+    // the only thing announcing it.
+    promptPlaceholderBusy: 'Escreva a próxima mensagem — ela entra na fila…',
+    queueLabel: 'Enfileirar mensagem',
+    // chat-controls CC-R1: interrupt the running response. Since chat-queue
+    // this is its own control in the toolbar, not the send button's other
+    // state — the primary button always commits what was typed.
     stopAria: 'Interromper a resposta do agente',
+    stopTitle: 'Interromper o agente',
     // agent-selection AG-R3.3: the active-agent indicator in the composer.
     agentIndicatorAria: (agent: string) => `Agente ativo: ${agent}`,
     // multi-agent: the composer's per-conversation agent switcher.
@@ -271,6 +278,10 @@ export const ptBR = {
   activity: {
     read: 'Lendo',
     edit: 'Editando',
+    // agent-patch: a `Write` to a path that does not exist yet is a creation,
+    // not an edit. Without this the row read "Editou … novo", which contradicts
+    // itself, and the tense channel stopped being trustworthy.
+    create: 'Criando',
     search: 'Buscando',
     run: 'Rodando',
     web: 'Consultando a web',
@@ -278,6 +289,7 @@ export const ptBR = {
     other: 'Usando',
     readDone: 'Leu',
     editDone: 'Editou',
+    createDone: 'Criou',
     searchDone: 'Buscou',
     runDone: 'Rodou',
     webDone: 'Consultou',
@@ -294,6 +306,106 @@ export const ptBR = {
     okAria: (label: string) => `${label} — concluído`,
     failedAria: (label: string) => `${label} — falhou`,
     regionLabel: 'Atividade do agente'
+  },
+  // agent-patch: the change an editing step is applying, shown inline in the
+  // transcript. Copy is deliberately terse — these render dozens of times per
+  // turn, next to the code they describe, and every extra word is a word the
+  // reader has to step over to get to the diff.
+  patch: {
+    // The diffstat. The minus is U+2212, not a hyphen: it lines up with the
+    // plus at the same optical weight, which a hyphen next to a digit doesn't.
+    adds: (count: number) => `+${count}`,
+    dels: (count: number) => `−${count}`,
+    // Said once per patch, so a screen reader gets the scale before the lines.
+    bodyAria: (path: string, adds: number, dels: number) =>
+      `Alterações em ${path}: ${adds} linhas adicionadas, ${dels} removidas`,
+    // The op chip, only where "Editando" alone would mislead: a Write that
+    // creates a file, or one that replaces every line of an existing one.
+    opCreate: 'novo',
+    opRewrite: 'reescrito',
+    showMore: (count: number) =>
+      count === 1 ? 'Mostrar mais 1 linha' : `Mostrar mais ${count} linhas`,
+    showLess: 'Mostrar menos',
+    // The transport cap, said out loud: a patch cut short must not look whole.
+    truncated: (count: number) =>
+      count === 1 ? '1 linha não exibida' : `${count} linhas não exibidas`,
+    // The step failed after the patch was already on screen. Names the state
+    // the diff would otherwise imply it reached.
+    notApplied: 'A ferramenta falhou — esta alteração não foi aplicada.',
+    openInEditor: (name: string) => `Abrir ${name} no editor`
+  },
+  // chat-timing: how long things took. Compact by construction — these render
+  // inline, dozens per transcript, right next to the thing they measure, so
+  // "1min 12s" and never "1 minuto e 12 segundos".
+  timing: {
+    subSecond: (tenths: string) => `${tenths}s`,
+    seconds: (seconds: number) => `${seconds}s`,
+    minutes: (minutes: number, seconds: number) =>
+      `${minutes}min ${String(seconds).padStart(2, '0')}s`,
+    hours: (hours: number, minutes: number) => `${hours}h ${String(minutes).padStart(2, '0')}min`,
+    // Phase, read off the turn's own timeline. Literal, not playful: this app
+    // is a workbench, and a cute verb costs a second of parsing every time it
+    // changes. "Aguardando você" names who the turn is blocked on, which is
+    // the only phase where the user is the one holding it up.
+    phaseStarting: 'Iniciando',
+    phaseThinking: 'Pensando',
+    phaseWriting: 'Escrevendo',
+    phaseWorking: 'Executando',
+    phaseWaiting: 'Aguardando você',
+    // Tokens: the live meter reports what the request *carried* (context), the
+    // receipt what the turn *produced*. Two different numbers, two words.
+    tokensRead: (tokens: string) => `${tokens} tokens de contexto`,
+    tokensWritten: (tokens: string) => `${tokens} tokens gerados`,
+    thousands: (value: string) => `${value} mil`,
+    millions: (value: string) => `${value} mi`,
+    cost: (amount: string) => `US$ ${amount}`,
+    // The settled receipt's opening clause: what happened, in how long.
+    receiptDone: (duration: string) => `Concluído em ${duration}`,
+    receiptInterrupted: (duration: string) => `Interrompido após ${duration}`,
+    receiptFailed: (duration: string) => `Falhou após ${duration}`
+  },
+  // chat-queue: messages committed while the agent was busy. The copy never
+  // says "aguardando" alone — a queue that looks stuck and a queue that IS
+  // stuck have to read differently, which is what `heldTitle` is for.
+  queue: {
+    regionLabel: 'Mensagens na fila',
+    title: (count: number) => (count === 1 ? '1 mensagem na fila' : `${count} mensagens na fila`),
+    heldTitle: 'Fila pausada — o turno anterior não terminou',
+    clearCta: 'Limpar',
+    resumeCta: 'Retomar',
+    removeAria: (text: string) => `Remover da fila: ${text}`,
+    removeTitle: 'Tirar da fila',
+    attachmentCount: (count: number) => (count === 1 ? '· 1 anexo' : `· ${count} anexos`)
+  },
+  // session-usage: how full the context window is and what the conversation
+  // has spent. The vocabulary is deliberately the model's own (cache, tokens)
+  // — this is the detail view, and a PM who opens it wants the real numbers,
+  // with one sentence saying what they mean.
+  usage: {
+    meterLabel: 'de contexto',
+    meterPercent: (percent: number) => `${percent}%`,
+    underOnePercent: '<1%',
+    meterAria: (summary: string) => `Janela de contexto: ${summary} em uso. Ver detalhes.`,
+    detailTitle: 'Contexto da sessão',
+    ofWindow: (total: string) => `de ${total}`,
+    barAria: (used: string, total: string) =>
+      total === '' ? `${used} tokens em uso` : `${used} de ${total} tokens em uso`,
+    segCacheRead: 'Reaproveitado do cache',
+    segCacheCreation: 'Gravado no cache agora',
+    segInput: 'Enviado nesta chamada',
+    segFree: 'Livre',
+    // Says what the bar is a picture *of* — the last request, not a running
+    // total — because that is the one thing a percentage can't say by itself.
+    contextNote:
+      'É tudo o que o agente releu na última chamada. Toda mensagem reenvia a conversa inteira; o que ele escreve entra no contexto da próxima.',
+    totalRuntime: 'Tempo de execução',
+    totalApi: 'Tempo de API',
+    totalTurns: 'Turnos',
+    totalOutput: 'Tokens gerados',
+    totalCost: 'Custo',
+    tightAdvice:
+      'A janela está quase cheia. Daqui pra frente o agente pode perder o começo da conversa.',
+    tightCta: 'Começar uma conversa nova'
   },
   // agent-approvals: the agent asked to run something it isn't pre-authorized
   // for. Copy is deliberately concrete about *what* is being asked — a vague
@@ -537,7 +649,90 @@ export const ptBR = {
       `"${name}" será removido do .mcp.json deste workspace. O agente deixa de ter acesso às ferramentas dele.`,
     deleteConfirmCta: 'Remover servidor',
     deleteCancelCta: 'Cancelar',
-    deleteErrorMessage: 'Não foi possível remover. Tente novamente.'
+    deleteErrorMessage: 'Não foi possível remover. Tente novamente.',
+    // Bridge into the console, from the expanded row.
+    openConsoleCta: 'Ver logs de uso'
+  },
+  // mcp-logs: the MCP console — what each server actually did while the agent
+  // worked, read from the CLI's own per-server log files. Vocabulary note: the
+  // module says "atividade"/"eventos", never "log dump" — PRODUCT.md names
+  // log-dump UIs as an anti-reference, and the copy holds that line.
+  mcpLogs: {
+    // Dock chrome.
+    title: 'Console MCP',
+    openLabel: 'Console MCP',
+    openAria: 'Abrir o console de atividade dos servidores MCP',
+    closeAria: 'Fechar o console MCP',
+    expandAria: 'Expandir o console para a área toda',
+    collapseAria: 'Restaurar a altura do console',
+    collapseDockAria: 'Recolher o console para a barra',
+    expandDockAria: 'Abrir o console MCP',
+    resizeAria: 'Redimensionar o console MCP',
+    // The collapsed strip — the ambient "MCP is doing something" signal.
+    idleStrip: 'Nenhuma atividade MCP ainda',
+    liveLabel: 'ao vivo',
+    liveAria: 'Recebendo eventos ao vivo',
+    // Filters.
+    filterAria: 'Filtrar eventos por tipo',
+    filterAll: 'Tudo',
+    filterTools: 'Ferramentas',
+    filterConnection: 'Conexão',
+    filterIssues: 'Problemas',
+    serverAll: 'Todos os servidores',
+    serverAria: 'Filtrar por servidor',
+    searchPlaceholder: 'Buscar em eventos, ferramentas e saída…',
+    searchAria: 'Buscar nos eventos',
+    clearSearchAria: 'Limpar a busca',
+    // Row vocabulary.
+    categoryTool: 'ferramenta',
+    categoryConnection: 'conexão',
+    categoryStderr: 'saída',
+    categoryOther: 'evento',
+    eventConnecting: 'Iniciando conexão…',
+    eventConnected: (transport: string) =>
+      transport === '' ? 'Conectado' : `Conectado via ${transport}`,
+    eventCapabilities: (version: string) => `Handshake concluído · ${version}`,
+    eventCapabilitiesPlain: 'Handshake concluído',
+    eventToolRunning: (tool: string) => `${tool} ainda em execução`,
+    eventClosed: 'Conexão encerrada',
+    eventReconnect: 'Cache de conexão limpo — vai reconectar',
+    eventShutdown: 'Encerrando o processo do servidor',
+    eventExited: 'Processo do servidor encerrado',
+    latencyMs: (ms: number) => `${ms} ms`,
+    latencySeconds: (seconds: string) => `${seconds} s`,
+    barAria: (tool: string, latency: string) => `${tool} levou ${latency}`,
+    detailToggleAria: (summary: string) => `Ver detalhes de: ${summary}`,
+    copyCta: 'Copiar',
+    copiedCta: 'Copiado',
+    copyAria: 'Copiar o registro bruto deste evento',
+    // Session bands.
+    bandLabel: (stamp: string) => `sessão · ${stamp}`,
+    bandCount: (count: number) => (count === 1 ? '1 evento' : `${count} eventos`),
+    // Follow-the-tail affordance.
+    followCta: (count: number) => (count === 1 ? '1 evento novo' : `${count} eventos novos`),
+    followAria: 'Ir para o evento mais recente',
+    // Expanded console — the per-server rail.
+    railHeading: 'Servidores',
+    railCalls: (count: number) => (count === 1 ? '1 chamada' : `${count} chamadas`),
+    railErrors: (count: number) => (count === 1 ? '1 erro' : `${count} erros`),
+    railMedian: (value: string) => `mediana ${value}`,
+    railSlowest: (value: string) => `pico ${value}`,
+    railLive: 'conectado',
+    railOffline: 'sem conexão ativa',
+    railNotInCatalog: 'fora do .mcp.json deste workspace',
+    openDirCta: 'Abrir pasta de logs',
+    openDirAria: (server: string) => `Abrir a pasta de logs de ${server}`,
+    // States.
+    loadingLabel: 'Lendo a atividade MCP…',
+    emptyTitle: 'Nenhuma atividade MCP ainda',
+    emptyDescription:
+      'Os eventos aparecem aqui assim que o agente usar um servidor MCP durante um turno — conexões, cada ferramenta chamada e o que o servidor imprimiu.',
+    emptyCta: 'Configurar servidores MCP',
+    noMatchTitle: 'Nenhum evento neste filtro',
+    noMatchDescription: 'Ajuste o tipo, o servidor ou a busca para ver mais.',
+    clearFiltersCta: 'Limpar filtros',
+    errorTitle: 'Não foi possível ler a atividade MCP',
+    retryCta: 'Tentar de novo'
   },
   // session-history: persisted conversations (panel, hero recents, row actions).
   chatHistory: {

@@ -38,15 +38,25 @@ import { createCliAgentSession } from './cliAdapterCore'
 
 const CLAUDE_COMMAND = 'claude'
 
+/**
+ * The context window every current Claude model exposes through the CLI, in
+ * tokens (session-usage). Curated here for the same reason the model list is
+ * (C5): no CLI reports its own limit, and the UI needs a denominator to say
+ * how full a conversation is. One shared constant rather than four copies —
+ * the day a model ships a different window, it gets its own entry and this
+ * stays the default.
+ */
+const CLAUDE_CONTEXT_WINDOW = 200_000
+
 function capabilities(): AgentCapabilities {
   // Curated per C5 — the full set of model aliases and effort levels the
   // Claude Code CLI accepts, not an arbitrarily trimmed subset.
   return {
     models: [
-      { id: 'opus', label: 'Opus' },
-      { id: 'sonnet', label: 'Sonnet' },
-      { id: 'haiku', label: 'Haiku' },
-      { id: 'fable', label: 'Fable' }
+      { id: 'opus', label: 'Opus', contextWindow: CLAUDE_CONTEXT_WINDOW },
+      { id: 'sonnet', label: 'Sonnet', contextWindow: CLAUDE_CONTEXT_WINDOW },
+      { id: 'haiku', label: 'Haiku', contextWindow: CLAUDE_CONTEXT_WINDOW },
+      { id: 'fable', label: 'Fable', contextWindow: CLAUDE_CONTEXT_WINDOW }
     ],
     efforts: [
       { id: 'low', label: 'Low' },

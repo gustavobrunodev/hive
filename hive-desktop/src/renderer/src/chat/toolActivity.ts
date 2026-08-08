@@ -15,6 +15,40 @@
 
 import { t } from '../i18n'
 
+/**
+ * Structural mirrors of `main/toolPatch.ts` (renderer files mirror main types
+ * instead of importing across the process boundary — same convention as
+ * `Chat.tsx`'s `AgentEventIn`). See that module for what each field means and
+ * why the diff is computed in main.
+ */
+export type PatchOp = 'create' | 'edit' | 'rewrite'
+
+export interface PatchSpan {
+  text: string
+  changed: boolean
+}
+
+export interface PatchLine {
+  type: 'add' | 'del' | 'ctx'
+  text: string
+  no: number | null
+  spans?: PatchSpan[]
+}
+
+export interface PatchHunk {
+  lines: PatchLine[]
+}
+
+export interface ToolPatch {
+  op: PatchOp
+  path: string
+  adds: number
+  dels: number
+  hunks: PatchHunk[]
+  truncated?: number
+  anchored: boolean
+}
+
 export type ToolActivityState = 'running' | 'ok' | 'failed'
 
 export interface ToolActivity {
@@ -27,6 +61,21 @@ export interface ToolActivity {
   state: ToolActivityState
   /** Monotonic arrival index, for a stagger that follows arrival order. */
   seq: number
+  /**
+   * When the step started, as `Date.now()` in the renderer. A running row
+   * counts up from here; a settled one shows `endedAt - startedAt`. Measured
+   * at the event, not reported by the CLI — see `turnTiming.ts` on why.
+   */
+  startedAt: number
+  /** When its result came back; unset while it runs. */
+  endedAt?: number
+  /**
+   * agent-patch: the change this step is applying, on a file-editing tool.
+   * Arrives on the `start` half and is preserved when the `end` settles the
+   * row — the patch is the record of what the step *did*, so it has to outlive
+   * the moment it was doing it.
+   */
+  patch?: ToolPatch
 }
 
 /** The `tool` event fields this reducer consumes (mirrors `main/agentAdapter.ts`'s `ToolEvent`). */
@@ -36,6 +85,7 @@ export interface ToolActivityEvent {
   toolId?: string
   phase?: 'start' | 'end'
   ok?: boolean
+  patch?: ToolPatch
 }
 
 /**
@@ -121,10 +171,14 @@ export function shortenDetail(detail: string | undefined, kind: ToolKind): strin
  *
  * Returns the same array reference when nothing changed, so React can skip the
  * re-render.
+ *
+ * `now` is injected rather than read from the clock inside, so a test can pin
+ * a step's duration exactly instead of asserting on a range.
  */
 export function reduceToolActivity(
   current: ToolActivity[],
-  event: ToolActivityEvent
+  event: ToolActivityEvent,
+  now: number = Date.now()
 ): ToolActivity[] {
   if (event.phase === 'end') {
     const state: ToolActivityState = event.ok === false ? 'failed' : 'ok'
@@ -134,7 +188,7 @@ export function reduceToolActivity(
         : findLastRunning(current)
     if (index === -1) return current
     const next = [...current]
-    next[index] = { ...next[index], state }
+    next[index] = { ...next[index], state, endedAt: now }
     return next
   }
   // A `start` (or an adapter that reports no phase at all — treat it as one).
@@ -145,7 +199,15 @@ export function reduceToolActivity(
     name: event.name,
     detail: event.detail,
     state: 'running',
-    seq: existing === -1 ? current.length : current[existing].seq
+    seq: existing === -1 ? current.length : current[existing].seq,
+    // A repeat `start` for the same id restarts the clock: the CLI is telling
+    // us the step is running *again*, and carrying the first attempt's stamp
+    // would report a duration that includes the gap between them.
+    startedAt: now,
+    // …but it does NOT restart the patch: an adapter that re-announces a step
+    // without repeating its input would otherwise blank the snippet already on
+    // screen, which reads as the change being withdrawn.
+    patch: event.patch ?? (existing === -1 ? undefined : current[existing].patch)
   }
   if (existing !== -1) {
     const next = [...current]
@@ -169,10 +231,52 @@ function findLastRunning(activities: ToolActivity[]): number {
  */
 export function settleToolActivity(
   activities: ToolActivity[],
-  outcome: 'ok' | 'failed'
+  outcome: 'ok' | 'failed',
+  now: number = Date.now()
 ): ToolActivity[] {
   if (!activities.some((activity) => activity.state === 'running')) return activities
   return activities.map((activity) =>
-    activity.state === 'running' ? { ...activity, state: outcome } : activity
+    activity.state === 'running' ? { ...activity, state: outcome, endedAt: now } : activity
   )
+}
+
+/** A step's elapsed ms: counting up while it runs, frozen once it settled. */
+export function activityElapsed(activity: ToolActivity, now: number): number {
+  return Math.max(0, (activity.endedAt ?? now) - activity.startedAt)
+}
+
+/**
+ * The collapsed view of a long turn: the newest `limit` rows — **plus every
+ * row that carries a patch**, wherever it sits (agent-patch).
+ *
+ * Collapsing by recency alone would hide the one thing the feed exists to
+ * show. A turn that edits a file and then reads four more would push the
+ * change off screen behind a count, and the user would watch the agent's most
+ * consequential step scroll away while four file reads stayed. What the agent
+ * *looked at* is fine to fold; what it *changed* is not.
+ *
+ * Returns the same array reference when nothing needs folding.
+ */
+export function collapseActivities(activities: ToolActivity[], limit: number): ToolActivity[] {
+  if (activities.length <= limit) return activities
+  const keep = new Set(activities.slice(-limit).map((activity) => activity.id))
+  for (const activity of activities) if (activity.patch) keep.add(activity.id)
+  return activities.filter((activity) => keep.has(activity.id))
+}
+
+/**
+ * An absolute path as POSIX, relative to the workspace — the address the
+ * editor uses when the patch header's control opens the file it changed.
+ *
+ * `null` for anything outside the workspace, so a tool that touched a file
+ * elsewhere on disk opens nothing rather than the wrong thing. Backslashes are
+ * normalised because the CLI reports Windows paths natively while the editor's
+ * tree is POSIX throughout.
+ */
+export function workspaceRelative(workspace: string, path: string): string | null {
+  const posix = (value: string): string => value.split('\\').join('/').replace(/\/+$/, '')
+  const root = posix(workspace)
+  const file = posix(path)
+  if (root === '' || !file.startsWith(`${root}/`)) return null
+  return file.slice(root.length + 1)
 }

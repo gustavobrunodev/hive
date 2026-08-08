@@ -14,9 +14,18 @@
 //   chunks      string[] — text deltas, streamed in order
 //   writes      [{path, content}] — files written relative to cwd (the workspace)
 //   delayMs     number   — pause before each chunk (interrupt/streaming tests)
+//   writeDelayMs number  — pause after each write's tool_use, so the step has
+//                          a duration the per-step clock can report
 //   hang        boolean  — never exit after the chunks (for interrupt tests)
 //   exitCode    number   — process exit code (non-zero → the adapter's `error`)
 //   stderr      string   — written to stderr (the tail the adapter appends)
+//   usage       object   — token accounting, emitted on an `assistant` message
+//                          AND on the closing `result` line, exactly as the
+//                          real CLI reports it (session-usage). Fields are the
+//                          wire names: input_tokens, output_tokens,
+//                          cache_read_input_tokens, cache_creation_input_tokens,
+//                          plus total_cost_usd / duration_ms / duration_api_ms
+//                          on the result line.
 // Every invocation is appended as one JSON line to HIVE_E2E_AGENT_LOG, so a
 // test can assert on disk *what the app actually asked the agent to do*.
 
@@ -79,6 +88,31 @@ async function run() {
       type: 'assistant',
       session_id: sessionId,
       message: { content: [{ type: 'tool_use', name: 'Write', input: { file_path: target } }] }
+    })
+    // A step with real duration: the stand-in reports no `tool_result`, so
+    // without this the row starts and settles within the same instant and the
+    // per-step clock (which only shows past a second) has nothing to show.
+    if (script.writeDelayMs) await delay(script.writeDelayMs)
+  }
+
+  // session-usage: the same two places the real CLI reports tokens — a live
+  // snapshot on a completed assistant message, then the authoritative totals
+  // on the `result` line, which is also where cost and duration live.
+  if (script.usage) {
+    const { total_cost_usd, duration_ms, duration_api_ms, ...tokens } = script.usage
+    emit({
+      type: 'assistant',
+      session_id: sessionId,
+      message: { model: script.model ?? 'claude-opus-5', content: [], usage: tokens }
+    })
+    emit({
+      type: 'result',
+      subtype: 'success',
+      session_id: sessionId,
+      usage: tokens,
+      total_cost_usd,
+      duration_ms,
+      duration_api_ms
     })
   }
 

@@ -22,6 +22,8 @@ import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
 import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
+import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
+import type { McpLogEntry } from '../main/mcpLogParse'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ResolvedRoleAction } from '../main/roleCatalog'
@@ -321,6 +323,30 @@ const hive = {
       ipcRenderer.invoke('mcp:setEnabled', workspace, name, enabled),
     probe: (workspace: string, name: string): Promise<McpProbeResult> =>
       ipcRenderer.invoke('mcp:probe', workspace, name)
+  },
+
+  // MCP console (mcp-logs): the CLI's own per-server log files for this
+  // workspace — the record of what each MCP server did during real turns.
+  // `sources`/`read`/`openDir` are plain invoke/response; `watch` is the
+  // streaming half and follows the `watchWorkspace` pattern above exactly —
+  // subscribe returns an unsubscribe that both drops the listener and tells
+  // main to tear the watcher down, so a closed console leaves nothing running.
+  mcpLogs: {
+    sources: (workspace: string): Promise<McpLogSource[]> =>
+      ipcRenderer.invoke('mcpLogs:sources', workspace),
+    read: (workspace: string, query?: McpLogQuery): Promise<McpLogEntry[]> =>
+      ipcRenderer.invoke('mcpLogs:read', workspace, query ?? {}),
+    openDir: (workspace: string, server: string): Promise<void> =>
+      ipcRenderer.invoke('mcpLogs:openDir', workspace, server),
+    watch: (workspace: string, onBatch: (entries: McpLogEntry[]) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, entries: McpLogEntry[]): void => onBatch(entries)
+      ipcRenderer.on('mcpLogs:watch:event', listener)
+      ipcRenderer.send('mcpLogs:watch:start', workspace)
+      return () => {
+        ipcRenderer.removeListener('mcpLogs:watch:event', listener)
+        ipcRenderer.send('mcpLogs:watch:stop')
+      }
+    }
   },
 
   // ChatHistoryStore (session-history): persisted conversations per

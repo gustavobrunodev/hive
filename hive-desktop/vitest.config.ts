@@ -333,6 +333,32 @@ export default defineConfig({
         // not signal. `useSmoothStream.ts` is rAF-driven presentation with no
         // branch worth gating; its grapheme handling is covered by its own test.
         'src/main/approvalService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // chat-timing / chat-queue / session-usage: the three pure modules
+        // behind the execution readouts, the send queue and the context meter.
+        // Each is a decision table whose failure modes are all silent —
+        // durations that lie, a queue that fires into the wrong conversation,
+        // token snapshots summed into a number four times too large — so they
+        // carry the full bar. Their components (`TurnMeter.tsx`,
+        // `QueuedMessages.tsx`, `ContextMeter.tsx`) are exercised through
+        // Chat.test, following the `ToolActivityFeed.tsx` precedent above.
+        'src/renderer/src/chat/turnTiming.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/sessionUsage.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/messageQueue.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         'src/renderer/src/chat/toolActivity.ts': {
           statements: 90,
           branches: 90,
@@ -454,6 +480,54 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // mcp-logs: the MCP console's logic. `mcpLogParse.ts` carries 100 — it
+        // is a classification table over free text the CLI can reword at any
+        // release, and every failure mode is silent (a connection failure
+        // filed as a debug notice still *renders*, just in the wrong place and
+        // the wrong colour). `mcpLogService.ts` and the two renderer logic
+        // files carry the full bar for the same reason as their `gitService`/
+        // `turnTiming` precedents: a tail that re-sends history, a filter that
+        // drops a class of errors, and a duration bar scaled to the wrong
+        // maximum all look correct on screen. The presentational
+        // `McpConsole.tsx` / `McpStatusCluster.tsx` follow the ungated
+        // `SkillStudio`/`McpManager` precedent — covered by `McpConsole.test`,
+        // but their many render-callback arrows make a function gate noise.
+        'src/main/mcpLogParse.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/main/mcpLogService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // agent-patch: the diff engine behind the in-chat snippet. Carries 100
+        // for the same reason as `mcpLogParse.ts` — every one of its failure
+        // modes is silent. A misaligned LCS still *renders*, as a patch that
+        // claims the agent replaced lines it never touched; a word-pairing
+        // threshold set too loose still renders, as confetti; an off-by-one in
+        // the line numbers still renders, pointing the reader at the wrong line
+        // of their own file. None of that shows up as an error, so a test is
+        // the only thing that can see it. The presentational `PatchSnippet.tsx`
+        // follows its sibling `ToolActivityFeed.tsx` (ungated) — covered by
+        // `PatchSnippet.test`, but its render-callback arrows make a function
+        // gate noise rather than signal.
+        'src/main/toolPatch.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/mcpLogs/logConsole.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/mcpLogs/useMcpLogs.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
       }
     }

@@ -82,6 +82,17 @@ describe('ClaudeCliAdapter — contract', () => {
     // chat-attachments (R6.5/T16): file paths fold into the turn prompt.
     expect(caps.supportsAttachments).toBe(true)
   })
+
+  // session-usage: the UI needs a denominator to turn the `usage` event's raw
+  // token counts into "how full is this conversation". No CLI reports its own
+  // limit, so every model this adapter offers has to declare one.
+  it('every curated model declares its context window', () => {
+    const caps = createClaudeCliAdapter(createFakeProcessRunner()).capabilities()
+
+    for (const model of caps.models) {
+      expect(model.contextWindow).toBe(200_000)
+    }
+  })
 })
 
 /** The flags every turn carries after the session-history stream-json switch. */
@@ -396,6 +407,112 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
       { type: 'token', text: 'inteiro' },
       { type: 'done' }
     ])
+  })
+
+  // session-usage: token accounting is reported twice on purpose — a live
+  // snapshot per assistant message (so a long turn can show the context window
+  // filling up while it runs) and one `final` report off the CLI's own
+  // `result` line, which is the only place the turn's cost and duration exist.
+  it('emits a usage snapshot per assistant message and a final one from the result line', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            message: {
+              model: 'claude-opus-5',
+              content: [{ type: 'text', text: 'oi' }],
+              usage: {
+                input_tokens: 6,
+                cache_creation_input_tokens: 14_304,
+                cache_read_input_tokens: 61_200,
+                output_tokens: 42
+              }
+            }
+          })
+        },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'result',
+            subtype: 'success',
+            session_id: 'cli-sess-1',
+            duration_ms: 8858,
+            duration_api_ms: 9033,
+            total_cost_usd: 0.098,
+            usage: {
+              input_tokens: 6,
+              cache_creation_input_tokens: 14_304,
+              cache_read_input_tokens: 61_200,
+              output_tokens: 246
+            }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'opus' })
+
+    session.send({ text: 'q', turnId: 'turn-9' })
+    const events = await take(session.events, 4)
+
+    expect(events[1]).toEqual({
+      type: 'usage',
+      turnId: 'turn-9',
+      usage: {
+        inputTokens: 6,
+        cacheCreationTokens: 14_304,
+        cacheReadTokens: 61_200,
+        outputTokens: 42,
+        model: 'claude-opus-5'
+      }
+    })
+    expect(events[2]).toEqual({
+      type: 'usage',
+      final: true,
+      turnId: 'turn-9',
+      usage: {
+        inputTokens: 6,
+        cacheCreationTokens: 14_304,
+        cacheReadTokens: 61_200,
+        outputTokens: 246,
+        model: undefined,
+        costUsd: 0.098,
+        durationMs: 8858,
+        apiDurationMs: 9033
+      }
+    })
+    expect(events[3]).toEqual({ type: 'done', turnId: 'turn-9' })
+  })
+
+  it('a line with no usage block, or an all-zero one, produces no usage event', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: toolUseLine('Read', '/ws/a.ts') },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'result',
+            subtype: 'success',
+            session_id: 'cli-sess-1',
+            usage: { input_tokens: 0, output_tokens: 0 }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'opus' })
+
+    session.send({ text: 'q' })
+    const events = await take(session.events, 3)
+
+    expect(events.some((event) => event.type === 'usage')).toBe(false)
   })
 
   it('non-JSON stdout lines fall back to raw tokens (older CLI without stream-json)', async () => {

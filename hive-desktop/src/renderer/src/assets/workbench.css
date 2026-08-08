@@ -27,6 +27,14 @@
   --wb-git-renamed: var(--wb-ic-teal);
   --wb-git-conflict: var(--wb-ic-orange);
   --wb-git-ignored: var(--muted);
+  /* agent-patch: the same two git hues, pulled toward the ink so they can
+     carry *text*. `--wb-ic-*` is documented below as a recognition palette
+     held to the 3:1 UI floor; the patch's counts and its +/- column are 11–12px
+     type, which is the 4.5:1 body floor. Mixing toward `--ink` keeps the hue
+     recognisable as added/removed and buys the luminance the smaller size
+     needs, in every theme, from one derivation. */
+  --wb-patch-add-ink: color-mix(in oklab, var(--wb-git-added) 62%, var(--ink));
+  --wb-patch-del-ink: color-mix(in oklab, var(--wb-git-deleted) 62%, var(--ink));
 }
 
 /* --- Product-register resets (this app has no brand-register surface) ---
@@ -359,8 +367,11 @@ body ::-webkit-scrollbar-corner {
   outline-offset: 2px;
 }
 
+/* Column, not row: the resizable pane group fills the top and the MCP console
+   (mcp-logs) docks under it, above the status bar. */
 .wb-body {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 }
@@ -8636,7 +8647,11 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-brain-fab-root {
   position: fixed;
   right: var(--s-4);
-  bottom: calc(24px + var(--s-4));
+  /* 24px is the status bar. `--wb-dock-h` is published by the MCP console
+     (mcp-logs) while its dock is open, so the button rises above it instead of
+     covering the newest log rows — the exact place the eye goes. */
+  bottom: calc(24px + var(--s-4) + var(--wb-dock-h, 0px));
+  transition: bottom 180ms var(--ease-quart);
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -10582,11 +10597,14 @@ span.wb-change-card-open {
   gap: 2px;
 }
 
+/* A row is a block, not a line: a step that changed a file carries its patch
+   underneath, inside the same <li>, so the change stays attached to the step
+   that made it. `--activity-head` is the header line's half-height — the one
+   number the mark and the rail's end-caps are both pinned to, so neither drifts
+   when a row grows a body. */
 .wb-activity-row {
+  --activity-head: 13px;
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
   min-width: 0;
   padding: 3px 0 3px 26px;
   font-size: 0.8125rem;
@@ -10596,8 +10614,19 @@ span.wb-change-card-open {
   animation-delay: calc(var(--activity-seq, 0) * 26ms);
 }
 
+.wb-activity-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: 20px;
+}
+
 /* The rail: one continuous hairline behind the marks, drawn per row so it
-   grows with the list and stops cleanly at the ends. */
+   grows with the list and stops cleanly at the ends. On a row with a patch it
+   deliberately runs the full height — the thread continues past the change
+   rather than restarting after it. */
 .wb-activity-row::before {
   content: '';
   position: absolute;
@@ -10608,10 +10637,10 @@ span.wb-change-card-open {
   background: var(--border-strong);
 }
 .wb-activity-row:first-child::before {
-  top: 50%;
+  top: var(--activity-head);
 }
 .wb-activity-row:last-child::before {
-  bottom: 50%;
+  bottom: calc(100% - var(--activity-head));
 }
 .wb-activity-row:first-child:last-child::before {
   display: none;
@@ -10624,7 +10653,7 @@ span.wb-change-card-open {
    because that is the one row worth finding in a list of forty. */
 .wb-activity-mark {
   position: absolute;
-  left: 1px;
+  left: -25px;
   top: 50%;
   display: inline-flex;
   align-items: center;
@@ -10819,6 +10848,338 @@ span.wb-change-card-open {
     animation: none;
   }
   .wb-activity-toggle-cta {
+    transition: none;
+  }
+}
+
+/* ===========================================================================
+   The patch (agent-patch) — what an editing step is changing, under the step.
+
+   The row above it stays exactly what it was (mark, verb, path, clock); it
+   just becomes the disclosure for the change it made. So this is not a card
+   inside a bubble — it is the continuation of a line, recessed into the
+   surface behind the transcript so it reads as *the file*, not as another
+   panel stacked on the reply.
+
+   Three grains, three channels: the sign column and the tint say which side a
+   line is on, the number column says where it lands, and the word marks say
+   which part of a rewritten line actually moved. That last one is the whole
+   reason this exists — without it a rename is two unrelated-looking lines and
+   the reader has to diff it by eye.
+   =========================================================================== */
+
+/* The row's text becomes a button when there's a patch behind it. Everything
+   about how it looks is inherited from the plain row; only the affordances
+   (pointer, chevron, focus ring) are added, so a feed of mixed rows still
+   reads as one list rather than as buttons among labels. */
+.wb-activity-open {
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-activity-open:hover {
+  color: var(--ink);
+}
+.wb-activity-open:hover .wb-activity-detail {
+  color: var(--ink);
+}
+.wb-activity-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--rounded-sm);
+}
+
+.wb-activity-chevron {
+  flex-shrink: 0;
+  color: var(--faint);
+  transition: transform 0.18s var(--ease-quart);
+}
+.wb-activity-chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+/* Opens the edited file in the editor. Quiet until reached, but always
+   rendered and always focusable — an affordance that only exists on hover is
+   an affordance a keyboard user does not have. */
+.wb-activity-goto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-activity-goto:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.wb-activity-goto:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  color: var(--ink);
+}
+
+/* `novo` / `reescrito` — said only where "Editando" alone would mislead. */
+.wb-patch-op {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-2);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* The diffstat: the one readout that lets a closed patch still be judged. */
+.wb-patch-stat {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 5px;
+  font-family: var(--ff-num);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wb-patch-count[data-kind='add'] {
+  color: var(--wb-patch-add-ink);
+}
+.wb-patch-count[data-kind='del'] {
+  color: var(--wb-patch-del-ink);
+}
+.wb-patch-bar {
+  display: inline-flex;
+  gap: 2px;
+}
+.wb-patch-seg {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+}
+.wb-patch-seg[data-kind='add'] {
+  background: var(--wb-git-added);
+}
+.wb-patch-seg[data-kind='del'] {
+  background: var(--wb-git-deleted);
+}
+
+.wb-patch {
+  margin: 7px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+/* A tool that failed after its patch was already on screen: the change was
+   proposed and never landed, so the diff is dimmed and the state is said in
+   words. Showing it unchanged would be the interface asserting something
+   false. */
+.wb-patch[data-failed] .wb-patch-code {
+  opacity: 0.55;
+}
+.wb-patch-note {
+  margin: 0;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--danger-bg);
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.wb-patch-code {
+  padding: 4px 0;
+  overflow-x: auto;
+}
+
+.wb-patch-line {
+  display: grid;
+  grid-template-columns: 36px 14px minmax(0, 1fr);
+  align-items: start;
+  min-height: 18px;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  animation: wb-patch-line-in 0.3s var(--ease-quart) backwards;
+  animation-delay: calc(var(--patch-i, 0) * 20ms);
+}
+
+/* The number and the sign are chrome, not code: unselectable, so dragging
+   across a patch to copy it yields the source and nothing else. */
+.wb-patch-no {
+  padding-right: 8px;
+  text-align: right;
+  /* `--muted`, not `--faint`: measured 2.95:1 on the light theme, a fail at
+     12px. This is the same lesson M14 and M15 already recorded — the tertiary
+     role only clears its floor against the darkest backgrounds, and a line
+     number is a coordinate somebody reads, not an inactive glyph. The gutter
+     stays subordinate by position and width, which is where that job belongs. */
+  color: var(--muted);
+  user-select: none;
+}
+.wb-patch-sign {
+  text-align: center;
+  color: var(--faint);
+  user-select: none;
+}
+.wb-patch-text {
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-right: 10px;
+  color: var(--muted);
+  /* The line writing itself in — the one motion here that depicts what it
+     reports. Backwards fill, never forwards-from-hidden: if this never runs,
+     the line renders at its own visible style. */
+  animation: wb-patch-text-in 0.36s var(--ease-quart) backwards;
+  animation-delay: calc(var(--patch-i, 0) * 20ms + 30ms);
+}
+
+/* Changed lines take the ink; context stays muted. The hierarchy is the
+   point — the lines that moved are the content, the rest is the address. */
+/* Tinted from the git hues, not from `--success-bg`/`--danger-bg`. The role
+   tints are built for banners and carry very different chroma (0.208 red vs
+   0.13 green), so at equal alpha the removals shouted louder than the
+   additions — which inverts the emphasis, since the *new* code is what the
+   reader is being asked to accept. The git pair is matched by construction. */
+.wb-patch-line[data-type='add'] {
+  background: color-mix(in oklab, var(--wb-git-added) 15%, transparent);
+}
+.wb-patch-line[data-type='del'] {
+  background: color-mix(in oklab, var(--wb-git-deleted) 13%, transparent);
+}
+/* A created file is all additions, so the tint has nothing to contrast with
+   and becomes a solid green slab behind the code. Halved: the `novo` chip and
+   the column of `+` already carry the meaning, and legibility of the file
+   itself is what matters on the one patch that IS the whole file. */
+.wb-patch[data-op='create'] .wb-patch-line[data-type='add'] {
+  background: color-mix(in oklab, var(--wb-git-added) 7%, transparent);
+}
+.wb-patch-line[data-type='add'] .wb-patch-text,
+.wb-patch-line[data-type='del'] .wb-patch-text {
+  color: var(--ink);
+}
+.wb-patch-line[data-type='add'] .wb-patch-sign {
+  color: var(--wb-patch-add-ink);
+}
+.wb-patch-line[data-type='del'] .wb-patch-sign {
+  color: var(--wb-patch-del-ink);
+}
+
+/* The word-level mark: the part of a rewritten line that actually differs.
+   On the removed side it also carries a strike, so "this went away" is legible
+   without comparing the two lines character by character. */
+.wb-patch-word {
+  border-radius: 2px;
+  padding: 0 1px;
+  margin: 0 -1px;
+}
+.wb-patch-line[data-type='add'] .wb-patch-word {
+  background: color-mix(in oklab, var(--wb-git-added) 30%, transparent);
+}
+.wb-patch-line[data-type='del'] .wb-patch-word {
+  background: color-mix(in oklab, var(--wb-git-deleted) 26%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, var(--wb-patch-del-ink) 70%, transparent);
+}
+
+/* The elision between two hunks. A dotted rule rather than `@@ -1,7 +1,9 @@`:
+   the header's coordinates are for `git apply`, and nobody reading a chat
+   needs them — what they need is "some untouched code was skipped here". */
+.wb-patch-gap {
+  height: 13px;
+  margin: 3px 0;
+  background:
+    radial-gradient(circle at center, var(--border-strong) 1px, transparent 1px) 0 50% / 6px 6px
+    repeat-x;
+}
+
+.wb-patch-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 5px 10px 5px 36px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.wb-patch-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s var(--ease-quart);
+}
+.wb-patch-more:hover {
+  color: var(--ink);
+}
+.wb-patch-more:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-patch-truncated {
+  color: var(--faint);
+}
+
+@keyframes wb-patch-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The wipe: the line arrives left to right, the way it was typed. Short enough
+   that a twelve-line patch is fully readable in under half a second. */
+@keyframes wb-patch-text-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Every distinction survives — tint, sign, number, word marks, the dimmed
+     failed state. Only the arrival goes. */
+  .wb-patch-line {
+    animation: none;
+  }
+  .wb-patch-text {
+    animation: none;
+  }
+  .wb-activity-open {
+    transition: none;
+  }
+  .wb-activity-chevron {
+    transition: none;
+  }
+  .wb-activity-goto {
+    transition: none;
+  }
+  .wb-patch-more {
     transition: none;
   }
 }
@@ -11254,5 +11615,1573 @@ span.wb-change-card-open {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* ===========================================================================
+   Execution timing — how long a step has been running, and what a whole turn
+   cost (chat-timing).
+
+   The transcript already said *what* the agent was doing; it never said for
+   how long, so a step ninety seconds into a big read looked identical to one
+   that started a second ago. Two readouts close that, at two altitudes:
+
+   - a per-step clock, parked at the end of its rail row, so a column of them
+     lines up and the slow one is findable by eye;
+   - a meter at the foot of the turn, which counts while the turn runs and
+     settles into its receipt.
+
+   Both are set in the tabular numeric face at the rail's own size and one
+   step quieter than its text: they are metadata *about* the work, and they
+   must never out-shout the work itself.
+   =========================================================================== */
+
+/* The rail is narrower than the prose it sits under: it is subordinate to the
+   reply, and — since the clocks right-align inside it — a rail as wide as the
+   paragraph strands every duration hundreds of pixels from the step it
+   measures. At this measure the numbers still form a scannable column while
+   staying next to their rows.
+
+   The cap lives on the *header line*, not on the feed, and that distinction is
+   the whole reason it moved here (agent-patch): a status row is chrome and
+   stays narrow, but the patch under it is content — code, which wraps badly and
+   is the thing the user actually came to read — so it takes the reply's own
+   measure. Capping the feed would have squeezed every diff into 460px to keep
+   a column of clocks aligned. 434px + the row's 26px rail gutter reproduces the
+   old 460px geometry exactly. */
+.wb-activity-head {
+  max-width: 434px;
+}
+
+.wb-activity-time {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--s-3);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem;
+  /* --muted, not --faint: measured 3.29:1 on the light theme, which is a fail
+     at this size. The tertiary role only clears its floor against the darkest
+     backgrounds, and a duration is data, not chrome. */
+  color: var(--muted);
+  /* The clock is the one thing on the row that changes while nothing else
+     does; fading it in stops it from popping into existence mid-read. */
+  animation: wb-meter-in 0.24s var(--ease-quart) both;
+}
+.wb-activity-row[data-live] .wb-activity-time {
+  color: var(--muted);
+}
+
+/* The turn's own line. A row, not a panel: it is the third thing competing
+   with the reply for the same attention (after the prose and the step rail),
+   so it gets the least ink of the three. */
+.wb-turn-meter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: 2px;
+  font-size: 0.71875rem;
+  line-height: 1.5;
+  /* Same measurement as the step clock above — the meter's numbers carry the
+     tertiary *weight* through size and the separator dots, not through a
+     colour that fails the body floor in daylight. */
+  color: var(--muted);
+  animation: wb-meter-in 0.3s var(--ease-quart) both;
+}
+
+.wb-turn-meter-lead {
+  font-weight: 620;
+  color: var(--ink);
+}
+.wb-turn-meter[data-live] .wb-turn-meter-lead {
+  color: var(--ink);
+}
+
+/* Stats read as a run of separated facts. The separator is drawn rather than
+   typed so it can't be selected, copied or read aloud as a word. */
+.wb-turn-meter-stat {
+  position: relative;
+  padding-left: calc(var(--s-2) + 5px);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+}
+.wb-turn-meter-stat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: var(--rounded-full);
+  background: currentColor;
+  opacity: 0.45;
+}
+
+/* Live: one pulsing dot. The step rail already owns the spinning arc, and a
+   second competing loop would make a turn feel busier than it is — so this is
+   the quietest possible "still going", and it is the only motion here. */
+.wb-turn-meter-pulse {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  animation: wb-meter-pulse 1.6s var(--ease-quart) infinite;
+}
+
+/* Settled: a glyph, so the outcome survives a screenshot and a
+   reduced-motion user, who never sees either animation. */
+.wb-turn-meter-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--faint);
+}
+.wb-turn-meter[data-outcome='error'] .wb-turn-meter-mark,
+.wb-turn-meter[data-outcome='error'] .wb-turn-meter-lead {
+  color: var(--danger-ink);
+}
+.wb-turn-meter[data-outcome='error'] .wb-turn-meter-mark {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 45%, transparent);
+}
+
+@keyframes wb-meter-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes wb-meter-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===========================================================================
+   Send queue (chat-queue) — the messages committed while the agent was busy.
+
+   Docked to the composer's top edge and sharing its width, because a queued
+   message is neither in the composer nor in the transcript and this is
+   literally the space between them. It reads as one continuous surface with
+   the box below it: same radius family, hairline joint, no shadow of its own.
+
+   A list, not cards. These are one line of the user's own text each; a
+   bordered box per message would give a sentence the weight of a document.
+   =========================================================================== */
+
+.wb-queue {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
+  background: var(--surface-2);
+  animation: wb-queue-in 0.24s var(--ease-quart) both;
+}
+
+.wb-queue-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--muted);
+}
+.wb-queue-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.71875rem;
+  font-weight: 620;
+  color: var(--ink);
+}
+.wb-queue[data-held] .wb-queue-head {
+  color: var(--warning-ink);
+}
+.wb-queue[data-held] .wb-queue-title {
+  color: var(--warning-ink);
+}
+
+.wb-queue-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-queue-action:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+.wb-queue[data-held] .wb-queue-action {
+  color: var(--accent);
+}
+.wb-queue-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.wb-queue-list {
+  list-style: none;
+  margin: var(--s-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wb-queue-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: 3px 0;
+  animation: wb-queue-row-in 0.26s var(--ease-quart) both;
+}
+
+/* Position, not decoration: the queue's whole promise is "in this order", and
+   a bare list of sentences doesn't state one. */
+.wb-queue-index {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.625rem;
+  font-weight: 650;
+  /* 10px on a raised chip: --muted lands too close to the floor to be a
+     judgment call, so the ordinal takes the ink role outright. */
+  color: var(--ink);
+}
+/* The head of the queue is the one going out next — a filled chip says that
+   in a way a tinted one doesn't, and clears the contrast floor besides. */
+.wb-queue-row:first-child .wb-queue-index {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.wb-queue-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.wb-queue-command {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+.wb-queue-attachments {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  color: var(--faint);
+}
+
+.wb-queue-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+/* Revealed by hovering the row, not each button: a row of always-on × marks
+   makes a three-item queue look like an error list. Keyboard focus and
+   coarse pointers get it unconditionally — hover is not a contract there. */
+.wb-queue-row:hover .wb-queue-remove,
+.wb-queue-remove:focus-visible {
+  opacity: 1;
+}
+.wb-queue-remove:hover {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+.wb-queue-remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+@media (hover: none) {
+  .wb-queue-remove {
+    opacity: 1;
+  }
+}
+
+/* The interrupt, now its own control *beside* the send button rather than the
+   send button's other state.
+
+   It reads as send's pair — same round shape, same size, one tier quieter —
+   because that is the mental model the split creates: this one stops the
+   agent, that one commits what you typed. It keeps the breathing ring the
+   send button used to carry in stop mode, since that ring was doing real work
+   ("something is running") that nothing else on the row does.
+
+   Danger is on hover only: a permanently red control in the composer reads as
+   an error, and stopping the agent is a normal thing to do. */
+.wb-composer .hds-prompt-input-toolbar-extra {
+  flex: 1;
+  min-width: 0;
+}
+
+.wb-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  color: var(--muted);
+  cursor: pointer;
+  animation: wb-stop-breathe 2.4s var(--ease-quart) infinite;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-stop-btn:hover {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+.wb-stop-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes wb-stop-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent) 0%, transparent);
+  }
+}
+
+/* Queue and composer are one object, not two stacked boxes: the strip squares
+   off its bottom, the composer its top, and exactly one hairline runs between
+   them. Without this the seam draws two rounded edges a pixel apart, which is
+   the "two affordances pretending to be one" defect in reverse. */
+.wb-composer-wrap:has(.wb-queue) .hds-prompt-input {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+@keyframes wb-queue-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-queue-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================================================================
+   Context window meter (session-usage) — how full the conversation is.
+
+   Lives on the strip under the composer, opposite the keyboard hints: the
+   line your eyes are already on after typing, and the same place Claude Code
+   puts its own status readout. In the pane header it would have competed with
+   the conversation controls; as a panel it would have taken transcript space
+   for a number that matters twice an hour.
+
+   The occupied tiers are ONE hue at descending emphasis, never three colours:
+   reused-from-cache, written-to-cache and sent-fresh are one quantity at three
+   provenances, and three hues would read as three statuses. Colour is reserved
+   for the single state that IS semantic — near the ceiling.
+   =========================================================================== */
+
+.wb-composer-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+.wb-composer-footer .wb-composer-hint {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-ctx-meter {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  font: inherit;
+  font-size: 0.71875rem;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-quart),
+    background-color 0.15s var(--ease-quart);
+}
+.wb-ctx-meter:hover {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.wb-ctx-meter:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.wb-ctx-meter-bar {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 4px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.wb-ctx-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  /* Occupancy only ever moves at the end of a turn, so it can afford a real
+     transition — it reads as the number settling, not as a loading bar. */
+  transition:
+    width 0.5s var(--ease-quart),
+    background-color 0.3s var(--ease-quart);
+}
+
+.wb-ctx-meter-value {
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 620;
+  color: var(--muted);
+}
+.wb-ctx-meter:hover .wb-ctx-meter-value {
+  color: var(--ink);
+}
+.wb-ctx-meter-label {
+  color: inherit;
+}
+
+/* Near the ceiling the meter stops being chrome and starts being advice. */
+.wb-ctx-meter[data-tight] .wb-ctx-meter-fill {
+  background: var(--warning);
+}
+.wb-ctx-meter[data-tight] .wb-ctx-meter-value {
+  color: var(--warning-ink);
+}
+
+/* --- The detail sheet ---------------------------------------------------- */
+
+.wb-ctx-sheet.hds-popover-content {
+  width: min(360px, calc(100vw - 32px));
+  padding: var(--s-4);
+}
+
+.wb-ctx-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+.wb-ctx-detail-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-ctx-model {
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
+}
+
+.wb-ctx-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--s-3) 0 var(--s-2);
+}
+.wb-ctx-used {
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.wb-ctx-window {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-ctx-percent {
+  margin-left: auto;
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+/* The window, to scale. Segments are separated by a gap of the sheet's own
+   surface rather than by a border, so three tints of one hue read as three
+   blocks without adding a fourth colour. */
+.wb-ctx-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: var(--rounded-sm);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.wb-ctx-seg {
+  min-width: 2px;
+  border-radius: 2px;
+  animation: wb-meter-in 0.35s var(--ease-quart) both;
+}
+
+/* The one hue, three emphases — plus the empty track. Mixed toward the
+   sheet's own surface (not toward transparent) so the steps stay separated on
+   all three themes instead of collapsing on the darkest one. */
+.wb-ctx-seg[data-seg='cacheRead'],
+.wb-ctx-swatch[data-seg='cacheRead'] {
+  background: color-mix(in oklab, var(--accent) 34%, var(--surface-3));
+}
+.wb-ctx-seg[data-seg='cacheCreation'],
+.wb-ctx-swatch[data-seg='cacheCreation'] {
+  background: color-mix(in oklab, var(--accent) 62%, var(--surface-3));
+}
+.wb-ctx-seg[data-seg='input'],
+.wb-ctx-swatch[data-seg='input'] {
+  background: var(--accent);
+}
+.wb-ctx-seg[data-seg='free'] {
+  background: var(--surface-3);
+}
+.wb-ctx-swatch[data-seg='free'] {
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.wb-ctx-legend {
+  margin: var(--s-3) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wb-ctx-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.75rem;
+}
+.wb-ctx-legend-row dt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.wb-ctx-legend-row dd {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+}
+.wb-ctx-legend-tokens {
+  color: var(--ink);
+}
+.wb-ctx-legend-share {
+  min-width: 30px;
+  text-align: right;
+  color: var(--muted);
+}
+.wb-ctx-swatch {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.wb-ctx-note {
+  margin: var(--s-3) 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.wb-ctx-totals {
+  margin: var(--s-3) 0 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wb-ctx-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: 0.75rem;
+}
+.wb-ctx-total dt {
+  color: var(--muted);
+}
+.wb-ctx-total dd {
+  margin: 0;
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-ctx-advice {
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--rounded-md);
+  background: var(--warning-bg);
+}
+.wb-ctx-advice p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--warning-ink);
+  text-wrap: pretty;
+}
+.wb-ctx-advice-cta {
+  margin-top: var(--s-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--warning-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.wb-ctx-advice-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
+/* Reduced motion keeps every state distinction and drops only the movement:
+   the pulse becomes a steady dot, entrances become instant, and the meter's
+   fill jumps to its new width instead of sliding. */
+@media (prefers-reduced-motion: reduce) {
+  .wb-turn-meter,
+  .wb-activity-time,
+  .wb-queue,
+  .wb-queue-row,
+  .wb-ctx-seg {
+    animation: none;
+  }
+  .wb-turn-meter-pulse {
+    animation: none;
+    opacity: 1;
+  }
+  .wb-ctx-meter-fill,
+  .wb-queue-remove,
+  .wb-queue-action,
+  .wb-ctx-meter,
+  .wb-stop-btn {
+    transition: none;
+  }
+  /* The stop keeps its shape and its danger hover; only the ring stops. */
+  .wb-stop-btn {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   mcp-logs — the MCP console: the workbench's bottom dock, plus its ambient
+   cluster in the status bar.
+
+   Design note: PRODUCT.md names "log-dump UIs" as an anti-reference, so this
+   is built as a timeline of typed rows, not a terminal. The structure that
+   does that work here:
+
+     - One continuous hairline spine behind the stream (a background gradient
+       on the scroller, not a border per row), so the rows read as events on a
+       shared timeline instead of as a list of strings.
+     - A fixed grid per row — time · level · category · server · sentence ·
+       latency — so every column is scannable down the page.
+     - Monospace only where the content is genuinely machine output: tool
+       names, stack traces and server stderr. Prose stays in the body face.
+     - Level is carried by a dot and, for errors only, a whole-row tint. No
+       coloured side-stripes.
+   ========================================================================= */
+
+.wb-mcplog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  /* Above the work area, below the app's dialogs. */
+  z-index: 2;
+}
+.wb-mcplog[data-maximized] {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* The drag handle. A 5px hit area over a 1px visual line — the line is the
+   dock's own top border, so the handle adds no chrome of its own. */
+.wb-mcplog-grip {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 1;
+}
+.wb-mcplog-grip:hover::after,
+.wb-mcplog-grip:active::after {
+  content: '';
+  position: absolute;
+  inset: 2px 0 auto 0;
+  height: 2px;
+  background: var(--accent);
+}
+.wb-mcplog[data-maximized] .wb-mcplog-grip {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.wb-mcplog-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.wb-mcplog-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.wb-mcplog-title {
+  margin: 0;
+  font-family: var(--ff-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wb-mcplog-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  border-radius: var(--rounded-full);
+  background: var(--success-bg);
+  color: var(--success-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.wb-mcplog-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: wb-mcplog-pulse 2s var(--ease-quart) infinite;
+}
+@keyframes wb-mcplog-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.wb-mcplog-filters {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.wb-mcplog-search {
+  position: relative;
+  flex: 0 1 260px;
+  min-width: 130px;
+}
+.wb-mcplog-search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--faint);
+  pointer-events: none;
+}
+.wb-mcplog-search input {
+  padding-left: 28px;
+  height: 28px;
+  font-size: 0.78rem;
+}
+
+.wb-mcplog-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.14s var(--ease-quart),
+    color 0.14s var(--ease-quart);
+}
+.wb-mcplog-iconbtn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-mcplog-iconbtn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------- body */
+
+.wb-mcplog-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wb-mcplog-streamwrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The timeline spine: one hairline running the full height of the scroller,
+   sitting between the time column and the event content. */
+.wb-mcplog-stream {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--s-2) 0 var(--s-3);
+  background-image: linear-gradient(to right, var(--border) 0 1px, transparent 1px);
+  background-position: 74px 0;
+  background-repeat: repeat-y;
+  background-size: 1px 100%;
+  scrollbar-width: thin;
+}
+
+/* -------------------------------------------------------------- one event */
+
+.wb-mcplog-row {
+  display: grid;
+  grid-template-columns: 66px 16px 62px auto minmax(0, 1fr) 92px 24px;
+  align-items: baseline;
+  column-gap: var(--s-2);
+  padding: 3px var(--s-3) 3px var(--s-2);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.wb-mcplog-row:hover {
+  background: var(--surface-2);
+}
+/* Errors tint the whole row rather than growing a coloured edge. */
+.wb-mcplog-row[data-level='error'] {
+  background: color-mix(in oklab, var(--danger) 7%, transparent);
+}
+.wb-mcplog-row[data-level='error']:hover {
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
+}
+/* Just-arrived rows settle in. Only rows the live tail delivered carry this. */
+.wb-mcplog-row[data-fresh] {
+  animation: wb-mcplog-enter 240ms var(--ease-quart) both;
+}
+@keyframes wb-mcplog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --muted, not --faint: measured 2.95:1 on --faint in the light theme. The
+   timestamp is information, not decoration, so it takes the body floor. */
+.wb-mcplog-time {
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wb-mcplog-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  color: var(--danger-ink);
+}
+/* Levels without a glyph render as a plain dot in the same box. */
+.wb-mcplog-dot[data-level='debug']::before,
+.wb-mcplog-dot[data-level='info']::before,
+.wb-mcplog-dot[data-level='warn']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.wb-mcplog-dot[data-level='debug']::before {
+  background: var(--faint);
+}
+.wb-mcplog-dot[data-level='info']::before {
+  background: var(--success);
+}
+.wb-mcplog-dot[data-level='warn']::before {
+  background: var(--warning-ink);
+}
+/* The dot carries a three-word vocabulary you learn once and then scan by:
+   accent = the agent asked for this, green = it came back, red = it threw.
+   Everything else stays neutral so the tool traffic is what stands out. */
+.wb-mcplog-row[data-kind='tool-call'] .wb-mcplog-dot[data-level='info']::before {
+  background: var(--accent);
+}
+.wb-mcplog-row[data-kind='tool-ok'] .wb-mcplog-dot[data-level='info']::before {
+  background: var(--success);
+}
+/* A connection event is structure, not work: quiet, whatever its level. */
+.wb-mcplog-row[data-kind='connected'] .wb-mcplog-dot[data-level='info']::before,
+.wb-mcplog-row[data-kind='stderr'] .wb-mcplog-dot[data-level='info']::before {
+  background: var(--faint);
+}
+
+.wb-mcplog-cat {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-mcplog-server {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-mcplog-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.wb-mcplog-summary {
+  cursor: pointer;
+}
+button.wb-mcplog-summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-mcplog-caret {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--faint);
+  transition: transform 0.16s var(--ease-quart);
+}
+.wb-mcplog-row[data-open] .wb-mcplog-caret {
+  transform: rotate(90deg);
+}
+.wb-mcplog-text {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-mcplog-text[data-mono] {
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+}
+.wb-mcplog-row[data-level='debug'] .wb-mcplog-text {
+  color: var(--muted);
+}
+.wb-mcplog-row[data-level='error'] .wb-mcplog-text {
+  color: var(--danger-ink);
+}
+
+/* Latency: the number, with its own magnitude drawn under it. The bar is
+   scaled with transform so a rescale never reflows the row. */
+.wb-mcplog-latency {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  /* Fills its track rather than shrink-wrapping: the meters below have to line
+     up into one readable column down the page, and a shrink-wrapped cell puts
+     each row's meter wherever that row's number happens to end. */
+  width: 100%;
+}
+.wb-mcplog-latency-num {
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* The rail is deliberately visible even when empty: with the scale pinned to
+   the slowest call in view, a fast call's fill is only a few pixels, and
+   without a rail behind it that reads as a rendering artefact rather than as
+   "this one was quick". The rail is the comparison; the fill is the value. */
+.wb-mcplog-meter {
+  display: block;
+  width: 76px;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--ink) 16%, transparent);
+  overflow: hidden;
+}
+.wb-mcplog-meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 260ms var(--ease-quart);
+}
+.wb-mcplog-row[data-level='error'] .wb-mcplog-meter-fill,
+.wb-mcplog-row[data-kind='tool-running'] .wb-mcplog-meter-fill {
+  background: var(--warning-ink);
+}
+
+/* Copy stays out of the way until the row is hovered or the button focused. */
+.wb-mcplog-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  align-self: center;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.14s var(--ease-quart),
+    color 0.14s var(--ease-quart);
+}
+.wb-mcplog-row:hover .wb-mcplog-copy,
+.wb-mcplog-copy:focus-visible {
+  opacity: 1;
+}
+.wb-mcplog-copy:hover {
+  color: var(--ink);
+}
+.wb-mcplog-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.wb-mcplog-detail {
+  grid-column: 4 / -1;
+  margin: var(--s-1) 0 var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  max-height: 260px;
+  overflow: auto;
+  border-radius: var(--rounded-md);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wb-mcplog-detail:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------- session bands */
+
+.wb-mcplog-band {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-3) var(--s-3) var(--s-1) var(--s-2);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.wb-mcplog-band:first-child {
+  margin-top: 0;
+}
+.wb-mcplog-band-label {
+  white-space: nowrap;
+}
+.wb-mcplog-band-count {
+  order: 2;
+  white-space: nowrap;
+}
+/* A rule filling whatever the two labels leave, so the band spans the width. */
+.wb-mcplog-band::after {
+  content: '';
+  order: 1;
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ------------------------------------------------- follow-the-tail affordance */
+
+.wb-mcplog-follow {
+  position: absolute;
+  left: 50%;
+  bottom: var(--s-3);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-2);
+  animation: wb-mcplog-follow-in 200ms var(--ease-quart) both;
+}
+@keyframes wb-mcplog-follow-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.wb-mcplog-follow:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wb-mcplog-follow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------- the expanded console's rail */
+
+.wb-mcplog-rail {
+  flex: 0 0 216px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+/* `--muted`, not `--faint`: measured at 4.18:1 on --faint in the dark theme,
+   under the 4.5 floor PRODUCT.md sets for body text. */
+.wb-mcplog-rail-head {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.wb-mcplog-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--bg-2);
+  transition: border-color 0.16s var(--ease-quart);
+}
+.wb-mcplog-card:hover {
+  border-color: var(--border-strong);
+}
+.wb-mcplog-card[data-selected] {
+  border-color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-mcplog-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.wb-mcplog-card-main:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-mcplog-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.wb-mcplog-card-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.wb-mcplog-card-dot[data-live] {
+  background: var(--success);
+}
+.wb-mcplog-card-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-mcplog-card-state {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.wb-mcplog-card-metrics {
+  display: flex;
+  gap: var(--s-2);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.wb-mcplog-card-errors {
+  color: var(--danger-ink);
+  font-weight: 700;
+}
+.wb-mcplog-card-foreign {
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+.wb-mcplog-card-dir {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.14s var(--ease-quart);
+}
+.wb-mcplog-card:hover .wb-mcplog-card-dir,
+.wb-mcplog-card-dir:focus-visible {
+  opacity: 1;
+}
+.wb-mcplog-card-dir:hover {
+  color: var(--ink);
+}
+.wb-mcplog-card-dir:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+/* ----------------------------------------------------------------- states */
+
+.wb-mcplog-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 100%;
+  padding: var(--s-4);
+  text-align: center;
+}
+.wb-mcplog-state-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.wb-mcplog-state-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-mcplog-state-desc {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.wb-mcplog-state-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s-1);
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart);
+}
+.wb-mcplog-state-cta:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wb-mcplog-state-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Maximized, the console owns the work area; floating furniture stands down
+   rather than being pushed off the top of the viewport. */
+:root[data-dock-maximized] .wb-brain-fab-root {
+  display: none;
+}
+
+/* ------------------------------------------- the status bar's MCP cluster */
+
+/* Pushes trailing status items to the right edge. */
+.wb-status-spacer {
+  flex: 1 1 auto;
+}
+
+.wb-status-mcp {
+  gap: 6px;
+}
+.wb-status-mcp[aria-pressed='true'] {
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+.wb-status-mcp-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.wb-status-mcp[data-live] .wb-status-mcp-mark {
+  color: var(--success-ink);
+}
+.wb-status-mcp-pulse {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: wb-mcplog-pulse 2s var(--ease-quart) infinite;
+}
+.wb-status-mcp-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* An OPAQUE danger pill with `--ink` text, not `--danger-ink` on `--danger-bg`.
+   Measured: the translucent pairing reads 4.76:1 at rest but drops to 3.91:1
+   once the cluster is pressed (the console's own selected tint composites
+   underneath), and the dark theme's `--danger-ink` is too close in luminance
+   to its own tint to clear 4.5 on any of them. An opaque fill takes the
+   backdrop out of the equation entirely — the red carries the meaning, the
+   number stays legible in every state (7.98:1). */
+.wb-status-mcp-errors {
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: var(--rounded-full);
+  background: color-mix(in oklab, var(--danger) 26%, var(--surface));
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* --------------------------------------------------------- narrow layouts */
+
+/* Under ~1000px the toolbar can't hold every control on one line; the search
+   drops to its own row rather than squeezing the filters into illegibility. */
+@media (max-width: 1000px) {
+  .wb-mcplog-bar {
+    flex-wrap: wrap;
+  }
+  .wb-mcplog-search {
+    flex: 1 1 100%;
+    order: 1;
+  }
+  .wb-mcplog-row {
+    grid-template-columns: 60px 16px auto minmax(0, 1fr) 78px 24px;
+  }
+  .wb-mcplog-cat {
+    display: none;
+  }
+  .wb-mcplog-stream {
+    background-position: 68px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-mcplog-live-dot,
+  .wb-status-mcp-pulse {
+    animation: none;
+  }
+  .wb-mcplog-row[data-fresh],
+  .wb-mcplog-follow {
+    animation: none;
+  }
+  .wb-mcplog-meter-fill,
+  .wb-mcplog-caret,
+  .wb-mcplog-copy,
+  .wb-mcplog-card-dir,
+  .wb-mcplog-iconbtn,
+  .wb-mcplog-card,
+  .wb-mcplog-state-cta,
+  .wb-brain-fab-root {
+    transition: none;
   }
 }

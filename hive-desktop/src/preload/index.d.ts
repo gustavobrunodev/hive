@@ -21,6 +21,8 @@ import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
 import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
+import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
+import type { McpLogEntry } from '../main/mcpLogParse'
 import type { ShortcutPrefs } from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
@@ -123,6 +125,14 @@ declare global {
         remove(workspace: string, name: string): Promise<void>
         setEnabled(workspace: string, name: string, enabled: boolean): Promise<void>
         probe(workspace: string, name: string): Promise<McpProbeResult>
+      }
+      /** MCP console (mcp-logs): the CLI's own per-server logs for this workspace — history, live tail, and the log folder. */
+      mcpLogs: {
+        sources(workspace: string): Promise<McpLogSource[]>
+        read(workspace: string, query?: McpLogQuery): Promise<McpLogEntry[]>
+        openDir(workspace: string, server: string): Promise<void>
+        /** Streams entries appended after the call; the returned function stops the tail. */
+        watch(workspace: string, onBatch: (entries: McpLogEntry[]) => void): () => void
       }
       /** ChatHistoryStore (session-history): persisted conversations per workspace — see preload/index.ts for the channel design. */
       chatHistory: {

@@ -67,6 +67,85 @@ async (page) => {
       for (const cb of reviewListeners) cb({ workspace: '/ws', ...snapshot })
     }
 
+    // mcp-logs: the MCP console's fixture. Every sentence below is the CLI's
+    // real wording (see src/main/mcpLogParse.ts) so the console renders the
+    // same shapes it will in production — including the slow call the duration
+    // bars exist to expose, a stderr line, and a failure with a stack.
+    const mcpListeners = []
+    let mcpSeq = 0
+    const mcpEntry = (over) => {
+      mcpSeq += 1
+      return {
+        id: `visual#${mcpSeq}`,
+        server: 'playwright',
+        at: Date.now() - (60 - mcpSeq) * 1000,
+        level: 'info',
+        kind: 'notice',
+        text: '',
+        detail: '',
+        sessionId: 'sess-a',
+        tool: null,
+        durationMs: null,
+        transport: null,
+        serverVersion: null,
+        raw: '{}',
+        ...over
+      }
+    }
+    state.mcpLogs = [
+      mcpEntry({ kind: 'connecting', level: 'debug', text: 'Starting connection' }),
+      mcpEntry({ kind: 'connected', transport: 'stdio', durationMs: 2302 }),
+      mcpEntry({
+        kind: 'capabilities',
+        level: 'debug',
+        serverVersion: 'Playwright v1.63.0'
+      }),
+      mcpEntry({ kind: 'tool-call', tool: 'browser_navigate' }),
+      mcpEntry({ kind: 'tool-ok', tool: 'browser_navigate', durationMs: 1420 }),
+      mcpEntry({ kind: 'tool-call', tool: 'browser_snapshot' }),
+      mcpEntry({ kind: 'tool-ok', tool: 'browser_snapshot', durationMs: 260 }),
+      mcpEntry({
+        server: 'pencil',
+        kind: 'connected',
+        transport: 'stdio',
+        durationMs: 180
+      }),
+      mcpEntry({ server: 'pencil', kind: 'tool-call', tool: 'get_app_state' }),
+      mcpEntry({ server: 'pencil', kind: 'tool-ok', tool: 'get_app_state', durationMs: 48 }),
+      mcpEntry({
+        server: 'pencil',
+        kind: 'stderr',
+        text: '2026/08/06 21:15:27 [TransportClient] connected to /home/u/.pencil/socket',
+        raw: '{"error":"Server stderr: …"}'
+      }),
+      mcpEntry({ kind: 'tool-call', tool: 'browser_take_screenshot' }),
+      mcpEntry({ kind: 'tool-ok', tool: 'browser_take_screenshot', durationMs: 8600 }),
+      mcpEntry({ sessionId: 'sess-b', kind: 'reconnect', level: 'debug' }),
+      mcpEntry({ sessionId: 'sess-b', kind: 'tool-call', tool: 'browser_click' }),
+      mcpEntry({
+        sessionId: 'sess-b',
+        kind: 'tool-failed',
+        level: 'error',
+        text: 'TimeoutError: locator.click: Timeout 5000ms exceeded.',
+        detail:
+          'Call log:\n  - waiting for getByRole(\'button\', { name: \'Salvar\' })\n  - locator resolved to hidden <button>…</button>',
+        raw: '{"error":"### Error\\nTimeoutError: locator.click…"}'
+      }),
+      mcpEntry({
+        sessionId: 'sess-b',
+        kind: 'tool-running',
+        level: 'warn',
+        tool: 'browser_run_code_unsafe',
+        durationMs: 30000
+      })
+    ]
+    // Push one live event (or a whole batch) into the open console.
+    window.__mcpLog = (over) => {
+      const batch = Array.isArray(over) ? over.map(mcpEntry) : [mcpEntry({ at: Date.now(), ...over })]
+      state.mcpLogs = [...state.mcpLogs, ...batch]
+      for (const cb of mcpListeners) cb(batch)
+    }
+
     const sessions = []
     window.hive = {
       ping: ok('pong'),
@@ -91,7 +170,20 @@ async (page) => {
         }
       },
       agent: {
-        capabilities: ok({ models: [], efforts: [], supportsResume: true }),
+        // session-usage: the meter's denominator comes from the model list, so
+        // the mock has to declare one or the context readout never appears.
+        capabilities: ok({
+          models: [
+            { id: 'opus', label: 'Opus', contextWindow: 200000 },
+            { id: 'sonnet', label: 'Sonnet', contextWindow: 200000 }
+          ],
+          efforts: [
+            { id: 'medium', label: 'Medium' },
+            { id: 'high', label: 'High' }
+          ],
+          supportsAttachments: true,
+          supportsResume: true
+        }),
         chooseAttachments: ok([]),
         start: ok(undefined),
         send: ok(undefined),
@@ -116,12 +208,31 @@ async (page) => {
       skills: { list: ok([]) },
       studio: { list: ok([]) },
       mcp: {
-        list: ok([]),
+        // `pencil` is deliberately NOT in the catalog: it logs here but isn't
+        // in this workspace's .mcp.json, which is the case the console flags.
+        list: ok([
+          { name: 'playwright', transport: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@latest'], enabled: true }
+        ]),
         add: ok(undefined),
         update: ok(undefined),
         remove: ok(undefined),
         setEnabled: ok(undefined),
         probe: ok({ ok: true, tools: [], logs: [] })
+      },
+      mcpLogs: {
+        sources: ok([
+          { server: 'playwright', dir: '/cache/mcp-logs-playwright', files: 12, lastActivityAt: Date.now() },
+          { server: 'pencil', dir: '/cache/mcp-logs-pencil', files: 4, lastActivityAt: Date.now() - 90000 }
+        ]),
+        read: () => Promise.resolve(state.mcpLogs),
+        openDir: ok(undefined),
+        watch: (_ws, onBatch) => {
+          mcpListeners.push(onBatch)
+          return () => {
+            const i = mcpListeners.indexOf(onBatch)
+            if (i >= 0) mcpListeners.splice(i, 1)
+          }
+        }
       },
       chatHistory: {
         list: () => Promise.resolve(sessions.map((s) => ({ id: s.id, title: s.title, updatedAt: s.updatedAt }))),

@@ -440,6 +440,20 @@ export function StopIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * Queue — an arrow landing on top of a short stack (send-while-busy).
+ * Deliberately the send arrow's own gesture plus the stack it lands on: the
+ * action is still "send", and the only new information is *where it goes*.
+ */
+export function QueueIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.75v5.5M5.5 4.75 8 2.25l2.5 2.5" />
+      <path d="M2.75 9.75h10.5M4.75 12.75h6.5" />
+    </svg>
+  )
+}
+
 /** Slash — the slash-command menu affordance. */
 export function SlashIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
@@ -887,6 +901,37 @@ export function MinusIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
       <path d="M3 8h10" />
+    </svg>
+  )
+}
+
+/**
+ * Activity — a pulse trace. The MCP console's mark, in the status bar and on
+ * the dock: it reads as "something is happening over there", which is exactly
+ * what the console reports.
+ */
+export function ActivityIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.5 8h3l2-4.5 3 9 2-4.5h3" />
+    </svg>
+  )
+}
+
+/** Maximize — grow the dock to fill the work area (diagonal corner arrows). */
+export function MaximizeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M6.5 2.5h-4v4M9.5 13.5h4v-4M2.5 2.5l4.5 4.5M13.5 13.5 9 9" />
+    </svg>
+  )
+}
+
+/** Minimize — return the dock to its docked height (diagonal inward arrows). */
+export function MinimizeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.5 6.5h4v-4M13.5 9.5h-4v4M2.5 2.5 6.5 6.5M13.5 13.5 9.5 9.5" />
     </svg>
   )
 }

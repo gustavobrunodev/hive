@@ -14,10 +14,23 @@
  * beyond this contract.
  */
 
+import type { ToolPatch } from './toolPatch'
+
+export type { PatchHunk, PatchLine, PatchOp, PatchSpan, ToolPatch } from './toolPatch'
+
 /** One curated model or effort-level option surfaced to the UI (C5). */
 export interface AgentOption {
   id: string
   label: string
+  /**
+   * Context-window size in tokens, for models that have a published one
+   * (session-usage). The UI needs a denominator to turn the `usage` event's
+   * raw token counts into "how full is this conversation" — and no CLI
+   * reports its own limit, so it is curated here alongside the model list,
+   * per C5. Omitted → the UI shows absolute token counts and no percentage,
+   * which is the honest degradation for an adapter that hasn't declared one.
+   */
+  contextWindow?: number
 }
 
 /**
@@ -137,6 +150,13 @@ export interface AgentInput {
  *   the UI treats a deliberate stop as a normal outcome (keep partial output,
  *   no error Alert) rather than a claude failure (CC-R1.5). Terminal, like
  *   `done`/`error`.
+ * - `usage` — the CLI reported how many tokens the turn actually cost
+ *   (session-usage). Emitted repeatedly: once per completed assistant message
+ *   (a live snapshot of how full the context window is) and once more, marked
+ *   `final`, from the CLI's own end-of-turn `result` line, which is the only
+ *   place a per-turn cost and the CLI's own duration exist. Purely
+ *   informational — nothing in the turn's lifecycle depends on it, so an
+ *   adapter whose CLI reports no usage simply never emits it.
  * - `session` — the adapter learned (or re-learned) the CLI-native session id
  *   for the conversation in progress (session-history). Callers persist it and
  *   pass it back as `AgentInput.resume` on later turns so the agent keeps its
@@ -155,6 +175,7 @@ export type AgentEvent =
   | { type: 'error'; message: string; turnId?: string }
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
+  | UsageEvent
 
 /**
  * One tool invocation, reported twice (agent-activity): `start` when the agent
@@ -179,6 +200,60 @@ export interface ToolEvent {
    * attribution (ACR-C7) consumes paths, and a `Bash` command line is not one.
    */
   filePath?: string
+  /**
+   * `start` only, file-editing tools only: the change this call is about to
+   * apply, already diffed and capped (agent-patch AP-C1). Present so the
+   * transcript can draw the snippet at the moment the agent commits to it —
+   * which, for a tool that needs permission, is before the user has answered.
+   * Absent when the tool changes no file, or changes nothing.
+   */
+  patch?: ToolPatch
+  turnId?: string
+}
+
+/**
+ * What one request to the model actually cost, as the CLI reports it
+ * (session-usage).
+ *
+ * The four token fields are the model's own accounting of the request it just
+ * made, and their sum minus `outputTokens` **is** the context window's
+ * occupancy: everything the model read this call, whether it came fresh from
+ * the prompt, out of the prompt cache, or was written into the cache on the
+ * way in. That is the same number Claude Code's `/context` reports, and it is
+ * the only one available without re-tokenizing the transcript ourselves.
+ *
+ * `outputTokens` is deliberately *not* part of that sum — it is what the model
+ * wrote, which only joins the context on the *next* request.
+ */
+export interface TurnUsage {
+  /** Prompt tokens sent fresh, i.e. neither read from nor written to the cache. */
+  inputTokens: number
+  /** Prompt tokens served out of the cache — in a resumed conversation, most of it. */
+  cacheReadTokens: number
+  /** Prompt tokens written into the cache on this request: this call's *new* context. */
+  cacheCreationTokens: number
+  /** Tokens the model generated. Joins the context of the following request. */
+  outputTokens: number
+  /** The model as the CLI names it (`claude-opus-…`), when it says. */
+  model?: string
+  /** `result` only: what the CLI billed for the whole turn, in USD. */
+  costUsd?: number
+  /** `result` only: the CLI's own wall-clock for the turn, in ms. */
+  durationMs?: number
+  /** `result` only: the part of `durationMs` spent waiting on the API, in ms. */
+  apiDurationMs?: number
+}
+
+/**
+ * One usage report. `final` marks the end-of-turn `result` line — the only
+ * snapshot whose totals cover the whole turn, and therefore the only one a
+ * caller may accumulate across turns without double-counting the intermediate
+ * assistant messages that led to it.
+ */
+export interface UsageEvent {
+  type: 'usage'
+  usage: TurnUsage
+  final?: boolean
   turnId?: string
 }
 

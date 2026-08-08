@@ -6,6 +6,7 @@ import App from './App'
 import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
 import { createHiveWhisperMock } from './testSupport/hiveWhisperMock'
+import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 
 /**
  * Tasks T6 (workspace pick) + T9 (guided install) + T10 (update gate) —
@@ -219,6 +220,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setEnabled: vi.fn().mockResolvedValue(undefined),
         probe: vi.fn().mockResolvedValue({ ok: true, tools: [], logs: '', durationMs: 0 })
       },
+      mcpLogs: createHiveMcpLogsMock(),
       chatHistory: {
         list: vi.fn().mockResolvedValue([]),
         get: vi.fn().mockResolvedValue(null),

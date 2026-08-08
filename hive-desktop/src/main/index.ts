@@ -55,6 +55,7 @@ import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
 import { mcpProbe } from './mcpProbe'
+import { createMcpLogService, type McpLogQuery } from './mcpLogService'
 import { resolveRoleActions, resolveShortcuts } from './roleCatalog'
 import { sanitizeShortcutPrefs } from './configStore'
 import {
@@ -1187,6 +1188,44 @@ app.whenReady().then(() => {
   ipcMain.handle('mcp:probe', async (_event, workspace: string, name: string) =>
     mcpService.probe(workspace, name)
   )
+
+  // MCP console (mcp-logs): the Claude Code CLI's own per-server log files for
+  // this workspace — what each MCP server actually did while the agent worked,
+  // as opposed to `mcp:probe`'s one-shot handshake. `sources`/`read` are plain
+  // invoke/response; the live tail follows the same streaming shape as
+  // `fs:watch:*` above (start/stop sends, one event channel, one watcher per
+  // sender, a repeat start replacing the previous watcher). `openDir` hands
+  // the raw log directory to the OS file manager — it is the service's own
+  // reported path, never a renderer-supplied one, so it cannot be used to open
+  // an arbitrary location.
+  const mcpLogService = createMcpLogService()
+  const activeMcpLogStops = new Map<number, () => void>()
+
+  ipcMain.handle('mcpLogs:sources', async (_event, workspace: string) =>
+    mcpLogService.sources(workspace)
+  )
+  ipcMain.handle('mcpLogs:read', async (_event, workspace: string, query: McpLogQuery) =>
+    mcpLogService.read(workspace, query)
+  )
+  ipcMain.handle('mcpLogs:openDir', async (_event, workspace: string, server: string) => {
+    const source = (await mcpLogService.sources(workspace)).find((entry) => entry.server === server)
+    if (!source) throw new Error(`Sem logs para o servidor "${server}".`)
+    await shell.openPath(source.dir)
+  })
+
+  ipcMain.on('mcpLogs:watch:start', (event, workspace: string) => {
+    activeMcpLogStops.get(event.sender.id)?.()
+    const stop = mcpLogService.watch(workspace, (entries) => {
+      if (event.sender.isDestroyed()) return
+      event.sender.send('mcpLogs:watch:event', entries)
+    })
+    activeMcpLogStops.set(event.sender.id, stop)
+  })
+
+  ipcMain.on('mcpLogs:watch:stop', (event) => {
+    activeMcpLogStops.get(event.sender.id)?.()
+    activeMcpLogStops.delete(event.sender.id)
+  })
 
   // Profile IPC (agent-selection + role-personalization) — the app-wide agent
   // and role preferences plus the resolved role action list. Grouped under

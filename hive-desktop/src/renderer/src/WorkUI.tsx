@@ -44,6 +44,10 @@ import { BranchPicker } from './scm/BranchPicker'
 import { useCheckoutGuard } from './scm/useCheckoutGuard'
 import { useGitRemote } from './scm/useGitRemote'
 import { StatusBar } from './ui/StatusBar'
+import { McpConsole } from './mcpLogs/McpConsole'
+import { McpStatusCluster } from './mcpLogs/McpStatusCluster'
+import { isLive, useMcpLogs } from './mcpLogs/useMcpLogs'
+import { useTicker } from './chat/useTicker'
 import { UnsavedGuardDialog } from './ui/UnsavedGuardDialog'
 import { GitOpToast } from './ui/GitOpToast'
 import type { RowSide } from './scm/ChangeGroups'
@@ -341,6 +345,12 @@ export function WorkUI({
   const [studioOpen, setStudioOpen] = useState(false)
   // mcp: the "Servidores MCP" module (activate/disable + test connection + logs).
   const [mcpOpen, setMcpOpen] = useState(false)
+  // mcp-logs: the MCP console dock (Ctrl+Shift+M, or the status-bar cluster).
+  const [mcpConsoleOpen, setMcpConsoleOpen] = useState(false)
+  // The workspace's configured server names, so the console can flag the ones
+  // logging here that aren't in this workspace's `.mcp.json` (user-scoped
+  // servers the CLI also runs). Refreshed when the manager closes.
+  const [mcpCatalog, setMcpCatalog] = useState<string[]>([])
   // App settings (version + updates) — the rail's bottom gear.
   const [appSettingsOpen, setAppSettingsOpen] = useState(false)
   // Workspace file search (Ctrl+P palette) — the rail's top action.
@@ -477,6 +487,45 @@ export function WorkUI({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setActiveView])
+
+  // mcp-logs: one subscription per window, hoisted here because the status bar
+  // reads it while the dock is closed — that ambient signal is the reason the
+  // console docks instead of hiding in a dialog.
+  const mcpLogs = useMcpLogs(workspace)
+  const mcpTick = useTicker(mcpLogs.lastAt !== null)
+  const mcpLive = isLive(mcpLogs.lastAt, mcpTick)
+  const mcpErrorCount = useMemo(
+    () => mcpLogs.entries.filter((entry) => entry.level === 'error').length,
+    [mcpLogs.entries]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    void window.hive.mcp
+      .list(workspace)
+      .then((servers) => {
+        if (!cancelled) setMcpCatalog(servers.map((server) => server.name))
+      })
+      .catch(() => {
+        // A catalog we can't read just means nothing gets flagged as foreign.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [workspace, mcpOpen])
+
+  // mcp-logs: Ctrl/Cmd+Shift+M toggles the MCP console, next to the other
+  // panel shortcuts. Chosen for "MCP"; nothing else in the app claims it.
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'm') {
+        event.preventDefault()
+        setMcpConsoleOpen((current) => !current)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   // Second Brain keyboard reach (SB-R9.1): Ctrl/Cmd+Shift+K asks the base
   // anything from anywhere — the whole point of a knowledge base is that
@@ -833,6 +882,7 @@ export function WorkUI({
             onSessionChange={setActiveSessionId}
             onRunningSessionsChange={setRunningSessionIds}
             onCustomizeShortcuts={() => setShortcutsOpen(true)}
+            onOpenFile={editor.openFile}
           />
         </div>
       </ResizablePanel>
@@ -991,6 +1041,20 @@ export function WorkUI({
               >
                 {panels}
               </Resizable>
+              {/* mcp-logs: the MCP console docks under the work area rather
+                than opening as a dialog — the question it answers ("what is
+                this MCP server doing right now") is asked while a turn runs,
+                and a modal would cover the transcript being asked about. */}
+              {mcpConsoleOpen && (
+                <McpConsole
+                  workspace={workspace}
+                  store={mcpLogs}
+                  catalog={mcpCatalog}
+                  live={mcpLive}
+                  onClose={() => setMcpConsoleOpen(false)}
+                  onOpenManager={() => setMcpOpen(true)}
+                />
+              )}
             </div>
           </div>
           {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
@@ -1060,6 +1124,15 @@ export function WorkUI({
             onInit={() => void git.init()}
             onBranch={() => setBranchPickerOpen(true)}
             onSync={gitRemote.sync}
+            trailing={
+              <McpStatusCluster
+                last={mcpLogs.entries.at(-1) ?? null}
+                errors={mcpErrorCount}
+                live={mcpLive}
+                open={mcpConsoleOpen}
+                onToggle={() => setMcpConsoleOpen((current) => !current)}
+              />
+            }
           />
           <BranchPicker
             open={branchPickerOpen}
@@ -1128,7 +1201,15 @@ export function WorkUI({
             onShortcutsChanged={refreshShortcuts}
             onOpenFile={editor.openFile}
           />
-          <McpManager open={mcpOpen} onOpenChange={setMcpOpen} workspace={workspace} />
+          <McpManager
+            open={mcpOpen}
+            onOpenChange={setMcpOpen}
+            workspace={workspace}
+            onOpenConsole={() => {
+              setMcpOpen(false)
+              setMcpConsoleOpen(true)
+            }}
+          />
           <ProfileSheet
             open={profileOpen}
             onOpenChange={setProfileOpen}

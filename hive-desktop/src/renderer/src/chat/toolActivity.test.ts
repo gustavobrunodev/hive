@@ -139,3 +139,39 @@ describe('settleToolActivity', () => {
     expect(settleToolActivity(done, 'ok')).toBe(done)
   })
 })
+
+describe('patch on an activity (agent-patch)', () => {
+  const patch = {
+    op: 'edit' as const,
+    path: '/ws/a.ts',
+    adds: 1,
+    dels: 1,
+    anchored: true,
+    hunks: [{ lines: [{ type: 'add' as const, text: 'x', no: 1 }] }]
+  }
+
+  it('carries the change from the `start` half onto the row', () => {
+    const [row] = reduceToolActivity([], { name: 'Edit', toolId: 'tu-1', phase: 'start', patch })
+    expect(row.patch).toBe(patch)
+  })
+
+  it('keeps the patch when the result settles the row — it is the record of what the step did', () => {
+    const started = reduceToolActivity([], { name: 'Edit', toolId: 'tu-1', phase: 'start', patch })
+    const [row] = reduceToolActivity(started, { name: '', toolId: 'tu-1', phase: 'end', ok: true })
+    expect(row.state).toBe('ok')
+    expect(row.patch).toBe(patch)
+  })
+
+  it('does not blank the snippet when an adapter re-announces a step without its input', () => {
+    // A re-`start` restarts the clock (the step is running again), but a patch
+    // vanishing off a row on screen would read as the change being withdrawn.
+    const started = reduceToolActivity([], { name: 'Edit', toolId: 'tu-1', phase: 'start', patch })
+    const [row] = reduceToolActivity(started, { name: 'Edit', toolId: 'tu-1', phase: 'start' })
+    expect(row.patch).toBe(patch)
+  })
+
+  it('leaves a non-editing step with no patch at all', () => {
+    const [row] = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start' })
+    expect(row.patch).toBeUndefined()
+  })
+})

@@ -13,6 +13,12 @@ export interface StatusBarProps {
   onChanges: () => void
   /** `git init` for a non-repo workspace. */
   onInit: () => void
+  /**
+   * Right-aligned slot for non-git status items (mcp-logs puts the MCP
+   * console's cluster here). Rendered independently of git state — a machine
+   * with no `git` still has MCP servers to report on.
+   */
+  trailing?: React.ReactNode
 }
 
 /**
@@ -116,15 +122,18 @@ export function StatusBar({
   onBranch,
   onSync,
   onChanges,
-  onInit
+  onInit,
+  trailing
 }: StatusBarProps): React.JSX.Element | null {
   const git = useGit()
 
-  if (git.repo.gitMissing) return null
+  // No git *and* nothing else to say leaves the bar off entirely — but a
+  // trailing item (the MCP cluster) is reason enough to keep it.
+  if (git.repo.gitMissing && !trailing) return null
 
   return (
     <footer className="wb-statusbar" aria-label={t('git.statusBarLabel')}>
-      {git.repo.isRepo ? (
+      {git.repo.gitMissing ? null : git.repo.isRepo ? (
         <RepoClusters onBranch={onBranch} onSync={onSync} onChanges={onChanges} />
       ) : (
         <button
@@ -137,6 +146,12 @@ export function StatusBar({
           <SourceControlIcon size={13} />
           <span>{t('git.statusInit')}</span>
         </button>
+      )}
+      {trailing !== undefined && (
+        <>
+          <span className="wb-status-spacer" />
+          {trailing}
+        </>
       )}
     </footer>
   )

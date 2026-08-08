@@ -267,6 +267,25 @@ régua pontilhada, e o seam de E2E cobrindo só dois dos três canais do
 `Capture`. O item de contraste acima é a parte disso que dá pra
 institucionalizar; o resto continua sendo **olhar**.
 
+### 2026-08-06 — turn-instrumentation (M14): dois controles novos, um hábito corrigido
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Sonda de contraste sobre as superfícies novas (25 seletores × 3 temas) | `tools/visual/timing-contrast.mjs` | Mesma receita das outras duas sondas (pinta o pixel; compõe o alfa; não despremultiplica). Pegou **seis** reprovações reais — relógios de passo a 3,29:1 no tema claro e a letra miúda da folha de contexto a 4,18:1 sobre `--surface`. A lição por trás (L-TI-1): `--faint` **não é** um papel de texto seguro fora do `--bg` escuro. |
+| — | `usage` / `writeDelayMs` no CLI dublê de E2E | `e2e/__fixtures__/scripted-agent-cli.cjs` | O dublê agora emite `usage` nas **duas** posições em que o CLI real emite (mensagem `assistant` e linha `result`) e sabe segurar um passo pra ele ter duração medível. Sem isso, contexto e recibo só existiriam em teste de jsdom — e foi exatamente o E2E real que achou o defeito do nome do modelo (L-TI-3). |
+
+**Hábito corrigido, e vale mais que os dois sensores:** para responder "essa
+falha de E2E já existia?", use `git worktree add /tmp/x HEAD` com o
+`node_modules` linkado — **nunca** `git stash`. Custou um build e respondeu com
+evidência (as duas falhas suspeitas falham idênticas no `HEAD`); o `stash`,
+usado uma vez aqui, esvaziou a árvore de trabalho no meio da feature. Registrado
+como L-TI-4 no `STATE.md`.
+
+Nota sobre a suíte de E2E do app: `agent-change-review.spec.ts:54` (violação de
+strict mode — o mesmo botão existe na trilha lateral e no card do chat) e uma
+das três variantes de `git-conflict.spec.ts` (flaky) falham **no `HEAD`**. Não
+foram introduzidas por esta milestone e continuam abertas.
+
 ## 6. Steering loop
 
 - **Observar:** toda lição do `STATE.md` que comece com "de novo" / "a lição do

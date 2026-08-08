@@ -605,6 +605,172 @@ Updated as work progresses. Load at start of every session.
   design-system only — **zero new main-process code, zero new IPC**. Full
   evidence in `.specs/features/voice-prompt/context.md`. (2026-08-04)
 
+- **D27 — Feature `turn-instrumentation` (new milestone M14).** Built
+  2026-08-06 from a three-line user request ("execution times in detail, total
+  and per task, live"; "send a message during a run and be queued"; "context
+  window usage in detail"), all three benchmarked against Claude Code. Gray-area
+  decisions taken during the build:
+  - **(a) Where the numbers come from is split, deliberately.** *Durations* are
+    measured in the renderer off the adapter's own events — the figure a user
+    wants is *time since I pressed Enter*, not the CLI's internal accounting,
+    and IPC latency is orders of magnitude below the displayed resolution.
+    *Tokens and cost* can only come from the CLI, so `cliAdapterCore` parses the
+    `usage` blocks off the `stream-json` `assistant` and `result` lines and
+    emits a new `usage` `AgentEvent`. The CLI's own `duration_api_ms` is shown
+    **beside** our wall-clock, labelled as a different thing — never averaged
+    into one number that is true of neither.
+  - **(b) Context = `input + cache_read + cache_creation` of the latest
+    report.** That sum *is* what the model read on its last call, which is the
+    window's occupancy and the same figure Claude Code's `/context` shows.
+    `output_tokens` is excluded (it joins the *next* request's context), and the
+    reports are a **latest-wins snapshot, not a sum** — a turn emits several as
+    it grows, and summing them reports a conversation four times fuller than it
+    is. Only the `final` report (one per turn, off `result`) accumulates into
+    session totals. The window size itself is **curated per model** in the
+    adapter (`AgentOption.contextWindow`, per C5) because no CLI reports its
+    own; an adapter that declares none gets absolute counts and no percentage.
+  - **(c) A stop or a failure HOLDS the queue.** Draining queued messages into
+    a session the user just interrupted — or one that is erroring — is the
+    opposite of what pressing Stop meant. Nothing is discarded; the strip says
+    it is holding and offers one control to resume. Same reasoning for the pane:
+    switching conversations **parks** the queue with the conversation it belongs
+    to rather than dropping it, and it comes back held.
+  - **(d) The interrupt left the send button.** With the composer open during a
+    run, the primary button has a job that outranks stopping: committing what
+    was just typed. So Stop became its own round control beside it (keeping the
+    breathing ring, which was doing real work), and the primary button changed
+    only its glyph and its promise. One control, one meaning, each.
+  - **(e) The turn meter replaced the typing indicator.** The bouncing dots
+    could say one thing — "something is happening" — and only when nothing else
+    was. The meter always has something truer to say (which phase, how long),
+    and it settles into the turn's receipt instead of vanishing. `TypingIndicator`
+    stays in the design system, unused by chat.
+
+  Renderer + one `usage` event in the adapter contract; **no new IPC channel**
+  (it rides the existing `agent:event` stream). One additive design-system prop
+  (`PromptInput.sendIcon`). (2026-08-06)
+
+## Lessons (mcp-logs, 2026-08-07)
+
+M15 shipped on `feat/voice-prompt`. `npm run verify` green: **2401 tests /
+155 files** (from 2262 / 152), 0 lint errors, every coverage gate passing.
+Design system: 670 tests, typecheck clean.
+
+- **L-ML-1 — a corpus test over real logs is worth more than any number of
+  hand-written fixtures.** The classifier was written from a sample of the
+  CLI's log lines and looked complete. `mcpLogCorpus.test.ts` — which runs the
+  table over whatever real `~/.cache/claude-cli-nodejs/**/mcp-logs-*` files
+  exist on the machine and fails past 2% unclassified — reported **30%** on the
+  first run. Among the misses: `Connection failed after 30000ms: …` (my regex
+  only matched the untimed `Connection failed: …`), so a genuine connection
+  *failure* was being filed as a `debug` notice and rendered grey. Every
+  hand-written fixture agreed with the code because the same person wrote both.
+  The corpus did not.
+- **L-ML-2 — `--faint` failed the light theme again, in a new module.**
+  L-TI-1 recorded this exact lesson for M14 and it still shipped here: the
+  timestamp, the category, the session band and its count all went to `--faint`
+  because they are metadata. Measured **2.95:1 on light**. The rule is now
+  simple enough to apply without measuring first: **`--faint` is for icons and
+  inactive marks; anything a user reads is `--muted` or darker.** Size and
+  weight carry the hierarchy.
+- **L-ML-3 — the visual pass measured the same theme three times and reported a
+  clean sweep.** The first contrast run switched themes by writing
+  `localStorage` and reloading — but `boot.mjs`'s init script re-pins the theme
+  on *every* navigation, so all three passes measured dark. It reported PASS
+  with six real light-theme failures on screen. The probe now drives the app's
+  own appearance menu. **A visual harness that sets state the harness itself
+  owns is measuring its own default.**
+- **L-ML-4 — a contrast probe that can't read `oklch()` reports a pass, not an
+  error.** `getComputedStyle().color` returns `oklch(...)` verbatim for tokens
+  authored in it (`--danger-ink`, `--success`), and the regex-based parser
+  returned `null` and skipped the sample — silently, so the error row and the
+  level dots were never measured at all. Sampling by painting one canvas pixel
+  reads every colour syntax the browser accepts. **A skipped sample and a
+  passing sample look identical in a report; make skips loud.**
+- **L-ML-5 — the `*-ink on *-bg` token pairing does not survive small bold
+  text.** The error tallies (status bar, and the DS `SegmentedControl`'s toned
+  count) sat at 3.91:1 and 4.44:1. `--danger-ink` is too close in luminance to
+  `--danger-bg` in both dark and light, and the status badge got worse still
+  when the cluster's pressed tint composited underneath. Both moved to an
+  **opaque** `color-mix(… var(--danger) 26%, var(--surface))` fill with `--ink`
+  text: the tone carries the meaning, the number stays legible, and the badge
+  no longer depends on what it happens to sit on.
+- **L-ML-6 — a service method named `watch` shadows `import { watch } from
+  'fs'`.** Inside `McpLogService.watch`, the unqualified `watch(...)` resolved
+  to the service method, so the watcher recursed into itself and every
+  `FSWatcher` was actually a disposer function — `watcher.close is not a
+  function` at teardown. Caught by the unit test, invisible in the app (the
+  first sweep still fired). Aliased to `watchPath` at the import.
+- **L-ML-7 — two of my own tests passed while proving nothing.** A `vi.spyOn`
+  on `fs.watch` never intercepted (the module binds the named import at load),
+  so the "falls back when recursive watching is unsupported" test exercised the
+  *normal* path and passed; a `vi.spyOn(fs.promises, 'stat')` never intercepted
+  the service's `fs/promises` import either, and the test asserted only
+  `not.toThrow()`. Both were found by reading the coverage report rather than
+  the test results — **the uncovered lines were inside the branch the test
+  claimed to cover.** Fixed with a real seam (`watchFactory`, injected like
+  `probe`/`processRunner`) and a real filesystem condition (a dangling symlink:
+  `readdir` lists it, `stat` throws).
+- **L-ML-8 — the class-name collision was caught by a test, not by the eye.**
+  The toolbar and the duration bar both used `wb-mcplog-bar`, so the meter's
+  `display: block; width: 76px` was overriding the toolbar's flex layout. The
+  component test asserting "no meter on a connection row" failed because
+  `querySelector('.wb-mcplog-bar')` matched the header. Renamed to
+  `wb-mcplog-meter`.
+- **Known, accepted:** the console reads the CLI's cache directly, so a
+  workspace whose agent is *not* Claude Code shows an empty console with the
+  teaching state. That is honest — there are no MCP logs for it — but the copy
+  does not yet say "this agent doesn't write MCP logs". Revisit when a second
+  adapter grows MCP support.
+
+## Lessons (turn-instrumentation, 2026-08-06)
+
+M14 shipped on `feat/voice-prompt`. `npm run verify` green: **2172 tests /
+149 files** (from 2118 / 146), 0 lint errors, coverage gate passing.
+
+- **L-TI-1 — `--faint` is not a safe text role on the light theme, and the
+  visual pass is the only thing that says so.** The step clocks and the meter's
+  stats shipped in the tertiary role because they are metadata. Measured:
+  **4.53:1 on dark** (barely over the floor) and **3.29:1 on light** — a clear
+  fail. Four more failures in the context sheet came from the same cause:
+  `--faint` clears its floor against `--bg`, not against the raised `--surface`
+  a popover sits on (4.18:1 measured). All six moved to `--muted`. The
+  hierarchy survives through size and the separator dots; the colour was never
+  the only channel carrying it. `tools/visual/timing-contrast.mjs` sweeps 25
+  selectors per theme and is what found them.
+- **L-TI-2 — a unit test caught a duration that lied.** `formatDuration(999)`
+  rendered `1,0s` — rounding, inside the branch that exists *because* a second
+  hasn't passed, and a different string from the `1s` the next branch prints
+  for 1000 ms. Floored instead. Worth writing down because it is the shape of
+  every formatting bug: the edge of a branch, where the two branches disagree.
+- **L-TI-3 — the real-Electron E2E caught a defect no jsdom test could.** The
+  CLI names the model on its `assistant` messages and **not** on the `result`
+  line that closes the turn. Taking each report at face value meant the
+  authoritative one *erased* the model name a moment after showing it. Only a
+  test driving a stand-in binary that speaks the real wire shapes could surface
+  that — a hand-written event in a unit test carries whatever fields the author
+  remembered. `applyUsage` now carries the last known model forward; the
+  regression is pinned in `sessionUsage.test.ts`.
+- **L-TI-4 — `git stash` is the wrong tool for "is this failure pre-existing?"**
+  It was used once here to compare against the baseline and it emptied the
+  working tree of an in-progress feature; the pop restored it, but the risk was
+  never worth taking. `git worktree add /tmp/x HEAD` with `node_modules`
+  symlinked in costs one build and touches nothing. That is how both suspect
+  E2E failures were confirmed pre-existing (they fail identically on `HEAD`).
+- **L-TI-5 — the React lint rules now forbid `Date.now()` during render and
+  synchronous `setState` in an effect**, which rules out both obvious ways to
+  seed a live clock. The resolution is a plain interval writing state, with the
+  staleness *designed around* rather than papered over: the shared clock can lag
+  a turn's start by up to one tick, so every consumer clamps elapsed at zero and
+  the worst case is a turn reading `0s` for half a second after it started —
+  which is what a stopwatch shows then anyway.
+- **Known, accepted:** while a dictation take is open *and* a turn is running,
+  the Stop control is not on screen — the `DictationBar` takes the toolbar row
+  by the design system's `toolbarOverlay` contract ("alternatives, not layers",
+  D-VP-7), and Stop lives in that row. `Esc` ends the take and brings it back.
+  A narrow combination with a one-key recovery; noted rather than fixed,
+  because the alternative is a second home for the interrupt.
+
 ## Lessons (voice-prompt — implementation, 2026-08-05)
 
 M13 shipped T1–T17 on `feat/voice-prompt` (branched off `feat/second-brain`,
