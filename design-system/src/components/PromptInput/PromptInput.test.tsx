@@ -236,6 +236,37 @@ describe("PromptInput", () => {
     })
   })
 
+  // A composer whose send does something other than send-now (queue behind
+  // work in flight) needs the button to *look* different, not just be labelled
+  // differently — same control, same place, different glyph.
+  describe("sendIcon", () => {
+    it("replaces the send glyph and keeps the control submitting", async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn()
+      const { container } = render(
+        <PromptInput
+          onSubmit={onSubmit}
+          defaultValue="depois"
+          sendLabel="Queue"
+          sendIcon={<svg data-testid="queue-glyph" />}
+        />
+      )
+
+      expect(screen.getByTestId("queue-glyph")).toBeInTheDocument()
+      // The slot keeps the glyph class, so the send⇄stop crossfade still targets it.
+      expect(container.querySelector("span.hds-prompt-input-icon-send")).toBeInTheDocument()
+
+      await user.click(screen.getByRole("button", { name: "Queue" }))
+      expect(onSubmit).toHaveBeenCalledWith("depois")
+    })
+
+    it("falls back to the built-in arrow when unset", () => {
+      const { container } = render(<PromptInput onSubmit={() => {}} />)
+      expect(container.querySelector("svg.hds-prompt-input-icon-send")).toBeInTheDocument()
+      expect(container.querySelector("span.hds-prompt-input-icon-send")).not.toBeInTheDocument()
+    })
+  })
+
   describe("highlighted", () => {
     it("marks the frame, and does not by default", () => {
       const { container: plain } = render(<PromptInput onSubmit={() => {}} />)

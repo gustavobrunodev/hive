@@ -1,0 +1,132 @@
+/* SegmentedControl — a single-select filter/view switch on one recessed track. */
+
+.hds-seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  /* The thumb is a child at the track's origin; keep it from painting outside. */
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* The sliding indicator. Positioned by transform + width so it never triggers
+   layout on the segments it moves between. */
+.hds-seg-thumb {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  bottom: 2px;
+  border-radius: calc(var(--rounded-lg) - 3px);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+  transition:
+    transform 220ms var(--ease-quart),
+    width 220ms var(--ease-quart);
+  pointer-events: none;
+}
+
+.hds-seg-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: calc(var(--rounded-lg) - 3px);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms var(--ease-quart);
+}
+
+.hds-seg-md .hds-seg-item {
+  padding: 7px 14px;
+  font-size: 0.84rem;
+}
+
+.hds-seg-item:hover:not(:disabled):not([data-active="true"]) {
+  color: var(--ink);
+}
+
+.hds-seg-item[data-active="true"] {
+  color: var(--ink);
+}
+
+.hds-seg-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.hds-seg-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.hds-seg-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Trailing tally. Tabular figures so a changing count doesn't shift the label. */
+.hds-seg-count {
+  font-family: var(--ff-num);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--rounded-sm);
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  color: var(--muted);
+}
+
+.hds-seg-item[data-active="true"] .hds-seg-count {
+  color: var(--ink);
+}
+
+/* Toned counts use an OPAQUE tint with `--ink` text rather than the
+   `*-ink on *-bg` pairing used for larger surfaces. Two reasons, both
+   measured: the badge is small bold text, so it takes the 4.5 body floor
+   rather than the 3.0 large-text one, and `--danger-ink` on `--danger-bg`
+   lands at 4.44:1 in the light theme — under the floor. An opaque fill also
+   takes whatever the track sits on out of the equation, so the badge reads
+   the same wherever the control is placed. The tone still carries the
+   meaning; it just carries it in the fill instead of the glyph. */
+.hds-seg-count[data-tone="accent"] {
+  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone="success"] {
+  background: color-mix(in oklab, var(--success) 22%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone="warning"] {
+  background: color-mix(in oklab, var(--warning) 26%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone="danger"] {
+  background: color-mix(in oklab, var(--danger) 26%, var(--surface));
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-seg-thumb {
+    transition: none;
+  }
+  .hds-seg-item {
+    transition: none;
+  }
+}

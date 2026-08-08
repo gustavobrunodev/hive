@@ -40,6 +40,15 @@ export interface PromptInputProps extends Omit<ComponentPropsWithoutRef<"div">, 
   highlighted?: boolean
   sendLabel?: string
   /**
+   * Replaces the send control's glyph. For a composer whose send does
+   * something the default arrow doesn't describe — queueing behind work in
+   * flight, scheduling, handing off — where relabelling alone leaves the
+   * button looking identical to the one that sends immediately. Purely the
+   * glyph: position, size, states and behaviour are unchanged, so the control
+   * stays the same control.
+   */
+  sendIcon?: ReactNode
+  /**
    * Interrupt handler for the in-flight response. When provided together with
    * `streaming`, the send control becomes a stop control (same button, same
    * position — the Claude-chat pattern): enabled, labelled `stopLabel`, and
@@ -110,6 +119,7 @@ export function PromptInput({
   toolbarOverlay,
   highlighted = false,
   sendLabel = "Send",
+  sendIcon,
   onStop,
   stopLabel = "Stop",
   allowEmptySubmit = false,
@@ -211,7 +221,11 @@ export function PromptInput({
           title={stopMode ? stopLabel : sendLabel}
           onClick={stopMode ? onStop : submit}
         >
-          <SendIcon />
+          {sendIcon === undefined ? (
+            <SendIcon />
+          ) : (
+            <span className="hds-prompt-input-icon-send">{sendIcon}</span>
+          )}
           <StopIcon />
         </button>
       </div>

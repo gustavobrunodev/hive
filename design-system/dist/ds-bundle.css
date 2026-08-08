@@ -3844,6 +3844,112 @@ button.hds-breadcrumb-segment:hover {
   }
 }
 
+/* src/components/SegmentedControl/SegmentedControl.css */
+.hds-seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  overflow: hidden;
+  max-width: 100%;
+}
+.hds-seg-thumb {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  bottom: 2px;
+  border-radius: calc(var(--rounded-lg) - 3px);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+  transition: transform 220ms var(--ease-quart), width 220ms var(--ease-quart);
+  pointer-events: none;
+}
+.hds-seg-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: calc(var(--rounded-lg) - 3px);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms var(--ease-quart);
+}
+.hds-seg-md .hds-seg-item {
+  padding: 7px 14px;
+  font-size: 0.84rem;
+}
+.hds-seg-item:hover:not(:disabled):not([data-active=true]) {
+  color: var(--ink);
+}
+.hds-seg-item[data-active=true] {
+  color: var(--ink);
+}
+.hds-seg-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.hds-seg-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.hds-seg-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hds-seg-count {
+  font-family: var(--ff-num);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--rounded-sm);
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  color: var(--muted);
+}
+.hds-seg-item[data-active=true] .hds-seg-count {
+  color: var(--ink);
+}
+.hds-seg-count[data-tone=accent] {
+  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone=success] {
+  background: color-mix(in oklab, var(--success) 22%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone=warning] {
+  background: color-mix(in oklab, var(--warning) 26%, var(--surface));
+  color: var(--ink);
+}
+.hds-seg-count[data-tone=danger] {
+  background: color-mix(in oklab, var(--danger) 26%, var(--surface));
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-seg-thumb {
+    transition: none;
+  }
+  .hds-seg-item {
+    transition: none;
+  }
+}
+
 /* src/components/ChatMessage/ChatMessage.css */
 .hds-chat-message {
   display: flex;
@@ -4184,6 +4290,14 @@ button.hds-breadcrumb-segment:hover {
 .hds-prompt-input-send svg {
   position: absolute;
   transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
+}
+.hds-prompt-input-send > span.hds-prompt-input-icon-send {
+  position: absolute;
+  display: inline-flex;
+  transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
+}
+.hds-prompt-input-send > span.hds-prompt-input-icon-send svg {
+  position: static;
 }
 .hds-prompt-input-send[data-mode=send] .hds-prompt-input-icon-stop,
 .hds-prompt-input-send[data-mode=stop] .hds-prompt-input-icon-send {

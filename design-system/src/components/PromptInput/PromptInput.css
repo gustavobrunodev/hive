@@ -136,6 +136,18 @@
   transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
 }
 
+/* A `sendIcon` override arrives as arbitrary markup, so it is wrapped in a
+   slot that takes the glyph's own positioning — the caller supplies a shape,
+   not a layout, and the crossfade above keeps working unchanged. */
+.hds-prompt-input-send > span.hds-prompt-input-icon-send {
+  position: absolute;
+  display: inline-flex;
+  transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
+}
+.hds-prompt-input-send > span.hds-prompt-input-icon-send svg {
+  position: static;
+}
+
 .hds-prompt-input-send[data-mode="send"] .hds-prompt-input-icon-stop,
 .hds-prompt-input-send[data-mode="stop"] .hds-prompt-input-icon-send {
   opacity: 0;
