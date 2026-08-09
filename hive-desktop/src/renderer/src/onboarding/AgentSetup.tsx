@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Spinner } from '@hive/design-system'
 import { t } from '../i18n'
 import { AgentPicker, type AgentMeta } from '../ui/AgentPicker'
@@ -9,24 +9,32 @@ interface AgentSetupProps {
 }
 
 /**
- * First-run agent picker (multi-agent). A required setup step: enable one or
- * more agent CLIs to drive the chat. Availability is **detected** on this
- * machine — available agents can be toggled on (the first is pre-enabled as the
- * default); unavailable ones render disabled with an install hint + a "Como
- * instalar" link. The user can enable several and pick which is the default for
- * new conversations. Built on the shared `AgentPicker` so onboarding and the
- * profile sheet speak the same vocabulary.
+ * First-run agent picker (multi-agent + agent-onboarding). A required setup
+ * step: enable one or more agent CLIs to drive the chat. Availability is
+ * **detected** on this machine, the scan is re-runnable, and the two
+ * npm-published CLIs can be installed from the card itself — see `AgentPicker`
+ * for why the screen is shaped that way.
+ *
+ * This host owns the *list*: it seeds the enabled set from what was detected,
+ * folds in an agent that finishes installing (enabling it, since installing an
+ * agent is unambiguous consent to use it), and keeps the default coherent.
  */
 export function AgentSetup({ onComplete }: AgentSetupProps): React.JSX.Element {
-  const [agents, setAgents] = useState<AgentMeta[] | null>(null)
+  const [agents, setAgents] = useState<AgentMeta[]>([])
+  // Separate from `agents` being empty: "we haven't looked yet" and "we looked
+  // and found nothing" are different screens, and conflating them into
+  // `AgentMeta[] | null` put a `?? []` on every later read of the list.
+  const [detecting, setDetecting] = useState(true)
   const [enabled, setEnabled] = useState<string[]>([])
   const [defaultAgent, setDefaultAgent] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     window.hive.profile.agents().then((list) => {
       if (cancelled) return
       setAgents(list)
+      setDetecting(false)
       // Pre-enable every agent detected on this machine (the user can toggle
       // any off), with the first as the default for new conversations.
       const available = list.filter((agent) => agent.available).map((agent) => agent.id)
@@ -38,6 +46,44 @@ export function AgentSetup({ onComplete }: AgentSetupProps): React.JSX.Element {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  /**
+   * Switches on agents that just became usable — found by a re-scan, or
+   * installed from a card — and gives the first of them the default when
+   * nothing holds it yet. Shared by both paths because both mean the same
+   * thing to the user: this one works now.
+   */
+  function adopt(ids: string[]): void {
+    if (ids.length === 0) return
+    setEnabled((current) => [...current, ...ids.filter((id) => !current.includes(id))])
+    setDefaultAgent((current) => current ?? ids[0])
+  }
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true)
+    // What we already knew about *before* asking again. Only an agent that
+    // crosses from missing to found gets switched on: re-enabling one the user
+    // deliberately turned off would make "procurar de novo" quietly overrule a
+    // choice they made on this very screen.
+    const knownAvailable = new Set(
+      agents.filter((agent) => agent.available).map((agent) => agent.id)
+    )
+    window.hive.profile
+      .agents(true)
+      .then((list) => {
+        setAgents(list)
+        const appeared = list
+          .filter((agent) => agent.available && !knownAvailable.has(agent.id))
+          .map((agent) => agent.id)
+        adopt(appeared)
+      })
+      .finally(() => setRefreshing(false))
+  }, [agents])
+
+  const handleInstalled = useCallback((agent: AgentMeta) => {
+    setAgents((current) => current.map((entry) => (entry.id === agent.id ? agent : entry)))
+    adopt([agent.id])
   }, [])
 
   function handleToggle(id: string, next: boolean): void {
@@ -62,7 +108,7 @@ export function AgentSetup({ onComplete }: AgentSetupProps): React.JSX.Element {
         <h1 className="wb-gate-title">{t('agentSetup.title')}</h1>
         <p className="wb-gate-desc">{t('agentSetup.description')}</p>
 
-        {agents === null ? (
+        {detecting ? (
           <div className="wb-pane-center">
             <Spinner label={t('agentSetup.detecting')} />
           </div>
@@ -74,6 +120,10 @@ export function AgentSetup({ onComplete }: AgentSetupProps): React.JSX.Element {
             onToggle={handleToggle}
             onSetDefault={setDefaultAgent}
             onInstall={(url) => void window.hive.openExternal(url)}
+            startInstall={(id, onEvent) => window.hive.profile.installAgent(id, onEvent)}
+            onInstalled={handleInstalled}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
           />
         )}
 

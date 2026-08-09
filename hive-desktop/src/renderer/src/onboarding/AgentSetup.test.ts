@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
-import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AgentSetup } from './AgentSetup'
 import type { AgentMeta } from '../ui/AgentPicker'
 
@@ -45,20 +45,32 @@ function agent(over: Partial<AgentMeta> & { id: string }): AgentMeta {
     displayName: over.id,
     description: `descrição de ${over.id}`,
     available: true,
+    version: null,
+    detectCommand: over.id,
     installHint: `instale ${over.id}`,
+    installable: false,
+    installCommand: null,
     docsUrl: `https://docs.example/${over.id}`,
     ...over
   }
 }
 
-function mockAgents(list: AgentMeta[]): { openExternal: ReturnType<typeof vi.fn> } {
+function mockAgents(
+  list: AgentMeta[],
+  installAgent: ReturnType<typeof vi.fn> = vi.fn(() => vi.fn())
+): {
+  openExternal: ReturnType<typeof vi.fn>
+  agents: ReturnType<typeof vi.fn>
+  installAgent: ReturnType<typeof vi.fn>
+} {
   const openExternal = vi.fn()
+  const agents = vi.fn(async () => list)
   window.hive = {
     ...window.hive,
-    profile: { ...window.hive?.profile, agents: vi.fn(async () => list) },
+    profile: { ...window.hive?.profile, agents, installAgent },
     openExternal
   } as typeof window.hive
-  return { openExternal }
+  return { openExternal, agents, installAgent }
 }
 
 afterEach(() => {
@@ -152,8 +164,10 @@ describe('AgentSetup (P1-004)', () => {
     const { openExternal } = mockAgents([agent({ id: 'devin', available: false })])
     render(createElement(AgentSetup, { onComplete: vi.fn() }))
 
-    await waitFor(() => expect(screen.getByText('Precisam ser instalados')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Instalação pelo fornecedor')).toBeTruthy())
     expect(screen.getByText('instale devin')).toBeTruthy()
+    // Not installable → no button Hive couldn't honour (AO-R4).
+    expect(screen.queryByLabelText('Instalar devin agora')).toBeNull()
     // No enable switch at all for an agent that isn't there.
     expect(screen.queryByLabelText('Habilitar ou desabilitar devin')).toBeNull()
 
@@ -177,5 +191,169 @@ describe('AgentSetup (P1-004)', () => {
 
     // Nothing renders and nothing throws: the `cancelled` guard held.
     await waitFor(() => expect(document.body.textContent).toBe(''))
+  })
+})
+
+/**
+ * agent-onboarding (M17). The screen's two new jobs: it can look again, and it
+ * can install. Both exist because of one report — a CLI that was installed and
+ * that Hive kept calling missing — where the only thing the old screen could
+ * offer was a shell command and a link out.
+ */
+describe('AgentSetup — scan and install (agent-onboarding)', () => {
+  it('reports what the scan found and offers to run it again, folding in what appeared', async () => {
+    const missing = agent({ id: 'claude-cli', available: false, installable: true })
+    const found = agent({ id: 'claude-cli', available: true, version: '2.1.226 (Claude Code)' })
+    const agents = vi
+      .fn<() => Promise<AgentMeta[]>>()
+      .mockResolvedValueOnce([missing])
+      .mockResolvedValueOnce([found])
+    window.hive = {
+      ...window.hive,
+      profile: { ...window.hive?.profile, agents, installAgent: vi.fn(() => vi.fn()) },
+      openExternal: vi.fn()
+    } as typeof window.hive
+
+    render(createElement(AgentSetup, { onComplete: vi.fn() }))
+    await waitFor(() =>
+      expect(screen.getByText('Nenhum agente encontrado neste computador.')).toBeTruthy()
+    )
+
+    fireEvent.click(screen.getByText('Procurar de novo'))
+
+    // The re-probe is a *refresh*, not another cached answer.
+    await waitFor(() => expect(agents).toHaveBeenLastCalledWith(true))
+    await waitFor(() =>
+      expect(screen.getByText('1 de 1 agentes encontrados neste computador.')).toBeTruthy()
+    )
+    // Newly found → enabled, default, and the version is on the card as evidence.
+    expect(screen.getByText('2.1.226 (Claude Code)')).toBeTruthy()
+    expect(screen.getByText('1 agente habilitado.')).toBeTruthy()
+  })
+
+  it('a re-scan never disturbs a choice the user already made', async () => {
+    const claude = agent({ id: 'claude-cli', available: true })
+    const copilot = agent({ id: 'github-copilot', available: false, installable: true })
+    const agents = vi
+      .fn<() => Promise<AgentMeta[]>>()
+      .mockResolvedValueOnce([claude, copilot])
+      .mockResolvedValueOnce([claude, { ...copilot, available: true }])
+    const onComplete = vi.fn()
+    window.hive = {
+      ...window.hive,
+      profile: { ...window.hive?.profile, agents, installAgent: vi.fn(() => vi.fn()) },
+      openExternal: vi.fn()
+    } as typeof window.hive
+
+    render(createElement(AgentSetup, { onComplete }))
+    await waitFor(() => expect(screen.getByText('1 agente habilitado.')).toBeTruthy())
+    // Turn the detected one off, *then* re-scan.
+    fireEvent.click(screen.getByLabelText('Habilitar ou desabilitar claude-cli'))
+    fireEvent.click(screen.getByText('Procurar de novo'))
+
+    await waitFor(() => expect(screen.getByText('1 agente habilitado.')).toBeTruthy())
+    fireEvent.click(screen.getByText('Continuar'))
+    // Only the agent that crossed from missing to found was switched on. The
+    // one the user had just turned off stayed off — a re-scan reports the
+    // machine, it doesn't overrule a choice made on this screen.
+    expect(onComplete).toHaveBeenCalledWith(['github-copilot'], 'github-copilot')
+  })
+
+  it('installs an agent from its card, streams npm, and enables it once the probe confirms', async () => {
+    const installed = agent({ id: 'claude-cli', available: true, version: '2.1.226' })
+    let emit: (event: unknown) => void = () => {}
+    const installAgent = vi.fn((_id: string, onEvent: (event: unknown) => void) => {
+      emit = onEvent
+      return vi.fn()
+    })
+    mockAgents(
+      [
+        agent({
+          id: 'claude-cli',
+          available: false,
+          installable: true,
+          installCommand: 'npm install -g @anthropic-ai/claude-code'
+        })
+      ],
+      installAgent
+    )
+
+    render(createElement(AgentSetup, { onComplete: vi.fn() }))
+    await waitFor(() => expect(screen.getByText('O Hive instala para você')).toBeTruthy())
+    // The command is shown before the click — the user knows what will run.
+    expect(screen.getByText('npm install -g @anthropic-ai/claude-code')).toBeTruthy()
+
+    fireEvent.click(screen.getByLabelText('Instalar claude-cli agora'))
+    expect(installAgent).toHaveBeenCalledWith('claude-cli', expect.any(Function))
+
+    act(() => emit({ type: 'progress', message: 'added 214 packages in 12s' }))
+    expect(screen.getByText('Instalando claude-cli…')).toBeTruthy()
+    expect(screen.getByText('added 214 packages in 12s')).toBeTruthy()
+
+    act(() => emit({ type: 'done', agent: installed }))
+    await waitFor(() => expect(screen.getByText('Prontos para usar')).toBeTruthy())
+    // Installing IS the consent to use it: enabled, and the default when none was set.
+    expect(screen.getByText('1 agente habilitado.')).toBeTruthy()
+    expect(
+      (screen.getByLabelText('Habilitar ou desabilitar claude-cli') as HTMLInputElement).checked
+    ).toBe(true)
+  })
+
+  it('says what went wrong, keeps npm’s output, and offers the retry + the command to copy', async () => {
+    let emit: (event: unknown) => void = () => {}
+    const installAgent = vi.fn((_id: string, onEvent: (event: unknown) => void) => {
+      emit = onEvent
+      return vi.fn()
+    })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    mockAgents(
+      [
+        agent({
+          id: 'github-copilot',
+          available: false,
+          installable: true,
+          installCommand: 'npm install -g @github/copilot'
+        })
+      ],
+      installAgent
+    )
+
+    render(createElement(AgentSetup, { onComplete: vi.fn() }))
+    await waitFor(() => expect(screen.getByLabelText('Instalar github-copilot agora')).toBeTruthy())
+    fireEvent.click(screen.getByLabelText('Instalar github-copilot agora'))
+
+    act(() => emit({ type: 'error', reason: 'permission', detail: 'npm ERR! code EACCES' }))
+
+    expect(
+      screen.getByText(
+        'Sem permissão para instalar pacotes globais. Copie o comando e rode com a permissão necessária.'
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('npm ERR! code EACCES')).toBeTruthy()
+
+    // The escape hatch the message points at.
+    fireEvent.click(screen.getByLabelText('Copiar o comando de instalação do github-copilot'))
+    expect(writeText).toHaveBeenCalledWith('npm install -g @github/copilot')
+
+    fireEvent.click(screen.getByLabelText('Tentar instalar github-copilot de novo'))
+    expect(installAgent).toHaveBeenCalledTimes(2)
+  })
+
+  it('kills an install still running when the screen unmounts', async () => {
+    const cancel = vi.fn()
+    const installAgent = vi.fn(() => cancel)
+    mockAgents(
+      [agent({ id: 'claude-cli', available: false, installable: true })],
+      installAgent as unknown as ReturnType<typeof vi.fn>
+    )
+
+    const { unmount } = render(createElement(AgentSetup, { onComplete: vi.fn() }))
+    await waitFor(() => expect(screen.getByLabelText('Instalar claude-cli agora')).toBeTruthy())
+    fireEvent.click(screen.getByLabelText('Instalar claude-cli agora'))
+    unmount()
+
+    // Otherwise npm keeps writing into a global prefix with nobody listening.
+    expect(cancel).toHaveBeenCalled()
   })
 })

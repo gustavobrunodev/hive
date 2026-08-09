@@ -25,6 +25,53 @@ async (page) => {
     const unsub = () => noop
     const ok = (v) => () => Promise.resolve(v)
 
+    // A workspace BMAD catalog big enough for the shortcut picker to look real
+    // (groups, counts, scrolling) — mirrors `main/workflowCatalog.ts`'s shape.
+    const skill = (key, label, module = 'bmm') => ({
+      key,
+      label,
+      description: '',
+      module,
+      kind: 'skill',
+      persona: null
+    })
+    const agent = (key, persona) => ({
+      key,
+      label: persona,
+      description: `talk to ${persona}`,
+      module: 'bmm',
+      kind: 'agent',
+      persona
+    })
+    const SHORTCUT_CATALOG = [
+      skill('bmad-prd', 'Create Edit and Review PRD'),
+      skill('bmad-brainstorming', 'Brainstorming', 'core'),
+      skill('bmad-domain-research', 'Domain Research'),
+      skill('bmad-product-brief', 'Product Brief'),
+      skill('bmad-create-epics-and-stories', 'Epics and Stories'),
+      skill('bmad-create-story', 'Create Story'),
+      skill('bmad-architecture', 'Architecture'),
+      skill('bmad-ux', 'UX Spec'),
+      skill('bmad-party-mode', 'Party Mode', 'core'),
+      skill('bmad-code-review', 'Code Review'),
+      skill('bmad-testarch-test-design', 'Test Design', 'tea'),
+      skill('bmad-spec', 'Spec Kernel'),
+      agent('bmad-agent-pm', 'John'),
+      agent('bmad-agent-architect', 'Winston'),
+      agent('bmad-agent-ux-designer', 'Sally'),
+      agent('bmad-agent-dev', 'Amelia'),
+      agent('bmad-tea', 'Murat'),
+      {
+        key: 'revisor-notas',
+        label: 'Revisor de Notas',
+        description: 'Revisa release notes.',
+        module: 'custom',
+        kind: 'skill',
+        persona: null,
+        custom: true
+      }
+    ]
+
     // Mutable fixture state the test drives from the console.
     const state = {
       vault: { path: null, name: null, rawPending: 0 },
@@ -278,20 +325,54 @@ async (page) => {
         setAgent: ok(undefined),
         getAgents: ok(['claude']),
         setAgents: ok(undefined),
-        getRole: ok('dev'),
+        getRole: ok(globalThis.HIVE_ROLE ?? 'pm'),
         setRole: ok(undefined),
         getUserName: ok('Gustavo'),
         setUserName: ok(undefined),
-        roleActions: ok([])
+        // shortcut-scopes: role *defaults* per scope, which is what the
+        // customizer pre-checks when nothing is stored yet.
+        roleActions: (role, scope) =>
+          Promise.resolve(
+            scope === 'during'
+              ? [
+                  {
+                    key: 'party-mode',
+                    kind: 'workflow',
+                    command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' }
+                  }
+                ]
+              : [
+                  { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
+                  {
+                    key: 'brainstorm',
+                    kind: 'workflow',
+                    command: { key: 'bmad-brainstorming', prompt: '/bmad-brainstorming' }
+                  },
+                  {
+                    key: 'persona-pm',
+                    kind: 'persona',
+                    command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' }
+                  }
+                ]
+          ),
       },
       shortcuts: {
-        catalog: ok([]),
-        get: ok(null),
+        catalog: ok(SHORTCUT_CATALOG),
+        get: ok({ start: null, during: null }),
         set: ok(undefined),
-        actions: ok([
-          { key: 'bmad-prd', kind: 'workflow', label: 'PRD', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
-          { key: 'bmad-ux', kind: 'workflow', label: 'UX', command: { key: 'bmad-ux', prompt: '/bmad-ux' } }
-        ])
+        // Both scopes, the shape `WorkUI` now consumes: the hero's set and the
+        // (deliberately short) in-conversation one.
+        actions: ok({
+          start: [
+            { key: 'bmad-prd', kind: 'workflow', label: 'PRD', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
+            { key: 'bmad-brainstorming', kind: 'workflow', label: 'Brainstorm', command: { key: 'bmad-brainstorming', prompt: '/bmad-brainstorming' } },
+            { key: 'bmad-ux', kind: 'workflow', label: 'UX', command: { key: 'bmad-ux', prompt: '/bmad-ux' } },
+            { key: 'bmad-agent-pm', kind: 'persona', label: 'John', command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' } }
+          ],
+          during: [
+            { key: 'party-mode', kind: 'workflow', command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' } }
+          ]
+        })
       },
       fs: {
         statFile: ok({ mtimeMs: 1, size: 1 }),

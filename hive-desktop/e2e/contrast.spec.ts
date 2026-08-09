@@ -313,3 +313,92 @@ for (const theme of THEMES) {
     }
   })
 }
+
+/**
+ * shortcut-scopes (SS-R5). Neither surface below is on screen in an idle work
+ * UI, so the sweep at the top never sees them: the "Personalizar atalhos"
+ * picker is a dialog, and the profile is a sheet. Both are opened first and
+ * then swept — the same shape as the dictation test above, and the reason it
+ * exists: a surface that only appears on demand is exactly where a contrast
+ * defect survives to a user.
+ *
+ * Both scopes of the picker are visited, because they render different
+ * previews (hero pills vs. composer chips) with different tints under them.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the shortcut picker and profile sheet meet WCAG AA in the ${theme} theme`, async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    // The picker, on the hero set and then on the in-conversation set.
+    await window.getByRole('button', { name: 'Personalizar atalhos' }).first().click()
+    await window.locator('.wb-sc-dialog').waitFor({ state: 'visible' })
+    await window.locator('.wb-sc-stage').waitFor({ state: 'visible' })
+
+    const startSamples = await sampleTextContrast(window)
+    expect(startSamples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(startSamples),
+      `contrast failures in ${theme}, picker on "Para iniciar":\n${failuresIn(startSamples).join('\n')}`
+    ).toEqual([])
+
+    await window.getByRole('radio', { name: /Durante a conversa/ }).click()
+    const duringSamples = await sampleTextContrast(window)
+    expect(
+      failuresIn(duringSamples),
+      `contrast failures in ${theme}, picker on "Durante a conversa":\n${failuresIn(duringSamples).join('\n')}`
+    ).toEqual([])
+
+    await window.getByRole('button', { name: 'Concluído' }).click()
+    await expect(window.locator('.wb-sc-dialog')).toHaveCount(0)
+
+    // The profile sheet: the read-only role block and the two-set summary.
+    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.locator('.wb-profile-shortcut-sets').waitFor({ state: 'visible' })
+
+    const profileSamples = await sampleTextContrast(window)
+    expect(profileSamples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(profileSamples),
+      `contrast failures in ${theme}, profile sheet:\n${failuresIn(profileSamples).join('\n')}`
+    ).toEqual([])
+  })
+}
+
+/**
+ * agent-onboarding (AO-R5). The agent picker lives inside the profile sheet,
+ * so the sweep at the top of this file never sees it — same reason the two
+ * surfaces above needed their own test. What is new here is the scan strip and
+ * three *different* card shapes in one list: a detected agent (version as
+ * evidence), an installable one (command + primary button + quiet docs link),
+ * and a vendor-install one (dashed, docs link only).
+ *
+ * The transient install states — running and failed — are deliberately **not**
+ * driven here. Clicking "Instalar" runs a real `npm install -g` on whatever
+ * machine runs this suite; a contrast assertion is not worth mutating a global
+ * npm prefix and reaching the network for. Those two states are measured
+ * instead by `tools/visual/agent-setup.mjs`, which drives them from a mocked
+ * bridge across all three themes and needs no npm at all.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the agent picker meets WCAG AA in the ${theme} theme`, async ({ hiveApp }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.locator('.wb-agent-scan').waitFor({ state: 'visible' })
+
+    const samples = await sampleTextContrast(window)
+    expect(samples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(samples),
+      `contrast failures in ${theme}, agent picker:\n${failuresIn(samples).join('\n')}`
+    ).toEqual([])
+  })
+}

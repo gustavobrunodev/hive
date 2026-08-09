@@ -171,11 +171,6 @@ function App(): React.JSX.Element {
     setDefaultAgentState(agentId)
   }, [])
 
-  const handleRoleChange = useCallback((roleId: string) => {
-    void window.hive.profile.setRole(roleId)
-    setRoleState(roleId)
-  }, [])
-
   // Display-name edit from the profile sheet: persist (main normalizes —
   // trims, empty clears to null) and lift the normalized value.
   const handleUserNameChange = useCallback((name: string) => {
@@ -296,12 +291,13 @@ function App(): React.JSX.Element {
       // Lifted profile state (multi-agent + role-personalization): the role,
       // the enabled agent set + default, and change handlers, so the action
       // rail, intent grid and chat all react to a profile change made in the
-      // sheet.
+      // sheet. `role` has no setter here on purpose (shortcut-scopes): it is
+      // chosen once, in the first-run `setupRole` step above, and is read-only
+      // everywhere else.
       role={role}
       agents={agents}
       defaultAgent={defaultAgent}
       userName={userName}
-      onRoleChange={handleRoleChange}
       onAgentsChange={handleAgentsChange}
       onDefaultAgentChange={handleDefaultAgentChange}
       onUserNameChange={handleUserNameChange}

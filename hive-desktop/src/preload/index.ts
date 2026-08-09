@@ -26,8 +26,9 @@ import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
-import type { ResolvedRoleAction } from '../main/roleCatalog'
-import type { ShortcutPrefs } from '../main/configStore'
+import type { AgentInstallEvent } from '../main/agentInstaller'
+import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
+import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
@@ -415,7 +416,23 @@ const hive = {
     // multi-agent: `agents()` probes availability per machine (available +
     // installHint + docsUrl). `getAgent/setAgent` are the **default** agent;
     // `getAgents/setAgents` are the **enabled** set the switcher offers.
-    agents: (): Promise<AgentMeta[]> => ipcRenderer.invoke('profile:agents'),
+    agents: (refresh?: boolean): Promise<AgentMeta[]> =>
+      ipcRenderer.invoke('profile:agents', refresh === true),
+    // agent-onboarding: install an agent's CLI from inside the app. Streaming,
+    // same start/event/stop shape as `installBmad`, with the agent id echoed
+    // back on every event so two cards installing at once can't cross wires.
+    // The returned function cancels the install and stops delivery.
+    installAgent: (agentId: string, onEvent: (event: AgentInstallEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, id: string, evt: AgentInstallEvent): void => {
+        if (id === agentId) onEvent(evt)
+      }
+      ipcRenderer.on('agents:install:event', listener)
+      ipcRenderer.send('agents:install:start', agentId)
+      return () => {
+        ipcRenderer.removeListener('agents:install:event', listener)
+        ipcRenderer.send('agents:install:stop', agentId)
+      }
+    },
     getAgent: (): Promise<string | null> => ipcRenderer.invoke('profile:getAgent'),
     setAgent: (id: string): Promise<void> => ipcRenderer.invoke('profile:setAgent', id),
     getAgents: (): Promise<string[] | null> => ipcRenderer.invoke('profile:getAgents'),
@@ -425,19 +442,21 @@ const hive = {
     getUserName: (): Promise<string | null> => ipcRenderer.invoke('profile:getUserName'),
     setUserName: (name: string | null): Promise<void> =>
       ipcRenderer.invoke('profile:setUserName', name),
-    roleActions: (role: string | null): Promise<ResolvedRoleAction[]> =>
-      ipcRenderer.invoke('profile:roleActions', role)
+    roleActions: (role: string | null, scope?: ShortcutScope): Promise<ResolvedRoleAction[]> =>
+      ipcRenderer.invoke('profile:roleActions', role, scope)
   },
 
-  // Shortcut customization (shortcut-customization): workspace skill catalog,
-  // persisted selection, and the resolved shortcut set. Plain invoke/response;
-  // arg order mirrors the `shortcuts:*` handlers in main/index.ts exactly.
+  // Shortcut customization (shortcut-customization + shortcut-scopes):
+  // workspace skill catalog, the persisted per-scope selection, and both
+  // resolved shortcut sets. Plain invoke/response; arg order mirrors the
+  // `shortcuts:*` handlers in main/index.ts exactly.
   shortcuts: {
     catalog: (workspace: string): Promise<WorkspaceSkill[]> =>
       ipcRenderer.invoke('shortcuts:catalog', workspace),
-    get: (): Promise<ShortcutPrefs | null> => ipcRenderer.invoke('shortcuts:get'),
-    set: (prefs: ShortcutPrefs | null): Promise<void> => ipcRenderer.invoke('shortcuts:set', prefs),
-    actions: (role: string | null, workspace: string): Promise<ResolvedRoleAction[]> =>
+    get: (): Promise<ShortcutSettings> => ipcRenderer.invoke('shortcuts:get'),
+    set: (scope: ShortcutScope, prefs: ShortcutPrefs | null): Promise<void> =>
+      ipcRenderer.invoke('shortcuts:set', scope, prefs),
+    actions: (role: string | null, workspace: string): Promise<ResolvedShortcutSets> =>
       ipcRenderer.invoke('shortcuts:actions', role, workspace)
   },
 

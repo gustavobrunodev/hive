@@ -83,11 +83,18 @@ function createFakeRegistry(adapters: Record<string, AgentAdapter>): AgentRegist
     displayName: adapters[id].displayName,
     description: '',
     available: true,
+    version: null,
+    detectCommand: id,
     installHint: '',
+    installable: false,
+    installCommand: null,
     docsUrl: ''
   }))
   return {
     detect: async () => meta,
+    refreshOne: async (id) => meta.find((entry) => entry.id === id) ?? null,
+    describe: (id) => meta.find((entry) => entry.id === id) ?? null,
+    npmPackageFor: () => null,
     get: (id) => adapters[id] ?? null,
     defaultId: () => ids[0],
     ids: () => ids,

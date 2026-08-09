@@ -282,6 +282,45 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.send).toHaveBeenCalledWith('bmad:install:stop')
   })
 
+  // agent-onboarding (AO-R2/AO-R3).
+  it('hive.profile.agents(refresh) forwards the refresh flag, defaulting to a cached answer', () => {
+    const hive = exposedGlobals().get('hive') as {
+      profile: { agents: (refresh?: boolean) => Promise<unknown> }
+    }
+    void hive.profile.agents()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:agents', false)
+    void hive.profile.agents(true)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:agents', true)
+  })
+
+  it('hive.profile.installAgent streams only its own agent’s events and cancels on unsubscribe', () => {
+    const hive = exposedGlobals().get('hive') as {
+      profile: { installAgent: (id: string, onEvent: (evt: unknown) => void) => () => void }
+    }
+    const onEvent = vi.fn()
+    const unsubscribe = hive.profile.installAgent('claude-cli', onEvent)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('agents:install:start', 'claude-cli')
+
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'agents:install:event')?.[1] as (
+      event: unknown,
+      id: string,
+      evt: unknown
+    ) => void
+
+    const mine = { type: 'progress', message: 'added 214 packages' }
+    listener({}, 'claude-cli', mine)
+    expect(onEvent).toHaveBeenCalledWith(mine)
+    // Two cards can install at once; neither may adopt the other's stream.
+    listener({}, 'github-copilot', { type: 'done' })
+    expect(onEvent).toHaveBeenCalledTimes(1)
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('agents:install:event', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('agents:install:stop', 'claude-cli')
+  })
+
   it('hive.updateBmad(workspace, onEvent) registers a listener, sends bmad:update:start, and the returned unsubscribe removes the listener + sends bmad:update:stop', () => {
     const hive = exposedGlobals().get('hive') as {
       updateBmad: (workspace: string, onEvent: (evt: unknown) => void) => () => void
@@ -388,11 +427,11 @@ describe('preload: window.hive bridge', () => {
         setAgent: (id: string) => Promise<unknown>
         getRole: () => Promise<unknown>
         setRole: (id: string) => Promise<unknown>
-        roleActions: (role: string | null) => Promise<unknown>
+        roleActions: (role: string | null, scope?: 'start' | 'during') => Promise<unknown>
       }
     }
     await expect(hive.profile.agents()).resolves.toBe('invoked:profile:agents')
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:agents')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:agents', false)
 
     await expect(hive.profile.getAgent()).resolves.toBe('invoked:profile:getAgent')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:getAgent')
@@ -423,7 +462,11 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setRole', 'pm')
 
     await hive.profile.roleActions('pm')
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:roleActions', 'pm')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:roleActions', 'pm', undefined)
+
+    // shortcut-scopes: the scope rides along as the second arg.
+    await hive.profile.roleActions('pm', 'during')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:roleActions', 'pm', 'during')
   })
 
   // shortcut-customization: the shortcuts namespace.
@@ -432,7 +475,10 @@ describe('preload: window.hive bridge', () => {
       shortcuts: {
         catalog: (workspace: string) => Promise<unknown>
         get: () => Promise<unknown>
-        set: (prefs: { skills: string[]; agents: string[] } | null) => Promise<unknown>
+        set: (
+          scope: 'start' | 'during',
+          prefs: { skills: string[]; agents: string[] } | null
+        ) => Promise<unknown>
         actions: (role: string | null, workspace: string) => Promise<unknown>
       }
     }
@@ -443,10 +489,10 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:get')
 
     const prefs = { skills: ['bmad-prd'], agents: ['bmad-agent-pm'] }
-    await hive.shortcuts.set(prefs)
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', prefs)
-    await hive.shortcuts.set(null)
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', null)
+    await hive.shortcuts.set('start', prefs)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', 'start', prefs)
+    await hive.shortcuts.set('during', null)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:set', 'during', null)
 
     await hive.shortcuts.actions('pm', '/root')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('shortcuts:actions', 'pm', '/root')

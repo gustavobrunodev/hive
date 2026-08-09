@@ -9,6 +9,7 @@ import {
   IntentResearchIcon,
   IntentStoryIcon,
   LayersIcon,
+  PartyModeIcon,
   PersonaChatIcon,
   ReviewIcon,
   RoleDevIcon,
@@ -80,6 +81,8 @@ export function actionIcon(actionKey: string): IconComponent {
       return RoleDevIcon
     case 'code-review':
       return ReviewIcon
+    case 'party-mode':
+      return PartyModeIcon
     default:
       return FileTextIcon
   }
@@ -119,7 +122,8 @@ const SKILL_ICONS: Record<string, IconComponent> = {
   'bmad-testarch-test-review': ReviewIcon,
   'bmad-testarch-automate': AutomationIcon,
   'bmad-testarch-ci': AutomationIcon,
-  'bmad-qa-generate-e2e-tests': AutomationIcon
+  'bmad-qa-generate-e2e-tests': AutomationIcon,
+  'bmad-party-mode': PartyModeIcon
 }
 
 /** Icon for a workspace skill key; testarch/testing skills read as the beaker, anything unknown as a generic document. */

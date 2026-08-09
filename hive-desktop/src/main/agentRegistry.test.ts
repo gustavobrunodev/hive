@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAgentRegistry } from './agentRegistry'
+import { createAgentRegistry, parseVersionOutput } from './agentRegistry'
 import { createFakeProcessRunner } from './processRunner'
 
 describe('agentRegistry (multi-agent)', () => {
@@ -74,5 +74,68 @@ describe('agentRegistry (multi-agent)', () => {
     expect(registry.resolve('devin').id).toBe('devin')
     expect(registry.resolve(null).id).toBe('claude-cli')
     expect(registry.resolve('nope').id).toBe('claude-cli')
+  })
+
+  // --- agent-onboarding (M17) ---------------------------------------------
+
+  it('keeps the version a detected CLI answered with, as the evidence the card shows', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: '2.1.226 (Claude Code)\n' }] })
+    runner.script({ spawnError: true })
+    runner.script({ spawnError: true })
+    const metas = await createAgentRegistry(runner).detect()
+
+    expect(metas.find((m) => m.id === 'claude-cli')?.version).toBe('2.1.226 (Claude Code)')
+    // An agent that isn't there has no version to report — not an empty string.
+    expect(metas.find((m) => m.id === 'devin')?.version).toBeNull()
+  })
+
+  it('marks only the npm-published CLIs installable, with the command it would run (AO-R4)', async () => {
+    const metas = await createAgentRegistry(createFakeProcessRunner()).detect()
+    const byId = Object.fromEntries(metas.map((meta) => [meta.id, meta]))
+
+    expect(byId['claude-cli'].installable).toBe(true)
+    expect(byId['claude-cli'].installCommand).toBe('npm install -g @anthropic-ai/claude-code')
+    expect(byId['github-copilot'].installCommand).toBe('npm install -g @github/copilot')
+    // Devin needs an account and a browser login Hive can't perform.
+    expect(byId['devin'].installable).toBe(false)
+    expect(byId['devin'].installCommand).toBeNull()
+  })
+
+  it('refreshOne() re-probes a single agent and folds the answer into the cache', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ spawnError: true }) // claude → missing on the first sweep
+    const registry = createAgentRegistry(runner)
+    await registry.detect()
+    expect((await registry.detect()).find((m) => m.id === 'claude-cli')?.available).toBe(false)
+
+    const callsBefore = runner.calls.length
+    runner.script({ chunks: [{ stream: 'stdout', data: '2.1.226\n' }] })
+    const refreshed = await registry.refreshOne('claude-cli')
+
+    expect(refreshed?.available).toBe(true)
+    // Exactly one probe — the other two agents' results were still good.
+    expect(runner.calls.length).toBe(callsBefore + 1)
+    // …and the cached sweep now agrees, so no restart is needed (AO-R2).
+    expect((await registry.detect()).find((m) => m.id === 'claude-cli')?.available).toBe(true)
+    expect(await registry.refreshOne('nope')).toBeNull()
+  })
+
+  it('npmPackageFor()/describe() answer for a known id and refuse an unknown one', () => {
+    const registry = createAgentRegistry(createFakeProcessRunner())
+    expect(registry.npmPackageFor('github-copilot')).toBe('@github/copilot')
+    expect(registry.npmPackageFor('devin')).toBeNull()
+    expect(registry.npmPackageFor('nope')).toBeNull()
+    expect(registry.describe('devin')?.detectCommand).toBe('devin')
+    expect(registry.describe('nope')).toBeNull()
+  })
+})
+
+describe('parseVersionOutput', () => {
+  it('keeps the first non-empty line, strips ANSI, and caps a banner', () => {
+    expect(parseVersionOutput('\n\n2.1.226 (Claude Code)\nextra\n')).toBe('2.1.226 (Claude Code)')
+    expect(parseVersionOutput('[32m1.4.0[0m')).toBe('1.4.0')
+    expect(parseVersionOutput('   \n ')).toBeNull()
+    expect(parseVersionOutput('x'.repeat(80))).toHaveLength(60)
   })
 })

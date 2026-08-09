@@ -369,7 +369,8 @@ describe('Explorer (T12/T8)', () => {
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
         setUserName: vi.fn().mockResolvedValue(undefined),
-        roleActions: vi.fn().mockResolvedValue([])
+        roleActions: vi.fn().mockResolvedValue([]),
+        installAgent: vi.fn(() => vi.fn())
       },
       shortcuts: {
         catalog: vi.fn().mockResolvedValue([]),

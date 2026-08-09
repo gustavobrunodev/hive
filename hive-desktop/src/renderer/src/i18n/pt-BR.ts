@@ -262,9 +262,9 @@ export const ptBR = {
     mentionNoMatch: 'Nenhum arquivo corresponde à busca.',
     // The shortcut strip docked next to the composer (the shortcuts'
     // always-at-hand home now that the left rail hosts workspace tools).
-    // "Seus atalhos" (not "do seu papel"): since shortcut-customization the
-    // set may be the user's own selection, not the role defaults.
-    shortcutsLabel: 'Seus atalhos',
+    // shortcut-scopes: this strip renders the `during` set only, so the name
+    // says which of the two sets it is — the hero has its own.
+    shortcutsLabel: 'Atalhos durante a conversa',
     // The strip's scroll paddles — they only exist while that edge is hiding
     // something, so the names say which way, not "rolar".
     shortcutsScrollBack: 'Ver atalhos anteriores',
@@ -449,7 +449,21 @@ export const ptBR = {
     customizeLabel: 'Personalizar',
     customizeTitle: 'Personalizar atalhos',
     dialogDescription:
-      'Escolha as skills e os agentes do seu workspace que ficam à mão — na tela inicial e na barra da conversa.',
+      'Escolha as skills e os agentes que ficam à mão em cada momento — ao começar uma conversa e durante ela.',
+    // shortcut-scopes: the two sets, switched by the segmented control. The
+    // labels name the *moment*, not the surface, because that's how someone
+    // decides which list a shortcut belongs in.
+    scopeAria: 'Momento da conversa',
+    scopeStartLabel: 'Para iniciar',
+    scopeDuringLabel: 'Durante a conversa',
+    scopeStartCaption: 'Na tela inicial, antes da primeira mensagem.',
+    scopeDuringCaption: 'Acima do campo de mensagem, com a conversa em andamento.',
+    // The live preview above the catalog: the selection, drawn the way the
+    // real surface draws it, so the difference between the two sets is
+    // visible instead of explained.
+    previewAria: (scope: string) => `Prévia dos atalhos: ${scope}`,
+    previewEmptyStart: 'Sem atalhos aqui — a tela inicial fica só com o campo de mensagem.',
+    previewEmptyDuring: 'Sem atalhos aqui — a barra acima do campo de mensagem some.',
     searchPlaceholder: 'Buscar skills e agentes…',
     searchAria: 'Buscar skills e agentes do workspace',
     agentsGroupLabel: 'Agentes',
@@ -463,7 +477,10 @@ export const ptBR = {
           : `${count} atalhos selecionados`,
     roleDefaultBadge: 'Padrão do papel',
     customBadge: 'Personalizado',
-    restoreDefaultsCta: 'Restaurar padrão do papel',
+    // "do papel" is carried by the badge directly above this button, and the
+    // shorter label is what keeps the footer's four items on one line once a
+    // scope is customized (the restore action only exists in that state).
+    restoreDefaultsCta: 'Restaurar padrão',
     doneCta: 'Concluído',
     noMatch: 'Nada encontrado com esse nome.',
     emptyCatalog:
@@ -476,7 +493,10 @@ export const ptBR = {
     // skill-studio: user creations get their own group at the top of the
     // picker, plus a way into the studio for whoever hasn't created yet.
     createdGroupLabel: 'Criadas por você',
-    openStudioCta: 'Criar skills no Estúdio'
+    // Short on purpose: with the scope split the footer also carries the
+    // per-scope "Restaurar padrão do papel", and the three actions plus the
+    // live count have to sit on one line at the dialog's width.
+    openStudioCta: 'Criar no Estúdio'
   },
   // skill-studio: the "Estúdio de skills" — create skills/agents with the
   // BMAD builders, generate/run evals, pin creations as shortcuts.
@@ -515,8 +535,10 @@ export const ptBR = {
     evalsRunAria: (name: string) => `Rodar os evals de ${name}`,
     pinCta: 'Fixar nos atalhos',
     unpinCta: 'Tirar dos atalhos',
-    pinAria: (name: string) => `Fixar ${name} nos atalhos`,
-    unpinAria: (name: string) => `Tirar ${name} dos atalhos`,
+    // shortcut-scopes: pinning targets the "para iniciar" set, so the
+    // accessible name says which of the two sets is being changed.
+    pinAria: (name: string) => `Fixar ${name} nos atalhos para iniciar`,
+    unpinAria: (name: string) => `Tirar ${name} dos atalhos para iniciar`,
     pinnedBadge: 'Nos atalhos',
     openFileCta: 'Abrir SKILL.md',
     openFileAria: (name: string) => `Abrir o SKILL.md de ${name} no editor`,
@@ -767,11 +789,14 @@ export const ptBR = {
     runningLabel: 'Em andamento'
   },
   // agent-selection AG-R3.1: first-run agent picker.
+  // agent-onboarding (M17): in-app install + a re-runnable, evidenced scan.
   agentSetup: {
     title: 'Escolha seus agentes',
     description:
-      'Habilite um ou mais agentes de IA para conduzir suas conversas no Hive. Você pode usar vários ao mesmo tempo — cada conversa roda no agente que você escolher — e ajustar tudo depois nas configurações.',
-    availableSectionLabel: 'Disponíveis no seu computador',
+      'Um agente de IA conduz cada conversa no Hive. Habilite quantos quiser — dá para trocar por conversa e mudar tudo depois no seu perfil.',
+    availableSectionLabel: 'Prontos para usar',
+    installableSectionLabel: 'O Hive instala para você',
+    manualSectionLabel: 'Instalação pelo fornecedor',
     unavailableSectionLabel: 'Precisam ser instalados',
     comingSoon: 'Em breve',
     // multi-agent: detection + how-to-enable affordance.
@@ -779,7 +804,35 @@ export const ptBR = {
     installCta: 'Como instalar',
     installCtaAria: (agent: string) => `Como instalar ${agent} (abre no navegador)`,
     detecting: 'Procurando agentes instalados…',
-    emptyAvailable: 'Nenhum agente encontrado ainda. Instale um dos CLIs abaixo para começar.',
+    // AO-R2: what the last scan found, and the way to run it again.
+    scanSummary: (found: number, total: number) =>
+      found === 0
+        ? 'Nenhum agente encontrado neste computador.'
+        : `${found} de ${total} agentes encontrados neste computador.`,
+    rescan: 'Procurar de novo',
+    // Only the part the strip above can't say for itself: *why* you'd press it.
+    // The groups below already offer the other way out.
+    emptyAvailable: 'Instalou um agente agora há pouco? Toque em “Procurar de novo”.',
+    // AO-R3: the one-click install and everything it can say back.
+    installNow: 'Instalar',
+    installNowAria: (agent: string) => `Instalar ${agent} agora`,
+    installRuns: 'Roda',
+    installing: (agent: string) => `Instalando ${agent}…`,
+    installOutputLabel: 'Ver saída do npm',
+    retryInstall: 'Tentar de novo',
+    retryInstallAria: (agent: string) => `Tentar instalar ${agent} de novo`,
+    copyCommand: 'Copiar comando',
+    copyCommandAria: (agent: string) => `Copiar o comando de instalação do ${agent}`,
+    copied: 'Copiado',
+    installError: {
+      'not-installable': 'O Hive não consegue instalar este agente.',
+      'npm-missing': 'Não encontramos o npm aqui. Instale o Node.js e tente de novo.',
+      permission:
+        'Sem permissão para instalar pacotes globais. Copie o comando e rode com a permissão necessária.',
+      network: 'Não deu para falar com o registro do npm. Confira a conexão e tente de novo.',
+      'not-detected': 'A instalação terminou, mas a CLI ainda não aparece. Feche e abra o Hive.',
+      failed: 'A instalação falhou.'
+    },
     defaultBadge: 'Padrão',
     setDefaultAria: (agent: string) => `Definir ${agent} como agente padrão`,
     toggleAria: (agent: string) => `Habilitar ou desabilitar ${agent}`,
@@ -1420,7 +1473,20 @@ export const ptBR = {
     nameHint: 'O Hive e os agentes usam esse nome para falar com você.',
     namePlaceholder: 'Seu nome',
     nameSavedLabel: 'Salvo',
+    // shortcut-scopes: the role is chosen once, at first access, and is shown
+    // here as context (it's what the shortcut defaults are derived from) —
+    // not as a control. Changing it would silently rewrite two shortcut sets.
     roleSectionLabel: 'Seu papel',
+    roleLockedHint: 'Escolhido no primeiro acesso. Ele define os atalhos padrão do seu dia a dia.',
+    // The shortcuts entry point, mirroring the picker's two sets.
+    shortcutsSectionLabel: 'Seus atalhos',
+    shortcutsSectionHint:
+      'Dois conjuntos: o que aparece para iniciar uma conversa e o que fica à mão durante ela.',
+    shortcutsStartLabel: 'Para iniciar',
+    shortcutsDuringLabel: 'Durante a conversa',
+    shortcutsCount: (count: number) => (count === 1 ? '1 atalho' : `${count} atalhos`),
+    shortcutsEmpty: 'Nenhum',
+    shortcutsCta: 'Configurar atalhos',
     agentSectionLabel: 'Seus agentes',
     agentSectionHint:
       'Habilite os agentes que quiser usar. O agente padrão inicia cada nova conversa; troque por conversa no chat.',
@@ -1449,7 +1515,7 @@ export const ptBR = {
       'Sua central para conduzir os fluxos do BMAD sem terminal. Este tour de 30 segundos mostra o essencial — dá para pular a qualquer momento.',
     shortcutsTitle: 'Seus atalhos',
     shortcutsBody:
-      'Cada atalho executa o comando do BMAD correspondente — "Criar um PRD" dispara /bmad-prd, igualzinho a digitar o comando na conversa. Em "Personalizar" você escolhe quais skills e agentes ficam aqui.',
+      'Cada atalho executa o comando do BMAD correspondente — "Criar um PRD" dispara /bmad-prd, igualzinho a digitar o comando na conversa. Em "Personalizar" você escolhe estes, para iniciar, e também os que ficam à mão durante a conversa.',
     composerTitle: 'Converse do seu jeito',
     composerBody:
       'Escreva livremente, digite / para executar um comando do workspace ou # para trazer arquivos como contexto.',
@@ -1666,6 +1732,9 @@ const roleActionLabelsPtBR: Record<string, string> = {
   'test-automation': 'Automatizar testes',
   'dev-story': 'Implementar uma história',
   'code-review': 'Revisar o código',
+  // shortcut-scopes: the PM's default in-conversation action — brings the
+  // other BMAD agents into the thread that's already open.
+  'party-mode': 'Reunir os agentes',
   'persona-pm': 'Conversar com John',
   'persona-architect': 'Conversar com Winston',
   'persona-ux': 'Conversar com Sally',
@@ -1693,7 +1762,11 @@ const skillLabelsPtBR: Record<string, string> = {
   'bmad-editorial-review-prose': 'Revisar a prosa',
   'bmad-editorial-review-structure': 'Revisar a estrutura do texto',
   'bmad-index-docs': 'Indexar documentos',
-  'bmad-party-mode': 'Reunir os agentes (party mode)',
+  // Same wording as the `party-mode` role-action key above: the picker's
+  // preview resolves by skill key and the strip by action key, and the two
+  // must not disagree about what the same shortcut is called. The BMAD name
+  // still shows on the row's `/bmad-party-mode` subtitle and matches search.
+  'bmad-party-mode': 'Reunir os agentes',
   'bmad-shard-doc': 'Fragmentar um documento',
   'bmad-help': 'Pedir ajuda ao BMAD',
   'bmad-checkpoint-preview': 'Revisar mudanças com checkpoint',

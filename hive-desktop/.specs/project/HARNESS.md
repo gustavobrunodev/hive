@@ -243,7 +243,7 @@ runner e o `xvfb-run` só se provam no primeiro push.
 | Categoria \ Stage | In-session | Pre-commit | CI | Contínuo | Runtime |
 | --- | --- | --- | --- | --- | --- |
 | Manutenibilidade | tsc, ESLint, coverage | ESLint --fix, Prettier | verify + coverage (report) | — | — |
-| Arquitetura | `noInlineStrings`, `moduleBoundaries` (+ fronteira `dictation/`↛`chat/`), `contrast` (+ transporte de ditado, 3 temas), `reducedMotion` (+ sem animar layout) | — | verify | — | — |
+| Arquitetura | `noInlineStrings`, `moduleBoundaries` (+ fronteira `dictation/`↛`chat/`), `contrast` (+ transporte de ditado, + picker de atalhos e folha de perfil, 3 temas), `reducedMotion` (+ sem animar layout) | — | verify | — | — |
 | Comportamento | Vitest | — | verify + E2E (report) | — | — |
 | Segurança | — | — | — | — | — |
 
@@ -285,6 +285,47 @@ Nota sobre a suíte de E2E do app: `agent-change-review.spec.ts:54` (violação 
 strict mode — o mesmo botão existe na trilha lateral e no card do chat) e uma
 das três variantes de `git-conflict.spec.ts` (flaky) falham **no `HEAD`**. Não
 foram introduzidas por esta milestone e continuam abertas.
+
+### 2026-08-08 — shortcut-scopes (M16): o sweep de contraste passa a abrir as superfícies
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Sweep de contraste no **picker de atalhos (nos dois escopos) e na folha de perfil**, nos três temas | `e2e/contrast.spec.ts` | O sweep varre todo nó de texto *visível* — por isso nunca tinha visto nenhuma das duas: numa work UI ociosa, uma é diálogo e a outra é sheet. Abrir antes de medir (a mesma forma do teste do transporte de ditado) achou **4 reprovações reais na primeira execução**, e **2 eram pré-existentes** — o `PADRÃO` do card de agente habilitado a 3,56:1 no tema `hive` e o "Como instalar" a 4,05:1. |
+| — | Catálogo BMAD mínimo no fixture de workspace | `e2e/fixtures/workspace.ts` | O fixture só semeava `manifest.yaml`, então qualquer superfície que lê o catálogo de skills caía no estado vazio e o sweep media a mensagem de "instale o BMAD" em vez das linhas reais. Agora escreve um `skill-manifest.csv` de 5 linhas com o cabeçalho capturado de uma instalação real. |
+| — | Sonda de contraste + screenshots das superfícies novas (22 seletores × 5 estados × 3 temas) | `tools/visual/shortcuts-pass.mjs` | Mesma receita das outras sondas, com uma diferença que vale registrar: **troca de tema pelo controle real** (menu "Aparência"), num único `run_code_unsafe`, porque cada chamada do tool roda em contexto próprio e `globalThis.HIVE_THEME` não sobrevive entre chamadas (`docs/visual-validation.md`). |
+
+**Regra que isso generaliza:** superfície nova que só aparece sob demanda
+(diálogo, sheet, popover) entra no sweep **no mesmo commit**. Sem isso ninguém
+mede até alguém apertar os olhos — foi assim que duas reprovações do
+`AgentPicker` sobreviveram desde M9.
+
+**Hábito reincidente:** o aviso do L-TI-4 (use `git worktree`, **nunca** `git
+stash`, para responder "essa falha de E2E já existia?") foi ignorado por reflexo
+nesta milestone. Deu certo, mas esvaziou por um minuto uma árvore com ~25
+arquivos modificados no meio da feature. Segunda ocorrência → registrado também
+como L-SS-6 no `STATE.md`.
+
+### 2026-08-09 — agent-onboarding (M17): a sensor for the environment the dev machine doesn't have
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `cliEnv.test.ts` — 22 casos sobre `PATH` fino, `PATHEXT`, shim `.cmd` e escape de `cmd.exe` | `src/main/cliEnv.test.ts` | O módulo inteiro existe para os casos que **a máquina de desenvolvimento não tem**: um `PATH` de app aberto pelo lançador, um `claude.cmd` do npm no Windows, um argumento com `&&` atravessando o `cmd.exe`. Sem teste, é código que ninguém exercita à mão até um usuário reclamar — que foi exatamente como o bug chegou. `process.platform` é injetado via spy; o `PATHEXT` dos testes é minúsculo de propósito (o FS aqui é case-sensitive, o NTFS não é). |
+| — | `tools/visual/agent-setup.mjs` — 24 seletores × 5 estados × 3 temas | `tools/visual/agent-setup.mjs` | Primeira sonda que cobre um **gate de primeira execução**. O `boot.mjs` passa voando por todos eles de propósito, então a primeira tela que um usuário novo vê nunca tinha entrado num screenshot. Também é a que mede os estados transitórios do instalador, que o E2E não deve tocar (ver abaixo). |
+| — | Sweep de contraste do picker de agentes, nos três temas | `e2e/contrast.spec.ts` | Segue a regra do M16 (superfície sob demanda entra no sweep no mesmo commit): abre a folha de perfil e mede a faixa de varredura + as três formas de card. |
+
+**A regra que o M16 ganhou, e o limite que o M17 encontrou:** "superfície sob
+demanda entra no sweep do E2E no mesmo commit" continua valendo — mas *qual*
+harness mede depende do que apertar o botão custa. Clicar em "Instalar" no
+E2E roda um `npm install -g` de verdade na máquina de quem rodar a suíte. Os
+estados **em andamento** e **falhou** ficam na sonda visual, que os dirige por
+um bridge mockado e não precisa de npm nenhum. Registrado como L-AO-7 no
+`STATE.md`.
+
+**Hábito que se repetiu (terceira vez, agora com outro nome):** o passe visual
+achou dois defeitos que nenhum teste pegaria — um `align-items: center`
+herdado de uma regra antiga centralizando o bloco de instalação, e a faixa de
+varredura quebrando o próprio controle para uma segunda linha. M12, M12.1,
+M13, M16 e agora M17: **o passe visual não é formalidade de fim de tarefa.**
 
 ## 6. Steering loop
 

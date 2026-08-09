@@ -6,8 +6,10 @@ import {
   DEFAULT_CONFIG,
   MAX_RECENT_WORKSPACES,
   createConfigStore,
+  isShortcutScope,
   sanitizeAgentList,
-  sanitizeShortcutPrefs
+  sanitizeShortcutPrefs,
+  sanitizeShortcutSettings
 } from './configStore'
 
 // `createConfigStore` takes its base directory as a plain argument instead of
@@ -67,7 +69,7 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null,
+      shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
       approvalRules: []
     })
@@ -90,7 +92,7 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null,
+      shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
       approvalRules: []
     })
@@ -117,7 +119,7 @@ describe('ConfigStore', () => {
       agents: null,
       role: null,
       userName: null,
-      shortcuts: null,
+      shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
       approvalRules: []
     })
@@ -239,37 +241,75 @@ describe('ConfigStore — shortcuts (shortcut-customization)', () => {
     rmSync(baseDir, { recursive: true, force: true })
   })
 
-  it('defaults to null (role defaults apply) and round-trips a selection', () => {
+  it('defaults to neither scope customized and round-trips one scope', () => {
     const store = createConfigStore(baseDir)
-    expect(store.getShortcuts()).toBeNull()
+    expect(store.getShortcuts()).toEqual({ start: null, during: null })
 
-    store.setShortcuts({ skills: ['bmad-prd', 'bmad-spec'], agents: ['bmad-agent-pm'] })
+    store.setShortcuts('start', { skills: ['bmad-prd', 'bmad-spec'], agents: ['bmad-agent-pm'] })
     expect(store.getShortcuts()).toEqual({
-      skills: ['bmad-prd', 'bmad-spec'],
-      agents: ['bmad-agent-pm']
+      start: { skills: ['bmad-prd', 'bmad-spec'], agents: ['bmad-agent-pm'] },
+      during: null
     })
 
     // A fresh store over the same dir reads the same selection (disk truth).
-    expect(createConfigStore(baseDir).getShortcuts()).toEqual({
+    expect(createConfigStore(baseDir).getShortcuts().start).toEqual({
       skills: ['bmad-prd', 'bmad-spec'],
       agents: ['bmad-agent-pm']
     })
   })
 
-  it('setShortcuts(null) restores the role defaults', () => {
+  // shortcut-scopes: the whole point of splitting the field — editing one set
+  // must never rewrite the other.
+  it('keeps the scopes independent: writing one leaves the other untouched', () => {
     const store = createConfigStore(baseDir)
-    store.setShortcuts({ skills: ['bmad-prd'], agents: [] })
-    store.setShortcuts(null)
-    expect(store.getShortcuts()).toBeNull()
+    store.setShortcuts('start', { skills: ['bmad-prd'], agents: [] })
+    store.setShortcuts('during', { skills: ['bmad-party-mode'], agents: [] })
+
+    expect(store.getShortcuts()).toEqual({
+      start: { skills: ['bmad-prd'], agents: [] },
+      during: { skills: ['bmad-party-mode'], agents: [] }
+    })
+
+    store.setShortcuts('during', null)
+    expect(store.getShortcuts()).toEqual({
+      start: { skills: ['bmad-prd'], agents: [] },
+      during: null
+    })
+  })
+
+  it('setShortcuts(scope, null) restores that scope to the role defaults', () => {
+    const store = createConfigStore(baseDir)
+    store.setShortcuts('start', { skills: ['bmad-prd'], agents: [] })
+    store.setShortcuts('start', null)
+    expect(store.getShortcuts().start).toBeNull()
   })
 
   it('sanitizes hand-edited config on read (bad shapes never leak)', () => {
     mkdirSync(baseDir, { recursive: true })
     writeFileSync(
       join(baseDir, 'config.json'),
-      JSON.stringify({ shortcuts: { skills: ['a', 7, '', 'a'], agents: 'not-a-list' } })
+      JSON.stringify({
+        shortcuts: { start: { skills: ['a', 7, '', 'a'], agents: 'not-a-list' }, during: 'nope' }
+      })
     )
-    expect(createConfigStore(baseDir).getShortcuts()).toEqual({ skills: ['a'], agents: [] })
+    expect(createConfigStore(baseDir).getShortcuts()).toEqual({
+      start: { skills: ['a'], agents: [] },
+      during: null
+    })
+  })
+
+  // The pre-scope schema: one flat `{ skills, agents }` that fed both the hero
+  // and the strip. It was the *hero* selection, so it lifts into `start`.
+  it('migrates a pre-scope flat selection into the start scope', () => {
+    mkdirSync(baseDir, { recursive: true })
+    writeFileSync(
+      join(baseDir, 'config.json'),
+      JSON.stringify({ shortcuts: { skills: ['bmad-prd'], agents: ['bmad-agent-pm'] } })
+    )
+    expect(createConfigStore(baseDir).getShortcuts()).toEqual({
+      start: { skills: ['bmad-prd'], agents: ['bmad-agent-pm'] },
+      during: null
+    })
   })
 
   it('sanitizeShortcutPrefs: non-objects → null; lists deduped, order kept', () => {
@@ -280,6 +320,22 @@ describe('ConfigStore — shortcuts (shortcut-customization)', () => {
       skills: ['b', 'a'],
       agents: []
     })
+  })
+
+  it('sanitizeShortcutSettings: garbage → both scopes null; scoped shape sanitized per scope', () => {
+    expect(sanitizeShortcutSettings(null)).toEqual({ start: null, during: null })
+    expect(sanitizeShortcutSettings(['x'])).toEqual({ start: null, during: null })
+    expect(sanitizeShortcutSettings({ during: { skills: ['a', 'a'], agents: [] } })).toEqual({
+      start: null,
+      during: { skills: ['a'], agents: [] }
+    })
+  })
+
+  it('isShortcutScope guards the IPC boundary', () => {
+    expect(isShortcutScope('start')).toBe(true)
+    expect(isShortcutScope('during')).toBe(true)
+    expect(isShortcutScope('elsewhere')).toBe(false)
+    expect(isShortcutScope(undefined)).toBe(false)
   })
 
   // multi-agent: the enabled-agents set.

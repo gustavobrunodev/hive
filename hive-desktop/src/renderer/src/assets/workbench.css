@@ -2009,6 +2009,32 @@ body ::-webkit-scrollbar-corner {
   font-size: 0.9375rem;
   border-radius: var(--rounded-md);
 }
+/* A button that lives *inside* a list row (the agent card's "Instalar"), where
+   the 36px app default would outweigh the row it belongs to. */
+.wb-btn-sm.hds-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  min-height: 28px;
+  font-size: 0.8125rem;
+  border-radius: var(--rounded-sm);
+}
+.wb-btn-sm.hds-btn:hover {
+  transform: none;
+}
+.wb-btn-sm.hds-btn-primary {
+  color: var(--accent-ink);
+}
+.wb-btn-sm.hds-btn-primary:hover {
+  background: var(--accent-hover);
+  color: var(--accent-ink);
+}
+.wb-btn-sm.hds-btn:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--focus),
+    inset 0 0 0 4px var(--bg);
+}
 
 /* DS primary Button hardcodes its dark-theme ink/hover; retint per theme */
 .wb-btn.hds-btn-primary,
@@ -3918,9 +3944,15 @@ body ::-webkit-scrollbar-corner {
 }
 /* Only the chips scroll — the customize control after this track stays put
    (shortcut-customization), so it's reachable with any number of chips. The
-   scroll affordances themselves live on `.wb-scroll-row` below. */
+   scroll affordances themselves live on `.wb-scroll-row` below.
+
+   `flex: 0 1 auto` (not `1`): the track takes only the width its chips need,
+   so the customize control sits *next to* them instead of stranded at the far
+   edge — the in-conversation set is usually one or two chips (shortcut-scopes),
+   and a lone icon 700px away reads as unrelated chrome. It still shrinks (and
+   therefore still scrolls, with paddles) once the chips outgrow the pane. */
 .wb-shortcut-strip-row {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .wb-shortcut-strip-scroll {
@@ -4850,6 +4882,120 @@ button.wb-agent-pill-btn:focus-visible {
   opacity: 1;
 }
 
+/* Role, read-only (shortcut-scopes). Deliberately NOT a card and NOT a
+   selectable row: no border, no hover, no pointer — it states which role is
+   active, and the sentence under it says where that was decided. Anything
+   more affordant would re-offer a choice that is no longer on the table. */
+.wb-profile-role {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.wb-profile-role-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-md);
+  color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-profile-role-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.wb-profile-role-name {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-profile-role-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+/* The two shortcut sets, as a summary you read rather than a control you
+   operate: name on the left, live count on the right, one hairline between
+   them. The single button under the pair is the way in — one destination for
+   both sets, because that's what the picker is. */
+.wb-profile-shortcut-sets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.wb-profile-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 9px var(--s-3);
+}
+.wb-profile-shortcut-row + .wb-profile-shortcut-row {
+  border-top: 1px solid var(--border);
+}
+.wb-profile-shortcut-icon {
+  display: flex;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.wb-profile-shortcut-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-profile-shortcut-count {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+/* An empty set is a legitimate state, not an error — quieter, never red.
+   Quieter by *weight*, not by color: `--faint` measured 4.18:1 here, under
+   the body floor (caught by e2e/contrast.spec.ts's picker+profile sweep). */
+.wb-profile-shortcut-count[data-empty] {
+  font-weight: 500;
+}
+.wb-profile-shortcut-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: flex-start;
+  margin-top: var(--s-1);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-profile-shortcut-cta svg {
+  color: var(--accent);
+}
+.wb-profile-shortcut-cta:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+.wb-profile-shortcut-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 /* "Rever o tour guiado" — a quiet inline action, not a form control. */
 .wb-profile-tour-btn {
   display: inline-flex;
@@ -5562,6 +5708,7 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-tour-dot,
   .wb-profile-name-saved,
   .wb-profile-tour-btn,
+  .wb-profile-shortcut-cta,
   .wb-tour-skip,
   .wb-tour-btn {
     transition: none;
@@ -5614,16 +5761,21 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* --- Dialog shell: pinned head/foot, only the list scrolls. ------------- */
+/* 680px, not the 620 it was: the scope split added a segmented switch, a
+   preview stage and a per-scope "Restaurar padrão do papel" to the footer.
+   At 640 the footer's four items overflowed by a hair and the live count
+   dropped to its own line — measured in the light theme's metrics, which are
+   the widest of the three. */
 .wb-sc-dialog {
   display: flex;
   flex-direction: column;
-  width: min(620px, calc(100vw - var(--s-6)));
-  height: min(660px, calc(100vh - var(--s-7)));
+  width: min(680px, calc(100vw - var(--s-6)));
+  height: min(720px, calc(100vh - var(--s-7)));
   padding: 0;
   overflow: hidden;
 }
 .wb-sc-head {
-  padding: var(--s-5) var(--s-5) var(--s-4);
+  padding: var(--s-5) var(--s-5) var(--s-3);
 }
 .wb-sc-head-row {
   display: flex;
@@ -5643,6 +5795,121 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
   max-width: 60ch;
 }
+
+/* --- Scope switch (shortcut-scopes) -------------------------------------
+   The two sets are the dialog's top-level axis, so the switch sits directly
+   under the title, full-width: the segments split the track evenly rather
+   than hugging their labels, which keeps "Para iniciar" from reading as the
+   small option next to the longer one. */
+.wb-sc-scopes {
+  display: flex;
+  width: 100%;
+  margin-top: var(--s-4);
+}
+.wb-sc-scopes .hds-seg-item {
+  flex: 1 1 0;
+  justify-content: center;
+}
+/* --- Live preview (shortcut-scopes) -------------------------------------
+   A miniature of the surface the active set lands on, drawn with the real
+   chips' own classes over a stand-in composer. Two independent shortcut sets
+   is one concept more than a picker usually carries; a picture of each
+   placement settles "which list does this belong in?" without a paragraph.
+   Inert by construction — `pointer-events: none` on the stage, so nothing in
+   here can be hovered, focused or mistaken for a control. */
+.wb-sc-preview {
+  padding: 0 var(--s-5) var(--s-3);
+}
+.wb-sc-preview-caption {
+  margin: 0 0 var(--s-2);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-sc-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--bg-2);
+  pointer-events: none;
+}
+/* The hero centers its pills over a centered composer; the strip is a single
+   left-aligned row docked on top of it. Same two elements, two placements —
+   which is exactly the difference being taught. */
+.wb-sc-stage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.wb-sc-preview[data-scope='start'] .wb-sc-stage-chips {
+  justify-content: center;
+  align-content: center;
+}
+.wb-sc-preview[data-scope='during'] .wb-sc-stage-chips {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  align-items: flex-end;
+  flex: 1;
+  /* Chips run past the edge in the real strip too (it scrolls); fading the
+     tail says "there is more" without faking a scrollbar in a still frame. */
+  mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+}
+.wb-sc-stage .wb-pill,
+.wb-sc-stage .wb-shortcut-chip {
+  cursor: default;
+}
+.wb-sc-stage-more {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.wb-sc-stage-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: var(--s-2) var(--s-4);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-md);
+}
+/* The stand-in composer: the fixed landmark both sets are positioned against.
+   Decorative only — a rounded field with a caret and the send disc. */
+.wb-sc-stage-composer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  height: 30px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.wb-sc-stage-caret {
+  width: 1px;
+  height: 13px;
+  background: var(--faint);
+}
+.wb-sc-stage-send {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rounded-full);
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+  flex-shrink: 0;
+}
+
 .wb-sc-command {
   flex: 1;
   min-height: 0;
@@ -5655,7 +5922,12 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* Group heading: same quiet uppercase vocabulary as the hero recents label,
-   with a live tabular "selected of total" count. */
+   with a live tabular "selected of total" count.
+
+   `--muted`, not `--faint`: at 11px this is small text and takes the 4.5:1
+   body floor, where `--faint` measured 4.18:1 on graphite — the same
+   washed-out-secondary-label defect logged in M12/M12.1 and fixed on
+   `.wb-pills-persona-label`. Gated by tools/visual/shortcuts-contrast.mjs. */
 .wb-sc-group-head {
   display: inline-flex;
   align-items: baseline;
@@ -5664,7 +5936,7 @@ button.wb-agent-pill-btn:focus-visible {
   letter-spacing: 0.05em;
   font-size: 0.6875rem;
   font-weight: 650;
-  color: var(--faint);
+  color: var(--muted);
 }
 .wb-sc-group-count {
   font-weight: 500;
@@ -5778,11 +6050,16 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* --- Footer -------------------------------------------------------------- */
+/* Four things share this line once a scope is customized (count, studio link,
+   restore, done). They stay on one line at the dialog's width — and if a
+   longer locale ever pushes past it, the row wraps as whole controls instead
+   of breaking their labels in half. */
 .wb-sc-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-3);
+  gap: var(--s-2) var(--s-3);
   padding: var(--s-3) var(--s-5);
   border-top: 1px solid var(--border);
 }
@@ -5790,10 +6067,16 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.8125rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .wb-sc-foot-actions {
   display: flex;
+  align-items: center;
   gap: var(--s-2);
+  margin-left: auto;
+}
+.wb-sc-foot-actions > * {
+  white-space: nowrap;
 }
 .wb-sc-empty-catalog {
   flex: 1;
@@ -7095,11 +7378,22 @@ button.wb-agent-pill-btn:focus-visible {
 }
 .wb-agent-card[data-unavailable] {
   background: var(--surface);
-  border-style: dashed;
   /* This row is three lines tall (description + hint + install link); a
      centred mark would float opposite the middle of the text instead of
      reading as its label. */
   align-items: flex-start;
+}
+/* Dashed = "nothing here happens without you leaving the app". It reads as a
+   placeholder, which is right for the vendor-install row (Devin) and wrong for
+   a row carrying a working Install button — so only the manual one keeps it. */
+.wb-agent-card[data-unavailable]:not([data-installable]) {
+  border-style: dashed;
+}
+/* An install in flight borrows the agent's own accent, so the card the user
+   started is the one they can find while npm talks. */
+.wb-agent-card[data-installing] {
+  border-color: color-mix(in oklab, var(--agent-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--agent-accent) 5%, var(--surface));
 }
 
 .wb-agent-card-mark {
@@ -7133,13 +7427,19 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 650;
   color: var(--ink);
 }
+/* "PADRÃO" — 10px bold, so it owes the 4.5:1 body floor, not the 3:1 one.
+   Coral-on-a-coral-tint compounded against the enabled card's own tint and
+   measured 3.56:1 (hive) / 3.84:1 (dark). Same fix the DS documents on
+   `SegmentedControl`'s toned counts: an OPAQUE tint carries the meaning and
+   `--ink` carries the text, which also makes it independent of whatever
+   surface the card is sitting on. Gated by e2e/contrast.spec.ts. */
 .wb-agent-card-default {
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--agent-accent);
-  background: color-mix(in oklab, var(--agent-accent) 16%, transparent);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--agent-accent) 24%, var(--surface));
   border-radius: var(--rounded-full);
   padding: 1px 7px;
 }
@@ -7147,13 +7447,6 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.8125rem;
   color: var(--muted);
   line-height: 1.4;
-}
-.wb-agent-card-install {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  margin-top: var(--s-2);
 }
 .wb-agent-card-hint {
   font-size: 0.75rem;
@@ -7172,7 +7465,11 @@ button.wb-agent-pill-btn:focus-visible {
   padding: 4px 9px;
   font-size: 0.75rem;
   font-weight: 650;
-  color: var(--accent);
+  /* `--ink`, not `--accent`: coral on the selection tint measured 4.05:1
+     (hive) / 4.19:1 (dark) — under the body floor. The chip keeps its coral
+     border and departure arrow, so it still reads as the accent action; only
+     the 12px label moved to ink. Gated by e2e/contrast.spec.ts. */
+  color: var(--ink);
   background: var(--selected-bg);
   border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
   border-radius: var(--rounded-full);
@@ -7183,9 +7480,33 @@ button.wb-agent-pill-btn:focus-visible {
     color 0.16s var(--ease-quart);
 }
 .wb-agent-install-link:hover {
-  color: var(--accent-hover);
   background: color-mix(in oklab, var(--accent) 18%, transparent);
   border-color: color-mix(in oklab, var(--accent) 52%, transparent);
+}
+/* Next to a real Install button the chip becomes a plain text link: two
+   equal-weight chips would ask the user to choose between doing the thing and
+   reading about doing the thing. */
+.wb-agent-install-link[data-quiet] {
+  padding: 4px 2px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+.wb-agent-install-link[data-quiet] svg {
+  color: var(--muted);
+}
+.wb-agent-install-link[data-quiet]:hover {
+  color: var(--ink);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
+}
+.wb-agent-install-link[data-quiet]:hover svg {
+  color: var(--accent);
+}
+.wb-agent-install-link svg {
+  color: var(--accent);
 }
 .wb-agent-install-link:active {
   background: color-mix(in oklab, var(--accent) 24%, transparent);
@@ -7200,6 +7521,212 @@ button.wb-agent-pill-btn:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .wb-agent-install-link {
     transition: none;
+  }
+}
+
+/* --- The scan strip (AO-R2) -------------------------------------------------
+   The screen's first line of accountability: what the last probe found, and
+   the control that runs it again. It sits above the groups because "I just
+   installed it and you can't see it" is the complaint this whole milestone
+   answers, and the answer has to be reachable before the user reads the list.  */
+.wb-agent-scan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+}
+.wb-agent-scan-text {
+  margin: 0;
+  /* Takes the slack and shrinks instead of pushing the control onto its own
+     line — the sentence and the way to act on it belong on one row. */
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--muted);
+}
+.wb-agent-scan[data-busy] .wb-agent-scan-text {
+  color: var(--ink);
+}
+.wb-agent-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart);
+}
+.wb-agent-scan-btn svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.wb-agent-scan-btn:hover:not(:disabled) {
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 42%, transparent);
+}
+.wb-agent-scan-btn:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.wb-agent-scan-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+/* The scan icon spins while a probe is in flight — the only motion here, and
+   it reports state rather than decorating it. */
+.wb-agent-scan[data-busy] .wb-agent-scan-btn svg {
+  animation: wb-agent-scan-spin 900ms linear infinite;
+}
+@keyframes wb-agent-scan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Nothing detected: teach the two ways out instead of announcing the failure. */
+.wb-agent-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* --- Evidence on a detected card -------------------------------------------
+   The command we found plus what it answered. A green dot would ask the user
+   to take our word for it, and taking our word for it is exactly what stopped
+   being reasonable when the app called an installed CLI missing. */
+.wb-agent-card-found {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-agent-card-found code {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink);
+  background: var(--surface-2);
+  border-radius: var(--rounded-sm);
+  padding: 1px 6px;
+}
+
+/* --- The install affordance and its states (AO-R3) ------------------------- */
+.wb-agent-card-install {
+  display: flex;
+  flex-direction: column;
+  /* Explicit: the card body is a column, and an inherited `center` from the
+     gate's centred header would pull every line of this block to the middle. */
+  align-items: flex-start;
+  text-align: left;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.wb-agent-install-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+/* `npm install -g …` shown *before* the click, not as an instruction to go
+   type it: the user should know what the button is about to run on their
+   machine. Quiet by construction — mono, 11px, muted. */
+.wb-agent-install-command {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.wb-agent-install-command code {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  word-break: break-all;
+}
+.wb-agent-install-status {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* npm's own last line, verbatim. One line, clipped — it is a sign of life and
+   a breadcrumb for a failure, not a log the user is asked to read. */
+.wb-agent-install-line {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-agent-install-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.wb-agent-install-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--danger, var(--wb-ic-red));
+}
+.wb-agent-install-detail {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-agent-install-detail summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+}
+.wb-agent-install-detail summary:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+  border-radius: var(--rounded-sm);
+}
+.wb-agent-install-detail pre {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-2);
+  max-height: 132px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-agent-scan-btn {
+    transition: none;
+  }
+  .wb-agent-scan[data-busy] .wb-agent-scan-btn svg {
+    animation: none;
   }
 }
 
@@ -11104,9 +11631,8 @@ span.wb-change-card-open {
 .wb-patch-gap {
   height: 13px;
   margin: 3px 0;
-  background:
-    radial-gradient(circle at center, var(--border-strong) 1px, transparent 1px) 0 50% / 6px 6px
-    repeat-x;
+  background: radial-gradient(circle at center, var(--border-strong) 1px, transparent 1px) 0 50% /
+    6px 6px repeat-x;
 }
 
 .wb-patch-foot {

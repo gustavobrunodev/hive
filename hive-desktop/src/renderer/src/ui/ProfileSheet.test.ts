@@ -22,6 +22,12 @@ vi.mock('@hive/design-system', () => ({
   Field: ({ label, children }: { label?: ReactNode; children?: ReactNode }) =>
     createElement('label', null, label, children),
   Input: (props: Record<string, unknown>) => createElement('input', props),
+  // The picker's install affordances (agent-onboarding) render inside this sheet.
+  Button: ({ children, ...rest }: { children?: ReactNode; cut?: boolean }) => {
+    delete rest.cut
+    return createElement('button', { type: 'button', ...rest }, children)
+  },
+  Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   Switch: ({
     checked,
     onCheckedChange,
@@ -46,7 +52,11 @@ const AGENT_METAS: AgentMeta[] = [
     displayName: 'Claude Code',
     description: 'Agente da Anthropic.',
     available: true,
+    version: '2.1.226 (Claude Code)',
+    detectCommand: 'claude',
     installHint: 'instale claude',
+    installable: true,
+    installCommand: 'npm install -g @anthropic-ai/claude-code',
     docsUrl: 'https://docs.example/claude'
   },
   {
@@ -54,7 +64,11 @@ const AGENT_METAS: AgentMeta[] = [
     displayName: 'Devin',
     description: 'Agente da Cognition.',
     available: true,
+    version: null,
+    detectCommand: 'devin',
     installHint: 'instale devin',
+    installable: false,
+    installCommand: null,
     docsUrl: 'https://docs.example/devin'
   },
   {
@@ -62,7 +76,11 @@ const AGENT_METAS: AgentMeta[] = [
     displayName: 'GitHub Copilot',
     description: 'CLI do Copilot.',
     available: false,
+    version: null,
+    detectCommand: 'copilot',
     installHint: 'instale a CLI do Copilot',
+    installable: true,
+    installCommand: 'npm install -g @github/copilot',
     docsUrl: 'https://docs.example/copilot'
   }
 ]
@@ -77,7 +95,8 @@ function renderSheet(over: Partial<Props> = {}): Props {
     agents: ['claude-cli'],
     defaultAgent: 'claude-cli',
     userName: 'Gustavo',
-    onRoleChange: vi.fn(),
+    shortcutCounts: { start: 5, during: 1 },
+    onOpenShortcuts: vi.fn(),
     onAgentsChange: vi.fn(),
     onDefaultAgentChange: vi.fn(),
     onUserNameChange: vi.fn(),
@@ -87,10 +106,21 @@ function renderSheet(over: Partial<Props> = {}): Props {
   return props
 }
 
+/** Set per test that drives an install; receives the picker's event callback. */
+let emitInstall: (event: unknown) => void = () => {}
+
 beforeEach(() => {
+  emitInstall = () => {}
   window.hive = {
     ...window.hive,
-    profile: { ...window.hive?.profile, agents: vi.fn(async () => AGENT_METAS) },
+    profile: {
+      ...window.hive?.profile,
+      agents: vi.fn(async () => AGENT_METAS),
+      installAgent: vi.fn((_id: string, onEvent: (event: unknown) => void) => {
+        emitInstall = onEvent
+        return vi.fn()
+      })
+    },
     openExternal: vi.fn()
   } as typeof window.hive
 })
@@ -102,9 +132,8 @@ afterEach(() => {
 
 describe('ProfileSheet (P1-010)', () => {
   it('renders nothing while closed, and probes agents only once open', () => {
-    const props = renderSheet({ open: false })
+    renderSheet({ open: false })
     expect(screen.queryByText('Perfil')).toBeNull()
-    expect(props.onRoleChange).not.toHaveBeenCalled()
     expect(window.hive.profile.agents).not.toHaveBeenCalled()
   })
 
@@ -114,12 +143,43 @@ describe('ProfileSheet (P1-010)', () => {
     expect(window.hive.profile.agents).toHaveBeenCalledTimes(1)
   })
 
-  it('changes the role from the sheet', () => {
-    const props = renderSheet()
+  // shortcut-scopes: the role is chosen once, at first access. The sheet
+  // states it and explains where it came from — it never re-offers the choice.
+  it('shows the active role as read-only context, with no way to change it', () => {
+    renderSheet({ role: 'pm' })
 
-    fireEvent.click(screen.getByRole('radio', { name: /Product Manager/ }))
+    expect(screen.getByText('Product Manager')).toBeTruthy()
+    expect(screen.getByText(/Escolhido no primeiro acesso/)).toBeTruthy()
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+    expect(screen.queryByText('Tech Lead')).toBeNull()
+  })
 
-    expect(props.onRoleChange).toHaveBeenCalledWith('pm')
+  it('falls back to the general descriptor when no role is set yet', () => {
+    renderSheet({ role: null })
+    expect(screen.getByText('Geral')).toBeTruthy()
+  })
+
+  // The profile is the always-reachable way into the picker, from either set.
+  it('summarizes both shortcut sets and opens the picker', () => {
+    const props = renderSheet({ shortcutCounts: { start: 5, during: 0 } })
+
+    expect(screen.getByText('Para iniciar')).toBeTruthy()
+    expect(screen.getByText('5 atalhos')).toBeTruthy()
+    expect(screen.getByText('Durante a conversa')).toBeTruthy()
+    // An empty set reads as a legitimate state, not a zero.
+    expect(screen.getByText('Nenhum')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Configurar atalhos'))
+    expect(props.onOpenShortcuts).toHaveBeenCalledWith('start')
+  })
+
+  it('renders one shortcut in the singular and hides the CTA when unwired', () => {
+    renderSheet({ shortcutCounts: { start: 1, during: 1 } })
+    expect(screen.getAllByText('1 atalho')).toHaveLength(2)
+
+    cleanup()
+    renderSheet({ onOpenShortcuts: undefined })
+    expect(screen.queryByText('Configurar atalhos')).toBeNull()
   })
 
   it('commits the name on blur, shows "Salvo", and clears it after a beat', async () => {
@@ -198,7 +258,6 @@ describe('ProfileSheet (P1-010)', () => {
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         userName: null,
-        onRoleChange: vi.fn(),
         onUserNameChange: vi.fn()
       })
     )
@@ -218,6 +277,36 @@ describe('ProfileSheet (P1-010)', () => {
     fireEvent.click(screen.getByLabelText('Como instalar GitHub Copilot (abre no navegador)'))
 
     expect(window.hive.openExternal).toHaveBeenCalledWith('https://docs.example/copilot')
+  })
+
+  // agent-onboarding AO-R6: the sheet is the *second* home of the picker, and
+  // both of its new powers have to work here too — a settled user is exactly
+  // who installs a second agent.
+  it('re-scans on demand without closing the sheet', async () => {
+    renderSheet()
+    await waitFor(() => expect(screen.getByText('GitHub Copilot')).toBeTruthy())
+
+    fireEvent.click(screen.getByText('Procurar de novo'))
+
+    await waitFor(() => expect(window.hive.profile.agents).toHaveBeenLastCalledWith(true))
+    expect(screen.getByText('Perfil')).toBeTruthy()
+  })
+
+  it('installing an agent from the sheet enables it', async () => {
+    const props = renderSheet()
+    await waitFor(() => expect(screen.getByText('GitHub Copilot')).toBeTruthy())
+
+    fireEvent.click(screen.getByLabelText('Instalar GitHub Copilot agora'))
+    act(() =>
+      emitInstall({
+        type: 'done',
+        agent: { ...AGENT_METAS[2], available: true, version: '1.4.0' }
+      })
+    )
+
+    // Installing it is the consent to use it — the card flipping to
+    // "available" while staying switched off would read as a half-install.
+    expect(props.onAgentsChange).toHaveBeenCalledWith(['claude-cli', 'github-copilot'])
   })
 
   it('warns when the user has turned every agent off', async () => {
@@ -255,7 +344,6 @@ describe('ProfileSheet (P1-010)', () => {
         agents: [],
         defaultAgent: null,
         userName: null,
-        onRoleChange: vi.fn(),
         onUserNameChange: vi.fn()
       })
     )

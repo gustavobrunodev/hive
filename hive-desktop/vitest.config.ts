@@ -528,7 +528,17 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
-        }
+        },
+        // agent-onboarding (M17). `cliEnv.ts` is the one that most needs the
+        // gate: its whole job is the cases the dev machine doesn't have (a
+        // thin GUI `PATH`, Windows `PATHEXT`, an npm `.cmd` shim), so an
+        // untested branch here is a branch nobody will ever exercise by hand.
+        'src/main/cliEnv.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/agentInstaller.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/agentRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
+        // multi-agent and onboarding entries) — a second glob for the same file
+        // is a duplicate key, not a stricter gate.
       }
     }
   }

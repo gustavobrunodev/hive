@@ -137,6 +137,28 @@
 }
 
 /**
+ * The DS's muted `Badge`, re-filled from the token layer.
+ *
+ * `.hds-badge-muted` ships a hardcoded `rgba(38, 10, 18, 0.4)` — the brand's
+ * bordo at 40%, which is right on the marketing site's bordo ledger and wrong
+ * everywhere else. Over a white dialog it composites to `#a89da0`, and the
+ * badge's own `--muted` text on it measures **2.35:1** in the light theme
+ * (caught by e2e/contrast.spec.ts's picker sweep: the "Padrão do papel" state
+ * badge on the shortcut picker).
+ *
+ * Fixed here rather than in the DS on purpose: the component's dark rendering
+ * is protected by DESIGN.md's Dark-Truth Rule (the marketing site must stay
+ * pixel-identical), and this app is the one that needs it to resolve per
+ * theme. An ink-derived tint does exactly that — light gets a light fill,
+ * dark/hive get a raised one — and clears the body floor on all three.
+ * Same layering as the role overrides above: loaded after `ds-bundle.css`,
+ * so an equal-specificity declaration wins.
+ */
+:root .hds-badge-muted {
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+/**
  * Emoji fallback, appended to every family the app renders text with.
  *
  * The DS stacks (`--ff-body`/`--ff-num`/`--ff-display`) end at a generic

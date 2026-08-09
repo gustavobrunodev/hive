@@ -53,7 +53,7 @@ import { GitOpToast } from './ui/GitOpToast'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
-import { ShortcutCustomizer } from './ui/ShortcutCustomizer'
+import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
 import { UpdateCenter } from './ui/UpdateCenter'
@@ -101,7 +101,11 @@ interface WorkUIProps {
    * concurrent task).
    */
   onCandidateWorkspace?: (path: string) => void
-  /** Active app-wide role (role-personalization) — drives the intent grid + action rail. */
+  /**
+   * Active app-wide role (role-personalization) — seeds both shortcut sets.
+   * Chosen once at first access (shortcut-scopes): read here, never written,
+   * so no `onRoleChange` counterpart exists.
+   */
   role?: string | null
   /** Enabled agent ids (multi-agent) — the composer switcher's pool + the profile picker. */
   agents?: string[]
@@ -110,7 +114,6 @@ interface WorkUIProps {
   /** Display name (install form / profile sheet) — feeds the hero greeting. */
   userName?: string | null
   /** Live profile changes from the profile sheet — persisted + lifted in App. */
-  onRoleChange?: (roleId: string) => void
   onAgentsChange?: (ids: string[]) => void
   onDefaultAgentChange?: (agentId: string) => void
   onUserNameChange?: (name: string) => void
@@ -272,7 +275,6 @@ export function WorkUI({
   agents = [],
   defaultAgent = null,
   userName = null,
-  onRoleChange = () => {},
   onAgentsChange,
   onDefaultAgentChange,
   onUserNameChange = () => {}
@@ -333,14 +335,19 @@ export function WorkUI({
   const [dropHint, setDropHint] = useState<PaneDropHint | null>(null)
   const [chipMenuOpen, setChipMenuOpen] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
-  // role-personalization + shortcut-customization: the resolved shortcut set
-  // (role defaults, or the user's custom selection), shared by the chat hero
-  // and the composer strip — loaded once here so both stay in sync, and
-  // re-resolved on role change AND on every customizer edit (live preview).
-  const [roleActions, setRoleActions] = useState<RoleAction[]>([])
+  // role-personalization + shortcut-scopes: the two resolved shortcut sets
+  // (role defaults, or the user's custom selection per scope) — `start` for
+  // the chat hero, `during` for the composer strip. Loaded once here so both
+  // stay in sync, and re-resolved on role change AND on every customizer edit
+  // (live preview).
+  const [shortcutSets, setShortcutSets] = useState<Record<ShortcutScope, RoleAction[]>>({
+    start: [],
+    during: []
+  })
   const [profileOpen, setProfileOpen] = useState(false)
-  // shortcut-customization: the "Personalizar atalhos" picker dialog.
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  // shortcut-customization: the "Personalizar atalhos" picker dialog — `null`
+  // while closed, otherwise the scope it opened on.
+  const [shortcutsScope, setShortcutsScope] = useState<ShortcutScope | null>(null)
   // skill-studio: the "Estúdio de skills" dialog (create skills/agents + evals).
   const [studioOpen, setStudioOpen] = useState(false)
   // mcp: the "Servidores MCP" module (activate/disable + test connection + logs).
@@ -358,7 +365,7 @@ export function WorkUI({
   // Guided tour (first access): opens once the role actions land (so the
   // shortcut pills exist to spotlight); skip/finish persist "seen" and the
   // profile sheet can replay it any time (all inside useGuidedTour).
-  const tour = useGuidedTour(roleActions.length > 0)
+  const tour = useGuidedTour(shortcutSets.start.length > 0)
   // Handle to the chat, so the action rail (which lives outside the Chat
   // subtree) can launch a role action as a chat turn (RP-R5.1), and the
   // session-history header controls can start/restore conversations.
@@ -446,22 +453,30 @@ export function WorkUI({
     }
   }, [])
 
-  // Re-resolves the shortcut set (role change, workspace change, customizer
+  // Re-resolves both shortcut sets (role change, workspace change, customizer
   // edits). Stable per role+workspace, so the customizer's `onChanged` can
   // reuse it directly.
   const refreshShortcuts = useCallback(() => {
-    void window.hive.shortcuts.actions(role, workspace).then(setRoleActions)
+    void window.hive.shortcuts.actions(role, workspace).then(setShortcutSets)
   }, [role, workspace])
 
   useEffect(() => {
     let cancelled = false
-    window.hive.shortcuts.actions(role, workspace).then((actions) => {
-      if (!cancelled) setRoleActions(actions)
+    window.hive.shortcuts.actions(role, workspace).then((sets) => {
+      if (!cancelled) setShortcutSets(sets)
     })
     return () => {
       cancelled = true
     }
   }, [role, workspace])
+
+  // shortcut-scopes: opening the picker from the profile sheet closes the
+  // sheet first — a dialog stacked on a sheet traps focus twice, and the
+  // picker's live preview is only readable with the real hero/strip behind it.
+  const openShortcuts = useCallback((scope: ShortcutScope) => {
+    setProfileOpen(false)
+    setShortcutsScope(scope)
+  }, [])
 
   // Ctrl/Cmd+P opens the workspace file search from anywhere in the work UI
   // (the VS Code quick-open muscle memory).
@@ -874,14 +889,15 @@ export function WorkUI({
           <Chat
             ref={chatRef}
             workspace={workspace}
-            roleActions={roleActions}
+            startActions={shortcutSets.start}
+            conversationActions={shortcutSets.during}
             agents={agents}
             defaultAgent={defaultAgent}
             onManageAgents={() => setProfileOpen(true)}
             userName={userName}
             onSessionChange={setActiveSessionId}
             onRunningSessionsChange={setRunningSessionIds}
-            onCustomizeShortcuts={() => setShortcutsOpen(true)}
+            onCustomizeShortcuts={setShortcutsScope}
             onOpenFile={editor.openFile}
           />
         </div>
@@ -1181,13 +1197,14 @@ export function WorkUI({
             onViewNotes={() => setAppSettingsOpen(true)}
           />
           <ShortcutCustomizer
-            open={shortcutsOpen}
-            onOpenChange={setShortcutsOpen}
+            open={shortcutsScope !== null}
+            onOpenChange={(next) => setShortcutsScope(next ? 'start' : null)}
             workspace={workspace}
             role={role}
+            initialScope={shortcutsScope ?? 'start'}
             onChanged={refreshShortcuts}
             onOpenStudio={() => {
-              setShortcutsOpen(false)
+              setShortcutsScope(null)
               setStudioOpen(true)
             }}
           />
@@ -1217,7 +1234,11 @@ export function WorkUI({
             agents={agents}
             defaultAgent={defaultAgent}
             userName={userName}
-            onRoleChange={onRoleChange}
+            shortcutCounts={{
+              start: shortcutSets.start.length,
+              during: shortcutSets.during.length
+            }}
+            onOpenShortcuts={openShortcuts}
             onAgentsChange={onAgentsChange}
             onDefaultAgentChange={onDefaultAgentChange}
             onUserNameChange={onUserNameChange}

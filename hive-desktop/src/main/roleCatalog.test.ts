@@ -4,6 +4,7 @@ import {
   SELECTABLE_ROLES,
   isSelectableRole,
   normalizeRole,
+  resolveAllShortcuts,
   resolveRoleActions,
   resolveShortcuts,
   type RoleId
@@ -119,18 +120,21 @@ describe('resolveShortcuts()', () => {
 
   it('null prefs → the role defaults, untouched', () => {
     expect(resolveShortcuts('pm', null, catalog)).toEqual(resolveRoleActions('pm'))
+    expect(resolveShortcuts('pm', { start: null, during: null }, catalog)).toEqual(
+      resolveRoleActions('pm')
+    )
   })
 
   it('empty catalog → role defaults even with prefs (no data to validate against)', () => {
-    expect(resolveShortcuts('pm', { skills: ['bmad-prd'], agents: [] }, [])).toEqual(
-      resolveRoleActions('pm')
-    )
+    expect(
+      resolveShortcuts('pm', { start: { skills: ['bmad-prd'], agents: [] }, during: null }, [])
+    ).toEqual(resolveRoleActions('pm'))
   })
 
   it('maps selected skills/agents to launch-ready actions in selection order', () => {
     const actions = resolveShortcuts(
       'pm',
-      { skills: ['bmad-spec', 'bmad-prd'], agents: ['bmad-agent-pm'] },
+      { start: { skills: ['bmad-spec', 'bmad-prd'], agents: ['bmad-agent-pm'] }, during: null },
       catalog
     )
     expect(actions.map((a) => a.key)).toEqual(['bmad-spec', 'bmad-prd', 'bmad-agent-pm'])
@@ -149,11 +153,90 @@ describe('resolveShortcuts()', () => {
   it('skips selected keys the workspace does not have, and respects an all-deselected set', () => {
     const actions = resolveShortcuts(
       'pm',
-      { skills: ['bmad-prd', 'bmad-not-installed'], agents: [] },
+      { start: { skills: ['bmad-prd', 'bmad-not-installed'], agents: [] }, during: null },
       catalog
     )
     expect(actions.map((a) => a.key)).toEqual(['bmad-prd'])
     // Deselecting everything is a legitimate choice — no fallback kicks in.
-    expect(resolveShortcuts('pm', { skills: [], agents: [] }, catalog)).toEqual([])
+    expect(
+      resolveShortcuts('pm', { start: { skills: [], agents: [] }, during: null }, catalog)
+    ).toEqual([])
+  })
+})
+
+// shortcut-scopes: the two independent sets — role defaults per scope, and
+// per-scope custom selections that never bleed into each other.
+describe('shortcut scopes', () => {
+  const catalog = [
+    {
+      key: 'bmad-prd',
+      label: 'PRD',
+      description: '',
+      module: 'bmm',
+      kind: 'skill' as const,
+      persona: null
+    },
+    {
+      key: 'bmad-party-mode',
+      label: 'Party Mode',
+      description: '',
+      module: 'core',
+      kind: 'skill' as const,
+      persona: null
+    }
+  ]
+
+  it('the PM is the only role with an in-conversation default, and it is party mode', () => {
+    expect(resolveRoleActions('pm', 'during').map((a) => a.command.key)).toEqual([
+      'bmad-party-mode'
+    ])
+    for (const role of SELECTABLE_ROLES.filter((id) => id !== 'pm')) {
+      expect(resolveRoleActions(role, 'during')).toEqual([])
+    }
+    // The internal fallback carries none either — a role-less user gets a
+    // clean composer, not a surprise row.
+    expect(resolveRoleActions('general', 'during')).toEqual([])
+  })
+
+  it("the PM's party-mode default is a launch-ready slash command", () => {
+    const [action] = resolveRoleActions('pm', 'during')
+    expect(action).toEqual({
+      key: 'party-mode',
+      kind: 'workflow',
+      command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' }
+    })
+  })
+
+  it('the start scope is the default, and matches the pre-scope behaviour', () => {
+    expect(resolveRoleActions('pm')).toEqual(resolveRoleActions('pm', 'start'))
+    expect(resolveRoleActions('pm', 'start')).not.toEqual(resolveRoleActions('pm', 'during'))
+  })
+
+  it('resolves each scope against its own prefs, never the other one', () => {
+    const settings = {
+      start: { skills: ['bmad-prd'], agents: [] },
+      during: { skills: ['bmad-party-mode'], agents: [] }
+    }
+    expect(resolveShortcuts('pm', settings, catalog, 'start').map((a) => a.key)).toEqual([
+      'bmad-prd'
+    ])
+    expect(resolveShortcuts('pm', settings, catalog, 'during').map((a) => a.key)).toEqual([
+      'bmad-party-mode'
+    ])
+  })
+
+  it('a customized start scope leaves during on its role default', () => {
+    const settings = { start: { skills: ['bmad-prd'], agents: [] }, during: null }
+    expect(resolveShortcuts('dev', settings, catalog, 'during')).toEqual([])
+    expect(resolveShortcuts('pm', settings, catalog, 'during').map((a) => a.command.key)).toEqual([
+      'bmad-party-mode'
+    ])
+  })
+
+  it('resolveAllShortcuts returns both sets in one shot', () => {
+    expect(resolveAllShortcuts('pm', null, catalog)).toEqual({
+      start: resolveShortcuts('pm', null, catalog, 'start'),
+      during: resolveShortcuts('pm', null, catalog, 'during')
+    })
   })
 })

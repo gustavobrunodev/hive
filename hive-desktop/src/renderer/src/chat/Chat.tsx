@@ -168,8 +168,18 @@ export interface ChatHandle {
 interface ChatProps {
   /** Absolute path to the active workspace — the agent session runs here. */
   workspace: string
-  /** The current role's resolved actions — feeds the empty-state hero (RP-R4). */
-  roleActions: RoleAction[]
+  /**
+   * shortcut-scopes: the `start` set — the shortcuts offered while there is no
+   * conversation yet, on the empty-state hero (RP-R4).
+   */
+  startActions: RoleAction[]
+  /**
+   * shortcut-scopes: the `during` set — the strip docked above the composer
+   * inside a live conversation. Usually empty (only the PM role ships a
+   * default), and an empty set renders no strip at all: mid-thread chrome is
+   * earned, not assumed.
+   */
+  conversationActions?: RoleAction[]
   /** Enabled agent ids (multi-agent) — the composer switcher's pool. */
   agents: string[]
   /** Default agent id (multi-agent) — a new conversation starts on it. */
@@ -182,8 +192,9 @@ interface ChatProps {
   onSessionChange?: (id: string | null) => void
   /** background-turns: stored-conversation ids with a turn still running (the history panel's "Em andamento" indicator). */
   onRunningSessionsChange?: (ids: string[]) => void
-  /** shortcut-customization: opens the "Personalizar atalhos" picker (hero pill + strip trailing control). */
-  onCustomizeShortcuts?: () => void
+  /** shortcut-customization: opens the "Personalizar atalhos" picker on the
+   *  set the user is looking at (hero pill → `start`, strip control → `during`). */
+  onCustomizeShortcuts?: (scope: 'start' | 'during') => void
   /**
    * agent-patch: opens a file the agent edited, by workspace-relative path —
    * the editor's own `openFile`. Lets a path named in the transcript be a way
@@ -194,6 +205,16 @@ interface ChatProps {
 
 const SLASH_LISTBOX_ID = 'wb-slash-listbox'
 const MENTION_LISTBOX_ID = 'wb-mention-listbox'
+
+/** Binds a scope onto the customize hook, staying `undefined` when the host
+ *  wired none (the surfaces hide their entry point on `undefined`). Module
+ *  scope so the branch doesn't land on `Chat`'s complexity budget. */
+function customizeHandler(
+  onCustomizeShortcuts: ((scope: 'start' | 'during') => void) | undefined,
+  scope: 'start' | 'during'
+): (() => void) | undefined {
+  return onCustomizeShortcuts && (() => onCustomizeShortcuts(scope))
+}
 
 let messageIdCounter = 0
 function nextMessageId(): string {
@@ -671,7 +692,7 @@ function renderUserText(text: string, fileSet: ReadonlySet<string>): React.React
  * active adapter's capabilities.
  *
  * This feature set adds: a role-personalized empty-state hero (RP-R4, from
- * `roleActions`), a launch handle for the action rail (RP-R5), an interrupt
+ * `startActions`), a launch handle for the action rail (RP-R5), an interrupt
  * Stop control (chat-controls CC-R1), a `/` slash-command skills menu (CC-R2),
  * an active-agent indicator + session re-bind on agent change (AG-R3.3), and
  * persisted conversations (session-history): every turn auto-saves through
@@ -681,7 +702,8 @@ function renderUserText(text: string, fileSet: ReadonlySet<string>): React.React
 export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   {
     workspace,
-    roleActions,
+    startActions,
+    conversationActions = [],
     agents,
     defaultAgent,
     onManageAgents = () => {},
@@ -1648,15 +1670,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     )
   }
 
-  // Role-shortcut strip docked right above the composer (role-personalization
-  // RP-R5's "second home", relocated from the old left rail to where the
-  // action lands): one quiet chip per workflow, the persona chip set apart —
-  // one click launches the matching /bmad-* turn mid-conversation. Nested for
-  // the same complexity-budget reason as `renderToolbar`.
+  // The in-conversation shortcut strip, docked right above the composer
+  // (role-personalization RP-R5's "second home", relocated from the old left
+  // rail to where the action lands): one quiet chip per workflow, the persona
+  // chip set apart — one click launches the matching /bmad-* turn
+  // mid-conversation. Nested for the same complexity-budget reason as
+  // `renderToolbar`.
+  //
+  // shortcut-scopes: this row renders the `during` set alone, and an empty set
+  // renders nothing — not even the customize control. Most roles ship no
+  // in-conversation default, and a permanent "configure me" affordance over
+  // every conversation is chrome advertising itself; the hero pill and the
+  // profile sheet are the two ways in, both always reachable.
   function renderShortcutStrip(): React.JSX.Element | null {
-    if (roleActions.length === 0 && !onCustomizeShortcuts) return null
-    const workflows = roleActions.filter((action) => action.kind === 'workflow')
-    const personas = roleActions.filter((action) => action.kind === 'persona')
+    if (conversationActions.length === 0) return null
+    const workflows = conversationActions.filter((action) => action.kind === 'workflow')
+    const personas = conversationActions.filter((action) => action.kind === 'persona')
     function renderChip(action: RoleAction): React.JSX.Element {
       const Icon = shortcutIcon(action)
       return (
@@ -1701,7 +1730,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             className="wb-shortcut-chip wb-shortcut-customize"
             title={t('shortcuts.customizeTitle')}
             aria-label={t('shortcuts.customizeTitle')}
-            onClick={onCustomizeShortcuts}
+            onClick={() => onCustomizeShortcuts('during')}
           >
             <SlidersIcon size={13} />
           </button>
@@ -1716,14 +1745,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     return (
       <div className="wb-chat">
         <IntentGrid
-          actions={roleActions}
+          actions={startActions}
           onLaunch={launchAction}
           composer={composer}
           recents={recentSessions}
           onOpenRecent={handleOpenRecent}
           runningIds={runningSessionIds}
           userName={userName}
-          onCustomize={onCustomizeShortcuts}
+          onCustomize={customizeHandler(onCustomizeShortcuts, 'start')}
         />
       </div>
     )

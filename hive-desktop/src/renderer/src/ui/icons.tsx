@@ -388,6 +388,25 @@ export function PersonaChatIcon({ size, ...rest }: IconProps): React.JSX.Element
   )
 }
 
+/**
+ * Three figures side by side — party mode (shortcut-scopes): the whole squad
+ * of agents joining the conversation, as opposed to `PersonaChatIcon`'s single
+ * specialist. The outer two sit lower and are drawn shorter so the group reads
+ * at 13px instead of turning into a blob.
+ */
+export function PartyModeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="4.9" r="2.05" />
+      <path d="M4.4 13.1c0-1.85 1.6-3.15 3.6-3.15s3.6 1.3 3.6 3.15" />
+      <path d="M3.35 7.15a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z" />
+      <path d="M1.3 11.85c0-1.35.9-2.35 2.2-2.45" />
+      <path d="M12.65 7.15a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z" />
+      <path d="M14.7 11.85c0-1.35-.9-2.35-2.2-2.45" />
+    </svg>
+  )
+}
+
 /* --- Chrome icons (rail, profile, chat controls) ----------------------- */
 
 /** Settings gear (profile module entry). */

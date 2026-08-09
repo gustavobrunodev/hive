@@ -243,13 +243,10 @@ vi.mock('@hive/design-system', () => ({
   Input: (props: Record<string, unknown>) => createElement('input', props),
   // The MCP manager wraps its row controls in the tooltip family; passthroughs
   // are enough here (the tooltip's own behaviour is DS-tested).
-  TooltipProvider: ({ children }: { children?: ReactNode }) =>
-    createElement('div', null, children),
+  TooltipProvider: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   Tooltip: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
-  TooltipTrigger: ({ children }: { children?: ReactNode }) =>
-    createElement('div', null, children),
-  TooltipContent: ({ children }: { children?: ReactNode }) =>
-    createElement('div', null, children),
+  TooltipTrigger: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  TooltipContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   // mcp-logs: the console's filter bar. Mocked faithfully enough for the
   // radiogroup queries its own test file uses — WorkUI only needs it to render.
   SegmentedControl: ({
@@ -512,7 +509,10 @@ function ChatStandIn(
   {
     onCustomizeShortcuts,
     onSessionChange
-  }: { onCustomizeShortcuts?: () => void; onSessionChange?: (id: string | null) => void },
+  }: {
+    onCustomizeShortcuts?: (scope: 'start' | 'during') => void
+    onSessionChange?: (id: string | null) => void
+  },
   ref: React.Ref<typeof chatHandle>
 ): ReactElement {
   useImperativeHandle(ref, () => chatHandle, [])
@@ -522,7 +522,7 @@ function ChatStandIn(
     'Chat',
     createElement(
       'button',
-      { type: 'button', onClick: () => onCustomizeShortcuts?.() },
+      { type: 'button', onClick: () => onCustomizeShortcuts?.('start') },
       'abrir personalizar'
     ),
     createElement(
@@ -640,9 +640,9 @@ function createHiveMock(): Window['hive'] {
     },
     shortcuts: {
       catalog: vi.fn(async () => []),
-      get: vi.fn(async () => null),
+      get: vi.fn(async () => ({ start: null, during: null })),
       set: vi.fn(async () => undefined),
-      actions: vi.fn(async () => [])
+      actions: vi.fn(async () => ({ start: [], during: [] }))
     },
     // git-management (M10): WorkUI mounts the git store (detect + onChanged +
     // fs watch) on mount, so the bridge + watch must resolve benignly.
@@ -1384,9 +1384,10 @@ describe('WorkUI — guided tour (first access)', () => {
   function mountWithActions(): void {
     // shortcut-customization: WorkUI resolves the (possibly customized)
     // shortcut set via `shortcuts.actions`, not `profile.roleActions`.
-    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue([
-      { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } }
-    ])
+    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue({
+      start: [{ key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } }],
+      during: []
+    })
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
@@ -1440,7 +1441,7 @@ describe('WorkUI — shortcut customization', () => {
         persona: null
       }
     ])
-    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue([])
+    vi.mocked(window.hive.shortcuts.actions).mockResolvedValue({ start: [], during: [] })
 
     render(
       createElement(WorkUI, {
@@ -1461,7 +1462,10 @@ describe('WorkUI — shortcut customization', () => {
     const row = await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
     fireEvent.click(row)
     await waitFor(() =>
-      expect(window.hive.shortcuts.set).toHaveBeenCalledWith({ skills: ['bmad-prd'], agents: [] })
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('start', {
+        skills: ['bmad-prd'],
+        agents: []
+      })
     )
     // onChanged → WorkUI re-resolves the visible shortcut set.
     await waitFor(() => expect(window.hive.shortcuts.actions).toHaveBeenCalledTimes(2))
@@ -1484,13 +1488,17 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
         displayName: 'Claude Code',
         description: '',
         available: true,
+        version: null,
+        detectCommand: 'claude',
         installHint: '',
+        installable: true,
+        installCommand: 'npm install -g @anthropic-ai/claude-code',
         docsUrl: ''
       }
     ])
 
-    // No onRoleChange/onAgentChange passed → the WorkUI default no-op handlers
-    // are exercised when a role/agent is picked in the sheet.
+    // No onAgentChange passed → the WorkUI default no-op handlers are
+    // exercised when an agent is picked in the sheet.
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
@@ -1510,8 +1518,12 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     fireEvent.click(avatar)
     expect(await screen.findByText('Perfil')).toBeTruthy()
 
-    // Picking a role + an agent in the sheet runs the (default no-op) handlers.
-    fireEvent.click(await screen.findByText('Tech Lead'))
+    // shortcut-scopes: the role reads as context, not a control — the sheet
+    // shows the active one and offers no other.
+    expect(screen.getByText('Product Manager')).toBeTruthy()
+    expect(screen.queryByText('Tech Lead')).toBeNull()
+
+    // Picking an agent in the sheet runs the (default no-op) handler.
     fireEvent.click(await screen.findByText('Claude Code'))
 
     // Committing a new name runs the default no-op onUserNameChange too.

@@ -462,15 +462,16 @@ describe('Chat', () => {
     extra: Parameters<typeof mockHive>[0] = {},
     props: {
       userName?: string | null
-      onCustomizeShortcuts?: () => void
-      roleActions?: RoleAction[]
+      onCustomizeShortcuts?: (scope: 'start' | 'during') => void
+      startActions?: RoleAction[]
+      conversationActions?: RoleAction[]
     } = {}
   ): ReturnType<typeof mockHive> {
     const hive = mockHive(extra)
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ...props
@@ -489,19 +490,71 @@ describe('Chat', () => {
   })
 
   // shortcut-customization: the hero's "Personalizar" entry + custom labels.
-  it('shows the "Personalizar" pill when customization is wired, and opens it on click', async () => {
+  it('shows the "Personalizar" pill when customization is wired, and opens it on the start set', async () => {
     const onCustomizeShortcuts = vi.fn()
     renderChat({}, { onCustomizeShortcuts })
     const pill = await screen.findByRole('button', { name: 'Personalizar atalhos' })
     fireEvent.click(pill)
-    expect(onCustomizeShortcuts).toHaveBeenCalledTimes(1)
+    // shortcut-scopes: the hero edits the set the hero renders.
+    expect(onCustomizeShortcuts).toHaveBeenCalledWith('start')
+  })
+
+  /**
+   * shortcut-scopes SS-R2/SS-R5 — the strip above the composer renders the
+   * `during` set alone, and renders nothing at all when that set is empty
+   * (which is the default for every role but the PM). The `start` set being
+   * full must not put a single chip there.
+   */
+  it('renders the in-conversation set above the composer, and its customize control on "during"', async () => {
+    const onCustomizeShortcuts = vi.fn()
+    renderChat(
+      {},
+      {
+        onCustomizeShortcuts,
+        conversationActions: [
+          {
+            key: 'party-mode',
+            kind: 'workflow',
+            command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' }
+          }
+        ]
+      }
+    )
+    // A conversation has to exist for the strip to be on screen at all.
+    await screen.findByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'oi' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    const strip = await screen.findByRole('toolbar', { name: 'Atalhos durante a conversa' })
+    expect(strip.textContent).toContain('Reunir os agentes')
+    // The hero's set stays in the hero — none of it leaks into the strip.
+    expect(strip.textContent).not.toContain('Criar um PRD')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizar atalhos' }))
+    expect(onCustomizeShortcuts).toHaveBeenCalledWith('during')
+  })
+
+  it('renders no strip at all when the in-conversation set is empty', async () => {
+    renderChat({}, { onCustomizeShortcuts: vi.fn(), conversationActions: [] })
+    await screen.findByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'oi' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    await screen.findByText('oi')
+    // Not even the customize control: mid-thread chrome is earned, not assumed.
+    expect(screen.queryByRole('toolbar', { name: 'Atalhos durante a conversa' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Personalizar atalhos' })).toBeNull()
   })
 
   it('labels custom shortcuts via the pt-BR skill map, falling back to the catalog label', async () => {
     renderChat(
       {},
       {
-        roleActions: [
+        startActions: [
           // Known skill key → pt-BR map wins over the carried label.
           {
             key: 'bmad-spec',
@@ -595,7 +648,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -634,7 +687,7 @@ describe('Chat', () => {
       render(
         createElement(Chat, {
           workspace: '/ws',
-          roleActions,
+          startActions: roleActions,
           agents: ['claude-cli'],
           defaultAgent: 'claude-cli',
           ref
@@ -685,7 +738,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1310,7 +1363,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1345,7 +1398,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         onSessionChange,
@@ -1371,7 +1424,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1426,7 +1479,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1481,7 +1534,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         onRunningSessionsChange
@@ -1554,7 +1607,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1597,7 +1650,7 @@ describe('Chat', () => {
     render(
       createElement(Chat, {
         workspace: '/ws',
-        roleActions,
+        startActions: roleActions,
         agents: ['claude-cli'],
         defaultAgent: 'claude-cli',
         ref
@@ -1675,7 +1728,7 @@ describe('Chat', () => {
         { store },
         createElement(Chat, {
           workspace: '/ws',
-          roleActions: [],
+          startActions: [],
           agents: ['claude-cli'],
           defaultAgent: 'claude-cli',
           onCustomizeShortcuts: vi.fn()
@@ -2275,7 +2328,7 @@ describe('Chat', () => {
       render(
         createElement(Chat, {
           workspace: '/ws',
-          roleActions,
+          startActions: roleActions,
           agents: ['claude-cli'],
           defaultAgent: 'claude-cli',
           ref

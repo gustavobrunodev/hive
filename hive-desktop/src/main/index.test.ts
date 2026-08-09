@@ -160,6 +160,45 @@ const { fakeAgentService, agentOnEventCalls } = vi.hoisted(() => {
 
 vi.mock('./agentService', () => ({ createAgentService: vi.fn(() => fakeAgentService) }))
 
+// agent-onboarding: the installer runs `npm i -g` for real (its own behaviour
+// is covered by agentInstaller.test.ts). Here only the wiring matters — that a
+// start reaches it, that its events are relayed tagged with the agent id, and
+// that a stop actually cancels.
+const { fakeAgentInstaller, agentInstallCalls } = vi.hoisted(() => {
+  const agentInstallCalls: Array<{
+    agentId: string
+    emit: (event: unknown) => void
+    cancel: ReturnType<typeof vi.fn>
+  }> = []
+  return {
+    agentInstallCalls,
+    fakeAgentInstaller: {
+      install: vi.fn((agentId: string, onEvent: (event: unknown) => void) => {
+        const cancel = vi.fn()
+        agentInstallCalls.push({ agentId, emit: onEvent, cancel })
+        return cancel
+      })
+    }
+  }
+})
+vi.mock('./agentInstaller', () => ({ createAgentInstaller: vi.fn(() => fakeAgentInstaller) }))
+
+// The real registry, with only `detect()` swapped for a spy: probing would
+// spawn `claude --version` (and two siblings) for real, and what this file
+// tests about detection is that the handler forwards the refresh flag —
+// agentRegistry.test.ts owns what the probe then does with it.
+const { agentDetect } = vi.hoisted(() => ({ agentDetect: vi.fn(async () => []) }))
+vi.mock('./agentRegistry', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./agentRegistry')>()
+  return {
+    ...actual,
+    createAgentRegistry: (...args: Parameters<typeof actual.createAgentRegistry>) => ({
+      ...actual.createAgentRegistry(...args),
+      detect: agentDetect
+    })
+  }
+})
+
 // agent-approvals: the real bridge binds a loopback HTTP listener (covered by
 // approvalService.test.ts). Here only the *wiring* matters — that index.ts
 // relays its requests onto the renderer's event channel and routes verdicts
@@ -976,6 +1015,63 @@ describe('main process bootstrap', () => {
     expect(send).not.toHaveBeenCalledWith('bmad:install:event', { type: 'done', ok: true })
   })
 
+  // agent-onboarding (AO-R2/AO-R3): the picker's two new powers.
+  it('profile:agents passes the refresh flag through, so "procurar de novo" re-probes', async () => {
+    const handler = findHandler('profile:agents')
+    await handler({}, true)
+    expect(agentDetect).toHaveBeenLastCalledWith(true)
+    // Anything that isn't an explicit `true` keeps the cached answer.
+    await handler({}, undefined)
+    expect(agentDetect).toHaveBeenLastCalledWith(false)
+  })
+
+  it('registers agents:install:start/stop, tags relayed events with the agent, and cancels on stop', () => {
+    expect(ipcMain.on).toHaveBeenCalledWith('agents:install:start', expect.any(Function))
+    expect(ipcMain.on).toHaveBeenCalledWith('agents:install:stop', expect.any(Function))
+
+    const send = vi.fn()
+    const fakeEvent = { sender: { id: 71, send, isDestroyed: () => false } }
+    agentInstallCalls.length = 0
+
+    findOnHandler('agents:install:start')(fakeEvent, 'claude-cli')
+    expect(fakeAgentInstaller.install).toHaveBeenCalledWith('claude-cli', expect.any(Function))
+
+    const run = agentInstallCalls[0]
+    run.emit({ type: 'progress', message: 'added 214 packages' })
+    expect(send).toHaveBeenCalledWith('agents:install:event', 'claude-cli', {
+      type: 'progress',
+      message: 'added 214 packages'
+    })
+
+    // Stop kills npm rather than merely muting it — an install left running
+    // keeps writing into a global prefix with nobody listening.
+    findOnHandler('agents:install:stop')(fakeEvent, 'claude-cli')
+    expect(run.cancel).toHaveBeenCalled()
+  })
+
+  it('a repeat start for the same agent replaces the run in flight instead of racing it', () => {
+    const fakeEvent = { sender: { id: 72, send: vi.fn(), isDestroyed: () => false } }
+    agentInstallCalls.length = 0
+
+    findOnHandler('agents:install:start')(fakeEvent, 'github-copilot')
+    findOnHandler('agents:install:start')(fakeEvent, 'github-copilot')
+
+    expect(agentInstallCalls[0].cancel).toHaveBeenCalledTimes(1)
+    expect(agentInstallCalls[1].cancel).not.toHaveBeenCalled()
+  })
+
+  it('a stop with no agent id cancels every install that sender started', () => {
+    const fakeEvent = { sender: { id: 73, send: vi.fn(), isDestroyed: () => false } }
+    agentInstallCalls.length = 0
+
+    findOnHandler('agents:install:start')(fakeEvent, 'claude-cli')
+    findOnHandler('agents:install:start')(fakeEvent, 'github-copilot')
+    findOnHandler('agents:install:stop')(fakeEvent, undefined)
+
+    expect(agentInstallCalls[0].cancel).toHaveBeenCalled()
+    expect(agentInstallCalls[1].cancel).toHaveBeenCalled()
+  })
+
   // T10: BmadService.update() wiring — identical shape to bmad:install:*
   // above (proven there), so this just confirms update's own channel names
   // and that it drives BmadService.update(workspace), not install().
@@ -1221,25 +1317,55 @@ describe('main process bootstrap', () => {
       await expect(findHandler('shortcuts:catalog')({}, userDataDir)).resolves.toEqual([])
     })
 
-    it('shortcuts:set/get round-trip through the real ConfigStore, sanitizing input', async () => {
-      await expect(findHandler('shortcuts:get')({})).resolves.toBeNull()
-
-      await findHandler('shortcuts:set')({}, { skills: ['bmad-prd', 7, ''], agents: ['a', 'a'] })
+    it('shortcuts:set/get round-trip per scope through the real ConfigStore, sanitizing input', async () => {
       await expect(findHandler('shortcuts:get')({})).resolves.toEqual({
-        skills: ['bmad-prd'],
-        agents: ['a']
+        start: null,
+        during: null
       })
 
-      // null restores the role defaults (and leaves later tests unaffected).
-      await findHandler('shortcuts:set')({}, null)
-      await expect(findHandler('shortcuts:get')({})).resolves.toBeNull()
+      await findHandler('shortcuts:set')({}, 'start', {
+        skills: ['bmad-prd', 7, ''],
+        agents: ['a', 'a']
+      })
+      await expect(findHandler('shortcuts:get')({})).resolves.toEqual({
+        start: { skills: ['bmad-prd'], agents: ['a'] },
+        during: null
+      })
+
+      // null restores that scope's role defaults (and leaves later tests unaffected).
+      await findHandler('shortcuts:set')({}, 'start', null)
+      await expect(findHandler('shortcuts:get')({})).resolves.toEqual({
+        start: null,
+        during: null
+      })
     })
 
-    it('shortcuts:actions resolves the role defaults while no customization exists', async () => {
-      const actions = (await findHandler('shortcuts:actions')({}, 'pm', userDataDir)) as {
+    // shortcut-scopes: an unrecognized scope is dropped, not defaulted —
+    // writing the wrong set is worse than writing none.
+    it('shortcuts:set ignores an unknown scope instead of writing one', async () => {
+      await findHandler('shortcuts:set')({}, 'sideways', { skills: ['bmad-prd'], agents: [] })
+      await expect(findHandler('shortcuts:get')({})).resolves.toEqual({
+        start: null,
+        during: null
+      })
+    })
+
+    it('shortcuts:actions resolves both scopes from the role defaults while no customization exists', async () => {
+      const sets = (await findHandler('shortcuts:actions')({}, 'pm', userDataDir)) as Record<
+        'start' | 'during',
+        { key: string }[]
+      >
+      expect(sets.start.map((a) => a.key)).toContain('prd')
+      expect(sets.during.map((a) => a.key)).toEqual(['party-mode'])
+    })
+
+    it('profile:roleActions serves the requested scope, defaulting to start', async () => {
+      const start = (await findHandler('profile:roleActions')({}, 'pm')) as { key: string }[]
+      const during = (await findHandler('profile:roleActions')({}, 'pm', 'during')) as {
         key: string
       }[]
-      expect(actions.map((a) => a.key)).toContain('prd')
+      expect(start.map((a) => a.key)).toContain('prd')
+      expect(during.map((a) => a.key)).toEqual(['party-mode'])
     })
   })
 

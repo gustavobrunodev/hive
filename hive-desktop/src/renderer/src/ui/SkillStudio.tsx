@@ -567,8 +567,11 @@ function StudioDialog({
   onOpenFile
 }: SkillStudioProps): React.JSX.Element {
   const [created, setCreated] = useState<CreatedSkill[] | null>(null)
-  // The pin baseline: stored prefs when customized, role defaults otherwise
-  // (mirrors ShortcutCustomizer's selection rule so both stay consistent).
+  // The pin baseline: the stored `start` prefs when customized, that scope's
+  // role defaults otherwise (mirrors ShortcutCustomizer's selection rule so
+  // both stay consistent). shortcut-scopes: pinning targets the **start** set
+  // — a creation belongs where a conversation begins; the in-conversation set
+  // stays a deliberate, hand-picked row.
   const [prefs, setPrefs] = useState<ShortcutPrefs | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CreatedSkill | null>(null)
@@ -601,17 +604,17 @@ function StudioDialog({
     // Locally-defined async function invoked immediately (the repo's
     // GuidedInstall `load()` pattern) — react-hooks/set-state-in-effect.
     async function load(): Promise<void> {
-      const [skills, stored] = await Promise.all([
+      const [skills, settings] = await Promise.all([
         window.hive.studio.list(workspace),
         window.hive.shortcuts.get()
       ])
       if (cancelled) return
       setCreated(skills)
-      if (stored) {
-        setPrefs(stored)
+      if (settings.start) {
+        setPrefs(settings.start)
         return
       }
-      const defaults = await window.hive.profile.roleActions(role)
+      const defaults = await window.hive.profile.roleActions(role, 'start')
       if (cancelled) return
       setPrefs(prefsFromDefaults(defaults))
     }
@@ -672,7 +675,7 @@ function StudioDialog({
         const updated = { ...current, [listKey]: next }
         // Persist-and-notify per toggle (whole-object writes, last write
         // wins) — the hero/strip behind the dialog update live.
-        void window.hive.shortcuts.set(updated).then(onShortcutsChanged)
+        void window.hive.shortcuts.set('start', updated).then(onShortcutsChanged)
         return updated
       })
     },
@@ -706,7 +709,7 @@ function StudioDialog({
         skills: current.skills.filter((key) => key !== skill.key),
         agents: current.agents.filter((key) => key !== skill.key)
       }
-      void window.hive.shortcuts.set(updated).then(onShortcutsChanged)
+      void window.hive.shortcuts.set('start', updated).then(onShortcutsChanged)
       return updated
     })
   }, [pendingDelete, workspace, pinnedKeys, onShortcutsChanged])

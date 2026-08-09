@@ -23,10 +23,11 @@ import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
 import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
-import type { ShortcutPrefs } from '../main/configStore'
+import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
-import type { ResolvedRoleAction } from '../main/roleCatalog'
+import type { AgentInstallEvent } from '../main/agentInstaller'
+import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
@@ -167,7 +168,10 @@ declare global {
       }
       /** Profile (agent-selection + role-personalization): app-wide agent + role. */
       profile: {
-        agents(): Promise<AgentMeta[]>
+        /** Detected agents. `refresh` re-probes instead of answering from the cache (AO-R2). */
+        agents(refresh?: boolean): Promise<AgentMeta[]>
+        /** Installs an agent's CLI (`npm i -g`), streaming progress; returns a cancel function (AO-R3). */
+        installAgent(agentId: string, onEvent: (evt: AgentInstallEvent) => void): () => void
         getAgent(): Promise<string | null>
         setAgent(id: string): Promise<void>
         getAgents(): Promise<string[] | null>
@@ -176,14 +180,18 @@ declare global {
         setRole(id: string): Promise<void>
         getUserName(): Promise<string | null>
         setUserName(name: string | null): Promise<void>
-        roleActions(role: string | null): Promise<ResolvedRoleAction[]>
+        /** A role's *default* shortcuts for one scope (`start` when omitted). */
+        roleActions(role: string | null, scope?: ShortcutScope): Promise<ResolvedRoleAction[]>
       }
       /** Shortcut customization (shortcut-customization): workspace skill catalog + persisted selection + resolved shortcut set. */
       shortcuts: {
         catalog(workspace: string): Promise<WorkspaceSkill[]>
-        get(): Promise<ShortcutPrefs | null>
-        set(prefs: ShortcutPrefs | null): Promise<void>
-        actions(role: string | null, workspace: string): Promise<ResolvedRoleAction[]>
+        /** Both scopes' persisted selections (`null` in a scope = role default). */
+        get(): Promise<ShortcutSettings>
+        /** Persists one scope's selection; `null` restores that scope's role default. */
+        set(scope: ShortcutScope, prefs: ShortcutPrefs | null): Promise<void>
+        /** Both scopes resolved for render — `start` (hero) and `during` (strip). */
+        actions(role: string | null, workspace: string): Promise<ResolvedShortcutSets>
       }
       /**
        * File management (T6/T7) surface — see preload/index.ts for the full

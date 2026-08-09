@@ -25,6 +25,7 @@ import { createGitService, GitError, type GitDiffSide } from './gitService'
 import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
+import { createAgentInstaller } from './agentInstaller'
 import { createAgentService } from './agentService'
 import { createApprovalService } from './approvalService'
 import { grantAgentPermission } from './agentPermissions'
@@ -56,8 +57,8 @@ import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from
 import { createMcpService, type McpServerConfig } from './mcpService'
 import { mcpProbe } from './mcpProbe'
 import { createMcpLogService, type McpLogQuery } from './mcpLogService'
-import { resolveRoleActions, resolveShortcuts } from './roleCatalog'
-import { sanitizeShortcutPrefs } from './configStore'
+import { resolveAllShortcuts, resolveRoleActions } from './roleCatalog'
+import { isShortcutScope, sanitizeShortcutPrefs } from './configStore'
 import {
   createRegistryClient,
   createDownloader,
@@ -427,6 +428,11 @@ app.whenReady().then(() => {
     permissionPrompt: approvalService
   })
   const agentService = createAgentService(agentRegistry)
+  // agent-onboarding: `npm i -g` for the agent CLIs the picker offers to
+  // install. Holds the **unwrapped** runner on purpose — the E2E seam
+  // redirects agent-CLI spawns to a stand-in binary, and an install is npm,
+  // not an agent.
+  const agentInstaller = createAgentInstaller({ processRunner, registry: agentRegistry })
 
   // GitService (git-management, M10): drives the system git binary through the
   // same ProcessRunner as the agents (D-GIT engine), trashing untracked
@@ -1233,7 +1239,50 @@ app.whenReady().then(() => {
   // multi-agent: the picker's source of truth — probes each CLI on this machine
   // and returns availability + install hints for the disabled ("como instalar")
   // cards. Detection is cached in the registry after the first probe.
-  ipcMain.handle('profile:agents', async () => agentRegistry.detect())
+  // `refresh` re-probes instead of answering from the cache (agent-onboarding,
+  // AO-R2): the picker's "procurar de novo" control, and the only way a CLI
+  // installed while the app is open becomes usable without a restart.
+  ipcMain.handle('profile:agents', async (_event, refresh?: boolean) =>
+    agentRegistry.detect(refresh === true)
+  )
+
+  // Installing an agent CLI from inside the app (AO-R3). Same start/event/stop
+  // channel trio as bmad:install:* — one install at a time per renderer, keyed
+  // by agent id so a second card can't silently adopt the first one's stream.
+  //
+  //   'agents:install:start' (renderer -> main): begin installing `agentId`.
+  //   'agents:install:event' (main -> renderer, repeated): AgentInstallEvent.
+  //   'agents:install:stop'  (renderer -> main): cancel + stop forwarding.
+  const activeAgentInstalls = new Map<number, Map<string, () => void>>()
+
+  function cancelAgentInstalls(senderId: number, agentId?: string): void {
+    const perSender = activeAgentInstalls.get(senderId)
+    if (!perSender) return
+    for (const [id, cancel] of perSender) {
+      if (agentId === undefined || id === agentId) {
+        cancel()
+        perSender.delete(id)
+      }
+    }
+    if (perSender.size === 0) activeAgentInstalls.delete(senderId)
+  }
+
+  ipcMain.on('agents:install:start', (event, agentId: string) => {
+    // A repeat start for the same agent (the user hitting "tentar de novo")
+    // replaces the previous run rather than racing it.
+    cancelAgentInstalls(event.sender.id, agentId)
+    const cancel = agentInstaller.install(agentId, (installEvent) => {
+      if (event.sender.isDestroyed()) return
+      event.sender.send('agents:install:event', agentId, installEvent)
+    })
+    const perSender = activeAgentInstalls.get(event.sender.id) ?? new Map<string, () => void>()
+    perSender.set(agentId, cancel)
+    activeAgentInstalls.set(event.sender.id, perSender)
+  })
+
+  ipcMain.on('agents:install:stop', (event, agentId?: string) => {
+    cancelAgentInstalls(event.sender.id, typeof agentId === 'string' ? agentId : undefined)
+  })
   // The user's **default** agent (new conversations start on it); nullable — the
   // onboarding gate routes new users through the required agent step when null.
   ipcMain.handle('profile:getAgent', async () => configStore.getAgent())
@@ -1258,8 +1307,11 @@ app.whenReady().then(() => {
   ipcMain.handle('profile:setUserName', async (_event, name: string | null) => {
     configStore.setUserName(name)
   })
-  ipcMain.handle('profile:roleActions', async (_event, role: string | null) =>
-    resolveRoleActions(role)
+  // The role's *defaults* for a scope (`start` when unspecified — the shape
+  // every pre-scope caller meant). Drives the first-run role previews and the
+  // customizer's "restore the role default" baseline.
+  ipcMain.handle('profile:roleActions', async (_event, role: string | null, scope: unknown) =>
+    resolveRoleActions(role, isShortcutScope(scope) ? scope : 'start')
   )
 
   // Shortcut customization (shortcut-customization): the full workspace skill
@@ -1272,13 +1324,18 @@ app.whenReady().then(() => {
     listCatalogWithCreated(workspace)
   )
   ipcMain.handle('shortcuts:get', async () => configStore.getShortcuts())
-  // Renderer input crosses the IPC boundary sanitized (`null` restores the
-  // role defaults) — the store re-applies the same rule defensively.
-  ipcMain.handle('shortcuts:set', async (_event, prefs: unknown) =>
-    configStore.setShortcuts(sanitizeShortcutPrefs(prefs))
-  )
+  // Renderer input crosses the IPC boundary sanitized (`null` restores that
+  // scope's role defaults) — the store re-applies the same rule defensively.
+  // An unknown scope is dropped rather than defaulted: writing the wrong set
+  // is worse than writing none.
+  ipcMain.handle('shortcuts:set', async (_event, scope: unknown, prefs: unknown) => {
+    if (!isShortcutScope(scope)) return
+    configStore.setShortcuts(scope, sanitizeShortcutPrefs(prefs))
+  })
+  // Both scopes in one round trip — the hero and the strip always render
+  // together, so they resolve together and can't disagree.
   ipcMain.handle('shortcuts:actions', async (_event, role: string | null, workspace: string) =>
-    resolveShortcuts(role, configStore.getShortcuts(), await listCatalogWithCreated(workspace))
+    resolveAllShortcuts(role, configStore.getShortcuts(), await listCatalogWithCreated(workspace))
   )
 
   // UpdateService (npm-distribution, ND-C5): the app's own version +

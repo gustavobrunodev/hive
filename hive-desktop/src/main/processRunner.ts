@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { cliEnv, spawnTarget } from './cliEnv'
 
 /**
  * Uniform spawn/stream/kill abstraction for CLI processes driven from the
@@ -104,12 +105,28 @@ function createAsyncQueue<T>(): {
  * Creates a `ProcessRunner` backed by Node's `child_process.spawn`. This is
  * the implementation wired into real main-process services; it has no
  * `electron` dependency, only Node built-ins.
+ *
+ * Every spawn goes out with the **widened** environment from `cliEnv.ts`, with
+ * the command resolved against it, and — on Windows, for an npm `.cmd` shim —
+ * routed through `cmd.exe`. A desktop app launched from a launcher rather than
+ * a terminal inherits a `PATH` holding none of the npm-global prefixes the CLIs
+ * this app drives live in, and on Windows `spawn` cannot execute those shims at
+ * all; without this, an installed `claude` reads as "not installed" and every
+ * `npx`-backed BMAD flow fails the same way. See `cliEnv.ts` for the account.
+ *
+ * A command that can't be resolved is still spawned verbatim, so the failure
+ * stays the ordinary ENOENT (`{ code: null }`) that availability probes and
+ * error surfaces already understand — resolution repairs the lookup, it never
+ * becomes a second, different way to fail.
  */
 export function createProcessRunner(): ProcessRunner {
   function run(command: string, args: string[], opts?: RunOptions): ProcessHandle {
-    const child = spawn(command, args, {
+    const env = opts?.env ? { ...cliEnv(), ...opts.env } : cliEnv()
+    const target = spawnTarget(command, args, env.PATH, env)
+    const child = spawn(target.command, target.args, {
       cwd: opts?.cwd,
-      env: opts?.env ? { ...process.env, ...opts.env } : process.env,
+      env,
+      windowsVerbatimArguments: target.windowsVerbatimArguments,
       // stdin is closed (`'ignore'` → /dev/null) rather than left as an open,
       // never-written pipe. Nothing this app spawns feeds stdin — the Claude
       // CLI gets its prompt via `-p <text>` and BMAD install runs

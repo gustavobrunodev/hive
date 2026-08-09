@@ -141,7 +141,11 @@ function mockHive(
   const trash = vi.fn().mockResolvedValue(undefined)
   vi.stubGlobal('hive', {
     studio: { list: vi.fn().mockResolvedValue(options.created ?? CREATED) },
-    shortcuts: { get: vi.fn().mockResolvedValue(options.prefs ?? null), set },
+    // shortcut-scopes: the studio pins into the `start` set.
+    shortcuts: {
+      get: vi.fn().mockResolvedValue({ start: options.prefs ?? null, during: null }),
+      set
+    },
     profile: { roleActions: vi.fn().mockResolvedValue(PM_DEFAULTS) },
     agent: {
       capabilities: vi.fn().mockResolvedValue({
@@ -255,14 +259,17 @@ describe('SkillStudio', () => {
     const { onShortcutsChanged } = renderStudio()
 
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Fixar Revisor de Notas nos atalhos' })
+      await screen.findByRole('button', { name: 'Fixar Revisor de Notas nos atalhos para iniciar' })
     )
-    expect(set).toHaveBeenCalledWith({ skills: ['bmad-prd', 'revisor-notas'], agents: [] })
+    expect(set).toHaveBeenCalledWith('start', {
+      skills: ['bmad-prd', 'revisor-notas'],
+      agents: []
+    })
     await waitFor(() => expect(onShortcutsChanged).toHaveBeenCalled())
 
     // Agent pins land on the agents list; the stored selection is now the baseline.
-    fireEvent.click(screen.getByRole('button', { name: 'Fixar Clara nos atalhos' }))
-    expect(set).toHaveBeenLastCalledWith({
+    fireEvent.click(screen.getByRole('button', { name: 'Fixar Clara nos atalhos para iniciar' }))
+    expect(set).toHaveBeenLastCalledWith('start', {
       skills: ['bmad-prd', 'revisor-notas'],
       agents: ['clara-dados']
     })
@@ -300,8 +307,10 @@ describe('SkillStudio', () => {
     renderStudio()
 
     expect(await screen.findByText('Nos atalhos')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar Revisor de Notas dos atalhos' }))
-    expect(set).toHaveBeenCalledWith({ skills: [], agents: [] })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tirar Revisor de Notas dos atalhos para iniciar' })
+    )
+    expect(set).toHaveBeenCalledWith('start', { skills: [], agents: [] })
   })
 
   it('opens SKILL.md in the editor', async () => {

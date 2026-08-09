@@ -74,6 +74,22 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
   fs.mkdirSync(manifestDir, { recursive: true })
   fs.writeFileSync(path.join(manifestDir, 'manifest.yaml'), 'version: test-fixture\n', 'utf-8')
 
+  // shortcut-scopes: a small but real BMAD skill catalog, so surfaces that
+  // read it ("Personalizar atalhos") render rows instead of their empty state.
+  // Headers are the ones captured from a real install (see workflowCatalog.ts).
+  fs.writeFileSync(
+    path.join(manifestDir, 'skill-manifest.csv'),
+    [
+      'canonicalId,name,description,module,path',
+      'bmm/prd,bmad-prd,Create or update a PRD,bmm,.claude/skills/bmad-prd',
+      'core/party,bmad-party-mode,Orchestrate a group discussion,core,.claude/skills/bmad-party-mode',
+      'bmm/ux,bmad-ux,Plan UX patterns,bmm,.claude/skills/bmad-ux',
+      'bmm/pm,bmad-agent-pm,Product manager persona. Use when the user asks to talk to John,bmm,.claude/skills/bmad-agent-pm',
+      'bmm/dev,bmad-agent-dev,Senior engineer persona. Use when the user asks to talk to Amelia,bmm,.claude/skills/bmad-agent-dev'
+    ].join('\n') + '\n',
+    'utf-8'
+  )
+
   if (secondBrain) {
     const skillDir = path.join(workspace, '.claude', 'skills', 'second-brain')
     fs.mkdirSync(skillDir, { recursive: true })
@@ -98,7 +114,10 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
       agents: ['claude-cli'],
       role: 'dev',
       userName: 'E2E',
-      shortcuts: null,
+      // shortcut-scopes: the current shape — one selection per scope, both
+      // uncustomized. (`null` still migrates, but the fixture documents the
+      // real file, so it carries the real schema.)
+      shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
       ...config
     }),

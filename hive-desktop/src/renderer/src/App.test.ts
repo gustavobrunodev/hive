@@ -255,7 +255,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
         setUserName: vi.fn().mockResolvedValue(undefined),
-        roleActions: vi.fn().mockResolvedValue([])
+        roleActions: vi.fn().mockResolvedValue([]),
+        installAgent: vi.fn(() => vi.fn())
       },
       shortcuts: {
         catalog: vi.fn().mockResolvedValue([]),
@@ -479,7 +480,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
         setUserName: vi.fn().mockResolvedValue(undefined),
-        roleActions: vi.fn().mockResolvedValue([])
+        roleActions: vi.fn().mockResolvedValue([]),
+        installAgent: vi.fn(() => vi.fn())
       }
     })
 
@@ -508,7 +510,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setRole: vi.fn().mockResolvedValue(undefined),
         getUserName: vi.fn().mockResolvedValue(null),
         setUserName: vi.fn().mockResolvedValue(undefined),
-        roleActions: vi.fn().mockResolvedValue([])
+        roleActions: vi.fn().mockResolvedValue([]),
+        installAgent: vi.fn(() => vi.fn())
       }
     })
 
@@ -536,7 +539,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         setRole,
         getUserName: vi.fn().mockResolvedValue(null),
         setUserName: vi.fn().mockResolvedValue(undefined),
-        roleActions: vi.fn().mockResolvedValue([])
+        roleActions: vi.fn().mockResolvedValue([]),
+        installAgent: vi.fn(() => vi.fn())
       }
     })
 

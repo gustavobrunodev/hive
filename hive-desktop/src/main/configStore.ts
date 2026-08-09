@@ -4,15 +4,42 @@ import { join } from 'path'
 /**
  * The user's custom shortcut selection (shortcut-customization): which
  * workspace skills appear as workflow shortcuts and which specialist agents
- * appear as persona shortcuts — both in the "O que você quer fazer hoje?"
- * hero and the composer's shortcut strip. Arrays hold BMAD skill names in
- * the user's selection order (toggling appends, so order is meaningful).
- * `null` in `Config.shortcuts` = never customized → the role's defaults.
+ * appear as persona shortcuts. Arrays hold BMAD skill names in the user's
+ * selection order (toggling appends, so order is meaningful). `null` for a
+ * scope = never customized → the role's defaults for that scope.
  */
 export interface ShortcutPrefs {
   skills: string[]
   agents: string[]
 }
+
+/**
+ * Where a shortcut lives (shortcut-scopes). The two moments are different
+ * jobs, so they get different sets:
+ *  - `start` — the "O que você quer fazer hoje?" hero, before the first
+ *    message: how a conversation *begins*.
+ *  - `during` — the strip docked above the composer inside a live
+ *    conversation: what you reach for *mid-thread*.
+ */
+export type ShortcutScope = 'start' | 'during'
+
+/** The closed set of scopes, in display order. */
+export const SHORTCUT_SCOPES: readonly ShortcutScope[] = ['start', 'during']
+
+/** Whether a raw string names a valid scope (guards the IPC boundary). */
+export function isShortcutScope(value: unknown): value is ShortcutScope {
+  return typeof value === 'string' && (SHORTCUT_SCOPES as readonly string[]).includes(value)
+}
+
+/**
+ * Both scopes' selections. `null` in a scope means "never customized" — that
+ * scope falls back to the role's defaults, independently of the other one, so
+ * customizing the hero never silently freezes the in-conversation strip.
+ */
+export type ShortcutSettings = Record<ShortcutScope, ShortcutPrefs | null>
+
+/** Neither scope customized — the shape a fresh install (and a reset) has. */
+export const EMPTY_SHORTCUT_SETTINGS: ShortcutSettings = { start: null, during: null }
 
 /**
  * Persisted app configuration (R2.2, R3.5). No secrets — agent CLIs manage
@@ -45,10 +72,16 @@ export interface Config {
   // BMAD install form, editable any time in the profile sheet. `null` until
   // first provided; display-only (greetings), never an identifier.
   userName: string | null
-  // Global custom shortcut selection (shortcut-customization). `null` until
-  // the user first customizes — role defaults apply then, and "Restaurar
-  // padrão do papel" writes `null` back.
-  shortcuts: ShortcutPrefs | null
+  // Global custom shortcut selection, per scope (shortcut-scopes). A scope is
+  // `null` until the user first customizes it — role defaults apply then, and
+  // "Restaurar padrão do papel" writes `null` back for that scope alone.
+  //
+  // Migration: a config written before the scope split holds the flat
+  // `{ skills, agents }` shape, which was the *hero* selection also mirrored
+  // into the strip. `sanitizeShortcutSettings` lifts it into `start`, so an
+  // existing customization keeps exactly the shortcuts it had where it had
+  // them, and `during` starts from the role default.
+  shortcuts: ShortcutSettings
   // npm-distribution (ND-R5.4): a version the user explicitly chose to skip
   // from the update notice. `null` until a version is skipped. Checked
   // before announcing an update — a version newer than this one still
@@ -72,7 +105,7 @@ export const DEFAULT_CONFIG: Config = {
   agents: null,
   role: null,
   userName: null,
-  shortcuts: null,
+  shortcuts: EMPTY_SHORTCUT_SETTINGS,
   skippedUpdateVersion: null,
   approvalRules: []
 }
@@ -92,7 +125,7 @@ export function sanitizeAgentList(value: unknown): string[] | null {
 }
 
 /**
- * Normalizes a raw (possibly hand-edited / older-schema) `shortcuts` value:
+ * Normalizes a raw (possibly hand-edited / older-schema) prefs value:
  * non-object → `null`; each list keeps only non-empty strings, deduplicated,
  * preserving order. Exported for the IPC boundary (main/index.ts sanitizes
  * renderer input with the same rule the store applies on read).
@@ -107,6 +140,34 @@ export function sanitizeShortcutPrefs(value: unknown): ShortcutPrefs | null {
     ]
   }
   return { skills: cleanList(raw.skills), agents: cleanList(raw.agents) }
+}
+
+/**
+ * Normalizes a raw `shortcuts` value into the two-scope shape, absorbing every
+ * schema this field has had:
+ *  - `null`/garbage → neither scope customized;
+ *  - the pre-split flat `{ skills, agents }` → lifted into `start` (see
+ *    `Config.shortcuts`);
+ *  - the current `{ start, during }` → each scope sanitized on its own.
+ * Never throws, so a hand-edited config.json can't leak a malformed shape into
+ * the resolver.
+ */
+export function sanitizeShortcutSettings(value: unknown): ShortcutSettings {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+    return { ...EMPTY_SHORTCUT_SETTINGS }
+  }
+  const raw = value as Record<string, unknown>
+  // The legacy shape is recognized by its own keys, not by the absence of the
+  // new ones — a config carrying both (impossible today, cheap to survive)
+  // resolves as the current schema.
+  const scoped = 'start' in raw || 'during' in raw
+  if (!scoped) {
+    return { start: sanitizeShortcutPrefs(raw), during: null }
+  }
+  return {
+    start: sanitizeShortcutPrefs(raw.start),
+    during: sanitizeShortcutPrefs(raw.during)
+  }
 }
 
 const CONFIG_FILE_NAME = 'config.json'
@@ -129,8 +190,8 @@ export interface ConfigStore {
   setRole(id: string): void
   getUserName(): string | null
   setUserName(name: string | null): void
-  getShortcuts(): ShortcutPrefs | null
-  setShortcuts(prefs: ShortcutPrefs | null): void
+  getShortcuts(): ShortcutSettings
+  setShortcuts(scope: ShortcutScope, prefs: ShortcutPrefs | null): void
   getSkippedUpdateVersion(): string | null
   setSkippedUpdateVersion(version: string | null): void
   /** agent-approvals: the standing "Sempre permitir" rules (sanitized). */
@@ -229,10 +290,16 @@ export function createConfigStore(baseDir: string): ConfigStore {
       updateConfig({ userName: trimmed === '' ? null : trimmed })
     },
     // Sanitized on read AND write, so a hand-edited config.json can't leak a
-    // malformed shape into the resolver.
-    getShortcuts: () => sanitizeShortcutPrefs(readConfig().shortcuts),
-    setShortcuts: (prefs: ShortcutPrefs | null) =>
-      updateConfig({ shortcuts: sanitizeShortcutPrefs(prefs) }),
+    // malformed shape into the resolver. Writes are per-scope: setting one
+    // scope re-reads and preserves the other, so the two can never clobber
+    // each other even when both are edited in the same picker session.
+    getShortcuts: () => sanitizeShortcutSettings(readConfig().shortcuts),
+    setShortcuts: (scope: ShortcutScope, prefs: ShortcutPrefs | null) => {
+      const current = readConfig()
+      const settings = sanitizeShortcutSettings(current.shortcuts)
+      settings[scope] = sanitizeShortcutPrefs(prefs)
+      writeConfig({ ...current, shortcuts: settings })
+    },
     getSkippedUpdateVersion: () => readConfig().skippedUpdateVersion,
     setSkippedUpdateVersion: (version: string | null) =>
       updateConfig({ skippedUpdateVersion: version }),

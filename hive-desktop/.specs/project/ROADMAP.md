@@ -565,6 +565,159 @@ restarts (live-only, like the chat's send queue).
 
 ---
 
+## M16 — Shortcut Scopes ✅ Done (2026-08-08)
+
+**Feature:** `shortcut-scopes` · branch `feat/voice-prompt` (continues M13–M15).
+
+Two settings had drifted into the wrong shape. The **role** was both a required
+first-run step and an editable control in the profile sheet — a control over
+something *derived*, since re-picking it silently rewrote the shortcuts the user
+had been working with, from a place where that consequence is invisible. And the
+**shortcuts** were one selection serving two moments that want opposite things:
+the hero, where a broad menu is how a conversation starts, and the strip docked
+over a live conversation, where those same seven launchers are noise.
+
+1. **The role is chosen once (SS-R1)** — `RoleSetup` is unchanged; the profile
+   sheet now states the active role (icon, name, focus line) with no affordance
+   to change it, plus the sentence that says where it was decided. It stays
+   visible because it's what "Padrão do papel" refers to.
+2. **Two independent sets (SS-R2/R3)** — `start` keeps the existing per-role
+   catalog; `during` defaults to `bmad-party-mode` for the PM and to **nothing**
+   for everyone else. Each is customized, badged and restored on its own;
+   `Config.shortcuts` became `{ start, during }` and migrates the pre-split flat
+   shape into `start` on read.
+3. **The picker shows the difference instead of explaining it** — a DS
+   `SegmentedControl` with per-scope counts switches sets, and under it a
+   miniature of the surface the active set lands on: the *real* `.wb-pill` /
+   `.wb-shortcut-chip` classes over a stand-in composer, centered for the hero
+   and docked-left for the strip. The empty state teaches too ("a barra acima
+   do campo de mensagem some").
+4. **A third way in (SS-R4)** — the profile sheet gained a "Seus atalhos"
+   section: both sets with live counts, and one button into the picker. It
+   closes the sheet on the way (a dialog over a sheet traps focus twice, and
+   the live hero/strip behind the picker is its second preview).
+5. **An empty in-conversation set renders no strip (SS-R5)** — not even the
+   customize control. Mid-thread chrome is earned, not assumed.
+
+**New in the app:** `PartyModeIcon`, and an app-level `.hds-badge-muted`
+override in `assets/theme.css` — the DS ships a hardcoded bordo fill that
+measures 2.35:1 against its own text on a white dialog (STATE.md **L-SS-3**).
+
+**Exit criteria and the verdict on each (2026-08-08):**
+
+| Criterion | Met? |
+| --- | --- |
+| SS-R1–R5 implemented and demonstrated | **Yes.** Driven in the served renderer across all three themes: both scopes of the picker, the empty-set state, the profile sheet, and the strip in a real conversation. |
+| The role has no write path outside onboarding | **Yes.** `onRoleChange` is gone from `App`, `WorkUI` and `ProfileSheet`; the sheet's own test asserts there is no radiogroup and no second role on screen. |
+| The scopes never write over each other | **Yes.** Gated at both layers — `configStore.test.ts` (per-scope writes preserve the other), `roleCatalog.test.ts` (per-scope resolution), `ShortcutCustomizer.test.ts` (a toggle writes the visible scope and never the other). |
+| Old configs keep their shortcuts | **Yes.** `sanitizeShortcutSettings` lifts the flat pre-split shape into `start`, with a test naming that migration. |
+| No regression against the baseline | **Yes.** `npm run verify` green: **2499 tests / 157 files** (was 2401 / 155), 0 lint errors. |
+| Visual pass, all three themes | **Yes.** `tools/visual/shortcuts-pass.mjs` sweeps 22 selectors × 5 states × 3 themes, all PASS — after fixing 4 failures, 2 of them pre-existing (STATE.md **L-SS-1/2/4**). Now gated in `e2e/contrast.spec.ts` against the real app. |
+
+**Deferred:** reordering shortcuts inside a set (selection order is still append
+order), a third scope, and per-workspace sets (prefs stay global, as before).
+
+## M17 — Agent Onboarding ✅ Done (2026-08-09)
+
+**Feature:** `agent-onboarding` · branch `feat/voice-prompt` (continues M13–M16).
+
+One user report, two causes. *"Instalei o Claude Code CLI, fechei e abri o app,
+e ele continua dizendo que não está instalado"* — and, separately, *"a
+experiência de escolha de agentes na inicialização não está legal"*. The first
+was a process-execution bug in three parts; the second was a screen that could
+only say "install this yourself, in a terminal" — the one place where G1
+("zero-terminal BMAD") wasn't true, on the very first screen a new user sees.
+
+1. **The app looks where CLIs actually are (AO-R1)** — `cliEnv.ts` widens
+   `PATH` with the login shell's own value plus every well-known install
+   prefix (nvm versions, `~/.local/bin`, volta/bun/deno/yarn, Homebrew, and —
+   measured, not guessed — the Windows npm prefix seen from WSL). On Windows
+   it resolves `PATHEXT`, skipping npm's extension-less POSIX shim that
+   `CreateProcess` cannot run, and routes a resolved `.cmd` through
+   `cmd.exe /d /s /c` with both of cmd's parsing passes escaped. Applied in
+   `createProcessRunner`, so probes, turns, git, BMAD and the MCP probe all
+   inherit it.
+2. **Detection is repeatable and evidenced (AO-R2)** — `detect(refresh)`
+   re-probes; the picker has a scan strip that says what the last sweep found
+   and a "Procurar de novo" control. A detected agent shows the command that
+   answered and its version (`claude` · `2.1.226 (Claude Code)`) instead of a
+   green dot the user has to take on faith.
+3. **Hive installs the agent for you (AO-R3)** — `agentInstaller.ts` runs the
+   vendor's own `npm install -g <package>` from the card, streams npm's output
+   into the row, and **re-probes** before calling it done. Failures are
+   diagnosed, not dumped: `npm-missing`, `permission`, `network`,
+   `not-detected`, plus npm's last lines behind a disclosure, with retry and
+   "copiar comando".
+4. **Honest about what it can't do (AO-R4)** — Devin needs an account and a
+   browser login, so its row keeps the docs link and gains no button Hive
+   couldn't honour.
+5. **The screen is a decision, not a report (AO-R5)** — three groups in the
+   order a user asks the questions: *Prontos para usar* → *O Hive instala para
+   você* → *Instalação pelo fornecedor*. The empty state teaches the way out
+   instead of announcing the failure.
+
+**Exit criteria and the verdict on each (2026-08-09):**
+
+| Criterion | Met? |
+| --- | --- |
+| AO-R1–R6 implemented and demonstrated | **Yes.** Driven in the served renderer across all three themes: nothing-detected, install running, install failed (with npm's output open), installed-and-adopted, and a re-scan that finds one. |
+| The reported bug is actually fixed | **Yes**, and measured on the machine that reported it: the real `detect()` under `PATH=/usr/local/bin:/usr/bin:/bin` returned `available:false` for all three agents before, and `claude-cli available:true, version "2.1.226 (Claude Code)"` after. |
+| Detection and execution can't disagree | **Yes.** The repair is in `ProcessRunner`, not the probe; the installer trusts `refreshOne()` rather than npm's exit code (`not-detected` is its own reason). |
+| No regression against the baseline | **Yes.** `npm run verify` green: **2548 tests / 159 files** (was 2499 / 157), 0 lint errors, coverage gates passing. |
+| Visual pass, all three themes | **Yes.** `tools/visual/agent-setup.mjs` sweeps 24 selectors × 5 states × 3 themes, all PASS. It found two defects no test could: an inherited `align-items: center` centring the install block, and a scan strip wrapping its own control onto a second line. |
+| The new surface is gated | **Yes.** `e2e/contrast.spec.ts` opens the picker in the profile sheet and sweeps it in all three themes (3/3 green against the real app). |
+
+**Deferred:** installing an agent from anywhere but the picker; a package
+manager other than npm; and driving the *transient* install states in the app
+E2E — the button runs a real global install, so those two states are measured
+by the visual probe instead (STATE.md **L-AO-7**).
+
+---
+
+## M18 — Design Studio 📝 Planned (2026-08-09)
+
+**Feature:** `design-studio` · **Contrato canônico:**
+`_bmad-output/specs/spec-design-studio/` (SPEC + AD-1..AD-11) · **Plano:**
+`.specs/features/design-studio/` (spec/context/design/tasks)
+
+Uma Spec de UX do fluxo `bmad-ux` deixa de ser só texto: abre como aba
+`design-studio` no painel viewer, vira Telas navegáveis renderizadas com web
+components reais (**Web Awesome 3.11**, MIT), editáveis por Inspetor, Árvore de
+Componentes e um Chat de Iteração Visual — e sai como Bundle HTML autocontido
+para o Figma Agent. O trabalho de Figma passa a começar *depois* da ideia
+pressão-testada.
+
+**A moldura, travada pela arquitetura:** documento command-sourced
+(`Add/Remove/Move/SetProp` num reducer puro, undo por replay-from-origin) atrás
+de um `DesignSystemAdapter` — trocar de DS é configuração, não reescrita.
+Preview em iframe `sandbox="allow-scripts"` sem `allow-same-origin`, servido por
+protocolo privilegiado `hive-studio://` com CSP própria (`connect-src 'none'`).
+
+**As três decisões do usuário (2026-08-09):** Bundle = HTML **vivo** (shadow DOM
+intacto); escopo = **M18 inteira** (CAP-1..15) em 7 fases; layout = **Bancada**
+(palco central + Modo Foco).
+
+**O que a pesquisa de planejamento já corrigiu** — dois achados que teriam
+virado bug tarde:
+1. O pacote publica `custom-elements.json` com 70 elementos e os **tipos** de
+   cada prop → o catálogo é **derivado**, não escrito à mão, e o Inspetor ganha
+   o controle certo por prop.
+2. `dist/webawesome.js` é um barrel de 1,3 KB (não um bundle) e `wa-icon` busca
+   ícones num **CDN** — sob `connect-src 'none'` todo ícone sumiria em silêncio.
+   Mitigados por um passo de build (medido: 774 KB JS + 56 KB CSS) e por uma
+   biblioteca de ícones local.
+
+**Escopo:** 52 tarefas em 7 fases — F1 documento/undo · F2 adaptador+catálogo ·
+F3 protocolo+isolamento · F4 a Bancada · F5 Inspetor+Árvore · F6 Skill+Chat ·
+F7 export+provas.
+
+**Exit criteria:** uma Spec real abre, gera, edita e exporta sem terminal;
+`verify` verde sem regressão contra o baseline de 2548 testes; guards de
+fronteira (só `dsAdapter/` importa o DS; só o reducer muta o documento); passe
+visual nos dois temas; Bundle abre sem rede idêntico ao Preview.
+
+---
+
 ## Dependency Graph
 
 ```

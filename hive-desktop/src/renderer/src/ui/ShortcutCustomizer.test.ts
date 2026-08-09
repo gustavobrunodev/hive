@@ -4,14 +4,14 @@ import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 /**
- * shortcut-customization — the "Personalizar atalhos" picker.
+ * shortcut-customization + shortcut-scopes — the "Personalizar atalhos" picker.
  *
  * The DS is mocked with trivial stand-ins (the repo's Chat.test.ts /
  * WorkUI.test.ts convention): cmdk's own filtering/keyboard mechanics are the
  * DS Command's concern, covered by its own suite — this file proves the
- * *selection* contract: role defaults pre-checked, toggles persisted
- * immediately (live preview via `onChanged`), and "Restaurar padrão do papel"
- * dropping the customization.
+ * *selection* contract: role defaults pre-checked per scope, toggles persisted
+ * immediately to the visible scope only (live preview via `onChanged`), and
+ * "Restaurar padrão do papel" dropping that scope's customization alone.
  */
 
 vi.mock('@hive/design-system', () => ({
@@ -27,6 +27,36 @@ vi.mock('@hive/design-system', () => ({
     createElement('span', { 'data-variant': variant, ...rest }, children),
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', rest, children),
+  // Enough of the real radiogroup to drive the scope switch: one button per
+  // option, labelled "<label> <count>" so a test can click it by name.
+  SegmentedControl: ({
+    options,
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    options: { id: string; label: string; count?: number }[]
+    value?: string
+    onChange?: (id: string) => void
+    ariaLabel?: string
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'aria-label': ariaLabel },
+      options.map((option) =>
+        createElement(
+          'button',
+          {
+            key: option.id,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': option.id === value,
+            onClick: () => onChange?.(option.id)
+          },
+          `${option.label} ${option.count ?? ''}`.trim()
+        )
+      )
+    ),
   Command: ({
     children,
     label,
@@ -124,31 +154,46 @@ const PM_DEFAULTS = [
   }
 ]
 
-function mockHive(options: { prefs?: { skills: string[]; agents: string[] } | null } = {}): {
+/** The PM's in-conversation default — the only one in the catalog. */
+const PM_DURING_DEFAULTS = [
+  { key: 'party-mode', kind: 'workflow', command: { key: 'bmad-spec', prompt: '/bmad-spec' } }
+]
+
+type Prefs = { skills: string[]; agents: string[] } | null
+
+function mockHive(options: { settings?: { start: Prefs; during: Prefs } } = {}): {
   set: ReturnType<typeof vi.fn>
 } {
   const set = vi.fn().mockResolvedValue(undefined)
   vi.stubGlobal('hive', {
     shortcuts: {
       catalog: vi.fn().mockResolvedValue(CATALOG),
-      get: vi.fn().mockResolvedValue(options.prefs ?? null),
+      get: vi.fn().mockResolvedValue(options.settings ?? { start: null, during: null }),
       set,
-      actions: vi.fn().mockResolvedValue([])
+      actions: vi.fn().mockResolvedValue({ start: [], during: [] })
     },
     profile: {
-      roleActions: vi.fn().mockResolvedValue(PM_DEFAULTS)
+      roleActions: vi
+        .fn()
+        .mockImplementation(async (_role: string, scope?: string) =>
+          scope === 'during' ? PM_DURING_DEFAULTS : PM_DEFAULTS
+        )
     }
   } as unknown as typeof window.hive)
   return { set }
 }
 
-function renderCustomizer(onChanged = vi.fn()): { onChanged: ReturnType<typeof vi.fn> } {
+function renderCustomizer(
+  onChanged = vi.fn(),
+  initialScope?: 'start' | 'during'
+): { onChanged: ReturnType<typeof vi.fn> } {
   render(
     createElement(ShortcutCustomizer, {
       open: true,
       onOpenChange: vi.fn(),
       workspace: '/ws',
       role: 'pm',
+      initialScope,
       onChanged
     })
   )
@@ -197,7 +242,7 @@ describe('ShortcutCustomizer', () => {
       await screen.findByRole('button', { name: 'Alternar atalho: Conversar com Murat' })
     )
 
-    expect(set).toHaveBeenCalledWith({
+    expect(set).toHaveBeenCalledWith('start', {
       skills: ['bmad-prd'],
       agents: ['bmad-agent-pm', 'bmad-tea']
     })
@@ -207,23 +252,25 @@ describe('ShortcutCustomizer', () => {
 
     // Toggling an already-on row removes it from the persisted selection.
     fireEvent.click(screen.getByRole('button', { name: 'Alternar atalho: Criar um PRD' }))
-    expect(set).toHaveBeenLastCalledWith({
+    expect(set).toHaveBeenLastCalledWith('start', {
       skills: [],
       agents: ['bmad-agent-pm', 'bmad-tea']
     })
   })
 
   it('starts from the stored selection when one exists, and restores the role defaults', async () => {
-    const { set } = mockHive({ prefs: { skills: ['bmad-spec'], agents: [] } })
+    const { set } = mockHive({
+      settings: { start: { skills: ['bmad-spec'], agents: [] }, during: null }
+    })
     const { onChanged } = renderCustomizer()
 
     const specRow = await screen.findByRole('button', { name: 'Alternar atalho: Criar uma spec' })
     expect(specRow.getAttribute('data-checked')).toBe('true')
     expect(screen.getByText('Personalizado')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restaurar padrão do papel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar padrão' }))
 
-    await waitFor(() => expect(set).toHaveBeenCalledWith(null))
+    await waitFor(() => expect(set).toHaveBeenCalledWith('start', null))
     // Back to the role defaults: badge and checked rows flip.
     await screen.findByText('Padrão do papel')
     expect(
@@ -266,7 +313,7 @@ describe('ShortcutCustomizer', () => {
     // The creation is a toggleable row like any other, labeled by its own name.
     expect(screen.getByRole('button', { name: 'Alternar atalho: Revisor de Notas' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Criar skills no Estúdio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Criar no Estúdio' }))
     expect(onOpenStudio).toHaveBeenCalled()
   })
 
@@ -280,6 +327,94 @@ describe('ShortcutCustomizer', () => {
         'Nenhuma skill do BMAD foi encontrada neste workspace. Instale ou atualize o BMAD para personalizar os atalhos.'
       )
     ).toBeTruthy()
+  })
+})
+
+// shortcut-scopes: two independent sets behind one segmented switch.
+describe('ShortcutCustomizer — scopes', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('switches sets, each pre-checked from its own role defaults', async () => {
+    mockHive()
+    renderCustomizer()
+
+    // Start: the PM's hero defaults (prd + John), counted on the segment.
+    await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+    expect(screen.getByRole('radio', { name: 'Para iniciar 2' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    expect(screen.getByText(/Na tela inicial, antes da primeira mensagem/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Durante a conversa 1' }))
+
+    // During: only the in-conversation default is checked now.
+    expect(screen.getByText(/Acima do campo de mensagem/)).toBeTruthy()
+    expect(
+      screen
+        .getByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+        .getAttribute('data-checked')
+    ).toBeNull()
+    expect(
+      screen
+        .getByRole('button', { name: 'Alternar atalho: Criar uma spec' })
+        .getAttribute('data-checked')
+    ).toBe('true')
+    expect(screen.getByText('1 atalho selecionado')).toBeTruthy()
+  })
+
+  it('persists a toggle to the visible scope only', async () => {
+    const { set } = mockHive()
+    renderCustomizer(vi.fn(), 'during')
+
+    await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+    fireEvent.click(screen.getByRole('button', { name: 'Alternar atalho: Criar um PRD' }))
+
+    expect(set).toHaveBeenCalledWith('during', {
+      skills: ['bmad-spec', 'bmad-prd'],
+      agents: []
+    })
+    // The other set was never written — the whole point of the split.
+    expect(set).not.toHaveBeenCalledWith('start', expect.anything())
+  })
+
+  it('opens on the scope the caller asked for', async () => {
+    mockHive()
+    renderCustomizer(vi.fn(), 'during')
+
+    await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+    expect(
+      screen.getByRole('radio', { name: 'Durante a conversa 1' }).getAttribute('aria-checked')
+    ).toBe('true')
+  })
+
+  it('badges each scope on its own state, not the other one', async () => {
+    mockHive({ settings: { start: { skills: ['bmad-spec'], agents: [] }, during: null } })
+    renderCustomizer()
+
+    await screen.findByRole('button', { name: 'Alternar atalho: Criar um PRD' })
+    expect(screen.getByText('Personalizado')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Durante a conversa 1' }))
+    expect(screen.getByText('Padrão do papel')).toBeTruthy()
+    // Nothing to restore on an untouched scope.
+    expect(screen.queryByRole('button', { name: 'Restaurar padrão' })).toBeNull()
+  })
+
+  it('previews the selection where it will land, and teaches an empty set', async () => {
+    mockHive({ settings: { start: { skills: [], agents: [] }, during: null } })
+    renderCustomizer()
+
+    // Empty start set → the hero preview says what that means.
+    expect(await screen.findByText(/a tela inicial fica só com o campo de mensagem/)).toBeTruthy()
+
+    // The during set has its default, so the preview draws it as a chip.
+    fireEvent.click(screen.getByRole('radio', { name: 'Durante a conversa 1' }))
+    const preview = screen.getByLabelText('Prévia dos atalhos: Durante a conversa')
+    expect(preview.textContent).toContain('Criar uma spec')
   })
 })
 

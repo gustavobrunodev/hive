@@ -650,6 +650,162 @@ Updated as work progresses. Load at start of every session.
   (it rides the existing `agent:event` stream). One additive design-system prop
   (`PromptInput.sendIcon`). (2026-08-06)
 
+- **D28 — Feature `shortcut-scopes` (new milestone M16).** Built 2026-08-08 from
+  two user requests: the role becomes a **first-run-only** setting (no longer
+  editable in the profile sheet), and shortcuts split into **two independent
+  sets** — "para iniciar" (the hero) and "durante a conversa" (the strip above
+  the composer), the latter defaulting to `bmad-party-mode` for the PM and to
+  **nothing** for every other role. Full spec + gray-area decisions in
+  `.specs/features/shortcut-scopes/spec.md`; the load-bearing ones:
+  - **(a) The role stops being a control the moment it stops being safe to
+    change.** It decides two derived sets, and re-picking it in the sheet
+    rewrote both from a place where that consequence is invisible. It stays in
+    the sheet as **read-only context** (it's what "Padrão do papel" refers to),
+    with the sentence that says where it was decided, and the sheet sends
+    anyone who wants different shortcuts to the thing that actually changes
+    them. `App` no longer carries an `onRoleChange` at all.
+  - **(b) `Config.shortcuts` becomes `{ start, during }` and migrates on read.**
+    The pre-split flat `{ skills, agents }` was the hero selection, so it lifts
+    into `start`; `during` starts from the role default. `shortcuts:set` is
+    scoped and **drops an unknown scope** rather than defaulting — writing the
+    wrong set is worse than writing none. `shortcuts:actions` stays unscoped and
+    returns both, because the two surfaces always render together.
+  - **(c) Two sets is one concept more than a picker carries for free, so the
+    picker shows it instead of explaining it.** A DS `SegmentedControl` (with
+    per-scope counts) switches sets; under it, a miniature of the surface the
+    active set lands on, painted with the *real* chip classes over a stand-in
+    composer — centered for the hero, docked-left for the strip. The empty state
+    is part of the lesson ("a barra acima do campo de mensagem some").
+  - **(d) An empty `during` set renders no strip at all**, not even the
+    customize control. Most roles ship none; a permanent "configure me"
+    affordance over every conversation is chrome advertising itself. The two
+    always-reachable ways in are the hero pill and the profile sheet.
+
+  Main + preload + renderer; **no new IPC channel** (the three `shortcuts:*`
+  handlers changed shape). One new app-level DS override (`.hds-badge-muted`,
+  see Lessons). (2026-08-08)
+
+## Lessons (agent-onboarding, 2026-08-09)
+
+M17 shipped on `feat/voice-prompt`. `npm run verify` green: **2548 tests /
+159 files** (from 2499 / 157), 0 lint errors, every coverage gate passing.
+Visual pass: 24 selectors x 5 states x 3 themes, all PASS. E2E contrast:
+3/3 new tests green against the real Electron app.
+
+- **L-AO-1 — the report was "detection is flaky"; it was three separate bugs,
+  none of them flaky.** "I installed the Claude Code CLI, restarted Hive, and
+  it still says it isn't installed" reproduced deterministically once each
+  cause was named: (a) a GUI-launched app inherits the session `PATH`, not the
+  login shell's — measured here, `PATH=/usr/local/bin:/usr/bin:/bin` ENOENTs
+  all three probes on a machine where all three run in a terminal; (b) on
+  Windows — **the only platform with a published installer** —
+  `CreateProcess` appends `.exe` and nothing else, so npm's `claude` /
+  `claude.cmd` / `claude.ps1` trio is invisible; (c) even resolving
+  `claude.cmd` isn't enough, because Node >=18.20/20.12 (CVE-2024-27980)
+  throws `EINVAL` on a `.cmd` without a shell. Three fixes, one module
+  (`cliEnv.ts`), applied once in `createProcessRunner` so git, BMAD, npm and
+  the MCP probe inherit them.
+
+- **L-AO-2 — the login-shell query is necessary and not sufficient.**
+  `$SHELL -lic` recovers whatever the rc files export (nvm, linuxbrew,
+  `~/.local/bin`) and that is genuinely most machines. It did **not** recover
+  the `/mnt/c/...` entries on this WSL box, because WSL's Windows-`PATH`
+  append is done for the interactive session, not by any rc file — and the
+  only `claude` on this machine lives there. Verified by running the real
+  `detect()` under a thin `PATH`: `available:false` before the WSL prefix was
+  added, `available:true` with `2.1.226 (Claude Code)` after. **Ask the shell,
+  then keep looking.**
+
+- **L-AO-3 — never let a probe and a spawn disagree.** The fix went into the
+  `ProcessRunner`, not into the availability probe. Repairing only the probe
+  would have turned "not installed" into a worse bug: a card that says the
+  agent is ready and a first turn that dies at spawn. For the same reason the
+  installer treats `npm` exiting 0 as an *opinion* and re-probes before
+  reporting success (`not-detected` is its own failure reason).
+
+- **L-AO-4 — a second rule for the same file wins on the properties it names
+  and inherits the rest.** The redesigned `.wb-agent-card-install` set
+  `flex-direction: column` over an earlier rule that set `align-items: center`
+  for a row. The old value survived and centred every line of the install
+  block — invisible in unit tests, obvious in the first screenshot. When a
+  rewrite changes a component's axis, delete the old rule instead of layering
+  over it, and re-state `align-items`/`text-align` explicitly under a centred
+  ancestor.
+
+- **L-AO-5 — `page.goto` with only the hash changed does not reload.** The
+  first visual pass reported three themes and measured one: the harness
+  carried the theme in `#dark`/`#light`/`#hive`, and a hash-only navigation is
+  same-document, so the init script never re-ran and the previous sweep's
+  scene leaked forward. A query param (`?theme=`) forces a real navigation.
+  This is the gate-screen counterpart to the M15 lesson about driving the
+  theme through the real control — here there is no control to drive, because
+  "Aparência" lives in the work UI.
+
+- **L-AO-6 — a re-scan reports the machine; it must not overrule the user.**
+  The first cut of "Procurar de novo" folded every detected agent into the
+  enabled set, which silently switched back on an agent the user had just
+  switched off two seconds earlier. Only agents that cross *from missing to
+  found* are adopted now. The general form: an action that refreshes external
+  state may add, but may never revert a choice made on the same screen.
+
+- **L-AO-7 — don't buy a contrast assertion with a global install.** The
+  natural place for the install states was `e2e/contrast.spec.ts`, following
+  the M16 rule. Clicking "Instalar" there runs a real `npm install -g` on
+  whoever's machine runs the suite. The E2E sweeps the picker's resting
+  surface (three card shapes + the scan strip); the transient running/failed
+  states are measured by `tools/visual/agent-setup.mjs`, which drives them
+  from a mocked bridge and needs no npm. The M16 rule stands — a surface that
+  appears on demand gets measured in the same commit — but *which* harness
+  measures it depends on what pressing the button costs.
+
+## Lessons (shortcut-scopes, 2026-08-08)
+
+M16 shipped on `feat/voice-prompt`. `npm run verify` green: **2499 tests /
+157 files** (from 2401 / 155), 0 lint errors, every coverage gate passing.
+E2E contrast: 9/9 across the three themes.
+
+- **L-SS-1 — a surface that only appears on demand is where contrast defects
+  survive.** `e2e/contrast.spec.ts` sweeps every visible text node, which is
+  exactly why it had never seen the shortcut picker or the profile sheet: both
+  are closed in an idle work UI. Opening them first (the shape the dictation
+  test already used) found **four** real failures on the first run, two of them
+  *pre-existing* and nothing to do with this feature — `PADRÃO` on an enabled
+  agent card at 3.56:1 (hive) and "Como instalar" at 4.05:1. The rule this
+  generalizes: when you add a dialog or a sheet, add it to the sweep in the
+  same commit, or nobody measures it until a human squints at it.
+- **L-SS-2 — `--faint` is still not a text role, and it will keep trying to
+  be.** Third milestone in a row (M12, M12.1, M14's L-TI-1). This time it was
+  the picker's group headings (4.18:1) and the profile's "Nenhum" count
+  (4.18:1). Both wanted to be *quieter*, and both got there by weight and size
+  instead — the empty count is `--muted` at weight 500, not `--faint` at 650.
+- **L-SS-3 — a DS component can be broken in exactly one theme, and the token
+  layer is where to fix it from the app.** `.hds-badge-muted` ships a hardcoded
+  `rgba(38, 10, 18, 0.4)` — the brand's bordo at 40%, correct on the marketing
+  site's bordo ledger and a mid-gray fill over a white dialog, where its own
+  `--muted` text measures **2.35:1**. Fixed in `assets/theme.css` (an
+  ink-derived `color-mix`, loaded after `ds-bundle.css`) rather than in the DS,
+  because the component's dark rendering is protected by DESIGN.md's
+  Dark-Truth Rule and the app is the consumer that needs it theme-resolving.
+  App-wide fix, zero blast radius on the marketing site.
+- **L-SS-4 — coral text is safe on `--bg` and unsafe on a tint.** Both
+  pre-existing failures were `--accent` sitting on a surface that had *already*
+  been tinted with the same accent; the ratios compound downward. The DS's
+  `SegmentedControl` had documented the fix a milestone earlier and nobody had
+  generalized it: an **opaque** tint carries the meaning, `--ink` carries the
+  text. Applied to `.wb-agent-card-default`; `.wb-agent-install-link` kept its
+  coral border and arrow and moved only the 12px label to ink.
+- **L-SS-5 — measure the footer, don't estimate it.** The picker's footer gained
+  a per-scope "Restaurar padrão do papel" and started wrapping. Two rounds of
+  arithmetic-by-eye (shorten the studio link, widen the dialog 640→680) both
+  missed by single-digit pixels; one `getBoundingClientRect` sweep gave
+  164+138+209+100 against 632 of content and settled it in one shot.
+- **L-SS-6 — the `git stash` warning from L-TI-4 is real, and I did it anyway.**
+  Answering "did I break these two E2E specs?" needed a baseline, and `git
+  stash push -u` was reached for out of habit. It survived (the pop was clean)
+  but it briefly emptied a working tree holding ~25 modified files mid-feature,
+  and the answer — both specs fail identically on the baseline — was available
+  from `git worktree add` at the same cost and none of the risk.
+
 ## Lessons (mcp-logs, 2026-08-07)
 
 M15 shipped on `feat/voice-prompt`. `npm run verify` green: **2401 tests /

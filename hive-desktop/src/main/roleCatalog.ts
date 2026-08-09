@@ -1,5 +1,5 @@
 import type { WorkflowCommand } from './agentAdapter'
-import type { ShortcutPrefs } from './configStore'
+import type { ShortcutScope, ShortcutSettings } from './configStore'
 import type { WorkspaceSkill } from './workflowCatalog'
 
 /**
@@ -50,7 +50,16 @@ export interface RoleDef {
   id: RoleId
   /** The role's BMAD specialist agent skill (for the persona action). */
   personaSkill?: string
+  /** Defaults for the `start` scope — the hero, before the first message. */
   actions: readonly RoleActionDef[]
+  /**
+   * Defaults for the `during` scope — the strip above the composer inside a
+   * live conversation (shortcut-scopes). Deliberately near-empty: mid-thread,
+   * a row of workflow launchers is noise the user did not ask for, so only a
+   * role with a genuinely conversational move gets one (today: the PM's
+   * party mode). Omitted = the strip starts clean and the user fills it.
+   */
+  conversation?: readonly RoleActionDef[]
 }
 
 /** A role action resolved for the renderer: everything it needs to render
@@ -93,7 +102,12 @@ export const ROLE_CATALOG: Record<RoleId, RoleDef> = {
       workflow('epics-stories', 'bmad-create-epics-and-stories'),
       workflow('story', 'bmad-create-story'),
       persona('persona-pm', 'bmad-agent-pm')
-    ]
+    ],
+    // The one default in-conversation shortcut in the catalog: a PM's move
+    // mid-thread is to pull the rest of the squad into the discussion, which
+    // is exactly what party mode does — it takes the conversation already on
+    // screen and opens it to the other agents.
+    conversation: [workflow('party-mode', 'bmad-party-mode')]
   },
   'tech-lead': {
     id: 'tech-lead',
@@ -151,13 +165,18 @@ export function normalizeRole(value: string | null | undefined): RoleId {
 }
 
 /**
- * Resolves a role's ordered actions into the render+launch shape the renderer
- * consumes over IPC (RP-R3.2). Each action's `command` feeds the existing
- * `agent.runWorkflow` path unchanged.
+ * Resolves a role's ordered defaults for one scope into the render+launch
+ * shape the renderer consumes over IPC (RP-R3.2). Each action's `command`
+ * feeds the existing `agent.runWorkflow` path unchanged. Defaults to the
+ * `start` scope — the hero set every caller meant before scopes existed.
  */
-export function resolveRoleActions(role: string | null | undefined): ResolvedRoleAction[] {
+export function resolveRoleActions(
+  role: string | null | undefined,
+  scope: ShortcutScope = 'start'
+): ResolvedRoleAction[] {
   const def = ROLE_CATALOG[normalizeRole(role)]
-  return def.actions.map((action) => ({
+  const actions = scope === 'during' ? (def.conversation ?? []) : def.actions
+  return actions.map((action) => ({
     key: action.key,
     kind: action.kind,
     command: { key: action.skill, prompt: action.prompt }
@@ -165,21 +184,23 @@ export function resolveRoleActions(role: string | null | undefined): ResolvedRol
 }
 
 /**
- * Resolves the user's shortcut set (shortcut-customization): the custom
- * selection when one exists, the role defaults otherwise. Custom keys are
- * validated against the workspace catalog — prefs are global but workspaces
- * differ, so a skill not installed here is silently skipped rather than
- * rendered as a dead shortcut. An *empty* catalog (no BMAD metadata at all)
- * means the prefs can't be validated → role defaults, same as `null` prefs.
- * An empty *result* from real prefs is respected: deselecting everything is
- * a legitimate "I want a clean hero" choice.
+ * Resolves one scope's shortcut set (shortcut-customization): that scope's
+ * custom selection when one exists, its role defaults otherwise. Custom keys
+ * are validated against the workspace catalog — prefs are global but
+ * workspaces differ, so a skill not installed here is silently skipped rather
+ * than rendered as a dead shortcut. An *empty* catalog (no BMAD metadata at
+ * all) means the prefs can't be validated → role defaults, same as `null`
+ * prefs. An empty *result* from real prefs is respected: deselecting
+ * everything is a legitimate "I want a clean surface" choice.
  */
 export function resolveShortcuts(
   role: string | null | undefined,
-  prefs: ShortcutPrefs | null,
-  catalog: readonly WorkspaceSkill[]
+  settings: ShortcutSettings | null,
+  catalog: readonly WorkspaceSkill[],
+  scope: ShortcutScope = 'start'
 ): ResolvedRoleAction[] {
-  if (!prefs || catalog.length === 0) return resolveRoleActions(role)
+  const prefs = settings?.[scope] ?? null
+  if (!prefs || catalog.length === 0) return resolveRoleActions(role, scope)
 
   const byKey = new Map(catalog.map((skill) => [skill.key, skill]))
   const pick = (keys: string[], kind: 'workflow' | 'persona'): ResolvedRoleAction[] =>
@@ -200,4 +221,20 @@ export function resolveShortcuts(
     })
 
   return [...pick(prefs.skills, 'workflow'), ...pick(prefs.agents, 'persona')]
+}
+
+/** Both scopes resolved together — one IPC round trip for the two surfaces
+ *  (hero + strip) that always render side by side. */
+export type ResolvedShortcutSets = Record<ShortcutScope, ResolvedRoleAction[]>
+
+/** Resolves every scope at once (see `resolveShortcuts` for the per-scope rules). */
+export function resolveAllShortcuts(
+  role: string | null | undefined,
+  settings: ShortcutSettings | null,
+  catalog: readonly WorkspaceSkill[]
+): ResolvedShortcutSets {
+  return {
+    start: resolveShortcuts(role, settings, catalog, 'start'),
+    during: resolveShortcuts(role, settings, catalog, 'during')
+  }
 }

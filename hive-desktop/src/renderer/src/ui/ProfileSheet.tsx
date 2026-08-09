@@ -8,14 +8,15 @@ import {
   SheetTitle
 } from '@hive/design-system'
 import { roleMeta, t } from '../i18n'
-import { ChoiceGrid, type ChoiceOption } from './ChoiceCard'
 import { AgentPicker, type AgentMeta } from './AgentPicker'
-import { SELECTABLE_ROLE_IDS, roleIcon } from './roleVisuals'
-import { CheckIcon, CompassIcon } from './icons'
+import { roleIcon } from './roleVisuals'
+import type { ShortcutScope } from './ShortcutCustomizer'
+import { ChatBubbleIcon, CheckIcon, CompassIcon, HiveCellIcon, SlidersIcon } from './icons'
 
 interface ProfileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The role chosen at first access — shown as context, never edited here. */
   role: string | null
   /** Enabled agent ids (multi-agent). */
   agents: string[]
@@ -23,7 +24,10 @@ interface ProfileSheetProps {
   defaultAgent: string | null
   /** Display name (install form / here) — greets the user in the hero. */
   userName: string | null
-  onRoleChange: (roleId: string) => void
+  /** shortcut-scopes: how many shortcuts each set currently resolves to. */
+  shortcutCounts?: Record<ShortcutScope, number>
+  /** Opens the "Personalizar atalhos" picker on the given set. */
+  onOpenShortcuts?: (scope: ShortcutScope) => void
   onAgentsChange?: (ids: string[]) => void
   onDefaultAgentChange?: (agentId: string) => void
   onUserNameChange: (name: string) => void
@@ -31,15 +35,49 @@ interface ProfileSheetProps {
   onReplayTour?: () => void
 }
 
+/** Renders the role's icon element (a plain helper, not a per-render component alias — react-hooks/static-components). */
+function roleIconEl(roleId: string): React.JSX.Element {
+  const IconComponent = roleIcon(roleId)
+  return <IconComponent size={18} />
+}
+
+/** One shortcut set's summary row — icon, set name, live count, all quiet. */
+function ShortcutSetRow({
+  icon,
+  label,
+  count
+}: {
+  icon: React.ReactNode
+  label: string
+  count: number
+}): React.JSX.Element {
+  return (
+    <li className="wb-profile-shortcut-row">
+      <span className="wb-profile-shortcut-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="wb-profile-shortcut-label">{label}</span>
+      <span className="wb-profile-shortcut-count" data-empty={count === 0 || undefined}>
+        {count === 0 ? t('profile.shortcutsEmpty') : t('profile.shortcutsCount', count)}
+      </span>
+    </li>
+  )
+}
+
 /**
  * Profile / settings surface (role-personalization RP-R6, agent-selection
  * AG-R3.2) — a right-side `Sheet` (settings keep the work context visible
- * behind them, better than a center modal). Three sections: your **name**
- * (how the app and the agents address you — committed on blur/Enter, with a
- * transient "saved" check), your **role** (updates the rail + intent grid
- * live) and your **agent** (re-binds the chat session), the latter two
- * reusing the `ChoiceGrid` radiogroup in its `list` variant. Changes
- * propagate through lifted state in `App` — no relaunch.
+ * behind them, better than a center modal). Four sections: your **name** (how
+ * the app and the agents address you — committed on blur/Enter, with a
+ * transient "saved" check), your **role**, your **shortcuts** and your
+ * **agent** (re-binds the chat session). Changes propagate through lifted
+ * state in `App` — no relaunch.
+ *
+ * shortcut-scopes: the role is **read-only** here. It is chosen once, at first
+ * access, and its only job afterwards is to seed the two shortcut sets —
+ * re-picking it mid-flight would silently rewrite both, so the sheet shows
+ * which role is active and sends anyone who wants different shortcuts to the
+ * place that actually changes them.
  */
 export function ProfileSheet({
   open,
@@ -48,7 +86,8 @@ export function ProfileSheet({
   agents,
   defaultAgent,
   userName,
-  onRoleChange,
+  shortcutCounts = { start: 0, during: 0 },
+  onOpenShortcuts,
   onAgentsChange = () => {},
   onDefaultAgentChange = () => {},
   onUserNameChange,
@@ -57,6 +96,7 @@ export function ProfileSheet({
   // Detected agent metadata (availability + install hints) — re-probed each
   // time the sheet opens so a CLI the user just installed shows up.
   const [agentMetas, setAgentMetas] = useState<AgentMeta[]>([])
+  const [rescanning, setRescanning] = useState(false)
   // Local draft so typing doesn't spam persistence — committed on blur/Enter.
   const [nameDraft, setNameDraft] = useState(userName ?? '')
   const [nameSaved, setNameSaved] = useState(false)
@@ -98,21 +138,32 @@ export function ProfileSheet({
     setNameSaved(true)
   }
 
-  const roleOptions: ChoiceOption[] = SELECTABLE_ROLE_IDS.map((roleId) => {
-    const meta = roleMeta(roleId)
-    const Icon = roleIcon(roleId)
-    return {
-      id: roleId,
-      icon: <Icon size={20} />,
-      title: meta.name,
-      description: meta.description
-    }
-  })
+  const activeRole = roleMeta(role ?? 'general')
 
   // multi-agent: toggling an agent in the sheet updates the enabled set; the
   // default stays coherent (handled in App's `onAgentsChange`).
   function handleToggleAgent(id: string, next: boolean): void {
     onAgentsChange(next ? [...agents, id] : agents.filter((x) => x !== id))
+  }
+
+  /** AO-R2: re-probe every agent without closing the sheet. */
+  function handleRescanAgents(): void {
+    setRescanning(true)
+    window.hive.profile
+      .agents(true)
+      .then(setAgentMetas)
+      .finally(() => setRescanning(false))
+  }
+
+  /**
+   * AO-R3/AO-R6: an agent installed from the sheet enables itself. Installing
+   * one here is the same act of consent it is during onboarding, and a card
+   * that flipped to "available" while staying switched off would read as the
+   * install having half-worked.
+   */
+  function handleAgentInstalled(agent: AgentMeta): void {
+    setAgentMetas((current) => current.map((entry) => (entry.id === agent.id ? agent : entry)))
+    if (!agents.includes(agent.id)) onAgentsChange([...agents, agent.id])
   }
 
   return (
@@ -151,13 +202,45 @@ export function ProfileSheet({
 
         <div className="wb-profile-section">
           <h3 className="wb-profile-section-label">{t('profile.roleSectionLabel')}</h3>
-          <ChoiceGrid
-            ariaLabel={t('profile.roleSectionLabel')}
-            options={roleOptions}
-            value={role}
-            onChange={onRoleChange}
-            variant="list"
-          />
+          <p className="wb-profile-section-hint">{t('profile.roleLockedHint')}</p>
+          {/* Read-only identity, not a control: no radiogroup, no hover
+              affordance, nothing that invites a click that won't happen. */}
+          <div className="wb-profile-role">
+            <span className="wb-profile-role-icon" aria-hidden="true">
+              {roleIconEl(role ?? 'general')}
+            </span>
+            <span className="wb-profile-role-text">
+              <span className="wb-profile-role-name">{activeRole.name}</span>
+              <span className="wb-profile-role-desc">{activeRole.description}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="wb-profile-section">
+          <h3 className="wb-profile-section-label">{t('profile.shortcutsSectionLabel')}</h3>
+          <p className="wb-profile-section-hint">{t('profile.shortcutsSectionHint')}</p>
+          <ul className="wb-profile-shortcut-sets">
+            <ShortcutSetRow
+              icon={<HiveCellIcon size={14} />}
+              label={t('profile.shortcutsStartLabel')}
+              count={shortcutCounts.start}
+            />
+            <ShortcutSetRow
+              icon={<ChatBubbleIcon size={14} />}
+              label={t('profile.shortcutsDuringLabel')}
+              count={shortcutCounts.during}
+            />
+          </ul>
+          {onOpenShortcuts && (
+            <button
+              type="button"
+              className="wb-profile-shortcut-cta"
+              onClick={() => onOpenShortcuts('start')}
+            >
+              <SlidersIcon size={15} />
+              {t('profile.shortcutsCta')}
+            </button>
+          )}
         </div>
 
         <div className="wb-profile-section">
@@ -170,6 +253,10 @@ export function ProfileSheet({
             onToggle={handleToggleAgent}
             onSetDefault={onDefaultAgentChange}
             onInstall={(url) => void window.hive.openExternal(url)}
+            startInstall={(id, onEvent) => window.hive.profile.installAgent(id, onEvent)}
+            onInstalled={handleAgentInstalled}
+            onRefresh={handleRescanAgents}
+            refreshing={rescanning}
           />
           {agents.length === 0 && (
             <p className="wb-profile-agent-warning" role="alert">

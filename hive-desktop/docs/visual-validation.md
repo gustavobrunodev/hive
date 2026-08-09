@@ -189,7 +189,7 @@ por tamanho e peso.
 
 **E de novo, terceira vez (agent-patch):** o número de linha do patch nasceu em
 `--faint` e mediu **2,95:1** no tema claro. Três módulos diferentes, mesma
-armadilha — o token *parece* certo porque o papel ("metadado, subordinado")
+armadilha — o token _parece_ certo porque o papel ("metadado, subordinado")
 parece certo. A regra que resolve não é sobre papel, é sobre quem lê: **se
 alguém lê o texto, ele é `--muted` ou mais escuro; `--faint` é só para ícone e
 marca inativa.** Hierarquia se carrega por posição, largura e peso — no caso do
@@ -199,7 +199,7 @@ número, a calha estreita alinhada à direita já faz esse trabalho sozinha.
 **não** formam um par. São tints de banner e carregam croma muito diferente
 (0,208 no vermelho contra 0,13 no verde), então na mesma opacidade as remoções
 gritam mais alto que as adições — o que inverte a ênfase de um diff, já que o
-código *novo* é o que se está pedindo para aceitar. Para tingir dois lados que
+código _novo_ é o que se está pedindo para aceitar. Para tingir dois lados que
 precisam ter o mesmo peso, derive do par `--wb-git-added`/`--wb-git-deleted`,
 que é casado por construção.
 
@@ -245,7 +245,7 @@ para empurrar um evento ao vivo.
 Ela nasceu de dois erros que valem mais que a sonda:
 
 **1. Trocar tema por `localStorage` + reload mede o tema do boot três vezes.**
-O init script do `boot.mjs` regrava `hive-desktop-theme` a *cada* navegação, então
+O init script do `boot.mjs` regrava `hive-desktop-theme` a _cada_ navegação, então
 o valor volta ao default antes do React montar. A primeira passada deu PASS nos
 três temas com **seis** falhas de contraste no tema claro na tela. A sonda agora
 dirige o menu "Aparência" do próprio app. Vale para qualquer estado que o
@@ -254,7 +254,7 @@ medindo o default dela mesma.**
 
 **2. Uma sonda que não lê `oklch()` reporta PASS, não erro.** `getComputedStyle`
 devolve `oklch(...)` literal para tokens escritos assim (`--danger-ink`,
-`--success`), e o parser por regex retornava `null` e *pulava* a amostra — em
+`--success`), e o parser por regex retornava `null` e _pulava_ a amostra — em
 silêncio. O texto de erro e os pontos de nível nunca foram medidos. A sonda pinta
 um pixel num canvas e lê de volta, o que resolve qualquer sintaxe de cor que o
 browser aceite. **Amostra pulada e amostra aprovada têm a mesma cara num
@@ -274,3 +274,75 @@ E, de novo, `--faint`: a hora, a categoria e a faixa de sessão foram parar nele
 por serem metadados, e mediram 2,95:1 no claro. Mesma lição do M14 (L-TI-1),
 módulo novo. A regra prática: **`--faint` é para ícone e marca inativa; o que
 alguém lê é `--muted` ou mais escuro.**
+
+## Sonda dos escopos de atalho (M16)
+
+[`tools/visual/shortcuts-pass.mjs`](../tools/visual/shortcuts-pass.mjs) percorre
+as superfícies de `shortcut-scopes` — o picker nos **dois** escopos, o estado de
+conjunto vazio, a folha de perfil e a barra de atalhos dentro de uma conversa —
+nos três temas, medindo 22 seletores por estado e deixando um screenshot por
+estado em `.playwright-mcp/scopes-<estado>-<tema>.png`.
+
+Duas coisas nela valem para a próxima sonda:
+
+**1. Um arquivo por passe, não um por tema.** Cada chamada de
+`browser_run_code_unsafe` roda em contexto próprio, então setar
+`globalThis.HIVE_THEME` numa chamada e rodar o arquivo na seguinte não funciona
+(ver acima). Esta sonda boota **uma vez** e troca de tema pelo menu "Aparência"
+do próprio app dentro do mesmo arquivo, devolvendo os três resultados de uma vez.
+
+**2. O `CommandItem` do design system é `role="option"` (cmdk), não `button`.**
+Nos testes unitários o DS é mockado como `<button>`, então `getByRole('button',
+{ name: 'Alternar atalho: …' })` funciona lá e falha com timeout de 30s aqui.
+No app servido, procure pelo nome acessível
+(`[aria-label="Alternar atalho: …"]`).
+
+**O que ela achou, e a regra que sobrou:** quatro reprovações, **duas
+pré-existentes** e sem relação com a feature — `PADRÃO` do card de agente
+habilitado (3,56:1 no `hive`) e "Como instalar" (4,05:1), ambas coral sobre uma
+superfície _já_ tingida com o mesmo coral. A regra: **coral é seguro sobre
+`--bg` e não é sobre um tint** — a razão compõe para baixo. O conserto é o que o
+`SegmentedControl` do DS já documentava: preenchimento **opaco** carrega o tom,
+`--ink` carrega o texto.
+
+E o corolário de processo, agora também no `HARNESS.md`: superfície que só
+aparece sob demanda (diálogo, sheet, popover) entra no sweep de
+`e2e/contrast.spec.ts` **no mesmo commit** — as duas reprovações do
+`AgentPicker` sobreviveram desde o M9 exatamente por não estarem lá.
+
+## Sonda do picker de agentes (M17)
+
+[`tools/visual/agent-setup.mjs`](../tools/visual/agent-setup.mjs) é a primeira
+que cobre um **gate de primeira execução**. O `boot.mjs` resolve todos os gates
+na hora para cair na work UI, então a tela de escolha de agentes — literalmente
+a primeira que um usuário novo vê — nunca aparecia num screenshot. Esta sonda
+para nela: reporta workspace escolhido e conjunto de agentes habilitados
+**vazio**, que é o que roteia o `App` para `setupAgent`.
+
+Ela percorre cinco estados (nada detectado, instalando, falhou com a saída do
+npm aberta, instalado e adotado, e uma nova varredura que acha algo) nos três
+temas, medindo 24 seletores e deixando `.playwright-mcp/agents-<estado>-<tema>.png`.
+
+Duas coisas dela valem para a próxima:
+
+**1. `page.goto` só com o hash trocado NÃO recarrega.** A primeira versão
+carregava o tema em `#dark`/`#light`/`#hive`; navegação só de hash é
+same-document, então o init script não roda de novo e a cena do tema anterior
+vaza para o próximo. O relatório dizia três temas e media um. Um query param
+(`?theme=`) força navegação de verdade. É a contraparte, para telas de gate, da
+lição do M15 sobre dirigir o tema pelo controle real — aqui não existe controle
+para dirigir, porque o menu "Aparência" vive na work UI.
+
+**2. Uma regra nova para o mesmo seletor vence nas propriedades que nomeia e
+herda o resto.** O `.wb-agent-card-install` redesenhado virou `flex-direction:
+column` por cima de uma regra antiga que era uma linha com `align-items:
+center`. O valor antigo sobreviveu e centralizou cada linha do bloco de
+instalação — invisível em teste unitário, óbvio no primeiro screenshot. Quando
+uma reescrita muda o eixo de um componente, **apague a regra antiga** em vez de
+empilhar, e re-declare `align-items`/`text-align` explicitamente quando o
+ancestral for centralizado.
+
+**O que ela não mede, de propósito:** nada aqui clica em "Instalar" contra o
+app de verdade — isso roda um `npm install -g` global. O `e2e/contrast.spec.ts`
+cobre a superfície em repouso do picker; os estados transitórios ficam aqui,
+onde o bridge é mockado.
