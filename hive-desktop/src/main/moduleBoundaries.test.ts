@@ -241,6 +241,78 @@ export function findDocumentMutations(sourceText: string, filePath: string): Bou
   return violations
 }
 
+/**
+ * design-studio T2.7 / AD-4. Only `designStudio/dsAdapter/` may know which
+ * design system is installed.
+ *
+ * This is the rule the whole module's long-term value rests on: DS-R12 promises
+ * that swapping the DS is configuration, not a rewrite, and that promise is only
+ * worth anything while `@awesome.me/webawesome` appears in exactly one folder.
+ * An import from the Inspector or the exporter is one line, works immediately,
+ * and quietly converts "change a config value" into "audit the codebase" — with
+ * nothing failing until someone actually tries the swap.
+ *
+ * Deliberately blunt: the specifier is the package, in any form (subpath,
+ * type-only, dynamic), from any file outside `dsAdapter/`.
+ */
+const DS_PACKAGES = ['@awesome.me/webawesome', '@fortawesome/fontawesome-free']
+
+const DS_ADAPTER_DIR = `designStudio${sep}dsAdapter${sep}`
+
+function isDesignSystemPackage(specifier: string): boolean {
+  return DS_PACKAGES.some((name) => specifier === name || specifier.startsWith(`${name}/`))
+}
+
+export function findDesignSystemImports(sourceText: string, filePath: string): BoundaryViolation[] {
+  const normalized = filePath.split(/[\\/]/).join(sep)
+  if (normalized.includes(DS_ADAPTER_DIR)) return []
+
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  )
+  const violations: BoundaryViolation[] = []
+
+  function check(node: ts.Node, specifier: string): void {
+    if (!isDesignSystemPackage(specifier)) return
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    violations.push({
+      line: line + 1,
+      message:
+        `imports the design system package ('${specifier}') outside ` +
+        `designStudio/dsAdapter/ (AD-4). Ask the DesignSystemAdapter port instead — ` +
+        `catalog() for what exists, validate() for what is allowed. A direct import ` +
+        `is what turns "swap the DS in config" (DS-R12) back into a rewrite.`
+    })
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      check(node, node.moduleSpecifier.text)
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      check(node, node.moduleSpecifier.text)
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length > 0 &&
+      ts.isStringLiteral(node.arguments[0])
+    ) {
+      check(node, node.arguments[0].text)
+    }
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  return violations
+}
+
 function collectSourceFiles(dir: string): string[] {
   const files: string[] = []
   for (const entry of readdirSync(dir)) {
@@ -467,6 +539,91 @@ describe('the screen document is only mutated by its reducer', () => {
     const allViolations = files.flatMap((absolutePath) => {
       const filePath = relative(packageRoot, absolutePath)
       return findDocumentMutations(readFileSync(absolutePath, 'utf-8'), filePath).map(
+        (v) => `${filePath}:${v.line} — ${v.message}`
+      )
+    })
+
+    expect(allViolations).toEqual([])
+  })
+})
+
+/**
+ * design-studio T2.7 / AD-4. `dsAdapter/` is the only folder that may name the
+ * design system package.
+ */
+describe('only dsAdapter/ knows which design system is installed', () => {
+  it('flags a value import of the DS package from a renderer surface', () => {
+    const violations = findDesignSystemImports(
+      `import '@awesome.me/webawesome/dist/components/button/button.js'`,
+      'src/renderer/src/designStudio/Inspector.tsx'
+    )
+    expect(violations).toHaveLength(1)
+    expect(violations[0].message).toContain('DesignSystemAdapter port')
+  })
+
+  it('flags a type-only import and a dynamic one just as hard', () => {
+    expect(
+      findDesignSystemImports(
+        `import type { WaButton } from '@awesome.me/webawesome'`,
+        'src/main/designStudio/exportBundle.ts'
+      )
+    ).toHaveLength(1)
+    expect(
+      findDesignSystemImports(
+        `const wa = await import('@awesome.me/webawesome')`,
+        'src/main/designStudio/exportBundle.ts'
+      )
+    ).toHaveLength(1)
+    expect(
+      findDesignSystemImports(
+        `export { registerIconLibrary } from '@awesome.me/webawesome'`,
+        'src/preview/receiver.ts'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('flags the icon package too — it is the same coupling by another name', () => {
+    expect(
+      findDesignSystemImports(
+        `import '@fortawesome/fontawesome-free/css/all.css'`,
+        'src/renderer/src/designStudio/StagePane.tsx'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('allows it inside dsAdapter/, including that folder’s tests', () => {
+    expect(
+      findDesignSystemImports(
+        `import { registerIconLibrary } from '@awesome.me/webawesome'`,
+        'src/main/designStudio/dsAdapter/webAwesomeAdapter.ts'
+      )
+    ).toEqual([])
+    expect(
+      findDesignSystemImports(
+        `import '@awesome.me/webawesome'`,
+        'src/main/designStudio/dsAdapter/webAwesomeAdapter.test.ts'
+      )
+    ).toEqual([])
+  })
+
+  it('leaves other packages and a similarly named one alone', () => {
+    expect(
+      findDesignSystemImports(
+        `import { Button } from '@hive/design-system'
+         import x from '@awesome.me/webawesome-extras'`,
+        'src/renderer/src/designStudio/Inspector.tsx'
+      )
+    ).toEqual([])
+  })
+
+  it('no file outside dsAdapter/ imports the design system package', () => {
+    const packageRoot = resolve(__dirname, '..', '..')
+    const files = collectSourceFiles(join(packageRoot, 'src'))
+    expect(files.length).toBeGreaterThan(0)
+
+    const allViolations = files.flatMap((absolutePath) => {
+      const filePath = relative(packageRoot, absolutePath)
+      return findDesignSystemImports(readFileSync(absolutePath, 'utf-8'), filePath).map(
         (v) => `${filePath}:${v.line} — ${v.message}`
       )
     })
