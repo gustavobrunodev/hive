@@ -189,6 +189,12 @@ export function emptyLog(): CommandLog {
  * turn that produced no commands is a turn without effect, and must not push
  * an undo step the user would then have to press through.
  *
+ * **Editing with the cursor mid-log truncates the redo branch** (DS-R9 AC-8).
+ * Everything past the cursor is dropped before the new step is appended — the
+ * log stays linear, as the spec requires, instead of quietly growing a second
+ * future that a later redo would splice into a document it was never recorded
+ * against.
+ *
  * Pure — the input log is never mutated.
  */
 export function pushCommands(
@@ -198,7 +204,8 @@ export function pushCommands(
   at: number = Date.now()
 ): CommandLog {
   if (commands.length === 0) return log
-  const entries = [...log.entries, ...commands.map((command) => ({ command, groupId, at }))]
+  const kept = log.entries.slice(0, log.cursor)
+  const entries = [...kept, ...commands.map((command) => ({ command, groupId, at }))]
   return { entries, cursor: entries.length }
 }
 

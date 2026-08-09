@@ -682,3 +682,88 @@ describe('undo / redo over grouped steps', () => {
     expect(log).toEqual(before)
   })
 })
+
+// DS-R9 AC-8: a new edit made with the cursor in the middle of the log
+// truncates the redo branch. The log stays linear.
+describe('a new edit with the cursor mid-log truncates the redo branch', () => {
+  const origin: ScreenDocument = { screenId: 's1', title: 'Login', root: null }
+
+  function threeSteps(): CommandLog {
+    let log = pushCommands(
+      emptyLog(),
+      [{ type: 'AddComponent', parentId: null, index: 0, node: node('page', 'wa-page') }],
+      'g1',
+      1000
+    )
+    log = pushCommands(
+      log,
+      [{ type: 'AddComponent', parentId: 'page', index: 0, node: node('button', 'wa-button') }],
+      'g2',
+      2000
+    )
+    return pushCommands(
+      log,
+      [{ type: 'SetProp', componentId: 'button', key: 'variant', value: 'brand' }],
+      'g3',
+      3000
+    )
+  }
+
+  it('leaves redo unavailable after undo, undo, new edit', () => {
+    const rewound = undo(undo(threeSteps()))
+
+    const branched = pushCommands(
+      rewound,
+      [{ type: 'AddComponent', parentId: 'page', index: 0, node: node('input', 'wa-input') }],
+      'g4',
+      4000
+    )
+
+    expect(branched.cursor).toBe(branched.entries.length)
+    expect(redo(branched)).toBe(branched)
+  })
+
+  it('drops the abandoned entries rather than keeping a second future', () => {
+    const rewound = undo(undo(threeSteps()))
+
+    const branched = pushCommands(
+      rewound,
+      [{ type: 'AddComponent', parentId: 'page', index: 0, node: node('input', 'wa-input') }],
+      'g4',
+      4000
+    )
+
+    expect(branched.entries.map((entry) => entry.groupId)).toEqual(['g1', 'g4'])
+    const doc = replay(origin, branched)
+    expect(find(doc, 'input')).not.toBeNull()
+    expect(find(doc, 'button')).toBeNull()
+  })
+
+  it('still appends without truncating when the cursor is at the tip', () => {
+    const log = threeSteps()
+
+    const next = pushCommands(
+      log,
+      [{ type: 'SetProp', componentId: 'button', key: 'size', value: 'large' }],
+      'g4',
+      4000
+    )
+
+    expect(next.entries.map((entry) => entry.groupId)).toEqual(['g1', 'g2', 'g3', 'g4'])
+  })
+
+  it('can still undo the branched step, back onto the surviving prefix', () => {
+    const rewound = undo(undo(threeSteps()))
+    const branched = pushCommands(
+      rewound,
+      [{ type: 'AddComponent', parentId: 'page', index: 0, node: node('input', 'wa-input') }],
+      'g4',
+      4000
+    )
+
+    const doc = replay(origin, undo(branched))
+
+    expect(doc.root?.id).toBe('page')
+    expect(find(doc, 'input')).toBeNull()
+  })
+})
