@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCommand, emptyLog, pushCommands, replay } from './screenDocument'
+import { applyCommand, emptyLog, pushCommands, redo, replay, undo } from './screenDocument'
 import type { Command, CommandLog, ScreenDocument, ScreenNode } from './types'
 
 /**
@@ -570,5 +570,115 @@ describe('replay', () => {
 
     expect(log).toEqual(logBefore)
     expect(origin).toEqual(originBefore)
+  })
+})
+
+// DS-R9 AC-4/5/6/7. Undo is cursor movement over *grouped* steps, never entry
+// deletion — the log stays whole so redo is always a replay away.
+describe('undo / redo over grouped steps', () => {
+  const origin: ScreenDocument = { screenId: 's1', title: 'Login', root: null }
+
+  /**
+   * The scenario tasks.md names verbatim: [manual, chat(3 commands), manual].
+   *   g1 (manual) — create the page
+   *   g2 (chat)   — add a button, colour it, add an input: 3 commands, 1 turn
+   *   g3 (manual) — set a prop on the page
+   */
+  function manualChatManual(): CommandLog {
+    let log = pushCommands(
+      emptyLog(),
+      [{ type: 'AddComponent', parentId: null, index: 0, node: node('page', 'wa-page') }],
+      'g1-manual',
+      1000
+    )
+    log = pushCommands(
+      log,
+      [
+        { type: 'AddComponent', parentId: 'page', index: 0, node: node('button', 'wa-button') },
+        { type: 'SetProp', componentId: 'button', key: 'variant', value: 'brand' },
+        { type: 'AddComponent', parentId: 'page', index: 1, node: node('input', 'wa-input') }
+      ],
+      'g2-chat',
+      2000
+    )
+    return pushCommands(
+      log,
+      [{ type: 'SetProp', componentId: 'page', key: 'padding', value: 'large' }],
+      'g3-manual',
+      3000
+    )
+  }
+
+  it('the first undo reverts only the last manual edit, leaving the chat turn applied', () => {
+    const log = undo(manualChatManual())
+
+    expect(log.cursor).toBe(4)
+    const doc = replay(origin, log)
+    expect(find(doc, 'page')?.props.padding).toBeUndefined()
+    expect(find(doc, 'button')?.props.variant).toBe('brand')
+    expect(find(doc, 'input')).not.toBeNull()
+  })
+
+  it('the second undo reverts the chat turn as one step, all three commands at once', () => {
+    const log = undo(undo(manualChatManual()))
+
+    expect(log.cursor).toBe(1)
+    const doc = replay(origin, log)
+    expect(find(doc, 'button')).toBeNull()
+    expect(find(doc, 'input')).toBeNull()
+  })
+
+  it('undoing the chat turn leaves the earlier manual edit intact', () => {
+    const doc = replay(origin, undo(undo(manualChatManual())))
+
+    expect(doc.root?.id).toBe('page')
+    expect(doc.root?.tag).toBe('wa-page')
+  })
+
+  it('keeps every entry in the log — undo moves the cursor, it does not delete', () => {
+    const log = manualChatManual()
+
+    const undone = undo(undo(log))
+
+    expect(undone.entries).toEqual(log.entries)
+  })
+
+  it('is a no-op at the origin, so the caller can disable the undo button', () => {
+    const log = undo(undo(undo(manualChatManual())))
+
+    expect(log.cursor).toBe(0)
+    expect(undo(log)).toBe(log)
+    expect(replay(origin, log)).toEqual(origin)
+  })
+
+  it('redo advances exactly one grouped step', () => {
+    const undone = undo(undo(manualChatManual()))
+
+    const redone = redo(undone)
+
+    expect(redone.cursor).toBe(4)
+    expect(find(replay(origin, redone), 'input')).not.toBeNull()
+    expect(find(replay(origin, redone), 'page')?.props.padding).toBeUndefined()
+  })
+
+  it('is a no-op at the tip', () => {
+    const log = manualChatManual()
+
+    expect(redo(log)).toBe(log)
+  })
+
+  it('undo then redo rebuilds the identical document', () => {
+    const log = manualChatManual()
+
+    expect(replay(origin, redo(undo(log)))).toEqual(replay(origin, log))
+  })
+
+  it('never mutates the log it was given', () => {
+    const log = manualChatManual()
+    const before = structuredClone(log)
+
+    redo(undo(log))
+
+    expect(log).toEqual(before)
   })
 })

@@ -228,3 +228,34 @@ export function replay(
   }
   return doc
 }
+
+/**
+ * Steps the cursor back over ONE grouped step (DS-R9 AC-4/AC-5). A chat turn
+ * that emitted N commands shares one `groupId` and therefore reverts as a
+ * single move; a manual edit is its own group and reverts on its own. Nothing
+ * is removed from the log — only the cursor moves, which is what leaves redo
+ * available and keeps replay the single source of the document.
+ *
+ * At the origin (cursor 0) it is a no-op: the caller renders that as a
+ * disabled undo button rather than a failure.
+ */
+export function undo(log: CommandLog): CommandLog {
+  if (log.cursor === 0) return log
+  const { groupId } = log.entries[log.cursor - 1]
+  let cursor = log.cursor
+  while (cursor > 0 && log.entries[cursor - 1].groupId === groupId) {
+    cursor -= 1
+  }
+  return { ...log, cursor }
+}
+
+/** Steps the cursor forward over exactly one grouped step (DS-R9 AC-7). No-op at the tip. */
+export function redo(log: CommandLog): CommandLog {
+  if (log.cursor >= log.entries.length) return log
+  const { groupId } = log.entries[log.cursor]
+  let cursor = log.cursor
+  while (cursor < log.entries.length && log.entries[cursor].groupId === groupId) {
+    cursor += 1
+  }
+  return { ...log, cursor }
+}
