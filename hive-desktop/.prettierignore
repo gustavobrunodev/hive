@@ -12,6 +12,10 @@ tsconfig.*.json
 .specs
 .scratch
 coverage
+# design-studio T2.2/T2.1: generated Design System bundle + derived catalog.
+# `npm run build:ds-bundle` decides their formatting; a prettier pass would put
+# the working tree permanently at odds with the generator's output.
+resources/design-system-web-awesome
 test-results
 playwright-report
 tools/visual

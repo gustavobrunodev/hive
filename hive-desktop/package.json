@@ -56,6 +56,7 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build:ds-catalog": "node scripts/buildDsCatalog.mjs",
+    "build:ds-bundle": "node scripts/buildDsBundle.mjs",
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

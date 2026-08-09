@@ -16,6 +16,11 @@ export default defineConfig(
       '.claude', // vendored agent skills — not our source
       '.scratch', // local scratch experiments — not our source
       'build',
+      // design-studio T2.2: the committed Design System bundle. Vendor output
+      // flattened by esbuild, in the same category as `out/` — an artifact the
+      // app serves, not app source (and 778 KB of minified code that linting
+      // has nothing useful to say about).
+      'resources/design-system-web-awesome/**',
       'test-results',
       'playwright-report',
       // Visual-pass harness (docs/visual-validation.md): these are bare

@@ -4,19 +4,28 @@
   "components": [
     {
       "tag": "wa-accordion",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "mode",
           "kind": "enum",
-          "values": ["single", "single-collapsible", "multiple"],
+          "values": [
+            "single",
+            "single-collapsible",
+            "multiple"
+          ],
           "default": "multiple",
           "group": "advanced"
         },
         {
           "name": "icon-placement",
           "kind": "enum",
-          "values": ["start", "end"],
+          "values": [
+            "start",
+            "end"
+          ],
           "default": "end",
           "group": "advanced"
         },
@@ -29,7 +38,12 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined", "plain"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined",
+            "plain"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -48,7 +62,11 @@
     },
     {
       "tag": "wa-accordion-item",
-      "slots": ["", "label", "icon"],
+      "slots": [
+        "",
+        "label",
+        "icon"
+      ],
       "props": [
         {
           "name": "label",
@@ -83,7 +101,10 @@
     },
     {
       "tag": "wa-animated-image",
-      "slots": ["play-icon", "pause-icon"],
+      "slots": [
+        "play-icon",
+        "pause-icon"
+      ],
       "props": [
         {
           "name": "src",
@@ -115,7 +136,9 @@
     },
     {
       "tag": "wa-animation",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "name",
@@ -185,7 +208,9 @@
     },
     {
       "tag": "wa-avatar",
-      "slots": ["icon"],
+      "slots": [
+        "icon"
+      ],
       "props": [
         {
           "name": "image",
@@ -208,14 +233,21 @@
         {
           "name": "loading",
           "kind": "enum",
-          "values": ["eager", "lazy"],
+          "values": [
+            "eager",
+            "lazy"
+          ],
           "default": "eager",
           "group": "state"
         },
         {
           "name": "shape",
           "kind": "enum",
-          "values": ["circle", "square", "rounded"],
+          "values": [
+            "circle",
+            "square",
+            "rounded"
+          ],
           "default": "circle",
           "group": "appearance"
         },
@@ -234,19 +266,34 @@
     },
     {
       "tag": "wa-badge",
-      "slots": ["", "start", "end"],
+      "slots": [
+        "",
+        "start",
+        "end"
+      ],
       "props": [
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["brand", "neutral", "success", "warning", "danger"],
+          "values": [
+            "brand",
+            "neutral",
+            "success",
+            "warning",
+            "danger"
+          ],
           "default": "brand",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["accent", "filled", "outlined", "filled-outlined"],
+          "values": [
+            "accent",
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "accent",
           "group": "appearance"
         },
@@ -259,7 +306,11 @@
         {
           "name": "attention",
           "kind": "enum",
-          "values": ["none", "pulse", "bounce"],
+          "values": [
+            "none",
+            "pulse",
+            "bounce"
+          ],
           "default": "none",
           "group": "advanced"
         },
@@ -278,7 +329,10 @@
     },
     {
       "tag": "wa-breadcrumb",
-      "slots": ["", "separator"],
+      "slots": [
+        "",
+        "separator"
+      ],
       "props": [
         {
           "name": "label",
@@ -301,7 +355,12 @@
     },
     {
       "tag": "wa-breadcrumb-item",
-      "slots": ["", "start", "end", "separator"],
+      "slots": [
+        "",
+        "start",
+        "end",
+        "separator"
+      ],
       "props": [
         {
           "name": "href",
@@ -311,7 +370,12 @@
         {
           "name": "target",
           "kind": "enum",
-          "values": ["_blank", "_parent", "_self", "_top"],
+          "values": [
+            "_blank",
+            "_parent",
+            "_self",
+            "_top"
+          ],
           "group": "advanced"
         },
         {
@@ -335,7 +399,11 @@
     },
     {
       "tag": "wa-button",
-      "slots": ["", "start", "end"],
+      "slots": [
+        "",
+        "start",
+        "end"
+      ],
       "props": [
         {
           "name": "title",
@@ -346,21 +414,42 @@
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["neutral", "brand", "success", "warning", "danger"],
+          "values": [
+            "neutral",
+            "brand",
+            "success",
+            "warning",
+            "danger"
+          ],
           "default": "neutral",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["accent", "filled", "outlined", "filled-outlined", "plain"],
+          "values": [
+            "accent",
+            "filled",
+            "outlined",
+            "filled-outlined",
+            "plain"
+          ],
           "default": "accent",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -403,7 +492,11 @@
         {
           "name": "type",
           "kind": "enum",
-          "values": ["button", "submit", "reset"],
+          "values": [
+            "button",
+            "submit",
+            "reset"
+          ],
           "default": "button",
           "group": "advanced"
         },
@@ -425,7 +518,12 @@
         {
           "name": "target",
           "kind": "enum",
-          "values": ["_blank", "_parent", "_self", "_top"],
+          "values": [
+            "_blank",
+            "_parent",
+            "_self",
+            "_top"
+          ],
           "group": "advanced"
         },
         {
@@ -446,13 +544,20 @@
         {
           "name": "formenctype",
           "kind": "enum",
-          "values": ["application/x-www-form-urlencoded", "multipart/form-data", "text/plain"],
+          "values": [
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+            "text/plain"
+          ],
           "group": "advanced"
         },
         {
           "name": "formmethod",
           "kind": "enum",
-          "values": ["post", "get"],
+          "values": [
+            "post",
+            "get"
+          ],
           "group": "advanced"
         },
         {
@@ -485,7 +590,9 @@
     },
     {
       "tag": "wa-button-group",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "label",
@@ -496,7 +603,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
@@ -515,25 +625,49 @@
     },
     {
       "tag": "wa-callout",
-      "slots": ["", "icon"],
+      "slots": [
+        "",
+        "icon"
+      ],
       "props": [
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["brand", "neutral", "success", "warning", "danger"],
+          "values": [
+            "brand",
+            "neutral",
+            "success",
+            "warning",
+            "danger"
+          ],
           "default": "brand",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["accent", "filled", "outlined", "plain", "filled-outlined"],
+          "values": [
+            "accent",
+            "filled",
+            "outlined",
+            "plain",
+            "filled-outlined"
+          ],
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -552,12 +686,26 @@
     },
     {
       "tag": "wa-card",
-      "slots": ["", "header", "footer", "media", "actions", "header-actions", "footer-actions"],
+      "slots": [
+        "",
+        "header",
+        "footer",
+        "media",
+        "actions",
+        "header-actions",
+        "footer-actions"
+      ],
       "props": [
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["accent", "filled", "outlined", "filled-outlined", "plain"],
+          "values": [
+            "accent",
+            "filled",
+            "outlined",
+            "filled-outlined",
+            "plain"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -594,7 +742,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "vertical",
           "group": "appearance"
         },
@@ -613,7 +764,11 @@
     },
     {
       "tag": "wa-carousel",
-      "slots": ["", "next-icon", "previous-icon"],
+      "slots": [
+        "",
+        "next-icon",
+        "previous-icon"
+      ],
       "props": [
         {
           "name": "loop",
@@ -672,7 +827,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
@@ -697,7 +855,9 @@
     },
     {
       "tag": "wa-carousel-item",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "dir",
@@ -714,7 +874,10 @@
     },
     {
       "tag": "wa-checkbox",
-      "slots": ["", "hint"],
+      "slots": [
+        "",
+        "hint"
+      ],
       "props": [
         {
           "name": "title",
@@ -730,7 +893,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -788,7 +960,11 @@
     },
     {
       "tag": "wa-checkbox-group",
-      "slots": ["", "label", "hint"],
+      "slots": [
+        "",
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "label",
@@ -805,14 +981,26 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "vertical",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "group": "appearance"
         },
         {
@@ -848,7 +1036,10 @@
     },
     {
       "tag": "wa-color-picker",
-      "slots": ["label", "hint"],
+      "slots": [
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "value",
@@ -882,14 +1073,28 @@
         {
           "name": "format",
           "kind": "enum",
-          "values": ["hex", "rgb", "hsl", "hsv"],
+          "values": [
+            "hex",
+            "rgb",
+            "hsl",
+            "hsv"
+          ],
           "default": "hex",
           "group": "advanced"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -974,7 +1179,11 @@
     },
     {
       "tag": "wa-comparison",
-      "slots": ["before", "after", "handle"],
+      "slots": [
+        "before",
+        "after",
+        "handle"
+      ],
       "props": [
         {
           "name": "position",
@@ -997,7 +1206,12 @@
     },
     {
       "tag": "wa-copy-button",
-      "slots": ["", "copy-icon", "success-icon", "error-icon"],
+      "slots": [
+        "",
+        "copy-icon",
+        "success-icon",
+        "error-icon"
+      ],
       "props": [
         {
           "name": "value",
@@ -1044,14 +1258,23 @@
         {
           "name": "tooltip-placement",
           "kind": "enum",
-          "values": ["top", "right", "bottom", "left"],
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ],
           "default": "top",
           "group": "advanced"
         },
         {
           "name": "tooltip",
           "kind": "enum",
-          "values": ["full", "copy", "none"],
+          "values": [
+            "full",
+            "copy",
+            "none"
+          ],
           "default": "full",
           "group": "advanced"
         },
@@ -1070,7 +1293,12 @@
     },
     {
       "tag": "wa-details",
-      "slots": ["", "summary", "expand-icon", "collapse-icon"],
+      "slots": [
+        "",
+        "summary",
+        "expand-icon",
+        "collapse-icon"
+      ],
       "props": [
         {
           "name": "open",
@@ -1097,14 +1325,22 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined", "plain"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined",
+            "plain"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
         {
           "name": "icon-placement",
           "kind": "enum",
-          "values": ["start", "end"],
+          "values": [
+            "start",
+            "end"
+          ],
           "default": "end",
           "group": "advanced"
         },
@@ -1123,7 +1359,12 @@
     },
     {
       "tag": "wa-dialog",
-      "slots": ["", "label", "header-actions", "footer"],
+      "slots": [
+        "",
+        "label",
+        "header-actions",
+        "footer"
+      ],
       "props": [
         {
           "name": "open",
@@ -1175,7 +1416,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
@@ -1194,7 +1438,12 @@
     },
     {
       "tag": "wa-drawer",
-      "slots": ["", "label", "header-actions", "footer"],
+      "slots": [
+        "",
+        "label",
+        "header-actions",
+        "footer"
+      ],
       "props": [
         {
           "name": "open",
@@ -1211,7 +1460,12 @@
         {
           "name": "placement",
           "kind": "enum",
-          "values": ["top", "end", "bottom", "start"],
+          "values": [
+            "top",
+            "end",
+            "bottom",
+            "start"
+          ],
           "default": "end",
           "group": "appearance"
         },
@@ -1248,7 +1502,10 @@
     },
     {
       "tag": "wa-dropdown",
-      "slots": ["", "trigger"],
+      "slots": [
+        "",
+        "trigger"
+      ],
       "props": [
         {
           "name": "open",
@@ -1259,7 +1516,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -1310,12 +1576,20 @@
     },
     {
       "tag": "wa-dropdown-item",
-      "slots": ["", "icon", "details", "submenu"],
+      "slots": [
+        "",
+        "icon",
+        "details",
+        "submenu"
+      ],
       "props": [
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["danger", "default"],
+          "values": [
+            "danger",
+            "default"
+          ],
           "default": "default",
           "group": "appearance"
         },
@@ -1327,7 +1601,10 @@
         {
           "name": "type",
           "kind": "enum",
-          "values": ["normal", "checkbox"],
+          "values": [
+            "normal",
+            "checkbox"
+          ],
           "default": "normal",
           "group": "advanced"
         },
@@ -1375,14 +1652,21 @@
         {
           "name": "unit",
           "kind": "enum",
-          "values": ["byte", "bit"],
+          "values": [
+            "byte",
+            "bit"
+          ],
           "default": "byte",
           "group": "advanced"
         },
         {
           "name": "display",
           "kind": "enum",
-          "values": ["long", "short", "narrow"],
+          "values": [
+            "long",
+            "short",
+            "narrow"
+          ],
           "default": "short",
           "group": "advanced"
         },
@@ -1406,55 +1690,87 @@
         {
           "name": "weekday",
           "kind": "enum",
-          "values": ["narrow", "short", "long"],
+          "values": [
+            "narrow",
+            "short",
+            "long"
+          ],
           "group": "advanced"
         },
         {
           "name": "era",
           "kind": "enum",
-          "values": ["narrow", "short", "long"],
+          "values": [
+            "narrow",
+            "short",
+            "long"
+          ],
           "group": "advanced"
         },
         {
           "name": "year",
           "kind": "enum",
-          "values": ["numeric", "2-digit"],
+          "values": [
+            "numeric",
+            "2-digit"
+          ],
           "group": "advanced"
         },
         {
           "name": "month",
           "kind": "enum",
-          "values": ["numeric", "2-digit", "narrow", "short", "long"],
+          "values": [
+            "numeric",
+            "2-digit",
+            "narrow",
+            "short",
+            "long"
+          ],
           "group": "advanced"
         },
         {
           "name": "day",
           "kind": "enum",
-          "values": ["numeric", "2-digit"],
+          "values": [
+            "numeric",
+            "2-digit"
+          ],
           "group": "advanced"
         },
         {
           "name": "hour",
           "kind": "enum",
-          "values": ["numeric", "2-digit"],
+          "values": [
+            "numeric",
+            "2-digit"
+          ],
           "group": "advanced"
         },
         {
           "name": "minute",
           "kind": "enum",
-          "values": ["numeric", "2-digit"],
+          "values": [
+            "numeric",
+            "2-digit"
+          ],
           "group": "advanced"
         },
         {
           "name": "second",
           "kind": "enum",
-          "values": ["numeric", "2-digit"],
+          "values": [
+            "numeric",
+            "2-digit"
+          ],
           "group": "advanced"
         },
         {
           "name": "time-zone-name",
           "kind": "enum",
-          "values": ["short", "long"],
+          "values": [
+            "short",
+            "long"
+          ],
           "group": "advanced"
         },
         {
@@ -1465,7 +1781,11 @@
         {
           "name": "hour-format",
           "kind": "enum",
-          "values": ["auto", "12", "24"],
+          "values": [
+            "auto",
+            "12",
+            "24"
+          ],
           "default": "auto",
           "group": "advanced"
         },
@@ -1495,7 +1815,11 @@
         {
           "name": "type",
           "kind": "enum",
-          "values": ["currency", "decimal", "percent"],
+          "values": [
+            "currency",
+            "decimal",
+            "percent"
+          ],
           "default": "decimal",
           "group": "advanced"
         },
@@ -1514,7 +1838,12 @@
         {
           "name": "currency-display",
           "kind": "enum",
-          "values": ["symbol", "narrowSymbol", "code", "name"],
+          "values": [
+            "symbol",
+            "narrowSymbol",
+            "code",
+            "name"
+          ],
           "default": "symbol",
           "group": "advanced"
         },
@@ -1613,7 +1942,11 @@
         {
           "name": "flip",
           "kind": "enum",
-          "values": ["x", "y", "both"],
+          "values": [
+            "x",
+            "y",
+            "both"
+          ],
           "group": "advanced"
         },
         {
@@ -1641,7 +1974,11 @@
         {
           "name": "mode",
           "kind": "enum",
-          "values": ["cors", "no-cors", "same-origin"],
+          "values": [
+            "cors",
+            "no-cors",
+            "same-origin"
+          ],
           "default": "cors",
           "group": "advanced"
         },
@@ -1708,14 +2045,27 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -1797,7 +2147,14 @@
         {
           "name": "autocapitalize",
           "kind": "enum",
-          "values": ["off", "none", "on", "sentences", "words", "characters"],
+          "values": [
+            "off",
+            "none",
+            "on",
+            "sentences",
+            "words",
+            "characters"
+          ],
           "group": "advanced"
         },
         {
@@ -1818,7 +2175,15 @@
         {
           "name": "enterkeyhint",
           "kind": "enum",
-          "values": ["enter", "done", "go", "next", "previous", "search", "send"],
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ],
           "group": "advanced"
         },
         {
@@ -1830,7 +2195,16 @@
         {
           "name": "inputmode",
           "kind": "enum",
-          "values": ["none", "text", "decimal", "numeric", "tel", "search", "email", "url"],
+          "values": [
+            "none",
+            "text",
+            "decimal",
+            "numeric",
+            "tel",
+            "search",
+            "email",
+            "url"
+          ],
           "group": "advanced"
         },
         {
@@ -1876,7 +2250,9 @@
     },
     {
       "tag": "wa-intersection-observer",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "root",
@@ -1928,7 +2304,10 @@
     },
     {
       "tag": "wa-known-date",
-      "slots": ["label", "hint"],
+      "slots": [
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "name",
@@ -2056,7 +2435,9 @@
     },
     {
       "tag": "wa-mutation-observer",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "attr",
@@ -2108,7 +2489,14 @@
     },
     {
       "tag": "wa-number-input",
-      "slots": ["label", "start", "end", "increment-icon", "decrement-icon", "hint"],
+      "slots": [
+        "label",
+        "start",
+        "end",
+        "increment-icon",
+        "decrement-icon",
+        "hint"
+      ],
       "props": [
         {
           "name": "title",
@@ -2124,14 +2512,27 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -2200,13 +2601,24 @@
         {
           "name": "enterkeyhint",
           "kind": "enum",
-          "values": ["enter", "done", "go", "next", "previous", "search", "send"],
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ],
           "group": "advanced"
         },
         {
           "name": "inputmode",
           "kind": "enum",
-          "values": ["numeric", "decimal"],
+          "values": [
+            "numeric",
+            "decimal"
+          ],
           "default": "numeric",
           "group": "advanced"
         },
@@ -2253,7 +2665,11 @@
     },
     {
       "tag": "wa-option",
-      "slots": ["", "start", "end"],
+      "slots": [
+        "",
+        "start",
+        "end"
+      ],
       "props": [
         {
           "name": "value",
@@ -2293,7 +2709,10 @@
     },
     {
       "tag": "wa-otp-input",
-      "slots": ["label", "hint"],
+      "slots": [
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "value",
@@ -2309,14 +2728,23 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["outlined", "filled", "filled-outlined", "contained"],
+          "values": [
+            "outlined",
+            "filled",
+            "filled-outlined",
+            "contained"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
         {
           "name": "type",
           "kind": "enum",
-          "values": ["numeric", "alpha", "alphanumeric"],
+          "values": [
+            "numeric",
+            "alpha",
+            "alphanumeric"
+          ],
           "default": "numeric",
           "group": "advanced"
         },
@@ -2329,14 +2757,27 @@
         {
           "name": "case",
           "kind": "enum",
-          "values": ["preserve", "upper", "lower"],
+          "values": [
+            "preserve",
+            "upper",
+            "lower"
+          ],
           "default": "preserve",
           "group": "advanced"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -2446,7 +2887,10 @@
         {
           "name": "view",
           "kind": "enum",
-          "values": ["mobile", "desktop"],
+          "values": [
+            "mobile",
+            "desktop"
+          ],
           "default": "desktop",
           "group": "advanced"
         },
@@ -2465,7 +2909,10 @@
         {
           "name": "navigation-placement",
           "kind": "enum",
-          "values": ["start", "end"],
+          "values": [
+            "start",
+            "end"
+          ],
           "default": "start",
           "group": "advanced"
         },
@@ -2490,7 +2937,12 @@
     },
     {
       "tag": "wa-pagination",
-      "slots": ["previous-icon", "next-icon", "first-icon", "last-icon"],
+      "slots": [
+        "previous-icon",
+        "next-icon",
+        "first-icon",
+        "last-icon"
+      ],
       "props": [
         {
           "name": "total",
@@ -2543,7 +2995,10 @@
         {
           "name": "format",
           "kind": "enum",
-          "values": ["standard", "compact"],
+          "values": [
+            "standard",
+            "compact"
+          ],
           "default": "standard",
           "group": "advanced"
         },
@@ -2562,7 +3017,11 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["outlined", "filled", "plain"],
+          "values": [
+            "outlined",
+            "filled",
+            "plain"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -2587,7 +3046,9 @@
     },
     {
       "tag": "wa-popover",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "placement",
@@ -2653,7 +3114,10 @@
     },
     {
       "tag": "wa-popup",
-      "slots": ["", "anchor"],
+      "slots": [
+        "",
+        "anchor"
+      ],
       "props": [
         {
           "name": "active",
@@ -2684,7 +3148,10 @@
         {
           "name": "boundary",
           "kind": "enum",
-          "values": ["viewport", "scroll"],
+          "values": [
+            "viewport",
+            "scroll"
+          ],
           "default": "viewport",
           "group": "advanced"
         },
@@ -2709,7 +3176,12 @@
         {
           "name": "arrow-placement",
           "kind": "enum",
-          "values": ["start", "end", "center", "anchor"],
+          "values": [
+            "start",
+            "end",
+            "center",
+            "anchor"
+          ],
           "default": "anchor",
           "group": "advanced"
         },
@@ -2734,7 +3206,10 @@
         {
           "name": "flip-fallback-strategy",
           "kind": "enum",
-          "values": ["best-fit", "initial"],
+          "values": [
+            "best-fit",
+            "initial"
+          ],
           "default": "best-fit",
           "group": "advanced"
         },
@@ -2759,13 +3234,21 @@
         {
           "name": "auto-size",
           "kind": "enum",
-          "values": ["horizontal", "vertical", "both"],
+          "values": [
+            "horizontal",
+            "vertical",
+            "both"
+          ],
           "group": "advanced"
         },
         {
           "name": "sync",
           "kind": "enum",
-          "values": ["width", "height", "both"],
+          "values": [
+            "width",
+            "height",
+            "both"
+          ],
           "group": "advanced"
         },
         {
@@ -2795,7 +3278,9 @@
     },
     {
       "tag": "wa-progress-bar",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "value",
@@ -2830,7 +3315,9 @@
     },
     {
       "tag": "wa-progress-ring",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "value",
@@ -2900,7 +3387,12 @@
         {
           "name": "error-correction",
           "kind": "enum",
-          "values": ["L", "M", "Q", "H"],
+          "values": [
+            "L",
+            "M",
+            "Q",
+            "H"
+          ],
           "default": "H",
           "group": "advanced"
         },
@@ -2939,7 +3431,9 @@
     },
     {
       "tag": "wa-radio",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "value",
@@ -2949,14 +3443,26 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["default", "button"],
+          "values": [
+            "default",
+            "button"
+          ],
           "default": "default",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "group": "appearance"
         },
         {
@@ -2990,7 +3496,11 @@
     },
     {
       "tag": "wa-radio-group",
-      "slots": ["", "label", "hint"],
+      "slots": [
+        "",
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "label",
@@ -3018,7 +3528,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "vertical",
           "group": "appearance"
         },
@@ -3030,7 +3543,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "group": "appearance"
         },
         {
@@ -3071,7 +3593,9 @@
     },
     {
       "tag": "wa-random-content",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "items",
@@ -3082,7 +3606,11 @@
         {
           "name": "mode",
           "kind": "enum",
-          "values": ["random", "unique", "sequence"],
+          "values": [
+            "random",
+            "unique",
+            "sequence"
+          ],
           "default": "unique",
           "group": "advanced"
         },
@@ -3101,7 +3629,14 @@
         {
           "name": "animation",
           "kind": "enum",
-          "values": ["none", "fade", "fade-up", "fade-down", "fade-left", "fade-right"],
+          "values": [
+            "none",
+            "fade",
+            "fade-up",
+            "fade-down",
+            "fade-left",
+            "fade-right"
+          ],
           "default": "none",
           "group": "advanced"
         },
@@ -3184,7 +3719,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -3213,14 +3757,21 @@
         {
           "name": "format",
           "kind": "enum",
-          "values": ["long", "short", "narrow"],
+          "values": [
+            "long",
+            "short",
+            "narrow"
+          ],
           "default": "long",
           "group": "advanced"
         },
         {
           "name": "numeric",
           "kind": "enum",
-          "values": ["always", "auto"],
+          "values": [
+            "always",
+            "auto"
+          ],
           "default": "auto",
           "group": "advanced"
         },
@@ -3245,7 +3796,9 @@
     },
     {
       "tag": "wa-resize-observer",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "disabled",
@@ -3268,12 +3821,17 @@
     },
     {
       "tag": "wa-scroller",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
@@ -3304,7 +3862,15 @@
     },
     {
       "tag": "wa-select",
-      "slots": ["", "label", "start", "end", "clear-icon", "expand-icon", "hint"],
+      "slots": [
+        "",
+        "label",
+        "start",
+        "end",
+        "clear-icon",
+        "expand-icon",
+        "hint"
+      ],
       "props": [
         {
           "name": "name",
@@ -3315,7 +3881,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -3358,7 +3933,11 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -3377,7 +3956,10 @@
         {
           "name": "placement",
           "kind": "enum",
-          "values": ["top", "bottom"],
+          "values": [
+            "top",
+            "bottom"
+          ],
           "default": "bottom",
           "group": "appearance"
         },
@@ -3430,7 +4012,11 @@
         {
           "name": "effect",
           "kind": "enum",
-          "values": ["pulse", "sheen", "none"],
+          "values": [
+            "pulse",
+            "sheen",
+            "none"
+          ],
           "default": "none",
           "group": "advanced"
         },
@@ -3449,7 +4035,11 @@
     },
     {
       "tag": "wa-slider",
-      "slots": ["label", "hint", "reference"],
+      "slots": [
+        "label",
+        "hint",
+        "reference"
+      ],
       "props": [
         {
           "name": "label",
@@ -3506,14 +4096,26 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -3554,7 +4156,12 @@
         {
           "name": "tooltip-placement",
           "kind": "enum",
-          "values": ["top", "right", "bottom", "left"],
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ],
           "default": "top",
           "group": "advanced"
         },
@@ -3619,7 +4226,11 @@
     },
     {
       "tag": "wa-split-panel",
-      "slots": ["start", "end", "divider"],
+      "slots": [
+        "start",
+        "end",
+        "divider"
+      ],
       "props": [
         {
           "name": "position",
@@ -3635,7 +4246,10 @@
         {
           "name": "orientation",
           "kind": "enum",
-          "values": ["horizontal", "vertical"],
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
           "default": "horizontal",
           "group": "appearance"
         },
@@ -3648,7 +4262,10 @@
         {
           "name": "primary",
           "kind": "enum",
-          "values": ["start", "end"],
+          "values": [
+            "start",
+            "end"
+          ],
           "group": "advanced"
         },
         {
@@ -3677,7 +4294,10 @@
     },
     {
       "tag": "wa-switch",
-      "slots": ["", "hint"],
+      "slots": [
+        "",
+        "hint"
+      ],
       "props": [
         {
           "name": "title",
@@ -3698,7 +4318,16 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -3751,7 +4380,9 @@
     },
     {
       "tag": "wa-tab",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "panel",
@@ -3786,7 +4417,10 @@
     },
     {
       "tag": "wa-tab-group",
-      "slots": ["", "nav"],
+      "slots": [
+        "",
+        "nav"
+      ],
       "props": [
         {
           "name": "active",
@@ -3797,14 +4431,22 @@
         {
           "name": "placement",
           "kind": "enum",
-          "values": ["top", "bottom", "start", "end"],
+          "values": [
+            "top",
+            "bottom",
+            "start",
+            "end"
+          ],
           "default": "top",
           "group": "appearance"
         },
         {
           "name": "activation",
           "kind": "enum",
-          "values": ["auto", "manual"],
+          "values": [
+            "auto",
+            "manual"
+          ],
           "default": "auto",
           "group": "advanced"
         },
@@ -3829,7 +4471,9 @@
     },
     {
       "tag": "wa-tab-panel",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "name",
@@ -3864,26 +4508,48 @@
     },
     {
       "tag": "wa-tag",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["brand", "neutral", "success", "warning", "danger"],
+          "values": [
+            "brand",
+            "neutral",
+            "success",
+            "warning",
+            "danger"
+          ],
           "default": "neutral",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["accent", "filled", "outlined", "filled-outlined"],
+          "values": [
+            "accent",
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "filled-outlined",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -3914,7 +4580,10 @@
     },
     {
       "tag": "wa-textarea",
-      "slots": ["label", "hint"],
+      "slots": [
+        "label",
+        "hint"
+      ],
       "props": [
         {
           "name": "title",
@@ -3935,14 +4604,27 @@
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -3973,7 +4655,13 @@
         {
           "name": "resize",
           "kind": "enum",
-          "values": ["none", "vertical", "horizontal", "both", "auto"],
+          "values": [
+            "none",
+            "vertical",
+            "horizontal",
+            "both",
+            "auto"
+          ],
           "default": "vertical",
           "group": "advanced"
         },
@@ -4008,7 +4696,14 @@
         {
           "name": "autocapitalize",
           "kind": "enum",
-          "values": ["off", "none", "on", "sentences", "words", "characters"],
+          "values": [
+            "off",
+            "none",
+            "on",
+            "sentences",
+            "words",
+            "characters"
+          ],
           "group": "advanced"
         },
         {
@@ -4029,7 +4724,15 @@
         {
           "name": "enterkeyhint",
           "kind": "enum",
-          "values": ["enter", "done", "go", "next", "previous", "search", "send"],
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ],
           "group": "advanced"
         },
         {
@@ -4041,7 +4744,16 @@
         {
           "name": "inputmode",
           "kind": "enum",
-          "values": ["none", "text", "decimal", "numeric", "tel", "search", "email", "url"],
+          "values": [
+            "none",
+            "text",
+            "decimal",
+            "numeric",
+            "tel",
+            "search",
+            "email",
+            "url"
+          ],
           "group": "advanced"
         },
         {
@@ -4082,7 +4794,15 @@
     },
     {
       "tag": "wa-time-input",
-      "slots": ["label", "hint", "start", "end", "clear-icon", "expand-icon", "footer"],
+      "slots": [
+        "label",
+        "hint",
+        "start",
+        "end",
+        "clear-icon",
+        "expand-icon",
+        "footer"
+      ],
       "props": [
         {
           "name": "name",
@@ -4116,7 +4836,11 @@
         {
           "name": "appearance",
           "kind": "enum",
-          "values": ["filled", "outlined", "filled-outlined"],
+          "values": [
+            "filled",
+            "outlined",
+            "filled-outlined"
+          ],
           "default": "outlined",
           "group": "appearance"
         },
@@ -4212,7 +4936,9 @@
     },
     {
       "tag": "wa-toast",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "placement",
@@ -4243,19 +4969,37 @@
     },
     {
       "tag": "wa-toast-item",
-      "slots": ["", "icon"],
+      "slots": [
+        "",
+        "icon"
+      ],
       "props": [
         {
           "name": "variant",
           "kind": "enum",
-          "values": ["brand", "success", "warning", "danger", "neutral"],
+          "values": [
+            "brand",
+            "success",
+            "warning",
+            "danger",
+            "neutral"
+          ],
           "default": "neutral",
           "group": "appearance"
         },
         {
           "name": "size",
           "kind": "enum",
-          "values": ["xs", "s", "m", "l", "xl", "small", "medium", "large"],
+          "values": [
+            "xs",
+            "s",
+            "m",
+            "l",
+            "xl",
+            "small",
+            "medium",
+            "large"
+          ],
           "default": "m",
           "group": "appearance"
         },
@@ -4286,7 +5030,9 @@
     },
     {
       "tag": "wa-tooltip",
-      "slots": [""],
+      "slots": [
+        ""
+      ],
       "props": [
         {
           "name": "placement",
@@ -4376,12 +5122,21 @@
     },
     {
       "tag": "wa-tree",
-      "slots": ["", "expand-icon", "collapse-icon"],
+      "slots": [
+        "",
+        "expand-icon",
+        "collapse-icon"
+      ],
       "props": [
         {
           "name": "selection",
           "kind": "enum",
-          "values": ["single", "multiple", "leaf", "leaf-multiple"],
+          "values": [
+            "single",
+            "multiple",
+            "leaf",
+            "leaf-multiple"
+          ],
           "default": "single",
           "group": "advanced"
         },
@@ -4412,7 +5167,11 @@
     },
     {
       "tag": "wa-tree-item",
-      "slots": ["", "expand-icon", "collapse-icon"],
+      "slots": [
+        "",
+        "expand-icon",
+        "collapse-icon"
+      ],
       "props": [
         {
           "name": "expanded",
@@ -4465,7 +5224,10 @@
     },
     {
       "tag": "wa-zoomable-frame",
-      "slots": ["zoom-in-icon", "zoom-out-icon"],
+      "slots": [
+        "zoom-in-icon",
+        "zoom-out-icon"
+      ],
       "props": [
         {
           "name": "src",
@@ -4486,7 +5248,10 @@
         {
           "name": "loading",
           "kind": "enum",
-          "values": ["eager", "lazy"],
+          "values": [
+            "eager",
+            "lazy"
+          ],
           "default": "eager",
           "group": "state"
         },
