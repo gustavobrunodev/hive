@@ -535,7 +535,19 @@ export default defineConfig({
         // untested branch here is a branch nobody will ever exercise by hand.
         'src/main/cliEnv.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/agentInstaller.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
-        'src/main/agentRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 }
+        'src/main/agentRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // design-studio (M18): the reducer that is the *only* mutation of a
+        // screen (AD-2). It carries 100 for the same reason as `toolPatch.ts`
+        // — every failure mode is silent. A move that drops a subtree, an
+        // insert that lands at the wrong index, a `SetProp` that writes to a
+        // sibling: all of them still produce a document, just the wrong one,
+        // and then undo replays the wrong one faithfully forever.
+        'src/main/designStudio/screenDocument.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
         // is a duplicate key, not a stricter gate.
