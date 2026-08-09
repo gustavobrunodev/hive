@@ -1,4 +1,4 @@
-import type { Command, ScreenDocument, ScreenNode } from './types'
+import type { Command, CommandLog, ScreenDocument, ScreenNode } from './types'
 
 /**
  * Design Studio (M18) — the single mutation of a `ScreenDocument` (AD-2).
@@ -172,4 +172,59 @@ export function applyCommand(doc: ScreenDocument, command: Command): ScreenDocum
     case 'SetProp':
       return setProp(doc, command)
   }
+}
+
+/** An empty log — the origin every replay starts from. */
+export function emptyLog(): CommandLog {
+  return { entries: [], cursor: 0 }
+}
+
+/**
+ * Appends `commands` to the log as ONE grouped step (AD-8): every entry gets
+ * the same `groupId`, so a chat turn that emitted N commands is undone as one
+ * move (DS-R9 AC-5) while a manual edit — one command, its own group — is
+ * undone on its own.
+ *
+ * An empty batch returns the log untouched: spec.md's edge case says a Skill
+ * turn that produced no commands is a turn without effect, and must not push
+ * an undo step the user would then have to press through.
+ *
+ * Pure — the input log is never mutated.
+ */
+export function pushCommands(
+  log: CommandLog,
+  commands: Command[],
+  groupId: string,
+  at: number = Date.now()
+): CommandLog {
+  if (commands.length === 0) return log
+  const entries = [...log.entries, ...commands.map((command) => ({ command, groupId, at }))]
+  return { entries, cursor: entries.length }
+}
+
+/**
+ * Rebuilds the document by replaying the log from the origin up to `upTo`
+ * entries (default: the cursor) — DS-R9 AC-4. There is no persisted snapshot
+ * to read: the log *is* the document, so undo/redo is nothing but moving the
+ * cursor and replaying, and any two callers asking for the same `upTo` get
+ * byte-identical documents.
+ *
+ * `origin` is the empty screen the log was recorded against — it carries the
+ * `screenId`/`title` that commands never touch. (design.md §4 writes this as
+ * `replay(log, upTo)`; the origin has to come from somewhere, so it is an
+ * explicit parameter rather than a hidden global.)
+ *
+ * Pure — neither `origin` nor `log` is mutated.
+ */
+export function replay(
+  origin: ScreenDocument,
+  log: CommandLog,
+  upTo: number = log.cursor
+): ScreenDocument {
+  const limit = Math.max(0, Math.min(Math.trunc(upTo), log.entries.length))
+  let doc = origin
+  for (let i = 0; i < limit; i += 1) {
+    doc = applyCommand(doc, log.entries[i].command)
+  }
+  return doc
 }

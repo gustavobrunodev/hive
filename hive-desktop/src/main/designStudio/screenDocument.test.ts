@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyCommand } from './screenDocument'
-import type { ScreenDocument, ScreenNode } from './types'
+import { applyCommand, emptyLog, pushCommands, replay } from './screenDocument'
+import type { Command, CommandLog, ScreenDocument, ScreenNode } from './types'
 
 /**
  * DS-R9 AC-1/AC-2/AC-3. The reducer is the *only* mutation of a screen, it is
@@ -418,5 +418,157 @@ describe('applyCommand is pure', () => {
 
     expect(next).not.toBe(doc)
     expect(find(doc, 'button')?.props).toEqual({})
+  })
+})
+
+// DS-R9 AC-4/AC-5: the log IS the document. Replay from the origin is the
+// only way a document is ever recomposed — there is no persisted snapshot.
+describe('pushCommands', () => {
+  const addCard: Command = {
+    type: 'AddComponent',
+    parentId: null,
+    index: 0,
+    node: node('card', 'wa-card')
+  }
+  const setVariant: Command = {
+    type: 'SetProp',
+    componentId: 'card',
+    key: 'appearance',
+    value: 'outlined'
+  }
+
+  it('starts from an empty log at the origin', () => {
+    expect(emptyLog()).toEqual({ entries: [], cursor: 0 })
+  })
+
+  it('appends one entry per command and advances the cursor', () => {
+    const log = pushCommands(emptyLog(), [addCard, setVariant], 'g1', 1000)
+
+    expect(log.entries.map((entry) => entry.command)).toEqual([addCard, setVariant])
+    expect(log.cursor).toBe(2)
+  })
+
+  it('stamps the whole batch with one groupId, so a chat turn is one step', () => {
+    const log = pushCommands(emptyLog(), [addCard, setVariant], 'turn-1', 1000)
+
+    expect(log.entries.map((entry) => entry.groupId)).toEqual(['turn-1', 'turn-1'])
+    expect(log.entries.map((entry) => entry.at)).toEqual([1000, 1000])
+  })
+
+  it('keeps each pushed batch in its own group', () => {
+    const first = pushCommands(emptyLog(), [addCard], 'g1', 1000)
+    const second = pushCommands(first, [setVariant], 'g2', 2000)
+
+    expect(second.entries.map((entry) => entry.groupId)).toEqual(['g1', 'g2'])
+  })
+
+  // spec.md Edge Cases: "a Skill devolve Command[] vazio → turno sem efeito,
+  // sem empilhar passo de undo".
+  it('returns the log untouched for an empty batch, pushing no undo step', () => {
+    const log = pushCommands(emptyLog(), [addCard], 'g1', 1000)
+
+    const next = pushCommands(log, [], 'g2', 2000)
+
+    expect(next).toBe(log)
+    expect(next.entries).toHaveLength(1)
+    expect(next.cursor).toBe(1)
+  })
+
+  it('never mutates the log it was given', () => {
+    const log = pushCommands(emptyLog(), [addCard], 'g1', 1000)
+    const before = structuredClone(log)
+
+    pushCommands(log, [setVariant], 'g2', 2000)
+
+    expect(log).toEqual(before)
+  })
+
+  it('timestamps with the wall clock when no time is given', () => {
+    const before = Date.now()
+
+    const log = pushCommands(emptyLog(), [addCard], 'g1')
+
+    expect(log.entries[0].at).toBeGreaterThanOrEqual(before)
+    expect(log.entries[0].at).toBeLessThanOrEqual(Date.now())
+  })
+})
+
+describe('replay', () => {
+  const origin: ScreenDocument = { screenId: 's1', title: 'Login', root: null }
+
+  function threeStepLog(): CommandLog {
+    let log = pushCommands(
+      emptyLog(),
+      [{ type: 'AddComponent', parentId: null, index: 0, node: node('page', 'wa-page') }],
+      'g1',
+      1000
+    )
+    log = pushCommands(
+      log,
+      [{ type: 'AddComponent', parentId: 'page', index: 0, node: node('button', 'wa-button') }],
+      'g2',
+      2000
+    )
+    log = pushCommands(
+      log,
+      [{ type: 'SetProp', componentId: 'button', key: 'variant', value: 'brand' }],
+      'g3',
+      3000
+    )
+    return log
+  }
+
+  it('replays every entry up to the cursor by default', () => {
+    const doc = replay(origin, threeStepLog())
+
+    expect(doc.screenId).toBe('s1')
+    expect(doc.title).toBe('Login')
+    expect(find(doc, 'button')?.props.variant).toBe('brand')
+  })
+
+  it('replays exactly the requested prefix, in order', () => {
+    const log = threeStepLog()
+
+    expect(find(replay(origin, log, 2), 'button')?.props).toEqual({})
+    expect(find(replay(origin, log, 1), 'button')).toBeNull()
+  })
+
+  // spec.md Edge Cases: "o usuário desfaz até a origem → o Preview mostra o
+  // documento vazio da Tela".
+  it('returns the empty origin document at upTo 0', () => {
+    expect(replay(origin, threeStepLog(), 0)).toEqual(origin)
+  })
+
+  it('is deterministic: the same prefix always rebuilds the same document', () => {
+    const log = threeStepLog()
+
+    expect(replay(origin, log, 2)).toEqual(replay(origin, log, 2))
+  })
+
+  it('is independent of call order', () => {
+    const log = threeStepLog()
+
+    const forward = [replay(origin, log, 1), replay(origin, log, 2), replay(origin, log, 3)]
+    const backward = [replay(origin, log, 3), replay(origin, log, 2), replay(origin, log, 1)]
+
+    expect(backward).toEqual([forward[2], forward[1], forward[0]])
+  })
+
+  it('clamps upTo to the log it actually has', () => {
+    const log = threeStepLog()
+
+    expect(replay(origin, log, 99)).toEqual(replay(origin, log, 3))
+    expect(replay(origin, log, -5)).toEqual(origin)
+  })
+
+  it('never mutates the origin or the log', () => {
+    const log = threeStepLog()
+    const logBefore = structuredClone(log)
+    const originBefore = structuredClone(origin)
+
+    replay(origin, log, 3)
+
+    expect(log).toEqual(logBefore)
+    expect(origin).toEqual(originBefore)
   })
 })
