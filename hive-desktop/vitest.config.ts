@@ -590,6 +590,16 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The URL scheme allowlist (P1-Preview AC-5). A security control whose
+        // whole value is in the branches — an unexercised path is a bypass, and
+        // it is the only layer that also covers the exported Bundle, which runs
+        // in the user's browser under no CSP of ours.
+        'src/main/designStudio/dsAdapter/urlSchemeRule.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

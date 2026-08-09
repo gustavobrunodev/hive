@@ -27,6 +27,7 @@ import type {
 } from '../types'
 import type { DesignSystemAdapter } from './types'
 import { WEB_AWESOME_DS_ID } from './catalogBuild'
+import { urlSchemeReason } from './urlSchemeRule'
 
 export { WEB_AWESOME_DS_ID }
 
@@ -140,7 +141,7 @@ function checkProp(
   if (!prop) {
     return violation(componentId, `A propriedade "${key}" não existe em "${tag}".`, value)
   }
-  for (const rule of [propValueReason as PropRule, ...rules]) {
+  for (const rule of [propValueReason as PropRule, urlSchemeReason, ...rules]) {
     const reason = rule(tag, prop, value)
     if (reason) return violation(componentId, reason, value)
   }
@@ -241,9 +242,10 @@ function validateSetProp(
 }
 
 /**
- * Builds the adapter over an already-loaded catalog. `rules` are the extra
- * per-prop checks that are not expressible as a CEM type (T2.5's URL scheme
- * allowlist is the first).
+ * Builds the adapter over an already-loaded catalog.
+ *
+ * The catalog kind check and the URL scheme allowlist (T2.5) always run; `rules`
+ * are additional per-prop checks a caller layers on top.
  */
 export function createWebAwesomeAdapter(
   catalog: ComponentCatalog,
