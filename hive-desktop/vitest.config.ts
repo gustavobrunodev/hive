@@ -570,6 +570,16 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The port's resolution table (DS-R12 AC-6). Small, but "resolved once"
+        // is the kind of property that regresses invisibly — a second instance
+        // still works, it just quietly doubles the catalog and lets two Telas
+        // in one session disagree about what exists.
+        'src/main/designStudio/dsAdapter/registry.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
