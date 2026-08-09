@@ -580,6 +580,16 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The one gate between every surface and the document. The reducer
+        // applies without checking (AD-2), so an untested branch here is a
+        // rule that does not exist — and the failure is a document the DS
+        // cannot render, discovered by the user, not by the app.
+        'src/main/designStudio/dsAdapter/webAwesomeAdapter.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
