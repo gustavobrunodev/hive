@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readdirSync, readFileSync, statSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { dirname, join, relative, resolve, sep } from 'path'
 import ts from 'typescript'
 
@@ -143,6 +143,104 @@ export function findBoundaryViolations(sourceText: string, filePath: string): Bo
   return violations
 }
 
+/**
+ * design-studio / AD-2: `screenDocument.ts` is the single mutation of a
+ * `ScreenDocument`. Every other surface — Inspector, Tree, Chat, the preview
+ * receiver, the exporter — changes a screen by dispatching a `Command`.
+ *
+ * That rule is not enforceable by the type system (the model is plain mutable
+ * objects, and making it `readonly` would only push the cast one line down),
+ * and it is exactly the rule a hurried edit breaks: writing `node.props.variant`
+ * directly is one line, works on screen, and silently defeats undo — the log
+ * no longer describes the document, so replay-from-origin rebuilds a different
+ * screen than the one the user is looking at. This analyzer is the sensor.
+ *
+ * It flags writes through the document's own fields (`.props`, `.children`,
+ * `.root`, `.tag`, `.slot`): direct assignment, indexed assignment, `delete`,
+ * and the mutating array methods on `.children`.
+ */
+const DOCUMENT_FIELDS = new Set(['props', 'children', 'root', 'tag', 'slot'])
+
+const MUTATING_ARRAY_METHODS = new Set([
+  'push',
+  'pop',
+  'shift',
+  'unshift',
+  'splice',
+  'sort',
+  'reverse',
+  'fill',
+  'copyWithin'
+])
+
+const DISPATCH_INSTEAD =
+  'mutates the screen document outside the reducer (AD-2). Dispatch a Command ' +
+  'through applyCommand() in designStudio/screenDocument.ts instead — a direct ' +
+  'write never reaches the log, so undo replays a different screen than the one ' +
+  'on stage.'
+
+/** `x.props` / `x.children` / … — the document field a write is going through, if any. */
+function documentFieldOf(node: ts.Expression): string | undefined {
+  if (ts.isPropertyAccessExpression(node) && DOCUMENT_FIELDS.has(node.name.text)) {
+    return node.name.text
+  }
+  return undefined
+}
+
+/** The document field an assignment/delete target writes into, if any. */
+function writtenField(target: ts.Expression): string | undefined {
+  // `node.props = {}` / `node.children = []`
+  const direct = documentFieldOf(target)
+  if (direct) return direct
+  // `node.props['variant'] = 'brand'` / `node.children[0] = child`
+  if (ts.isElementAccessExpression(target)) return documentFieldOf(target.expression)
+  // `node.props.variant = 'brand'`
+  if (ts.isPropertyAccessExpression(target)) return documentFieldOf(target.expression)
+  return undefined
+}
+
+export function findDocumentMutations(sourceText: string, filePath: string): BoundaryViolation[] {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  )
+  const violations: BoundaryViolation[] = []
+
+  function report(node: ts.Node, what: string): void {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    violations.push({ line: line + 1, message: `${what} ${DISPATCH_INSTEAD}` })
+  }
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+    ) {
+      const field = writtenField(node.left)
+      if (field) report(node, `assignment through '.${field}'`)
+    } else if (ts.isDeleteExpression(node)) {
+      const field = writtenField(node.expression)
+      if (field) report(node, `delete through '.${field}'`)
+    } else if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      MUTATING_ARRAY_METHODS.has(node.expression.name.text)
+    ) {
+      const field = documentFieldOf(node.expression.expression)
+      if (field) report(node, `'${node.expression.name.text}()' on '.${field}'`)
+    }
+
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  return violations
+}
+
 function collectSourceFiles(dir: string): string[] {
   const files: string[] = []
   for (const entry of readdirSync(dir)) {
@@ -248,6 +346,127 @@ describe('process boundaries between main, preload and renderer', () => {
     const allViolations = files.flatMap((absolutePath) => {
       const filePath = relative(packageRoot, absolutePath)
       return findBoundaryViolations(readFileSync(absolutePath, 'utf-8'), filePath).map(
+        (v) => `${filePath}:${v.line} — ${v.message}`
+      )
+    })
+
+    expect(allViolations).toEqual([])
+  })
+})
+
+/**
+ * design-studio T1.7 / AD-2. `screenDocument.ts` owns the only mutation of a
+ * `ScreenDocument`; every other file in the module goes through a `Command`.
+ */
+describe('the screen document is only mutated by its reducer', () => {
+  it('flags a direct assignment to .props', () => {
+    const violations = findDocumentMutations(
+      `node.props = { variant: 'brand' }`,
+      'src/renderer/src/designStudio/Inspector.tsx'
+    )
+    expect(violations).toHaveLength(1)
+    expect(violations[0].message).toContain("assignment through '.props'")
+    expect(violations[0].message).toContain('applyCommand()')
+  })
+
+  it('flags a keyed write into .props', () => {
+    expect(
+      findDocumentMutations(
+        `selected.props['variant'] = value`,
+        'src/renderer/src/designStudio/Inspector.tsx'
+      )
+    ).toHaveLength(1)
+    expect(
+      findDocumentMutations(
+        `selected.props.variant = value`,
+        'src/renderer/src/designStudio/Inspector.tsx'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('flags a compound assignment as well as a plain one', () => {
+    expect(
+      findDocumentMutations(`doc.root.tag += '-x'`, 'src/main/designStudio/exportBundle.ts')
+    ).toHaveLength(1)
+  })
+
+  it('flags delete on a document field', () => {
+    const violations = findDocumentMutations(
+      `delete node.props['variant']`,
+      'src/renderer/src/designStudio/Inspector.tsx'
+    )
+    expect(violations).toHaveLength(1)
+    expect(violations[0].message).toContain("delete through '.props'")
+  })
+
+  it('flags a mutating array method on .children', () => {
+    const violations = findDocumentMutations(
+      `parent.children.push(created)`,
+      'src/renderer/src/designStudio/ComponentTree.tsx'
+    )
+    expect(violations).toHaveLength(1)
+    expect(violations[0].message).toContain("'push()' on '.children'")
+    expect(
+      findDocumentMutations(
+        `parent.children.splice(index, 1)`,
+        'src/renderer/src/designStudio/ComponentTree.tsx'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('flags a write to .root and a reparent through .slot', () => {
+    expect(
+      findDocumentMutations(`doc.root = null`, 'src/main/designStudio/designStudioService.ts')
+    ).toHaveLength(1)
+    expect(
+      findDocumentMutations(
+        `node.slot = 'footer'`,
+        'src/renderer/src/designStudio/ComponentTree.tsx'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('leaves reads, rebuilds and non-mutating array methods alone', () => {
+    const violations = findDocumentMutations(
+      `const next = { ...node, props: { ...node.props, variant: 'brand' } }
+       const ids = node.children.map((child) => child.id)
+       const kept = node.children.filter((child) => child.id !== id)
+       const tag = node.tag
+       dispatch({ type: 'SetProp', componentId: node.id, key: 'variant', value: 'brand' })`,
+      'src/renderer/src/designStudio/Inspector.tsx'
+    )
+    expect(violations).toEqual([])
+  })
+
+  it('leaves same-named fields on unrelated objects that are not document writes alone', () => {
+    const violations = findDocumentMutations(
+      `const label = catalog.components[0].tag
+       count += 1`,
+      'src/renderer/src/designStudio/ScreenList.tsx'
+    )
+    expect(violations).toEqual([])
+  })
+
+  it('no design-studio file outside screenDocument.ts mutates the document', () => {
+    const packageRoot = resolve(__dirname, '..', '..')
+    const roots = [
+      join(packageRoot, 'src', 'main', 'designStudio'),
+      join(packageRoot, 'src', 'renderer', 'src', 'designStudio'),
+      join(packageRoot, 'src', 'preview')
+    ].filter((dir) => existsSync(dir))
+    // Phase 1 only ships the main-side module; the renderer surfaces and the
+    // in-frame receiver join this scan as they land.
+    expect(roots.length).toBeGreaterThan(0)
+
+    const files = roots
+      .flatMap((dir) => collectSourceFiles(dir))
+      // The reducer is the one place a document write belongs (AD-2).
+      .filter((file) => !file.endsWith(`${sep}screenDocument.ts`))
+    expect(files.length).toBeGreaterThan(0)
+
+    const allViolations = files.flatMap((absolutePath) => {
+      const filePath = relative(packageRoot, absolutePath)
+      return findDocumentMutations(readFileSync(absolutePath, 'utf-8'), filePath).map(
         (v) => `${filePath}:${v.line} — ${v.message}`
       )
     })
