@@ -58,6 +58,34 @@ padrão — apertado demais para quatro superfícies. O design responde com **Mo
 Foco** (DS-R16) e com uma cadeia de degradação por largura, ambos detalhados em
 `design.md` §3.
 
+## D-DS-4 — CSP do Preview: `connect-src data:`, não `'none'`
+
+**Pergunta:** a fase 2 mediu que `wa-icon` resolve todo ícone por
+`fetch(url, { mode: 'cors' })` (`chunk.ZCZ2WKQR.js:62`) — inclusive quando a
+biblioteca local devolve uma URL `data:`. Um `fetch` para `data:` continua sendo
+governado por `connect-src`, então o `connect-src 'none'` que a SPEC exige em
+P1-Preview AC-2 quebraria **todos** os ícones, em silêncio, no Preview e no
+Bundle. O único caminho sem `fetch` que o Web Awesome oferece é `spriteSheet`,
+que usa `<use href>` — o Chrome não suporta referência externa em `<use>` e ela
+não atravessa shadow root. Sem saída dentro da fase 2.
+
+**Decisão (usuário, 2026-08-09):** a CSP da resposta usa **`connect-src data:`**
+no lugar de `'none'`.
+
+**Racional:** o egresso de rede continua sendo zero — uma URL `data:` não alcança
+servidor nenhum, então a intenção de AD-5 fica intacta; o que muda é a letra da
+AC, não a propriedade de segurança. O argumento decisivo é o Export: o `.html`
+autocontido da T7.2 é um arquivo solto, sem o protocolo `hive-studio:`, então
+**precisa** de `data:` de qualquer maneira. Escolher `hive-studio:` no Preview
+criaria dois caminhos de ícone divergindo entre Preview e Export — exatamente o
+tipo de duplicação que AD-6 existe para impedir.
+
+**Consequência para o design:** T3.2 afirma `connect-src data:` no header (não
+`'none'`); o resto da CSP (`script-src 'self'`, `style-src 'self' 'unsafe-inline'`,
+`img-src 'self' data:`) fica como especificado. A prova de zero rede continua
+sendo a T3.8: o Playwright observa o frame e exige zero requisição para fora de
+`hive-studio:`. Vira **D32** no `STATE.md` do projeto, junto de D29–D31.
+
 ## Agent's discretion
 
 Decidido no design, sem necessidade de confirmação:
