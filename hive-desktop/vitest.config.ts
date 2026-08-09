@@ -547,6 +547,17 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The persisted session. Full bar for the same reason as its
+        // `chatHistoryStore` mold: every failure mode costs the user work
+        // they already did — a key that collides across workspaces, a
+        // corrupt file that throws instead of opening fresh, a rename that
+        // leaves a half-written session behind.
+        'src/main/designStudio/sessionStore.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
