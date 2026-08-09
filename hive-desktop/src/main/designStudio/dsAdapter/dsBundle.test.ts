@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, resolve } from 'path'
+import { localIconKeys } from './iconLibrary'
 
 /**
  * design-studio T2.2 — DS-R14, R-2.
@@ -67,6 +68,39 @@ describe('the committed Design System bundle', () => {
     ].map((match) => match[1])
     expect(specifiers).toEqual([])
     expect([...js.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g)]).toEqual([])
+  })
+
+  /**
+   * T2.6 / R-1. Comments are stripped first: the embedded SVGs and the bundle's
+   * legal comment both carry the Font Awesome attribution CC BY 4.0 requires,
+   * and removing that would trade one compliance problem for another. What must
+   * not survive is a *reachable* URL — a string any code path could fetch.
+   */
+  it('has no fontawesome.com URL any code path could reach', () => {
+    for (const file of ['webawesome.js', 'webawesome.css']) {
+      const code = read(file)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+      expect([...code.matchAll(/[^\s"'`)]*fontawesome\.com[^\s"'`)]*/g)].map((m) => m[0])).toEqual(
+        []
+      )
+    }
+    // The attribution itself is still there — and so is the sentinel that
+    // replaced the vendor's CDN base, proving the rewrite ran.
+    expect(read('webawesome.js')).toContain('Font Awesome Free')
+    expect(read('webawesome.js')).toContain('wa-icon-cdn-disabled')
+  })
+
+  it('carries an inline SVG for every icon the local library declares (T2.6)', () => {
+    const js = read('webawesome.js')
+    expect(js).toContain('registerIconLibrary')
+    const missing = localIconKeys().filter((key) => !js.includes(`"${key}":`))
+    expect(missing).toEqual([])
+    // Real markup, not an empty placeholder: `wa-icon` has something to render
+    // with the network off.
+    const house = /"solid\/house":\s*(['"])([\s\S]*?)\1/.exec(js)
+    expect(house?.[2]).toMatch(/^<svg[\s\S]*<\/svg>$/)
+    expect(house?.[2]).toContain('<path')
   })
 
   it('has no stylesheet asset the browser would have to fetch', () => {

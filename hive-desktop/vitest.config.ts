@@ -600,6 +600,17 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The local icon resolver (R-1). Its whole reason to exist is a failure
+        // nobody sees: with the network gone, the vendor default makes every
+        // icon vanish without an error. The branch that must never regress is
+        // the negative one — an icon the bundle lacks resolves to nothing, not
+        // back to a URL.
+        'src/main/designStudio/dsAdapter/iconLibrary.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
