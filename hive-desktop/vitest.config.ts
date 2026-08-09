@@ -558,6 +558,18 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // The CEM → catalog transform (D-DS-5). 100, because it is a
+        // classification table over free text the DS vendor can reword at any
+        // release, and every failure mode is silent: a union misparsed as a
+        // string turns a Select into a text field, a dropped attribute makes a
+        // real prop uneditable, and a prop invented out of an unparseable type
+        // makes the Inspector offer something the component rejects.
+        'src/main/designStudio/dsAdapter/catalogBuild.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file
