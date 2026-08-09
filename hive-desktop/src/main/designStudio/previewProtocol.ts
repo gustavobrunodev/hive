@@ -1,3 +1,4 @@
+import { readFile } from 'fs/promises'
 import { join, sep } from 'path'
 
 /**
@@ -105,4 +106,83 @@ export function resolveStudioRequest(roots: StudioProtocolRoots, url: string): s
   //      catches that shape.
   if (full !== root && !full.startsWith(root.endsWith(sep) ? root : root + sep)) return null
   return full
+}
+
+/**
+ * The Content-Security-Policy every response under this scheme carries
+ * (P1-Preview AC-2). The iframe is already `sandbox="allow-scripts"` without
+ * `allow-same-origin`; this is the second, independent layer.
+ *
+ * `connect-src data:` — **not `'none'`**, and this is the one place the letter
+ * of the spec was changed on purpose (D-DS-4, D32). Phase 2 measured that
+ * `wa-icon` resolves *every* icon through `fetch(url, { mode: 'cors' })`
+ * (`chunk.ZCZ2WKQR.js:62`), including the `data:` URLs our own local icon
+ * library returns — and `connect-src` governs `fetch` even for `data:`. Under
+ * `'none'` every icon would vanish, silently, in the Preview and in the
+ * exported Bundle. The network egress is still zero: a `data:` URL reaches no
+ * server. What changed is the wording of the AC, not the security property,
+ * and T3.8 is what keeps that honest by observing the frame's real traffic.
+ *
+ * `script-src 'self'` is why there is a single host (see the module comment)
+ * and why the shell carries no inline script: the receiver reads its session
+ * token off `location`, so nothing has to be interpolated into markup.
+ */
+export const STUDIO_CSP = [
+  "connect-src data:",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:"
+].join('; ')
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2'
+}
+
+/**
+ * Headers for one Preview response. Pure (a filename in, headers out) so the
+ * CSP contract is asserted against real emitted headers without Electron.
+ *
+ * The CSP rides on *every* response, not only the document: a subresource
+ * cannot be navigated to inside the sandbox, but a scheme whose policy depends
+ * on which file was asked for is a policy with a hole in it.
+ */
+export function studioHeaders(file: string): Record<string, string> {
+  const dot = file.lastIndexOf('.')
+  const extension = dot === -1 ? '' : file.slice(dot).toLowerCase()
+  return {
+    'content-type': CONTENT_TYPES[extension] ?? 'application/octet-stream',
+    'content-security-policy': STUDIO_CSP,
+    // The Preview must reflect the document as of this instant; a cached shell
+    // or a stale bundle would make an edit look like it did not apply.
+    'cache-control': 'no-store'
+  }
+}
+
+/**
+ * Builds the `protocol.handle(STUDIO_SCHEME, …)` handler.
+ *
+ * Files are read with `fs/promises` rather than `net.fetch(file://…)` (the
+ * whisper mold) for one reason: it keeps the handler free of Electron, so the
+ * emitted headers — the actual `Response`, not the source that builds it — can
+ * be asserted in a unit test.
+ */
+export function createStudioProtocolHandler(
+  roots: StudioProtocolRoots
+): (request: { url: string }) => Promise<Response> {
+  return async (request) => {
+    const file = resolveStudioRequest(roots, request.url)
+    if (!file) return new Response(null, { status: 404 })
+    let body: Buffer
+    try {
+      body = await readFile(file)
+    } catch {
+      return new Response(null, { status: 404 })
+    }
+    return new Response(new Uint8Array(body), { status: 200, headers: studioHeaders(file) })
+  }
 }

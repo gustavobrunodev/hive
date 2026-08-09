@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import { join } from 'path'
 import {
+  createStudioProtocolHandler,
   resolveStudioRequest,
+  STUDIO_CSP,
   STUDIO_PREVIEW_HOST,
   STUDIO_SCHEME,
   STUDIO_SCHEME_PRIVILEGES,
@@ -194,5 +198,111 @@ describe('resolveStudioRequest — path escape', () => {
     expect(resolveStudioRequest(trailing, url('/webawesome.css'))).toBe(
       join('/app/resources', 'webawesome.css')
     )
+  })
+})
+
+describe('createStudioProtocolHandler — the response CSP (P1-Preview AC-2, D-DS-4)', () => {
+  let dir: string
+  let handle: (request: { url: string }) => Promise<Response>
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'hive-studio-'))
+    mkdirSync(join(dir, 'design-system-web-awesome'), { recursive: true })
+    writeFileSync(join(dir, 'design-system-web-awesome', 'webawesome.js'), 'export const a = 1')
+    writeFileSync(join(dir, 'design-system-web-awesome', 'webawesome.css'), ':root{}')
+    handle = createStudioProtocolHandler({ preview: dir })
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  // Every assertion below reads the header off the emitted `Response`. None of
+  // them reads the source that built it.
+  it('emits connect-src data: — NOT none, which would kill every wa-icon in silence', async () => {
+    const response = await handle({ url: url('/design-system-web-awesome/webawesome.js') })
+    const csp = response.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain('connect-src data:')
+    expect(csp).not.toContain("connect-src 'none'")
+  })
+
+  it('emits script-src self, so only same-origin scripts run in the frame', async () => {
+    const response = await handle({ url: url('/design-system-web-awesome/webawesome.js') })
+    expect(response.headers.get('content-security-policy')).toContain("script-src 'self'")
+  })
+
+  it('emits style-src self plus unsafe-inline, which the DS needs for its styles', async () => {
+    const response = await handle({ url: url('/design-system-web-awesome/webawesome.css') })
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'self' 'unsafe-inline'"
+    )
+  })
+
+  it('emits img-src self and data:, so inlined icons render and remote ones cannot', async () => {
+    const response = await handle({ url: url('/design-system-web-awesome/webawesome.js') })
+    const csp = response.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("img-src 'self' data:")
+    expect(csp).not.toContain('https:')
+    expect(csp).not.toContain('*')
+  })
+
+  it('carries the CSP on every response, not only on the document', async () => {
+    const js = await handle({ url: url('/design-system-web-awesome/webawesome.js') })
+    const css = await handle({ url: url('/design-system-web-awesome/webawesome.css') })
+    expect(js.headers.get('content-security-policy')).toBe(STUDIO_CSP)
+    expect(css.headers.get('content-security-policy')).toBe(STUDIO_CSP)
+  })
+})
+
+describe('createStudioProtocolHandler — serving', () => {
+  let dir: string
+  let handle: (request: { url: string }) => Promise<Response>
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'hive-studio-'))
+    writeFileSync(join(dir, 'webawesome.js'), 'export const a = 1')
+    writeFileSync(join(dir, 'webawesome.css'), ':root{}')
+    writeFileSync(join(dir, 'notes'), 'no extension')
+    handle = createStudioProtocolHandler({ preview: dir })
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('serves the file bytes with 200', async () => {
+    const response = await handle({ url: url('/webawesome.js') })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('export const a = 1')
+  })
+
+  it('types JavaScript and CSS so the frame executes and applies them', async () => {
+    expect((await handle({ url: url('/webawesome.js') })).headers.get('content-type')).toBe(
+      'text/javascript; charset=utf-8'
+    )
+    expect((await handle({ url: url('/webawesome.css') })).headers.get('content-type')).toBe(
+      'text/css; charset=utf-8'
+    )
+  })
+
+  it('falls back to octet-stream for an unknown extension', async () => {
+    expect((await handle({ url: url('/notes') })).headers.get('content-type')).toBe(
+      'application/octet-stream'
+    )
+  })
+
+  it('never caches, so an edit is never masked by a stale response', async () => {
+    expect((await handle({ url: url('/webawesome.js') })).headers.get('cache-control')).toBe(
+      'no-store'
+    )
+  })
+
+  it('answers 404 for a refused request rather than leaking why', async () => {
+    expect((await handle({ url: 'hive-studio://secrets/id_rsa' })).status).toBe(404)
+    expect((await handle({ url: url('/..%2f..%2fetc/passwd') })).status).toBe(404)
+  })
+
+  it('answers 404 for a resolvable path that is not a readable file', async () => {
+    expect((await handle({ url: url('/missing.js') })).status).toBe(404)
   })
 })

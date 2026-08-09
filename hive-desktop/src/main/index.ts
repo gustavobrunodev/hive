@@ -49,6 +49,11 @@ import {
   WHISPER_SCHEME,
   WHISPER_SCHEME_PRIVILEGES
 } from './whisperProtocol'
+import {
+  createStudioProtocolHandler,
+  STUDIO_SCHEME,
+  STUDIO_SCHEME_PRIVILEGES
+} from './designStudio/previewProtocol'
 import { createWhisperModelStore } from './whisperModelStore'
 import { recommendWhisperModel } from './whisperHardware'
 import type { WhisperModelId, WhisperVariant } from './whisperTypes'
@@ -150,8 +155,11 @@ function createWindow(): void {
 // privileged BEFORE `app.whenReady()` — Chromium reads the scheme registry
 // during startup, so a later call has no effect. The handler itself is wired
 // inside `whenReady` below, once `userData` is resolvable.
+// Design Studio (M18, T3.2): same rule for `hive-studio:` — the scheme that
+// serves the isolated Preview and carries its own CSP per response.
 protocol.registerSchemesAsPrivileged([
-  WHISPER_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme
+  WHISPER_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme,
+  STUDIO_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme
 ])
 
 // This method will be called when Electron has finished
@@ -986,6 +994,17 @@ app.whenReady().then(() => {
       headers: whisperFileHeaders(file, size)
     })
   })
+  // Design Studio (M18, T3.2): the isolated Preview. Everything it loads —
+  // the session shell, the DS bundle, the in-frame receiver — comes from one
+  // read-only root that shipped with the app, under one host so the response
+  // CSP's `script-src 'self'` covers all of it. Packaged, `resources/` is
+  // unpacked next to the asar (`asarUnpack` in electron-builder.yml); in dev it
+  // is the repo's own `resources/`.
+  const studioRoots = {
+    preview: app.isPackaged ? process.resourcesPath : join(__dirname, '../../resources')
+  }
+  protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots))
+
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()
 

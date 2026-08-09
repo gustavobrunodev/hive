@@ -611,6 +611,19 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The Preview's privileged scheme (T3.1/T3.2). 100 because it is the
+        // whole security boundary of phase 3: the path-escape guard is the only
+        // thing between a URL the frame can construct and a file read off disk,
+        // and the response CSP is the second layer under the sandbox. An
+        // unexercised branch here is a bypass, and both failures are silent —
+        // a traversal that works looks like a normal 200, and a dropped CSP
+        // directive looks like a Preview that renders fine.
+        'src/main/designStudio/previewProtocol.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

@@ -1676,9 +1676,24 @@ describe('main process bootstrap', () => {
     })
 
     it('registers the hive-model: scheme as privileged, CORS-enabled and non-CSP-bypassing', () => {
+      // Chromium reads the scheme registry once during startup, so every
+      // privileged scheme the app owns must arrive in this single call —
+      // asserted as the exact array, not a subset, because a scheme that
+      // silently stopped being registered still "contains" the other one.
       expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
         expect.objectContaining({
           scheme: 'hive-model',
+          privileges: expect.objectContaining({
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+            corsEnabled: true,
+            bypassCSP: false
+          })
+        }),
+        // design-studio T3.2 — the Preview's scheme, registered in the same call.
+        expect.objectContaining({
+          scheme: 'hive-studio',
           privileges: expect.objectContaining({
             standard: true,
             secure: true,
@@ -1731,6 +1746,34 @@ describe('main process bootstrap', () => {
       const response = await handler({ url: 'hive-model://models/base/onnx/encoder_model.onnx' })
       expect(response.headers.get('content-length')).toBe(String(bytes.length))
       expect(response.headers.get('content-type')).toBe('application/octet-stream')
+    })
+
+    /**
+     * design-studio T3.2. The wired handler, not the factory: this asserts the
+     * header the *app* emits, off a real `Response`, so a future refactor that
+     * registers the scheme without its CSP fails here.
+     */
+    it('serves the Preview scheme from resources/ with its own CSP on the response', async () => {
+      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-studio')
+      expect(call).toBeTruthy()
+      const handler = call![1] as (req: { url: string }) => Promise<Response>
+
+      const response = await handler({
+        url: 'hive-studio://preview/design-system-web-awesome/catalog.json'
+      })
+      expect(response.status).toBe(200)
+      const csp = response.headers.get('content-security-policy') ?? ''
+      expect(csp).toContain('connect-src data:')
+      expect(csp).not.toContain("connect-src 'none'")
+      expect(csp).toContain("script-src 'self'")
+      expect(csp).toContain("style-src 'self' 'unsafe-inline'")
+      expect(csp).toContain("img-src 'self' data:")
+    })
+
+    it('refuses an unknown host on the Preview scheme', async () => {
+      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-studio')
+      const handler = call![1] as (req: { url: string }) => Promise<Response>
+      expect((await handler({ url: 'hive-studio://userdata/sessions.json' })).status).toBe(404)
     })
 
     it('404s a resolvable path that is not on disk, instead of a fetch that fails later', async () => {
