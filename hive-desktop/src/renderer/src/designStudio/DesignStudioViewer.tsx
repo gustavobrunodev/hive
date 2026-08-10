@@ -478,13 +478,18 @@ function StudioBody({
     )
   }
   return (
-    <StagePane viewport={studio.viewport}>
-      {/* DS-R7 / §3.10: a Tela with no Components teaches how to get its first
-          one — inside the device, where the Preview would be, so the bench
-          still reads as the workspace it is rather than blinking out. */}
-      {doc.document.root === null ? (
-        <ScreenEmpty onAddComponent={onAddComponent} onGenerate={onGenerate} />
-      ) : (
+    <StagePane
+      viewport={studio.viewport}
+      {...(doc.document.root === null
+        ? {
+            // DS-R7 / §3.10: a Tela with no Components teaches how to get its
+            // first one, on the bench rather than inside the device — the
+            // device is scaled, and a lesson at 46% is not a lesson (T7.5).
+            placeholder: <ScreenEmpty onAddComponent={onAddComponent} onGenerate={onGenerate} />
+          }
+        : {})}
+    >
+      {doc.document.root !== null && (
         <PreviewFrame
           size={studio.viewport}
           document={doc.document}

@@ -83,7 +83,12 @@ describe('the bench declares no box-shadow (D-DS-9, T4.5)', () => {
 
     expect(studioRules.get('.wb-dstudio-bench')).toContain('background: var(--bg-2)')
     expect(studioRules.get('.wb-dstudio-device')).toContain('background: var(--bg)')
-    expect(studioRules.get('.wb-dstudio-device')).toContain('1px solid var(--border-strong)')
+    // T7.5: the bezel was `--border-strong` until the visual pass measured it
+    // at 1.68–1.98:1 against the bench across the three themes, under the 3:1
+    // floor a non-textual carrier owes (DS-R18). `--muted` is the lightest
+    // opaque ink token that clears it everywhere — `--faint` lands at 2.95:1
+    // in the light theme.
+    expect(studioRules.get('.wb-dstudio-device')).toContain('1px solid var(--muted)')
     expect(studioRules.get('.wb-dstudio-screen')).toContain('background: var(--surface)')
   })
 
@@ -237,6 +242,31 @@ describe('StagePane — the object on the bench', () => {
     expect((document.querySelector('.wb-dstudio-scale') as HTMLElement).style.transform).toBe(
       'scale(1)'
     )
+  })
+
+  /**
+   * T7.5, from the visual pass: a Tela with no Components was rendering inside
+   * the device, which at a Desktop preset on a real column is ~46% — so the
+   * teaching state arrived at 7px. It goes on the bench instead, at 100%, and
+   * the device that has nothing to show is not drawn at all.
+   */
+  it('puts a placeholder on the bench, outside the scaled device', () => {
+    render(
+      createElement(StagePane, {
+        viewport: DEFAULT_VIEWPORT,
+        placeholder: createElement('p', null, 'Esta Tela ainda não tem Componentes')
+      })
+    )
+    resizeBench(700)
+
+    const placeholder = document.querySelector('.wb-dstudio-bench-placeholder')
+    expect(placeholder?.textContent).toBe('Esta Tela ainda não tem Componentes')
+    // Nothing scaled: no device, no readout, nothing shrunk under the lesson.
+    expect(document.querySelector('.wb-dstudio-scale')).toBeNull()
+    expect(document.querySelector('.wb-dstudio-device')).toBeNull()
+    expect(screen.queryByText(/1440 × 900/)).toBeNull()
+    // The bench and its grid stay: the workspace does not blink out (§3.10).
+    expect(document.querySelector('.wb-dstudio-bench-grid')).toBeTruthy()
   })
 
   it('animates the transform and nothing else, with a reduced alternative (§3.9)', () => {

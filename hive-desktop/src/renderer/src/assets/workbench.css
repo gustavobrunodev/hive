@@ -13780,6 +13780,8 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-stage {
   display: flex;
   flex: 1;
+  /* Same reason as the bench below: the panel that holds it is a block. */
+  height: 100%;
   align-items: center;
   justify-content: center;
   min-width: 0;
@@ -13880,6 +13882,11 @@ button.wb-mcplog-summary:focus-visible {
   position: relative;
   display: flex;
   flex: 1;
+  /* T7.5, found in the visual pass: the middle `ResizablePanel` is a *block*,
+     so `flex: 1` bought the bench nothing and it sized to its content — the
+     dot grid stopped a third of the way down the column and the palco read as
+     ending in mid-air. The bench is the floor; it has to be the whole floor. */
+  height: 100%;
   align-items: flex-start;
   justify-content: center;
   min-width: 0;
@@ -13907,7 +13914,14 @@ button.wb-mcplog-summary:focus-visible {
 
 .wb-dstudio-device {
   padding: var(--s-2);
-  border: 1px solid var(--border-strong);
+  /* T7.5: the bezel was `--border-strong`, which is a 26%-alpha hairline and
+     measured 1.68–1.98:1 against the bench in the three themes. The three
+     surface layers (D-DS-9) carry the depth, but the *edge* is what says
+     "this is a device, and the Tela ends here" — an outline that faint leaves
+     the Preview bleeding into the bench. `--muted` is the lightest opaque ink
+     token that clears the 3:1 carrier floor in all three themes — `--faint`
+     was tried first and lands at 2.95:1 in the light one. */
+  border: 1px solid var(--muted);
   border-radius: var(--rounded-lg);
   background: var(--bg);
 }
@@ -14155,6 +14169,21 @@ button.wb-mcplog-summary:focus-visible {
   padding: 0 var(--s-3) var(--s-2);
 }
 
+/* T7.5, found in the visual pass: at the DS's default button size the four
+   structural actions are ~200px wide each, so in a 290px column they stacked
+   one per row and took 160px of the 480px the Árvore had — pushing "Remover"
+   below the fold on a Tela with three nodes. They are secondary controls under
+   the thing they change, so they get a secondary size and fit two per row. */
+
+.wb-dstudio-tree-actions button {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 28px;
+  padding-block: var(--s-1);
+  padding-inline: var(--s-2);
+  font-size: 12px;
+}
+
 .wb-dstudio-tree-error {
   margin: 0;
   padding: 0 var(--s-3) var(--s-2);
@@ -14224,7 +14253,11 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-chat-phase,
 .wb-dstudio-chat-turn-meta {
   font-size: 12px;
-  color: var(--faint);
+  /* Not `--faint`: it measured 3.29:1 in the light theme, the fourth module to
+     step on the same rail (M14 L-TI-1, M15, agent-patch). The rule that
+     settles it is about who reads the text, not about how important it is —
+     if someone reads it, it is `--muted` or darker. */
+  color: var(--muted);
 }
 
 /* The collapse toggle is always the last thing in the bar, whether or not the
@@ -14340,4 +14373,29 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-export-failed-reason {
   font-size: 12px;
   color: var(--danger-ink, var(--ink));
+}
+
+/* T7.5: the DS paints a selected Tree row as `--selected` on `--selected-bg` —
+   coral text over a coral tint, which measures 4.44:1 in the dark theme and
+   misses the 4.5:1 floor. Same finding as the `SegmentedControl` count (M15)
+   and the agent card's `PADRÃO` (M16), and the same fix: an **opaque** fill
+   carries the tone, `--ink` carries the text. Scoped to the Studio's tree,
+   because the design system package is not ours to edit. */
+
+.wb-dstudio-tree .hds-tree-item-selected > .hds-tree-row {
+  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
+  color: var(--ink);
+}
+
+/* T7.5: what stands in for the device when there is no Tela to render. It
+   sits on the bench at 100% — a state whose whole job is to teach cannot be
+   inside the thing that scales to 46%. */
+
+.wb-dstudio-bench-placeholder {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
 }

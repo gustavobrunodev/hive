@@ -33,6 +33,17 @@ export interface StagePaneProps {
   viewport: Viewport
   /** The Preview frame, rendered at the device's real size. */
   children?: ReactNode
+  /**
+   * Shown **on** the bench instead of the device, at 100% (T7.5).
+   *
+   * The visual pass found the Tela-with-no-Components state rendered *inside*
+   * the device, which at a Desktop preset on a real column is scaled to ~46% —
+   * so the one thing that state exists to do, teach, arrived at 7px. A Tela
+   * with no Components has no device worth showing anyway: there is nothing to
+   * judge at a device size. The bench and its grid stay, so the stage still
+   * reads as the workspace it is (§3.10) rather than blinking out.
+   */
+  placeholder?: ReactNode
 }
 
 /**
@@ -56,7 +67,7 @@ function useBenchWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   return width
 }
 
-export function StagePane({ viewport, children }: StagePaneProps): React.JSX.Element {
+export function StagePane({ viewport, children, placeholder }: StagePaneProps): React.JSX.Element {
   const benchRef = useRef<HTMLDivElement>(null)
   const benchWidth = useBenchWidth(benchRef)
   const scale = scaleFor(benchWidth, viewport.width)
@@ -64,24 +75,28 @@ export function StagePane({ viewport, children }: StagePaneProps): React.JSX.Ele
   return (
     <div className="wb-dstudio-bench" aria-label={t('designStudio.stageAria')} ref={benchRef}>
       <div className="wb-dstudio-bench-grid" aria-hidden="true" />
-      <div className="wb-dstudio-bench-content">
-        <div
-          className="wb-dstudio-scale"
-          data-scale={scale}
-          style={{
-            transform: `scale(${scale})`,
-            marginRight: `${-viewport.width * (1 - scale)}px`,
-            marginBottom: `${-viewport.height * (1 - scale)}px`
-          }}
-        >
-          <div className="wb-dstudio-device">
-            <div className="wb-dstudio-screen">{children}</div>
+      {placeholder !== undefined ? (
+        <div className="wb-dstudio-bench-placeholder">{placeholder}</div>
+      ) : (
+        <div className="wb-dstudio-bench-content">
+          <div
+            className="wb-dstudio-scale"
+            data-scale={scale}
+            style={{
+              transform: `scale(${scale})`,
+              marginRight: `${-viewport.width * (1 - scale)}px`,
+              marginBottom: `${-viewport.height * (1 - scale)}px`
+            }}
+          >
+            <div className="wb-dstudio-device">
+              <div className="wb-dstudio-screen">{children}</div>
+            </div>
           </div>
+          <p className="wb-dstudio-readout">
+            {formatReadout(viewport.width, viewport.height, scale)}
+          </p>
         </div>
-        <p className="wb-dstudio-readout">
-          {formatReadout(viewport.width, viewport.height, scale)}
-        </p>
-      </div>
+      )}
     </div>
   )
 }
