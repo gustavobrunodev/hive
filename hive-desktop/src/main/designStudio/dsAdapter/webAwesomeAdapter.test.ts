@@ -250,6 +250,52 @@ describe('validate — Components the Tela does not contain', () => {
   })
 })
 
+/**
+ * design-studio T5.6 — DS-R7 AC-3. A move that would make a Component its own
+ * ancestor is refused *before* the dispatch, and refused as a
+ * `CapabilityViolation` rather than as a quiet no-op: the user dropped
+ * somewhere and is owed the reason (§6, DS-R17).
+ */
+describe('validate — a move that would create a cycle (DS-R7 AC-3)', () => {
+  const deep: ScreenDocument = {
+    screenId: 'login',
+    title: 'Login',
+    root: node('n1', 'wa-card', {
+      children: [node('n2', 'wa-card', { children: [node('n3', 'wa-card')] })]
+    })
+  }
+
+  it('rejects moving a Component into its own child', () => {
+    expect(
+      validate({ type: 'MoveComponent', componentId: 'n2', newParentId: 'n3', index: 0 }, deep)
+    ).toEqual({
+      kind: 'capability',
+      componentId: 'n2',
+      reason:
+        'O Componente "wa-card" não pode ser movido para dentro de si mesmo nem de um descendente dele.',
+      attemptedValue: 'n3'
+    })
+  })
+
+  it('rejects moving a Component into itself', () => {
+    expect(
+      validate({ type: 'MoveComponent', componentId: 'n2', newParentId: 'n2', index: 0 }, deep)
+    ).toMatchObject({ kind: 'capability', componentId: 'n2', attemptedValue: 'n2' })
+  })
+
+  it('rejects a move into a deeper descendant, not only into a direct child', () => {
+    expect(
+      validate({ type: 'MoveComponent', componentId: 'n1', newParentId: 'n3', index: 0 }, deep)
+    ).toMatchObject({ kind: 'capability', componentId: 'n1', attemptedValue: 'n3' })
+  })
+
+  it('still accepts a move that goes the other way, up the same branch', () => {
+    expect(
+      validate({ type: 'MoveComponent', componentId: 'n3', newParentId: 'n1', index: 0 }, deep)
+    ).toBeNull()
+  })
+})
+
 describe('validate — an empty Tela', () => {
   const empty: ScreenDocument = { screenId: 'empty', title: 'Vazia', root: null }
 

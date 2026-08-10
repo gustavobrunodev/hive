@@ -1410,6 +1410,13 @@ export const ptBR = {
     treeAddAsRoot: 'Como o primeiro Componente da Tela',
     treeAddConfirm: 'Adicionar',
     treeAddCancel: 'Cancelar',
+    // T5.6 (DS-R7 AC-2/AC-3/AC-5): mover é para dentro/para fora, porque é o
+    // único par de gestos que o teclado também alcança (DS-R18).
+    treeRemove: 'Remover',
+    treeMoveInside: 'Mover para dentro',
+    treeMoveInsideHint: 'Torna este Componente filho do Componente acima dele',
+    treeMoveOutside: 'Mover para fora',
+    treeMoveOutsideHint: 'Move este Componente para junto do Componente que o contém',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',

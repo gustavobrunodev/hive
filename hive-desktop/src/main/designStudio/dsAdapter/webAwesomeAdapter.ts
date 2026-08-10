@@ -209,15 +209,33 @@ function validateAdd(
   return checkSubtree(index, rules, command.node)
 }
 
+/**
+ * T5.6 / DS-R7 AC-3. A move into the moving node's own subtree — itself
+ * included — is refused *here*, before the command can reach the log. The
+ * reducer already declines to lose the tree over it (`screenDocument.ts`), but
+ * a silent no-op is not one of the two failure forms DS-R17 allows: the user
+ * dropped somewhere and is owed a reason.
+ */
 function validateMove(
   index: Map<string, IndexedComponent>,
   document: ScreenDocument,
   command: Extract<Command, { type: 'MoveComponent' }>
 ): CapabilityViolation | null {
-  if (!findNode(document.root, command.componentId)) {
+  const moving = findNode(document.root, command.componentId)
+  if (!moving) {
     return violation(
       command.componentId,
       `O Componente "${command.componentId}" não está nesta Tela.`
+    )
+  }
+  // `findNode` starts at the moving node itself, so this one check covers both
+  // "into itself" and "into one of its descendants".
+  if (findNode(moving, command.newParentId)) {
+    return violation(
+      command.componentId,
+      `O Componente "${moving.tag}" não pode ser movido para dentro de si mesmo ` +
+        `nem de um descendente dele.`,
+      command.newParentId
     )
   }
   const parent = parentTagOf(document, command.newParentId, command.componentId)

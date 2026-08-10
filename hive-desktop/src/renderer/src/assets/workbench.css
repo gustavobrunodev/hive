@@ -14116,3 +14116,27 @@ button.wb-mcplog-summary:focus-visible {
   gap: var(--s-2);
   justify-content: flex-end;
 }
+
+/* Removing and moving (T5.6). The actions sit under the tree they change, and
+   a refused move explains itself in the same place — a drop that silently does
+   nothing is the one outcome DS-R17 does not allow. */
+
+.wb-dstudio-tree-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.wb-dstudio-tree-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  padding: 0 var(--s-3) var(--s-2);
+}
+
+.wb-dstudio-tree-error {
+  margin: 0;
+  padding: 0 var(--s-3) var(--s-2);
+  font-size: 12px;
+  color: var(--danger-ink);
+}

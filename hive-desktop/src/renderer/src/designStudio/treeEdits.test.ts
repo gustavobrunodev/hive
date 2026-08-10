@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { addCommand, addTargetFor, componentTags, nextNodeId, slotOptionsFor } from './treeEdits'
+import {
+  addCommand,
+  addTargetFor,
+  componentTags,
+  moveInsideCommand,
+  moveOutsideCommand,
+  nextNodeId,
+  placeOf,
+  removeCommand,
+  slotForMove,
+  slotOptionsFor
+} from './treeEdits'
 import type { ComponentCatalog, ScreenDocument, ScreenNode } from './documentModel'
 
 /**
@@ -107,5 +118,98 @@ describe('addCommand — one Command, carrying the choice', () => {
   it('never repeats an id across calls', () => {
     const ids = new Set(Array.from({ length: 200 }, () => nextNodeId()))
     expect(ids.size).toBe(200)
+  })
+})
+
+/**
+ * design-studio T5.6 (DS-R7 AC-2/AC-3). Move is indent/outdent — the only pair
+ * of gestures a keyboard can make (DS-R18) — and the commands it produces are
+ * ordinary `MoveComponent`s, so they undo like anything else.
+ */
+describe('placeOf — a node’s parent and its position', () => {
+  it('finds a nested node’s parent and index', () => {
+    expect(placeOf(DOC.root, 'n3')).toMatchObject({ parent: { id: 'n2' }, index: 0 })
+  })
+
+  it('has no place for the root, which has no parent', () => {
+    expect(placeOf(DOC.root, 'n1')).toBeNull()
+  })
+
+  it('has no place for a node that is not in this Tela', () => {
+    expect(placeOf(DOC.root, 'ghost')).toBeNull()
+  })
+})
+
+describe('slotForMove — the slot a moved node lands in', () => {
+  it('keeps the slot it already sits in when the new parent declares it', () => {
+    expect(slotForMove(CATALOG, 'wa-card', 'footer')).toBe('footer')
+  })
+
+  it('falls back to the new parent’s first declared slot when the old one is unknown there', () => {
+    expect(slotForMove(CATALOG, 'wa-page', 'footer')).toBe('')
+  })
+
+  it('keeps the slot when the new parent declares none, so validate() can say why', () => {
+    expect(slotForMove(CATALOG, 'wa-icon', 'footer')).toBe('footer')
+  })
+})
+
+describe('moveInsideCommand — into the sibling above', () => {
+  /** page › [card(input), icon] — the icon has a sibling above it to move into. */
+  const SIBLINGS: ScreenDocument = {
+    screenId: 'login',
+    title: 'Login',
+    root: node('n1', 'wa-page', [
+      node('n2', 'wa-card', [node('n3', 'wa-icon')]),
+      node('n4', 'wa-icon')
+    ])
+  }
+
+  it('makes the node the last child of the sibling above it', () => {
+    expect(moveInsideCommand(SIBLINGS, CATALOG, 'n4')).toEqual({
+      type: 'MoveComponent',
+      componentId: 'n4',
+      newParentId: 'n2',
+      slot: '',
+      index: 1
+    })
+  })
+
+  it('offers nothing for the first child, which has no sibling above it', () => {
+    expect(moveInsideCommand(SIBLINGS, CATALOG, 'n3')).toBeNull()
+  })
+
+  it('offers nothing for the root', () => {
+    expect(moveInsideCommand(SIBLINGS, CATALOG, 'n1')).toBeNull()
+  })
+
+  it('offers nothing with no selection at all', () => {
+    expect(moveInsideCommand(SIBLINGS, CATALOG, null)).toBeNull()
+  })
+})
+
+describe('moveOutsideCommand — beside the parent', () => {
+  it('places the node right after its own parent, one level up', () => {
+    expect(moveOutsideCommand(DOC, CATALOG, 'n3')).toEqual({
+      type: 'MoveComponent',
+      componentId: 'n3',
+      newParentId: 'n1',
+      slot: '',
+      index: 1
+    })
+  })
+
+  it('offers nothing for a child of the root, which has nowhere further out to go', () => {
+    expect(moveOutsideCommand(DOC, CATALOG, 'n2')).toBeNull()
+  })
+
+  it('offers nothing for the root itself', () => {
+    expect(moveOutsideCommand(DOC, CATALOG, 'n1')).toBeNull()
+  })
+})
+
+describe('removeCommand', () => {
+  it('is one RemoveComponent for the node asked for', () => {
+    expect(removeCommand('n3')).toEqual({ type: 'RemoveComponent', componentId: 'n3' })
   })
 })

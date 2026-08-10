@@ -261,6 +261,76 @@ describe('DesignStudioViewer — selection runs both ways (T5.1)', () => {
 })
 
 /**
+ * design-studio T5.5/T5.6. The Árvore's structural edits, through the real
+ * wiring: one grouped step per edit, the Tela marked edited only once it lands,
+ * and the selection dropped with the Component it pointed at (DS-R7 AC-2/AC-5).
+ */
+describe('DesignStudioViewer — editing the structure from the Árvore (T5.6)', () => {
+  function rowFor(tag: string): HTMLElement {
+    const row = screen
+      .getAllByRole('treeitem')
+      .find((item) => item.querySelector('.hds-tree-label-text')?.textContent === tag)
+    if (!row) throw new Error(`no row for ${tag}`)
+    return row
+  }
+
+  async function renderSelectedButton(dispatchResult?: unknown): Promise<void> {
+    mockScreens(async () => oneScreen, NESTED, dispatchResult)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(2))
+    fireEvent.click(rowFor('wa-button'))
+  }
+
+  it('dispatches one RemoveComponent, in its own undo group', async () => {
+    await renderSelectedButton()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() => expect(bridge().dispatch).toHaveBeenCalledTimes(1))
+    const [, , , commands, groupId] = bridge().dispatch.mock.calls[0]
+    expect(commands).toEqual([{ type: 'RemoveComponent', componentId: 'n2' }])
+    expect(typeof groupId).toBe('string')
+  })
+
+  it('drops the selection along with the Component it pointed at (DS-R7 AC-5)', async () => {
+    await renderSelectedButton()
+    expect(rowFor('wa-button').getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() => expect(rowFor('wa-button').getAttribute('aria-selected')).toBe('false'))
+  })
+
+  it('marks the Tela as edited once a structural change has landed (DS-R4 AC-3)', async () => {
+    await renderSelectedButton()
+    expect(screen.getByText('gerada automaticamente')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() => expect(screen.getByText('editada nesta sessão')).toBeTruthy())
+  })
+
+  it('shows a refused structural edit and leaves the Tela unedited', async () => {
+    await renderSelectedButton({
+      kind: 'capability',
+      componentId: 'n2',
+      reason: 'O Componente "wa-button" não está nesta Tela.'
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe(
+        'O Componente "wa-button" não está nesta Tela.'
+      )
+    )
+    expect(screen.getByText('gerada automaticamente')).toBeTruthy()
+    expect(rowFor('wa-button').getAttribute('aria-selected')).toBe('true')
+  })
+})
+
+/**
  * design-studio T4.8 / §3.8. The requirement is not "it responds to width" —
  * it is that **nothing becomes unreachable** in any band. Each case below asks
  * for all three surfaces by name and expects to find every one of them,

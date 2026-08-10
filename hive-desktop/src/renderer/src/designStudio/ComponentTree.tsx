@@ -1,6 +1,6 @@
 import { Tree } from '@hive/design-system'
 import { t } from '../i18n'
-import { AddComponent } from './AddComponent'
+import { TreeActions } from './TreeActions'
 import type {
   CapabilityViolation,
   Command,
@@ -28,9 +28,9 @@ import { allNodeIds } from './screenTree'
  * nodes, and a collapsed root would hide the very structure the pane exists to
  * show.
  *
- * T5.5 adds the structural edit: with `onEdit` wired, the pane also carries the
- * add picker, and it carries it **even for an empty Tela** — a Tela with no
- * Components still has to offer the way to its first one (DS-R7).
+ * T5.5/T5.6 add the structural edit: with `onEdit` wired, the pane also carries
+ * add, remove and move, and it carries them **even for an empty Tela** — a Tela
+ * with no Components still has to offer the way to its first one (DS-R7).
  */
 
 export interface ComponentTreeProps {
@@ -81,11 +81,12 @@ export function ComponentTree({
         />
       )}
       {onEdit && (
-        <AddComponent
+        <TreeActions
           catalog={catalog ?? null}
           document={document}
           selectedComponentId={selectedComponentId}
-          onAdd={onEdit}
+          onSelect={onSelect}
+          onEdit={onEdit}
         />
       )}
     </>
