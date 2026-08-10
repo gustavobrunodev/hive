@@ -55,6 +55,9 @@ import {
   STUDIO_SCHEME_PRIVILEGES
 } from './designStudio/previewProtocol'
 import { createPreviewSessions } from './designStudio/previewSessions'
+import { detectScreens } from './designStudio/screenDetection'
+import type { ScreenDetectionResult } from './designStudio/screenDetection'
+import type { OperationError } from './designStudio/types'
 import { createWhisperModelStore } from './whisperModelStore'
 import { recommendWhisperModel } from './whisperHardware'
 import type { WhisperModelId, WhisperVariant } from './whisperTypes'
@@ -1014,6 +1017,31 @@ app.whenReady().then(() => {
   ipcMain.handle('designStudio:closePreview', async (_event, url: string) => {
     studioSessions.closeUrl(url)
   })
+
+  // The Telas a UX Spec describes (DS-R1 AC-2/3/5). Nothing here talks to an
+  // agent: the list has to be on screen *before* any Preview is generated, so
+  // it is read straight off the markdown. An unreadable Spec comes back as an
+  // `OperationError` rather than a rejection, because the tab renders it as a
+  // retryable empty state instead of dying (DS-R17).
+  ipcMain.handle(
+    'designStudio:screens',
+    async (
+      _event,
+      workspace: string,
+      relativePath: string
+    ): Promise<ScreenDetectionResult | OperationError> => {
+      try {
+        return detectScreens(await fsService.readFile(workspace, relativePath))
+      } catch (err) {
+        return {
+          kind: 'operation',
+          scope: 'io',
+          message: err instanceof Error ? err.message : String(err),
+          retryable: true
+        }
+      }
+    }
+  )
 
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()

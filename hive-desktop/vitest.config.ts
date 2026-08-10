@@ -625,6 +625,18 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The Tela detector (T4.2). 100 because every failure mode is a Studio
+        // that looks like it worked: a probe that misses turns a valid Spec
+        // into "no Telas found", and a probe that over-matches puts phantom
+        // entries in the selector — neither raises anything, and the heuristic
+        // reads free-form markdown, which is exactly where an unexercised
+        // branch is a rule that does not exist (R-8).
+        'src/main/designStudio/screenDetection.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The Preview's privileged scheme (T3.1/T3.2). 100 because it is the
         // whole security boundary of phase 3: the path-escape guard is the only
         // thing between a URL the frame can construct and a file read off disk,

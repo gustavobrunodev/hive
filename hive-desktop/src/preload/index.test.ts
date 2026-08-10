@@ -425,6 +425,7 @@ describe('preload: window.hive bridge', () => {
       designStudio: {
         openPreview: () => Promise<unknown>
         closePreview: (u: string) => Promise<unknown>
+        screens: (w: string, p: string) => Promise<unknown>
       }
     }
     await expect(hive.designStudio.openPreview()).resolves.toBe('invoked:designStudio:openPreview')
@@ -435,6 +436,9 @@ describe('preload: window.hive bridge', () => {
       'designStudio:closePreview',
       'hive-studio://preview/abc/index.html'
     )
+
+    await hive.designStudio.screens('/ws', 'docs/ux.md')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:screens', '/ws', 'docs/ux.md')
   })
 
   // Profile namespace (agent-selection + role-personalization).

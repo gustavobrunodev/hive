@@ -214,7 +214,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       studio: { list: vi.fn().mockResolvedValue([]) },
       designStudio: {
         openPreview: vi.fn().mockResolvedValue('hive-studio://preview/x/index.html'),
-        closePreview: vi.fn().mockResolvedValue(undefined)
+        closePreview: vi.fn().mockResolvedValue(undefined),
+        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] })
       },
       mcp: {
         list: vi.fn().mockResolvedValue([]),

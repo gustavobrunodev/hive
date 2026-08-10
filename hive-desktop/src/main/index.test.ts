@@ -1789,6 +1789,51 @@ describe('main process bootstrap', () => {
       expect((await studioHandler({ url })).status).toBe(404)
     })
 
+    // design-studio T4.2 / DS-R1 AC-2: the Telas are listed *before* anything
+    // is generated. The assertion that matters is not that three come back —
+    // it is that no agent was touched to produce them, because an agent call
+    // here would put a spinner in front of the first thing the Studio says.
+    it('lists every Tela of a Spec without invoking the agent (AC-2)', async () => {
+      fakeFsService.readFile.mockReturnValueOnce(
+        ['## Tela — Login', '## Tela — Cadastro', '## Tela — Sucesso'].join('\n')
+      )
+      vi.mocked(fakeAgentService.startSession).mockClear()
+      vi.mocked(fakeAgentService.send).mockClear()
+
+      const result = (await findHandler('designStudio:screens')({}, '/ws', 'docs/ux.md')) as {
+        screens: { title: string }[]
+      }
+
+      expect(fakeFsService.readFile).toHaveBeenCalledWith('/ws', 'docs/ux.md')
+      expect(result.screens.map((screen) => screen.title)).toEqual(['Login', 'Cadastro', 'Sucesso'])
+      expect(fakeAgentService.startSession).not.toHaveBeenCalled()
+      expect(fakeAgentService.send).not.toHaveBeenCalled()
+    })
+
+    it('reports an unreadable Spec as a retryable OperationError, not a rejection (AC-5)', async () => {
+      fakeFsService.readFile.mockImplementationOnce(() => {
+        throw new Error('ENOENT: no such file')
+      })
+
+      await expect(findHandler('designStudio:screens')({}, '/ws', 'gone.md')).resolves.toEqual({
+        kind: 'operation',
+        scope: 'io',
+        message: 'ENOENT: no such file',
+        retryable: true
+      })
+    })
+
+    it('reports a non-Error read failure with its own text rather than "[object Object]"', async () => {
+      fakeFsService.readFile.mockImplementationOnce(() => {
+        throw 'disco cheio'
+      })
+
+      await expect(findHandler('designStudio:screens')({}, '/ws', 'x.md')).resolves.toMatchObject({
+        message: 'disco cheio',
+        retryable: true
+      })
+    })
+
     it('gives a different Preview URL to every open', async () => {
       const open = findHandler('designStudio:openPreview')
       const first = await open({})

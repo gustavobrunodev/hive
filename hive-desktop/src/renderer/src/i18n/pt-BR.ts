@@ -1355,6 +1355,20 @@ export const ptBR = {
       count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`
   },
   // Workspace file search (Ctrl+P palette).
+  // design-studio (M18): the Bancada. Copy lives here like every other
+  // surface's — the Studio is app chrome, not agent output.
+  designStudio: {
+    emptyScreensTitle: 'Nenhuma Tela reconhecida nesta Spec',
+    emptyScreensDescription:
+      'A Spec foi lida inteira, mas nada nela nomeia uma Tela. Procuramos por:',
+    probeScreenHeading: 'Títulos de Tela — "## Tela — Login", "### Screen: Checkout"',
+    probeIaTable:
+      'A tabela de Arquitetura da Informação — a primeira coluna chamada Surface, Screen ou Tela',
+    emptyScreensHint: 'Acrescente uma dessas formas à Spec e abra o Design Studio de novo.',
+    emptyScreensAction: 'Abrir a Spec no editor',
+    specErrorTitle: 'Não foi possível ler a Spec',
+    specErrorRetry: 'Tentar de novo'
+  },
   fileSearch: {
     dialogLabel: 'Buscar arquivos no workspace',
     placeholder: 'Buscar arquivos no workspace…',

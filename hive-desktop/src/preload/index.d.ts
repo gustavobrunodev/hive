@@ -26,6 +26,8 @@ import type { McpLogEntry } from '../main/mcpLogParse'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
+import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
+import type { OperationError } from '../main/designStudio/types'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
@@ -117,6 +119,11 @@ declare global {
       designStudio: {
         openPreview(): Promise<string>
         closePreview(url: string): Promise<void>
+        /** The Telas a UX Spec names (DS-R1); an `OperationError` when it cannot be read. */
+        screens(
+          workspace: string,
+          relativePath: string
+        ): Promise<ScreenDetectionResult | OperationError>
       }
       /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
       mcp: {

@@ -26,6 +26,8 @@ import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
+import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
+import type { OperationError } from '../main/designStudio/types'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
@@ -310,7 +312,15 @@ const hive = {
   designStudio: {
     openPreview: (): Promise<string> => ipcRenderer.invoke('designStudio:openPreview'),
     closePreview: (url: string): Promise<void> =>
-      ipcRenderer.invoke('designStudio:closePreview', url)
+      ipcRenderer.invoke('designStudio:closePreview', url),
+    // The Telas a UX Spec names (DS-R1). Resolves to the detection result, or
+    // to an `OperationError` when the Spec cannot be read — never rejects, so
+    // the tab renders the failure instead of unmounting on it.
+    screens: (
+      workspace: string,
+      relativePath: string
+    ): Promise<ScreenDetectionResult | OperationError> =>
+      ipcRenderer.invoke('designStudio:screens', workspace, relativePath)
   },
 
   // MCP module (mcp): the workspace's Model Context Protocol servers. list is

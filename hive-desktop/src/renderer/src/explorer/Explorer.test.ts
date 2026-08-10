@@ -334,7 +334,8 @@ describe('Explorer (T12/T8)', () => {
       studio: { list: vi.fn().mockResolvedValue([]) },
       designStudio: {
         openPreview: vi.fn().mockResolvedValue('hive-studio://preview/x/index.html'),
-        closePreview: vi.fn().mockResolvedValue(undefined)
+        closePreview: vi.fn().mockResolvedValue(undefined),
+        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] })
       },
       mcp: {
         list: vi.fn().mockResolvedValue([]),

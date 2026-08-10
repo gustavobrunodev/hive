@@ -13711,3 +13711,19 @@ button.wb-mcplog-summary:focus-visible {
     transition: none;
   }
 }
+
+/* ── design-studio (M18): the Bancada ──────────────────────────────────────
+   The Studio's empty states. `Empty` already centres and sizes its own copy;
+   the only thing added here is the probe list, which has to read as an
+   enumeration ("we looked for these two things") rather than as prose. */
+
+.wb-studio-empty-probes {
+  margin: var(--s-2) 0;
+  padding-left: var(--s-4);
+  list-style: disc;
+  text-align: left;
+}
+
+.wb-studio-empty-probes li + li {
+  margin-top: var(--s-1);
+}
