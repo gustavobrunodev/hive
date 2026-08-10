@@ -73,6 +73,22 @@ vi.mock('@hive/design-system', () => ({
       children
     )
   },
+  Empty: ({
+    title,
+    description,
+    action
+  }: {
+    title: ReactNode
+    description?: ReactNode
+    action?: ReactNode
+  }) =>
+    createElement('div', { 'data-empty': 'true' }, [
+      createElement('p', { key: 't' }, title),
+      createElement('p', { key: 'd' }, description),
+      createElement('div', { key: 'a' }, action)
+    ]),
+  Button: ({ children, ...rest }: { children?: ReactNode }) =>
+    createElement('button', rest, children),
   Accordion: ({ children, defaultValue }: { children?: ReactNode; defaultValue?: string[] }) =>
     createElement('div', { 'data-open': (defaultValue ?? []).join(' ') }, children),
   AccordionItem: ({ children, value }: { children?: ReactNode; value: string }) =>
@@ -380,5 +396,48 @@ describe('Inspector — a refused value (DS-R6 AC-4)', () => {
     answer = null
     fireEvent.click(screen.getByText('success'))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+  })
+})
+
+/**
+ * design-studio T5.4 (DS-R6 AC-5). A panel that is merely blank reads as
+ * broken; this one has to name how to make a selection.
+ */
+describe('Inspector — nothing selected (DS-R6 AC-5)', () => {
+  it('teaches how to select instead of rendering a blank panel', () => {
+    renderInspector({ selectedComponentId: null })
+
+    expect(screen.getByText('Nada selecionado')).toBeTruthy()
+    expect(
+      screen.getByText('Clique em qualquer elemento no palco para editar as propriedades dele.')
+    ).toBeTruthy()
+    expect(offeredProps()).toEqual([])
+  })
+
+  it('offers the Árvore as the second way in, as an action rather than a sentence', () => {
+    const onBrowseTree = vi.fn()
+    renderInspector({ selectedComponentId: null, onBrowseTree })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher na Árvore' }))
+    expect(onBrowseTree).toHaveBeenCalledTimes(1)
+  })
+
+  it('teaches the same way when the Tela has no Components at all', () => {
+    renderInspector({
+      selectedComponentId: null,
+      document: { screenId: 'login', title: 'Login', root: null }
+    })
+
+    expect(screen.getByText('Nada selecionado')).toBeTruthy()
+  })
+
+  it('teaches when the selection points at a Component the Tela no longer has', () => {
+    renderInspector({ selectedComponentId: 'sumiu' })
+    expect(screen.getByText('Nada selecionado')).toBeTruthy()
+  })
+
+  it('drops the empty state the moment something is selected', () => {
+    renderInspector()
+    expect(screen.queryByText('Nada selecionado')).toBeNull()
   })
 })

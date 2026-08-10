@@ -1,5 +1,7 @@
 import {
   Accordion,
+  Button,
+  Empty,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
@@ -20,6 +22,7 @@ import type {
   ComponentCatalog,
   ScreenDocument
 } from './documentModel'
+import { SlidersIcon } from '../ui/icons'
 import { findNode } from './screenTree'
 
 /**
@@ -44,6 +47,11 @@ import { findNode } from './screenTree'
  * sent back; it lands as the `Field`'s `error`, which is the same rendering the
  * Chat uses for the same fact (AD-10), and the control keeps showing the value
  * the document still has — because the document really was left alone.
+ *
+ * **With nothing selected it teaches rather than sits blank** (T5.4, DS-R6
+ * AC-5). A panel that is merely empty reads as broken; this one names the two
+ * ways in — click anything on the palco, or pick a Component in the Árvore —
+ * and the second one is a button, not a sentence.
  *
  * **Text debounces at 120 ms; enum and boolean do not** (R-6). A dropdown or a
  * switch produces one deliberate value per interaction, so waiting would only
@@ -72,6 +80,27 @@ export interface InspectorProps {
   selectedComponentId: string | null
   /** Dispatches one `SetProp`. Resolves to the violation when it was refused. */
   onChange: (key: string, value: PropValue) => Promise<CapabilityViolation | null>
+  /** Takes the user to the Árvore — the empty state's second way in (DS-R6 AC-5). */
+  onBrowseTree?: () => void
+}
+
+/** DS-R6 AC-5: with no selection the panel says how to make one. */
+function NoSelection({ onBrowseTree }: { onBrowseTree?: () => void }): React.JSX.Element {
+  return (
+    <Empty
+      className="wb-dstudio-empty"
+      icon={<SlidersIcon size={28} />}
+      title={t('designStudio.inspectorEmptyTitle')}
+      description={t('designStudio.inspectorEmptyDescription')}
+      action={
+        onBrowseTree && (
+          <Button variant="ghost" onClick={onBrowseTree}>
+            {t('designStudio.inspectorEmptyAction')}
+          </Button>
+        )
+      }
+    />
+  )
 }
 
 function asText(value: PropValue): string {
@@ -198,14 +227,18 @@ export function Inspector({
   catalog,
   document,
   selectedComponentId,
-  onChange
+  onChange,
+  onBrowseTree
 }: InspectorProps): React.JSX.Element | null {
   // One reason per prop. Keyed rather than singular because a refusal on
   // `variant` must not wipe the one still explaining what went wrong on `size`.
   const [violations, setViolations] = useState<Record<string, string>>({})
   const node = findNode(document.root, selectedComponentId)
   const component = catalog?.components.find((candidate) => candidate.tag === node?.tag)
-  if (!node || !component) return null
+  if (!node) return <NoSelection onBrowseTree={onBrowseTree} />
+  // A selected node whose tag the active catalog does not have has no props to
+  // offer; the Árvore is where that mismatch is visible and fixable.
+  if (!component) return null
 
   const change = (key: string, value: PropValue): void => {
     void onChange(key, value).then((violation) =>

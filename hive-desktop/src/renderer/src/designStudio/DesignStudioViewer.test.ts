@@ -401,6 +401,34 @@ describe('DesignStudioViewer — editing a prop (T5.3)', () => {
     await screen.findByLabelText('Palco')
 
     expect(screen.queryByRole('switch', { name: 'disabled' })).toBeNull()
+    // T5.4: and says so, rather than leaving the column blank (DS-R6 AC-5).
+    expect(screen.getByText('Nada selecionado')).toBeTruthy()
+  })
+
+  // T5.4 / §3.8: the empty state's way to the Árvore has to work in the bands
+  // where the Árvore has no column — there it opens the drawer instead.
+  it('sends the empty state to the Árvore drawer when the tree has no column', async () => {
+    mockScreens(async () => oneScreen, BUTTON)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    resizeTab(700)
+    // Below 820px the Inspetor is a drawer too — that is where its empty state
+    // is read, and where its way out to the Árvore has to work.
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir o Inspetor' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher na Árvore' }))
+    expect(screen.getByRole('complementary', { name: 'Árvore' })).toBeTruthy()
+  })
+
+  it('moves focus into the Árvore when it does have a column', async () => {
+    mockScreens(async () => oneScreen, BUTTON)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    resizeTab(1400)
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher na Árvore' }))
+    expect(document.activeElement).toBe(screen.getAllByRole('treeitem')[0])
   })
 
   it('marks the Tela as edited only once the change has landed (DS-R4 AC-3)', async () => {

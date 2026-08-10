@@ -1399,6 +1399,10 @@ export const ptBR = {
     focusModeExit: 'Sair do Modo Foco',
     focusModeHint: 'O palco ocupa a janela inteira',
     treeAria: 'Árvore de Componentes desta Tela',
+    inspectorEmptyTitle: 'Nada selecionado',
+    inspectorEmptyDescription:
+      'Clique em qualquer elemento no palco para editar as propriedades dele.',
+    inspectorEmptyAction: 'Escolher na Árvore',
     inspectorGroupAppearance: 'Aparência',
     inspectorGroupState: 'Estado',
     inspectorGroupContent: 'Conteúdo',

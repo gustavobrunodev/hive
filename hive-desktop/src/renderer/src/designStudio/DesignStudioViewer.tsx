@@ -79,6 +79,19 @@ export function DesignStudioViewer({
   const [drawer, setDrawer] = useState<OpenDrawer>(null)
   const [hintOffered] = useState(() => takeFocusHint())
 
+  /**
+   * The Inspetor's empty state sends the user to the Árvore. Where that is
+   * depends on the band (§3.8): a column to focus, or a drawer to open first —
+   * the same surface either way, which is the point of the fold.
+   */
+  const browseTree = (): void => {
+    if (layout.treeDrawer) {
+      setDrawer('tree')
+      return
+    }
+    rootRef.current?.querySelector<HTMLElement>('[role="treeitem"]')?.focus()
+  }
+
   return (
     <div
       className="wb-dstudio"
@@ -141,7 +154,7 @@ export function DesignStudioViewer({
               defaultSize="22%"
               className="wb-dstudio-side"
             >
-              <InspectorPane studio={studio} doc={doc} />
+              <InspectorPane studio={studio} doc={doc} onBrowseTree={browseTree} />
             </ResizablePanel>
           )}
         </Resizable>
@@ -155,7 +168,7 @@ export function DesignStudioViewer({
             title={t('designStudio.inspectorPaneTitle')}
             onClose={() => setDrawer(null)}
           >
-            <InspectorPane studio={studio} doc={doc} />
+            <InspectorPane studio={studio} doc={doc} onBrowseTree={browseTree} />
           </StudioDrawer>
         )}
       </div>
@@ -208,10 +221,12 @@ function TreePane({
  */
 function InspectorPane({
   studio,
-  doc
+  doc,
+  onBrowseTree
 }: {
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
+  onBrowseTree: () => void
 }): React.JSX.Element {
   const setProp = async (key: string, value: PropValue): Promise<CapabilityViolation | null> => {
     const componentId = studio.selectedComponentId
@@ -232,6 +247,7 @@ function InspectorPane({
         document={doc.document}
         selectedComponentId={studio.selectedComponentId}
         onChange={setProp}
+        onBrowseTree={onBrowseTree}
       />
     </section>
   )
