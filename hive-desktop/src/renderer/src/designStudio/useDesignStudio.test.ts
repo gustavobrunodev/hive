@@ -127,6 +127,50 @@ describe('useDesignStudio (T4.3, DS-R1)', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
 
+  it('drives undo/redo availability off the active Tela’s own log (T4.4)', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(false)
+
+    act(() => result.current.recordStep('g1'))
+    expect(result.current.canUndo).toBe(true)
+    expect(result.current.canRedo).toBe(false)
+
+    act(() => result.current.undo())
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(true)
+
+    act(() => result.current.redo())
+    expect(result.current.canRedo).toBe(false)
+  })
+
+  it('ignores a history action while no Tela is active', async () => {
+    mockScreens(async () => ({ screens: [], probed: ['screenHeading', 'iaTable'] }))
+    const { result } = renderHook(() => useDesignStudio('/ws', 'notas.md'))
+    await waitFor(() => expect(result.current.status).toBe('empty'))
+
+    act(() => result.current.recordStep('g1'))
+    expect(result.current.sessions).toEqual({})
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('opens on Desktop and changes viewport without touching the undo log (DS-R3 AC-6)', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    act(() => result.current.recordStep('g1'))
+
+    act(() => result.current.setViewport({ presetId: 'mobile', width: 390, height: 844 }))
+
+    expect(result.current.viewport.presetId).toBe('mobile')
+    // The edit is still exactly one undo step — the preset is not one.
+    expect(result.current.session.steps).toEqual(['g1'])
+    expect(result.current.canUndo).toBe(true)
+  })
+
   it('drops a read that fails after unmount, for the same reason', async () => {
     let fail: (reason: Error) => void = () => {}
     mockScreens(

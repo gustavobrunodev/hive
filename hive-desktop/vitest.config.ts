@@ -637,6 +637,23 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The per-Tela undo cursor and the device sizes (T4.4). 100 because
+        // both are small tables whose every failure is silent: an Undo button
+        // enabled with nothing behind it, a redo branch that survives a new
+        // edit, or a "tablet" that is not the tablet's real width — which is
+        // the one thing D-DS-7 exists to guarantee.
+        'src/renderer/src/designStudio/screenSessions.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/designStudio/viewport.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The Studio tab's state (T4.3). 100 because its whole job is telling
         // four situations apart — reading, read, read-but-empty, unreadable —
         // and every confusion between them is a surface that lies: an empty

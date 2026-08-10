@@ -13791,3 +13791,62 @@ button.wb-mcplog-summary:focus-visible {
   width: 60%;
   height: 60%;
 }
+
+/* The toolbar (T4.4). One row, 44px, above the columns: the Tela, the device,
+   the history, the way out to Focus Mode. It never scrolls with the stage —
+   the preset has to stay readable while the Preview is being scrolled. */
+
+.wb-studio {
+  flex-direction: column;
+}
+
+.wb-studio-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--s-2);
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.wb-studio-screen-trigger {
+  min-width: 8rem;
+  max-width: 14rem;
+}
+
+.wb-studio-screen-count {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.wb-studio-viewport {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.wb-studio-viewport-custom {
+  display: flex;
+  gap: var(--s-1);
+  align-items: center;
+}
+
+.wb-studio-viewport-field {
+  width: 5rem;
+}
+
+.wb-studio-toolbar-end {
+  display: flex;
+  gap: var(--s-1);
+  align-items: center;
+  margin-left: auto;
+}
+
+.wb-studio-shortcut {
+  display: inline-flex;
+  gap: var(--s-1);
+  align-items: center;
+}

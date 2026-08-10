@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
+import { StudioToolbar } from './StudioToolbar'
 import { useDesignStudio } from './useDesignStudio'
 
 /**
@@ -31,9 +33,28 @@ export function DesignStudioViewer({
   onOpenSpec
 }: DesignStudioViewerProps): React.JSX.Element {
   const studio = useDesignStudio(workspace, specPath)
+  const [focusMode, setFocusMode] = useState(false)
 
   return (
-    <div className="wb-studio" role="region" aria-label={t('designStudio.tabAria', specPath)}>
+    <div
+      className="wb-studio"
+      role="region"
+      aria-label={t('designStudio.tabAria', specPath)}
+      data-focus-mode={focusMode || undefined}
+    >
+      <StudioToolbar
+        screens={studio.screens}
+        activeScreenId={studio.activeScreenId}
+        onSelectScreen={studio.selectScreen}
+        viewport={studio.viewport}
+        onViewportChange={studio.setViewport}
+        canUndo={studio.canUndo}
+        canRedo={studio.canRedo}
+        onUndo={studio.undo}
+        onRedo={studio.redo}
+        focusMode={focusMode}
+        onToggleFocusMode={() => setFocusMode((current) => !current)}
+      />
       <Resizable orientation="horizontal" className="wb-studio-columns">
         <ResizablePanel
           id="studio-left"
