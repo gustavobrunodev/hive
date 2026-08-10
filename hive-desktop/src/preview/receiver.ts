@@ -1,4 +1,4 @@
-import { buildSubtree } from './dom'
+import { indexByNodeId, reconcileNode, syncChildren } from './dom'
 import { messageFor, type PreviewDocument, type PreviewInbound } from './messages'
 
 /**
@@ -50,9 +50,21 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
   let stage = doc.createElement('div')
   stage.id = STAGE_ID
 
+  /**
+   * Reconciles the stage against the new document (D-DS-6, DS-R8).
+   *
+   * The parent sends the whole `ScreenDocument`, not the `Command` — a Command
+   * would need the reducer duplicated in here, and two implementations of the
+   * one mutation is exactly what AD-2 exists to prevent. What buys back the
+   * "instant" is doing the diff here, by node id, so a `SetProp` patches an
+   * attribute and touches nothing else.
+   */
   function render(next: PreviewDocument): void {
-    stage.replaceChildren()
-    if (next.root) stage.appendChild(buildSubtree(doc, next.root))
+    if (!next.root) {
+      stage.replaceChildren()
+      return
+    }
+    syncChildren(stage, [reconcileNode(doc, next.root, indexByNodeId(stage))])
   }
 
   function onMessage(event: MessageEvent): void {

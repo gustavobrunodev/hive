@@ -24,27 +24,34 @@ function node(id: string, tag: string, extra: Partial<PreviewNode> = {}): Previe
   return { id, tag, props: {}, children: [], ...extra }
 }
 
-/** A three-level tree: page → card → (input, button → icon). */
-const THREE_LEVELS: PreviewDocument = {
-  screenId: 'login',
-  root: node('n1', 'wa-page', {
-    props: { view: 'default' },
-    children: [
-      node('n2', 'wa-card', {
-        props: { appearance: 'outlined' },
-        children: [
-          node('n3', 'wa-input', { props: { label: 'E-mail', required: true } }),
-          node('n4', 'wa-button', {
-            props: { variant: 'brand', pill: true },
-            children: [
-              node('n5', 'wa-icon', { slot: 'start', props: { name: 'right-to-bracket' } })
-            ]
-          })
-        ]
-      })
-    ]
-  })
+/**
+ * A three-level tree: page → card → (input, button → icon), built by
+ * composition so a variant can be expressed as a *different* document rather
+ * than as a mutation of this one. The T1.7 boundary guard forbids writing
+ * through `.props`/`.children` anywhere in `src/` — including here, and
+ * rightly: a fixture that mutates a document is a fixture that models the bug
+ * the reducer exists to prevent.
+ */
+const ICON = node('n5', 'wa-icon', { slot: 'start', props: { name: 'right-to-bracket' } })
+const INPUT = node('n3', 'wa-input', { props: { label: 'E-mail', required: true } })
+
+function button(props: PreviewNode['props'] = { variant: 'brand', pill: true }): PreviewNode {
+  return node('n4', 'wa-button', { props, children: [ICON] })
 }
+
+function screen(cardChildren: PreviewNode[]): PreviewDocument {
+  return {
+    screenId: 'login',
+    root: node('n1', 'wa-page', {
+      props: { view: 'default' },
+      children: [
+        node('n2', 'wa-card', { props: { appearance: 'outlined' }, children: cardChildren })
+      ]
+    })
+  }
+}
+
+const THREE_LEVELS: PreviewDocument = screen([INPUT, button()])
 
 function setPath(pathname: string): void {
   window.history.replaceState({}, '', pathname)
@@ -200,6 +207,123 @@ describe('receiver render', () => {
     receiver.dispose()
     post({ type: 'render', nonce: TOKEN, document: THREE_LEVELS })
     expect(document.getElementById(STAGE_ID)).toBeNull()
+  })
+})
+
+/**
+ * design-studio T3.5 (DS-R8, D-DS-6). "Immediate" is not a screenshot claim —
+ * a full rebuild also shows the new value instantly. What separates a patch
+ * from a rebuild is everything the DOM holds and the document does not: focus,
+ * caret, scroll, a component's internal state. So identity is what gets
+ * asserted, not appearance.
+ */
+describe('reconciliation by node id', () => {
+  let receiver: ReturnType<typeof createPreviewReceiver>
+
+  beforeEach(() => {
+    setPath(`/${TOKEN}/index.html`)
+    receiver = createPreviewReceiver(window)
+    receiver.start()
+    post({ type: 'render', nonce: TOKEN, document: THREE_LEVELS })
+  })
+
+  afterEach(() => {
+    receiver.dispose()
+    document.body.replaceChildren()
+  })
+
+  const byId = (id: string): Element => document.querySelector(`[${NODE_ID_ATTRIBUTE}="${id}"]`)!
+
+  /** THREE_LEVELS with one prop of one node changed — a `SetProp`. */
+  const VARIANT_CHANGED = screen([INPUT, button({ variant: 'danger', pill: true })])
+
+  it('does NOT recreate the patched element — same node reference before and after', () => {
+    const before = byId('n4')
+    post({ type: 'render', nonce: TOKEN, document: VARIANT_CHANGED })
+
+    expect(byId('n4')).toBe(before)
+    expect(byId('n4').getAttribute('variant')).toBe('danger')
+  })
+
+  it('leaves every untouched element in place too, not just the patched one', () => {
+    const before = ['n1', 'n2', 'n3', 'n5'].map(byId)
+    post({ type: 'render', nonce: TOKEN, document: VARIANT_CHANGED })
+
+    expect(['n1', 'n2', 'n3', 'n5'].map(byId)).toEqual(before)
+  })
+
+  it('keeps DOM state the document does not carry — focus survives a patch', () => {
+    const input = byId('n3') as HTMLElement
+    input.tabIndex = 0
+    input.focus()
+    expect(document.activeElement).toBe(input)
+
+    post({ type: 'render', nonce: TOKEN, document: VARIANT_CHANGED })
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('removes a prop the new document no longer has, without touching the element', () => {
+    const before = byId('n4')
+    post({
+      type: 'render',
+      nonce: TOKEN,
+      document: screen([INPUT, button({ variant: 'brand' })])
+    })
+
+    expect(byId('n4')).toBe(before)
+    expect(byId('n4').hasAttribute('pill')).toBe(false)
+  })
+
+  it('never strips an attribute the component itself reflected', () => {
+    // Lit components write their own state back to attributes. Treating "not
+    // in props" as "ours to remove" would fight the component on every patch.
+    byId('n4').setAttribute('size', 'medium')
+    post({ type: 'render', nonce: TOKEN, document: VARIANT_CHANGED })
+    expect(byId('n4').getAttribute('size')).toBe('medium')
+  })
+
+  it('moves an existing element on reorder rather than rebuilding it', () => {
+    const input = byId('n3')
+    const buttonElement = byId('n4')
+
+    post({ type: 'render', nonce: TOKEN, document: screen([button(), INPUT]) })
+    expect([...byId('n2').children]).toEqual([buttonElement, input])
+  })
+
+  it('adds only the new node, keeping its siblings', () => {
+    const card = byId('n2')
+    const input = byId('n3')
+
+    post({
+      type: 'render',
+      nonce: TOKEN,
+      document: screen([INPUT, button(), node('n6', 'wa-divider')])
+    })
+
+    expect(byId('n2')).toBe(card)
+    expect(byId('n3')).toBe(input)
+    expect(byId('n6').tagName.toLowerCase()).toBe('wa-divider')
+  })
+
+  it('removes a node that is gone, and only that node', () => {
+    const buttonElement = byId('n4')
+
+    post({ type: 'render', nonce: TOKEN, document: screen([button()]) })
+    expect(document.querySelector(`[${NODE_ID_ATTRIBUTE}="n3"]`)).toBeNull()
+    expect(byId('n4')).toBe(buttonElement)
+  })
+
+  it('rebuilds when the id is reused for a different tag — setAttribute cannot morph one', () => {
+    const before = byId('n3')
+
+    post({
+      type: 'render',
+      nonce: TOKEN,
+      document: screen([node('n3', 'wa-textarea'), button()])
+    })
+
+    expect(byId('n3')).not.toBe(before)
+    expect(byId('n3').tagName.toLowerCase()).toBe('wa-textarea')
   })
 })
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { applyProp, applyProps, buildSubtree, createNodeElement, NODE_ID_ATTRIBUTE } from './dom'
+import { applyProp, applyProps, NODE_ID_ATTRIBUTE, reconcileNode, syncChildren } from './dom'
 import { messageFor } from './messages'
 import type { PreviewNode } from './messages'
 
@@ -75,9 +75,9 @@ describe('applyProps', () => {
   })
 })
 
-describe('createNodeElement / buildSubtree', () => {
+describe('reconcileNode on an empty mount', () => {
   it('tags the element with its node id', () => {
-    const element = createNodeElement(document, node('wa-button'))
+    const element = reconcileNode(document, node('wa-button'), new Map())
     expect(element.getAttribute(NODE_ID_ATTRIBUTE)).toBe('n1')
   })
 
@@ -88,11 +88,33 @@ describe('createNodeElement / buildSubtree', () => {
         { id: 'b', tag: 'wa-button', props: {}, children: [] }
       ]
     })
-    const element = buildSubtree(document, tree)
+    const element = reconcileNode(document, tree, new Map())
     expect([...element.children].map((child) => child.getAttribute(NODE_ID_ATTRIBUTE))).toEqual([
       'a',
       'b'
     ])
+  })
+})
+
+describe('syncChildren', () => {
+  it('moves the nodes already there instead of replacing them', () => {
+    const parent = document.createElement('div')
+    const a = document.createElement('span')
+    const b = document.createElement('span')
+    parent.append(a, b)
+
+    syncChildren(parent, [b, a])
+    expect([...parent.children]).toEqual([b, a])
+  })
+
+  it('drops the trailing nodes the new list no longer has', () => {
+    const parent = document.createElement('div')
+    const a = document.createElement('span')
+    const b = document.createElement('span')
+    parent.append(a, b)
+
+    syncChildren(parent, [a])
+    expect([...parent.children]).toEqual([a])
   })
 })
 
