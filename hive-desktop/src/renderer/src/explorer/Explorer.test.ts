@@ -335,7 +335,28 @@ describe('Explorer (T12/T8)', () => {
       designStudio: {
         openPreview: vi.fn().mockResolvedValue('hive-studio://preview/x/index.html'),
         closePreview: vi.fn().mockResolvedValue(undefined),
-        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] })
+        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] }),
+        catalog: vi.fn().mockResolvedValue({ dsId: 'ds', version: '0', components: [] }),
+        view: vi.fn().mockResolvedValue({
+          document: { screenId: '', title: '', root: null },
+          canUndo: false,
+          canRedo: false
+        }),
+        dispatch: vi.fn().mockResolvedValue({
+          document: { screenId: '', title: '', root: null },
+          canUndo: false,
+          canRedo: false
+        }),
+        undo: vi.fn().mockResolvedValue({
+          document: { screenId: '', title: '', root: null },
+          canUndo: false,
+          canRedo: false
+        }),
+        redo: vi.fn().mockResolvedValue({
+          document: { screenId: '', title: '', root: null },
+          canUndo: false,
+          canRedo: false
+        })
       },
       mcp: {
         list: vi.fn().mockResolvedValue([]),

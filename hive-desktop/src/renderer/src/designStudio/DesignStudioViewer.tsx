@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
+import { ComponentTree } from './ComponentTree'
 import { ScreenList } from './ScreenList'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 import { PreviewFrame } from './PreviewFrame'
@@ -10,6 +11,7 @@ import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
+import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
 
 /**
  * Design Studio (M18) — T4.3/T4.8. The tab's shell: the Bancada's columns, and
@@ -67,6 +69,9 @@ export function DesignStudioViewer({
   onRequestFocusMode
 }: DesignStudioViewerProps): React.JSX.Element {
   const studio = useDesignStudio(workspace, specPath)
+  const activeTitle =
+    studio.screens.find((screen) => screen.screenId === studio.activeScreenId)?.title ?? ''
+  const doc = useScreenDocument(workspace, specPath, studio.activeScreenId, activeTitle)
   const rootRef = useRef<HTMLDivElement>(null)
   const layout = useStageLayout(rootRef)
   const [drawer, setDrawer] = useState<OpenDrawer>(null)
@@ -87,10 +92,16 @@ export function DesignStudioViewer({
         onSelectScreen={studio.selectScreen}
         viewport={studio.viewport}
         onViewportChange={studio.setViewport}
-        canUndo={studio.canUndo}
-        canRedo={studio.canRedo}
-        onUndo={studio.undo}
-        onRedo={studio.redo}
+        canUndo={doc.canUndo}
+        canRedo={doc.canRedo}
+        onUndo={() => {
+          doc.undo()
+          studio.undo()
+        }}
+        onRedo={() => {
+          doc.redo()
+          studio.redo()
+        }}
         focusMode={focusMode}
         onToggleFocusMode={() => onRequestFocusMode(!focusMode)}
         onOpenTree={layout.treeDrawer ? () => setDrawer('tree') : undefined}
@@ -108,14 +119,14 @@ export function DesignStudioViewer({
               className="wb-dstudio-side"
             >
               <ScreensPane studio={studio} />
-              <TreePane />
+              <TreePane studio={studio} doc={doc} />
             </ResizablePanel>
           )}
           {layout.leftColumn && (
             <ResizableHandle withGrip aria-label={t('designStudio.resizeHandleLabel')} />
           )}
           <ResizablePanel id="studio-stage" minSize="40%">
-            <StudioBody studio={studio} specPath={specPath} onOpenSpec={onOpenSpec} />
+            <StudioBody studio={studio} doc={doc} specPath={specPath} onOpenSpec={onOpenSpec} />
           </ResizablePanel>
           {layout.inspectorColumn && (
             <ResizableHandle withGrip aria-label={t('designStudio.resizeHandleLabel')} />
@@ -134,7 +145,7 @@ export function DesignStudioViewer({
         </Resizable>
         {drawer === 'tree' && (
           <StudioDrawer title={t('designStudio.treePaneTitle')} onClose={() => setDrawer(null)}>
-            <TreePane />
+            <TreePane studio={studio} doc={doc} />
           </StudioDrawer>
         )}
         {drawer === 'inspector' && (
@@ -168,11 +179,22 @@ function ScreensPane({
   )
 }
 
-/** Filled by phase 5 (T5.5); it exists here so the fold has something to fold. */
-function TreePane(): React.JSX.Element {
+/** The Tela's structure, and one of the two ends of the selection (T5.1). */
+function TreePane({
+  studio,
+  doc
+}: {
+  studio: ReturnType<typeof useDesignStudio>
+  doc: ScreenDocumentState
+}): React.JSX.Element {
   return (
     <section className="wb-dstudio-pane" aria-label={t('designStudio.treePaneTitle')}>
       <h2 className="wb-dstudio-pane-title">{t('designStudio.treePaneTitle')}</h2>
+      <ComponentTree
+        document={doc.document}
+        selectedComponentId={studio.selectedComponentId}
+        onSelect={studio.selectComponent}
+      />
     </section>
   )
 }
@@ -193,10 +215,12 @@ function InspectorPane(): React.JSX.Element {
  */
 function StudioBody({
   studio,
+  doc,
   specPath,
   onOpenSpec
 }: {
   studio: ReturnType<typeof useDesignStudio>
+  doc: ScreenDocumentState
   specPath: string
   onOpenSpec: (path: string) => void
 }): React.JSX.Element {
@@ -225,7 +249,12 @@ function StudioBody({
   }
   return (
     <StagePane viewport={studio.viewport}>
-      <PreviewFrame size={studio.viewport} />
+      <PreviewFrame
+        size={studio.viewport}
+        document={doc.document}
+        selectedComponentId={studio.selectedComponentId}
+        onSelectComponent={studio.selectComponent}
+      />
     </StagePane>
   )
 }

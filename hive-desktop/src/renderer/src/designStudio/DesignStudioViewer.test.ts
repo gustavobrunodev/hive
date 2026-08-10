@@ -49,14 +49,35 @@ afterEach(() => {
   resetFocusHint()
 })
 
-function mockScreens(impl: () => Promise<ScreensResponse>): ReturnType<typeof vi.fn> {
+/** A Tela holding a card with a button inside it — enough to have something to select. */
+const NESTED = {
+  screenId: 'login',
+  title: 'Login',
+  root: {
+    id: 'n1',
+    tag: 'wa-card',
+    props: {},
+    children: [{ id: 'n2', tag: 'wa-button', props: {}, children: [] }]
+  }
+}
+
+function mockScreens(
+  impl: () => Promise<ScreensResponse>,
+  document: unknown = { screenId: 'login', title: 'Login', root: null }
+): ReturnType<typeof vi.fn> {
   const screens = vi.fn(impl)
+  const view = { document, canUndo: false, canRedo: false }
   window.hive = {
     ...window.hive,
     designStudio: {
       screens,
       openPreview: vi.fn().mockResolvedValue('hive-studio://preview/abc/index.html'),
-      closePreview: vi.fn().mockResolvedValue(undefined)
+      closePreview: vi.fn().mockResolvedValue(undefined),
+      catalog: vi.fn().mockResolvedValue({ dsId: 'ds', version: '1', components: [] }),
+      view: vi.fn().mockResolvedValue(view),
+      dispatch: vi.fn().mockResolvedValue(view),
+      undo: vi.fn().mockResolvedValue(view),
+      redo: vi.fn().mockResolvedValue(view)
     }
   } as unknown as typeof window.hive
   return screens
@@ -140,6 +161,79 @@ describe('DesignStudioViewer — the Bancada shell (T4.3, DS-R16)', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Palco')).toBeTruthy())
     expect(screens).toHaveBeenCalledTimes(2)
+  })
+})
+
+/**
+ * design-studio T5.1 / DS-R5 AC-4/AC-5. Selection is one fact with two
+ * surfaces. Both directions are asserted on the Árvore's `aria-selected`,
+ * because that is what a user actually sees change.
+ */
+describe('DesignStudioViewer — selection runs both ways (T5.1)', () => {
+  /** The tree row for a tag, ignoring the tags of rows nested inside it. */
+  function rowFor(tag: string): HTMLElement {
+    const row = screen
+      .getAllByRole('treeitem')
+      .find((item) => item.querySelector('.hds-tree-label-text')?.textContent === tag)
+    if (!row) throw new Error(`no row for ${tag}`)
+    return row
+  }
+
+  async function renderWithTree(): Promise<HTMLIFrameElement> {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    const frame = (await screen.findByTitle('Preview da Tela')) as HTMLIFrameElement
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(2))
+    return frame
+  }
+
+  it('lists the Tela’s Components in the Árvore, nested ones included', async () => {
+    await renderWithTree()
+    expect(rowFor('wa-card')).toBeTruthy()
+    expect(rowFor('wa-button')).toBeTruthy()
+  })
+
+  it('highlights the row for the Component clicked on the palco', async () => {
+    const frame = await renderWithTree()
+    await waitFor(() => expect(frame.getAttribute('src')).toBeTruthy())
+    const source = { postMessage: vi.fn() }
+    Object.defineProperty(frame, 'contentWindow', { configurable: true, value: source })
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'selected', nonce: 'abc', componentId: 'n2' },
+          source: source as unknown as Window
+        })
+      )
+    })
+
+    expect(rowFor('wa-button').getAttribute('aria-selected')).toBe('true')
+    expect(rowFor('wa-card').getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('sends the Árvore’s selection out to the palco, so the outline follows', async () => {
+    const frame = await renderWithTree()
+    await waitFor(() => expect(frame.getAttribute('src')).toBeTruthy())
+    const posted: Record<string, unknown>[] = []
+    Object.defineProperty(frame, 'contentWindow', {
+      configurable: true,
+      value: { postMessage: (message: Record<string, unknown>) => posted.push(message) }
+    })
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'ready', nonce: 'abc' },
+          source: frame.contentWindow as unknown as Window
+        })
+      )
+    })
+
+    fireEvent.click(rowFor('wa-button'))
+
+    expect(rowFor('wa-button').getAttribute('aria-selected')).toBe('true')
+    expect(posted).toContainEqual({ type: 'select', componentId: 'n2', nonce: 'abc' })
   })
 })
 

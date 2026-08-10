@@ -27,7 +27,13 @@ import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/con
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
-import type { OperationError } from '../main/designStudio/types'
+import type {
+  CapabilityViolation,
+  Command,
+  ComponentCatalog,
+  OperationError
+} from '../main/designStudio/types'
+import type { ScreenView } from '../main/designStudio/designStudioService'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
@@ -124,6 +130,20 @@ declare global {
           workspace: string,
           relativePath: string
         ): Promise<ScreenDetectionResult | OperationError>
+        /** The active DS catalog — the only source of truth for what exists (DS-R13). */
+        catalog(): Promise<ComponentCatalog>
+        /** One Tela as its log leaves it, creating an empty one on first ask. */
+        view(key: string, screenId: string, title: string): Promise<ScreenView>
+        /** Validates the batch, then pushes it as ONE undoable step; a rejected edit resolves to the violation. */
+        dispatch(
+          key: string,
+          screenId: string,
+          title: string,
+          commands: Command[],
+          groupId: string
+        ): Promise<ScreenView | CapabilityViolation>
+        undo(key: string, screenId: string, title: string): Promise<ScreenView>
+        redo(key: string, screenId: string, title: string): Promise<ScreenView>
       }
       /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
       mcp: {

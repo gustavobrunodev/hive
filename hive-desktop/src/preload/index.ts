@@ -27,7 +27,13 @@ import type { McpLogEntry } from '../main/mcpLogParse'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
-import type { OperationError } from '../main/designStudio/types'
+import type {
+  CapabilityViolation,
+  Command,
+  ComponentCatalog,
+  OperationError
+} from '../main/designStudio/types'
+import type { ScreenView } from '../main/designStudio/designStudioService'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
@@ -320,7 +326,26 @@ const hive = {
       workspace: string,
       relativePath: string
     ): Promise<ScreenDetectionResult | OperationError> =>
-      ipcRenderer.invoke('designStudio:screens', workspace, relativePath)
+      ipcRenderer.invoke('designStudio:screens', workspace, relativePath),
+    // The document (T5.1). `key` identifies one Tela's log in main; the
+    // `screenId`/`title` pair is the origin its replay starts from. `dispatch`
+    // resolves to the new view **or** to a `CapabilityViolation` — a rejected
+    // edit is a value the Inspector renders, not an exception (DS-R17).
+    catalog: (): Promise<ComponentCatalog> => ipcRenderer.invoke('designStudio:catalog'),
+    view: (key: string, screenId: string, title: string): Promise<ScreenView> =>
+      ipcRenderer.invoke('designStudio:view', key, screenId, title),
+    dispatch: (
+      key: string,
+      screenId: string,
+      title: string,
+      commands: Command[],
+      groupId: string
+    ): Promise<ScreenView | CapabilityViolation> =>
+      ipcRenderer.invoke('designStudio:dispatch', key, screenId, title, commands, groupId),
+    undo: (key: string, screenId: string, title: string): Promise<ScreenView> =>
+      ipcRenderer.invoke('designStudio:undo', key, screenId, title),
+    redo: (key: string, screenId: string, title: string): Promise<ScreenView> =>
+      ipcRenderer.invoke('designStudio:redo', key, screenId, title)
   },
 
   // MCP module (mcp): the workspace's Model Context Protocol servers. list is

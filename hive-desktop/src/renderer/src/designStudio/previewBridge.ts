@@ -30,6 +30,15 @@ import type { PreviewDocument, PreviewOutbound } from '../../../preview/messages
  * message is never delivered. The `contentWindow` reference is what scopes it.
  */
 
+/**
+ * The session token lives in the URL's first path segment, and it is also the
+ * postMessage nonce (AD-7, D-DS-4) — it never travels any other way, so this is
+ * the one place the two facts meet.
+ */
+export function nonceFromUrl(url: string): string | null {
+  return /^hive-studio:\/\/preview\/([0-9a-zA-Z]+)\//.exec(url)?.[1] ?? null
+}
+
 export interface PreviewBridgeOptions {
   frame: HTMLIFrameElement
   /** The session token from the frame's URL — also the message nonce. */

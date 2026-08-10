@@ -441,6 +441,43 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:screens', '/ws', 'docs/ux.md')
   })
 
+  // design-studio T5.1: the document channels. The Tela's log lives in main
+  // because `validate()` does; the tab dispatches Commands and gets views back.
+  it('hive.designStudio.* invokes the document channels with the Tela’s key', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      designStudio: {
+        catalog: () => Promise<unknown>
+        view: (k: string, s: string, t: string) => Promise<unknown>
+        dispatch: (k: string, s: string, t: string, c: unknown[], g: string) => Promise<unknown>
+        undo: (k: string, s: string, t: string) => Promise<unknown>
+        redo: (k: string, s: string, t: string) => Promise<unknown>
+      }
+    }
+
+    await hive.designStudio.catalog()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:catalog')
+
+    await hive.designStudio.view('k', 'login', 'Login')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:view', 'k', 'login', 'Login')
+
+    const commands = [{ type: 'RemoveComponent', componentId: 'n1' }]
+    await hive.designStudio.dispatch('k', 'login', 'Login', commands, 'g1')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'designStudio:dispatch',
+      'k',
+      'login',
+      'Login',
+      commands,
+      'g1'
+    )
+
+    await hive.designStudio.undo('k', 'login', 'Login')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:undo', 'k', 'login', 'Login')
+
+    await hive.designStudio.redo('k', 'login', 'Login')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:redo', 'k', 'login', 'Login')
+  })
+
   // Profile namespace (agent-selection + role-personalization).
   it('hive.profile.* invokes the matching profile IPC channels', async () => {
     const hive = exposedGlobals().get('hive') as {

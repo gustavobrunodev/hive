@@ -14055,3 +14055,12 @@ button.wb-mcplog-summary:focus-visible {
     animation-name: wb-dstudio-drawer-fade;
   }
 }
+
+/* The Árvore de Componentes (T5.1). The DS `Tree` brings the ARIA pattern and
+   its own rows; what belongs here is only the pane's breathing room, so the
+   tree keeps looking like the rest of the app's trees rather than like a
+   second, slightly different one. */
+
+.wb-dstudio-tree {
+  padding: 0 var(--s-2) var(--s-2);
+}

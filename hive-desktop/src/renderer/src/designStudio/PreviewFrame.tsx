@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n'
+import type { PreviewDocument } from '../../../preview/messages'
+import { createPreviewBridge, nonceFromUrl, type PreviewBridge } from './previewBridge'
 import type { ViewportSize } from './viewport'
 
 /**
@@ -20,10 +22,33 @@ import type { ViewportSize } from './viewport'
 export interface PreviewFrameProps {
   /** The device size — the frame's own size, always (D-DS-7). */
   size: ViewportSize
+  /** The Tela to draw. Absent until a Screen is active. */
+  document?: PreviewDocument
+  /** The outlined Component, mirrored from the Árvore (DS-R5 AC-5). */
+  selectedComponentId?: string | null
+  /** A Component was clicked on the stage — the other direction of the same selection. */
+  onSelectComponent?: (componentId: string | null) => void
 }
 
-export function PreviewFrame({ size }: PreviewFrameProps): React.JSX.Element {
+export function PreviewFrame({
+  size,
+  document,
+  selectedComponentId = null,
+  onSelectComponent
+}: PreviewFrameProps): React.JSX.Element {
   const [url, setUrl] = useState<string | null>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  // The bridge is state, not a ref, so the two effects that feed it re-run the
+  // moment it exists. The session URL arrives asynchronously, so the document
+  // and the selection are almost always already here by then — a ref would
+  // have them waiting for the *next* change instead of the first paint.
+  const [bridge, setBridge] = useState<PreviewBridge | null>(null)
+  // Held in a ref so a new callback identity never tears the channel down and
+  // loses the frame's handshake with it.
+  const onSelectRef = useRef(onSelectComponent)
+  useEffect(() => {
+    onSelectRef.current = onSelectComponent
+  })
 
   useEffect(() => {
     let opened: string | null = null
@@ -48,8 +73,37 @@ export function PreviewFrame({ size }: PreviewFrameProps): React.JSX.Element {
     }
   }, [])
 
+  // One bridge per session URL: the nonce is the URL's, so a new session means
+  // a new channel, and the old one must stop listening before it does.
+  useEffect(() => {
+    const frame = frameRef.current
+    const nonce = url === null ? null : nonceFromUrl(url)
+    if (frame === null || nonce === null) return
+    const created = createPreviewBridge({
+      frame,
+      nonce,
+      onSelected: (componentId) => onSelectRef.current?.(componentId)
+    })
+    setBridge(created)
+    return () => {
+      setBridge(null)
+      created.dispose()
+    }
+  }, [url])
+
+  // The whole document goes over, and the receiver reconciles by node id
+  // (D-DS-6): sending Commands would mean a second reducer inside the frame.
+  useEffect(() => {
+    if (document) bridge?.render(document)
+  }, [bridge, document])
+
+  useEffect(() => {
+    bridge?.select(selectedComponentId)
+  }, [bridge, selectedComponentId])
+
   return (
     <iframe
+      ref={frameRef}
       className="wb-dstudio-frame"
       title={t('designStudio.previewFrameTitle')}
       // Deliberately without `allow-same-origin`: the opaque origin it leaves

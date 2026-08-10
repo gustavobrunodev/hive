@@ -1834,6 +1834,96 @@ describe('main process bootstrap', () => {
       })
     })
 
+    // design-studio T5.1: the document lives in main because `validate()` does.
+    // These assert the *document*, not just the reply shape — an edit that is
+    // refused has to leave the Tela alone (DS-R6 AC-4).
+    it('serves the active catalog, derived from the real CEM (DS-R13)', async () => {
+      const catalog = (await findHandler('designStudio:catalog')({})) as {
+        dsId: string
+        components: { tag: string; props: { name: string; values?: string[] }[] }[]
+      }
+
+      expect(catalog.dsId).toBe('web-awesome')
+      const variant = catalog.components
+        .find((component) => component.tag === 'wa-button')
+        ?.props.find((prop) => prop.name === 'variant')
+      expect(variant?.values).toEqual(['neutral', 'brand', 'success', 'warning', 'danger'])
+    })
+
+    it('opens a Tela empty and grows it one undoable step at a time', async () => {
+      const key = 'ipc-doc-1'
+      await expect(findHandler('designStudio:view')({}, key, 'login', 'Login')).resolves.toEqual({
+        document: { screenId: 'login', title: 'Login', root: null },
+        canUndo: false,
+        canRedo: false
+      })
+
+      const added = (await findHandler('designStudio:dispatch')(
+        {},
+        key,
+        'login',
+        'Login',
+        [
+          {
+            type: 'AddComponent',
+            parentId: null,
+            index: 0,
+            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
+          }
+        ],
+        'g1'
+      )) as { document: { root: { tag: string } | null }; canUndo: boolean }
+      expect(added.document.root?.tag).toBe('wa-button')
+      expect(added.canUndo).toBe(true)
+
+      const undone = (await findHandler('designStudio:undo')({}, key, 'login', 'Login')) as {
+        document: { root: unknown }
+        canRedo: boolean
+      }
+      expect(undone.document.root).toBeNull()
+      expect(undone.canRedo).toBe(true)
+
+      const redone = (await findHandler('designStudio:redo')({}, key, 'login', 'Login')) as {
+        document: { root: { tag: string } | null }
+      }
+      expect(redone.document.root?.tag).toBe('wa-button')
+    })
+
+    it('answers a value outside the catalog with a CapabilityViolation, document untouched', async () => {
+      const key = 'ipc-doc-2'
+      await findHandler('designStudio:dispatch')(
+        {},
+        key,
+        'login',
+        'Login',
+        [
+          {
+            type: 'AddComponent',
+            parentId: null,
+            index: 0,
+            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
+          }
+        ],
+        'g1'
+      )
+
+      const refused = (await findHandler('designStudio:dispatch')(
+        {},
+        key,
+        'login',
+        'Login',
+        [{ type: 'SetProp', componentId: 'n1', key: 'variant', value: 'roxo' }],
+        'g2'
+      )) as { kind: string; attemptedValue: unknown }
+      expect(refused.kind).toBe('capability')
+      expect(refused.attemptedValue).toBe('roxo')
+
+      const after = (await findHandler('designStudio:view')({}, key, 'login', 'Login')) as {
+        document: { root: { props: Record<string, unknown> } | null }
+      }
+      expect(after.document.root?.props).toEqual({})
+    })
+
     it('gives a different Preview URL to every open', async () => {
       const open = findHandler('designStudio:openPreview')
       const first = await open({})

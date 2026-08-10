@@ -1398,6 +1398,7 @@ export const ptBR = {
     focusModeEnter: 'Modo Foco',
     focusModeExit: 'Sair do Modo Foco',
     focusModeHint: 'O palco ocupa a janela inteira',
+    treeAria: 'Árvore de Componentes desta Tela',
     exportLabel: 'Exportar',
     exportUnavailable: 'A exportação chega na fase final da milestone'
   },

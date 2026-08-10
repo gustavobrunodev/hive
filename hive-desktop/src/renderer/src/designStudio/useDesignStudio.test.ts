@@ -219,6 +219,66 @@ describe('useDesignStudio (T4.3, DS-R1)', () => {
     expect(Object.keys(result.current.sessions)).toEqual(['login'])
   })
 
+  /**
+   * T5.1 / DS-R5 AC-6. Selecting is looking, and looking is not an edit. The
+   * assertions that matter here are the two negatives: the log does not grow
+   * and the per-Tela session is not written — a selection that produced either
+   * would put "I clicked something" into the user's undo history and onto disk.
+   */
+  it('selects a Component without pushing a step onto the undo log', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    act(() => result.current.selectComponent('n4'))
+
+    expect(result.current.selectedComponentId).toBe('n4')
+    expect(result.current.session.steps).toEqual([])
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(false)
+  })
+
+  it('leaves the persisted session untouched when the selection changes', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    act(() => result.current.recordStep('a1'))
+
+    const before = result.current.sessions
+
+    act(() => result.current.selectComponent('n4'))
+    act(() => result.current.selectComponent('n2'))
+    act(() => result.current.selectComponent(null))
+
+    // Same object, not merely an equal one: nothing rewrote the session.
+    expect(result.current.sessions).toBe(before)
+    expect(result.current.sessions.login.steps).toEqual(['a1'])
+  })
+
+  it('clears the selection when the Tela changes, because node ids are per-Tela', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    act(() => result.current.selectComponent('n4'))
+    act(() => result.current.selectScreen('cadastro'))
+    expect(result.current.selectedComponentId).toBeNull()
+
+    // And it does not come back on return: the selection was never recorded.
+    act(() => result.current.selectScreen('login'))
+    expect(result.current.selectedComponentId).toBeNull()
+  })
+
+  it('drops the selection when asked to, without touching anything else', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    act(() => result.current.selectComponent('n4'))
+    act(() => result.current.selectComponent(null))
+    expect(result.current.selectedComponentId).toBeNull()
+  })
+
   it('drops a read that fails after unmount, for the same reason', async () => {
     let fail: (reason: Error) => void = () => {}
     mockScreens(

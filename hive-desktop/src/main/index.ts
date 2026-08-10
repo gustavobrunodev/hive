@@ -55,9 +55,16 @@ import {
   STUDIO_SCHEME_PRIVILEGES
 } from './designStudio/previewProtocol'
 import { createPreviewSessions } from './designStudio/previewSessions'
+import { createDesignStudioService } from './designStudio/designStudioService'
+import { registerDesignSystem, resolveActiveAdapter } from './designStudio/dsAdapter/registry'
+import {
+  createWebAwesomeAdapter,
+  loadWebAwesomeCatalog,
+  WEB_AWESOME_DS_ID
+} from './designStudio/dsAdapter/webAwesomeAdapter'
 import { detectScreens } from './designStudio/screenDetection'
 import type { ScreenDetectionResult } from './designStudio/screenDetection'
-import type { OperationError } from './designStudio/types'
+import type { Command, OperationError } from './designStudio/types'
 import { createWhisperModelStore } from './whisperModelStore'
 import { recommendWhisperModel } from './whisperHardware'
 import type { WhisperModelId, WhisperVariant } from './whisperTypes'
@@ -1041,6 +1048,50 @@ app.whenReady().then(() => {
         }
       }
     }
+  )
+
+  // The document itself (T5.1). It lives here rather than in the tab because
+  // `validate()` — the one gate a Command passes before the reducer applies it
+  // (AD-2) — belongs to the DS adapter, which reads a catalog off `resources/`
+  // and therefore cannot exist in the renderer at all. The adapter is resolved
+  // lazily and exactly once (DS-R12 AC-6): the app boots long before anyone
+  // opens the Studio, and the catalog is not free to read.
+  registerDesignSystem(WEB_AWESOME_DS_ID, () =>
+    createWebAwesomeAdapter(loadWebAwesomeCatalog(studioRoots.preview))
+  )
+  const designStudioService = createDesignStudioService(() =>
+    resolveActiveAdapter(WEB_AWESOME_DS_ID)
+  )
+
+  ipcMain.handle('designStudio:catalog', async () => designStudioService.catalog())
+  ipcMain.handle(
+    'designStudio:view',
+    async (_event, key: string, screenId: string, title: string) =>
+      designStudioService.view(key, screenId, title)
+  )
+  // A `CapabilityViolation` comes back as a value, never as a rejection: the
+  // Inspector renders it inside the offending Field and keeps the old value
+  // (DS-R17, design §6), which a thrown error could not express.
+  ipcMain.handle(
+    'designStudio:dispatch',
+    async (
+      _event,
+      key: string,
+      screenId: string,
+      title: string,
+      commands: Command[],
+      groupId: string
+    ) => designStudioService.dispatch(key, screenId, title, commands, groupId)
+  )
+  ipcMain.handle(
+    'designStudio:undo',
+    async (_event, key: string, screenId: string, title: string) =>
+      designStudioService.undo(key, screenId, title)
+  )
+  ipcMain.handle(
+    'designStudio:redo',
+    async (_event, key: string, screenId: string, title: string) =>
+      designStudioService.redo(key, screenId, title)
   )
 
   const activeSbInstallStops = new Map<number, () => void>()
