@@ -13931,3 +13931,61 @@ button.wb-mcplog-summary:focus-visible {
     transition: none;
   }
 }
+
+/* The Telas list (T4.7). Edited vs auto-generated is carried by the mark's
+   FILL and by a pencil — never by colour alone (DS-R18). */
+
+.wb-dstudio-screens {
+  margin: 0;
+  padding: 0 var(--s-1) var(--s-2);
+  list-style: none;
+}
+
+.wb-dstudio-screen-row {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-dstudio-screen-row:hover {
+  background: var(--surface-2);
+}
+
+.wb-dstudio-screen-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.wb-dstudio-screen-row[aria-current] {
+  background: var(--selected-bg);
+}
+
+.wb-dstudio-screen-mark {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--faint);
+  border-radius: var(--rounded-full);
+}
+
+.wb-dstudio-screen-mark[data-edited] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.wb-dstudio-screen-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

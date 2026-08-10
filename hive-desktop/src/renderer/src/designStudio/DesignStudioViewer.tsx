@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
+import { ScreenList } from './ScreenList'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 import { PreviewFrame } from './PreviewFrame'
 import { StagePane } from './StagePane'
@@ -67,6 +68,12 @@ export function DesignStudioViewer({
         >
           <section className="wb-dstudio-pane" aria-label={t('designStudio.screensPaneTitle')}>
             <h2 className="wb-dstudio-pane-title">{t('designStudio.screensPaneTitle')}</h2>
+            <ScreenList
+              screens={studio.screens}
+              activeScreenId={studio.activeScreenId}
+              sessions={studio.sessions}
+              onSelect={studio.selectScreen}
+            />
           </section>
           <section className="wb-dstudio-pane" aria-label={t('designStudio.treePaneTitle')}>
             <h2 className="wb-dstudio-pane-title">{t('designStudio.treePaneTitle')}</h2>

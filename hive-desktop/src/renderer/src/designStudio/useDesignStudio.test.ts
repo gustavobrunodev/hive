@@ -171,6 +171,54 @@ describe('useDesignStudio (T4.3, DS-R1)', () => {
     expect(result.current.canUndo).toBe(true)
   })
 
+  /**
+   * T4.7's whole point (DS-R4 AC-2): edit A, go to B, come back to A and
+   * everything is as you left it — tree position in the log, transcript, and
+   * where the undo cursor was parked. Leaving a Tela is navigation, not a
+   * commit and not a reset.
+   */
+  it('returns to a Tela with its log, cursor and transcript exactly as left', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    act(() => result.current.recordStep('a1'))
+    act(() => result.current.recordStep('a2'))
+    act(() => result.current.undo())
+    act(() => result.current.appendMessage({ id: 'm1', role: 'user', text: 'deixa mais calmo' }))
+
+    const parkedOnA = { steps: ['a1', 'a2'], cursor: 1 }
+    expect(result.current.session.steps).toEqual(parkedOnA.steps)
+
+    act(() => result.current.selectScreen('cadastro'))
+    expect(result.current.session.steps).toEqual([])
+    expect(result.current.session.transcript).toEqual([])
+    act(() => result.current.recordStep('b1'))
+
+    act(() => result.current.selectScreen('login'))
+    expect(result.current.session.steps).toEqual(parkedOnA.steps)
+    expect(result.current.session.cursor).toBe(parkedOnA.cursor)
+    expect(result.current.session.transcript).toEqual([
+      { id: 'm1', role: 'user', text: 'deixa mais calmo' }
+    ])
+    // Redo is still available where it was parked, not reset by the round trip.
+    expect(result.current.canRedo).toBe(true)
+    expect(result.current.canUndo).toBe(true)
+
+    // And B kept its own, untouched by A's return.
+    expect(result.current.sessions.cadastro.steps).toEqual(['b1'])
+  })
+
+  it('marks only the Telas the user actually entered as edited', async () => {
+    mockScreens(async () => threeScreens)
+    const { result } = renderHook(() => useDesignStudio('/ws', 'docs/ux.md'))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    act(() => result.current.recordStep('a1'))
+
+    expect(Object.keys(result.current.sessions)).toEqual(['login'])
+  })
+
   it('drops a read that fails after unmount, for the same reason', async () => {
     let fail: (reason: Error) => void = () => {}
     mockScreens(
