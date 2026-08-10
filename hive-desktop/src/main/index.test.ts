@@ -1924,6 +1924,88 @@ describe('main process bootstrap', () => {
       expect(after.document.root?.props).toEqual({})
     })
 
+    /**
+     * design-studio T6.2 / DS-R2 + AD-9. The Skill's turn crosses IPC as a
+     * stream, and the agent is reached only through `AgentSession`/`AgentEvent`
+     * — the assertion that matters is that a *prompt carrying the catalog and
+     * the Spec* is what `agentService.send` receives, tagged with a turn id.
+     */
+    it('runs the Skill over the Spec and streams its turn to the sender', async () => {
+      fakeFsService.readFile.mockReturnValueOnce('## Tela — Login\nUm botão de entrar.')
+      vi.mocked(fakeAgentService.startSession).mockClear()
+      vi.mocked(fakeAgentService.send).mockClear()
+      const send = vi.fn()
+      const fakeEvent = { sender: { id: 991, send } }
+
+      findOnHandler('designStudio:skill:start')(fakeEvent, {
+        kind: 'generate',
+        workspace: '/ws',
+        specPath: 'docs/ux.md',
+        screenTitle: 'Login'
+      })
+      await vi.waitFor(() => expect(fakeAgentService.send).toHaveBeenCalled())
+
+      expect(fakeAgentService.startSession).toHaveBeenCalledWith({ workspace: '/ws' })
+      const [prompt, opts] = vi.mocked(fakeAgentService.send).mock.calls[0] as [
+        string,
+        { turnId: string }
+      ]
+      expect(prompt).toContain('Um botão de entrar.')
+      expect(prompt).toContain('wa-button')
+      expect(typeof opts.turnId).toBe('string')
+
+      // The stage is told the turn started before the agent says anything.
+      await vi.waitFor(() =>
+        expect(send).toHaveBeenCalledWith('designStudio:skill:event', {
+          type: 'status',
+          phase: 'reading'
+        })
+      )
+
+      // And the agent's own answer comes back as the parsed batch.
+      const listener = agentOnEventCalls.at(-1)!.listener
+      listener({ type: 'token', text: '{"commands": [], "message": "pronto"}', ...opts })
+      listener({ type: 'done', ...opts })
+      await vi.waitFor(() =>
+        expect(send).toHaveBeenCalledWith('designStudio:skill:event', {
+          type: 'result',
+          batch: { commands: [], message: 'pronto' }
+        })
+      )
+    })
+
+    it('stops forwarding a Skill turn when the sender asks it to', async () => {
+      fakeFsService.readFile.mockReturnValue('## Tela — Login')
+      const send = vi.fn()
+      const fakeEvent = { sender: { id: 992, send } }
+
+      findOnHandler('designStudio:skill:start')(fakeEvent, {
+        kind: 'generate',
+        workspace: '/ws',
+        specPath: 'docs/ux.md',
+        screenTitle: 'Login'
+      })
+      // A second start for the same sender exercises the stop of the first.
+      findOnHandler('designStudio:skill:start')(fakeEvent, {
+        kind: 'generate',
+        workspace: '/ws',
+        specPath: 'docs/ux.md',
+        screenTitle: 'Cadastro'
+      })
+      await vi.waitFor(() => expect(send).toHaveBeenCalled())
+
+      send.mockClear()
+      findOnHandler('designStudio:skill:stop')(fakeEvent)
+      const listener = agentOnEventCalls.at(-1)!.listener
+      const turnId = (vi.mocked(fakeAgentService.send).mock.calls.at(-1)?.[1] as { turnId: string })
+        .turnId
+      listener({ type: 'token', text: '{"commands": []}', turnId })
+      listener({ type: 'done', turnId })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(send).not.toHaveBeenCalled()
+    })
+
     it('gives a different Preview URL to every open', async () => {
       const open = findHandler('designStudio:openPreview')
       const first = await open({})

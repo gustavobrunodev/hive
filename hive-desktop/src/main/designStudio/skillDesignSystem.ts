@@ -21,11 +21,13 @@
  * look like a limitation of the Design System (spec.md, Edge Cases; design.md
  * §6).
  *
- * Nothing here talks to an agent — this file is pure, so both halves of the
- * contract are testable without a process. `createDesignSkill` (T6.2) is what
- * drives an `AgentSession` through them.
+ * The contract itself is pure, so both halves are testable without a process.
+ * `createDesignSkill` (T6.2) drives them over an agent turn, and reaches the
+ * agent through the narrow `SkillAgent` port — `send`/`onEvent`/`interrupt` and
+ * nothing else, never branching on which CLI is behind it (AD-9).
  */
 
+import type { AgentEvent } from '../agentAdapter'
 import type { Command, ComponentCatalog, OperationError, ScreenNode } from './types'
 
 /** One accepted turn: the Commands to apply, plus what the Skill wants to say. */
@@ -214,4 +216,145 @@ export function parseSkillResponse(raw: string): SkillBatch | OperationError {
     commands.push(candidate)
   }
   return { commands, message: envelope.message ?? '' }
+}
+
+/**
+ * What the surface is told while the turn is in flight (DS-R2: *every* async
+ * wait is covered by a visible state).
+ *
+ * Phases, not sentences: the copy is pt-BR and belongs in the renderer's
+ * `t()` table like every other string the user reads. A main process that
+ * shipped "Lendo a Spec…" over IPC would be the one place in the app where
+ * translation lives outside i18n.
+ */
+export type SkillPhase = 'reading' | 'choosing' | 'composing'
+
+/** One step of a Skill turn, as the stage and the chat render it. */
+export type StudioSkillEvent =
+  | { type: 'status'; phase: SkillPhase }
+  | { type: 'result'; batch: SkillBatch }
+  | { type: 'failed'; error: OperationError }
+
+/**
+ * The whole of what the Skill needs from the agent layer (AD-9). Deliberately
+ * three methods and no `agentId`: which CLI answers is the `AgentService`'s
+ * business, and a Skill that could see the difference would eventually depend
+ * on it.
+ */
+export interface SkillAgent {
+  send(prompt: string, turnId: string): void
+  onEvent(listener: (event: AgentEvent) => void): () => void
+}
+
+export interface DesignSkill {
+  /** DS-R2: the initial Component tree of one Tela, from the Spec and the catalog. */
+  generateScreen(input: GenerateInput): AsyncIterable<StudioSkillEvent>
+}
+
+/** A single-consumer channel: the turn's events pushed in, the stream pulled out. */
+interface Channel<T> {
+  push(value: T): void
+  close(): void
+  stream: AsyncIterable<T>
+}
+
+function createChannel<T>(): Channel<T> {
+  const buffer: T[] = []
+  const waiting: Array<(result: IteratorResult<T>) => void> = []
+  let closed = false
+  const finish = { value: undefined, done: true } as IteratorResult<T>
+
+  return {
+    push(value: T): void {
+      const resolve = waiting.shift()
+      if (resolve) resolve({ value, done: false })
+      else buffer.push(value)
+    },
+    close(): void {
+      closed = true
+      for (const resolve of waiting.splice(0)) resolve(finish)
+    },
+    stream: {
+      [Symbol.asyncIterator]: () => ({
+        next: (): Promise<IteratorResult<T>> => {
+          if (buffer.length > 0) return Promise.resolve({ value: buffer.shift() as T, done: false })
+          if (closed) return Promise.resolve(finish)
+          return new Promise<IteratorResult<T>>((resolve) => waiting.push(resolve))
+        }
+      })
+    }
+  }
+}
+
+/** A turn id nothing else can collide with — every event is routed by it. */
+function nextTurnId(): string {
+  return `studio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
+ * Translates one agent turn into the Studio's own three-event vocabulary.
+ *
+ * The status phases are inferred from the stream rather than announced by the
+ * agent: a `tool` event means it went looking at something, and the first
+ * `token` means it started writing the answer. That is enough to keep the wait
+ * covered (DS-R2) without asking the model to narrate itself, which it would
+ * do inconsistently and inside the JSON we are about to parse strictly.
+ */
+function runTurn(agent: SkillAgent, prompt: string): AsyncIterable<StudioSkillEvent> {
+  const channel = createChannel<StudioSkillEvent>()
+  const turnId = nextTurnId()
+  let answer = ''
+  let phase: SkillPhase = 'reading'
+
+  const advance = (next: SkillPhase): void => {
+    if (phase === next) return
+    phase = next
+    channel.push({ type: 'status', phase: next })
+  }
+
+  let unsubscribe: (() => void) | null = null
+  const settle = (event: StudioSkillEvent): void => {
+    channel.push(event)
+    channel.close()
+    unsubscribe?.()
+  }
+
+  unsubscribe = agent.onEvent((event: AgentEvent) => {
+    if (event.turnId !== turnId) return
+    if (event.type === 'tool') advance('choosing')
+    if (event.type === 'token') {
+      advance('composing')
+      answer += event.text
+    }
+    if (event.type === 'done') settle(toResult(answer))
+    if (event.type === 'error') {
+      settle({
+        type: 'failed',
+        error: { kind: 'operation', scope: 'agent', message: event.message, retryable: true }
+      })
+    }
+    // A user-stopped turn is not a failure and has no result: the stream simply
+    // ends, and the stage goes back to what it was showing before.
+    if (event.type === 'interrupted') {
+      channel.close()
+      unsubscribe?.()
+    }
+  })
+
+  // The first status goes out before the turn does, so the stage is covered
+  // from the click rather than from the agent's first sign of life.
+  channel.push({ type: 'status', phase: 'reading' })
+  agent.send(prompt, turnId)
+  return channel.stream
+}
+
+function toResult(answer: string): StudioSkillEvent {
+  const parsed = parseSkillResponse(answer)
+  return 'kind' in parsed ? { type: 'failed', error: parsed } : { type: 'result', batch: parsed }
+}
+
+export function createDesignSkill(agent: SkillAgent): DesignSkill {
+  return {
+    generateScreen: (input: GenerateInput) => runTurn(agent, buildGeneratePrompt(input))
+  }
 }

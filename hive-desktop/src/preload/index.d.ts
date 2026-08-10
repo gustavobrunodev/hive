@@ -34,6 +34,8 @@ import type {
   OperationError
 } from '../main/designStudio/types'
 import type { ScreenView } from '../main/designStudio/designStudioService'
+import type { StudioSkillEvent } from '../main/designStudio/skillDesignSystem'
+import type { StudioSkillRequest } from '../main/designStudio/studioSkillRuns'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
@@ -144,6 +146,11 @@ declare global {
         ): Promise<ScreenView | CapabilityViolation>
         undo(key: string, screenId: string, title: string): Promise<ScreenView>
         redo(key: string, screenId: string, title: string): Promise<ScreenView>
+        /** Runs the Skill for one Tela (DS-R2), streaming status → result/failed. Returns an unsubscribe-and-stop. */
+        runSkill(
+          request: StudioSkillRequest,
+          onEvent: (event: StudioSkillEvent) => void
+        ): () => void
       }
       /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
       mcp: {

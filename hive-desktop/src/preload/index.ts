@@ -34,6 +34,8 @@ import type {
   OperationError
 } from '../main/designStudio/types'
 import type { ScreenView } from '../main/designStudio/designStudioService'
+import type { StudioSkillEvent } from '../main/designStudio/skillDesignSystem'
+import type { StudioSkillRequest } from '../main/designStudio/studioSkillRuns'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
@@ -345,7 +347,22 @@ const hive = {
     undo: (key: string, screenId: string, title: string): Promise<ScreenView> =>
       ipcRenderer.invoke('designStudio:undo', key, screenId, title),
     redo: (key: string, screenId: string, title: string): Promise<ScreenView> =>
-      ipcRenderer.invoke('designStudio:redo', key, screenId, title)
+      ipcRenderer.invoke('designStudio:redo', key, screenId, title),
+    // The Skill (T6.2, DS-R2). Streamed on the `secondBrain:install` mold: the
+    // returned function unsubscribes *and* tells main to stop forwarding, so a
+    // Tela the user left behind stops painting into a stage that moved on.
+    runSkill: (
+      request: StudioSkillRequest,
+      onEvent: (event: StudioSkillEvent) => void
+    ): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evt: StudioSkillEvent): void => onEvent(evt)
+      ipcRenderer.on('designStudio:skill:event', listener)
+      ipcRenderer.send('designStudio:skill:start', request)
+      return () => {
+        ipcRenderer.removeListener('designStudio:skill:event', listener)
+        ipcRenderer.send('designStudio:skill:stop')
+      }
+    }
   },
 
   // MCP module (mcp): the workspace's Model Context Protocol servers. list is

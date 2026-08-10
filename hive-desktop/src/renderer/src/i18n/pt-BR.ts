@@ -1423,7 +1423,15 @@ export const ptBR = {
     screenEmptyDescription:
       'Gere uma primeira versão a partir da Spec ou escolha o primeiro Componente você mesmo.',
     screenEmptyGenerate: 'Gerar com a Skill',
-    screenEmptyGenerateUnavailable: 'A geração chega com o Chat de Iteração',
+    // T6.2 (DS-R2): toda espera assíncrona tem estado visível. As fases vêm do
+    // main como termos fechados; a frase é daqui, como toda copy.
+    skillPhaseReading: 'Lendo a Spec…',
+    skillPhaseChoosing: 'Escolhendo Componentes…',
+    skillPhaseComposing: 'Compondo a Tela…',
+    skillRunning: 'A Skill está compondo esta Tela',
+    skillErrorTitle: 'A Skill não conseguiu gerar a Tela',
+    skillViolationTitle: 'O Design System ativo não tem o que o pedido precisa',
+    skillRetry: 'Tentar de novo',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',

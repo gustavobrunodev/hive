@@ -58,6 +58,8 @@ export function ScreensEmpty({ probed, onOpenSpec }: ScreensEmptyProps): React.J
 export interface ScreenEmptyProps {
   /** Opens the Árvore's add picker — the empty state's own second way in. */
   onAddComponent: () => void
+  /** T6.2 / DS-R2: runs the Skill over the Spec for this Tela. */
+  onGenerate: () => void
 }
 
 /**
@@ -65,12 +67,8 @@ export interface ScreenEmptyProps {
  * so and offers **both** ways to fill it — generating with the Skill, which is
  * how most Telas start, and adding a Component by hand, which is how a user who
  * already knows what they want starts.
- *
- * Generating ships disabled until the Skill exists, with the reason on the
- * control rather than left to be discovered — the same call the toolbar's
- * Export makes (T4.4): a button that appears later is a surface to re-learn.
  */
-export function ScreenEmpty({ onAddComponent }: ScreenEmptyProps): React.JSX.Element {
+export function ScreenEmpty({ onAddComponent, onGenerate }: ScreenEmptyProps): React.JSX.Element {
   return (
     <Empty
       className="wb-dstudio-empty"
@@ -79,9 +77,7 @@ export function ScreenEmpty({ onAddComponent }: ScreenEmptyProps): React.JSX.Ele
       description={t('designStudio.screenEmptyDescription')}
       action={
         <span className="wb-dstudio-empty-actions">
-          <Button disabled title={t('designStudio.screenEmptyGenerateUnavailable')}>
-            {t('designStudio.screenEmptyGenerate')}
-          </Button>
+          <Button onClick={onGenerate}>{t('designStudio.screenEmptyGenerate')}</Button>
           <Button variant="ghost" onClick={onAddComponent}>
             {t('designStudio.treeAddLabel')}
           </Button>

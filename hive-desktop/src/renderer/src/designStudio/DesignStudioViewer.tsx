@@ -12,6 +12,8 @@ import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
 import { historyShortcutFor } from './shortcuts'
 import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
+import { SkillFailureView, SkillProgress, type SkillFailure } from './SkillStage'
+import { useSkillRun } from './useSkillRun'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -117,6 +119,32 @@ export function DesignStudioViewer({
   // The add picker's open state lives here, so the empty stage's "Adicionar
   // Componente" opens the very picker in the Árvore rather than a second one.
   const [addOpen, setAddOpen] = useState(false)
+  // A batch the catalog refused (DS-R11 AC-3). Kept apart from the run's own
+  // `error` because it is the *other* failure shape and reads differently.
+  const [refused, setRefused] = useState<CapabilityViolation | null>(null)
+
+  /**
+   * T6.2 / T6.3: what the Skill produced becomes **one** grouped step, and only
+   * if the whole batch is valid — `dispatch` validates every Command before it
+   * pushes any, so a refusal leaves the Tela exactly as it was.
+   *
+   * An empty batch is a turn with no effect: nothing is dispatched and no undo
+   * step is stacked (spec.md, Edge Cases).
+   */
+  const skill = useSkillRun((batch) => {
+    setRefused(null)
+    if (batch.commands.length === 0) return
+    const groupId = nextGroupId()
+    void doc.dispatch(batch.commands, groupId).then((violation) => {
+      if (violation === null) studio.recordStep(groupId)
+      else setRefused(violation)
+    })
+  })
+
+  const generate = (): void => {
+    setRefused(null)
+    skill.start({ kind: 'generate', workspace, specPath, screenTitle: activeTitle })
+  }
 
   const undo = (): void => {
     doc.undo()
@@ -201,6 +229,10 @@ export function DesignStudioViewer({
               specPath={specPath}
               onOpenSpec={onOpenSpec}
               onAddComponent={startAdd}
+              onGenerate={generate}
+              skillPhase={skill.phase}
+              skillFailure={skill.error ?? refused}
+              onRetrySkill={skill.retry}
             />
           </ResizablePanel>
           {layout.inspectorColumn && (
@@ -342,13 +374,21 @@ function StudioBody({
   doc,
   specPath,
   onOpenSpec,
-  onAddComponent
+  onAddComponent,
+  onGenerate,
+  skillPhase,
+  skillFailure,
+  onRetrySkill
 }: {
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
   specPath: string
   onOpenSpec: (path: string) => void
   onAddComponent: () => void
+  onGenerate: () => void
+  skillPhase: ReturnType<typeof useSkillRun>['phase']
+  skillFailure: SkillFailure | null
+  onRetrySkill: () => void
 }): React.JSX.Element {
   if (studio.status === 'loading') {
     return (
@@ -373,13 +413,23 @@ function StudioBody({
       </div>
     )
   }
+  // DS-R2: the wait is covered before anything else on the stage gets a turn —
+  // a Skeleton with a live status line, not a Preview frozen mid-generation.
+  if (skillPhase !== null) return <SkillProgress phase={skillPhase} />
+  if (skillFailure !== null) {
+    return (
+      <div className="wb-dstudio-stage">
+        <SkillFailureView failure={skillFailure} onRetry={onRetrySkill} />
+      </div>
+    )
+  }
   return (
     <StagePane viewport={studio.viewport}>
       {/* DS-R7 / §3.10: a Tela with no Components teaches how to get its first
           one — inside the device, where the Preview would be, so the bench
           still reads as the workspace it is rather than blinking out. */}
       {doc.document.root === null ? (
-        <ScreenEmpty onAddComponent={onAddComponent} />
+        <ScreenEmpty onAddComponent={onAddComponent} onGenerate={onGenerate} />
       ) : (
         <PreviewFrame
           size={studio.viewport}

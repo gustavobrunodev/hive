@@ -46,6 +46,7 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   observers.length = 0
+  skillRuns.length = 0
   resetFocusHint()
 })
 
@@ -95,11 +96,19 @@ function mockScreens(
       view: vi.fn().mockResolvedValue(view),
       dispatch: vi.fn().mockResolvedValue(dispatchResult ?? view),
       undo: vi.fn().mockResolvedValue(view),
-      redo: vi.fn().mockResolvedValue(view)
+      redo: vi.fn().mockResolvedValue(view),
+      // T6.2: the Skill's stream, captured so the test drives the turn by hand.
+      runSkill: vi.fn((request: unknown, onEvent: (event: unknown) => void) => {
+        skillRuns.push({ request, emit: onEvent })
+        return () => {}
+      })
     }
   } as unknown as typeof window.hive
   return screens
 }
+
+/** Every Skill run the tab started, with its emitter (T6.2). */
+const skillRuns: { request: unknown; emit: (event: unknown) => void }[] = []
 
 /** The bridge as the tab sees it, for asserting what was dispatched. */
 function bridge(): Record<string, ReturnType<typeof vi.fn>> {
@@ -632,5 +641,104 @@ describe('DesignStudioViewer — editing a prop (T5.3)', () => {
     expect((screen.getByRole('button', { name: 'Desfazer' }) as HTMLButtonElement).disabled).toBe(
       true
     )
+  })
+})
+
+/**
+ * design-studio T6.2 — DS-R2. Generating a Tela from the Spec: the wait is
+ * covered from the click, the result becomes ONE grouped step, and the failure
+ * is a retry the user can actually press.
+ */
+describe('DesignStudioViewer — generating with the Skill (T6.2, DS-R2)', () => {
+  async function startGeneration(): Promise<void> {
+    mockScreens(async () => oneScreen)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    fireEvent.click(screen.getByRole('button', { name: 'Gerar com a Skill' }))
+  }
+
+  it('asks for the active Tela of this Spec, and covers the wait immediately', async () => {
+    await startGeneration()
+
+    expect(skillRuns).toHaveLength(1)
+    expect(skillRuns[0].request).toEqual({
+      kind: 'generate',
+      workspace: '/ws',
+      specPath: 'docs/ux.md',
+      screenTitle: 'Login'
+    })
+    expect(screen.getByRole('status').textContent).toBe('Lendo a Spec…')
+    expect(screen.getByLabelText('A Skill está compondo esta Tela').getAttribute('aria-busy')).toBe(
+      'true'
+    )
+  })
+
+  it('follows the turn with a live status line rather than a silent gap', async () => {
+    await startGeneration()
+
+    act(() => skillRuns[0].emit({ type: 'status', phase: 'choosing' }))
+    expect(screen.getByRole('status').textContent).toBe('Escolhendo Componentes…')
+  })
+
+  it('dispatches the whole batch as one grouped step and marks the Tela edited', async () => {
+    await startGeneration()
+
+    const commands = [
+      {
+        type: 'AddComponent',
+        parentId: null,
+        index: 0,
+        node: { id: 'n1', tag: 'wa-card', props: {}, children: [] }
+      },
+      {
+        type: 'AddComponent',
+        parentId: 'n1',
+        index: 0,
+        node: { id: 'n2', tag: 'wa-button', props: {}, children: [] }
+      }
+    ]
+    act(() => skillRuns[0].emit({ type: 'result', batch: { commands, message: 'pronto' } }))
+
+    await waitFor(() => expect(bridge().dispatch).toHaveBeenCalledTimes(1))
+    const call = bridge().dispatch.mock.calls[0]
+    expect(call[3]).toEqual(commands)
+    // One groupId for the whole turn — that is what makes it one undo step.
+    expect(typeof call[4]).toBe('string')
+    await waitFor(() => expect(screen.getByText('editada nesta sessão')).toBeTruthy())
+  })
+
+  it('stacks no undo step for a turn that emitted no Commands', async () => {
+    await startGeneration()
+
+    act(() =>
+      skillRuns[0].emit({
+        type: 'result',
+        batch: { commands: [], message: 'O DS ativo não tem esse Componente.' }
+      })
+    )
+
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
+    expect(bridge().dispatch).not.toHaveBeenCalled()
+  })
+
+  it('shows a failed turn with a retry that actually re-runs it (DS-R17)', async () => {
+    await startGeneration()
+
+    act(() =>
+      skillRuns[0].emit({
+        type: 'failed',
+        error: {
+          kind: 'operation',
+          scope: 'agent',
+          message: 'O agente não está instalado.',
+          retryable: true
+        }
+      })
+    )
+
+    expect(screen.getByText('A Skill não conseguiu gerar a Tela')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(skillRuns).toHaveLength(2)
+    expect(skillRuns[1].request).toEqual(skillRuns[0].request)
   })
 })

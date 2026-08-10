@@ -73,7 +73,7 @@ describe('SpecLoadError (DS-R1 AC-5, DS-R17)', () => {
  */
 describe('ScreenEmpty (T5.7, DS-R7)', () => {
   it('offers both ways to fill the Tela: the Skill and adding by hand', () => {
-    render(createElement(ScreenEmpty, { onAddComponent: vi.fn() }))
+    render(createElement(ScreenEmpty, { onAddComponent: vi.fn(), onGenerate: vi.fn() }))
 
     expect(screen.getByText('Esta Tela ainda não tem Componentes')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Gerar com a Skill' })).toBeTruthy()
@@ -82,17 +82,22 @@ describe('ScreenEmpty (T5.7, DS-R7)', () => {
 
   it('opens the picker from the secondary action', () => {
     const onAddComponent = vi.fn()
-    render(createElement(ScreenEmpty, { onAddComponent }))
+    render(createElement(ScreenEmpty, { onAddComponent, onGenerate: vi.fn() }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar Componente' }))
     expect(onAddComponent).toHaveBeenCalledTimes(1)
   })
 
-  it('says why generating is not available yet instead of leaving it unexplained', () => {
-    render(createElement(ScreenEmpty, { onAddComponent: vi.fn() }))
+  // T6.2 supersedes the placeholder this assertion used to guard: the Skill
+  // exists now, so the primary action *runs* it rather than explaining why it
+  // cannot (DS-R2).
+  it('runs the Skill from the primary action', () => {
+    const onGenerate = vi.fn()
+    render(createElement(ScreenEmpty, { onAddComponent: vi.fn(), onGenerate }))
 
     const generate = screen.getByRole('button', { name: 'Gerar com a Skill' }) as HTMLButtonElement
-    expect(generate.disabled).toBe(true)
-    expect(generate.title).toBe('A geração chega com o Chat de Iteração')
+    expect(generate.disabled).toBe(false)
+    fireEvent.click(generate)
+    expect(onGenerate).toHaveBeenCalledTimes(1)
   })
 })

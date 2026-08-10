@@ -62,6 +62,8 @@ import {
   loadWebAwesomeCatalog,
   WEB_AWESOME_DS_ID
 } from './designStudio/dsAdapter/webAwesomeAdapter'
+import { createStudioSkillRuns } from './designStudio/studioSkillRuns'
+import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
 import { detectScreens } from './designStudio/screenDetection'
 import type { ScreenDetectionResult } from './designStudio/screenDetection'
 import type { Command, OperationError } from './designStudio/types'
@@ -1097,11 +1099,13 @@ app.whenReady().then(() => {
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()
 
-  const runSbStream = (
+  // Generic in the event type: the Design Studio's Skill (T6.2) streams its own
+  // three-event vocabulary down the very same one-stop-handle-per-sender path.
+  const runSbStream = <T>(
     event: Electron.IpcMainEvent,
     stops: Map<number, () => void>,
     channel: string,
-    stream: AsyncIterable<import('./secondBrainTypes').SkillEvent>
+    stream: AsyncIterable<T>
   ): void => {
     stops.get(event.sender.id)?.()
     let stopped = false
@@ -1115,6 +1119,40 @@ app.whenReady().then(() => {
       stopped = true
     })
   }
+
+  // The Design Studio's Skill (T6.2, DS-R2). Streamed rather than
+  // request/response because the whole point is that the wait is *covered*: the
+  // stage paints a status the moment the run starts and follows the turn until
+  // it settles. The agent is reached only through `AgentSession`/`AgentEvent`
+  // (AD-9) — `agentService.send` with a turn id, and the unified event stream
+  // filtered by that id inside the Skill.
+  const activeStudioSkillStops = new Map<number, () => void>()
+  const studioSkillRuns = createStudioSkillRuns({
+    readSpec: async (workspace, specPath) => fsService.readFile(workspace, specPath),
+    catalog: () => designStudioService.catalog(),
+    agentFor: (workspace) => ({
+      send: (prompt, turnId) => {
+        // Idempotent: an existing session for the default agent is reused, so
+        // the Studio never tears down a conversation that is mid-turn.
+        agentService.startSession({ workspace })
+        agentService.send(prompt, { turnId })
+      },
+      onEvent: (listener) => agentService.onEvent(listener)
+    })
+  })
+
+  ipcMain.on('designStudio:skill:start', (event, request: StudioSkillRequest) => {
+    runSbStream(
+      event,
+      activeStudioSkillStops,
+      'designStudio:skill:event',
+      studioSkillRuns.run(request)
+    )
+  })
+  ipcMain.on('designStudio:skill:stop', (event) => {
+    activeStudioSkillStops.get(event.sender.id)?.()
+    activeStudioSkillStops.delete(event.sender.id)
+  })
 
   ipcMain.on('secondBrain:install:start', (event, workspace: string) => {
     runSbStream(

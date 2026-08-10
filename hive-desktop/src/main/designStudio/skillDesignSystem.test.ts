@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   RESPONSE_CONTRACT,
   buildGeneratePrompt,
+  createDesignSkill,
   describeCatalog,
   parseSkillResponse,
-  type SkillBatch
+  type SkillAgent,
+  type SkillBatch,
+  type StudioSkillEvent
 } from './skillDesignSystem'
+import type { AgentEvent } from '../agentAdapter'
 import type { ComponentCatalog, OperationError } from './types'
 
 /**
@@ -271,5 +275,259 @@ describe('skillDesignSystem — a refused answer is an OperationError, never a C
         retryable: true
       })
     }
+  })
+})
+
+/**
+ * design-studio T6.2 — DS-R2. The turn as the stage sees it: never a silent
+ * gap, and never a Component the catalog does not have.
+ *
+ * The agent is a scripted fake, in the repo's own injectable style — no CLI is
+ * spawned, so the suite stays hermetic and the *ordering* of what the user sees
+ * is what is under test.
+ */
+
+/** A `SkillAgent` whose turn is a script of `AgentEvent`s, replayed on `send`. */
+function scriptedAgent(script: AgentEvent[]): SkillAgent & { prompts: string[] } {
+  const listeners = new Set<(event: AgentEvent) => void>()
+  const prompts: string[] = []
+  return {
+    prompts,
+    send(prompt: string, turnId: string): void {
+      prompts.push(prompt)
+      for (const event of script) {
+        for (const listener of listeners) listener({ ...event, turnId })
+      }
+    },
+    onEvent(listener: (event: AgentEvent) => void): () => void {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    }
+  }
+}
+
+async function drain(stream: AsyncIterable<StudioSkillEvent>): Promise<StudioSkillEvent[]> {
+  const seen: StudioSkillEvent[] = []
+  for await (const event of stream) seen.push(event)
+  return seen
+}
+
+const GENERATE = { specText: '## Tela — Login', screenTitle: 'Login', catalog: CATALOG }
+
+const ANSWER = JSON.stringify({
+  commands: [
+    {
+      type: 'AddComponent',
+      parentId: null,
+      index: 0,
+      node: { id: 'n1', tag: 'wa-button', props: { variant: 'brand' }, children: [] }
+    }
+  ],
+  message: 'Compus a Tela com um botão.'
+})
+
+describe('createDesignSkill — generateScreen keeps the wait covered (DS-R2)', () => {
+  it('reports a status before the turn starts, then on tooling, then on writing', async () => {
+    const agent = scriptedAgent([
+      { type: 'tool', name: 'Read', phase: 'start' },
+      { type: 'token', text: ANSWER },
+      { type: 'done' }
+    ])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.slice(0, 3)).toEqual([
+      { type: 'status', phase: 'reading' },
+      { type: 'status', phase: 'choosing' },
+      { type: 'status', phase: 'composing' }
+    ])
+  })
+
+  it('ends the turn with the parsed batch', async () => {
+    const agent = scriptedAgent([{ type: 'token', text: ANSWER }, { type: 'done' }])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.at(-1)).toEqual({
+      type: 'result',
+      batch: {
+        commands: [
+          {
+            type: 'AddComponent',
+            parentId: null,
+            index: 0,
+            node: { id: 'n1', tag: 'wa-button', props: { variant: 'brand' }, children: [] }
+          }
+        ],
+        message: 'Compus a Tela com um botão.'
+      }
+    })
+  })
+
+  it('sends the catalog and the Spec in the prompt — the generation has no other source of tags', async () => {
+    const agent = scriptedAgent([{ type: 'token', text: ANSWER }, { type: 'done' }])
+
+    await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(agent.prompts).toHaveLength(1)
+    expect(agent.prompts[0]).toContain('## Tela — Login')
+    expect(agent.prompts[0]).toContain('wa-button')
+    expect(agent.prompts[0]).toContain('These are the ONLY Components that exist.')
+  })
+
+  it('joins a streamed answer across tokens before parsing it', async () => {
+    const agent = scriptedAgent([
+      { type: 'token', text: '{"commands": [], ' },
+      { type: 'token', text: '"message": "nada a fazer"}' },
+      { type: 'done' }
+    ])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.at(-1)).toEqual({
+      type: 'result',
+      batch: { commands: [], message: 'nada a fazer' }
+    })
+  })
+
+  it('turns a failing session into an OperationError the chat can retry (DS-R10 AC-6)', async () => {
+    const agent = scriptedAgent([{ type: 'error', message: 'claude: command not found' }])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.at(-1)).toEqual({
+      type: 'failed',
+      error: {
+        kind: 'operation',
+        scope: 'agent',
+        message: 'claude: command not found',
+        retryable: true
+      }
+    })
+  })
+
+  it('reports a malformed answer as failed, not as a result to apply', async () => {
+    const agent = scriptedAgent([
+      { type: 'token', text: '<section>Login</section>' },
+      { type: 'done' }
+    ])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.at(-1)).toEqual({
+      type: 'failed',
+      error: {
+        kind: 'operation',
+        scope: 'agent',
+        message:
+          'O agente respondeu com markup. O contrato da Skill é um único objeto JSON — nenhum HTML é aceito.',
+        retryable: true
+      }
+    })
+  })
+
+  it('ends a stopped turn with no result and no error', async () => {
+    const agent = scriptedAgent([{ type: 'token', text: '{"commands":' }, { type: 'interrupted' }])
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen).toEqual([
+      { type: 'status', phase: 'reading' },
+      { type: 'status', phase: 'composing' }
+    ])
+  })
+
+  it('ignores events belonging to another turn', async () => {
+    const listeners = new Set<(event: AgentEvent) => void>()
+    const agent: SkillAgent = {
+      send(_prompt, turnId) {
+        for (const listener of listeners) {
+          listener({ type: 'token', text: 'lixo de outro turno', turnId: 'outro' })
+          listener({ type: 'token', text: ANSWER, turnId })
+          listener({ type: 'done', turnId })
+        }
+      },
+      onEvent(listener) {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }
+    }
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect((seen.at(-1) as { type: string }).type).toBe('result')
+  })
+
+  it('unsubscribes once the turn has settled, so a late event cannot reopen it', async () => {
+    const agent = scriptedAgent([{ type: 'token', text: ANSWER }, { type: 'done' }])
+    const unsubscribed: boolean[] = []
+    const wrapped: SkillAgent = {
+      send: agent.send,
+      onEvent(listener) {
+        const off = agent.onEvent(listener)
+        return () => {
+          unsubscribed.push(true)
+          off()
+        }
+      }
+    }
+
+    await drain(createDesignSkill(wrapped).generateScreen(GENERATE))
+
+    expect(unsubscribed).toEqual([true])
+  })
+})
+
+/**
+ * The real case: a CLI answers *after* the consumer is already waiting. The
+ * scripted agents above deliver inside `send`, which exercises only the
+ * producer-ahead path — this one proves the stream also delivers when the
+ * reader got there first, which is how every actual turn behaves.
+ */
+describe('createDesignSkill — a turn whose events arrive later', () => {
+  it('delivers status, result and end to a consumer that is already waiting', async () => {
+    const listeners = new Set<(event: AgentEvent) => void>()
+    const agent: SkillAgent = {
+      send(_prompt, turnId) {
+        void (async () => {
+          for (const event of [
+            { type: 'tool', name: 'Read', phase: 'start' },
+            { type: 'token', text: ANSWER },
+            { type: 'done' }
+          ] as AgentEvent[]) {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+            for (const listener of listeners) listener({ ...event, turnId })
+          }
+        })()
+      },
+      onEvent(listener) {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }
+    }
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen.map((event) => event.type)).toEqual(['status', 'status', 'status', 'result'])
+  })
+
+  it('ends a stream whose reader is waiting when the turn is interrupted', async () => {
+    const listeners = new Set<(event: AgentEvent) => void>()
+    const agent: SkillAgent = {
+      send(_prompt, turnId) {
+        void (async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0))
+          for (const listener of listeners) listener({ type: 'interrupted', turnId })
+        })()
+      },
+      onEvent(listener) {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }
+    }
+
+    const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
+
+    expect(seen).toEqual([{ type: 'status', phase: 'reading' }])
   })
 })

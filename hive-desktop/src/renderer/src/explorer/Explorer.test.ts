@@ -356,7 +356,8 @@ describe('Explorer (T12/T8)', () => {
           document: { screenId: '', title: '', root: null },
           canUndo: false,
           canRedo: false
-        })
+        }),
+        runSkill: vi.fn().mockReturnValue(() => {})
       },
       mcp: {
         list: vi.fn().mockResolvedValue([]),

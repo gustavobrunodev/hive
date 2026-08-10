@@ -236,7 +236,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           document: { screenId: '', title: '', root: null },
           canUndo: false,
           canRedo: false
-        })
+        }),
+        runSkill: vi.fn().mockReturnValue(() => {})
       },
       mcp: {
         list: vi.fn().mockResolvedValue([]),

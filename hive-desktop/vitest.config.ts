@@ -735,6 +735,26 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // One Skill run, gathered (T6.2). 100 because its only branch is the
+        // one that must never be skipped: an unreadable Spec has to reach the
+        // stage as a retryable `OperationError`, and the alternative is an
+        // unhandled rejection inside a generator — a stage that waits forever.
+        'src/main/designStudio/studioSkillRuns.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        // The run's state in the tab (T6.2). 100 because DS-R2's rule is a
+        // negative one — no uncovered wait — and every gap is a stage that
+        // looks idle while a turn is in flight, or a "Tentar de novo" that
+        // renders without retrying anything.
+        'src/renderer/src/designStudio/useSkillRun.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
         // the far side of a boundary no other test can reach into, and its
         // failures are all quiet: an ignored message looks like a Preview that
