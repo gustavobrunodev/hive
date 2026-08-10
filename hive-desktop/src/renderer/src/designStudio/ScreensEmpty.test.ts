@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
+import { ScreenEmpty, ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 
 afterEach(() => {
   cleanup()
@@ -64,5 +64,35 @@ describe('SpecLoadError (DS-R1 AC-5, DS-R17)', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+  })
+})
+
+/**
+ * design-studio T5.7 — DS-R7 and §3.10. A Tela with no Components offers the
+ * two ways to fill it, not a blank device.
+ */
+describe('ScreenEmpty (T5.7, DS-R7)', () => {
+  it('offers both ways to fill the Tela: the Skill and adding by hand', () => {
+    render(createElement(ScreenEmpty, { onAddComponent: vi.fn() }))
+
+    expect(screen.getByText('Esta Tela ainda não tem Componentes')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Gerar com a Skill' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Adicionar Componente' })).toBeTruthy()
+  })
+
+  it('opens the picker from the secondary action', () => {
+    const onAddComponent = vi.fn()
+    render(createElement(ScreenEmpty, { onAddComponent }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar Componente' }))
+    expect(onAddComponent).toHaveBeenCalledTimes(1)
+  })
+
+  it('says why generating is not available yet instead of leaving it unexplained', () => {
+    render(createElement(ScreenEmpty, { onAddComponent: vi.fn() }))
+
+    const generate = screen.getByRole('button', { name: 'Gerar com a Skill' }) as HTMLButtonElement
+    expect(generate.disabled).toBe(true)
+    expect(generate.title).toBe('A geração chega com o Chat de Iteração')
   })
 })

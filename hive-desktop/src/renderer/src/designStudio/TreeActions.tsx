@@ -39,6 +39,9 @@ export interface TreeActionsProps {
   selectedComponentId: string | null
   onSelect: (componentId: string | null) => void
   onEdit: (command: Command) => Promise<CapabilityViolation | null>
+  /** The add picker's open state, owned by the tab so the empty stage can open it (T5.7). */
+  addOpen?: boolean
+  onAddOpenChange?: (open: boolean) => void
 }
 
 export function TreeActions({
@@ -46,7 +49,9 @@ export function TreeActions({
   document,
   selectedComponentId,
   onSelect,
-  onEdit
+  onEdit,
+  addOpen,
+  onAddOpenChange
 }: TreeActionsProps): React.JSX.Element {
   const [violation, setViolation] = useState<string | null>(null)
 
@@ -68,6 +73,8 @@ export function TreeActions({
         document={document}
         selectedComponentId={selectedComponentId}
         onAdd={onEdit}
+        open={addOpen}
+        onOpenChange={onAddOpenChange}
       />
       <div className="wb-dstudio-tree-buttons">
         <Button

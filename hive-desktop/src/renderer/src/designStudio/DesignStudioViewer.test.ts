@@ -331,6 +331,110 @@ describe('DesignStudioViewer — editing the structure from the Árvore (T5.6)',
 })
 
 /**
+ * design-studio T5.7. The history keystrokes, and the Tela that has nothing in
+ * it yet (DS-R9, DS-R7 / §3.10).
+ *
+ * The load-bearing half of the shortcut requirement is the *negative* one:
+ * with the focus outside the tab, the keystroke belongs to whatever does have
+ * focus, and this tab must not take it.
+ */
+describe('DesignStudioViewer — Ctrl+Z acts only inside the tab (T5.7)', () => {
+  const BUTTON = {
+    screenId: 'login',
+    title: 'Login',
+    root: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
+  }
+
+  /** A Tela with something to undo, and the focus placed where the case needs it. */
+  async function renderWithHistory(): Promise<void> {
+    mockScreens(async () => oneScreen, BUTTON)
+    const view = { document: BUTTON, canUndo: true, canRedo: true }
+    bridge().view.mockResolvedValue(view)
+    bridge().undo.mockResolvedValue(view)
+    bridge().redo.mockResolvedValue(view)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Desfazer' }) as HTMLButtonElement).disabled).toBe(
+        false
+      )
+    )
+  }
+
+  it('undoes on Ctrl+Z when the focus is inside the tab', async () => {
+    await renderWithHistory()
+    screen.getAllByRole('treeitem')[0].focus()
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+
+    await waitFor(() => expect(bridge().undo).toHaveBeenCalledTimes(1))
+    expect(bridge().redo).not.toHaveBeenCalled()
+  })
+
+  it('redoes on Ctrl+Shift+Z when the focus is inside the tab', async () => {
+    await renderWithHistory()
+    screen.getAllByRole('treeitem')[0].focus()
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => expect(bridge().redo).toHaveBeenCalledTimes(1))
+    expect(bridge().undo).not.toHaveBeenCalled()
+  })
+
+  it('does nothing at all when the focus is somewhere else in the app', async () => {
+    await renderWithHistory()
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    outside.focus()
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
+
+    expect(bridge().undo).not.toHaveBeenCalled()
+    expect(bridge().redo).not.toHaveBeenCalled()
+    outside.remove()
+  })
+
+  it('leaves other keystrokes to whoever else wants them', async () => {
+    await renderWithHistory()
+    screen.getAllByRole('treeitem')[0].focus()
+
+    fireEvent.keyDown(window, { key: 'z' })
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true })
+
+    expect(bridge().undo).not.toHaveBeenCalled()
+    expect(bridge().redo).not.toHaveBeenCalled()
+  })
+})
+
+describe('DesignStudioViewer — a Tela with no Components (T5.7, §3.10)', () => {
+  it('teaches both ways to fill it instead of showing an empty device', async () => {
+    mockScreens(async () => oneScreen)
+    renderViewer()
+
+    await screen.findByText('Esta Tela ainda não tem Componentes')
+    expect(screen.getByRole('button', { name: 'Gerar com a Skill' })).toBeTruthy()
+    expect(screen.queryByTitle('Preview da Tela')).toBeNull()
+  })
+
+  it('opens the Árvore’s own add picker from the stage’s action', async () => {
+    mockScreens(async () => oneScreen)
+    renderViewer()
+    await screen.findByText('Esta Tela ainda não tem Componentes')
+    resizeTab(1400)
+
+    // Two "Adicionar Componente" buttons exist — the stage's and the Árvore's;
+    // the stage's is the one inside the empty state.
+    const stageAction = screen
+      .getAllByRole('button', { name: 'Adicionar Componente' })
+      .find((button) => button.closest('.wb-dstudio-empty') !== null)
+    fireEvent.click(stageAction as HTMLElement)
+
+    await waitFor(() => expect(screen.getByLabelText('Componente')).toBeTruthy())
+  })
+})
+
+/**
  * design-studio T4.8 / §3.8. The requirement is not "it responds to width" —
  * it is that **nothing becomes unreachable** in any band. Each case below asks
  * for all three surfaces by name and expects to find every one of them,

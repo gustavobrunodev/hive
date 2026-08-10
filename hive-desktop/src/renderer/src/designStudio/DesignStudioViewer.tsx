@@ -4,12 +4,13 @@ import { t } from '../i18n'
 import { ComponentTree } from './ComponentTree'
 import { Inspector, type PropValue } from './Inspector'
 import { ScreenList } from './ScreenList'
-import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
+import { ScreenEmpty, ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 import { PreviewFrame } from './PreviewFrame'
 import { StagePane } from './StagePane'
 import { StudioDrawer } from './StudioDrawer'
 import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
+import { historyShortcutFor } from './shortcuts'
 import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
@@ -63,6 +64,41 @@ function useStageLayout(ref: React.RefObject<HTMLDivElement | null>): StageLayou
 
 type OpenDrawer = 'tree' | 'inspector' | null
 
+/** One grouped history move, from the toolbar or from the keyboard — the same pair either way. */
+interface HistoryMoves {
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
+}
+
+/**
+ * T5.7 / DS-R9: `Ctrl+Z` and `Ctrl+Shift+Z`, **only while the focus is inside
+ * this tab**. The listener is global because the keystroke has to work from any
+ * of the four surfaces, and the guard is `contains(activeElement)` because that
+ * is what "inside the tab" actually means — a second Studio tab, the chat, or
+ * the Explorer must keep their own undo, and would silently lose it to whichever
+ * tab registered last.
+ */
+function useHistoryShortcuts(
+  root: React.RefObject<HTMLDivElement | null>,
+  moves: HistoryMoves
+): void {
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      const move = historyShortcutFor(event)
+      if (move === null) return
+      const element = root.current
+      if (element === null || !element.contains(window.document.activeElement)) return
+      event.preventDefault()
+      if (move === 'undo' && moves.canUndo) moves.undo()
+      if (move === 'redo' && moves.canRedo) moves.redo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [root, moves])
+}
+
 export function DesignStudioViewer({
   workspace,
   specPath,
@@ -78,6 +114,19 @@ export function DesignStudioViewer({
   const layout = useStageLayout(rootRef)
   const [drawer, setDrawer] = useState<OpenDrawer>(null)
   const [hintOffered] = useState(() => takeFocusHint())
+  // The add picker's open state lives here, so the empty stage's "Adicionar
+  // Componente" opens the very picker in the Árvore rather than a second one.
+  const [addOpen, setAddOpen] = useState(false)
+
+  const undo = (): void => {
+    doc.undo()
+    studio.undo()
+  }
+  const redo = (): void => {
+    doc.redo()
+    studio.redo()
+  }
+  useHistoryShortcuts(rootRef, { canUndo: doc.canUndo, canRedo: doc.canRedo, undo, redo })
 
   /**
    * The Inspetor's empty state sends the user to the Árvore. Where that is
@@ -90,6 +139,17 @@ export function DesignStudioViewer({
       return
     }
     rootRef.current?.querySelector<HTMLElement>('[role="treeitem"]')?.focus()
+  }
+
+  /**
+   * The empty stage's "Adicionar Componente" (T5.7). It opens the Árvore's own
+   * picker — bringing the Árvore into view first when the band has folded it —
+   * rather than putting a second picker on the stage: two ways to add would be
+   * two places to keep in step.
+   */
+  const startAdd = (): void => {
+    if (layout.treeDrawer) setDrawer('tree')
+    setAddOpen(true)
   }
 
   return (
@@ -109,14 +169,8 @@ export function DesignStudioViewer({
         onViewportChange={studio.setViewport}
         canUndo={doc.canUndo}
         canRedo={doc.canRedo}
-        onUndo={() => {
-          doc.undo()
-          studio.undo()
-        }}
-        onRedo={() => {
-          doc.redo()
-          studio.redo()
-        }}
+        onUndo={undo}
+        onRedo={redo}
         focusMode={focusMode}
         onToggleFocusMode={() => onRequestFocusMode(!focusMode)}
         onOpenTree={layout.treeDrawer ? () => setDrawer('tree') : undefined}
@@ -134,14 +188,20 @@ export function DesignStudioViewer({
               className="wb-dstudio-side"
             >
               <ScreensPane studio={studio} />
-              <TreePane studio={studio} doc={doc} />
+              <TreePane studio={studio} doc={doc} addOpen={addOpen} onAddOpen={setAddOpen} />
             </ResizablePanel>
           )}
           {layout.leftColumn && (
             <ResizableHandle withGrip aria-label={t('designStudio.resizeHandleLabel')} />
           )}
           <ResizablePanel id="studio-stage" minSize="40%">
-            <StudioBody studio={studio} doc={doc} specPath={specPath} onOpenSpec={onOpenSpec} />
+            <StudioBody
+              studio={studio}
+              doc={doc}
+              specPath={specPath}
+              onOpenSpec={onOpenSpec}
+              onAddComponent={startAdd}
+            />
           </ResizablePanel>
           {layout.inspectorColumn && (
             <ResizableHandle withGrip aria-label={t('designStudio.resizeHandleLabel')} />
@@ -160,7 +220,7 @@ export function DesignStudioViewer({
         </Resizable>
         {drawer === 'tree' && (
           <StudioDrawer title={t('designStudio.treePaneTitle')} onClose={() => setDrawer(null)}>
-            <TreePane studio={studio} doc={doc} />
+            <TreePane studio={studio} doc={doc} addOpen={addOpen} onAddOpen={setAddOpen} />
           </StudioDrawer>
         )}
         {drawer === 'inspector' && (
@@ -201,10 +261,14 @@ function ScreensPane({
  */
 function TreePane({
   studio,
-  doc
+  doc,
+  addOpen,
+  onAddOpen
 }: {
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
+  addOpen: boolean
+  onAddOpen: (open: boolean) => void
 }): React.JSX.Element {
   const edit = async (command: Command): Promise<CapabilityViolation | null> => {
     const groupId = nextGroupId()
@@ -222,6 +286,8 @@ function TreePane({
         onSelect={studio.selectComponent}
         catalog={doc.catalog}
         onEdit={edit}
+        addOpen={addOpen}
+        onAddOpenChange={onAddOpen}
       />
     </section>
   )
@@ -275,12 +341,14 @@ function StudioBody({
   studio,
   doc,
   specPath,
-  onOpenSpec
+  onOpenSpec,
+  onAddComponent
 }: {
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
   specPath: string
   onOpenSpec: (path: string) => void
+  onAddComponent: () => void
 }): React.JSX.Element {
   if (studio.status === 'loading') {
     return (
@@ -307,12 +375,19 @@ function StudioBody({
   }
   return (
     <StagePane viewport={studio.viewport}>
-      <PreviewFrame
-        size={studio.viewport}
-        document={doc.document}
-        selectedComponentId={studio.selectedComponentId}
-        onSelectComponent={studio.selectComponent}
-      />
+      {/* DS-R7 / §3.10: a Tela with no Components teaches how to get its first
+          one — inside the device, where the Preview would be, so the bench
+          still reads as the workspace it is rather than blinking out. */}
+      {doc.document.root === null ? (
+        <ScreenEmpty onAddComponent={onAddComponent} />
+      ) : (
+        <PreviewFrame
+          size={studio.viewport}
+          document={doc.document}
+          selectedComponentId={studio.selectedComponentId}
+          onSelectComponent={studio.selectComponent}
+        />
+      )}
     </StagePane>
   )
 }

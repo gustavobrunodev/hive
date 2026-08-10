@@ -1417,6 +1417,13 @@ export const ptBR = {
     treeMoveInsideHint: 'Torna este Componente filho do Componente acima dele',
     treeMoveOutside: 'Mover para fora',
     treeMoveOutsideHint: 'Move este Componente para junto do Componente que o contém',
+    // T5.7 (DS-R7, §3.10): a Tela sem Componentes ensina os dois caminhos —
+    // gerar com a Skill e adicionar à mão.
+    screenEmptyTitle: 'Esta Tela ainda não tem Componentes',
+    screenEmptyDescription:
+      'Gere uma primeira versão a partir da Spec ou escolha o primeiro Componente você mesmo.',
+    screenEmptyGenerate: 'Gerar com a Skill',
+    screenEmptyGenerateUnavailable: 'A geração chega com o Chat de Iteração',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',

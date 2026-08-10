@@ -45,6 +45,13 @@ export interface AddComponentProps {
   selectedComponentId: string | null
   /** Dispatches the `AddComponent`. Resolves to the violation when it was refused. */
   onAdd: (command: Command) => Promise<CapabilityViolation | null>
+  /**
+   * Controlled open state. Omitted, the picker opens and closes itself; passed,
+   * the tab owns it — which is what lets the empty stage's "Adicionar
+   * Componente" open this very picker rather than merely point at it (T5.7).
+   */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /** The tag to add: exactly the catalog's Components. */
@@ -107,9 +114,16 @@ export function AddComponent({
   catalog,
   document,
   selectedComponentId,
-  onAdd
+  onAdd,
+  open: openProp,
+  onOpenChange
 }: AddComponentProps): React.JSX.Element | null {
-  const [open, setOpen] = useState(false)
+  const [selfOpen, setSelfOpen] = useState(false)
+  const open = openProp ?? selfOpen
+  const setOpen = (next: boolean): void => {
+    setSelfOpen(next)
+    onOpenChange?.(next)
+  }
   const [tag, setTag] = useState<string | null>(null)
   const [slot, setSlot] = useState<string | null>(null)
   const [violation, setViolation] = useState<string | null>(null)

@@ -1,6 +1,6 @@
 import { Button, Empty } from '@hive/design-system'
 import { t } from '../i18n'
-import { LayersIcon, AlertTriangleIcon } from '../ui/icons'
+import { LayersIcon, AlertTriangleIcon, SparkleIcon } from '../ui/icons'
 import type { ScreenProbe, StudioOperationError } from './screens'
 
 /**
@@ -50,6 +50,42 @@ export function ScreensEmpty({ probed, onOpenSpec }: ScreensEmptyProps): React.J
         <Button variant="ghost" onClick={onOpenSpec}>
           {t('designStudio.emptyScreensAction')}
         </Button>
+      }
+    />
+  )
+}
+
+export interface ScreenEmptyProps {
+  /** Opens the Árvore's add picker — the empty state's own second way in. */
+  onAddComponent: () => void
+}
+
+/**
+ * T5.7 / DS-R7, design §3.10: a Tela with no Components at all. The stage says
+ * so and offers **both** ways to fill it — generating with the Skill, which is
+ * how most Telas start, and adding a Component by hand, which is how a user who
+ * already knows what they want starts.
+ *
+ * Generating ships disabled until the Skill exists, with the reason on the
+ * control rather than left to be discovered — the same call the toolbar's
+ * Export makes (T4.4): a button that appears later is a surface to re-learn.
+ */
+export function ScreenEmpty({ onAddComponent }: ScreenEmptyProps): React.JSX.Element {
+  return (
+    <Empty
+      className="wb-dstudio-empty"
+      icon={<SparkleIcon size={28} />}
+      title={t('designStudio.screenEmptyTitle')}
+      description={t('designStudio.screenEmptyDescription')}
+      action={
+        <span className="wb-dstudio-empty-actions">
+          <Button disabled title={t('designStudio.screenEmptyGenerateUnavailable')}>
+            {t('designStudio.screenEmptyGenerate')}
+          </Button>
+          <Button variant="ghost" onClick={onAddComponent}>
+            {t('designStudio.treeAddLabel')}
+          </Button>
+        </span>
       }
     />
   )

@@ -41,6 +41,9 @@ export interface ComponentTreeProps {
   catalog?: ComponentCatalog | null
   /** Dispatches an edit of the structure. Absent = a read-only Árvore. */
   onEdit?: (command: Command) => Promise<CapabilityViolation | null>
+  /** The add picker's open state, when the tab owns it (T5.7). */
+  addOpen?: boolean
+  onAddOpenChange?: (open: boolean) => void
 }
 
 /** The DS `Tree`'s node shape, restated because the package exports the component, not the type. */
@@ -64,7 +67,9 @@ export function ComponentTree({
   selectedComponentId,
   onSelect,
   catalog,
-  onEdit
+  onEdit,
+  addOpen,
+  onAddOpenChange
 }: ComponentTreeProps): React.JSX.Element | null {
   if (document.root === null && onEdit === undefined) return null
 
@@ -87,6 +92,8 @@ export function ComponentTree({
           selectedComponentId={selectedComponentId}
           onSelect={onSelect}
           onEdit={onEdit}
+          addOpen={addOpen}
+          onAddOpenChange={onAddOpenChange}
         />
       )}
     </>

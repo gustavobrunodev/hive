@@ -14140,3 +14140,14 @@ button.wb-mcplog-summary:focus-visible {
   font-size: 12px;
   color: var(--danger-ink);
 }
+
+/* The Tela with no Components (T5.7). Two ways in, side by side: the primary
+   one generates, the quiet one adds by hand. */
+
+.wb-dstudio-empty-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  justify-content: center;
+}
