@@ -647,6 +647,16 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The parent half of the Preview channel (T3.7). 100 because the two
+        // controls that replace origin-matching under an opaque origin
+        // (`event.source` identity and the session nonce) are branches, and a
+        // branch that is never exercised is a control that may not be there.
+        'src/renderer/src/designStudio/previewBridge.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
         // the far side of a boundary no other test can reach into, and its
         // failures are all quiet: an ignored message looks like a Preview that
