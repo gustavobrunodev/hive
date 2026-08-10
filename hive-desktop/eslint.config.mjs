@@ -21,6 +21,9 @@ export default defineConfig(
       // app serves, not app source (and 778 KB of minified code that linting
       // has nothing useful to say about).
       'resources/design-system-web-awesome/**',
+      // design-studio T3.4: the bundled in-frame Preview receiver. Same
+      // category — esbuild output the app serves, not app source.
+      'resources/design-studio-preview/**',
       'test-results',
       'playwright-report',
       // Visual-pass harness (docs/visual-validation.md): these are bare

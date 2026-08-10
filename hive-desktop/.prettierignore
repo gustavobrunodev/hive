@@ -16,6 +16,8 @@ coverage
 # `npm run build:ds-bundle` decides their formatting; a prettier pass would put
 # the working tree permanently at odds with the generator's output.
 resources/design-system-web-awesome
+# design-studio T3.4: same, for the bundled in-frame Preview receiver.
+resources/design-studio-preview
 test-results
 playwright-report
 tools/visual

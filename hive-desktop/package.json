@@ -57,6 +57,7 @@
     "dev": "electron-vite dev",
     "build:ds-catalog": "node scripts/buildDsCatalog.mjs",
     "build:ds-bundle": "node scripts/buildDsBundle.mjs",
+    "build:preview-receiver": "node scripts/buildPreviewReceiver.mjs",
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

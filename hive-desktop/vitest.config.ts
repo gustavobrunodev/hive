@@ -16,7 +16,14 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/main/**/*.test.ts', 'src/preload/**/*.test.ts', 'src/renderer/src/**/*.test.ts'],
+    include: [
+      'src/main/**/*.test.ts',
+      'src/preload/**/*.test.ts',
+      // design-studio T3.4: the in-frame Preview receiver is a fourth bundle
+      // with its own zone, and its tests live beside it.
+      'src/preview/**/*.test.ts',
+      'src/renderer/src/**/*.test.ts'
+    ],
     // `*.e2e.test.ts` files hit real CLIs (network, npx resolution) and are
     // slow/non-deterministic — excluded from the fast default suite, run
     // separately via `npm run test:e2e` (vitest.e2e.config.ts). Task T20,
@@ -53,6 +60,12 @@ export default defineConfig({
         'e2e/**',
         '*.config.ts',
         '*.config.mjs',
+        // design-studio T3.4: three lines of bootstrap for the preview bundle
+        // (`createPreviewReceiver(window).start()`); everything it calls is
+        // gated at 100 below.
+        'src/preview/index.ts',
+        // Built artifacts the app serves, not source (same category as out/).
+        'resources/**',
         'src/renderer/src/scm/AgentReviewPanel.tsx',
         'src/renderer/src/scm/InlineAgentDiff.tsx'
       ],
@@ -620,6 +633,26 @@ export default defineConfig({
         // a traversal that works looks like a normal 200, and a dropped CSP
         // directive looks like a Preview that renders fine.
         'src/main/designStudio/previewProtocol.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        // The per-session URL and its shell (T3.3). 100 for the same reason as
+        // the resolver: the token is the message nonce (D-DS-4), so a branch
+        // that lets a stale or unopened token resolve is a forgeable frame.
+        'src/main/designStudio/previewSessions.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
+        // the far side of a boundary no other test can reach into, and its
+        // failures are all quiet: an ignored message looks like a Preview that
+        // did not update, and a reconciliation that recreates elements looks
+        // identical until focus and scroll disappear under the user.
+        'src/preview/**': {
           statements: 100,
           branches: 100,
           functions: 100,
