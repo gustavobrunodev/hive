@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { createContext, createElement, useContext, type ReactNode } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Inspector, type InspectorProps } from './Inspector'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Inspector, TEXT_DEBOUNCE_MS, type InspectorProps } from './Inspector'
 import type { ComponentCatalog, ScreenDocument } from './documentModel'
 
 /**
@@ -110,7 +110,7 @@ function renderInspector(overrides: Partial<InspectorProps> = {}): InspectorProp
     catalog: CATALOG,
     document: docWith('wa-button'),
     selectedComponentId: 'n1',
-    onChange: vi.fn(),
+    onChange: vi.fn().mockResolvedValue(null),
     ...overrides
   }
   render(createElement(Inspector, props))
@@ -160,6 +160,8 @@ describe('Inspector — the catalog chooses the control (DS-R6 AC-2)', () => {
     expect((document.querySelector('[data-field="name"] input') as HTMLInputElement).value).toBe('')
   })
 
+  // Text carries the same contract but on a 120 ms delay (R-6); its value and
+  // its timing are asserted together in the T5.3 debounce test below.
   it('reports each change as the prop’s name and its new value', () => {
     const props = renderInspector()
 
@@ -168,11 +170,6 @@ describe('Inspector — the catalog chooses the control (DS-R6 AC-2)', () => {
 
     fireEvent.click(document.querySelector('[data-field="pill"] [role="switch"]')!)
     expect(props.onChange).toHaveBeenCalledWith('pill', true)
-
-    fireEvent.change(document.querySelector('[data-field="name"] input')!, {
-      target: { value: 'entrar' }
-    })
-    expect(props.onChange).toHaveBeenCalledWith('name', 'entrar')
   })
 })
 
@@ -262,5 +259,126 @@ describe('Inspector — grouped, with the long tail closed (design §3.6)', () =
         section.getAttribute('data-group')
       )
     ).toEqual(['appearance'])
+  })
+})
+
+/**
+ * design-studio T5.3 (DS-R6 AC-3/AC-4, R-6). What happens between the control
+ * and the document: one `SetProp` per change, text coalesced at 120 ms, and a
+ * refusal shown where it was typed with nothing applied.
+ */
+describe('Inspector — dispatching a change (DS-R6 AC-3)', () => {
+  it('reports an enum pick immediately, with no timer in the way', () => {
+    vi.useFakeTimers()
+    const props = renderInspector()
+
+    fireEvent.click(screen.getByText('brand'))
+
+    expect(props.onChange).toHaveBeenCalledTimes(1)
+    expect(props.onChange).toHaveBeenCalledWith('variant', 'brand')
+    vi.useRealTimers()
+  })
+
+  it('reports a switch immediately too', () => {
+    vi.useFakeTimers()
+    const props = renderInspector()
+
+    fireEvent.click(document.querySelector('[data-field="disabled"] [role="switch"]')!)
+
+    expect(props.onChange).toHaveBeenCalledTimes(1)
+    expect(props.onChange).toHaveBeenCalledWith('disabled', true)
+    vi.useRealTimers()
+  })
+
+  it('holds a text change for 120 ms, then sends exactly one', () => {
+    vi.useFakeTimers()
+    const props = renderInspector()
+    const field = document.querySelector('[data-field="name"] input') as HTMLInputElement
+
+    fireEvent.change(field, { target: { value: 'e' } })
+    fireEvent.change(field, { target: { value: 'en' } })
+    fireEvent.change(field, { target: { value: 'ent' } })
+
+    // The field is live even though nothing has been dispatched yet.
+    expect(field.value).toBe('ent')
+    vi.advanceTimersByTime(TEXT_DEBOUNCE_MS - 1)
+    expect(props.onChange).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(props.onChange).toHaveBeenCalledTimes(1)
+    expect(props.onChange).toHaveBeenCalledWith('name', 'ent')
+    vi.useRealTimers()
+  })
+
+  it('sends a number field as a number, not as the text of one', () => {
+    vi.useFakeTimers()
+    const props = renderInspector({
+      catalog: {
+        dsId: 'test',
+        version: '1',
+        components: [
+          {
+            tag: 'wa-progress',
+            slots: [''],
+            props: [{ name: 'value', kind: 'number', group: 'content' }]
+          }
+        ]
+      },
+      document: docWith('wa-progress')
+    })
+
+    fireEvent.change(document.querySelector('[data-field="value"] input')!, {
+      target: { value: '42' }
+    })
+    vi.advanceTimersByTime(TEXT_DEBOUNCE_MS)
+
+    expect(props.onChange).toHaveBeenCalledWith('value', 42)
+    vi.useRealTimers()
+  })
+})
+
+describe('Inspector — a refused value (DS-R6 AC-4)', () => {
+  const REFUSAL = {
+    kind: 'capability' as const,
+    componentId: 'n1',
+    reason: '"roxo" não é um valor válido para "variant" em "wa-button".',
+    attemptedValue: 'roxo'
+  }
+
+  it('shows the violation inside the Field that caused it, and applies nothing', async () => {
+    const props = renderInspector({
+      document: docWith('wa-button', { variant: 'neutral' }),
+      onChange: vi.fn().mockResolvedValue(REFUSAL)
+    })
+
+    fireEvent.click(screen.getByText('brand'))
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
+
+    const field = document.querySelector('[data-field="variant"]')!
+    expect(field.querySelector('[role="alert"]')?.textContent).toBe(REFUSAL.reason)
+    // The control still shows what the document holds — the change never landed.
+    expect(field.querySelector('[role="combobox"]')?.textContent).toBe('neutral')
+    expect(props.onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts the violation on the offending prop only, leaving the others clean', async () => {
+    renderInspector({ onChange: vi.fn().mockResolvedValue(REFUSAL) })
+
+    fireEvent.click(screen.getByText('brand'))
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1))
+
+    expect(document.querySelector('[data-field="size"] [role="alert"]')).toBeNull()
+  })
+
+  it('clears the violation as soon as a value is accepted', async () => {
+    let answer: typeof REFUSAL | null = REFUSAL
+    renderInspector({ onChange: vi.fn(async () => answer) })
+
+    fireEvent.click(screen.getByText('brand'))
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
+
+    answer = null
+    fireEvent.click(screen.getByText('success'))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 })

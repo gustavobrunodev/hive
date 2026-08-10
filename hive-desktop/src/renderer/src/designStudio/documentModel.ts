@@ -89,6 +89,14 @@ export interface ScreenView {
   canRedo: boolean
 }
 
+/**
+ * A fresh id for one undoable step (AD-8). A manual edit is its own group; a
+ * chat turn shares one across all the Commands it emitted.
+ */
+export function nextGroupId(): string {
+  return `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 export function isCapabilityViolation(
   value: ScreenView | CapabilityViolation
 ): value is CapabilityViolation {

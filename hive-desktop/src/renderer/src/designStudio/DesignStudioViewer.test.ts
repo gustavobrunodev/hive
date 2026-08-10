@@ -61,9 +61,27 @@ const NESTED = {
   }
 }
 
+/** A catalog with one enum prop — enough to make the Inspector offer a control. */
+const CATALOG = {
+  dsId: 'ds',
+  version: '1',
+  components: [
+    {
+      tag: 'wa-button',
+      slots: [''],
+      props: [
+        { name: 'variant', kind: 'enum', values: ['neutral', 'brand'], group: 'appearance' },
+        { name: 'disabled', kind: 'boolean', group: 'state' }
+      ]
+    },
+    { tag: 'wa-card', slots: [''], props: [] }
+  ]
+}
+
 function mockScreens(
   impl: () => Promise<ScreensResponse>,
-  document: unknown = { screenId: 'login', title: 'Login', root: null }
+  document: unknown = { screenId: 'login', title: 'Login', root: null },
+  dispatchResult?: unknown
 ): ReturnType<typeof vi.fn> {
   const screens = vi.fn(impl)
   const view = { document, canUndo: false, canRedo: false }
@@ -73,14 +91,19 @@ function mockScreens(
       screens,
       openPreview: vi.fn().mockResolvedValue('hive-studio://preview/abc/index.html'),
       closePreview: vi.fn().mockResolvedValue(undefined),
-      catalog: vi.fn().mockResolvedValue({ dsId: 'ds', version: '1', components: [] }),
+      catalog: vi.fn().mockResolvedValue(CATALOG),
       view: vi.fn().mockResolvedValue(view),
-      dispatch: vi.fn().mockResolvedValue(view),
+      dispatch: vi.fn().mockResolvedValue(dispatchResult ?? view),
       undo: vi.fn().mockResolvedValue(view),
       redo: vi.fn().mockResolvedValue(view)
     }
   } as unknown as typeof window.hive
   return screens
+}
+
+/** The bridge as the tab sees it, for asserting what was dispatched. */
+function bridge(): Record<string, ReturnType<typeof vi.fn>> {
+  return window.hive.designStudio as unknown as Record<string, ReturnType<typeof vi.fn>>
 }
 
 function renderViewer(
@@ -332,5 +355,80 @@ describe('DesignStudioViewer — the width degradation chain (T4.8, DS-R16)', ()
 
     fireEvent.click(screen.getByRole('button', { name: 'Sair do Modo Foco' }))
     expect(onRequestFocusMode).toHaveBeenCalledWith(false)
+  })
+})
+
+/**
+ * design-studio T5.3 (DS-R6 AC-3/AC-4). The wiring between a control and the
+ * document: one `SetProp` per change, in its own undo group, and a refusal that
+ * changes nothing at all.
+ *
+ * The control driven here is the boolean Switch: it dispatches without a
+ * debounce (R-6) and renders as a plain button, so what the test exercises is
+ * the Studio's wiring rather than Radix's portal behaviour under jsdom.
+ */
+describe('DesignStudioViewer — editing a prop (T5.3)', () => {
+  const BUTTON = {
+    screenId: 'login',
+    title: 'Login',
+    root: { id: 'n1', tag: 'wa-button', props: { variant: 'neutral' }, children: [] }
+  }
+
+  async function renderSelected(dispatchResult?: unknown): Promise<void> {
+    mockScreens(async () => oneScreen, BUTTON, dispatchResult)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(1))
+    fireEvent.click(screen.getAllByRole('treeitem')[0])
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'disabled' })).toBeTruthy())
+  }
+
+  it('dispatches exactly one SetProp, carrying one field, in its own group', async () => {
+    await renderSelected()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'disabled' }))
+
+    await waitFor(() => expect(bridge().dispatch).toHaveBeenCalledTimes(1))
+    const [, screenId, , commands, groupId] = bridge().dispatch.mock.calls[0]
+    expect(screenId).toBe('login')
+    expect(commands).toEqual([{ type: 'SetProp', componentId: 'n1', key: 'disabled', value: true }])
+    expect(typeof groupId).toBe('string')
+  })
+
+  it('offers the Inspetor only once a Component is selected', async () => {
+    mockScreens(async () => oneScreen, BUTTON)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+
+    expect(screen.queryByRole('switch', { name: 'disabled' })).toBeNull()
+  })
+
+  it('marks the Tela as edited only once the change has landed (DS-R4 AC-3)', async () => {
+    await renderSelected()
+    expect(screen.getByText('gerada automaticamente')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'disabled' }))
+
+    await waitFor(() => expect(screen.getByText('editada nesta sessão')).toBeTruthy())
+  })
+
+  it('renders a refusal in the Field and leaves the Tela unedited and unchanged', async () => {
+    await renderSelected({
+      kind: 'capability',
+      componentId: 'n1',
+      reason: '"disabled" espera um booleano.',
+      attemptedValue: true
+    })
+
+    fireEvent.click(screen.getByRole('switch', { name: 'disabled' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe('"disabled" espera um booleano.')
+    )
+    // Nothing landed: the Tela is still auto-generated and undo is still empty.
+    expect(screen.getByText('gerada automaticamente')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Desfazer' }) as HTMLButtonElement).disabled).toBe(
+      true
+    )
   })
 })

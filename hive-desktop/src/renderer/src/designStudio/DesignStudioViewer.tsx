@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
 import { ComponentTree } from './ComponentTree'
-import { Inspector } from './Inspector'
+import { Inspector, type PropValue } from './Inspector'
 import { ScreenList } from './ScreenList'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 import { PreviewFrame } from './PreviewFrame'
@@ -10,6 +10,7 @@ import { StagePane } from './StagePane'
 import { StudioDrawer } from './StudioDrawer'
 import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
+import { nextGroupId, type CapabilityViolation } from './documentModel'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -200,7 +201,11 @@ function TreePane({
   )
 }
 
-/** The selected Component's props, every control chosen by the catalog (T5.2). */
+/**
+ * The selected Component's props (T5.2/T5.3). One change is **one** `SetProp`
+ * in its own group, so it undoes on its own (DS-R6 AC-3, AD-2); a refusal comes
+ * straight back to the Field that caused it, with nothing applied.
+ */
 function InspectorPane({
   studio,
   doc
@@ -208,6 +213,17 @@ function InspectorPane({
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
 }): React.JSX.Element {
+  const setProp = async (key: string, value: PropValue): Promise<CapabilityViolation | null> => {
+    const componentId = studio.selectedComponentId
+    if (componentId === null) return null
+    const groupId = nextGroupId()
+    const violation = await doc.dispatch([{ type: 'SetProp', componentId, key, value }], groupId)
+    // The Tela counts as edited only for a change that landed — a refused value
+    // never entered the log, so it must not mark the Tela either (DS-R4 AC-3).
+    if (violation === null) studio.recordStep(groupId)
+    return violation
+  }
+
   return (
     <section className="wb-dstudio-pane" aria-label={t('designStudio.inspectorPaneTitle')}>
       <h2 className="wb-dstudio-pane-title">{t('designStudio.inspectorPaneTitle')}</h2>
@@ -215,7 +231,7 @@ function InspectorPane({
         catalog={doc.catalog}
         document={doc.document}
         selectedComponentId={studio.selectedComponentId}
-        onChange={() => {}}
+        onChange={setProp}
       />
     </section>
   )
