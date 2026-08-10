@@ -11,6 +11,7 @@ import {
   STUDIO_SCHEME_PRIVILEGES,
   type StudioProtocolRoots
 } from './previewProtocol'
+import { createPreviewSessions } from './previewSessions'
 
 /**
  * design-studio T3.1. `resolveStudioRequest` is a security boundary: it is the
@@ -304,5 +305,48 @@ describe('createStudioProtocolHandler — serving', () => {
 
   it('answers 404 for a resolvable path that is not a readable file', async () => {
     expect((await handle({ url: url('/missing.js') })).status).toBe(404)
+  })
+})
+
+describe('createStudioProtocolHandler — the session shell', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'hive-studio-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('serves the generated shell for a live session, as an HTML document', async () => {
+    const sessions = createPreviewSessions()
+    const handle = createStudioProtocolHandler({ preview: dir }, sessions.shellFor)
+    const response = await handle({ url: sessions.url(sessions.open()) })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(await response.text()).toContain('<!doctype html>')
+  })
+
+  it('carries the same CSP on the document as on every asset', async () => {
+    const sessions = createPreviewSessions()
+    const handle = createStudioProtocolHandler({ preview: dir }, sessions.shellFor)
+    const response = await handle({ url: sessions.url(sessions.open()) })
+    expect(response.headers.get('content-security-policy')).toBe(STUDIO_CSP)
+  })
+
+  it('404s a shell URL whose session is not live, rather than reading it off disk', async () => {
+    const sessions = createPreviewSessions()
+    const handle = createStudioProtocolHandler({ preview: dir }, sessions.shellFor)
+    const token = sessions.open()
+    sessions.close(token)
+    expect((await handle({ url: sessions.url(token) })).status).toBe(404)
+  })
+
+  it('serves no shell at all when no resolver is composed in', async () => {
+    const sessions = createPreviewSessions()
+    const handle = createStudioProtocolHandler({ preview: dir })
+    expect((await handle({ url: sessions.url(sessions.open()) })).status).toBe(404)
   })
 })

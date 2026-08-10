@@ -54,6 +54,7 @@ import {
   STUDIO_SCHEME,
   STUDIO_SCHEME_PRIVILEGES
 } from './designStudio/previewProtocol'
+import { createPreviewSessions } from './designStudio/previewSessions'
 import { createWhisperModelStore } from './whisperModelStore'
 import { recommendWhisperModel } from './whisperHardware'
 import type { WhisperModelId, WhisperVariant } from './whisperTypes'
@@ -1003,7 +1004,8 @@ app.whenReady().then(() => {
   const studioRoots = {
     preview: app.isPackaged ? process.resourcesPath : join(__dirname, '../../resources')
   }
-  protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots))
+  const studioSessions = createPreviewSessions()
+  protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots, studioSessions.shellFor))
 
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()

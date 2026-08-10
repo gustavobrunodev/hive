@@ -164,6 +164,12 @@ export function studioHeaders(file: string): Record<string, string> {
 }
 
 /**
+ * Answers a request with a generated session shell, or `null` to let the
+ * request fall through to the file root. Supplied by `previewSessions.ts`.
+ */
+export type StudioShellResolver = (url: string) => string | null
+
+/**
  * Builds the `protocol.handle(STUDIO_SCHEME, …)` handler.
  *
  * Files are read with `fs/promises` rather than `net.fetch(file://…)` (the
@@ -172,9 +178,20 @@ export function studioHeaders(file: string): Record<string, string> {
  * be asserted in a unit test.
  */
 export function createStudioProtocolHandler(
-  roots: StudioProtocolRoots
+  roots: StudioProtocolRoots,
+  shell: StudioShellResolver = () => null
 ): (request: { url: string }) => Promise<Response> {
   return async (request) => {
+    // The session shell is generated, not read off disk, so it is routed
+    // first. `shell` is injected rather than imported: it keeps this module
+    // about the protocol, and it is what makes "a URL for a session that was
+    // never opened resolves to nothing" a property of the composition instead
+    // of a special case buried in here.
+    const document = shell(request.url)
+    if (document !== null) {
+      return new Response(document, { status: 200, headers: studioHeaders('index.html') })
+    }
+
     const file = resolveStudioRequest(roots, request.url)
     if (!file) return new Response(null, { status: 404 })
     let body: Buffer
