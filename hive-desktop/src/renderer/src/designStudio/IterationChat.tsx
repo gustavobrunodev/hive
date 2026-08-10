@@ -10,6 +10,7 @@ import { t } from '../i18n'
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, HistoryIcon } from '../ui/icons'
 import type { StudioChatMessage } from './screenSessions'
 import type { SkillPhase } from './skillRun'
+import type { SkillFailure } from './useStudioSkill'
 
 /**
  * Design Studio (M18) — T6.5. The Chat as a **strip**, not a column
@@ -51,6 +52,14 @@ export interface IterationChatProps {
    */
   undoableGroupId?: string | null
   onUndoTurn?: () => void
+  /**
+   * T6.7 / DS-R10 AC-6 and design §6. The turn's failure, shown where the
+   * request was made. `retryable: true` becomes a button that re-runs the very
+   * same request — a retryable failure the user cannot retry is a dead end with
+   * better manners.
+   */
+  failure?: SkillFailure
+  onRetry?: () => void
 }
 
 export function IterationChat({
@@ -62,7 +71,9 @@ export function IterationChat({
   phase,
   onSend,
   undoableGroupId = null,
-  onUndoTurn
+  onUndoTurn,
+  failure = null,
+  onRetry
 }: IterationChatProps): React.JSX.Element {
   return (
     <section
@@ -127,6 +138,17 @@ export function IterationChat({
             ))}
           </MessageList>
         </div>
+      )}
+
+      {failure !== null && (
+        <p className="wb-dstudio-chat-failure" role="alert">
+          <span>{failure.kind === 'operation' ? failure.message : failure.reason}</span>
+          {failure.kind === 'operation' && failure.retryable && (
+            <Button variant="ghost" onClick={onRetry}>
+              {t('designStudio.skillRetry')}
+            </Button>
+          )}
+        </p>
       )}
 
       <PromptInput

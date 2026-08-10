@@ -215,3 +215,62 @@ describe('IterationChat — one turn, one undo (T6.6)', () => {
     expect(screen.queryByText(/mudanç/)).toBeNull()
   })
 })
+
+/**
+ * design-studio T6.7 — DS-R10 AC-6, DS-R17 and design §6. A turn that failed
+ * says so **in the chat**, where the request was made, and the two failure
+ * shapes keep reading as the two different things they are.
+ */
+describe('IterationChat — a failed turn (T6.7)', () => {
+  it('shows a retryable OperationError with a working Tentar de novo', () => {
+    const onRetry = vi.fn()
+    renderChat({
+      failure: {
+        kind: 'operation',
+        scope: 'agent',
+        message: 'O agente não respondeu a tempo.',
+        retryable: true
+      },
+      onRetry
+    })
+
+    expect(screen.getByRole('alert').textContent).toContain('O agente não respondeu a tempo.')
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the failure even while the strip is collapsed', () => {
+    renderChat({
+      expanded: false,
+      failure: {
+        kind: 'operation',
+        scope: 'agent',
+        message: 'agente indisponível',
+        retryable: true
+      }
+    })
+
+    expect(screen.getByRole('alert')).toBeTruthy()
+  })
+
+  it('offers no retry on a CapabilityViolation — the same request would be refused again', () => {
+    renderChat({
+      failure: {
+        kind: 'capability',
+        componentId: 'n2',
+        reason: 'wa-datepicker não existe no catálogo ativo'
+      }
+    })
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'wa-datepicker não existe no catálogo ativo'
+    )
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+  })
+
+  it('says nothing when the turn did not fail', () => {
+    renderChat({ failure: null })
+
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+})

@@ -3,6 +3,7 @@ import { changedComponentIds, nextGroupId, type CapabilityViolation } from './do
 import { findNode } from './screenTree'
 import type { SkillPhase } from './skillRun'
 import { useSkillRun } from './useSkillRun'
+import type { StudioOperationError } from './screens'
 import type { useDesignStudio } from './useDesignStudio'
 import { documentKey, type ScreenDocumentState } from './useScreenDocument'
 
@@ -16,6 +17,9 @@ import { documentKey, type ScreenDocumentState } from './useScreenDocument'
  * five pieces of state. The component composes it; it does not own it.
  */
 
+/** Either of the two failure shapes DS-R17 allows — and never a third. */
+export type SkillFailure = CapabilityViolation | StudioOperationError | null
+
 export interface StudioSkillState {
   /** Non-null exactly while a turn is in flight. */
   phase: SkillPhase | null
@@ -24,7 +28,13 @@ export interface StudioSkillState {
   /** The phase, but only while the **chat** owns the wait (an iteration). */
   chatPhase: SkillPhase | null
   /** What the stage should render instead of the Preview, if anything. */
-  stageFailure: CapabilityViolation | ReturnType<typeof useSkillRun>['error']
+  stageFailure: SkillFailure
+  /**
+   * T6.7 / DS-R10 AC-6: the same two failure shapes, but for a turn the *chat*
+   * asked for — shown in the chat, where the request was made, rather than
+   * over the Preview the user is still looking at.
+   */
+  chatFailure: SkillFailure
   retry: () => void
   /** DS-R2: runs the Skill over the Spec for the active Tela. */
   generate: () => void
@@ -133,11 +143,17 @@ export function useStudioSkill(
   // duplicate announcement for a screen-reader user, not extra reassurance.
   const generating = skill.kind === 'generate'
 
+  // A failure belongs to the surface that asked for the turn: an iteration that
+  // failed must not paint over the Preview the user is still reading.
+  const failure = skill.error ?? refused
+  const iterating = skill.kind === 'iterate'
+
   return {
     phase: skill.phase,
     stagePhase: generating ? skill.phase : null,
     chatPhase: generating ? null : skill.phase,
-    stageFailure: generating || skill.kind === null ? (skill.error ?? refused) : null,
+    stageFailure: iterating ? null : failure,
+    chatFailure: iterating ? failure : null,
     retry: skill.retry,
     generate,
     send,

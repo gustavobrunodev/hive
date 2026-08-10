@@ -14129,7 +14129,7 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-add-error {
   margin: 0;
   font-size: 12px;
-  color: var(--danger-ink);
+  color: var(--danger-ink, var(--ink));
 }
 
 .wb-dstudio-add-actions {
@@ -14159,7 +14159,7 @@ button.wb-mcplog-summary:focus-visible {
   margin: 0;
   padding: 0 var(--s-3) var(--s-2);
   font-size: 12px;
-  color: var(--danger-ink);
+  color: var(--danger-ink, var(--ink));
 }
 
 /* The Tela with no Components (T5.7). Two ways in, side by side: the primary
@@ -14258,4 +14258,17 @@ button.wb-mcplog-summary:focus-visible {
   justify-content: center;
   padding: var(--s-1);
   min-width: 0;
+}
+
+/* A failed turn, said where the request was made (T6.7, DS-R10 AC-6). Outside
+   the transcript, so a collapsed strip still shows it — a failure hidden behind
+   a disclosure is a failure the user learns about by wondering. */
+
+.wb-dstudio-chat-failure {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger-ink, var(--ink));
 }

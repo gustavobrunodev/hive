@@ -987,3 +987,122 @@ describe('DesignStudioViewer — a chat turn is one undo step (T6.6)', () => {
     )
   })
 })
+
+/**
+ * design-studio T6.7 — DS-R10 AC-6/AC-7 and DS-R17. Two claims: a Tela keeps
+ * its own conversation and gets it back, and a failed turn is reported where it
+ * was asked for, with a retry that actually retries.
+ */
+describe('DesignStudioViewer — the transcript and the failed turn (T6.7)', () => {
+  const TWO_SCREENS: ScreensResponse = {
+    screens: [
+      { screenId: 'login', title: 'Login', probe: 'screenHeading' },
+      { screenId: 'cadastro', title: 'Cadastro', probe: 'screenHeading' }
+    ],
+    probed: ['screenHeading', 'iaTable']
+  }
+
+  function ask(text: string): void {
+    const input = screen.getByPlaceholderText('Escreva o que mudar…')
+    fireEvent.change(input, { target: { value: text } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+  }
+
+  /** Switches Tela from the list in the left column — the surface DS-R4 is about. */
+  async function switchTo(title: string): Promise<void> {
+    const list = screen.getByLabelText('Telas desta Spec')
+    const entry = [...list.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes(title)
+    )
+    fireEvent.click(entry as Element)
+    await waitFor(() => expect(entry?.getAttribute('aria-current')).toBe('true'))
+  }
+
+  it('keeps each Tela’s conversation to itself and gives it back on return (AC-7)', async () => {
+    mockScreens(async () => TWO_SCREENS)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+
+    ask('deixe o botão discreto')
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a conversa' }))
+    expect(screen.getByText('deixe o botão discreto')).toBeTruthy()
+
+    await switchTo('Cadastro')
+    // Cadastro's conversation is its own — empty, not Login's.
+    expect(screen.queryByText('deixe o botão discreto')).toBeNull()
+
+    await switchTo('Login')
+    await waitFor(() => expect(screen.getByText('deixe o botão discreto')).toBeTruthy())
+  })
+
+  it('reports a failed turn in the chat, not over the Preview (DS-R10 AC-6)', async () => {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    ask('deixe o botão discreto')
+
+    act(() =>
+      skillRuns[0].emit({
+        type: 'failed',
+        error: {
+          kind: 'operation',
+          scope: 'agent',
+          message: 'O agente não está instalado.',
+          retryable: true
+        }
+      })
+    )
+
+    expect(screen.getByRole('alert').textContent).toContain('O agente não está instalado.')
+    // The Preview is still on the stage: an iteration that failed does not take
+    // the Tela away from the user.
+    expect(screen.getByTitle('Preview da Tela')).toBeTruthy()
+  })
+
+  it('retries the very same request from the chat (DS-R17)', async () => {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    ask('deixe o botão discreto')
+    act(() =>
+      skillRuns[0].emit({
+        type: 'failed',
+        error: { kind: 'operation', scope: 'agent', message: 'timeout', retryable: true }
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+
+    expect(skillRuns).toHaveLength(2)
+    expect(skillRuns[1].request).toEqual(skillRuns[0].request)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('reports a refused batch in the chat as a capability limit, with no retry', async () => {
+    mockScreens(async () => oneScreen, NESTED, {
+      kind: 'capability',
+      componentId: 'n2',
+      reason: 'O valor "roxo" não existe em variant.'
+    })
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    ask('deixe o botão roxo')
+
+    act(() =>
+      skillRuns[0].emit({
+        type: 'result',
+        batch: {
+          commands: [{ type: 'SetProp', componentId: 'n2', key: 'variant', value: 'roxo' }],
+          message: 'Pintei de roxo.'
+        }
+      })
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain(
+        'O valor "roxo" não existe em variant.'
+      )
+    )
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+  })
+})

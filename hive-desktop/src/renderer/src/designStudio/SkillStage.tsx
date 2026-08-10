@@ -42,11 +42,8 @@ export function SkillProgress({ phase }: SkillProgressProps): React.JSX.Element 
   )
 }
 
-/** Either of the two failure shapes DS-R17 allows — and never a third. */
-export type SkillFailure = StudioOperationError | CapabilityViolation
-
 export interface SkillFailureViewProps {
-  failure: SkillFailure
+  failure: StudioOperationError | CapabilityViolation
   /** Re-runs the request. Offered only for a retryable `OperationError`. */
   onRetry: () => void
 }

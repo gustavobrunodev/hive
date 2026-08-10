@@ -13,9 +13,9 @@ import { takeFocusHint } from './focusHint'
 import { historyShortcutFor } from './shortcuts'
 import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
 import { IterationChat } from './IterationChat'
-import { SkillFailureView, SkillProgress, type SkillFailure } from './SkillStage'
+import { SkillFailureView, SkillProgress } from './SkillStage'
 import { undoableGroupId } from './screenSessions'
-import { useStudioSkill, type StudioSkillState } from './useStudioSkill'
+import { useStudioSkill, type SkillFailure, type StudioSkillState } from './useStudioSkill'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -257,6 +257,8 @@ export function DesignStudioViewer({
           onReleaseContext={skill.releaseContext}
           phase={skill.chatPhase}
           onSend={skill.send}
+          failure={skill.chatFailure}
+          onRetry={skill.retry}
         />
       )}
     </div>
@@ -384,7 +386,7 @@ function StudioBody({
   onGenerate: () => void
   pulse: readonly string[]
   skillPhase: StudioSkillState['stagePhase']
-  skillFailure: SkillFailure | null
+  skillFailure: SkillFailure
   onRetrySkill: () => void
 }): React.JSX.Element {
   if (studio.status === 'loading') {
