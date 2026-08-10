@@ -109,13 +109,13 @@ Primeira fase com pixels. É onde a Bancada aparece.
 
 | # | Tarefa | Deps | Requisitos | Verificação |
 | --- | --- | --- | --- | --- |
-| **T6.1** | `skillDesignSystem.ts`: contrato de prompt (Spec + catálogo) e **parse estrito** para `Command[]` | F5 | DS-R11 AC-2, AD-9 | Markup como resposta → recusado; JSON malformado → `OperationError` (não `CapabilityViolation`) |
-| **T6.2** | `generateScreens()` (DS-R2) + Skeleton no palco + linha de status viva por `AgentEvent` | T6.1 | DS-R2 | Toda a espera assíncrona coberta por estado visível; a geração só usa tags do catálogo |
-| **T6.3** | Lote tudo-ou-nada: valida **todos** antes de despachar **qualquer um** | T6.1 | DS-R11 AC-3/4 | Lote de 3 com o 2º inválido → documento byte-a-byte inalterado, 1 `CapabilityViolation` |
-| **T6.4** | `iterate()` com o Componente selecionado como contexto padrão | T6.3 | DS-R10 AC-1 | Enviar com seleção → o contexto vai no prompt; sem seleção → escopo da Tela |
-| **T6.5** | `IterationChat.tsx`: faixa colapsada ↔ expandida + `Chip` de contexto com `✕` | T6.4 | DS-R10, DS-R16 | O chip torna o contexto **visível**; `✕` solta o contexto; expandir/colapsar em 200 ms com alternativa reduzida |
-| **T6.6** | Turno de chat = um passo de undo + `↩ desfazer este turno` + pulso nos nós alterados | T6.5 | DS-R9 AC-5, DS-R11 AC-4 | Desfazer o turno reverte os N juntos e preserva edições manuais posteriores |
-| **T6.7** | Transcript por Tela persistido + `OperationError` retryable no chat | T6.5 | DS-R10 AC-6/7, DS-R17 | Voltar à Tela traz o transcript; agente indisponível → erro com **Tentar de novo** funcional |
+| **T6.1** ✅ | `skillDesignSystem.ts`: contrato de prompt (Spec + catálogo) e **parse estrito** para `Command[]` | F5 | DS-R11 AC-2, AD-9 | Markup como resposta → recusado; JSON malformado → `OperationError` (não `CapabilityViolation`) |
+| **T6.2** ✅ | `generateScreens()` (DS-R2) + Skeleton no palco + linha de status viva por `AgentEvent` | T6.1 | DS-R2 | Toda a espera assíncrona coberta por estado visível; a geração só usa tags do catálogo |
+| **T6.3** ✅ | Lote tudo-ou-nada: valida **todos** antes de despachar **qualquer um** | T6.1 | DS-R11 AC-3/4 | Lote de 3 com o 2º inválido → documento byte-a-byte inalterado, 1 `CapabilityViolation` |
+| **T6.4** ✅ | `iterate()` com o Componente selecionado como contexto padrão | T6.3 | DS-R10 AC-1 | Enviar com seleção → o contexto vai no prompt; sem seleção → escopo da Tela |
+| **T6.5** ✅ | `IterationChat.tsx`: faixa colapsada ↔ expandida + `Chip` de contexto com `✕` | T6.4 | DS-R10, DS-R16 | O chip torna o contexto **visível**; `✕` solta o contexto; expandir/colapsar em 200 ms com alternativa reduzida |
+| **T6.6** ✅ | Turno de chat = um passo de undo + `↩ desfazer este turno` + pulso nos nós alterados | T6.5 | DS-R9 AC-5, DS-R11 AC-4 | Desfazer o turno reverte os N juntos e preserva edições manuais posteriores |
+| **T6.7** ✅ | Transcript por Tela persistido + `OperationError` retryable no chat | T6.5 | DS-R10 AC-6/7, DS-R17 | Voltar à Tela traz o transcript; agente indisponível → erro com **Tentar de novo** funcional |
 
 ---
 
