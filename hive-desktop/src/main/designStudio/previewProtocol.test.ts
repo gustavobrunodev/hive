@@ -62,9 +62,7 @@ describe('resolveStudioRequest — happy path', () => {
   })
 
   it('percent-decodes the path', () => {
-    expect(resolveStudioRequest(roots, url('/a%20b/c.css'))).toBe(
-      join(roots.preview, 'a b/c.css')
-    )
+    expect(resolveStudioRequest(roots, url('/a%20b/c.css'))).toBe(join(roots.preview, 'a b/c.css'))
   })
 
   it('collapses repeated leading slashes rather than treating them as an authority', () => {

@@ -128,7 +128,7 @@ export function resolveStudioRequest(roots: StudioProtocolRoots, url: string): s
  * token off `location`, so nothing has to be interpolated into markup.
  */
 export const STUDIO_CSP = [
-  "connect-src data:",
+  'connect-src data:',
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:"

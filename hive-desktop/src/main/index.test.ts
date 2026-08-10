@@ -1754,7 +1754,9 @@ describe('main process bootstrap', () => {
      * registers the scheme without its CSP fails here.
      */
     it('serves the Preview scheme from resources/ with its own CSP on the response', async () => {
-      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-studio')
+      const call = vi
+        .mocked(protocol.handle)
+        .mock.calls.find(([scheme]) => scheme === 'hive-studio')
       expect(call).toBeTruthy()
       const handler = call![1] as (req: { url: string }) => Promise<Response>
 
@@ -1771,7 +1773,9 @@ describe('main process bootstrap', () => {
     })
 
     it('refuses an unknown host on the Preview scheme', async () => {
-      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-studio')
+      const call = vi
+        .mocked(protocol.handle)
+        .mock.calls.find(([scheme]) => scheme === 'hive-studio')
       const handler = call![1] as (req: { url: string }) => Promise<Response>
       expect((await handler({ url: 'hive-studio://userdata/sessions.json' })).status).toBe(404)
     })
