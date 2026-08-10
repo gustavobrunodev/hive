@@ -440,10 +440,10 @@ arquivos escritos, 1 erro reportado, nenhuma exceção não tratada.
 
 | ID | CAP | Story | Fase | Status |
 | --- | --- | --- | --- | --- |
-| DS-R1 | CAP-1 | Abrir a Spec | F4 | Pending |
+| DS-R1 | CAP-1 | Abrir a Spec | F4 | Done (F4) |
 | DS-R2 | CAP-2 | Chat/Skill | F6 | Pending |
-| DS-R3 | CAP-3 | A Bancada | F4 | Pending |
-| DS-R4 | CAP-4 | A Bancada | F4 | Pending |
+| DS-R3 | CAP-3 | A Bancada | F4 | Done (F4) |
+| DS-R4 | CAP-4 | A Bancada | F4 | Done (F4) |
 | DS-R5 | CAP-5 | A Bancada | F5 | Pending |
 | DS-R6 | CAP-6 | Inspetor | F5 | Pending |
 | DS-R7 | CAP-7 | Árvore | F5 | Pending |
@@ -455,7 +455,7 @@ arquivos escritos, 1 erro reportado, nenhuma exceção não tratada.
 | DS-R13 | CAP-13 | Catálogo | F2 | Pending |
 | DS-R14 | CAP-14 | Export | F7 | Pending |
 | DS-R15 | CAP-15 | Export | F7 | Pending |
-| DS-R16 | — | A Bancada | F4 | Pending |
+| DS-R16 | — | A Bancada | F4 | Done (F4) |
 | DS-R17 | — | transversal | F1–F7 | Pending |
 | DS-R18 | — | transversal | F4–F7 | Pending |
 

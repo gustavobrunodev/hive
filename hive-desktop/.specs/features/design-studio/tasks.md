@@ -80,14 +80,14 @@ Primeira fase com pixels. É onde a Bancada aparece.
 
 | # | Tarefa | Deps | Requisitos | Verificação |
 | --- | --- | --- | --- | --- |
-| **T4.1** | `EditorTabKind` ganha `'design-studio'`; chave sintética `⟨studio⟩<path>`; `openDesignStudio` + item no menu de contexto do Explorer e na paleta | F3 | DS-R1 AC-1/4 | Abrir a mesma Spec 2× **foca** a aba existente; a chave nunca colide com a aba de arquivo |
-| **T4.2** | Detecção de Telas na Spec + estado vazio que **nomeia o que procurou** | T4.1 | DS-R1 AC-2/3/5 | Spec com 3 Telas → 3 entradas **antes** de qualquer chamada de agente; `.md` sem Tela → vazio com instrução, nunca palco em branco |
-| **T4.3** | `DesignStudioViewer.tsx`: casca + colunas `Resizable` + `useDesignStudio` (IPC + estado) | T4.1 | DS-R16 | Monta dentro da aba; colunas redimensionam sem quebrar o palco |
-| **T4.4** | `StudioToolbar.tsx`: seletor de Telas, undo/redo, Modo Foco, Exportar (desabilitado até F7) | T4.3 | DS-R3, DS-R9 | Undo/redo refletem disponibilidade real do log; `Kbd` mostra os atalhos |
-| **T4.5** | `StagePane.tsx`: bancada em três camadas de superfície + dot grid; **zero `box-shadow`** | T4.3 | D-DS-9, DS-R18 | Guard de CSS: nenhuma `box-shadow` no palco; contraste AA nos dois temas |
-| **T4.6** | Escala honesta: iframe na largura real + `transform: scale` no contêiner + readout `1440 × 900 · 75%`; transição só no transform | T4.5 | DS-R3, D-DS-7 | Preset Desktop num palco de 700px → `k < 1`, iframe reporta `innerWidth === 1440`; nunca amplia acima de 100% |
-| **T4.7** | `ScreenList.tsx` + troca de Tela preservando árvore, transcript e cursor de undo | T4.4 | DS-R4 AC-2/3 | Editar A → ir a B → voltar a A: tudo como deixou; estado editada/auto distinguido por **forma + ícone**, não só cor |
-| **T4.8** | Modo Foco (`⛶`, `Ctrl+Shift+.`) + cadeia de degradação por largura (§3.8) | T4.5 | DS-R16 | Sair do Modo Foco restaura a distribuição **anterior** exata; nas 3 faixas de largura nada fica inalcançável |
+| **T4.1** ✅ | `EditorTabKind` ganha `'design-studio'`; chave sintética `⟨studio⟩<path>`; `openDesignStudio` + item no menu de contexto do Explorer e na paleta | F3 | DS-R1 AC-1/4 | Abrir a mesma Spec 2× **foca** a aba existente; a chave nunca colide com a aba de arquivo |
+| **T4.2** ✅ | Detecção de Telas na Spec + estado vazio que **nomeia o que procurou** | T4.1 | DS-R1 AC-2/3/5 | Spec com 3 Telas → 3 entradas **antes** de qualquer chamada de agente; `.md` sem Tela → vazio com instrução, nunca palco em branco |
+| **T4.3** ✅ | `DesignStudioViewer.tsx`: casca + colunas `Resizable` + `useDesignStudio` (IPC + estado) | T4.1 | DS-R16 | Monta dentro da aba; colunas redimensionam sem quebrar o palco |
+| **T4.4** ✅ | `StudioToolbar.tsx`: seletor de Telas, undo/redo, Modo Foco, Exportar (desabilitado até F7) | T4.3 | DS-R3, DS-R9 | Undo/redo refletem disponibilidade real do log; `Kbd` mostra os atalhos |
+| **T4.5** ✅ | `StagePane.tsx`: bancada em três camadas de superfície + dot grid; **zero `box-shadow`** | T4.3 | D-DS-9, DS-R18 | Guard de CSS: nenhuma `box-shadow` no palco; contraste AA nos dois temas |
+| **T4.6** ✅ | Escala honesta: iframe na largura real + `transform: scale` no contêiner + readout `1440 × 900 · 75%`; transição só no transform | T4.5 | DS-R3, D-DS-7 | Preset Desktop num palco de 700px → `k < 1`, iframe reporta `innerWidth === 1440`; nunca amplia acima de 100% |
+| **T4.7** ✅ | `ScreenList.tsx` + troca de Tela preservando árvore, transcript e cursor de undo | T4.4 | DS-R4 AC-2/3 | Editar A → ir a B → voltar a A: tudo como deixou; estado editada/auto distinguido por **forma + ícone**, não só cor |
+| **T4.8** ✅ | Modo Foco (`⛶`, `Ctrl+Shift+.`) + cadeia de degradação por largura (§3.8) | T4.5 | DS-R16 | Sair do Modo Foco restaura a distribuição **anterior** exata; nas 3 faixas de largura nada fica inalcançável |
 
 ---
 
