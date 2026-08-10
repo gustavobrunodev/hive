@@ -1772,6 +1772,30 @@ describe('main process bootstrap', () => {
       expect(csp).toContain("img-src 'self' data:")
     })
 
+    it('mints a live, unguessable Preview URL and retires it on close', async () => {
+      const open = findHandler('designStudio:openPreview')
+      const url = (await open({})) as string
+      expect(url).toMatch(/^hive-studio:\/\/preview\/[0-9a-f]{64}\/index\.html$/)
+
+      const studioHandler = vi
+        .mocked(protocol.handle)
+        .mock.calls.find(([scheme]) => scheme === 'hive-studio')![1] as (req: {
+        url: string
+      }) => Promise<Response>
+
+      expect((await studioHandler({ url })).status).toBe(200)
+
+      await findHandler('designStudio:closePreview')({}, url)
+      expect((await studioHandler({ url })).status).toBe(404)
+    })
+
+    it('gives a different Preview URL to every open', async () => {
+      const open = findHandler('designStudio:openPreview')
+      const first = await open({})
+      const second = await open({})
+      expect(first).not.toBe(second)
+    })
+
     it('refuses an unknown host on the Preview scheme', async () => {
       const call = vi
         .mocked(protocol.handle)

@@ -418,6 +418,25 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('studio:list', '/root')
   })
 
+  // design-studio T3.8: the Preview session lifecycle. The URL carries the
+  // session nonce (D-DS-4), so it travels this way and no other.
+  it('hive.designStudio.* invokes the Preview session channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      designStudio: {
+        openPreview: () => Promise<unknown>
+        closePreview: (u: string) => Promise<unknown>
+      }
+    }
+    await expect(hive.designStudio.openPreview()).resolves.toBe('invoked:designStudio:openPreview')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:openPreview')
+
+    await hive.designStudio.closePreview('hive-studio://preview/abc/index.html')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'designStudio:closePreview',
+      'hive-studio://preview/abc/index.html'
+    )
+  })
+
   // Profile namespace (agent-selection + role-personalization).
   it('hive.profile.* invokes the matching profile IPC channels', async () => {
     const hive = exposedGlobals().get('hive') as {

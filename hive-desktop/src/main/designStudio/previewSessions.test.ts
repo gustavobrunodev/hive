@@ -82,6 +82,20 @@ describe('preview session URL', () => {
     expect(sessions.shellFor(sessions.url(token))).toBeNull()
   })
 
+  it('closes by URL, which is the only handle the caller was given', () => {
+    const sessions = createPreviewSessions()
+    const url = sessions.url(sessions.open())
+    sessions.closeUrl(url)
+    expect(sessions.shellFor(url)).toBeNull()
+  })
+
+  it('ignores closeUrl for something that is not a session URL', () => {
+    const sessions = createPreviewSessions()
+    const url = sessions.url(sessions.open())
+    sessions.closeUrl('https://example.com/index.html')
+    expect(sessions.shellFor(url)).not.toBeNull()
+  })
+
   it('refuses a well-formed token that was never opened', () => {
     const sessions = createPreviewSessions()
     sessions.open()

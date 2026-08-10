@@ -39,6 +39,8 @@ export interface PreviewSessions {
   has(token: PreviewToken): boolean
   /** Ends the session; its URL stops resolving. */
   close(token: PreviewToken): void
+  /** `close`, addressed by the URL the caller was handed. Unknown URLs are a no-op. */
+  closeUrl(url: string): void
   /**
    * The `StudioShellResolver` the protocol handler is composed with: the shell
    * document for a live session's URL, `null` for anything else — including a
@@ -114,6 +116,10 @@ export function createPreviewSessions(
     },
     close(token) {
       live.delete(token)
+    },
+    closeUrl(url) {
+      const token = shellTokenOf(url)
+      if (token !== null) live.delete(token)
     },
     shellFor(url) {
       const token = shellTokenOf(url)

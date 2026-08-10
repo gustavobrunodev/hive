@@ -1007,6 +1007,14 @@ app.whenReady().then(() => {
   const studioSessions = createPreviewSessions()
   protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots, studioSessions.shellFor))
 
+  // The Preview's session lifecycle. A session's URL is live only between
+  // these two calls, so a token that leaked out of a closed tab resolves to a
+  // 404 rather than to a renderable frame.
+  ipcMain.handle('designStudio:openPreview', async () => studioSessions.url(studioSessions.open()))
+  ipcMain.handle('designStudio:closePreview', async (_event, url: string) => {
+    studioSessions.closeUrl(url)
+  })
+
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()
 

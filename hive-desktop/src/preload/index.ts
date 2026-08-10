@@ -303,6 +303,16 @@ const hive = {
       ipcRenderer.invoke('studio:list', workspace)
   },
 
+  // Design Studio (design-studio): the isolated Preview's session lifecycle.
+  // `openPreview` mints an unguessable `hive-studio://` URL for one frame and
+  // `closePreview` retires it — the token in that URL is also the postMessage
+  // nonce (D-DS-4), which is why it never travels any other way.
+  designStudio: {
+    openPreview: (): Promise<string> => ipcRenderer.invoke('designStudio:openPreview'),
+    closePreview: (url: string): Promise<void> =>
+      ipcRenderer.invoke('designStudio:closePreview', url)
+  },
+
   // MCP module (mcp): the workspace's Model Context Protocol servers. list is
   // plain invoke/response; add/update/remove/setEnabled mutate `.mcp.json` /
   // `.claude/settings.local.json` and can reject with a user-facing

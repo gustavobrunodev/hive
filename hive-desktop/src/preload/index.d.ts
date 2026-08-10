@@ -113,6 +113,11 @@ declare global {
       studio: {
         list(workspace: string): Promise<CreatedSkill[]>
       }
+      /** Design Studio (design-studio): the isolated Preview's per-session URL, whose token is also the postMessage nonce (D-DS-4). */
+      designStudio: {
+        openPreview(): Promise<string>
+        closePreview(url: string): Promise<void>
+      }
       /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
       mcp: {
         list(workspace: string): Promise<McpServer[]>
