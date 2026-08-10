@@ -328,6 +328,112 @@ describe('reconciliation by node id', () => {
 })
 
 /**
+ * design-studio T3.6 (DS-R5 AC-4/5, and the edge case where the chat removes
+ * the selected Component).
+ */
+describe('selection', () => {
+  let receiver: ReturnType<typeof createPreviewReceiver>
+  let posted: unknown[]
+
+  beforeEach(() => {
+    setPath(`/${TOKEN}/index.html`)
+    posted = []
+    vi.spyOn(window.parent, 'postMessage').mockImplementation((message: unknown) => {
+      posted.push(message)
+    })
+    receiver = createPreviewReceiver(window)
+    receiver.start()
+    post({ type: 'render', nonce: TOKEN, document: THREE_LEVELS })
+  })
+
+  afterEach(() => {
+    receiver.dispose()
+    vi.restoreAllMocks()
+    document.body.replaceChildren()
+    document.head.replaceChildren()
+  })
+
+  const byId = (id: string): Element => document.querySelector(`[${NODE_ID_ATTRIBUTE}="${id}"]`)!
+
+  it('selects the deepest Component under a click on a nested one, with no mode switch', () => {
+    byId('n5').dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+
+    // n5 (wa-icon) sits inside n4 (wa-button) inside n2 (wa-card): the deepest
+    // one wins, and nothing had to be armed first.
+    expect(posted).toEqual([
+      { type: 'ready', nonce: TOKEN },
+      { type: 'selected', nonce: TOKEN, componentId: 'n5' }
+    ])
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.textContent).toBe('wa-icon')
+  })
+
+  it('replaces the previous selection rather than adding to it (v1 is single-select)', () => {
+    byId('n5').dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    byId('n3').dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+
+    expect(posted.at(-1)).toEqual({ type: 'selected', nonce: TOKEN, componentId: 'n3' })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.textContent).toBe('wa-input')
+  })
+
+  it('clears the selection on a click that hits no Component', () => {
+    byId('n5').dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+
+    expect(posted.at(-1)).toEqual({ type: 'selected', nonce: TOKEN, componentId: null })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.style.display).toBe('none')
+  })
+
+  it('follows a selection made in the Tree, and does not echo it back', () => {
+    post({ type: 'select', nonce: TOKEN, componentId: 'n4' })
+
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.textContent).toBe('wa-button')
+    expect(posted).toEqual([{ type: 'ready', nonce: TOKEN }])
+  })
+
+  it('ignores a select message whose nonce is not this session', () => {
+    post({ type: 'select', nonce: 'b'.repeat(64), componentId: 'n4' })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.style.display).toBe('none')
+  })
+
+  it('drops the outline when the selected Component is removed by a render', () => {
+    post({ type: 'select', nonce: TOKEN, componentId: 'n3' })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.style.display).toBe('block')
+
+    post({ type: 'render', nonce: TOKEN, document: screen([button()]) })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.style.display).toBe('none')
+  })
+
+  it('keeps the outline on a Component that survived the render', () => {
+    post({ type: 'select', nonce: TOKEN, componentId: 'n4' })
+    post({ type: 'render', nonce: TOKEN, document: screen([button()]) })
+    expect(document.querySelector<HTMLElement>('.hive-chip')!.textContent).toBe('wa-button')
+  })
+
+  it('outlines on hover, and drops it when the pointer leaves every Component', () => {
+    // jsdom has no PointerEvent; MouseEvent carries the composedPath() the
+    // handler reads, and the listener is registered by event name.
+    byId('n4').dispatchEvent(new MouseEvent('pointermove', { bubbles: true, composed: true }))
+    const box = document.querySelector<HTMLElement>('.hive-hover')!
+    expect(box.style.display).toBe('block')
+
+    document.body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, composed: true }))
+    expect(box.style.display).toBe('none')
+  })
+
+  it('re-measures the outlines when the frame is resized', () => {
+    post({ type: 'select', nonce: TOKEN, componentId: 'n4' })
+    window.dispatchEvent(new Event('resize'))
+    expect(document.querySelector<HTMLElement>('.hive-selected')!.style.display).toBe('block')
+  })
+
+  it('stops selecting after dispose', () => {
+    receiver.dispose()
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    expect(posted).toEqual([{ type: 'ready', nonce: TOKEN }])
+  })
+})
+
+/**
  * The guard runs against the built artifact, and rebuilds it first so a source
  * change cannot pass by testing a stale bundle.
  */

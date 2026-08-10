@@ -1,4 +1,5 @@
-import { indexByNodeId, reconcileNode, syncChildren } from './dom'
+import { indexByNodeId, NODE_ID_ATTRIBUTE, reconcileNode, syncChildren } from './dom'
+import { createSelectionOverlay, nodeIdFromPath } from './overlay'
 import { messageFor, type PreviewDocument, type PreviewInbound } from './messages'
 
 /**
@@ -50,6 +51,19 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
   let stage = doc.createElement('div')
   stage.id = STAGE_ID
 
+  const overlay = createSelectionOverlay(doc)
+  let selectedId: string | null = null
+
+  /** The element carrying a node id, or `null` when the node is not on stage. */
+  function elementOf(id: string | null): Element | null {
+    return id === null ? null : stage.querySelector(`[${NODE_ID_ATTRIBUTE}="${id}"]`)
+  }
+
+  function applySelection(id: string | null): void {
+    selectedId = id
+    overlay.select(elementOf(id))
+  }
+
   /**
    * Reconciles the stage against the new document (D-DS-6, DS-R8).
    *
@@ -65,11 +79,37 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
       return
     }
     syncChildren(stage, [reconcileNode(doc, next.root, indexByNodeId(stage))])
+    // The selected node may have been removed by this very render (the spec's
+    // "o Componente selecionado é removido pelo chat"), so the outline is
+    // re-measured against what is actually on stage now.
+    overlay.select(elementOf(selectedId))
   }
 
   function onMessage(event: MessageEvent): void {
     const message = messageFor<PreviewInbound>(event.data, nonce, ['render', 'select'])
     if (message?.type === 'render') render(message.document)
+    // The other direction of DS-R5 AC-5: the Tree selected something, and the
+    // stage has to show it. Nothing is posted back — that would echo.
+    if (message?.type === 'select') applySelection(message.componentId)
+  }
+
+  /**
+   * A click anywhere on the stage selects the deepest Component under it, with
+   * no mode to enter first (DS-R5 AC-4). Capture phase, so a Component that
+   * stops propagation on its own click (buttons do) cannot swallow it.
+   */
+  function onClick(event: MouseEvent): void {
+    const id = nodeIdFromPath(event.composedPath())
+    applySelection(id)
+    win.parent.postMessage({ type: 'selected', nonce, componentId: id }, '*')
+  }
+
+  function onPointerMove(event: PointerEvent): void {
+    overlay.hover(elementOf(nodeIdFromPath(event.composedPath())))
+  }
+
+  function onViewportChange(): void {
+    overlay.refresh()
   }
 
   return {
@@ -79,11 +119,22 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
       // parent is required to ignore anyway.
       if (nonce === '') return
       win.addEventListener('message', onMessage)
+      doc.addEventListener('click', onClick, true)
+      doc.addEventListener('pointermove', onPointerMove, true)
+      win.addEventListener('resize', onViewportChange)
+      win.addEventListener('scroll', onViewportChange, true)
       doc.body.appendChild(stage)
+      overlay.mount()
       win.parent.postMessage({ type: 'ready', nonce }, '*')
     },
     dispose() {
       win.removeEventListener('message', onMessage)
+      doc.removeEventListener('click', onClick, true)
+      doc.removeEventListener('pointermove', onPointerMove, true)
+      win.removeEventListener('resize', onViewportChange)
+      win.removeEventListener('scroll', onViewportChange, true)
+      overlay.dispose()
+      selectedId = null
       stage.remove()
       stage = doc.createElement('div')
       stage.id = STAGE_ID
