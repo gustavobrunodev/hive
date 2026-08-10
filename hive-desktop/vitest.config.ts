@@ -665,6 +665,22 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The fold order and the once-per-session hint (T4.8). 100 because
+        // the property that matters is a negative one — no band leaves a
+        // surface unreachable — and a band whose branch is never taken is a
+        // band nobody has checked. The boundaries are where it breaks.
+        'src/renderer/src/designStudio/stageBands.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/designStudio/focusHint.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The Studio tab's state (T4.3). 100 because its whole job is telling
         // four situations apart — reading, read, read-but-empty, unreadable —
         // and every confusion between them is a surface that lies: an empty

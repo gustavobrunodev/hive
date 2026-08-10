@@ -15,7 +15,14 @@ import {
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { IconButton } from '../ui/IconButton'
-import { HistoryIcon, MaximizeIcon, MinimizeIcon, RefreshIcon } from '../ui/icons'
+import {
+  HistoryIcon,
+  LayersIcon,
+  MaximizeIcon,
+  MinimizeIcon,
+  RefreshIcon,
+  SlidersIcon
+} from '../ui/icons'
 import type { DetectedScreen } from './screens'
 import type { Viewport, ViewportPresetId } from './viewport'
 import { VIEWPORT_PRESET_ORDER, customViewport, viewportForPreset } from './viewport'
@@ -56,6 +63,12 @@ export interface StudioToolbarProps {
   onRedo: () => void
   focusMode: boolean
   onToggleFocusMode: () => void
+  /** Shown only in the bands where the Árvore has lost its column (§3.8). */
+  onOpenTree?: () => void
+  /** Shown only in the bands where the Inspetor has lost its column (§3.8). */
+  onOpenInspector?: () => void
+  /** The stage is too narrow to be worth using as is — say so, once. */
+  focusHint?: boolean
 }
 
 export function StudioToolbar({
@@ -69,7 +82,10 @@ export function StudioToolbar({
   onUndo,
   onRedo,
   focusMode,
-  onToggleFocusMode
+  onToggleFocusMode,
+  onOpenTree,
+  onOpenInspector,
+  focusHint = false
 }: StudioToolbarProps): React.JSX.Element {
   return (
     <div className="wb-dstudio-toolbar" role="toolbar" aria-label={t('designStudio.toolbarAria')}>
@@ -93,6 +109,24 @@ export function StudioToolbar({
       </span>
       <ViewportControl viewport={viewport} onChange={onViewportChange} />
       <div className="wb-dstudio-toolbar-end">
+        {/* A surface without a column is not a surface that is gone (§3.8):
+            it keeps a way in, right here, in exactly the bands that took its
+            column away. */}
+        {onOpenTree && (
+          <IconButton label={t('designStudio.openTreeDrawer')} onClick={onOpenTree}>
+            <LayersIcon size={15} />
+          </IconButton>
+        )}
+        {onOpenInspector && (
+          <IconButton label={t('designStudio.openInspectorDrawer')} onClick={onOpenInspector}>
+            <SlidersIcon size={15} />
+          </IconButton>
+        )}
+        {focusHint && (
+          <span className="wb-dstudio-focus-hint" role="note">
+            {t('designStudio.focusModeNarrowHint')}
+          </span>
+        )}
         <HistoryButton
           label={t('designStudio.undo')}
           shortcut={['Ctrl', 'Z']}

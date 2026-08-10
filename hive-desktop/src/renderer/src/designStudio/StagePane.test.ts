@@ -243,8 +243,17 @@ describe('StagePane — the object on the bench', () => {
     const scaleRule = rules(STYLESHEET).find(({ selector }) => selector === '.wb-dstudio-scale')
     expect(scaleRule?.body).toContain('transition: transform 200ms var(--ease-quart)')
 
-    const reduced = STYLESHEET.slice(STYLESHEET.lastIndexOf('@media (prefers-reduced-motion'))
-    expect(reduced).toContain('.wb-dstudio-scale')
-    expect(reduced.slice(reduced.indexOf('.wb-dstudio-scale'))).toContain('transition: none')
+    // The reduced-motion blocks themselves, bounded by their own closing
+    // brace — searching from a marker to end-of-file would credit a rule that
+    // merely sits after one for being inside it.
+    const reducedBlocks = Array.from(
+      STYLESHEET.matchAll(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/g),
+      (match) => match[1]
+    )
+    const scaleOptOut = reducedBlocks.find((block) => block.includes('.wb-dstudio-scale'))
+    expect(scaleOptOut).toBeDefined()
+    expect(scaleOptOut?.slice(scaleOptOut.indexOf('.wb-dstudio-scale'))).toContain(
+      'transition: none'
+    )
   })
 })

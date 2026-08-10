@@ -190,6 +190,32 @@ function persistWorkLayout(layout: WorkLayout): void {
   }
 }
 
+/**
+ * design-studio (DS-R16): the three focus-mode decisions, at module scope so
+ * their branches stay off `WorkUI`'s complexity budget.
+ *
+ * `groupKeyFor` is the load-bearing one: `defaultLayout` is read when the pane
+ * group mounts, so restoring the captured split requires a fresh group — the
+ * key change is what makes "exactly as it was" possible at all.
+ */
+function panesForFocus(focusMode: boolean, order: PaneId[], hasTabs: boolean): PaneId[] {
+  if (focusMode) return ['viewer']
+  return order.filter((id) => id !== 'viewer' || hasTabs)
+}
+
+function groupKeyFor(focusMode: boolean): string {
+  return focusMode ? 'focus' : 'panes'
+}
+
+function layoutForGroup(
+  focusMode: boolean,
+  restore: WorkLayout | undefined,
+  fallback: WorkLayout | undefined
+): WorkLayout | undefined {
+  if (focusMode) return undefined
+  return restore ?? fallback
+}
+
 /** localStorage key for the persisted sidebar view (git-management D-GIT-2). */
 const SIDEBAR_VIEW_STORAGE_KEY = 'hive.sidebarView'
 
@@ -330,6 +356,15 @@ export function WorkUI({
   // or ahead of App.tsx's onboarding gate chain (ND-R2.5).
   const updateFlow = useUpdateFlow()
   const [defaultLayout] = useState(loadWorkLayout)
+  // design-studio (DS-R16 / P3): Focus Mode collapses the rail and the chat and
+  // gives the whole window to the Studio's stage. Leaving it has to restore the
+  // *previous* distribution, not a default — so the live layout is captured on
+  // the way in and handed straight back to the group on the way out, rather
+  // than recomputed from `defaultSize`s that the user may have dragged away
+  // from months ago.
+  const [focusMode, setFocusMode] = useState(false)
+  const [restoreLayout, setRestoreLayout] = useState<WorkLayout | undefined>(undefined)
+  const liveLayout = useRef<WorkLayout | undefined>(defaultLayout)
   // customizable-layout: persisted left-to-right pane order + live drag state.
   const [paneOrder, setPaneOrder] = useState<PaneId[]>(loadPaneOrder)
   const [dragPane, setDragPane] = useState<PaneId | null>(null)
@@ -664,9 +699,15 @@ export function WorkUI({
 
   /** Panes actually on screen, in order — the viewer only exists while at least one tab is open. */
   const visiblePanes = useMemo(
-    () => paneOrder.filter((id) => id !== 'viewer' || editor.tabs.length > 0),
-    [paneOrder, editor.tabs.length]
+    () => panesForFocus(focusMode, paneOrder, editor.tabs.length > 0),
+    [paneOrder, editor.tabs.length, focusMode]
   )
+
+  /** DS-R16: enter capturing the live split; leave handing that same split back. */
+  const requestFocusMode = useCallback((next: boolean) => {
+    if (next) setRestoreLayout(liveLayout.current)
+    setFocusMode(next)
+  }, [])
 
   const applyPaneOrder = useCallback((next: PaneId[]) => {
     setPaneOrder(next)
@@ -945,6 +986,8 @@ export function WorkUI({
                     workspace={workspace}
                     specPath={tab.spec.path}
                     onOpenSpec={editor.openFile}
+                    focusMode={focusMode}
+                    onRequestFocusMode={requestFocusMode}
                   />
                 ) : (
                   <FileViewer
@@ -1062,10 +1105,16 @@ export function WorkUI({
             />
             <div className="wb-body">
               <Resizable
+                // Remounted when Focus Mode flips: `defaultLayout` is read at
+                // mount, so restoring the captured split needs a fresh group.
+                key={groupKeyFor(focusMode)}
                 orientation="horizontal"
                 style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-                defaultLayout={defaultLayout}
-                onLayoutChanged={persistWorkLayout}
+                defaultLayout={layoutForGroup(focusMode, restoreLayout, defaultLayout)}
+                onLayoutChanged={(layout: WorkLayout) => {
+                  liveLayout.current = layout
+                  persistWorkLayout(layout)
+                }}
               >
                 {panels}
               </Resizable>
