@@ -755,6 +755,23 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The Bundle's markup and the file it lands in (T7.1/T7.2). 100
+        // because the Export is the one artifact that leaves the app: a gap
+        // here is a `.html` somebody else opens, on a machine we never see,
+        // and a prop written the wrong way or an asset left as a URL fails
+        // there and nowhere before.
+        'src/main/designStudio/dsAdapter/staticHtml.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/main/designStudio/exportBundle.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
         // the far side of a boundary no other test can reach into, and its
         // failures are all quiet: an ignored message looks like a Preview that
