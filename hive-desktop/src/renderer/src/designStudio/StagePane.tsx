@@ -1,8 +1,11 @@
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../i18n'
+import { formatReadout, scaleFor } from './stageScale'
+import type { Viewport } from './viewport'
 
 /**
- * Design Studio (M18) — T4.5. The bench the Preview sits on.
+ * Design Studio (M18) — T4.5/T4.6. The bench the Preview sits on.
  *
  * **Three surfaces, zero `box-shadow` (D-DS-9).** `DESIGN.md`'s
  * Flat-Until-It-Floats rule reserves `--shadow-1..3` for portalled surfaces,
@@ -17,24 +20,67 @@ import { t } from '../i18n'
  * *a panel*, and it is the convention of the category the audience already
  * knows (Figma, Framer, tldraw). It withdraws under `forced-colors`, where a
  * texture the user did not ask for is noise on top of a palette they chose.
+ *
+ * **The scale is on the container, never on the frame (D-DS-7).** The device
+ * keeps its real pixel size and the wrapper is transformed. Because a transform
+ * does not shrink the layout box, the wrapper reclaims the difference with
+ * negative margins — otherwise a Desktop preset would reserve 1440px of bench
+ * and put a scrollbar under a Preview that visibly fits.
  */
 
 export interface StagePaneProps {
-  /** The Preview frame. Absent while there is nothing to render yet. */
+  /** The device the stage is pretending to be. */
+  viewport: Viewport
+  /** The Preview frame, rendered at the device's real size. */
   children?: ReactNode
-  /** The size/scale readout (T4.6), anchored under the device. */
-  readout?: ReactNode
 }
 
-export function StagePane({ children, readout }: StagePaneProps): React.JSX.Element {
+/**
+ * The bench's inner width, kept live. `ResizeObserver` rather than a window
+ * listener: the bench changes width when a *column* is dragged, which no window
+ * event reports.
+ */
+function useBenchWidth(ref: React.RefObject<HTMLDivElement | null>): number {
+  const [width, setWidth] = useState(0)
+
+  useEffect(() => {
+    const element = ref.current
+    if (element === null) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) setWidth(entry.contentRect.width)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+
+  return width
+}
+
+export function StagePane({ viewport, children }: StagePaneProps): React.JSX.Element {
+  const benchRef = useRef<HTMLDivElement>(null)
+  const benchWidth = useBenchWidth(benchRef)
+  const scale = scaleFor(benchWidth, viewport.width)
+
   return (
-    <div className="wb-dstudio-bench" aria-label={t('designStudio.stageAria')}>
+    <div className="wb-dstudio-bench" aria-label={t('designStudio.stageAria')} ref={benchRef}>
       <div className="wb-dstudio-bench-grid" aria-hidden="true" />
       <div className="wb-dstudio-bench-content">
-        <div className="wb-dstudio-device">
-          <div className="wb-dstudio-screen">{children}</div>
+        <div
+          className="wb-dstudio-scale"
+          data-scale={scale}
+          style={{
+            transform: `scale(${scale})`,
+            marginRight: `${-viewport.width * (1 - scale)}px`,
+            marginBottom: `${-viewport.height * (1 - scale)}px`
+          }}
+        >
+          <div className="wb-dstudio-device">
+            <div className="wb-dstudio-screen">{children}</div>
+          </div>
         </div>
-        {readout}
+        <p className="wb-dstudio-readout">
+          {formatReadout(viewport.width, viewport.height, scale)}
+        </p>
       </div>
     </div>
   )

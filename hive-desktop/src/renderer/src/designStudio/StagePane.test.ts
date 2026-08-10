@@ -1,14 +1,41 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { createElement } from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { StagePane } from './StagePane'
+import { DEFAULT_VIEWPORT, viewportForPreset } from './viewport'
 import { WCAG_AA_NORMAL, checkContrast } from '../ui/contrast'
+
+/**
+ * jsdom lays nothing out, so the bench's width is whatever the observer is
+ * told. Capturing the callback is not a shortcut around the measurement — it
+ * *is* the measurement path the component uses, driven with a known number.
+ */
+const observers: ResizeObserverCallback[] = []
+
+class ObserverStub {
+  constructor(callback: ResizeObserverCallback) {
+    observers.push(callback)
+  }
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+}
+vi.stubGlobal('ResizeObserver', ObserverStub)
+
+function resizeBench(width: number): void {
+  act(() => {
+    for (const callback of observers) {
+      callback([{ contentRect: { width } } as unknown as ResizeObserverEntry], {} as ResizeObserver)
+    }
+  })
+}
 
 afterEach(() => {
   cleanup()
+  observers.length = 0
 })
 
 const STYLESHEET = readFileSync(join(__dirname, '../assets/workbench.css'), 'utf-8')
@@ -137,7 +164,13 @@ describe('the bench clears AA in every theme (DS-R18, T4.5)', () => {
 
 describe('StagePane — the object on the bench', () => {
   it('stacks bench, device and screen, and hides the grid from the a11y tree', () => {
-    render(createElement(StagePane, null, createElement('span', null, 'preview')))
+    render(
+      createElement(
+        StagePane,
+        { viewport: DEFAULT_VIEWPORT },
+        createElement('span', null, 'preview')
+      )
+    )
 
     const bench = screen.getByLabelText('Palco')
     expect(bench.querySelector('.wb-dstudio-bench-grid')?.getAttribute('aria-hidden')).toBe('true')
@@ -145,15 +178,73 @@ describe('StagePane — the object on the bench', () => {
     expect(screenEl?.textContent).toBe('preview')
   })
 
-  it('anchors the readout under the device rather than inside the screen', () => {
-    render(
-      createElement(StagePane, {
-        readout: createElement('span', { 'data-testid': 'readout' }, '1440 × 900 · 75%')
-      })
-    )
+  it('reads the device size and the reduction, in that order', () => {
+    render(createElement(StagePane, { viewport: DEFAULT_VIEWPORT }))
+    resizeBench(700)
 
-    const readout = screen.getByTestId('readout')
+    expect(screen.getByText('1440 × 900 · 44%')).toBeTruthy()
+  })
+
+  it('anchors the readout outside the screen, so it is chrome and not content', () => {
+    render(createElement(StagePane, { viewport: DEFAULT_VIEWPORT }))
+
+    const readout = screen.getByText('1440 × 900 · 100%')
     expect(readout.closest('.wb-dstudio-screen')).toBeNull()
     expect(readout.closest('.wb-dstudio-bench-content')).toBeTruthy()
+  })
+
+  /**
+   * The T4.6 verification, at the DOM: a Desktop preset on a 700px bench
+   * reduces, and the reduction is on the *container*. Nothing scales the
+   * children — which is what leaves the frame reporting the device's real
+   * width to the document inside it (D-DS-7).
+   */
+  it('scales the container and leaves the device untouched on a bench too small for it', () => {
+    render(
+      createElement(
+        StagePane,
+        { viewport: DEFAULT_VIEWPORT },
+        createElement('iframe', { title: 'frame', style: { width: '1440px' } })
+      )
+    )
+    resizeBench(700)
+
+    const box = document.querySelector('.wb-dstudio-scale') as HTMLElement
+    const scale = Number(box.dataset.scale)
+    expect(scale).toBeLessThan(1)
+    expect(box.style.transform).toBe(`scale(${scale})`)
+
+    const device = document.querySelector('.wb-dstudio-device') as HTMLElement
+    expect(device.style.transform).toBe('')
+    expect((screen.getByTitle('frame') as HTMLIFrameElement).style.width).toBe('1440px')
+  })
+
+  it('reclaims the space the transform does not, so a reduced Preview leaves no gap', () => {
+    render(createElement(StagePane, { viewport: DEFAULT_VIEWPORT }))
+    resizeBench(700)
+
+    const box = document.querySelector('.wb-dstudio-scale') as HTMLElement
+    const scale = Number(box.dataset.scale)
+    expect(box.style.marginRight).toBe(`${-1440 * (1 - scale)}px`)
+    expect(box.style.marginBottom).toBe(`${-900 * (1 - scale)}px`)
+  })
+
+  it('never magnifies: a mobile Tela on a wide bench stays at 100%', () => {
+    render(createElement(StagePane, { viewport: viewportForPreset('mobile') }))
+    resizeBench(1600)
+
+    expect(screen.getByText('390 × 844 · 100%')).toBeTruthy()
+    expect((document.querySelector('.wb-dstudio-scale') as HTMLElement).style.transform).toBe(
+      'scale(1)'
+    )
+  })
+
+  it('animates the transform and nothing else, with a reduced alternative (§3.9)', () => {
+    const scaleRule = rules(STYLESHEET).find(({ selector }) => selector === '.wb-dstudio-scale')
+    expect(scaleRule?.body).toContain('transition: transform 200ms var(--ease-quart)')
+
+    const reduced = STYLESHEET.slice(STYLESHEET.lastIndexOf('@media (prefers-reduced-motion'))
+    expect(reduced).toContain('.wb-dstudio-scale')
+    expect(reduced.slice(reduced.indexOf('.wb-dstudio-scale'))).toContain('transition: none')
   })
 })

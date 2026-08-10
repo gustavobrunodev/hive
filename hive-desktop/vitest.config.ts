@@ -654,6 +654,17 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The scale arithmetic (T4.6). 100 because the whole value of the
+        // Preview rests on it: a cap that lets `k` exceed 1 magnifies a phone
+        // into a device nobody has, and an unmeasured bench that reports 0.04
+        // instead of 1 makes the first paint a flash of nothing — both look
+        // like rendering quirks, not like a Preview that is lying.
+        'src/renderer/src/designStudio/stageScale.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The Studio tab's state (T4.3). 100 because its whole job is telling
         // four situations apart — reading, read, read-but-empty, unreadable —
         // and every confusion between them is a surface that lies: an empty

@@ -13903,3 +13903,31 @@ button.wb-mcplog-summary:focus-visible {
     display: none;
   }
 }
+
+/* Honest scale (T4.6, D-DS-7). The transform is the ONLY animated property:
+   the frame's width changes in a single reflow so the media queries inside it
+   are right immediately, and only the apparent size travels. */
+
+.wb-dstudio-scale {
+  transform-origin: top left;
+  transition: transform 200ms var(--ease-quart);
+}
+
+.wb-dstudio-frame {
+  display: block;
+  border: 0;
+  background: var(--surface);
+}
+
+.wb-dstudio-readout {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-dstudio-scale {
+    transition: none;
+  }
+}

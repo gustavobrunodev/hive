@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
+import { PreviewFrame } from './PreviewFrame'
 import { StagePane } from './StagePane'
 import { StudioToolbar } from './StudioToolbar'
 import { useDesignStudio } from './useDesignStudio'
@@ -129,5 +130,9 @@ function StudioBody({
       </div>
     )
   }
-  return <StagePane />
+  return (
+    <StagePane viewport={studio.viewport}>
+      <PreviewFrame size={studio.viewport} />
+    </StagePane>
+  )
 }

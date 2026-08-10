@@ -1374,6 +1374,7 @@ export const ptBR = {
     treePaneTitle: 'Árvore',
     inspectorPaneTitle: 'Inspetor',
     stageAria: 'Palco',
+    previewFrameTitle: 'Preview da Tela',
     resizeHandleLabel: 'Redimensionar colunas do Design Studio',
     toolbarAria: 'Ações do Design Studio',
     screenCount: (count: number) => (count === 1 ? '1 Tela' : `${count} Telas`),

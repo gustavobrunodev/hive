@@ -21,7 +21,14 @@ afterEach(() => {
 
 function mockScreens(impl: () => Promise<ScreensResponse>): ReturnType<typeof vi.fn> {
   const screens = vi.fn(impl)
-  window.hive = { ...window.hive, designStudio: { screens } } as unknown as typeof window.hive
+  window.hive = {
+    ...window.hive,
+    designStudio: {
+      screens,
+      openPreview: vi.fn().mockResolvedValue('hive-studio://preview/abc/index.html'),
+      closePreview: vi.fn().mockResolvedValue(undefined)
+    }
+  } as unknown as typeof window.hive
   return screens
 }
 
