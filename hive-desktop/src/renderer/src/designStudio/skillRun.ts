@@ -24,7 +24,19 @@ export interface StudioGenerateRequest {
   screenTitle: string
 }
 
-export type StudioSkillRequest = StudioGenerateRequest
+/** DS-R10: one iteration over the Tela that already exists. */
+export interface StudioIterateRequest {
+  kind: 'iterate'
+  /** The Tela's log in main — the same key `dispatch`/`view` use. */
+  key: string
+  screenId: string
+  title: string
+  message: string
+  /** DS-R10 AC-1: the selected Component, or `null` for the whole Tela. */
+  selectedComponentId: string | null
+}
+
+export type StudioSkillRequest = StudioGenerateRequest | StudioIterateRequest
 
 export interface SkillBatch {
   commands: Command[]

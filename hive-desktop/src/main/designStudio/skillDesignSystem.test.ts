@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   RESPONSE_CONTRACT,
   buildGeneratePrompt,
+  buildIteratePrompt,
   createDesignSkill,
   describeCatalog,
+  describeScope,
   parseSkillResponse,
   type SkillAgent,
   type SkillBatch,
@@ -529,5 +531,113 @@ describe('createDesignSkill — a turn whose events arrive later', () => {
     const seen = await drain(createDesignSkill(agent).generateScreen(GENERATE))
 
     expect(seen).toEqual([{ type: 'status', phase: 'reading' }])
+  })
+})
+
+/**
+ * design-studio T6.4 — DS-R10 AC-1: "Havendo seleção no envio, o pedido é
+ * interpretado nesse contexto por padrão."
+ *
+ * The assertion is about the **prompt**, because that is where the requirement
+ * either holds or does not: a selection the surface tracks but never sends is
+ * a context the Skill cannot act on.
+ */
+describe('buildIteratePrompt — the selection is the default context (DS-R10 AC-1)', () => {
+  const DOC = {
+    screenId: 'login',
+    title: 'Login',
+    root: {
+      id: 'n1',
+      tag: 'wa-card',
+      props: {},
+      children: [{ id: 'n2', tag: 'wa-button', props: { variant: 'brand' }, children: [] }]
+    }
+  }
+
+  it('names the selected Component by tag and id, and instructs the model to scope to it', () => {
+    const prompt = buildIteratePrompt({
+      message: 'deixe mais discreto',
+      document: DOC,
+      selectedComponentId: 'n2',
+      catalog: CATALOG
+    })
+
+    expect(prompt).toContain('The user has <wa-button> (id "n2") selected.')
+    expect(prompt).toContain('Interpret the request in that context by default')
+    expect(prompt).toContain('deixe mais discreto')
+  })
+
+  it('scopes the request to the Tela when nothing is selected', () => {
+    const prompt = buildIteratePrompt({
+      message: 'deixe mais discreto',
+      document: DOC,
+      selectedComponentId: null,
+      catalog: CATALOG
+    })
+
+    expect(prompt).toContain(
+      'No Component is selected. The request is about the whole Tela "Login"'
+    )
+    expect(prompt).not.toContain('selected. Interpret')
+  })
+
+  it('falls back to the Tela when the selected id is no longer in the tree', () => {
+    expect(describeScope(DOC, 'n9')).toContain('No Component is selected')
+    expect(describeScope({ ...DOC, root: null }, 'n1')).toContain('No Component is selected')
+  })
+
+  it('carries the current tree so Commands can address real ids', () => {
+    const prompt = buildIteratePrompt({
+      message: 'troque a cor',
+      document: DOC,
+      selectedComponentId: 'n2',
+      catalog: CATALOG
+    })
+
+    expect(prompt).toContain(JSON.stringify(DOC.root))
+  })
+
+  it('carries the catalog and the same response contract as generation', () => {
+    const prompt = buildIteratePrompt({
+      message: 'adicione um divisor',
+      document: DOC,
+      selectedComponentId: null,
+      catalog: CATALOG
+    })
+
+    expect(prompt).toContain('variant: neutral | brand | success | warning | danger')
+    expect(prompt).toContain(RESPONSE_CONTRACT)
+  })
+})
+
+describe('createDesignSkill — iterate runs the same turn machinery (DS-R10)', () => {
+  it('sends the iteration prompt and parses the answer into a batch', async () => {
+    const answer = JSON.stringify({
+      commands: [{ type: 'SetProp', componentId: 'n2', key: 'variant', value: 'neutral' }],
+      message: 'Deixei o botão neutro.'
+    })
+    const agent = scriptedAgent([{ type: 'token', text: answer }, { type: 'done' }])
+
+    const seen = await drain(
+      createDesignSkill(agent).iterate({
+        message: 'deixe mais discreto',
+        document: {
+          screenId: 'login',
+          title: 'Login',
+          root: { id: 'n2', tag: 'wa-button', props: {}, children: [] }
+        },
+        selectedComponentId: 'n2',
+        catalog: CATALOG
+      })
+    )
+
+    expect(agent.prompts[0]).toContain('The user has <wa-button> (id "n2") selected.')
+    expect(seen.at(-1)).toEqual({
+      type: 'result',
+      batch: {
+        commands: [{ type: 'SetProp', componentId: 'n2', key: 'variant', value: 'neutral' }],
+        message: 'Deixei o botão neutro.'
+      }
+    })
   })
 })

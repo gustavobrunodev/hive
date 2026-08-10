@@ -11,7 +11,7 @@
  */
 
 import { createDesignSkill, type SkillAgent, type StudioSkillEvent } from './skillDesignSystem'
-import type { ComponentCatalog } from './types'
+import type { ComponentCatalog, ScreenDocument } from './types'
 
 /** DS-R2: generate the initial tree of one Tela from the Spec on disk. */
 export interface StudioGenerateRequest {
@@ -22,7 +22,19 @@ export interface StudioGenerateRequest {
   screenTitle: string
 }
 
-export type StudioSkillRequest = StudioGenerateRequest
+/** DS-R10: one iteration turn over a Tela that already exists. */
+export interface StudioIterateRequest {
+  kind: 'iterate'
+  /** The Tela's log in main — the same key `dispatch`/`view` use. */
+  key: string
+  screenId: string
+  title: string
+  message: string
+  /** DS-R10 AC-1: the selected Component, or `null` for the whole Tela. */
+  selectedComponentId: string | null
+}
+
+export type StudioSkillRequest = StudioGenerateRequest | StudioIterateRequest
 
 export interface StudioSkillDeps {
   /** Reads the Spec. Rejects like `fsService.readFile` does. */
@@ -31,6 +43,14 @@ export interface StudioSkillDeps {
   catalog(): ComponentCatalog
   /** An agent bound to this workspace. One per run: a run is one turn. */
   agentFor(workspace: string): SkillAgent
+  /**
+   * The Tela as its log leaves it. Read at send time, not at request time: the
+   * user may have edited by hand between opening the chat and pressing Enter,
+   * and a prompt built on a stale tree addresses ids that have moved.
+   */
+  documentFor(key: string, screenId: string, title: string): ScreenDocument
+  /** The workspace the iteration's agent runs in. */
+  workspace(): string
 }
 
 export interface StudioSkillRuns {
@@ -64,7 +84,17 @@ export function createStudioSkillRuns(deps: StudioSkillDeps): StudioSkillRuns {
     })
   }
 
+  function iterate(request: StudioIterateRequest): AsyncIterable<StudioSkillEvent> {
+    const skill = createDesignSkill(deps.agentFor(deps.workspace()))
+    return skill.iterate({
+      message: request.message,
+      document: deps.documentFor(request.key, request.screenId, request.title),
+      selectedComponentId: request.selectedComponentId,
+      catalog: deps.catalog()
+    })
+  }
+
   return {
-    run: (request) => generate(request)
+    run: (request) => (request.kind === 'generate' ? generate(request) : iterate(request))
   }
 }

@@ -28,7 +28,7 @@
  */
 
 import type { AgentEvent } from '../agentAdapter'
-import type { Command, ComponentCatalog, OperationError, ScreenNode } from './types'
+import type { Command, ComponentCatalog, OperationError, ScreenDocument, ScreenNode } from './types'
 
 /** One accepted turn: the Commands to apply, plus what the Skill wants to say. */
 export interface SkillBatch {
@@ -119,6 +119,86 @@ export function buildGeneratePrompt({ specText, screenTitle, catalog }: Generate
     '</ux-spec>',
     '',
     `Emit the Commands that build "${screenTitle}" from an empty Tela: one AddComponent per node, parents before children, parentId null for the first one.`,
+    '',
+    RESPONSE_CONTRACT
+  ].join('\n')
+}
+
+export interface IterateInput {
+  /** What the user typed, in their own words. */
+  message: string
+  /** The Tela as it stands — the model needs the real node ids to edit it. */
+  document: ScreenDocument
+  /**
+   * DS-R10 AC-1: the selected Component is the request's **default context**.
+   * `null` (or an id no longer in the tree) scopes the request to the Screen.
+   */
+  selectedComponentId: string | null
+  catalog: ComponentCatalog
+}
+
+/** Finds a node by id, so the scope line can name the Component rather than just its id. */
+function findNode(node: ScreenNode | null, componentId: string): ScreenNode | null {
+  if (node === null) return null
+  if (node.id === componentId) return node
+  for (const child of node.children) {
+    const found = findNode(child, componentId)
+    if (found !== null) return found
+  }
+  return null
+}
+
+/**
+ * The scope sentence — the thing DS-R10 AC-1 is actually about. It is written
+ * as an instruction ("interpret the request in that context by default"), not
+ * as a fact the model may or may not act on, and it says the selected node by
+ * **tag and id** so the model can address it in a Command without guessing.
+ *
+ * A selection that no longer exists (the chat removed it, the user undid it)
+ * degrades to the Screen scope rather than naming a node the tree does not
+ * have — a dangling id in the prompt is how a turn starts editing nothing.
+ */
+export function describeScope(
+  document: ScreenDocument,
+  selectedComponentId: string | null
+): string {
+  const selected =
+    selectedComponentId === null ? null : findNode(document.root, selectedComponentId)
+  if (selected === null) {
+    return `No Component is selected. The request is about the whole Tela "${document.title}".`
+  }
+  return `The user has <${selected.tag}> (id "${selected.id}") selected. Interpret the request in that context by default; touch other nodes only if the request plainly requires it.`
+}
+
+/**
+ * DS-R10: one iteration turn over the Tela that already exists. The current
+ * tree travels verbatim because every Command addresses nodes by id, and an id
+ * the model invented is a Command that edits nothing.
+ */
+export function buildIteratePrompt({
+  message,
+  document,
+  selectedComponentId,
+  catalog
+}: IterateInput): string {
+  return [
+    `You are the Design System Skill of Hive's Design Studio, iterating on the Tela "${document.title}".`,
+    '',
+    '<catalog>',
+    describeCatalog(catalog),
+    '</catalog>',
+    '',
+    '<current-tree>',
+    JSON.stringify(document.root),
+    '</current-tree>',
+    '',
+    '<scope>',
+    describeScope(document, selectedComponentId),
+    '</scope>',
+    '',
+    '<request>',
+    message,
+    '</request>',
     '',
     RESPONSE_CONTRACT
   ].join('\n')
@@ -249,6 +329,8 @@ export interface SkillAgent {
 export interface DesignSkill {
   /** DS-R2: the initial Component tree of one Tela, from the Spec and the catalog. */
   generateScreen(input: GenerateInput): AsyncIterable<StudioSkillEvent>
+  /** DS-R10: one iteration over the Tela, scoped by the selected Component. */
+  iterate(input: IterateInput): AsyncIterable<StudioSkillEvent>
 }
 
 /** A single-consumer channel: the turn's events pushed in, the stream pulled out. */
@@ -355,6 +437,7 @@ function toResult(answer: string): StudioSkillEvent {
 
 export function createDesignSkill(agent: SkillAgent): DesignSkill {
   return {
-    generateScreen: (input: GenerateInput) => runTurn(agent, buildGeneratePrompt(input))
+    generateScreen: (input: GenerateInput) => runTurn(agent, buildGeneratePrompt(input)),
+    iterate: (input: IterateInput) => runTurn(agent, buildIteratePrompt(input))
   }
 }

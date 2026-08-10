@@ -1974,6 +1974,52 @@ describe('main process bootstrap', () => {
       )
     })
 
+    /**
+     * design-studio T6.4 / DS-R10 AC-1. The iteration reads the Tela from the
+     * very log `dispatch` writes to, and the selected Component travels into
+     * the prompt — a selection the tab tracks but never sends is a context the
+     * Skill cannot act on.
+     */
+    it('iterates over the live Tela with the selected Component as context', async () => {
+      const key = '/ws docs/ux.md iterate'
+      await findHandler('designStudio:dispatch')(
+        {},
+        key,
+        'login',
+        'Login',
+        [
+          {
+            type: 'AddComponent',
+            parentId: null,
+            index: 0,
+            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
+          }
+        ],
+        'manual-1'
+      )
+      vi.mocked(fakeAgentService.send).mockClear()
+      const send = vi.fn()
+
+      findOnHandler('designStudio:skill:start')(
+        { sender: { id: 993, send } },
+        {
+          kind: 'iterate',
+          key,
+          screenId: 'login',
+          title: 'Login',
+          message: 'deixe o botão discreto',
+          selectedComponentId: 'n1'
+        }
+      )
+      await vi.waitFor(() => expect(fakeAgentService.send).toHaveBeenCalled())
+
+      const prompt = vi.mocked(fakeAgentService.send).mock.calls[0][0] as string
+      expect(prompt).toContain('The user has <wa-button> (id "n1") selected.')
+      expect(prompt).toContain('deixe o botão discreto')
+      // The tree it iterates over is the one the log produced, not an empty one.
+      expect(prompt).toContain('"id":"n1"')
+    })
+
     it('stops forwarding a Skill turn when the sender asks it to', async () => {
       fakeFsService.readFile.mockReturnValue('## Tela — Login')
       const send = vi.fn()

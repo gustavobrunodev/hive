@@ -1130,6 +1130,8 @@ app.whenReady().then(() => {
   const studioSkillRuns = createStudioSkillRuns({
     readSpec: async (workspace, specPath) => fsService.readFile(workspace, specPath),
     catalog: () => designStudioService.catalog(),
+    documentFor: (key, screenId, title) => designStudioService.view(key, screenId, title).document,
+    workspace: () => workspaceService.getWorkspace() ?? '',
     agentFor: (workspace) => ({
       send: (prompt, turnId) => {
         // Idempotent: an existing session for the default agent is reused, so
