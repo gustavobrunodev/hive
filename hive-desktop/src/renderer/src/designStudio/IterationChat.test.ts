@@ -148,3 +148,70 @@ describe('the Chat strip animates only its height, with a reduced-motion alterna
     )
   })
 })
+
+/**
+ * design-studio T6.6 — DS-R9 AC-5 / §3.7. A turn says what it did and offers to
+ * take all of it back at once.
+ */
+describe('IterationChat — one turn, one undo (T6.6)', () => {
+  const TURN = {
+    id: 'm1',
+    role: 'agent' as const,
+    text: 'Deixei o botão neutro.',
+    groupId: 'turn-1',
+    changes: 3
+  }
+
+  it('says how many changes the turn applied', () => {
+    renderChat({ expanded: true, transcript: [TURN], undoableGroupId: 'turn-1' })
+
+    expect(screen.getByText('3 mudanças')).toBeTruthy()
+  })
+
+  it('says it in the singular for a turn of one', () => {
+    renderChat({
+      expanded: true,
+      transcript: [{ ...TURN, changes: 1 }],
+      undoableGroupId: 'turn-1'
+    })
+
+    expect(screen.getByText('1 mudança')).toBeTruthy()
+  })
+
+  it('undoes the whole turn from the turn itself', () => {
+    const props = renderChat({
+      expanded: true,
+      transcript: [TURN],
+      undoableGroupId: 'turn-1',
+      onUndoTurn: vi.fn()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Desfazer este turno/ }))
+    expect(props.onUndoTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers the undo only on the turn a single undo would actually revert', () => {
+    renderChat({
+      expanded: true,
+      transcript: [TURN, { ...TURN, id: 'm2', groupId: 'turn-2' }],
+      // A manual edit landed after both turns: neither is the top of the stack.
+      undoableGroupId: 'manual-9'
+    })
+
+    expect(screen.queryByRole('button', { name: /Desfazer este turno/ })).toBeNull()
+    // It still says what it did — only the affordance is gone, not the record.
+    expect(screen.getAllByText('3 mudanças')).toHaveLength(2)
+  })
+
+  it('offers nothing to undo on a turn that applied no Commands (DS-R11 AC-5)', () => {
+    renderChat({
+      expanded: true,
+      transcript: [{ id: 'm1', role: 'agent', text: 'O DS ativo não tem um seletor de data.' }],
+      undoableGroupId: 'turn-1'
+    })
+
+    expect(screen.getByText('O DS ativo não tem um seletor de data.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Desfazer este turno/ })).toBeNull()
+    expect(screen.queryByText(/mudanç/)).toBeNull()
+  })
+})

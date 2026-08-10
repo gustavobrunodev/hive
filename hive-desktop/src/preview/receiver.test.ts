@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import { createPreviewReceiver, STAGE_ID, tokenFromPath } from './receiver'
+import { createPreviewReceiver, PULSE_MS, STAGE_ID, tokenFromPath } from './receiver'
 import { NODE_ID_ATTRIBUTE } from './dom'
 import type { PreviewDocument, PreviewNode } from './messages'
 
@@ -464,5 +464,95 @@ describe('the built receiver bundle contains no markup-parsing sink (AD-4)', () 
     ]) {
       expect(bundle).not.toContain(sink)
     }
+  })
+})
+
+/**
+ * design-studio T6.6 / §3.9. The pulse answers the one question the user asks
+ * every time a chat turn lands — *what changed?* — which is why it earns the
+ * only piece of motion in the Studio that is not a state transition, and why
+ * its reduced-motion alternative is **nothing**, not a slower version.
+ */
+describe('receiver pulse (T6.6)', () => {
+  let receiver: ReturnType<typeof createPreviewReceiver>
+
+  function pulseBoxes(): Element[] {
+    return [...document.querySelectorAll('.hive-pulse')]
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    setPath(`/${TOKEN}/index.html`)
+    receiver = createPreviewReceiver(window)
+    receiver.start()
+    post({ type: 'render', nonce: TOKEN, document: THREE_LEVELS })
+  })
+
+  afterEach(() => {
+    receiver?.dispose()
+    vi.useRealTimers()
+    document.body.replaceChildren()
+  })
+
+  it('outlines exactly the nodes the turn changed', () => {
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3', 'n4'] })
+
+    expect(pulseBoxes()).toHaveLength(2)
+  })
+
+  it('lets the outline go after one beat, rather than leaving a second selection', () => {
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3'] })
+    expect(pulseBoxes()).toHaveLength(1)
+
+    vi.advanceTimersByTime(PULSE_MS)
+
+    expect(pulseBoxes()).toHaveLength(0)
+  })
+
+  it('restarts the beat when a second turn lands during the first', () => {
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3'] })
+    vi.advanceTimersByTime(PULSE_MS - 100)
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n4'] })
+
+    vi.advanceTimersByTime(150)
+    // The first turn's timer no longer clears the second turn's outline.
+    expect(pulseBoxes()).toHaveLength(1)
+  })
+
+  it('ignores ids that are not on stage, rather than outlining nothing', () => {
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3', 'gone'] })
+
+    expect(pulseBoxes()).toHaveLength(1)
+  })
+
+  it('draws no pulse at all under prefers-reduced-motion', () => {
+    receiver.dispose()
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
+    )
+    receiver = createPreviewReceiver(window)
+    receiver.start()
+    post({ type: 'render', nonce: TOKEN, document: THREE_LEVELS })
+
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3', 'n4'] })
+
+    expect(pulseBoxes()).toHaveLength(0)
+    vi.unstubAllGlobals()
+  })
+
+  it('ignores a pulse carrying the wrong nonce', () => {
+    post({ type: 'pulse', nonce: 'b'.repeat(64), componentIds: ['n3'] })
+
+    expect(pulseBoxes()).toHaveLength(0)
+  })
+
+  it('drops a pending beat when the frame goes away', () => {
+    post({ type: 'pulse', nonce: TOKEN, componentIds: ['n3'] })
+
+    receiver.dispose()
+    vi.advanceTimersByTime(PULSE_MS)
+
+    expect(pulseBoxes()).toHaveLength(0)
   })
 })

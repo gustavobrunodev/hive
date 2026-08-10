@@ -43,6 +43,14 @@ const STYLE = `
 #${OVERLAY_ID} .hive-selected {
   border: 2px solid ${ACCENT};
 }
+#${OVERLAY_ID} .hive-pulse {
+  border: 2px solid ${ACCENT};
+  animation: hive-pulse 600ms ease-out;
+}
+@keyframes hive-pulse {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 #${OVERLAY_ID} .hive-chip {
   position: fixed;
   display: none;
@@ -56,6 +64,9 @@ const STYLE = `
 @media (prefers-reduced-motion: reduce) {
   #${OVERLAY_ID} .hive-box {
     transition: none;
+  }
+  #${OVERLAY_ID} .hive-pulse {
+    animation: none;
   }
 }
 `
@@ -85,6 +96,13 @@ export interface SelectionOverlay {
   hover(element: Element | null): void
   /** Outlines an element as selected (2px + tag chip), or clears it. */
   select(element: Element | null): void
+  /**
+   * T6.6: outlines the nodes a turn just changed, replacing any previous
+   * pulse. An empty list clears it. Drawn as its own boxes rather than as a
+   * class on the Components themselves, because the reconciler owns those
+   * elements' attributes and would wipe the class on the next render.
+   */
+  pulse(elements: readonly Element[]): void
   /** Re-measures both outlines — after a render, a resize or a scroll. */
   refresh(): void
   dispose(): void
@@ -120,6 +138,7 @@ export function createSelectionOverlay(doc: Document): SelectionOverlay {
 
   let hovered: Element | null = null
   let selected: Element | null = null
+  let pulsing: HTMLElement[] = []
 
   function drawSelection(): void {
     place(selectedBox, selected)
@@ -146,6 +165,16 @@ export function createSelectionOverlay(doc: Document): SelectionOverlay {
       hovered = element
       place(hoverBox, hovered)
     },
+    pulse(elements) {
+      for (const box of pulsing) box.remove()
+      pulsing = elements.map((element) => {
+        const box = doc.createElement('div')
+        box.className = 'hive-box hive-pulse'
+        place(box, element)
+        root.appendChild(box)
+        return box
+      })
+    },
     select(element) {
       selected = element
       drawSelection()
@@ -157,6 +186,8 @@ export function createSelectionOverlay(doc: Document): SelectionOverlay {
     dispose() {
       style.remove()
       root.remove()
+      for (const box of pulsing) box.remove()
+      pulsing = []
       hovered = null
       selected = null
     }

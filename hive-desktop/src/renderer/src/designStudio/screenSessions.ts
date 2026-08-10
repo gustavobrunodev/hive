@@ -18,6 +18,25 @@ export interface StudioChatMessage {
   id: string
   role: 'user' | 'agent'
   text: string
+  /**
+   * T6.6 / DS-R9 AC-5: the grouped step this turn produced — what `↩ desfazer
+   * este turno` reverts. Absent on a user message and on an agent turn that
+   * emitted no Commands (there is nothing to undo).
+   */
+  groupId?: string
+  /** How many Commands the turn applied, so the turn can say what it did. */
+  changes?: number
+}
+
+/**
+ * T6.6: the step a single undo would revert — the top of the applied stack.
+ *
+ * The log is linear (DS-R9), so exactly one turn is undoable at a time: the
+ * newest applied one. Offering "desfazer este turno" on an older turn would
+ * either be a lie or would silently take the newer edits with it.
+ */
+export function undoableGroupId(session: ScreenSession): string | null {
+  return canUndo(session) ? session.steps[session.cursor - 1] : null
 }
 
 export interface ScreenSession {

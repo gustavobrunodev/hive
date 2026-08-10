@@ -35,6 +35,13 @@ export interface PreviewDocument {
 export type PreviewInbound =
   | { type: 'render'; nonce: string; document: PreviewDocument }
   | { type: 'select'; nonce: string; componentId: string | null }
+  /**
+   * T6.6 / §3.9: outline the nodes a chat turn just changed, for one beat.
+   * It answers the question the user asks every single time a turn lands —
+   * *what changed?* — which is why it is the one piece of motion in the Studio
+   * that is not a state transition.
+   */
+  | { type: 'pulse'; nonce: string; componentIds: string[] }
 
 /** Frame → parent. */
 export type PreviewOutbound =

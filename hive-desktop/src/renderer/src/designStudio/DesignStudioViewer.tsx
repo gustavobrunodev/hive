@@ -14,6 +14,7 @@ import { historyShortcutFor } from './shortcuts'
 import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
 import { IterationChat } from './IterationChat'
 import { SkillFailureView, SkillProgress, type SkillFailure } from './SkillStage'
+import { undoableGroupId } from './screenSessions'
 import { useStudioSkill, type StudioSkillState } from './useStudioSkill'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
@@ -208,6 +209,7 @@ export function DesignStudioViewer({
               onOpenSpec={onOpenSpec}
               onAddComponent={startAdd}
               onGenerate={skill.generate}
+              pulse={skill.pulse}
               skillPhase={skill.stagePhase}
               skillFailure={skill.stageFailure}
               onRetrySkill={skill.retry}
@@ -249,6 +251,8 @@ export function DesignStudioViewer({
           expanded={skill.expanded}
           onExpandedChange={skill.setExpanded}
           transcript={studio.session.transcript}
+          undoableGroupId={undoableGroupId(studio.session)}
+          onUndoTurn={undo}
           contextTag={skill.contextTag}
           onReleaseContext={skill.releaseContext}
           phase={skill.chatPhase}
@@ -367,6 +371,7 @@ function StudioBody({
   onOpenSpec,
   onAddComponent,
   onGenerate,
+  pulse,
   skillPhase,
   skillFailure,
   onRetrySkill
@@ -377,6 +382,7 @@ function StudioBody({
   onOpenSpec: (path: string) => void
   onAddComponent: () => void
   onGenerate: () => void
+  pulse: readonly string[]
   skillPhase: StudioSkillState['stagePhase']
   skillFailure: SkillFailure | null
   onRetrySkill: () => void
@@ -427,6 +433,7 @@ function StudioBody({
           document={doc.document}
           selectedComponentId={studio.selectedComponentId}
           onSelectComponent={studio.selectComponent}
+          pulse={pulse}
         />
       )}
     </StagePane>

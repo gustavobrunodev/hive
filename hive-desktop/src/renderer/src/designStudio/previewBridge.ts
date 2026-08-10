@@ -56,6 +56,8 @@ export interface PreviewBridge {
   render(document: PreviewDocument): void
   /** Mirrors a Tree selection onto the stage (DS-R5 AC-5). */
   select(componentId: string | null): void
+  /** T6.6 / §3.9: outlines, for one beat, the nodes a chat turn just changed. */
+  pulse(componentIds: string[]): void
   /** True once the frame has handshaken. */
   isReady(): boolean
   dispose(): void
@@ -106,6 +108,11 @@ export function createPreviewBridge(options: PreviewBridgeOptions): PreviewBridg
     },
     select(componentId) {
       if (ready) post({ type: 'select', componentId })
+    },
+    pulse(componentIds) {
+      // Never queued behind the handshake: a pulse is about a moment, and a
+      // moment replayed later would outline nodes for a turn long gone.
+      if (ready && componentIds.length > 0) post({ type: 'pulse', componentIds })
     },
     isReady: () => ready,
     dispose() {

@@ -223,3 +223,65 @@ describe('previewBridge', () => {
     expect(onReady).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * design-studio T6.6 / §3.9. The pulse is about a *moment*, which is what makes
+ * its queueing rule different from `render`'s: a document held back until the
+ * handshake is still true when it arrives, while an outline held back would
+ * point at a turn the user stopped thinking about.
+ */
+describe('previewBridge — the change pulse (T6.6)', () => {
+  let frame: HTMLIFrameElement
+  let frameWindow: { postMessage: ReturnType<typeof vi.fn> }
+  let bridge: PreviewBridge
+
+  function posted(): Record<string, unknown>[] {
+    return frameWindow.postMessage.mock.calls.map(([message]) => message)
+  }
+
+  function handshake(): void {
+    const event = new MessageEvent('message', { data: { type: 'ready', nonce: NONCE } })
+    Object.defineProperty(event, 'source', { value: frameWindow })
+    window.dispatchEvent(event)
+  }
+
+  beforeEach(() => {
+    frameWindow = { postMessage: vi.fn() }
+    frame = document.createElement('iframe')
+    Object.defineProperty(frame, 'contentWindow', { value: frameWindow })
+    document.body.appendChild(frame)
+    bridge = createPreviewBridge({ frame, nonce: NONCE })
+  })
+
+  afterEach(() => {
+    bridge?.dispose()
+    document.body.replaceChildren()
+  })
+
+  it('posts the changed ids to the frame once the handshake is done', () => {
+    handshake()
+
+    bridge.pulse(['n1', 'n2'])
+
+    expect(posted()).toContainEqual({
+      type: 'pulse',
+      nonce: NONCE,
+      componentIds: ['n1', 'n2']
+    })
+  })
+
+  it('drops a pulse that arrives before the frame is ready, rather than queueing it', () => {
+    bridge.pulse(['n1'])
+    handshake()
+
+    expect(posted().filter((message) => message.type === 'pulse')).toHaveLength(0)
+  })
+
+  it('posts nothing for a turn that changed no node', () => {
+    handshake()
+
+    bridge.pulse([])
+
+    expect(posted().filter((message) => message.type === 'pulse')).toHaveLength(0)
+  })
+})

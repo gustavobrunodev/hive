@@ -144,3 +144,86 @@ describe('the overlay outlines', () => {
     expect(document.head.textContent).toContain('prefers-reduced-motion: reduce')
   })
 })
+
+/**
+ * design-studio T6.6 / §3.9. The "what just changed?" outline. It is drawn as
+ * the overlay's own boxes rather than as a class on the Components, because the
+ * reconciler owns those elements' attributes and would wipe it on the next
+ * render — the very render a chat turn causes.
+ */
+describe('SelectionOverlay — the change pulse (T6.6)', () => {
+  function boxes(doc: Document): Element[] {
+    return [...doc.querySelectorAll(`#${OVERLAY_ID} .hive-pulse`)]
+  }
+
+  it('outlines every changed node, outside the document tree', () => {
+    const doc = window.document
+    const overlay = createSelectionOverlay(doc)
+    overlay.mount()
+    const stage = doc.createElement('div')
+    const first = doc.createElement('wa-button')
+    const second = doc.createElement('wa-card')
+    stage.append(first, second)
+    doc.body.appendChild(stage)
+
+    overlay.pulse([first, second])
+
+    expect(boxes(doc)).toHaveLength(2)
+    // The pulse never enters the rendered tree — the export must not carry it.
+    expect(stage.querySelector('.hive-pulse')).toBeNull()
+    overlay.dispose()
+  })
+
+  it('replaces the previous pulse rather than stacking outlines', () => {
+    const doc = window.document
+    const overlay = createSelectionOverlay(doc)
+    overlay.mount()
+    const element = doc.createElement('wa-button')
+    doc.body.appendChild(element)
+
+    overlay.pulse([element])
+    overlay.pulse([element])
+
+    expect(boxes(doc)).toHaveLength(1)
+    overlay.dispose()
+  })
+
+  it('clears on an empty pulse', () => {
+    const doc = window.document
+    const overlay = createSelectionOverlay(doc)
+    overlay.mount()
+    const element = doc.createElement('wa-button')
+    doc.body.appendChild(element)
+
+    overlay.pulse([element])
+    overlay.pulse([])
+
+    expect(boxes(doc)).toHaveLength(0)
+    overlay.dispose()
+  })
+
+  it('takes its outlines with it when disposed', () => {
+    const doc = window.document
+    const overlay = createSelectionOverlay(doc)
+    overlay.mount()
+    const element = doc.createElement('wa-button')
+    doc.body.appendChild(element)
+    overlay.pulse([element])
+
+    overlay.dispose()
+
+    expect(boxes(doc)).toHaveLength(0)
+  })
+
+  it('has no animation left under prefers-reduced-motion', () => {
+    const doc = window.document
+    const overlay = createSelectionOverlay(doc)
+    overlay.mount()
+
+    const style = doc.querySelector('style')?.textContent ?? ''
+    expect(style).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.hive-pulse \{\s*animation: none;/
+    )
+    overlay.dispose()
+  })
+})

@@ -97,6 +97,25 @@ export function nextGroupId(): string {
   return `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+/**
+ * T6.6 / §3.9: the nodes a batch of Commands touched, for the Preview's "what
+ * just changed?" outline.
+ *
+ * A removal is deliberately not in the list: the node it names is gone by the
+ * time the outline would be drawn, so pointing at it would mean pointing at
+ * nothing. Duplicates are collapsed — a turn that adds a node and then sets a
+ * prop on it changed one node, and outlining it twice would just draw a
+ * heavier border.
+ */
+export function changedComponentIds(commands: readonly Command[]): string[] {
+  const ids: string[] = []
+  for (const command of commands) {
+    const id = command.type === 'AddComponent' ? command.node.id : command.componentId
+    if (command.type !== 'RemoveComponent' && !ids.includes(id)) ids.push(id)
+  }
+  return ids
+}
+
 export function isCapabilityViolation(
   value: ScreenView | CapabilityViolation
 ): value is CapabilityViolation {

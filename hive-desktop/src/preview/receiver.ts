@@ -21,6 +21,9 @@ export const STAGE_ID = 'hive-stage'
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/
 
+/** How long the "what just changed" outline stays up (§3.9: one beat, not a state). */
+export const PULSE_MS = 600
+
 /**
  * The session token, read off the frame's own URL (`/<token>/index.html`).
  *
@@ -53,6 +56,7 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
 
   const overlay = createSelectionOverlay(doc)
   let selectedId: string | null = null
+  let pulseTimer: ReturnType<Window['setTimeout']> | null = null
 
   /** The element carrying a node id, or `null` when the node is not on stage. */
   function elementOf(id: string | null): Element | null {
@@ -85,9 +89,26 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
     overlay.select(elementOf(selectedId))
   }
 
+  /**
+   * T6.6 / §3.9. The one piece of motion that is not a state transition, and
+   * therefore the one that must have a reduced-motion alternative that is
+   * *nothing* rather than a slower version: under `reduce` the outlines are
+   * never drawn at all, which is what the design table says ("sem pulso").
+   */
+  function pulse(componentIds: readonly string[]): void {
+    if (win.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (pulseTimer !== null) win.clearTimeout(pulseTimer)
+    const elements = componentIds
+      .map((id) => elementOf(id))
+      .filter((element): element is Element => element !== null)
+    overlay.pulse(elements)
+    pulseTimer = win.setTimeout(() => overlay.pulse([]), PULSE_MS)
+  }
+
   function onMessage(event: MessageEvent): void {
-    const message = messageFor<PreviewInbound>(event.data, nonce, ['render', 'select'])
+    const message = messageFor<PreviewInbound>(event.data, nonce, ['render', 'select', 'pulse'])
     if (message?.type === 'render') render(message.document)
+    if (message?.type === 'pulse') pulse(message.componentIds)
     // The other direction of DS-R5 AC-5: the Tree selected something, and the
     // stage has to show it. Nothing is posted back — that would echo.
     if (message?.type === 'select') applySelection(message.componentId)
@@ -133,6 +154,8 @@ export function createPreviewReceiver(win: Window): PreviewReceiver {
       doc.removeEventListener('pointermove', onPointerMove, true)
       win.removeEventListener('resize', onViewportChange)
       win.removeEventListener('scroll', onViewportChange, true)
+      if (pulseTimer !== null) win.clearTimeout(pulseTimer)
+      pulseTimer = null
       overlay.dispose()
       selectedId = null
       stage.remove()

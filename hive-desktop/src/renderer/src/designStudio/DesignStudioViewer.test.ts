@@ -858,3 +858,132 @@ describe('DesignStudioViewer — the Chat de Iteração (T6.5, DS-R10)', () => {
     await waitFor(() => expect(screen.getByText('Deixei o botão neutro.')).toBeTruthy())
   })
 })
+
+/**
+ * design-studio T6.6 — DS-R9 AC-5/AC-6 and DS-R11 AC-4. A chat turn is ONE step
+ * in the history: undoing it takes all N Commands back together, and the manual
+ * edit that came before it is still there afterwards.
+ *
+ * The grouping is Phase 1's `groupId` mechanism, reused rather than rebuilt —
+ * so what these tests prove is the *wiring*: one group id for the whole turn,
+ * one step recorded, one undo offered on it.
+ */
+describe('DesignStudioViewer — a chat turn is one undo step (T6.6)', () => {
+  const TURN = [
+    { type: 'SetProp', componentId: 'n2', key: 'variant', value: 'neutral' },
+    { type: 'SetProp', componentId: 'n2', key: 'disabled', value: true },
+    {
+      type: 'AddComponent',
+      parentId: 'n1',
+      index: 1,
+      node: { id: 'n3', tag: 'wa-button', props: {}, children: [] }
+    }
+  ]
+
+  async function landTurn(): Promise<void> {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(2))
+
+    const input = screen.getByPlaceholderText('Escreva o que mudar…')
+    fireEvent.change(input, { target: { value: 'deixe o botão discreto' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    act(() =>
+      skillRuns[0].emit({
+        type: 'result',
+        batch: { commands: TURN, message: 'Ajustei o botão.' }
+      })
+    )
+    await waitFor(() => expect(bridge().dispatch).toHaveBeenCalled())
+  }
+
+  it('dispatches the three Commands under ONE group id', async () => {
+    await landTurn()
+
+    expect(bridge().dispatch).toHaveBeenCalledTimes(1)
+    const [, , , commands, groupId] = bridge().dispatch.mock.calls[0]
+    expect(commands).toEqual(TURN)
+    expect(typeof groupId).toBe('string')
+  })
+
+  it('offers the whole turn back as one undo, and takes it', async () => {
+    await landTurn()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a conversa' }))
+
+    await waitFor(() => expect(screen.getByText('3 mudanças')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /Desfazer este turno/ }))
+
+    // One undo for the whole turn — never one per Command.
+    await waitFor(() => expect(bridge().undo).toHaveBeenCalledTimes(1))
+  })
+
+  it('stops offering the turn undo once a manual edit lands on top of it', async () => {
+    await landTurn()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a conversa' }))
+    await waitFor(() => expect(screen.getByText('3 mudanças')).toBeTruthy())
+
+    // A manual edit after the turn is a newer step: undoing "this turn" would
+    // silently take that edit with it, so the affordance goes away (DS-R9 AC-6).
+    const row = screen
+      .getAllByRole('treeitem')
+      .find((item) => item.querySelector('.hds-tree-label-text')?.textContent === 'wa-button')
+    fireEvent.click(row!)
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Desfazer este turno/ })).toBeNull()
+    )
+    expect(screen.getByText('3 mudanças')).toBeTruthy()
+  })
+
+  it('outlines the nodes the turn changed, and never the one it removed', async () => {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(2))
+
+    const frame = (await screen.findByTitle('Preview da Tela')) as HTMLIFrameElement
+    await waitFor(() => expect(frame.getAttribute('src')).toBeTruthy())
+    const posted: Record<string, unknown>[] = []
+    Object.defineProperty(frame, 'contentWindow', {
+      configurable: true,
+      value: { postMessage: (message: Record<string, unknown>) => posted.push(message) }
+    })
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'ready', nonce: 'abc' },
+          source: frame.contentWindow as unknown as Window
+        })
+      )
+    })
+
+    const input = screen.getByPlaceholderText('Escreva o que mudar…')
+    fireEvent.change(input, { target: { value: 'troque o botão' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    act(() =>
+      skillRuns[0].emit({
+        type: 'result',
+        batch: {
+          commands: [
+            { type: 'RemoveComponent', componentId: 'n2' },
+            {
+              type: 'AddComponent',
+              parentId: 'n1',
+              index: 0,
+              node: { id: 'n9', tag: 'wa-button', props: {}, children: [] }
+            }
+          ],
+          message: 'Troquei o botão.'
+        }
+      })
+    )
+
+    await waitFor(() =>
+      expect(posted).toContainEqual(
+        expect.objectContaining({ type: 'pulse', componentIds: ['n9'] })
+      )
+    )
+  })
+})

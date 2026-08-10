@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { nextGroupId, type CapabilityViolation } from './documentModel'
+import { changedComponentIds, nextGroupId, type CapabilityViolation } from './documentModel'
 import { findNode } from './screenTree'
 import type { SkillPhase } from './skillRun'
 import { useSkillRun } from './useSkillRun'
@@ -36,6 +36,11 @@ export interface StudioSkillState {
   contextTag: string | null
   /** Drops the context for the next turns — without dropping the selection. */
   releaseContext: () => void
+  /**
+   * T6.6 / §3.9: the nodes the last landed turn changed. A fresh array identity
+   * per turn is what makes the Preview outline them once and only once.
+   */
+  pulse: readonly string[]
 }
 
 export function useStudioSkill(
@@ -54,6 +59,7 @@ export function useStudioSkill(
   // selection itself. The Inspetor is still looking at it; the chat simply
   // stopped assuming the request is about it.
   const [released, setReleased] = useState<string | null>(null)
+  const [pulse, setPulse] = useState<readonly string[]>([])
 
   const selected = studio.selectedComponentId
   const contextId = selected !== null && selected !== released ? selected : null
@@ -71,11 +77,19 @@ export function useStudioSkill(
   const skill = useSkillRun((batch) => {
     setRefused(null)
     const groupId = nextGroupId()
-    const say = (text: string): void => {
-      if (text.length > 0) studio.appendMessage({ id: `m-${groupId}`, role: 'agent', text })
+    const say = (text: string, changes: number): void => {
+      if (text.length === 0 && changes === 0) return
+      studio.appendMessage({
+        id: `m-${groupId}`,
+        role: 'agent',
+        text,
+        // Only a turn that landed Commands can be undone as a turn — an
+        // explanation (DS-R11 AC-5) has nothing behind it to revert.
+        ...(changes > 0 ? { groupId, changes } : {})
+      })
     }
     if (batch.commands.length === 0) {
-      say(batch.message)
+      say(batch.message, 0)
       return
     }
     void doc.dispatch(batch.commands, groupId).then((violation) => {
@@ -84,7 +98,8 @@ export function useStudioSkill(
         return
       }
       studio.recordStep(groupId)
-      say(batch.message)
+      say(batch.message, batch.commands.length)
+      setPulse(changedComponentIds(batch.commands))
     })
   })
 
@@ -129,6 +144,7 @@ export function useStudioSkill(
     expanded,
     setExpanded,
     contextTag,
-    releaseContext: () => setReleased(selected)
+    releaseContext: () => setReleased(selected),
+    pulse
   }
 }

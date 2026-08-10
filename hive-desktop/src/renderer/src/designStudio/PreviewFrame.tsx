@@ -28,13 +28,19 @@ export interface PreviewFrameProps {
   selectedComponentId?: string | null
   /** A Component was clicked on the stage — the other direction of the same selection. */
   onSelectComponent?: (componentId: string | null) => void
+  /**
+   * T6.6: the nodes a chat turn just changed. A new array identity is what
+   * makes the outline fire, so the same turn never pulses twice.
+   */
+  pulse?: readonly string[]
 }
 
 export function PreviewFrame({
   size,
   document,
   selectedComponentId = null,
-  onSelectComponent
+  onSelectComponent,
+  pulse
 }: PreviewFrameProps): React.JSX.Element {
   const [url, setUrl] = useState<string | null>(null)
   const frameRef = useRef<HTMLIFrameElement>(null)
@@ -100,6 +106,10 @@ export function PreviewFrame({
   useEffect(() => {
     bridge?.select(selectedComponentId)
   }, [bridge, selectedComponentId])
+
+  useEffect(() => {
+    if (pulse !== undefined) bridge?.pulse([...pulse])
+  }, [bridge, pulse])
 
   return (
     <iframe

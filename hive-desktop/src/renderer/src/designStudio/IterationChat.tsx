@@ -7,7 +7,7 @@ import {
   TypingIndicator
 } from '@hive/design-system'
 import { t } from '../i18n'
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon } from '../ui/icons'
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, HistoryIcon } from '../ui/icons'
 import type { StudioChatMessage } from './screenSessions'
 import type { SkillPhase } from './skillRun'
 
@@ -44,6 +44,13 @@ export interface IterationChatProps {
   /** Non-null exactly while a turn is in flight — the composer's "working" state. */
   phase: SkillPhase | null
   onSend: (message: string) => void
+  /**
+   * T6.6: the one turn a single undo would revert. The log is linear, so
+   * exactly one turn can offer "desfazer este turno" — offering it on an older
+   * one would either lie or quietly take the newer edits with it.
+   */
+  undoableGroupId?: string | null
+  onUndoTurn?: () => void
 }
 
 export function IterationChat({
@@ -53,7 +60,9 @@ export function IterationChat({
   contextTag,
   onReleaseContext,
   phase,
-  onSend
+  onSend,
+  undoableGroupId = null,
+  onUndoTurn
 }: IterationChatProps): React.JSX.Element {
   return (
     <section
@@ -101,6 +110,19 @@ export function IterationChat({
             {transcript.map((message) => (
               <ChatMessage key={message.id} role={message.role === 'user' ? 'user' : 'assistant'}>
                 {message.text}
+                {message.changes !== undefined && message.changes > 0 && (
+                  <span className="wb-dstudio-chat-turn">
+                    <span className="wb-dstudio-chat-turn-meta">
+                      {t('designStudio.chatTurnChanges', message.changes)}
+                    </span>
+                    {message.groupId !== undefined && message.groupId === undoableGroupId && (
+                      <Button variant="ghost" onClick={onUndoTurn}>
+                        <HistoryIcon size={14} />
+                        {t('designStudio.chatUndoTurn')}
+                      </Button>
+                    )}
+                  </span>
+                )}
               </ChatMessage>
             ))}
           </MessageList>

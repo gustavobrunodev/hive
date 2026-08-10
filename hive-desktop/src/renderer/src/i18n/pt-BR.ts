@@ -1443,6 +1443,9 @@ export const ptBR = {
     chatPlaceholder: 'Escreva o que mudar…',
     chatSend: 'Enviar pedido à Skill',
     chatJumpToLatest: 'Ir para a mensagem mais recente',
+    // T6.6 (DS-R9 AC-5): o turno diz o que fez e oferece desfazê-lo inteiro.
+    chatTurnChanges: (count: number) => (count === 1 ? '1 mudança' : `${count} mudanças`),
+    chatUndoTurn: 'Desfazer este turno',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',

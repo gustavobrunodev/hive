@@ -8,6 +8,7 @@ import {
   redoStep,
   sessionFor,
   undoStep,
+  undoableGroupId,
   withSession
 } from './screenSessions'
 
@@ -75,5 +76,27 @@ describe('screenSessions — one Tela never touches another (DS-R4 AC-2)', () =>
     expect(withBoth.a).toBe(withA.a)
     expect(withBoth.a.steps).toEqual(['g1'])
     expect(withBoth.b.steps).toEqual(['g2'])
+  })
+})
+
+/**
+ * design-studio T6.6 — DS-R9 AC-5. The log is linear, so exactly one turn is
+ * undoable at a time. "Desfazer este turno" on an older turn would either lie
+ * or quietly take the newer edits with it, so it is never offered there.
+ */
+describe('undoableGroupId (T6.6)', () => {
+  it('names the newest applied step', () => {
+    const session = pushStep(pushStep(EMPTY_SESSION, 'manual-1'), 'turn-1')
+    expect(undoableGroupId(session)).toBe('turn-1')
+  })
+
+  it('follows the cursor back as the user undoes', () => {
+    const session = pushStep(pushStep(EMPTY_SESSION, 'manual-1'), 'turn-1')
+    expect(undoableGroupId(undoStep(session))).toBe('manual-1')
+    expect(undoableGroupId(undoStep(undoStep(session)))).toBeNull()
+  })
+
+  it('is null on a Tela nobody has edited', () => {
+    expect(undoableGroupId(EMPTY_SESSION)).toBeNull()
   })
 })

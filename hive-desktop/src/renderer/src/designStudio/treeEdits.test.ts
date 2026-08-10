@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { changedComponentIds } from './documentModel'
 import {
   addCommand,
   addTargetFor,
@@ -211,5 +212,56 @@ describe('moveOutsideCommand — beside the parent', () => {
 describe('removeCommand', () => {
   it('is one RemoveComponent for the node asked for', () => {
     expect(removeCommand('n3')).toEqual({ type: 'RemoveComponent', componentId: 'n3' })
+  })
+})
+
+/**
+ * design-studio T6.6 / §3.9. Which nodes the Preview outlines after a turn.
+ * A removal is deliberately absent: the node it names is gone by the time the
+ * outline would be drawn, so pointing at it would be pointing at nothing.
+ */
+describe('changedComponentIds (T6.6)', () => {
+  it('names the node an AddComponent created', () => {
+    expect(
+      changedComponentIds([
+        {
+          type: 'AddComponent',
+          parentId: null,
+          index: 0,
+          node: { id: 'n1', tag: 'wa-card', props: {}, children: [] }
+        }
+      ])
+    ).toEqual(['n1'])
+  })
+
+  it('names the node a SetProp and a MoveComponent touched', () => {
+    expect(
+      changedComponentIds([
+        { type: 'SetProp', componentId: 'n2', key: 'variant', value: 'brand' },
+        { type: 'MoveComponent', componentId: 'n3', newParentId: 'n1', index: 0 }
+      ])
+    ).toEqual(['n2', 'n3'])
+  })
+
+  it('leaves out a removed node — there is nothing left to outline', () => {
+    expect(changedComponentIds([{ type: 'RemoveComponent', componentId: 'n4' }])).toEqual([])
+  })
+
+  it('counts a node once however many Commands touched it', () => {
+    expect(
+      changedComponentIds([
+        {
+          type: 'AddComponent',
+          parentId: null,
+          index: 0,
+          node: { id: 'n1', tag: 'wa-card', props: {}, children: [] }
+        },
+        { type: 'SetProp', componentId: 'n1', key: 'appearance', value: 'filled' }
+      ])
+    ).toEqual(['n1'])
+  })
+
+  it('is empty for a turn with no Commands', () => {
+    expect(changedComponentIds([])).toEqual([])
   })
 })
