@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
+import { StagePane } from './StagePane'
 import { StudioToolbar } from './StudioToolbar'
 import { useDesignStudio } from './useDesignStudio'
 
@@ -37,7 +38,7 @@ export function DesignStudioViewer({
 
   return (
     <div
-      className="wb-studio"
+      className="wb-dstudio"
       role="region"
       aria-label={t('designStudio.tabAria', specPath)}
       data-focus-mode={focusMode || undefined}
@@ -55,19 +56,19 @@ export function DesignStudioViewer({
         focusMode={focusMode}
         onToggleFocusMode={() => setFocusMode((current) => !current)}
       />
-      <Resizable orientation="horizontal" className="wb-studio-columns">
+      <Resizable orientation="horizontal" className="wb-dstudio-columns">
         <ResizablePanel
           id="studio-left"
           minSize="14%"
           maxSize="34%"
           defaultSize="22%"
-          className="wb-studio-side"
+          className="wb-dstudio-side"
         >
-          <section className="wb-studio-pane" aria-label={t('designStudio.screensPaneTitle')}>
-            <h2 className="wb-studio-pane-title">{t('designStudio.screensPaneTitle')}</h2>
+          <section className="wb-dstudio-pane" aria-label={t('designStudio.screensPaneTitle')}>
+            <h2 className="wb-dstudio-pane-title">{t('designStudio.screensPaneTitle')}</h2>
           </section>
-          <section className="wb-studio-pane" aria-label={t('designStudio.treePaneTitle')}>
-            <h2 className="wb-studio-pane-title">{t('designStudio.treePaneTitle')}</h2>
+          <section className="wb-dstudio-pane" aria-label={t('designStudio.treePaneTitle')}>
+            <h2 className="wb-dstudio-pane-title">{t('designStudio.treePaneTitle')}</h2>
           </section>
         </ResizablePanel>
         <ResizableHandle withGrip aria-label={t('designStudio.resizeHandleLabel')} />
@@ -80,10 +81,10 @@ export function DesignStudioViewer({
           minSize="14%"
           maxSize="34%"
           defaultSize="22%"
-          className="wb-studio-side"
+          className="wb-dstudio-side"
         >
-          <section className="wb-studio-pane" aria-label={t('designStudio.inspectorPaneTitle')}>
-            <h2 className="wb-studio-pane-title">{t('designStudio.inspectorPaneTitle')}</h2>
+          <section className="wb-dstudio-pane" aria-label={t('designStudio.inspectorPaneTitle')}>
+            <h2 className="wb-dstudio-pane-title">{t('designStudio.inspectorPaneTitle')}</h2>
           </section>
         </ResizablePanel>
       </Resizable>
@@ -107,8 +108,8 @@ function StudioBody({
 }): React.JSX.Element {
   if (studio.status === 'loading') {
     return (
-      <div className="wb-studio-stage" aria-busy="true" aria-label={t('designStudio.loading')}>
-        <Skeleton className="wb-studio-stage-skeleton" />
+      <div className="wb-dstudio-stage" aria-busy="true" aria-label={t('designStudio.loading')}>
+        <Skeleton className="wb-dstudio-stage-skeleton" />
       </div>
     )
   }
@@ -116,17 +117,17 @@ function StudioBody({
   // state where the status says "error" and there is nothing to render.
   if (studio.error) {
     return (
-      <div className="wb-studio-stage">
+      <div className="wb-dstudio-stage">
         <SpecLoadError error={studio.error} onRetry={studio.reload} />
       </div>
     )
   }
   if (studio.status === 'empty') {
     return (
-      <div className="wb-studio-stage">
+      <div className="wb-dstudio-stage">
         <ScreensEmpty probed={studio.probed} onOpenSpec={() => onOpenSpec(specPath)} />
       </div>
     )
   }
-  return <div className="wb-studio-stage" aria-label={t('designStudio.stageAria')} />
+  return <StagePane />
 }

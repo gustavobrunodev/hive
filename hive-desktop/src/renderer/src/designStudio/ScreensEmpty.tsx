@@ -32,13 +32,13 @@ export interface ScreensEmptyProps {
 export function ScreensEmpty({ probed, onOpenSpec }: ScreensEmptyProps): React.JSX.Element {
   return (
     <Empty
-      className="wb-studio-empty"
+      className="wb-dstudio-empty"
       icon={<LayersIcon size={28} />}
       title={t('designStudio.emptyScreensTitle')}
       description={
         <>
           <span>{t('designStudio.emptyScreensDescription')}</span>
-          <ul className="wb-studio-empty-probes">
+          <ul className="wb-dstudio-empty-probes">
             {probed.map((probe) => (
               <li key={probe}>{PROBE_LABEL[probe]()}</li>
             ))}
@@ -68,7 +68,7 @@ export interface SpecLoadErrorProps {
 export function SpecLoadError({ error, onRetry }: SpecLoadErrorProps): React.JSX.Element {
   return (
     <Empty
-      className="wb-studio-empty"
+      className="wb-dstudio-empty"
       icon={<AlertTriangleIcon size={28} />}
       title={t('designStudio.specErrorTitle')}
       description={error.message}

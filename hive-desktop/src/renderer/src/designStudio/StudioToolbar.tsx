@@ -72,10 +72,10 @@ export function StudioToolbar({
   onToggleFocusMode
 }: StudioToolbarProps): React.JSX.Element {
   return (
-    <div className="wb-studio-toolbar" role="toolbar" aria-label={t('designStudio.toolbarAria')}>
+    <div className="wb-dstudio-toolbar" role="toolbar" aria-label={t('designStudio.toolbarAria')}>
       <Select value={activeScreenId ?? undefined} onValueChange={onSelectScreen}>
         <SelectTrigger
-          className="wb-studio-screen-trigger"
+          className="wb-dstudio-screen-trigger"
           aria-label={t('designStudio.screenPickerAria')}
         >
           <SelectValue />
@@ -88,11 +88,11 @@ export function StudioToolbar({
           ))}
         </SelectContent>
       </Select>
-      <span className="wb-studio-screen-count">
+      <span className="wb-dstudio-screen-count">
         {t('designStudio.screenCount', screens.length)}
       </span>
       <ViewportControl viewport={viewport} onChange={onViewportChange} />
-      <div className="wb-studio-toolbar-end">
+      <div className="wb-dstudio-toolbar-end">
         <HistoryButton
           label={t('designStudio.undo')}
           shortcut={['Ctrl', 'Z']}
@@ -117,7 +117,7 @@ export function StudioToolbar({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="wb-studio-export-wrap">
+              <span className="wb-dstudio-export-wrap">
                 <Button variant="ghost" disabled>
                   {t('designStudio.exportLabel')}
                 </Button>
@@ -140,7 +140,7 @@ function ViewportControl({
   onChange: (viewport: Viewport) => void
 }): React.JSX.Element {
   return (
-    <div className="wb-studio-viewport">
+    <div className="wb-dstudio-viewport">
       <SegmentedControl
         ariaLabel={t('designStudio.viewportAria')}
         value={viewport.presetId ?? CUSTOM_SEGMENT}
@@ -157,10 +157,10 @@ function ViewportControl({
         ]}
       />
       {viewport.presetId === null && (
-        <span className="wb-studio-viewport-custom">
+        <span className="wb-dstudio-viewport-custom">
           <Input
             type="number"
-            className="wb-studio-viewport-field"
+            className="wb-dstudio-viewport-field"
             aria-label={t('designStudio.viewportWidthAria')}
             value={String(viewport.width)}
             onChange={(event) =>
@@ -169,7 +169,7 @@ function ViewportControl({
           />
           <Input
             type="number"
-            className="wb-studio-viewport-field"
+            className="wb-dstudio-viewport-field"
             aria-label={t('designStudio.viewportHeightAria')}
             value={String(viewport.height)}
             onChange={(event) =>
@@ -200,14 +200,14 @@ function HistoryButton({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="wb-studio-action-wrap">
+          <span className="wb-dstudio-action-wrap">
             <IconButton label={label} disabled={disabled} onClick={onClick}>
               {icon}
             </IconButton>
           </span>
         </TooltipTrigger>
         <TooltipContent>
-          <span className="wb-studio-shortcut">
+          <span className="wb-dstudio-shortcut">
             {label}
             {shortcut.map((key) => (
               <Kbd key={key}>{key}</Kbd>

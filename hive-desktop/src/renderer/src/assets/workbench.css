@@ -13717,14 +13717,14 @@ button.wb-mcplog-summary:focus-visible {
    the only thing added here is the probe list, which has to read as an
    enumeration ("we looked for these two things") rather than as prose. */
 
-.wb-studio-empty-probes {
+.wb-dstudio-empty-probes {
   margin: var(--s-2) 0;
   padding-left: var(--s-4);
   list-style: disc;
   text-align: left;
 }
 
-.wb-studio-empty-probes li + li {
+.wb-dstudio-empty-probes li + li {
   margin-top: var(--s-1);
 }
 
@@ -13732,7 +13732,7 @@ button.wb-mcplog-summary:focus-visible {
    each column owns its own overflow, so resizing a column never pushes the
    stage out of view. */
 
-.wb-studio {
+.wb-dstudio {
   display: flex;
   flex: 1;
   min-width: 0;
@@ -13740,13 +13740,13 @@ button.wb-mcplog-summary:focus-visible {
   overflow: hidden;
 }
 
-.wb-studio-columns {
+.wb-dstudio-columns {
   flex: 1;
   min-width: 0;
   min-height: 0;
 }
 
-.wb-studio-side {
+.wb-dstudio-side {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -13755,7 +13755,7 @@ button.wb-mcplog-summary:focus-visible {
   border-inline: 1px solid var(--border);
 }
 
-.wb-studio-pane {
+.wb-dstudio-pane {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -13763,11 +13763,11 @@ button.wb-mcplog-summary:focus-visible {
   overflow: auto;
 }
 
-.wb-studio-pane + .wb-studio-pane {
+.wb-dstudio-pane + .wb-dstudio-pane {
   border-top: 1px solid var(--border);
 }
 
-.wb-studio-pane-title {
+.wb-dstudio-pane-title {
   margin: 0;
   padding: var(--s-2) var(--s-3);
   font-size: 11px;
@@ -13777,7 +13777,7 @@ button.wb-mcplog-summary:focus-visible {
   color: var(--muted);
 }
 
-.wb-studio-stage {
+.wb-dstudio-stage {
   display: flex;
   flex: 1;
   align-items: center;
@@ -13787,7 +13787,7 @@ button.wb-mcplog-summary:focus-visible {
   overflow: auto;
 }
 
-.wb-studio-stage-skeleton {
+.wb-dstudio-stage-skeleton {
   width: 60%;
   height: 60%;
 }
@@ -13796,11 +13796,11 @@ button.wb-mcplog-summary:focus-visible {
    the history, the way out to Focus Mode. It never scrolls with the stage —
    the preset has to stay readable while the Preview is being scrolled. */
 
-.wb-studio {
+.wb-dstudio {
   flex-direction: column;
 }
 
-.wb-studio-toolbar {
+.wb-dstudio-toolbar {
   display: flex;
   flex: 0 0 auto;
   gap: var(--s-2);
@@ -13811,42 +13811,95 @@ button.wb-mcplog-summary:focus-visible {
   background: var(--bg);
 }
 
-.wb-studio-screen-trigger {
+.wb-dstudio-screen-trigger {
   min-width: 8rem;
   max-width: 14rem;
 }
 
-.wb-studio-screen-count {
+.wb-dstudio-screen-count {
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
 
-.wb-studio-viewport {
+.wb-dstudio-viewport {
   display: flex;
   gap: var(--s-2);
   align-items: center;
 }
 
-.wb-studio-viewport-custom {
+.wb-dstudio-viewport-custom {
   display: flex;
   gap: var(--s-1);
   align-items: center;
 }
 
-.wb-studio-viewport-field {
+.wb-dstudio-viewport-field {
   width: 5rem;
 }
 
-.wb-studio-toolbar-end {
+.wb-dstudio-toolbar-end {
   display: flex;
   gap: var(--s-1);
   align-items: center;
   margin-left: auto;
 }
 
-.wb-studio-shortcut {
+.wb-dstudio-shortcut {
   display: inline-flex;
   gap: var(--s-1);
   align-items: center;
+}
+
+/* The bench (T4.5, D-DS-9). Three stacked surface roles and a dot grid —
+   and not one `box-shadow`, which `DESIGN.md`'s Flat-Until-It-Floats rule
+   reserves for portalled surfaces. A guard test enforces that. */
+
+.wb-dstudio-bench {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-5);
+  overflow: auto;
+  background: var(--bg-2);
+}
+
+.wb-dstudio-bench-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.wb-dstudio-bench-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.wb-dstudio-device {
+  padding: var(--s-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--bg);
+}
+
+.wb-dstudio-screen {
+  overflow: hidden;
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+}
+
+/* Under a forced palette the grid is texture the user did not ask for. */
+@media (forced-colors: active) {
+  .wb-dstudio-bench-grid {
+    display: none;
+  }
 }
