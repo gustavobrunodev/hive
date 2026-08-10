@@ -49,6 +49,7 @@ import {
   FolderIcon,
   FolderOpenIcon,
   FolderPlusIcon,
+  LayersIcon,
   MoreIcon,
   PencilIcon,
   PlusIcon,
@@ -200,6 +201,12 @@ export interface FileTreeProps {
    * outside a git repo and in tests that don't drive git.
    */
   decorations?: Map<string, GitDecoration>
+  /**
+   * design-studio (DS-R1 AC-1): opens a Markdown file as a Design Studio tab.
+   * Offered from the row's context menu only for `.md` — the Studio reads a UX
+   * Spec, and offering it on a `.png` would be a menu item that always fails.
+   */
+  onOpenDesignStudio?: (path: string) => void
 }
 
 /** What the pointer was over when the tree's right-click context menu opened: a row, or the empty area (`null`). */
@@ -315,11 +322,36 @@ function GitTreeDecoration({
   )
 }
 
+/**
+ * design-studio (DS-R1 AC-1): "Abrir no Design Studio", offered only where it
+ * can succeed — a Markdown file, with a handler wired. Its own component so
+ * the three guards stay off `FileTree`'s complexity budget.
+ */
+function StudioContextAction({
+  target,
+  onOpen
+}: {
+  target: ContextTarget
+  onOpen?: (path: string) => void
+}): React.JSX.Element | null {
+  if (!onOpen || target.isDir || !isMarkdownPath(target.path)) return null
+  return (
+    <>
+      <ContextMenuItem onSelect={() => onOpen(target.path)}>
+        <LayersIcon size={14} />
+        {t('explorer.menuOpenDesignStudio')}
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+    </>
+  )
+}
+
 export function FileTree({
   workspace,
   selectedPath,
   onOpenFile,
-  decorations = EMPTY_DECORATIONS
+  decorations = EMPTY_DECORATIONS,
+  onOpenDesignStudio
 }: FileTreeProps): React.JSX.Element {
   // git-management (GIT-R11): folders showing a rollup dot when a descendant changed.
   const changedFolders = useMemo(() => rollupChangedFolders(decorations), [decorations])
@@ -1409,6 +1441,7 @@ export function FileTree({
         >
           {contextTarget ? (
             <>
+              <StudioContextAction target={contextTarget} onOpen={onOpenDesignStudio} />
               <ContextMenuItem
                 onSelect={() =>
                   startCreate(

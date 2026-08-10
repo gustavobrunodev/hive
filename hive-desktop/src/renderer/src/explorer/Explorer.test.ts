@@ -2871,4 +2871,71 @@ describe('Explorer (T12/T8)', () => {
     resolveRead('late content')
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
+  /**
+   * design-studio (DS-R1 AC-1) — the Explorer is one of the two entry points
+   * into the Studio ("quem abre a aba é a superfície que já tem o arquivo em
+   * mãos", design.md §2). The action is Markdown-only, so the two tests that
+   * matter are: it is there on a `.md`, and it is NOT there on anything else.
+   */
+  describe('FileTree — "Abrir no Design Studio" (design-studio DS-R1)', () => {
+    beforeEach(() => {
+      mockHive()
+    })
+
+    function renderTree(onOpenDesignStudio?: (path: string) => void): void {
+      render(
+        createElement(FileTree, {
+          workspace: '/ws',
+          selectedPath: null,
+          onOpenFile: () => {},
+          onOpenDesignStudio
+        })
+      )
+    }
+
+    it('opens the Studio for the right-clicked Markdown file', async () => {
+      const onOpenDesignStudio = vi.fn()
+      renderTree(onOpenDesignStudio)
+      await screen.findByText('prd.md')
+
+      const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+      fireEvent.click(await screen.findByRole('menuitem', { name: /Abrir no Design Studio/ }))
+
+      expect(onOpenDesignStudio).toHaveBeenCalledWith('docs/prd.md')
+    })
+
+    it('does not offer the Studio on a non-Markdown file', async () => {
+      renderTree(vi.fn())
+      await screen.findByText('a.txt')
+
+      const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+
+      await screen.findByRole('menuitem', { name: /Excluir/ })
+      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
+    })
+
+    it('does not offer the Studio on a folder', async () => {
+      renderTree(vi.fn())
+      await screen.findByText('docs')
+
+      const row = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+
+      await screen.findByRole('menuitem', { name: /Excluir/ })
+      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
+    })
+
+    it('omits the action entirely when no handler is wired', async () => {
+      renderTree(undefined)
+      await screen.findByText('prd.md')
+
+      const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+
+      await screen.findByRole('menuitem', { name: /Excluir/ })
+      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
+    })
+  })
 })

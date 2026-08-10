@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import type { FileViewerHandle } from '../explorer/Explorer'
 import type { GitDiffSide } from '../scm/gitStatus'
 
-/** What an editor tab shows (git-management §6.5; +review, Agent Change Review). */
-export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit' | 'review'
+/** What an editor tab shows (git-management §6.5; +review, Agent Change Review; +design-studio, M18). */
+export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit' | 'review' | 'design-studio'
 
 /** One open editor tab (state owned by `WorkUI`). */
 export interface EditorTab {
@@ -23,6 +23,8 @@ export interface EditorTab {
   kind: EditorTabKind
   /** For diff/conflict tabs: the real file path (+ side for a diff); for a commit tab: the commit hash. */
   git?: { path?: string; side?: GitDiffSide; hash?: string }
+  /** For a `design-studio` tab: the workspace-relative path of the UX Spec it reads (design-studio DS-R1). */
+  spec?: { path: string }
   /** Display name override (diff/conflict tabs show the file's basename, not the synthetic key). */
   label?: string
 }
@@ -53,6 +55,21 @@ function reviewKey(path: string): string {
   return `⟨review⟩${path}`
 }
 
+/**
+ * Synthetic tab key for a Design Studio session (design-studio DS-R1 AC-1/4).
+ *
+ * The brackets are what keep it out of the plain file tab's namespace: tab
+ * identity *is* the key, so a Studio tab keyed by the Spec's own path would be
+ * the same tab as the Spec open for reading — opening one would silently
+ * replace the other, and closing either would close both. Prefixing makes the
+ * two coexist, and makes "open the same Spec twice" resolve to the one Studio
+ * tab that already exists rather than to a second session over the same JSON
+ * (spec.md Edge Cases: two tabs on one Spec).
+ */
+function studioKey(specPath: string): string {
+  return `⟨studio⟩${specPath}`
+}
+
 /** Everything `WorkUI` needs to drive the multi-tab editor pane. */
 export interface EditorTabsState {
   tabs: EditorTab[]
@@ -69,6 +86,8 @@ export interface EditorTabsState {
   openConflict: (filePath: string) => void
   /** Opens (or focuses) an agent-review diff tab for `filePath` (Agent Change Review, ACR-R2.4). */
   openReviewDiff: (filePath: string) => void
+  /** Opens (or focuses) the Design Studio tab for a UX Spec (design-studio DS-R1 AC-1/4). */
+  openDesignStudio: (specPath: string) => void
   selectTab: (path: string) => void
   pinTab: (path: string) => void
   /** Closes unconditionally (callers that already guarded, e.g. the viewer's own internally-guarded close). */
@@ -172,6 +191,23 @@ export function useEditorTabs(): EditorTabsState {
     [openTab]
   )
 
+  // Opens pinned, unlike every other tab here: a Studio tab owns an editing
+  // session (tree, transcript, undo cursor), and the VS Code preview slot is
+  // *replaced* by the next single click. A session that can be thrown away by
+  // clicking a file in the tree is a session the user cannot trust.
+  const openDesignStudio = useCallback(
+    (specPath: string) => {
+      openTab({
+        path: studioKey(specPath),
+        pinned: true,
+        kind: 'design-studio',
+        spec: { path: specPath },
+        label: baseName(specPath)
+      })
+    },
+    [openTab]
+  )
+
   const pinTab = useCallback((path: string) => {
     setTabs((current) =>
       current.map((tab) => (tab.path === path && !tab.pinned ? { ...tab, pinned: true } : tab))
@@ -269,6 +305,7 @@ export function useEditorTabs(): EditorTabsState {
     openCommitDiff,
     openConflict,
     openReviewDiff,
+    openDesignStudio,
     selectTab: setActivePath,
     pinTab,
     removeTab,

@@ -82,3 +82,47 @@ describe('useEditorTabs — diff tabs (git-management §6.5)', () => {
     expect(result.current.tabs.filter((t) => t.kind === 'diff')).toHaveLength(1)
   })
 })
+
+describe('useEditorTabs — Design Studio tabs (design-studio DS-R1)', () => {
+  it('opens a Design Studio tab with a synthetic key, kind and spec descriptor', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openDesignStudio('docs/ux/EXPERIENCE.md'))
+
+    const tab = result.current.tabs[0]
+    expect(tab.kind).toBe('design-studio')
+    expect(tab.spec).toEqual({ path: 'docs/ux/EXPERIENCE.md' })
+    expect(tab.label).toBe('EXPERIENCE.md')
+    expect(result.current.activePath).toBe(tab.path)
+  })
+
+  it('never collides with the plain file tab for the same Spec path', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openFile('spec.md', { pin: true }))
+    act(() => result.current.openDesignStudio('spec.md'))
+
+    expect(result.current.tabs).toHaveLength(2)
+    const studio = result.current.tabs.find((tab) => tab.kind === 'design-studio')
+    expect(studio?.path).not.toBe('spec.md')
+    expect(result.current.tabs.filter((tab) => tab.kind === 'file')[0].path).toBe('spec.md')
+  })
+
+  it('focuses the existing tab when the same Spec is opened twice (AC-4)', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openDesignStudio('spec.md'))
+    const first = result.current.tabs[0].path
+    act(() => result.current.openFile('other.txt'))
+    act(() => result.current.openDesignStudio('spec.md'))
+
+    expect(result.current.tabs.filter((tab) => tab.kind === 'design-studio')).toHaveLength(1)
+    expect(result.current.activePath).toBe(first)
+  })
+
+  it('opens pinned, so the next single-click open cannot discard the session', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openDesignStudio('spec.md'))
+    act(() => result.current.openFile('other.txt'))
+
+    expect(result.current.tabs).toHaveLength(2)
+    expect(result.current.tabs[0].pinned).toBe(true)
+  })
+})

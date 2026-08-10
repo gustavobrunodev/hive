@@ -69,6 +69,8 @@ export const ptBR = {
     menuNewFolder: 'Nova pasta',
     menuRename: 'Renomear',
     menuDelete: 'Excluir',
+    /** design-studio DS-R1 AC-1: the Explorer entry point, offered only on Markdown. */
+    menuOpenDesignStudio: 'Abrir no Design Studio',
     deleteDialogTitle: 'Mover para a Lixeira?',
     deleteDialogDescription: (name: string) =>
       `"${name}" será movido para a lixeira do sistema. Você pode recuperá-lo por lá.`,
@@ -1358,7 +1360,10 @@ export const ptBR = {
     placeholder: 'Buscar arquivos no workspace…',
     empty: 'Nenhum arquivo corresponde à busca.',
     hint: '↑ ↓ navega · Enter abre · Esc fecha',
-    openAria: (name: string) => `Abrir arquivo ${name}`
+    openAria: (name: string) => `Abrir arquivo ${name}`,
+    /** design-studio DS-R1 AC-1: the palette's second way in — the workspace's Specs. */
+    designStudioGroup: 'Design Studio',
+    openDesignStudioAria: (name: string) => `Abrir ${name} no Design Studio`
   },
   // npm-distribution T10 (ND-R6): the self-update flow's copy — `UpdateNotice`
   // (Tier 2, design.md §5 mock-up) and `UpdateCenter` (Tier 3, T13's

@@ -838,6 +838,7 @@ export function WorkUI({
                   selectedPath={editor.activePath}
                   onOpenFile={editor.openFile}
                   decorations={git.decorations}
+                  onOpenDesignStudio={editor.openDesignStudio}
                 />
               }
               scm={
@@ -934,6 +935,12 @@ export function WorkUI({
                   <ConflictView path={tab.git.path} />
                 ) : tab.kind === 'review' && tab.git?.path ? (
                   <ReviewDiffTab path={tab.git.path} />
+                ) : tab.kind === 'design-studio' ? (
+                  // design-studio (M18): the Studio's body arrives in T4.3.
+                  // The branch exists from T4.1 so the synthetic key never
+                  // falls through to `FileViewer`, which would try to read a
+                  // file named `⟨studio⟩…` and show a read error.
+                  <></>
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}
@@ -1182,6 +1189,7 @@ export function WorkUI({
             onOpenChange={setSearchOpen}
             workspace={workspace}
             onOpenFile={editor.openFile}
+            onOpenDesignStudio={editor.openDesignStudio}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
           <UpdateNotice

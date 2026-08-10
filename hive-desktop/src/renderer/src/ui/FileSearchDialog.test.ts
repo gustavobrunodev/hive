@@ -29,6 +29,8 @@ vi.mock('@hive/design-system', () => ({
     createElement('input', { placeholder }),
   CommandList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   CommandEmpty: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
+  CommandGroup: ({ children, heading }: { children?: ReactNode; heading?: ReactNode }) =>
+    createElement('section', { 'aria-label': heading }, children),
   CommandItem: ({
     children,
     onSelect,
@@ -188,5 +190,53 @@ describe('FileSearchDialog (P1-024)', () => {
     )
 
     await waitFor(() => expect(listFiles).toHaveBeenCalledWith('/ws-b'))
+  })
+
+  /**
+   * design-studio (DS-R1 AC-1): the palette is the keyboard way into the
+   * Studio. The group lists Specs — Markdown — and nothing else, because
+   * every other row would be an action that cannot succeed.
+   */
+  describe('Design Studio group', () => {
+    it('lists only the Markdown Specs and opens the picked one in the Studio', async () => {
+      const onOpenDesignStudio = vi.fn()
+      const onOpenChange = vi.fn()
+      mockListFiles(async () => ['docs/EXPERIENCE.md', 'src/app.ts'])
+      render(
+        createElement(FileSearchDialog, {
+          open: true,
+          onOpenChange,
+          workspace: '/ws',
+          onOpenFile: vi.fn(),
+          onOpenDesignStudio
+        })
+      )
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Abrir docs/EXPERIENCE.md no Design Studio')).toBeTruthy()
+      )
+      expect(screen.queryByLabelText('Abrir src/app.ts no Design Studio')).toBeNull()
+
+      fireEvent.click(screen.getByLabelText('Abrir docs/EXPERIENCE.md no Design Studio'))
+      expect(onOpenDesignStudio).toHaveBeenCalledWith('docs/EXPERIENCE.md')
+      expect(onOpenChange).toHaveBeenCalledWith(false)
+    })
+
+    it('omits the group entirely when no Studio handler is wired', async () => {
+      mockListFiles(async () => ['docs/EXPERIENCE.md'])
+      render(
+        createElement(FileSearchDialog, {
+          open: true,
+          onOpenChange: vi.fn(),
+          workspace: '/ws',
+          onOpenFile: vi.fn()
+        })
+      )
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Abrir arquivo docs/EXPERIENCE.md')).toBeTruthy()
+      )
+      expect(screen.queryByLabelText('Design Studio')).toBeNull()
+    })
   })
 })
