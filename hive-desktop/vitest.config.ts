@@ -724,6 +724,17 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The Skill's prompt contract and its strict parse (T6.1). 100 because
+        // the branch that decides between the two failure shapes lives here:
+        // an unexercised refusal path is a malformed turn reported as a
+        // `CapabilityViolation`, which tells the user their Design System
+        // cannot do something it can do perfectly well.
+        'src/main/designStudio/skillDesignSystem.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
         // the far side of a boundary no other test can reach into, and its
         // failures are all quiet: an ignored message looks like a Preview that
