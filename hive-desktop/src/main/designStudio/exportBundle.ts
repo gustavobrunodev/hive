@@ -1,6 +1,6 @@
 import { mkdirSync, renameSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { ScreenDocument } from './types'
+import type { OperationError, ScreenDocument } from './types'
 import type { DesignSystemAdapter } from './dsAdapter/types'
 
 /**
@@ -79,4 +79,59 @@ export function exportScreen(
   writeFileSync(temp, html, 'utf-8')
   renameSync(temp, file)
   return { screenId: document.screenId, title: document.title, file }
+}
+
+/** One Tela's place in a batch: where it landed, or why it did not (DS-R15). */
+export type ExportOutcome =
+  | { screenId: string; title: string; ok: true; file: string }
+  | { screenId: string; title: string; ok: false; error: OperationError }
+
+/** `<slug>.html`, `<slug>-2.html`, … — a batch may hold two Telas with one title. */
+function uniqueFileName(taken: Set<string>, slug: string): string {
+  let candidate = `${slug}.html`
+  for (let suffix = 2; taken.has(candidate); suffix++) candidate = `${slug}-${suffix}.html`
+  taken.add(candidate)
+  return candidate
+}
+
+/**
+ * Exports several Telas, **isolating failure per Tela** (DS-R15, AD-11).
+ *
+ * The rule this encodes is that a batch is a list of independent jobs and never
+ * a transaction: a user who picked five Telas and got nothing because the third
+ * names a Component the DS dropped has lost four good artifacts to one bad one.
+ * So every Screen is attempted, the throw is caught where it happens, and the
+ * caller gets one outcome per Screen in the order it asked — no exception
+ * escapes, and no result is missing.
+ *
+ * The name is reserved even for a Tela that failed, so the Telas after it land
+ * on the same filenames whether the one before them succeeded or not.
+ */
+export function exportMany(
+  adapter: DesignSystemAdapter,
+  documents: readonly ScreenDocument[],
+  outDir: string
+): ExportOutcome[] {
+  const taken = new Set<string>()
+  return documents.map((document) => {
+    const identity = { screenId: document.screenId, title: document.title }
+    const fileName = uniqueFileName(taken, screenSlug(document))
+    try {
+      return { ...identity, ok: true, file: exportScreen(adapter, document, outDir, fileName).file }
+    } catch (err) {
+      return {
+        ...identity,
+        ok: false,
+        error: {
+          kind: 'operation',
+          scope: 'export',
+          message: err instanceof Error ? err.message : String(err),
+          // Both shapes of failure that reach here are worth another go from
+          // the user's seat: disk trouble clears, and a Tela naming a missing
+          // Component is one edit away from exporting.
+          retryable: true
+        }
+      }
+    }
+  })
 }

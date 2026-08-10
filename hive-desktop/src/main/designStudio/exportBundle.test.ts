@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { dirname, join, resolve } from 'path'
-import { exportScreen, screenSlug } from './exportBundle'
+import { exportMany, exportScreen, screenSlug } from './exportBundle'
 import type { DesignSystemAdapter } from './dsAdapter/types'
 import {
   createWebAwesomeAdapter,
@@ -12,12 +12,13 @@ import {
 import type { ScreenDocument, ScreenNode } from './types'
 
 /**
- * design-studio T7.2 — DS-R14 AC-1/2.
+ * design-studio T7.2/T7.3 — DS-R14 AC-1/2, DS-R15.
  *
- * Two claims live here. The first is that the exporter is a *writer*: the bytes
- * on disk are exactly what the adapter produced, so there is no second markup
- * path for the Preview to drift from (AD-6). The second is that a Tela's title
- * — free prose out of a UX Spec — can never decide where the file lands.
+ * Three claims live here. The exporter is a *writer*: the bytes on disk are
+ * exactly what the adapter produced, so there is no second markup path for the
+ * Preview to drift from (AD-6). A Tela's title — free prose out of a UX Spec —
+ * decides the file's name and never its location. And a batch is a list of
+ * independent jobs: one bad Tela costs the user that Tela and no other.
  *
  * "Opens with the network off and matches the Preview" is the other half of
  * this task and cannot be asserted in jsdom: it needs a real browser, real
@@ -108,6 +109,119 @@ describe('exportScreen writes the adapter’s document, byte for byte', () => {
       const result = exportScreen(realAdapter(), screen('Login'), dir, 'login-2.html')
       expect(result.file).toBe(join(dir, 'login-2.html'))
       expect(readdirSync(dir)).toEqual(['login-2.html'])
+    })
+  })
+})
+
+describe('a batch is a list of independent jobs, never a transaction (DS-R15)', () => {
+  /** The spec's own Independent Test: three Telas, the middle one forced to fail. */
+  function threeWithABadMiddle(): ScreenDocument[] {
+    return [
+      { screenId: 's1', title: 'Login', root: node('n1', 'wa-card') },
+      { screenId: 's2', title: 'Cadastro', root: node('n1', 'wa-nao-existe') },
+      { screenId: 's3', title: 'Sucesso', root: node('n1', 'wa-card') }
+    ]
+  }
+
+  it('writes 2 files and reports 1 OperationError, with nothing thrown', () => {
+    withTempDir((dir) => {
+      const outcomes = exportMany(realAdapter(), threeWithABadMiddle(), dir)
+
+      expect(readdirSync(dir).sort()).toEqual(['login.html', 'sucesso.html'])
+      expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, false, true])
+      expect(outcomes.filter((outcome) => !outcome.ok)).toHaveLength(1)
+    })
+  })
+
+  it('scopes the failure to the Tela that caused it', () => {
+    withTempDir((dir) => {
+      const failed = exportMany(realAdapter(), threeWithABadMiddle(), dir)[1]
+      expect(failed).toEqual({
+        screenId: 's2',
+        title: 'Cadastro',
+        ok: false,
+        error: {
+          kind: 'operation',
+          scope: 'export',
+          message: expect.stringContaining('wa-nao-existe'),
+          retryable: true
+        }
+      })
+    })
+  })
+
+  it('reports one outcome per Tela, in the order it was asked', () => {
+    withTempDir((dir) => {
+      const outcomes = exportMany(realAdapter(), threeWithABadMiddle(), dir)
+      expect(outcomes.map((outcome) => outcome.screenId)).toEqual(['s1', 's2', 's3'])
+      expect(outcomes[0]).toEqual({
+        screenId: 's1',
+        title: 'Login',
+        ok: true,
+        file: join(dir, 'login.html')
+      })
+    })
+  })
+
+  it('keeps two Telas with the same title apart', () => {
+    withTempDir((dir) => {
+      const outcomes = exportMany(
+        realAdapter(),
+        [
+          { screenId: 'a', title: 'Login', root: node('n1', 'wa-card') },
+          { screenId: 'b', title: 'Login', root: node('n1', 'wa-card') },
+          { screenId: 'c', title: 'Login', root: node('n1', 'wa-card') }
+        ],
+        dir
+      )
+      expect(readdirSync(dir).sort()).toEqual(['login-2.html', 'login-3.html', 'login.html'])
+      expect(outcomes.every((outcome) => outcome.ok)).toBe(true)
+    })
+  })
+
+  it('gives the Telas after a failure the names they would have had anyway', () => {
+    withTempDir((dir) => {
+      const outcomes = exportMany(
+        realAdapter(),
+        [
+          { screenId: 'a', title: 'Login', root: node('n1', 'wa-nao-existe') },
+          { screenId: 'b', title: 'Login', root: node('n1', 'wa-card') }
+        ],
+        dir
+      )
+      expect(readdirSync(dir)).toEqual(['login-2.html'])
+      expect(outcomes[1]).toMatchObject({ ok: true, file: join(dir, 'login-2.html') })
+    })
+  })
+
+  it('turns a thrown non-Error into an OperationError all the same', () => {
+    withTempDir((dir) => {
+      // DS-R17 allows two failure shapes and no third, so whatever comes out
+      // of a failing render has to arrive as one of them — including the
+      // string a stray `throw` produces.
+      const throwsAString: DesignSystemAdapter = {
+        id: 'stub',
+        catalog: () => ({ dsId: 'stub', version: '0', components: [] }),
+        validate: () => null,
+        renderToStaticHtml: () => {
+          throw 'disco cheio'
+        }
+      }
+      const [outcome] = exportMany(throwsAString, [screen('Login')], dir)
+      expect(outcome).toEqual({
+        screenId: 'login',
+        title: 'Login',
+        ok: false,
+        error: { kind: 'operation', scope: 'export', message: 'disco cheio', retryable: true }
+      })
+      expect(readdirSync(dir)).toEqual([])
+    })
+  })
+
+  it('exports nothing and reports nothing for an empty selection', () => {
+    withTempDir((dir) => {
+      expect(exportMany(realAdapter(), [], dir)).toEqual([])
+      expect(readdirSync(dir)).toEqual([])
     })
   })
 })
