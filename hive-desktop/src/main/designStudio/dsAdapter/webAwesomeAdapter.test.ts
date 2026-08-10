@@ -14,7 +14,9 @@ import type { Command, ScreenDocument, ScreenNode } from '../types'
 
 const resourcesRoot = resolve(__dirname, '..', '..', '..', '..', 'resources')
 const catalog = loadWebAwesomeCatalog(resourcesRoot)
-const adapter = createWebAwesomeAdapter(catalog)
+/** Stand-ins for the ~936 KB bundle: `renderToStaticHtml` is covered in `staticHtml.test.ts`. */
+const assets = { style: '/* css */', script: '/* js */' }
+const adapter = createWebAwesomeAdapter(catalog, () => assets)
 
 function node(id: string, tag: string, extra: Partial<ScreenNode> = {}): ScreenNode {
   return { id, tag, props: {}, children: [], ...extra }
@@ -323,7 +325,7 @@ describe('validate — an empty Tela', () => {
 
 describe('extra prop rules layered on the catalog kind', () => {
   it('runs them after the kind check and reports the first reason as a violation', () => {
-    const strict = createWebAwesomeAdapter(catalog, [
+    const strict = createWebAwesomeAdapter(catalog, () => assets, [
       (_tag, prop, value) => (value === 'brand' ? `"${prop.name}" bloqueada pela regra.` : null)
     ])
     expect(

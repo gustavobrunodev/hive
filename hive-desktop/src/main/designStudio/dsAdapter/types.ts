@@ -12,9 +12,11 @@
  * generation and manual editing consult *the same* function, so a second
  * "isValidForInspector" helper would be the bug, not the convenience.
  *
- * `renderToStaticHtml()` (AD-6, the single producer of Bundle markup) joins
- * this interface in phase 7 with the export flow that needs it; adding it now
- * would only buy a stub nobody calls.
+ * `renderToStaticHtml()` (AD-6) is the third and last member: the **single
+ * producer of Bundle markup**. It is on the port rather than on the exporter so
+ * that "the Export renders through the same adapter the Preview does" is a
+ * property of the architecture instead of a convention — a second design system
+ * brings its own document format with it, and the exporter never learns.
  */
 
 import type { Command, ComponentCatalog, ScreenDocument } from '../types'
@@ -33,6 +35,15 @@ export interface DesignSystemAdapter {
    * render.
    */
   validate(command: Command, document: ScreenDocument): CapabilityViolation | null
+  /**
+   * The Screen as one self-contained HTML document — live components, shadow
+   * DOM intact, zero network (D-DS-1, DS-R14 AC-1/2).
+   *
+   * Throws when the Screen names a Component this design system does not have:
+   * the exporter turns that into an `OperationError` scoped to the one Screen
+   * (DS-R15) rather than writing a file that renders as nothing.
+   */
+  renderToStaticHtml(document: ScreenDocument): string
 }
 
 /** Builds the adapter. Called at most once per DS id by the registry. */

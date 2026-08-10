@@ -59,6 +59,7 @@ import { createDesignStudioService } from './designStudio/designStudioService'
 import { registerDesignSystem, resolveActiveAdapter } from './designStudio/dsAdapter/registry'
 import {
   createWebAwesomeAdapter,
+  loadWebAwesomeAssets,
   loadWebAwesomeCatalog,
   WEB_AWESOME_DS_ID
 } from './designStudio/dsAdapter/webAwesomeAdapter'
@@ -1059,7 +1060,9 @@ app.whenReady().then(() => {
   // lazily and exactly once (DS-R12 AC-6): the app boots long before anyone
   // opens the Studio, and the catalog is not free to read.
   registerDesignSystem(WEB_AWESOME_DS_ID, () =>
-    createWebAwesomeAdapter(loadWebAwesomeCatalog(studioRoots.preview))
+    createWebAwesomeAdapter(loadWebAwesomeCatalog(studioRoots.preview), () =>
+      loadWebAwesomeAssets(studioRoots.preview)
+    )
   )
   const designStudioService = createDesignStudioService(() =>
     resolveActiveAdapter(WEB_AWESOME_DS_ID)

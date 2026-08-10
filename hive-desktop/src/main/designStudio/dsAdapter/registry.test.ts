@@ -5,7 +5,12 @@ import type { DesignSystemAdapter } from './types'
 /** design-studio T2.3 — DS-R12 AC-6: resolved once by the registry, never per Tela. */
 
 function fakeAdapter(id: string): DesignSystemAdapter {
-  return { id, catalog: () => ({ dsId: id, version: '0', components: [] }), validate: () => null }
+  return {
+    id,
+    catalog: () => ({ dsId: id, version: '0', components: [] }),
+    validate: () => null,
+    renderToStaticHtml: () => ''
+  }
 }
 
 beforeEach(() => {

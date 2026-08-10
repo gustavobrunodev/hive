@@ -28,6 +28,7 @@ import type {
 import type { DesignSystemAdapter } from './types'
 import { WEB_AWESOME_DS_ID } from './catalogBuild'
 import { urlSchemeReason } from './urlSchemeRule'
+import { renderStaticDocument, type StaticAssets } from './staticHtml'
 
 export { WEB_AWESOME_DS_ID }
 
@@ -37,6 +38,19 @@ export const WEB_AWESOME_DIRNAME = 'design-system-web-awesome'
 export function loadWebAwesomeCatalog(resourcesRoot: string): ComponentCatalog {
   const path = join(resourcesRoot, WEB_AWESOME_DIRNAME, 'catalog.json')
   return JSON.parse(readFileSync(path, 'utf-8')) as ComponentCatalog
+}
+
+/**
+ * The two files an exported Screen carries inline. Read through a thunk the
+ * adapter only calls when someone actually exports: this is ~936 KB, and the
+ * adapter is resolved on the first *catalog* read, long before that.
+ */
+export function loadWebAwesomeAssets(resourcesRoot: string): StaticAssets {
+  const dir = join(resourcesRoot, WEB_AWESOME_DIRNAME)
+  return {
+    style: readFileSync(join(dir, 'webawesome.css'), 'utf-8'),
+    script: readFileSync(join(dir, 'webawesome.js'), 'utf-8')
+  }
 }
 
 /** A catalog prop with the enum's values normalised, so no reader needs a fallback. */
@@ -264,15 +278,28 @@ function validateSetProp(
  *
  * The catalog kind check and the URL scheme allowlist (T2.5) always run; `rules`
  * are additional per-prop checks a caller layers on top.
+ *
+ * `loadAssets` is a thunk, and it is memoised on first use: exporting several
+ * Screens at once (DS-R15) must not re-read a megabyte per Screen, and an app
+ * that never opens the Studio must not read it at all.
  */
 export function createWebAwesomeAdapter(
   catalog: ComponentCatalog,
+  loadAssets: () => StaticAssets,
   rules: PropRule[] = []
 ): DesignSystemAdapter {
   const index = indexCatalog(catalog)
+  const knownTags = new Set(catalog.components.map((component) => component.tag))
+  let assets: StaticAssets | null = null
   return {
     id: catalog.dsId,
     catalog: () => catalog,
+
+    renderToStaticHtml(document: ScreenDocument): string {
+      assets ??= loadAssets()
+      return renderStaticDocument(document, assets, knownTags)
+    },
+
     validate(command: Command, document: ScreenDocument): CapabilityViolation | null {
       switch (command.type) {
         case 'AddComponent':

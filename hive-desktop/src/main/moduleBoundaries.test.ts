@@ -313,6 +313,70 @@ export function findDesignSystemImports(sourceText: string, filePath: string): B
   return violations
 }
 
+/**
+ * design-studio T7.1 / AD-6. `renderToStaticHtml()` is the **single producer of
+ * Bundle markup**, and this is the sensor that keeps it single.
+ *
+ * The Export is the one place a second renderer would be easy and reasonable to
+ * write: it needs a string, the adapter is behind a port, and a template
+ * literal is right there. The cost only appears later — the Preview and the
+ * artifact the user already sent to the Figma Agent quietly disagreeing about a
+ * boolean prop or a slot. Since D-DS-1 the whole design rests on there being
+ * one renderer, so "the exporter builds no markup of its own" has to be
+ * measured rather than remembered.
+ *
+ * It keys on the two things a second renderer cannot avoid: the structural
+ * vocabulary of an HTML *document* (a Bundle is a whole `.html`, so `<!doctype`,
+ * `<html>`, `<body>`, `<script>` are unavoidable), and any tag written with an
+ * attribute — which is how a prop reaches an element. Tag-shaped delimiters
+ * that carry neither, like the `<catalog>` … `</catalog>` sections of the
+ * Skill's prompt, are not markup and are correctly left alone.
+ *
+ * Two exceptions, both narrow and both outside the Bundle: `dsAdapter/` (which
+ * *is* the renderer) and `previewSessions.ts` (the served Preview shell, which
+ * never becomes a file).
+ */
+const MARKUP_SIGNALS = [
+  /<!doctype/i,
+  /<\/?(html|head|body|title|meta|link|script|style|div|span|p|a|img|ul|ol|li|table)\b/i,
+  /<[a-z][a-z0-9-]*\s+[a-z-]+\s*=\s*["']/i
+]
+
+const RENDER_INSTEAD =
+  'builds HTML markup outside the design system adapter (AD-6). The Bundle has ' +
+  'exactly one renderer — DesignSystemAdapter.renderToStaticHtml() — because a ' +
+  'second one drifts from the Preview and the drift only shows up in the file ' +
+  'the user already handed on.'
+
+export function findMarkupConstruction(sourceText: string, filePath: string): BoundaryViolation[] {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  )
+  const violations: BoundaryViolation[] = []
+
+  function report(node: ts.Node, text: string): void {
+    if (!MARKUP_SIGNALS.some((signal) => signal.test(text))) return
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+    violations.push({ line: line + 1, message: `literal '${text.trim()}' ${RENDER_INSTEAD}` })
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      report(node, node.text)
+    } else if (ts.isTemplateExpression(node)) {
+      report(node, node.head.text + node.templateSpans.map((span) => span.literal.text).join(''))
+    }
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  return violations
+}
+
 function collectSourceFiles(dir: string): string[] {
   const files: string[] = []
   for (const entry of readdirSync(dir)) {
@@ -624,6 +688,75 @@ describe('only dsAdapter/ knows which design system is installed', () => {
     const allViolations = files.flatMap((absolutePath) => {
       const filePath = relative(packageRoot, absolutePath)
       return findDesignSystemImports(readFileSync(absolutePath, 'utf-8'), filePath).map(
+        (v) => `${filePath}:${v.line} — ${v.message}`
+      )
+    })
+
+    expect(allViolations).toEqual([])
+  })
+})
+
+/**
+ * design-studio T7.1 / AD-6. The Bundle has exactly one producer of markup.
+ */
+describe('only the design system adapter builds markup', () => {
+  it('flags a template literal that opens an element', () => {
+    const violations = findMarkupConstruction(
+      'const html = `<!doctype html><body>${markup}</body>`',
+      'src/main/designStudio/exportBundle.ts'
+    )
+    expect(violations).toHaveLength(1)
+    expect(violations[0].message).toContain('renderToStaticHtml()')
+  })
+
+  it('flags a Component written with a prop, and a structural closing tag', () => {
+    expect(
+      findMarkupConstruction(
+        `const wrap = '<wa-card appearance="outlined">'`,
+        'src/main/designStudio/exportBundle.ts'
+      )
+    ).toHaveLength(1)
+    expect(
+      findMarkupConstruction(`const end = '</div>'`, 'src/main/designStudio/exportBundle.ts')
+    ).toHaveLength(1)
+  })
+
+  it('leaves the Skill prompt’s tag-shaped delimiters alone — they are not markup', () => {
+    expect(
+      findMarkupConstruction(
+        `const prompt = '<catalog>' + text + '</catalog>' + '<current-tree>'`,
+        'src/main/designStudio/skillDesignSystem.ts'
+      )
+    ).toEqual([])
+  })
+
+  it('leaves ordinary strings, comparisons and selectors alone', () => {
+    expect(
+      findMarkupConstruction(
+        `const message = 'A Tela "Login" não pôde ser exportada (1 < 2).'
+         const selector = '[data-hive-node]'
+         const path = join(outDir, 'login.html')
+         if (a < b) return null`,
+        'src/main/designStudio/exportBundle.ts'
+      )
+    ).toEqual([])
+  })
+
+  it('no design-studio file outside dsAdapter/ builds markup', () => {
+    const packageRoot = resolve(__dirname, '..', '..')
+    const files = collectSourceFiles(join(packageRoot, 'src', 'main', 'designStudio')).filter(
+      (file) =>
+        // The adapter *is* the renderer, and the Preview shell is served, never
+        // written to disk — it is not a Bundle and has no second copy to drift from.
+        !file.includes(`${sep}dsAdapter${sep}`) &&
+        !file.endsWith(`${sep}previewSessions.ts`) &&
+        !/\.test\.tsx?$/.test(file)
+    )
+    expect(files.length).toBeGreaterThan(0)
+
+    const allViolations = files.flatMap((absolutePath) => {
+      const filePath = relative(packageRoot, absolutePath)
+      return findMarkupConstruction(readFileSync(absolutePath, 'utf-8'), filePath).map(
         (v) => `${filePath}:${v.line} — ${v.message}`
       )
     })
