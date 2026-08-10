@@ -36,6 +36,7 @@ import type {
 import type { ScreenView } from '../main/designStudio/designStudioService'
 import type { StudioSkillEvent } from '../main/designStudio/skillDesignSystem'
 import type { StudioSkillRequest } from '../main/designStudio/studioSkillRuns'
+import type { ExportRequest, ExportRun } from '../main/designStudio/exportBundle'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
@@ -348,6 +349,13 @@ const hive = {
       ipcRenderer.invoke('designStudio:undo', key, screenId, title),
     redo: (key: string, screenId: string, title: string): Promise<ScreenView> =>
       ipcRenderer.invoke('designStudio:redo', key, screenId, title),
+    // The Bundle (T7.4, DS-R14/DS-R15). One call for one Tela or for many —
+    // there is no second path for a batch, so "the failure of one does not stop
+    // the others" cannot be true on one path and false on the other. Resolves
+    // to the whole report, including `canceled` when the folder picker was
+    // closed; it never rejects.
+    export: (requests: ExportRequest[]): Promise<ExportRun> =>
+      ipcRenderer.invoke('designStudio:export', requests),
     // The Skill (T6.2, DS-R2). Streamed on the `secondBrain:install` mold: the
     // returned function unsubscribes *and* tells main to stop forwarding, so a
     // Tela the user left behind stops painting into a stage that moved on.

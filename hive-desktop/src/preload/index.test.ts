@@ -478,6 +478,24 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:redo', 'k', 'login', 'Login')
   })
 
+  // T7.4 (DS-R15): one channel for one Tela and for many, so "the failure of
+  // one does not stop the others" cannot be true on one path and false on
+  // another.
+  it('hive.designStudio.export invokes the export channel with every Tela asked for', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      designStudio: {
+        export: (requests: { key: string; screenId: string; title: string }[]) => Promise<unknown>
+      }
+    }
+    const requests = [
+      { key: 'k1', screenId: 'login', title: 'Login' },
+      { key: 'k2', screenId: 'cadastro', title: 'Cadastro' }
+    ]
+
+    await expect(hive.designStudio.export(requests)).resolves.toBe('invoked:designStudio:export')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:export', requests)
+  })
+
   // Profile namespace (agent-selection + role-personalization).
   it('hive.profile.* invokes the matching profile IPC channels', async () => {
     const hive = exposedGlobals().get('hive') as {

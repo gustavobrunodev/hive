@@ -63,6 +63,8 @@ import {
   loadWebAwesomeCatalog,
   WEB_AWESOME_DS_ID
 } from './designStudio/dsAdapter/webAwesomeAdapter'
+import { exportMany } from './designStudio/exportBundle'
+import type { ExportRequest, ExportRun } from './designStudio/exportBundle'
 import { createStudioSkillRuns } from './designStudio/studioSkillRuns'
 import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
 import { detectScreens } from './designStudio/screenDetection'
@@ -1097,6 +1099,31 @@ app.whenReady().then(() => {
     'designStudio:redo',
     async (_event, key: string, screenId: string, title: string) =>
       designStudioService.redo(key, screenId, title)
+  )
+
+  // The Bundle (T7.4, DS-R14 AC-3 / DS-R15). Every Tela is read with `view()`,
+  // which replays the log and moves nothing: exporting is the one operation
+  // that must leave the edit state exactly where it found it, so it goes
+  // through the *reading* door and never through `dispatch`/`undo`/`redo`.
+  // Failure is isolated per Tela inside `exportMany`, so this handler never
+  // rejects — the report comes back whole, with the good and the bad in it.
+  ipcMain.handle(
+    'designStudio:export',
+    async (_event, requests: ExportRequest[]): Promise<ExportRun> => {
+      const picked = await dialog.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory']
+      })
+      const outDir = picked.canceled ? undefined : picked.filePaths[0]
+      if (outDir === undefined) return { canceled: true, outDir: null, outcomes: [] }
+      const documents = requests.map(
+        (request) => designStudioService.view(request.key, request.screenId, request.title).document
+      )
+      return {
+        canceled: false,
+        outDir,
+        outcomes: exportMany(resolveActiveAdapter(WEB_AWESOME_DS_ID), documents, outDir)
+      }
+    }
   )
 
   const activeSbInstallStops = new Map<number, () => void>()

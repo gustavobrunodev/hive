@@ -1454,8 +1454,21 @@ export const ptBR = {
     inspectorGroupState: 'Estado',
     inspectorGroupContent: 'Conteúdo',
     inspectorGroupAdvanced: 'Avançado',
+    // T7.4 (DS-R14/DS-R15): exportar é escolher **quais** Telas e para onde. O
+    // relatório fica no mesmo lugar porque um lote pode ser meio bom.
     exportLabel: 'Exportar',
-    exportUnavailable: 'A exportação chega na fase final da milestone'
+    exportHint: 'Gera um HTML autocontido por Tela',
+    exportDialogTitle: 'Exportar Telas',
+    exportDialogDescription:
+      'Cada Tela vira um arquivo HTML autocontido — componentes vivos, CSS e ícones embutidos, sem depender de rede.',
+    exportListAria: 'Telas a exportar',
+    exportScreenAria: (title: string) => `Exportar a Tela ${title}`,
+    exportConfirm: 'Escolher a pasta e exportar',
+    exportAgain: 'Exportar de novo',
+    exportCancel: 'Cancelar',
+    exportClose: 'Fechar',
+    exportDone: (count: number, dir: string) =>
+      count === 1 ? `1 Tela exportada em ${dir}` : `${count} Telas exportadas em ${dir}`
   },
   fileSearch: {
     dialogLabel: 'Buscar arquivos no workspace',

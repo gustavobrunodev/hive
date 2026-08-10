@@ -772,6 +772,14 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The report's one derivation (T7.4): which Telas failed. A gap here
+        // is a batch that reports success over a Tela that never landed.
+        'src/renderer/src/designStudio/exportModel.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The in-frame receiver (T3.4–T3.6). It runs inside the sandbox, on
         // the far side of a boundary no other test can reach into, and its
         // failures are all quiet: an ignored message looks like a Preview that

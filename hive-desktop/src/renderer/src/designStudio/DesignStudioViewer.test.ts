@@ -99,6 +99,9 @@ function mockScreens(
       undo: vi.fn().mockResolvedValue(view),
       redo: vi.fn().mockResolvedValue(view),
       // T6.2: the Skill's stream, captured so the test drives the turn by hand.
+      // T7.4: the export. Resolves to a report by default; a test that cares
+      // about the report overrides it.
+      export: vi.fn().mockResolvedValue({ canceled: false, outDir: '/tmp/bundles', outcomes: [] }),
       runSkill: vi.fn((request: unknown, onEvent: (event: unknown) => void) => {
         skillRuns.push({ request, emit: onEvent })
         return () => {}
@@ -1104,5 +1107,101 @@ describe('DesignStudioViewer — the transcript and the failed turn (T6.7)', () 
       )
     )
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+  })
+})
+
+/**
+ * design-studio T7.4 — DS-R14 AC-3/4, DS-R15.
+ *
+ * The two assertions that matter here are **negatives**: exporting is the one
+ * operation that must leave the Tela exactly as it found it, so the test proves
+ * that nothing was dispatched, that neither history move was called, and that
+ * the undo affordance the toolbar shows is unchanged afterwards.
+ */
+describe('DesignStudioViewer — exporting leaves the Tela alone (T7.4)', () => {
+  const twoScreens: ScreensResponse = {
+    screens: [
+      { screenId: 'login', title: 'Login', probe: 'screenHeading' },
+      { screenId: 'cadastro', title: 'Cadastro', probe: 'screenHeading' }
+    ],
+    probed: ['screenHeading', 'iaTable']
+  }
+
+  async function openExport(): Promise<void> {
+    mockScreens(async () => twoScreens, NESTED)
+    // A Tela with something to undo, so "the cursor did not move" is a claim
+    // with something to move.
+    const view = { document: NESTED, canUndo: true, canRedo: false }
+    bridge().view.mockResolvedValue(view)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar' }))
+    await screen.findByText('Exportar Telas')
+  }
+
+  it('sends the Telas the user chose, addressed by their document keys', async () => {
+    await openExport()
+
+    fireEvent.click(screen.getByLabelText('Exportar a Tela Cadastro'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Escolher a pasta e exportar' }))
+    })
+
+    expect(bridge().export).toHaveBeenCalledWith([
+      { key: documentKey('/ws', 'docs/ux.md', 'login'), screenId: 'login', title: 'Login' },
+      {
+        key: documentKey('/ws', 'docs/ux.md', 'cadastro'),
+        screenId: 'cadastro',
+        title: 'Cadastro'
+      }
+    ])
+  })
+
+  it('dispatches no Command and moves no cursor (DS-R14 AC-3)', async () => {
+    await openExport()
+    bridge().dispatch.mockClear()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Escolher a pasta e exportar' }))
+    })
+
+    expect(bridge().dispatch).not.toHaveBeenCalled()
+    expect(bridge().undo).not.toHaveBeenCalled()
+    expect(bridge().redo).not.toHaveBeenCalled()
+    // The session's own view of history is what the toolbar paints, and it is
+    // exactly where it was before the export ran. Queried by label rather than
+    // by role: an open modal `aria-hidden`s the rest of the tab, so the toolbar
+    // is out of the accessibility tree while the dialog is up.
+    expect((screen.getByLabelText('Desfazer') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('reports the batch where it was asked for, failures and all (DS-R15)', async () => {
+    await openExport()
+    bridge().export.mockResolvedValue({
+      canceled: false,
+      outDir: '/tmp/bundles',
+      outcomes: [
+        { screenId: 'login', title: 'Login', ok: true, file: '/tmp/bundles/login.html' },
+        {
+          screenId: 'cadastro',
+          title: 'Cadastro',
+          ok: false,
+          error: {
+            kind: 'operation',
+            scope: 'export',
+            message: 'O Componente "wa-x" não existe no design system ativo.',
+            retryable: true
+          }
+        }
+      ]
+    })
+
+    fireEvent.click(screen.getByLabelText('Exportar a Tela Cadastro'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Escolher a pasta e exportar' }))
+    })
+
+    expect(screen.getByText('1 Tela exportada em /tmp/bundles')).toBeTruthy()
+    expect(screen.getByText('O Componente "wa-x" não existe no design system ativo.')).toBeTruthy()
   })
 })

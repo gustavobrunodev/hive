@@ -36,6 +36,7 @@ import type {
 import type { ScreenView } from '../main/designStudio/designStudioService'
 import type { StudioSkillEvent } from '../main/designStudio/skillDesignSystem'
 import type { StudioSkillRequest } from '../main/designStudio/studioSkillRuns'
+import type { ExportRequest, ExportRun } from '../main/designStudio/exportBundle'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
@@ -146,6 +147,8 @@ declare global {
         ): Promise<ScreenView | CapabilityViolation>
         undo(key: string, screenId: string, title: string): Promise<ScreenView>
         redo(key: string, screenId: string, title: string): Promise<ScreenView>
+        /** Exports one or many Telas as self-contained Bundles (DS-R14/DS-R15); failure is isolated per Tela. */
+        export(requests: ExportRequest[]): Promise<ExportRun>
         /** Runs the Skill for one Tela (DS-R2), streaming status → result/failed. Returns an unsubscribe-and-stop. */
         runSkill(
           request: StudioSkillRequest,

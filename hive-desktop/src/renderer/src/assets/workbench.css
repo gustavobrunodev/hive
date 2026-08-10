@@ -14272,3 +14272,72 @@ button.wb-mcplog-summary:focus-visible {
   font-size: 12px;
   color: var(--danger-ink, var(--ink));
 }
+
+/* The export picker and its report (T7.4, DS-R14/DS-R15). Which Telas is a
+   list of checkboxes rather than a multi-select: the count of Telas is small,
+   and a control the user has to open to see what is chosen is the wrong one
+   for a decision that produces files. The report replaces the list in place,
+   so "what happened" lands where "what do you want" was asked. */
+
+.wb-dstudio-export-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-height: 40vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.wb-dstudio-export-item {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  padding: var(--s-1) 0;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.wb-dstudio-export-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-dstudio-export-count {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* A Tela that did not make it keeps its own reason next to its own name — a
+   batch can be partly good, and "1 falhou" without saying which is a report
+   that makes the user open the folder to find out. */
+
+.wb-dstudio-export-failures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-dstudio-export-failures > li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wb-dstudio-export-failed-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-dstudio-export-failed-reason {
+  font-size: 12px;
+  color: var(--danger-ink, var(--ink));
+}

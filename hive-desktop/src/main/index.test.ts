@@ -1925,6 +1925,65 @@ describe('main process bootstrap', () => {
     })
 
     /**
+     * design-studio T7.4 / DS-R14 AC-3. Exporting is a **read**: it goes
+     * through `view()`, so the log it replays is the log it leaves behind.
+     * Both negatives are asserted here rather than inferred from the code —
+     * the cursor does not move, and nothing about the Tela changes.
+     */
+    it('exports a Tela without moving the undo cursor or touching the Tela', async () => {
+      const key = 'ipc-export-1'
+      await findHandler('designStudio:dispatch')(
+        {},
+        key,
+        'login',
+        'Login',
+        [
+          {
+            type: 'AddComponent',
+            parentId: null,
+            index: 0,
+            node: { id: 'n1', tag: 'wa-button', props: { variant: 'brand' }, children: [] }
+          }
+        ],
+        'g1'
+      )
+      await findHandler('designStudio:undo')({}, key, 'login', 'Login')
+      const before = await findHandler('designStudio:view')({}, key, 'login', 'Login')
+
+      const outDir = mkdtempSync(join(tmpdir(), 'hive-export-ipc-'))
+      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
+        canceled: false,
+        filePaths: [outDir]
+      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
+
+      const run = (await findHandler('designStudio:export')({}, [
+        { key, screenId: 'login', title: 'Login' }
+      ])) as { canceled: boolean; outDir: string; outcomes: { ok: boolean; file?: string }[] }
+
+      expect(run).toMatchObject({ canceled: false, outDir })
+      expect(run.outcomes).toEqual([
+        { screenId: 'login', title: 'Login', ok: true, file: join(outDir, 'login.html') }
+      ])
+      // The Tela was at cursor 0 (undone) when the export ran, so the file it
+      // wrote is the *current* Tela, and the cursor is still where it was.
+      expect(await findHandler('designStudio:view')({}, key, 'login', 'Login')).toEqual(before)
+      rmSync(outDir, { recursive: true, force: true })
+    })
+
+    it('writes nothing when the folder picker is closed', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
+        canceled: true,
+        filePaths: []
+      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
+
+      await expect(
+        findHandler('designStudio:export')({}, [
+          { key: 'ipc-export-2', screenId: 'login', title: 'Login' }
+        ])
+      ).resolves.toEqual({ canceled: true, outDir: null, outcomes: [] })
+    })
+
+    /**
      * design-studio T6.2 / DS-R2 + AD-9. The Skill's turn crosses IPC as a
      * stream, and the agent is reached only through `AgentSession`/`AgentEvent`
      * — the assertion that matters is that a *prompt carrying the catalog and

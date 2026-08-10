@@ -357,6 +357,7 @@ describe('Explorer (T12/T8)', () => {
           canUndo: false,
           canRedo: false
         }),
+        export: vi.fn().mockResolvedValue({ canceled: true, outDir: null, outcomes: [] }),
         runSkill: vi.fn().mockReturnValue(() => {})
       },
       mcp: {

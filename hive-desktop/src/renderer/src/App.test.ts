@@ -237,6 +237,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
           canUndo: false,
           canRedo: false
         }),
+        export: vi.fn().mockResolvedValue({ canceled: true, outDir: null, outcomes: [] }),
         runSkill: vi.fn().mockReturnValue(() => {})
       },
       mcp: {

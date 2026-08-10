@@ -18,7 +18,8 @@ import { undoableGroupId } from './screenSessions'
 import { useStudioSkill, type SkillFailure, type StudioSkillState } from './useStudioSkill'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
-import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
+import { documentKey, useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
+import { ExportDialog } from './ExportDialog'
 
 /**
  * Design Studio (M18) — T4.3/T4.8. The tab's shell: the Bancada's columns, and
@@ -121,6 +122,9 @@ export function DesignStudioViewer({
   // The add picker's open state lives here, so the empty stage's "Adicionar
   // Componente" opens the very picker in the Árvore rather than a second one.
   const [addOpen, setAddOpen] = useState(false)
+  // T7.4: the export picker. Its own state, because exporting touches nothing
+  // the document or the session owns.
+  const [exportOpen, setExportOpen] = useState(false)
   // T6.2/T6.5: the Skill — the two ways to start a turn, what becomes of what
   // it produced, and the context the chat shows (DS-R2, DS-R10, DS-R11).
   const skill = useStudioSkill(workspace, specPath, activeTitle, studio, doc)
@@ -183,6 +187,14 @@ export function DesignStudioViewer({
         onOpenTree={layout.treeDrawer ? () => setDrawer('tree') : undefined}
         onOpenInspector={layout.inspectorDrawer ? () => setDrawer('inspector') : undefined}
         focusHint={layout.promoteFocusMode && hintOffered && !focusMode}
+        onExport={() => setExportOpen(true)}
+      />
+      <ExportGate
+        open={exportOpen}
+        workspace={workspace}
+        specPath={specPath}
+        studio={studio}
+        onClose={() => setExportOpen(false)}
       />
       <div className="wb-dstudio-body">
         <Resizable orientation="horizontal" className="wb-dstudio-columns">
@@ -262,6 +274,49 @@ export function DesignStudioViewer({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * T7.4: the export picker, mounted only while it is open so the selection is
+ * seeded from the Tela in view every time rather than remembered from a run the
+ * user has forgotten making.
+ *
+ * Every chosen Tela is addressed by the same `documentKey` the tab edits
+ * through, which is what makes the Bundle the Tela **as it stands** — including
+ * the edits made a second ago. Exporting reads those Telas through `view()` in
+ * main, so no `Command` is dispatched and the undo cursor never moves
+ * (DS-R14 AC-3).
+ */
+function ExportGate({
+  open,
+  workspace,
+  specPath,
+  studio,
+  onClose
+}: {
+  open: boolean
+  workspace: string
+  specPath: string
+  studio: ReturnType<typeof useDesignStudio>
+  onClose: () => void
+}): React.JSX.Element | null {
+  if (!open) return null
+  return (
+    <ExportDialog
+      onClose={onClose}
+      screens={studio.screens}
+      activeScreenId={studio.activeScreenId}
+      onExport={(screenIds) =>
+        window.hive.designStudio.export(
+          screenIds.map((screenId) => ({
+            key: documentKey(workspace, specPath, screenId),
+            screenId,
+            title: studio.screens.find((screen) => screen.screenId === screenId)?.title ?? screenId
+          }))
+        )
+      }
+    />
   )
 }
 

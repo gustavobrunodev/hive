@@ -91,6 +91,7 @@ function renderToolbar(overrides: Partial<StudioToolbarProps> = {}): StudioToolb
     onRedo: vi.fn(),
     focusMode: false,
     onToggleFocusMode: vi.fn(),
+    onExport: vi.fn(),
     ...overrides
   }
   render(createElement(StudioToolbar, props))
@@ -204,11 +205,20 @@ describe('StudioToolbar — history and Focus Mode (DS-R9, DS-R16)', () => {
     expect(screen.getByRole('button', { name: 'Sair do Modo Foco' })).toBeTruthy()
   })
 
-  it('ships Export present-but-disabled, with the reason attached', () => {
-    renderToolbar()
+  it('opens the export picker rather than exporting on the spot (T7.4)', () => {
+    const props = renderToolbar()
+    const button = screen.getByRole('button', { name: 'Exportar' }) as HTMLButtonElement
+
+    expect(button.disabled).toBe(false)
+    expect(screen.getByText('Gera um HTML autocontido por Tela')).toBeTruthy()
+    fireEvent.click(button)
+    expect(props.onExport).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables Export only when the Spec named no Tela at all', () => {
+    renderToolbar({ screens: [] })
     expect((screen.getByRole('button', { name: 'Exportar' }) as HTMLButtonElement).disabled).toBe(
       true
     )
-    expect(screen.getByText('A exportação chega na fase final da milestone')).toBeTruthy()
   })
 })

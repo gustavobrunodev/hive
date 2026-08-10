@@ -86,6 +86,27 @@ export type ExportOutcome =
   | { screenId: string; title: string; ok: true; file: string }
   | { screenId: string; title: string; ok: false; error: OperationError }
 
+/** One Tela the tab asked for, addressed the way the document service knows it. */
+export interface ExportRequest {
+  key: string
+  screenId: string
+  title: string
+}
+
+/**
+ * What one run of the export produced.
+ *
+ * `canceled` is its own field rather than an empty `outcomes`: closing the
+ * folder picker is not a failed export, and a surface that cannot tell the two
+ * apart would report "0 Telas exportadas" at someone who simply changed their
+ * mind.
+ */
+export interface ExportRun {
+  canceled: boolean
+  outDir: string | null
+  outcomes: ExportOutcome[]
+}
+
 /** `<slug>.html`, `<slug>-2.html`, … — a batch may hold two Telas with one title. */
 function uniqueFileName(taken: Set<string>, slug: string): string {
   let candidate = `${slug}.html`

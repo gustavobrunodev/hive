@@ -37,9 +37,11 @@ import { VIEWPORT_PRESET_ORDER, customViewport, viewportForPreset } from './view
  * Tela's actual cursor, so a disabled Undo means there is nothing to undo,
  * never that the wiring is missing.
  *
- * Export ships disabled until the export phase. Disabled with a tooltip that
- * says why, rather than absent: a control that appears later is a surface the
- * user has to re-learn, and one that is present-but-explained is not.
+ * Export (T7.4) opens the picker rather than exporting on the spot: the button
+ * has to mean the same thing whether the user wants this Tela or all of them,
+ * and a button that silently means "the active one" is right often enough to be
+ * a trap. It is disabled only when the Spec named no Tela — there is nothing to
+ * export then, and the tooltip still says what the control does.
  */
 
 const PRESET_LABEL: Record<ViewportPresetId, () => string> = {
@@ -69,6 +71,8 @@ export interface StudioToolbarProps {
   onOpenInspector?: () => void
   /** The stage is too narrow to be worth using as is — say so, once. */
   focusHint?: boolean
+  /** Opens the export picker (T7.4). Disabled while the Spec names no Tela. */
+  onExport: () => void
 }
 
 export function StudioToolbar({
@@ -85,7 +89,8 @@ export function StudioToolbar({
   onToggleFocusMode,
   onOpenTree,
   onOpenInspector,
-  focusHint = false
+  focusHint = false,
+  onExport
 }: StudioToolbarProps): React.JSX.Element {
   return (
     <div className="wb-dstudio-toolbar" role="toolbar" aria-label={t('designStudio.toolbarAria')}>
@@ -152,12 +157,12 @@ export function StudioToolbar({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="wb-dstudio-export-wrap">
-                <Button variant="ghost" disabled>
+                <Button variant="ghost" disabled={screens.length === 0} onClick={onExport}>
                   {t('designStudio.exportLabel')}
                 </Button>
               </span>
             </TooltipTrigger>
-            <TooltipContent>{t('designStudio.exportUnavailable')}</TooltipContent>
+            <TooltipContent>{t('designStudio.exportHint')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
