@@ -49,6 +49,15 @@ export function ChevronDownIcon({ size, ...rest }: IconProps): React.JSX.Element
   )
 }
 
+/** design-studio T6.5: the Chat strip's expand affordance — the mirror of ChevronDownIcon. */
+export function ChevronUpIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4 9.75 8 6l4 3.75" />
+    </svg>
+  )
+}
+
 export function FileIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>

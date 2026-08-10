@@ -19,6 +19,13 @@ import type { StudioOperationError } from './screens'
 export interface SkillRunState {
   /** Non-null exactly while a turn is running — the stage's "am I waiting?". */
   phase: SkillPhase | null
+  /**
+   * Which kind of run the state belongs to. The stage covers a generation and
+   * the chat covers an iteration — without this, one turn would be announced
+   * twice, in two live regions, which is noise for everyone and a duplicate
+   * announcement for a screen reader.
+   */
+  kind: StudioSkillRequest['kind'] | null
   running: boolean
   error: StudioOperationError | null
   start: (request: StudioSkillRequest) => void
@@ -29,6 +36,7 @@ export interface SkillRunState {
 
 export function useSkillRun(onBatch: (batch: SkillBatch) => void): SkillRunState {
   const [phase, setPhase] = useState<SkillPhase | null>(null)
+  const [kind, setKind] = useState<StudioSkillRequest['kind'] | null>(null)
   const [error, setError] = useState<StudioOperationError | null>(null)
   const lastRequest = useRef<StudioSkillRequest | null>(null)
   const stop = useRef<(() => void) | null>(null)
@@ -51,6 +59,7 @@ export function useSkillRun(onBatch: (batch: SkillBatch) => void): SkillRunState
       stop.current?.()
       lastRequest.current = request
       setError(null)
+      setKind(request.kind)
       setPhase('reading')
       stop.current = window.hive.designStudio.runSkill(request, (event) => {
         if (event.type === 'status') setPhase(event.phase)
@@ -73,6 +82,7 @@ export function useSkillRun(onBatch: (batch: SkillBatch) => void): SkillRunState
 
   return {
     phase,
+    kind,
     running: phase !== null,
     error,
     start,

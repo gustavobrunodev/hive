@@ -12,8 +12,9 @@ import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
 import { historyShortcutFor } from './shortcuts'
 import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
+import { IterationChat } from './IterationChat'
 import { SkillFailureView, SkillProgress, type SkillFailure } from './SkillStage'
-import { useSkillRun } from './useSkillRun'
+import { useStudioSkill, type StudioSkillState } from './useStudioSkill'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -119,32 +120,9 @@ export function DesignStudioViewer({
   // The add picker's open state lives here, so the empty stage's "Adicionar
   // Componente" opens the very picker in the Árvore rather than a second one.
   const [addOpen, setAddOpen] = useState(false)
-  // A batch the catalog refused (DS-R11 AC-3). Kept apart from the run's own
-  // `error` because it is the *other* failure shape and reads differently.
-  const [refused, setRefused] = useState<CapabilityViolation | null>(null)
-
-  /**
-   * T6.2 / T6.3: what the Skill produced becomes **one** grouped step, and only
-   * if the whole batch is valid — `dispatch` validates every Command before it
-   * pushes any, so a refusal leaves the Tela exactly as it was.
-   *
-   * An empty batch is a turn with no effect: nothing is dispatched and no undo
-   * step is stacked (spec.md, Edge Cases).
-   */
-  const skill = useSkillRun((batch) => {
-    setRefused(null)
-    if (batch.commands.length === 0) return
-    const groupId = nextGroupId()
-    void doc.dispatch(batch.commands, groupId).then((violation) => {
-      if (violation === null) studio.recordStep(groupId)
-      else setRefused(violation)
-    })
-  })
-
-  const generate = (): void => {
-    setRefused(null)
-    skill.start({ kind: 'generate', workspace, specPath, screenTitle: activeTitle })
-  }
+  // T6.2/T6.5: the Skill — the two ways to start a turn, what becomes of what
+  // it produced, and the context the chat shows (DS-R2, DS-R10, DS-R11).
+  const skill = useStudioSkill(workspace, specPath, activeTitle, studio, doc)
 
   const undo = (): void => {
     doc.undo()
@@ -229,9 +207,9 @@ export function DesignStudioViewer({
               specPath={specPath}
               onOpenSpec={onOpenSpec}
               onAddComponent={startAdd}
-              onGenerate={generate}
-              skillPhase={skill.phase}
-              skillFailure={skill.error ?? refused}
+              onGenerate={skill.generate}
+              skillPhase={skill.stagePhase}
+              skillFailure={skill.stageFailure}
               onRetrySkill={skill.retry}
             />
           </ResizablePanel>
@@ -264,6 +242,19 @@ export function DesignStudioViewer({
           </StudioDrawer>
         )}
       </div>
+      {/* The Chat is the Bancada's bottom strip (§3.7) — outside the columns,
+          so expanding it never takes width from the stage. */}
+      {studio.status === 'ready' && (
+        <IterationChat
+          expanded={skill.expanded}
+          onExpandedChange={skill.setExpanded}
+          transcript={studio.session.transcript}
+          contextTag={skill.contextTag}
+          onReleaseContext={skill.releaseContext}
+          phase={skill.chatPhase}
+          onSend={skill.send}
+        />
+      )}
     </div>
   )
 }
@@ -386,7 +377,7 @@ function StudioBody({
   onOpenSpec: (path: string) => void
   onAddComponent: () => void
   onGenerate: () => void
-  skillPhase: ReturnType<typeof useSkillRun>['phase']
+  skillPhase: StudioSkillState['stagePhase']
   skillFailure: SkillFailure | null
   onRetrySkill: () => void
 }): React.JSX.Element {

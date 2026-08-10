@@ -14172,3 +14172,90 @@ button.wb-mcplog-summary:focus-visible {
   align-items: center;
   justify-content: center;
 }
+
+/* The Chat de Iteração as a strip (T6.5, design.md §3.7). Collapsed it is one
+   row of composer at the bottom of the Bancada; expanded it takes about 40% of
+   the height for the transcript. It grows *downward into the stage's space*
+   rather than becoming a fourth column, because width is what the stage needs
+   and height is what it can spare. */
+
+.wb-dstudio-chat {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  /* Only the height animates, 200ms — the composer never moves sideways, so
+     the row the user is typing in stays exactly where it was. */
+  max-height: 96px;
+  transition: max-height 200ms var(--ease-quart);
+}
+
+.wb-dstudio-chat[data-expanded] {
+  max-height: 40vh;
+}
+
+.wb-dstudio-chat-bar {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  min-height: 24px;
+}
+
+.wb-dstudio-chat-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wb-dstudio-chat-context,
+.wb-dstudio-chat-working {
+  display: inline-flex;
+  gap: var(--s-1);
+  align-items: center;
+}
+
+.wb-dstudio-chat-working {
+  margin-inline-start: auto;
+}
+
+.wb-dstudio-chat-phase,
+.wb-dstudio-chat-turn-meta {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* The collapse toggle is always the last thing in the bar, whether or not the
+   context chip and the working indicator are there. */
+.wb-dstudio-chat-bar > :last-child {
+  margin-inline-start: auto;
+}
+
+.wb-dstudio-chat-transcript {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.wb-dstudio-chat-turn {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  margin-block-start: var(--s-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-dstudio-chat {
+    transition: none;
+  }
+}
+
+.wb-dstudio-chat-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-1);
+  min-width: 0;
+}

@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { DesignStudioViewer } from './DesignStudioViewer'
 import { resetFocusHint } from './focusHint'
 import type { ScreensResponse } from './screens'
+import { documentKey } from './useScreenDocument'
 
 /**
  * jsdom lays nothing out, so the tab's width is whatever the observer is told —
@@ -740,5 +741,120 @@ describe('DesignStudioViewer — generating with the Skill (T6.2, DS-R2)', () =>
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(skillRuns).toHaveLength(2)
     expect(skillRuns[1].request).toEqual(skillRuns[0].request)
+  })
+})
+
+/**
+ * design-studio T6.5 — DS-R10 and §3.7. The Chat strip inside the Bancada: the
+ * selection becomes visible context, the ✕ releases it *without* dropping the
+ * selection, and the request that goes out carries whichever of the two the
+ * user left standing.
+ */
+describe('DesignStudioViewer — the Chat de Iteração (T6.5, DS-R10)', () => {
+  async function renderWithChat(): Promise<void> {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer()
+    await screen.findByLabelText('Palco')
+    await waitFor(() => expect(screen.getAllByRole('treeitem')).toHaveLength(2))
+  }
+
+  function selectButton(): void {
+    const row = screen
+      .getAllByRole('treeitem')
+      .find((item) => item.querySelector('.hds-tree-label-text')?.textContent === 'wa-button')
+    fireEvent.click(row!)
+  }
+
+  function ask(text: string): void {
+    const input = screen.getByPlaceholderText('Escreva o que mudar…')
+    fireEvent.change(input, { target: { value: text } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+  }
+
+  it('puts the Chat strip at the bottom of the Bancada, collapsed', async () => {
+    await renderWithChat()
+
+    expect(screen.getByRole('region', { name: 'Chat de Iteração desta Tela' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Abrir a conversa' })).toBeTruthy()
+  })
+
+  it('shows the selected Component as the request’s context', async () => {
+    await renderWithChat()
+    selectButton()
+
+    expect(screen.getByText('no contexto: wa-button')).toBeTruthy()
+  })
+
+  it('sends the selected Component with the request (DS-R10 AC-1)', async () => {
+    await renderWithChat()
+    selectButton()
+
+    ask('deixe mais discreto')
+
+    expect(skillRuns).toHaveLength(1)
+    expect(skillRuns[0].request).toEqual({
+      kind: 'iterate',
+      key: documentKey('/ws', 'docs/ux.md', 'login'),
+      screenId: 'login',
+      title: 'Login',
+      message: 'deixe mais discreto',
+      selectedComponentId: 'n2'
+    })
+  })
+
+  it('sends no context when nothing is selected — the scope is the Tela', async () => {
+    await renderWithChat()
+
+    ask('acrescente um rodapé')
+
+    expect(
+      (skillRuns[0].request as { selectedComponentId: string | null }).selectedComponentId
+    ).toBeNull()
+  })
+
+  it('the ✕ releases the context without dropping the selection', async () => {
+    await renderWithChat()
+    selectButton()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Soltar o contexto e falar da Tela inteira' })
+    )
+    ask('acrescente um rodapé')
+
+    expect(screen.queryByText('no contexto: wa-button')).toBeNull()
+    expect(
+      (skillRuns[0].request as { selectedComponentId: string | null }).selectedComponentId
+    ).toBeNull()
+    // The Inspetor is still looking at the same Component: releasing the chat's
+    // context is not a deselection.
+    expect(
+      screen.getAllByRole('treeitem').find((item) => item.getAttribute('aria-selected') === 'true')
+    ).toBeTruthy()
+  })
+
+  it('shows the user’s own words immediately, before the agent answers', async () => {
+    await renderWithChat()
+    ask('acrescente um rodapé')
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a conversa' }))
+
+    expect(screen.getByText('acrescente um rodapé')).toBeTruthy()
+  })
+
+  it('adds the Skill’s answer to the transcript when the turn lands', async () => {
+    await renderWithChat()
+    ask('deixe mais discreto')
+
+    act(() =>
+      skillRuns[0].emit({
+        type: 'result',
+        batch: {
+          commands: [{ type: 'SetProp', componentId: 'n2', key: 'variant', value: 'neutral' }],
+          message: 'Deixei o botão neutro.'
+        }
+      })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a conversa' }))
+
+    await waitFor(() => expect(screen.getByText('Deixei o botão neutro.')).toBeTruthy())
   })
 })

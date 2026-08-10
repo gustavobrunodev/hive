@@ -1432,6 +1432,17 @@ export const ptBR = {
     skillErrorTitle: 'A Skill não conseguiu gerar a Tela',
     skillViolationTitle: 'O Design System ativo não tem o que o pedido precisa',
     skillRetry: 'Tentar de novo',
+    // T6.5 (DS-R10, §3.7): o Chat é uma faixa. O chip torna o contexto padrão
+    // — o Componente selecionado — visível em vez de mágico; o ✕ o solta.
+    chatAria: 'Chat de Iteração desta Tela',
+    chatTitle: 'Iteração',
+    chatContext: (tag: string) => `no contexto: ${tag}`,
+    chatReleaseContext: 'Soltar o contexto e falar da Tela inteira',
+    chatExpand: 'Abrir a conversa',
+    chatCollapse: 'Fechar a conversa',
+    chatPlaceholder: 'Escreva o que mudar…',
+    chatSend: 'Enviar pedido à Skill',
+    chatJumpToLatest: 'Ir para a mensagem mais recente',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',
