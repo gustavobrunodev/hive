@@ -2036,13 +2036,20 @@ body ::-webkit-scrollbar-corner {
     inset 0 0 0 4px var(--bg);
 }
 
-/* DS primary Button hardcodes its dark-theme ink/hover; retint per theme */
+/* DS primary Button hardcodes its dark-theme ink/hover; retint per theme.
+   T7.6 found the other half of this: the retint only reached buttons that also
+   carry a `wb-btn*` class, so a bare `<Button>` kept the vendor's `#241019` —
+   which over the light theme's bordo `--accent` measures 2.03:1. The Studio's
+   own primaries are added by scope rather than by class, so a Button written
+   without app classes cannot fall through the gap again. */
 .wb-btn.hds-btn-primary,
-.wb-btn-lg.hds-btn-primary {
+.wb-btn-lg.hds-btn-primary,
+.wb-dstudio .hds-btn-primary {
   color: var(--accent-ink);
 }
 .wb-btn.hds-btn-primary:hover,
-.wb-btn-lg.hds-btn-primary:hover {
+.wb-btn-lg.hds-btn-primary:hover,
+.wb-dstudio .hds-btn-primary:hover {
   background: var(--accent-hover);
   color: var(--accent-ink);
 }

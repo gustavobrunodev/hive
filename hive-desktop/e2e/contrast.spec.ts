@@ -1,6 +1,8 @@
 import { test, expect } from './fixtures/workspace'
 import { checkContrast, WCAG_AA_LARGE, WCAG_AA_NORMAL } from '../src/renderer/src/ui/contrast'
 import type { Page } from '@playwright/test'
+import fs from 'node:fs'
+import path from 'node:path'
 import { THEMES, type Theme } from '../src/renderer/src/ui/theme'
 
 /**
@@ -44,8 +46,8 @@ interface Sample {
  *     Without this the sweep would silently "not measure" the entire palette,
  *     since every token in this app is authored in oklch.
  */
-async function sampleTextContrast(window: Page): Promise<Sample[]> {
-  return window.evaluate(() => {
+async function sampleTextContrast(window: Page, rootSelector = 'body'): Promise<Sample[]> {
+  return window.evaluate((rootSelector) => {
     // Real pixels, not string parsing. A 1x1 canvas lets the BROWSER do both
     // the color-space conversion and the alpha compositing: every token here is
     // authored in oklch, Chromium hands `getComputedStyle` back oklch/oklab
@@ -114,7 +116,13 @@ async function sampleTextContrast(window: Page): Promise<Sample[]> {
     }[] = []
     const seen = new Set<string>()
 
-    for (const element of Array.from(document.body.querySelectorAll('*'))) {
+    // Scoped on purpose: the sampler dedupes by (color, background, size,
+    // weight), so a surface built from the same tokens as the shell around it
+    // contributes nothing to a whole-window sweep — its text is measured, but
+    // under the shell's label. Sweeping a subtree is what makes "this surface
+    // was covered" a claim the test can actually make (design-studio T7.6).
+    const root = document.querySelector(rootSelector) ?? document.body
+    for (const element of Array.from(root.querySelectorAll('*'))) {
       // Only elements that paint their own text.
       const ownText = Array.from(element.childNodes)
         .filter((n) => n.nodeType === Node.TEXT_NODE)
@@ -146,7 +154,7 @@ async function sampleTextContrast(window: Page): Promise<Sample[]> {
       out.push({ label, color, background, fontSize, bold: weight >= 700 })
     }
     return out
-  })
+  }, rootSelector)
 }
 
 /** WCAG's own rule: >=24px, or >=18.66px when bold, is "large text". */
@@ -399,6 +407,90 @@ for (const theme of THEMES) {
     expect(
       failuresIn(samples),
       `contrast failures in ${theme}, agent picker:\n${failuresIn(samples).join('\n')}`
+    ).toEqual([])
+  })
+}
+
+/**
+ * design-studio (DS-R18, T7.6). The Bancada is a tab in the viewer pane, so an
+ * idle work UI never contains it — same reason the four surfaces above needed
+ * their own tests. It is opened from the palette over a seeded UX Spec, and
+ * swept in the band the tab actually opens in: the viewer pane is ~44% of the
+ * window, which is the *narrowest* of §3.8's three, so the Telas are in the
+ * toolbar and the Árvore is one drawer away.
+ *
+ * The Preview itself is deliberately out of scope here: its contents come from
+ * the design system inside a sandboxed frame, and this sweep measures the app's
+ * own chrome. `tools/visual/design-studio.mjs` covers the states this cannot
+ * reach without an agent (a turn in flight, a failed turn, the export report).
+ */
+const STUDIO_SPEC_PATH = 'docs/ux-spec.md'
+
+for (const theme of THEMES) {
+  test(`@p0 @a11y the Design Studio meets WCAG AA in the ${theme} theme`, async ({
+    seeded,
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+    fs.mkdirSync(path.join(seeded.workspace, 'docs'), { recursive: true })
+    fs.writeFileSync(
+      path.join(seeded.workspace, STUDIO_SPEC_PATH),
+      '# Spec de UX\n\n## Tela — Login\n\nEntrar.\n\n## Tela — Cadastro\n\nCriar conta.\n',
+      'utf-8'
+    )
+
+    await setTheme(window, theme)
+
+    await window.keyboard.press('Control+p')
+    await window.getByLabel(`Abrir ${STUDIO_SPEC_PATH} no Design Studio`).click()
+    // The palette is a modal, and a modal `aria-hidden`s the rest of the app
+    // while it is up. The sweep skips anything under `aria-hidden` on purpose
+    // (decorative glyphs), so sampling before the palette has finished closing
+    // measures the palette and reports the Studio as covered — a green that
+    // means nothing. Wait for it to be gone.
+    await expect(window.locator('[role="dialog"]')).toHaveCount(0)
+    await window.locator('.wb-dstudio').waitFor({ state: 'visible', timeout: 30_000 })
+    await window.locator('.wb-dstudio-bench').waitFor({ state: 'visible' })
+    await freezeMotion(window)
+
+    const stage = await sampleTextContrast(window, '.wb-dstudio')
+    expect(stage.length).toBeGreaterThan(2)
+    expect(
+      failuresIn(stage),
+      `contrast failures in ${theme}, Design Studio stage:\n${failuresIn(stage).join('\n')}`
+    ).toEqual([])
+
+    // The Árvore and the Inspetor, which in this band are behind a drawer —
+    // the surfaces a sweep of the resting tab would never see (the M16 rule).
+    await window.getByRole('button', { name: 'Abrir a Árvore' }).click()
+    await window.locator('.wb-dstudio-drawer').waitFor({ state: 'visible' })
+    const tree = await sampleTextContrast(window, '.wb-dstudio-drawer')
+    expect(tree.length).toBeGreaterThan(1)
+    expect(
+      failuresIn(tree),
+      `contrast failures in ${theme}, Árvore drawer:\n${failuresIn(tree).join('\n')}`
+    ).toEqual([])
+    await window.keyboard.press('Escape')
+
+    await window.getByRole('button', { name: 'Abrir o Inspetor' }).click()
+    await window.locator('.wb-dstudio-drawer').waitFor({ state: 'visible' })
+    const inspector = await sampleTextContrast(window, '.wb-dstudio-drawer')
+    expect(inspector.length).toBeGreaterThan(1)
+    expect(
+      failuresIn(inspector),
+      `contrast failures in ${theme}, Inspetor drawer:\n${failuresIn(inspector).join('\n')}`
+    ).toEqual([])
+    await window.keyboard.press('Escape')
+
+    // The export picker: a dialog, so it is the most likely of the three to
+    // carry a defect all the way to a user.
+    await window.getByRole('button', { name: 'Exportar' }).click()
+    await window.locator('.wb-dstudio-export-dialog').waitFor({ state: 'visible' })
+    const exportPicker = await sampleTextContrast(window, '.wb-dstudio-export-dialog')
+    expect(exportPicker.length).toBeGreaterThan(2)
+    expect(
+      failuresIn(exportPicker),
+      `contrast failures in ${theme}, export picker:\n${failuresIn(exportPicker).join('\n')}`
     ).toEqual([])
   })
 }
