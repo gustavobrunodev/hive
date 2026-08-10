@@ -10,7 +10,7 @@ import { StagePane } from './StagePane'
 import { StudioDrawer } from './StudioDrawer'
 import { StudioToolbar } from './StudioToolbar'
 import { takeFocusHint } from './focusHint'
-import { nextGroupId, type CapabilityViolation } from './documentModel'
+import { nextGroupId, type CapabilityViolation, type Command } from './documentModel'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -194,7 +194,11 @@ function ScreensPane({
   )
 }
 
-/** The Tela's structure, and one of the two ends of the selection (T5.1). */
+/**
+ * The Tela's structure, one of the two ends of the selection (T5.1), and where
+ * the structure is edited (T5.5). A structural edit is one grouped step, just
+ * like a prop change, so undo treats them alike (DS-R7 AC-2).
+ */
 function TreePane({
   studio,
   doc
@@ -202,6 +206,13 @@ function TreePane({
   studio: ReturnType<typeof useDesignStudio>
   doc: ScreenDocumentState
 }): React.JSX.Element {
+  const edit = async (command: Command): Promise<CapabilityViolation | null> => {
+    const groupId = nextGroupId()
+    const violation = await doc.dispatch([command], groupId)
+    if (violation === null) studio.recordStep(groupId)
+    return violation
+  }
+
   return (
     <section className="wb-dstudio-pane" aria-label={t('designStudio.treePaneTitle')}>
       <h2 className="wb-dstudio-pane-title">{t('designStudio.treePaneTitle')}</h2>
@@ -209,6 +220,8 @@ function TreePane({
         document={doc.document}
         selectedComponentId={studio.selectedComponentId}
         onSelect={studio.selectComponent}
+        catalog={doc.catalog}
+        onEdit={edit}
       />
     </section>
   )

@@ -14086,3 +14086,33 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-prop {
   padding-block: var(--s-1);
 }
+
+/* Adding a Component (T5.5). The picker sits at the foot of the Árvore, where
+   the structure it changes is: an "add" affordance parked in a toolbar makes
+   the user look twice for where the new node went. A refusal renders right
+   under the choice that caused it (§6). */
+
+.wb-dstudio-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+}
+
+.wb-dstudio-add-target {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wb-dstudio-add-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger-ink);
+}
+
+.wb-dstudio-add-actions {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: flex-end;
+}

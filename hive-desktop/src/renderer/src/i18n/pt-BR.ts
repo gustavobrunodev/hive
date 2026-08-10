@@ -1399,6 +1399,17 @@ export const ptBR = {
     focusModeExit: 'Sair do Modo Foco',
     focusModeHint: 'O palco ocupa a janela inteira',
     treeAria: 'Árvore de Componentes desta Tela',
+    // T5.5 (DS-R7 AC-1/AC-4): o que se escolhe ao adicionar — Componente e slot,
+    // ambos vindos do catálogo do Adaptador ativo, nunca de uma lista fixa.
+    treeAddLabel: 'Adicionar Componente',
+    treeAddTagLabel: 'Componente',
+    treeAddTagPlaceholder: 'Escolha um Componente',
+    treeAddSlotLabel: 'Slot',
+    treeAddSlotDefault: '(padrão)',
+    treeAddInto: (tag: string) => `Dentro de ${tag}`,
+    treeAddAsRoot: 'Como o primeiro Componente da Tela',
+    treeAddConfirm: 'Adicionar',
+    treeAddCancel: 'Cancelar',
     inspectorEmptyTitle: 'Nada selecionado',
     inspectorEmptyDescription:
       'Clique em qualquer elemento no palco para editar as propriedades dele.',

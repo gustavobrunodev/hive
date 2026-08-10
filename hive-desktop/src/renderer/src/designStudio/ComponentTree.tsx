@@ -1,6 +1,13 @@
 import { Tree } from '@hive/design-system'
 import { t } from '../i18n'
-import type { ScreenDocument, ScreenNode } from './documentModel'
+import { AddComponent } from './AddComponent'
+import type {
+  CapabilityViolation,
+  Command,
+  ComponentCatalog,
+  ScreenDocument,
+  ScreenNode
+} from './documentModel'
 import { allNodeIds } from './screenTree'
 
 /**
@@ -20,12 +27,20 @@ import { allNodeIds } from './screenTree'
  * The tree is expanded down its whole depth by default: a Tela is a handful of
  * nodes, and a collapsed root would hide the very structure the pane exists to
  * show.
+ *
+ * T5.5 adds the structural edit: with `onEdit` wired, the pane also carries the
+ * add picker, and it carries it **even for an empty Tela** — a Tela with no
+ * Components still has to offer the way to its first one (DS-R7).
  */
 
 export interface ComponentTreeProps {
   document: ScreenDocument
   selectedComponentId: string | null
   onSelect: (componentId: string | null) => void
+  /** The active catalog — the only source the add picker draws from (T5.5, DS-R7 AC-1). */
+  catalog?: ComponentCatalog | null
+  /** Dispatches an edit of the structure. Absent = a read-only Árvore. */
+  onEdit?: (command: Command) => Promise<CapabilityViolation | null>
 }
 
 /** The DS `Tree`'s node shape, restated because the package exports the component, not the type. */
@@ -47,18 +62,32 @@ function toTreeNode(node: ScreenNode): TreeRow {
 export function ComponentTree({
   document,
   selectedComponentId,
-  onSelect
+  onSelect,
+  catalog,
+  onEdit
 }: ComponentTreeProps): React.JSX.Element | null {
-  if (document.root === null) return null
+  if (document.root === null && onEdit === undefined) return null
 
   return (
-    <Tree
-      className="wb-dstudio-tree"
-      aria-label={t('designStudio.treeAria')}
-      nodes={[toTreeNode(document.root)]}
-      defaultExpandedIds={allNodeIds(document.root)}
-      selectedIds={selectedComponentId === null ? [] : [selectedComponentId]}
-      onSelectedIdsChange={(ids) => onSelect(ids[0] ?? null)}
-    />
+    <>
+      {document.root !== null && (
+        <Tree
+          className="wb-dstudio-tree"
+          aria-label={t('designStudio.treeAria')}
+          nodes={[toTreeNode(document.root)]}
+          defaultExpandedIds={allNodeIds(document.root)}
+          selectedIds={selectedComponentId === null ? [] : [selectedComponentId]}
+          onSelectedIdsChange={(ids) => onSelect(ids[0] ?? null)}
+        />
+      )}
+      {onEdit && (
+        <AddComponent
+          catalog={catalog ?? null}
+          document={document}
+          selectedComponentId={selectedComponentId}
+          onAdd={onEdit}
+        />
+      )}
+    </>
   )
 }
