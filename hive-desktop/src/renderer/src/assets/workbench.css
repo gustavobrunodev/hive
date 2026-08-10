@@ -13727,3 +13727,67 @@ button.wb-mcplog-summary:focus-visible {
 .wb-studio-empty-probes li + li {
   margin-top: var(--s-1);
 }
+
+/* The tab body itself. The Studio fills its tab and never scrolls as a whole —
+   each column owns its own overflow, so resizing a column never pushes the
+   stage out of view. */
+
+.wb-studio {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wb-studio-columns {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.wb-studio-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-inline: 1px solid var(--border);
+}
+
+.wb-studio-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wb-studio-pane + .wb-studio-pane {
+  border-top: 1px solid var(--border);
+}
+
+.wb-studio-pane-title {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-studio-stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wb-studio-stage-skeleton {
+  width: 60%;
+  height: 60%;
+}

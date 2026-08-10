@@ -637,6 +637,17 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // The Studio tab's state (T4.3). 100 because its whole job is telling
+        // four situations apart — reading, read, read-but-empty, unreadable —
+        // and every confusion between them is a surface that lies: an empty
+        // Spec rendered as a broken one, or a stale read painted over a newer
+        // request after the user switched Telas.
+        'src/renderer/src/designStudio/useDesignStudio.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         // The Preview's privileged scheme (T3.1/T3.2). 100 because it is the
         // whole security boundary of phase 3: the path-escape guard is the only
         // thing between a URL the frame can construct and a file read off disk,

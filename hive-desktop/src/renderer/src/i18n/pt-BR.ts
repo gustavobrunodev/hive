@@ -1367,7 +1367,14 @@ export const ptBR = {
     emptyScreensHint: 'Acrescente uma dessas formas à Spec e abra o Design Studio de novo.',
     emptyScreensAction: 'Abrir a Spec no editor',
     specErrorTitle: 'Não foi possível ler a Spec',
-    specErrorRetry: 'Tentar de novo'
+    specErrorRetry: 'Tentar de novo',
+    tabAria: (spec: string) => `Design Studio — ${spec}`,
+    loading: 'Lendo a Spec…',
+    screensPaneTitle: 'Telas',
+    treePaneTitle: 'Árvore',
+    inspectorPaneTitle: 'Inspetor',
+    stageAria: 'Palco',
+    resizeHandleLabel: 'Redimensionar colunas do Design Studio'
   },
   fileSearch: {
     dialogLabel: 'Buscar arquivos no workspace',

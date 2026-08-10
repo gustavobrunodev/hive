@@ -10,6 +10,9 @@
 /** One way a Spec can name a Tela — rendered by name in the empty state (DS-R1 AC-3). */
 export type ScreenProbe = 'screenHeading' | 'iaTable'
 
+/** The probes, in the detector's order — the fallback while the Spec is still being read. */
+export const SCREEN_PROBES: readonly ScreenProbe[] = ['screenHeading', 'iaTable']
+
 export interface DetectedScreen {
   screenId: string
   title: string

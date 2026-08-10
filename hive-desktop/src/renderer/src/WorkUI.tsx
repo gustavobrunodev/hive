@@ -60,6 +60,7 @@ import { UpdateCenter } from './ui/UpdateCenter'
 import { UpdateNotice } from './ui/UpdateNotice'
 import { useUpdateFlow } from './ui/useUpdateFlow'
 import { FileSearchDialog } from './ui/FileSearchDialog'
+import { DesignStudioViewer } from './designStudio/DesignStudioViewer'
 import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
 import { PaneHeader, PaneMoveMenu } from './ui/PaneHeader'
@@ -935,12 +936,16 @@ export function WorkUI({
                   <ConflictView path={tab.git.path} />
                 ) : tab.kind === 'review' && tab.git?.path ? (
                   <ReviewDiffTab path={tab.git.path} />
-                ) : tab.kind === 'design-studio' ? (
-                  // design-studio (M18): the Studio's body arrives in T4.3.
-                  // The branch exists from T4.1 so the synthetic key never
-                  // falls through to `FileViewer`, which would try to read a
-                  // file named `⟨studio⟩…` and show a read error.
-                  <></>
+                ) : /* `spec` is set on the design-studio tab and on no other,
+                       so it discriminates on its own — one branch here, and
+                       all the Studio's complexity inside its own module
+                       (design.md R-3). */
+                tab.spec ? (
+                  <DesignStudioViewer
+                    workspace={workspace}
+                    specPath={tab.spec.path}
+                    onOpenSpec={editor.openFile}
+                  />
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}
