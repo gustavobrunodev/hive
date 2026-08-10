@@ -685,6 +685,49 @@ Updated as work progresses. Load at start of every session.
   handlers changed shape). One new app-level DS override (`.hds-badge-muted`,
   see Lessons). (2026-08-08)
 
+- **D29 — Isolated content is authenticated by source + nonce, never by
+  origin.** An iframe sandboxed without `allow-same-origin` reports
+  `origin: "null"`, so comparing `event.origin` against an expected string is
+  security theater — every opaque origin matches equally. The Design Studio
+  Preview bridge instead requires **both** `event.source === frame.contentWindow`
+  (the handle cannot be forged by an unrelated window) **and** a per-session
+  random nonce. This is the convention for any future isolated content in the
+  app, not a Design-Studio-local trick. (design-studio D-DS-4, 2026-08-09)
+
+- **D30 — A design system's component catalog is derived from its
+  `custom-elements.json` at build time, never hand-written.** The CEM already
+  carries tag, attribute types (including enum members), slots and events for
+  every element; transcribing that by hand makes "single source of truth"
+  aspirational instead of mechanical, and it drifts on the first upstream
+  release. The generator freezes a lean `catalog.json` into `resources/` so the
+  main process never parses 2 MB at boot and the catalog stays reviewable in a
+  diff. Applies to any second DS adapter. (design-studio D-DS-5, 2026-08-09)
+
+- **D31 — Vendor icon fonts/CDNs are replaced by a locally registered icon
+  library.** Web Awesome's `wa-icon` resolves against a Font Awesome CDN by
+  default and the package ships zero SVGs, so under a restrictive CSP every
+  icon fails *silently* — identical on screen to one that never rendered.
+  Icons are registered via `registerIconLibrary()` against SVGs embedded at
+  build time. An unknown icon resolves to nothing and **never falls back to the
+  vendor CDN**: fail-closed, so a gap is a visible bug rather than a hidden
+  network call. (design-studio D-DS-8, 2026-08-09)
+
+- **D32 — `connect-src data:` is the correct floor for isolated content that
+  renders icons — `'none'` is not achievable.** Measured, not assumed:
+  `wa-icon` resolves every icon through `fetch(url, { mode: 'cors' })`
+  (`chunk.ZCZ2WKQR.js:62`), and `connect-src` governs `fetch` even when the URL
+  is a `data:` URI, so `'none'` blanks every icon. The only fetch-free path Web
+  Awesome offers (`spriteSheet`, via `<use href>`) is unusable: Chrome dropped
+  external `<use>` references and they do not cross shadow roots. Network
+  egress remains **zero** — a `data:` URL reaches no server — so the security
+  property is intact and only the wording of the AC changed. The honesty of
+  that claim is enforced by a real-Electron E2E that observes the frame's
+  traffic and requires every request to be `hive-studio:`; measured at
+  4 requests, all local. Chosen over `hive-studio:` because the exported Bundle
+  is a loose `.html` with no custom protocol and needs `data:` regardless — one
+  icon strategy instead of two diverging ones. (design-studio D-DS-4/D32,
+  2026-08-09)
+
 ## Lessons (agent-onboarding, 2026-08-09)
 
 M17 shipped on `feat/voice-prompt`. `npm run verify` green: **2548 tests /
