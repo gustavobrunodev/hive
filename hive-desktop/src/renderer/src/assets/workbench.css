@@ -14064,3 +14064,25 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-tree {
   padding: 0 var(--s-2) var(--s-2);
 }
+
+/* The Inspetor (T5.2). Props are grouped, and the tag of the selected
+   Component sits above them so the panel always answers "what am I editing?"
+   before it answers "with what?". */
+
+.wb-dstudio-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.wb-dstudio-inspector-tag {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.wb-dstudio-prop {
+  padding-block: var(--s-1);
+}

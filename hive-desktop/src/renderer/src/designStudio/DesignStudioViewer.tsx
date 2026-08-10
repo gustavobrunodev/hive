@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
 import { ComponentTree } from './ComponentTree'
+import { Inspector } from './Inspector'
 import { ScreenList } from './ScreenList'
 import { ScreensEmpty, SpecLoadError } from './ScreensEmpty'
 import { PreviewFrame } from './PreviewFrame'
@@ -139,7 +140,7 @@ export function DesignStudioViewer({
               defaultSize="22%"
               className="wb-dstudio-side"
             >
-              <InspectorPane />
+              <InspectorPane studio={studio} doc={doc} />
             </ResizablePanel>
           )}
         </Resizable>
@@ -153,7 +154,7 @@ export function DesignStudioViewer({
             title={t('designStudio.inspectorPaneTitle')}
             onClose={() => setDrawer(null)}
           >
-            <InspectorPane />
+            <InspectorPane studio={studio} doc={doc} />
           </StudioDrawer>
         )}
       </div>
@@ -199,11 +200,23 @@ function TreePane({
   )
 }
 
-/** Filled by phase 5 (T5.2). */
-function InspectorPane(): React.JSX.Element {
+/** The selected Component's props, every control chosen by the catalog (T5.2). */
+function InspectorPane({
+  studio,
+  doc
+}: {
+  studio: ReturnType<typeof useDesignStudio>
+  doc: ScreenDocumentState
+}): React.JSX.Element {
   return (
     <section className="wb-dstudio-pane" aria-label={t('designStudio.inspectorPaneTitle')}>
       <h2 className="wb-dstudio-pane-title">{t('designStudio.inspectorPaneTitle')}</h2>
+      <Inspector
+        catalog={doc.catalog}
+        document={doc.document}
+        selectedComponentId={studio.selectedComponentId}
+        onChange={() => {}}
+      />
     </section>
   )
 }
