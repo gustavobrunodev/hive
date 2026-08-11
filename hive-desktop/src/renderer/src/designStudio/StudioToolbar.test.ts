@@ -210,7 +210,6 @@ describe('StudioToolbar — history and Focus Mode (DS-R9, DS-R16)', () => {
     const button = screen.getByRole('button', { name: 'Exportar' }) as HTMLButtonElement
 
     expect(button.disabled).toBe(false)
-    expect(screen.getByText('Gera um HTML autocontido por Tela')).toBeTruthy()
     fireEvent.click(button)
     expect(props.onExport).toHaveBeenCalledTimes(1)
   })

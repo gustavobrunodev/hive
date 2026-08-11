@@ -153,18 +153,16 @@ export function StudioToolbar({
           onClick={onToggleFocusMode}
           icon={focusMode ? <MinimizeIcon size={15} /> : <MaximizeIcon size={15} />}
         />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="wb-dstudio-export-wrap">
-                <Button variant="ghost" disabled={screens.length === 0} onClick={onExport}>
-                  {t('designStudio.exportLabel')}
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{t('designStudio.exportHint')}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* No tooltip on this one, unlike the icon actions beside it. It
+            carries its own word, so a tooltip would only repeat it — and a
+            Radix tooltip open on a focused trigger eats the first Escape,
+            which inside the picker it opens is the keystroke the user meant
+            for the dialog (found in T7.7's keyboard run). */}
+        <span className="wb-dstudio-export-wrap">
+          <Button variant="ghost" disabled={screens.length === 0} onClick={onExport}>
+            {t('designStudio.exportLabel')}
+          </Button>
+        </span>
       </div>
     </div>
   )

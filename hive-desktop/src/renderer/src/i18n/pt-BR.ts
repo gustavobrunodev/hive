@@ -1457,7 +1457,6 @@ export const ptBR = {
     // T7.4 (DS-R14/DS-R15): exportar é escolher **quais** Telas e para onde. O
     // relatório fica no mesmo lugar porque um lote pode ser meio bom.
     exportLabel: 'Exportar',
-    exportHint: 'Gera um HTML autocontido por Tela',
     exportDialogTitle: 'Exportar Telas',
     exportDialogDescription:
       'Cada Tela vira um arquivo HTML autocontido — componentes vivos, CSS e ícones embutidos, sem depender de rede.',
