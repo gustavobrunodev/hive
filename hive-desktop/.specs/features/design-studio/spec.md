@@ -168,7 +168,13 @@ e ver minhas edições aparecerem na hora.
    `sandbox="allow-scripts"` **sem** `allow-same-origin`, apontado por `src` a
    uma URL `hive-studio://` — e SHALL NOT usar `srcDoc`.
 2. WHEN o protocolo responde THEN a resposta SHALL carregar `Content-Security-Policy`
-   própria contendo no mínimo `connect-src 'none'`, `script-src 'self'`.
+   própria contendo no mínimo **`connect-src data:`** e `script-src 'self'`.
+   *(Era `connect-src 'none'`. A fase 2 mediu que `wa-icon` resolve **todo**
+   ícone por `fetch()` — inclusive de uma URL `data:` servida pela biblioteca
+   local — então `'none'` apagaria todos os ícones em silêncio, no Preview e no
+   Bundle. O egresso de rede continua zero: uma URL `data:` não alcança servidor
+   nenhum, e a prova é a T3.8, que observa o tráfego real do frame e exige zero
+   requisição fora de `hive-studio:`. Travado em D-DS-4 / **D32**.)*
 3. WHEN um `Command` é aplicado ao documento THEN o Preview SHALL ser atualizado
    por `postMessage` same-origin — e SHALL NOT renavegar o iframe.
 4. WHEN o receptor in-frame constrói DOM THEN ele SHALL usar `createElement` +
@@ -444,20 +450,20 @@ arquivos escritos, 1 erro reportado, nenhuma exceção não tratada.
 | DS-R2 | CAP-2 | Chat/Skill | F6 | Done (F6) |
 | DS-R3 | CAP-3 | A Bancada | F4 | Done (F4) |
 | DS-R4 | CAP-4 | A Bancada | F4 | Done (F4) |
-| DS-R5 | CAP-5 | A Bancada | F5 | Pending |
-| DS-R6 | CAP-6 | Inspetor | F5 | Pending |
-| DS-R7 | CAP-7 | Árvore | F5 | Pending |
-| DS-R8 | CAP-8 | Preview | F3 | Pending |
-| DS-R9 | CAP-9 | Documento | F1 | Pending |
+| DS-R5 | CAP-5 | A Bancada | F5 | Done (F5) |
+| DS-R6 | CAP-6 | Inspetor | F5 | Done (F5) |
+| DS-R7 | CAP-7 | Árvore | F5 | Done (F5) |
+| DS-R8 | CAP-8 | Preview | F3 | Done (F3) |
+| DS-R9 | CAP-9 | Documento | F1 | Done (F1) |
 | DS-R10 | CAP-10 | Chat/Skill | F6 | Done (F6) |
 | DS-R11 | CAP-11 | Chat/Skill | F6 | Done (F6) |
-| DS-R12 | CAP-12 | Catálogo | F2 | Pending |
-| DS-R13 | CAP-13 | Catálogo | F2 | Pending |
-| DS-R14 | CAP-14 | Export | F7 | Pending |
-| DS-R15 | CAP-15 | Export | F7 | Pending |
+| DS-R12 | CAP-12 | Catálogo | F2 | Done (F2) |
+| DS-R13 | CAP-13 | Catálogo | F2 | Done (F2) |
+| DS-R14 | CAP-14 | Export | F7 | Done (F7) |
+| DS-R15 | CAP-15 | Export | F7 | Done (F7) |
 | DS-R16 | — | A Bancada | F4 | Done (F4) |
-| DS-R17 | — | transversal | F1–F7 | Pending |
-| DS-R18 | — | transversal | F4–F7 | Pending |
+| DS-R17 | — | transversal | F1–F7 | Done (F1–F7) |
+| DS-R18 | — | transversal | F4–F7 | Done (F7) |
 
 **Cobertura:** 18 requisitos, 18 mapeados a fases. 0 sem mapeamento.
 
@@ -465,13 +471,18 @@ arquivos escritos, 1 erro reportado, nenhuma exceção não tratada.
 
 ## Success Criteria
 
-- [ ] Uma Spec de UX real do repositório abre, gera Telas e exporta um Bundle sem
-      o usuário tocar em terminal.
-- [ ] `npm run verify` verde, sem regressão contra o baseline (2548 testes /
-      159 arquivos em M17).
-- [ ] Teste de fronteira: nenhum arquivo fora de `dsAdapter/` importa o pacote do
-      DS; nenhuma camada muta o documento fora do reducer.
-- [ ] Passe visual nos temas escuro e claro sobre o app real; sweep de contraste
-      E2E cobrindo o palco, o Inspetor, a Árvore e o Chat.
-- [ ] O Bundle exportado abre num navegador sem rede e renderiza idêntico ao
-      Preview.
+- [x] Uma Spec de UX abre, gera Telas e exporta um Bundle sem o usuário tocar em
+      terminal. **Com uma ressalva honesta:** a Spec usada é semeada pelo E2E,
+      porque nenhuma Spec real deste repo usa `## Tela —` (R-8, ainda aberto).
+- [x] `npm run verify` verde, sem regressão contra o baseline: **3346 testes /
+      202 arquivos** (era 2548 / 159 no M17).
+- [x] Teste de fronteira: `moduleBoundaries.test.ts` falha se algum arquivo fora
+      de `dsAdapter/` importar o pacote do DS, se alguma camada mutar o
+      documento fora do reducer, ou se `exportBundle.ts` construir markup.
+- [x] Passe visual nos **três** temas sobre o app real
+      (`tools/visual/design-studio.mjs`, 37 amostras × 7 estados × 3 temas) +
+      sweep de contraste no `e2e/contrast.spec.ts` cobrindo palco, Árvore,
+      Inspetor e o seletor de export.
+- [x] O Bundle exportado abre **com a rede cortada** e bate com o Preview pixel a
+      pixel (`e2e/design-studio-export.spec.ts`: 0 pixels diferentes, 0
+      requisições fora de `file:`).

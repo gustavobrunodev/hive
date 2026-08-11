@@ -44,7 +44,7 @@ recusas que impedem a próxima rodada de re-propor o que já foi decidido.
 | `tsc --noEmit` (node + web) | feedback | comput. | manut. | in-session | sim | sim | `strict: true` nos **dois** projetos |
 | ESLint 9 flat + bloco anti-sprawl | feedback | comput. | manut. | in-session | sim (errors) | parcial | `no-explicit-any` **error**, `complexity: 15` **error**, `max-lines-per-function: 150` **warn**, react-hooks/react-refresh |
 | Prettier | feedforward | comput. | manut. | manual | não | n/a | estilo — **ignore list não cobre `.claude/`, `.specs/`, `.scratch/`** |
-| Vitest (123 arquivos, ~1805 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
+| Vitest (202 arquivos, 3346 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
 | Coverage v8 per-file 90% | feedback | comput. | manut. | in-session | **só em `test:coverage`** | sim | ~37 globs **curados à mão** (≈200 linhas de config) |
 | `noInlineStrings.test.ts` | feedback | comput. | arch. fitness | in-session | sim | sim | zero literais de UI fora do `t()` — **o padrão de sensor caseiro a replicar** |
 | Playwright E2E (7 specs, Electron real) | feedback | comput. | comportamento | manual | não | sim | fluxos reais contra disco/git de verdade |
@@ -326,6 +326,32 @@ achou dois defeitos que nenhum teste pegaria — um `align-items: center`
 herdado de uma regra antiga centralizando o bloco de instalação, e a faixa de
 varredura quebrando o próprio controle para uma segunda linha. M12, M12.1,
 M13, M16 e agora M17: **o passe visual não é formalidade de fim de tarefa.**
+
+### 2026-08-10 — design-studio (M18): three module guards, a keyboard sensor, and the packaging gate that had never run
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Três guards de fronteira do módulo | `src/main/moduleBoundaries.test.ts` | (a) só `dsAdapter/` importa o pacote de DS — é o que faz "trocar de DS é configuração" ser mecânico em vez de aspiracional; (b) nenhuma camada muta `ScreenDocument` fora do reducer (AD-2); (c) `exportBundle.ts` não constrói markup — no minuto em que o exportador aprender a montar até um wrapper, o artefato que o usuário entrega pode divergir do Preview que ele aprovou, e a divergência só aparece na mão de outra pessoa. |
+| — | `e2e/design-studio-keyboard.spec.ts` — a aba dirigida **sem um clique** | `e2e/` | DS-R18 tinha sensor em dois dos três eixos (`noInlineStrings` para i18n, `reducedMotion` para animação) e nenhum no terceiro. Operabilidade por teclado é a única que não dá para provar lendo: só dirigindo. Ela achou o L-DS-7 (um tooltip aberto no gatilho focado come o primeiro Escape) — um defeito que **só** existe pelo teclado. |
+| — | `e2e/design-studio-export.spec.ts` — o Bundle aberto com a rede cortada | `e2e/` | O export é o único artefato que sai do app, para uma máquina que nunca veremos. Duas coisas podem estar erradas nele de um jeito invisível aqui e óbvio lá: uma requisição que a nossa máquina por acaso responde (o CDN da Font Awesome), e uma divergência do Preview. Abre o `.html` numa janela própria com **toda requisição não-`file:` abortada** e diffa o palco contra o Preview vivo (medido: 0 pixels diferentes). |
+| — | `tools/visual/design-studio.mjs` — 37 amostras × 7 estados × 3 temas | `tools/visual/` | Inclui a faixa que o usuário vê **primeiro**: a aba abre no painel viewer (~44% da janela), que é a banda mais estreita de §3.8. Achou 5 defeitos que nenhum teste pegaria (STATE.md L-DS-1..5). |
+| — | Sweep de contraste da Bancada, agora por **subárvore** | `e2e/contrast.spec.ts` | Duas correções no próprio sensor, e as duas valem para qualquer superfície futura: o sampler deduplica por (cor, fundo, tamanho, peso), então uma superfície feita com os tokens da casca **não contribui nada** para uma varredura de janela inteira — "coberto" era improvável de afirmar; e um modal põe `aria-hidden` no resto do app, que o sweep pula de propósito, então medir cedo demais mede o modal e dá verde no lugar errado (L-DS-6). |
+
+**A lição de harness da milestone, e é sobre um gate que já existia:** o
+`tasks.md` desta feature mandava validar `npm run build:unpack` ao fim da fase
+2, *porque* aquela fase mudava o empacotamento. A fase 2 não rodou. O resultado
+sobreviveu cinco fases de testes verdes: `asarUnpack` põe `resources/**` em
+`app.asar.unpacked/`, então a raiz via `process.resourcesPath` 404'ava o bundle
+do DS, o receptor e o catálogo — **só no app empacotado**, a única forma que
+nenhum teste, nenhum dev run e nenhum E2E contra `out/` exercita. Achado na
+T7.8, corrigido, e provado contra o binário. Virou **D33** no `STATE.md`.
+**Um gate que só existe no plano não é um gate** — e este continua sendo
+manual, o que é honesto registrar aqui em vez de fingir que a lição bastou.
+
+**E, pela sexta milestone seguida (M12, M12.1, M13, M16, M17, M18), o passe
+visual achou o que os testes não achariam** — desta vez cinco, incluindo uma
+bancada que sizava ao conteúdo porque o painel que a contém é um bloco, e um
+estado vazio cuja única função é ensinar renderizado a 46% do tamanho.
 
 ## 6. Steering loop
 

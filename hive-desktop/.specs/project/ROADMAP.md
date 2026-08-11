@@ -674,47 +674,67 @@ by the visual probe instead (STATE.md **L-AO-7**).
 
 ---
 
-## M18 — Design Studio 📝 Planned (2026-08-09)
+## M18 — Design Studio ✅ Done (2026-08-10)
 
-**Feature:** `design-studio` · **Contrato canônico:**
-`_bmad-output/specs/spec-design-studio/` (SPEC + AD-1..AD-11) · **Plano:**
-`.specs/features/design-studio/` (spec/context/design/tasks)
+**Feature:** `design-studio` · branch `feat/voice-prompt` (continues M13–M17) ·
+**Contrato canônico:** `_bmad-output/specs/spec-design-studio/` (SPEC + AD-1..AD-11) ·
+**Plano:** `.specs/features/design-studio/` (spec/context/design/tasks)
 
-Uma Spec de UX do fluxo `bmad-ux` deixa de ser só texto: abre como aba
+Uma Spec de UX do fluxo `bmad-ux` deixou de ser só texto. Ela abre como aba
 `design-studio` no painel viewer, vira Telas navegáveis renderizadas com web
 components reais (**Web Awesome 3.11**, MIT), editáveis por Inspetor, Árvore de
 Componentes e um Chat de Iteração Visual — e sai como Bundle HTML autocontido
 para o Figma Agent. O trabalho de Figma passa a começar *depois* da ideia
-pressão-testada.
+pressão-testada, não antes.
 
-**A moldura, travada pela arquitetura:** documento command-sourced
-(`Add/Remove/Move/SetProp` num reducer puro, undo por replay-from-origin) atrás
-de um `DesignSystemAdapter` — trocar de DS é configuração, não reescrita.
-Preview em iframe `sandbox="allow-scripts"` sem `allow-same-origin`, servido por
-protocolo privilegiado `hive-studio://` com CSP própria (`connect-src 'none'`).
+1. **O documento é command-sourced (F1)** — `Add/Remove/Move/SetProp` num
+   reducer puro que **não valida**, log linear por Tela com `groupId`, e undo
+   por *replay desde a origem* em vez de snapshot. Um turno de chat de N
+   comandos desfaz como um passo só, e desfazê-lo não toca nas edições manuais
+   feitas depois.
+2. **Trocar de design system é configuração (F2)** — o catálogo é **derivado**
+   do `custom-elements.json` do pacote (70 componentes, com o *tipo* de cada
+   prop) e congelado em build; `validate()` é a única porta entre qualquer
+   superfície e o documento. Um teste de fronteira falha se algo fora de
+   `dsAdapter/` importar o pacote.
+3. **O Preview é isolado de verdade (F3)** — `sandbox="allow-scripts"` **sem**
+   `allow-same-origin`, servido por `hive-studio://` com CSP por resposta; o pai
+   só aceita mensagem cujo `event.source` é o frame **e** cujo nonce bate
+   (D-DS-4 — sob origem opaca, casar `event.origin` seria teatro).
+4. **A Bancada (F4)** — o Preview como objeto sobre um palco, não como painel:
+   três camadas de superfície e zero `box-shadow`, escala honesta (o iframe fica
+   no tamanho real do dispositivo, o contêiner é que encolhe) e Modo Foco para
+   quando 44% da janela não bastam.
+5. **Editar à mão (F5)** e **iterar em português (F6)** — Inspetor derivado do
+   *tipo* que o catálogo declara, Árvore com adicionar/remover/mover, e um chat
+   cujo lote é tudo-ou-nada: um comando inválido no meio e **nenhum** é aplicado.
+6. **O Bundle (F7)** — um `.html` por Tela, com bundle, CSS e ícones embutidos,
+   produzido pelo mesmo adaptador que desenha o Preview (AD-6). Falha de uma
+   Tela não derruba as outras.
 
-**As três decisões do usuário (2026-08-09):** Bundle = HTML **vivo** (shadow DOM
-intacto); escopo = **M18 inteira** (CAP-1..15) em 7 fases; layout = **Bancada**
-(palco central + Modo Foco).
+**Exit criteria and the verdict on each (2026-08-10):**
 
-**O que a pesquisa de planejamento já corrigiu** — dois achados que teriam
-virado bug tarde:
-1. O pacote publica `custom-elements.json` com 70 elementos e os **tipos** de
-   cada prop → o catálogo é **derivado**, não escrito à mão, e o Inspetor ganha
-   o controle certo por prop.
-2. `dist/webawesome.js` é um barrel de 1,3 KB (não um bundle) e `wa-icon` busca
-   ícones num **CDN** — sob `connect-src 'none'` todo ícone sumiria em silêncio.
-   Mitigados por um passo de build (medido: 774 KB JS + 56 KB CSS) e por uma
-   biblioteca de ícones local.
+| Criterion | Met? |
+| --- | --- |
+| DS-R1–R18 implementados e demonstrados | **Yes**, os 18. Rastreados um a um na tabela de `spec.md`; cada fase fechou com seus próprios testes e um passe pelo app real. |
+| Uma Spec abre, gera, edita e exporta sem terminal | **Yes, com uma ressalva honesta.** O fluxo inteiro roda contra o app buildado — mas a Spec é semeada pelo E2E, porque **nenhuma Spec real deste repositório usa `## Tela —`**. O R-8 continua **aberto**: a heurística de detecção nunca viu uma Spec de verdade. |
+| Guards de fronteira | **Yes**, três, todos em `moduleBoundaries.test.ts` e no `verify`: só `dsAdapter/` importa o pacote de DS; nenhuma camada muta o documento fora do reducer; `exportBundle.ts` não constrói markup próprio. |
+| O Bundle abre sem rede e bate com o Preview | **Yes, medido.** `e2e/design-studio-export.spec.ts` abre o `.html` numa janela própria com **toda requisição não-`file:` abortada**, prova que os ícones resolveram da biblioteca embutida e diffa o palco contra o Preview vivo: **0 pixels diferentes, 0 requisições estranhas**. |
+| O palco não mente sobre o dispositivo (D-DS-7) | **Yes**, e esta era a dívida carregada da F4: jsdom reporta um `innerWidth` fixo para qualquer frame, então a fase 4 só pôde afirmar a *causa*. Medido agora de dentro do frame, no app buildado: **1440 × 900** enquanto a bancada mostra a 14%. |
+| No regression against the baseline | **Yes.** `npm run verify` verde: **3346 testes / 202 arquivos** (era 2548 / 159), 0 erros de lint, gates de cobertura passando. |
+| Passe visual, todos os temas | **Yes.** `tools/visual/design-studio.mjs` varre 37 amostras × 7 estados × **3** temas, todas PASS — depois de corrigir 5 defeitos que nenhum teste pegaria (STATE.md **L-DS-1..5**). Gated no `e2e/contrast.spec.ts` contra o app real. |
+| Piso do app (DS-R18) | **Yes**, e agora com sensor nos três eixos: `noInlineStrings` (i18n) e `reducedMotion` já rodavam no `verify`; a operabilidade por teclado ganhou `e2e/design-studio-keyboard.spec.ts`, que abre a aba, percorre o foco e opera o seletor de export **sem um único clique**. |
+| `build:unpack` | **Yes** — e foi ele que pegou o defeito mais caro da milestone: `asarUnpack` põe `resources/**` em `app.asar.unpacked/`, então a raiz via `process.resourcesPath` 404'ava o bundle, o receptor e o catálogo **só no app empacotado**. Corrigido e provado contra o binário (catálogo com 70 componentes, DS carregado dentro do Preview). |
 
-**Escopo:** 52 tarefas em 7 fases — F1 documento/undo · F2 adaptador+catálogo ·
-F3 protocolo+isolamento · F4 a Bancada · F5 Inspetor+Árvore · F6 Skill+Chat ·
-F7 export+provas.
+**Limitações conhecidas, registradas em vez de escondidas:** a biblioteca de
+ícones é um conjunto **fixo de 136** (123 solid + 13 brands) — um ícone fora
+dela não renderiza e, por decisão (D-DS-8), nunca cai para o CDN; e `connect-src`
+é **`data:`**, não `'none'` (D-DS-4/D32) — o egresso de rede continua zero, o que
+mudou foi a letra da AC, não a propriedade.
 
-**Exit criteria:** uma Spec real abre, gera, edita e exporta sem terminal;
-`verify` verde sem regressão contra o baseline de 2548 testes; guards de
-fronteira (só `dsAdapter/` importa o DS; só o reducer muta o documento); passe
-visual nos dois temas; Bundle abre sem rede idêntico ao Preview.
+**Deferred:** achatar o shadow DOM para o Figma Agent (aditivo, um segundo método
+no mesmo adaptador — D-DS-1/R-4); multi-seleção de Componentes; migrar Telas ao
+trocar de DS; e histórico entre sessões.
 
 ---
 

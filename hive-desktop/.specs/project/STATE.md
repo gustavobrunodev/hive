@@ -728,6 +728,19 @@ Updated as work progresses. Load at start of every session.
   icon strategy instead of two diverging ones. (design-studio D-DS-4/D32,
   2026-08-09)
 
+- **D33 — Anything shipped under `asarUnpack` is addressed from the main
+  bundle, never from `process.resourcesPath`.** `asarUnpack: resources/**`
+  places those files at `<resourcesPath>/app.asar.unpacked/resources/`, while
+  `process.resourcesPath` points one level above at `<resourcesPath>/` — so
+  reading through it 404s every unpacked artifact **in the packaged app and
+  nowhere else**. Unit tests, dev runs and every E2E against `out/` stay green,
+  because none of them has an asar at all. A path resolved from the main
+  bundle (`join(__dirname, '../../resources')`) is correct in both shapes:
+  packaged it lands inside the asar, where Electron's own fs shim redirects
+  unpacked entries to `app.asar.unpacked/`. Found by `npm run build:unpack` at
+  the end of M18 — the check `tasks.md` had asked for at the end of phase 2 and
+  that phase did not run. (design-studio T7.8, 2026-08-10)
+
 ## Lessons (agent-onboarding, 2026-08-09)
 
 M17 shipped on `feat/voice-prompt`. `npm run verify` green: **2548 tests /
@@ -1779,6 +1792,71 @@ capture=…`), so every number is against actual signal, not silence.
   investigated further (out of scope, unrelated to any file this feature
   touched) — flagged here so a future session doesn't mistake a repeat of
   this specific flake for a real regression.
+
+- **design-studio (M18) — COMPLETE (T1.1–T7.8), 2026-08-10.** 52 tasks, 7
+  sequential phases, one atomic commit each, `npm run verify` green at **3346
+  tests / 202 files** (from 2548 / 159 at M17), 0 lint errors. A UX Spec now
+  opens as a `design-studio` tab, becomes navigable Telas rendered with real web
+  components, is edited by Inspector/Tree/Chat, and exports a self-contained
+  HTML Bundle. What the execution learned, beyond the decisions above:
+
+  - **L-DS-1 — A tinted "selected" state is a contrast trap, and this is the
+    third module to fall into it.** The DS paints a selected Tree row as
+    `--selected` on `--selected-bg` — coral text over a coral tint, 4.44:1 in
+    the dark theme. Same shape as the `SegmentedControl` count (M15) and the
+    agent card's `PADRÃO` (M16). The fix is the same every time: an **opaque**
+    fill carries the tone, `--ink` carries the text. Worth generalising: any
+    `X` on `X-bg` pair is a failure waiting for a theme where `X` is dark.
+  - **L-DS-2 — `--faint` again, fourth module.** It went onto the chat's status
+    line as "metadata" and measured 3.29:1 in the light theme (M14's L-TI-1,
+    verbatim). The rule that settles it is not about importance, it is about
+    who reads it: **if someone reads the text it is `--muted` or darker;
+    `--faint` is for icons and inactive marks.**
+  - **L-DS-3 — A `flex: 1` child of a `ResizablePanel` gets nothing.** The
+    panel is a *block*, so the bench sized to its content: the dot grid stopped
+    a third of the way down the column and the stage read as ending in mid-air.
+    Invisible in jsdom (no layout) and invisible in a component test (no panel).
+    `height: 100%` is what a block parent understands.
+  - **L-DS-4 — A teaching state inside a scaled device is not a teaching
+    state.** The "this Tela has no Components" empty rendered inside the device
+    frame, which at a Desktop preset on a real column is ~46% — so the one
+    surface whose entire job is to explain arrived at 7px. Anything that must be
+    *read* belongs outside whatever the viewport transform touches.
+  - **L-DS-5 — A vendor override that is scoped by class leaks through
+    anything not carrying the class.** `.hds-btn-primary` hardcodes a dark ink
+    that measures 2.03:1 over the light theme's bordo `--accent`; the app had
+    already retinted it, but only for `.wb-btn*`. A bare `<Button>` fell
+    straight through. Scope such overrides by *container*, not by opt-in class.
+  - **L-DS-6 — A modal `aria-hidden`s the app, and a contrast sweep skips
+    `aria-hidden` subtrees.** Sampling right after the palette closed measured
+    the palette and reported the Studio as covered: five samples, all green, all
+    from the wrong surface. Two consequences, both now in the spec: wait for the
+    modal to leave the DOM, and sweep a **subtree** — the sampler dedupes by
+    (colour, ground, size, weight), so a surface built from the shell's tokens
+    contributes nothing to a whole-window sweep and "covered" is unprovable.
+  - **L-DS-7 — A tooltip on a focused trigger eats the first Escape.** Radix's
+    Tooltip dismisses on Escape, so the keystroke a user aims at the dialog the
+    button just opened goes to the tooltip instead. Only reproducible from the
+    keyboard, which is exactly why the keyboard E2E exists. A text-labelled
+    button does not need a tooltip repeating its own word.
+  - **L-DS-8 — The claim jsdom could not make had to be carried for three
+    phases.** T4.6 could only assert the *cause* of an honest preview scale
+    because jsdom reports one fixed `innerWidth` for every frame; the effect was
+    finally measured in T7.6 against the built app, from inside the frame
+    (the sandbox makes `contentWindow` cross-origin, so only the test runner can
+    ask). Carrying a debt like that is fine — writing it down so the last phase
+    is forced to discharge it is what made it get paid.
+  - **L-DS-9 — `build:unpack` is not a formality; it found the most expensive
+    defect of the milestone.** See **D33**. `tasks.md` asked for that check at
+    the end of phase 2 and phase 2 did not run it, so a packaged-only 404 of the
+    entire Preview survived five phases of green tests. A gate that is only in
+    the plan is not a gate.
+  - **L-DS-10 — R-8 was never actually closed, and saying so is the point.**
+    Screen detection was to be "calibrated against real Specs from the repo".
+    There are none: **no UX Spec in this repository uses `## Tela —` headings**,
+    so the heuristic is calibrated against constructed cases and the `bmad-ux`
+    skill's shipped examples only. Recorded as an open risk rather than a
+    checked box; the first real Spec is what will grade it.
 
 ## Todos (cross-feature)
 

@@ -30,6 +30,28 @@ import { join, sep } from 'path'
  */
 export const STUDIO_SCHEME = 'hive-studio'
 
+/**
+ * Where the Studio's shipped artifacts live, resolved **from the main bundle**
+ * rather than from `process.resourcesPath`.
+ *
+ * This looks like a detail and is a release blocker. `electron-builder.yml`
+ * carries `asarUnpack: resources/**`, and an unpacked entry does not land at
+ * `<resourcesPath>/resources/…` — it lands at
+ * `<resourcesPath>/app.asar.unpacked/resources/…`, while `process.resourcesPath`
+ * points at `<resourcesPath>`. Reading through it would 404 the DS bundle, the
+ * receiver and the catalog in a packaged app, and *only* in a packaged app —
+ * every test, every dev run and every E2E against `out/` would stay green
+ * (measured with `npm run build:unpack`, T7.8).
+ *
+ * A path relative to the main bundle is right in both shapes: in dev
+ * `out/main/` sits beside `resources/`, and packaged it resolves inside the
+ * asar, where Electron's own fs shim redirects unpacked entries to
+ * `app.asar.unpacked/` — which is exactly what `readFile` here relies on.
+ */
+export function studioResourcesRoot(mainDir: string): string {
+  return join(mainDir, '..', '..', 'resources')
+}
+
 /** The one addressable host. See the module comment for why there is only one. */
 export const STUDIO_PREVIEW_HOST = 'preview'
 

@@ -17,7 +17,7 @@ Tudo aqui foi medido contra o pacote real em 2026-08-09, não inferido.
 | P-2 | O pacote publica **`dist/custom-elements.json`** (CEM, 2.0 MB) com **70 custom elements**, e por elemento: atributos com **tipo** (`'neutral' \| 'brand' \| 'success' \| 'warning' \| 'danger'`, `boolean`, `string \| null`), slots e eventos. | **O catálogo (DS-R13) é derivado, não escrito à mão.** É o que faz "fonte única de verdade" ser mecânico em vez de aspiracional, e o que dá ao Inspetor o tipo de controle certo por prop (enum→Select, boolean→Switch, string→Input). |
 | P-3 | Nenhum `wa-combobox` / `wa-date-picker` / `wa-file-input` / `wa-data-grid` no tarball — consistente com o tier Pro descrito em `stack.md`. Os 70 que estão lá são MIT. | O catálogo v1 é exatamente "o que o pacote publica". Nada de checagem manual de Pro por componente. |
 | P-4 | **`dist/webawesome.js` tem 1,3 KB** — é um barrel que reexporta de `dist/chunks/*`. **Não é um bundle self-contained.** | DS-R14 ("zero rede") **exige um passo de build**. Não dá para inlinar o arquivo do pacote. |
-| P-5 | Bundle medido com esbuild: **os 70 componentes + core = 774 KB** minificado (ESM). Tema + `native.css` = **56 KB**. | ~830 KB por HTML exportado — confortável para um artefato de handoff. Um bundle único, sem tree-shaking por Tela na v1. |
+| P-5 | Bundle medido com esbuild: **os 70 componentes + core = 774 KB** minificado (ESM). Tema + `native.css` = **56 KB**. | ~830 KB por HTML exportado — confortável para um artefato de handoff. Um bundle único, sem tree-shaking por Tela na v1. **Corrigido na execução (T7.8):** o artefato que shippou mede **845,2 KB de JS + 90,4 KB de CSS = 935,6 KB**. O CSS quase dobrou porque a entrada `styles/webawesome.css` puxa `layers.css` + `utilities.css` junto — não dava para saber sem construir. Continua sob o teto de 1 MB que `dsBundle.test.ts` afirma; todo o resto de §0 bateu com o pacote real. |
 | P-6 | **`wa-icon` resolve ícones num CDN da Font Awesome (`ka-p.fontawesome.com`) por padrão, e o pacote não traz nenhum `.svg`** (0 arquivos). | **Sob `connect-src 'none'` (AD-5) todo ícone quebraria em silêncio**, no Preview e no Bundle. Mitigação obrigatória: `registerIconLibrary()` (exportado pelo pacote) apontando para SVGs locais do `@fortawesome/fontawesome-free` (CC-BY-4.0/OFL/MIT), embutidos no bundle. Vira tarefa própria (T2.6). |
 
 > P-4 e P-6 são os dois achados que teriam virado bug tarde: sem eles, "export
@@ -320,8 +320,11 @@ porque responde a uma pergunta real que o usuário faz toda vez: *o que mudou?*
 
 **`screenDocument.ts`** — *Purpose:* modelo do documento e a única mutação.
 *Interfaces:* `applyCommand(doc, cmd): ScreenDocument` (puro, **não valida** —
-AD-2); `replay(log, upTo): ScreenDocument`; `pushCommands(log, cmds, groupId)`;
-`undo(log)/redo(log)`. *Dependências:* nenhuma (zero Electron/DOM/agente).
+AD-2); `replay(origin, log): ScreenDocument`; `pushCommands(log, cmds, groupId)`;
+`undo(log)/redo(log)`. **Corrigido na execução:** o `replay(log, upTo)` deste
+plano não tinha de onde tirar `screenId`/`title` — um log é uma lista de
+`Command`, não um documento. O documento de origem entra como primeiro
+parâmetro explícito e o cursor do próprio log diz até onde ir. *Dependências:* nenhuma (zero Electron/DOM/agente).
 *Reusa:* nada — é a raiz.
 
 **`dsAdapter/types.ts`** — *Purpose:* o port. `DesignSystemAdapter { id,
@@ -375,7 +378,7 @@ estrito: resposta que não é o JSON esperado → `OperationError` (não
 | `StagePane.tsx` | O palco: bancada, escala, readout | — |
 | `PreviewFrame.tsx` | O iframe sandbox + ponte `postMessage` | — |
 | `ScreenList.tsx` | Telas + estado editada/auto | — |
-| `ComponentTree.tsx` | Árvore + add/remove/move | `Tree`, `ContextMenu` |
+| `ComponentTree.tsx` | Árvore + add/remove/move | `Tree` (+ `TreeActions`) |
 | `Inspector.tsx` | Props derivadas do catálogo, agrupadas | `Field`, `Select`, `Switch`, `Input`, `Accordion` |
 | `IterationChat.tsx` | Faixa/painel de chat | `MessageList`, `ChatMessage`, `PromptInput`, `TypingIndicator` |
 | `useDesignStudio.ts` | Estado + IPC + atalhos | padrão de `useEditorTabs` |
@@ -477,6 +480,26 @@ persistência.
 
 ---
 
+## 6.1 Correções medidas na execução (T7.8)
+
+O que este documento planejou e a execução teve de mudar, com o motivo. Cada
+linha é uma coisa que só se descobre construindo.
+
+| O que mudou | Por quê |
+| --- | --- |
+| **Mover é indentar/desindentar por botão**, não arrastar nem menu de contexto | DS-R18 exige operabilidade completa por teclado, e **arrastar é o único gesto que um teclado não faz**. Somando: o `Tree` do DS não expõe gancho por linha, e dnd em jsdom é notoriamente instável. Dois botões (`Mover para dentro` / `Mover para fora`) fazem o mesmo trabalho e são testáveis e teclável. |
+| **A biblioteca de ícones é um conjunto fixo de 136 ícones** (123 solid + 13 brands), não a FA Free inteira | Só o conjunto solid completo estoura o teto de 1 MB que o Bundle precisa respeitar. **Limitação conhecida do produto:** um ícone fora dessa lista não renderiza nada — e, por construção (D-DS-8), **nunca** cai para o CDN. |
+| **`connect-src` é `data:`, não `'none'`** | Medido na fase 2 e travado em D-DS-4: `wa-icon` resolve todo ícone por `fetch()`, inclusive de uma URL `data:`. O egresso de rede continua zero — uma URL `data:` não alcança servidor nenhum — e a prova é a T3.8, que observa o tráfego real do frame. |
+| **A raiz de `resources/` sai do bundle do main, não de `process.resourcesPath`** | `asarUnpack: resources/**` coloca os artefatos em `<resourcesPath>/app.asar.unpacked/resources/`, não em `<resourcesPath>/`. A expressão original 404'ava tudo **só no app empacotado** — nenhum teste, nenhum dev run e nenhum E2E contra `out/` veria. Achado por `npm run build:unpack` na T7.8 e provado corrigido contra o binário empacotado. |
+
+**Limitação registrada, não resolvida:** a detecção de Telas (T4.2) foi calibrada
+contra casos construídos e contra os exemplos que a skill `bmad-ux` traz — **nenhuma
+Spec de UX real deste repositório usa cabeçalhos `## Tela —`**. O **R-8 continua
+aberto**: a heurística não foi validada contra uma Spec real, e a primeira que
+aparecer é a que vai dizer se ela presta.
+
+---
+
 ## 7. Riscos e preocupações
 
 | # | Preocupação | Onde | Impacto | Mitigação |
@@ -488,7 +511,7 @@ persistência.
 | R-5 | Origem opaca torna a checagem de origem inútil (§1.1) | `PreviewFrame.tsx` | Um controle que parece existir e não controla | `event.source === contentWindow` **e** nonce por sessão; **T3.7** tenta uma mensagem forjada e afirma que é ignorada |
 | R-6 | Documento em main + UI em renderer = round-trip por tecla no Inspetor | IPC | Digitar num campo pode parecer travado | Debounce de 120 ms em campos de texto; enum/boolean despacham na hora. **T5.4** mede que a reconciliação não faz re-render total |
 | R-7 | +830 KB em `resources/` | empacotamento | Cresce o instalador | `resources/**` já é `asarUnpack`, e o payload é hospedado em GitHub Releases (D21) — o limite do npm não é tocado |
-| R-8 | Spec de UX é markdown livre; "Tela" não tem marcação garantida | `skillDesignSystem.ts` | Detecção pode achar 0 Telas numa Spec válida | DS-R1 AC-3 exige um vazio que **nomeia o que procurou**; o parser tenta cabeçalhos e depois cai para a Skill, e a heurística ganha teste com Specs reais do repo (**T4.2**) |
+| R-8 **(aberto)** | Spec de UX é markdown livre; "Tela" não tem marcação garantida | `skillDesignSystem.ts` | Detecção pode achar 0 Telas numa Spec válida | DS-R1 AC-3 exige um vazio que **nomeia o que procurou**, e isso foi entregue. O que **não** foi entregue é a calibração contra Specs reais: não existe nenhuma neste repo com `## Tela —`, então a heurística está testada só contra casos construídos e contra os exemplos da skill `bmad-ux`. Continua aberto (§6.1) |
 | R-9 | Sem undo/redo prévio no codebase para herdar (AD-8) | `screenDocument.ts` | Padrão novo, sem precedente local | Replay-from-origin é a implementação mais simples que satisfaz AD-8; a fase 1 é inteira de testes de propriedade sobre o log antes de qualquer UI existir |
 
 ---

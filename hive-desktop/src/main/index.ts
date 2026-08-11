@@ -51,6 +51,7 @@ import {
 } from './whisperProtocol'
 import {
   createStudioProtocolHandler,
+  studioResourcesRoot,
   STUDIO_SCHEME,
   STUDIO_SCHEME_PRIVILEGES
 } from './designStudio/previewProtocol'
@@ -1016,9 +1017,7 @@ app.whenReady().then(() => {
   // CSP's `script-src 'self'` covers all of it. Packaged, `resources/` is
   // unpacked next to the asar (`asarUnpack` in electron-builder.yml); in dev it
   // is the repo's own `resources/`.
-  const studioRoots = {
-    preview: app.isPackaged ? process.resourcesPath : join(__dirname, '../../resources')
-  }
+  const studioRoots = { preview: studioResourcesRoot(__dirname) }
   const studioSessions = createPreviewSessions()
   protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots, studioSessions.shellFor))
 

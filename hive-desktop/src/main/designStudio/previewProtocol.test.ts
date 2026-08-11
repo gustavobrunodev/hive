@@ -9,6 +9,7 @@ import {
   STUDIO_PREVIEW_HOST,
   STUDIO_SCHEME,
   STUDIO_SCHEME_PRIVILEGES,
+  studioResourcesRoot,
   type StudioProtocolRoots
 } from './previewProtocol'
 import { createPreviewSessions } from './previewSessions'
@@ -24,6 +25,35 @@ import { createPreviewSessions } from './previewSessions'
 const roots: StudioProtocolRoots = { preview: join('/app', 'resources') }
 
 const url = (path: string): string => `${STUDIO_SCHEME}://${STUDIO_PREVIEW_HOST}${path}`
+
+/**
+ * T7.8 — the packaged-only failure `npm run build:unpack` caught.
+ *
+ * `asarUnpack: resources/**` puts the DS bundle, the receiver and the catalog
+ * at `<resourcesPath>/app.asar.unpacked/resources/`, not at
+ * `<resourcesPath>/`. Rooting the scheme at `process.resourcesPath` therefore
+ * 404s every asset in a packaged app and nowhere else — the one shape no test,
+ * dev run or E2E against `out/` ever exercises.
+ */
+describe('studioResourcesRoot (T7.8)', () => {
+  it('resolves beside the main bundle in dev', () => {
+    expect(studioResourcesRoot(join('/repo', 'out', 'main'))).toBe(join('/repo', 'resources'))
+  })
+
+  it('resolves inside the asar when packaged, where the unpacked redirect lives', () => {
+    // Electron's fs shim maps an unpacked entry under `app.asar/` to the real
+    // file under `app.asar.unpacked/`, which is what `readFile` here relies on.
+    expect(studioResourcesRoot(join('/app', 'resources', 'app.asar', 'out', 'main'))).toBe(
+      join('/app', 'resources', 'app.asar', 'resources')
+    )
+  })
+
+  it('never resolves to the resources path itself — the shape that shipped broken', () => {
+    expect(studioResourcesRoot(join('/app', 'resources', 'app.asar', 'out', 'main'))).not.toBe(
+      join('/app', 'resources')
+    )
+  })
+})
 
 describe('previewProtocol — scheme privileges', () => {
   it('registers the hive-studio scheme', () => {
