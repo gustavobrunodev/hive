@@ -235,6 +235,28 @@ The user chose to fix F1, F2, F5 and the doc nit. F3 and F4 stay open by decisio
 
 Gate after the fix pass: **3361 passed / 203 files, exit 0** (+15 vs the report's 3346).
 
+### F6 (new, found during the fix pass) — the full E2E suite has 4 failing specs, none of them M18
+
+The verifier ran the design-studio specs. Running **the whole** `playwright test` suite afterwards
+showed 5 failures, so each was bisected against the pre-M18 baseline (`1f36104`, rebuilt and rerun).
+
+| Spec | Baseline | HEAD | Verdict |
+| --- | --- | --- | --- |
+| `git-conflict.spec.ts` (2 tests) | fails | fails | **Pre-existing**, unrelated to M18 |
+| `agent-change-review.spec.ts:54` | fails | fails | **Pre-existing.** Strict-mode violation: `Aceitar README.md` matches in *both* the rail and the chat, so the locator resolves to 2 elements. A test-authoring bug from M11, not a product defect |
+| `agent-change-review.spec.ts:109` | passes | passes alone, failed in 2 of 3 full-suite runs | **Flaky under suite load**, not a regression |
+| `chat-timing.spec.ts` | passes | passes alone (3×), failed in 1 of 3 full-suite runs | **Flaky under suite load**, not a regression |
+
+Every design-studio spec passed in every run. An intermediate reading of this data suggested
+`agent-change-review:109` was an M18 regression — two consecutive HEAD runs failed it while the
+baseline failed only one test. Re-running settled it: it passes in isolation at HEAD and fails only
+inside the full suite, which is cross-spec interference rather than anything M18 changed.
+
+**This is the likeliest home of F4.** The unidentified T7.6 flake never reproduced across 7+
+full *unit* runs — consistent with the instability living in the E2E layer under load, not in
+vitest. Worth its own task: the two flaky specs share real-Electron launches with `userData` dirs
+and shadow-git state, which is exactly the shape that leaks between specs.
+
 ---
 
 ## 7. Code quality
