@@ -303,11 +303,15 @@ test.describe('design-studio Export E2E (real Electron)', () => {
       )
 
       console.log('[T7.2] stage diff:', JSON.stringify(diff))
-      // Same size and, at worst, the antialiasing of two compositors. Anything
-      // structural — a missing icon, an unstyled component, a dropped prop —
-      // moves this by whole percent, not by fractions of one.
+      // Same size, and not one pixel differing beyond the `delta > 12` band
+      // above — which is where the antialiasing of two compositors lives, and
+      // is the only tolerance in play. Measured 0 on every run; the exact-zero
+      // assertion is deliberate, because spec.md and the M18 exit criteria
+      // claim a pixel-exact Bundle, and a `< 1%` gate would let the docs claim
+      // more than the test enforces. Anything structural — a missing icon, an
+      // unstyled component, a dropped prop — moves this by whole percent.
       expect(diff.size).not.toContain('vs')
-      expect(diff.ratio).toBeLessThan(0.01)
+      expect(diff.ratio).toBe(0)
     } finally {
       await app.close()
       fs.rmSync(tmpRoot, { recursive: true, force: true })

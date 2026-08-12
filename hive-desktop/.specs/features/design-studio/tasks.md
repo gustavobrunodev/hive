@@ -60,13 +60,22 @@ A fase de segurança. Fecha AD-5 e a correção D-DS-4.
 | # | Tarefa | Deps | Requisitos | Verificação |
 | --- | --- | --- | --- | --- |
 | **T3.1** ✅ | `previewProtocol.ts`: `STUDIO_SCHEME_PRIVILEGES` + `resolveStudioRequest` puro (host-based, guarda de path-escape) | F2 | DS-R8 | Host desconhecido → `null`; `../` escapando a raiz → `null`; testes exaustivos sem Electron |
-| **T3.2** ✅ | `protocol.handle` + **CSP por resposta** (`connect-src 'none'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data:`) | T3.1 | DS-R P1-Preview AC-2 | Header da resposta contém `connect-src 'none'` — afirmado em teste, não por inspeção |
+| **T3.2** ✅ | `protocol.handle` + **CSP por resposta** (`connect-src data:` ⚠️ ver abaixo, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data:`) | T3.1 | DS-R P1-Preview AC-2 | Header da resposta contém `connect-src data:` — afirmado em teste, não por inspeção |
 | **T3.3** ✅ | Casca HTML por sessão + **token aleatório** na URL, distinto da chave de disco | T3.2 | AD-7, DS-R P1-Preview AC-6 | Token não é derivável de `(specPathHash, workspaceHash)`; dois `open()` dão tokens diferentes |
 | **T3.4** ✅ | `src/preview/receiver.ts`: handshake `ready` + render por `createElement` e atribuição | T3.3 | AD-4, DS-R P1-Preview AC-4 | Guard de código: `innerHTML` ausente do bundle do receptor; render de uma árvore de 3 níveis |
 | **T3.5** ✅ | Reconciliação por id de nó (patch no lugar; add/remove/move só do que mudou) | T3.4 | DS-R8, D-DS-6 | Um `SetProp` não recria o elemento (identidade do nó preservada) |
 | **T3.6** ✅ | Overlay de seleção no receptor: hover 1px, selecionado 2px + chip de tag; clique via `composedPath()[0]` | T3.5 | DS-R5 | Clique em componente **aninhado** seleciona o mais profundo, sem troca de modo; overlay fora da árvore do documento |
 | **T3.7** ✅ | Ponte `postMessage` no renderer: `event.source === contentWindow` **e** nonce | T3.4 | D-DS-4, R-5 | Mensagem forjada de outra janela **e** mensagem com nonce errado são ignoradas |
 | **T3.8** ✅ | Afirmação de zero rede: o frame não emite requisição externa | T3.6, T2.6 | R-1, AD-5 | Playwright observa network do frame durante render completo: zero requisições fora de `hive-studio://` |
+
+> ⚠️ **T3.2 foi superada durante a execução.** Esta linha pedia
+> `connect-src 'none'`; o que foi entregue é **`connect-src data:`**. A fase 2
+> mediu que `wa-icon` resolve todo ícone por `fetch(url, { mode: 'cors' })`
+> (`chunk.ZCZ2WKQR.js:62`) e que `connect-src` governa `fetch` inclusive para
+> URLs `data:` — sob `'none'` todo ícone sumiria em silêncio, no Preview e no
+> Bundle. O egresso de rede continua **zero**: uma URL `data:` não alcança
+> servidor nenhum. Decisão do usuário registrada em `context.md` (D-DS-4) e no
+> `STATE.md` (**D32**); a prova é a T3.8, que observa o tráfego real do frame.
 
 > **Fim da fase 3:** registrar **D29** (D-DS-4), **D30** (D-DS-5) e **D31**
 > (D-DS-8) em `.specs/project/STATE.md`, e a revisão de segurança dedicada que a

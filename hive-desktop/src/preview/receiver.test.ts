@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'child_process'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
 import { join } from 'path'
 import { createPreviewReceiver, PULSE_MS, STAGE_ID, tokenFromPath } from './receiver'
 import { NODE_ID_ATTRIBUTE } from './dom'
@@ -436,6 +437,11 @@ describe('selection', () => {
 /**
  * The guard runs against the built artifact, and rebuilds it first so a source
  * change cannot pass by testing a stale bundle.
+ *
+ * FIX-4: the rebuild goes to a temp dir and the committed file is *compared*
+ * against it, never replaced. Building over the tracked artifact meant a plain
+ * `npm test` silently rewrote a shipped file while someone was editing the
+ * source — the assertion was right, the side effect was not.
  */
 describe('the built receiver bundle contains no markup-parsing sink (AD-4)', () => {
   const packageRoot = join(__dirname, '..', '..')
@@ -446,10 +452,19 @@ describe('the built receiver bundle contains no markup-parsing sink (AD-4)', () 
   })
 
   it('has no innerHTML, and no other way to turn a string into DOM', () => {
-    execFileSync('node', [join(packageRoot, 'scripts', 'buildPreviewReceiver.mjs')], {
-      cwd: packageRoot,
-      stdio: 'ignore'
-    })
+    const scratch = mkdtempSync(join(tmpdir(), 'hive-receiver-'))
+    const freshPath = join(scratch, 'receiver.js')
+    try {
+      execFileSync('node', [join(packageRoot, 'scripts', 'buildPreviewReceiver.mjs'), freshPath], {
+        cwd: packageRoot,
+        stdio: 'ignore'
+      })
+      // What ships must be what the current source builds to, or the guard
+      // below would be asserting about a bundle nobody loads.
+      expect(readFileSync(bundlePath, 'utf-8')).toBe(readFileSync(freshPath, 'utf-8'))
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
     const bundle = readFileSync(bundlePath, 'utf-8')
 
     for (const sink of [

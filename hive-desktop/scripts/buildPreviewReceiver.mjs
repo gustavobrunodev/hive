@@ -10,6 +10,10 @@
  * the only place a dependency could have reintroduced it.
  *
  * Run: `npm run build:preview-receiver`
+ *
+ * An optional argv[2] redirects the output. The AD-4 guard uses it to build
+ * into a temp dir and compare, so a plain `npm test` never rewrites the
+ * committed artifact in the working tree (FIX-4).
  */
 import { build } from 'esbuild'
 import { dirname, join } from 'node:path'
@@ -17,7 +21,8 @@ import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
-const outfile = join(packageRoot, 'resources', 'design-studio-preview', 'receiver.js')
+const outfile =
+  process.argv[2] ?? join(packageRoot, 'resources', 'design-studio-preview', 'receiver.js')
 
 await build({
   entryPoints: [join(packageRoot, 'src', 'preview', 'index.ts')],
