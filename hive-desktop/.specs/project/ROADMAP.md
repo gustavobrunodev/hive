@@ -732,6 +732,37 @@ dela não renderiza e, por decisão (D-DS-8), nunca cai para o CDN; e `connect-s
 é **`data:`**, não `'none'` (D-DS-4/D32) — o egresso de rede continua zero, o que
 mudou foi a letra da AC, não a propriedade.
 
+**Verificação independente (2026-08-10/11).** Um Verificador que não escreveu
+nada disto releu a milestone contra a spec: **51/51 ACs localizados com evidência
+`file:line`**, 9 mutações de comportamento injetadas em cópia descartável e
+**9 mortas**, `verify` e os E2E reproduzidos, e o D33 reprovado contra um binário
+recém-empacotado em vez de contra uma string de caminho. Veredito **PASS**, com
+5 achados — relatório completo em `.specs/features/design-studio/validation.md`.
+
+Um deles era real e ficou por corrigir depois do fechamento acima: a Edge Case
+*"a Spec mudou em disco → manter a sessão **e sinalizar que a origem mudou**"*
+não tinha implementação nenhuma. A primeira metade valia por acidente (nada relê
+a Spec) e o sinal não existia — nenhum watcher, nenhum estado, nenhum teste. Ela
+estava num bloco de Edge Cases em vez de virar AC numerado, e por isso não entrou
+em nenhuma das 52 tarefas: a lacuna veio da quebra de tarefas herdar o formato da
+spec, não da execução. Corrigido em `0d94fc0`; a sessão continua deliberadamente
+intocada e os testes afirmam isso como **negativas** (nada de reler, despachar,
+desfazer ou escrever sessão), porque um reload passaria num teste que só
+procurasse o aviso.
+
+Também: o diff do Bundle afirmava `< 1%` enquanto a spec e os critérios acima
+alegavam pixel-exato — o portão foi **apertado para `toBe(0)`** em vez de a
+alegação ser abrandada (`13b4837`), depois de medir 0 em quatro execuções.
+
+**Números finais:** `npm run verify` verde, **3361 testes / 203 arquivos**
+(baseline da milestone: 2548 / 159).
+
+**Aberto, por decisão:** o R-8 acima; a metade "sem mudança de código ao trocar
+de DS" de DS-R12 AC-5, que não tem observável sem um segundo adaptador; e
+**4 specs E2E instáveis ou já quebrados que não são da M18** — bissetados contra
+o baseline pré-M18 e registrados em `validation.md` (F6). Nenhuma regressão da
+M18; todo spec do design-studio passou em toda execução.
+
 **Deferred:** achatar o shadow DOM para o Figma Agent (aditivo, um segundo método
 no mesmo adaptador — D-DS-1/R-4); multi-seleção de Componentes; migrar Telas ao
 trocar de DS; e histórico entre sessões.
