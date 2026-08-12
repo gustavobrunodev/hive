@@ -14032,6 +14032,58 @@ button.wb-mcplog-summary:focus-visible {
   white-space: nowrap;
 }
 
+/* FIX-1: the Spec drifted on disk. A strip, not a dialog — the session is
+   still valid, so the notice sits in the layout instead of interrupting it.
+   Surfaces only, no box-shadow, per D-DS-9. */
+
+.wb-dstudio-origin {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--s-2);
+  align-items: center;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  font-size: var(--fs-sm);
+}
+
+.wb-dstudio-origin-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.wb-dstudio-origin-link {
+  border: 0;
+  background: none;
+  color: var(--accent-ink);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.wb-dstudio-origin-dismiss {
+  display: flex;
+  align-items: center;
+  padding: var(--s-1);
+  border: 0;
+  border-radius: var(--r-1);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.wb-dstudio-origin-link:focus-visible,
+.wb-dstudio-origin-dismiss:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wb-dstudio-origin-dismiss:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
 /* Degradation and drawers (T4.8, §3.8). The drawer is anchored, not modal:
    its whole job is to inspect the Tela that is still on screen. */
 

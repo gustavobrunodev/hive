@@ -1417,6 +1417,12 @@ export const ptBR = {
     treeMoveInsideHint: 'Torna este Componente filho do Componente acima dele',
     treeMoveOutside: 'Mover para fora',
     treeMoveOutsideHint: 'Move este Componente para junto do Componente que o contém',
+    // FIX-1 (spec.md Edge Cases): a Spec mudou em disco. A sessão continua
+    // válida de propósito — a Spec é somente leitura e já foi consumida —, então
+    // isto avisa sem interromper e sem recarregar nada.
+    specOriginChanged: 'A Spec mudou em disco desde que esta aba foi aberta.',
+    specOriginOpen: 'Abrir a Spec',
+    specOriginDismiss: 'Dispensar o aviso',
     // T5.7 (DS-R7, §3.10): a Tela sem Componentes ensina os dois caminhos —
     // gerar com a Skill e adicionar à mão.
     screenEmptyTitle: 'Esta Tela ainda não tem Componentes',

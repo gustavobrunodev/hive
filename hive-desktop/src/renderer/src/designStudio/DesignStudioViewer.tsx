@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Resizable, ResizableHandle, ResizablePanel, Skeleton } from '@hive/design-system'
 import { t } from '../i18n'
+import { CloseIcon } from '../ui/icons'
 import { ComponentTree } from './ComponentTree'
 import { Inspector, type PropValue } from './Inspector'
 import { ScreenList } from './ScreenList'
@@ -16,6 +17,7 @@ import { IterationChat } from './IterationChat'
 import { SkillFailureView, SkillProgress } from './SkillStage'
 import { undoableGroupId } from './screenSessions'
 import { useStudioSkill, type SkillFailure, type StudioSkillState } from './useStudioSkill'
+import { useSpecOrigin, type SpecOrigin } from './specOrigin'
 import { stageLayoutFor, type StageLayout } from './stageBands'
 import { useDesignStudio } from './useDesignStudio'
 import { documentKey, useScreenDocument, type ScreenDocumentState } from './useScreenDocument'
@@ -48,6 +50,42 @@ export interface DesignStudioViewerProps {
    */
   focusMode: boolean
   onRequestFocusMode: (focus: boolean) => void
+}
+
+/**
+ * FIX-1 (spec.md Edge Cases): the Spec moved on disk, and the session did not.
+ *
+ * Deliberately a strip and not a dialog. The session is still valid — the Spec
+ * was consumed, and the Telas are the user's work now — so interrupting would
+ * be a lie about the severity. It says what changed, offers the Spec itself as
+ * the way to look, and gets out of the way when dismissed.
+ */
+function SpecOriginNotice({
+  origin,
+  specPath,
+  onOpenSpec
+}: {
+  origin: SpecOrigin
+  specPath: string
+  onOpenSpec: (path: string) => void
+}): React.JSX.Element | null {
+  if (!origin.changed) return null
+  return (
+    <div className="wb-dstudio-origin" role="status">
+      <span className="wb-dstudio-origin-text">{t('designStudio.specOriginChanged')}</span>
+      <button type="button" className="wb-dstudio-origin-link" onClick={() => onOpenSpec(specPath)}>
+        {t('designStudio.specOriginOpen')}
+      </button>
+      <button
+        type="button"
+        className="wb-dstudio-origin-dismiss"
+        onClick={origin.dismiss}
+        aria-label={t('designStudio.specOriginDismiss')}
+      >
+        <CloseIcon size={14} />
+      </button>
+    </div>
+  )
 }
 
 /** The tab's own width, live — the columns fold against this, not the window's. */
@@ -117,6 +155,9 @@ export function DesignStudioViewer({
   const doc = useScreenDocument(workspace, specPath, studio.activeScreenId, activeTitle)
   const rootRef = useRef<HTMLDivElement>(null)
   const layout = useStageLayout(rootRef)
+  // FIX-1: the Spec is read once and consumed, so a change on disk must not
+  // disturb the session — only say so. See `specOrigin.ts`.
+  const origin = useSpecOrigin(workspace, specPath)
   const [drawer, setDrawer] = useState<OpenDrawer>(null)
   const [hintOffered] = useState(() => takeFocusHint())
   // The add picker's open state lives here, so the empty stage's "Adicionar
@@ -189,6 +230,7 @@ export function DesignStudioViewer({
         focusHint={layout.promoteFocusMode && hintOffered && !focusMode}
         onExport={() => setExportOpen(true)}
       />
+      <SpecOriginNotice origin={origin} specPath={specPath} onOpenSpec={onOpenSpec} />
       <ExportGate
         open={exportOpen}
         workspace={workspace}

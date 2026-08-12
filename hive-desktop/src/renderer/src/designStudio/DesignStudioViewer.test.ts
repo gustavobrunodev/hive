@@ -89,6 +89,12 @@ function mockScreens(
   const view = { document, canUndo: false, canRedo: false }
   window.hive = {
     ...window.hive,
+    // FIX-1: the tab watches its Spec for on-disk drift. Captured so a test can
+    // make the Spec change without a filesystem.
+    watchWorkspace: (root: string, onChange: (event: unknown) => void) => {
+      watchListeners.push({ root, onChange })
+      return () => {}
+    },
     designStudio: {
       screens,
       openPreview: vi.fn().mockResolvedValue('hive-studio://preview/abc/index.html'),
@@ -114,19 +120,28 @@ function mockScreens(
 /** Every Skill run the tab started, with its emitter (T6.2). */
 const skillRuns: { request: unknown; emit: (event: unknown) => void }[] = []
 
+/** Every workspace watch the tab opened (FIX-1). */
+const watchListeners: { root: string; onChange: (event: unknown) => void }[] = []
+
 /** The bridge as the tab sees it, for asserting what was dispatched. */
 function bridge(): Record<string, ReturnType<typeof vi.fn>> {
   return window.hive.designStudio as unknown as Record<string, ReturnType<typeof vi.fn>>
 }
 
 function renderViewer(
-  overrides: { onOpenSpec?: ReturnType<typeof vi.fn>; focusMode?: boolean } = {}
+  overrides: {
+    onOpenSpec?: ReturnType<typeof vi.fn>
+    focusMode?: boolean
+    /** FIX-1: `watchWorkspaceShared` caches per root across a file, so a test
+     * that drives the watcher needs a root of its own. */
+    workspace?: string
+  } = {}
 ): { onOpenSpec: ReturnType<typeof vi.fn>; onRequestFocusMode: ReturnType<typeof vi.fn> } {
   const onOpenSpec = overrides.onOpenSpec ?? vi.fn()
   const onRequestFocusMode = vi.fn()
   render(
     createElement(DesignStudioViewer, {
-      workspace: '/ws',
+      workspace: overrides.workspace ?? '/ws',
       specPath: 'docs/ux.md',
       onOpenSpec,
       focusMode: overrides.focusMode ?? false,
@@ -1203,5 +1218,96 @@ describe('DesignStudioViewer — exporting leaves the Tela alone (T7.4)', () => 
 
     expect(screen.getByText('1 Tela exportada em /tmp/bundles')).toBeTruthy()
     expect(screen.getByText('O Componente "wa-x" não existe no design system ativo.')).toBeTruthy()
+  })
+})
+
+/**
+ * FIX-1 — spec.md Edge Cases: "WHEN o arquivo da Spec muda em disco com a aba
+ * aberta THEN o Studio SHALL manter a sessão atual (a Spec é somente leitura e
+ * já foi consumida) e sinalizar que a origem mudou."
+ *
+ * The signal is the easy half. The hard half is everything it must NOT do: the
+ * session is the user's work by then, and a Studio that quietly reloaded it
+ * would destroy exactly what the requirement is protecting. Those are asserted
+ * as negatives below, because a reload would still pass a test that only looked
+ * for the notice.
+ */
+describe('DesignStudioViewer — the Spec moved on disk (FIX-1)', () => {
+  /** Opens the tab and hands back the trigger, so a test can measure across it. */
+  async function openStudio(root: string): Promise<() => void> {
+    mockScreens(async () => oneScreen, NESTED)
+    bridge().view.mockResolvedValue({ document: NESTED, canUndo: true, canRedo: false })
+    renderViewer({ workspace: root })
+    await screen.findByLabelText('Palco')
+    return () =>
+      act(() => {
+        for (const listener of watchListeners.filter((l) => l.root === root)) {
+          listener.onChange({ type: 'change', path: 'docs/ux.md' })
+        }
+      })
+  }
+
+  async function openAndDrift(root: string): Promise<void> {
+    ;(await openStudio(root))()
+  }
+
+  it('says the origin moved, without interrupting the work', async () => {
+    await openAndDrift('/ws-drift-1')
+
+    const notice = await screen.findByRole('status')
+    expect(notice.textContent).toContain('A Spec mudou em disco desde que esta aba foi aberta')
+    // A strip, not a dialog: the Tela is still on screen and still editable.
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByLabelText('Palco')).toBeTruthy()
+  })
+
+  it('keeps the session: nothing is re-read, re-dispatched or undone', async () => {
+    const drift = await openStudio('/ws-drift-2')
+    // Measured across the drift, not across the mount: the Spec is read once
+    // when the tab opens, and the requirement is that it is not read *again*.
+    const screensBefore = bridge().screens.mock.calls.length
+    drift()
+    await screen.findByRole('status')
+
+    // The Spec is consumed once. Re-reading it is the failure this guards.
+    expect(bridge().screens.mock.calls.length).toBe(screensBefore)
+    expect(bridge().dispatch).not.toHaveBeenCalled()
+    expect(bridge().undo).not.toHaveBeenCalled()
+    expect(bridge().redo).not.toHaveBeenCalled()
+  })
+
+  it('offers the Spec itself as the way to look', async () => {
+    mockScreens(async () => oneScreen, NESTED)
+    const onOpenSpec = vi.fn()
+    renderViewer({ workspace: '/ws-drift-3', onOpenSpec })
+    await screen.findByLabelText('Palco')
+    act(() => {
+      for (const listener of watchListeners.filter((l) => l.root === '/ws-drift-3')) {
+        listener.onChange({ type: 'change', path: 'docs/ux.md' })
+      }
+    })
+    await screen.findByRole('status')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir a Spec' }))
+
+    expect(onOpenSpec).toHaveBeenCalledWith('docs/ux.md')
+  })
+
+  it('stays quiet until the Spec actually moves', async () => {
+    mockScreens(async () => oneScreen, NESTED)
+    renderViewer({ workspace: '/ws-drift-4' })
+    await screen.findByLabelText('Palco')
+
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('can be dismissed, leaving the Tela exactly as it was', async () => {
+    await openAndDrift('/ws-drift-5')
+    await screen.findByRole('status')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensar o aviso' }))
+
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByLabelText('Palco')).toBeTruthy()
   })
 })
