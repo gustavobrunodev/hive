@@ -220,6 +220,21 @@ is not a proof.
 Nothing in F1–F5 invalidates a shipped behaviour that the spec asserts, which is why the verdict is
 PASS rather than FAIL. F1 is the one that deserves a fix task.
 
+### Resolution (fix pass, 2026-08-11)
+
+The user chose to fix F1, F2, F5 and the doc nit. F3 and F4 stay open by decision.
+
+| # | Status | Resolution |
+| --- | --- | --- |
+| **F1** | ✅ Resolved — `0d94fc0` | `specOrigin.ts` watches the open Spec through `watchWorkspaceShared` (no second OS-level watcher, unsubscribed on tab close) and the tab shows a dismissible strip. The session is deliberately untouched; the tests assert that as negatives — no re-read, no dispatch, no undo, no session write — because a reload would still pass a test that only looked for the notice. +15 tests. |
+| **F2** | ✅ Resolved — `13b4837` | Gate tightened to `expect(diff.ratio).toBe(0)` rather than the claim being softened, after measuring exactly 0 on four consecutive runs. The `delta > 12` per-pixel band that absorbs compositor antialiasing is unchanged, so the docs and the gate now say the same thing. |
+| **F3** | ⛔ Open by decision | The "no code change on a DS swap" half of DS-R12 AC-5 still has no observable. Proving it needs a second adapter, which v1 does not have. |
+| **F4** | ⛔ Open by decision | The T7.6 flake remains unidentified and unreproduced (7 full-suite runs at the time of the report, plus every run since). If it returns, the four `setTimeout(…, 0)` yields named above are the first place to look. |
+| **F5** | ✅ Resolved — `13b4837` | `buildPreviewReceiver.mjs` takes an optional output path; the AD-4 guard builds into a temp dir and **compares** the committed artifact against it. It still catches a stale bundle, and `npm test` no longer rewrites a shipped file in the working tree. |
+| Doc nit | ✅ Resolved — `13b4837` | `tasks.md` T3.2 marked superseded, with the measurement that forced `connect-src data:`. |
+
+Gate after the fix pass: **3361 passed / 203 files, exit 0** (+15 vs the report's 3346).
+
 ---
 
 ## 7. Code quality
