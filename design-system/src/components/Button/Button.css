@@ -15,6 +15,12 @@
 .hds-btn-primary {
   background: var(--accent);
   color: #241019;
+  /* Accent-filled, so the default `--accent` highlight would be invisible on
+     it — same inversion as the user chat bubble. `var(--accent-ink)` (not the
+     literal above) because the pair has to resolve per theme: white on the
+     light theme's bordo fill, near-black on dark's coral. */
+  --selection-bg: var(--accent-ink);
+  --selection-ink: var(--accent);
 }
 .hds-btn-primary:hover {
   background: #d98a6c;

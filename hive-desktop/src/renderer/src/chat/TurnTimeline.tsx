@@ -1,4 +1,5 @@
 import { ApprovalCard } from './ApprovalCard'
+import { McpTurnNotice } from './McpTurnNotice'
 import { ToolActivityFeed } from './ToolActivityFeed'
 import { TurnMeter } from './TurnMeter'
 import { type TurnBlock } from './turnTimeline'
@@ -27,6 +28,8 @@ interface TurnTimelineProps {
   onApprovalDecide: (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => void
   /** agent-patch: opens an edited file (absolute path) in the editor. */
   onOpenFile?: (path: string) => void
+  /** mcp-visibility: opens the MCP console from the turn's handshake row. */
+  onOpenMcpConsole?: () => void
 }
 
 /**
@@ -57,7 +60,8 @@ export function TurnTimeline({
   revealedText,
   renderText,
   onApprovalDecide,
-  onOpenFile
+  onOpenFile,
+  onOpenMcpConsole
 }: TurnTimelineProps): React.JSX.Element {
   const lastIndex = blocks.length - 1
 
@@ -77,6 +81,15 @@ export function TurnTimeline({
         }
         if (block.kind === 'approval') {
           return <ApprovalCard key={block.id} request={block.request} onDecide={onApprovalDecide} />
+        }
+        if (block.kind === 'mcp') {
+          return (
+            <McpTurnNotice
+              key={block.id}
+              servers={block.servers}
+              onOpenConsole={onOpenMcpConsole}
+            />
+          )
         }
         // Trailing block of a live turn: the paced reveal. Everything above it
         // is done arriving and must not re-animate.

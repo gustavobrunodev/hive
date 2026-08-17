@@ -23,15 +23,32 @@
  * is the easy bug:
  *  - **Context** is the *latest* snapshot, not a sum. A turn emits several as
  *    it grows; each restates the same request. Summing them would report a
- *    conversation four times fuller than it is.
- *  - **Session totals** (tokens generated, cost) sum only the `final` reports,
- *    one per turn — the CLI's own end-of-turn line, which is the only place
- *    per-turn totals exist.
+ *    conversation four times fuller than it is. The adapter guarantees every
+ *    report's input side is one request (`agentAdapter.ts`'s `TurnUsage`), so
+ *    this module can take the newest one at face value.
+ *  - **Session totals** (tokens generated, cost) come only from the `final`
+ *    reports — the CLI's own end-of-turn line, the only place per-turn totals
+ *    exist. A turn may emit several of those, each restating the same turn's
+ *    running totals, so a repeat *replaces* that turn's contribution instead of
+ *    adding to it (`settled`, below).
  *
  * Pure and DOM-free; presentation lives in `ContextMeter.tsx`.
  */
 
 import type { TurnUsage } from './turnTiming'
+
+/**
+ * What one turn's `final` reports have already contributed to the session
+ * totals. Kept per turn so a second report for the same turn — which restates
+ * that turn's running totals rather than adding a new slice — can be folded in
+ * as a replacement.
+ */
+interface SettledTurn {
+  outputTokens: number
+  costUsd?: number
+  apiMs?: number
+  runtimeMs: number
+}
 
 /** Everything the session status surface reads. */
 export interface SessionUsage {
@@ -39,6 +56,14 @@ export interface SessionUsage {
   context: TurnUsage | null
   /** The context window of the model in use, in tokens — `null` when the adapter declares none. */
   contextWindow: number | null
+  /**
+   * The window the CLI itself reported running at, when it did. Outranks the
+   * adapter's curated figure (see `withContextWindow`): the curated one is what
+   * the model *usually* gets, this one is what this conversation *has*.
+   */
+  reportedWindow: number | null
+  /** Per-turn ledger behind the totals below; see `SettledTurn`. */
+  settled: Record<string, SettledTurn>
   /** Sum of every settled turn's generated tokens. */
   outputTokens: number
   /** Sum of every settled turn's cost, in USD. `null` when no turn reported one. */
@@ -54,6 +79,8 @@ export interface SessionUsage {
 export const EMPTY_SESSION_USAGE: SessionUsage = {
   context: null,
   contextWindow: null,
+  reportedWindow: null,
+  settled: {},
   outputTokens: 0,
   costUsd: null,
   turns: 0,
@@ -68,15 +95,21 @@ export function contextTokens(usage: TurnUsage | null): number {
 }
 
 /**
- * Folds one report in. `final` reports (one per turn, off the CLI's `result`
- * line) also advance the session totals; intermediate snapshots only move the
- * context reading. `runtimeMs` comes from the caller because only the caller
- * knows when the user pressed Enter.
+ * Folds one report in. `final` reports (off the CLI's `result` line) also
+ * advance the session totals; intermediate snapshots only move the context
+ * reading. `runtimeMs` comes from the caller because only the caller knows when
+ * the user pressed Enter.
+ *
+ * `turnId` is what makes a repeated `final` safe: a turn can emit several, each
+ * restating the same turn's running totals (measured on a `claude` turn that
+ * ran a subagent), so the turn's previous contribution is backed out before the
+ * new one goes in. Without an id every restatement would look like another
+ * turn, and one prompt would bill as two.
  */
 export function applyUsage(
   current: SessionUsage,
   usage: TurnUsage,
-  opts: { final: boolean; runtimeMs?: number }
+  opts: { final: boolean; runtimeMs?: number; turnId?: string }
 ): SessionUsage {
   const next: SessionUsage = {
     ...current,
@@ -84,15 +117,49 @@ export function applyUsage(
     // `result` line that closes the turn — so taking each report at face value
     // means the authoritative one *erases* the model name a moment after
     // showing it. It didn't change mid-turn; carry it forward.
-    context: { ...usage, model: usage.model ?? current.context?.model }
+    context: { ...usage, model: usage.model ?? current.context?.model },
+    reportedWindow: usage.contextWindow ?? current.reportedWindow
   }
   if (!opts.final) return next
-  next.turns = current.turns + 1
-  next.outputTokens = current.outputTokens + usage.outputTokens
-  next.runtimeMs = current.runtimeMs + Math.max(0, opts.runtimeMs ?? 0)
-  if (usage.costUsd !== undefined) next.costUsd = (current.costUsd ?? 0) + usage.costUsd
-  if (usage.apiDurationMs !== undefined) next.apiMs = (current.apiMs ?? 0) + usage.apiDurationMs
+
+  const contribution: SettledTurn = {
+    outputTokens: usage.outputTokens,
+    costUsd: usage.costUsd,
+    apiMs: usage.apiDurationMs,
+    runtimeMs: Math.max(0, opts.runtimeMs ?? 0)
+  }
+  // A turn with no id can't be recognised on a second report, so it is counted
+  // as it arrives — the pre-`turnId` behaviour, kept for adapters/tests that
+  // don't stamp one.
+  const previous = opts.turnId === undefined ? undefined : current.settled[opts.turnId]
+  if (opts.turnId !== undefined) {
+    next.settled = { ...current.settled, [opts.turnId]: contribution }
+  }
+  if (previous === undefined) next.turns = current.turns + 1
+
+  next.outputTokens =
+    current.outputTokens - (previous?.outputTokens ?? 0) + contribution.outputTokens
+  next.runtimeMs = Math.max(
+    0,
+    current.runtimeMs - (previous?.runtimeMs ?? 0) + contribution.runtimeMs
+  )
+  next.costUsd = rebase(current.costUsd, previous?.costUsd, contribution.costUsd)
+  next.apiMs = rebase(current.apiMs, previous?.apiMs, contribution.apiMs)
   return next
+}
+
+/**
+ * Swaps one turn's contribution to a running total for its restated value.
+ * Stays `null` — "the CLI never reported this" — until something real arrives:
+ * turning an unknown cost into `0` would claim the turn was free.
+ */
+function rebase(
+  total: number | null,
+  previous: number | undefined,
+  next: number | undefined
+): number | null {
+  if (next === undefined) return total
+  return Math.max(0, (total ?? 0) - (previous ?? 0) + next)
 }
 
 /**
@@ -105,8 +172,15 @@ export function applyTurnRuntime(current: SessionUsage, runtimeMs: number): Sess
   return { ...current, runtimeMs: current.runtimeMs + Math.max(0, runtimeMs) }
 }
 
-/** Rebinds the window when the conversation's model changes; everything measured stays. */
-export function withContextWindow(current: SessionUsage, contextWindow: number | null): SessionUsage {
+/**
+ * Rebinds the window when the conversation's model changes; everything measured
+ * stays. `declared` is the adapter's curated figure for the selected model — a
+ * window the CLI reported for itself wins over it, because the same model id
+ * runs at different ceilings depending on how the CLI was configured, and a
+ * denominator that is merely usually right makes the meter usually right.
+ */
+export function withContextWindow(current: SessionUsage, declared: number | null): SessionUsage {
+  const contextWindow = current.reportedWindow ?? declared
   return current.contextWindow === contextWindow ? current : { ...current, contextWindow }
 }
 

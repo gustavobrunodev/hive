@@ -26,7 +26,7 @@ import type { McpProbe, McpProbeResult, McpServerConfig, McpToolInfo } from './m
 
 const PROBE_TIMEOUT_MS = 10_000
 const PROTOCOL_VERSION = '2025-06-18'
-const CLIENT_INFO = { name: 'hive-desktop', version: '1.0.0' }
+const CLIENT_INFO = { name: 'hive', version: '1.0.0' }
 
 interface JsonRpcMessage {
   jsonrpc: '2.0'

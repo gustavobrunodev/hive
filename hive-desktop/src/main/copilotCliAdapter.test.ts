@@ -32,7 +32,10 @@ describe('CopilotCliAdapter', () => {
     expect(runner.calls[0].command).toBe('copilot')
     expect(runner.calls[0].args).toEqual(['-p', 'oi', '--model', 'gpt-5', '--allow-all-tools'])
     expect(runner.calls[0].args).not.toContain('--effort')
-    expect(runner.calls[0].opts).toEqual({ cwd: '/ws' })
+    // agent-terminal: every agent turn is tagged `shell: true` (the runner
+    // spawns directly while nothing is chosen). Copilot publishes no way to
+    // pick the shell of its *own* commands, so it adds no env of its own.
+    expect(runner.calls[0].opts).toEqual({ cwd: '/ws', env: undefined, shell: true })
   })
 
   it('appends --resume for conversation memory, and works with no model (adapter default)', async () => {

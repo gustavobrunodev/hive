@@ -75,6 +75,70 @@ test.describe('execution timing, queue and context (app real)', () => {
     await app.close()
   })
 
+  /**
+   * The reported defect: one BMAD prompt showed the context window 100% full.
+   *
+   * The trace below is copied from a real `claude` 2.1.226 run — five API
+   * calls in a single `-p` turn, plus the subagent one of them spawned. The
+   * numbers are what makes the test worth running in the real app: the CLI's
+   * `result` line adds the five prompts up to 117 278 tokens (59% of a 200k
+   * window, and past 100% at the nine steps the user's session took), while the
+   * window actually held the last request's 23 910 — 12%.
+   */
+  test('@p1 a janela de contexto mede a última requisição, não a soma do turno', async ({
+    seeded
+  }) => {
+    const agent = armScriptedAgent(seeded, {
+      chunks: ['Vou verificar os arquivos.'],
+      requests: [
+        { input_tokens: 10, cache_read_input_tokens: 15_854, cache_creation_input_tokens: 6_813 },
+        { input_tokens: 8, cache_read_input_tokens: 22_667, cache_creation_input_tokens: 631 },
+        {
+          input_tokens: 8,
+          cache_read_input_tokens: 23_298,
+          cache_creation_input_tokens: 311,
+          // A subagent's own conversation, reporting its own (smaller) window.
+          sidechain: { input_tokens: 10, cache_creation_input_tokens: 11_899 }
+        },
+        { input_tokens: 8, cache_read_input_tokens: 23_609, cache_creation_input_tokens: 151 },
+        { input_tokens: 8, cache_read_input_tokens: 23_760, cache_creation_input_tokens: 142 }
+      ],
+      contextWindow: 200_000,
+      usage: { output_tokens: 1_060, total_cost_usd: 0.033, duration_ms: 82_000 },
+      model: 'claude-haiku-4-5-20251001'
+    })
+
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
+
+    await window.getByPlaceholder('Escreva uma mensagem…').fill('/bmad-brainstorming')
+    await window.getByRole('button', { name: 'Enviar' }).click()
+
+    await expect(window.locator('.wb-turn-meter').first()).toContainText('Concluído em', {
+      timeout: 30_000
+    })
+
+    // 8 + 23 760 + 142 of 200 000. The bug reported 59% here (and 100% on a
+    // longer turn); the subagent's 11 909 never displaces it either.
+    const meter = window.locator('.wb-ctx-meter')
+    await expect(meter).toContainText('12%')
+    await expect(meter).not.toContainText('100%')
+
+    await meter.click()
+    const sheet = window.locator('.wb-ctx-sheet')
+    await expect(sheet).toContainText('23,9 mil')
+    await expect(sheet).toContainText('de 200 mil')
+    // The turn's own totals are unaffected — those really are turn-wide.
+    await expect(sheet).toContainText('1,1 mil')
+    await expect(sheet).toContainText('US$ 0,03')
+    // One prompt is one turn, however many result lines the CLI printed.
+    await expect(sheet).toContainText('Turnos')
+    await expect(window.locator('.wb-ctx-total').filter({ hasText: 'Turnos' })).toContainText('1')
+
+    await app.close()
+  })
+
   test('@p1 uma mensagem escrita durante o turno entra na fila e sai quando ele termina', async ({
     seeded
   }) => {
@@ -97,7 +161,9 @@ test.describe('execution timing, queue and context (app real)', () => {
     // the queue instead of an immediate send.
     const busy = window.getByPlaceholder('Escreva a próxima mensagem — ela entra na fila…')
     await expect(busy).toBeVisible({ timeout: 30_000 })
-    await expect(window.getByRole('button', { name: 'Interromper a resposta do agente' })).toBeVisible()
+    await expect(
+      window.getByRole('button', { name: 'Interromper a resposta do agente' })
+    ).toBeVisible()
 
     await busy.fill('segunda pergunta')
     await window.getByRole('button', { name: 'Enfileirar mensagem' }).click()

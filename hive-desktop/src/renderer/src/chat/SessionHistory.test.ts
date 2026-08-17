@@ -112,6 +112,7 @@ describe('SessionHistory', () => {
   interface RenderProps {
     activeSessionId?: string | null
     runningSessionIds?: string[]
+    reviewPendingBySession?: Record<string, number>
     onNewConversation?: () => void
     onOpenSession?: (id: string) => void
   }
@@ -126,6 +127,7 @@ describe('SessionHistory', () => {
         workspace: '/ws',
         activeSessionId: props.activeSessionId ?? null,
         runningSessionIds: props.runningSessionIds ?? [],
+        reviewPendingBySession: props.reviewPendingBySession ?? {},
         onNewConversation: props.onNewConversation ?? vi.fn(),
         onOpenSession: props.onOpenSession ?? vi.fn()
       })
@@ -216,6 +218,32 @@ describe('SessionHistory', () => {
     expect(screen.getByText('Em andamento')).toBeTruthy()
     // The stopped conversation keeps its normal meta line.
     expect(screen.getByText('3 mensagens')).toBeTruthy()
+  })
+
+  /**
+   * Agent Change Review: a turn's change card renders only in the conversation
+   * it was asked from, so this row marker is what keeps a review waiting
+   * elsewhere findable rather than merely out of sight.
+   */
+  it('marks conversations still holding files to review, and says how many', async () => {
+    renderPanel(
+      [
+        meta({ id: '00000000-0000-4000-8000-00000000000a', title: 'Com revisão' }),
+        meta({ id: '00000000-0000-4000-8000-00000000000b', title: 'Sem revisão' })
+      ],
+      { reviewPendingBySession: { '00000000-0000-4000-8000-00000000000a': 2 } }
+    )
+    openPanel()
+    await screen.findByText('Com revisão')
+
+    expect(screen.getByText('2 pendentes')).toBeTruthy()
+    // The marker rides alongside the row's own meta line, not instead of it.
+    expect(screen.getAllByText('3 mensagens')).toHaveLength(2)
+    // And it reaches a screen reader through the row's accessible name.
+    expect(
+      screen.getByLabelText('Abrir conversa: Com revisão — 2 mudanças pendentes de revisão')
+    ).toBeTruthy()
+    expect(screen.getByLabelText('Abrir conversa: Sem revisão')).toBeTruthy()
   })
 
   it('marks the active conversation with the "Atual" badge', async () => {

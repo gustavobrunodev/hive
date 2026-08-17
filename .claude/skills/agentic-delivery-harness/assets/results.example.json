@@ -1,0 +1,99 @@
+{
+  "baseline_id": "trials-v1",
+  "run_id": "run-1",
+  "judge_model": "claude-sonnet-5",
+  "implementation_ref": "feat/trials@9f3c1de",
+  "notes": "Every match cites file:line. Every miss shows what was searched. No subtotals — score.py computes those.",
+  "results": [
+    {
+      "id": "I-01",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:88 — createTrial() calls stripe.subscriptions.create({ items: [{ price: priceId }], trial_period_days })"
+    },
+    {
+      "id": "I-02",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:92 — payment_behavior: 'default_incomplete' omitted; no default_payment_method is set and no card is collected upstream (routes/subscriptions.ts:41)"
+    },
+    {
+      "id": "I-03",
+      "match": true,
+      "evidence": "src/subscriptions/dto.ts:17 — trialDays: z.number().int().min(1).default(14)"
+    },
+    {
+      "id": "I-04",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:104 — returns { status: 'trialing', trialEndDate: addDays(now, trialDays) }"
+    },
+    {
+      "id": "T-01",
+      "match": true,
+      "evidence": "tests/subscriptions/trial.test.ts:23 — expect(result.status).toBe('trialing')"
+    },
+    {
+      "id": "T-02",
+      "match": true,
+      "evidence": "tests/subscriptions/trial.test.ts:38 — expect(stripeMock.subscriptions.create).toHaveBeenCalledWith(expect.not.objectContaining({ default_payment_method: expect.anything() }))"
+    },
+    {
+      "id": "T-03",
+      "match": false,
+      "evidence": "searched tests/**/*.test.ts for 'trialEndDate', 'trial_end', 'addDays' — trialEndDate appears only in tests/subscriptions/status.test.ts:19, where it is asserted to be defined but never compared against creation date + trialDays"
+    },
+    {
+      "id": "I-05",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:71 — throws NotFoundError when priceLookup returns null; mapped to 404 in src/http/errorMapper.ts:29"
+    },
+    {
+      "id": "I-06",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:71 — the price lookup precedes any repository write; no persistence call exists on that path"
+    },
+    {
+      "id": "T-04",
+      "match": true,
+      "evidence": "tests/subscriptions/trial.test.ts:57 — expect(res.status).toBe(404)"
+    },
+    {
+      "id": "T-05",
+      "match": false,
+      "evidence": "searched tests/**/*.test.ts for 'toHaveLength(0)', 'not.toHaveBeenCalled' near the 404 case — the 404 test asserts only the status code; no assertion covers the absence of a persisted record"
+    },
+    {
+      "id": "I-07",
+      "match": true,
+      "evidence": "src/subscriptions/routes.ts:63 — GET /subscriptions/me returns getCurrentStatus(userId)"
+    },
+    {
+      "id": "I-08",
+      "match": true,
+      "evidence": "src/subscriptions/service.ts:131 — trialEndDate included in the response when status === 'trialing'"
+    },
+    {
+      "id": "T-06",
+      "match": true,
+      "evidence": "tests/subscriptions/status.test.ts:19 — expect(body).toMatchObject({ status: 'trialing', trialEndDate: expect.any(String) })"
+    },
+    {
+      "id": "I-09",
+      "match": false,
+      "evidence": "searched src/**/*.ts for 'past_due', 'customer.subscription.updated', 'trial_will_end', 'webhook' — no webhook handler and no expiry transition logic exists in the diff"
+    },
+    {
+      "id": "I-10",
+      "match": false,
+      "evidence": "same search as I-09 — no expiry handling implemented"
+    },
+    {
+      "id": "T-07",
+      "match": false,
+      "evidence": "searched tests/**/*.test.ts for 'active', 'expiry', 'past_due' — no test covers trial expiry"
+    },
+    {
+      "id": "T-08",
+      "match": false,
+      "evidence": "same search as T-07 — no test covers trial expiry"
+    }
+  ]
+}

@@ -17,8 +17,8 @@ function marked(segments: BackdropSegment[], flag: 'mention' | 'fresh'): string 
 
 describe('composerBackdrop', () => {
   it('marks a mention when nothing was just dictated', () => {
-    const segments = composerBackdrop('revisa #docs/prd.md agora', FILES, null)
-    expect(marked(segments, 'mention')).toBe('#docs/prd.md')
+    const segments = composerBackdrop('revisa @docs/prd.md agora', FILES, null)
+    expect(marked(segments, 'mention')).toBe('@docs/prd.md')
     expect(marked(segments, 'fresh')).toBe('')
   })
 
@@ -31,25 +31,25 @@ describe('composerBackdrop', () => {
   it('splits a mention token when the fresh run cuts across it', () => {
     // Dictation landed mid-token — the mark follows the characters, not the
     // token they happen to sit in.
-    const value = 'veja #docs/prd.md'
+    const value = 'veja @docs/prd.md'
     const segments = composerBackdrop(value, FILES, [5, 11])
-    expect(marked(segments, 'fresh')).toBe('#docs/')
+    expect(marked(segments, 'fresh')).toBe('@docs/')
     // The whole token is still a mention, across both pieces.
-    expect(marked(segments, 'mention')).toBe('#docs/prd.md')
+    expect(marked(segments, 'mention')).toBe('@docs/prd.md')
   })
 
   it('carries both flags on a run that is a mention AND freshly inserted', () => {
-    const value = 'veja #docs/prd.md'
+    const value = 'veja @docs/prd.md'
     const segments = composerBackdrop(value, FILES, [5, 17])
     const both = segments.filter((segment) => segment.mention && segment.fresh)
-    expect(both.map((segment) => segment.text).join('')).toBe('#docs/prd.md')
+    expect(both.map((segment) => segment.text).join('')).toBe('@docs/prd.md')
   })
 
   it('marks a fresh run that spans several mentions and the text between them', () => {
-    const value = 'a #docs/prd.md b #src/main.ts c'
+    const value = 'a @docs/prd.md b @src/main.ts c'
     const segments = composerBackdrop(value, FILES, [0, value.length])
     expect(marked(segments, 'fresh')).toBe(value)
-    expect(marked(segments, 'mention')).toBe('#docs/prd.md#src/main.ts')
+    expect(marked(segments, 'mention')).toBe('@docs/prd.md@src/main.ts')
   })
 
   // The contract the prop itself documents: drift misaligns every highlight
@@ -58,12 +58,12 @@ describe('composerBackdrop', () => {
     const values = [
       '',
       'sem marcações',
-      'revisa #docs/prd.md agora',
-      '#docs/prd.md',
+      'revisa @docs/prd.md agora',
+      '@docs/prd.md',
       'acentuação e emoji 🐝 no meio',
-      'quebra\nde linha #src/main.ts\nfim',
+      'quebra\nde linha @src/main.ts\nfim',
       '  espaços  duplos  ',
-      '#naoexiste fica texto puro'
+      '@naoexiste fica texto puro'
     ]
     const ranges: (readonly [number, number] | null)[] = [
       null,
@@ -102,9 +102,9 @@ describe('composerBackdrop', () => {
     expect(marked(composerBackdrop(value, FILES, [4, 1]), 'fresh')).toBe('')
   })
 
-  it('leaves an unknown #token as plain text, fresh or not', () => {
-    const segments = composerBackdrop('sobre #naoexiste', FILES, [6, 16])
+  it('leaves an unknown @token as plain text, fresh or not', () => {
+    const segments = composerBackdrop('sobre @naoexiste', FILES, [6, 16])
     expect(marked(segments, 'mention')).toBe('')
-    expect(marked(segments, 'fresh')).toBe('#naoexiste')
+    expect(marked(segments, 'fresh')).toBe('@naoexiste')
   })
 })

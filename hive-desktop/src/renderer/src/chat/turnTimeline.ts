@@ -38,10 +38,29 @@ import {
   type ToolActivityEvent
 } from './toolActivity'
 
+/**
+ * One MCP server as the CLI's handshake reported it (mcp-visibility). Mirror of
+ * `main/agentAdapter.ts`'s `McpServerReport` — renderer files mirror main types
+ * rather than importing across the process boundary.
+ */
+export interface McpServerReport {
+  name: string
+  status: 'connected' | 'failed' | 'needs-auth' | 'pending' | 'unknown'
+  /** Tool names without the `mcp__<server>__` prefix. */
+  tools: string[]
+}
+
 export type TurnBlock =
   | { kind: 'text'; id: string; text: string }
   | { kind: 'tools'; id: string; activities: ToolActivity[] }
   | { kind: 'approval'; id: string; request: ApprovalRequest }
+  /**
+   * The MCP servers this turn started with. First in the turn because that is
+   * when it happens — the CLI dials every server and reports the outcome
+   * before the agent is allowed to do anything — and the previous silence
+   * there is what made "está subindo o servidor MCP?" unanswerable.
+   */
+  | { kind: 'mcp'; id: string; servers: McpServerReport[] }
 
 /**
  * Blocks are append-only, so position is identity: the block created as the
@@ -148,6 +167,38 @@ function findApproval(blocks: TurnBlock[], requestId: string): number {
   return blocks.findIndex(
     (block) => block.kind === 'approval' && block.request.requestId === requestId
   )
+}
+
+/**
+ * Records the turn's MCP roster (mcp-visibility). At most one per turn: the CLI
+ * reports it once, and a second report would be a restatement of the same
+ * handshake, so it replaces rather than stacks. An empty roster appends
+ * nothing — a turn with no MCP servers has nothing to say about them, and a row
+ * reading "0 servidores" on every turn of a workspace that uses none is exactly
+ * the chrome `PRODUCT.md` tells us not to add.
+ */
+export function appendTurnMcp(blocks: TurnBlock[], servers: McpServerReport[]): TurnBlock[] {
+  if (servers.length === 0) return blocks
+  const index = blocks.findIndex((block) => block.kind === 'mcp')
+  if (index === -1) return [...blocks, { kind: 'mcp', id: blockId('mcp', blocks.length), servers }]
+  const next = [...blocks]
+  next[index] = { kind: 'mcp', id: blocks[index].id, servers }
+  return next
+}
+
+/**
+ * A roster's identity, for deciding whether it is *news*. Two turns that got
+ * the same servers in the same states produce the same signature, so the
+ * transcript can announce a change instead of repeating an unchanged fact at
+ * the top of every turn — the status bar is where the standing answer lives.
+ * The tool list is deliberately out: a server that gained a tool between turns
+ * has not changed anything the reader of a transcript needs told.
+ */
+export function rosterSignature(servers: McpServerReport[]): string {
+  return servers
+    .map((server) => `${server.name}:${server.status}`)
+    .sort()
+    .join('|')
 }
 
 /**

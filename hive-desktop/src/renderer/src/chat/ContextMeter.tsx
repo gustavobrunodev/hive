@@ -46,7 +46,10 @@ interface ContextMeterProps {
  * descending emphasis they read as what they are: a single bar filling up.
  * Colour is reserved for the one state that *is* semantic — near the ceiling.
  */
-export function ContextMeter({ usage, onNewConversation }: ContextMeterProps): React.JSX.Element | null {
+export function ContextMeter({
+  usage,
+  onNewConversation
+}: ContextMeterProps): React.JSX.Element | null {
   const [open, setOpen] = useState(false)
   const used = contextTokens(usage.context)
   if (used === 0) return null
@@ -54,8 +57,7 @@ export function ContextMeter({ usage, onNewConversation }: ContextMeterProps): R
   const fraction = contextFraction(usage)
   const tight = contextIsTight(usage)
   const percent = fraction === null ? null : Math.round(fraction * 100)
-  const summary =
-    percent === null ? formatTokens(used) : t('usage.meterPercent', percent)
+  const summary = percent === null ? formatTokens(used) : t('usage.meterPercent', percent)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -119,7 +121,9 @@ function ContextDetail({
           </span>
         )}
         {fraction !== null && (
-          <span className="wb-ctx-percent">{t('usage.meterPercent', Math.round(fraction * 100))}</span>
+          <span className="wb-ctx-percent">
+            {t('usage.meterPercent', Math.round(fraction * 100))}
+          </span>
         )}
       </p>
 
@@ -129,7 +133,11 @@ function ContextDetail({
       <div
         className="wb-ctx-bar"
         role="img"
-        aria-label={t('usage.barAria', formatTokens(used), usage.contextWindow === null ? '' : formatTokens(usage.contextWindow))}
+        aria-label={t(
+          'usage.barAria',
+          formatTokens(used),
+          usage.contextWindow === null ? '' : formatTokens(usage.contextWindow)
+        )}
       >
         {segments
           .filter((segment) => segment.tokens > 0)

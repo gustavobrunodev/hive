@@ -52,6 +52,16 @@
   background: var(--accent);
   color: var(--accent-ink);
   border-bottom-right-radius: var(--rounded-sm);
+  /* The one bubble in the system whose background IS the default selection
+     highlight: dragging across your own message painted `--accent` over
+     `--accent` and changed nothing on screen (measured rgb(204,121,88) on both
+     sides). Inverting the bubble's own ink/fill pair is what fixes it without
+     inventing a colour — the same two tokens, swapped, so the ratio the fill
+     already guarantees (5.6:1 dark, 8.9:1 light) now carries the selection:
+     legible text on it, and a highlight that is unmistakably visible against
+     the bubble. */
+  --selection-bg: var(--accent-ink);
+  --selection-ink: var(--accent);
 }
 
 /* system: centered, muted, no bubble chrome — reads as a status line */

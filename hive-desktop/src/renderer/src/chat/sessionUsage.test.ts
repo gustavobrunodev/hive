@@ -66,16 +66,67 @@ describe('applyUsage', () => {
   })
 
   it('accumulates across turns', () => {
-    const one = applyUsage(windowed, usage({ costUsd: 0.05 }), { final: true, runtimeMs: 1000 })
+    const one = applyUsage(windowed, usage({ costUsd: 0.05 }), {
+      final: true,
+      runtimeMs: 1000,
+      turnId: 'turn-1'
+    })
     const two = applyUsage(one, usage({ outputTokens: 800, costUsd: 0.02 }), {
       final: true,
-      runtimeMs: 2000
+      runtimeMs: 2000,
+      turnId: 'turn-2'
     })
 
     expect(two.turns).toBe(2)
     expect(two.outputTokens).toBe(2000)
     expect(two.costUsd).toBeCloseTo(0.07)
     expect(two.runtimeMs).toBe(3000)
+  })
+
+  // Measured on a real `claude` turn that ran a subagent: it printed TWO
+  // `result` lines (num_turns 2, then 6), the second restating the same turn's
+  // running totals — cost 0,0145 then 0,0597, where 0,0597 was the whole turn.
+  // Summed, one prompt billed as two turns at 0,0742.
+  it('a repeated final for the same turn restates it instead of adding a turn', () => {
+    const partial = applyUsage(windowed, usage({ outputTokens: 556, costUsd: 0.0145 }), {
+      final: true,
+      runtimeMs: 7268,
+      turnId: 'turn-1'
+    })
+    const complete = applyUsage(partial, usage({ outputTokens: 903, costUsd: 0.0597 }), {
+      final: true,
+      runtimeMs: 9148,
+      turnId: 'turn-1'
+    })
+
+    expect(complete.turns).toBe(1)
+    expect(complete.outputTokens).toBe(903)
+    expect(complete.costUsd).toBeCloseTo(0.0597)
+    // Elapsed is measured from the turn's own start, so it too is a restatement.
+    expect(complete.runtimeMs).toBe(9148)
+  })
+
+  it('keeps concurrent turns apart when their reports interleave', () => {
+    const a = applyUsage(windowed, usage({ outputTokens: 100, costUsd: 0.01 }), {
+      final: true,
+      runtimeMs: 1000,
+      turnId: 'turn-a'
+    })
+    const b = applyUsage(a, usage({ outputTokens: 200, costUsd: 0.02 }), {
+      final: true,
+      runtimeMs: 2000,
+      turnId: 'turn-b'
+    })
+    const aAgain = applyUsage(b, usage({ outputTokens: 150, costUsd: 0.03 }), {
+      final: true,
+      runtimeMs: 1500,
+      turnId: 'turn-a'
+    })
+
+    expect(aAgain.turns).toBe(2)
+    expect(aAgain.outputTokens).toBe(350)
+    expect(aAgain.costUsd).toBeCloseTo(0.05)
+    expect(aAgain.runtimeMs).toBe(3500)
   })
 
   // Caught by the real-Electron E2E: the CLI names the model on its
@@ -122,6 +173,22 @@ describe('withContextWindow', () => {
     expect(rebound.turns).toBe(1)
     // Same value in → same reference out, so React can skip the re-render.
     expect(withContextWindow(rebound, 100_000)).toBe(rebound)
+  })
+
+  // The curated figure is what the model usually gets; the CLI's own is what
+  // this conversation actually has (`--model sonnet[1m]` moves the ceiling
+  // fivefold without changing the model id the picker offers).
+  it('prefers the window the CLI reported over the curated one', () => {
+    const reported = applyUsage(windowed, usage({ contextWindow: 1_000_000 }), {
+      final: true,
+      runtimeMs: 1000,
+      turnId: 'turn-1'
+    })
+
+    expect(withContextWindow(reported, 200_000).contextWindow).toBe(1_000_000)
+    // And it survives a report that says nothing about the window.
+    const later = applyUsage(reported, usage(), { final: false })
+    expect(withContextWindow(later, 200_000).contextWindow).toBe(1_000_000)
   })
 })
 

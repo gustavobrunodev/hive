@@ -48,12 +48,19 @@ interface TurnMeterProps {
  * by an outcome glyph — so the state survives a screenshot and a reduced-motion
  * user, who never sees either animation.
  */
-export function TurnMeter({ metrics, blocks, live, now }: TurnMeterProps): React.JSX.Element | null {
+export function TurnMeter({
+  metrics,
+  blocks,
+  live,
+  now
+}: TurnMeterProps): React.JSX.Element | null {
   if (!live && !deservesReceipt(metrics)) return null
 
   const elapsed = turnElapsed(metrics, now)
   const steps = countSteps(blocks)
-  const parts = live ? livePartsOf(metrics, elapsed, steps) : receiptPartsOf(metrics, elapsed, steps)
+  const parts = live
+    ? livePartsOf(metrics, elapsed, steps)
+    : receiptPartsOf(metrics, elapsed, steps)
 
   return (
     <div className="wb-turn-meter" data-live={live || undefined} data-outcome={metrics.outcome}>
@@ -112,7 +119,8 @@ function receiptPartsOf(metrics: TurnMetrics, _elapsed: number, steps: number): 
   if (steps > 0) parts.push(t('activity.stepsCount', steps))
   const usage = metrics.usage
   if (usage) {
-    if (usage.outputTokens > 0) parts.push(t('timing.tokensWritten', formatTokens(usage.outputTokens)))
+    if (usage.outputTokens > 0)
+      parts.push(t('timing.tokensWritten', formatTokens(usage.outputTokens)))
     if (usage.costUsd !== undefined && usage.costUsd > 0) parts.push(formatCost(usage.costUsd))
   }
   return parts

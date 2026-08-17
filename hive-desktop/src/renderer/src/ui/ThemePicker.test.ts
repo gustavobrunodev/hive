@@ -119,7 +119,7 @@ describe('HiveLogo', () => {
     expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Hive')
 
     cleanup()
-    render(createElement(HiveLogo, { 'aria-label': 'Hive Desktop' }))
-    expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Hive Desktop')
+    render(createElement(HiveLogo, { 'aria-label': 'Rótulo do chamador' }))
+    expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Rótulo do chamador')
   })
 })

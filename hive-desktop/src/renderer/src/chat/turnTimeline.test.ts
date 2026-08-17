@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   answerTurnApproval,
   appendTurnApproval,
+  appendTurnMcp,
   appendTurnText,
   applyTurnTool,
   hasPendingApproval,
+  rosterSignature,
   settleTurnBlocks,
   trailingTurnText,
   turnText,
+  type McpServerReport,
   type TurnBlock
 } from './turnTimeline'
 
@@ -18,7 +21,9 @@ function shapeOf(blocks: TurnBlock[]): string[] {
       ? `tools(${block.activities.map((a) => a.name).join(',')})`
       : block.kind === 'approval'
         ? `approval(${block.request.tool})`
-        : `text(${block.text})`
+        : block.kind === 'mcp'
+          ? `mcp(${block.servers.map((server) => `${server.name}:${server.status}`).join(',')})`
+          : `text(${block.text})`
   )
 }
 
@@ -140,5 +145,71 @@ describe('trailingTurnText', () => {
     // Only the tail streams; the earlier prose is settled and renders whole.
     expect(trailingTurnText(blocks)).toBe('segundo')
     expect(turnText(blocks)).toBe('primeirosegundo')
+  })
+})
+
+/**
+ * mcp-visibility: the turn's MCP handshake as a block, and the signature that
+ * decides whether it is worth announcing at all.
+ */
+describe('appendTurnMcp', () => {
+  const server = (
+    name: string,
+    status: McpServerReport['status'] = 'connected'
+  ): McpServerReport => ({ name, status, tools: [] })
+
+  it('opens a block at the point in the turn where the handshake happened', () => {
+    const blocks = appendTurnMcp([], [server('playwright')])
+    expect(shapeOf(blocks)).toEqual(['mcp(playwright:connected)'])
+  })
+
+  it('appends nothing for a turn with no MCP servers', () => {
+    const blocks: TurnBlock[] = []
+    expect(appendTurnMcp(blocks, [])).toBe(blocks)
+  })
+
+  it('replaces rather than stacks — one handshake per turn', () => {
+    const first = appendTurnMcp([], [server('playwright')])
+    const second = appendTurnMcp(first, [server('playwright', 'failed')])
+    expect(shapeOf(second)).toEqual(['mcp(playwright:failed)'])
+    // The id survives the replacement, so React does not remount the row.
+    expect(second[0].id).toBe(first[0].id)
+  })
+
+  it('keeps its place when text and tools arrive after it', () => {
+    let blocks = appendTurnMcp([], [server('playwright')])
+    blocks = appendTurnText(blocks, 'vou navegar')
+    blocks = appendTurnMcp(blocks, [server('playwright'), server('pencil')])
+    expect(shapeOf(blocks)).toEqual([
+      'mcp(playwright:connected,pencil:connected)',
+      'text(vou navegar)'
+    ])
+  })
+})
+
+describe('rosterSignature', () => {
+  const server = (
+    name: string,
+    status: McpServerReport['status'] = 'connected'
+  ): McpServerReport => ({ name, status, tools: [] })
+
+  it('is stable across order, so a reshuffled roster is not treated as news', () => {
+    expect(rosterSignature([server('a'), server('b')])).toBe(
+      rosterSignature([server('b'), server('a')])
+    )
+  })
+
+  it('changes when a status changes', () => {
+    expect(rosterSignature([server('a')])).not.toBe(rosterSignature([server('a', 'failed')]))
+  })
+
+  it('changes when a server appears or disappears', () => {
+    expect(rosterSignature([server('a')])).not.toBe(rosterSignature([server('a'), server('b')]))
+  })
+
+  it('ignores the tool list — a new tool is not news for a transcript', () => {
+    expect(rosterSignature([{ name: 'a', status: 'connected', tools: ['x'] }])).toBe(
+      rosterSignature([{ name: 'a', status: 'connected', tools: ['x', 'y'] }])
+    )
   })
 })

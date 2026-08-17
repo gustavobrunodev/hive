@@ -14085,6 +14085,15 @@ function Tree({
     },
     [selection, selectedSet, selectedIds, setSelectedIds, enabledFlat]
   );
+  const moveFocus = useCallback23(
+    (toId, fromId, extend) => {
+      focusItem(toId);
+      if (!extend || selection !== "multiple") return;
+      if (!anchorIdRef.current) anchorIdRef.current = fromId;
+      activate(toId, { toggle: false, range: true });
+    },
+    [focusItem, selection, activate]
+  );
   const handleKeyDown = useCallback23(
     (event) => {
       const currentId = activeIdRef.current;
@@ -14097,13 +14106,13 @@ function Tree({
         case "ArrowDown": {
           event.preventDefault();
           const next = enabledFlat[currentIndex + 1];
-          if (next) focusItem(next.node.id);
+          if (next) moveFocus(next.node.id, currentId, event.shiftKey);
           break;
         }
         case "ArrowUp": {
           event.preventDefault();
           const prev = enabledFlat[currentIndex - 1];
-          if (prev) focusItem(prev.node.id);
+          if (prev) moveFocus(prev.node.id, currentId, event.shiftKey);
           break;
         }
         case "ArrowRight": {
@@ -14162,7 +14171,7 @@ function Tree({
         }
       }
     },
-    [enabledFlat, expandedSet, expand, collapse, activate, focusItem]
+    [enabledFlat, expandedSet, expand, collapse, activate, focusItem, moveFocus]
   );
   return /* @__PURE__ */ jsx79(
     "ul",
@@ -14236,6 +14245,9 @@ function TreeItem({
           range: event.shiftKey
         });
       },
+      onMouseDown: (event) => {
+        if (event.shiftKey) event.preventDefault();
+      },
       onFocus: (event) => {
         event.stopPropagation();
         if (!node.disabled) onFocus(node.id);
@@ -14250,7 +14262,11 @@ function TreeItem({
             "aria-hidden": "true",
             onClick: (event) => {
               event.stopPropagation();
-              onToggleExpand(node.id);
+              if (node.disabled) return;
+              const mods = { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey };
+              onFocus(node.id);
+              onActivate(node.id, mods);
+              if (!mods.toggle && !mods.range) onToggleExpand(node.id);
             },
             children: renderLabel(node, { level, expanded, selected, hasChildren })
           }

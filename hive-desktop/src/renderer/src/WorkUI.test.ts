@@ -523,10 +523,14 @@ const chatHandle = vi.hoisted(() => ({
 function ChatStandIn(
   {
     onCustomizeShortcuts,
-    onSessionChange
+    onSessionChange,
+    onMcpRoster,
+    onOpenMcpConsole
   }: {
     onCustomizeShortcuts?: (scope: 'start' | 'during') => void
     onSessionChange?: (id: string | null) => void
+    onMcpRoster?: (servers: { name: string; status: string; tools: string[] }[]) => void
+    onOpenMcpConsole?: () => void
   },
   ref: React.Ref<typeof chatHandle>
 ): ReactElement {
@@ -544,6 +548,25 @@ function ChatStandIn(
       'button',
       { type: 'button', onClick: () => onSessionChange?.('conversa-atual') },
       'simular conversa em andamento'
+    ),
+    // mcp-visibility: the roster reaches WorkUI through Chat (it rides the
+    // agent event stream), so the stand-in is where a test injects one.
+    createElement(
+      'button',
+      {
+        type: 'button',
+        onClick: () =>
+          onMcpRoster?.([
+            { name: 'playwright', status: 'connected', tools: ['browser_navigate'] },
+            { name: 'quebrado', status: 'failed', tools: [] }
+          ])
+      },
+      'simular handshake mcp'
+    ),
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onOpenMcpConsole?.() },
+      'abrir console mcp pelo turno'
     )
   )
 }
@@ -682,6 +705,16 @@ function createHiveMock(): Window['hive'] {
       getRole: vi.fn(async () => null),
       setRole: vi.fn(async () => undefined),
       roleActions: vi.fn(async () => [])
+    },
+    // agent-terminal: the profile sheet reads the terminal catalog on open.
+    shell: {
+      list: vi.fn(async () => ({
+        shells: [],
+        selectedId: null,
+        resolvedId: null,
+        missingSelection: false
+      })),
+      select: vi.fn(async () => undefined)
     },
     shortcuts: {
       catalog: vi.fn(async () => []),
@@ -2573,17 +2606,59 @@ describe('WorkUI — MCP console dock (mcp-logs)', () => {
 
   const clusterName = 'Abrir o console de atividade dos servidores MCP'
 
-  it('keeps the dock closed until asked, reporting the last server in the status bar', async () => {
+  it("keeps the dock closed until asked, counting the workspace's servers in the bar", async () => {
     renderWork([logEntry()])
     const cluster = await screen.findByRole('button', { name: clusterName })
-    expect(within(cluster).getByText('playwright')).toBeTruthy()
+    // mcp-visibility: the bar carries the standing count, not the name of
+    // whoever spoke last — that was a fact about the log tail, not about MCP.
+    await waitFor(() => expect(within(cluster).getByText('1 servidor MCP')).toBeTruthy())
+    // The name is one hover away, in the roster card beside the button.
+    expect(screen.getByText('playwright')).toBeTruthy()
     expect(document.querySelector('.wb-mcplog')).toBeNull()
   })
 
-  it('counts errors in the status bar without opening anything', async () => {
+  it('badges the bar only for a server that is actually in trouble', async () => {
+    renderWork([logEntry({ level: 'error', kind: 'connect-failed', text: 'recusou' })])
+    const cluster = await screen.findByRole('button', { name: clusterName })
+    await waitFor(() => expect(cluster.hasAttribute('data-troubled')).toBe(true))
+    expect(within(cluster).getByText('1')).toBeTruthy()
+  })
+
+  it('stays quiet for an error the server merely printed to stderr', async () => {
+    // A server that logs the word "error" on startup has not failed. The old
+    // cluster counted every error-level *line*, so a chatty-but-healthy server
+    // wore a red badge all session.
     renderWork([logEntry({ level: 'error', kind: 'stderr', text: 'boom' })])
     const cluster = await screen.findByRole('button', { name: clusterName })
-    await waitFor(() => expect(within(cluster).getByText('1')).toBeTruthy())
+    await waitFor(() => expect(within(cluster).getByText('1 servidor MCP')).toBeTruthy())
+    expect(cluster.hasAttribute('data-troubled')).toBe(false)
+  })
+
+  it('takes the handshake roster from a turn into the status bar', async () => {
+    // mcp-visibility, end to end through WorkUI: the CLI's handshake reaches
+    // Chat, Chat hands it up, and the bar counts servers the logs alone would
+    // never have known about (this workspace has no logs for `quebrado` at all).
+    renderWork([logEntry()])
+    const cluster = await screen.findByRole('button', { name: clusterName })
+    fireEvent.click(screen.getByText('simular handshake mcp'))
+
+    await waitFor(() => expect(within(cluster).getByText('1 de 2 com falha')).toBeTruthy())
+    expect(cluster.hasAttribute('data-troubled')).toBe(true)
+    // The failed server sorts to the top of the roster card, ahead of the
+    // healthy one, and the card names both.
+    const names = Array.from(document.querySelectorAll('.wb-status-mcp-card-name')).map(
+      (node) => node.textContent
+    )
+    expect(names).toEqual(['quebrado', 'playwright'])
+  })
+
+  it("opens the console from the turn's handshake row", async () => {
+    renderWork([logEntry()])
+    await screen.findByRole('button', { name: clusterName })
+    expect(document.querySelector('.wb-mcplog')).toBeNull()
+
+    fireEvent.click(screen.getByText('abrir console mcp pelo turno'))
+    await waitFor(() => expect(document.querySelector('.wb-mcplog')).toBeTruthy())
   })
 
   it('opens and closes the dock from the status-bar cluster', async () => {

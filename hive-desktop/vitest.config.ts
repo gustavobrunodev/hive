@@ -547,6 +547,23 @@ export default defineConfig({
         // thin GUI `PATH`, Windows `PATHEXT`, an npm `.cmd` shim), so an
         // untested branch here is a branch nobody will ever exercise by hand.
         'src/main/cliEnv.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // agent-terminal (M20). `shellCatalog.ts` carries the full bar for the
+        // same reason as its `cliEnv.ts` sibling: it is about machines this
+        // suite never runs on (a Windows without pwsh, a container with no
+        // /etc/shells), plus a quoting table whose failure is silent — measured
+        // against real `powershell.exe`, an unescaped prompt reached the target
+        // process with its double quotes stripped. `shellService.ts` joins
+        // three sources that can each be right while the join is wrong, and
+        // `ShellPicker.tsx` is the surface that would quietly start lying about
+        // what the chosen terminal does for each agent.
+        'src/main/shellCatalog.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/shellService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/ShellPicker.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         'src/main/agentInstaller.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/agentRegistry.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         // design-studio (M18): the reducer that is the *only* mutation of a
@@ -790,6 +807,27 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100
+        },
+        // The `@` mention rules (M21). The whole module is string arithmetic
+        // whose failures are quiet and destructive: an off-by-one in the
+        // highlight ranges misaligns the composer backdrop against live text,
+        // and a token pattern that is a hair too greedy turns an e-mail
+        // address into a file reference and ships it to the agent.
+        'src/renderer/src/chat/composerMentions.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        // The product rename's data path (M21). It runs once, on a machine
+        // that already has the user's history on it, and if it is wrong the
+        // app opens looking brand new — the single most expensive failure in
+        // this change and the one nobody can rehearse by hand.
+        'src/main/userDataMigration.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

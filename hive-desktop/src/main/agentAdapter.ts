@@ -14,6 +14,7 @@
  * beyond this contract.
  */
 
+import type { ShellInfo } from './shellCatalog'
 import type { ToolPatch } from './toolPatch'
 
 export type { PatchHunk, PatchLine, PatchOp, PatchSpan, ToolPatch } from './toolPatch'
@@ -56,7 +57,7 @@ export interface AgentCapabilities {
  * One file the user picked to attach to a prompt (R6.5/T16) — the shape the
  * `chat:chooseAttachments` native dialog returns and the composer chips
  * render. `path` is absolute (attachments may live anywhere on the host OS,
- * unlike `#` references, which are workspace-relative by construction).
+ * unlike `@` references, which are workspace-relative by construction).
  */
 export interface AttachmentPick {
   path: string
@@ -91,7 +92,7 @@ export interface AgentInput {
   text: string
   /**
    * Files offered as context for this turn (R6.5/T16): absolute paths for
-   * user-attached files, workspace-relative POSIX paths for `#` references.
+   * user-attached files, workspace-relative POSIX paths for `@` references.
    * Adapters fold them into the turn's prompt (`composeTurnPrompt`) — the
    * agent CLI reads the files itself via its own tools, so nothing is
    * inlined over IPC.
@@ -162,6 +163,11 @@ export interface AgentInput {
  *   pass it back as `AgentInput.resume` on later turns so the agent keeps its
  *   context. Emitted whenever the id changes (the Claude CLI can mint a new id
  *   when resuming).
+ * - `mcp` — the turn's MCP roster (mcp-visibility): which servers this turn got,
+ *   whether each one actually connected, and what each exposes. Emitted once,
+ *   from the CLI's own handshake line, *before* the agent can call anything —
+ *   which is what makes "o servidor está subindo / subiu / falhou" a state the
+ *   UI can show instead of a silence the user has to infer from.
  *
  * Every variant can carry the `turnId` its turn was spawned with
  * (background-turns) — the router key that keeps concurrent turns' streams
@@ -176,6 +182,44 @@ export type AgentEvent =
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
   | UsageEvent
+  | McpEvent
+
+/**
+ * How the CLI reports one MCP server's state at the top of a turn. `connected`
+ * and `failed` are the two that matter; the rest are modeled because the CLI
+ * emits them and an unknown word must not silently read as "fine".
+ */
+export type McpServerStatus = 'connected' | 'failed' | 'needs-auth' | 'pending' | 'unknown'
+
+/** One MCP server, as the CLI's handshake reported it for this turn. */
+export interface McpServerReport {
+  /** The name the workspace's `.mcp.json` (or the user config) gives it. */
+  name: string
+  status: McpServerStatus
+  /**
+   * What this server exposes to the turn, already stripped of the
+   * `mcp__<server>__` prefix — `browser_navigate`, not
+   * `mcp__playwright__browser_navigate`. Empty when the CLI listed the server
+   * but no tools for it, which is itself worth showing: a server that connected
+   * and exposes nothing is a misconfiguration, not a success.
+   */
+  tools: string[]
+}
+
+/**
+ * The turn's MCP roster (mcp-visibility).
+ *
+ * The Claude CLI opens `--output-format stream-json` with a
+ * `{"type":"system","subtype":"init",…}` line carrying `mcp_servers` and the
+ * turn's whole `tools` list. That line is the only place the *app* can learn
+ * what the agent was actually given — `.mcp.json` says what was asked for, and
+ * the two disagree exactly when something is wrong.
+ */
+export interface McpEvent {
+  type: 'mcp'
+  servers: McpServerReport[]
+  turnId?: string
+}
 
 /**
  * One tool invocation, reported twice (agent-activity): `start` when the agent
@@ -224,6 +268,16 @@ export interface ToolEvent {
  *
  * `outputTokens` is deliberately *not* part of that sum — it is what the model
  * wrote, which only joins the context on the *next* request.
+ *
+ * ## The invariant every adapter must uphold
+ *
+ * The three input-side fields describe **one request** — the newest one, so
+ * they read as occupancy. The output side (`outputTokens`, `costUsd`,
+ * `durationMs`, `apiDurationMs`) describes the **whole turn**. A CLI that
+ * reports its end-of-turn input counts as a sum over the turn's requests (the
+ * `claude` CLI does) must convert before emitting: summed prompt tokens are a
+ * bill, not an occupancy, and they grow with the number of steps until any
+ * window looks full. See `cliAdapterCore.ts`'s `emitUsageEvents`.
  */
 export interface TurnUsage {
   /** Prompt tokens sent fresh, i.e. neither read from nor written to the cache. */
@@ -236,6 +290,13 @@ export interface TurnUsage {
   outputTokens: number
   /** The model as the CLI names it (`claude-opus-…`), when it says. */
   model?: string
+  /**
+   * The context window this turn actually ran against, when the CLI reports one
+   * — the true denominator, which outranks the adapter's curated
+   * `AgentModel.contextWindow` because the same model id runs at 200k or 1M
+   * depending on how the CLI was configured.
+   */
+  contextWindow?: number
   /** `result` only: what the CLI billed for the whole turn, in USD. */
   costUsd?: number
   /** `result` only: the CLI's own wall-clock for the turn, in ms. */
@@ -245,10 +306,15 @@ export interface TurnUsage {
 }
 
 /**
- * One usage report. `final` marks the end-of-turn `result` line — the only
- * snapshot whose totals cover the whole turn, and therefore the only one a
- * caller may accumulate across turns without double-counting the intermediate
- * assistant messages that led to it.
+ * One usage report. `final` marks a `result` line — the only report whose
+ * totals cover the whole turn, and therefore the only one a caller may
+ * accumulate across turns without double-counting the intermediate assistant
+ * messages that led to it.
+ *
+ * A turn may emit **more than one** `final` (measured: a `claude` turn that
+ * ran a subagent emitted two, at `num_turns` 2 then 6), and each restates the
+ * turn's totals *so far* rather than reporting a new slice. So a `final` for a
+ * turn already counted replaces that turn's contribution; it never adds to it.
  */
 export interface UsageEvent {
   type: 'usage'
@@ -324,6 +390,14 @@ export interface TurnOpts {
   model?: string
   /** Same contract as `AgentInput.effort` — a per-turn effort override. */
   effort?: string
+  /**
+   * The stored conversation (session-history) this turn was asked from.
+   * Consumed by the turn-lifecycle wiring in main to attribute the Agent
+   * Change Review turn mark (`TurnMark.conversationId`), so the turn's change
+   * card renders in that conversation's transcript and nowhere else. Adapters
+   * ignore it — it never reaches a CLI.
+   */
+  conversationId?: string
 }
 
 /**
@@ -376,6 +450,52 @@ export interface PermissionPromptEndpoint {
 /** Optional collaborators handed to an adapter factory. Every field is opt-in. */
 export interface AgentAdapterDeps {
   permissionPrompt?: PermissionPromptEndpoint
+  /**
+   * agent-terminal (AT-R4): the shell the user chose, read fresh per turn (the
+   * choice can change while a session is alive, and the next turn must honour
+   * it without a restart). `null` — or an absent dep — means "nothing chosen",
+   * and every adapter behaves exactly as it did before this feature.
+   */
+  shell?: () => ShellInfo | null
+}
+
+/**
+ * How far a chosen shell actually reaches into one agent (agent-terminal
+ * AT-R5). Two states, because there are exactly two truths to tell:
+ *
+ *  - `native` — the CLI accepts this shell for its *own* command execution
+ *    (the adapter has an environment variable for it, and the CLI honours it).
+ *  - `launch-only` — Hive launches the CLI inside this shell, but the CLI runs
+ *    its own commands in whatever shell it picks for itself.
+ *
+ * The distinction exists so the picker can say which one the user is getting
+ * *before* they choose. On Windows the default (`cmd`) is `launch-only` for
+ * Claude — the CLI has no cmd executor at all — and a UI that implied
+ * otherwise would be lying at exactly the moment the user is deciding.
+ */
+export type ShellSupport = 'native' | 'launch-only'
+
+/**
+ * Why a shell is only `launch-only` (or what the `native` binding actually
+ * buys), as a closed code the renderer maps to copy. Codes, not sentences:
+ * the main process holds no UI strings (i18n lives in the renderer).
+ */
+export type ShellSupportNote =
+  /** Claude on POSIX honours `CLAUDE_CODE_SHELL` for bash/zsh only — verified against the binary. */
+  | 'posix-bash-zsh-only'
+  /** Claude on Windows executes `Bash` through Git Bash; cmd is not an executor it has. */
+  | 'windows-git-bash'
+  /** `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` — a real binding, but the CLI still labels the tool preview. */
+  | 'powershell-preview'
+  /** The CLI publishes no way to choose its inner shell, so the choice is the launch only. */
+  | 'no-cli-binding'
+
+/** One agent's answer to "what happens if I pick this shell?" (AT-R4/AT-R5). */
+export interface ShellBinding {
+  support: ShellSupport
+  note?: ShellSupportNote
+  /** Environment the adapter adds to its own spawns to honour the shell. Empty for `launch-only`. */
+  env: Record<string, string>
 }
 
 /** Contract any agent CLI implements (C1). MVP: `ClaudeCliAdapter`. */
@@ -384,6 +504,12 @@ export interface AgentAdapter {
   displayName: string
   capabilities(): AgentCapabilities
   startSession(opts: SessionOpts): AgentSession
+  /**
+   * agent-terminal: how this agent honours `shell`. Optional — an adapter
+   * that doesn't implement it is treated as `launch-only`/`no-cli-binding`,
+   * which is the honest default for a CLI whose inner shell we can't steer.
+   */
+  shellBinding?(shell: ShellInfo): ShellBinding
 }
 
 /**

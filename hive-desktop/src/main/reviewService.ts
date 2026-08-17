@@ -34,8 +34,22 @@ export interface ReviewServiceDeps {
 }
 
 export interface ReviewService {
-  /** Turn start: if the set is clean, snapshot a fresh baseline; record a turn mark (ACR-R1.1). */
-  beginTurn(workspace: string, turnId: string): Promise<void>
+  /**
+   * Turn start: if the set is clean, snapshot a fresh baseline; record a turn
+   * mark (ACR-R1.1). `conversationId` is the stored conversation the turn was
+   * asked from — the chat renders this turn's card only there (see
+   * `TurnMark.conversationId`). Omit it when the caller has no conversation
+   * (or doesn't have its id yet — see `attachTurn`).
+   */
+  beginTurn(workspace: string, turnId: string, conversationId?: string): Promise<void>
+  /**
+   * Names the conversation a turn belongs to after the fact. The chat pane
+   * starts a brand-new conversation's first turn *before* the conversation
+   * exists on disk (its id is minted asynchronously, and waiting for it would
+   * delay the agent), so that turn's mark is attributed here the moment the id
+   * lands. Unknown turn ids and already-attributed marks are no-ops.
+   */
+  attachTurn(workspace: string, turnId: string, conversationId: string): void
   /** A file-system change during/after a turn: recompute the set + emit (debounce lives at the caller/IPC layer). */
   onFsActivity(workspace: string): Promise<void>
   /** Turn end: final recompute; attach the turn's touched `paths` to its mark (ACR-R1.2). */
@@ -203,7 +217,11 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
     onChanged(workspace, snapshotOf(stateFor(workspace)))
   }
 
-  async function beginTurn(workspace: string, turnId: string): Promise<void> {
+  async function beginTurn(
+    workspace: string,
+    turnId: string,
+    conversationId?: string
+  ): Promise<void> {
     const s = stateFor(workspace)
     // Only the first un-reviewed turn establishes the baseline; later turns
     // accumulate into the same set (ACR-C5).
@@ -212,8 +230,19 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
       s.changes = []
       s.turns = []
     }
-    s.turns.push({ turnId, at: now(), paths: [] })
+    const mark: TurnMark = { turnId, at: now(), paths: [] }
+    if (conversationId !== undefined) mark.conversationId = conversationId
+    s.turns.push(mark)
     s.openTurns.add(turnId)
+    emit(workspace)
+  }
+
+  function attachTurn(workspace: string, turnId: string, conversationId: string): void {
+    const mark = stateFor(workspace).turns.find((t) => t.turnId === turnId)
+    // First attribution wins: a mark that already names its conversation is
+    // never re-pointed by a late-arriving id.
+    if (!mark || mark.conversationId !== undefined) return
+    mark.conversationId = conversationId
     emit(workspace)
   }
 
@@ -414,6 +443,7 @@ export function createReviewService(deps: ReviewServiceDeps): ReviewService {
 
   return {
     beginTurn,
+    attachTurn,
     onFsActivity,
     endTurn,
     get,

@@ -234,7 +234,10 @@ const DEBUG_RULES: { pattern: RegExp; facts: (match: RegExpExecArray) => Facts }
   },
   { pattern: /^SIG\w+ failed/, facts: () => ({ level: 'warn', kind: 'shutdown' }) },
   {
-    pattern: /^Sending SIG\w+ to MCP server/,
+    // Two wordings for the same event across CLI releases: the signal-by-signal
+    // `Sending SIGINT to MCP server process`, and the newer one-liner
+    // `Terminating MCP server process tree` that replaced it.
+    pattern: /^(?:Sending SIG\w+ to|Terminating) MCP server process/,
     facts: () => ({ level: 'debug', kind: 'shutdown' })
   },
   { pattern: /^MCP server process exited/, facts: () => ({ level: 'debug', kind: 'exited' }) },

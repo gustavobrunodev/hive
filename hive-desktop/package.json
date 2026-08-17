@@ -1,7 +1,7 @@
 {
   "name": "@gustavobrunodev/hive-desktop",
   "version": "0.1.0",
-  "description": "Hive Desktop — Electron BMAD-orchestration app",
+  "description": "Hive — Electron BMAD-orchestration app",
   "main": "./out/main/index.js",
   "author": "Hive",
   "license": "UNLICENSED",
@@ -30,7 +30,7 @@
     "notes": "",
     "repo": "gustavobrunodev/hive-desktop-releases",
     "platforms": {
-      "win32-x64": "hive-desktop-0.1.0-setup.exe"
+      "win32-x64": "Hive-0.1.0-setup.exe"
     }
   },
   "engines": {
@@ -58,6 +58,7 @@
     "build:ds-catalog": "node scripts/buildDsCatalog.mjs",
     "build:ds-bundle": "node scripts/buildDsBundle.mjs",
     "build:preview-receiver": "node scripts/buildPreviewReceiver.mjs",
+    "build:brand-artwork": "node scripts/gen-brand-artwork.mjs",
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

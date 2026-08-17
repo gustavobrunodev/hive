@@ -46,6 +46,15 @@ describe('preload: window.hive bridge', () => {
     expect(globals.get('hive')).toEqual(expect.objectContaining({ ping: expect.any(Function) }))
   })
 
+  // explorer-os-actions: a value, not a method — a label that has to await an
+  // IPC round trip renders wrong on first paint. It must be the string alone;
+  // exposing `process` itself across the bridge would be a sandbox hole.
+  it('exposes hive.platform as a plain string, not the process object', () => {
+    const hive = exposedGlobals().get('hive') as { platform: unknown }
+    expect(typeof hive.platform).toBe('string')
+    expect(hive.platform).toBe(process.platform)
+  })
+
   it('hive.ping() round-trips through ipcRenderer.invoke("ping")', async () => {
     const hive = exposedGlobals().get('hive') as { ping: () => Promise<string> }
     await expect(hive.ping()).resolves.toBe('invoked:ping')
@@ -496,6 +505,29 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:export', requests)
   })
 
+  // agent-terminal: the terminal picker's bridge.
+  it('hive.shell.* invokes the terminal channels, defaulting to the cached catalog', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      shell: {
+        list: (refresh?: boolean) => Promise<unknown>
+        select: (id: string | null) => Promise<unknown>
+      }
+    }
+    await expect(hive.shell.list()).resolves.toBe('invoked:shell:list')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:list', false)
+
+    await hive.shell.list(true)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:list', true)
+
+    await hive.shell.select('git-bash')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:select', 'git-bash')
+
+    // `null` is the automatic setting and has to cross as `null`, not as an
+    // omitted argument the handler would read as "no change".
+    await hive.shell.select(null)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:select', null)
+  })
+
   // Profile namespace (agent-selection + role-personalization).
   it('hive.profile.* invokes the matching profile IPC channels', async () => {
     const hive = exposedGlobals().get('hive') as {
@@ -679,6 +711,8 @@ describe('preload: window.hive bridge', () => {
     exists: (root: string, rel: string) => Promise<boolean>
     trash: (root: string, rel: string) => Promise<void>
     pathForFile: (file: File) => string
+    revealPath: (root: string, rel: string, isDir: boolean) => Promise<unknown>
+    absolutePath: (root: string, rel: string) => Promise<string>
   }
 
   describe('hive.fs.*', () => {
@@ -766,6 +800,19 @@ describe('preload: window.hive bridge', () => {
     it('fs.trash(root, rel) invokes "fs:trash" with matching args', async () => {
       await getFs().trash('/root', 'a.txt')
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:trash', '/root', 'a.txt')
+    })
+
+    // explorer-os-actions: `isDir` is a real argument, not a hint — main picks
+    // reveal-the-item vs open-the-folder from it, so a bridge that dropped it
+    // would silently open the parent of every folder.
+    it('fs.revealPath(root, rel, isDir) invokes "shell:revealPath" with matching args', async () => {
+      await getFs().revealPath('/root', 'docs', true)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:revealPath', '/root', 'docs', true)
+    })
+
+    it('fs.absolutePath(root, rel) invokes "fs:absolutePath" with matching args', async () => {
+      await getFs().absolutePath('/root', 'a.txt')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('fs:absolutePath', '/root', 'a.txt')
     })
 
     it('fs.pathForFile delegates to webUtils.getPathForFile', () => {
@@ -971,6 +1018,10 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:acceptAll', '/ws')
       await r.rejectAll('/ws')
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:rejectAll', '/ws')
+      // Names a turn's conversation after the fact, so its change card lands in
+      // the transcript that asked for it.
+      await r.attachTurn('/ws', 't-1', 'conv-a')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('review:attachTurn', '/ws', 't-1', 'conv-a')
     })
 
     it('subscribes to review:changed, relays the snapshot, and unsubscribes', () => {

@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { filterMentionFiles, insertMention, mentionQueryAt } from './composerMentions'
+import { insertMention, mentionQueryAt, rankMentionFiles } from './composerMentions'
 
 export interface MentionsApi {
-  /** Every workspace file path, as a set — the validity oracle for `#` tokens. */
+  /** Every workspace file path, as a set — the validity oracle for `@` tokens. */
   fileSet: ReadonlySet<string>
   /** The mention menu should be on screen. */
   open: boolean
-  /** Ranked matches for the open token's query. */
+  /** Ranked matches for the open token's query — a page of at most 8. */
   items: string[]
+  /** How many files matched in all, so the menu can say when `items` is a page of more. */
+  total: number
+  /** The open token's query text, for the menu's match highlighting and empty state. */
+  query: string
   highlight: number
   setHighlight: (updater: (h: number) => number) => void
   dismiss: () => void
@@ -20,8 +24,8 @@ export interface MentionsApi {
 }
 
 /**
- * The composer's `#` workspace-file mention state (chat-attachments):
- * loads the workspace file list, tracks the caret to detect an open `#`
+ * The composer's `@` workspace-file mention state (chat-attachments):
+ * loads the workspace file list, tracks the caret to detect an open `@`
  * token, ranks matches, and performs the insertion. Extracted from `Chat`
  * as a hook (complexity budget); `composerMentions.ts` owns the pure rules.
  */
@@ -61,9 +65,9 @@ export function useMentions(
   const open = mention !== null && !dismissed
   // No memo: ranking a few thousand paths is microseconds, and the composer
   // re-renders per keystroke anyway.
-  const items = open ? filterMentionFiles(files, mention.query) : []
+  const matches = open ? rankMentionFiles(files, mention.query) : { items: [], total: 0 }
 
-  // A `#` token just opened the menu: refresh the file list so it reflects
+  // A `@` token just opened the menu: refresh the file list so it reflects
   // artifacts the agent may have produced since the last load (cheap one-shot
   // IPC; no live watcher needed for a picker).
   useEffect(() => {
@@ -90,14 +94,14 @@ export function useMentions(
 
   const select = useCallback(
     (index: number) => {
-      const path = items[index]
+      const path = matches.items[index]
       if (path === undefined || mention === null) return
       const next = insertMention(value, mention, Math.min(caret, value.length), path)
       pendingCaretRef.current = next.caret
       setValue(next.value)
       setHighlightState(0)
     },
-    [items, mention, value, caret, setValue]
+    [matches.items, mention, value, caret, setValue]
   )
 
   // Apply the post-insertion caret once the new value has rendered.
@@ -116,7 +120,9 @@ export function useMentions(
   return {
     fileSet,
     open,
-    items,
+    items: matches.items,
+    total: matches.total,
+    query: mention?.query ?? '',
     highlight,
     setHighlight,
     dismiss,

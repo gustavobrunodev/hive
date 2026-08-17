@@ -21,6 +21,7 @@ import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
+import { pendingByConversation } from './scm/reviewScope'
 import { useSecondBrain } from './secondBrain/useSecondBrain'
 import { useBrainSetup } from './secondBrain/useBrainSetup'
 import { BrainLaunchToast } from './secondBrain/BrainLaunchToast'
@@ -47,6 +48,9 @@ import { StatusBar } from './ui/StatusBar'
 import { McpConsole } from './mcpLogs/McpConsole'
 import { McpStatusCluster } from './mcpLogs/McpStatusCluster'
 import { isLive, useMcpLogs } from './mcpLogs/useMcpLogs'
+import { buildRoster } from './mcpLogs/mcpRoster'
+import { serverStats } from './mcpLogs/logConsole'
+import type { McpServerReport } from './chat/turnTimeline'
 import { useTicker } from './chat/useTicker'
 import { UnsavedGuardDialog } from './ui/UnsavedGuardDialog'
 import { GitOpToast } from './ui/GitOpToast'
@@ -293,6 +297,22 @@ function persistPaneOrder(order: PaneId[]): void {
  * `localStorage['hive.workLayout']` via `defaultLayout`/`onLayoutChanged` so
  * a dragged rail width survives a reload.
  */
+/** Shared empty roster, so a workspace with no handshake yet re-renders against a stable value. */
+const NO_SERVERS: McpServerReport[] = []
+
+/**
+ * mcp-visibility: the handshake roster, but only when it belongs to the
+ * workspace on screen. A stale tag reads as "no servers reported yet", which is
+ * the truth for a workspace whose CLI has not run — never the previous
+ * workspace's list under a new name.
+ */
+function reportedFor(
+  reported: { workspace: string; servers: McpServerReport[] } | null,
+  workspace: string
+): McpServerReport[] {
+  return reported !== null && reported.workspace === workspace ? reported.servers : NO_SERVERS
+}
+
 export function WorkUI({
   workspace,
   theme,
@@ -319,6 +339,13 @@ export function WorkUI({
   // "Revisão do agente" panel, the in-chat card, and the inline editor diff —
   // so they never drift (ACR-R2.5).
   const review = useReviewStore(workspace)
+  // A turn's change card lives in the conversation it was asked from, so a
+  // pending review in a conversation the user isn't reading would otherwise be
+  // silent. The history list carries the marker that points back to it.
+  const reviewPendingBySession = useMemo(
+    () => pendingByConversation(review.turns, review.changes),
+    [review.turns, review.changes]
+  )
   // Second Brain (M12, SB-R2): vault status + raw-pending count for the rail
   // badge and the Second Brain panel.
   const secondBrain = useSecondBrain(workspace)
@@ -545,9 +572,26 @@ export function WorkUI({
   const mcpLogs = useMcpLogs(workspace)
   const mcpTick = useTicker(mcpLogs.lastAt !== null)
   const mcpLive = isLive(mcpLogs.lastAt, mcpTick)
-  const mcpErrorCount = useMemo(
-    () => mcpLogs.entries.filter((entry) => entry.level === 'error').length,
-    [mcpLogs.entries]
+  // mcp-visibility: what the CLI's handshake reported for the most recent turn,
+  // tagged with the workspace it was reported for. Tagged rather than reset in
+  // an effect: a roster is a fact about one workspace's CLI, and clearing it
+  // after the fact would show the previous workspace's servers for one frame
+  // under the new workspace's name (the shape `useMcpLogs` uses, same reason).
+  const [mcpReported, setMcpReported] = useState<{
+    workspace: string
+    servers: McpServerReport[]
+  } | null>(null)
+  const reportedServers = reportedFor(mcpReported, workspace)
+  // The three sources, merged once, so the status bar, the console strip and
+  // the transcript can never disagree about what exists or how it is.
+  const mcpRoster = useMemo(
+    () =>
+      buildRoster({
+        reported: reportedServers,
+        stats: serverStats(mcpLogs.entries),
+        catalog: mcpCatalog
+      }),
+    [reportedServers, mcpLogs.entries, mcpCatalog]
   )
 
   useEffect(() => {
@@ -923,6 +967,7 @@ export function WorkUI({
                 workspace={workspace}
                 activeSessionId={activeSessionId}
                 runningSessionIds={runningSessionIds}
+                reviewPendingBySession={reviewPendingBySession}
                 onNewConversation={handleNewConversation}
                 onOpenSession={handleOpenSession}
               />
@@ -942,6 +987,8 @@ export function WorkUI({
             onRunningSessionsChange={setRunningSessionIds}
             onCustomizeShortcuts={setShortcutsScope}
             onOpenFile={editor.openFile}
+            onMcpRoster={(servers) => setMcpReported({ workspace, servers })}
+            onOpenMcpConsole={() => setMcpConsoleOpen(true)}
           />
         </div>
       </ResizablePanel>
@@ -1015,7 +1062,7 @@ export function WorkUI({
           <header className="wb-topbar">
             {/* The identity itself carries the app's name — the wordmark IS
             the word — so the title bar shows the lockup instead of a mark
-            plus "Hive Desktop" set in the same 13px label as everything else
+            plus "Hive" set in the same 13px label as everything else
             around it. `aria-label` keeps the full product name for anyone
             reading the accessibility tree, where the drawing says nothing. */}
             <HiveLogo className="wb-topbar-logo" aria-label={t('app.title')} />
@@ -1127,6 +1174,7 @@ export function WorkUI({
                   workspace={workspace}
                   store={mcpLogs}
                   catalog={mcpCatalog}
+                  roster={mcpRoster}
                   live={mcpLive}
                   onClose={() => setMcpConsoleOpen(false)}
                   onOpenManager={() => setMcpOpen(true)}
@@ -1203,8 +1251,7 @@ export function WorkUI({
             onSync={gitRemote.sync}
             trailing={
               <McpStatusCluster
-                last={mcpLogs.entries.at(-1) ?? null}
-                errors={mcpErrorCount}
+                roster={mcpRoster}
                 live={mcpLive}
                 open={mcpConsoleOpen}
                 onToggle={() => setMcpConsoleOpen((current) => !current)}

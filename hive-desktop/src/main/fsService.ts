@@ -87,7 +87,7 @@ export interface FsService {
   listTree(root: string, relativePath?: string): TreeNode[]
   /**
    * Flat list of every *file* under `root` as POSIX-style relative paths
-   * (chat `#` file references). Unlike `listTree`, dependency/build
+   * (chat `@` file references). Unlike `listTree`, dependency/build
    * directories (`node_modules`, `.git`, `dist`, …) are skipped — this feeds
    * a mention picker, not a file manager — and the walk stops at
    * `LIST_FILES_LIMIT` entries so a giant workspace can't flood the IPC
@@ -161,6 +161,16 @@ export interface FsService {
     destRel: string,
     opts?: { overwrite?: boolean }
   ): void
+  /**
+   * The host-OS absolute path a workspace-relative one denotes — the single
+   * `resolveSafe` gate reused for the two things that need a real path rather
+   * than file contents: handing it to the OS file manager
+   * (`shell:revealPath`), and showing/copying it (`explorer.menuCopyPath`).
+   * Resolution only; the path is not required to exist, so a caller can ask
+   * for one without a `statSync` it doesn't otherwise need. Throws if the
+   * path escapes `root`, exactly like every other method here.
+   */
+  absolutePathFor(root: string, relativePath: string): string
 }
 
 /**
@@ -247,7 +257,7 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
 
 /**
  * Directories `listFiles` never descends into: dependency trees, VCS
- * internals and build output are never what a user means by `#arquivo`, and
+ * internals and build output are never what a user means by `@arquivo`, and
  * walking them would blow the entry cap before any real artifact appears.
  */
 const LIST_FILES_IGNORED_DIRS = new Set([
@@ -552,6 +562,7 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     move,
     exists,
     trash,
-    importEntry
+    importEntry,
+    absolutePathFor: (root, relativePath) => resolveSafe(root, relativePath)
   }
 }

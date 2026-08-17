@@ -51,6 +51,8 @@ interface HistoryRowProps {
   active: boolean
   /** background-turns: this conversation's reply is still being generated. */
   running: boolean
+  /** Agent Change Review: pending files this conversation's turns left to review (0 = none). */
+  reviewPending: number
   mode: RowMode | null
   /** List-load timestamp — the render-stable "now" for relative times (react-hooks/purity). */
   now: number
@@ -69,6 +71,7 @@ function HistoryRow({
   meta,
   active,
   running,
+  reviewPending,
   mode,
   now,
   onOpen,
@@ -158,7 +161,11 @@ function HistoryRow({
         type="button"
         className="wb-history-open"
         data-history-open="true"
-        aria-label={t('chatHistory.openAria', title)}
+        aria-label={
+          reviewPending > 0
+            ? t('chatHistory.openWithReviewAria', title, reviewPending)
+            : t('chatHistory.openAria', title)
+        }
         aria-current={active ? 'true' : undefined}
         onClick={() => onOpen(meta.id)}
       >
@@ -166,26 +173,34 @@ function HistoryRow({
           <span className="wb-history-row-name">{title}</span>
           {active && <span className="wb-history-current">{t('chatHistory.currentBadge')}</span>}
         </span>
-        {running ? (
-          // background-turns: "still generating" beats any other meta line.
-          <span className="wb-history-row-meta">
+        <span className="wb-history-row-meta">
+          {/* Agent Change Review: this conversation is holding files nobody has
+              decided on yet. It rides alongside the other faces instead of
+              replacing them — the review card is scoped to its own transcript
+              now, so this marker is the only thing pointing back to it. */}
+          {reviewPending > 0 && (
+            <span className="wb-history-review" data-review-pending={reviewPending}>
+              <PencilIcon size={11} aria-hidden="true" />
+              {t('chatHistory.reviewPending', reviewPending)}
+            </span>
+          )}
+          {running ? (
+            // background-turns: "still generating" beats time·count.
             <span className="wb-history-running">
               <span className="wb-history-running-dot" aria-hidden="true" />
               {t('chatHistory.runningLabel')}
             </span>
-          </span>
-        ) : meta.match ? (
-          // Full-text hit: the matched excerpt is worth more than time·count.
-          <span className="wb-history-row-meta">
+          ) : meta.match ? (
+            // Full-text hit: the matched excerpt is worth more than time·count.
             <span className="wb-history-row-snippet">{meta.match}</span>
-          </span>
-        ) : (
-          <span className="wb-history-row-meta">
-            <span>{relativeTimeLabel(meta.updatedAt, now)}</span>
-            <span className="wb-history-row-dot" aria-hidden="true" />
-            <span>{t('chatHistory.messageCount', meta.messageCount)}</span>
-          </span>
-        )}
+          ) : (
+            <>
+              <span>{relativeTimeLabel(meta.updatedAt, now)}</span>
+              <span className="wb-history-row-dot" aria-hidden="true" />
+              <span>{t('chatHistory.messageCount', meta.messageCount)}</span>
+            </>
+          )}
+        </span>
       </button>
       <div className="wb-history-actions">
         <IconButton
@@ -218,6 +233,13 @@ export interface SessionHistoryProps {
   activeSessionId: string | null
   /** background-turns: conversation ids whose reply is still being generated ("Em andamento" rows). */
   runningSessionIds?: readonly string[]
+  /**
+   * Agent Change Review: conversation id → how many pending files its turns
+   * left behind. A turn's change card renders only in the conversation it was
+   * asked from, so this is what keeps a review waiting in another conversation
+   * findable instead of merely hidden.
+   */
+  reviewPendingBySession?: Readonly<Record<string, number>>
   /** Starts a fresh conversation in the chat pane. Also invoked after the active session is deleted. */
   onNewConversation: () => void
   /** Restores a stored conversation into the chat pane. */
@@ -235,6 +257,7 @@ export function SessionHistory({
   workspace,
   activeSessionId,
   runningSessionIds = [],
+  reviewPendingBySession = {},
   onNewConversation,
   onOpenSession
 }: SessionHistoryProps): React.JSX.Element {
@@ -448,6 +471,7 @@ export function SessionHistory({
                     meta={meta}
                     active={meta.id === activeSessionId}
                     running={runningSessionIds.includes(meta.id)}
+                    reviewPending={reviewPendingBySession[meta.id] ?? 0}
                     mode={rowMode?.id === meta.id ? rowMode : null}
                     now={loadedAt}
                     onOpen={handleOpenSession}

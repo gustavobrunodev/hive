@@ -41,6 +41,23 @@ export function FolderOpenIcon({ size, ...rest }: IconProps): React.JSX.Element 
   )
 }
 
+/**
+ * explorer-os-actions: hand this entry to the host's file manager. The folder
+ * says *what* opens; the departure arrow — the same one `ExternalLinkIcon`
+ * uses for "leaves the app" — says the window that opens is not ours. Drawn
+ * as a folder with the top-right corner given over to the arrow, rather than
+ * an arrow badged onto a full folder, so at 14px it stays two readable shapes
+ * instead of one crowded one.
+ */
+export function ExternalFolderIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M14.25 8.5v4.25c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-8.5c0-.55.45-1 1-1h3.1l1.4 1.5h1.9" />
+      <path d="M10.75 2.25h3.5v3.5M14.25 2.25 10.5 6" />
+    </svg>
+  )
+}
+
 export function ChevronDownIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>

@@ -1,0 +1,1261 @@
+[     236ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8123/favicon.ico:0
+[   15935ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[   15947ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-riftJwrB.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-riftJwrB.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at jg (http://localhost:8123/assets/index-riftJwrB.js:2692:17)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[   15964ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  105224ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  105230ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-riftJwrB.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-riftJwrB.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  105244ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  138645ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  138652ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  138668ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  139744ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  139750ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  139768ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  147649ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  147656ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  147670ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  148729ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  148734ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  148747ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  156517ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  156523ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  156538ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  157601ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-riftJwrB.js:7630
+[  157606ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-riftJwrB.js:5041:57)
+    at Ek (http://localhost:8123/assets/index-riftJwrB.js:5790:5)
+    at http://localhost:8123/assets/index-riftJwrB.js:5612:27
+[  157620ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  261354ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  261362ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  261362ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  261379ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  262459ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  262465ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  262465ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  262480ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  270698ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  270704ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  270704ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  270718ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  271779ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  271785ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  271785ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  271798ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  280003ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  280009ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  280010ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-P6ghF0_G.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-P6ghF0_G.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-P6ghF0_G.js:5790:5)
+    at jg (http://localhost:8123/assets/index-P6ghF0_G.js:2692:17)
+    at http://localhost:8123/assets/index-P6ghF0_G.js:5612:27
+[  280025ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  281126ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-P6ghF0_G.js:7630
+[  281133ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5164:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+[  281133ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-P6ghF0_G.js:5041:57)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5164:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+    at dk (http://localhost:8123/assets/index-P6ghF0_G.js:5184:9)
+[  281148ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  355692ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  355700ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  355700ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  355700ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  355716ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  356764ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  356771ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  356771ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  356771ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  356785ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  364970ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  364976ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  364976ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  364976ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  364991ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  366035ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  366040ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  366041ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  366041ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  366051ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  374213ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  374219ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  374219ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  374219ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  374235ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  375289ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-CosN3dG4.js:7630
+[  375295ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  375295ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  375295ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-CosN3dG4.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-CosN3dG4.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-CosN3dG4.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-CosN3dG4.js:5790:5)
+    at jg (http://localhost:8123/assets/index-CosN3dG4.js:2692:17)
+    at http://localhost:8123/assets/index-CosN3dG4.js:5612:27
+[  375308ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  413701ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  413709ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  413710ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  413710ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  413725ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  416580ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  416587ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  416587ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  416587ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  416605ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  420162ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  420168ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  420168ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  420168ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  420183ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  447379ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  447386ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447386ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447386ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447386ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447403ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  447753ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  447759ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447759ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447759ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447760ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  447774ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  455994ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  456001ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  456001ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  456001ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  456001ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  456019ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  457093ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  457098ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  457098ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  457098ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  457098ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  457112ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  465233ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  465246ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  465247ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  465247ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  465248ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  465267ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  466330ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Boc0P7Ck.js:7630
+[  466336ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  466336ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  466336ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  466336ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-Boc0P7Ck.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-Boc0P7Ck.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Boc0P7Ck.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Boc0P7Ck.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Boc0P7Ck.js:2692:17)
+    at http://localhost:8123/assets/index-Boc0P7Ck.js:5612:27
+[  466350ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  563686ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-llBxb5f0.js:7630
+[  563695ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  563695ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  563695ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  563696ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  563712ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  564658ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-llBxb5f0.js:7630
+[  564665ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  564665ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  564666ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  564666ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-llBxb5f0.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-llBxb5f0.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-llBxb5f0.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-llBxb5f0.js:5790:5)
+    at jg (http://localhost:8123/assets/index-llBxb5f0.js:2692:17)
+    at http://localhost:8123/assets/index-llBxb5f0.js:5612:27
+[  564677ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  637944ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-0DXwh3Gi.js:7630
+[  637952ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  637952ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  637952ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  637952ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  637970ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  638917ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-0DXwh3Gi.js:7630
+[  638923ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  638924ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  638924ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  638924ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5040:75)
+    at Wj (http://localhost:8123/assets/index-0DXwh3Gi.js:5041:57)
+    at Wk (http://localhost:8123/assets/index-0DXwh3Gi.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-0DXwh3Gi.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-0DXwh3Gi.js:5790:5)
+    at jg (http://localhost:8123/assets/index-0DXwh3Gi.js:2692:17)
+    at http://localhost:8123/assets/index-0DXwh3Gi.js:5612:27
+[  638936ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  782359ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  782368ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  782368ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  782368ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  782368ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  782385ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  783334ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  783342ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  783342ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  783342ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  783342ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  783356ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  784877ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  784878ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  784878ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  784878ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  784883ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  804036ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  804042ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  804043ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  804043ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  804043ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  804058ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  805131ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  805136ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  805137ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  805137ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  805138ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  805156ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  813407ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  813413ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  813413ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  813413ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  813414ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  813429ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  814486ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  814492ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  814492ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  814492ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  814493ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  814506ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  822942ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  822948ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  822948ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  822948ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  822948ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  822961ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0
+[  824026ms] [WARNING] Select is changing from uncontrolled to controlled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component. @ http://localhost:8123/assets/index-Tffb-rbv.js:7630
+[  824031ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  824032ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  824032ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  824032ms] SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.
+    at <anonymous>:533:5
+    at <anonymous>:534:7
+    at Wj (http://localhost:8123/assets/index-Tffb-rbv.js:5040:75)
+    at Wk (http://localhost:8123/assets/index-Tffb-rbv.js:6097:7)
+    at Pk (http://localhost:8123/assets/index-Tffb-rbv.js:6061:38)
+    at Ek (http://localhost:8123/assets/index-Tffb-rbv.js:5790:5)
+    at jg (http://localhost:8123/assets/index-Tffb-rbv.js:2692:17)
+    at http://localhost:8123/assets/index-Tffb-rbv.js:5612:27
+[  824045ms] [ERROR] Navigation to external protocol blocked by sandbox, because it doesn't contain any of: 'allow-top-navigation-to-custom-protocols', 'allow-top-navigation-by-user-activation', 'allow-top-navigation', or 'allow-popups'. See https://chromestatus.com/feature/5680742077038592 and https://chromeenterprise.google/policies/#SandboxExternalProtocolBlocked @ http://localhost:8123/index.html:0

@@ -9,6 +9,7 @@ import {
 } from '@hive/design-system'
 import { roleMeta, t } from '../i18n'
 import { AgentPicker, type AgentMeta } from './AgentPicker'
+import { ShellPicker, type ShellCatalogView } from './ShellPicker'
 import { roleIcon } from './roleVisuals'
 import type { ShortcutScope } from './ShortcutCustomizer'
 import { ChatBubbleIcon, CheckIcon, CompassIcon, HiveCellIcon, SlidersIcon } from './icons'
@@ -97,6 +98,11 @@ export function ProfileSheet({
   // time the sheet opens so a CLI the user just installed shows up.
   const [agentMetas, setAgentMetas] = useState<AgentMeta[]>([])
   const [rescanning, setRescanning] = useState(false)
+  // agent-terminal: the shells on this machine + the persisted choice, read on
+  // open for the same reason as the agents — a terminal installed since last
+  // time has to be selectable without restarting the app.
+  const [shellView, setShellView] = useState<ShellCatalogView | null>(null)
+  const [shellScanning, setShellScanning] = useState(false)
   // Local draft so typing doesn't spam persistence — committed on blur/Enter.
   const [nameDraft, setNameDraft] = useState(userName ?? '')
   const [nameSaved, setNameSaved] = useState(false)
@@ -106,6 +112,9 @@ export function ProfileSheet({
     let cancelled = false
     window.hive.profile.agents().then((list) => {
       if (!cancelled) setAgentMetas(list)
+    })
+    window.hive.shell.list().then((view) => {
+      if (!cancelled) setShellView(view)
     })
     return () => {
       cancelled = true
@@ -164,6 +173,20 @@ export function ProfileSheet({
   function handleAgentInstalled(agent: AgentMeta): void {
     setAgentMetas((current) => current.map((entry) => (entry.id === agent.id ? agent : entry)))
     if (!agents.includes(agent.id)) onAgentsChange([...agents, agent.id])
+  }
+
+  /** AT-R2: persisting a choice re-reads the view, so the caveats follow it. */
+  function handleSelectShell(id: string | null): void {
+    void window.hive.shell.select(id).then(() => window.hive.shell.list().then(setShellView))
+  }
+
+  /** AT-R1: re-detect without closing the sheet (mirrors the agents' re-scan). */
+  function handleRescanShells(): void {
+    setShellScanning(true)
+    window.hive.shell
+      .list(true)
+      .then(setShellView)
+      .finally(() => setShellScanning(false))
   }
 
   return (
@@ -263,6 +286,17 @@ export function ProfileSheet({
               {t('profile.agentEmptyWarning')}
             </p>
           )}
+        </div>
+
+        <div className="wb-profile-section">
+          <h3 className="wb-profile-section-label">{t('profile.shellSectionLabel')}</h3>
+          <p className="wb-profile-section-hint">{t('profile.shellSectionHint')}</p>
+          <ShellPicker
+            view={shellView}
+            onSelect={handleSelectShell}
+            onRefresh={handleRescanShells}
+            refreshing={shellScanning}
+          />
         </div>
 
         {onReplayTour && (

@@ -95,6 +95,59 @@ describe('turn lifecycle + capture', () => {
     expect(snap.turns.map((t) => t.turnId)).toEqual(['t1', 't2'])
   })
 
+  it('marks each turn with the conversation it was asked from', async () => {
+    await svc.beginTurn(ws, 't1', 'conv-a')
+    write('one.txt', 'first turn\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't1', ['one.txt'])
+
+    await svc.beginTurn(ws, 't2', 'conv-b')
+    write('two.txt', 'second turn\n')
+    await svc.onFsActivity(ws)
+    await svc.endTurn(ws, 't2', ['two.txt'])
+
+    // One workspace-wide pending set, two conversations — the chat card for
+    // each turn belongs to the transcript that asked for it, and nowhere else.
+    const snap = latest()
+    expect(snap.changes).toHaveLength(2)
+    expect(snap.turns.map((t) => t.conversationId)).toEqual(['conv-a', 'conv-b'])
+  })
+
+  it('leaves the conversation unset when the caller has none', async () => {
+    await svc.beginTurn(ws, 't1')
+    expect(latest().turns[0].conversationId).toBeUndefined()
+  })
+
+  it('attachTurn names a conversation created after the turn started, and emits', async () => {
+    await svc.beginTurn(ws, 't1')
+    const before = emitted.length
+
+    svc.attachTurn(ws, 't1', 'conv-new')
+
+    expect(emitted).toHaveLength(before + 1)
+    expect(latest().turns[0].conversationId).toBe('conv-new')
+  })
+
+  it('attachTurn never re-points a turn that already named its conversation', async () => {
+    await svc.beginTurn(ws, 't1', 'conv-a')
+    const before = emitted.length
+
+    svc.attachTurn(ws, 't1', 'conv-b')
+
+    expect(latest().turns[0].conversationId).toBe('conv-a')
+    expect(emitted).toHaveLength(before) // nothing changed → nothing pushed
+  })
+
+  it('attachTurn ignores an unknown turn id', async () => {
+    await svc.beginTurn(ws, 't1')
+    const before = emitted.length
+
+    svc.attachTurn(ws, 'ghost', 'conv-a')
+
+    expect(latest().turns[0].conversationId).toBeUndefined()
+    expect(emitted).toHaveLength(before)
+  })
+
   it('does not spin up a set (or emit) for idle activity with no active turn', async () => {
     write('idle.txt', 'manual edit\n')
     await svc.onFsActivity(ws)

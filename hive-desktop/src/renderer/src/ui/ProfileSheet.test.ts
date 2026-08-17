@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createElement, type ReactNode } from 'react'
+import { createContext, createElement, useContext, type ReactNode } from 'react'
 import { cleanup, render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ProfileSheet } from './ProfileSheet'
 import type { AgentMeta } from './AgentPicker'
@@ -28,6 +28,26 @@ vi.mock('@hive/design-system', () => ({
     return createElement('button', { type: 'button', ...rest }, children)
   },
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
+  // agent-terminal: the terminal picker renders inside this sheet. Radix's
+  // radio group is replaced by a plain radio input so the mocked tree still
+  // reports checked state and fires a change.
+  RadioGroup: ({
+    children,
+    value,
+    onValueChange,
+    ...rest
+  }: {
+    children?: ReactNode
+    value?: string
+    onValueChange?: (value: string) => void
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'data-value': value, ...rest },
+      createElement(ShellRadioContext.Provider, { value: { value, onValueChange } }, children)
+    ),
+  RadioGroupItem: ({ value, ...rest }: { value: string }) =>
+    createElement(ShellRadioConsumer, { value, ...rest }),
   Switch: ({
     checked,
     onCheckedChange,
@@ -45,6 +65,59 @@ vi.mock('@hive/design-system', () => ({
       ...rest
     })
 }))
+
+/** Shared state for the mocked radio group above (Radix's context, in miniature). */
+const ShellRadioContext = createContext<{
+  value?: string
+  onValueChange?: (value: string) => void
+}>({})
+
+function ShellRadioConsumer({ value, ...rest }: { value: string }): React.JSX.Element {
+  const group = useContext(ShellRadioContext)
+  return createElement('input', {
+    type: 'radio',
+    value,
+    checked: group.value === value,
+    onChange: () => group.onValueChange?.(value),
+    ...rest
+  })
+}
+
+const SHELL_VIEW = {
+  shells: [
+    {
+      id: 'cmd',
+      path: 'C:\\Windows\\System32\\cmd.exe',
+      family: 'cmd' as const,
+      systemDefault: true,
+      agents: [
+        {
+          agentId: 'claude-cli',
+          displayName: 'Claude Code',
+          support: 'launch-only' as const,
+          note: 'windows-git-bash' as const
+        }
+      ]
+    },
+    {
+      id: 'git-bash',
+      path: 'C:\\Program Files\\Git\\bin\\bash.exe',
+      family: 'bash' as const,
+      systemDefault: false,
+      agents: [
+        {
+          agentId: 'claude-cli',
+          displayName: 'Claude Code',
+          support: 'native' as const,
+          note: 'windows-git-bash' as const
+        }
+      ]
+    }
+  ],
+  selectedId: null,
+  resolvedId: 'cmd',
+  missingSelection: false
+}
 
 const AGENT_METAS: AgentMeta[] = [
   {
@@ -120,6 +193,10 @@ beforeEach(() => {
         emitInstall = onEvent
         return vi.fn()
       })
+    },
+    shell: {
+      list: vi.fn(async () => SHELL_VIEW),
+      select: vi.fn(async () => undefined)
     },
     openExternal: vi.fn()
   } as typeof window.hive
@@ -326,6 +403,31 @@ describe('ProfileSheet (P1-010)', () => {
     expect(screen.queryByText('Rever o tour guiado')).toBeNull()
   })
 
+  // agent-terminal: the section's whole job is that a pick reaches disk and
+  // the sheet then shows what the new pick implies.
+  it('persists a terminal pick and re-reads the catalog so the caveats follow it', async () => {
+    renderSheet()
+    await waitFor(() => expect(screen.getByLabelText('Git Bash')).toBeTruthy())
+
+    const select = window.hive.shell.select as ReturnType<typeof vi.fn>
+    const list = window.hive.shell.list as ReturnType<typeof vi.fn>
+    fireEvent.click(screen.getByLabelText('Git Bash'))
+
+    await waitFor(() => expect(select).toHaveBeenCalledWith('git-bash'))
+    // Re-read after the write: the per-agent caveat under the selected row is
+    // derived from the catalog, so a stale view would keep showing the old
+    // shell's consequences.
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+
+  it('re-detects terminals without closing the sheet', async () => {
+    renderSheet()
+    await waitFor(() => expect(screen.getByText('Procurar terminais')).toBeTruthy())
+
+    fireEvent.click(screen.getByText('Procurar terminais'))
+    await waitFor(() => expect(window.hive.shell.list).toHaveBeenCalledWith(true))
+  })
+
   it('drops a late probe answer after the sheet closes', async () => {
     let resolveAgents: (list: AgentMeta[]) => void = () => {}
     window.hive = {
@@ -333,6 +435,10 @@ describe('ProfileSheet (P1-010)', () => {
       profile: {
         ...window.hive?.profile,
         agents: vi.fn(() => new Promise<AgentMeta[]>((resolve) => (resolveAgents = resolve)))
+      },
+      shell: {
+        list: vi.fn(async () => SHELL_VIEW),
+        select: vi.fn(async () => undefined)
       }
     } as typeof window.hive
 

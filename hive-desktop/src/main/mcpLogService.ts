@@ -3,7 +3,7 @@
 import { existsSync, watch as watchPath, type FSWatcher } from 'fs'
 import { open, readdir, stat } from 'fs/promises'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 
 import { claudeCacheSlug, parseLogChunk, type McpLogEntry } from './mcpLogParse'
 
@@ -54,11 +54,35 @@ export interface McpLogQuery {
   limit?: number
 }
 
+/**
+ * Where this service reads a workspace's logs from — the console's way of
+ * saying "I looked *here*" instead of showing an empty list.
+ *
+ * Worth its own IPC because the directory is derived, not configured, and the
+ * derivation has a real failure mode: the CLI computes both halves of it
+ * (cache root and slug) from *its own* platform and *its own* view of the
+ * working directory. Drive the app from WSL against a `claude` installed with
+ * Windows npm and the CLI writes to `%LOCALAPPDATA%` under a
+ * `\\wsl.localhost\…` slug, while this service — a Linux process holding a
+ * POSIX path — reads `~/.cache` under a `-home-…` slug. Neither side is wrong
+ * and nothing throws; the console is simply, silently, pointed at a directory
+ * that will never have anything in it. Showing the path turns that from a
+ * mystery into a one-glance diagnosis.
+ */
+export interface McpLogLocation {
+  /** The absolute directory this workspace's `mcp-logs-*` folders live under. */
+  dir: string
+  /** Whether it exists right now. False is the normal state before the CLI's first run. */
+  exists: boolean
+}
+
 export interface McpLogService {
   /** Every server with logs for this workspace, most recently active first. */
   sources(workspace: string): Promise<McpLogSource[]>
   /** Recent entries, oldest-first, capped by `query.limit`. */
   read(workspace: string, query?: McpLogQuery): Promise<McpLogEntry[]>
+  /** The directory this service reads for `workspace`, and whether it's there. */
+  locate(workspace: string): McpLogLocation
   /**
    * Streams entries appended after this call. Returns a disposer; the callback
    * fires with a non-empty batch per filesystem change (debounced).
@@ -120,6 +144,26 @@ export type WatchFactory = (
   options: { recursive: boolean },
   onChange: () => void
 ) => FSWatcher
+
+/**
+ * The nearest ancestor of `path` that exists right now (possibly `path`
+ * itself), or null when even the filesystem root is unreachable.
+ *
+ * This is what lets the tail survive being started before the CLI has ever run
+ * in a workspace: there is nothing to watch at the target, but there is always
+ * something to watch *above* it, and that something is where the target will
+ * appear.
+ */
+export function nearestExistingDir(path: string): string | null {
+  let current = path
+  for (;;) {
+    if (existsSync(current)) return current
+    const parent = dirname(current)
+    // `dirname` is a fixed point at the root ('/' → '/', 'C:\' → 'C:\').
+    if (parent === current) return null
+    current = parent
+  }
+}
 
 /**
  * Factory. `cacheRoot` defaults to the real CLI cache; tests pass a temp dir.
@@ -243,6 +287,22 @@ export function createMcpLogService(
     let disposed = false
     let timer: NodeJS.Timeout | null = null
     const watchers: FSWatcher[] = []
+    /**
+     * Directories that already carry a watcher. `attach` runs after every
+     * sweep, so this is what keeps it idempotent — and what lets a server
+     * whose `mcp-logs-*` directory is created mid-session pick up a watcher of
+     * its own on the non-recursive path.
+     */
+    const watched = new Set<string>()
+    /** True once a recursive watcher took, which already covers every subdirectory. */
+    let recursive = false
+    /**
+     * True once the recursive attempt threw. Without it the second pass would
+     * see `root` already in `watched`, read that as "the recursive watcher
+     * took" and stop attaching per-directory watchers to servers that appear
+     * later — the exact gap this rework exists to close.
+     */
+    let recursiveRefused = false
 
     /** Parses whatever has been appended to every known file since the last sweep. */
     async function sweep(): Promise<void> {
@@ -278,6 +338,10 @@ export function createMcpLogService(
           })
         }
       }
+      // Re-attach before reporting: a sweep is exactly the moment a directory
+      // that didn't exist a moment ago might, and the watcher that woke us
+      // could have been the bootstrap one sitting on an ancestor.
+      await attach()
       if (batch.length === 0 || disposed) return
       batch.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
       onBatch(batch)
@@ -312,28 +376,54 @@ export function createMcpLogService(
       await attach()
     }
 
+    /** Adds one watcher, at most once per directory. Reports whether it took. */
+    function watchDir(dir: string, options: { recursive: boolean }): boolean {
+      if (watched.has(dir)) return true
+      try {
+        watchers.push(watchFactory(dir, options, schedule))
+        watched.add(dir)
+        return true
+      } catch {
+        // A directory we can't watch just won't tail; the rest still do.
+        return false
+      }
+    }
+
     /**
      * Watches the workspace's whole cache subtree. Recursive watching is
      * documented by Node as platform-dependent (it works on this project's
      * Linux/Node 22 target, see `fsService.ts`), so a throw falls back to one
      * watcher per `mcp-logs-*` directory plus the root — together those catch
      * both appends to existing files and brand-new connection files.
+     *
+     * **Runs again after every sweep**, and that is the whole point. The
+     * workspace's cache directory does not exist until the CLI has run there
+     * once, so a console opened on a fresh workspace — the ordinary case, and
+     * exactly when someone is watching hardest — used to find nothing to watch
+     * and give up permanently: the agent would then run, the CLI would create
+     * the directory and fill it, and the dock would sit empty until a manual
+     * reload. Now the absence is watched too: a bootstrap watcher sits on the
+     * nearest existing ancestor until the real directory appears, and each
+     * pass upgrades whatever it can.
      */
     async function attach(): Promise<void> {
-      if (!existsSync(root)) return
-      try {
-        watchers.push(watchFactory(root, { recursive: true }, schedule))
+      if (disposed || recursive) return
+      if (!existsSync(root)) {
+        const ancestor = nearestExistingDir(root)
+        if (ancestor !== null) watchDir(ancestor, { recursive: false })
         return
-      } catch {
-        // Fall through to per-directory watchers.
       }
-      for (const dir of [root, ...(await logDirs(workspace)).map((entry) => entry.dir)]) {
+      if (!recursiveRefused && watchDir(root, { recursive: true })) {
+        recursive = true
+        return
+      }
+      recursiveRefused = true
+      // Per-directory fallback. `logDirs` is re-read on every pass, so a server
+      // that connects for the first time mid-session gets its own watcher.
+      watchDir(root, { recursive: false })
+      for (const { dir } of await logDirs(workspace)) {
         if (disposed) return
-        try {
-          watchers.push(watchFactory(dir, { recursive: false }, schedule))
-        } catch {
-          // A directory we can't watch just won't tail; the rest still do.
-        }
+        watchDir(dir, { recursive: false })
       }
     }
 
@@ -344,8 +434,14 @@ export function createMcpLogService(
       if (timer !== null) clearTimeout(timer)
       for (const watcher of watchers) watcher.close()
       watchers.length = 0
+      watched.clear()
     }
   }
 
-  return { sources, read, watch }
+  function locate(workspace: string): McpLogLocation {
+    const dir = workspaceRoot(workspace)
+    return { dir, exists: existsSync(dir) }
+  }
+
+  return { sources, read, locate, watch }
 }

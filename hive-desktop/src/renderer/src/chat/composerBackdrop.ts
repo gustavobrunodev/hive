@@ -2,7 +2,7 @@ import { mentionSegments } from './composerMentions'
 
 /**
  * The composer's highlight backdrop, composed from everything that wants to
- * paint under the text: `#` file mentions, and the run a dictated segment just
+ * paint under the text: `@` file mentions, and the run a dictated segment just
  * landed (VP-R2.3).
  *
  * It lives in `chat/` rather than in `dictation/` on purpose. The dictation
@@ -20,7 +20,7 @@ import { mentionSegments } from './composerMentions'
 /** One run of composer text, carrying every flag that wants to paint it. */
 export interface BackdropSegment {
   text: string
-  /** A `#path` token that resolves to a real workspace file. */
+  /** A `@path` token that resolves to a real workspace file. */
   mention: boolean
   /** Part of the run a dictated segment just inserted. */
   fresh: boolean

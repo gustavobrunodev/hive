@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { McpConsole } from './McpConsole'
 import { McpStatusCluster } from './McpStatusCluster'
 import type { McpLogEntry, McpLogKind, McpLogLevel } from './logConsole'
+import type { McpRosterEntry } from './mcpRoster'
 
 /**
  * `McpConsole` / `McpStatusCluster` component tests — the wiring between the
@@ -44,18 +45,27 @@ const openDir = vi.fn()
 /** Renders the console around a given set of entries. */
 function renderConsole(
   entries: McpLogEntry[],
-  store: { loading?: boolean; error?: string | null; catalog?: string[] } = {}
+  store: {
+    loading?: boolean
+    error?: string | null
+    catalog?: string[]
+    roster?: McpRosterEntry[]
+    location?: { dir: string; exists: boolean } | null
+  } = {}
 ): void {
   render(
     createElement(McpConsole, {
       workspace: '/ws',
       catalog: store.catalog ?? ['playwright'],
+      roster: store.roster ?? [],
       live: true,
       onClose,
       onOpenManager,
       store: {
         entries,
         sources: [{ server: 'playwright', dir: '/d', files: 1, lastActivityAt: 1 }],
+        location:
+          store.location === undefined ? { dir: '/cache/ws', exists: true } : store.location,
         loading: store.loading ?? false,
         error: store.error ?? null,
         freshIds: new Set<string>(),
@@ -247,52 +257,168 @@ describe('McpConsole — chrome', () => {
   })
 })
 
+/**
+ * mcp-visibility: the roster strip and the diagnostic empty state — the two
+ * places the console stopped being able to say "you have no MCP servers" when
+ * what it meant was "I found no log files".
+ */
+describe('McpConsole — roster strip', () => {
+  const rosterEntry = (over: Partial<McpRosterEntry> = {}): McpRosterEntry => ({
+    name: 'playwright',
+    key: 'playwright',
+    state: 'connected',
+    tools: ['a', 'b'],
+    inCatalog: true,
+    lastAt: 1,
+    calls: 0,
+    errors: 0,
+    ...over
+  })
+
+  it('shows every known server even when the stream below is empty', () => {
+    renderConsole([], { roster: [rosterEntry(), rosterEntry({ name: 'pencil', key: 'pencil' })] })
+    const pills = document.querySelectorAll('.wb-mcplog-pill')
+    expect(
+      Array.from(pills).map((pill) => pill.querySelector('.wb-mcplog-pill-name')?.textContent)
+    ).toEqual(['playwright', 'pencil'])
+    // And the empty state is still the one on screen — the strip does not
+    // pretend there is activity.
+    expect(screen.getByText('Nenhuma atividade MCP ainda')).toBeTruthy()
+  })
+
+  it('renders no strip at all when the workspace has no servers', () => {
+    renderConsole([entry()], { roster: [] })
+    expect(document.querySelector('.wb-mcplog-strip')).toBeNull()
+  })
+
+  it('scopes the stream to a server, and lets the same pill clear it', () => {
+    renderConsole(
+      [entry({ server: 'playwright' }), entry({ server: 'pencil', text: 'do lápis' })],
+      {
+        roster: [rosterEntry(), rosterEntry({ name: 'pencil', key: 'pencil' })]
+      }
+    )
+    const pill = screen.getByRole('button', { name: /^playwright/ })
+
+    fireEvent.click(pill)
+    expect(pill.getAttribute('aria-pressed')).toBe('true')
+    expect(rowTexts()).not.toContain('do lápis')
+
+    fireEvent.click(pill)
+    expect(pill.getAttribute('aria-pressed')).toBe('false')
+    expect(rowTexts()).toContain('do lápis')
+  })
+
+  it('carries the state word and the tool count on the pill', () => {
+    renderConsole([], { roster: [rosterEntry({ state: 'failed', tools: ['a', 'b', 'c'] })] })
+    const pill = document.querySelector('.wb-mcplog-pill')
+    expect(pill?.getAttribute('data-state')).toBe('failed')
+    expect(pill?.querySelector('.wb-mcplog-pill-state')?.textContent).toBe('falhou')
+    expect(pill?.querySelector('.wb-mcplog-pill-count')?.textContent).toBe('3')
+  })
+})
+
+describe('McpConsole — where the logs were read from', () => {
+  it('names the directory on the nothing-yet state, and says it is missing', () => {
+    renderConsole([], { location: { dir: '/cache/claude-cli-nodejs/-ws', exists: false } })
+    expect(screen.getByText('Ainda não existe')).toBeTruthy()
+    expect(screen.getByText('/cache/claude-cli-nodejs/-ws')).toBeTruthy()
+  })
+
+  it('says it is reading when the directory does exist', () => {
+    renderConsole([], { location: { dir: '/cache/x', exists: true } })
+    expect(screen.getByText('Lendo de')).toBeTruthy()
+  })
+
+  it('shows no path on the wrong-filter state — the filter is the problem there', () => {
+    renderConsole([entry({ server: 'pencil' })], { location: { dir: '/cache/x', exists: true } })
+    fireEvent.change(screen.getByLabelText('Buscar nos eventos'), {
+      target: { value: 'zzz-nada' }
+    })
+    expect(screen.getByText('Nenhum evento neste filtro')).toBeTruthy()
+    expect(document.querySelector('.wb-mcplog-source')).toBeNull()
+  })
+})
+
 describe('McpStatusCluster', () => {
-  it('names the last server that spoke', () => {
+  const rosterEntry = (over: Partial<McpRosterEntry> = {}): McpRosterEntry => ({
+    name: 'playwright',
+    key: 'playwright',
+    state: 'connected',
+    tools: ['browser_navigate'],
+    inCatalog: true,
+    lastAt: 1,
+    calls: 0,
+    errors: 0,
+    ...over
+  })
+
+  it("counts the workspace's servers rather than naming whoever spoke last", () => {
     render(
       createElement(McpStatusCluster, {
-        last: entry({ server: 'playwright' }),
-        errors: 0,
+        roster: [rosterEntry(), rosterEntry({ name: 'pencil', key: 'pencil' })],
         live: true,
         open: false,
         onToggle: vi.fn()
       })
     )
-    expect(screen.getByText('playwright')).toBeTruthy()
+    expect(screen.getByText('2 servidores MCP')).toBeTruthy()
     expect(document.querySelector('.wb-status-mcp-pulse')).toBeTruthy()
   })
 
-  it('stays quiet with nothing to report — a label, not a zero', () => {
+  it('lists every server, its state and its tool count in the roster card', () => {
     render(
       createElement(McpStatusCluster, {
-        last: null,
-        errors: 0,
+        roster: [
+          rosterEntry({ tools: ['a', 'b', 'c'] }),
+          rosterEntry({ name: 'pencil', key: 'pencil', state: 'known', tools: null })
+        ],
         live: false,
         open: false,
         onToggle: vi.fn()
       })
     )
-    expect(screen.getByText('Nenhuma atividade MCP ainda')).toBeTruthy()
+    expect(screen.getByText('playwright')).toBeTruthy()
+    expect(screen.getByText('3 ferramentas')).toBeTruthy()
+    expect(screen.getByText('conectado')).toBeTruthy()
+    // A server with no reported tool list shows no count at all rather than a zero.
+    expect(screen.queryByText('0 ferramentas')).toBeNull()
+  })
+
+  it('stays quiet with nothing to report — a label, not a zero', () => {
+    render(
+      createElement(McpStatusCluster, {
+        roster: [],
+        live: false,
+        open: false,
+        onToggle: vi.fn()
+      })
+    )
+    expect(screen.getByText('Nenhum servidor MCP')).toBeTruthy()
     expect(document.querySelector('.wb-status-mcp-errors')).toBeNull()
     expect(document.querySelector('.wb-status-mcp-pulse')).toBeNull()
   })
 
-  it('carries the error tally and reports the dock state', () => {
+  it('goes loud only for failures, and reports the dock state', () => {
     const onToggle = vi.fn()
     render(
       createElement(McpStatusCluster, {
-        last: entry(),
-        errors: 3,
+        roster: [
+          rosterEntry({ state: 'failed' }),
+          rosterEntry({ name: 'pencil', key: 'pencil', state: 'connected' })
+        ],
         live: false,
         open: true,
         onToggle
       })
     )
-    expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.getByText('1 de 2 com falha')).toBeTruthy()
+    expect(screen.getByText('1')).toBeTruthy()
     const button = screen.getByRole('button', {
       name: 'Abrir o console de atividade dos servidores MCP'
     })
     expect(button.getAttribute('aria-pressed')).toBe('true')
+    expect(button.hasAttribute('data-troubled')).toBe(true)
     fireEvent.click(button)
     expect(onToggle).toHaveBeenCalled()
   })

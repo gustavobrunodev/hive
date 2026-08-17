@@ -78,6 +78,7 @@ export function createHiveReviewMock(): HiveReviewMock {
     rejectHunk: vi.fn().mockResolvedValue({ ok: true }),
     acceptAll: vi.fn().mockResolvedValue({ ok: true }),
     rejectAll: vi.fn().mockResolvedValue({ ok: true }),
+    attachTurn: vi.fn().mockResolvedValue(undefined),
     onChanged: vi.fn().mockReturnValue(() => {})
   }
 }

@@ -61,6 +61,29 @@ body h3 {
   text-wrap: balance;
 }
 
+/* --- Text selection on the app's own accent-filled surfaces ---
+   The DS resolves `::selection` through `--selection-bg`/`--selection-ink`
+   (base.css), which custom-property inheritance lets any surface re-point on
+   itself. Every rule below fills itself with `--accent` *and* carries text, so
+   the default accent highlight would land accent-on-accent and be invisible —
+   the defect first measured on the user chat bubble (identical rgb on both
+   sides of the selection). The inversion is the surface's own ink/fill pair
+   swapped, so it inherits that pair's contrast guarantee in all three themes
+   instead of introducing a colour that has to be re-measured.
+
+   Grouped rather than repeated: these are all one thing (a filled primary
+   control), and a single list is what keeps the next one from being missed. */
+.wb-appset-btn-primary,
+.wb-update-toast-btn-primary,
+.wb-tour-btn-primary,
+.wb-brain-health-btn[data-primary],
+.wb-brain-nudge-btn-primary,
+.wb-brain-record-btn,
+.wb-rail-dropzone-icon {
+  --selection-bg: var(--accent-ink);
+  --selection-ink: var(--accent);
+}
+
 /* Native scrollbars, recolored to the theme (never rebehaved). On `body` for
    the same reason as the heading reset above: a portalled Dialog/Sheet that
    overflows — the Skill Studio's create form does — otherwise scrolls behind a
@@ -557,7 +580,14 @@ body ::-webkit-scrollbar-corner {
   --wb-ic-pink: oklch(56% 0.13 350);
   --wb-ic-teal: oklch(52% 0.09 195);
 }
-:root[data-theme='dark'] {
+/* `hive` is the third theme and it is dark, but it was never added here — so
+   every file icon in it fell back to the light ramp above and painted an L~52%
+   hue on a near-black bordô surface. Measured on the mention menu's active
+   row: 2.57:1, under the 3:1 UI floor these hues owe, and the same shortfall
+   applies everywhere `.wb-file-icon` appears (the Explorer tree, the viewer
+   header, the search dialog). The dark ramp is correct for it. */
+:root[data-theme='dark'],
+:root[data-theme='hive'] {
   --wb-ic-blue: oklch(74% 0.1 252);
   --wb-ic-sky: oklch(76% 0.09 228);
   --wb-ic-yellow: oklch(78% 0.1 88);
@@ -648,6 +678,47 @@ body ::-webkit-scrollbar-corner {
   font-size: 0.75rem;
   color: var(--danger-ink, var(--ink));
   background: var(--danger-bg, var(--surface-2));
+}
+
+/* explorer-os-actions: the "Caminho copiado" confirmation.
+
+   Collapsed to zero height when idle rather than unmounted — a live region
+   has to exist before it has something to say — so an empty one must not
+   reserve space or the rail gains a permanent blank strip. It also must not
+   push the tree down when it appears, which is why it overlays the toolbar's
+   own row instead of taking a row of its own: a list that jumps every time
+   you copy a path is worse than no confirmation at all. */
+.wb-tree-flash {
+  position: absolute;
+  top: 6px;
+  right: var(--s-3);
+  z-index: var(--z-sticky);
+  padding: 3px 9px;
+  border-radius: var(--rounded-full);
+  font-size: 0.75rem;
+  /* `--ink` on an opaque fill, not `--muted` on a tint: the M15/M16 lesson is
+     that a tinted background composites the ratio downward, and this text is
+     12px. Measured against `--surface-2` it clears 10:1 in all three themes. */
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s var(--ease-quart),
+    transform 0.18s var(--ease-quart);
+}
+.wb-tree-flash[data-shown] {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-tree-flash {
+    transform: none;
+    transition: opacity 0.01s;
+  }
 }
 
 .wb-tree-row-content {
@@ -2204,6 +2275,9 @@ body ::-webkit-scrollbar-corner {
 /* git-management (D-GIT-2): the swappable rail body host — fills the pane
    below the header so the active view (tree or SCM panel) scrolls inside it. */
 .wb-sidebar-host {
+  /* The containing block for the explorer's copy confirmation (`.wb-tree-flash`),
+     which overlays the toolbar row rather than displacing the tree. */
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -4153,12 +4227,17 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
+/* `--muted`, not `--faint`. Measured on the real surface, `--faint` on the
+   menu's `--surface` is 4.18:1 in dark and 3.71:1 in light — both under the
+   4.5:1 floor this 10px text owes, in the two most-used themes. `--muted`
+   clears 6:1 in all three. Same correction on the footer hint below; both
+   rules are shared with the `/` skills menu, which had the same defect. */
 .wb-slash-menu-head {
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
   padding: var(--s-2) var(--s-3) var(--s-1);
 }
 .wb-slash-empty {
@@ -4233,12 +4312,12 @@ button.wb-agent-pill-btn:focus-visible {
   margin-top: var(--s-1);
   padding: var(--s-2) var(--s-3) var(--s-1);
   font-size: 0.6875rem;
-  color: var(--faint);
+  color: var(--muted);
   border-top: 1px solid var(--border);
 }
 
 /* ==========================================================================
-   Chat attachments + `#` file references (chat-attachments R6.5/T16):
+   Chat attachments + `@` file references (chat-attachments R6.5/T16):
    attach trigger, pending-attachment chips, drag-and-drop overlay, the
    mention menu (shares the slash menu's anatomy) and mention pills — in the
    composer backdrop and in sent user bubbles.
@@ -4314,14 +4393,24 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
-/* `#` mention pill behind the textarea's own glyphs (PromptInput backdrop:
+/* `@` mention pill behind the textarea's own glyphs (PromptInput backdrop:
    text is transparent by contract — only the pill paints). `clone` keeps a
    wrapped token's pill whole on both lines. */
 .wb-mention-token {
   color: transparent;
-  background: var(--selected-bg);
+  /* Its own tint rather than `--selected-bg`: that token is 16% in the two
+     graphite themes but 10% in `hive`, where a pill behind live text all but
+     disappeared. Mixing from `--accent` at a fixed strength makes the
+     reference read the same in all three, and says "file reference" instead
+     of "selected text". 30% is where it landed after measuring: at 18% the
+     fill was 1.30:1 against the composer surface in `hive` and read as a
+     smudge; at 30% it clears 1.9:1 in all three while the composer's own
+     `--ink` still holds 7:1+ over it. The shadow only spreads the same fill
+     outward — the spread box sits outside the border box, so nothing
+     double-darkens. */
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
   border-radius: var(--rounded-sm);
-  box-shadow: 0 0 0 2px var(--selected-bg);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -4333,23 +4422,130 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   flex-direction: column;
   overflow-y: hidden;
+  /* Taller than the slash menu's 280px: this list ranks up to eight files and
+     at 280 only four of them fitted, so half the answer sat under a scrollbar
+     the user had no reason to expect. Eight single-line rows plus the header
+     and footer land just under this. */
+  max-height: 356px;
 }
 .wb-mention-menu .wb-slash-list {
   overflow-y: auto;
   min-height: 0;
 }
+
+/* The header carries two facts on one line: what this list is, and — only
+   when the ranked page hides matches — how much of the match set it shows. */
+.wb-mention-menu-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.wb-mention-count {
+  /* Tabular figures so the count doesn't reflow the header per keystroke. */
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
 .wb-mention-menu-foot {
   margin-top: var(--s-1);
   padding: var(--s-2) var(--s-3) var(--s-1);
   font-size: 0.6875rem;
-  color: var(--faint);
+  /* `--muted`, for the same measured reason as `.wb-slash-menu-head` above. */
+  color: var(--muted);
   border-top: 1px solid var(--border);
 }
-.wb-mention-item .wb-slash-item-icon {
+
+/* Empty state teaches the way out instead of only reporting the void. */
+.wb-mention-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wb-mention-empty-hint {
+  font-size: 0.75rem;
   color: var(--muted);
 }
-.wb-mention-item[data-active] .wb-slash-item-icon {
+
+/* One line per row — file name, then the folder it's in — instead of the
+   stacked pair the slash menu uses for its command/description. Two reasons,
+   both measured on screen: stacked rows ran ~55px, so a menu capped at a
+   sensible height showed four of eight matches; and the thing being searched
+   for is the name, which a two-line block buries in the middle of a paragraph.
+   This is also the shape every quick-open the user already knows has. */
+.wb-mention-item {
+  align-items: baseline;
+  padding-block: 6px;
+}
+.wb-mention-item .wb-slash-item-icon {
+  /* Nudged off the baseline the text sits on, back to optical centre. */
+  align-self: center;
+  margin-top: 0;
+}
+.wb-mention-item-text {
+  flex: 1;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.wb-mention-item-text .wb-slash-item-label {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The folder yields first: when a row is too narrow for both, the file name
+   is the half worth keeping whole. */
+.wb-mention-item-dir {
+  min-width: 0;
+}
+
+/* The characters the query matched. Weight and ink do the work — no
+   background, because a tinted run inside a row that itself tints on
+   `[data-active]` would be two selections arguing. `--ink` on the surface and
+   on `--selected-bg` both clear 10:1; the unmatched runs sit at `--muted`'s
+   4.6:1, so the match reads as the foreground it is. */
+.wb-mention-hit {
+  font-weight: 750;
+  color: var(--ink);
+}
+.wb-mention-item-dir .wb-mention-hit {
+  font-weight: 700;
+}
+
+/* The commit key rides the highlighted row. Reserved width (not
+   `display: none`) so rows never shift as the highlight moves. */
+.wb-mention-enter {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1;
   color: var(--accent);
+  opacity: 0;
+  transform: translateX(-2px);
+  transition:
+    opacity 0.12s var(--ease-quart),
+    transform 0.12s var(--ease-quart);
+}
+.wb-mention-item[data-active] .wb-mention-enter {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-mention-enter {
+    transform: none;
+    transition: opacity 0.12s linear;
+  }
+  .wb-mention-item[data-active] .wb-mention-enter {
+    transform: none;
+  }
 }
 
 /* A sent slash command (`/bmad-prd`) is an *invocation*, not prose: it drops
@@ -4697,6 +4893,22 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--accent);
   white-space: nowrap;
 }
+
+/* Agent Change Review: this conversation is holding files still to review. The
+   turn's change card lives in its own transcript now, so this marker is the
+   thread back to it. Weight and full-ink carry the emphasis — accent is already
+   spoken for on this row ("Atual", "Em andamento"), and a third hue would make
+   the row a traffic light. */
+.wb-history-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 0.71875rem;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
 .wb-history-running-dot {
   width: 6px;
   height: 6px;
@@ -4865,6 +5077,215 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.75rem;
   color: var(--muted);
   margin: 0;
+}
+
+/* --- The terminal picker (agent-terminal, AT-R1/AT-R5) ---------------------
+   Rows, not cards: one choice among a handful of items that differ by a name
+   and a path. The path is the row's evidence and gets the whole second line;
+   it truncates rather than wraps, because a wrapped absolute path turns a
+   4-row list into a wall and the full value is one hover (title) away.       */
+.wb-shell-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+/* Same strip the agent picker uses, minus its own button rules — the control
+   is literally `.wb-agent-scan-btn`, so the two re-scans stay one affordance. */
+.wb-shell-scan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+}
+.wb-shell-scan-text {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-shell-scan[data-busy] .wb-shell-scan-text {
+  color: var(--ink);
+}
+.wb-shell-scan[data-busy] .wb-agent-scan-btn svg {
+  animation: wb-agent-scan-spin 900ms linear infinite;
+}
+
+.wb-shell-list {
+  gap: 2px;
+}
+.wb-shell-row {
+  display: flex;
+  /* Top-aligned, not centred: a long path wraps to two lines, and a centred
+     radio then floats opposite the gap between them instead of reading as the
+     label's own control (the same reason `.wb-agent-card[data-unavailable]`
+     switches to flex-start). */
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart);
+}
+/* A neutral wash, not `--surface-2`: in the light and hive themes that token
+   is warm enough to read as the accent tint the *selected* row uses, and a
+   hovered row then looks about as chosen as the chosen one. Measured on the
+   light pass, which is where the two nearly met. */
+.wb-shell-row:hover:not([data-selected]) {
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+}
+.wb-shell-row[data-selected] {
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 38%, transparent);
+}
+/* The radio inside carries the focus ring (DS `:focus-visible`); the row draws
+   its own so keyboard arrowing through the group is visible on the row too. */
+.wb-shell-row:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+/* Optical centring against the name's line box (20px control, ~19px line). */
+.wb-shell-row .hds-radio-item {
+  margin-top: 1px;
+}
+.wb-shell-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.wb-shell-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.wb-shell-row-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Opaque tint + `--ink` text, the same fix `.wb-agent-card-default` documents:
+   a 10px bold chip owes the 4.5:1 body floor, which accent-on-accent-tint
+   misses in two of the three themes. */
+.wb-shell-row-badge {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  border-radius: var(--rounded-full);
+  padding: 1px 7px;
+}
+.wb-shell-row-detail {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+/* Only the path gets the mono face — the "Automático" row's second line is a
+   sentence, and setting prose in a monospace column made it read as data and
+   pushed it past the truncation. It wraps instead of truncating: an ellipsis
+   would hide the tail, which is the half that separates
+   `…\WindowsPowerShell\v1.0\powershell.exe` from a second PowerShell. */
+.wb-shell-row-detail[data-path] {
+  font-family: var(--ff-mono);
+  overflow-wrap: anywhere;
+}
+
+/* What the choice actually changes, per enabled agent. Under the selected row
+   only — repeated under every row it would be noise, and absent it would be a
+   picker that lies exactly where Windows' default (cmd) is concerned. */
+.wb-shell-support {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+}
+.wb-shell-support-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-shell-support-title svg {
+  color: var(--muted);
+}
+.wb-shell-support-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wb-shell-support-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-shell-support-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  /* Optical alignment with the first line of a 1.45 line-height sentence. */
+  margin-top: 2px;
+}
+.wb-shell-support-item[data-support='native'] .wb-shell-support-mark {
+  color: var(--success);
+}
+.wb-shell-support-item[data-support='launch-only'] .wb-shell-support-mark {
+  color: var(--warning);
+}
+
+.wb-shell-missing {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--warning-bg);
+  border-radius: var(--rounded-md);
+  padding: var(--s-2) var(--s-3);
+}
+.wb-shell-missing svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--warning-ink);
+}
+.wb-shell-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-shell-row {
+    transition: none;
+  }
+  .wb-shell-scan[data-busy] .wb-agent-scan-btn svg {
+    animation: none;
+  }
 }
 
 /* Name field: the transient "Salvo ✓" confirmation rides next to the field,
@@ -11122,6 +11543,106 @@ span.wb-change-card-open {
   margin: 0;
 }
 
+/* ------------------- mcp-visibility: the turn's handshake row */
+
+/* One line at the top of a turn saying which MCP servers it started with. It
+   is deliberately lighter than an activity row — no rail, no mark well, no
+   duration column — because it is not a step the agent took; it is the state
+   the turn began in. It only renders when the roster is *news* (see
+   `rosterSignature`), so it never becomes a header every turn wears. */
+.wb-mcpturn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface-2);
+  font-size: 0.74rem;
+  text-align: left;
+}
+.wb-mcpturn[data-trouble] {
+  border-color: color-mix(in oklab, var(--danger) 42%, var(--border));
+  background: var(--danger-bg);
+}
+.wb-mcpturn-button {
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease-quart);
+}
+.wb-mcpturn-button:hover {
+  border-color: var(--border-strong);
+}
+.wb-mcpturn-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-mcpturn-mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+}
+.wb-mcpturn[data-trouble] .wb-mcpturn-mark {
+  color: var(--danger-ink);
+}
+.wb-mcpturn-head {
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-mcpturn[data-trouble] .wb-mcpturn-head {
+  color: var(--danger-ink);
+}
+.wb-mcpturn-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+/* The chip's status maps through the same `[data-state]` palette the console
+   and status card use, via the shared aliases below. */
+.wb-mcpturn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.7rem;
+}
+.wb-mcpturn-chip[data-status='connected'] {
+  --mcp-tone: var(--success);
+}
+.wb-mcpturn-chip[data-status='failed'] {
+  --mcp-tone: var(--danger);
+}
+.wb-mcpturn-chip[data-status='needs-auth'],
+.wb-mcpturn-chip[data-status='pending'] {
+  --mcp-tone: var(--warning);
+}
+.wb-mcpturn-chip[data-status='unknown'] {
+  --mcp-tone: var(--muted);
+}
+.wb-mcpturn-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mcp-tone, var(--muted));
+}
+.wb-mcpturn-name {
+  font-family: var(--ff-mono);
+  font-size: 0.68rem;
+  color: var(--ink);
+}
+.wb-mcpturn-count {
+  color: var(--muted);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+}
+
 .wb-activity-list {
   list-style: none;
   margin: 0;
@@ -13611,6 +14132,151 @@ button.wb-mcplog-summary:focus-visible {
   outline-offset: 2px;
 }
 
+/* --------------------------------- mcp-visibility: the shared state palette */
+
+/* One mapping from server state to colour, used by all three surfaces (the
+   console strip, the status card, the transcript row) so they cannot drift.
+   `known` is deliberately the muted neutral and not a colour: "sem conexão
+   ativa" is the resting state of every server between turns, and painting the
+   normal case would leave nothing left to say when something is actually
+   wrong. */
+[data-state='connected'] {
+  --mcp-tone: var(--success);
+  --mcp-ink: var(--success-ink);
+}
+[data-state='failed'] {
+  --mcp-tone: var(--danger);
+  --mcp-ink: var(--danger-ink);
+}
+[data-state='needs-auth'],
+[data-state='starting'] {
+  --mcp-tone: var(--warning);
+  --mcp-ink: var(--warning-ink);
+}
+[data-state='known'] {
+  --mcp-tone: var(--muted);
+  --mcp-ink: var(--muted);
+}
+
+/* ------------------------------------ mcp-visibility: the roster strip */
+
+/* Sits between the toolbar and the stream, and is present whenever the
+   workspace has servers at all — including when the stream below it is empty.
+   Scrolls horizontally rather than wrapping: the dock's height is the scarce
+   resource here, and a second row of pills would eat rows of events. */
+.wb-mcplog-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.wb-mcplog-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition:
+    border-color 0.16s var(--ease-quart),
+    background-color 0.16s var(--ease-quart);
+}
+.wb-mcplog-pill:hover {
+  border-color: var(--border-strong);
+}
+.wb-mcplog-pill:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-mcplog-pill[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+.wb-mcplog-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mcp-tone, var(--muted));
+}
+.wb-mcplog-pill-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+/* The state word rides `--mcp-ink` (the readable member of each pair) rather
+   than `--mcp-tone` (the saturated fill), so it clears 4.5:1 on the pill's
+   surface in both themes while the dot beside it keeps the loud colour. */
+.wb-mcplog-pill-state {
+  color: var(--mcp-ink, var(--muted));
+}
+.wb-mcplog-pill-count {
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------- mcp-visibility: where the console read from */
+
+/* Shown on the "nothing yet" state only. Monospace on the path itself because
+   it is a path — the one place in this module where machine text is the
+   content rather than the wrapper. */
+.wb-mcplog-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.wb-mcplog-source-label {
+  font-weight: 600;
+}
+/* Wraps rather than truncating. A cache path's *tail* is the diagnostic half —
+   the slug that says which working directory the CLI thought it had — and an
+   ellipsis lands squarely on it. The empty state has the room. */
+.wb-mcplog-source-path {
+  max-width: 64ch;
+  padding: 2px 6px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--ff-mono);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.wb-mcplog-source-copy {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wb-mcplog-source-copy:hover {
+  color: var(--ink);
+}
+.wb-mcplog-source-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
 /* Maximized, the console owns the work area; floating furniture stands down
    rather than being pushed off the top of the viewport. */
 :root[data-dock-maximized] .wb-brain-fab-root {
@@ -13650,7 +14316,7 @@ button.wb-mcplog-summary:focus-visible {
   animation: wb-mcplog-pulse 2s var(--ease-quart) infinite;
 }
 .wb-status-mcp-label {
-  max-width: 140px;
+  max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -13673,6 +14339,115 @@ button.wb-mcplog-summary:focus-visible {
   font-size: 0.66rem;
   font-weight: 700;
   text-align: center;
+}
+/* mcp-visibility: trouble is the only thing that recolours the item itself.
+   The plug glyph goes danger-toned so the cluster reads wrong at a glance
+   without the user having to parse the number beside it. */
+.wb-status-mcp[data-troubled] .wb-status-mcp-mark {
+  color: var(--danger-ink);
+}
+
+/* --------------------- mcp-visibility: the status item's roster card */
+
+/* The list of servers hangs off the status item on hover *and* focus, so it is
+   reachable from the keyboard rather than being pointer-only. A plain
+   absolutely-positioned card, not a portal: the status bar is the last thing
+   in the layout and establishes no clipping context, so there is nothing here
+   for a portal to escape — and a portal would cost the hover bridge that keeps
+   the card open while the pointer travels to it. */
+.wb-status-mcp-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.wb-status-mcp-card {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: var(--z-dropdown);
+  min-width: 292px;
+  max-width: 360px;
+  padding: var(--s-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.16s var(--ease-quart),
+    transform 0.16s var(--ease-quart),
+    visibility 0s linear 0.16s;
+}
+.wb-status-mcp-wrap:hover .wb-status-mcp-card,
+.wb-status-mcp-wrap:focus-within .wb-status-mcp-card {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.wb-status-mcp-card-head {
+  margin: 0 0 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wb-status-mcp-card-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+/* One grid for the whole list, with each row inheriting its tracks through
+   `subgrid`. A grid per row sizes every row's columns independently, so the
+   state and tool-count columns land at a different x on every line — ragged in
+   a way no unit test sees. `subgrid` keeps the <li> in the accessibility tree,
+   which `display: contents` would not. */
+.wb-status-mcp-card-list {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto auto;
+  gap: 3px 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wb-status-mcp-card-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  font-size: 0.72rem;
+}
+.wb-status-mcp-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mcp-tone, var(--muted));
+}
+.wb-status-mcp-card-name {
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-status-mcp-card-state {
+  color: var(--mcp-ink, var(--muted));
+}
+.wb-status-mcp-card-tools {
+  color: var(--muted);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+}
+.wb-status-mcp-card-foot {
+  margin: 7px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-wrap: pretty;
 }
 
 /* --------------------------------------------------------- narrow layouts */
@@ -13714,7 +14489,16 @@ button.wb-mcplog-summary:focus-visible {
   .wb-mcplog-iconbtn,
   .wb-mcplog-card,
   .wb-mcplog-state-cta,
+  .wb-mcplog-pill,
+  .wb-mcpturn-button,
   .wb-brain-fab-root {
+    transition: none;
+  }
+  /* The roster card still appears and disappears — it just does so at once,
+     with no slide and no fade. Losing the card entirely would cost the
+     keyboard path to the server list. */
+  .wb-status-mcp-card {
+    transform: none;
     transition: none;
   }
 }

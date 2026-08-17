@@ -11,7 +11,12 @@ import fs, {
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { claudeCacheSlug } from './mcpLogParse'
-import { claudeCacheRoot, createMcpLogService, type McpLogService } from './mcpLogService'
+import {
+  claudeCacheRoot,
+  createMcpLogService,
+  nearestExistingDir,
+  type McpLogService
+} from './mcpLogService'
 
 /**
  * `McpLogService` unit tests against a real temp cache directory laid out
@@ -379,5 +384,76 @@ describe('McpLogService.watch', () => {
 
     await eventually(() => seen.includes('apesar do link quebrado'))
     stop()
+  })
+
+  /**
+   * The defect this suite exists for. A workspace has no cache directory until
+   * the CLI has run in it once — which is the ordinary state of a console
+   * opened on a fresh workspace, and precisely when someone is watching. The
+   * old `attach` returned early on a missing root and never tried again, so
+   * the agent would run, the CLI would create the directory and fill it, and
+   * the dock stayed empty for the rest of the session.
+   */
+  it('starts tailing a workspace whose cache directory does not exist yet', async () => {
+    // Nothing has ever run here: no slug directory, no server directories.
+    expect(service.locate(workspace).exists).toBe(false)
+
+    const seen: string[] = []
+    const stop = service.watch(workspace, (entries) =>
+      seen.push(...entries.map((item) => item.text))
+    )
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
+    // Now the CLI runs for the first time and writes a whole connection file.
+    writeLog('playwright', 'first.jsonl', [
+      line({ debug: 'Starting connection with timeout of 30000ms' }),
+      line({ debug: 'Calling MCP tool: browser_navigate' })
+    ])
+
+    await eventually(() => seen.includes('Calling MCP tool: browser_navigate'))
+    stop()
+  })
+
+  it('picks up a server that connects for the first time mid-session', async () => {
+    writeLog('pencil', 'a.jsonl', [line({ debug: 'history' })])
+    const seen: string[] = []
+    const stop = service.watch(workspace, (entries) =>
+      seen.push(...entries.map((item) => item.text))
+    )
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
+    // A brand-new `mcp-logs-*` directory, not just a new file in a known one.
+    writeLog('playwright', 'b.jsonl', [line({ debug: 'servidor novo' })])
+
+    await eventually(() => seen.includes('servidor novo'))
+    stop()
+  })
+})
+
+describe('McpLogService.locate', () => {
+  it('reports the derived directory and whether it is there yet', () => {
+    const before = service.locate(workspace)
+    expect(before.dir).toBe(join(cacheRoot, claudeCacheSlug(workspace)))
+    expect(before.exists).toBe(false)
+
+    writeLog('pencil', 'a.jsonl', [line({ debug: 'x' })])
+    expect(service.locate(workspace).exists).toBe(true)
+  })
+})
+
+describe('nearestExistingDir', () => {
+  it('returns the path itself when it exists', () => {
+    expect(nearestExistingDir(cacheRoot)).toBe(cacheRoot)
+  })
+
+  it('climbs to the closest ancestor that does exist', () => {
+    expect(nearestExistingDir(join(cacheRoot, 'a', 'b', 'c'))).toBe(cacheRoot)
+  })
+
+  it('gives up at the filesystem root rather than looping forever', () => {
+    // `dirname` is a fixed point at the root, so a path whose every component
+    // is missing must terminate on the root itself (which exists) — the loop
+    // guard is what this pins.
+    expect(nearestExistingDir(join('/', 'definitely-not-here-hive-test'))).toBe('/')
   })
 })

@@ -87,14 +87,20 @@ test.describe('agent-change-review E2E (real Electron)', () => {
     await window.getByRole('button', { name: /Revisão do agente/ }).click()
 
     // --- Accept the modification: the agent's bytes stay ---------------------
-    await window.getByRole('button', { name: 'Aceitar README.md' }).click()
+    // Clicks are aimed at the panel: the same per-file control exists in the
+    // chat's change card by design (ACR-R2.5, one decision from four surfaces),
+    // so an unscoped locator is a strict-mode violation rather than a defect.
+    // The assertions that follow stay window-wide on purpose — a decided file
+    // has to leave *every* surface at once.
+    const rail = window.getByTestId('rail')
+    await rail.getByRole('button', { name: 'Aceitar README.md' }).click()
     await expect(window.getByRole('button', { name: 'Aceitar README.md' })).toHaveCount(0, {
       timeout: 15_000
     })
     expect(fs.readFileSync(readmePath, 'utf-8')).toBe('linha reescrita pelo agente\n')
 
     // --- Reject the creation: the file goes away ----------------------------
-    await window.getByRole('button', { name: 'Rejeitar docs/spec.md' }).click()
+    await rail.getByRole('button', { name: 'Rejeitar docs/spec.md' }).click()
     await expect.poll(() => fs.existsSync(specPath), { timeout: 15_000 }).toBe(false)
     // The accepted half is untouched by the rejection of its neighbour — the
     // exact interaction P0-005 pins at hunk level, here at file level.
@@ -102,6 +108,60 @@ test.describe('agent-change-review E2E (real Electron)', () => {
 
     // Set emptied → the ambient bar retires itself.
     await expect(window.locator('.wb-review-bar')).toHaveCount(0, { timeout: 15_000 })
+
+    await app.close()
+  })
+
+  /**
+   * The card belongs to the conversation that asked for the turn.
+   *
+   * The pending set is per workspace — the agent's bytes are on disk and every
+   * conversation shares that disk — and the chat used to render every turn's
+   * card in whatever conversation happened to be open. Measured: a review asked
+   * for in one conversation showed up, pending and actionable, at the bottom of
+   * the next one, with nothing saying where it came from.
+   *
+   * Two turns, two conversations, two files, driven against the real main
+   * process: the scope has to hold end to end (`TurnMark.conversationId` +
+   * `review:attachTurn`), not only in the renderer's own filter.
+   */
+  test('@p0 a revisão de um turno fica na conversa que a pediu', async ({ seeded }) => {
+    const agent = armScriptedAgent(seeded, {
+      chunks: ['Registrei a rodada na memória da sala.'],
+      writes: [{ path: 'memoria/rodada.md', content: '# Rodada\n' }]
+    })
+
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
+
+    // --- conversation 1 ------------------------------------------------------
+    await sendTurn(window, 'reúna o time e registre a rodada')
+    await expect(window.locator('.wb-change-card')).toContainText('rodada.md', { timeout: 30_000 })
+
+    // --- conversation 2: its own turn, its own file --------------------------
+    agent.rearm({
+      chunks: ['Iniciando o brainstorm.'],
+      writes: [{ path: 'docs/brief.md', content: '# Brief\n' }]
+    })
+    await window.getByRole('button', { name: 'Nova conversa' }).click()
+    await sendTurn(window, 'faça um brainstorm')
+    await expect(window.locator('.wb-change-card')).toContainText('brief.md', { timeout: 30_000 })
+
+    // The regression: exactly one card here, and it is not conversation 1's.
+    await expect(window.locator('.wb-change-card')).toHaveCount(1)
+    await expect(window.locator('.wb-change-card')).not.toContainText('rodada.md')
+
+    // Scoping the card is not hiding the work: the ambient bar still counts the
+    // workspace's whole pending set…
+    await expect(window.locator('.wb-review-bar')).toContainText('2 mudanças pendentes', {
+      timeout: 20_000
+    })
+    // …and the history list points back at the conversation still holding one.
+    await window.getByRole('button', { name: 'Histórico de conversas' }).click()
+    await expect(window.locator('.wb-history-review').first()).toContainText('1 pendente', {
+      timeout: 15_000
+    })
 
     await app.close()
   })

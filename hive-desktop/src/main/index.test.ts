@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it, vi, beforeAll } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi, beforeAll } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -48,7 +48,8 @@ vi.mock('electron', () => {
       on: vi.fn(),
       quit: vi.fn(),
       getPath: vi.fn(() => userDataDir),
-      getName: vi.fn(() => 'hive-desktop'),
+      setName: vi.fn(),
+      getName: vi.fn(() => 'Hive'),
       getVersion: vi.fn(() => '0.1.0'),
       getGPUInfo: vi.fn(async () => ({ gpuDevice: [] })),
       isPackaged: false
@@ -58,7 +59,10 @@ vi.mock('electron', () => {
     shell: {
       openExternal: vi.fn(),
       trashItem: vi.fn(() => Promise.resolve()),
-      showItemInFolder: vi.fn()
+      showItemInFolder: vi.fn(),
+      // Resolves to '' on success and to an OS error message on failure —
+      // shaped like the real one so the handler's failure branch is reachable.
+      openPath: vi.fn(() => Promise.resolve(''))
     },
     dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) },
     // Second Brain / Whisper: the `hive-model:` scheme registration (pre-ready)
@@ -110,7 +114,8 @@ const { fakeFsService, watchWorkspaceCalls } = vi.hoisted(() => {
       move: vi.fn(),
       importEntry: vi.fn(),
       exists: vi.fn(() => true),
-      trash: vi.fn(() => Promise.resolve())
+      trash: vi.fn(() => Promise.resolve()),
+      absolutePathFor: vi.fn((root: string, rel: string) => `${root}/${rel}`)
     }
   }
 })
@@ -332,6 +337,7 @@ vi.mock('./gitService', async () => {
 const { fakeReviewService } = vi.hoisted(() => ({
   fakeReviewService: {
     beginTurn: vi.fn(async () => {}),
+    attachTurn: vi.fn(),
     onFsActivity: vi.fn(async () => {}),
     endTurn: vi.fn(async () => {}),
     get: vi.fn(async () => ({ changes: [], turns: [] })),
@@ -1144,6 +1150,67 @@ describe('main process bootstrap', () => {
     })
   })
 
+  // explorer-os-actions: the bridge that makes the host OS open something.
+  // The two verbs are not interchangeable, and the workspace-escape gate is
+  // the reason this goes through FsService instead of taking an absolute path.
+  describe('shell:revealPath (explorer-os-actions)', () => {
+    beforeEach(() => {
+      vi.mocked(shell.showItemInFolder).mockClear()
+      vi.mocked(shell.openPath).mockClear().mockResolvedValue('')
+      fakeFsService.absolutePathFor.mockClear()
+    })
+
+    it('registers the handler', () => {
+      expect(ipcMain.handle).toHaveBeenCalledWith('shell:revealPath', expect.any(Function))
+    })
+
+    it('reveals a FILE highlighted inside its parent', async () => {
+      await findHandler('shell:revealPath')({}, '/ws', 'docs/a.txt', false)
+      expect(fakeFsService.absolutePathFor).toHaveBeenCalledWith('/ws', 'docs/a.txt')
+      expect(shell.showItemInFolder).toHaveBeenCalledWith('/ws/docs/a.txt')
+      expect(shell.openPath).not.toHaveBeenCalled()
+    })
+
+    it('OPENS a directory as the window target — revealing it would show its parent', async () => {
+      await findHandler('shell:revealPath')({}, '/ws', 'docs', true)
+      expect(shell.openPath).toHaveBeenCalledWith('/ws/docs')
+      expect(shell.showItemInFolder).not.toHaveBeenCalled()
+    })
+
+    it("treats '' as the workspace root (the empty-area menu)", async () => {
+      await findHandler('shell:revealPath')({}, '/ws', '', true)
+      expect(fakeFsService.absolutePathFor).toHaveBeenCalledWith('/ws', '')
+      expect(shell.openPath).toHaveBeenCalledWith('/ws/')
+    })
+
+    it('rejects a path that escapes the workspace, without touching the OS', async () => {
+      fakeFsService.absolutePathFor.mockImplementationOnce(() => {
+        throw new Error('Path escapes workspace root: ../../etc')
+      })
+      await expect(findHandler('shell:revealPath')({}, '/ws', '../../etc', true)).rejects.toThrow(
+        /escapes workspace root/
+      )
+      expect(shell.openPath).not.toHaveBeenCalled()
+      expect(shell.showItemInFolder).not.toHaveBeenCalled()
+    })
+
+    it('rejects when openPath reports a failure — its resolved string is the error, not a success', async () => {
+      vi.mocked(shell.openPath).mockResolvedValue('Failed to open path')
+      await expect(findHandler('shell:revealPath')({}, '/ws', 'docs', true)).rejects.toThrow(
+        /Failed to open path/
+      )
+    })
+  })
+
+  describe('fs:absolutePath (explorer-os-actions)', () => {
+    it('resolves through FsService so the escape check applies', async () => {
+      fakeFsService.absolutePathFor.mockClear()
+      const result = await findHandler('fs:absolutePath')({}, '/ws', 'docs/a.txt')
+      expect(fakeFsService.absolutePathFor).toHaveBeenCalledWith('/ws', 'docs/a.txt')
+      expect(result).toBe('/ws/docs/a.txt')
+    })
+  })
+
   // chat-attachments: the picker opens inside the workspace it's given.
   describe('chat:chooseAttachments', () => {
     it('forwards the workspace as the dialog defaultPath', async () => {
@@ -1176,7 +1243,7 @@ describe('main process bootstrap', () => {
   describe('app info + update flow', () => {
     it('app:info reports the app name/version and unsupported updates (unpacked)', async () => {
       await expect(findHandler('app:info')()).resolves.toEqual({
-        name: 'hive-desktop',
+        name: 'Hive',
         version: '0.1.0',
         updatesSupported: false,
         // canApply reflects the resolved apply strategy for this process's
@@ -1297,6 +1364,74 @@ describe('main process bootstrap', () => {
       const ws = mkdtempSync(join(tmpdir(), 'hive-mcp-ipc-'))
       await expect(findHandler('mcp:probe')({}, ws, 'ghost')).rejects.toThrow(/não encontrado/i)
       rmSync(ws, { recursive: true, force: true })
+    })
+  })
+
+  // The two profile writes the terminal work sits next to. Untested before,
+  // and both are the silent kind: the user edits a field, nothing complains,
+  // nothing is saved.
+  describe('profile:setRole / profile:setUserName', () => {
+    it('round-trips the role and the display name through the config store', async () => {
+      await findHandler('profile:setRole')({}, 'dev')
+      await expect(findHandler('profile:getRole')({})).resolves.toBe('dev')
+
+      await findHandler('profile:setUserName')({}, '  Gustavo  ')
+      await expect(findHandler('profile:getUserName')({})).resolves.toBe('Gustavo')
+
+      await findHandler('profile:setUserName')({}, null)
+      await expect(findHandler('profile:getUserName')({})).resolves.toBeNull()
+    })
+
+    it('keeps only registered ids in the enabled set, and survives a non-array', async () => {
+      await findHandler('profile:setAgents')({}, ['claude-cli', 'agente-inventado'])
+      await expect(findHandler('profile:getAgents')({})).resolves.toEqual(['claude-cli'])
+
+      // A malformed payload empties the set rather than throwing across IPC.
+      await findHandler('profile:setAgents')({}, 'nao-e-lista')
+      await expect(findHandler('profile:getAgents')({})).resolves.toBeNull()
+    })
+  })
+
+  // agent-terminal: the terminal picker's two channels.
+  describe('shell:* (agent-terminal)', () => {
+    it('registers both handlers', () => {
+      for (const channel of ['shell:list', 'shell:select']) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+    })
+
+    it('answers with the machine catalog: real shells, real paths, automatic unselected', async () => {
+      const view = (await findHandler('shell:list')({})) as {
+        shells: Array<{ id: string; path: string }>
+        selectedId: string | null
+        resolvedId: string | null
+      }
+      expect(view.selectedId).toBeNull()
+      // Whatever this machine has, every entry is an absolute path that the
+      // detector actually found — the picker's whole claim.
+      for (const shell of view.shells) {
+        expect(shell.path.startsWith('/') || /^[A-Za-z]:\\/.test(shell.path)).toBe(true)
+      }
+      if (view.shells.length > 0) expect(view.resolvedId).not.toBeNull()
+    })
+
+    const selectedId = async (): Promise<string | null> =>
+      ((await findHandler('shell:list')({})) as { selectedId: string | null }).selectedId
+
+    it('persists a detected choice and restores automatic on null', async () => {
+      const view = (await findHandler('shell:list')({})) as { shells: Array<{ id: string }> }
+      const target = view.shells[0]
+      if (!target) return // a machine with no shell at all: nothing to assert
+      await findHandler('shell:select')({}, target.id)
+      await expect(selectedId()).resolves.toBe(target.id)
+
+      await findHandler('shell:select')({}, null)
+      await expect(selectedId()).resolves.toBeNull()
+    })
+
+    it('ignores an id that no detection reported (the IPC boundary is not trusted)', async () => {
+      await findHandler('shell:select')({}, 'shell-que-nao-existe')
+      await expect(selectedId()).resolves.toBeNull()
     })
   })
 
@@ -1498,7 +1633,8 @@ describe('main process bootstrap', () => {
         'review:acceptHunk',
         'review:rejectHunk',
         'review:acceptAll',
-        'review:rejectAll'
+        'review:rejectAll',
+        'review:attachTurn'
       ]) {
         expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
       }
@@ -1527,6 +1663,9 @@ describe('main process bootstrap', () => {
 
       await findHandler('review:rejectAll')({}, '/ws')
       expect(fakeReviewService.rejectAll).toHaveBeenCalledWith('/ws')
+
+      await findHandler('review:attachTurn')({}, '/ws', 't-xyz', 'conv-1')
+      expect(fakeReviewService.attachTurn).toHaveBeenCalledWith('/ws', 't-xyz', 'conv-1')
     })
 
     it('rejects a review path that escapes the workspace root', async () => {
@@ -1546,7 +1685,7 @@ describe('main process bootstrap', () => {
       fakeReviewService.endTurn.mockClear()
 
       await findHandler('agent:send')({}, 'do the thing', { turnId: 't-xyz' })
-      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-xyz')
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-xyz', undefined)
       // The agent still receives the (same) turnId.
       expect(fakeAgentService.send).toHaveBeenCalledWith(
         'do the thing',
@@ -1589,8 +1728,32 @@ describe('main process bootstrap', () => {
       await findHandler('agent:send')({}, 'no turn id', undefined)
       expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(
         dir,
-        expect.stringMatching(/^review-turn-/)
+        expect.stringMatching(/^review-turn-/),
+        undefined
       )
+
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    /**
+     * The conversation the turn was asked from rides along from the chat pane,
+     * so the turn's change card renders in that transcript alone. Without it
+     * every conversation showed every workspace turn's card.
+     */
+    it('carries the sending conversation into the turn mark, on send and on runWorkflow', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'hive-main-review-conv-'))
+      await findHandler('workspace:open')({}, dir)
+      fakeReviewService.beginTurn.mockClear()
+
+      await findHandler('agent:send')({}, 'oi', { turnId: 't-1', conversationId: 'conv-a' })
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-1', 'conv-a')
+
+      await findHandler('agent:runWorkflow')(
+        {},
+        { key: 'bmad-prd' },
+        { turnId: 't-2', conversationId: 'conv-b' }
+      )
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-2', 'conv-b')
 
       rmSync(dir, { recursive: true, force: true })
     })

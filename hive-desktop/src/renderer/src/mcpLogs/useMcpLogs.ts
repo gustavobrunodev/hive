@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { McpLogEntry, McpLogSource } from './logConsole'
+import type { McpLogEntry, McpLogLocation, McpLogSource } from './logConsole'
 
 /**
  * `useMcpLogs` — the console's data layer: history on open, a live tail after
@@ -36,6 +36,15 @@ const FRESH_WINDOW_MS = 600
 export interface McpLogStore {
   entries: McpLogEntry[]
   sources: McpLogSource[]
+  /**
+   * Where these logs were read from, once main has answered. Null while the
+   * first read is in flight. The console shows it in its empty state: a
+   * directory derived from the CLI's platform and its view of the working
+   * directory can legitimately point somewhere the app can't see (a Windows
+   * `claude` driven from WSL puts them under `%LOCALAPPDATA%`), and without
+   * the path that failure is indistinguishable from "the agent used no MCP".
+   */
+  location: McpLogLocation | null
   /** True until the first history read settles. */
   loading: boolean
   /** A read failure, as a user-facing message. */
@@ -90,6 +99,7 @@ interface LoadedState {
   key: string
   entries: McpLogEntry[]
   sources: McpLogSource[]
+  location: McpLogLocation | null
   error: string | null
 }
 
@@ -110,11 +120,17 @@ export function useMcpLogs(workspace: string): McpLogStore {
     let cancelled = false
     knownServers.current = new Set()
 
-    void Promise.all([window.hive.mcpLogs.read(workspace), window.hive.mcpLogs.sources(workspace)])
-      .then(([history, sourceList]) => {
+    void Promise.all([
+      window.hive.mcpLogs.read(workspace),
+      window.hive.mcpLogs.sources(workspace),
+      // Resolved on every load rather than once: it is cheap, and `exists`
+      // flips the moment the CLI first runs in this workspace.
+      window.hive.mcpLogs.locate(workspace)
+    ])
+      .then(([history, sourceList, where]) => {
         if (cancelled) return
         for (const entry of history) knownServers.current.add(entry.server)
-        setLoaded({ key, entries: history, sources: sourceList, error: null })
+        setLoaded({ key, entries: history, sources: sourceList, location: where, error: null })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -122,6 +138,7 @@ export function useMcpLogs(workspace: string): McpLogStore {
           key,
           entries: [],
           sources: [],
+          location: null,
           error: err instanceof Error ? err.message : String(err)
         })
       })
@@ -170,6 +187,7 @@ export function useMcpLogs(workspace: string): McpLogStore {
   return {
     entries,
     sources: current?.sources ?? [],
+    location: current?.location ?? null,
     loading: current === null,
     error: current?.error ?? null,
     lastAt,

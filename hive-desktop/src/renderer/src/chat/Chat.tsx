@@ -57,15 +57,19 @@ import { workspaceRelative, type ToolActivityEvent, type ToolPatch } from './too
 import {
   answerTurnApproval,
   appendTurnApproval,
+  appendTurnMcp,
   appendTurnText,
   applyTurnTool,
+  rosterSignature,
   settleTurnBlocks,
   trailingTurnText,
   turnText,
+  type McpServerReport,
   type TurnBlock
 } from './turnTimeline'
 import { useSmoothStream } from './useSmoothStream'
-import { useReviewOptional } from '../scm/useReview'
+import { useReviewOptional, type ReviewStore, type TurnMark } from '../scm/useReview'
+import { turnsInConversation } from '../scm/reviewScope'
 import { ContextMeter } from './ContextMeter'
 import { QueuedMessages } from './QueuedMessages'
 import { useMessageQueue } from './useMessageQueue'
@@ -148,6 +152,7 @@ type AgentEventIn =
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
   | { type: 'usage'; usage: TurnUsage; final?: boolean; turnId?: string }
+  | { type: 'mcp'; servers: McpServerReport[]; turnId?: string }
 
 /** Imperative handle so the work UI (action rail + session-history header controls, outside this subtree) can drive the chat. */
 export interface ChatHandle {
@@ -196,6 +201,15 @@ interface ChatProps {
    *  set the user is looking at (hero pill → `start`, strip control → `during`). */
   onCustomizeShortcuts?: (scope: 'start' | 'during') => void
   /**
+   * mcp-visibility: the MCP roster the CLI reported for the newest turn. The
+   * chat is where it arrives (it rides the agent event stream), but the status
+   * bar and the console are where it is *shown*, so it is handed up rather
+   * than kept here.
+   */
+  onMcpRoster?: (servers: McpServerReport[]) => void
+  /** mcp-visibility: opens the MCP console, from the turn's handshake row. */
+  onOpenMcpConsole?: () => void
+  /**
    * agent-patch: opens a file the agent edited, by workspace-relative path —
    * the editor's own `openFile`. Lets a path named in the transcript be a way
    * into the file instead of a dead end.
@@ -239,7 +253,7 @@ interface ComposerMenuKeyCtx {
 
 /**
  * Capture-phase keyboard handling shared by the composer's anchored menus —
- * the `/` skills menu and the `#` file-mention menu (extracted to module
+ * the `/` skills menu and the `@` file-mention menu (extracted to module
  * scope so the `Chat` component itself stays under the complexity budget).
  * Fires before the textarea's own Enter-to-submit; a no-op unless the menu
  * is open.
@@ -261,6 +275,10 @@ function handleComposerMenuKey(
       event.stopPropagation()
       if (count > 0) ctx.setHighlight((h) => (h - 1 + count) % count)
       break
+    // Tab commits alongside Enter: every quick-open the user already knows
+    // (VS Code, Raycast, the agent CLIs) accepts the highlighted row on Tab,
+    // and with a menu open there is nothing to tab *to* anyway.
+    case 'Tab':
     case 'Enter':
       if (count > 0) {
         event.preventDefault()
@@ -280,6 +298,24 @@ let turnIdCounter = 0
 function nextTurnId(): string {
   turnIdCounter += 1
   return `turn-${turnIdCounter}`
+}
+
+/**
+ * Agent Change Review (ACR-R2.2): the turns whose change cards belong in the
+ * transcript now on screen. The pending set is the workspace's — every
+ * conversation shares the disk the agent wrote to — but a card annotates the
+ * turn someone asked for, in the conversation they asked it from. Without the
+ * scope, a review requested in one conversation rendered at the bottom of
+ * whichever conversation happened to be open next.
+ *
+ * A pane with no review store (isolated tests) has no cards to render.
+ */
+function conversationCards(
+  review: ReviewStore | null,
+  conversationId: string | null,
+  turnOwners: ReadonlyMap<string, string | null>
+): TurnMark[] {
+  return turnsInConversation(review?.turns ?? [], conversationId, turnOwners)
 }
 
 /**
@@ -326,7 +362,10 @@ interface TurnEventCtx {
   /** Publishes the *visible* turn's execution record (the live meter); `null` when no turn is on screen. */
   setStreamingMetrics: (metrics: TurnMetrics | null) => void
   /** Folds one token report into this conversation's session totals (session-usage). */
-  recordUsage: (usage: TurnUsage, opts: { final: boolean; runtimeMs: number }) => void
+  recordUsage: (
+    usage: TurnUsage,
+    opts: { final: boolean; runtimeMs: number; turnId?: string }
+  ) => void
   /** Records a turn that ended with no token report at all — the wall-clock still counts. */
   recordRuntime: (runtimeMs: number) => void
   /** Releases (or holds) the next queued send once a turn reaches its terminal event. */
@@ -337,6 +376,10 @@ interface TurnEventCtx {
   setCliSession: (id: string) => void
   /** Recomputes the "conversations with a running turn" set (the history panel's "Em andamento" indicator). */
   notifyRunning: () => void
+  /** mcp-visibility: hands the turn's MCP roster to the work UI (status bar + console). */
+  publishRoster: (servers: McpServerReport[]) => void
+  /** mcp-visibility: true when this roster differs from the last one this pane saw. */
+  rosterIsNews: (servers: McpServerReport[]) => boolean
 }
 
 /** Finds an in-flight turn by event `turnId`; events without one (older adapter, implicit turns) fall back positionally. */
@@ -489,7 +532,11 @@ function recordTurnUsage(
   }
   ctx.recordUsage(usage, {
     final,
-    runtimeMs: turn ? Date.now() - turn.metrics.startedAt : 0
+    // Measured from the turn's own start, so a turn that reports twice restates
+    // its elapsed time rather than reporting a second slice of it — which is
+    // exactly how `applyUsage` folds a repeated report back in.
+    runtimeMs: turn ? Date.now() - turn.metrics.startedAt : 0,
+    turnId
   })
 }
 
@@ -527,6 +574,9 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
     case 'usage':
       recordTurnUsage(ctx, event.turnId, event.usage, event.final === true)
       break
+    case 'mcp':
+      handleMcpEvent(ctx, event.servers, event.turnId)
+      break
     case 'tool':
       // The feed belongs to the turn's timeline, so a background turn keeps
       // accumulating steps and shows its full history — in order — when the
@@ -550,6 +600,23 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
       )
       break
   }
+}
+
+/**
+ * mcp-visibility: the turn's MCP roster, routed to its two very different
+ * audiences. It is *always* published upward (the status bar's standing answer
+ * must never go stale), but it only opens a block in the transcript when it is
+ * **news** — an unchanged roster restated at the top of every turn is chrome,
+ * and the whole point of that row is that its presence means something.
+ */
+function handleMcpEvent(
+  ctx: TurnEventCtx,
+  servers: McpServerReport[],
+  turnId: string | undefined
+): void {
+  ctx.publishRoster(servers)
+  if (!ctx.rosterIsNews(servers)) return
+  growTurn(ctx, turnId, (blocks) => appendTurnMcp(blocks, servers))
 }
 
 /**
@@ -581,8 +648,8 @@ function syncStreamingUi(ctx: TurnEventCtx): void {
 }
 
 /**
- * Backdrop renderer for the composer's `#` mention pills (chat-attachments):
- * valid `#path` tokens get a tinted pill behind the textarea's own glyphs
+ * Backdrop renderer for the composer's `@` mention pills (chat-attachments):
+ * valid `@path` tokens get a tinted pill behind the textarea's own glyphs
  * (see PromptInput's `highlight` contract). Module scope — pure function of
  * its inputs.
  */
@@ -673,7 +740,7 @@ function CommandInvocation({ invocation }: { invocation: CommandMessage }): Reac
   )
 }
 
-/** A sent user message's text with its valid `#file` references styled as inline pills. */
+/** A sent user message's text with its valid `@file` references styled as inline pills. */
 function renderUserText(text: string, fileSet: ReadonlySet<string>): React.ReactNode {
   return mentionSegments(text, fileSet).map((segment, index) =>
     segment.mention ? (
@@ -711,7 +778,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onSessionChange,
     onRunningSessionsChange,
     onCustomizeShortcuts,
-    onOpenFile
+    onOpenFile,
+    onMcpRoster,
+    onOpenMcpConsole
   },
   ref
 ) {
@@ -744,7 +813,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [composerValue, setComposerValue] = useState('')
   const [slashDismissed, setSlashDismissed] = useState(false)
   const [slashHighlight, setSlashHighlight] = useState(0)
-  // chat-attachments: pending files for the next message + `#` mention state.
+  // chat-attachments: pending files for the next message + `@` mention state.
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const attachments = useAttachments(capabilities?.supportsAttachments ?? false, workspace)
   const mentions = useMentions(workspace, composerValue, setComposerValue, composerTextareaRef)
@@ -780,6 +849,26 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // refreshed by each turn's `session` event.
   const cliSessionRef = useRef<string | null>(null)
   const turnsRef = useRef<ActiveTurn[]>([])
+  // Agent Change Review: turnId → the conversation the turn was asked from
+  // (`null` = asked before that conversation was persisted). Main owns this
+  // fact durably on the turn mark; this is the pane's copy, and it only answers
+  // for the round trip between a conversation's id being minted and
+  // `review.attachTurn` landing — long enough for a card to otherwise blink out
+  // of the transcript that is watching it appear. State, not a ref: the card
+  // list is rendered from it. One small entry per turn sent in this pane.
+  const [turnOwners, setTurnOwners] = useState<ReadonlyMap<string, string | null>>(new Map())
+  // mcp-visibility: the last roster this pane announced in the transcript. Kept
+  // per pane rather than per conversation on purpose — the MCP set belongs to
+  // the workspace and its CLI, not to whichever conversation is on screen, so
+  // switching conversations is not a reason to re-announce an unchanged one.
+  const rosterSignatureRef = useRef<string | null>(null)
+  // The latest `onMcpRoster` prop, so the event subscription below can call it
+  // without listing it as a dependency — a new callback identity from the
+  // parent must not tear down and re-open the whole agent event stream.
+  const onMcpRosterRef = useRef<((servers: McpServerReport[]) => void) | undefined>(undefined)
+  useEffect(() => {
+    onMcpRosterRef.current = onMcpRoster
+  })
   // Latest conversations for the empty-state hero's "continue" list.
   const [recentSessions, setRecentSessions] = useState<ChatSessionMeta[]>([])
   // background-turns: which stored conversations have a turn still running —
@@ -810,14 +899,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // model this conversation is on — it is a property of the model, not of the
   // session, and switching model mid-conversation moves the ceiling. Composed
   // at read time rather than stored, so the measured half of the state stays
-  // the only thing the event stream writes to.
+  // the only thing the event stream writes to. The curated figure is the
+  // fallback: once the CLI has reported the window it is actually running at,
+  // `withContextWindow` prefers that.
   const sessionUsageView = useMemo(() => {
     const window = capabilities?.models.find((option) => option.id === model)?.contextWindow ?? null
     return withContextWindow(sessionUsage, window)
   }, [sessionUsage, capabilities, model])
 
   const recordUsage = useCallback(
-    (usage: TurnUsage, opts: { final: boolean; runtimeMs: number }) => {
+    (usage: TurnUsage, opts: { final: boolean; runtimeMs: number; turnId?: string }) => {
       setSessionUsage((current) => applyUsage(current, usage, opts))
     },
     []
@@ -909,7 +1000,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setCliSession: (id) => {
         cliSessionRef.current = id
       },
-      notifyRunning: refreshRunning
+      notifyRunning: refreshRunning,
+      publishRoster: (servers) => onMcpRosterRef.current?.(servers),
+      rosterIsNews: (servers) => {
+        const signature = rosterSignature(servers)
+        if (signature === rosterSignatureRef.current) return false
+        rosterSignatureRef.current = signature
+        return true
+      }
     }
 
     const unsubscribe = window.hive.agent.onEvent((event) => handleAgentEvent(event, ctx))
@@ -957,6 +1055,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const beginTurn = useCallback(
     (label: string, attachmentNames?: string[]): string => {
       setErrorMessage(null)
+      // The conversation this turn is being asked from. `null` on a pane that
+      // hasn't persisted anything yet — the id is minted below, and the turn's
+      // review mark is attributed as soon as it lands.
+      const askedFrom = sessionIdRef.current
       setMessages((current) => [
         ...current,
         { id: nextMessageId(), role: 'user', text: label, attachments: attachmentNames }
@@ -973,10 +1075,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         hiveId: sessionIdRef.current
       }
       turnsRef.current.push(turn)
+      setTurnOwners((current) => new Map(current).set(turn.id, askedFrom))
       // A brand-new conversation's id only exists once `create` resolves —
       // refresh the running set again when it does.
       void turn.session.then((id) => {
         turn.hiveId = id
+        // Agent Change Review: the turn was sent before this conversation
+        // existed, so its mark carries no conversation yet. Name it now — the
+        // change card belongs to this transcript and to no other (ACR-R2.2).
+        if (askedFrom === null && id !== null) {
+          setTurnOwners((current) => new Map(current).set(turn.id, id))
+          void window.hive.review.attachTurn(workspace, turn.id, id)
+        }
         refreshRunning()
       })
       setStreamingBlocks([])
@@ -984,12 +1094,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       refreshRunning()
       return turn.id
     },
-    [persistUserMessage, refreshRunning]
+    [persistUserMessage, refreshRunning, workspace]
   )
 
   const startWorkflowTurn = useCallback(
     (command: WorkflowCommand, label: string, opts?: { model?: string; effort?: string }) => {
       const resume = cliSessionRef.current
+      const conversationId = sessionIdRef.current ?? undefined
       const turnId = beginTurn(label)
       // multi-agent: the turn runs on THIS conversation's agent. Per-turn
       // model/effort (skill-studio override, else the current selection) travel
@@ -998,6 +1109,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         agentId: activeAgent ?? undefined,
         resume,
         turnId,
+        conversationId,
         model: opts?.model ?? model ?? undefined,
         effort: opts?.effort ?? effort ?? undefined
       })
@@ -1024,12 +1136,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const sendNow = useCallback(
     (message: QueuedMessage) => {
       const resume = cliSessionRef.current
+      // Read before `beginTurn`: this is the conversation the user is sending
+      // from, and it's what scopes the turn's change card (ACR-R2.2).
+      const conversationId = sessionIdRef.current ?? undefined
       const turnId = beginTurn(message.text, message.attachmentNames)
       if (message.workflow) {
         window.hive.agent.runWorkflow(message.workflow, {
           agentId: activeAgent ?? undefined,
           resume,
           turnId,
+          conversationId,
           model: model ?? undefined,
           effort: effort ?? undefined
         })
@@ -1039,6 +1155,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         agentId: activeAgent ?? undefined,
         resume,
         turnId,
+        conversationId,
         attachments: message.contextFiles?.length ? message.contextFiles : undefined,
         model: model ?? undefined,
         effort: effort ?? undefined
@@ -1075,10 +1192,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const pending = attachments.items
       if (value.trim() === '' && pending.length === 0) return
       // Context files for the agent: externally attached files travel as
-      // absolute paths, workspace chips and `#` references as
+      // absolute paths, workspace chips and `@` references as
       // workspace-relative paths (the session's cwd is the workspace) — all
       // resolved by the adapter's prompt composer. Deduped: dropping a tree
-      // row AND typing its `#reference` yields one entry.
+      // row AND typing its `@reference` yields one entry.
       const references = extractMentions(value, mentions.fileSet)
       const contextFiles = [...new Set([...pending.map((entry) => entry.path), ...references])]
       const names = pending.length > 0 ? pending.map((entry) => entry.name) : undefined
@@ -1372,7 +1489,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   )
 
   // Capture-phase so these fire before the textarea's own Enter-to-submit.
-  // The `/` and `#` menus are mutually exclusive by their trigger rules; the
+  // The `/` and `@` menus are mutually exclusive by their trigger rules; the
   // slash menu (leading `/`) wins if both ever match.
   const handleComposerKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
@@ -1414,7 +1531,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     )
   }
 
-  // User bubble: text with `#file` references as inline pills, plus one chip
+  // User bubble: text with `@file` references as inline pills, plus one chip
   // per attached file (chat-attachments). Nested for the same
   // complexity-budget reason as `renderToolbar`.
   function userBody(message: ChatMessageEntry): React.JSX.Element {
@@ -1601,6 +1718,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         {mentionOpen && (
           <FileMentionMenu
             items={mentions.items}
+            total={mentions.total}
+            query={mentions.query}
             highlightIndex={mentions.highlight}
             onHighlight={(index) => mentions.setHighlight(() => index)}
             onSelect={(path) => mentions.select(mentions.items.indexOf(path))}
@@ -1786,6 +1905,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                       renderText={assistantBody}
                       onApprovalDecide={handleApprovalDecision}
                       onOpenFile={openEditedFile}
+                      onOpenMcpConsole={onOpenMcpConsole}
                     />
                   ) : (
                     message.text !== '' && assistantBody(message.text)
@@ -1809,12 +1929,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   renderText={assistantBody}
                   onApprovalDecide={handleApprovalDecision}
                   onOpenFile={openEditedFile}
+                  onOpenMcpConsole={onOpenMcpConsole}
                 />
               </ChatMessage>
             )}
             {/* Agent Change Review (ACR-R2.2): a change card per turn that
-                touched files, keyed off its TurnMark — Claude-Desktop tier. */}
-            {review?.turns.map((turn) => (
+                touched files, keyed off its TurnMark — Claude-Desktop tier.
+                Scoped to the conversation the turn was asked from: the pending
+                set is the workspace's, but a card is this transcript's. Other
+                conversations' pending work stays reachable through the review
+                bar, the panel, and the history list's marker. */}
+            {conversationCards(review, sessionId, turnOwners).map((turn) => (
               <ChangeCard key={turn.turnId} turn={turn} />
             ))}
           </div>

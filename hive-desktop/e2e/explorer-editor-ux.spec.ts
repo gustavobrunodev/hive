@@ -166,6 +166,76 @@ test.describe('explorer-editor-ux E2E (real Electron, one workspace per case)', 
     }
   })
 
+  /**
+   * The case above only ever ranges over files, and that is exactly why the
+   * defect survived it: a folder row's whole label is the DS Tree's
+   * expand/collapse `<button>`, which stopped the click before it could
+   * select. So a folder could not be selected, could not anchor a range, and
+   * could not end one — Shift-clicking a folder collapsed it instead, which
+   * also reorders the visible list the range is measured over.
+   *
+   * A real workspace tree is mostly folders, so "select from here to there"
+   * hit this constantly.
+   */
+  test('@p0 5b — a range anchored on a folder covers the folder and its contents', async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+    // Created before the folder is ever clicked, so it lands at the root and
+    // sorts after it — the range below runs folder → file across a nesting
+    // level, which is the shape a real workspace tree actually has.
+    await createEntry(window, 'Novo arquivo', 'zz-depois.txt')
+    await createEntry(window, 'Nova pasta', 'grupo')
+
+    // A plain click on a folder does both jobs an OS file manager does: it
+    // selects the row *and* toggles it open.
+    await window.locator('[data-tree-path="grupo"]').click()
+    await expect(window.locator('[id="hds-tree-item-grupo"]')).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+
+    // Selecting it also makes it the target of the toolbar's create actions —
+    // a branch that was unreachable for as long as folder rows could not
+    // activate at all, so "Novo arquivo" always meant "at the root".
+    await window.getByRole('button', { name: 'Novo arquivo', exact: true }).click()
+    const input = window.getByLabel('Nome do arquivo ou pasta')
+    await input.fill('dentro.txt')
+    await input.press('Enter')
+    await window
+      .locator('[id="hds-tree-item-grupo/dentro.txt"]')
+      .waitFor({ state: 'visible', timeout: 10_000 })
+    await expect(window.locator('[id="hds-tree-item-grupo"]')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+
+    // Visible order is now: grupo, grupo/dentro.txt, zz-depois.txt. Anchor on
+    // the file at the bottom, then Shift-click UP onto the folder.
+    //
+    // Addressed by `data-tree-path` rather than by the `[id=…] .wb-tree-row-content`
+    // form the leaf-only cases above use: a treeitem's `<li>` CONTAINS its
+    // children's, so once the folder has one, that descendant selector matches
+    // the parent row and the child row both.
+    await window.locator('[data-tree-path="zz-depois.txt"]').click()
+    await window.locator('[data-tree-path="grupo"]').click({ modifiers: ['Shift'] })
+
+    await expect(window.locator('.wb-tree-body [aria-selected="true"]')).toHaveCount(3)
+    for (const id of ['grupo', 'grupo/dentro.txt', 'zz-depois.txt']) {
+      await expect(window.locator(`[id="hds-tree-item-${id}"]`)).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
+    }
+    // And the Shift-click must NOT have collapsed the folder: a modifier click
+    // is a selection gesture, and collapsing would reorder the very list the
+    // range was just measured over.
+    await expect(window.locator('[id="hds-tree-item-grupo"]')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+  })
+
   test('@p0 7 — .md file with a table renders correctly in preview', async ({ hiveApp }) => {
     const { window } = hiveApp
     await createEntry(window, 'Novo arquivo', 'table.md')

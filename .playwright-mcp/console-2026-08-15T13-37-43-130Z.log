@@ -1,0 +1,23 @@
+[     244ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8123/favicon.ico:0
+[ 5597682ms] TypeError: window.hive.fs.revealPath is not a function
+    at http://localhost:8123/assets/index-DiVcEvWK.js:40466:43
+    at onSelect (http://localhost:8123/assets/index-DiVcEvWK.js:41264:33)
+    at menuItem.addEventListener.once (http://localhost:8123/assets/index-DiVcEvWK.js:16137:69)
+    at http://localhost:8123/assets/index-DiVcEvWK.js:7321:54
+    at Rk (http://localhost:8123/assets/index-DiVcEvWK.js:5809:52)
+    at reactDom_production_min.flushSync (http://localhost:8123/assets/index-DiVcEvWK.js:6936:12)
+    at dispatchDiscreteCustomEvent (http://localhost:8123/assets/index-DiVcEvWK.js:7321:31)
+    at handleSelect (http://localhost:8123/assets/index-DiVcEvWK.js:16138:9)
+    at handleEvent (http://localhost:8123/assets/index-DiVcEvWK.js:7584:31)
+    at Object.Nb (http://localhost:8123/assets/index-DiVcEvWK.js:1247:9)
+[ 5598523ms] TypeError: window.hive.fs.revealPath is not a function
+    at http://localhost:8123/assets/index-DiVcEvWK.js:40466:43
+    at onSelect (http://localhost:8123/assets/index-DiVcEvWK.js:41279:88)
+    at menuItem.addEventListener.once (http://localhost:8123/assets/index-DiVcEvWK.js:16137:69)
+    at http://localhost:8123/assets/index-DiVcEvWK.js:7321:54
+    at Rk (http://localhost:8123/assets/index-DiVcEvWK.js:5809:52)
+    at reactDom_production_min.flushSync (http://localhost:8123/assets/index-DiVcEvWK.js:6936:12)
+    at dispatchDiscreteCustomEvent (http://localhost:8123/assets/index-DiVcEvWK.js:7321:31)
+    at handleSelect (http://localhost:8123/assets/index-DiVcEvWK.js:16138:9)
+    at handleEvent (http://localhost:8123/assets/index-DiVcEvWK.js:7584:31)
+    at Object.Nb (http://localhost:8123/assets/index-DiVcEvWK.js:1247:9)

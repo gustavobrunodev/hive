@@ -71,7 +71,8 @@ describe('ConfigStore', () => {
       userName: null,
       shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
-      approvalRules: []
+      approvalRules: [],
+      agentShell: null
     })
   })
 
@@ -94,7 +95,8 @@ describe('ConfigStore', () => {
       userName: null,
       shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
-      approvalRules: []
+      approvalRules: [],
+      agentShell: null
     })
   })
 
@@ -121,7 +123,8 @@ describe('ConfigStore', () => {
       userName: null,
       shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
-      approvalRules: []
+      approvalRules: [],
+      agentShell: null
     })
   })
 

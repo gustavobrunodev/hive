@@ -21,11 +21,12 @@ import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
 import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
-import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
+import type { McpLogLocation, McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
 import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
+import type { ShellCatalogView } from '../main/shellService'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
 import type {
   CapabilityViolation,
@@ -68,6 +69,8 @@ declare global {
     electron: ElectronAPI
     api: unknown
     hive: {
+      /** explorer-os-actions: the host OS, for labels the OS itself names differently (Explorador/Finder/…). */
+      platform: NodeJS.Platform
       ping(): Promise<string>
       chooseWorkspace(): Promise<string | null>
       /** T3 (UX-R7.3): opens an http(s)/mailto URL in the OS default handler; see preload/index.ts for the full channel design. */
@@ -81,7 +84,7 @@ declare global {
       /** T3 (WS-R6.3): validates and opens `path` as the active workspace, persisting it as the MRU head — see preload/index.ts for the full channel design. */
       openWorkspace(path: string): Promise<OpenResult>
       listTree(root: string, relativePath?: string): Promise<TreeNode[]>
-      /** chat-attachments: flat workspace file list for the composer's `#` mention menu. */
+      /** chat-attachments: flat workspace file list for the composer's `@` mention menu. */
       listFiles(root: string): Promise<string[]>
       readFile(root: string, relativePath: string): Promise<string>
       /** Starts watching `root`; returns an unsubscribe function (see preload/index.ts for the full channel design). */
@@ -173,6 +176,8 @@ declare global {
       mcpLogs: {
         sources(workspace: string): Promise<McpLogSource[]>
         read(workspace: string, query?: McpLogQuery): Promise<McpLogEntry[]>
+        /** Where the console reads this workspace's logs from, and whether it's there. */
+        locate(workspace: string): Promise<McpLogLocation>
         openDir(workspace: string, server: string): Promise<void>
         /** Streams entries appended after the call; the returned function stops the tail. */
         watch(workspace: string, onBatch: (entries: McpLogEntry[]) => void): () => void
@@ -225,6 +230,15 @@ declare global {
         /** A role's *default* shortcuts for one scope (`start` when omitted). */
         roleActions(role: string | null, scope?: ShortcutScope): Promise<ResolvedRoleAction[]>
       }
+      /**
+       * The terminal agent turns run inside (agent-terminal). Detected shells +
+       * the persisted choice + each enabled agent's caveat code; `select(null)`
+       * restores automatic (`cmd` on Windows, `$SHELL` in POSIX).
+       */
+      shell: {
+        list(refresh?: boolean): Promise<ShellCatalogView>
+        select(id: string | null): Promise<void>
+      }
       /** Shortcut customization (shortcut-customization): workspace skill catalog + persisted selection + resolved shortcut set. */
       shortcuts: {
         catalog(workspace: string): Promise<WorkspaceSkill[]>
@@ -275,6 +289,15 @@ declare global {
         trash(root: string, relativePath: string): Promise<void>
         /** Turns a dropped renderer File into its absolute OS path via webUtils. */
         pathForFile(file: File): string
+        /**
+         * explorer-os-actions: opens the entry in the host's file manager.
+         * `isDir` picks the verb — a directory is opened as the window's
+         * target, a file is revealed highlighted inside its parent. `''` means
+         * the workspace root. Rejects if the path escapes the workspace.
+         */
+        revealPath(root: string, relativePath: string, isDir: boolean): Promise<string | void>
+        /** explorer-os-actions: the host-OS absolute path for a workspace-relative one. */
+        absolutePath(root: string, relativePath: string): Promise<string>
       }
       /**
        * GitService (git-management M10) surface — see preload/index.ts for the
@@ -339,6 +362,12 @@ declare global {
         rejectHunk(workspace: string, path: string, hunkId: string): Promise<ReviewResult>
         acceptAll(workspace: string): Promise<ReviewResult>
         rejectAll(workspace: string): Promise<ReviewResult>
+        /**
+         * Names the conversation a turn belongs to after the fact — the chat
+         * pane's first turn in a brand-new conversation is sent before that
+         * conversation's id exists (`TurnMark.conversationId`).
+         */
+        attachTurn(workspace: string, turnId: string, conversationId: string): Promise<void>
         /** Subscribes to snapshot pushes; returns an unsubscribe function. */
         onChanged(onChanged: (evt: { workspace: string } & ReviewSnapshot) => void): () => void
       }

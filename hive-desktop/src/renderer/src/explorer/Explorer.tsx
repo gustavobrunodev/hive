@@ -45,6 +45,7 @@ import {
   CloseIcon,
   CopyIcon,
   DownloadIcon,
+  ExternalFolderIcon,
   EyeIcon,
   FolderIcon,
   FolderOpenIcon,
@@ -398,7 +399,16 @@ export function FileTree({
   // whether it's row-scoped or empty-area-scoped when it opens.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
-  const [actionError, setActionError] = useState(false)
+  // The message itself rather than a boolean: the OS-parity actions
+  // (explorer-os-actions) fail for a reason of their own — the host has no
+  // file manager to hand the path to — and "tente novamente" is the wrong
+  // advice for it.
+  const [actionError, setActionError] = useState<string | null>(null)
+  // explorer-os-actions: transient confirmation for a copy. The clipboard is
+  // completely silent, and the menu that triggered it is already gone by the
+  // time it lands, so without this the action has no observable outcome at
+  // all — for anyone, but especially for a screen-reader user.
+  const [flash, setFlash] = useState<string | null>(null)
   // FM-R5: true while an OS file drag hovers the rail — drives the panel-wide
   // "Solte para importar" overlay. Distinct from `dragOverPath` (which lights
   // up a single folder row for both internal moves and imports); this is only
@@ -539,10 +549,78 @@ export function FileTree({
 
   const reportError = useCallback((err: unknown) => {
     console.error('[explorer] file operation failed', err)
-    setActionError(true)
+    setActionError(t('explorer.actionErrorMessage'))
   }, [])
 
   const refresh = useCallback(() => setRefreshToken((current) => current + 1), [])
+
+  // --- OS-parity actions (explorer-os-actions) -----------------------------
+
+  /**
+   * The paths an action invoked on `path` actually applies to: the whole
+   * current selection when `path` is part of a multi-selection, otherwise just
+   * `path`. Same rule `requestDelete` already uses — right-clicking one of six
+   * selected rows and getting an action that ignores the other five is the
+   * single most confusing thing a file manager can do.
+   */
+  const targetsFor = useCallback(
+    (path: string): string[] =>
+      selectedIds.includes(path) && selectedIds.length > 1 ? selectedIds : [path],
+    [selectedIds]
+  )
+
+  /** Shows a confirmation for `ms`, replacing whatever was showing. */
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showFlash = useCallback((message: string) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlash(message)
+    flashTimerRef.current = setTimeout(() => setFlash(null), 2600)
+  }, [])
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    },
+    []
+  )
+
+  /**
+   * Copies the target paths, one per line (FM copy-path parity).
+   *
+   * `relative` is already what the tree is keyed by — POSIX-style and
+   * workspace-relative, which is the form that pastes usefully into a prompt,
+   * a doc or a command. `absolute` has to round-trip to main: only main knows
+   * the workspace's own absolute location and the host's separator, and
+   * composing one in the renderer would produce `/`-joined paths on Windows.
+   */
+  const copyPaths = useCallback(
+    (path: string, kind: 'relative' | 'absolute') => {
+      setMenuFor(null)
+      const targets = targetsFor(path)
+      const resolved =
+        kind === 'relative'
+          ? Promise.resolve(targets)
+          : Promise.all(targets.map((rel) => window.hive.fs.absolutePath(workspace, rel)))
+      void resolved
+        .then(async (paths) => {
+          await navigator.clipboard?.writeText(paths.join('\n'))
+          showFlash(t('explorer.pathCopiedFeedback', targets.length))
+        })
+        .catch(reportError)
+    },
+    [targetsFor, workspace, showFlash, reportError]
+  )
+
+  /** Hands the entry to the host's file manager. `''` is the workspace root (the empty-area menu). */
+  const revealInOs = useCallback(
+    (path: string, isDir: boolean) => {
+      setMenuFor(null)
+      void Promise.resolve(window.hive.fs.revealPath(workspace, path, isDir)).catch((err) => {
+        console.error('[explorer] reveal failed', err)
+        setActionError(t('explorer.revealErrorMessage'))
+      })
+    },
+    [workspace]
+  )
 
   const closeAllInputs = useCallback(() => {
     committedRef.current = false
@@ -1281,11 +1359,13 @@ export function FileTree({
                 <DropdownMenuItem
                   onSelect={() => startCreate(isDir ? node.id : parentOf(node.id), 'file')}
                 >
+                  <PlusIcon size={14} />
                   {t('explorer.menuNewFile')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => startCreate(isDir ? node.id : parentOf(node.id), 'directory')}
                 >
+                  <FolderPlusIcon size={14} />
                   {t('explorer.menuNewFolder')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => startRename(node.id)}>
@@ -1295,6 +1375,21 @@ export function FileTree({
                 <DropdownMenuItem variant="danger" onSelect={() => requestDelete(node.id)}>
                   <TrashIcon size={14} />
                   {t('explorer.menuDelete')}
+                </DropdownMenuItem>
+                {/* Same set as the right-click menu, in the same order: this
+                    kebab and that menu are one menu with two openings, and a
+                    user who found an action in one must find it in the other. */}
+                <DropdownMenuItem onSelect={() => copyPaths(node.id, 'relative')}>
+                  <CopyIcon size={14} />
+                  {t('explorer.menuCopyRelativePath')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => copyPaths(node.id, 'absolute')}>
+                  <CopyIcon size={14} />
+                  {t('explorer.menuCopyPath')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => revealInOs(node.id, isDir)}>
+                  <ExternalFolderIcon size={14} />
+                  {t('explorer.menuRevealInOs', window.hive.platform)}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             )}
@@ -1312,6 +1407,8 @@ export function FileTree({
       startCreate,
       startRename,
       requestDelete,
+      copyPaths,
+      revealInOs,
       onOpenFile,
       decorations,
       changedFolders
@@ -1398,7 +1495,28 @@ export function FileTree({
           <FolderPlusIcon />
         </IconButton>
       </div>
-      {actionError && <div className="wb-tree-error">{t('explorer.actionErrorMessage')}</div>}
+      {actionError && (
+        <div className="wb-tree-error" role="alert">
+          {actionError}
+        </div>
+      )}
+      {/* Always mounted, empty when idle: a live region that only appears at
+          the moment it has something to say is announced unreliably (the AT
+          has nothing to observe until it is already too late).
+
+          `aria-live` + `aria-atomic` rather than `role="status"`, which is
+          just shorthand for the two: the shorthand would put a second
+          `status` node in the tree next to the file viewer's own loading
+          one, and "there are two statuses here" is a worse answer to
+          "what is the state of this panel?" than one region that speaks. */}
+      <div
+        className="wb-tree-flash"
+        aria-live="polite"
+        aria-atomic="true"
+        data-shown={flash || undefined}
+      >
+        {flash}
+      </div>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           {/* The whole tree area (rows, empty space below them, and the
@@ -1442,6 +1560,9 @@ export function FileTree({
           {contextTarget ? (
             <>
               <StudioContextAction target={contextTarget} onOpen={onOpenDesignStudio} />
+              {/* Same two glyphs the toolbar uses for these exact actions —
+                  with eight items in the menu, the two that had no icon read
+                  as unfinished rather than as a different kind of thing. */}
               <ContextMenuItem
                 onSelect={() =>
                   startCreate(
@@ -1450,6 +1571,7 @@ export function FileTree({
                   )
                 }
               >
+                <PlusIcon size={14} />
                 {t('explorer.menuNewFile')}
               </ContextMenuItem>
               <ContextMenuItem
@@ -1460,6 +1582,7 @@ export function FileTree({
                   )
                 }
               >
+                <FolderPlusIcon size={14} />
                 {t('explorer.menuNewFolder')}
               </ContextMenuItem>
               <ContextMenuSeparator />
@@ -1471,14 +1594,44 @@ export function FileTree({
                 <TrashIcon size={14} />
                 {t('explorer.menuDelete')}
               </ContextMenuItem>
+              <ContextMenuSeparator />
+              {/* Below the separator on purpose: these leave the workspace
+                  untouched — they hand a path to the clipboard or to the OS —
+                  so they sit apart from the group that edits it. */}
+              <ContextMenuItem onSelect={() => copyPaths(contextTarget.path, 'relative')}>
+                <CopyIcon size={14} />
+                {t('explorer.menuCopyRelativePath')}
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => copyPaths(contextTarget.path, 'absolute')}>
+                <CopyIcon size={14} />
+                {t('explorer.menuCopyPath')}
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => revealInOs(contextTarget.path, contextTarget.isDir)}>
+                <ExternalFolderIcon size={14} />
+                {t('explorer.menuRevealInOs', window.hive.platform)}
+              </ContextMenuItem>
             </>
           ) : (
             <>
               <ContextMenuItem onSelect={() => startCreate('', 'file')}>
+                <PlusIcon size={14} />
                 {t('explorer.menuNewFile')}
               </ContextMenuItem>
               <ContextMenuItem onSelect={() => startCreate('', 'directory')}>
+                <FolderPlusIcon size={14} />
                 {t('explorer.menuNewFolder')}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              {/* The empty area IS the workspace root, so the same two actions
+                  are offered for it — right-clicking below the last row is how
+                  a file manager gets at the folder you are already looking at. */}
+              <ContextMenuItem onSelect={() => copyPaths('', 'absolute')}>
+                <CopyIcon size={14} />
+                {t('explorer.menuCopyPath')}
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => revealInOs('', true)}>
+                <ExternalFolderIcon size={14} />
+                {t('explorer.menuRevealWorkspaceInOs', window.hive.platform)}
               </ContextMenuItem>
             </>
           )}

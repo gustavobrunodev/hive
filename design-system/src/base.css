@@ -40,9 +40,15 @@ a:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* Text selection, through the token pair rather than through raw roles.
+   `::selection` resolves `var()` against its *originating element*, and custom
+   properties inherit — so any surface that fills itself with `--accent` can
+   re-point the pair on itself (two declarations, next to the fill that causes
+   the problem) and every descendant's selection follows. That is the whole
+   mechanism; there is no second rule to keep in sync. */
 ::selection {
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--selection-bg);
+  color: var(--selection-ink);
 }
 
 .wrap {

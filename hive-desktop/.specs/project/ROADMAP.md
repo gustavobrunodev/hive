@@ -769,6 +769,189 @@ trocar de DS; e histórico entre sessões.
 
 ---
 
+## M19 — MCP Visibility ✅ Done (2026-08-13)
+
+**Feature:** `mcp-visibility` · branch `feat/voice-prompt` (continues M13–M18).
+
+**O relato que originou a milestone.** Um usuário pediu ao agente para usar o
+MCP do Playwright. O agente usou — navegou, digitou, tirou screenshot — e o app
+não disse nada sobre MCP em lugar nenhum: nem quais servidores existiam, nem se
+algum tinha subido, e o Console MCP ficou vazio o turno inteiro. Três lacunas
+distintas atrás de uma mesma queixa.
+
+**As três causas, todas medidas e não inferidas:**
+
+1. **A linha `system`/`init` da CLI era lida só pelo `session_id`.** Ela carrega
+   `mcp_servers: [{name, status}]` e a lista `tools` inteira — a **única** fonte
+   em que "conectou" é fato e não inferência, e chega *antes* de o agente poder
+   chamar qualquer coisa. Verificado contra a CLI real (`claude 2.1.226`).
+2. **O watcher do console morria quando o diretório de cache ainda não existia.**
+   `attach()` retornava cedo em `!existsSync(root)` e **nunca tentava de novo**.
+   Um console aberto num workspace novo — o caso ordinário, e exatamente quando
+   alguém está olhando — nunca via a pasta ser criada. Agora um watcher de
+   bootstrap fica no ancestral mais próximo até o alvo aparecer.
+3. **Nada dizia de onde os logs estavam sendo lidos.** A CLI deriva cache root e
+   slug da *sua* plataforma e da *sua* visão do cwd. Nesta máquina o `claude` do
+   PATH é o shim do **Windows** (`/mnt/c/Users/…/AppData/Roaming/npm/claude`,
+   posto lá de propósito por `cliEnv.wslWindowsBinDirs`), então ele grava em
+   `%LOCALAPPDATA%` sob um slug `\\wsl.localhost\…` enquanto o app, um processo
+   Linux com um caminho POSIX, lê `~/.cache`. Ninguém erra, nada estoura, e o
+   console aponta para um diretório que nunca terá nada.
+
+**O que foi construído:** um evento `mcp` no contrato do adapter (roster por
+turno, com status tipado e ferramentas por servidor), e **um** roster no
+renderer (`mcpRoster.ts`) fundindo as três fontes que discordam — `.mcp.json` (o
+pedido), o handshake (o agora) e os logs (o passado) — renderizado em três
+alturas: a **barra de status** (resposta permanente, com card por hover *e*
+foco), o **transcript** (só quando muda — assinatura de roster), e a **faixa do
+console**, presente mesmo com stream vazio.
+
+| Critério | Evidência |
+|---|---|
+| O app diz quais MCPs o turno tem | **Yes.** `readMcpRoster` parseia a linha real da CLI; 6 testes de unidade cobrem o pareamento `hive-approvals` ⇄ `mcp__hive_approvals__*`, cada palavra de status, e as entradas malformadas. |
+| O app diz se subiu ou falhou | **Yes.** Estado tipado, três canais redundantes (palavra, ponto, tom) nas três superfícies; um servidor `failed` é o único caso que pinta a barra. |
+| O console mostra uso em tempo real | **Yes** — o dead-start está corrigido, com dois testes que reproduzem o bug (workspace sem cache, servidor novo no meio da sessão) contra um diretório temporário de verdade. |
+| Console vazio deixou de mentir | **Yes.** A faixa de servidores existe sem log nenhum, e o estado vazio nomeia o diretório lido e diz se ele existe. |
+| Sem regressão | **Yes.** `npm run verify` verde: **3419 testes / 205 arquivos** (baseline da M18: 3361 / 203) — 58 testes novos, 2 arquivos novos (`mcpRoster.test.ts`, `McpTurnNotice.test.ts`), o resto acrescentado às suítes existentes. |
+| Passe visual, três temas | **Yes.** `tools/visual/mcp-visibility.mjs`: 5 estados × 3 temas, 0 reprovações e 0 amostras puladas — depois de corrigir **3 defeitos que o contraste verde não pegou** (rótulo truncado, nomes truncados, colunas desalinhadas por grid-por-linha). |
+| No gate E2E, mesmo commit | **Yes.** `@p0 @a11y the MCP roster surfaces` roda um turno real pelo CLI stand-in com `mcp_servers` na init — mede o `readMcpRoster` de produção, nos três temas. Verde. |
+
+**Limitação registrada:** o roster do transcript nasce do handshake, então uma
+conversa restaurada do disco não o traz de volta (blocos não são persistidos, o
+mesmo contrato das trilhas de atividade). A barra de status continua respondendo
+"quais servidores existem" nesse caso, via catálogo e logs.
+
+---
+
+## M20 — Agent Terminal ✅ Done (2026-08-14)
+
+**Feature:** `agent-terminal` · branch `feat/voice-prompt` (continues M13–M19).
+
+**O pedido.** "Poder escolher/configurar o terminal que o agente vai utilizar,
+entre os disponíveis no sistema (Windows: PowerShell, Git Bash, cmd)" — com
+**cmd como padrão no Windows**.
+
+**O que já acontecia sem ninguém escolher.** O app nunca decidia o shell:
+`spawn(command, args)` ia direto, com o `PATH` alargado do `cliEnv.ts`. A única
+exceção era o caso em que o Node se recusa a rodar sem shell — um shim `.cmd` do
+npm no Windows, que já ia por `cmd.exe /d /s /c`. Ou seja: **o Windows já rodava
+o agente dentro do cmd**, por acidente de empacotamento, sem nada na tela dizer
+isso e sem como escolher diferente.
+
+**As duas medições que definiram o desenho** (nenhuma adivinhada):
+
+1. **As regras da CLI, lidas do binário** (`claude 2.1.226`, `strings` sobre
+   `bin/claude.exe`): `CLAUDE_CODE_SHELL` só vale para um caminho com
+   `bash`/`zsh`; o Windows executa `Bash` pelo Git Bash
+   (`CLAUDE_CODE_GIT_BASH_PATH`); `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` liga a
+   ferramenta PowerShell; e **não existe executor `cmd`**.
+2. **O `powershell.exe` 5.1 real corrompe argumentos em silêncio**: sem
+   pré-escape, o prompt `{"json": "sim"}` chegou ao processo alvo como
+   `{json: sim}`. O escape em estilo CRT foi escrito depois da medição.
+
+**O que foi construído:** um catálogo de shells reais da máquina
+(`shellCatalog.ts`), a escolha persistida por id (`config.agentShell`, `null` =
+automático → cmd no Windows, `$SHELL` em POSIX), o turno do agente lançado
+**dentro** do shell escolhido (`cmd /d /s /c` · `powershell -NoProfile
+-NonInteractive` · `<shell> -c 'exec …'`), a tradução por adapter
+(`AgentAdapter.shellBinding`, para que a UI e o runner nunca conheçam
+`CLAUDE_CODE_*`), e um seletor no perfil que **diz o que a escolha muda para
+cada agente habilitado**.
+
+| Critério | Evidência |
+|---|---|
+| Lista só o que existe na máquina | **Yes.** `detectShells` sobre um filesystem injetado cobre as máquinas que esta suíte não é (Windows sem pwsh, container sem `/etc/shells`, distro com `/bin/bash` simbólico); cada linha mostra o caminho absoluto encontrado. |
+| A escolha vale no lançamento | **Yes.** Verificado no processo real: com `exec`, o pid que seguramos é o pid da CLI (o botão "parar" continua parando), o prompt com `$( )`, `&&`, aspas e quebra de linha volta idêntico, e nenhum rc é lido. |
+| A escolha vale no agente | **Yes.** `claudeShellBinding` mapeia as quatro famílias segundo o binário real; o E2E lê o `shellEnv` que o **processo recebeu**, não o que a tela mostra. |
+| Padrão do Windows = cmd | **Yes** (D-AT-2), com a ressalva na tela: o Claude não executa comandos no cmd, e o seletor diz isso na hora da escolha em vez de prometer o que a CLI não faz. |
+| Sem regressão | **Yes.** `npm run verify` verde: **3514 testes / 209 arquivos** (baseline M19: 3419 / 205) — 3 arquivos novos (`shellCatalog.test.ts`, `shellService.test.ts`, `ShellPicker.test.ts`). Suíte E2E inteira verde: **63/63**. |
+| Passe visual, três temas | **Yes.** `tools/visual/shell-contrast.mjs`: 3 estados × 3 temas, 57 medições, 0 reprovações — depois de corrigir **3 defeitos que o contraste verde não pegou** (frase em monoespaçada truncada, status repetido a 40px da linha que já dizia o mesmo, `:hover` tão marcado quanto o selecionado). |
+| No gate E2E, mesmo commit | **Yes.** `e2e/agent-terminal.spec.ts` (2 casos): escolher → `config.json` → o turno seguinte roda dentro do shell e chega ao fim. |
+
+**Limitações registradas:** só o **turno do agente** passa pelo shell escolhido
+(D-AT-1 — `git`, `npx bmad-method` e os probes seguem com spawn direto, porque
+cada um depende do stdout exato e nenhum é "o terminal do agente"); e Copilot e
+Devin não publicam variável equivalente, então para eles a escolha é só de
+lançamento — o que a tela diz, por agente.
+
+---
+
+## M21 — Identidade: `@` para arquivos, e o app chamado Hive ✅ Done (2026-08-16)
+
+**Feature:** `product-identity` · branch `feat/voice-prompt` (continua M13–M20).
+
+**O pedido.** Quatro itens: trocar `#` por `@` na menção de arquivos do chat
+(igual ao Claude Code); o instalador `.exe` com logo e fluxo HIVE; o ícone do
+aplicativo ser o logo do HIVE; e o nome do aplicativo ser **Hive**, não "Hive
+Desktop".
+
+### O sigilo
+
+`@` só abre depois de espaço, então `contato@exemplo.com` continua sendo um
+e-mail — a regra que `#` nunca precisou e que agora tem teste próprio. O menu
+foi refeito no caminho: os caracteres que a busca casou aparecem marcados (em
+ambas as linhas, com os ranges medidos **uma vez sobre o caminho inteiro**, para
+que o realce nunca discorde do ranking), o cabeçalho admite quando a página de
+8 esconde mais (`8 de 14`), o estado vazio ensina a saída, e `Tab` insere junto
+com `Enter`. As linhas viraram **uma só** — nome, depois a pasta — porque em
+duas linhas o menu mostrava 4 dos 8 resultados.
+
+### O nome
+
+Renomear o produto move o `userData` (o Electron o deriva de `app.name`), e
+dentro dele vivem config, histórico de conversas, o ledger do second brain e os
+modelos do Whisper. `userDataMigration.ts` move o diretório antigo por `rename`
+— atômico, no mesmo pai — antes de qualquer store abrir seu arquivo, e recusa
+migrar por cima de um diretório que já tem dados reais (a "sujeira" que o
+Chromium escreve sozinho não conta). `appIdentity.ts` guarda nome e `appId` para
+o dev; `appIdentity.test.ts` falha se eles divergirem do `electron-builder.yml`.
+
+### O ícone e o instalador
+
+`scripts/gen-brand-artwork.mjs` deriva **tudo** (`.ico` multi-resolução,
+`.icns`, os PNGs, os quatro BMP do NSIS) do mesmo `current_logo_mark.svg`. Os
+tamanhos pequenos **não são o grande reduzido**: medido a 7× sobre os rasters
+reais, o cérebro de traços fecha abaixo de 48px e vira uma rosca, então 16–40
+carregam a célula hexagonal (a mesma marca pequena que o hero do chat já usa) e
+48+ carregam o cérebro. O instalador é assistido (`oneClick: false`) com página
+de boas-vindas própria, sidebar bordô/coral, cabeçalho com o lockup, ícones
+próprios e cópia em pt-BR (`build/installer.nsh`).
+
+| Critério | Evidência |
+|---|---|
+| `@` abre o menu e `#` não | **Yes.** 27 testes em `composerMentions.test.ts`, incluindo o e-mail que não vira menção e o `#` que virou texto comum. |
+| O menu diz por que a linha está ali | **Yes.** `matchRanges` + `highlightParts` com o contrato "sempre remonta a entrada exata"; o teste do Chat afere as marcas renderizadas. |
+| O menu não esconde resultado | **Yes.** `8 de 14` no cabeçalho e os 8 visíveis sem rolagem (linha única, `max-height` 356px) — os dois defeitos vieram do screenshot, não de um teste. |
+| Nome = Hive, sem perder dados | **Yes.** 7 testes em `userDataMigration.test.ts` contra um diretório temporário real, incluindo "não sobrescreve o que já está lá" e "não migra por cima de dados reais". |
+| Config e código não divergem | **Yes.** `appIdentity.test.ts` lê o `electron-builder.yml` e compara. |
+| O ícone lê a 16px | **Yes.** Contact sheet e zoom 7× sobre os rasters reais; o piso do cérebro (48px) e o do hexágono contornado (32px) foram medidos, não estimados. |
+| O instalador é o fluxo HIVE | **Yes** — e visto rodando: o `.exe` foi executado sob Wine num Xvfb com `-fbdir`, e a página de boas-vindas aparece com a sidebar bordô, o cérebro coral, o wordmark e a cópia em pt-BR. O screenshot também pegou um defeito de cópia ("Avançar" ≠ o rótulo real do botão, `Próximo`). |
+| Sem regressão | **Yes.** `npm run verify` verde. |
+| Passe visual, três temas | **Yes.** `tools/visual/mention-pass.mjs`: 3 estados × 3 temas, 42 medições. Corrigiu **4 defeitos que nenhum teste veria** — rodapé e dica do menu em `--faint` (4.18:1 no escuro, 3.71:1 no claro), a pílula do composer em 1.30:1 no tema `hive`, os ícones de tipo de arquivo do tema `hive` caindo na rampa clara (2.57:1), e o menu mostrando 4 de 8. |
+
+**Correção pós-entrega (mesmo dia).** A primeira instalação real no Windows
+travou em "Não é possível fechar o Hive. Feche a janela do Hive e clique em
+Repetir" — sem nenhuma janela aberta e com o Repetir em laço. A checagem padrão
+do electron-builder casa `$_.Path.StartsWith('$INSTDIR')`, um prefixo de string
+sem separador e sem nome de executável: ela achava o `claude.exe` que o app
+empacota dentro da própria pasta e que sobrevive a um turno, e o prefixo
+`…\Programs\Hive` ainda casava com `…\Programs\hive-desktop` da instalação
+anterior. `build/installer.nsh` passou a definir `customCheckAppRunning` —
+match em `$INSTDIR\` (diretório, não string), kill forçado já na primeira
+passada, e uma mensagem que **nomeia** o que sobrou em vez de apontar para uma
+janela inexistente. Ver L-PI-7 e L-PI-8 no `STATE.md`.
+
+**Limitações registradas:** o `appId` mudou de `com.electron.app` para
+`dev.gustavobruno.hive` — correto, mas só é seguro porque o app nunca foi
+publicado; as páginas do instalador *depois* da de boas-vindas não foram
+clicadas (o Wine desta máquina não tem `xdotool`), então valem pela compilação
+do NSIS e pelas macros padrão do MUI, não por screenshot; e a causa a montante
+do travamento continua aberta — o app **não encerra o CLI do agente ao sair**
+(L-PI-8), então o processo órfão volta a aparecer, só que agora o instalador o
+mata em vez de parar.
+
+---
+
 ## Dependency Graph
 
 ```

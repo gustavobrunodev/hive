@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
-import { cliEnv, spawnTarget } from './cliEnv'
+import { cliEnv, resolveExecutable, spawnTarget } from './cliEnv'
+import { shellSpawnEnv, shellSpawnTarget, type ShellInfo } from './shellCatalog'
 
 /**
  * Uniform spawn/stream/kill abstraction for CLI processes driven from the
@@ -26,6 +27,15 @@ export interface ProcessExitResult {
 export interface RunOptions {
   cwd?: string
   env?: Record<string, string>
+  /**
+   * agent-terminal (AT-R3 / D-AT-1): run this command *inside* the user's
+   * chosen shell instead of spawning it directly. Opt-in per call, and only
+   * the agent's own turns opt in — `git`, `npx bmad-method`, the MCP probe and
+   * the `--version` availability probes each parse an exact stdout and none of
+   * them is "the terminal the agent uses", so widening the blast radius would
+   * be risk without a request.
+   */
+  shell?: boolean
 }
 
 /**
@@ -118,11 +128,53 @@ function createAsyncQueue<T>(): {
  * stays the ordinary ENOENT (`{ code: null }`) that availability probes and
  * error surfaces already understand — resolution repairs the lookup, it never
  * becomes a second, different way to fail.
+ *
+ * agent-terminal: a call that passes `shell: true` runs inside the shell the
+ * user chose (`deps.shell`), which is how "escolher o terminal do agente"
+ * becomes a real property of the process rather than a label. Everything else
+ * keeps spawning exactly as before.
  */
-export function createProcessRunner(): ProcessRunner {
+export interface ProcessRunnerDeps {
+  /**
+   * agent-terminal: the shell chosen for agent turns, read fresh per spawn so
+   * a change in the profile sheet applies to the next turn without a restart.
+   * Absent (or returning `null`) keeps the pre-feature behavior — direct
+   * spawn, `cliEnv`'s widened `PATH`, the npm `.cmd` route on Windows.
+   */
+  shell?: () => ShellInfo | null
+}
+
+/**
+ * Composes the final spawn target for one call: the ordinary resolved target,
+ * or that same resolved executable run *inside* the chosen shell when the
+ * caller opted in and a shell is selected.
+ *
+ * The command is resolved first, and an unresolvable one skips the shell
+ * entirely: keeping the failure as the plain ENOENT the availability probes
+ * already understand beats inventing a second, shell-shaped way to fail (the
+ * exact contract `cliEnv.spawnTarget` documents for its own fallback).
+ */
+function composeTarget(
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  shell: ShellInfo | null
+): ReturnType<typeof spawnTarget> {
+  if (shell) {
+    const resolved = resolveExecutable(command, env.PATH, env)
+    if (resolved) return shellSpawnTarget(shell, resolved, args)
+  }
+  return spawnTarget(command, args, env.PATH, env)
+}
+
+export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner {
   function run(command: string, args: string[], opts?: RunOptions): ProcessHandle {
-    const env = opts?.env ? { ...cliEnv(), ...opts.env } : cliEnv()
-    const target = spawnTarget(command, args, env.PATH, env)
+    const shell = opts?.shell === true ? (deps.shell?.() ?? null) : null
+    // The shell's own variables (`SHELL`, `ComSpec`) sit under `opts.env`, so
+    // an adapter's agent-specific binding — which is where `CLAUDE_CODE_*`
+    // lives — still wins over the generic ones.
+    const env = { ...cliEnv(), ...(shell ? shellSpawnEnv(shell) : {}), ...opts?.env }
+    const target = composeTarget(command, args, env, shell)
     const child = spawn(target.command, target.args, {
       cwd: opts?.cwd,
       env,

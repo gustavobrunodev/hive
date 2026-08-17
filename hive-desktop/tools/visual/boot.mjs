@@ -245,12 +245,108 @@ async (page) => {
         durationMs: 30000
       })
     ]
+    // mcp-visibility: the empty console. `window.__mcpSilence(loc)` drops every
+    // log entry and points the console at a directory that isn't there — the
+    // state a user hits on a fresh workspace, and the one that used to be
+    // indistinguishable from "this app has no idea MCP exists".
+    const MISSING_CACHE =
+      'C:\\Users\\gusta\\AppData\\Local\\claude-cli-nodejs\\Cache\\C--Users-gusta-Desktop-teste-hive'
+    state.mcpLocation = { dir: '/home/u/.cache/claude-cli-nodejs/-home-u-ws', exists: true }
+    // Driven by `?mcpsilent=1` rather than by a console call, because
+    // `useMcpLogs` reads history once per workspace: mutating the fixture after
+    // the store has loaded changes nothing on screen (and a probe that mutates
+    // and then measures reports a state it never rendered). A query param
+    // forces a real navigation, which re-runs this init script — same reason
+    // the agent-picker probe uses one (docs/visual-validation.md, M17).
+    if (location.search.includes('mcpsilent=1')) {
+      state.mcpLogs = []
+      state.mcpLocation = { dir: MISSING_CACHE, exists: false }
+    }
+    window.__mcpSilence = (dir) => {
+      state.mcpLogs = []
+      state.mcpLocation = { dir: dir ?? MISSING_CACHE, exists: false }
+    }
+
     // Push one live event (or a whole batch) into the open console.
     window.__mcpLog = (over) => {
       const batch = Array.isArray(over) ? over.map(mcpEntry) : [mcpEntry({ at: Date.now(), ...over })]
       state.mcpLogs = [...state.mcpLogs, ...batch]
       for (const cb of mcpListeners) cb(batch)
     }
+
+    // agent-terminal: the terminal catalog, shaped like a Windows machine on
+    // purpose — cmd is the platform default there, and the Claude caveat under
+    // it (the CLI has no cmd executor) is the one state of this surface a
+    // screenshot has to prove reads well. `state.shellSelected` makes the
+    // picker really change when clicked.
+    state.shellView = globalThis.HIVE_SHELLS ?? {
+            shells: [
+              {
+                id: 'cmd',
+                path: 'C:\\WINDOWS\\system32\\cmd.exe',
+                family: 'cmd',
+                systemDefault: true,
+                agents: [
+                  {
+                    agentId: 'claude-cli',
+                    displayName: 'Claude CLI',
+                    support: 'launch-only',
+                    note: 'windows-git-bash'
+                  },
+                  {
+                    agentId: 'github-copilot',
+                    displayName: 'GitHub Copilot CLI',
+                    support: 'launch-only',
+                    note: 'no-cli-binding'
+                  }
+                ]
+              },
+              {
+                id: 'powershell',
+                path: 'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+                family: 'powershell',
+                systemDefault: false,
+                agents: [
+                  {
+                    agentId: 'claude-cli',
+                    displayName: 'Claude CLI',
+                    support: 'native',
+                    note: 'powershell-preview'
+                  },
+                  {
+                    agentId: 'github-copilot',
+                    displayName: 'GitHub Copilot CLI',
+                    support: 'launch-only',
+                    note: 'no-cli-binding'
+                  }
+                ]
+              },
+              {
+                id: 'git-bash',
+                path: 'C:\\Program Files\\Git\\bin\\bash.exe',
+                family: 'bash',
+                systemDefault: false,
+                agents: [
+                  {
+                    agentId: 'claude-cli',
+                    displayName: 'Claude CLI',
+                    support: 'native',
+                    note: 'windows-git-bash'
+                  },
+                  {
+                    agentId: 'github-copilot',
+                    displayName: 'GitHub Copilot CLI',
+                    support: 'launch-only',
+                    note: 'no-cli-binding'
+                  }
+                ]
+              }
+            ],
+            selectedId: null,
+            resolvedId: 'cmd',
+            missingSelection: false
+          }
+    state.shellSelected = state.shellView.selectedId ?? null
 
     const sessions = []
     window.hive = {
@@ -262,9 +358,52 @@ async (page) => {
       provisionState: ok(true),
       getRecentWorkspaces: ok(['/ws']),
       openWorkspace: ok({ ok: true, path: '/ws' }),
+      // The field is `type`, not `kind` (Explorer's `FsTreeNode`): a fixture
+      // written with `kind` makes every row a *leaf* — no folders, no nesting,
+      // no multi-select range worth the name — and the pass reads that as the
+      // component's behavior. Nested and deep enough to exercise the tree's
+      // real surfaces: expand/collapse, Ctrl/Shift multi-select over the
+      // visible-flat order, and the row/empty-area context menus.
       listTree: ok([
-        { name: 'second-brain', path: 'second-brain', kind: 'directory' },
-        { name: 'README.md', path: 'README.md', kind: 'file' }
+        {
+          name: '_bmad',
+          path: '_bmad',
+          type: 'directory',
+          children: [
+            {
+              name: '_config',
+              path: '_bmad/_config',
+              type: 'directory',
+              children: [
+                { name: 'manifest.yaml', path: '_bmad/_config/manifest.yaml', type: 'file' }
+              ]
+            }
+          ]
+        },
+        {
+          name: 'docs',
+          path: 'docs',
+          type: 'directory',
+          children: [
+            { name: 'prd.md', path: 'docs/prd.md', type: 'file' },
+            { name: 'architecture.md', path: 'docs/architecture.md', type: 'file' },
+            { name: 'ux-spec.md', path: 'docs/ux-spec.md', type: 'file' },
+            { name: 'epics.md', path: 'docs/epics.md', type: 'file' }
+          ]
+        },
+        { name: 'second-brain', path: 'second-brain', type: 'directory', children: [] },
+        {
+          name: 'src',
+          path: 'src',
+          type: 'directory',
+          children: [
+            { name: 'index.ts', path: 'src/index.ts', type: 'file' },
+            { name: 'app.tsx', path: 'src/app.tsx', type: 'file' }
+          ]
+        },
+        { name: 'README.md', path: 'README.md', type: 'file' },
+        { name: 'package.json', path: 'package.json', type: 'file' },
+        { name: 'notas.txt', path: 'notas.txt', type: 'file' }
       ]),
       listFiles: ok(['README.md', 'docs/ux-spec.md']),
       readFile: ok('# README\n'),
@@ -387,6 +526,9 @@ async (page) => {
           { server: 'pencil', dir: '/cache/mcp-logs-pencil', files: 4, lastActivityAt: Date.now() - 90000 }
         ]),
         read: () => Promise.resolve(state.mcpLogs),
+        // mcp-visibility: where the console read from. `exists: false` is the
+        // interesting case — it is what the empty state has to explain.
+        locate: () => Promise.resolve(state.mcpLocation),
         openDir: ok(undefined),
         watch: (_ws, onBatch) => {
           mcpListeners.push(onBatch)
@@ -397,7 +539,21 @@ async (page) => {
         }
       },
       chatHistory: {
-        list: () => Promise.resolve(sessions.map((s) => ({ id: s.id, title: s.title, updatedAt: s.updatedAt }))),
+        // The full `ChatSessionMeta` the history rows render — a list that
+        // omits `messageCount`/`preview` prints "undefined mensagens" and the
+        // pass reads a fixture gap as a defect.
+        list: () =>
+          Promise.resolve(
+            sessions.map((s) => ({
+              id: s.id,
+              title: s.title,
+              updatedAt: s.updatedAt,
+              createdAt: s.updatedAt,
+              messageCount: s.messages.length,
+              agent: s.agent ?? null,
+              preview: s.messages[s.messages.length - 1]?.text ?? ''
+            }))
+          ),
         get: (_ws, id) => Promise.resolve(sessions.find((s) => s.id === id) || null),
         create: (_ws, agent) => {
           const s = {
@@ -471,6 +627,17 @@ async (page) => {
                 ]
           ),
       },
+      // agent-terminal: the terminal picker's bridge (catalog in `state`).
+      shell: {
+        // Stateful on purpose: with a no-op `select`, every pass would look at
+        // a picker that never changes its selection — and would read the
+        // fixture's inertia as the component's.
+        list: () => Promise.resolve({ ...state.shellView, selectedId: state.shellSelected }),
+        select: (id) => {
+          state.shellSelected = id
+          return Promise.resolve(undefined)
+        }
+      },
       shortcuts: {
         catalog: ok(SHORTCUT_CATALOG),
         get: ok({ start: null, during: null }),
@@ -502,7 +669,15 @@ async (page) => {
         importEntry: ok(undefined),
         exists: ok(true),
         trash: ok(undefined),
-        pathForFile: () => '/ws/file'
+        pathForFile: () => '/ws/file',
+        // explorer-os-actions. Recorded rather than no-op'd: a probe that
+        // clicks "Abrir no gerenciador de arquivos" against a silent stub
+        // cannot tell a wired menu item from a dead one.
+        revealPath: (_ws, rel, isDir) => {
+          state.revealed = { rel, isDir }
+          return Promise.resolve(undefined)
+        },
+        absolutePath: (_ws, rel) => Promise.resolve(rel ? `/ws/${rel}` : '/ws')
       },
       git: {
         detect: ok({ isRepo: false, gitMissing: false }),
@@ -519,6 +694,14 @@ async (page) => {
         rejectHunk: ok({ ok: true }),
         acceptAll: ok({ ok: true }),
         rejectAll: ok({ ok: true }),
+        // The chat names a brand-new conversation on the turn it already sent;
+        // the fixture records it so a pass can see which conversation a card
+        // belongs to.
+        attachTurn: (_ws, turnId, conversationId) => {
+          const mark = state.review.turns.find((t) => t.turnId === turnId)
+          if (mark && mark.conversationId === undefined) mark.conversationId = conversationId
+          return Promise.resolve(undefined)
+        },
         onChanged: (cb) => {
           reviewListeners.push(cb)
           return noop

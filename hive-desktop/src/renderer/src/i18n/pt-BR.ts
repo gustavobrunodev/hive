@@ -1,5 +1,5 @@
 /**
- * Single source of truth for Hive Desktop's UI chrome copy (pt-BR).
+ * Single source of truth for Hive's UI chrome copy (pt-BR).
  *
  * Scope (design.md §4.1, R1.6): labels, buttons, placeholders, intent prompts,
  * empty/loading/error states, tooltips, toasts, onboarding — our chrome only.
@@ -13,7 +13,7 @@
  */
 export const ptBR = {
   app: {
-    title: 'Hive Desktop',
+    title: 'Hive',
     placeholderDescription:
       'Sistema de design conectado — conteúdo temporário, substituído em tarefas futuras.'
   },
@@ -69,6 +69,34 @@ export const ptBR = {
     menuNewFolder: 'Nova pasta',
     menuRename: 'Renomear',
     menuDelete: 'Excluir',
+
+    // explorer-os-actions: the OS-parity actions on the row / empty-area menu.
+    menuCopyRelativePath: 'Copiar caminho relativo',
+    menuCopyPath: 'Copiar caminho',
+    /**
+     * Each OS names this destination itself, and calling it something else is
+     * exactly the "Electron-app jank" PRODUCT.md lists as an anti-reference —
+     * a Mac user looks for "Finder", a Windows user for "Explorador de
+     * Arquivos". Linux has no single name for it (Nautilus, Dolphin, Thunar…),
+     * so it gets the generic noun rather than a wrong brand.
+     */
+    menuRevealInOs: (platform: string): string =>
+      platform === 'darwin'
+        ? 'Mostrar no Finder'
+        : platform === 'win32'
+          ? 'Mostrar no Explorador de Arquivos'
+          : 'Abrir no gerenciador de arquivos',
+    /** The empty-area variant: there is no row to reveal, so it names the target. */
+    menuRevealWorkspaceInOs: (platform: string): string =>
+      platform === 'darwin'
+        ? 'Abrir o workspace no Finder'
+        : platform === 'win32'
+          ? 'Abrir o workspace no Explorador de Arquivos'
+          : 'Abrir o workspace no gerenciador de arquivos',
+    /** Live-region confirmation for a copy — the clipboard is otherwise silent. */
+    pathCopiedFeedback: (count: number): string =>
+      count > 1 ? `${count} caminhos copiados` : 'Caminho copiado',
+    revealErrorMessage: 'Não foi possível abrir no gerenciador de arquivos do sistema.',
     /** design-studio DS-R1 AC-1: the Explorer entry point, offered only on Markdown. */
     menuOpenDesignStudio: 'Abrir no Design Studio',
     deleteDialogTitle: 'Mover para a Lixeira?',
@@ -226,7 +254,7 @@ export const ptBR = {
     invocationLess: 'Mostrar menos',
     errorMessage: (message: string) => `Não foi possível concluir a resposta: ${message}`,
     loadingCapabilities: 'Carregando opções do agente…',
-    composerHint: 'Enter envia · Shift+Enter quebra a linha · / para skills · # para arquivos',
+    composerHint: 'Enter envia · Shift+Enter quebra a linha · / para skills · @ para arquivos',
     // chat-queue: while a turn runs the composer keeps accepting input — the
     // placeholder says where it lands, so the send button's new glyph isn't
     // the only thing announcing it.
@@ -253,15 +281,20 @@ export const ptBR = {
     slashMenuHint: '↑ ↓ navega · Enter executa · Esc fecha',
     slashEmpty: 'Nenhum comando disponível neste workspace.',
     slashNoMatch: 'Nenhum comando encontrado.',
-    // chat-attachments (R6.5/T16): file attachments + `#` workspace references.
+    // chat-attachments (R6.5/T16): file attachments + `@` workspace references.
     attachLabel: 'Anexar arquivos',
     attachTitle: 'Anexar arquivos como contexto',
     attachmentRemoveAria: (name: string) => `Remover anexo ${name}`,
     dropHint: 'Solte para anexar como contexto',
     mentionMenuLabel: 'Arquivos do workspace',
-    mentionMenuHint: '↑ ↓ navega · Enter insere · Esc fecha',
+    mentionMenuHint: '↑ ↓ navega · Enter ou Tab insere · Esc fecha',
+    // The ranked list is a page of at most 8. Saying so turns "meu arquivo não
+    // está aqui" into "escreva mais um pouco".
+    mentionCount: (shown: number, total: number) => `${shown} de ${total}`,
     mentionEmpty: 'Nenhum arquivo encontrado no workspace.',
     mentionNoMatch: 'Nenhum arquivo corresponde à busca.',
+    // Both empty cases end the same way: the menu is a suggestion, not a mode.
+    mentionEmptyHint: 'Esc fecha o menu — o texto continua como você escreveu.',
     // The shortcut strip docked next to the composer (the shortcuts'
     // always-at-hand home now that the left rail hosts workspace tools).
     // shortcut-scopes: this strip renders the `during` set only, so the name
@@ -433,7 +466,7 @@ export const ptBR = {
     allowedState: 'Permitido',
     allowedAlwaysState: 'Permitido sempre',
     deniedState: 'Recusado',
-    deniedMessage: 'Recusado pelo usuário no Hive Desktop.',
+    deniedMessage: 'Recusado pelo usuário no Hive.',
     pendingAria: (title: string) => `Autorização pendente: ${title}`
   },
   intentGrid: {
@@ -589,6 +622,15 @@ export const ptBR = {
   // mcp: the "Servidores MCP" module — activate/disable Model Context Protocol
   // servers, test a live connection (status + tools + logs), add/edit/remove.
   mcp: {
+    // mcp-visibility: the handshake row inside a turn — what MCP servers this
+    // turn started with, told at the moment it happened.
+    turnReady: (count: number) =>
+      count === 1 ? '1 servidor MCP conectado' : `${count} servidores MCP conectados`,
+    turnOneFailed: (server: string) => `${server} não conectou`,
+    turnManyFailed: (count: number) => `${count} servidores MCP não conectaram`,
+    turnServerAria: (server: string, tools: number) =>
+      tools === 1 ? `${server}, 1 ferramenta` : `${server}, ${tools} ferramentas`,
+    turnOpenAria: (summary: string) => `${summary}. Abrir o console MCP.`,
     openLabel: 'Servidores MCP',
     title: 'Servidores MCP',
     description:
@@ -693,9 +735,30 @@ export const ptBR = {
     expandDockAria: 'Abrir o console MCP',
     resizeAria: 'Redimensionar o console MCP',
     // The collapsed strip — the ambient "MCP is doing something" signal.
-    idleStrip: 'Nenhuma atividade MCP ainda',
+    // mcp-visibility: the standing answer is a count of servers, not the name
+    // of whoever spoke last; "nenhum servidor" and "2 de 3" are different
+    // facts and get different sentences rather than one with numbers swapped.
+    idleStrip: 'Nenhum servidor MCP',
+    summaryPlain: (total: number) => (total === 1 ? '1 servidor MCP' : `${total} servidores MCP`),
+    // No "MCP ·" prefix: the plug glyph beside it already says which subsystem
+    // this is, and the words it bought were the ones the status bar then had to
+    // ellipsise — the loud state is the one that most needs to be readable.
+    summaryTroubled: (troubled: number, total: number) => `${troubled} de ${total} com falha`,
     liveLabel: 'ao vivo',
     liveAria: 'Recebendo eventos ao vivo',
+    // mcp-visibility: the roster — the same vocabulary in the status card, the
+    // console strip and the transcript row, so the three cannot disagree.
+    rosterHeading: 'Servidores MCP deste workspace',
+    rosterEmpty: 'Nenhum servidor configurado ou detectado ainda.',
+    rosterTools: (count: number) => (count === 1 ? '1 ferramenta' : `${count} ferramentas`),
+    rosterFoot: 'Clique para abrir o console e acompanhar a atividade.',
+    stateConnected: 'conectado',
+    stateFailed: 'falhou',
+    stateNeedsAuth: 'precisa de login',
+    stateStarting: 'iniciando',
+    stateKnown: 'sem conexão ativa',
+    pillTitle: (server: string, state: string) =>
+      `${server} — ${state}. Filtrar por este servidor.`,
     // Filters.
     filterAria: 'Filtrar eventos por tipo',
     filterAll: 'Tudo',
@@ -756,7 +819,14 @@ export const ptBR = {
     noMatchDescription: 'Ajuste o tipo, o servidor ou a busca para ver mais.',
     clearFiltersCta: 'Limpar filtros',
     errorTitle: 'Não foi possível ler a atividade MCP',
-    retryCta: 'Tentar de novo'
+    retryCta: 'Tentar de novo',
+    // mcp-visibility: where the console read from. Shown on the empty state
+    // because "o agente não usou MCP" and "os logs estão em outro lugar" são
+    // indistinguíveis sem o caminho — e o segundo caso é real (CLI do Windows
+    // dirigido pelo WSL grava sob %LOCALAPPDATA%).
+    sourceReading: 'Lendo de',
+    sourceMissing: 'Ainda não existe',
+    sourceCopyAria: 'Copiar o caminho da pasta de logs'
   },
   // session-history: persisted conversations (panel, hero recents, row actions).
   chatHistory: {
@@ -788,7 +858,15 @@ export const ptBR = {
     loadingLabel: 'Carregando conversas…',
     heroRecentsLabel: 'Continuar de onde parou',
     // background-turns: a conversation whose reply is still being generated.
-    runningLabel: 'Em andamento'
+    runningLabel: 'Em andamento',
+    // Agent Change Review: the change card lives in the conversation that asked
+    // for it, so this row marker is how a review waiting in *another*
+    // conversation stays findable. Same word as the card's own counter.
+    reviewPending: (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`),
+    openWithReviewAria: (title: string, n: number) =>
+      n === 1
+        ? `Abrir conversa: ${title} — 1 mudança pendente de revisão`
+        : `Abrir conversa: ${title} — ${n} mudanças pendentes de revisão`
   },
   // agent-selection AG-R3.1: first-run agent picker.
   // agent-onboarding (M17): in-app install + a re-runnable, evidenced scan.
@@ -1502,7 +1580,7 @@ export const ptBR = {
     // Sheet title/description + the identity block's version line + the
     // version-block's section heading + the release-notes accordion trigger.
     title: 'Aplicativo',
-    description: 'Versão, atualizações e informações do Hive Desktop.',
+    description: 'Versão, atualizações e informações do Hive.',
     versionLabel: (version: string) => `Versão ${version}`,
     updatesSectionLabel: 'Atualizações',
     releaseNotesTrigger: 'Novidades desta versão',
@@ -1621,9 +1699,38 @@ export const ptBR = {
     agentInstallCta: 'Como instalar',
     agentInstallCtaAria: (agent: string) => `Como instalar ${agent} (abre no navegador)`,
     agentEmptyWarning: 'Habilite ao menos um agente para conversar no Hive.',
+    // agent-terminal: the terminal section of the profile sheet.
+    shellSectionLabel: 'Terminal do agente',
+    shellSectionHint:
+      'Onde os agentes executam os comandos no seu computador. O Hive lista só o que existe nesta máquina.',
     replayTourCta: 'Rever o tour guiado',
     scopeNote: 'Seu perfil vale para todos os workspaces.',
     closeLabel: 'Fechar'
+  },
+  // agent-terminal (M20): the terminal picker. Names are product names
+  // (`shellName`), so what lives here is the surrounding copy only.
+  shell: {
+    groupLabel: 'Terminal usado pelos agentes',
+    autoLabel: 'Automático',
+    autoDescription: (name: string) => `Segue o padrão do sistema: ${name}.`,
+    autoDescriptionEmpty: 'Segue o padrão do sistema.',
+    systemDefaultBadge: 'Padrão do sistema',
+    inUseBadge: 'Em uso',
+    detecting: 'Procurando terminais…',
+    // Not "Procurar de novo": the agents section, in this same sheet, already
+    // owns that exact label — two identical buttons one scroll apart is
+    // ambiguous by ear (a screen reader reads them the same) and by eye.
+    rescan: 'Procurar terminais',
+    scanSummary: (count: number) =>
+      count === 1 ? '1 terminal encontrado' : `${count} terminais encontrados`,
+    empty:
+      'Nenhum terminal reconhecido nesta máquina. Os agentes continuam rodando com o padrão do sistema.',
+    missingSelection: (name: string) =>
+      `O terminal escolhido (${name}) não está mais neste computador. Enquanto isso os agentes usam o padrão — a escolha volta sozinha se ele for reinstalado.`,
+    // The caveat block under the selected row: one line per enabled agent,
+    // because "o agente usa este terminal" is true for some and false for
+    // others, and the moment to say so is while the user is choosing.
+    supportTitle: 'O que isso muda para cada agente'
   },
   // Guided first-access tour (skippable at any moment).
   tour: {
@@ -1643,7 +1750,7 @@ export const ptBR = {
       'Cada atalho executa o comando do BMAD correspondente — "Criar um PRD" dispara /bmad-prd, igualzinho a digitar o comando na conversa. Em "Personalizar" você escolhe estes, para iniciar, e também os que ficam à mão durante a conversa.',
     composerTitle: 'Converse do seu jeito',
     composerBody:
-      'Escreva livremente, digite / para executar um comando do workspace ou # para trazer arquivos como contexto.',
+      'Escreva livremente, digite / para executar um comando do workspace ou @ para trazer arquivos como contexto.',
     railTitle: 'Encontre qualquer arquivo',
     railBody:
       'A busca do workspace localiza qualquer arquivo em segundos — clique aqui ou pressione Ctrl+P de qualquer lugar.',
@@ -1960,6 +2067,62 @@ const agentMetaPtBR: Record<string, { persona: string; role: string }> = {
 /** The specialist's pt-BR meta by agent skill key, or `null` for an agent this build doesn't know (renderer then leans on the catalog's data). */
 export function agentMeta(key: string): { persona: string; role: string } | null {
   return agentMetaPtBR[key] ?? null
+}
+
+/**
+ * Display names for the shells the catalog detects (agent-terminal). Product
+ * names, so they are not translated — "Prompt de Comando" is the one exception
+ * because that is what Windows itself calls cmd in pt-BR. An id this build
+ * doesn't know (a shell added to `/etc/shells` by hand) falls back to its own
+ * binary name, which is still the truth.
+ */
+const shellNamesPtBR: Record<string, string> = {
+  cmd: 'Prompt de Comando',
+  powershell: 'Windows PowerShell',
+  pwsh: 'PowerShell 7+',
+  'git-bash': 'Git Bash',
+  bash: 'Bash',
+  zsh: 'Zsh',
+  fish: 'Fish',
+  sh: 'sh',
+  dash: 'Dash',
+  ksh: 'Ksh'
+}
+
+/** The shell's display name, or its binary name when this build doesn't know the id. */
+export function shellName(id: string): string {
+  return shellNamesPtBR[id] ?? id
+}
+
+/**
+ * What one agent actually does with the chosen shell (agent-terminal AT-R5).
+ *
+ * Two axes: whether the agent runs its *own* commands there (`native`) or only
+ * starts inside it (`launch-only`), and the code explaining why. The sentence
+ * has to survive being read by someone deciding — so it says what happens, not
+ * what is supported.
+ */
+export function shellSupportNote(
+  agent: string,
+  support: 'native' | 'launch-only',
+  note?: 'posix-bash-zsh-only' | 'windows-git-bash' | 'powershell-preview' | 'no-cli-binding'
+): string {
+  if (support === 'native') {
+    if (note === 'powershell-preview') {
+      return `${agent} executa os comandos aqui, pela ferramenta PowerShell (marcada como preview pela própria CLI).`
+    }
+    if (note === 'windows-git-bash') {
+      return `${agent} executa os comandos deste Git Bash.`
+    }
+    return `${agent} executa os próprios comandos neste terminal.`
+  }
+  if (note === 'windows-git-bash') {
+    return `${agent} não executa comandos no cmd — ele usa o Git Bash ou o PowerShell que encontrar. Aqui passa só a inicialização.`
+  }
+  if (note === 'posix-bash-zsh-only') {
+    return `${agent} só aceita bash ou zsh para os próprios comandos e vai escolher sozinho. Aqui passa só a inicialização.`
+  }
+  return `${agent} não permite escolher o terminal dos próprios comandos. Aqui passa só a inicialização.`
 }
 
 /**

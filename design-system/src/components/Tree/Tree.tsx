@@ -195,6 +195,24 @@ export function Tree({
     [selection, selectedSet, selectedIds, setSelectedIds, enabledFlat]
   )
 
+  /**
+   * Arrow-key focus move, optionally extending the multi-selection (Shift +
+   * Arrow — the keyboard half of Shift-click, required by the WAI-ARIA
+   * multi-select tree pattern; without it the range gesture is mouse-only).
+   * The anchor is seeded from the row focus is leaving, so the first
+   * Shift+Arrow of a session grows from where the user actually is rather
+   * than collapsing the selection to the destination row.
+   */
+  const moveFocus = useCallback(
+    (toId: string, fromId: string, extend: boolean) => {
+      focusItem(toId)
+      if (!extend || selection !== "multiple") return
+      if (!anchorIdRef.current) anchorIdRef.current = fromId
+      activate(toId, { toggle: false, range: true })
+    },
+    [focusItem, selection, activate]
+  )
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLUListElement>) => {
       const currentId = activeIdRef.current
@@ -208,13 +226,13 @@ export function Tree({
         case "ArrowDown": {
           event.preventDefault()
           const next = enabledFlat[currentIndex + 1]
-          if (next) focusItem(next.node.id)
+          if (next) moveFocus(next.node.id, currentId, event.shiftKey)
           break
         }
         case "ArrowUp": {
           event.preventDefault()
           const prev = enabledFlat[currentIndex - 1]
-          if (prev) focusItem(prev.node.id)
+          if (prev) moveFocus(prev.node.id, currentId, event.shiftKey)
           break
         }
         case "ArrowRight": {
@@ -279,7 +297,7 @@ export function Tree({
         }
       }
     },
-    [enabledFlat, expandedSet, expand, collapse, activate, focusItem]
+    [enabledFlat, expandedSet, expand, collapse, activate, focusItem, moveFocus]
   )
 
   return (
@@ -367,6 +385,13 @@ function TreeItem({
           range: event.shiftKey,
         })
       }}
+      onMouseDown={(event) => {
+        // A Shift-click is a *range* gesture, but the browser also reads it as
+        // "extend the text selection", which paints the row labels between the
+        // two clicks as selected text. Suppressing it here (mousedown is where
+        // the browser starts that selection) leaves the click itself intact.
+        if (event.shiftKey) event.preventDefault()
+      }}
       onFocus={(event) => {
         event.stopPropagation()
         if (!node.disabled) onFocus(node.id)
@@ -381,7 +406,20 @@ function TreeItem({
             aria-hidden="true"
             onClick={(event) => {
               event.stopPropagation()
-              onToggleExpand(node.id)
+              if (node.disabled) return
+              const mods = { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey }
+              // A parent row's whole label is this button, so before this it
+              // was the *only* thing a click on a folder could do: expand.
+              // That made a folder unselectable, unable to anchor a range, and
+              // unable to end one — a Shift-click meant to extend the
+              // selection collapsed the folder instead, reordering the very
+              // list the range is measured over. Selection now happens on
+              // every click (OS file managers select the folder they expand),
+              // and expanding is suppressed under a modifier, where the user
+              // is selecting rather than navigating.
+              onFocus(node.id)
+              onActivate(node.id, mods)
+              if (!mods.toggle && !mods.range) onToggleExpand(node.id)
             }}
           >
             {renderLabel(node, { level, expanded, selected, hasChildren })}

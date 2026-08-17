@@ -1,4 +1,5 @@
-import { test, expect } from './fixtures/workspace'
+import { test, expect, launchSeededApp, waitForWorkUI } from './fixtures/workspace'
+import { armScriptedAgent } from './fixtures/scriptedAgent'
 import { checkContrast, WCAG_AA_LARGE, WCAG_AA_NORMAL } from '../src/renderer/src/ui/contrast'
 import type { Page } from '@playwright/test'
 import fs from 'node:fs'
@@ -492,5 +493,260 @@ for (const theme of THEMES) {
       failuresIn(exportPicker),
       `contrast failures in ${theme}, export picker:\n${failuresIn(exportPicker).join('\n')}`
     ).toEqual([])
+  })
+}
+
+/**
+ * mcp-visibility. Three surfaces that the sweep at the top of this file cannot
+ * reach, each for its own reason, and each one added here in the commit that
+ * created it — the M16 corollary in `docs/visual-validation.md`, learned from
+ * two `AgentPicker` failures that survived from M9 precisely by not being here.
+ *
+ *  - **the transcript's handshake row** exists only inside a turn, and only
+ *    when the CLI reported a roster. So a turn is really run, through the
+ *    stand-in CLI, with `mcp_servers` on its init line: the parse under test is
+ *    `readMcpRoster`, and a fixture that handed the renderer a ready-made
+ *    roster would prove nothing about it.
+ *  - **the status bar's roster card** is hover/focus-only.
+ *  - **the console's roster strip** is inside a dock that starts closed.
+ *
+ * One server is deliberately `failed`. Its tint, its ink and its dot are the
+ * loudest colours this feature introduces and the ones most likely to fail a
+ * floor — and they only render when something is actually broken.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the MCP roster surfaces meet WCAG AA in the ${theme} theme`, async ({
+    seeded
+  }) => {
+    const agent = armScriptedAgent(seeded, {
+      chunks: ['Vou usar o Playwright.'],
+      mcpServers: [
+        { name: 'playwright', status: 'connected' },
+        { name: 'pencil', status: 'connected' },
+        { name: 'quebrado', status: 'failed' }
+      ],
+      mcpTools: [
+        'mcp__playwright__browser_navigate',
+        'mcp__playwright__browser_take_screenshot',
+        'mcp__pencil__execute'
+      ]
+    })
+
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
+    await setTheme(window, theme)
+
+    await window
+      .getByPlaceholder(/Escreva/)
+      .first()
+      .fill('use o playwright')
+    await window.getByRole('button', { name: 'Enviar' }).click()
+
+    // The row only exists if the roster survived the whole path: the CLI's
+    // stdout, `readMcpRoster`, the `mcp` event, IPC, and the turn's timeline.
+    await window.locator('.wb-mcpturn').waitFor({ state: 'visible', timeout: 30_000 })
+    await freezeMotion(window)
+
+    const turnRow = await sampleTextContrast(window, '.wb-mcpturn')
+    expect(turnRow.length).toBeGreaterThan(1)
+    expect(
+      failuresIn(turnRow),
+      `contrast failures in ${theme}, MCP handshake row:\n${failuresIn(turnRow).join('\n')}`
+    ).toEqual([])
+
+    // The status bar's roster card — focus, not hover, so the keyboard path is
+    // the one measured.
+    await window.locator('.wb-status-mcp').focus()
+    await window.locator('.wb-status-mcp-card-list').waitFor({ state: 'visible' })
+    const card = await sampleTextContrast(window, '.wb-status-mcp-card')
+    expect(card.length).toBeGreaterThan(2)
+    expect(
+      failuresIn(card),
+      `contrast failures in ${theme}, MCP roster card:\n${failuresIn(card).join('\n')}`
+    ).toEqual([])
+
+    // The console's strip, which is present whether or not any log line is.
+    await window.keyboard.press('Control+Shift+M')
+    await window.locator('.wb-mcplog-strip').waitFor({ state: 'visible' })
+    const strip = await sampleTextContrast(window, '.wb-mcplog-strip')
+    expect(strip.length).toBeGreaterThan(1)
+    expect(
+      failuresIn(strip),
+      `contrast failures in ${theme}, MCP roster strip:\n${failuresIn(strip).join('\n')}`
+    ).toEqual([])
+
+    // The dots carry state redundantly with the words beside them, but they are
+    // still meaningful non-text and owe 3:1.
+    //
+    // Resolved by painting a pixel rather than read off `getComputedStyle`:
+    // these dots are `--success`/`--danger`, which are authored in `oklch()`
+    // and come back verbatim. `checkContrast`'s parser returns "could not
+    // measure" for that — which this assertion would have read as a ratio of
+    // zero and failed on, and a laxer one would have read as a pass. Painting
+    // resolves any colour syntax the browser accepts
+    // (docs/visual-validation.md, M15).
+    const dots = await window.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      const resolve = (value: string): string => {
+        if (ctx === null) return value
+        ctx.clearRect(0, 0, 1, 1)
+        ctx.fillStyle = '#000'
+        ctx.fillStyle = value
+        ctx.fillRect(0, 0, 1, 1)
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+        return `rgb(${r}, ${g}, ${b})`
+      }
+      const read = (selector: string): [string, string] | null => {
+        const node = document.querySelector(selector)
+        if (node === null) return null
+        const background = getComputedStyle(node.parentElement ?? node).backgroundColor
+        return [resolve(getComputedStyle(node).backgroundColor), resolve(background)]
+      }
+      return {
+        connected: read('.wb-mcplog-pill[data-state="connected"] .wb-mcplog-pill-dot'),
+        failed: read('.wb-mcplog-pill[data-state="failed"] .wb-mcplog-pill-dot')
+      }
+    })
+    // A selector that stopped matching would skip silently and pass vacuously.
+    expect(Object.values(dots).filter((pair) => pair !== null).length).toBe(2)
+    for (const [name, pair] of Object.entries(dots)) {
+      if (pair === null) continue
+      const result = checkContrast(pair[0], pair[1])
+      expect(
+        result.ratio ?? 0,
+        `MCP ${name} dot in ${theme}: ${pair[0]} on ${pair[1]}`
+      ).toBeGreaterThanOrEqual(WCAG_AA_LARGE)
+    }
+
+    await app.close()
+  })
+}
+
+/**
+ * Text selection (`::selection`) — the one paint job no other sweep in this
+ * file can see.
+ *
+ * Every test above measures a *resting* surface. Selection is a state the user
+ * puts a surface into, and the DS shipped one global rule
+ * (`background: var(--accent)`) for all of them — so on the one surface that is
+ * itself `--accent`, the user's own chat bubble, dragging across your message
+ * painted coral on coral. Measured: `rgb(204,121,88)` on both sides, a ratio of
+ * 1.00:1. Nothing about that is visible in a screenshot of the resting state,
+ * in a unit test, or in the CSS, which reads perfectly sensibly.
+ *
+ * Two floors, because a selection has two jobs (and only the second one caught
+ * this bug):
+ *   - the selected text must stay readable on the highlight (4.5:1);
+ *   - the highlight must be distinguishable from the surface it lands on
+ *     (3:1, the non-text floor) — otherwise there is no selection to read.
+ *
+ * The pair is read off the originating element, never off `:root`: `::selection`
+ * resolves `var()` against the element it applies to, and per-surface overrides
+ * of `--selection-bg`/`--selection-ink` are the entire mechanism under test.
+ * Reading the root would measure the default three times and report a pass.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y text selection meets WCAG AA in the ${theme} theme`, async ({ seeded }) => {
+    const agent = armScriptedAgent(seeded, { chunks: ['Claro, começo pelo escopo do PRD.'] })
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    await waitForWorkUI(window)
+    await setTheme(window, theme)
+
+    // A real turn, because two of the four surfaces (the user's bubble and the
+    // agent's reply) do not exist until a message has been exchanged.
+    await window
+      .getByPlaceholder(/Escreva/)
+      .first()
+      .fill('preciso de um PRD para pagamentos recorrentes')
+    await window.getByRole('button', { name: 'Enviar' }).click()
+    await window
+      .locator('.hds-chat-message-user .hds-chat-message-bubble')
+      .first()
+      .waitFor({ state: 'visible', timeout: 30_000 })
+    await window.locator('.wb-chat-md').first().waitFor({ state: 'visible', timeout: 30_000 })
+    await freezeMotion(window)
+
+    const SURFACES: Array<{ key: string; selector: string }> = [
+      { key: 'a mensagem do usuário', selector: '.hds-chat-message-user .hds-chat-message-bubble' },
+      { key: 'a resposta do agente', selector: '.wb-chat-md' },
+      { key: 'o compositor', selector: '.hds-prompt-input textarea' },
+      { key: 'uma linha da árvore', selector: '.wb-tree-row-content .hds-tree-label-text' }
+    ]
+
+    const measured = await window.evaluate((surfaces) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      const paint = (value: string): string | null => {
+        if (ctx === null || value === '' || value === 'transparent') return null
+        ctx.clearRect(0, 0, 1, 1)
+        ctx.fillStyle = '#000'
+        ctx.fillStyle = value
+        ctx.clearRect(0, 0, 1, 1)
+        ctx.fillRect(0, 0, 1, 1)
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
+        // Composited over white/black is wrong for a translucent value, so the
+        // alpha is returned and the caller composites over the real backdrop.
+        return `rgba(${r}, ${g}, ${b}, ${a / 255})`
+      }
+      return surfaces.map(({ key, selector }) => {
+        const node = document.querySelector(selector)
+        if (node === null) return { key, selector, missing: true as const }
+        const style = getComputedStyle(node)
+        // Walk up to the nearest opaque paint — the element itself is usually
+        // transparent, and a highlight measured against `transparent` is
+        // meaningless.
+        let backdrop = 'rgb(255, 255, 255)'
+        for (let el: Element | null = node; el; el = el.parentElement) {
+          const painted = getComputedStyle(el).backgroundColor
+          if (painted && painted !== 'transparent' && !/,\s*0\s*\)$/.test(painted)) {
+            backdrop = painted
+            break
+          }
+        }
+        return {
+          key,
+          selector,
+          missing: false as const,
+          highlight: paint(style.getPropertyValue('--selection-bg').trim()),
+          ink: paint(style.getPropertyValue('--selection-ink').trim()),
+          backdrop: paint(backdrop)
+        }
+      })
+    }, SURFACES)
+
+    // A surface that stopped existing would skip silently and pass vacuously —
+    // exactly the failure mode this whole file was written against.
+    expect(
+      measured.filter((m) => m.missing).map((m) => m.selector),
+      `selection surfaces missing in ${theme}`
+    ).toEqual([])
+
+    for (const surface of measured) {
+      if (surface.missing) continue
+      const { key, highlight, ink, backdrop } = surface
+      expect(highlight, `${key}: --selection-bg did not resolve in ${theme}`).not.toBeNull()
+      expect(ink, `${key}: --selection-ink did not resolve in ${theme}`).not.toBeNull()
+      if (highlight === null || ink === null || backdrop === null) continue
+
+      const onSurface = checkContrast(highlight, backdrop)
+      expect(
+        onSurface.ratio ?? 0,
+        `${key} in ${theme}: the highlight ${highlight} is indistinguishable from ${backdrop} —` +
+          ' selecting the text would change nothing on screen'
+      ).toBeGreaterThanOrEqual(WCAG_AA_LARGE)
+
+      const onHighlight = checkContrast(ink, highlight)
+      expect(
+        onHighlight.ratio ?? 0,
+        `${key} in ${theme}: selected text ${ink} on ${highlight}`
+      ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL)
+    }
+
+    await app.close()
   })
 }

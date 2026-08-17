@@ -346,3 +346,200 @@ ancestral for centralizado.
 app de verdade — isso roda um `npm install -g` global. O `e2e/contrast.spec.ts`
 cobre a superfície em repouso do picker; os estados transitórios ficam aqui,
 onde o bridge é mockado.
+
+## Sonda das superfícies de MCP (M19)
+
+[`tools/visual/mcp-visibility.mjs`](../tools/visual/mcp-visibility.mjs) cobre as
+três superfícies que a M19 criou — a linha de handshake dentro do turno, o card
+de roster da status bar e a faixa de servidores do console — em **cinco
+estados** (saudável, com falha, card saudável, card com falha, console vazio) e
+nos três temas, deixando `.playwright-mcp/mcpvis-<estado>-<tema>.png`.
+
+Ela nasceu de três coisas que valem para a próxima sonda:
+
+**1. Mutar a fixture depois que a store carregou mede um estado que nunca foi
+renderizado.** `useMcpLogs` lê o histórico **uma vez por workspace**; um
+`window.__mcpSilence()` chamado depois disso não muda nada na tela. A primeira
+passada reportou cinco amostras `missing` no estado vazio — que é o próprio
+sinal de que o estado não existiu. O `boot.mjs` ganhou `?mcpsilent=1`: um query
+param força navegação de verdade e re-executa o init script (mesma lição do M17).
+A regra: **se o estado que você quer medir depende de um efeito que roda no
+mount, chegue nele navegando, não mutando.**
+
+**2. `missing` é o único jeito de um estado ausente virar um erro em vez de um
+PASS.** Nas duas passadas, o veredito só ficou verde quando `failures` **e**
+`missing` estavam vazios nos três temas. Mas o corolário também vale: seletor
+que só existe num estado (o badge de problema, o ponto de falha) não pode entrar
+na lista do estado saudável, ou o `missing` vira ruído e para de significar
+alguma coisa. A sonda tem duas listas por isso.
+
+**3. Contraste verde não é passe visual.** Os três temas deram PASS de contraste
+na primeira execução e o screenshot mostrou três defeitos que número nenhum
+pegaria: o resumo da status bar cortado em `1 de 3 com probl…` (`max-width` de
+140px), os nomes do card cortados em `hive-appro…`, e as colunas de estado e
+contagem desalinhadas entre as linhas. Este último é o mais instrutivo —
+`display: grid` **em cada `<li>`** dimensiona as colunas de cada linha de forma
+independente, então elas nunca se alinham entre si. O conserto é uma grade só na
+`<ul>` com as linhas herdando as trilhas por `subgrid` (que, ao contrário de
+`display: contents`, mantém o `<li>` na árvore de acessibilidade).
+
+**A lição de UX que sobrou:** truncar um caminho de cache com reticências corta
+justamente a metade que responde à pergunta. O slug (`C--Users-gusta-Desktop-…`)
+é o que diz _qual working directory a CLI achou que tinha_; o prefixo é sempre o
+mesmo. Estado vazio tem espaço — deixe quebrar em duas linhas.
+
+**No gate E2E, no mesmo commit** (corolário do M16): `e2e/contrast.spec.ts` ganhou
+`@p0 @a11y the MCP roster surfaces`, que roda um turno de verdade pelo CLI
+stand-in com `mcp_servers` na linha de init — então quem está sendo medido é o
+`readMcpRoster` de produção, não uma fixture pronta. E ele repetiu a armadilha
+do M15 na primeira execução: os pontos de estado são `--success`/`--danger`,
+escritos em `oklch()`, e `checkContrast` devolve "não deu para medir" —
+que a asserção leu como razão **zero** e reprovou. Resolver a cor pintando um
+pixel dentro do `page.evaluate` conserta; e note que o modo de falha barulhento
+foi sorte, porque a mesma lacuna com uma asserção mais frouxa teria virado um
+PASS silencioso.
+
+## Sonda do seletor de terminal (M20)
+
+[`tools/visual/shell-contrast.mjs`](../tools/visual/shell-contrast.mjs) percorre
+os **três estados** do seletor de terminal do perfil — automático, um terminal
+escolhido (as ressalvas por agente trocam) e o estado em que o terminal
+escolhido foi desinstalado — nos três temas, medindo cada texto com o floor
+correto (4,5:1, ou 3:1 para os ícones de status). 57 medições, 0 reprovações.
+
+Ela achou **três defeitos que o contraste verde não pegaria**, e os três são de
+famílias que já apareceram aqui:
+
+**1. Estilo de dado aplicado a uma frase.** A segunda linha da opção
+"Automático" é uma sentença, mas herdava o tratamento da linha de _caminho_
+(monoespaçada + `text-overflow: ellipsis`) e chegava truncada em "Prompt de
+C…". Um caminho e uma frase moram na mesma posição do layout e mesmo assim são
+tipos diferentes de conteúdo — o `data-path` separa os dois. E caminho **quebra
+em duas linhas** em vez de truncar: a metade que as reticências comiam era
+justamente a que distingue dois PowerShells.
+
+**2. A mesma informação duas vezes, a 40px de distância.** A barra de status
+dizia "em uso: Prompt de Comando" logo acima da linha "Automático", que diz
+"Segue o padrão do sistema: Prompt de Comando" — mais o selo "PADRÃO DO
+SISTEMA" na linha correspondente. Três vozes para um fato. A barra ficou só com
+a contagem.
+
+**3. `:hover` tão marcado quanto `selecionado`.** A linha em hover usava
+`--surface-2`, que nos temas claro e hive é quente o bastante para ler como o
+tint de acento do estado **selecionado** — de relance, a linha sob o mouse
+parecia escolhida. Trocado por uma lavagem neutra (`color-mix` com `--ink`), que
+resolve nos três temas.
+
+**Cuidado de fixture que vale para a próxima:** um `select` mockado como no-op
+faz o seletor nunca mudar de opção, e o passe seguinte lê a inércia da fixture
+como defeito do componente. O `boot.mjs` guarda o id escolhido em
+`state.shellSelected`, então clicar muda de verdade — foi assim que o estado
+"escolhido" pôde ser fotografado.
+
+## Sonda da seleção de texto
+
+[`tools/visual/selection-contrast.mjs`](../tools/visual/selection-contrast.mjs)
+mede o que o `::selection` realmente pinta nas quatro superfícies em que se
+arrasta o mouse — a mensagem do usuário, a resposta do agente, o compositor e
+uma linha da árvore — nos três temas. 12 medições por run.
+
+Ela existe porque o defeito que a originou é **invisível para todo o resto
+deste guia**. Toda sonda acima mede uma superfície _em repouso_; seleção é um
+estado que o usuário provoca. O design system tinha uma única regra global
+(`background: var(--accent)`) para todas as superfícies — então na única que é
+ela mesma `--accent`, o balão da própria mensagem, arrastar sobre o texto
+pintava coral sobre coral. Medido: `rgb(204,121,88)` dos dois lados, razão de
+**1,00:1**. Nada disso aparece num screenshot do estado em repouso, num teste
+unitário, nem no CSS — que se lê perfeitamente sensato.
+
+**Dois pisos, porque uma seleção faz duas coisas** (e só o segundo pega esse
+bug):
+
+- o texto selecionado tem que continuar legível sobre o destaque — **4,5:1**;
+- o destaque tem que ser distinguível da superfície em que cai — **3:1**, o
+  piso de não-texto. Sem isso não há seleção para ler.
+
+**A lição de token que sobrou:** `::selection` resolve `var()` contra o
+**elemento de origem**, e custom properties herdam. Então o par virou
+`--selection-bg`/`--selection-ink` (tokens.css) e qualquer superfície que se
+pinta de `--accent` reaponta o par **em si mesma**, duas linhas ao lado do
+`background` que causa o problema (`ChatMessage.css`, `Button.css`, e a lista
+agrupada no topo do `workbench.css`). Não há segunda regra para manter em
+sincronia, e a inversão usada — `--accent-ink` sobre `--accent`, o próprio par
+do preenchimento trocado — herda a garantia de contraste que aquele par já
+tem, em vez de introduzir uma cor que precisaria ser remedida (5,54:1 no escuro
+e no hive, 8,91:1 no claro).
+
+**Ler o par no `:root` não serve.** Reaponte-o onde ele é sobrescrito e leia-o
+de lá — uma sonda que amostra a raiz mede o default três vezes e reporta PASS.
+É a mesma armadilha do M15 (medir o tema do boot três vezes) numa forma nova.
+
+**No gate E2E, no mesmo commit** (corolário do M16): `e2e/contrast.spec.ts`
+ganhou `@p0 @a11y text selection`, que roda um turno de verdade pelo CLI
+stand-in — duas das quatro superfícies não existem antes de uma mensagem ser
+trocada. O gate foi verificado _ao contrário_ também: com a correção do
+`ChatMessage.css` removida, ele reprova com a frase certa ("the highlight … is
+indistinguishable from … — selecting the text would change nothing on screen").
+Portão que nunca falhou não é portão.
+
+**Cuidado de fixture, terceira vez:** o `listTree` do `boot.mjs` estava escrito
+com `kind: 'directory'` onde o `FsTreeNode` do Explorer lê `type`. Toda linha
+virava folha — sem pastas, sem aninhamento, sem intervalo de seleção que
+valesse o nome — e o passe leria isso como comportamento do componente. Se a
+fixture não bate com o contrato, a sonda mede a fixture.
+
+## Quarta armadilha do parser: `oklab()` volta como forma desconhecida
+
+`color-mix(in oklab, var(--accent) 30%, transparent)` — a pílula de menção do
+composer — resolve no `getComputedStyle()` como `oklab(L a b / α)`, que **nenhum
+dos três regexes** da sonda compartilhada (`color(srgb …)`, `rgba()`, `#hex`)
+reconhece. O `parse()` devolveu `null`, o `bgOf()` pulou a camada, e a pílula
+mediu **1,00:1 contra a superfície em que estava sentada** — um FAIL alto e
+confiante sobre um defeito que não existia, enquanto o defeito de verdade (um
+tint fraco demais para enxergar no tema `hive`) passava sem medição.
+
+A correção está em `tools/visual/mention-pass.mjs`: qualquer forma que os
+regexes não reconheçam cai num canvas 1×1 (`ctx.fillStyle = valor` + `fillRect`
+
+- `getImageData`), que resolve tudo que o CSS aceita. Continua valendo a
+  armadilha 3 — leia os canais como vêm, **sem** dividir pelo alfa. Uma sonda que
+  não reconhece a cor não fica em silêncio: ela reporta um número errado com cara
+  de certo.
+
+## Piso inventado não é medição
+
+O mesmo passe queria checar algo que a WCAG não cobre — "dá para ver que ali há
+uma pílula?". O primeiro piso (1,3:1) foi escolhido no teclado; o screenshot em
+exatamente 1,30:1 mostrava uma mancha. Subido para 1,7 reprovou uma pílula que
+lê perfeitamente a 1,60:1. Onde não existe número normativo, calibre contra
+imagens e **escreva a evidência ao lado do número** — os dois screenshots que
+cercam o valor estão citados no comentário do arquivo. Sem isso é preferência
+com casa decimal.
+
+## Um terceiro tema não herda blocos escritos para dois
+
+`--wb-ic-*` (as cores por tipo de arquivo) tinha rampa clara no `:root` e rampa
+escura em `[data-theme='dark']`. O tema `hive` é escuro e caía na rampa **clara**
+— L≈52% sobre bordô quase preto, 2,57:1 — na árvore do explorer, no cabeçalho
+do visualizador e no diálogo de busca, não só na superfície que encontrou o
+problema. Quando um bloco de tokens é chaveado por tema, faça grep de **todos**
+os seletores de tema, não só do que você está mexendo.
+
+## Olhar o instalador NSIS sem sair do WSL
+
+O `.exe` de instalação renderiza de verdade aqui, e o screenshot pegou um
+defeito de cópia que compilação nenhuma pegaria (o texto dizia "Clique em
+Avançar" e o arquivo de idioma pt-BR do NSIS rotula o botão `Próximo`):
+
+```bash
+mkdir -p /tmp/fb
+Xvfb :99 -screen 0 1100x800x24 -fbdir /tmp/fb &
+DISPLAY=:99 WINEPREFIX=/tmp/wine wine dist/Hive-<versão>-setup.exe &
+```
+
+`-fbdir` mantém um dump XWD vivo da tela em `/tmp/fb/Xvfb_screen0`: cabeçalho
+big-endian de 32 bits (largura em 16, altura em 20, bits-por-pixel em **44**,
+bytes-por-linha em **48** — errar esses dois offsets devolve `bpp: 4400`), pixels
+BGRX depois de `header_size`. Vinte linhas de Node + `sharp` viram PNG. Não há
+`xdotool` nesta máquina, então dá para ver a primeira página, não clicar nas
+seguintes.

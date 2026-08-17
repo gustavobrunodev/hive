@@ -50,7 +50,7 @@ export function secondBrainQuery(question: string): RoleAction {
  * launched a *bare* `/second-brain-ingest`, so the transcript showed a command
  * with no trace of what the user had just typed or dictated. Sending the text
  * along is the same choice `secondBrainQuery` makes — what you sent is what
- * the transcript shows — and it is what the `#file` composer does too.
+ * the transcript shows — and it is what the `@file` composer does too.
  *
  * The staged path rides on the command line because the skill documents
  * exactly that argument ("if the user specifies a file, use those"), which

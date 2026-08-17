@@ -54,6 +54,12 @@ export interface McpLogSource {
   lastActivityAt: number | null
 }
 
+/** Where the console reads from. Mirror of `main/mcpLogService.ts`. */
+export interface McpLogLocation {
+  dir: string
+  exists: boolean
+}
+
 /**
  * `logConsole` — everything the MCP console decides, with no React and no IPC:
  * which entries a filter admits, what the tallies say, how the stream breaks
@@ -223,6 +229,12 @@ export interface ServerStat {
   lastAt: number
   /** Whether the last connection event for this server was a successful connect. */
   live: boolean
+  /**
+   * Whether the last connection event was a *failure*. Not the negation of
+   * `live`: a cleanly closed connection is neither live nor failed, and the
+   * roster must not paint an ordinary end-of-turn shutdown as trouble.
+   */
+  lastFailed: boolean
 }
 
 /** The median of a non-empty sorted list, averaging the middle pair when even. */
@@ -261,7 +273,8 @@ export function serverStats(entries: McpLogEntry[]): ServerStat[] {
       slowestMs: durations.length > 0 ? durations[durations.length - 1] : null,
       medianMs: durations.length > 0 ? median(durations) : null,
       lastAt: group.reduce((latest, entry) => Math.max(latest, entry.at), 0),
-      live: lastConnection?.kind === 'connected' || lastConnection?.kind === 'capabilities'
+      live: lastConnection?.kind === 'connected' || lastConnection?.kind === 'capabilities',
+      lastFailed: lastConnection?.kind === 'connect-failed'
     })
   }
   return stats.sort((a, b) => b.lastAt - a.lastAt)

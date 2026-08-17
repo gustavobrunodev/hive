@@ -4,6 +4,7 @@ import {
   createProcessRunner,
   type ProcessStreamChunk
 } from './processRunner'
+import type { ShellInfo } from './shellCatalog'
 
 async function collect(output: AsyncIterable<ProcessStreamChunk>): Promise<ProcessStreamChunk[]> {
   const chunks: ProcessStreamChunk[] = []
@@ -169,5 +170,122 @@ describe('ProcessRunner — real child_process-backed runner', () => {
 
     // macOS resolves /tmp to /private/tmp; just assert the leaf segment.
     expect(stdout.trim().endsWith('tmp')).toBe(true)
+  })
+})
+
+/**
+ * agent-terminal (AT-R3 / D-AT-1). Every case here runs a REAL shell against a
+ * REAL child process, because the properties that matter are properties of the
+ * process tree, not of a string: the chosen shell is actually in the middle,
+ * `kill()` still reaches the CLI through it, the prompt survives the trip
+ * unchanged, and nothing that didn't ask for a shell gets one.
+ */
+describe('ProcessRunner — the chosen terminal (agent-terminal)', () => {
+  const bash: ShellInfo = { id: 'bash', path: '/bin/bash', family: 'bash', systemDefault: true }
+  const posixOnly = process.platform === 'win32' ? it.skip : it
+
+  posixOnly('runs the agent turn inside the chosen shell', async () => {
+    const runner = createProcessRunner({ shell: () => bash })
+    // `$0` is the shell's own name — proof the process really has a shell
+    // parent rather than a flag we set and never used.
+    const handle = runner.run('/bin/sh', ['-c', 'echo parent=$(ps -o comm= -p $PPID)'], {
+      shell: true
+    })
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+    expect(chunks.map((chunk) => chunk.data).join('')).toContain('parent=')
+  })
+
+  posixOnly('leaves every other spawn exactly as it was (D-AT-1)', async () => {
+    const runner = createProcessRunner({
+      shell: () => {
+        throw new Error('a non-agent spawn must never ask for the shell')
+      }
+    })
+    const handle = runner.run(process.execPath, ['-e', "console.log('direto')"])
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+    expect(chunks.map((chunk) => chunk.data).join('')).toContain('direto')
+  })
+
+  posixOnly(
+    'spawns directly when no shell is selected, so nothing changes by default',
+    async () => {
+      const runner = createProcessRunner({ shell: () => null })
+      const handle = runner.run(process.execPath, ['-e', "console.log('automatico')"], {
+        shell: true
+      })
+      const chunks = await collect(handle.output)
+      await expect(handle.exitCode).resolves.toEqual({ code: 0, signal: null })
+      expect(chunks.map((chunk) => chunk.data).join('')).toContain('automatico')
+    }
+  )
+
+  posixOnly('a prompt full of shell metacharacters reaches the CLI unchanged', async () => {
+    const runner = createProcessRunner({ shell: () => bash })
+    const prompt = 'roda $(id) && echo `whoami` | grep "x" ${HOME}'
+    const handle = runner.run(process.execPath, ['-e', 'console.log(process.argv[1])', prompt], {
+      shell: true
+    })
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+    expect(
+      chunks
+        .map((chunk) => chunk.data)
+        .join('')
+        .trim()
+    ).toBe(prompt)
+  })
+
+  posixOnly(
+    'kill() still stops the turn through the shell (exec, not a stranded child)',
+    async () => {
+      const runner = createProcessRunner({ shell: () => bash })
+      const handle = runner.run(process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], {
+        shell: true
+      })
+      setTimeout(() => handle.kill(), 100)
+      const result = await handle.exitCode
+      expect(result.signal).toBe('SIGTERM')
+    },
+    10000
+  )
+
+  posixOnly('exports SHELL so a CLI that reads it agrees with the choice', async () => {
+    const runner = createProcessRunner({ shell: () => bash })
+    const handle = runner.run(process.execPath, ['-e', 'console.log(process.env.SHELL)'], {
+      shell: true
+    })
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+    expect(
+      chunks
+        .map((chunk) => chunk.data)
+        .join('')
+        .trim()
+    ).toBe('/bin/bash')
+  })
+
+  posixOnly("the adapter's own env wins over the shell's generic one", async () => {
+    const runner = createProcessRunner({ shell: () => bash })
+    const handle = runner.run(process.execPath, ['-e', 'console.log(process.env.SHELL)'], {
+      shell: true,
+      env: { SHELL: '/bin/zsh' }
+    })
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+    expect(
+      chunks
+        .map((chunk) => chunk.data)
+        .join('')
+        .trim()
+    ).toBe('/bin/zsh')
+  })
+
+  posixOnly('an unresolvable command still fails as the plain ENOENT probes read', async () => {
+    const runner = createProcessRunner({ shell: () => bash })
+    const handle = runner.run('nao-existe-mesmo-hive', ['--version'], { shell: true })
+    await collect(handle.output)
+    await expect(handle.exitCode).resolves.toEqual({ code: null, signal: null })
   })
 })

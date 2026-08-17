@@ -1,5 +1,12 @@
 import type { ProcessRunner } from './processRunner'
-import type { AgentAdapter, AgentAdapterDeps, AgentCapabilities, SessionOpts } from './agentAdapter'
+import type {
+  AgentAdapter,
+  AgentAdapterDeps,
+  AgentCapabilities,
+  SessionOpts,
+  ShellBinding
+} from './agentAdapter'
+import type { ShellInfo } from './shellCatalog'
 import { createCliAgentSession } from './cliAdapterCore'
 
 /**
@@ -40,11 +47,15 @@ const CLAUDE_COMMAND = 'claude'
 
 /**
  * The context window every current Claude model exposes through the CLI, in
- * tokens (session-usage). Curated here for the same reason the model list is
- * (C5): no CLI reports its own limit, and the UI needs a denominator to say
- * how full a conversation is. One shared constant rather than four copies —
- * the day a model ships a different window, it gets its own entry and this
- * stays the default.
+ * tokens (session-usage) — the meter's denominator *before the first turn
+ * answers*, which is the only window in which it is the best number available.
+ *
+ * The CLI does state its own ceiling, but only in hindsight: every `result`
+ * line carries `modelUsage[model].contextWindow` (verified on 2.1.226:
+ * `200000` for haiku), and `cliAdapterCore` forwards it so the meter switches
+ * to the real figure as soon as a turn reports. This constant covers the gap —
+ * and the case where a configured window (`sonnet[1m]`) differs from the
+ * curated one, which is precisely why the reported figure outranks it.
  */
 const CLAUDE_CONTEXT_WINDOW = 200_000
 
@@ -72,6 +83,51 @@ function capabilities(): AgentCapabilities {
 }
 
 /**
+ * How the Claude Code CLI honours a chosen shell (agent-terminal AT-R4).
+ *
+ * Not guessed — read out of the shipped binary (`claude 2.1.226`), because the
+ * rules are narrow enough that guessing would produce a setting that silently
+ * does nothing:
+ *
+ *  - **POSIX**: `CLAUDE_CODE_SHELL` is accepted only when the path *contains*
+ *    `bash` or `zsh` and is executable; anything else is logged as
+ *    "not a valid bash/zsh path, falling back to detection" and dropped. So
+ *    fish/sh/dash get `launch-only` rather than an export the CLI throws away.
+ *  - **Windows**: `Bash` runs through Git Bash (`CLAUDE_CODE_GIT_BASH_PATH`,
+ *    whose basename must be `bash.exe`/`sh.exe`/`bash`/`sh`), and
+ *    `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` turns on the PowerShell tool. There
+ *    is **no cmd executor at all** — which is exactly why cmd, the platform
+ *    default this feature was asked to ship, reports `launch-only` with the
+ *    note the picker renders. Telling the user otherwise would be the one
+ *    thing worse than not offering the choice.
+ */
+export function claudeShellBinding(shell: ShellInfo): ShellBinding {
+  if (shell.family === 'bash' || shell.family === 'zsh') {
+    // Windows' Git Bash *is* the CLI's own executor; POSIX bash/zsh are what
+    // `CLAUDE_CODE_SHELL` accepts. Same variable name would be wrong on
+    // Windows, hence the split by id rather than by family alone.
+    return shell.id === 'git-bash'
+      ? {
+          support: 'native',
+          note: 'windows-git-bash',
+          env: { CLAUDE_CODE_GIT_BASH_PATH: shell.path }
+        }
+      : { support: 'native', env: { CLAUDE_CODE_SHELL: shell.path } }
+  }
+  if (shell.family === 'powershell') {
+    return {
+      support: 'native',
+      note: 'powershell-preview',
+      env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
+    }
+  }
+  if (shell.family === 'cmd') {
+    return { support: 'launch-only', note: 'windows-git-bash', env: {} }
+  }
+  return { support: 'launch-only', note: 'posix-bash-zsh-only', env: {} }
+}
+
+/**
  * Creates the `ClaudeCliAdapter`. `processRunner` is injected
  * (constructor/factory-injection, matching `createConfigStore`/
  * `createWorkspaceService`) so this module is fully testable against
@@ -91,10 +147,17 @@ export function createClaudeCliAdapter(
     id: 'claude-cli',
     displayName: 'Claude CLI',
     capabilities,
+    shellBinding: claudeShellBinding,
     startSession: (opts: SessionOpts) =>
       createCliAgentSession(processRunner, opts, {
         command: CLAUDE_COMMAND,
         errorLabel: 'claude',
+        // agent-terminal: re-read per turn, so switching terminals in the
+        // profile sheet reaches the very next message.
+        buildEnv: () => {
+          const shell = deps?.shell?.() ?? null
+          return shell ? claudeShellBinding(shell).env : undefined
+        },
         buildArgs: (turnPrompt, { model, effort, resume, turnId }) => {
           // agent-approvals: only wire the prompt tool once the bridge is
           // actually listening — a config pointing at no port would fail the

@@ -38,16 +38,19 @@ let emit: ((batch: McpLogEntry[]) => void) | null = null
 let stop: ReturnType<typeof vi.fn>
 let read: ReturnType<typeof vi.fn>
 let sources: ReturnType<typeof vi.fn>
+let locate: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   emit = null
   stop = vi.fn()
   read = vi.fn().mockResolvedValue([])
   sources = vi.fn().mockResolvedValue([])
+  locate = vi.fn().mockResolvedValue({ dir: '/cache/ws', exists: true })
   ;(window as unknown as { hive: unknown }).hive = {
     mcpLogs: {
       read,
       sources,
+      locate,
       openDir: vi.fn(),
       watch: vi.fn((_workspace: string, onBatch: (batch: McpLogEntry[]) => void) => {
         emit = onBatch
@@ -117,9 +120,7 @@ describe('useMcpLogs', () => {
   it('loads history and sources, then reports not-loading', async () => {
     const history = [entry({ text: 'histórico' })]
     read.mockResolvedValue(history)
-    sources.mockResolvedValue([
-      { server: 'playwright', dir: '/d', files: 2, lastActivityAt: 5 }
-    ])
+    sources.mockResolvedValue([{ server: 'playwright', dir: '/d', files: 2, lastActivityAt: 5 }])
 
     const { result } = renderHook(() => useMcpLogs('/ws'))
     expect(result.current.loading).toBe(true)

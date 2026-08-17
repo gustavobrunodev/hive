@@ -6,10 +6,21 @@ import {
   relativeTimeLabel,
   shortcutLabel,
   agentMeta,
+  shellName,
+  shellSupportNote,
   provisionMessagesPtBR
 } from './pt-BR'
 
-export { intentLabel, roleMeta, roleActionLabel, relativeTimeLabel, shortcutLabel, agentMeta }
+export {
+  intentLabel,
+  roleMeta,
+  roleActionLabel,
+  relativeTimeLabel,
+  shortcutLabel,
+  agentMeta,
+  shellName,
+  shellSupportNote
+}
 export type { RoleMeta, ProvisionStage } from './pt-BR'
 
 /** Rotating reassurance for the provisioning gate, keyed by stage. */
@@ -49,7 +60,7 @@ type ReturnFor<V> = V extends AnyStringFn ? string : V
 /**
  * Typed accessor into the pt-BR strings module.
  *
- *   t('app.title')                    // -> 'Hive Desktop'
+ *   t('app.title')                    // -> 'Hive'
  *   t('theme.pickerLabelWithCurrent', t('theme.dark')) // -> 'Aparência (atual: Escuro)'
  *
  * There is only one locale in MVP scope, so this is a thin typed lookup over

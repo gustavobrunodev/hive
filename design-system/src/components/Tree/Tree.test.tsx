@@ -327,6 +327,80 @@ describe("Tree", () => {
       expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
     })
 
+    it("a parent row is selectable, and a plain click still expands it", () => {
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" />)
+      fireEvent.click(screen.getByText("src"))
+      expect(getItem("src")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-expanded", "true")
+    })
+
+    it("Shift-click ONTO a parent row extends the range instead of collapsing it", () => {
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src"]} />
+      )
+      fireEvent.click(screen.getByText("README.md"))
+      // Visible order: src, components, index.ts, README.md — so the range
+      // back up to "components" (a parent) must cover the three rows between.
+      fireEvent.click(screen.getByText("components"), { shiftKey: true })
+      expect(getItem("components")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "false")
+      // …and the modifier click must not have toggled the folder open, which
+      // would have reordered the very list the range was measured over.
+      expect(getItem("components")).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("a parent row can anchor a range (Shift-click FROM a folder)", () => {
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src"]} />
+      )
+      fireEvent.click(screen.getByText("components")) // selects AND expands
+      fireEvent.click(screen.getByText("README.md"), { shiftKey: true })
+      expect(getItem("components")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("Button.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("Input.tsx")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("Ctrl-click adds a parent row to the selection without expanding it", () => {
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" />)
+      fireEvent.click(screen.getByText("README.md"))
+      fireEvent.click(screen.getByText("src"), { ctrlKey: true })
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("src")).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("Shift+ArrowDown/ArrowUp extends the range from the row focus is leaving", async () => {
+      const user = userEvent.setup()
+      render(
+        <Tree nodes={nodes} aria-label="Files" selection="multiple" defaultExpandedIds={["src"]} />
+      )
+      // Visible order: src, components, index.ts, README.md (locked.txt is disabled).
+      getItem("components").focus()
+      await user.keyboard("{Shift>}{ArrowDown}{/Shift}")
+      expect(getItem("components")).toHaveAttribute("aria-selected", "true")
+      expect(getItem("index.ts")).toHaveAttribute("aria-selected", "true")
+      await user.keyboard("{Shift>}{ArrowDown}{/Shift}")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "true")
+      // Shrinking back up keeps the anchor where the walk started.
+      await user.keyboard("{Shift>}{ArrowUp}{/Shift}")
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+      expect(getItem("components")).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("a bare ArrowDown moves focus without touching the selection", async () => {
+      const user = userEvent.setup()
+      render(<Tree nodes={nodes} aria-label="Files" selection="multiple" />)
+      getItem("src").focus()
+      await user.keyboard("{ArrowDown}")
+      expect(getItem("README.md")).toHaveFocus()
+      expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
+      expect(getItem("src")).toHaveAttribute("aria-selected", "false")
+    })
+
     it("Enter/Space always pass toggle:false, range:false (single-item select, no range/toggle surprises)", async () => {
       const user = userEvent.setup()
       render(<Tree nodes={nodes} aria-label="Files" selection="multiple" defaultSelectedIds={["src"]} />)

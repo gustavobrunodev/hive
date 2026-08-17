@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createFakeProcessRunner, type ProcessHandle, type ProcessRunner } from './processRunner'
-import { createClaudeCliAdapter } from './claudeCliAdapter'
-import type { AgentAdapter, AgentEvent } from './agentAdapter'
+import { claudeShellBinding, createClaudeCliAdapter } from './claudeCliAdapter'
+import { readMcpRoster } from './cliAdapterCore'
+import type { AgentAdapter, AgentEvent, TurnUsage } from './agentAdapter'
+import type { ShellInfo } from './shellCatalog'
 
 /** Pulls exactly `count` events off a session's `events` async-iterable. */
 async function take(events: AsyncIterable<AgentEvent>, count: number): Promise<AgentEvent[]> {
@@ -84,8 +86,9 @@ describe('ClaudeCliAdapter — contract', () => {
   })
 
   // session-usage: the UI needs a denominator to turn the `usage` event's raw
-  // token counts into "how full is this conversation". No CLI reports its own
-  // limit, so every model this adapter offers has to declare one.
+  // token counts into "how full is this conversation". The CLI only states its
+  // own ceiling once a turn has finished, so every model declares one for the
+  // meantime.
   it('every curated model declares its context window', () => {
     const caps = createClaudeCliAdapter(createFakeProcessRunner()).capabilities()
 
@@ -175,7 +178,10 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     expect(fakeRunner.calls).toHaveLength(1)
     expect(fakeRunner.calls[0].command).toBe('claude')
     expect(fakeRunner.calls[0].args).toEqual(['-p', 'hi there', ...BASE_FLAGS])
-    expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws' })
+    // agent-terminal: `shell: true` marks this as an agent turn — the one
+    // spawn routed through the user's chosen terminal. With no adapter env and
+    // nothing chosen, the runner still spawns exactly as it did before.
+    expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws', env: undefined, shell: true })
   })
 
   it('emits a tool start per tool_use block — every tool, with filePath only for file-editing ones (agent-activity + ACR-C7)', async () => {
@@ -476,17 +482,152 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
       final: true,
       turnId: 'turn-9',
       usage: {
+        // Occupancy carried over from the snapshot above, not re-read off the
+        // `result` line, whose input counts are a sum over the turn's requests.
         inputTokens: 6,
         cacheCreationTokens: 14_304,
         cacheReadTokens: 61_200,
+        // Only the output side is the turn's total.
         outputTokens: 246,
-        model: undefined,
+        // The `result` line doesn't name the model; the snapshot did.
+        model: 'claude-opus-5',
+        contextWindow: undefined,
         costUsd: 0.098,
         durationMs: 8858,
         apiDurationMs: 9033
       }
     })
     expect(events[3]).toEqual({ type: 'done', turnId: 'turn-9' })
+  })
+
+  /**
+   * The defect: one BMAD prompt reported a 100%-full context window. Captured
+   * from a real `claude` 2.1.226 run (`--output-format stream-json`, 5 tool
+   * calls in one `-p` turn) — the `result` line's prompt tokens are the SUM
+   * over every request the turn made (15 854+22 667+23 298+23 609+23 760 =
+   * 109 188), while the window really held the last request's 23 910.
+   */
+  it('reads the context off the last request, not off the result line’s sums', async () => {
+    const requests = [
+      { cache_read_input_tokens: 15_854, cache_creation_input_tokens: 6813 },
+      { cache_read_input_tokens: 22_667, cache_creation_input_tokens: 631 },
+      { cache_read_input_tokens: 23_298, cache_creation_input_tokens: 311 },
+      { cache_read_input_tokens: 23_609, cache_creation_input_tokens: 151 },
+      { cache_read_input_tokens: 23_760, cache_creation_input_tokens: 142 }
+    ]
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        ...requests.map((usage) => ({
+          stream: 'stdout' as const,
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            message: {
+              model: 'claude-haiku-4-5-20251001',
+              content: [{ type: 'text', text: '.' }],
+              usage: { input_tokens: 8, output_tokens: 4, ...usage }
+            }
+          })
+        })),
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'result',
+            subtype: 'success',
+            session_id: 'cli-sess-1',
+            total_cost_usd: 0.0330248,
+            usage: {
+              input_tokens: 42,
+              cache_read_input_tokens: 109_188,
+              cache_creation_input_tokens: 8048,
+              output_tokens: 1060
+            },
+            modelUsage: {
+              'claude-haiku-4-5-20251001': { contextWindow: 200_000 }
+            }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'haiku' })
+
+    session.send({ text: 'q', turnId: 'turn-1' })
+    const events = await take(session.events, 7)
+    const last = events[6]
+
+    expect(last).toMatchObject({ type: 'usage', final: true })
+    const usage = (last as { usage: TurnUsage }).usage
+    // 8 + 23 760 + 142 — the last request, i.e. ~12% of the window. Summed it
+    // would be 117 278, which is 59% of a window this turn never came near.
+    expect(usage.inputTokens + usage.cacheReadTokens + usage.cacheCreationTokens).toBe(23_910)
+    // The turn's own totals still come from the result line.
+    expect(usage.outputTokens).toBe(1060)
+    expect(usage.costUsd).toBeCloseTo(0.0330248)
+    // And the CLI's own denominator, rather than a curated constant.
+    expect(usage.contextWindow).toBe(200_000)
+  })
+
+  /**
+   * A `Task`/`Agent` subagent runs its own conversation and reports its own
+   * usage. Measured live: the sidechain sat at 11 909–14 632 tokens while the
+   * parent was at 23 473, so folding those in made the meter drop mid-turn and
+   * then jump back. They carry `parent_tool_use_id`; the parent bills them.
+   */
+  it('ignores the usage of a subagent’s own conversation', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            parent_tool_use_id: null,
+            message: {
+              model: 'claude-haiku-4-5-20251001',
+              content: [{ type: 'text', text: '.' }],
+              usage: {
+                input_tokens: 10,
+                cache_read_input_tokens: 22_641,
+                cache_creation_input_tokens: 822,
+                output_tokens: 136
+              }
+            }
+          })
+        },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'assistant',
+            session_id: 'cli-sess-1',
+            parent_tool_use_id: 'toolu_sidechain',
+            message: {
+              model: 'claude-haiku-4-5-20251001',
+              content: [{ type: 'text', text: '.' }],
+              usage: {
+                input_tokens: 10,
+                cache_read_input_tokens: 0,
+                cache_creation_input_tokens: 11_899,
+                output_tokens: 4
+              }
+            }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'haiku' })
+
+    session.send({ text: 'q', turnId: 'turn-1' })
+    const events = await take(session.events, 3)
+
+    // Session, the parent's snapshot, done — the sidechain's never arrives.
+    expect(events.filter((event) => event.type === 'usage')).toHaveLength(1)
+    expect(events[2]).toEqual({ type: 'done', turnId: 'turn-1' })
   })
 
   it('a line with no usage block, or an all-zero one, produces no usage event', async () => {
@@ -727,5 +868,254 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: 'second' })
     const events = await take(session.events, 2)
     expect(events).toEqual([{ type: 'token', text: 'ok' }, { type: 'done' }])
+  })
+})
+
+/**
+ * mcp-visibility: the CLI's `system`/`init` line is the only place the app can
+ * learn which MCP servers a turn actually got and whether they answered. It
+ * used to be read for its `session_id` alone and thrown away, which is why the
+ * app could watch an agent drive Playwright and still show nothing about MCP.
+ *
+ * `readMcpRoster` is tested directly as well as through the adapter: it is a
+ * parse of somebody else's wire format, and the failure mode of getting it
+ * wrong is a confident lie on screen rather than a crash.
+ */
+describe('readMcpRoster (system/init)', () => {
+  const init = (over: Record<string, unknown>): Parameters<typeof readMcpRoster>[0] => ({
+    type: 'system',
+    subtype: 'init',
+    ...over
+  })
+
+  it('pairs each reported server with the tools it exposes', () => {
+    expect(
+      readMcpRoster(
+        init({
+          mcp_servers: [{ name: 'playwright', status: 'connected' }],
+          tools: [
+            'Bash',
+            'mcp__playwright__browser_navigate',
+            'mcp__playwright__browser_take_screenshot'
+          ]
+        })
+      )
+    ).toEqual([
+      {
+        name: 'playwright',
+        status: 'connected',
+        tools: ['browser_navigate', 'browser_take_screenshot']
+      }
+    ])
+  })
+
+  it("matches a dashed server name against the CLI's underscored tool namespace", () => {
+    // The CLI's tool namespace admits only [A-Za-z0-9_], so `hive-approvals`
+    // becomes `mcp__hive_approvals__*`. Matching on the raw string would split
+    // one server into two, each holding half the truth.
+    const roster = readMcpRoster(
+      init({
+        mcp_servers: [{ name: 'hive-approvals', status: 'connected' }],
+        tools: ['mcp__hive_approvals__approve']
+      })
+    )
+    expect(roster).toEqual([{ name: 'hive-approvals', status: 'connected', tools: ['approve'] }])
+  })
+
+  it('narrows the status word, and never reads an unknown one as fine', () => {
+    const roster = readMcpRoster(
+      init({
+        mcp_servers: [
+          { name: 'a', status: 'failed' },
+          { name: 'b', status: 'needs-auth' },
+          { name: 'c', status: 'pending' },
+          { name: 'd', status: 'something-new' },
+          { name: 'e' }
+        ],
+        tools: []
+      })
+    )
+    expect(roster?.map((server) => server.status)).toEqual([
+      'failed',
+      'needs-auth',
+      'pending',
+      'unknown',
+      'unknown'
+    ])
+  })
+
+  it('returns null for lines that are not an init, and for a CLI that reports no servers', () => {
+    expect(readMcpRoster({ type: 'assistant' })).toBeNull()
+    expect(readMcpRoster(init({ tools: ['Bash'] }))).toBeNull()
+    // An empty array is a real answer ("this turn got none") and stays a roster.
+    expect(readMcpRoster(init({ mcp_servers: [], tools: [] }))).toEqual([])
+  })
+
+  it('drops malformed entries rather than inventing a nameless server', () => {
+    expect(
+      readMcpRoster(
+        init({ mcp_servers: [null, 'playwright', { name: '  ' }, { name: 'ok' }], tools: [] })
+      )
+    ).toEqual([{ name: 'ok', status: 'unknown', tools: [] }])
+  })
+
+  it('ignores tool names whose namespace matches no reported server', () => {
+    expect(
+      readMcpRoster(
+        init({
+          mcp_servers: [{ name: 'pencil', status: 'connected' }],
+          tools: ['mcp__ghost__thing', 'mcp__pencil__execute', 'mcp__malformed', 'mcp____empty']
+        })
+      )
+    ).toEqual([{ name: 'pencil', status: 'connected', tools: ['execute'] }])
+  })
+})
+
+describe("ClaudeCliAdapter — the turn's MCP roster", () => {
+  it('emits one mcp event off the init line, before any tool call', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'system',
+            subtype: 'init',
+            session_id: 'cli-sess-1',
+            mcp_servers: [
+              { name: 'playwright', status: 'connected' },
+              { name: 'broken', status: 'failed' }
+            ],
+            tools: ['Read', 'mcp__playwright__browser_navigate']
+          })
+        },
+        { stream: 'stdout', data: textDelta('pronto') }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'm', effort: 'medium' })
+
+    session.send({ text: 'use o playwright' })
+    const events = await take(session.events, 4)
+
+    expect(events).toEqual([
+      { type: 'session', id: 'cli-sess-1', turnId: undefined },
+      {
+        type: 'mcp',
+        turnId: undefined,
+        servers: [
+          { name: 'playwright', status: 'connected', tools: ['browser_navigate'] },
+          { name: 'broken', status: 'failed', tools: [] }
+        ]
+      },
+      { type: 'token', text: 'pronto', turnId: undefined },
+      { type: 'done', turnId: undefined }
+    ])
+  })
+
+  it('stays silent on a CLI build whose init line carries no mcp_servers', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: initLine() },
+        { stream: 'stdout', data: textDelta('oi') }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws', model: 'm', effort: 'medium' })
+
+    session.send({ text: 'oi' })
+    const events = await take(session.events, 3)
+    expect(events.some((event) => event.type === 'mcp')).toBe(false)
+  })
+})
+
+/**
+ * agent-terminal (AT-R4/AT-R5). Every expectation below was read out of the
+ * shipped `claude` binary (2.1.226), not inferred from documentation: the CLI
+ * accepts `CLAUDE_CODE_SHELL` **only** for a bash/zsh path, uses
+ * `CLAUDE_CODE_GIT_BASH_PATH` as its Windows executor, and has no cmd executor
+ * at all. Guessing any of these produces a setting that silently does nothing,
+ * which is worse than not offering it.
+ */
+describe('ClaudeCliAdapter — the chosen terminal', () => {
+  const shell = (id: string, family: ShellInfo['family'], path: string): ShellInfo => ({
+    id,
+    family,
+    path,
+    systemDefault: false
+  })
+
+  it('exports CLAUDE_CODE_SHELL for bash and zsh — the only two the CLI accepts', () => {
+    expect(claudeShellBinding(shell('zsh', 'zsh', '/usr/bin/zsh'))).toEqual({
+      support: 'native',
+      env: { CLAUDE_CODE_SHELL: '/usr/bin/zsh' }
+    })
+    expect(claudeShellBinding(shell('bash', 'bash', '/bin/bash'))).toEqual({
+      support: 'native',
+      env: { CLAUDE_CODE_SHELL: '/bin/bash' }
+    })
+  })
+
+  it('exports nothing for fish/sh, because the CLI would log the value and drop it', () => {
+    expect(claudeShellBinding(shell('fish', 'fish', '/usr/bin/fish'))).toEqual({
+      support: 'launch-only',
+      note: 'posix-bash-zsh-only',
+      env: {}
+    })
+    expect(claudeShellBinding(shell('sh', 'sh', '/bin/sh')).env).toEqual({})
+  })
+
+  it('points the Windows executor at the chosen Git Bash', () => {
+    expect(
+      claudeShellBinding(shell('git-bash', 'bash', 'C:\\Program Files\\Git\\bin\\bash.exe'))
+    ).toEqual({
+      support: 'native',
+      note: 'windows-git-bash',
+      env: { CLAUDE_CODE_GIT_BASH_PATH: 'C:\\Program Files\\Git\\bin\\bash.exe' }
+    })
+  })
+
+  it('turns on the PowerShell tool, and keeps the preview label the CLI itself uses', () => {
+    expect(claudeShellBinding(shell('pwsh', 'powershell', 'C:\\pwsh.exe'))).toEqual({
+      support: 'native',
+      note: 'powershell-preview',
+      env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
+    })
+  })
+
+  it('reports cmd as launch-only — the CLI has no cmd executor (AT-R5, D-AT-2)', () => {
+    // This is the Windows *default* the feature was asked to ship, so the one
+    // case the UI must not overclaim.
+    expect(claudeShellBinding(shell('cmd', 'cmd', 'C:\\Windows\\System32\\cmd.exe'))).toEqual({
+      support: 'launch-only',
+      note: 'windows-git-bash',
+      env: {}
+    })
+  })
+
+  it('sends the binding with the turn, re-read per message', () => {
+    const runner = createFakeProcessRunner()
+    let current: ShellInfo | null = shell('zsh', 'zsh', '/usr/bin/zsh')
+    const adapter = createClaudeCliAdapter(runner, { shell: () => current })
+    const session = adapter.startSession({ workspace: '/ws' })
+
+    session.send({ text: 'oi' })
+    expect(runner.calls[0].opts?.env).toEqual({ CLAUDE_CODE_SHELL: '/usr/bin/zsh' })
+    expect(runner.calls[0].opts?.shell).toBe(true)
+
+    // The user switches terminals mid-conversation: the very next turn honours
+    // it, with no restart and no new session.
+    current = shell('bash', 'bash', '/bin/bash')
+    session.send({ text: 'de novo' })
+    expect(runner.calls[1].opts?.env).toEqual({ CLAUDE_CODE_SHELL: '/bin/bash' })
+  })
+
+  it('sends no shell env at all when nothing was chosen', () => {
+    const runner = createFakeProcessRunner()
+    createClaudeCliAdapter(runner).startSession({ workspace: '/ws' }).send({ text: 'oi' })
+    expect(runner.calls[0].opts?.env).toBeUndefined()
   })
 })

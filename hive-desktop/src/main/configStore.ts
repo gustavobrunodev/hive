@@ -93,6 +93,13 @@ export interface Config {
   // grants, so they persist; a denial never lands here, so a mistaken "no"
   // can't quietly block the agent forever.
   approvalRules: string[]
+  // agent-terminal (AT-R2): the shell id (`cmd`, `powershell`, `pwsh`,
+  // `git-bash`, `bash`, `zsh`, …) agent turns run inside. `null` = automatic —
+  // `cmd` on Windows, the user's `$SHELL` in POSIX (see `shellCatalog.ts`).
+  // Stored as the id, not the path: a Git Bash that moves between machines (or
+  // an app update that relocates it) still resolves, and an id whose shell is
+  // gone falls back to automatic without erasing the choice (D-AT-4).
+  agentShell: string | null
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -107,7 +114,8 @@ export const DEFAULT_CONFIG: Config = {
   userName: null,
   shortcuts: EMPTY_SHORTCUT_SETTINGS,
   skippedUpdateVersion: null,
-  approvalRules: []
+  approvalRules: [],
+  agentShell: null
 }
 
 /**
@@ -197,6 +205,9 @@ export interface ConfigStore {
   /** agent-approvals: the standing "Sempre permitir" rules (sanitized). */
   getApprovalRules(): string[]
   setApprovalRules(rules: string[]): void
+  /** agent-terminal: the chosen shell id, or `null` for automatic. */
+  getAgentShell(): string | null
+  setAgentShell(id: string | null): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -309,6 +320,16 @@ export function createConfigStore(baseDir: string): ConfigStore {
     getApprovalRules: () => sanitizeAgentList(readConfig().approvalRules) ?? [],
     setApprovalRules: (rules: string[]) =>
       updateConfig({ approvalRules: sanitizeAgentList(rules) ?? [] }),
+    // agent-terminal: normalized the same way `userName` is — a blank id is
+    // "automatic", never an empty-string id nothing can ever resolve.
+    getAgentShell: () => {
+      const value = readConfig().agentShell
+      return typeof value === 'string' && value.trim() !== '' ? value : null
+    },
+    setAgentShell: (id: string | null) => {
+      const trimmed = id?.trim() ?? ''
+      updateConfig({ agentShell: trimmed === '' ? null : trimmed })
+    },
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()

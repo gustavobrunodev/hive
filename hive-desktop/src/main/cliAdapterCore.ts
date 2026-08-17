@@ -6,6 +6,8 @@ import {
   createAgentEventQueue,
   type AgentInput,
   type AgentSession,
+  type McpServerReport,
+  type McpServerStatus,
   type SessionOpts,
   type TurnOpts,
   type TurnUsage,
@@ -56,6 +58,14 @@ export interface CliAdapterConfig {
     prompt: string,
     turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
   ): string[]
+  /**
+   * agent-terminal (AT-R4): extra environment for this turn — the adapter's
+   * own translation of the shell the user chose (`CLAUDE_CODE_SHELL` and
+   * friends). Called per turn, so a choice made mid-session applies to the
+   * next message without restarting anything. Absent, or returning nothing,
+   * means this CLI has no way to be told and the choice is the launch alone.
+   */
+  buildEnv?(): Record<string, string> | undefined
 }
 
 /**
@@ -68,6 +78,12 @@ interface StreamJsonLine {
   type?: string
   subtype?: string
   session_id?: string
+  /**
+   * Set on every line a *subagent* produced (the `Task`/`Agent` tool's own
+   * conversation, which the CLI calls a sidechain). Its token counts describe
+   * that subagent's window, not this conversation's — see `emitUsageEvents`.
+   */
+  parent_tool_use_id?: string | null
   event?: {
     type?: string
     delta?: { type?: string; text?: string }
@@ -94,9 +110,23 @@ interface StreamJsonLine {
   }
   /** `result` only: the turn's totals, plus the CLI's own timings and cost. */
   usage?: StreamJsonUsage
+  /**
+   * `result` only: per-model accounting, and the one place the CLI states the
+   * **context window it is actually using** — which beats any curated constant,
+   * because the same model id runs at 200k or 1M depending on how the CLI was
+   * configured.
+   */
+  modelUsage?: Record<string, { contextWindow?: number } | undefined>
   total_cost_usd?: number
   duration_ms?: number
   duration_api_ms?: number
+  /**
+   * `system`/`init` only (mcp-visibility): every MCP server the CLI dialed for
+   * this turn, and how that went.
+   */
+  mcp_servers?: unknown
+  /** `system`/`init` only: every tool name the turn was given, MCP tools included. */
+  tools?: unknown
 }
 
 /** The Anthropic-shaped `usage` object, as it appears on both message and result lines. */
@@ -142,31 +172,184 @@ function readUsage(raw: StreamJsonUsage | undefined, model?: string): TurnUsage 
  * `result` line, which is where the CLI puts the turn's cost and its own
  * duration. Consumers accumulate only the `final` ones — the intermediate
  * snapshots are restatements of the same growing request, not separate costs.
+ *
+ * ## Why the `result` line's input counts are NOT the context window
+ *
+ * The defect this closes: one BMAD prompt reported a context window 100% full.
+ * Measured against a real `claude` 2.1.226 run (5 tool calls, one `-p` turn):
+ *
+ *   assistant #1  cache_read  15 854      ← each is ONE request's prompt
+ *   assistant #2  cache_read  22 667
+ *   assistant #3  cache_read  23 298
+ *   assistant #4  cache_read  23 609
+ *   assistant #5  cache_read  23 760      ← the window really held ~24k (12%)
+ *   result        cache_read 109 188      ← 15 854+22 667+23 298+23 609+23 760
+ *
+ * The `result` line's input-side counts are a **sum over every API request the
+ * turn made** — a billing figure. Read as occupancy they grow without bound
+ * with the number of steps, which is exactly how nine steps filled a 200k
+ * window that held 24k. Its output-side counts, cost and durations *are* turn
+ * totals and stay authoritative.
+ *
+ * So the final event is assembled from both halves: totals off the `result`
+ * line, occupancy off the last main-chain snapshot this turn saw. That keeps
+ * one meaning for `TurnUsage` everywhere — input side = what the window holds,
+ * output side = what the turn produced.
+ *
+ * ## Why subagent messages are skipped
+ *
+ * A `Task`/`Agent` tool runs its own conversation, and its `assistant` lines
+ * carry their own `usage` (measured: 12k while the parent sat at 23k). Folding
+ * those in makes the meter drop mid-turn and then jump back. They are tagged
+ * with `parent_tool_use_id`; the parent's totals already bill them.
  */
 function emitUsageEvents(
   parsed: StreamJsonLine,
   queue: ReturnType<typeof createAgentEventQueue>,
-  turnId: string | undefined
+  turnId: string | undefined,
+  tracker: TurnTracker
 ): void {
   if (parsed.type === 'assistant') {
+    if (typeof parsed.parent_tool_use_id === 'string' && parsed.parent_tool_use_id !== '') return
     const usage = readUsage(parsed.message?.usage, parsed.message?.model)
-    if (usage) queue.push({ type: 'usage', usage, turnId })
+    if (!usage) return
+    tracker.context = usage
+    queue.push({ type: 'usage', usage, turnId })
     return
   }
   if (parsed.type !== 'result') return
-  const usage = readUsage(parsed.usage)
-  if (!usage) return
+  const totals = readUsage(parsed.usage)
+  if (!totals) return
   queue.push({
     type: 'usage',
-    usage: {
-      ...usage,
-      costUsd: optionalNumber(parsed.total_cost_usd),
-      durationMs: optionalNumber(parsed.duration_ms),
-      apiDurationMs: optionalNumber(parsed.duration_api_ms)
-    },
+    usage: finalUsage(parsed, totals, tracker.context),
     final: true,
     turnId
   })
+}
+
+/**
+ * Assembles the end-of-turn report out of its two halves: what the turn
+ * produced (off the `result` line) and what the window holds (off the last
+ * request's snapshot). With no snapshot at all — a turn of exactly one request,
+ * whose `assistant` line some CLIs never print — the sums *are* that single
+ * request, so falling back to them is exact rather than merely close.
+ */
+function finalUsage(
+  parsed: StreamJsonLine,
+  totals: TurnUsage,
+  context: TurnUsage | null
+): TurnUsage {
+  const occupancy = context ?? totals
+  return {
+    inputTokens: occupancy.inputTokens,
+    cacheReadTokens: occupancy.cacheReadTokens,
+    cacheCreationTokens: occupancy.cacheCreationTokens,
+    outputTokens: totals.outputTokens,
+    model: context?.model,
+    contextWindow: readContextWindow(parsed.modelUsage, context?.model),
+    costUsd: optionalNumber(parsed.total_cost_usd),
+    durationMs: optionalNumber(parsed.duration_ms),
+    apiDurationMs: optionalNumber(parsed.duration_api_ms)
+  }
+}
+
+/**
+ * The window the CLI says it is running this model at (`modelUsage`), which is
+ * the denominator the meter should divide by. Matched by the model name the
+ * turn's own messages carried, so a turn that also ran a subagent on a second
+ * model doesn't get the subagent's ceiling; with a single entry the name is
+ * redundant and the entry is taken as-is.
+ */
+function readContextWindow(
+  modelUsage: StreamJsonLine['modelUsage'],
+  model: string | undefined
+): number | undefined {
+  if (!modelUsage || typeof modelUsage !== 'object') return undefined
+  const entries = Object.entries(modelUsage)
+  const match =
+    (model !== undefined ? modelUsage[model] : undefined) ??
+    (entries.length === 1 ? entries[0][1] : undefined)
+  const window = match?.contextWindow
+  return typeof window === 'number' && Number.isFinite(window) && window > 0 ? window : undefined
+}
+
+/** Everything an MCP server exposes is namespaced `mcp__<server>__<tool>`. */
+const MCP_TOOL_PREFIX = 'mcp__'
+
+/**
+ * The comparison key for a server name (mcp-visibility).
+ *
+ * One server wears three spellings across the surfaces this app reads: the
+ * config's own (`hive-approvals`), the CLI's tool namespace, which admits only
+ * `[A-Za-z0-9_]` (`mcp__hive_approvals__approve`), and the log directory's
+ * (`mcp-logs-hive-approvals`). Matching on the raw string therefore splits one
+ * server into three, each with a fragment of the truth. Normalizing every
+ * non-alphanumeric run to `_` collapses all three onto the same key.
+ */
+export function mcpServerKey(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase()
+}
+
+/** The CLI's status word, narrowed. An unrecognized word is `unknown`, never "fine". */
+function readMcpStatus(value: unknown): McpServerStatus {
+  if (typeof value !== 'string') return 'unknown'
+  const word = value.trim().toLowerCase()
+  if (word === 'connected') return 'connected'
+  if (word === 'failed' || word === 'error') return 'failed'
+  if (word === 'needs-auth' || word === 'needs_auth' || word === 'pending-auth') return 'needs-auth'
+  if (word === 'pending' || word === 'connecting') return 'pending'
+  return 'unknown'
+}
+
+/**
+ * Buckets the turn's tool list by which server exposes each one, keyed by
+ * {@link mcpServerKey}. A tool whose namespace matches no reported server is
+ * dropped rather than inventing a server the CLI never mentioned.
+ */
+function mcpToolsByServer(tools: unknown): Map<string, string[]> {
+  const byServer = new Map<string, string[]>()
+  if (!Array.isArray(tools)) return byServer
+  for (const entry of tools) {
+    if (typeof entry !== 'string' || !entry.startsWith(MCP_TOOL_PREFIX)) continue
+    const rest = entry.slice(MCP_TOOL_PREFIX.length)
+    const split = rest.indexOf('__')
+    if (split <= 0) continue
+    const key = mcpServerKey(rest.slice(0, split))
+    const tool = rest.slice(split + 2)
+    if (tool === '') continue
+    const bucket = byServer.get(key)
+    if (bucket) bucket.push(tool)
+    else byServer.set(key, [tool])
+  }
+  return byServer
+}
+
+/**
+ * Reads the CLI's `system`/`init` line into the turn's MCP roster, or returns
+ * null when the line isn't one (or carries no `mcp_servers` array at all — a
+ * CLI build that doesn't report them must stay silent rather than claim the
+ * user has none).
+ *
+ * Exported for its own test: this is a parse of somebody else's wire format,
+ * and the failure mode of getting it wrong is a confident lie on screen.
+ */
+export function readMcpRoster(parsed: StreamJsonLine): McpServerReport[] | null {
+  if (parsed.type !== 'system' || parsed.subtype !== 'init') return null
+  if (!Array.isArray(parsed.mcp_servers)) return null
+  const toolsByServer = mcpToolsByServer(parsed.tools)
+  const servers: McpServerReport[] = []
+  for (const entry of parsed.mcp_servers) {
+    if (entry === null || typeof entry !== 'object') continue
+    const name = (entry as { name?: unknown }).name
+    if (typeof name !== 'string' || name.trim() === '') continue
+    servers.push({
+      name: name.trim(),
+      status: readMcpStatus((entry as { status?: unknown }).status),
+      tools: toolsByServer.get(mcpServerKey(name)) ?? []
+    })
+  }
+  return servers
 }
 
 /** Claude tool names whose `input.file_path` attributes a workspace file change (Agent Change Review, ACR-C7). */
@@ -237,7 +420,7 @@ function handleStdoutLine(
   line: string,
   queue: ReturnType<typeof createAgentEventQueue>,
   turnId: string | undefined,
-  sessionTracker: { lastId: string | null }
+  tracker: TurnTracker
 ): void {
   const trimmed = line.trim()
   if (trimmed === '') return
@@ -248,8 +431,8 @@ function handleStdoutLine(
     queue.push({ type: 'token', text: line, turnId })
     return
   }
-  if (typeof parsed.session_id === 'string' && parsed.session_id !== sessionTracker.lastId) {
-    sessionTracker.lastId = parsed.session_id
+  if (typeof parsed.session_id === 'string' && parsed.session_id !== tracker.lastId) {
+    tracker.lastId = parsed.session_id
     queue.push({ type: 'session', id: parsed.session_id, turnId })
   }
   if (
@@ -260,8 +443,25 @@ function handleStdoutLine(
   ) {
     queue.push({ type: 'token', text: parsed.event.delta.text, turnId })
   }
+  // The roster arrives on the CLI's very first line, before the agent has done
+  // anything — so the UI can say which servers this turn got, and whether they
+  // answered, while the turn is still starting rather than in hindsight.
+  const roster = readMcpRoster(parsed)
+  if (roster !== null) queue.push({ type: 'mcp', servers: roster, turnId })
   emitToolEvents(parsed, queue, turnId)
-  emitUsageEvents(parsed, queue, turnId)
+  emitUsageEvents(parsed, queue, turnId, tracker)
+}
+
+/**
+ * The little state one turn's stdout stream carries between lines: the session
+ * id already announced (so a re-mint is reported once, not per line), and the
+ * newest per-request token snapshot, which is what `result` lines are missing
+ * (see `emitUsageEvents`). Scoped to `pipeTurn` — one process, one turn — so
+ * concurrent turns never read each other's numbers.
+ */
+interface TurnTracker {
+  lastId: string | null
+  context: TurnUsage | null
 }
 
 /**
@@ -338,7 +538,7 @@ async function pipeTurn(
   wasInterrupted: () => boolean,
   errorLabel: string
 ): Promise<void> {
-  const sessionTracker: { lastId: string | null } = { lastId: null }
+  const tracker: TurnTracker = { lastId: null, context: null }
   let stdoutRest = ''
   let stderrTail = ''
   for await (const chunk of handle.output) {
@@ -350,10 +550,10 @@ async function pipeTurn(
     const lines = stdoutRest.split('\n')
     stdoutRest = lines.pop() ?? ''
     for (const line of lines) {
-      handleStdoutLine(line, queue, turnId, sessionTracker)
+      handleStdoutLine(line, queue, turnId, tracker)
     }
   }
-  handleStdoutLine(stdoutRest, queue, turnId, sessionTracker)
+  handleStdoutLine(stdoutRest, queue, turnId, tracker)
   const result = await handle.exitCode
   if (wasInterrupted()) {
     queue.push({ type: 'interrupted', turnId })
@@ -405,7 +605,12 @@ export function createCliAgentSession(
       config.command,
       config.buildArgs(prompt, { model, effort, resume, turnId }),
       {
-        cwd: opts.workspace
+        cwd: opts.workspace,
+        env: config.buildEnv?.(),
+        // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
+        // inside the user's chosen terminal. With nothing chosen the runner
+        // spawns exactly as it always did.
+        shell: true
       }
     )
     activeHandles.set(handleKey, handle)

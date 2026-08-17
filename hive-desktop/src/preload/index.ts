@@ -22,10 +22,11 @@ import type { BmadEvent, BmadInstallOptions } from '../main/bmadService'
 import type { WorkflowEntry, SkillEntry, WorkspaceSkill } from '../main/workflowCatalog'
 import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
-import type { McpLogQuery, McpLogSource } from '../main/mcpLogService'
+import type { McpLogLocation, McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
+import type { ShellCatalogView } from '../main/shellService'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
 import type {
   CapabilityViolation,
@@ -155,6 +156,15 @@ function withTypedConflict<Args extends unknown[], R>(
 // contextBridge.exposeInMainWorld call — this keeps the renderer's entire
 // privileged surface enumerable in one place.
 const hive = {
+  /**
+   * The host OS, as a plain value rather than a call (explorer-os-actions).
+   * The renderer needs it only to *name* things the OS names differently —
+   * "Explorador de Arquivos" / "Finder" / "gerenciador de arquivos" — and a
+   * label that has to await an IPC round trip renders wrong on first paint.
+   * `process` is preload-only under `sandbox: true`; this exposes the one
+   * string, never the object.
+   */
+  platform: process.platform as NodeJS.Platform,
   ping: (): Promise<string> => ipcRenderer.invoke('ping'),
   chooseWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:choose'),
   // openExternal (T3, UX-R7.3): forwards to main's 'shell:openExternal'
@@ -174,7 +184,7 @@ const hive = {
   // methods above.
   listTree: (root: string, relativePath?: string): Promise<TreeNode[]> =>
     ipcRenderer.invoke('fs:listTree', root, relativePath),
-  // chat-attachments: flat workspace file list for the composer's `#` mention
+  // chat-attachments: flat workspace file list for the composer's `@` mention
   // menu — same invoke/response shape as listTree.
   listFiles: (root: string): Promise<string[]> => ipcRenderer.invoke('fs:listFiles', root),
   readFile: (root: string, relativePath: string): Promise<string> =>
@@ -407,6 +417,8 @@ const hive = {
       ipcRenderer.invoke('mcpLogs:sources', workspace),
     read: (workspace: string, query?: McpLogQuery): Promise<McpLogEntry[]> =>
       ipcRenderer.invoke('mcpLogs:read', workspace, query ?? {}),
+    locate: (workspace: string): Promise<McpLogLocation> =>
+      ipcRenderer.invoke('mcpLogs:locate', workspace),
     openDir: (workspace: string, server: string): Promise<void> =>
       ipcRenderer.invoke('mcpLogs:openDir', workspace, server),
     watch: (workspace: string, onBatch: (entries: McpLogEntry[]) => void): (() => void) => {
@@ -516,6 +528,16 @@ const hive = {
       ipcRenderer.invoke('profile:roleActions', role, scope)
   },
 
+  // The terminal agent turns run inside (agent-terminal). `list` returns the
+  // shells detected on this machine, the persisted choice, and each enabled
+  // agent's caveat **code** (the copy lives in the renderer's i18n, never in
+  // main). `select(null)` restores automatic.
+  shell: {
+    list: (refresh?: boolean): Promise<ShellCatalogView> =>
+      ipcRenderer.invoke('shell:list', refresh === true),
+    select: (id: string | null): Promise<void> => ipcRenderer.invoke('shell:select', id)
+  },
+
   // Shortcut customization (shortcut-customization + shortcut-scopes):
   // workspace skill catalog, the persisted per-scope selection, and both
   // resolved shortcut sets. Plain invoke/response; arg order mirrors the
@@ -590,7 +612,17 @@ const hive = {
     // Turns a dropped renderer File into its absolute OS path. webUtils is
     // main/preload-only under sandbox:true — this is the ONLY way the
     // renderer can learn a dropped file's path (FM-R5).
-    pathForFile: (file: File): string => webUtils.getPathForFile(file)
+    pathForFile: (file: File): string => webUtils.getPathForFile(file),
+    // explorer-os-actions: opens the entry in the host's file manager.
+    // `isDir` picks reveal-the-item vs open-the-folder in main.
+    revealPath: (root: string, relativePath: string, isDir: boolean): Promise<void> =>
+      ipcRenderer.invoke('shell:revealPath', root, relativePath, isDir),
+    // The workspace-relative path resolved against the host OS, for the
+    // explorer's "copy absolute path" action. Same `resolveSafe` gate as every
+    // other `fs:` call — the renderer never composes an OS path itself,
+    // because it has no idea whether the host separates with `/` or `\`.
+    absolutePath: (root: string, relativePath: string): Promise<string> =>
+      ipcRenderer.invoke('fs:absolutePath', root, relativePath)
   },
 
   // GitService (git-management M10), grouped under a `git` namespace matching
@@ -730,6 +762,8 @@ const hive = {
       ipcRenderer.invoke('review:acceptAll', workspace),
     rejectAll: (workspace: string): Promise<ReviewResult> =>
       ipcRenderer.invoke('review:rejectAll', workspace),
+    attachTurn: (workspace: string, turnId: string, conversationId: string): Promise<void> =>
+      ipcRenderer.invoke('review:attachTurn', workspace, turnId, conversationId),
     onChanged: (onChanged: (evt: { workspace: string } & ReviewSnapshot) => void): (() => void) => {
       const listener = (
         _event: IpcRendererEvent,

@@ -82,6 +82,8 @@
   --info-ink: oklch(71.4% 0.104 246.2);
   --selected: var(--accent);
   --selected-bg: oklch(65.9% 0.114 42.2 / 16%);
+  --selection-bg: var(--accent);
+  --selection-ink: var(--bg);
   --overlay: oklch(0% 0 0 / 60%);
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
@@ -116,6 +118,8 @@
   --info-ink: oklch(49.9% 0.126 253.2);
   --selected: var(--accent);
   --selected-bg: oklch(42.4% 0.127 14.4 / 10%);
+  --selection-bg: var(--accent);
+  --selection-ink: var(--bg);
   --overlay: oklch(19.5% 0.048 4.8 / 45%);
   --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
   --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
@@ -150,6 +154,8 @@
   --info-ink: oklch(71.4% 0.104 246.2);
   --selected: var(--accent);
   --selected-bg: oklch(65.9% 0.114 42.2 / 16%);
+  --selection-bg: var(--accent);
+  --selection-ink: var(--bg);
   --overlay: oklch(0% 0 0 / 60%);
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
@@ -185,6 +191,8 @@
     --info-ink: oklch(49.9% 0.126 253.2);
     --selected: var(--accent);
     --selected-bg: oklch(42.4% 0.127 14.4 / 10%);
+    --selection-bg: var(--accent);
+    --selection-ink: var(--bg);
     --overlay: oklch(19.5% 0.048 4.8 / 45%);
     --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
     --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
@@ -242,8 +250,8 @@ a:hover {
   text-underline-offset: 3px;
 }
 ::selection {
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--selection-bg);
+  color: var(--selection-ink);
 }
 .wrap {
   max-width: var(--maxw);
@@ -408,6 +416,8 @@ a:hover {
 .hds-btn-primary {
   background: var(--accent);
   color: #241019;
+  --selection-bg: var(--accent-ink);
+  --selection-ink: var(--accent);
 }
 .hds-btn-primary:hover {
   background: #d98a6c;
@@ -3992,6 +4002,8 @@ button.hds-breadcrumb-segment:hover {
   background: var(--accent);
   color: var(--accent-ink);
   border-bottom-right-radius: var(--rounded-sm);
+  --selection-bg: var(--accent-ink);
+  --selection-ink: var(--accent);
 }
 .hds-chat-message-system {
   justify-content: center;

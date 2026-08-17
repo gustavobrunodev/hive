@@ -16,6 +16,23 @@ export interface TurnMark {
   at: number
   /** Paths the turn touched (best-effort from the adapter's tool_use, ACR-C7; empty is fine). */
   paths: string[]
+  /**
+   * The stored conversation (session-history id) this turn was asked from — the
+   * chat card belongs to *that* transcript and nowhere else.
+   *
+   * The pending set is per **workspace** (files on disk are shared by every
+   * conversation), but a turn is per **conversation**. Without this the chat
+   * rendered every workspace turn's card in whatever conversation happened to
+   * be open, so a review asked for in one conversation showed up — pending,
+   * actionable, unexplained — in the next one.
+   *
+   * Undefined means "not attributable to a conversation": a turn started before
+   * its conversation existed on disk (backfilled by `attachTurn` as soon as the
+   * id is created) or one driven by something other than the chat pane. Such a
+   * turn is still in the pending set, still in the review bar and panel; it just
+   * has no transcript to hang a card in.
+   */
+  conversationId?: string
 }
 
 /** One pending change, as the renderer consumes it (design.md §3). */

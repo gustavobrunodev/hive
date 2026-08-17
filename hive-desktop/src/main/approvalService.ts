@@ -252,7 +252,7 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
         {
           name: TOOL_NAME,
           description:
-            'Asks the Hive Desktop user to approve or deny a tool call. Blocks until they answer.',
+            'Asks the Hive user to approve or deny a tool call. Blocks until they answer.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -284,7 +284,7 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     const payload =
       decision.behavior === 'allow'
         ? { behavior: 'allow', updatedInput: args.input ?? {} }
-        : { behavior: 'deny', message: decision.message ?? 'Denied by the user in Hive Desktop.' }
+        : { behavior: 'deny', message: decision.message ?? 'Denied by the user in Hive.' }
     return { content: [{ type: 'text', text: JSON.stringify(payload) }] }
   }
 
@@ -424,7 +424,7 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     cancel(turnId?: string): void {
       for (const [requestId, entry] of [...pending]) {
         if (turnId !== undefined && entry.request.turnId !== turnId) continue
-        settle(requestId, { behavior: 'deny', message: 'The turn was stopped in Hive Desktop.' })
+        settle(requestId, { behavior: 'deny', message: 'The turn was stopped in Hive.' })
       }
     },
 

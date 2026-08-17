@@ -1,6 +1,10 @@
-# hive-desktop-tmp
+# Hive
 
-An Electron application with React and TypeScript
+A superfície visual do **BMAD**: conversar com agentes, rodar fluxos e ler os
+artefatos que eles produzem — sem abrir um terminal.
+
+Electron + React + TypeScript. Convenções do projeto, comandos e o passe visual
+obrigatório de UI estão em [AGENTS.md](AGENTS.md).
 
 ## Recommended IDE Setup
 

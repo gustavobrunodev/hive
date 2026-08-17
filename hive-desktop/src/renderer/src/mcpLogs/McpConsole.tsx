@@ -32,8 +32,10 @@ import {
   type LogFilterId,
   type LogQueryState,
   type McpLogEntry,
+  type McpLogLocation,
   type ServerStat
 } from './logConsole'
+import { stateLabel, type McpRosterEntry } from './mcpRoster'
 
 /**
  * `McpConsole` — the workbench's bottom dock: what every MCP server actually
@@ -105,6 +107,7 @@ export interface McpConsoleProps {
   store: {
     entries: McpLogEntry[]
     sources: { server: string; dir: string; files: number; lastActivityAt: number | null }[]
+    location: McpLogLocation | null
     loading: boolean
     error: string | null
     freshIds: ReadonlySet<string>
@@ -112,6 +115,13 @@ export interface McpConsoleProps {
   }
   /** Server names configured in this workspace's `.mcp.json`, to flag the ones that aren't. */
   catalog: string[]
+  /**
+   * mcp-visibility: every server the workspace knows about, merged from the
+   * catalog, the CLI's handshake and the logs. Drives the strip that is present
+   * even when the stream below it is empty — the console's answer to "quais
+   * servidores existem" no longer depends on one having written a log line.
+   */
+  roster: McpRosterEntry[]
   live: boolean
   onClose: () => void
   /** Opens the "Servidores MCP" manager — the empty state's way out. */
@@ -313,12 +323,63 @@ function ServerCard({
   )
 }
 
+/**
+ * The roster strip under the header: every server this workspace knows about,
+ * present whether or not it has ever written a log line.
+ *
+ * This is the fix for the console's worst failure mode. Everything it showed
+ * used to be derived from log files, so a workspace whose logs the app could
+ * not find — or had not been written yet — rendered a console that said nothing
+ * about MCP *at all*, which reads as "you have no MCP servers" and is a
+ * different, wrong claim. The strip is sourced from the catalog and the CLI's
+ * handshake as well, so the answer to "quais servidores existem" is always on
+ * screen, and the stream below is free to be empty without lying.
+ */
+function ServerStrip({
+  roster,
+  selected,
+  onSelect
+}: {
+  roster: McpRosterEntry[]
+  selected: string | null
+  onSelect: (server: string | null) => void
+}): React.JSX.Element {
+  return (
+    <div className="wb-mcplog-strip" role="group" aria-label={t('mcpLogs.rosterHeading')}>
+      {roster.map((entry) => {
+        const active = selected === entry.name
+        return (
+          <button
+            key={entry.key}
+            type="button"
+            className="wb-mcplog-pill"
+            data-state={entry.state}
+            aria-pressed={active}
+            title={t('mcpLogs.pillTitle', entry.name, stateLabel(entry.state))}
+            onClick={() => onSelect(active ? null : entry.name)}
+          >
+            <span className="wb-mcplog-pill-dot" aria-hidden="true" />
+            <span className="wb-mcplog-pill-name">{entry.name}</span>
+            <span className="wb-mcplog-pill-state">{stateLabel(entry.state)}</span>
+            {entry.tools !== null && entry.tools.length > 0 && (
+              <span className="wb-mcplog-pill-count">{entry.tools.length}</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Loading, read failure, nothing-ever, or nothing-in-this-filter. */
 function ConsoleEmpty({
   kind,
+  location,
   onPrimary
 }: {
   kind: ConsoleStateKind
+  /** Where the logs were read from — shown on the nothing-ever state. */
+  location: McpLogLocation | null
   onPrimary: () => void
 }): React.JSX.Element {
   if (kind === 'loading') {
@@ -345,6 +406,7 @@ function ConsoleEmpty({
       <p className="wb-mcplog-state-desc">
         {isEmpty ? t('mcpLogs.emptyDescription') : isError ? '' : t('mcpLogs.noMatchDescription')}
       </p>
+      {isEmpty && location !== null && <SourcePath location={location} />}
       <button type="button" className="wb-mcplog-state-cta" onClick={onPrimary}>
         {isError ? <RefreshIcon size={13} /> : isEmpty ? <PlugIcon size={13} /> : null}
         {isError
@@ -357,10 +419,49 @@ function ConsoleEmpty({
   )
 }
 
+/**
+ * Where the console read from, on the state where that is the actual question.
+ *
+ * An empty console has two very different causes that look identical: the agent
+ * used no MCP, or the CLI is writing its logs somewhere this process is not
+ * looking. The second is real and not exotic — drive the app from WSL against a
+ * `claude` installed with Windows npm and the CLI writes under `%LOCALAPPDATA%`
+ * with a `\\wsl.localhost\…` slug while this process reads `~/.cache` with a
+ * POSIX one. Printing the path (and whether it is even there) separates the two
+ * in one glance, and copying it is what someone does next.
+ */
+function SourcePath({ location }: { location: McpLogLocation }): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const id = setTimeout(() => setCopied(false), 1400)
+    return () => clearTimeout(id)
+  }, [copied])
+  return (
+    <p className="wb-mcplog-source">
+      <span className="wb-mcplog-source-label">
+        {location.exists ? t('mcpLogs.sourceReading') : t('mcpLogs.sourceMissing')}
+      </span>
+      <code className="wb-mcplog-source-path">{location.dir}</code>
+      <button
+        type="button"
+        className="wb-mcplog-source-copy"
+        aria-label={t('mcpLogs.sourceCopyAria')}
+        onClick={() =>
+          void navigator.clipboard?.writeText(location.dir).then(() => setCopied(true))
+        }
+      >
+        {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
+      </button>
+    </p>
+  )
+}
+
 export function McpConsole({
   workspace,
   store,
   catalog,
+  roster,
   live,
   onClose,
   onOpenManager
@@ -446,7 +547,8 @@ export function McpConsole({
   useEffect(() => {
     const root = document.documentElement
     const node = dockRef.current
-    const publish = (): void => root.style.setProperty('--wb-dock-h', `${node?.offsetHeight ?? 0}px`)
+    const publish = (): void =>
+      root.style.setProperty('--wb-dock-h', `${node?.offsetHeight ?? 0}px`)
     publish()
     const observer =
       node !== null && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null
@@ -536,6 +638,14 @@ export function McpConsole({
         </button>
       </header>
 
+      {roster.length > 0 && (
+        <ServerStrip
+          roster={roster}
+          selected={query.server}
+          onSelect={(server) => setQuery((current) => ({ ...current, server }))}
+        />
+      )}
+
       <div className="wb-mcplog-body">
         {maximized && stats.length > 0 && (
           <aside className="wb-mcplog-rail" aria-label={t('mcpLogs.railHeading')}>
@@ -560,7 +670,7 @@ export function McpConsole({
 
         <div className="wb-mcplog-streamwrap">
           {stateKind !== null ? (
-            <ConsoleEmpty kind={stateKind} onPrimary={onPrimary} />
+            <ConsoleEmpty kind={stateKind} location={store.location} onPrimary={onPrimary} />
           ) : (
             <div
               ref={streamRef}

@@ -34,6 +34,7 @@ export interface TurnUsage {
   cacheCreationTokens: number
   outputTokens: number
   model?: string
+  contextWindow?: number
   costUsd?: number
   durationMs?: number
   apiDurationMs?: number

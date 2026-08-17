@@ -15,7 +15,7 @@ at a time.
 
 ## Product Purpose
 
-Hive Desktop is the visual, guided, squad-friendly surface over BMAD's
+Hive is the visual, guided, squad-friendly surface over BMAD's
 CLI-first agile-AI framework. It abstracts the BMAD CLI (zero-terminal
 install/update/run), chats with any agent through a decoupled adapter layer
 (Claude CLI first), and manages workspace artifacts in an integrated file

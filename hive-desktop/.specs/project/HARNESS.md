@@ -353,6 +353,105 @@ visual achou o que os testes não achariam** — desta vez cinco, incluindo uma
 bancada que sizava ao conteúdo porque o painel que a contém é um bloco, e um
 estado vazio cuja única função é ensinar renderizado a 46% do tamanho.
 
+### 2026-08-13 — mcp-visibility (M19): dois sensores novos, e um "vazio" que virou erro
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Sweep de contraste das três superfícies de roster MCP, nos três temas | `e2e/contrast.spec.ts` | Regra do M16 outra vez (superfície sob demanda entra no sweep no mesmo commit). Todas as três são invisíveis numa work UI ociosa por motivos diferentes — uma só existe dentro de um turno, uma é hover/foco, uma está num dock fechado — e a primeira delas exige **rodar um turno de verdade** pelo CLI stand-in com `mcp_servers` na linha de init, para que o que está sendo medido seja o `readMcpRoster` de produção e não uma fixture pronta. O stand-in (`e2e/__fixtures__/scripted-agent-cli.cjs`) ganhou o campo. |
+| — | `tools/visual/mcp-visibility.mjs` — 5 estados × 3 temas | `tools/visual/` | Achou **3 defeitos com o contraste já verde**: rótulo da status bar truncado no estado que mais precisa ser lido, nomes de servidor truncados no card, e colunas desalinhadas por `display: grid` **em cada `<li>`** em vez de uma grade só com `subgrid`. |
+
+**A lição de sensor desta milestone: uma amostra ausente e uma amostra aprovada
+têm a mesma cara.** Duas vezes, no mesmo dia, em dois sensores diferentes:
+
+1. A sonda visual reportou cinco seletores `missing` no console vazio — porque o
+   estado **nunca renderizou**. A sonda mutava a fixture depois que a store já
+   tinha lido o histórico (`useMcpLogs` lê uma vez por workspace). Sem o campo
+   `missing` separado de `failures`, aquilo teria sido um PASS de um estado
+   inexistente. *Corolário novo:* seletor que só existe num estado (o badge de
+   problema, o ponto de falha) não pode entrar na lista do estado saudável, ou
+   `missing` vira ruído e para de significar alguma coisa.
+2. O sweep E2E reprovou os pontos de estado com razão **zero** — `--success` e
+   `--danger` são escritos em `oklch()`, e `checkContrast` devolve "não deu para
+   medir" (sem `ratio`). A asserção usava `ratio ?? 0`, então falhou barulhento;
+   uma asserção mais frouxa (`?? Infinity`, ou pular quando não medir) teria
+   dado verde para sempre. É a lição do M15 reaparecendo num arquivo diferente:
+   **resolva a cor pintando um pixel**, nunca por parser.
+
+**E o defeito de produto que originou tudo isso é da mesma família:** o watcher
+do console retornava cedo quando o diretório de cache ainda não existia e nunca
+mais tentava — um console permanentemente vazio que era indistinguível de "o
+agente não usou MCP". Silêncio que parece sucesso, nos três lugares.
+
+### 2026-08-14 — escopo do card de revisão: um sensor novo e uma falha antiga fechada
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `@p0 a revisão de um turno fica na conversa que a pediu` — duas conversas, dois turnos, dois arquivos, no Electron real | `e2e/agent-change-review.spec.ts` | O defeito era de **escopo**, não de cálculo: o set pendente é do workspace e o chat renderizava o card de todo turno em qualquer conversa aberta. Nada disso é observável em jsdom com uma store montada à mão — só dirigindo duas conversas contra o main de verdade (`TurnMark.conversationId` + `review:attachTurn`). Falsificado antes de valer: com o filtro removido o teste falha exatamente com o card da outra conversa na tela. O stand-in ganhou `rearm()`, porque duas conversas precisam de dois turnos que escrevem arquivos diferentes. |
+| — | `tools/visual/review-scope.mjs` — 3 estados × 3 temas, com contraste da marca nova | `tools/visual/` | O passe achou um defeito **da própria fixture**: `chatHistory.list` do `boot.mjs` não devolvia `messageCount`/`preview`, e as linhas do histórico liam "undefined mensagens". Fixture incompleta vira defeito falso no relatório seguinte — o mock agora devolve o `ChatSessionMeta` inteiro. |
+
+**Fechada: a violação de strict mode do `agent-change-review.spec.ts:54`**, aberta
+desde o M11 e registrada acima como "falha no `HEAD`". Não era flake nem defeito
+de produto: o mesmo controle por arquivo existe na trilha **e** no card do chat
+de propósito (ACR-R2.5), então o locator é que precisava escolher a superfície —
+os cliques miram o painel, as asserções seguem valendo para a janela inteira,
+que é justamente o que "uma decisão, quatro superfícies" quer dizer. A suíte do
+módulo está verde (4/4).
+
+**A lição que sobra:** um sensor herdado como vermelho é lido como ruído, e um
+teste que ninguém acredita não mede nada. Quando uma milestone toca o arquivo em
+que a falha mora, é ali que ela sai — o custo real foi de uma linha.
+
+### 2026-08-14 — agent-terminal (M20): dois sensores novos, e um teste que mediu o mundo real antes de escrever a regra
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `e2e/agent-terminal.spec.ts` — escolher um terminal, ver no `config.json`, e o próximo turno rodar dentro dele | `e2e/` | A promessa da feature é uma propriedade do **processo**, não da tela: nenhum teste de unidade pode mostrar que o terminal escolhido no perfil é o terminal em que o turno roda. O stand-in (`e2e/__fixtures__/scripted-agent-cli.cjs`) passou a registrar `shellEnv` — só `SHELL` e o trio `CLAUDE_CODE_*` —, então a asserção lê **o ambiente que o processo recebeu**, não o que a UI mostra. E o caso mais valioso é o mais silencioso: o turno agora nasce dentro de um shell, e um erro de aspas ou de código de saída não levanta nada — só faz as respostas pararem de chegar. |
+| — | `tools/visual/shell-contrast.mjs` — 3 estados × 3 temas, com o estado "o terminal escolhido sumiu" | `tools/visual/` | Mesma regra do M16/M19 (superfície nova entra no sweep no mesmo commit). Achou **3 defeitos com o contraste já verde**: uma frase renderizada em monoespaçada e truncada por herdar o estilo de caminho, a barra de status repetindo a 40px de distância o que a linha "Automático" já dizia, e um `:hover` que, nos temas claro e hive, ficava tão marcado quanto a linha **selecionada**. |
+
+**A lição de sensor desta milestone: quando a regra depende de outro programa,
+meça o outro programa — antes de escrever a regra.** Duas medições mudaram o
+código, e nenhuma das duas era adivinhável:
+
+1. **O `powershell.exe` real corrompe argumentos em silêncio.** Rodando a
+   composição de comando contra o PowerShell 5.1 de verdade, o prompt
+   `{"json": "sim"}` chegou ao processo alvo como `{json: sim}` — o PowerShell
+   remove aspas duplas ao re-citar para um comando nativo, e come uma barra
+   invertida final. Sem erro, sem aviso: o agente recebe uma mensagem diferente
+   da que o usuário escreveu. O pré-escape em estilo CRT foi escrito *depois*
+   dessa medição, e verificado com quatro prompts (JSON, aspas, `&`, acentos,
+   barra final) voltando byte a byte.
+2. **As regras de shell da CLI do Claude vieram do binário, não do manual.**
+   `strings` sobre o `claude.exe` 2.1.226: `CLAUDE_CODE_SHELL` só é aceito para
+   um caminho que contenha `bash`/`zsh` (qualquer outro é registrado como
+   inválido e descartado), o Windows executa `Bash` pelo Git Bash
+   (`CLAUDE_CODE_GIT_BASH_PATH`), e **não existe executor `cmd`**. Isso é o que
+   transformou "escolher cmd" numa ressalva honesta na tela em vez de uma
+   promessa falsa — o padrão pedido para o Windows é justamente o caso em que a
+   UI teria mentido.
+
+### 2026-08-16 — product-identity (M21): um sensor contra a deriva de configuração, um passe visual novo, e uma armadilha de sonda registrada
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `src/main/appIdentity.test.ts` — o `productName`/`appId` do `electron-builder.yml` tem que bater com `appIdentity.ts` | `src/main/` | Duas fontes governam o mesmo fato: o app empacotado lê o YAML, o `npm run dev` lê o TS. Nada as ligava. Uma divergência não quebra teste nenhum e não aparece em dev — ela aparece numa instalação real, como dados de usuário no diretório errado ou um atalho fixado na barra de tarefas que abre um segundo ícone. É um sensor de três linhas contra uma falha que custa uma release. |
+| — | Gate de cobertura 100% em `composerMentions.ts`, 90% em `userDataMigration.ts` | `vitest.config.ts` | O módulo de menções é aritmética de string cujas falhas são silenciosas e destrutivas: um off-by-one nos ranges desalinha o backdrop do composer contra o texto vivo, e um padrão de token um fio guloso demais transforma um e-mail em referência de arquivo e a manda para o agente. A migração roda **uma vez**, numa máquina que já tem o histórico do usuário — e se errar, o app abre parecendo novo em folha. Nenhuma das duas é ensaiável à mão. |
+| — | `tools/visual/mention-pass.mjs` — 3 estados × 3 temas, com a pílula do composer medida atrás dos glifos | `tools/visual/` | Mesma regra do M16/M19/M20. Achou **4 defeitos com o contraste já verde**: rodapé e dica em `--faint` (4,18:1 no escuro, 3,71:1 no claro), a pílula a 1,30:1 no tema `hive`, os ícones de tipo de arquivo do `hive` caindo na rampa clara (2,57:1 — e o defeito é do app inteiro, não só deste menu), e o menu mostrando 4 dos 8 resultados. |
+
+**A lição de sensor desta milestone: uma sonda que não reconhece a cor não fica
+em silêncio — ela reporta um número errado com cara de certo.** A pílula usa
+`color-mix(in oklab, …)`, que o Chromium resolve como `oklab(L a b / α)`; os
+três regexes da sonda compartilhada não conhecem essa forma, o `parse()`
+devolveu `null`, e a medição saiu **1,00:1**: um FAIL alto e confiante sobre um
+defeito inexistente, enquanto o defeito real passava sem medição. Qualquer forma
+desconhecida agora cai num canvas 1×1. É a quarta armadilha de parser da lista
+em `docs/visual-validation.md`, e a pior delas.
+
+**Corolário, registrado junto:** onde a WCAG não tem número (a pergunta era "dá
+para ver que ali há uma pílula?"), o piso foi inventado no teclado e reprovou os
+dois lados — 1,3 aprovou uma mancha, 1,7 reprovou uma pílula legível. O valor
+final (1,5) está no arquivo **com os dois screenshots que o cercam citados no
+comentário**. Piso sem evidência ao lado é preferência com casa decimal.
+
 ## 6. Steering loop
 
 - **Observar:** toda lição do `STATE.md` que comece com "de novo" / "a lição do

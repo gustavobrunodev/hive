@@ -741,6 +741,217 @@ Updated as work progresses. Load at start of every session.
   the end of M18 — the check `tasks.md` had asked for at the end of phase 2 and
   that phase did not run. (design-studio T7.8, 2026-08-10)
 
+- **D34 — Feature `explorer-os-actions` + `selection-contrast`.** Four
+  user-reported improvements, built 2026-08-15. Three are OS-file-manager
+  parity in the explorer (copy relative/absolute path, open in the host's file
+  manager, Shift-click range) and one is a WCAG defect in the chat.
+  Decisions:
+  (a) **Copy path is two actions, not one.** Relative is the tree's own key and
+  never leaves the renderer; absolute round-trips to main, because only main
+  knows the workspace's location and the host's separator — a renderer-composed
+  path would be `/`-joined on Windows.
+  (b) **Reveal is two verbs.** A file is revealed highlighted inside its parent
+  (`shell.showItemInFolder`), a directory is opened as the window's own target
+  (`shell.openPath`) — revealing a folder shows its parent, which is never what
+  "open this folder" means. Both route through `fsService.absolutePathFor`, so
+  the workspace-escape check is the point of the bridge, not an afterthought.
+  (c) **Selection targets the whole selection.** An action invoked on a row
+  that is part of a multi-selection applies to all of it (the rule
+  `requestDelete` already used) — the alternative silently ignores five of six
+  selected rows.
+  (d) **Labels follow the OS**, via a new `window.hive.platform` string:
+  "Finder" on macOS, "Explorador de Arquivos" on Windows, the generic noun on
+  Linux (which has no single name for it). A value, not a call — a label that
+  awaits an IPC round trip renders wrong on first paint.
+  (e) **The Shift-click fix belongs in the DS, not the app.** A folder row's
+  whole label is the `Tree`'s expand/collapse `<button>`, which stopped the
+  click before it could select — so a folder could not be selected, anchor a
+  range, or end one, and Shift-clicking one collapsed it instead, reordering
+  the list the range is measured over. Selection now happens on every row
+  click; expanding is suppressed under a modifier. `Shift+Arrow` was added
+  alongside it — the WAI-ARIA multi-select tree pattern requires the keyboard
+  half, and PRODUCT.md promises full keyboard operability.
+  (f) **`::selection` resolves through tokens.** `--selection-bg`/
+  `--selection-ink` (tokens.css) replace the raw `--accent`/`--bg` pair the DS
+  hardcoded. `::selection` resolves `var()` against its originating element and
+  custom properties inherit, so an accent-filled surface reaponts the pair on
+  itself — two lines next to the fill that causes the problem, and no second
+  rule to keep in sync. See `docs/visual-validation.md` for the measurements.
+  (2026-08-15)
+
+- **D35 — Feature `product-identity` (M21).** Four user-reported items, built
+  2026-08-16: the chat's file mentions move from `#` to `@`, the app is called
+  **Hive** (not "Hive Desktop"), its icon is the HIVE mark, and the Windows
+  installer is a branded assisted flow. Decisions:
+  (a) **`@` only opens after whitespace**, so `contato@exemplo.com` is never a
+  mention. `#` becomes inert — Markdown headings and hashtags stop lighting up
+  the composer, which is why the sigil moved in the first place.
+  (b) **The menu explains its ranking.** Match ranges are computed once over
+  the *whole path* and then sliced per line, so the highlight can never
+  disagree with the score that put the row there. The row is one line (name,
+  then folder): stacked rows ran ~55px and showed 4 of 8 matches.
+  (c) **The rename migrates `userData`, it does not abandon it.**
+  `userDataMigration.ts` moves the legacy directory by `rename` (same parent,
+  atomic) as the first statement in `whenReady`, refuses to migrate onto a
+  directory that already holds real data, and never overwrites a file already
+  at the target. Every future name goes into `LEGACY_USER_DATA_NAMES`.
+  (d) **`appId` changed** from the `com.electron.app` placeholder to
+  `dev.gustavobruno.hive`, and `electronApp.setAppUserModelId` now matches it —
+  a mismatch makes a pinned taskbar shortcut and the running window read as two
+  different programs. Safe only because the app has never been published.
+  (e) **Brand rasters are generated, never drawn.**
+  `scripts/gen-brand-artwork.mjs` derives the `.ico`, `.icns`, PNGs and the
+  four NSIS bitmaps from one SVG, with a *different drawing* below 48px (see
+  L-PI-1). (2026-08-16)
+
+## Lessons (product-identity, 2026-08-16)
+
+M21 shipped on `feat/voice-prompt`. `npm run verify` green; visual pass 3
+states x 3 themes, 42 reads, 4 defects fixed that no test could have seen.
+
+- **L-PI-1 — an app icon is several drawings, and the small one is measured,
+  not assumed.** The HIVE mark is a brain built from hairline circuit traces.
+  Rendered at 48px and inspected at 7x on the real raster, the gaps between the
+  traces close and the whole thing paints as a dark doughnut; at 40px and below
+  there is nothing left to recognise. So the `.ico` carries the hexagon cell
+  (the app's own small mark, already in the chat hero) at 16–40 and the brain
+  at 48+, and the tile's inset varies by size — 8.5% at 48px, 15% at 1024px,
+  because a 48px tile has no pixels to spend on margin. `--contact-sheet`
+  renders every size at true scale on light and dark; judging a 16px icon at
+  400% is not judging a 16px icon.
+
+- **L-PI-2 — renaming the product moves the user's data.** Electron derives
+  `userData` from `app.name`, so `productName: Hive` silently relocates the
+  config store, the chat history, the second-brain ledger and the downloaded
+  Whisper models. The app would have opened looking factory-fresh with the old
+  folder still on disk. The migration has to run *before the first store's
+  constructor*, because every store reads its file eagerly — there is no later
+  safe moment. Nothing links `electron-builder.yml` to the dev-run name but
+  `appIdentity.test.ts`; without it, dev and production write to different
+  directories and only a real install shows it.
+
+- **L-PI-3 — the contrast probe's parser is a source of false passes.** The
+  composer's mention pill is `color-mix(in oklab, …)`, which Chromium computes
+  to `oklab(L a b / α)` — a form the shared probe's regexes don't know. It
+  parsed as "no background", so the pill measured **1.00:1 against the surface
+  it was sitting on** and the pass reported it as a defect that wasn't there,
+  while the real defect (a tint too faint to see in `hive`) went unmeasured.
+  Any colour form the regexes miss now falls through to a 1x1 canvas, which
+  resolves anything CSS accepts. This is a fourth entry for
+  `docs/visual-validation.md`'s list of parser traps, and the most dangerous
+  kind: it fails *loudly on the wrong thing*.
+
+- **L-PI-4 — a floor invented at the keyboard is not a measurement.** The
+  "is the pill visible at all" check started at 1.3:1 because it looked like a
+  reasonable number. The screenshot at exactly 1.30:1 showed a smudge. Raised
+  to 1.7 it failed a pill that reads perfectly at 1.60:1. The floor now sits at
+  1.5 with the two screenshots that bracket it named in the comment. Where
+  WCAG has no number, the threshold has to be calibrated against images and its
+  evidence written down, or it is just a preference with a decimal point.
+
+- **L-PI-5 — a third theme silently misses every token block written for two.**
+  `--wb-ic-*` (the file-type icon hues) had a light ramp on `:root` and a dark
+  ramp on `[data-theme='dark']`. The `hive` theme is dark and got the *light*
+  ramp, painting L~52% hues on near-black bordô at 2.57:1 — in the explorer
+  tree, the viewer header and the search dialog, not just the surface that
+  found it. When a token block is keyed by theme, grep for every theme
+  selector, not just the one being worked on.
+
+- **L-PI-7 — electron-builder's "is the app running?" check matches a path
+  prefix, not a program, and it dead-ended the install.** Reported from a real
+  Windows run: "Não é possível fechar o Hive. Feche a janela do Hive e clique
+  em Repetir", with no Hive window open and Retry looping forever. The stock
+  macro (`templates/nsis/include/allowOnlyOneInstallerInstance.nsh`) matches
+  `$_.Path.StartsWith('$INSTDIR')` — a raw string prefix, no separator, no
+  executable name. Two consequences, both ours:
+  (a) **We ship the agent CLI inside the app folder**
+  (`resources\app.asar.unpacked\…\claude-code\bin\claude.exe`). A turn can
+  leave one alive after the window closes, the prefix match finds it, and the
+  message then instructs the user to close a window that does not exist. The
+  stock first kill pass is also un-forced, which a headless console child
+  ignores.
+  (b) **`…\Programs\Hive` is a case-insensitive string prefix of
+  `…\Programs\hive-desktop`** — so the rename made the new installer report the
+  *old* install as "Hive". A rename that shortens the product name to a prefix
+  of the old one is exactly the case this check cannot tell apart.
+  `build/installer.nsh` now defines `customCheckAppRunning`: match `$INSTDIR\`
+  (a directory, not a string), force-kill from the first pass, and — when
+  something still survives — **name the processes** instead of pointing at a
+  window. Never matches a bare image name: the user's own `claude.exe` on PATH
+  is not this installer's business.
+
+- **L-PI-8 — the app leaks its agent CLI on quit, and that is the upstream
+  cause of L-PI-7.** `window-all-closed` calls `app.quit()`; nothing stops
+  in-flight turns first. On Windows the CLI is a *grandchild* (M20 wraps the
+  turn in `cmd /d /s /c`), and killing the parent does not kill the tree —
+  `child.kill()` reaches the `cmd`, not the `claude.exe` under it. So a normal
+  quit during a turn leaves a process running out of the install folder, which
+  then blocks the next install. Not fixed here (main-process lifecycle work
+  with its own risk); the installer stops dead-ending on it. A real fix needs
+  `taskkill /T /F` on the pid, on quit, on Windows.
+
+- **L-PI-6 — the NSIS installer can be run and looked at on this machine.**
+  `Xvfb :99 -fbdir <dir>` writes a live XWD dump of the root window, and
+  `wine <installer>.exe` under that DISPLAY renders the real thing; the dump
+  parses with ~20 lines of Node and `sharp`. That screenshot caught a copy
+  defect no compile could ("Clique em Avançar" against a button the pt-BR NSIS
+  language file labels `Próximo`). No `xdotool` here, so pages past the first
+  are not clickable — the welcome page is what this proves.
+
+## Lessons (agent-terminal, 2026-08-14)
+
+M20 shipped on `feat/voice-prompt`. `npm run verify` green: **3514 tests / 209
+files** (from 3419 / 205), 0 lint errors, every coverage gate passing. Full E2E
+suite green (63/63). Visual pass: 3 states x 3 themes, 57 contrast reads, 0
+failures.
+
+- **L-AT-1 — when the rule belongs to someone else's program, measure that
+  program before writing the rule.** The whole feature rests on how the Claude
+  CLI picks its own shell, and none of it was guessable. Read out of the
+  shipped binary (`strings` over `claude.exe` 2.1.226): `CLAUDE_CODE_SHELL` is
+  accepted **only** for a path containing `bash`/`zsh` and executable —
+  anything else is logged "not a valid bash/zsh path, falling back to
+  detection" and dropped; Windows executes `Bash` through Git Bash
+  (`CLAUDE_CODE_GIT_BASH_PATH`); `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` enables
+  the PowerShell tool; and there is **no cmd executor at all**. Had we shipped
+  the obvious mapping (fish → `CLAUDE_CODE_SHELL=/usr/bin/fish`, cmd →
+  "supported"), the setting would have done nothing while claiming to work.
+
+- **L-AT-2 — `powershell.exe` silently rewrites the user's message.** Measured
+  against the real 5.1 binary, spawning a program that prints its own `argv`:
+  without pre-escaping, `{"json": "sim"}` arrived as `{json: sim}`, and a
+  trailing backslash was eaten. PowerShell re-quotes each argument when it
+  calls a native command and drops embedded double quotes doing it. No error,
+  no warning — the agent just receives a different prompt than the user typed.
+  `-EncodedCommand` does **not** fix it (measured too: same corruption); the
+  fix is CRT-style pre-escaping of each argument inside the single-quoted PS
+  string. Four prompts (JSON, quotes, `&`, accents, trailing `\`) now round-trip
+  byte-exact.
+
+- **L-AT-3 — putting a shell in the middle costs you the stop button, unless
+  you `exec`.** `bash -c '<cli> …'` leaves bash as the process we hold, so
+  `kill()` kills the shell and leaves the CLI running. `bash -c 'exec <cli> …'`
+  replaces the shell, so the pid we hold *is* the CLI's — verified for real
+  (child pid == printed pid, SIGTERM lands). Same class as the exit code:
+  PowerShell needs an explicit `exit $LASTEXITCODE`, or a failed turn reports
+  as done.
+
+- **L-AT-4 — the honest UI was the hard part, not the plumbing.** The requested
+  Windows default (`cmd`) is exactly the case where the CLI can't honour the
+  choice for its own commands. A picker that just listed shells would have
+  promised something the product cannot deliver, at the moment of the decision.
+  The answer was a per-agent caveat under the **selected** row only —
+  `native` vs `launch-only`, as a **code** crossing IPC (the copy lives in the
+  renderer's i18n; main holds no strings). Under those two rows the sentence
+  changes with the pick, which is the only version of it that is always true.
+
+- **L-AT-5 — `join()` lied on Linux about Windows paths.** The Windows
+  detection built candidates with `path.join`, which answers with forward
+  slashes off Windows — so every Windows case in the unit suite failed against
+  paths the code would never produce in production. `path.win32.join` is what
+  makes a detector for a platform this suite can't run on testable at all.
+  (The Claude CLI does the same thing internally — `require("path/win32")`.)
+
 ## Lessons (agent-onboarding, 2026-08-09)
 
 M17 shipped on `feat/voice-prompt`. `npm run verify` green: **2548 tests /

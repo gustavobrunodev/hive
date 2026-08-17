@@ -31,7 +31,7 @@ export interface QueuedWorkflow {
 /**
  * One send the user committed to while the agent was busy. It carries
  * everything the eventual dispatch needs, because the composer's state (its
- * attachments, its `#` references) is gone by the time the queue drains.
+ * attachments, its `@` references) is gone by the time the queue drains.
  */
 export interface QueuedMessage {
   id: string

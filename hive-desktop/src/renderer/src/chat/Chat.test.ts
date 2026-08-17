@@ -287,6 +287,8 @@ describe('Chat', () => {
     text?: string
     message?: string
     id?: string
+    // mcp-visibility `mcp` fields.
+    servers?: { name: string; status: string; tools: string[] }[]
     // agent-activity `tool` fields.
     name?: string
     detail?: string
@@ -363,7 +365,7 @@ describe('Chat', () => {
       skills?: Array<{ key: string; label: string; description: string }>
       recentSessions?: SessionMetaLike[]
       storedSession?: StoredSessionLike
-      /** chat-attachments: the workspace file list feeding the `#` mention menu. */
+      /** chat-attachments: the workspace file list feeding the `@` mention menu. */
       workspaceFiles?: string[]
       /** chat-attachments: what the native picker resolves with. */
       pickedAttachments?: Array<{ path: string; name: string; size: number }>
@@ -453,7 +455,10 @@ describe('Chat', () => {
       skills: {
         list: vi.fn().mockResolvedValue(options.skills ?? [])
       },
-      chatHistory
+      chatHistory,
+      // Agent Change Review: the pane names a brand-new conversation on the
+      // turn it already sent (`TurnMark.conversationId`).
+      review: { attachTurn: vi.fn().mockResolvedValue(undefined) }
     } as unknown as typeof window.hive
     return { emit: (event: AgentEventLike) => capturedOnEvent?.(event), startCalls, chatHistory }
   }
@@ -465,6 +470,8 @@ describe('Chat', () => {
       onCustomizeShortcuts?: (scope: 'start' | 'during') => void
       startActions?: RoleAction[]
       conversationActions?: RoleAction[]
+      onMcpRoster?: (servers: { name: string; status: string; tools: string[] }[]) => void
+      onOpenMcpConsole?: () => void
     } = {}
   ): ReturnType<typeof mockHive> {
     const hive = mockHive(extra)
@@ -967,7 +974,7 @@ describe('Chat', () => {
     renderChat({ workspaceFiles: [] })
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'veja #' }
+      target: { value: 'veja @' }
     })
 
     expect(await screen.findByText('Nenhum arquivo encontrado no workspace.')).toBeTruthy()
@@ -978,64 +985,106 @@ describe('Chat', () => {
     renderChat({ workspaceFiles: ['README.md'] })
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'veja #naoexiste' }
+      target: { value: 'veja @naoexiste' }
     })
 
     expect(await screen.findByText('Nenhum arquivo corresponde à busca.')).toBeTruthy()
     expect(screen.queryByText('Nenhum arquivo encontrado no workspace.')).toBeNull()
   })
 
-  // chat-attachments — `#` workspace-file references.
-  it('opens the file mention menu on # listing workspace files, and filters', async () => {
+  // chat-attachments — `@` workspace-file references.
+  it('opens the file mention menu on @ listing workspace files, and filters', async () => {
     renderChat({ workspaceFiles: ['README.md', 'docs/prd.md'] })
     await screen.findByText('Modelo A')
 
     const input = screen.getByPlaceholderText('Escreva uma mensagem…')
-    fireEvent.change(input, { target: { value: 'veja #' } })
-    expect(await screen.findByText('README.md')).toBeTruthy()
-    expect(screen.getByText('prd.md')).toBeTruthy()
+    fireEvent.change(input, { target: { value: 'veja @' } })
+    expect(await screen.findByRole('option', { name: 'README.md' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'docs/prd.md' })).toBeTruthy()
 
-    fireEvent.change(input, { target: { value: 'veja #prd' } })
-    await waitFor(() => expect(screen.queryByText('README.md')).toBeNull())
-    expect(screen.getByText('prd.md')).toBeTruthy()
+    fireEvent.change(input, { target: { value: 'veja @prd' } })
+    await waitFor(() => expect(screen.queryByRole('option', { name: 'README.md' })).toBeNull())
+    expect(screen.getByRole('option', { name: 'docs/prd.md' })).toBeTruthy()
   })
 
-  it('selecting a mention inserts the #path token and closes the menu', async () => {
+  // The row explains itself: the characters the query matched are marked, so
+  // a fuzzy hit doesn't look arbitrary. Asserted on the rendered <b> runs
+  // because that mark is the whole point of the feature.
+  it('marks the matched characters in the mention rows', async () => {
+    renderChat({ workspaceFiles: ['docs/prd.md'] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: 'veja @prd' } })
+
+    const option = await screen.findByRole('option', { name: 'docs/prd.md' })
+    const marks = [...option.querySelectorAll('.wb-mention-hit')].map((node) => node.textContent)
+    expect(marks).toEqual(['prd'])
+  })
+
+  // A capped list that doesn't say it's capped reads as "your file isn't
+  // here". The header only appears when there is something below the fold.
+  it('says how much of the match set the ranked page shows, and only when it truncates', async () => {
+    const many = Array.from({ length: 12 }, (_, index) => `docs/prd-${index}.md`)
+    renderChat({ workspaceFiles: many })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+
+    fireEvent.change(input, { target: { value: 'veja @prd' } })
+    expect(await screen.findByText('8 de 12')).toBeTruthy()
+
+    fireEvent.change(input, { target: { value: 'veja @prd-1' } })
+    await waitFor(() => expect(screen.queryByText(/ de /)).toBeNull())
+  })
+
+  it('selecting a mention inserts the @path token and closes the menu', async () => {
     renderChat({ workspaceFiles: ['docs/prd.md'] })
     await screen.findByText('Modelo A')
     const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLTextAreaElement
-    fireEvent.change(input, { target: { value: 'resuma #prd' } })
+    fireEvent.change(input, { target: { value: 'resuma @prd' } })
 
-    const option = await screen.findByText('prd.md')
+    const option = await screen.findByRole('option', { name: 'docs/prd.md' })
     fireEvent.mouseDown(option)
 
-    await waitFor(() => expect(input.value).toBe('resuma #docs/prd.md '))
+    await waitFor(() => expect(input.value).toBe('resuma @docs/prd.md '))
     expect(screen.queryByText('Arquivos do workspace')).toBeNull()
+  })
+
+  // Tab is the quick-open muscle memory (VS Code, Raycast, the agent CLIs);
+  // with a menu open there is nothing to tab to anyway.
+  it('Tab inserts the highlighted file, like Enter', async () => {
+    renderChat({ workspaceFiles: ['docs/prd.md'] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: 'resuma @prd' } })
+    await screen.findByRole('option', { name: 'docs/prd.md' })
+
+    fireEvent.keyDown(input, { key: 'Tab' })
+    await waitFor(() => expect(input.value).toBe('resuma @docs/prd.md '))
   })
 
   it('keyboard-selects a mention (Enter inserts the highlighted file)', async () => {
     renderChat({ workspaceFiles: ['docs/prd.md', 'README.md'] })
     await screen.findByText('Modelo A')
     const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLTextAreaElement
-    fireEvent.change(input, { target: { value: '#' } })
+    fireEvent.change(input, { target: { value: '@' } })
     await screen.findByText('prd.md')
 
     fireEvent.keyDown(input, { key: 'Enter' })
-    await waitFor(() => expect(input.value.startsWith('#')).toBe(true))
+    await waitFor(() => expect(input.value.startsWith('@')).toBe(true))
     // Enter inserted a token instead of submitting.
     expect(window.hive.agent.send).not.toHaveBeenCalled()
   })
 
-  it('sending a message with a valid #referência passes it to agent.send as attachments', async () => {
+  it('sending a message with a valid @referência passes it to agent.send as attachments', async () => {
     renderChat({ workspaceFiles: ['docs/prd.md'] })
     await screen.findByText('Modelo A')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'resuma #docs/prd.md por favor' }
+      target: { value: 'resuma @docs/prd.md por favor' }
     })
     fireEvent.click(screen.getByText('Enviar'))
 
     expect(window.hive.agent.send).toHaveBeenCalledWith(
-      'resuma #docs/prd.md por favor',
+      'resuma @docs/prd.md por favor',
       expect.objectContaining({
         agentId: 'claude-cli',
         resume: null,
@@ -1151,7 +1200,7 @@ describe('Chat', () => {
     expect(chip.textContent).not.toContain('B')
   })
 
-  it('a dropped workspace chip and its typed #reference dedupe into one context file', async () => {
+  it('a dropped workspace chip and its typed @reference dedupe into one context file', async () => {
     renderChat({ workspaceFiles: ['docs/prd.md'] })
     await screen.findByText('Modelo A')
 
@@ -1166,12 +1215,12 @@ describe('Chat', () => {
     await screen.findByText('prd.md')
 
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
-      target: { value: 'resuma #docs/prd.md agora' }
+      target: { value: 'resuma @docs/prd.md agora' }
     })
     fireEvent.click(screen.getByText('Enviar'))
 
     expect(window.hive.agent.send).toHaveBeenCalledWith(
-      'resuma #docs/prd.md agora',
+      'resuma @docs/prd.md agora',
       expect.objectContaining({
         agentId: 'claude-cli',
         resume: null,
@@ -1681,34 +1730,35 @@ describe('Chat', () => {
 
   // Agent Change Review (M11, T16): a change card renders in the transcript for
   // a turn that touched files, when Chat is inside a ReviewProvider.
-  it('renders an in-chat change card for a pending turn (ACR-R2.2)', async () => {
-    mockHive({})
-    const store: ReviewStore = {
-      workspace: '/ws',
-      changes: [
-        {
-          path: 'src/a.txt',
-          status: 'modified',
-          diff: { hunks: [], binary: false },
-          adds: 3,
-          dels: 1
-        }
-      ],
-      turns: [{ turnId: 't1', at: 1, paths: ['src/a.txt'] }],
-      pendingCount: 1,
-      byStatus: {
-        created: [],
-        modified: [
-          {
-            path: 'src/a.txt',
-            status: 'modified',
-            diff: { hunks: [], binary: false },
-            adds: 3,
-            dels: 1
-          }
-        ],
-        deleted: []
+  /**
+   * A pending set belongs to the workspace; a turn belongs to the conversation
+   * it was asked from. `turns` here carries both — the turn this pane sent
+   * (`session-1`, the id `chatHistory.create` mints) and one from a
+   * conversation the user isn't reading.
+   */
+  function reviewStoreWithTurns(turns: ReviewStore['turns']): ReviewStore {
+    const changes: ReviewStore['changes'] = [
+      {
+        path: 'src/a.txt',
+        status: 'modified',
+        diff: { hunks: [], binary: false },
+        adds: 3,
+        dels: 1
       },
+      {
+        path: 'outra/b.txt',
+        status: 'modified',
+        diff: { hunks: [], binary: false },
+        adds: 2,
+        dels: 0
+      }
+    ]
+    return {
+      workspace: '/ws',
+      changes,
+      turns,
+      pendingCount: changes.length,
+      byStatus: { created: [], modified: changes, deleted: [] },
       isStale: false,
       refresh: vi.fn(),
       acceptFile: vi.fn(async () => ({ ok: true })),
@@ -1722,6 +1772,10 @@ describe('Chat', () => {
       staleConflict: null,
       resolveStale: vi.fn(async () => {})
     }
+  }
+
+  function renderChatWithReview(store: ReviewStore): ReturnType<typeof mockHive> {
+    const hive = mockHive({})
     render(
       createElement(
         ReviewProvider,
@@ -1735,6 +1789,15 @@ describe('Chat', () => {
         })
       )
     )
+    return hive
+  }
+
+  it('renders an in-chat change card for a pending turn (ACR-R2.2)', async () => {
+    renderChatWithReview(
+      reviewStoreWithTurns([
+        { turnId: 't1', at: 1, paths: ['src/a.txt'], conversationId: 'session-1' }
+      ])
+    )
     // Send a message so the transcript (not the empty hero) renders — the card
     // lives in the message list.
     await screen.findByText('Modelo A')
@@ -1745,6 +1808,64 @@ describe('Chat', () => {
 
     expect(await screen.findByText('Editei 1 arquivo')).toBeTruthy()
     expect(screen.getByText('a.txt')).toBeTruthy()
+  })
+
+  /**
+   * The regression this exists for: the card for a review asked in one
+   * conversation used to render — pending, actionable, unexplained — at the
+   * bottom of whichever conversation happened to be open.
+   */
+  it('keeps another conversation’s change card out of this transcript', async () => {
+    renderChatWithReview(
+      reviewStoreWithTurns([
+        { turnId: 't1', at: 1, paths: ['src/a.txt'], conversationId: 'session-1' },
+        { turnId: 't-other', at: 2, paths: ['outra/b.txt'], conversationId: 'outra-conversa' }
+      ])
+    )
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'refatore os arquivos' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    expect(await screen.findByText('a.txt')).toBeTruthy()
+    expect(screen.queryByText('b.txt')).toBeNull()
+  })
+
+  it('names this conversation on the turn it sends, so its card lands here', async () => {
+    const hive = renderChatWithReview(reviewStoreWithTurns([]))
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'primeira mensagem' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    // First message of a fresh pane: the conversation doesn't exist yet, so the
+    // turn goes out unattributed and is named the moment `create` resolves.
+    await waitFor(() => expect(window.hive.agent.send).toHaveBeenCalled())
+    const [, firstOpts] = vi.mocked(window.hive.agent.send).mock.calls[0]
+    expect(firstOpts?.conversationId).toBeUndefined()
+    await waitFor(() =>
+      expect(window.hive.review.attachTurn).toHaveBeenCalledWith(
+        '/ws',
+        expect.any(String),
+        'session-1'
+      )
+    )
+
+    // Second message, once the first turn has landed: the conversation exists
+    // now, so it travels with the turn instead of being backfilled.
+    await act(async () => {
+      hive.emit({ type: 'done' })
+    })
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'segunda mensagem' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+    await waitFor(() => expect(window.hive.agent.send).toHaveBeenCalledTimes(2))
+    const [, secondOpts] = vi.mocked(window.hive.agent.send).mock.calls[1]
+    expect(secondOpts?.conversationId).toBe('session-1')
+    expect(hive.chatHistory.create).toHaveBeenCalledTimes(1)
   })
 
   // --- agent-activity: the live "what the agent is doing" feed --------------
@@ -1872,7 +1993,7 @@ describe('Chat', () => {
     expect(window.hive.agent.respondApproval).toHaveBeenCalledWith('req-b', {
       behavior: 'deny',
       scope: 'once',
-      message: 'Recusado pelo usuário no Hive Desktop.'
+      message: 'Recusado pelo usuário no Hive.'
     })
     expect(await screen.findByText('Recusado')).toBeTruthy()
   })
@@ -2366,6 +2487,107 @@ describe('Chat', () => {
       })
       expect(await screen.findByText('segunda')).toBeTruthy()
       expect(screen.getByText('Fila pausada — o turno anterior não terminou')).toBeTruthy()
+    })
+  })
+
+  /**
+   * mcp-visibility: the roster arrives on the agent event stream but is *shown*
+   * in two very different places — the status bar (always, hoisted up) and the
+   * transcript (only when it changed). Getting the second rule wrong is what
+   * turns a useful signal into a header every turn wears.
+   */
+  describe("the turn's MCP roster", () => {
+    const roster = [
+      { name: 'playwright', status: 'connected', tools: ['browser_navigate'] },
+      { name: 'pencil', status: 'connected', tools: [] }
+    ]
+
+    let sendSeq = 0
+
+    async function sendAndEmit(
+      hive: ReturnType<typeof mockHive>,
+      events: AgentEventLike[]
+    ): Promise<void> {
+      // A distinct prompt per turn: two identical user bubbles would make the
+      // "has the turn landed yet" wait ambiguous once a second turn is sent.
+      sendSeq += 1
+      const prompt = `usa o playwright ${sendSeq}`
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: prompt }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      // The send is async (it persists the user turn first); the roster event
+      // must land after the turn exists or it has no turn to grow.
+      await screen.findByText(prompt)
+      act(() => {
+        for (const event of events) hive.emit(event)
+      })
+    }
+
+    it('hands the roster up and opens a row in the transcript', async () => {
+      const onMcpRoster = vi.fn()
+      const hive = renderChat({}, { onMcpRoster })
+      await screen.findByText('Modelo A')
+
+      await sendAndEmit(hive, [
+        { type: 'mcp', servers: roster },
+        { type: 'token', text: 'ok' },
+        { type: 'done' }
+      ])
+
+      expect(onMcpRoster).toHaveBeenCalledWith(roster)
+      expect(await screen.findByText('2 servidores MCP conectados')).toBeTruthy()
+    })
+
+    it('does not repeat an unchanged roster on the next turn', async () => {
+      const onMcpRoster = vi.fn()
+      const hive = renderChat({}, { onMcpRoster })
+      await screen.findByText('Modelo A')
+
+      await sendAndEmit(hive, [{ type: 'mcp', servers: roster }, { type: 'done' }])
+      await screen.findByText('2 servidores MCP conectados')
+
+      await sendAndEmit(hive, [{ type: 'mcp', servers: roster }, { type: 'done' }])
+      // Still exactly one row — the second turn got the same servers, which is
+      // not news. The status bar keeps the standing answer either way.
+      await waitFor(() =>
+        expect(screen.getAllByText('2 servidores MCP conectados')).toHaveLength(1)
+      )
+      // ...but the roster is still published on every turn, so the bar can never
+      // go stale behind a transcript that stayed quiet.
+      expect(onMcpRoster).toHaveBeenCalledTimes(2)
+    })
+
+    it('announces again when a server changes state', async () => {
+      const hive = renderChat()
+      await screen.findByText('Modelo A')
+
+      await sendAndEmit(hive, [{ type: 'mcp', servers: roster }, { type: 'done' }])
+      await screen.findByText('2 servidores MCP conectados')
+
+      await sendAndEmit(hive, [
+        {
+          type: 'mcp',
+          servers: [{ ...roster[0], status: 'failed' }, roster[1]]
+        },
+        { type: 'done' }
+      ])
+      expect(await screen.findByText('playwright não conectou')).toBeTruthy()
+    })
+
+    it('says nothing at all for a turn whose CLI reported no MCP servers', async () => {
+      const onMcpRoster = vi.fn()
+      const hive = renderChat({}, { onMcpRoster })
+      await screen.findByText('Modelo A')
+
+      await sendAndEmit(hive, [
+        { type: 'mcp', servers: [] },
+        { type: 'token', text: 'ok' },
+        { type: 'done' }
+      ])
+
+      expect(onMcpRoster).toHaveBeenCalledWith([])
+      expect(document.querySelector('.wb-mcpturn')).toBeNull()
     })
   })
 

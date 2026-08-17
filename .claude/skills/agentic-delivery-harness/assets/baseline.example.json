@@ -1,0 +1,139 @@
+{
+  "baseline_id": "trials-v1",
+  "frozen_at": "2026-08-15",
+  "frozen_by": "baseline-freezer @ claude-opus-5",
+  "source": "PRD.md@a1b2c3d",
+  "notes": "Frozen once. Every run and every framework is judged against this file. Do not regenerate while a comparison is open.",
+  "weights": {
+    "implementation": 0.6,
+    "test": 0.4,
+    "priority": { "P0": 3, "P1": 2, "P2": 1 }
+  },
+  "stories": [
+    {
+      "id": "US-01",
+      "title": "Start a free trial without a card",
+      "priority": "P0",
+      "criteria": [
+        {
+          "id": "AC-01",
+          "statement": "When an authenticated user requests a trial with a plan priceId and a duration trialDays (default 14), the system creates the subscription in trial mode without requiring a payment method, and returns status 'trialing' with the end date.",
+          "i_checks": [
+            {
+              "id": "I-01",
+              "check": "Creates a subscription in trial mode for an authenticated user given a plan priceId"
+            },
+            {
+              "id": "I-02",
+              "check": "Subscription is created without a payment method being required or attached"
+            },
+            {
+              "id": "I-03",
+              "check": "trialDays defaults to 14 when the caller omits it"
+            },
+            {
+              "id": "I-04",
+              "check": "Response carries status 'trialing' and a trialEndDate derived from trialDays"
+            }
+          ],
+          "t_checks": [
+            {
+              "id": "T-01",
+              "check": "A test asserts the created subscription's status equals 'trialing'"
+            },
+            {
+              "id": "T-02",
+              "check": "A test asserts creation succeeds with no payment method present"
+            },
+            {
+              "id": "T-03",
+              "check": "A test asserts trialEndDate equals the creation date plus trialDays"
+            }
+          ]
+        },
+        {
+          "id": "AC-02",
+          "statement": "A request with an unknown priceId is rejected with 404 and no subscription is created.",
+          "i_checks": [
+            {
+              "id": "I-05",
+              "check": "An unknown priceId produces a 404 response"
+            },
+            {
+              "id": "I-06",
+              "check": "No subscription record is persisted when the priceId is unknown"
+            }
+          ],
+          "t_checks": [
+            {
+              "id": "T-04",
+              "check": "A test asserts the 404 status for an unknown priceId"
+            },
+            {
+              "id": "T-05",
+              "check": "A test asserts no subscription was persisted after the rejected request"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US-02",
+      "title": "See my trial status and end date",
+      "priority": "P1",
+      "criteria": [
+        {
+          "id": "AC-03",
+          "statement": "GET /subscriptions/me returns the current status and, while trialing, the trial end date.",
+          "i_checks": [
+            {
+              "id": "I-07",
+              "check": "GET /subscriptions/me returns the caller's current subscription status"
+            },
+            {
+              "id": "I-08",
+              "check": "The response includes trialEndDate while the subscription is trialing"
+            }
+          ],
+          "t_checks": [
+            {
+              "id": "T-06",
+              "check": "A test asserts the endpoint returns status plus trialEndDate for a trialing subscription"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US-03",
+      "title": "Trial converts to paid at expiry",
+      "priority": "P2",
+      "criteria": [
+        {
+          "id": "AC-04",
+          "statement": "When a trial reaches its end date with a payment method on file, the subscription transitions to 'active'; with none on file, it transitions to 'past_due'.",
+          "i_checks": [
+            {
+              "id": "I-09",
+              "check": "Trial expiry with a payment method on file transitions the subscription to 'active'"
+            },
+            {
+              "id": "I-10",
+              "check": "Trial expiry with no payment method transitions the subscription to 'past_due'"
+            }
+          ],
+          "t_checks": [
+            {
+              "id": "T-07",
+              "check": "A test asserts the 'active' transition at expiry with a payment method present"
+            },
+            {
+              "id": "T-08",
+              "check": "A test asserts the 'past_due' transition at expiry with no payment method"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

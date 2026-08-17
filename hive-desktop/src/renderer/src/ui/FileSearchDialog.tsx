@@ -47,7 +47,7 @@ function splitPath(path: string): { name: string; dir: string | null } {
  * memory PRODUCT.md's "OS-grade file management" principle asks for), living
  * where the rail's role shortcuts used to be. Reuses the DS `CommandDialog`
  * (cmdk fuzzy filter + Dialog focus trap) over the same flat file list that
- * feeds the composer's `#` mentions; picking a row opens the file in the
+ * feeds the composer's `@` mentions; picking a row opens the file in the
  * editor pane.
  */
 export function FileSearchDialog({

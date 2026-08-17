@@ -170,6 +170,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
   function mockHive(overrides: Partial<typeof window.hive>): void {
     const defaults: typeof window.hive = {
+      platform: 'linux',
       ping: vi.fn().mockResolvedValue('pong'),
       chooseWorkspace: vi.fn().mockResolvedValue(null),
       openExternal: vi.fn().mockResolvedValue(undefined),
@@ -270,6 +271,17 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       // Default: agent + role already set, so the flow tests below skip the
       // required first-run setup steps and reach the provisioning gate. The
       // new-setup tests override getAgent/getRole to null.
+      // agent-terminal: the terminal picker's namespace — the sheet reads it on
+      // open, so every full-bridge mock has to answer.
+      shell: {
+        list: vi.fn().mockResolvedValue({
+          shells: [],
+          selectedId: null,
+          resolvedId: null,
+          missingSelection: false
+        }),
+        select: vi.fn().mockResolvedValue(undefined)
+      },
       profile: {
         agents: vi.fn().mockResolvedValue([
           { id: 'claude-cli', displayName: 'Claude Code', description: '', available: true },
@@ -307,7 +319,9 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         importEntry: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(false),
         trash: vi.fn().mockResolvedValue(undefined),
-        pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt')
+        pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt'),
+        revealPath: vi.fn().mockResolvedValue(undefined),
+        absolutePath: vi.fn().mockResolvedValue('/ws/abs')
       },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),

@@ -404,7 +404,7 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
       service.respond((await raised).requestId, { behavior: 'deny' })
       expect(await verdictOf(await pending)).toEqual({
         behavior: 'deny',
-        message: 'Denied by the user in Hive Desktop.'
+        message: 'Denied by the user in Hive.'
       })
     })
   })

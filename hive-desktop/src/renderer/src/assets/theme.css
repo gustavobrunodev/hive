@@ -129,6 +129,12 @@
   --selected: var(--accent);
   --selected-bg: oklch(65.9% 0.114 42.2 / 16%);
 
+  /* Restated for the same reason as everything else in this block: `hive` is
+     not a `data-theme` the DS knows, so it would otherwise inherit these from
+     the bare-`:root` fallback by accident rather than by contract. */
+  --selection-bg: var(--accent);
+  --selection-ink: var(--bg);
+
   --overlay: oklch(0% 0 0 / 60%);
 
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);

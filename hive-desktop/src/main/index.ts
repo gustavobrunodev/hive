@@ -16,7 +16,9 @@ import { basename, join, sep } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import packageJson from '../../package.json'
+import { APP_ID, APP_NAME } from './appIdentity'
 import { createConfigStore } from './configStore'
+import { migrateUserData } from './userDataMigration'
 import { createChatHistoryStore } from './chatHistoryStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
@@ -25,6 +27,8 @@ import { createGitService, GitError, type GitDiffSide } from './gitService'
 import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
+import { createShellService, type ShellService } from './shellService'
+import type { ShellInfo } from './shellCatalog'
 import { createAgentInstaller } from './agentInstaller'
 import { createAgentService } from './agentService'
 import { createApprovalService } from './approvalService'
@@ -179,12 +183,31 @@ protocol.registerSchemesAsPrivileged([
   STUDIO_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme
 ])
 
+// The product is called Hive. Packaged, `electron-builder.yml`'s `productName`
+// already tells Electron that; in dev the name would fall out of package.json's
+// scoped npm identity instead, so `userData` — and every store in it — would
+// live somewhere else than in the shipped app. Set it here so the two runs are
+// the same app, and set it BEFORE the first `getPath('userData')`: Electron
+// resolves that path from `app.name` on first use and caches it.
+app.setName(APP_NAME)
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  // The rename moved `userData`; carry the previous one over before anything
+  // reads from it. First statement in `whenReady` by necessity — every store
+  // below loads its file in its constructor.
+  const migration = migrateUserData(app.getPath('userData'))
+  if (migration.moved) {
+    console.info(`[hive] migrated ${migration.entries} entries of user data from ${migration.from}`)
+  }
+
+  // The AppUserModelID is what Windows uses to group taskbar buttons, attach
+  // jump lists and match a running window to its shortcut. It must equal the
+  // installer's `appId` or the pinned shortcut and the running app read as two
+  // different programs.
+  electronApp.setAppUserModelId(APP_ID)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -266,7 +289,7 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:listTree', async (_event, root: string, relativePath?: string) =>
     fsService.listTree(root, relativePath)
   )
-  // chat-attachments: flat file list feeding the composer's `#` mention menu.
+  // chat-attachments: flat file list feeding the composer's `@` mention menu.
   ipcMain.handle('fs:listFiles', async (_event, root: string) => fsService.listFiles(root))
   ipcMain.handle('fs:readFile', async (_event, root: string, relativePath: string) =>
     fsService.readFile(root, relativePath)
@@ -365,6 +388,37 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:trash', async (_event, root: string, relativePath: string) =>
     fsService.trash(root, relativePath)
   )
+  ipcMain.handle('fs:absolutePath', async (_event, root: string, relativePath: string) =>
+    fsService.absolutePathFor(root, relativePath)
+  )
+  // explorer-os-actions: hands a workspace path to the host's file manager —
+  // Explorer on Windows, Finder on macOS, whatever `xdg-open` resolves to on
+  // Linux. Two verbs, because they are what the OS itself distinguishes: a
+  // *file* is revealed with its parent open and the item highlighted
+  // (`showItemInFolder`), a *directory* is opened as the window's own target
+  // (`openPath`) — revealing a folder would show its parent instead, which is
+  // never what "open this folder" means.
+  //
+  // Routed through `fsService.absolutePathFor` rather than taking an absolute
+  // path from the renderer: this is a bridge that makes the OS open something,
+  // so the workspace-escape check is the whole point of it. `''` is the
+  // workspace root itself (the empty-area menu), which resolves to `root` and
+  // passes the check like any other in-tree path.
+  ipcMain.handle(
+    'shell:revealPath',
+    async (_event, root: string, relativePath: string, isDir: boolean): Promise<void> => {
+      const absolute = fsService.absolutePathFor(root, relativePath)
+      if (!isDir) {
+        shell.showItemInFolder(absolute)
+        return
+      }
+      // Unlike the void `showItemInFolder`, `openPath` resolves to a *string*:
+      // empty on success, an OS error message otherwise. Silence would leave
+      // the renderer showing a success it never got.
+      const failure = await shell.openPath(absolute)
+      if (failure) throw new Error(`revealPath: ${failure}`)
+    }
+  )
 
   // Streaming IPC for watchWorkspace — the first of its kind in this
   // codebase (ongoing change events rather than one request/response), so
@@ -398,7 +452,16 @@ app.whenReady().then(() => {
   // AgentAdapter, C1) backed by a real (spawn-based) ProcessRunner, wrapped
   // by AgentService to own the active session. Exposed to the renderer as
   // window.hive.agent.{capabilities,start,send,runWorkflow,onEvent}.
-  const processRunner = createProcessRunner()
+  // agent-terminal (AT-R3): every agent turn is spawned inside the terminal the
+  // user chose. The getter is deliberately late-bound — `ShellService` needs the
+  // registry (for each agent's caveats) and the registry needs this runner, so
+  // the cycle is broken by reading the service at spawn time rather than at
+  // construction time. Until it exists (and whenever no shell is detected), the
+  // runner spawns exactly as it did before this feature.
+  let shellService: ShellService | null = null
+  /** The terminal a turn runs in right now — one getter, two consumers below. */
+  const currentShell = (): ShellInfo | null => shellService?.current() ?? null
+  const processRunner = createProcessRunner({ shell: currentShell })
   // multi-agent: the registry holds every real adapter (Claude, Copilot,
   // Devin); availability is detected per machine by `registry.detect()` (queried
   // by the `profile.agents` picker below). `AgentService` runs a pool of
@@ -450,8 +513,13 @@ app.whenReady().then(() => {
   void approvalService.listen().catch(() => {})
 
   const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner), {
-    permissionPrompt: approvalService
+    permissionPrompt: approvalService,
+    // agent-terminal (AT-R4): the adapters translate this into their own CLI's
+    // environment (`CLAUDE_CODE_SHELL` and friends), read per turn.
+    shell: currentShell
   })
+  const shells = createShellService(configStore, agentRegistry)
+  shellService = shells
   const agentService = createAgentService(agentRegistry)
   // agent-onboarding: `npm i -g` for the agent CLIs the picker offers to
   // install. Holds the **unwrapped** runner on purpose — the E2E seam
@@ -736,6 +804,14 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('review:acceptAll', async (_e, ws: string) => reviewService.acceptAll(ws))
   ipcMain.handle('review:rejectAll', async (_e, ws: string) => reviewService.rejectAll(ws))
+  // The chat pane names a turn's conversation once the conversation exists on
+  // disk — the first turn of a brand-new one is sent before its id is minted.
+  ipcMain.handle(
+    'review:attachTurn',
+    async (_e, ws: string, turnId: string, conversationId: string) => {
+      reviewService.attachTurn(ws, turnId, conversationId)
+    }
+  )
 
   // Turn lifecycle wiring: take the checkpoint *before* the CLI spawns
   // (race-free pre-image, ACR-R1.1) and finalize the set on the turn's terminal
@@ -745,13 +821,15 @@ app.whenReady().then(() => {
   const activeReviewTurns = new Map<string, string>() // turnId -> workspace
   const reviewTurnPaths = new Map<string, Set<string>>() // turnId -> touched file paths (attribution, ACR-C7)
   let reviewTurnCounter = 0
-  function beginReviewTurn(turnId: string): void {
+  // `conversationId` (session-history) rides along so the turn's change card
+  // renders in the conversation that asked for it and in no other one.
+  function beginReviewTurn(turnId: string, conversationId?: string): void {
     const ws = workspaceService.getWorkspace()
     if (!ws) return
     ensureReviewWatch(ws)
     activeReviewTurns.set(turnId, ws)
     reviewTurnPaths.set(turnId, new Set())
-    void reviewService.beginTurn(ws, turnId)
+    void reviewService.beginTurn(ws, turnId, conversationId)
   }
   /**
    * agent-approvals: which agent a turn runs on, so a "sempre permitir" raised
@@ -839,13 +917,13 @@ app.whenReady().then(() => {
     // the caller didn't supply one so the terminal event can be matched back;
     // pass it through to the agent so its events carry the same id.
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
-    beginReviewTurn(turnId)
+    beginReviewTurn(turnId, opts?.conversationId)
     rememberTurnAgent(turnId, opts?.agentId)
     agentService.send(text, { ...opts, turnId })
   })
   ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand, opts?: TurnOpts) => {
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
-    beginReviewTurn(turnId)
+    beginReviewTurn(turnId, opts?.conversationId)
     rememberTurnAgent(turnId, opts?.agentId)
     agentService.runWorkflow(cmd, { ...opts, turnId })
   })
@@ -1390,6 +1468,9 @@ app.whenReady().then(() => {
   ipcMain.handle('mcpLogs:read', async (_event, workspace: string, query: McpLogQuery) =>
     mcpLogService.read(workspace, query)
   )
+  ipcMain.handle('mcpLogs:locate', async (_event, workspace: string) =>
+    mcpLogService.locate(workspace)
+  )
   ipcMain.handle('mcpLogs:openDir', async (_event, workspace: string, server: string) => {
     const source = (await mcpLogService.sources(workspace)).find((entry) => entry.server === server)
     if (!source) throw new Error(`Sem logs para o servidor "${server}".`)
@@ -1474,6 +1555,16 @@ app.whenReady().then(() => {
     // Keep only registered ids; setEnabledAgents also keeps the default coherent.
     const valid = Array.isArray(ids) ? ids.filter((id) => agentRegistry.get(id)) : []
     configStore.setEnabledAgents(valid)
+  })
+  // agent-terminal: the terminal picker (AT-R1/AT-R2). `list` joins the
+  // detected shells with the persisted choice and each enabled agent's caveat
+  // code; `refresh` re-detects instead of answering from the cache — the
+  // "procurar de novo" control, and the only way a Git Bash installed while
+  // the app is open becomes selectable without a restart. `select(null)`
+  // restores automatic.
+  ipcMain.handle('shell:list', async (_event, refresh?: boolean) => shells.list(refresh === true))
+  ipcMain.handle('shell:select', async (_event, id: unknown) => {
+    shells.select(typeof id === 'string' && id !== '' ? id : null)
   })
   ipcMain.handle('profile:getRole', async () => configStore.getRole())
   ipcMain.handle('profile:setRole', async (_event, id: string) => {

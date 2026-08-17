@@ -287,6 +287,7 @@ describe('Explorer (T12/T8)', () => {
   } {
     const watchListeners: WatchListener[] = []
     const defaults: typeof window.hive = {
+      platform: 'linux',
       ping: vi.fn().mockResolvedValue('pong'),
       chooseWorkspace: vi.fn().mockResolvedValue(null),
       openExternal: vi.fn().mockResolvedValue(undefined),
@@ -387,6 +388,17 @@ describe('Explorer (T12/T8)', () => {
         search: vi.fn().mockResolvedValue([]),
         delete: vi.fn().mockResolvedValue(undefined)
       },
+      // agent-terminal: the terminal picker's namespace — the sheet reads it on
+      // open, so every full-bridge mock has to answer.
+      shell: {
+        list: vi.fn().mockResolvedValue({
+          shells: [],
+          selectedId: null,
+          resolvedId: null,
+          missingSelection: false
+        }),
+        select: vi.fn().mockResolvedValue(undefined)
+      },
       profile: {
         agents: vi.fn().mockResolvedValue([]),
         getAgent: vi.fn().mockResolvedValue(null),
@@ -421,7 +433,9 @@ describe('Explorer (T12/T8)', () => {
         importEntry: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(false),
         trash: vi.fn().mockResolvedValue(undefined),
-        pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt')
+        pathForFile: vi.fn().mockReturnValue('/abs/os/path/dropped.txt'),
+        revealPath: vi.fn().mockResolvedValue(undefined),
+        absolutePath: vi.fn((_root: string, rel: string) => Promise.resolve(`/ws/${rel}`))
       },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
@@ -1505,6 +1519,217 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(screen.getByTestId('dialog-dismiss'))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(window.hive.fs.trash).not.toHaveBeenCalled()
+  })
+
+  // explorer-os-actions: copy path + open in the host file manager. Each item
+  // has its own scoping rule (row vs empty area, single vs multi-selection,
+  // file vs directory), and the scope is exactly where these go wrong.
+  describe('OS-parity actions (copy path, reveal)', () => {
+    /** Right-clicks `label`'s row and returns once the menu is up. */
+    async function openRowMenu(label: string): Promise<void> {
+      const row = screen.getByText(label).closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+      await screen.findByRole('menuitem', { name: /Excluir/ })
+    }
+
+    function stubClipboard(): ReturnType<typeof vi.fn> {
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+      return writeText
+    }
+
+    it("copies a file's workspace-relative path", async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      await openRowMenu('a.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('a.txt'))
+      // Relative is the tree's own key — it must NOT round-trip to main.
+      expect(window.hive.fs.absolutePath).not.toHaveBeenCalled()
+    })
+
+    it("copies a folder's relative path too (not just files)", async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('docs')
+
+      await openRowMenu('docs')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('docs'))
+    })
+
+    it('resolves the absolute path through main rather than composing one in the renderer', async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      await openRowMenu('a.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /^Copiar caminho$/ }))
+
+      await waitFor(() => {
+        expect(window.hive.fs.absolutePath).toHaveBeenCalledWith('/ws', 'a.txt')
+      })
+      expect(writeText).toHaveBeenCalledWith('/ws/a.txt')
+    })
+
+    it('copies every selected path, one per line, when the row is part of a multi-selection', async () => {
+      const writeText = stubClipboard()
+      mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      fireEvent.click(screen.getByText('a.txt'))
+      fireEvent.click(screen.getByText('b.txt'), { ctrlKey: true })
+
+      await openRowMenu('b.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('a.txt\nb.txt'))
+    })
+
+    it('ignores the selection when the right-clicked row is not part of it', async () => {
+      const writeText = stubClipboard()
+      mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      fireEvent.click(screen.getByText('a.txt'))
+      fireEvent.click(screen.getByText('b.txt'), { ctrlKey: true })
+
+      await openRowMenu('other')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('other'))
+    })
+
+    it('confirms the copy in a live region, and the wording counts the paths', async () => {
+      stubClipboard()
+      mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      await openRowMenu('a.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+      expect(await screen.findByText('Caminho copiado')).toBeTruthy()
+
+      fireEvent.click(screen.getByText('a.txt'))
+      fireEvent.click(screen.getByText('b.txt'), { ctrlKey: true })
+      await openRowMenu('b.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /Copiar caminho relativo/ }))
+      expect(await screen.findByText('2 caminhos copiados')).toBeTruthy()
+    })
+
+    it('reveals a FILE with isDir=false so main highlights it inside its parent', async () => {
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      await openRowMenu('a.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /gerenciador de arquivos/ }))
+
+      await waitFor(() => {
+        expect(window.hive.fs.revealPath).toHaveBeenCalledWith('/ws', 'a.txt', false)
+      })
+    })
+
+    it('opens a FOLDER with isDir=true — revealing it would show its parent instead', async () => {
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('docs')
+
+      await openRowMenu('docs')
+      fireEvent.click(screen.getByRole('menuitem', { name: /gerenciador de arquivos/ }))
+
+      await waitFor(() => {
+        expect(window.hive.fs.revealPath).toHaveBeenCalledWith('/ws', 'docs', true)
+      })
+    })
+
+    it('right-clicking the empty area opens the workspace root itself', async () => {
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      const area = document.querySelector('.wb-tree-body') as HTMLElement
+      fireEvent.contextMenu(area)
+      fireEvent.click(
+        await screen.findByRole('menuitem', {
+          name: /Abrir o workspace no gerenciador de arquivos/
+        })
+      )
+
+      await waitFor(() => expect(window.hive.fs.revealPath).toHaveBeenCalledWith('/ws', '', true))
+    })
+
+    it('surfaces a reveal failure with its own message, not the generic retry advice', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockHive({
+        fs: {
+          ...window.hive.fs,
+          revealPath: vi.fn().mockRejectedValue(new Error('no file manager'))
+        } as unknown as typeof window.hive.fs
+      })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      await openRowMenu('a.txt')
+      fireEvent.click(screen.getByRole('menuitem', { name: /gerenciador de arquivos/ }))
+
+      expect(
+        await screen.findByText('Não foi possível abrir no gerenciador de arquivos do sistema.')
+      ).toBeTruthy()
+    })
+
+    it("right-clicking the empty area copies the workspace root's own absolute path", async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      const area = document.querySelector('.wb-tree-body') as HTMLElement
+      fireEvent.contextMenu(area)
+      fireEvent.click(await screen.findByRole('menuitem', { name: /^Copiar caminho$/ }))
+
+      await waitFor(() => expect(window.hive.fs.absolutePath).toHaveBeenCalledWith('/ws', ''))
+      expect(writeText).toHaveBeenCalledWith('/ws/')
+    })
+
+    // The kebab is a second opening of the same menu, and each item there is a
+    // separate callback — one wired to the wrong path would be invisible to
+    // every test that only ever right-clicks.
+    it('offers the same actions from the row kebab as from the right-click menu', async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mais ações para a.txt' }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: /Copiar caminho relativo/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('a.txt'))
+    })
+
+    it('copies the absolute path from the kebab too', async () => {
+      const writeText = stubClipboard()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mais ações para a.txt' }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: /^Copiar caminho$/ }))
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('/ws/a.txt'))
+    })
+
+    it("reveals from the kebab, carrying the row's own file/folder verb", async () => {
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('docs')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mais ações para docs' }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: /gerenciador de arquivos/ }))
+
+      await waitFor(() => {
+        expect(window.hive.fs.revealPath).toHaveBeenCalledWith('/ws', 'docs', true)
+      })
+    })
   })
 
   it('typing inside the inline create input never bubbles keys to the tree (no typeahead exit)', async () => {

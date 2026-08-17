@@ -14,6 +14,7 @@ export function createHiveMcpLogsMock(): HiveMcpLogsMock {
   return {
     sources: vi.fn().mockResolvedValue([]),
     read: vi.fn().mockResolvedValue([]),
+    locate: vi.fn().mockResolvedValue({ dir: '/cache/mcp', exists: false }),
     openDir: vi.fn().mockResolvedValue(undefined),
     watch: vi.fn().mockReturnValue(() => {})
   }

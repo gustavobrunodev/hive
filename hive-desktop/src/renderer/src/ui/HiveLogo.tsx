@@ -9,8 +9,9 @@ export interface HiveLogoProps {
   mark?: 'lockup' | 'mark'
   className?: string
   /**
-   * Overrides the DS's generic "Hive" label — the title bar announces the full
-   * product name, since there the lockup replaces the name in text.
+   * Overrides the DS's hardcoded "Hive" label. The app chrome passes
+   * `t('app.title')` — same word today, but the product name belongs in the
+   * locale file with the rest of the copy, not in a shared component.
    */
   'aria-label'?: string
 }

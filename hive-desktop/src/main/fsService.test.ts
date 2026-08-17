@@ -448,6 +448,33 @@ describe('FsService', () => {
     })
   })
 
+  // explorer-os-actions: the resolver behind `fs:absolutePath` and
+  // `shell:revealPath`. It is the one method that hands a real OS path back
+  // out, so the escape check is the whole of its contract.
+  describe('absolutePathFor()', () => {
+    it('resolves a workspace-relative path against the root', () => {
+      expect(service.absolutePathFor(root, 'docs/prd.md')).toBe(join(root, 'docs', 'prd.md'))
+    })
+
+    it("resolves '' to the workspace root itself (the empty-area menu)", () => {
+      expect(service.absolutePathFor(root, '')).toBe(root)
+    })
+
+    it('resolves a path that does not exist — this is resolution, not a stat', () => {
+      expect(service.absolutePathFor(root, 'nunca-criado.txt')).toBe(join(root, 'nunca-criado.txt'))
+    })
+
+    it('rejects a relativePath that escapes the workspace root', () => {
+      expect(() => service.absolutePathFor(root, '../../../etc/passwd')).toThrow(
+        /escapes workspace root/
+      )
+    })
+
+    it('rejects an absolute path pointing outside the workspace', () => {
+      expect(() => service.absolutePathFor(root, '/etc/passwd')).toThrow(/escapes workspace root/)
+    })
+  })
+
   describe('importEntry()', () => {
     let sourceRoot: string
 
