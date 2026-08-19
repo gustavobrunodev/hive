@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createFakeProcessRunner, type ProcessHandle, type ProcessRunner } from './processRunner'
 import { claudeShellBinding, createClaudeCliAdapter } from './claudeCliAdapter'
 import { readMcpRoster } from './cliAdapterCore'
-import type { AgentAdapter, AgentEvent, TurnUsage } from './agentAdapter'
+import type { AgentAdapter, AgentEvent, ShellContext, TurnUsage } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
 
 /** Pulls exactly `count` events off a session's `events` async-iterable. */
@@ -1039,6 +1039,14 @@ describe("ClaudeCliAdapter — the turn's MCP roster", () => {
  * `CLAUDE_CODE_GIT_BASH_PATH` as its Windows executor, and has no cmd executor
  * at all. Guessing any of these produces a setting that silently does nothing,
  * which is worse than not offering it.
+ *
+ * The Windows cases carry a second, harder rule the first version of this
+ * feature missed. With `CLAUDE_CODE_USE_POWERSHELL_TOOL` **unset**, the CLI's
+ * own `LY()` ends at `nt("tengu_cobalt_ridge", !1)` — a remote feature gate.
+ * So "set nothing and let the CLI decide" is not a neutral choice, it is a
+ * coin flip, and it is the one that produced the bug report ("escolhi o Git
+ * Bash e o agente diz que usa PowerShell"). Every Windows binding writes the
+ * variable explicitly; these tests are what keep it that way.
  */
 describe('ClaudeCliAdapter — the chosen terminal', () => {
   const shell = (id: string, family: ShellInfo['family'], path: string): ShellInfo => ({
@@ -1048,58 +1056,107 @@ describe('ClaudeCliAdapter — the chosen terminal', () => {
     systemDefault: false
   })
 
+  const GIT_BASH = shell('git-bash', 'bash', 'C:\\Program Files\\Git\\bin\\bash.exe')
+  const POWERSHELL = shell('powershell', 'powershell', 'C:\\powershell.exe')
+  const CMD = shell('cmd', 'cmd', 'C:\\Windows\\System32\\cmd.exe')
+  const ZSH = shell('zsh', 'zsh', '/usr/bin/zsh')
+  const BASH = shell('bash', 'bash', '/bin/bash')
+
+  const windows = (available: ShellInfo[]): ShellContext => ({ available, platform: 'win32' })
+  const posix = (available: ShellInfo[]): ShellContext => ({ available, platform: 'darwin' })
+
   it('exports CLAUDE_CODE_SHELL for bash and zsh — the only two the CLI accepts', () => {
-    expect(claudeShellBinding(shell('zsh', 'zsh', '/usr/bin/zsh'))).toEqual({
+    expect(claudeShellBinding(ZSH, posix([ZSH, BASH]))).toEqual({
       support: 'native',
+      runsIn: 'zsh',
       env: { CLAUDE_CODE_SHELL: '/usr/bin/zsh' }
     })
-    expect(claudeShellBinding(shell('bash', 'bash', '/bin/bash'))).toEqual({
+    expect(claudeShellBinding(BASH, posix([ZSH, BASH]))).toEqual({
       support: 'native',
+      runsIn: 'bash',
       env: { CLAUDE_CODE_SHELL: '/bin/bash' }
     })
   })
 
-  it('exports nothing for fish/sh, because the CLI would log the value and drop it', () => {
-    expect(claudeShellBinding(shell('fish', 'fish', '/usr/bin/fish'))).toEqual({
-      support: 'launch-only',
+  it('pins fish/sh to a real bash or zsh instead of letting the CLI scan for one', () => {
+    const fish = shell('fish', 'fish', '/usr/bin/fish')
+    expect(claudeShellBinding(fish, posix([fish, BASH, ZSH]))).toEqual({
+      support: 'fallback',
       note: 'posix-bash-zsh-only',
-      env: {}
+      runsIn: 'zsh',
+      env: { CLAUDE_CODE_SHELL: '/usr/bin/zsh' }
     })
-    expect(claudeShellBinding(shell('sh', 'sh', '/bin/sh')).env).toEqual({})
   })
 
-  it('points the Windows executor at the chosen Git Bash', () => {
-    expect(
-      claudeShellBinding(shell('git-bash', 'bash', 'C:\\Program Files\\Git\\bin\\bash.exe'))
-    ).toEqual({
+  it('leaves fish alone when the machine has no bash or zsh to pin it to', () => {
+    const fish = shell('fish', 'fish', '/usr/bin/fish')
+    expect(claudeShellBinding(fish, posix([fish]))).toEqual({
+      support: 'launch-only',
+      note: 'posix-bash-zsh-only',
+      runsIn: null,
+      env: {}
+    })
+  })
+
+  it('points the Windows executor at the chosen Git Bash and turns PowerShell off', () => {
+    // The `0` is the fix. Without it the CLI keeps its PowerShell tool on
+    // (gate `tengu_cobalt_ridge`) and reports "PowerShell (primary)" in its own
+    // environment block while running inside this bash.
+    expect(claudeShellBinding(GIT_BASH, windows([CMD, POWERSHELL, GIT_BASH]))).toEqual({
       support: 'native',
       note: 'windows-git-bash',
-      env: { CLAUDE_CODE_GIT_BASH_PATH: 'C:\\Program Files\\Git\\bin\\bash.exe' }
+      runsIn: 'git-bash',
+      env: {
+        CLAUDE_CODE_GIT_BASH_PATH: 'C:\\Program Files\\Git\\bin\\bash.exe',
+        CLAUDE_CODE_USE_POWERSHELL_TOOL: '0'
+      }
     })
   })
 
   it('turns on the PowerShell tool, and keeps the preview label the CLI itself uses', () => {
-    expect(claudeShellBinding(shell('pwsh', 'powershell', 'C:\\pwsh.exe'))).toEqual({
+    const pwsh = shell('pwsh', 'powershell', 'C:\\pwsh.exe')
+    expect(claudeShellBinding(pwsh, windows([CMD, pwsh]))).toEqual({
       support: 'native',
       note: 'powershell-preview',
+      runsIn: 'pwsh',
       env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
     })
   })
 
-  it('reports cmd as launch-only — the CLI has no cmd executor (AT-R5, D-AT-2)', () => {
-    // This is the Windows *default* the feature was asked to ship, so the one
-    // case the UI must not overclaim.
-    expect(claudeShellBinding(shell('cmd', 'cmd', 'C:\\Windows\\System32\\cmd.exe'))).toEqual({
-      support: 'launch-only',
-      note: 'windows-git-bash',
-      env: {}
+  it('pins cmd to the Git Bash on the machine, and names it (AT-R5, D-AT-2)', () => {
+    // cmd is the Windows *default*, so this is the path most users take. The
+    // CLI has no cmd executor; the choice is between naming where the commands
+    // land and letting a remote gate decide it silently.
+    expect(claudeShellBinding(CMD, windows([CMD, POWERSHELL, GIT_BASH]))).toEqual({
+      support: 'fallback',
+      note: 'cmd-no-executor',
+      runsIn: 'git-bash',
+      env: {
+        CLAUDE_CODE_GIT_BASH_PATH: 'C:\\Program Files\\Git\\bin\\bash.exe',
+        CLAUDE_CODE_USE_POWERSHELL_TOOL: '0'
+      }
+    })
+  })
+
+  it('falls back to PowerShell — never to a bare 0 — when there is no Git Bash', () => {
+    // `CLAUDE_CODE_USE_POWERSHELL_TOOL=0` with no Git Bash makes the CLI
+    // `process.exit(1)` at startup ("Claude Code on Windows requires a shell
+    // tool"), so this case must resolve the other way and say so.
+    expect(claudeShellBinding(CMD, windows([CMD, POWERSHELL]))).toEqual({
+      support: 'fallback',
+      note: 'install-git-bash',
+      runsIn: 'powershell',
+      env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
     })
   })
 
   it('sends the binding with the turn, re-read per message', () => {
     const runner = createFakeProcessRunner()
-    let current: ShellInfo | null = shell('zsh', 'zsh', '/usr/bin/zsh')
-    const adapter = createClaudeCliAdapter(runner, { shell: () => current })
+    let current: ShellInfo | null = ZSH
+    const adapter = createClaudeCliAdapter(runner, {
+      shell: () => current,
+      shells: () => [ZSH, BASH]
+    })
     const session = adapter.startSession({ workspace: '/ws' })
 
     session.send({ text: 'oi' })
@@ -1108,7 +1165,7 @@ describe('ClaudeCliAdapter — the chosen terminal', () => {
 
     // The user switches terminals mid-conversation: the very next turn honours
     // it, with no restart and no new session.
-    current = shell('bash', 'bash', '/bin/bash')
+    current = BASH
     session.send({ text: 'de novo' })
     expect(runner.calls[1].opts?.env).toEqual({ CLAUDE_CODE_SHELL: '/bin/bash' })
   })

@@ -15,27 +15,34 @@ async (page) => {
 
   const probe = async (label) =>
     await page.evaluate((label) => {
+      // Any CSS color → sRGB + alpha, by letting the canvas do the conversion.
+      // Hand-written regexes were the previous approach and they silently
+      // reported UNMEASURED for every `oklch()` token — which is most of the
+      // semantic palette, and exactly the runs most worth checking (the amber
+      // `--warning-ink` on the re-routed agent, the accent tint on the sigil).
+      // A probe that skips the interesting half reads as a pass.
+      const _cv = document.createElement('canvas')
+      _cv.width = _cv.height = 1
+      const _ctx = _cv.getContext('2d', { willReadFrequently: true })
       function parse(value) {
-        const text = String(value).trim().toLowerCase()
-        const srgb = text.match(
-          /^color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s*(?:\/\s*([\d.]+))?\s*\)$/
-        )
-        if (srgb)
-          return {
-            rgb: [srgb[1], srgb[2], srgb[3]].map((c) => Math.min(255, Math.max(0, Number(c) * 255))),
-            a: srgb[4] === undefined ? 1 : Number(srgb[4])
-          }
-        const rgb = text.match(
-          /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+))?\s*\)$/
-        )
-        if (rgb)
-          return {
-            rgb: [rgb[1], rgb[2], rgb[3]].map(Number),
-            a: rgb[4] === undefined ? 1 : Number(rgb[4])
-          }
-        const hex = text.match(/^#([0-9a-f]{6})$/)
-        if (hex) return { rgb: [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16)), a: 1 }
-        return null
+        const text = String(value).trim()
+        if (text === '' || text === 'transparent') return { rgb: [0, 0, 0], a: 0 }
+        _ctx.clearRect(0, 0, 1, 1)
+        // Seed with a known color first: an unparseable value leaves
+        // `fillStyle` at its previous setting rather than throwing, and this
+        // makes that case observable instead of silently black.
+        _ctx.fillStyle = '#010203'
+        _ctx.fillStyle = text
+        if (_ctx.fillStyle === '#010203' && text !== '#010203') return null
+        _ctx.clearRect(0, 0, 1, 1)
+        _ctx.fillRect(0, 0, 1, 1)
+        const d = _ctx.getImageData(0, 0, 1, 1).data
+        // `getImageData` is specified to hand back **un-premultiplied** RGBA,
+        // so the channels are already the source color. Dividing by alpha here
+        // (the obvious "undo the premultiply" move) is a second correction: it
+        // drove `--selected-bg`'s 16% coral to near-white and quietly turned
+        // every measurement over a tint into a failure.
+        return { rgb: [d[0], d[1], d[2]], a: d[3] / 255 }
       }
       function lum(rgb) {
         const [r, g, b] = rgb.map((ch) => {
@@ -64,11 +71,18 @@ async (page) => {
       // measured separately below via their computed `color`.
       const targets = [
         '.wb-shell-scan-text',
-        '.wb-shell-row-name',
-        '.wb-shell-row-detail',
-        '.wb-shell-row-badge',
-        '.wb-shell-support-title',
-        '.wb-shell-support-item',
+        '.hds-radio-card-title',
+        '.hds-radio-card-meta',
+        '.wb-shell-live',
+        '.wb-shell-sigil',
+        '.wb-shell-outcome-title',
+        '.wb-shell-route-agent',
+        '.wb-shell-route-target',
+        '.wb-shell-note',
+        '.wb-shell-note-cta',
+        '.wb-shell-command-toggle',
+        '.hds-cmdline-text',
+        '.hds-cmdline-copy',
         '.wb-shell-missing',
         '.wb-shell-empty'
       ]
@@ -98,9 +112,12 @@ async (page) => {
           break // one sample per selector per state is enough; they share tokens
         }
       }
-      // The status marks: colour IS the redundant channel here, so they owe 3:1.
-      for (const selector of ['.wb-shell-support-item[data-support="native"] svg',
-        '.wb-shell-support-item[data-support="launch-only"] svg']) {
+      // The route marks: colour IS the redundant channel here, so they owe 3:1.
+      for (const selector of [
+        '.wb-shell-route[data-support="native"] .wb-shell-route-mark svg',
+        '.wb-shell-route[data-support="fallback"] .wb-shell-route-mark svg',
+        '.wb-shell-route[data-support="launch-only"] .wb-shell-route-mark svg'
+      ]) {
         const el = document.querySelector(selector)
         if (!el) continue
         const fg = parse(getComputedStyle(el).color)
@@ -134,9 +151,15 @@ async (page) => {
     // 1. Automatic (the default, and on Windows the cmd caveat).
     results.push(...(await probe(`${theme} auto`)))
 
-    // 2. A picked shell — the caveats swap to the "native" wording.
-    await page.locator('[aria-label="Git Bash"]').first().click()
+    // 2. A picked shell, with its receipt open — the routes swap to "native"
+    //    and the command line is the one surface that only exists here.
+    await page.getByRole('radio', { name: 'Git Bash' }).first().click()
     await page.waitForTimeout(250)
+    const toggle = page.locator('.wb-shell-command-toggle[aria-expanded="false"]').first()
+    if ((await toggle.count()) > 0) {
+      await toggle.click()
+      await page.waitForTimeout(200)
+    }
     results.push(...(await probe(`${theme} picked`)))
 
     // 3. The choice's shell is gone (D-AT-4): the warning banner.
@@ -155,7 +178,7 @@ async (page) => {
     await page.evaluate(() => document.querySelector('.wb-shell-missing')?.remove())
 
     // Back to automatic for the next theme's first state.
-    await page.locator('[aria-label="Automático"]').first().click()
+    await page.getByRole('radio', { name: 'Automático' }).first().click()
     await page.waitForTimeout(200)
   }
 

@@ -11,6 +11,29 @@
  * and leaves the door open for another locale later without touching
  * components.
  */
+/**
+ * Writes a keyboard chord the way the host OS writes it.
+ *
+ * macOS renders modifiers as unspaced glyphs (⇧⌥C); Windows and Linux spell
+ * them out with `+` separators. Only the notation changes — the chord itself
+ * is the same one the Explorer binds, and the Ctrl→⌘ mapping matches what the
+ * key handler does (it accepts `metaKey` wherever it accepts `ctrlKey`).
+ */
+function chordLabel(chord: string, platform: string): string {
+  if (platform !== 'darwin') return chord
+  // Apple's own order is ⌃⌥⇧⌘key regardless of how the chord was written, so
+  // the parts are re-sorted rather than substituted in place: "Ctrl+Shift+C"
+  // has to come out ⇧⌘C, not ⌘⇧C.
+  const GLYPH: Record<string, string> = { Ctrl: '⌘', Alt: '⌥', Shift: '⇧' }
+  const ORDER = ['⌃', '⌥', '⇧', '⌘']
+  const parts = chord.split('+')
+  const modifiers = parts
+    .slice(0, -1)
+    .map((part) => GLYPH[part] ?? part)
+    .sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
+  return `${modifiers.join('')}${parts[parts.length - 1] ?? ''}`
+}
+
 export const ptBR = {
   app: {
     title: 'Hive',
@@ -69,6 +92,69 @@ export const ptBR = {
     menuNewFolder: 'Nova pasta',
     menuRename: 'Renomear',
     menuDelete: 'Excluir',
+
+    // file-clipboard: the cut/copy/paste group, in the order every file
+    // manager puts it in.
+    menuCut: 'Recortar',
+    menuCopy: 'Copiar',
+    menuPaste: 'Colar',
+
+    /**
+     * The keyboard hints shown at the right edge of the file menus.
+     *
+     * Notation rather than prose, but still per-OS: macOS writes a chord as
+     * unspaced glyphs (⇧⌥C) and every other desktop spells the modifiers out
+     * (Shift+Alt+C). Showing a Mac user "Ctrl+X" for a shortcut that is
+     * really ⌘X is the "Electron-app jank" PRODUCT.md lists as an
+     * anti-reference — the menu would be describing a key they do not have.
+     */
+    keyCut: (platform: string): string => chordLabel('Ctrl+X', platform),
+    keyCopy: (platform: string): string => chordLabel('Ctrl+C', platform),
+    keyPaste: (platform: string): string => chordLabel('Ctrl+V', platform),
+    keyRename: (): string => 'F2',
+    keyDelete: (platform: string): string => (platform === 'darwin' ? '⌘⌫' : 'Delete'),
+    keyCopyPath: (platform: string): string => chordLabel('Shift+Alt+C', platform),
+    keyCopyRelativePath: (platform: string): string =>
+      `${chordLabel('Ctrl+K', platform)} ${chordLabel('Ctrl+Shift+C', platform)}`,
+
+    /**
+     * The pending-clipboard tray under the toolbar. A cut you forget about is
+     * the classic file-manager trap — the rows dim, and nothing else on
+     * screen says why or offers a way out. This names the pending set, names
+     * where it would land, and can be dismissed.
+     */
+    clipboardTrayLabel: (mode: string, count: number): string =>
+      mode === 'cut'
+        ? count > 1
+          ? `${count} itens recortados`
+          : '1 item recortado'
+        : count > 1
+          ? `${count} itens copiados`
+          : '1 item copiado',
+    /**
+     * What the tray actually *prints*, as opposed to what it announces.
+     *
+     * The rail is ~240px wide and the tray has four things to fit, so the
+     * sentence above is the accessible name and this is the visible text: for
+     * one entry the name itself (more useful than "1 item recortado" — it
+     * says *which*), for several the count alone, since the scissors/copy
+     * glyph beside it already carries the verb.
+     */
+    clipboardTrayCount: (name: string, count: number): string =>
+      count > 1 ? `${count} itens` : name,
+    /** The tray's primary action — names the folder the paste would go into. */
+    clipboardPasteInto: (destination: string): string => `Colar em ${destination}`,
+    clipboardClearLabel: 'Cancelar',
+    /** Live-region confirmations for the clipboard verbs (the clipboard itself is silent). */
+    cutFeedback: (count: number): string =>
+      count > 1 ? `${count} itens recortados` : 'Item recortado',
+    copyFeedback: (count: number): string =>
+      count > 1 ? `${count} itens copiados` : 'Item copiado',
+    pasteFeedback: (count: number): string =>
+      count > 1 ? `${count} itens colados` : 'Item colado',
+    /** Shown while the `Ctrl+K` half of a two-stroke chord is waiting for its second key. */
+    chordPendingHint: (platform: string): string =>
+      `${chordLabel('Ctrl+K', platform)} — aguardando a segunda tecla…`,
 
     // explorer-os-actions: the OS-parity actions on the row / empty-area menu.
     menuCopyRelativePath: 'Copiar caminho relativo',
@@ -286,6 +372,14 @@ export const ptBR = {
     attachTitle: 'Anexar arquivos como contexto',
     attachmentRemoveAria: (name: string) => `Remover anexo ${name}`,
     dropHint: 'Solte para anexar como contexto',
+    // The staged-files tray. Its summary is the fact a user checks before
+    // pressing Enter — how many files are going, and how heavy they are.
+    attachmentTrayCount: (count: number) => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+    attachmentClear: 'Limpar',
+    attachmentClearTitle: 'Remover todos os anexos',
+    // Per-conversation drafts: what the user sees when a conversation hands
+    // back the message and the files it had waiting.
+    draftRestored: 'Rascunho desta conversa',
     mentionMenuLabel: 'Arquivos do workspace',
     mentionMenuHint: '↑ ↓ navega · Enter ou Tab insere · Esc fecha',
     // The ranked list is a page of at most 8. Saying so turns "meu arquivo não
@@ -455,6 +549,11 @@ export const ptBR = {
     allowCta: 'Permitir',
     allowAlwaysCta: 'Sempre permitir',
     denyCta: 'Recusar',
+    // The blanket grant. Its label says the scope out loud and its hint says
+    // when it ends — a "permitir tudo" that doesn't say until when is how
+    // someone hands over the shell believing they lent it for a minute.
+    allowSessionCta: 'Permitir tudo nesta sessão',
+    allowSessionHint: 'O agente para de perguntar até você fechar o Hive.',
     // Says where the grant goes, not just that it is remembered: a standing
     // permission is written into the agent's own settings for this workspace,
     // which is a file the user can open, read and undo.
@@ -465,7 +564,14 @@ export const ptBR = {
     keyboardHint: 'Enter permite · Esc recusa',
     allowedState: 'Permitido',
     allowedAlwaysState: 'Permitido sempre',
+    allowedSessionState: 'Permitido — sessão liberada',
     deniedState: 'Recusado',
+    // The footer chip: the standing reminder that nothing is being asked any
+    // more, and the one click that takes it back. A blanket grant with no
+    // visible state is a grant the user forgets they gave.
+    sessionChipLabel: 'Autorizações liberadas nesta sessão',
+    sessionChipAria: 'Autorizações liberadas nesta sessão — o agente não vai pedir permissão',
+    sessionRevokeCta: 'Voltar a perguntar',
     deniedMessage: 'Recusado pelo usuário no Hive.',
     pendingAria: (title: string) => `Autorização pendente: ${title}`
   },
@@ -1712,10 +1818,15 @@ export const ptBR = {
   shell: {
     groupLabel: 'Terminal usado pelos agentes',
     autoLabel: 'Automático',
-    autoDescription: (name: string) => `Segue o padrão do sistema: ${name}.`,
-    autoDescriptionEmpty: 'Segue o padrão do sistema.',
-    systemDefaultBadge: 'Padrão do sistema',
-    inUseBadge: 'Em uso',
+    // Two sentences because "Automático" means two different things. In POSIX
+    // it follows the machine ($SHELL, which is also what the CLIs accept). On
+    // Windows the machine's own default is o cmd — o único terminal em que
+    // nenhum agente executa comando —, então seguir a máquina seria escolher
+    // o pior. Dizer qual das duas regras está valendo é o mínimo.
+    autoDescriptionSystem: (name: string) => `Segue o terminal do sistema: ${name}.`,
+    autoDescriptionPicked: (name: string) => `O Hive escolhe o melhor para os agentes: ${name}.`,
+    autoDescriptionEmpty: 'Nenhum terminal reconhecido para escolher.',
+    liveBadge: 'Em uso',
     detecting: 'Procurando terminais…',
     // Not "Procurar de novo": the agents section, in this same sheet, already
     // owns that exact label — two identical buttons one scroll apart is
@@ -1726,11 +1837,17 @@ export const ptBR = {
     empty:
       'Nenhum terminal reconhecido nesta máquina. Os agentes continuam rodando com o padrão do sistema.',
     missingSelection: (name: string) =>
-      `O terminal escolhido (${name}) não está mais neste computador. Enquanto isso os agentes usam o padrão — a escolha volta sozinha se ele for reinstalado.`,
-    // The caveat block under the selected row: one line per enabled agent,
-    // because "o agente usa este terminal" is true for some and false for
-    // others, and the moment to say so is while the user is choosing.
-    supportTitle: 'O que isso muda para cada agente'
+      `O terminal escolhido (${name}) não está mais neste computador. Enquanto isso os agentes usam o automático — a escolha volta sozinha se ele for reinstalado.`,
+    // The block inside the selected row: one line per agent naming the shell
+    // it really executes in. "Onde" and not "o que muda" — the old title
+    // promised an explanation and the reader wanted a destination.
+    routesTitle: 'Onde cada agente executa',
+    routeUnknown: 'a CLI decide',
+    commandShow: 'Ver o comando',
+    commandHide: 'Ocultar o comando',
+    commandCopy: 'Copiar',
+    commandCopied: 'Copiado',
+    installGitCta: 'Instalar o Git para Windows'
   },
   // Guided first-access tour (skippable at any moment).
   tour: {
@@ -2095,34 +2212,60 @@ export function shellName(id: string): string {
 }
 
 /**
- * What one agent actually does with the chosen shell (agent-terminal AT-R5).
+ * The prompt sigil a shell is recognized by, for the picker's leading tile.
  *
- * Two axes: whether the agent runs its *own* commands there (`native`) or only
- * starts inside it (`launch-only`), and the code explaining why. The sentence
- * has to survive being read by someone deciding — so it says what happens, not
- * what is supported.
+ * Real prompts, not invented glyphs: `$` and `%` are what bash and zsh print,
+ * `PS>` is PowerShell's own abbreviation, `C:\` is what a cmd window opens
+ * with. A shell this build doesn't know falls back to the generic `>`.
+ */
+export function shellSigil(id: string, family: string): string {
+  if (id === 'git-bash') return '$'
+  if (family === 'cmd') return 'C:\\'
+  if (family === 'powershell') return 'PS>'
+  if (family === 'zsh') return '%'
+  if (family === 'fish') return '~>'
+  if (family === 'bash' || family === 'sh') return '$'
+  return '>'
+}
+
+/**
+ * Why an agent lands where it lands (agent-terminal AT-R5) — or `null` when
+ * the route line above already said everything there is to say.
+ *
+ * The route names the destination; this names the *reason*, and only when
+ * there is one worth a line. Repeating "o Claude executa neste terminal" under
+ * a line that already reads "Claude CLI → Git Bash" is how the old version
+ * became a paragraph per agent that nobody finished reading.
  */
 export function shellSupportNote(
   agent: string,
-  support: 'native' | 'launch-only',
-  note?: 'posix-bash-zsh-only' | 'windows-git-bash' | 'powershell-preview' | 'no-cli-binding'
-): string {
+  support: 'native' | 'fallback' | 'launch-only',
+  note?:
+    | 'posix-bash-zsh-only'
+    | 'windows-git-bash'
+    | 'powershell-preview'
+    | 'cmd-no-executor'
+    | 'install-git-bash'
+    | 'no-cli-binding',
+  runsIn?: string | null
+): string | null {
   if (support === 'native') {
-    if (note === 'powershell-preview') {
-      return `${agent} executa os comandos aqui, pela ferramenta PowerShell (marcada como preview pela própria CLI).`
+    // The one native case worth a caveat: the CLI itself calls this tool a
+    // preview, and the user is entitled to know before betting a session on it.
+    return note === 'powershell-preview'
+      ? `A própria CLI do ${agent} marca a ferramenta PowerShell como preview.`
+      : null
+  }
+  if (support === 'fallback') {
+    if (note === 'cmd-no-executor') {
+      return `O ${agent} não executa comandos no Prompt de Comando — o Hive fixa o ${runsIn ?? 'terminal acima'} para ele.`
     }
-    if (note === 'windows-git-bash') {
-      return `${agent} executa os comandos deste Git Bash.`
+    if (note === 'install-git-bash') {
+      return `Sem o Git para Windows nesta máquina, o ${agent} só tem o PowerShell.`
     }
-    return `${agent} executa os próprios comandos neste terminal.`
+    return `O ${agent} só aceita bash ou zsh — o Hive fixa o ${runsIn ?? 'terminal acima'} para ele.`
   }
-  if (note === 'windows-git-bash') {
-    return `${agent} não executa comandos no cmd — ele usa o Git Bash ou o PowerShell que encontrar. Aqui passa só a inicialização.`
-  }
-  if (note === 'posix-bash-zsh-only') {
-    return `${agent} só aceita bash ou zsh para os próprios comandos e vai escolher sozinho. Aqui passa só a inicialização.`
-  }
-  return `${agent} não permite escolher o terminal dos próprios comandos. Aqui passa só a inicialização.`
+  return `O ${agent} escolhe o próprio terminal; aqui passa só a inicialização.`
 }
 
 /**

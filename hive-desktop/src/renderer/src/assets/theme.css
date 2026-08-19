@@ -106,6 +106,10 @@
   --accent: var(--coral);
   --accent-hover: var(--coral-hover);
   --accent-ink: oklch(20.6% 0.036 352.3);
+  /* Ink for text on `--selected-bg`, not on a filled accent — see tokens.css.
+     The bordo surface under the tint is dark, so the plain accent measured
+     4.18:1 here; the lifted coral clears the floor at 6.1:1. */
+  --accent-tint-ink: oklch(76% 0.114 42.2);
   --focus: var(--accent);
 
   --danger: oklch(63.7% 0.208 25.3);

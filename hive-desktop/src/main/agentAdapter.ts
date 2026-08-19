@@ -347,10 +347,14 @@ export interface ApprovalDecision {
   /**
    * `always` also records a standing rule for this tool (persisted, app-wide),
    * so the same class of call stops asking. `once` covers only this request.
-   * Ignored on `deny` — refusing is never remembered, so a mistaken "no" can't
-   * quietly block the agent forever.
+   * `session` is the widest and the shortest-lived: it stops asking for
+   * *everything* until the app is closed, writes nothing to disk and nothing
+   * into the agent's own permission config — the answer to a long working
+   * session where the agent is asking every thirty seconds, not a standing
+   * grant. Ignored on `deny` — refusing is never remembered, so a mistaken
+   * "no" can't quietly block the agent forever.
    */
-  scope?: 'once' | 'always'
+  scope?: 'once' | 'always' | 'session'
   /** Shown to the agent as the reason on `deny`, so it can adapt instead of retrying blind. */
   message?: string
 }
@@ -457,23 +461,36 @@ export interface AgentAdapterDeps {
    * and every adapter behaves exactly as it did before this feature.
    */
   shell?: () => ShellInfo | null
+  /**
+   * agent-terminal: the whole detected catalog, for the adapter that has to
+   * *fall back* rather than honour the pick — Claude has no cmd executor, so
+   * "cmd" has to become a named, existing shell instead of whatever the CLI
+   * would have picked for itself. Absent means "nothing detected", and every
+   * binding degrades to the launch alone.
+   */
+  shells?: () => ShellInfo[]
 }
 
 /**
  * How far a chosen shell actually reaches into one agent (agent-terminal
- * AT-R5). Two states, because there are exactly two truths to tell:
+ * AT-R5). Three states, because there are exactly three truths to tell:
  *
  *  - `native` — the CLI accepts this shell for its *own* command execution
  *    (the adapter has an environment variable for it, and the CLI honours it).
- *  - `launch-only` — Hive launches the CLI inside this shell, but the CLI runs
- *    its own commands in whatever shell it picks for itself.
+ *  - `fallback` — the CLI cannot run its commands in this shell, so Hive pins
+ *    it to a **different, named, installed** one (`ShellBinding.runsIn`).
+ *  - `launch-only` — Hive launches the CLI inside this shell and the CLI picks
+ *    its own executor with no way for us to steer or even read it.
  *
- * The distinction exists so the picker can say which one the user is getting
- * *before* they choose. On Windows the default (`cmd`) is `launch-only` for
- * Claude — the CLI has no cmd executor at all — and a UI that implied
- * otherwise would be lying at exactly the moment the user is deciding.
+ * `fallback` is the state this feature was re-opened for. Before it, "cmd"
+ * reported `launch-only` and Hive set no environment at all — which handed the
+ * decision to the Claude CLI, whose Windows rule ends in a remote feature gate
+ * (`LY()` in claude 2.1.226). The observable result was the bug report: the
+ * user picks "Prompt de Comando" or "Git Bash", and the agent answers "estou
+ * usando PowerShell". A pin plus a named shell is the fix; saying which shell
+ * it landed on, in the picker, is the other half.
  */
-export type ShellSupport = 'native' | 'launch-only'
+export type ShellSupport = 'native' | 'fallback' | 'launch-only'
 
 /**
  * Why a shell is only `launch-only` (or what the `native` binding actually
@@ -483,18 +500,40 @@ export type ShellSupport = 'native' | 'launch-only'
 export type ShellSupportNote =
   /** Claude on POSIX honours `CLAUDE_CODE_SHELL` for bash/zsh only — verified against the binary. */
   | 'posix-bash-zsh-only'
-  /** Claude on Windows executes `Bash` through Git Bash; cmd is not an executor it has. */
+  /** Claude on Windows executes `Bash` through Git Bash; that is what this shell *is*. */
   | 'windows-git-bash'
   /** `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` — a real binding, but the CLI still labels the tool preview. */
   | 'powershell-preview'
+  /** Windows cmd: the CLI ships no cmd executor, so the commands are pinned elsewhere. */
+  | 'cmd-no-executor'
+  /** The pin had to land on PowerShell because Git Bash isn't on this machine — installing it changes the answer. */
+  | 'install-git-bash'
   /** The CLI publishes no way to choose its inner shell, so the choice is the launch only. */
   | 'no-cli-binding'
+
+/**
+ * What one adapter needs to know about the machine to answer, beyond the shell
+ * being asked about: a `fallback` is only honest if it names a shell that is
+ * really there, and only safe if the pin it writes matches one.
+ */
+export interface ShellContext {
+  /** Every shell `detectShells` found here, in display order. */
+  available: ShellInfo[]
+  platform: NodeJS.Platform
+}
 
 /** One agent's answer to "what happens if I pick this shell?" (AT-R4/AT-R5). */
 export interface ShellBinding {
   support: ShellSupport
   note?: ShellSupportNote
-  /** Environment the adapter adds to its own spawns to honour the shell. Empty for `launch-only`. */
+  /**
+   * The id of the shell this agent will really run its own commands in — the
+   * chosen one when `native`, the pinned one when `fallback`, and `null` when
+   * the CLI decides for itself (`launch-only`). The picker renders this
+   * verbatim, which is why it is an id and not a sentence.
+   */
+  runsIn: string | null
+  /** Environment the adapter adds to its own spawns to honour (or pin) the shell. Empty for `launch-only`. */
   env: Record<string, string>
 }
 
@@ -509,7 +548,14 @@ export interface AgentAdapter {
    * that doesn't implement it is treated as `launch-only`/`no-cli-binding`,
    * which is the honest default for a CLI whose inner shell we can't steer.
    */
-  shellBinding?(shell: ShellInfo): ShellBinding
+  shellBinding?(shell: ShellInfo, context: ShellContext): ShellBinding
+  /**
+   * The CLI binary this adapter drives (`claude`, `copilot`, …). Optional and
+   * display-only: the terminal picker shows the real command line a turn is
+   * spawned with, and a preview that named the wrong binary would be exactly
+   * the kind of confident-and-wrong the picker exists to end.
+   */
+  commandName?: string
 }
 
 /**

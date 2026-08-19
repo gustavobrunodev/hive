@@ -128,6 +128,14 @@ export interface ApprovalService {
   rules(): ApprovalRule[]
   /** Drops every standing rule (the profile's "esquecer permissões"). */
   clearRules(): void
+  /**
+   * Whether "permitir tudo nesta sessão" is armed. Held in memory only: a
+   * blanket grant that survived a restart would be a permission the user
+   * granted for an afternoon and got for good.
+   */
+  sessionAllowAll(): boolean
+  /** Arms or revokes the session-wide grant. Arming also releases everything already waiting. */
+  setSessionAllowAll(enabled: boolean): void
   close(): Promise<void>
 }
 
@@ -183,6 +191,12 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
   const listeners = new Set<(request: ApprovalEvent) => void>()
   const pending = new Map<string, Pending>()
   const allowRules = new Set<ApprovalRule>(options.rules ?? [])
+  /**
+   * agent-approvals (session grant): while this is on, nothing is asked. It is
+   * deliberately *not* persisted and deliberately not written into the agent's
+   * own config — see `ApprovalDecision.scope`.
+   */
+  let sessionAllowAll = false
   let server: Server | null = null
   let port: number | null = null
 
@@ -197,6 +211,7 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     turnId: string | undefined
   ): Promise<ApprovalDecision> {
     const rule = approvalRuleFor(tool, input)
+    if (sessionAllowAll) return Promise.resolve({ behavior: 'allow', scope: 'session' })
     if (allowRules.has(rule)) return Promise.resolve({ behavior: 'allow', scope: 'always' })
 
     const requestId = randomUUID()
@@ -224,6 +239,12 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     if (!entry) return
     pending.delete(requestId)
     clearTimeout(entry.timer)
+    // "Permitir tudo nesta sessão" answers this request *and* stops the asking:
+    // anything else already blocked is released with it, because a user who
+    // just said "tudo" would otherwise be handed the next card immediately.
+    if (decision.behavior === 'allow' && decision.scope === 'session') {
+      armSessionAllowAll()
+    }
     if (
       decision.behavior === 'allow' &&
       decision.scope === 'always' &&
@@ -242,6 +263,18 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
       })
     }
     entry.resolve(decision)
+  }
+
+  /** Turns the grant on and releases every request already parked on a card. */
+  function armSessionAllowAll(): void {
+    sessionAllowAll = true
+    for (const requestId of [...pending.keys()]) {
+      const waiting = pending.get(requestId)
+      if (!waiting) continue
+      pending.delete(requestId)
+      clearTimeout(waiting.timer)
+      waiting.resolve({ behavior: 'allow', scope: 'session' })
+    }
   }
 
   // --- MCP over HTTP -------------------------------------------------------
@@ -433,6 +466,16 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     clearRules(): void {
       allowRules.clear()
       persistRules()
+    },
+
+    sessionAllowAll: () => sessionAllowAll,
+
+    setSessionAllowAll(enabled: boolean): void {
+      if (enabled) {
+        armSessionAllowAll()
+        return
+      }
+      sessionAllowAll = false
     },
 
     close(): Promise<void> {

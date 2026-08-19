@@ -144,6 +144,11 @@ vi.mock('@hive/design-system', () => ({
             key: node.id,
             role: 'treeitem',
             className: selected ? 'hds-tree-item-selected' : undefined,
+            // The real Tree publishes membership this way for
+            // `selection="multiple"`; without it a test can only read the
+            // mock's own class name and would pass against a component that
+            // never told anyone what was selected.
+            'aria-selected': selected,
             // Stand-in for T2's modifier-aware `Tree.activate` (real toggle
             // + range logic lives in the DS package, already covered by its
             // own test suite) — just enough here (Ctrl toggles membership;
@@ -221,12 +226,47 @@ vi.mock('@hive/design-system', () => ({
   },
   DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
     createElement('div', { role: 'menu' }, children),
-  DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+  // Mirrors the real item closely enough for the two things tests read off it:
+  // `disabled` (Radix renders `data-disabled` and swallows the select) and the
+  // `aria-hidden` shortcut slot, which is what keeps the accessible name the
+  // label alone rather than "Recortar Ctrl+X".
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    disabled,
+    shortcut,
+    variant,
+    ...rest
+  }: {
+    children?: ReactNode
+    onSelect?: () => void
+    disabled?: boolean
+    shortcut?: ReactNode
+    variant?: string
+  }) =>
     createElement(
       'button',
-      { type: 'button', role: 'menuitem', onClick: () => onSelect?.() },
-      children
+      {
+        type: 'button',
+        role: 'menuitem',
+        disabled,
+        'data-disabled': disabled ? '' : undefined,
+        // The real item turns `variant` into a class; the mock keeps it
+        // readable as an attribute so a test can tell a destructive action
+        // from an ordinary one.
+        'data-variant': variant,
+        // Radix spreads the rest onto the item; `aria-keyshortcuts` rides in
+        // that way, and a mock that swallows it would let an item ship with
+        // a visible hint and nothing announced.
+        ...rest,
+        onClick: () => {
+          if (!disabled) onSelect?.()
+        }
+      },
+      children,
+      shortcut ? createElement('span', { 'aria-hidden': 'true' }, shortcut) : null
     ),
+  DropdownMenuSeparator: () => createElement('hr'),
   ContextMenu: ({ children }: { children?: ReactNode }) => {
     const [open, setOpen] = useState(false)
     return createElement(ContextMenuMockCtx.Provider, { value: { open, setOpen } }, children)
@@ -246,19 +286,38 @@ vi.mock('@hive/design-system', () => ({
     const ctx = useContext(ContextMenuMockCtx)
     return ctx.open ? createElement('div', { role: 'menu' }, children) : null
   },
-  ContextMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) => {
+  ContextMenuItem: ({
+    children,
+    onSelect,
+    disabled,
+    shortcut,
+    variant,
+    ...rest
+  }: {
+    children?: ReactNode
+    onSelect?: () => void
+    disabled?: boolean
+    shortcut?: ReactNode
+    variant?: string
+  }) => {
     const ctx = useContext(ContextMenuMockCtx)
     return createElement(
       'button',
       {
         type: 'button',
         role: 'menuitem',
+        disabled,
+        'data-disabled': disabled ? '' : undefined,
+        'data-variant': variant,
+        ...rest,
         onClick: () => {
+          if (disabled) return
           ctx.setOpen(false)
           onSelect?.()
         }
       },
-      children
+      children,
+      shortcut ? createElement('span', { 'aria-hidden': 'true' }, shortcut) : null
     )
   },
   ContextMenuSeparator: () => createElement('hr')
@@ -314,6 +373,8 @@ describe('Explorer (T12/T8)', () => {
         stop: vi.fn().mockResolvedValue(undefined),
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
+        approvalSession: vi.fn().mockResolvedValue(false),
+        setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
@@ -430,6 +491,7 @@ describe('Explorer (T12/T8)', () => {
         createDirectory: vi.fn().mockResolvedValue(undefined),
         saveFile: vi.fn().mockResolvedValue({ mtimeMs: 2000, size: 19 }),
         move: vi.fn().mockResolvedValue(undefined),
+        copyEntry: vi.fn().mockResolvedValue(undefined),
         importEntry: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(false),
         trash: vi.fn().mockResolvedValue(undefined),
@@ -437,6 +499,7 @@ describe('Explorer (T12/T8)', () => {
         revealPath: vi.fn().mockResolvedValue(undefined),
         absolutePath: vi.fn((_root: string, rel: string) => Promise.resolve(`/ws/${rel}`))
       },
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
@@ -1532,10 +1595,26 @@ describe('Explorer (T12/T8)', () => {
       await screen.findByRole('menuitem', { name: /Excluir/ })
     }
 
+    /**
+     * The spy every case below asserts against — deliberately the *bridge*,
+     * not `navigator.clipboard`.
+     *
+     * This used to stub the web API, which is what let a real defect ship
+     * green: in the packaged app that call rejects
+     * (`NotAllowedError: Write permission denied`, from the session's
+     * permission handler) and every "Copiar caminho" surfaced "Não foi
+     * possível concluir a ação". A test that stubs the failing mechanism can
+     * only ever prove the renderer called it. `window.hive.clipboard` is the
+     * path that actually reaches the system clipboard, and it is the one that
+     * has to be exercised here. `navigator.clipboard` is left undefined on
+     * purpose so a regression back to it fails loudly instead of silently
+     * writing nowhere.
+     */
     function stubClipboard(): ReturnType<typeof vi.fn> {
-      const writeText = vi.fn().mockResolvedValue(undefined)
-      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-      return writeText
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+      const writeText = vi.mocked(window.hive.clipboard.writeText)
+      writeText.mockClear()
+      return writeText as unknown as ReturnType<typeof vi.fn>
     }
 
     it("copies a file's workspace-relative path", async () => {
@@ -1577,8 +1656,8 @@ describe('Explorer (T12/T8)', () => {
     })
 
     it('copies every selected path, one per line, when the row is part of a multi-selection', async () => {
-      const writeText = stubClipboard()
       mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+      const writeText = stubClipboard()
       render(createElement(ExplorerHarness, { workspace: '/ws' }))
       await screen.findByText('a.txt')
 
@@ -1592,8 +1671,8 @@ describe('Explorer (T12/T8)', () => {
     })
 
     it('ignores the selection when the right-clicked row is not part of it', async () => {
-      const writeText = stubClipboard()
       mockHive({ listTree: vi.fn().mockResolvedValue(bulkDragTree) })
+      const writeText = stubClipboard()
       render(createElement(ExplorerHarness, { workspace: '/ws' }))
       await screen.findByText('a.txt')
 
@@ -3185,6 +3264,437 @@ describe('Explorer (T12/T8)', () => {
 
       await screen.findByRole('menuitem', { name: /Excluir/ })
       expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
+    })
+  })
+
+  // file-clipboard: Ctrl+X / Ctrl+C / Ctrl+V and the rest of the file-manager
+  // key set. Driven through the tree body's own handler, which is where they
+  // are bound — a global listener would make Delete destructive from anywhere
+  // in the app, and that scoping is part of what these assert.
+  describe('file clipboard (cut / copy / paste and the VS Code key set)', () => {
+    const clipboardTree = [
+      { name: 'a.txt', path: 'a.txt', type: 'file' as const },
+      { name: 'b.txt', path: 'b.txt', type: 'file' as const },
+      {
+        name: 'docs',
+        path: 'docs',
+        type: 'directory' as const,
+        children: [{ name: 'prd.md', path: 'docs/prd.md', type: 'file' as const }]
+      }
+    ]
+
+    /** Renders the tree with the clipboard fixture and waits for the first row. */
+    async function renderClipboardTree(): Promise<void> {
+      mockHive({ listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+    }
+
+    /** The element the shortcuts are bound to. */
+    function treeBody(): HTMLElement {
+      return document.querySelector('.wb-tree-body') as HTMLElement
+    }
+
+    /**
+     * A row, addressed inside the tree.
+     *
+     * Scoped rather than global because a file name is now on screen in up to
+     * three places at once — the tree row, the opened viewer's header, and
+     * the clipboard tray, which prints the staged entry's name. A bare
+     * `getByText(name)` matches all three and fails as ambiguous, which would
+     * be the harness reporting on itself.
+     */
+    function row(label: string): HTMLElement {
+      return within(treeBody()).getByText(label).closest('[role="treeitem"]') as HTMLElement
+    }
+
+    /** Plain click: replaces the selection, exactly as a click in the real tree does. */
+    function selectRow(label: string): void {
+      fireEvent.click(row(label))
+    }
+
+    /** Whether the row is in the tree's selection set. */
+    function isSelected(label: string): string | null {
+      return row(label).getAttribute('aria-selected')
+    }
+
+    /** The clipboard tray, or null when nothing is staged. */
+    function tray(): HTMLElement | null {
+      return document.querySelector('.wb-tree-clipboard')
+    }
+
+    it('Ctrl+C then Ctrl+V copies the selection into the selected folder', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+      selectRow('docs')
+      fireEvent.keyDown(treeBody(), { key: 'v', ctrlKey: true })
+
+      await waitFor(() =>
+        expect(window.hive.fs.copyEntry).toHaveBeenCalledWith(
+          '/ws',
+          'a.txt',
+          'docs/a.txt',
+          undefined
+        )
+      )
+      // A copy leaves the original alone — nothing is moved.
+      expect(window.hive.fs.move).not.toHaveBeenCalled()
+    })
+
+    it('Ctrl+X then Ctrl+V moves instead of copying, and empties the clipboard', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      selectRow('docs')
+      fireEvent.keyDown(treeBody(), { key: 'v', ctrlKey: true })
+
+      await waitFor(() =>
+        expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'docs/a.txt')
+      )
+      expect(window.hive.fs.copyEntry).not.toHaveBeenCalled()
+      // The staged paths no longer exist, so the tray goes with them.
+      await waitFor(() => expect(tray()).toBeNull())
+    })
+
+    it('Cmd is accepted wherever Ctrl is, so the same keys work on macOS', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', metaKey: true })
+      selectRow('docs')
+      fireEvent.keyDown(treeBody(), { key: 'v', metaKey: true })
+
+      await waitFor(() => expect(window.hive.fs.copyEntry).toHaveBeenCalled())
+    })
+
+    it('pasting into the folder a file already lives in duplicates it as "cópia" instead of asking', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+      // Same selection, so the destination is a.txt's own parent (the root).
+      fireEvent.keyDown(treeBody(), { key: 'v', ctrlKey: true })
+
+      await waitFor(() =>
+        expect(window.hive.fs.copyEntry).toHaveBeenCalledWith(
+          '/ws',
+          'a.txt',
+          'a cópia.txt',
+          undefined
+        )
+      )
+      // The conflict dialog is for collisions the user did not ask for; this
+      // one they did.
+      expect(screen.queryByText('Já existe um item com esse nome')).toBeNull()
+    })
+
+    it('copies every path of a multi-selection, one call each', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.click(row('b.txt'), { ctrlKey: true })
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+      selectRow('docs')
+      fireEvent.keyDown(treeBody(), { key: 'v', ctrlKey: true })
+
+      await waitFor(() =>
+        expect(window.hive.fs.copyEntry).toHaveBeenCalledWith(
+          '/ws',
+          'b.txt',
+          'docs/b.txt',
+          undefined
+        )
+      )
+      expect(window.hive.fs.copyEntry).toHaveBeenCalledWith('/ws', 'a.txt', 'docs/a.txt', undefined)
+    })
+
+    it('puts the ABSOLUTE paths on the system clipboard on copy, so they paste into a terminal', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      const writeText = vi.mocked(window.hive.clipboard.writeText)
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('/ws/a.txt'))
+    })
+
+    it('does NOT put a cut on the system clipboard — the next paste is a move, not a copy', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      const writeText = vi.mocked(window.hive.clipboard.writeText)
+      writeText.mockClear()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+
+      await screen.findByLabelText('1 item recortado')
+      expect(writeText).not.toHaveBeenCalled()
+    })
+
+    it('refuses to paste a folder into itself', async () => {
+      await renderClipboardTree()
+
+      selectRow('docs')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      // `docs` is still the selection, so the destination is `docs` itself.
+      fireEvent.keyDown(treeBody(), { key: 'v', ctrlKey: true })
+
+      await screen.findByLabelText('1 item recortado')
+      expect(window.hive.fs.move).not.toHaveBeenCalled()
+      expect(window.hive.fs.copyEntry).not.toHaveBeenCalled()
+    })
+
+    it('marks cut rows so the tree shows what is staged', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+
+      await waitFor(() =>
+        expect(
+          document.querySelector('[data-tree-path="a.txt"]')?.getAttribute('data-tree-cut')
+        ).toBe('true')
+      )
+      expect(
+        document.querySelector('[data-tree-path="b.txt"]')?.getAttribute('data-tree-cut')
+      ).toBeNull()
+    })
+
+    it('does not mark rows for a copy — nothing is leaving', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+
+      await screen.findByText('Item copiado')
+      expect(document.querySelector('[data-tree-cut]')).toBeNull()
+    })
+
+    it('names the pending set and its destination in the tray, and pastes from it', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      const tray = await screen.findByLabelText('1 item recortado')
+      // One entry prints its name; the destination is named, not implied.
+      expect(tray.textContent).toContain('a.txt')
+      expect(tray.textContent).toContain('Colar em ws')
+
+      selectRow('docs')
+      await screen.findByText('Colar em docs')
+      fireEvent.click(screen.getByText('Colar em docs'))
+
+      await waitFor(() =>
+        expect(window.hive.fs.move).toHaveBeenCalledWith('/ws', 'a.txt', 'docs/a.txt')
+      )
+    })
+
+    it('counts instead of naming once there is more than one entry', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.click(row('b.txt'), { ctrlKey: true })
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+
+      const tray = await screen.findByLabelText('2 itens recortados')
+      expect(tray.textContent).toContain('2 itens')
+    })
+
+    it('Escape clears the pending clipboard before it clears the selection', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      await screen.findByLabelText('1 item recortado')
+
+      fireEvent.keyDown(treeBody(), { key: 'Escape' })
+      await waitFor(() => expect(tray()).toBeNull())
+      // The row is still selected — one Escape, one level.
+      expect(isSelected('a.txt')).toBe('true')
+
+      fireEvent.keyDown(treeBody(), { key: 'Escape' })
+      await waitFor(() => expect(isSelected('a.txt')).toBe('false'))
+    })
+
+    it('drops a staged path that no longer exists, rather than pasting a ghost', async () => {
+      const listTree = vi
+        .fn()
+        .mockResolvedValueOnce(clipboardTree)
+        .mockResolvedValue(clipboardTree.filter((node) => node.path !== 'a.txt'))
+      const { watchListeners } = mockHive({ listTree })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      await screen.findByLabelText('1 item recortado')
+
+      // Something else (an agent, another window) removes the file.
+      watchListeners.forEach((listener) => listener({ type: 'unlink', path: 'a.txt' }))
+
+      await waitFor(() => expect(tray()).toBeNull())
+    })
+
+    it('F2 opens the inline rename on the selected row', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'F2' })
+
+      const input = await screen.findByLabelText('Novo nome')
+      expect((input as HTMLInputElement).value).toBe('a.txt')
+    })
+
+    it('Delete asks before trashing, exactly like the menu item does', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'Delete' })
+
+      await screen.findByText('Mover para a Lixeira?')
+      expect(window.hive.fs.trash).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Mover para a lixeira' }))
+      await waitFor(() => expect(window.hive.fs.trash).toHaveBeenCalledWith('/ws', 'a.txt'))
+    })
+
+    it('Ctrl+A selects every visible row, and only the visible ones', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'a', ctrlKey: true })
+
+      await waitFor(() => expect(isSelected('b.txt')).toBe('true'))
+      expect(isSelected('docs')).toBe('true')
+      // `docs` is collapsed, so its child is not on screen — and Ctrl+A means
+      // "everything you can see", not "every path in the workspace". (This
+      // mock Tree flattens the hierarchy and renders `prd.md` anyway, which is
+      // precisely why the assertion is about the selection and not about
+      // what happens to be in the DOM.)
+      expect(isSelected('prd.md')).toBe('false')
+    })
+
+    it('Shift+Alt+C copies the absolute path (VS Code parity)', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      const writeText = vi.mocked(window.hive.clipboard.writeText)
+      writeText.mockClear()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'C', shiftKey: true, altKey: true })
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('/ws/a.txt'))
+    })
+
+    it('Ctrl+K Ctrl+Shift+C copies the relative path, and the modifier keydowns in between do not eat the chord', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      const writeText = vi.mocked(window.hive.clipboard.writeText)
+      writeText.mockClear()
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'k', ctrlKey: true })
+      await screen.findByText('Ctrl+K — aguardando a segunda tecla…')
+      // Holding the next chord fires these first; the handler must ignore them.
+      fireEvent.keyDown(treeBody(), { key: 'Control', ctrlKey: true })
+      fireEvent.keyDown(treeBody(), { key: 'Shift', ctrlKey: true, shiftKey: true })
+      fireEvent.keyDown(treeBody(), { key: 'C', ctrlKey: true, shiftKey: true })
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('a.txt'))
+    })
+
+    it('a second stroke that is not the chord is swallowed rather than acted on', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'k', ctrlKey: true })
+      // Delete as the second stroke must NOT delete.
+      fireEvent.keyDown(treeBody(), { key: 'Delete' })
+
+      await screen.findByText('Ctrl+K — aguardando a segunda tecla…')
+      expect(screen.queryByText('Mover para a Lixeira?')).toBeNull()
+    })
+
+    it('ignores the shortcuts while an inline input is open, so typing a name is just typing', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'F2' })
+      await screen.findByLabelText('Novo nome')
+
+      fireEvent.keyDown(treeBody(), { key: 'x', ctrlKey: true })
+      fireEvent.keyDown(treeBody(), { key: 'Delete' })
+
+      expect(tray()).toBeNull()
+      expect(screen.queryByText('Mover para a Lixeira?')).toBeNull()
+    })
+
+    it('offers Recortar/Copiar/Colar from the right-click menu, with Colar disabled until something is staged', async () => {
+      await renderClipboardTree()
+
+      const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+      await screen.findByRole('menuitem', { name: 'Recortar' })
+      expect((screen.getByRole('menuitem', { name: 'Colar' }) as HTMLButtonElement).disabled).toBe(
+        true
+      )
+
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar' }))
+      await screen.findByText('Item copiado')
+
+      fireEvent.contextMenu(screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement)
+      const paste = await screen.findByRole('menuitem', { name: 'Colar' })
+      expect((paste as HTMLButtonElement).disabled).toBe(false)
+      fireEvent.click(paste)
+
+      await waitFor(() =>
+        expect(window.hive.fs.copyEntry).toHaveBeenCalledWith(
+          '/ws',
+          'a.txt',
+          'docs/a.txt',
+          undefined
+        )
+      )
+    })
+
+    it('keeps the shortcut hint out of the accessible name, and announces it as aria-keyshortcuts', async () => {
+      await renderClipboardTree()
+
+      const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+      fireEvent.contextMenu(row)
+
+      // Exact-name match: the visible "Ctrl+X" must not become part of it.
+      const cut = await screen.findByRole('menuitem', { name: 'Recortar' })
+      expect(cut.getAttribute('aria-keyshortcuts')).toBe('Ctrl+X')
+      expect(cut.textContent).toContain('Ctrl+X')
+    })
+
+    it('offers Colar on the empty area too — that is the workspace root', async () => {
+      await renderClipboardTree()
+
+      selectRow('a.txt')
+      fireEvent.keyDown(treeBody(), { key: 'c', ctrlKey: true })
+      await screen.findByText('Item copiado')
+
+      fireEvent.contextMenu(treeBody())
+      const paste = await screen.findByRole('menuitem', { name: 'Colar' })
+      fireEvent.click(paste)
+
+      await waitFor(() =>
+        expect(window.hive.fs.copyEntry).toHaveBeenCalledWith(
+          '/ws',
+          'a.txt',
+          'a cópia.txt',
+          undefined
+        )
+      )
     })
   })
 })

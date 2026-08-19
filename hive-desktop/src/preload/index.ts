@@ -260,6 +260,12 @@ const hive = {
     // that can move it — there is no timeout the user can win by waiting.
     respondApproval: (requestId: string, decision: ApprovalDecision): Promise<void> =>
       ipcRenderer.invoke('agent:approve', requestId, decision),
+    // agent-approvals (session grant): reads back whether "permitir tudo nesta
+    // sessão" is armed, so a reloaded window doesn't claim the agent is still
+    // asking when it isn't. Setting `false` revokes it.
+    approvalSession: (): Promise<boolean> => ipcRenderer.invoke('agent:approvalSession'),
+    setApprovalSession: (enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('agent:approvalSession:set', enabled),
     onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
       ipcRenderer.on('agent:event', listener)
@@ -597,6 +603,17 @@ const hive = {
         opts?: { overwrite?: boolean }
       ): Promise<void> => ipcRenderer.invoke('fs:move', root, fromRel, toRel, opts)
     ),
+    // file-clipboard: the in-workspace copy behind Ctrl+C / Ctrl+V. Same
+    // conflict convention as `move`/`importEntry`, so paste can reuse the
+    // Explorer's existing "Já existe um item com esse nome" dialog.
+    copyEntry: withTypedConflict(
+      (
+        root: string,
+        fromRel: string,
+        toRel: string,
+        opts?: { overwrite?: boolean }
+      ): Promise<void> => ipcRenderer.invoke('fs:copyEntry', root, fromRel, toRel, opts)
+    ),
     importEntry: withTypedConflict(
       (
         root: string,
@@ -623,6 +640,17 @@ const hive = {
     // because it has no idea whether the host separates with `/` or `\`.
     absolutePath: (root: string, relativePath: string): Promise<string> =>
       ipcRenderer.invoke('fs:absolutePath', root, relativePath)
+  },
+
+  // file-clipboard: writing text to the system clipboard. The renderer has a
+  // `navigator.clipboard` too, but in this window it rejects — the session
+  // permission handler only grants what the app actually needs, and even a
+  // granted async clipboard write requires the document to be focused, which a
+  // copy fired from a closing menu cannot promise. Main's `clipboard` has
+  // neither constraint, so this is the path every in-app copy takes.
+  // Deliberately write-only: there is no `readText` here.
+  clipboard: {
+    writeText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:writeText', text)
   },
 
   // GitService (git-management M10), grouped under a `git` namespace matching

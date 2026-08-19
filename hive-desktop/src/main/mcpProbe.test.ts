@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { chmodSync, mkdtempSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { mcpProbe } from './mcpProbe'
+import { mcpProbe, stdioSpawnPlan } from './mcpProbe'
 import type { McpServerConfig } from './mcpService'
 
 /**
@@ -57,6 +59,50 @@ describe('mcpProbe — stdio handshake', () => {
     )
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/não encontrado/i)
+  })
+})
+
+/**
+ * The lookup half of the stdio probe. This is the bug the MCP module actually
+ * shipped: the canonical server is `npx -y @playwright/mcp@latest`, the probe
+ * spawned `npx` against the app's own `PATH` (which, launched from a launcher
+ * rather than a terminal, holds no npm/nvm prefix — and on Windows cannot
+ * execute an `npx.cmd` shim at all), and the failure surfaced as "Comando não
+ * encontrado" on machines where the same line runs in any terminal.
+ */
+describe('stdioSpawnPlan', () => {
+  it('resolves a bare command against the widened PATH, not the app PATH', () => {
+    const bin = mkdtempSync(join(tmpdir(), 'hive-mcp-bin-'))
+    const executable = join(bin, 'hive-fake-npx')
+    writeFileSync(executable, '#!/bin/sh\nexit 0\n')
+    chmodSync(executable, 0o755)
+
+    const plan = stdioSpawnPlan(
+      { transport: 'stdio', command: 'hive-fake-npx', args: ['-y', 'pkg'] },
+      { PATH: bin }
+    )
+
+    expect(plan.command).toBe(executable)
+    expect(plan.args).toEqual(['-y', 'pkg'])
+  })
+
+  it('keeps an unresolvable command verbatim, so the failure stays ENOENT', () => {
+    const plan = stdioSpawnPlan(
+      { transport: 'stdio', command: 'definitely-not-a-real-binary-xyz' },
+      { PATH: '/nonexistent-hive-dir' }
+    )
+    expect(plan.command).toBe('definitely-not-a-real-binary-xyz')
+  })
+
+  it("layers the server's own env over the widened base", () => {
+    const plan = stdioSpawnPlan(
+      { transport: 'stdio', command: 'x', env: { TOKEN: 'abc', PATH: '/only-here' } },
+      { PATH: '/base', HOME: '/home/u' }
+    )
+    expect(plan.env.TOKEN).toBe('abc')
+    expect(plan.env.HOME).toBe('/home/u')
+    // The user's own PATH for this server wins over the widened one.
+    expect(plan.env.PATH).toBe('/only-here')
   })
 })
 

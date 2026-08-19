@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 
+import { cliEnv, spawnTarget, type SpawnTarget } from './cliEnv'
 import type { McpProbe, McpProbeResult, McpServerConfig, McpToolInfo } from './mcpService'
 
 /**
@@ -22,9 +23,31 @@ import type { McpProbe, McpProbeResult, McpServerConfig, McpToolInfo } from './m
  *
  * Everything is time-boxed: a server that never speaks, or a command that
  * doesn't exist, resolves to `ok: false` with a reason rather than hanging.
+ *
+ * The spawn goes out through `cliEnv`/`spawnTarget`, exactly like every other
+ * CLI this app starts (see `processRunner.ts`). That is not a detail: the
+ * canonical MCP server is `npx -y @playwright/mcp@latest`, and `npx` lives in
+ * an npm/nvm prefix that a desktop app launched from a launcher does not have
+ * on its `PATH` — while on Windows it is a `.cmd` shim `CreateProcess` cannot
+ * find or execute at all. Spawning it raw reported "Comando não encontrado:
+ * npx" on machines where the same line runs in any terminal, which read as a
+ * broken server rather than as a lookup this app had simply skipped.
  */
 
+/** How long a remote endpoint gets to answer before the probe gives up. */
 const PROBE_TIMEOUT_MS = 10_000
+
+/**
+ * The stdio ceiling is three times the remote one, because a local server is
+ * usually not "running" yet: the canonical entry is `npx -y <pkg>@latest`,
+ * whose first run downloads the package before a single byte of JSON-RPC is
+ * written. Measured cold on `@playwright/mcp@latest`, that took past 10s and
+ * the probe reported a timeout for a server that was working — the same
+ * "Hive says it's broken, my terminal says it's fine" the PATH fix above
+ * addresses. The button spins while it waits, so the cost of the longer
+ * ceiling is only paid by a server that really is stuck.
+ */
+const STDIO_PROBE_TIMEOUT_MS = 30_000
 const PROTOCOL_VERSION = '2025-06-18'
 const CLIENT_INFO = { name: 'hive', version: '1.0.0' }
 
@@ -80,6 +103,24 @@ function parseServerInfo(result: unknown): { name?: string; version?: string } {
   }
 }
 
+/**
+ * How a stdio server is actually spawned: the widened CLI environment, the
+ * server's own `env` on top of it (it is the one the user wrote for this
+ * server specifically), and the command resolved against that `PATH` — routed
+ * through `cmd.exe` when what resolves is a Windows batch shim.
+ *
+ * Separate from `probeStdio` so the lookup is testable without a child
+ * process: it is the half of the probe that decides whether `npx` is found at
+ * all.
+ */
+export function stdioSpawnPlan(
+  config: McpServerConfig,
+  base: NodeJS.ProcessEnv = cliEnv()
+): SpawnTarget & { env: NodeJS.ProcessEnv } {
+  const env = { ...base, ...(config.env ?? {}) }
+  return { ...spawnTarget(config.command ?? '', config.args ?? [], env.PATH, env), env }
+}
+
 /** Probes a local (stdio) server: spawn it, handshake over stdin/stdout, capture stderr. */
 function probeStdio(config: McpServerConfig, cwd: string): Promise<McpProbeResult> {
   const startedAt = Date.now()
@@ -89,9 +130,11 @@ function probeStdio(config: McpServerConfig, cwd: string): Promise<McpProbeResul
     let stderrLog = ''
     let serverInfo: { name?: string; version?: string } = {}
 
-    const child = spawn(config.command ?? '', config.args ?? [], {
+    const plan = stdioSpawnPlan(config)
+    const child = spawn(plan.command, plan.args, {
       cwd,
-      env: { ...process.env, ...(config.env ?? {}) },
+      env: plan.env,
+      windowsVerbatimArguments: plan.windowsVerbatimArguments,
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
@@ -117,9 +160,10 @@ function probeStdio(config: McpServerConfig, cwd: string): Promise<McpProbeResul
       finish({
         ok: false,
         tools: [],
-        error: 'O servidor não respondeu ao handshake dentro do tempo limite.'
+        error:
+          'O servidor não respondeu ao handshake dentro do tempo limite. Se for a primeira execução, ele pode ainda estar baixando — tente de novo.'
       })
-    }, PROBE_TIMEOUT_MS)
+    }, STDIO_PROBE_TIMEOUT_MS)
 
     const send = (message: JsonRpcMessage): void => {
       try {
@@ -132,7 +176,7 @@ function probeStdio(config: McpServerConfig, cwd: string): Promise<McpProbeResul
     child.on('error', (err: NodeJS.ErrnoException) => {
       const reason =
         err.code === 'ENOENT'
-          ? `Comando não encontrado: "${config.command}".`
+          ? `Comando não encontrado: "${config.command}". Instale-o ou informe o caminho completo do executável.`
           : `Falha ao iniciar o servidor: ${err.message}`
       finish({ ok: false, tools: [], error: reason })
     })

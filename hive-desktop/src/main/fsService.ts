@@ -142,6 +142,17 @@ export interface FsService {
    * `opts.overwrite` isn't `true`.
    */
   move(root: string, fromRel: string, toRel: string, opts?: { overwrite?: boolean }): void
+  /**
+   * Copies a file or directory (recursively) to another place *inside* the
+   * same workspace — the paste half of the Explorer's file clipboard. The
+   * mirror image of `importEntry`'s security asymmetry: here BOTH ends are
+   * `resolveSafe`-checked, because both are workspace-relative by
+   * construction. Throws `ConflictError{code:'CONFLICT'}` if `toRel` already
+   * exists and `opts.overwrite` isn't `true`, and refuses to copy a directory
+   * into itself or into one of its own descendants — `cpSync` would otherwise
+   * recurse into the copy it is writing.
+   */
+  copyEntry(root: string, fromRel: string, toRel: string, opts?: { overwrite?: boolean }): void
   /** Does a workspace-relative path already exist? (conflict pre-check, FM-R7) */
   exists(root: string, relativePath: string): boolean
   /** Deletes to the OS trash (FM-R3). Async — the injected `trashItem` is async. */
@@ -510,6 +521,29 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     }
   }
 
+  function copyEntry(
+    root: string,
+    fromRel: string,
+    toRel: string,
+    opts?: { overwrite?: boolean }
+  ): void {
+    assertValidName(toRel)
+    const rootAbs = resolve(root)
+    const fromAbs = resolveSafe(rootAbs, fromRel)
+    const toAbs = resolveSafe(rootAbs, toRel)
+    // `path.relative` again rather than a string prefix, for the same reason
+    // `resolveSafe` uses it: `/ws/docs-old` is not inside `/ws/docs`, and a
+    // `startsWith` check would say it is.
+    const nested = relative(fromAbs, toAbs)
+    if (nested === '' || (nested !== '' && !nested.startsWith('..') && !isAbsolute(nested))) {
+      throw new Error(`Cannot copy an entry into itself: ${fromRel}`)
+    }
+    if (existsSync(toAbs) && !opts?.overwrite) {
+      throw new ConflictError('CONFLICT', `Already exists: ${toRel}`)
+    }
+    cpSync(fromAbs, toAbs, { recursive: true, force: true })
+  }
+
   function exists(root: string, relativePath: string): boolean {
     const rootAbs = resolve(root)
     const targetAbs = resolveSafe(rootAbs, relativePath)
@@ -560,6 +594,7 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     createFile,
     createDirectory,
     move,
+    copyEntry,
     exists,
     trash,
     importEntry,

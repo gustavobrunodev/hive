@@ -293,6 +293,77 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
     )
   })
 
+  // agent-approvals (session grant): "Permitir tudo nesta sessão" — the answer
+  // to an agent asking every thirty seconds during one working session. It is
+  // the widest grant in the app, so what it must NOT do is as much of the
+  // contract as what it does: nothing on disk, nothing in the agent's own
+  // config, and gone the moment it is revoked.
+  it('"tudo nesta sessão" stops the asking, and releases what was already blocked', async () => {
+    await withService(async (service) => {
+      // Two calls blocked at once — the ordinary case, since the CLI can ask
+      // for several tools in one turn.
+      const raised: ApprovalEvent[] = []
+      const bothRaised = new Promise<void>((resolve) => {
+        const off = service.onRequest((request) => {
+          raised.push(request)
+          if (raised.length === 2) {
+            off()
+            resolve()
+          }
+        })
+      })
+      const first = rpc(service, CALL('Bash', { command: 'npm test' }, 1))
+      const second = rpc(service, CALL('WebFetch', { url: 'https://x.dev' }, 2))
+      await bothRaised
+
+      service.respond(raised[0].requestId, { behavior: 'allow', scope: 'session' })
+
+      // The answered card releases its own call *and* everything else the
+      // agent had parked — a user who just said "tudo" must not be handed the
+      // next card immediately.
+      expect(await verdictOf(await first)).toMatchObject({ behavior: 'allow' })
+      expect(await verdictOf(await second)).toMatchObject({ behavior: 'allow' })
+      expect(service.sessionAllowAll()).toBe(true)
+
+      // From here nothing reaches the UI at all, whatever the tool.
+      let asked = false
+      const off = service.onRequest(() => {
+        asked = true
+      })
+      expect(
+        await verdictOf(await rpc(service, CALL('Bash', { command: 'rm -rf /tmp/x' }, 3)))
+      ).toMatchObject({ behavior: 'allow' })
+      off()
+      expect(asked).toBe(false)
+    })
+  })
+
+  it('the session grant is written nowhere — no standing rule, no agent config, and revocable', async () => {
+    const saved: string[][] = []
+    const granted: unknown[] = []
+    await withService(
+      async (service) => {
+        const raised = nextRequest(service)
+        const call = rpc(service, CALL('Bash', { command: 'npm test' }))
+        service.respond((await raised).requestId, { behavior: 'allow', scope: 'session' })
+        await call
+
+        expect(service.rules()).toEqual([])
+        expect(saved).toEqual([])
+        expect(granted).toEqual([])
+
+        // Revoked: the very next call is a question again.
+        service.setSessionAllowAll(false)
+        expect(service.sessionAllowAll()).toBe(false)
+        const asked = nextRequest(service)
+        const again = rpc(service, CALL('Bash', { command: 'npm test' }, 2))
+        service.respond((await asked).requestId, { behavior: 'deny' })
+        expect(await verdictOf(await again)).toMatchObject({ behavior: 'deny' })
+      },
+      { onRulesChanged: (rules) => saved.push(rules), onGranted: (grant) => granted.push(grant) }
+    )
+  })
+
   it('a denial is never remembered — a mistaken "no" cannot quietly block the agent forever', async () => {
     const saved: string[][] = []
     await withService(

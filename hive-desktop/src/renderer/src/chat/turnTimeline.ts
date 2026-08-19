@@ -163,6 +163,26 @@ export function answerTurnApproval(
   return next
 }
 
+/**
+ * Records the same verdict on every request still waiting (agent-approvals,
+ * session grant). "Permitir tudo nesta sessão" releases whatever else the
+ * agent had parked — several tool calls can block at once — so the cards for
+ * those have to close with it instead of sitting there asking a question that
+ * has already been answered.
+ */
+export function answerAllPendingApprovals(
+  blocks: TurnBlock[],
+  answer: NonNullable<ApprovalRequest['answer']>
+): TurnBlock[] {
+  let changed = false
+  const next = blocks.map((block) => {
+    if (block.kind !== 'approval' || block.request.answer != null) return block
+    changed = true
+    return { ...block, request: { ...block.request, answer } }
+  })
+  return changed ? next : blocks
+}
+
 function findApproval(blocks: TurnBlock[], requestId: string): number {
   return blocks.findIndex(
     (block) => block.kind === 'approval' && block.request.requestId === requestId

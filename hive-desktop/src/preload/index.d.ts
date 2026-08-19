@@ -104,6 +104,10 @@ declare global {
         interrupt(turnId?: string): Promise<void>
         /** agent-approvals: answers one blocked permission request — the only thing that unblocks the turn's CLI child. */
         respondApproval(requestId: string, decision: ApprovalDecision): Promise<void>
+        /** agent-approvals: whether the session-wide grant ("permitir tudo nesta sessão") is armed. */
+        approvalSession(): Promise<boolean>
+        /** agent-approvals: arms (`true`) or revokes (`false`) the session-wide grant. */
+        setApprovalSession(enabled: boolean): Promise<void>
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
@@ -279,6 +283,18 @@ declare global {
           toRel: string,
           opts?: { overwrite?: boolean }
         ): Promise<void>
+        /**
+         * file-clipboard: copies an entry to another place inside the same
+         * workspace (the paste half of Ctrl+C). Both ends are workspace-
+         * relative and both are escape-checked, unlike `importEntry`, whose
+         * source is an arbitrary OS path by design.
+         */
+        copyEntry(
+          root: string,
+          fromRel: string,
+          toRel: string,
+          opts?: { overwrite?: boolean }
+        ): Promise<void>
         importEntry(
           root: string,
           sourceAbs: string,
@@ -298,6 +314,15 @@ declare global {
         revealPath(root: string, relativePath: string, isDir: boolean): Promise<string | void>
         /** explorer-os-actions: the host-OS absolute path for a workspace-relative one. */
         absolutePath(root: string, relativePath: string): Promise<string>
+      }
+      /**
+       * file-clipboard: the system clipboard, write-only. Every in-app copy
+       * goes through here rather than `navigator.clipboard`, which this window
+       * refuses (see main's permission handler) and which would additionally
+       * need a focused document.
+       */
+      clipboard: {
+        writeText(text: string): Promise<void>
       }
       /**
        * GitService (git-management M10) surface — see preload/index.ts for the

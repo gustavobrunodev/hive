@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Spinner, Switch } from '@hive/design-system'
 import { t } from '../i18n'
 import { agentVisual } from './agentVisuals'
+import { copyText } from './clipboard'
 import {
   AlertTriangleIcon,
   CheckIcon,
@@ -153,7 +154,7 @@ export function AgentPicker({
 
   function copyCommand(agent: AgentMeta): void {
     if (!agent.installCommand) return
-    void navigator.clipboard?.writeText(agent.installCommand)
+    void copyText(agent.installCommand)
     setCopied(agent.id)
     window.setTimeout(() => setCopied((current) => (current === agent.id ? null : current)), 2000)
   }

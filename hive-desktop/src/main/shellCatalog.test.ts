@@ -5,6 +5,7 @@ import {
   quotePosixArgument,
   quotePowerShellArgument,
   resolveShell,
+  shellCommandPreview,
   shellSpawnEnv,
   shellSpawnTarget,
   type ShellInfo,
@@ -292,6 +293,35 @@ describe('shellSpawnEnv', () => {
     ).toEqual({ ComSpec: 'C:\\cmd.exe' })
   })
 
+  /**
+   * Git Bash is MSYS2, and MSYS2 rewrites any argument that *looks* like a
+   * POSIX path before handing it to a native Windows exe. The agent's turn
+   * goes out as `-p '<the user's message>'`, so `/bmad-prd` — the way every
+   * BMAD workflow is invoked — would reach claude.exe as
+   * `C:/Program Files/Git/bmad-prd`. No error, no warning: the agent simply
+   * receives a different message than the user typed.
+   */
+  it('switches off MSYS path mangling for Git Bash, or every slash command is rewritten', () => {
+    expect(
+      shellSpawnEnv({
+        id: 'git-bash',
+        path: 'C:\\Program Files\\Git\\bin\\bash.exe',
+        family: 'bash',
+        systemDefault: false
+      })
+    ).toEqual({
+      SHELL: 'C:\\Program Files\\Git\\bin\\bash.exe',
+      MSYS_NO_PATHCONV: '1',
+      MSYS2_ARG_CONV_EXCL: '*'
+    })
+  })
+
+  it('leaves a POSIX bash alone — there is nothing there to mangle', () => {
+    expect(
+      shellSpawnEnv({ id: 'bash', path: '/bin/bash', family: 'bash', systemDefault: false })
+    ).toEqual({ SHELL: '/bin/bash' })
+  })
+
   it('adds nothing generic for PowerShell (there is no such convention to honour)', () => {
     expect(
       shellSpawnEnv({
@@ -301,5 +331,37 @@ describe('shellSpawnEnv', () => {
         systemDefault: false
       })
     ).toEqual({})
+  })
+})
+
+/**
+ * The picker shows the command line a turn is spawned with. It is drawn from
+ * `shellSpawnTarget`, never re-derived — a preview that drifted from the real
+ * argv would be a more convincing version of the bug this feature exists to
+ * end.
+ */
+describe('shellCommandPreview', () => {
+  it('renders the POSIX launch exactly as it is spawned, exec and quotes included', () => {
+    expect(
+      shellCommandPreview(
+        { id: 'zsh', path: '/usr/bin/zsh', family: 'zsh', systemDefault: true },
+        '/usr/local/bin/claude',
+        ['-p', 'olá']
+      )
+    ).toBe(`/usr/bin/zsh -c exec '/usr/local/bin/claude' '-p' 'olá'`)
+  })
+
+  it('shows the line cmd itself receives, with the caret transport undone', () => {
+    expect(
+      shellCommandPreview(
+        { id: 'cmd', path: 'C:\\Windows\\System32\\cmd.exe', family: 'cmd', systemDefault: true },
+        'C:\\npm\\claude.cmd',
+        ['-p', 'oi']
+      )
+      // The carets are the `windowsVerbatimArguments` transport, not part of
+      // the command — cmd strips them before it ever sees this line, and a
+      // reader who pasted the caret version would be running a different
+      // string than the app does.
+    ).toBe('C:\\Windows\\System32\\cmd.exe /d /s /c ""C:\\npm\\claude.cmd" "-p" "oi""')
   })
 })

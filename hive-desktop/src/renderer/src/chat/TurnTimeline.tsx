@@ -1,4 +1,4 @@
-import { ApprovalCard } from './ApprovalCard'
+import { ApprovalCard, type ApprovalAnswer } from './ApprovalCard'
 import { McpTurnNotice } from './McpTurnNotice'
 import { ToolActivityFeed } from './ToolActivityFeed'
 import { TurnMeter } from './TurnMeter'
@@ -25,7 +25,7 @@ interface TurnTimelineProps {
   revealedText?: string | null
   /** Renders one text block (the app owns markdown rendering). */
   renderText: (text: string) => React.ReactNode
-  onApprovalDecide: (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => void
+  onApprovalDecide: (requestId: string, decision: ApprovalAnswer) => void
   /** agent-patch: opens an edited file (absolute path) in the editor. */
   onOpenFile?: (path: string) => void
   /** mcp-visibility: opens the MCP console from the turn's handshake row. */

@@ -655,12 +655,6 @@ body ::-webkit-scrollbar-corner {
 
 /* Row-scoped context menu items carry a leading icon — give it breathing
    room from the label (mirrors the DS dropdown item's icon gap). */
-.wb-tree-context-menu .hds-context-menu-item-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
 /* --- Tree row actions / inline create-rename / drag-drop (T8) --------- */
 
 .wb-tree-toolbar {
@@ -743,6 +737,132 @@ body ::-webkit-scrollbar-corner {
   outline-offset: -2px;
   background: var(--selected-bg);
   border-radius: var(--rounded-sm);
+}
+
+/* --- File clipboard: staged rows + the pending-clipboard tray -------------
+
+   A row held for a cut ghosts, the way it has since Windows Explorer — but
+   the icon and the label ghost by different amounts, and that split is the
+   whole point.
+
+   Fading the *row* as one unit at the 0.5 that reads well takes the file name
+   with it: measured off the painted pixels, `--ink` at 0.5 lands at 3.98:1
+   (dark), 3.97:1 (hive) and 3.37:1 (light) against the rail — under the 4.5:1
+   floor PRODUCT.md commits to for body text, on a row the user still has to
+   read to know what they cut. So the icon carries the affordance (a graphic,
+   held above the 3:1 floor) and the label only steps back far enough to look
+   pending: 0.72 keeps every theme past 4.5:1 with room to spare.
+
+   The tray below is the other half — the fade says "something is staged", the
+   tray says what, how many, and where it would land. */
+.wb-tree-row-content[data-tree-cut] .wb-file-icon,
+.wb-tree-row-content[data-tree-cut] .wb-tree-icon {
+  opacity: 0.45;
+}
+.wb-tree-row-content[data-tree-cut] .hds-tree-label-text {
+  opacity: 0.72;
+}
+.wb-tree-row-content[data-tree-cut] .wb-file-icon,
+.wb-tree-row-content[data-tree-cut] .wb-tree-icon,
+.wb-tree-row-content[data-tree-cut] .hds-tree-label-text {
+  transition: opacity 0.16s var(--ease-quart);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-tree-row-content[data-tree-cut] .wb-file-icon,
+  .wb-tree-row-content[data-tree-cut] .wb-tree-icon,
+  .wb-tree-row-content[data-tree-cut] .hds-tree-label-text {
+    transition: none;
+  }
+}
+
+/* The tray that appears under the toolbar while something is staged. It takes
+   a row of its own rather than overlaying (unlike `.wb-tree-flash`, which is
+   transient and must not move the list): this one persists until it is used
+   or dismissed, and a persistent strip floating over the first tree row would
+   cover a file you might want to paste onto. */
+.wb-tree-clipboard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 var(--s-2) 6px;
+  padding: 3px 3px 3px 9px;
+  border-radius: var(--rounded-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  animation: wb-tree-clipboard-in 0.18s var(--ease-quart) both;
+}
+
+.wb-tree-clipboard-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.wb-tree-clipboard-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  /* `--ink`, not `--muted`: 12px text on a raised fill is exactly the case
+     the M15/M16 contrast lesson was written about. */
+  color: var(--ink);
+}
+
+/* The tray's primary action. A text button rather than an icon, because the
+   whole point is naming the destination — "Colar em docs" is the sentence
+   that makes cut-and-paste in a tree unambiguous. */
+.wb-tree-clipboard-paste {
+  flex-shrink: 0;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent-ink);
+  background: var(--accent);
+  cursor: pointer;
+  transition: background-color 0.14s var(--ease-quart);
+}
+.wb-tree-clipboard-paste:hover {
+  background: var(--accent-hover);
+}
+.wb-tree-clipboard-paste:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The rail is narrow; the default 30px icon button would eat an eighth of
+   the tray on its own. */
+.wb-tree-clipboard-dismiss {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+@keyframes wb-tree-clipboard-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-tree-clipboard {
+    animation-duration: 0.01ms;
+  }
+  .wb-tree-clipboard-paste {
+    transition: none;
+  }
 }
 
 /* --- OS file-import drop overlay (FM-R5) ------------------------------------
@@ -4348,9 +4468,142 @@ button.wb-agent-pill-btn:focus-visible {
   outline-offset: 1px;
 }
 
+/* ---- The staged-files tray -------------------------------------------------
+   Attachments are a *draft*, and a draft belongs to the conversation it was
+   written for (`chat/composerDraft.ts`). The tray is where that becomes
+   visible: what is staged, how much of it there is, one way out of all of it,
+   and — when a conversation hands its draft back — a line saying so, because
+   files reappearing without explanation look exactly like the leak this
+   feature closes.
+
+   It occupies the whole of `PromptInput`'s attachment slot (a wrap container),
+   so it claims the full row rather than sitting as one more chip. */
+.wb-attach-tray {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-attach-tray-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 20px;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.wb-attach-tray-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Read, not decorative — `--faint` is under the 4.5:1 floor in the light
+     theme and on any elevated surface (docs/visual-validation.md). */
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-attach-tray-summary svg {
+  color: var(--faint);
+}
+
+/* Pushed to the trailing edge, away from the chips it destroys: a "clear all"
+   adjacent to the count reads as part of the count. */
+.wb-attach-clear {
+  margin-inline-start: auto;
+  padding: 3px var(--s-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+
+.wb-attach-clear:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.wb-attach-clear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The restore notice. Accent-tinted because it reports something the app did
+   on the user's behalf, and it leaves on its own after six seconds — a state
+   that has to be dismissed would be a bigger interruption than the one it is
+   explaining. */
+.wb-attach-restored {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px var(--s-2);
+  /* NOT `--accent-ink` — that is the ink for a FILLED accent surface, and on
+     this 16% tint it measured 1.05:1 (Hive) and 1.00:1 (claro): invisible. The
+     plain `--accent` is not enough either, at 4.02:1 on the dark surface. The
+     accent family was simply missing the ink its own tint needs, so this is a
+     new DS token (`--accent-tint-ink`), measured at 5.86:1 / 6.10:1 / 7.49:1. */
+  color: var(--accent-tint-ink);
+  background: var(--selected-bg);
+  border-radius: var(--rounded-full);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: wb-restored-in 0.24s var(--ease-quart) both;
+}
+
+.wb-attach-restored svg {
+  opacity: 0.75;
+}
+
+@keyframes wb-restored-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.wb-attach-tray-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
+  /* Three rows, then scroll. A dozen staged files would otherwise push the
+     composer up over the transcript the user is staging them against — and the
+     count in the head above already says how many are down there. */
+  max-height: 148px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* Pending-attachment chips settle in as they're added. */
 .wb-composer-chip {
+  max-width: min(260px, 100%);
   animation: wb-chip-in 0.15s var(--ease-quart) both;
+}
+
+/* A workspace chip references a file the project already owns; an external one
+   pulls something in from outside it. The distinction changes what the agent
+   receives, so it is carried by the icon's tint rather than left to the meta
+   line — which reads as a folder for one and a size for the other, and says
+   nothing at a glance. */
+.wb-composer-chip[data-kind='workspace'] .hds-attachment-icon {
+  color: var(--accent);
+}
+
+.wb-composer-chip:hover {
+  border-color: var(--border-strong);
 }
 @keyframes wb-chip-in {
   from {
@@ -5080,10 +5333,11 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 /* --- The terminal picker (agent-terminal, AT-R1/AT-R5) ---------------------
-   Rows, not cards: one choice among a handful of items that differ by a name
-   and a path. The path is the row's evidence and gets the whole second line;
-   it truncates rather than wraps, because a wrapped absolute path turns a
-   4-row list into a wall and the full value is one hover (title) away.       */
+   Option rows (`RadioCard`), not a dropdown: the choice's consequences differ
+   per agent and have to be readable *while* choosing. Row chrome, radio and
+   the detail reveal all come from the DS component — what lives here is the
+   picker's own vocabulary: the prompt sigil, the agent→terminal routes, and
+   the command receipt. */
 .wb-shell-picker {
   display: flex;
   flex-direction: column;
@@ -5117,142 +5371,206 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 .wb-shell-list {
-  gap: 2px;
+  gap: var(--s-2);
 }
-.wb-shell-row {
-  display: flex;
-  /* Top-aligned, not centred: a long path wraps to two lines, and a centred
-     radio then floats opposite the gap between them instead of reading as the
-     label's own control (the same reason `.wb-agent-card[data-unavailable]`
-     switches to flex-start). */
-  align-items: flex-start;
-  gap: var(--s-3);
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid transparent;
-  border-radius: var(--rounded-md);
-  cursor: pointer;
-  transition:
-    background-color 0.16s var(--ease-quart),
-    border-color 0.16s var(--ease-quart);
-}
-/* A neutral wash, not `--surface-2`: in the light and hive themes that token
-   is warm enough to read as the accent tint the *selected* row uses, and a
-   hovered row then looks about as chosen as the chosen one. Measured on the
-   light pass, which is where the two nearly met. */
-.wb-shell-row:hover:not([data-selected]) {
-  background: color-mix(in oklab, var(--ink) 6%, transparent);
-}
-.wb-shell-row[data-selected] {
-  background: var(--selected-bg);
-  border-color: color-mix(in oklab, var(--accent) 38%, transparent);
-}
-/* The radio inside carries the focus ring (DS `:focus-visible`); the row draws
-   its own so keyboard arrowing through the group is visible on the row too. */
-.wb-shell-row:focus-within {
-  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
-}
-/* Optical centring against the name's line box (20px control, ~19px line). */
-.wb-shell-row .hds-radio-item {
-  margin-top: 1px;
-}
-.wb-shell-row-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.wb-shell-row-head {
+
+/* The prompt sigil tile. `$`, `%`, `PS>`, `C:\` — the mark a person already
+   reads a terminal by, which is what lets four rows be told apart before any
+   of them is read. Monospace and tabular so the three-character sigils sit on
+   the same optical width as the one-character ones. */
+.wb-shell-sigil {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
-  min-width: 0;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--ff-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  transition:
+    color 0.18s var(--ease-quart),
+    border-color 0.18s var(--ease-quart),
+    background-color 0.18s var(--ease-quart);
 }
-.wb-shell-row-name {
-  font-size: 0.875rem;
+/* "Automático" is a rule, not a terminal — so its tile wears the sigil of the
+   shell the rule lands on, behind a dashed edge. The dash is the whole
+   distinction: this row previews an outcome, it isn't one. */
+.wb-shell-sigil[data-auto] {
+  border-style: dashed;
+  background: transparent;
+}
+.hds-radio-card[data-selected] .wb-shell-sigil {
+  border-color: var(--selected);
+  background: var(--surface);
+  color: var(--accent-tint-ink);
+}
+
+/* Badge on the row the next turn actually runs in. Under "Automático" this
+   lands on a row that is *not* the selected one, which is the point: the
+   choice and its outcome are two facts, and the user gets to see both. */
+/* The DS `Badge`'s muted variant paints a hardcoded `rgba(38, 10, 18, .4)`
+   and takes `--muted` for its ink — a pair that measures 4.21:1 in the light
+   theme and 3.81:1 once this badge lands on the accent-tinted selected card,
+   both under the 4.5 floor. Re-toned here with role tokens rather than in the
+   DS: "em uso" is a live-state marker, not a muted category tag, so it wants
+   the accent's tint ink either way. (The DS variant's own contrast is a
+   separate, wider fix.) */
+.wb-shell-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--accent-tint-ink);
+}
+.wb-shell-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* --- The consequence block, inside the selected row -------------------- */
+.wb-shell-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+.wb-shell-outcome-title {
+  /* Sentence case, like every other label in this sheet. An uppercase tracked
+     eyebrow here would be the only one in the app — a second dialect for the
+     same job, which is the inconsistency PRODUCT.md's "one vocabulary"
+     principle exists to prevent. */
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.wb-shell-routes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+/* Agent on the left, destination on the right. `flex-wrap` rather than an
+   ellipsis: at 340px a long agent name plus a long shell name will not fit on
+   one line, and truncating either of the two nouns destroys the sentence. */
+.wb-shell-route {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px var(--s-2);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.wb-shell-route-agent {
+  color: var(--muted);
+}
+.wb-shell-route-target {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   font-weight: 600;
   color: var(--ink);
 }
-/* Opaque tint + `--ink` text, the same fix `.wb-agent-card-default` documents:
-   a 10px bold chip owes the 4.5:1 body floor, which accent-on-accent-tint
-   misses in two of the three themes. */
-.wb-shell-row-badge {
-  flex-shrink: 0;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: color-mix(in oklab, var(--accent) 22%, var(--surface));
-  border-radius: var(--rounded-full);
-  padding: 1px 7px;
+.wb-shell-route-mark {
+  align-self: center;
+  display: inline-flex;
+  color: var(--faint);
 }
-.wb-shell-row-detail {
-  font-size: 0.75rem;
-  line-height: 1.45;
+/* Amber, not red, and only on the state that deviates from the pick: the
+   agent is running somewhere the user didn't choose. That substitution used to
+   be silent, and being told about it is the entire bug fix. */
+.wb-shell-route[data-support='fallback'] .wb-shell-route-target,
+.wb-shell-route[data-support='fallback'] .wb-shell-route-mark {
+  color: var(--warning-ink);
+}
+.wb-shell-route[data-support='launch-only'] .wb-shell-route-target {
+  font-weight: 500;
   color: var(--muted);
-}
-/* Only the path gets the mono face — the "Automático" row's second line is a
-   sentence, and setting prose in a monospace column made it read as data and
-   pushed it past the truncation. It wraps instead of truncating: an ellipsis
-   would hide the tail, which is the half that separates
-   `…\WindowsPowerShell\v1.0\powershell.exe` from a second PowerShell. */
-.wb-shell-row-detail[data-path] {
-  font-family: var(--ff-mono);
-  overflow-wrap: anywhere;
 }
 
-/* What the choice actually changes, per enabled agent. Under the selected row
-   only — repeated under every row it would be noise, and absent it would be a
-   picker that lies exactly where Windows' default (cmd) is concerned. */
-.wb-shell-support {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-3);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-md);
-  background: var(--bg-2);
-}
-.wb-shell-support-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: var(--ink);
-}
-.wb-shell-support-title svg {
-  color: var(--muted);
-}
-.wb-shell-support-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.wb-shell-notes {
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
-}
-.wb-shell-support-item {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: var(--s-2);
-  font-size: 0.8125rem;
+}
+.wb-shell-note {
+  font-size: 0.75rem;
   line-height: 1.45;
   color: var(--muted);
 }
-.wb-shell-support-mark {
+.wb-shell-note-cta {
   display: inline-flex;
-  flex-shrink: 0;
-  /* Optical alignment with the first line of a 1.45 line-height sentence. */
-  margin-top: 2px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-tint-ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.wb-shell-support-item[data-support='native'] .wb-shell-support-mark {
-  color: var(--success);
+.wb-shell-note-cta:hover {
+  color: var(--ink);
 }
-.wb-shell-support-item[data-support='launch-only'] .wb-shell-support-mark {
-  color: var(--warning);
+.wb-shell-note-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
+/* --- The receipt ------------------------------------------------------- */
+.wb-shell-command {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wb-shell-command-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wb-shell-command-toggle:hover {
+  color: var(--ink);
+}
+.wb-shell-command-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-shell-command-toggle svg {
+  transition: transform 0.18s var(--ease-quart);
+}
+.wb-shell-command-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
 }
 
 .wb-shell-missing {
@@ -5280,7 +5598,8 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wb-shell-row {
+  .wb-shell-sigil,
+  .wb-shell-command-toggle svg {
     transition: none;
   }
   .wb-shell-scan[data-busy] .wb-agent-scan-btn svg {
@@ -6117,6 +6436,8 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-shortcut-chip svg,
   .wb-appset-btn,
   .wb-attach-btn,
+  .wb-attach-clear,
+  .wb-composer-chip,
   .wb-hero-recent,
   .wb-history-search,
   .wb-history-row,
@@ -6128,6 +6449,7 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-slash-menu,
   .wb-composer-chip,
   .wb-composer-dropzone,
+  .wb-attach-restored,
   .wb-tour-card {
     animation: none;
   }
@@ -7412,8 +7734,13 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-mcp-probe-result[data-status='ok'] {
   color: var(--success);
 }
+/* `--danger-ink`, not `--danger`: the failure reason is body text on the
+   panel's own surface, and the fill hue measures 3.88:1 in dark and 4.24:1 in
+   hive at 13px — under the 4.5:1 floor, on the one line whose entire job is to
+   say why the server didn't connect. The ink rung measures 5.08 / 5.55 / 5.75
+   across the three themes. */
 .wb-mcp-probe-result[data-status='error'] {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .wb-mcp-detail-label {
@@ -12455,6 +12782,96 @@ span.wb-change-card-open {
   white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------------------
+   The session-wide grant (agent-approvals). Not a fourth button in the row
+   above: those three answer *this* call, this one turns the asking off until
+   the app closes. It is separated by a hairline, carries its own end-condition
+   beside it, and is never the filled control — the widest-reaching answer must
+   not be the easiest one to hit by reflex.
+   --------------------------------------------------------------------------- */
+.wb-approval-session {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  margin-top: var(--s-1);
+  padding-top: var(--s-2);
+  /* 34%, not the 24% it started at: on the warning tint a lighter hairline
+     dissolved in the dark theme, and a separator nobody can see is not doing
+     the one job it has — telling this answer apart from the three above. */
+  border-top: 1px solid color-mix(in oklab, var(--warning) 34%, transparent);
+}
+.wb-approval-session-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: text-decoration-color 0.15s var(--ease-quart);
+}
+.wb-approval-session-cta:hover {
+  text-decoration-color: currentColor;
+}
+.wb-approval-session-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--rounded-sm);
+}
+/* `--muted`, not `--faint`: same measurement as the detail labels above — on
+   the warning tint the faint rung falls under the 4.5:1 body floor in light. */
+.wb-approval-session-hint {
+  font-size: 0.71875rem;
+  color: var(--muted);
+}
+
+/* The standing reminder in the composer footer: while the grant is armed the
+   agent asks nothing, so this line is the only place that state exists. It
+   carries its own undo, because a permission you cannot find is a permission
+   you cannot take back. */
+.wb-approval-session-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  width: fit-content;
+  gap: 6px;
+  margin: 0 0 var(--s-2);
+  padding: 3px 10px;
+  border-radius: var(--rounded-full);
+  background: var(--warning-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--warning) 34%, transparent);
+  font-size: 0.71875rem;
+  color: var(--warning-ink);
+}
+.wb-approval-session-chip-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.wb-approval-session-chip-cta {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 620;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.wb-approval-session-chip-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+
 @keyframes wb-approval-in {
   from {
     opacity: 0;
@@ -12472,7 +12889,8 @@ span.wb-change-card-open {
   }
   /* The answered note's underline fade is decoration on top of a colour
      change that already carries the hover state — dropping it loses nothing. */
-  .wb-approval-note-toggle {
+  .wb-approval-note-toggle,
+  .wb-approval-session-cta {
     transition: none;
   }
 }

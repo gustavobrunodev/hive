@@ -31,10 +31,11 @@ import type { GitRemote } from './useGitRemote'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
 import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
 import { useGit } from './useGit'
+import { copyText } from '../ui/clipboard'
 
-/** Copies text to the clipboard, tolerating environments without the async Clipboard API. */
+/** Copies text to the clipboard through the app's own bridge (see `ui/clipboard.ts` for why not `navigator.clipboard`). */
 function copyToClipboard(text: string): void {
-  void navigator.clipboard?.writeText(text)
+  void copyText(text)
 }
 
 /** A teaching empty state (icon + title + description + optional action) — never a blank pane (design.md §7). */

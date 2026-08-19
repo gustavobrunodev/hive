@@ -296,6 +296,10 @@ export function ProfileSheet({
             onSelect={handleSelectShell}
             onRefresh={handleRescanShells}
             refreshing={shellScanning}
+            // file-clipboard: through the main process, never
+            // `navigator.clipboard` — this window's permission for it is denied.
+            onCopy={(text) => void window.hive.clipboard.writeText(text)}
+            onOpenUrl={(url) => void window.hive.openExternal(url)}
           />
         </div>
 

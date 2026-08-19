@@ -27,6 +27,13 @@ export interface AttachmentsApi {
   pick: () => Promise<void>
   removeAt: (index: number) => void
   clear: () => void
+  /**
+   * Swaps the whole pending list — the restore half of per-conversation
+   * drafts (`composerDraft.ts`). Entering a conversation replaces the
+   * composer's files with the ones that conversation parked, so no attachment
+   * ever outlives the conversation it was picked for.
+   */
+  replace: (entries: readonly AttachmentEntry[]) => void
   /** A files drag is hovering the composer — drives the drop overlay. */
   dragActive: boolean
   /** Spread onto the composer wrapper. No-ops when `enabled` is false. */
@@ -81,6 +88,12 @@ export function useAttachments(enabled: boolean, workspace: string): Attachments
 
   const clear = useCallback(() => {
     setItems([])
+    dragDepthRef.current = 0
+    setDragActive(false)
+  }, [])
+
+  const replace = useCallback((entries: readonly AttachmentEntry[]) => {
+    setItems([...entries])
     dragDepthRef.current = 0
     setDragActive(false)
   }, [])
@@ -144,6 +157,7 @@ export function useAttachments(enabled: boolean, workspace: string): Attachments
     pick,
     removeAt,
     clear,
+    replace,
     dragActive,
     dragHandlers: { onDragEnter, onDragOver, onDragLeave, onDrop }
   }

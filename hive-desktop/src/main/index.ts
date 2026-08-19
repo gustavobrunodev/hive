@@ -2,6 +2,7 @@ import {
   app,
   shell,
   BrowserWindow,
+  clipboard,
   ipcMain,
   dialog,
   protocol,
@@ -221,8 +222,19 @@ app.whenReady().then(() => {
   // granted, and only to our own renderer — every other permission (geolocation,
   // notifications, midi, …) is denied outright rather than left to Electron's
   // default, so adding the microphone doesn't widen anything else.
+  //
+  // `clipboard-sanitized-write` rides along for a different reason: with the
+  // deny-everything default, `navigator.clipboard.writeText()` rejects with
+  // `NotAllowedError: Write permission denied` — which is what made every
+  // "Copiar caminho" in the Explorer surface "Não foi possível concluir a
+  // ação". Our own copies go through the `clipboard:writeText` bridge below
+  // (main's clipboard needs no permission and no focused document), but any
+  // web-API copy — a design-system component, a future surface — has to work
+  // too, and *sanitized* write is the narrow half of the pair: it can put text
+  // on the clipboard, never read what is already there (`clipboard-read` stays
+  // denied, so nothing here can look at what the user copied elsewhere).
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
-    callback(permission === 'media')
+    callback(permission === 'media' || permission === 'clipboard-sanitized-write')
   })
 
   // IPC: request/response round trip for window.hive.ping()
@@ -370,6 +382,23 @@ app.whenReady().then(() => {
       ) => fsService.move(root, fromRel, toRel, opts)
     )
   )
+  // file-clipboard: an in-workspace copy (Ctrl+C / Ctrl+V on a tree row). The
+  // move/import pair could not cover it — `move` relocates instead of
+  // duplicating, and `importEntry` takes an absolute *outside* source, so
+  // pasting through it would mean handing the renderer a real OS path and
+  // trusting it back. Both ends `resolveSafe`-checked, same as `move`.
+  ipcMain.handle(
+    'fs:copyEntry',
+    withConflictPrefix(
+      async (
+        _event: unknown,
+        root: string,
+        fromRel: string,
+        toRel: string,
+        opts?: { overwrite?: boolean }
+      ) => fsService.copyEntry(root, fromRel, toRel, opts)
+    )
+  )
   ipcMain.handle(
     'fs:importEntry',
     withConflictPrefix(
@@ -391,6 +420,17 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:absolutePath', async (_event, root: string, relativePath: string) =>
     fsService.absolutePathFor(root, relativePath)
   )
+  // file-clipboard: the renderer's only reliable way onto the system
+  // clipboard. `navigator.clipboard.writeText()` is refused in this window
+  // (see the permission handler above) and, even once permitted, requires a
+  // focused document — which a copy fired from a menu that is closing cannot
+  // guarantee. Electron's own `clipboard` has neither constraint. Text only:
+  // this bridge writes, never reads, so it can't be used to exfiltrate what
+  // the user copied somewhere else.
+  ipcMain.handle('clipboard:writeText', async (_event, text: string): Promise<void> => {
+    clipboard.writeText(String(text))
+  })
+
   // explorer-os-actions: hands a workspace path to the host's file manager —
   // Explorer on Windows, Finder on macOS, whatever `xdg-open` resolves to on
   // Linux. Two verbs, because they are what the OS itself distinguishes: a
@@ -461,6 +501,8 @@ app.whenReady().then(() => {
   let shellService: ShellService | null = null
   /** The terminal a turn runs in right now — one getter, two consumers below. */
   const currentShell = (): ShellInfo | null => shellService?.current() ?? null
+  /** Every terminal this machine has — what an adapter pins a fallback to (agent-terminal). */
+  const detectedShells = (): ShellInfo[] => shellService?.detected() ?? []
   const processRunner = createProcessRunner({ shell: currentShell })
   // multi-agent: the registry holds every real adapter (Claude, Copilot,
   // Devin); availability is detected per machine by `registry.detect()` (queried
@@ -515,8 +557,11 @@ app.whenReady().then(() => {
   const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner), {
     permissionPrompt: approvalService,
     // agent-terminal (AT-R4): the adapters translate this into their own CLI's
-    // environment (`CLAUDE_CODE_SHELL` and friends), read per turn.
-    shell: currentShell
+    // environment (`CLAUDE_CODE_SHELL` and friends), read per turn. `shells`
+    // rides along because an adapter that cannot honour the pick has to pin a
+    // real, installed shell instead of leaving the CLI to decide.
+    shell: currentShell,
+    shells: detectedShells
   })
   const shells = createShellService(configStore, agentRegistry)
   shellService = shells
@@ -949,6 +994,13 @@ app.whenReady().then(() => {
   // outlived its turn).
   ipcMain.handle('agent:approve', async (_event, requestId: string, decision: ApprovalDecision) => {
     approvalService.respond(requestId, decision)
+  })
+  // agent-approvals (session grant): the chat's footer chip is the only place
+  // the blanket grant is visible, so it has to be able to read the real state
+  // after a window reload — and to hand it back.
+  ipcMain.handle('agent:approvalSession', async () => approvalService.sessionAllowAll())
+  ipcMain.handle('agent:approvalSession:set', async (_event, enabled: boolean) => {
+    approvalService.setSessionAllowAll(enabled)
   })
 
   // Streaming IPC for agent events — same channel-pattern as fs:watch:* above

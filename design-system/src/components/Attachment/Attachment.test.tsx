@@ -19,6 +19,37 @@ describe("Attachment", () => {
     expect(screen.getByTestId("icon")).toBeInTheDocument()
   })
 
+  // Middle truncation: end-ellipsis eats the extension first, which is the
+  // single most informative token in a file name.
+  describe("truncate=\"middle\"", () => {
+    it("keeps the extension in a tail that cannot shrink", () => {
+      render(<Attachment name="relatorio-trimestral-consolidado-v3.docx" truncate="middle" />)
+      const tail = document.querySelector(".hds-attachment-name-tail")
+      expect(tail?.textContent).toBe("-v3.docx")
+      // Head + tail still read as the one uninterrupted name — to a screen
+      // reader, and to copy/paste.
+      expect(document.querySelector(".hds-attachment-name")?.textContent).toBe(
+        "relatorio-trimestral-consolidado-v3.docx"
+      )
+    })
+
+    it("leaves a short name whole — there is nothing to truncate", () => {
+      render(<Attachment name="notas.txt" truncate="middle" />)
+      expect(document.querySelector(".hds-attachment-name-tail")).toBeNull()
+      expect(screen.getByText("notas.txt")).toBeInTheDocument()
+    })
+
+    it("falls back to a character split for a name with no extension", () => {
+      render(<Attachment name="arquivo-sem-extensao-nenhuma" truncate="middle" />)
+      expect(document.querySelector(".hds-attachment-name-tail")?.textContent).toBe("uma")
+    })
+
+    it("splits nothing by default", () => {
+      render(<Attachment name="relatorio-trimestral-consolidado-v3.docx" />)
+      expect(document.querySelector(".hds-attachment-name-tail")).toBeNull()
+    })
+  })
+
   it("does not render a remove button when onRemove is omitted", () => {
     render(<Attachment name="design.png" />)
     expect(screen.queryByRole("button")).not.toBeInTheDocument()

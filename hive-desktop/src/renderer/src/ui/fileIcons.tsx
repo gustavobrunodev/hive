@@ -79,12 +79,21 @@ export function ShellFileIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
-/** Config (yaml/toml/env/…) — gear. */
+/**
+ * Config (yaml/toml/env/…) — gear.
+ *
+ * Six teeth, not more: the outline is generated from the gear's own geometry
+ * (a tip arc and a root arc joined by two flanks per tooth, the construction
+ * `icons.tsx`'s `GearIcon` uses), and at 16px with a 1.5px stroke anything
+ * denser closes up into a disc. The hand-plotted polygon this replaced had
+ * neither — its "teeth" were irregular and the start point stuck out of the
+ * top edge as a spike, which is what made every `.yml` row look broken.
+ */
 export function ConfigFileIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
       <circle cx="8" cy="8" r="2.15" />
-      <path d="M8 1.5l.62 1.72 1.8-.5 1.16 1.4 1.72.62-.5 1.8L14.5 8l-1.3 1.3.5 1.8-1.72.62-1.16 1.4-1.8-.5L8 14.5l-1.3-1.06-1.8.5-1.16-1.4-1.72-.62.5-1.8L1.5 8l1.06-1.3-.5-1.8 1.72-.62L5.9 2.5l1.8.5L8 1.5Z" />
+      <path d="M6.24 3.43L6.54 1.67A6.5 6.5 0 0 1 9.46 1.67L9.76 3.43A4.9 4.9 0 0 1 11.08 4.19L12.75 3.57A6.5 6.5 0 0 1 14.22 6.1L12.84 7.23A4.9 4.9 0 0 1 12.84 8.77L14.22 9.9A6.5 6.5 0 0 1 12.75 12.43L11.08 11.81A4.9 4.9 0 0 1 9.76 12.57L9.46 14.33A6.5 6.5 0 0 1 6.54 14.33L6.24 12.57A4.9 4.9 0 0 1 4.92 11.81L3.25 12.43A6.5 6.5 0 0 1 1.78 9.9L3.16 8.77A4.9 4.9 0 0 1 3.16 7.23L1.78 6.1A6.5 6.5 0 0 1 3.25 3.57L4.92 4.19A4.9 4.9 0 0 1 6.24 3.43Z" />
     </svg>
   )
 }

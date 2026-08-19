@@ -1,11 +1,28 @@
-import { RadioGroup, RadioGroupItem } from '@hive/design-system'
-import { shellName, shellSupportNote, t } from '../i18n'
-import { AlertTriangleIcon, CheckIcon, RefreshIcon, TerminalIcon } from './icons'
+import { useState } from 'react'
+import { Badge, CommandLine, RadioCard, RadioGroup } from '@hive/design-system'
+import { shellName, shellSigil, shellSupportNote, t } from '../i18n'
+import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  ChevronDownIcon,
+  CornerDownRightIcon,
+  ExternalLinkIcon,
+  MinusIcon,
+  RefreshIcon,
+  TerminalIcon
+} from './icons'
 
 /** Structural mirror of `main/agentAdapter.ts` (renderer-side mirror convention). */
-export type ShellSupport = 'native' | 'launch-only'
+export type ShellSupport = 'native' | 'fallback' | 'launch-only'
 export type ShellSupportNote =
-  'posix-bash-zsh-only' | 'windows-git-bash' | 'powershell-preview' | 'no-cli-binding'
+  | 'posix-bash-zsh-only'
+  | 'windows-git-bash'
+  | 'powershell-preview'
+  | 'cmd-no-executor'
+  | 'install-git-bash'
+  | 'no-cli-binding'
+
+export type ShellFamily = 'cmd' | 'powershell' | 'bash' | 'zsh' | 'fish' | 'sh'
 
 /** Structural mirror of `main/shellService.ts`'s `ShellAgentSupport`. */
 export interface ShellAgentSupport {
@@ -13,15 +30,20 @@ export interface ShellAgentSupport {
   displayName: string
   support: ShellSupport
   note?: ShellSupportNote
+  /** Id of the shell this agent really runs its own commands in, or `null` when its CLI decides. */
+  runsIn: string | null
 }
 
 /** Structural mirror of `main/shellService.ts`'s `ShellOption`. */
 export interface ShellOption {
   id: string
   path: string
-  family: 'cmd' | 'powershell' | 'bash' | 'zsh' | 'fish' | 'sh'
-  systemDefault: boolean
+  family: ShellFamily
+  /** True for the shell "Automático" resolves to on this machine. */
+  automatic: boolean
   agents: ShellAgentSupport[]
+  /** The literal command line a turn is spawned with here. */
+  preview: string
 }
 
 /** Structural mirror of `main/shellService.ts`'s `ShellCatalogView`. */
@@ -30,19 +52,27 @@ export interface ShellCatalogView {
   selectedId: string | null
   resolvedId: string | null
   missingSelection: boolean
+  platform: string
 }
 
 interface ShellPickerProps {
   view: ShellCatalogView | null
-  /** `null` selects "Automático" (the system default, re-resolved per machine). */
+  /** `null` selects "Automático" (re-resolved per machine). */
   onSelect: (id: string | null) => void
   /** Re-runs detection (AT-R1) — "eu acabei de instalar o Git Bash". */
   onRefresh: () => void
   refreshing: boolean
+  /** Writes to the system clipboard. The renderer's own `navigator.clipboard` is denied here. */
+  onCopy?: (text: string) => void
+  /** Opens a URL in the user's browser (the "instale o Git para Windows" way out). */
+  onOpenUrl?: (url: string) => void
 }
 
 /** The value the radio group carries for "Automático" — `null` doesn't survive a DOM attribute. */
 const AUTO_VALUE = '__auto__'
+
+/** Where the `install-git-bash` note sends someone — the CLI's own recommendation, verbatim. */
+const GIT_FOR_WINDOWS_URL = 'https://git-scm.com/downloads/win'
 
 /**
  * What the last detection found and the control that runs it again — the same
@@ -61,9 +91,9 @@ function ShellScanStrip({
   return (
     <div className="wb-shell-scan" data-busy={refreshing || undefined}>
       {/* Only the count. Naming the shell in use here too would repeat, 40px
-          above it, exactly what the "Automático" row and the "padrão do
-          sistema" badge already say — the duplicated-affordance defect this
-          project keeps re-learning (STATE.md, M12). */}
+          above it, exactly what the "Automático" row and the "Em uso" badge
+          already say — the duplicated-affordance defect this project keeps
+          re-learning (STATE.md, M12). */}
       <p className="wb-shell-scan-text" aria-live="polite">
         {refreshing ? t('shell.detecting') : t('shell.scanSummary', count)}
       </p>
@@ -75,116 +105,226 @@ function ShellScanStrip({
   )
 }
 
-/** One selectable terminal: the radio, its name, and the path detection found. */
-function ShellRow({
-  value,
-  name,
-  detail,
-  path,
-  badge,
-  selected
+/**
+ * The shell's own prompt sigil in a small tile — `$`, `%`, `PS>`, `C:\`.
+ *
+ * Recognition, not decoration: this is the mark a person already reads a
+ * terminal by, and it is the only leading visual that tells four rows apart at
+ * a glance. The "automatic" tile carries the sigil of the shell that rule
+ * lands on, behind a dashed border — because that is precisely what
+ * "Automático" is: not a terminal, a rule that resolves to one of the rows
+ * below.
+ */
+function ShellSigil({
+  shell,
+  auto
 }: {
-  value: string
-  name: string
-  detail: string
-  /** Whether `detail` is a filesystem path (mono, wrapping) or a sentence. */
-  path: boolean
-  badge: string | null
-  selected: boolean
+  shell: ShellOption | null
+  auto?: boolean
 }): React.JSX.Element {
   return (
-    <label className="wb-shell-row" data-selected={selected || undefined}>
-      <RadioGroupItem value={value} aria-label={name} />
-      <span className="wb-shell-row-body">
-        <span className="wb-shell-row-head">
-          <span className="wb-shell-row-name">{name}</span>
-          {badge && <span className="wb-shell-row-badge">{badge}</span>}
+    <span className="wb-shell-sigil" data-auto={auto || undefined} aria-hidden="true">
+      {shell ? shellSigil(shell.id, shell.family) : <TerminalIcon size={13} />}
+    </span>
+  )
+}
+
+/** The glyph between an agent and the shell it lands in — one per support state. */
+function RouteMark({ support }: { support: ShellSupport }): React.JSX.Element {
+  if (support === 'native') return <ArrowRightIcon size={12} />
+  if (support === 'fallback') return <CornerDownRightIcon size={12} />
+  return <MinusIcon size={12} />
+}
+
+/**
+ * One agent, and the shell it will really run its own commands in.
+ *
+ * This line is the feature. The picker used to answer "o que isso muda para
+ * cada agente" in three lines of prose per agent, and the one fact a reader
+ * needed — *which shell* — was never in it. So a user could pick "Prompt de
+ * Comando", read the paragraph, and still be told by the agent that it was
+ * using PowerShell. Name the destination, mark it when it isn't the one that
+ * was picked, and the surprise has nowhere left to happen.
+ */
+function ShellRoute({ agent }: { agent: ShellAgentSupport }): React.JSX.Element {
+  const target = agent.runsIn === null ? t('shell.routeUnknown') : shellName(agent.runsIn)
+  return (
+    <li className="wb-shell-route" data-support={agent.support}>
+      <span className="wb-shell-route-agent">{agent.displayName}</span>
+      <span className="wb-shell-route-target">
+        <span className="wb-shell-route-mark">
+          <RouteMark support={agent.support} />
         </span>
-        {/* Paths wrap rather than truncate: this line is the row's evidence,
-            and an ellipsis hides the tail — which is the half that tells two
-            PowerShells (or two Git installs) apart. */}
-        <span className="wb-shell-row-detail" data-path={path || undefined}>
-          {detail}
-        </span>
+        {target}
       </span>
-    </label>
+    </li>
   )
 }
 
 /**
- * What the selected terminal actually changes, one line per enabled agent.
- *
- * This block is the reason the picker isn't a dropdown. On Windows the default
- * is `cmd`, and Claude Code has no cmd executor at all — it runs its own
- * commands through Git Bash or PowerShell. Without this, the setting would
- * read as a promise the product can't keep, at exactly the moment the user is
- * deciding.
+ * The reasons behind the routes — one line each, and only when there is
+ * something the route itself doesn't already say. A note per agent per row is
+ * how the old version turned into a wall nobody read.
  */
-function ShellSupportList({ agents }: { agents: ShellAgentSupport[] }): React.JSX.Element {
+function ShellNotes({
+  agents,
+  onOpenUrl
+}: {
+  agents: ShellAgentSupport[]
+  onOpenUrl?: (url: string) => void
+}): React.JSX.Element | null {
+  const notes = agents
+    .map((agent) => ({
+      agent,
+      text: shellSupportNote(
+        agent.displayName,
+        agent.support,
+        agent.note,
+        agent.runsIn === null ? null : shellName(agent.runsIn)
+      )
+    }))
+    .filter((entry): entry is { agent: ShellAgentSupport; text: string } => entry.text !== null)
+
+  if (notes.length === 0) return null
   return (
-    <div className="wb-shell-support">
-      <p className="wb-shell-support-title">
-        <TerminalIcon size={13} />
-        {t('shell.supportTitle')}
-      </p>
-      <ul className="wb-shell-support-list">
-        {agents.map((agent) => (
-          <li key={agent.agentId} className="wb-shell-support-item" data-support={agent.support}>
-            <span className="wb-shell-support-mark" aria-hidden="true">
-              {agent.support === 'native' ? (
-                <CheckIcon size={12} />
-              ) : (
-                <AlertTriangleIcon size={12} />
-              )}
-            </span>
-            {shellSupportNote(agent.displayName, agent.support, agent.note)}
-          </li>
-        ))}
-      </ul>
+    <ul className="wb-shell-notes">
+      {notes.map(({ agent, text }) => (
+        <li key={agent.agentId} className="wb-shell-note" data-support={agent.support}>
+          {text}
+          {agent.note === 'install-git-bash' && onOpenUrl && (
+            <button
+              type="button"
+              className="wb-shell-note-cta"
+              onClick={() => onOpenUrl(GIT_FOR_WINDOWS_URL)}
+            >
+              {t('shell.installGitCta')}
+              <ExternalLinkIcon size={11} />
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * The receipt: the exact command line a turn is spawned with in this shell,
+ * behind a disclosure.
+ *
+ * Collapsed by default because most people want the answer, not the proof —
+ * but the proof is one click away and comes from `shellSpawnTarget`, the same
+ * function that does the spawning. That is the difference between a setting
+ * you believe and one you have to take on faith.
+ */
+function ShellCommand({
+  shell,
+  onCopy
+}: {
+  shell: ShellOption
+  onCopy?: (text: string) => void
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="wb-shell-command">
+      <button
+        type="button"
+        className="wb-shell-command-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <ChevronDownIcon size={12} />
+        {open ? t('shell.commandHide') : t('shell.commandShow')}
+      </button>
+      {open && (
+        <CommandLine
+          className="wb-shell-command-line"
+          command={shell.preview}
+          // No prompt sigil here on purpose: the command already opens with
+          // this shell's own absolute path, and `C:\` in front of
+          // `C:\WINDOWS\system32\cmd.exe` reads as a mangled path, not a prompt.
+          onCopy={onCopy}
+          copyLabel={t('shell.commandCopy')}
+          copiedLabel={t('shell.commandCopied')}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Everything that follows from choosing one row: where each agent lands, why, and the proof. */
+function ShellOutcome({
+  shell,
+  onCopy,
+  onOpenUrl
+}: {
+  shell: ShellOption | null
+  onCopy?: (text: string) => void
+  onOpenUrl?: (url: string) => void
+}): React.JSX.Element | null {
+  if (!shell) return null
+  return (
+    <div className="wb-shell-outcome">
+      {shell.agents.length > 0 && (
+        <>
+          <p className="wb-shell-outcome-title">{t('shell.routesTitle')}</p>
+          <ul className="wb-shell-routes">
+            {shell.agents.map((agent) => (
+              <ShellRoute key={agent.agentId} agent={agent} />
+            ))}
+          </ul>
+          <ShellNotes agents={shell.agents} onOpenUrl={onOpenUrl} />
+        </>
+      )}
+      <ShellCommand shell={shell} onCopy={onCopy} />
     </div>
   )
 }
 
 /**
- * The four things the picker renders from, derived once: the rows, the radio
- * value ("Automático" has no id of its own), the shell automatic resolves to,
- * and the shell whose caveats are shown — which under "Automático" is the
- * resolved one, because that is where the next turn will actually run.
+ * The three things the picker renders from, derived once: the rows, the radio
+ * value ("Automático" has no id of its own), and the shell "Automático" lands
+ * on.
+ *
+ * `automatic` is deliberately not `resolvedId`. They agree while automatic is
+ * the selection and diverge the moment someone picks a row — `resolvedId` then
+ * means "where the next turn runs" (which is the pick), while the "Automático"
+ * row still has to describe *its own* rule. Reading the wrong one made that
+ * row announce "Segue o terminal do sistema: Fish" while Fish was the manual
+ * choice and the system's own shell was zsh.
  */
 function readView(view: ShellCatalogView | null): {
   shells: ShellOption[]
   selectedValue: string
-  resolved: ShellOption | null
-  active: ShellOption | null
+  automatic: ShellOption | null
 } {
   const shells = view?.shells ?? []
-  const selectedValue = view?.selectedId ?? AUTO_VALUE
-  const resolved = shells.find((shell) => shell.id === view?.resolvedId) ?? null
   return {
     shells,
-    selectedValue,
-    resolved,
-    active: shells.find((shell) => shell.id === selectedValue) ?? resolved
+    selectedValue: view?.selectedId ?? AUTO_VALUE,
+    automatic: shells.find((shell) => shell.automatic) ?? null
   }
 }
 
 /**
  * The terminal picker (agent-terminal, AT-R1/AT-R2/AT-R5).
  *
- * A list of radios, not cards: this is one choice among a handful of items
- * that differ by a name and a path, and a card grid would spend a lot of
- * surface saying nothing extra. Each row carries the **absolute path** that
- * detection actually found, for the same reason `AgentPicker` shows the
- * `--version` it read back — a list that named a shell we hadn't verified
- * would repeat, one level down, the bug that whole area exists to fix.
+ * A list of option rows, not a dropdown: this is a choice whose consequences
+ * differ per agent, and the consequences have to be readable *while*
+ * choosing. Each row carries the absolute path detection found — the same
+ * standard of evidence as `AgentPicker`'s `--version` line — and the selected
+ * row opens to show where every enabled agent will actually run, plus the
+ * command line that proves it.
  */
 export function ShellPicker({
   view,
   onSelect,
   onRefresh,
-  refreshing
+  refreshing,
+  onCopy,
+  onOpenUrl
 }: ShellPickerProps): React.JSX.Element {
-  const { shells, selectedValue, resolved, active } = readView(view)
+  const { shells, selectedValue, automatic } = readView(view)
+  const windows = view?.platform === 'win32'
 
   return (
     <div className="wb-shell-picker">
@@ -206,33 +346,47 @@ export function ShellPicker({
           onValueChange={(value) => onSelect(value === AUTO_VALUE ? null : value)}
           aria-label={t('shell.groupLabel')}
         >
-          <ShellRow
+          <RadioCard
             value={AUTO_VALUE}
-            name={t('shell.autoLabel')}
-            detail={
-              resolved
-                ? t('shell.autoDescription', shellName(resolved.id))
+            title={t('shell.autoLabel')}
+            leading={<ShellSigil shell={automatic} auto />}
+            meta={
+              automatic
+                ? windows
+                  ? t('shell.autoDescriptionPicked', shellName(automatic.id))
+                  : t('shell.autoDescriptionSystem', shellName(automatic.id))
                 : t('shell.autoDescriptionEmpty')
             }
-            path={false}
-            badge={null}
             selected={selectedValue === AUTO_VALUE}
-          />
+          >
+            <ShellOutcome shell={automatic} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+          </RadioCard>
           {shells.map((shell) => (
-            <ShellRow
+            <RadioCard
               key={shell.id}
               value={shell.id}
-              name={shellName(shell.id)}
-              detail={shell.path}
-              path
-              badge={shell.systemDefault ? t('shell.systemDefaultBadge') : null}
+              title={shellName(shell.id)}
+              leading={<ShellSigil shell={shell} />}
+              // Paths wrap rather than truncate: this line is the row's
+              // evidence, and an ellipsis hides the tail — which is the half
+              // that tells two PowerShells (or two Git installs) apart.
+              meta={shell.path}
+              metaMono
+              badge={
+                shell.id === view?.resolvedId ? (
+                  <Badge className="wb-shell-live" variant="muted">
+                    <span className="wb-shell-live-dot" aria-hidden="true" />
+                    {t('shell.liveBadge')}
+                  </Badge>
+                ) : undefined
+              }
               selected={selectedValue === shell.id}
-            />
+            >
+              <ShellOutcome shell={shell} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+            </RadioCard>
           ))}
         </RadioGroup>
       )}
-
-      {active && active.agents.length > 0 && <ShellSupportList agents={active.agents} />}
     </div>
   )
 }

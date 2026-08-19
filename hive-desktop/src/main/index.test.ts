@@ -2,7 +2,17 @@ import { afterAll, beforeEach, describe, expect, it, vi, beforeAll } from 'vites
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { app, BrowserWindow, dialog, ipcMain, shell, protocol, net, session } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  shell,
+  protocol,
+  net,
+  session
+} from 'electron'
 import { ConflictError } from './fsService'
 import { createConfigStore } from './configStore'
 
@@ -65,6 +75,9 @@ vi.mock('electron', () => {
       openPath: vi.fn(() => Promise.resolve(''))
     },
     dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) },
+    // file-clipboard: main's own clipboard, which is what every in-app copy
+    // now goes through — `navigator.clipboard` is refused in the renderer.
+    clipboard: { writeText: vi.fn() },
     // Second Brain / Whisper: the `hive-model:` scheme registration (pre-ready)
     // + its request handler (in whenReady).
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
@@ -112,6 +125,7 @@ const { fakeFsService, watchWorkspaceCalls } = vi.hoisted(() => {
       createDirectory: vi.fn(),
       saveFile: vi.fn(() => ({ mtimeMs: 456, size: 7 })),
       move: vi.fn(),
+      copyEntry: vi.fn(),
       importEntry: vi.fn(),
       exists: vi.fn(() => true),
       trash: vi.fn(() => Promise.resolve()),
@@ -193,14 +207,23 @@ vi.mock('./agentInstaller', () => ({ createAgentInstaller: vi.fn(() => fakeAgent
 // tests about detection is that the handler forwards the refresh flag —
 // agentRegistry.test.ts owns what the probe then does with it.
 const { agentDetect } = vi.hoisted(() => ({ agentDetect: vi.fn(async () => []) }))
+// agent-terminal (AT-R4): the deps index.ts hands the registry, captured so a
+// test can check they are live getters rather than values read once at boot.
+const { registryDeps } = vi.hoisted(() => ({
+  registryDeps: { value: null as Record<string, unknown> | null }
+}))
+
 vi.mock('./agentRegistry', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./agentRegistry')>()
   return {
     ...actual,
-    createAgentRegistry: (...args: Parameters<typeof actual.createAgentRegistry>) => ({
-      ...actual.createAgentRegistry(...args),
-      detect: agentDetect
-    })
+    createAgentRegistry: (...args: Parameters<typeof actual.createAgentRegistry>) => {
+      registryDeps.value = (args[1] ?? {}) as Record<string, unknown>
+      return {
+        ...actual.createAgentRegistry(...args),
+        detect: agentDetect
+      }
+    }
   }
 })
 
@@ -1202,6 +1225,42 @@ describe('main process bootstrap', () => {
     })
   })
 
+  // file-clipboard: the two channels Ctrl+C / Ctrl+V added.
+  describe('fs:copyEntry (file-clipboard)', () => {
+    it('routes to FsService.copyEntry with both workspace-relative ends', async () => {
+      fakeFsService.copyEntry.mockClear()
+      await findHandler('fs:copyEntry')({}, '/ws', 'a.txt', 'docs/a.txt', { overwrite: true })
+      expect(fakeFsService.copyEntry).toHaveBeenCalledWith('/ws', 'a.txt', 'docs/a.txt', {
+        overwrite: true
+      })
+    })
+
+    it('re-throws a CONFLICT with the prefix the preload bridge parses back into a typed error', async () => {
+      fakeFsService.copyEntry.mockImplementationOnce(() => {
+        throw new ConflictError('CONFLICT', 'Already exists: docs/a.txt')
+      })
+      await expect(findHandler('fs:copyEntry')({}, '/ws', 'a.txt', 'docs/a.txt')).rejects.toThrow(
+        /^CONFLICT: Already exists/
+      )
+    })
+  })
+
+  describe('clipboard:writeText (file-clipboard)', () => {
+    it("writes through main's clipboard — the renderer's own is denied by the permission handler", async () => {
+      vi.mocked(clipboard.writeText).mockClear()
+      await findHandler('clipboard:writeText')({}, '/ws/docs/prd.md')
+      expect(clipboard.writeText).toHaveBeenCalledWith('/ws/docs/prd.md')
+    })
+
+    it('is write-only: no read channel exists to pair with it', () => {
+      const channels = vi.mocked(ipcMain.handle).mock.calls.map(([channel]) => channel)
+      expect(channels).toContain('clipboard:writeText')
+      expect(channels.filter((c) => String(c).startsWith('clipboard:'))).toEqual([
+        'clipboard:writeText'
+      ])
+    })
+  })
+
   describe('fs:absolutePath (explorer-os-actions)', () => {
     it('resolves through FsService so the escape check applies', async () => {
       fakeFsService.absolutePathFor.mockClear()
@@ -1432,6 +1491,32 @@ describe('main process bootstrap', () => {
     it('ignores an id that no detection reported (the IPC boundary is not trusted)', async () => {
       await findHandler('shell:select')({}, 'shell-que-nao-existe')
       await expect(selectedId()).resolves.toBeNull()
+    })
+
+    /**
+     * AT-R4. The adapters get *getters*, not values: a terminal picked while a
+     * conversation is alive has to reach the very next turn, and a snapshot
+     * taken at boot would freeze the choice until restart — the failure this
+     * whole feature would be invisible under.
+     *
+     * The pair also has to agree. The chosen shell is what a turn launches in;
+     * the catalog is what an adapter pins a fallback to. An adapter that
+     * pinned Git Bash from a stale catalog would write a
+     * `CLAUDE_CODE_GIT_BASH_PATH` for a file that is not there, and the Claude
+     * CLI exits(1) on exactly that.
+     */
+    it('hands the adapters live terminal getters, and a catalog the choice belongs to', () => {
+      const deps = registryDeps.value as {
+        shell?: () => { id: string } | null
+        shells?: () => Array<{ id: string }>
+      }
+      expect(typeof deps.shell).toBe('function')
+      expect(typeof deps.shells).toBe('function')
+
+      const available = deps.shells!()
+      expect(Array.isArray(available)).toBe(true)
+      const chosen = deps.shell!()
+      if (chosen) expect(available.map((entry) => entry.id)).toContain(chosen.id)
     })
   })
 
@@ -2299,7 +2384,7 @@ describe('main process bootstrap', () => {
       expect(net.fetch).not.toHaveBeenCalled()
     })
 
-    it('grants ONLY the microphone permission, denying everything else (SB-R5.1)', () => {
+    it('grants the microphone and clipboard *writes*, denying everything else (SB-R5.1)', () => {
       const handler = vi.mocked(session.defaultSession.setPermissionRequestHandler).mock
         .calls[0]?.[0] as (
         contents: unknown,
@@ -2314,6 +2399,12 @@ describe('main process bootstrap', () => {
         'geolocation',
         'notifications',
         'midi',
+        // file-clipboard: the asymmetric pair. *Sanitized write* is granted —
+        // without it `navigator.clipboard.writeText()` rejects with
+        // `NotAllowedError` and every in-app copy fails. *Read* stays denied:
+        // nothing in this app has any business seeing what the user copied
+        // somewhere else.
+        'clipboard-sanitized-write',
         'clipboard-read',
         'openExternal'
       ]) {
@@ -2326,6 +2417,7 @@ describe('main process bootstrap', () => {
         geolocation: false,
         notifications: false,
         midi: false,
+        'clipboard-sanitized-write': true,
         'clipboard-read': false,
         openExternal: false
       })

@@ -11,6 +11,15 @@ export interface AttachmentProps extends Omit<ComponentPropsWithoutRef<"div">, "
     onRemove?: () => void;
     /** Accessible label for the remove control. Defaults to `"Remove {name}"` when `name` is a string, else `"Remove attachment"`. */
     removeLabel?: string;
+    /**
+     * Where a too-long name loses characters. `"end"` is the browser default;
+     * `"middle"` keeps the tail — for file names, the extension is the single
+     * most informative token, and it is exactly what ellipsis-at-the-end throws
+     * away first (`relatorio-final-v3.docx` truncating to `relatorio-fin…`
+     * hides both the version and the file type). Only applies to a string
+     * `name`; a node is rendered as given.
+     */
+    truncate?: "end" | "middle";
 }
 /**
  * A single attachment chip for `PromptInput`'s attachment slot — name +

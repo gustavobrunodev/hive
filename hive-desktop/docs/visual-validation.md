@@ -195,6 +195,37 @@ alguém lê o texto, ele é `--muted` ou mais escuro; `--faint` é só para íco
 marca inativa.** Hierarquia se carrega por posição, largura e peso — no caso do
 número, a calha estreita alinhada à direita já faz esse trabalho sozinha.
 
+**A lição de token do M22 (bandeja de anexos):** os `*-ink` do DS não são
+todos a mesma coisa. `--danger-ink`/`--warning-ink`/`--info-ink` são tinta para
+o **tint** da própria família (`--danger-bg` e companhia). `--accent-ink` é o
+oposto: é tinta para um fundo **preenchido** de accent (o botão primário), e por
+isso é escura. Usá-la sobre `--selected-bg` — que é o tint do accent — mediu
+**1,05:1** no tema Hive e **1,00:1** no claro, ou seja, invisível, com o texto
+lá no DOM e nada na tela. E o `--accent` puro também não resolve: sobre o mesmo
+tint em fundo escuro ele mede 4,02:1, abaixo do piso.
+
+A família accent simplesmente não tinha a tinta que o próprio tint dela pede, e
+agora tem: **`--accent-tint-ink`** (`design-system/src/tokens.css` + o bloco
+`hive` em `assets/theme.css`), medida em 5,86:1 / 7,49:1 / 6,10:1 nos três temas.
+Use-a para qualquer texto sobre `--selected-bg`.
+
+**E a armadilha da própria sonda:** medir o fundo a partir de
+`el.parentElement` mente para qualquer elemento que tenha fundo próprio — uma
+pílula tintada é lida contra **o tint dela**, composto sobre o que está embaixo,
+não contra a superfície dois níveis acima. Foi assim que o primeiro número saiu
+1,13:1 e não explicava nada do que o print mostrava.
+[`tools/visual/tray-contrast.mjs`](../tools/visual/tray-contrast.mjs) começa a
+pilha no próprio elemento e percorre os três temas num run só.
+
+[`tools/visual/approvals.mjs`](../tools/visual/approvals.mjs) cobre o card de
+autorização com a concessão de sessão (agent-approvals): o card pendente com a
+linha "Permitir tudo nesta sessão" e o estado concedido — os dois cards
+fechados como registro e a pílula permanente acima do compositor — nos três
+temas, medindo do próprio elemento para cima. **Ele troca o tema com `blur()`,
+nunca com `Escape`:** o card pendente pega o foco ao montar e lê `Escape` como
+"Recusar", então uma sonda que fecha menu com `Escape` responde justamente o
+card que veio fotografar (e mede o estado errado sem avisar).
+
 **Uma segunda lição de token, da mesma sonda:** `--success-bg` e `--danger-bg`
 **não** formam um par. São tints de banner e carregam croma muito diferente
 (0,208 no vermelho contra 0,13 no verde), então na mesma opacidade as remoções
@@ -505,6 +536,35 @@ regexes não reconheçam cai num canvas 1×1 (`ctx.fillStyle = valor` + `fillRec
   armadilha 3 — leia os canais como vêm, **sem** dividir pelo alfa. Uma sonda que
   não reconhece a cor não fica em silêncio: ela reporta um número errado com cara
   de certo.
+
+## Quinta armadilha: `opacity` num ancestral nenhuma sonda de CSS enxerga
+
+O passe do file-clipboard precisava medir uma linha "recortada" — a linha
+inteira caía a `opacity: .5`, e a pergunta era se o nome do arquivo ainda
+passava dos 4,5:1. Três sondas seguidas responderam três números diferentes:
+
+- ler `getComputedStyle(el).color` contra `backgroundColor` → **2,31:1**. Errado:
+  a linha estava selecionada, e o fundo lido não era o que estava pintado.
+- subir a cadeia até um ancestral opaco e compor `ink*α + bg*(1-α)` à mão →
+  mais perto, mas ainda uma reconstrução: `opacity` é um produto de toda a
+  cadeia, e a linha ainda podia carregar um tint com alfa no meio.
+- ler os **pixels pintados** → 3,98 / 3,97 / 3,37 nos três temas, e esse é o
+  número.
+
+A receita da terceira: `page.screenshot({ clip })` sobre a bounding box do
+elemento, o buffer de volta para dentro da página em base64, `createImageBitmap`
+
+- canvas + `getImageData`, e então a cor de fundo = o pixel mais frequente, a
+  tinta = o pixel mais distante dele em luminância (ignorando os que aparecem
+  menos de ~4 vezes, que são antialias). Nenhum `getComputedStyle` participa, e é
+  por isso que funciona: `opacity`, `color-mix`, tints empilhados e o próprio
+  antialias já estão resolvidos no que a tela mostra.
+
+Consequência de design, não só de método: **um fade de linha inteira que lê bem
+não passa no piso de texto**. A saída foi separar os dois — o ícone carrega a
+affordance a 0,45 (grafismo, piso de 3:1) e o rótulo recua só até 0,72
+(6,81–7,25:1 medidos). Fade de linha única é a armadilha; o Windows Explorer
+sempre fantasmou o _ícone_.
 
 ## Piso inventado não é medição
 

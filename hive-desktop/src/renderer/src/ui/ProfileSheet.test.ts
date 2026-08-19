@@ -48,6 +48,47 @@ vi.mock('@hive/design-system', () => ({
     ),
   RadioGroupItem: ({ value, ...rest }: { value: string }) =>
     createElement(ShellRadioConsumer, { value, ...rest }),
+  // The card's header labels the radio; the detail region renders only while
+  // the card is selected. Both are behaviours the picker's logic leans on.
+  RadioCard: ({
+    value,
+    title,
+    meta,
+    badge,
+    leading,
+    selected,
+    children
+  }: {
+    value: string
+    title?: ReactNode
+    meta?: ReactNode
+    badge?: ReactNode
+    leading?: ReactNode
+    selected?: boolean
+    children?: ReactNode
+  }) =>
+    createElement(
+      'div',
+      null,
+      createElement(
+        'label',
+        null,
+        createElement(ShellRadioConsumer, { value, 'aria-label': String(title) }),
+        leading,
+        createElement('span', null, title),
+        badge,
+        meta && createElement('span', null, meta)
+      ),
+      selected ? children : null
+    ),
+  CommandLine: ({ command, onCopy }: { command: string; onCopy?: (text: string) => void }) =>
+    createElement(
+      'div',
+      null,
+      createElement('code', null, command),
+      onCopy ? createElement('button', { onClick: () => onCopy(command) }, 'Copiar') : null
+    ),
+  Badge: ({ children }: { children?: ReactNode }) => createElement('span', null, children),
   Switch: ({
     checked,
     onCheckedChange,
@@ -72,7 +113,10 @@ const ShellRadioContext = createContext<{
   onValueChange?: (value: string) => void
 }>({})
 
-function ShellRadioConsumer({ value, ...rest }: { value: string }): React.JSX.Element {
+function ShellRadioConsumer({
+  value,
+  ...rest
+}: { value: string } & Record<string, unknown>): React.JSX.Element {
   const group = useContext(ShellRadioContext)
   return createElement('input', {
     type: 'radio',
@@ -89,13 +133,15 @@ const SHELL_VIEW = {
       id: 'cmd',
       path: 'C:\\Windows\\System32\\cmd.exe',
       family: 'cmd' as const,
-      systemDefault: true,
+      automatic: false,
+      preview: 'C:\\Windows\\System32\\cmd.exe /d /s /c "claude -p …"',
       agents: [
         {
           agentId: 'claude-cli',
           displayName: 'Claude Code',
-          support: 'launch-only' as const,
-          note: 'windows-git-bash' as const
+          support: 'fallback' as const,
+          note: 'cmd-no-executor' as const,
+          runsIn: 'git-bash'
         }
       ]
     },
@@ -103,20 +149,23 @@ const SHELL_VIEW = {
       id: 'git-bash',
       path: 'C:\\Program Files\\Git\\bin\\bash.exe',
       family: 'bash' as const,
-      systemDefault: false,
+      automatic: true,
+      preview: `C:\\Program Files\\Git\\bin\\bash.exe -c exec 'claude' '-p' '…'`,
       agents: [
         {
           agentId: 'claude-cli',
           displayName: 'Claude Code',
           support: 'native' as const,
-          note: 'windows-git-bash' as const
+          note: 'windows-git-bash' as const,
+          runsIn: 'git-bash'
         }
       ]
     }
   ],
   selectedId: null,
-  resolvedId: 'cmd',
-  missingSelection: false
+  resolvedId: 'git-bash',
+  missingSelection: false,
+  platform: 'win32' as const
 }
 
 const AGENT_METAS: AgentMeta[] = [
@@ -198,7 +247,8 @@ beforeEach(() => {
       list: vi.fn(async () => SHELL_VIEW),
       select: vi.fn(async () => undefined)
     },
-    openExternal: vi.fn()
+    openExternal: vi.fn(),
+    clipboard: { writeText: vi.fn(async () => undefined) }
   } as typeof window.hive
 })
 
@@ -418,6 +468,55 @@ describe('ProfileSheet (P1-010)', () => {
     // derived from the catalog, so a stale view would keep showing the old
     // shell's consequences.
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+
+  /**
+   * The two escapes from the terminal section, and the reason they are props
+   * rather than calls inside the picker: both go through the main process.
+   * `navigator.clipboard` is denied in this renderer (the defect the file
+   * explorer already paid for once), and a link has to open in the user's
+   * browser, not inside the app window.
+   */
+  it('copies the command line through the host clipboard, never the renderer’s', async () => {
+    renderSheet()
+    await waitFor(() => expect(screen.getByLabelText('Git Bash')).toBeTruthy())
+
+    fireEvent.click(screen.getByLabelText('Git Bash'))
+    await waitFor(() => expect(screen.getByText('Ver o comando')).toBeTruthy())
+    fireEvent.click(screen.getByText('Ver o comando'))
+    fireEvent.click(screen.getByText('Copiar'))
+
+    expect(window.hive.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining('bash.exe')
+    )
+  })
+
+  it('sends the "instale o Git" way out to the browser', async () => {
+    const list = window.hive.shell.list as ReturnType<typeof vi.fn>
+    list.mockResolvedValue({
+      ...SHELL_VIEW,
+      selectedId: 'cmd',
+      shells: [
+        {
+          ...SHELL_VIEW.shells[0],
+          agents: [
+            {
+              agentId: 'claude-cli',
+              displayName: 'Claude Code',
+              support: 'fallback' as const,
+              note: 'install-git-bash' as const,
+              runsIn: 'powershell'
+            }
+          ]
+        }
+      ]
+    })
+    renderSheet()
+    await waitFor(() => expect(screen.getByText('Instalar o Git para Windows')).toBeTruthy())
+
+    fireEvent.click(screen.getByText('Instalar o Git para Windows'))
+
+    expect(window.hive.openExternal).toHaveBeenCalledWith('https://git-scm.com/downloads/win')
   })
 
   it('re-detects terminals without closing the sheet', async () => {

@@ -804,6 +804,61 @@ Updated as work progresses. Load at start of every session.
   four NSIS bitmaps from one SVG, with a *different drawing* below 48px (see
   L-PI-1). (2026-08-16)
 
+- **D36 — Feature `mcp-probe-path` + `approval-session` (M22).** Two
+  user-reported items, built 2026-08-19. Decisions:
+  (a) **The MCP probe spawns like every other CLI in the app.**
+  `mcpProbe.ts` was the one spawner still calling `child_process.spawn` with
+  raw `process.env`, so "Testar conexão" on the canonical
+  `npx -y @playwright/mcp@latest` reported `Comando não encontrado: "npx"` on
+  machines where that line runs in any terminal — a desktop app launched from
+  a launcher inherits no npm/nvm prefix, and on Windows `CreateProcess` cannot
+  find or run an `npx.cmd` shim at all. It now goes through
+  `cliEnv()` + `spawnTarget()` like `processRunner` does, via an exported
+  `stdioSpawnPlan()` seam so the lookup is testable without a child process.
+  The server's own `env` from `.mcp.json` still wins over the widened base.
+  (b) **The stdio probe waits 30s, the remote one still 10s.** `npx -y` on a
+  cold cache downloads the package before writing a byte of JSON-RPC; measured
+  on `@playwright/mcp@latest` it passed 10s and the probe called a working
+  server a timeout. The timeout copy now names the first-run download.
+  (c) **"Permitir tudo nesta sessão" is memory-only and revocable.** A fourth
+  answer on the permission card, with `ApprovalDecision.scope: 'session'`. It
+  writes **nothing**: no standing rule in the config store, no rule into the
+  agent's own `.claude/` permissions (that is what `always` is for), and it is
+  gone on restart. Arming it releases every request already parked, so a user
+  who just said "tudo" is not handed the next card immediately.
+  (d) **It is not a fourth peer button, and it is never invisible.** The three
+  answers about *this* call keep the actions row; the blanket grant sits under
+  a hairline at link weight with its end-condition beside it — the
+  widest-reaching answer must not be one mis-click from the narrowest. While
+  it is armed the composer carries a standing chip with its own undo
+  ("Voltar a perguntar"), in both the empty and the conversation layouts,
+  because a permission you cannot find is one you cannot take back. The
+  renderer mirrors the flag from the main process at mount, so a reloaded
+  window never claims the agent is still asking. (2026-08-19)
+
+## Lessons (mcp-probe-path + approval-session, 2026-08-19)
+
+Built on `feat/voice-prompt`. `npm run verify` green (3673 tests); visual pass
+2 states x 3 themes plus the MCP failure panel, via
+`tools/visual/approvals.mjs`.
+
+- **L-AS-1 — a probe that closes menus with `Escape` answers the card it came
+  to photograph.** The approval card takes focus on mount and reads `Escape`
+  as "Recusar", so the first pass produced a screenshot of a *denied* request
+  and a contrast reading of the wrong state. Visual probes blur
+  (`document.activeElement?.blur()`), they do not press `Escape`.
+- **L-AS-2 — `--danger` is a fill hue, not body ink.** The MCP probe's failure
+  line — the one sentence whose whole job is to explain why a server did not
+  connect — measured **3.88:1** in dark and **4.24:1** in hive at 13px. Same
+  trap as `--faint` (L-M14), one family over: `--danger-ink` measures
+  5.08 / 5.55 / 5.75 on the same surface. The rule that resolves it is the
+  same one: if someone *reads* it, it is an `*-ink` rung or darker.
+- **L-AS-3 — a mock that lags the preload contract crashes the boot, not the
+  feature.** `Chat` reads the session grant once at mount; until
+  `tools/visual/boot.mjs` grew `agent.approvalSession`, the whole work UI
+  rendered blank and the console error was the only clue. The visual harness
+  is part of the preload surface — extend it in the same commit as the API.
+
 ## Lessons (product-identity, 2026-08-16)
 
 M21 shipped on `feat/voice-prompt`. `npm run verify` green; visual pass 3
@@ -897,6 +952,69 @@ states x 3 themes, 42 reads, 4 defects fixed that no test could have seen.
   defect no compile could ("Clique em Avançar" against a button the pt-BR NSIS
   language file labels `Próximo`). No `xdotool` here, so pages past the first
   are not clickable — the welcome page is what this proves.
+
+## Lessons (agent-terminal follow-up, 2026-08-18)
+
+Reopened on a bug report: *"mesmo selecionando Prompt de comando ou gitbash, o
+agente sempre permanece utilizando por padrão o powershell"*, with the agent's
+own answer pasted in — "PowerShell como shell primário, com Bash também
+disponível". `npm run verify` green: **3665 tests / 213 files**, 0 lint errors,
+every coverage gate passing. E2E `agent-terminal.spec.ts` green against the
+real app. Visual pass: 3 states x 3 themes, **123 contrast reads, 0 failures**.
+
+- **L-AT-6 — "set nothing and let it decide" is a coin flip, not a default.**
+  The quoted sentence is printed verbatim by the CLI's own environment block
+  (`Sba()` in claude 2.1.226), and the branch that produces it is `LY()`:
+  with `CLAUDE_CODE_USE_POWERSHELL_TOOL` **unset** on Windows it ends at
+  `nt("tengu_cobalt_ridge", !1)` — a *remote feature gate*. M20 wrote that
+  variable only to turn PowerShell **on**, never off, so picking Git Bash or
+  cmd left the answer to a flag Hive doesn't control. Every Windows binding
+  now writes `0` or `1` explicitly. The general rule: when another program's
+  behaviour is "unset → we decide", unset is not neutral, and the only
+  reproducible state is the one you set.
+
+- **L-AT-7 — a default that guarantees a fallback is a bug, not a default.**
+  M20's "Automático" meant *the platform default*, which on Windows is cmd —
+  the one shell no agent here can execute a command in. So the users most
+  likely to hit the bug were the ones who never touched the setting. Automatic
+  now resolves to a shell the enabled agents actually run in (Git Bash before
+  the PowerShells on Windows; `$SHELL` on macOS and Linux, where it is already
+  what the CLI accepts). `shellCatalog` still reports only what the *machine*
+  prefers — the product preference lives in `shellService`, which is the module
+  that knows both.
+
+- **L-AT-8 — Git Bash rewrites arguments that look like paths.** Git Bash is
+  MSYS2, and MSYS2 converts POSIX-looking arguments before handing them to a
+  native Windows exe. A turn goes out as `-p '<mensagem>'`, so `/bmad-prd` —
+  every BMAD workflow — would reach `claude.exe` as
+  `C:/Program Files/Git/bmad-prd`. Silent, and latent in M20 the whole time.
+  `MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL=*` now ride with that shell.
+
+- **L-AT-9 — the picker had to name the destination, not describe the
+  situation.** M20 answered "o que isso muda para cada agente" in a paragraph
+  per agent, and the single fact a reader needed — *which shell* — was never in
+  it. Each agent now gets one line, `Claude CLI → Git Bash`, amber when it
+  isn't the shell that was picked, plus the literal command line behind a
+  disclosure. Two DS components came out of it (`RadioCard`, `CommandLine`) and
+  three defects were caught by looking rather than by testing: the "Automático"
+  row described the *picked* shell instead of its own rule, the cmd receipt
+  printed its caret transport (`^"C:\…^"`) as if it were the command, and the
+  `Badge` muted variant fell to 3.81:1 once it landed on the selected card's
+  tint. **Open, not fixed:** `hds-badge-muted` hardcodes
+  `rgba(38, 10, 18, .4)` and takes `--muted` for ink — 4.21:1 in the light
+  theme wherever it is used. Re-toned locally here; the DS-wide fix is its own
+  change.
+
+- **L-AT-10 — a contrast probe that can't parse the palette reports a pass.**
+  `tools/visual/shell-contrast.mjs` matched colors with regexes and answered
+  `UNMEASURED` for every `oklch()` token — which is most of the semantic
+  palette, including the amber and accent-tint runs this change added. Now it
+  paints into a 1x1 canvas and reads the pixel back, which normalizes any
+  syntax. The trap on the way: `getImageData` hands back **un-premultiplied**
+  RGBA already, so "undoing the premultiply" is a second correction — it drove
+  the 16% coral tint to near-white and turned 41 passing reads into failures.
+  Cross-check a rewritten probe against a known-good measurement before
+  believing either.
 
 ## Lessons (agent-terminal, 2026-08-14)
 

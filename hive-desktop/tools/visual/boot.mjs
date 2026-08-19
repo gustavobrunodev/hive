@@ -280,72 +280,85 @@ async (page) => {
     // screenshot has to prove reads well. `state.shellSelected` makes the
     // picker really change when clicked.
     state.shellView = globalThis.HIVE_SHELLS ?? {
-            shells: [
-              {
-                id: 'cmd',
-                path: 'C:\\WINDOWS\\system32\\cmd.exe',
-                family: 'cmd',
-                systemDefault: true,
-                agents: [
-                  {
-                    agentId: 'claude-cli',
-                    displayName: 'Claude CLI',
-                    support: 'launch-only',
-                    note: 'windows-git-bash'
-                  },
-                  {
-                    agentId: 'github-copilot',
-                    displayName: 'GitHub Copilot CLI',
-                    support: 'launch-only',
-                    note: 'no-cli-binding'
-                  }
-                ]
-              },
-              {
-                id: 'powershell',
-                path: 'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
-                family: 'powershell',
-                systemDefault: false,
-                agents: [
-                  {
-                    agentId: 'claude-cli',
-                    displayName: 'Claude CLI',
-                    support: 'native',
-                    note: 'powershell-preview'
-                  },
-                  {
-                    agentId: 'github-copilot',
-                    displayName: 'GitHub Copilot CLI',
-                    support: 'launch-only',
-                    note: 'no-cli-binding'
-                  }
-                ]
-              },
-              {
-                id: 'git-bash',
-                path: 'C:\\Program Files\\Git\\bin\\bash.exe',
-                family: 'bash',
-                systemDefault: false,
-                agents: [
-                  {
-                    agentId: 'claude-cli',
-                    displayName: 'Claude CLI',
-                    support: 'native',
-                    note: 'windows-git-bash'
-                  },
-                  {
-                    agentId: 'github-copilot',
-                    displayName: 'GitHub Copilot CLI',
-                    support: 'launch-only',
-                    note: 'no-cli-binding'
-                  }
-                ]
-              }
-            ],
-            selectedId: null,
-            resolvedId: 'cmd',
-            missingSelection: false
-          }
+      shells: [
+        {
+          id: 'cmd',
+          path: 'C:\\WINDOWS\\system32\\cmd.exe',
+          family: 'cmd',
+          automatic: false,
+          preview:
+            'C:\\WINDOWS\\system32\\cmd.exe /d /s /c ""C:\\Users\\gusta\\AppData\\Roaming\\npm\\claude.cmd" "-p" "…""',
+          agents: [
+            {
+              agentId: 'claude-cli',
+              displayName: 'Claude CLI',
+              support: 'fallback',
+              note: 'cmd-no-executor',
+              runsIn: 'git-bash'
+            },
+            {
+              agentId: 'github-copilot',
+              displayName: 'GitHub Copilot CLI',
+              support: 'launch-only',
+              note: 'no-cli-binding',
+              runsIn: null
+            }
+          ]
+        },
+        {
+          id: 'powershell',
+          path: 'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+          family: 'powershell',
+          automatic: false,
+          preview:
+            "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -Command [Console]::OutputEncoding=[Text.Encoding]::UTF8; & 'claude' '-p' '…'; exit $LASTEXITCODE",
+          agents: [
+            {
+              agentId: 'claude-cli',
+              displayName: 'Claude CLI',
+              support: 'native',
+              note: 'powershell-preview',
+              runsIn: 'powershell'
+            },
+            {
+              agentId: 'github-copilot',
+              displayName: 'GitHub Copilot CLI',
+              support: 'launch-only',
+              note: 'no-cli-binding',
+              runsIn: null
+            }
+          ]
+        },
+        {
+          id: 'git-bash',
+          path: 'C:\\Program Files\\Git\\bin\\bash.exe',
+          family: 'bash',
+          automatic: true,
+          preview:
+            "C:\\Program Files\\Git\\bin\\bash.exe -c exec 'C:\\Users\\gusta\\AppData\\Roaming\\npm\\claude.cmd' '-p' '…'",
+          agents: [
+            {
+              agentId: 'claude-cli',
+              displayName: 'Claude CLI',
+              support: 'native',
+              note: 'windows-git-bash',
+              runsIn: 'git-bash'
+            },
+            {
+              agentId: 'github-copilot',
+              displayName: 'GitHub Copilot CLI',
+              support: 'launch-only',
+              note: 'no-cli-binding',
+              runsIn: null
+            }
+          ]
+        }
+      ],
+      selectedId: null,
+      resolvedId: 'git-bash',
+      missingSelection: false,
+      platform: 'win32'
+    }
     state.shellSelected = state.shellView.selectedId ?? null
 
     const sessions = []
@@ -403,6 +416,13 @@ async (page) => {
         },
         { name: 'README.md', path: 'README.md', type: 'file' },
         { name: 'package.json', path: 'package.json', type: 'file' },
+        // Config kinds get their own glyph (`ui/fileIcons.tsx`) — the fixture
+        // carries one of each family so a visual pass can actually see it.
+        { name: 'electron-builder.yml', path: 'electron-builder.yml', type: 'file' },
+        { name: 'docker-compose.yaml', path: 'docker-compose.yaml', type: 'file' },
+        { name: '.env', path: '.env', type: 'file' },
+        { name: 'deploy.sh', path: 'deploy.sh', type: 'file' },
+        { name: 'logo.svg', path: 'logo.svg', type: 'file' },
         { name: 'notas.txt', path: 'notas.txt', type: 'file' }
       ]),
       listFiles: ok(['README.md', 'docs/ux-spec.md']),
@@ -436,6 +456,12 @@ async (page) => {
         stop: ok(undefined),
         interrupt: ok(undefined),
         respondApproval: ok(undefined),
+        // agent-approvals (session grant): `Chat` reads this at mount, so a
+        // mock without it throws before the pane renders at all. `?allowall=1`
+        // boots with the grant already armed — the state the footer chip and
+        // the composer strip exist for.
+        approvalSession: ok(location.search.includes('allowall=1')),
+        setApprovalSession: ok(undefined),
         onEvent: (cb) => {
           agentListeners.push(cb)
           return () => {}
@@ -666,6 +692,7 @@ async (page) => {
         createDirectory: ok(undefined),
         saveFile: ok({ mtimeMs: 2, size: 2 }),
         move: ok(undefined),
+        copyEntry: ok(undefined),
         importEntry: ok(undefined),
         exists: ok(true),
         trash: ok(undefined),
@@ -678,6 +705,14 @@ async (page) => {
           return Promise.resolve(undefined)
         },
         absolutePath: (_ws, rel) => Promise.resolve(rel ? `/ws/${rel}` : '/ws')
+      },
+      // file-clipboard: recorded, not no-op'd — a pass that clicks "Copiar"
+      // against a silent stub cannot tell a wired action from a dead one.
+      clipboard: {
+        writeText: (text) => {
+          state.clipboardText = text
+          return Promise.resolve(undefined)
+        }
       },
       git: {
         detect: ok({ isRepo: false, gitMissing: false }),

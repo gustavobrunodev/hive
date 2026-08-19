@@ -4,7 +4,8 @@ import type {
   AgentAdapterDeps,
   AgentCapabilities,
   SessionOpts,
-  ShellBinding
+  ShellBinding,
+  ShellContext
 } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
 import { createCliAgentSession } from './cliAdapterCore'
@@ -86,45 +87,119 @@ function capabilities(): AgentCapabilities {
  * How the Claude Code CLI honours a chosen shell (agent-terminal AT-R4).
  *
  * Not guessed — read out of the shipped binary (`claude 2.1.226`), because the
- * rules are narrow enough that guessing would produce a setting that silently
- * does nothing:
+ * rules are narrow enough that guessing produces a setting that silently does
+ * nothing. The four functions that decide, verbatim from that build:
+ *
+ * ```js
+ * function LY(){ let e=process.env.CLAUDE_CODE_USE_POWERSHELL_TOOL
+ *   if(Jt()!=="windows") return _r(e)
+ *   if(md(e)) return !1              // "0"/"false" → PowerShell tool OFF
+ *   if(_r(e)) return !0              // "1"/"true"  → PowerShell tool ON
+ *   if(Cne()===null) return !0       // no Git Bash → PowerShell tool ON
+ *   return nt("tengu_cobalt_ridge",!1) }   // …otherwise a REMOTE FEATURE GATE
+ * function Jf(){ return Jt()!=="windows" || Cne()!==null }   // bash available
+ * function Sba(){ …if(!Jf()) return "Shell: PowerShell"
+ *   if(LY()) return "Shell: PowerShell (primary); Bash tool also available…" }
+ * ```
+ *
+ * That last line is printed into the CLI's own `# Environment` block, and it
+ * is word for word what the bug report quoted back: "PowerShell como shell
+ * primário, com Bash também disponível". The cause is the branch above it —
+ * with `CLAUDE_CODE_USE_POWERSHELL_TOOL` **unset**, the answer comes from a
+ * gate Hive doesn't control, so picking cmd or Git Bash changed nothing. The
+ * fix is to never leave it unset: every Windows binding below writes `0` or
+ * `1` explicitly.
+ *
+ * The rest of the rules:
  *
  *  - **POSIX**: `CLAUDE_CODE_SHELL` is accepted only when the path *contains*
  *    `bash` or `zsh` and is executable; anything else is logged as
  *    "not a valid bash/zsh path, falling back to detection" and dropped. So
- *    fish/sh/dash get `launch-only` rather than an export the CLI throws away.
- *  - **Windows**: `Bash` runs through Git Bash (`CLAUDE_CODE_GIT_BASH_PATH`,
- *    whose basename must be `bash.exe`/`sh.exe`/`bash`/`sh`), and
- *    `CLAUDE_CODE_USE_POWERSHELL_TOOL=1` turns on the PowerShell tool. There
- *    is **no cmd executor at all** — which is exactly why cmd, the platform
- *    default this feature was asked to ship, reports `launch-only` with the
- *    note the picker renders. Telling the user otherwise would be the one
- *    thing worse than not offering the choice.
+ *    fish/sh/dash can't be honoured — but they can be *pinned* to a bash or
+ *    zsh that exists here, which beats letting the CLI's own scan decide.
+ *  - **Windows**: `Bash` runs through Git Bash. `CLAUDE_CODE_GIT_BASH_PATH` is
+ *    honoured when its basename is `bash.exe`/`sh.exe`/`bash`/`sh` **and the
+ *    file exists** (`Cne`), which is why the pin below always carries a path
+ *    detection actually found. There is no cmd executor at all.
+ *  - **The one thing never to write**: `CLAUDE_CODE_USE_POWERSHELL_TOOL=0` on a
+ *    machine with no Git Bash. The CLI checks that pair at startup and calls
+ *    `process.exit(1)` ("Claude Code on Windows requires a shell tool"). Every
+ *    `0` below is guarded by a Git Bash this machine really has.
  */
-export function claudeShellBinding(shell: ShellInfo): ShellBinding {
-  if (shell.family === 'bash' || shell.family === 'zsh') {
-    // Windows' Git Bash *is* the CLI's own executor; POSIX bash/zsh are what
-    // `CLAUDE_CODE_SHELL` accepts. Same variable name would be wrong on
-    // Windows, hence the split by id rather than by family alone.
-    return shell.id === 'git-bash'
-      ? {
-          support: 'native',
-          note: 'windows-git-bash',
-          env: { CLAUDE_CODE_GIT_BASH_PATH: shell.path }
-        }
-      : { support: 'native', env: { CLAUDE_CODE_SHELL: shell.path } }
+export function claudeShellBinding(shell: ShellInfo, context: ShellContext): ShellBinding {
+  return context.platform === 'win32'
+    ? windowsBinding(shell, context.available)
+    : posixBinding(shell, context.available)
+}
+
+/**
+ * Windows. Three outcomes and no fourth: Git Bash (the CLI's real executor),
+ * PowerShell (its preview tool), or a pin to one of those two — because cmd,
+ * the platform default, is not something this CLI can run a command in.
+ */
+function windowsBinding(shell: ShellInfo, available: ShellInfo[]): ShellBinding {
+  const gitBash = available.find((entry) => entry.id === 'git-bash') ?? null
+
+  if (shell.id === 'git-bash') {
+    return {
+      support: 'native',
+      note: 'windows-git-bash',
+      runsIn: shell.id,
+      // The `0` is the load-bearing half. Without it the CLI keeps its
+      // PowerShell tool on (gate `tengu_cobalt_ridge`) and reports PowerShell
+      // as primary even while running this bash — the reported bug.
+      env: { CLAUDE_CODE_GIT_BASH_PATH: shell.path, CLAUDE_CODE_USE_POWERSHELL_TOOL: '0' }
+    }
   }
   if (shell.family === 'powershell') {
     return {
       support: 'native',
       note: 'powershell-preview',
+      runsIn: shell.id,
       env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
     }
   }
-  if (shell.family === 'cmd') {
-    return { support: 'launch-only', note: 'windows-git-bash', env: {} }
+  // cmd. The launch still happens here (that part is real); the commands
+  // cannot, so they are pinned somewhere this machine actually has.
+  if (gitBash) {
+    return {
+      support: 'fallback',
+      note: 'cmd-no-executor',
+      runsIn: gitBash.id,
+      env: { CLAUDE_CODE_GIT_BASH_PATH: gitBash.path, CLAUDE_CODE_USE_POWERSHELL_TOOL: '0' }
+    }
   }
-  return { support: 'launch-only', note: 'posix-bash-zsh-only', env: {} }
+  const powershell = available.find((entry) => entry.family === 'powershell') ?? null
+  return {
+    // No Git Bash on this machine: PowerShell is the only executor left, and
+    // saying so — with the note that offers to fix it — beats a silent landing.
+    support: 'fallback',
+    note: 'install-git-bash',
+    runsIn: powershell?.id ?? null,
+    env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: '1' }
+  }
+}
+
+/** POSIX (macOS and Linux). `CLAUDE_CODE_SHELL` takes bash or zsh, and nothing else. */
+function posixBinding(shell: ShellInfo, available: ShellInfo[]): ShellBinding {
+  if (shell.family === 'bash' || shell.family === 'zsh') {
+    return { support: 'native', runsIn: shell.id, env: { CLAUDE_CODE_SHELL: shell.path } }
+  }
+  // fish / sh / dash / ksh. The CLI would run its own scan and land on some
+  // bash or zsh anyway — pinning the one we detected makes that visible and
+  // repeatable instead of leaving it to a search order nobody can see.
+  const pinned =
+    available.find((entry) => entry.family === 'zsh') ??
+    available.find((entry) => entry.family === 'bash') ??
+    null
+  return pinned
+    ? {
+        support: 'fallback',
+        note: 'posix-bash-zsh-only',
+        runsIn: pinned.id,
+        env: { CLAUDE_CODE_SHELL: pinned.path }
+      }
+    : { support: 'launch-only', note: 'posix-bash-zsh-only', runsIn: null, env: {} }
 }
 
 /**
@@ -147,6 +222,7 @@ export function createClaudeCliAdapter(
     id: 'claude-cli',
     displayName: 'Claude CLI',
     capabilities,
+    commandName: CLAUDE_COMMAND,
     shellBinding: claudeShellBinding,
     startSession: (opts: SessionOpts) =>
       createCliAgentSession(processRunner, opts, {
@@ -156,7 +232,11 @@ export function createClaudeCliAdapter(
         // profile sheet reaches the very next message.
         buildEnv: () => {
           const shell = deps?.shell?.() ?? null
-          return shell ? claudeShellBinding(shell).env : undefined
+          if (!shell) return undefined
+          return claudeShellBinding(shell, {
+            available: deps?.shells?.() ?? [shell],
+            platform: process.platform
+          }).env
         },
         buildArgs: (turnPrompt, { model, effort, resume, turnId }) => {
           // agent-approvals: only wire the prompt tool once the bridge is

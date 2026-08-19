@@ -16,13 +16,27 @@ export declare const ContextMenuContent: import("react").ForwardRefExoticCompone
 export type ContextMenuItemProps = ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item> & {
     /** Tints the item as a destructive action (e.g. delete). */
     variant?: "default" | "danger";
-    /** Right-aligned shortcut hint (e.g. "⌘K"). */
+    /**
+     * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
+     * visual reminder of a binding, not part of what the item *is*, and folding
+     * it into the accessible name turns "Recortar" into "Recortar Ctrl+X" for
+     * every screen-reader user and every name-based query. Announce the binding
+     * with `aria-keyshortcuts` on the item instead — that attribute takes the
+     * canonical key names, which this prop (localized glyphs on macOS) is not.
+     */
     shortcut?: ReactNode;
 };
 export declare const ContextMenuItem: import("react").ForwardRefExoticComponent<Omit<ContextMenuPrimitive.ContextMenuItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
     /** Tints the item as a destructive action (e.g. delete). */
     variant?: "default" | "danger";
-    /** Right-aligned shortcut hint (e.g. "⌘K"). */
+    /**
+     * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
+     * visual reminder of a binding, not part of what the item *is*, and folding
+     * it into the accessible name turns "Recortar" into "Recortar Ctrl+X" for
+     * every screen-reader user and every name-based query. Announce the binding
+     * with `aria-keyshortcuts` on the item instead — that attribute takes the
+     * canonical key names, which this prop (localized glyphs on macOS) is not.
+     */
     shortcut?: ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
 export type ContextMenuCheckboxItemProps = ComponentPropsWithoutRef<typeof ContextMenuPrimitive.CheckboxItem>;

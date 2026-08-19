@@ -22,6 +22,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Empty,
   Spinner,
@@ -40,8 +41,17 @@ import { IconButton } from '../ui/IconButton'
 import { isPaneDrag } from '../ui/paneDnd'
 import { setWorkspaceFileDrag } from '../ui/workspaceFileDnd'
 import { FileTypeIcon } from '../ui/fileIcons'
+import { copyText } from '../ui/clipboard'
+import {
+  namesIn,
+  nextCopyName,
+  pasteableSources,
+  pasteDestination,
+  type FileClipboard
+} from './fileClipboard'
 import {
   CheckIcon,
+  ClipboardIcon,
   CloseIcon,
   CopyIcon,
   DownloadIcon,
@@ -54,6 +64,7 @@ import {
   MoreIcon,
   PencilIcon,
   PlusIcon,
+  ScissorsIcon,
   TrashIcon
 } from '../ui/icons'
 
@@ -117,6 +128,63 @@ function validateEntryName(raw: string): string | null {
   return name
 }
 
+/**
+ * Keys that are only ever a modifier. They fire their own `keydown` before the
+ * key they modify does — which is exactly long enough to eat the second stroke
+ * of a two-key chord if the handler treats every event as "the next key".
+ */
+const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'OS'])
+
+/** One keystroke, already sorted into the modifier families the shortcuts care about. */
+interface Stroke {
+  /** The key as pressed — `F2`, `Delete`, `Escape`. */
+  key: string
+  /** Single characters lower-cased, so `C` and `c` are one binding. */
+  letter: string
+  /** Exactly Ctrl/Cmd and nothing else. */
+  modOnly: boolean
+  /** Exactly Shift+Alt and nothing else. */
+  shiftAlt: boolean
+  /** No modifier at all. */
+  bare: boolean
+}
+
+/**
+ * Sorts a keydown into those families, or returns `null` for a key that is
+ * only ever a modifier.
+ *
+ * Those fire their own `keydown` before the key they modify does — long
+ * enough to be mistaken for the second stroke of a two-key chord, which is
+ * how `Ctrl+K Ctrl+Shift+C` silently became `Ctrl+K` followed by nothing.
+ *
+ * Cmd counts wherever Ctrl does: the same physical shortcut on a Mac, and the
+ * menus label it that way.
+ */
+function classifyStroke(event: KeyboardEvent<HTMLDivElement>): Stroke | null {
+  const key = event.key
+  if (MODIFIER_KEYS.has(key)) return null
+  const mod = event.ctrlKey || event.metaKey
+  return {
+    key,
+    letter: key.length === 1 ? key.toLowerCase() : key,
+    modOnly: mod && !event.shiftKey && !event.altKey,
+    shiftAlt: !mod && event.shiftKey && event.altKey,
+    bare: !mod && !event.shiftKey && !event.altKey
+  }
+}
+
+/**
+ * The `aria-keyshortcuts` value for a chord written with `Ctrl`.
+ *
+ * Separate from the menu's visible hint on purpose: the attribute takes
+ * canonical key names ("Meta+X"), the hint takes whatever the platform's
+ * users read ("⌘X"). The visible hint is `aria-hidden` in the design system,
+ * so this is what actually announces the binding.
+ */
+function ariaKeyshortcuts(chord: string, platform: string): string {
+  return platform === 'darwin' ? chord.replace('Ctrl', 'Meta') : chord
+}
+
 /** A synthetic tree-row id for the currently-open "new item" inline input (never a real workspace path). */
 const CREATE_ROW_ID = '\u0001__creating__'
 
@@ -172,6 +240,26 @@ function collectFileTypes(nodes: FsTreeNode[], into: Map<string, FsTreeNode['typ
   for (const node of nodes) {
     into.set(node.path, node.type)
     if (node.children) collectFileTypes(node.children, into)
+  }
+}
+
+/**
+ * The row ids currently on screen, in the order they are painted — a
+ * directory's children only when it is expanded. This is what Ctrl+A selects:
+ * "everything" in a tree means everything you can see, not every path in the
+ * workspace (selecting a thousand collapsed descendants is never the intent).
+ */
+function collectVisiblePaths(
+  nodes: DsTreeNodeShape[],
+  expanded: ReadonlySet<string>,
+  into: string[]
+): void {
+  for (const node of nodes) {
+    if (node.id === CREATE_ROW_ID) continue
+    into.push(node.id)
+    if (node.children && expanded.has(node.id)) {
+      collectVisiblePaths(node.children, expanded, into)
+    }
   }
 }
 
@@ -232,6 +320,23 @@ interface RenamingState {
   path: string
   parentPath: string
   initialValue: string
+}
+
+/**
+ * One entry queued to be written into a destination directory — the unit the
+ * Explorer's sequential transfer queue walks.
+ *
+ * `run` rather than a source path, because the two things that feed the queue
+ * write through different bridges: an OS drop copies from an absolute path
+ * outside the workspace (`fs.importEntry`), a paste copies from one workspace
+ * path to another (`fs.copyEntry`). Everything downstream of that difference
+ * — the conflict pre-check, the dialog, overwrite/rename/cancel — is shared.
+ */
+interface TransferItem {
+  /** The leaf name it wants inside the destination (already de-duplicated for a paste). */
+  name: string
+  /** Writes the entry at `destRel`. Rejects with a `CONFLICT` when the target exists and `overwrite` isn't set. */
+  run: (destRel: string, opts?: { overwrite?: boolean }) => Promise<void>
 }
 
 /** The delete/overwrite/rename confirmation surfaces (FM-R3.1/FM-R7), unified into one dialog shape. */
@@ -347,6 +452,274 @@ function StudioContextAction({
   )
 }
 
+/**
+ * The callbacks a file menu needs, gathered so the two menus can take one
+ * prop instead of eight.
+ */
+interface FileActionHandlers {
+  startCreate: (parentPath: string, kind: 'file' | 'directory') => void
+  stageClipboard: (path: string, mode: 'cut' | 'copy') => void
+  pasteInto: (destDir: string) => void
+  startRename: (path: string) => void
+  requestDelete: (path: string) => void
+  copyPaths: (path: string, kind: 'relative' | 'absolute') => void
+  revealInOs: (path: string, isDir: boolean) => void
+}
+
+/**
+ * The file actions, rendered into whichever menu asked for them.
+ *
+ * The row's `…` kebab and the right-click menu are one menu with two
+ * openings: the same actions, in the same order, with the same separators and
+ * the same shortcut hints. That used to be a comment above two copies of the
+ * same eighty lines, which is exactly how the two drift apart — a user who
+ * learns an action in one has to find it in the other. Radix gives the two
+ * menus different item components, so the components come in as props;
+ * everything below them is written once.
+ */
+function FileActionItems({
+  Item,
+  Separator,
+  path,
+  isDir,
+  canPaste,
+  on
+}: {
+  Item: typeof ContextMenuItem | typeof DropdownMenuItem
+  Separator: typeof ContextMenuSeparator | typeof DropdownMenuSeparator
+  path: string
+  isDir: boolean
+  canPaste: boolean
+  on: FileActionHandlers
+}): React.JSX.Element {
+  // A file's "new file here" and "paste here" mean its folder; a folder's
+  // mean itself. Resolved once rather than at five call sites.
+  const container = isDir ? path : parentOf(path)
+  const platform = window.hive.platform
+  return (
+    <>
+      <Item onSelect={() => on.startCreate(container, 'file')}>
+        <PlusIcon size={14} />
+        {t('explorer.menuNewFile')}
+      </Item>
+      <Item onSelect={() => on.startCreate(container, 'directory')}>
+        <FolderPlusIcon size={14} />
+        {t('explorer.menuNewFolder')}
+      </Item>
+      <Separator />
+      {/* The clipboard group sits between "make something" and "change this
+          one thing", which is where every file manager puts it — and where
+          the muscle memory reaches for it. */}
+      <Item
+        aria-keyshortcuts={ariaKeyshortcuts('Ctrl+X', platform)}
+        shortcut={t('explorer.keyCut', platform)}
+        onSelect={() => on.stageClipboard(path, 'cut')}
+      >
+        <ScissorsIcon size={14} />
+        {t('explorer.menuCut')}
+      </Item>
+      <Item
+        aria-keyshortcuts={ariaKeyshortcuts('Ctrl+C', platform)}
+        shortcut={t('explorer.keyCopy', platform)}
+        onSelect={() => on.stageClipboard(path, 'copy')}
+      >
+        <CopyIcon size={14} />
+        {t('explorer.menuCopy')}
+      </Item>
+      <Item
+        disabled={!canPaste}
+        aria-keyshortcuts={ariaKeyshortcuts('Ctrl+V', platform)}
+        shortcut={t('explorer.keyPaste', platform)}
+        onSelect={() => on.pasteInto(container)}
+      >
+        <ClipboardIcon size={14} />
+        {t('explorer.menuPaste')}
+      </Item>
+      <Separator />
+      <Item
+        aria-keyshortcuts="F2"
+        shortcut={t('explorer.keyRename')}
+        onSelect={() => on.startRename(path)}
+      >
+        <PencilIcon size={14} />
+        {t('explorer.menuRename')}
+      </Item>
+      <Item
+        variant="danger"
+        aria-keyshortcuts={ariaKeyshortcuts('Delete', platform)}
+        shortcut={t('explorer.keyDelete', platform)}
+        onSelect={() => on.requestDelete(path)}
+      >
+        <TrashIcon size={14} />
+        {t('explorer.menuDelete')}
+      </Item>
+      <Separator />
+      {/* Below the separator on purpose: these leave the workspace untouched
+          — they hand a path to the clipboard or to the OS — so they sit apart
+          from the group that edits it. */}
+      <Item
+        aria-keyshortcuts={ariaKeyshortcuts('Ctrl+K Ctrl+Shift+C', platform)}
+        shortcut={t('explorer.keyCopyRelativePath', platform)}
+        onSelect={() => on.copyPaths(path, 'relative')}
+      >
+        <CopyIcon size={14} />
+        {t('explorer.menuCopyRelativePath')}
+      </Item>
+      <Item
+        aria-keyshortcuts={ariaKeyshortcuts('Shift+Alt+C', platform)}
+        shortcut={t('explorer.keyCopyPath', platform)}
+        onSelect={() => on.copyPaths(path, 'absolute')}
+      >
+        <CopyIcon size={14} />
+        {t('explorer.menuCopyPath')}
+      </Item>
+      <Item onSelect={() => on.revealInOs(path, isDir)}>
+        <ExternalFolderIcon size={14} />
+        {t('explorer.menuRevealInOs', platform)}
+      </Item>
+    </>
+  )
+}
+
+/**
+ * The pending cut/copy, given a place to live.
+ *
+ * Dimmed rows say "something is staged" but not what, how many, or where it
+ * would land — and Escape is not a discoverable way out of a state you cannot
+ * see. This strip answers all four, and it is the only chrome in the rail
+ * that appears because the user asked for it.
+ */
+function ClipboardTray({
+  clipboard,
+  destinationLabel,
+  onPaste,
+  onClear
+}: {
+  clipboard: FileClipboard
+  destinationLabel: string
+  onPaste: () => void
+  onClear: () => void
+}): React.JSX.Element {
+  const isCut = clipboard.mode === 'cut'
+  return (
+    <div
+      className="wb-tree-clipboard"
+      aria-label={t('explorer.clipboardTrayLabel', clipboard.mode, clipboard.paths.length)}
+    >
+      <span className="wb-tree-clipboard-icon" aria-hidden="true">
+        {isCut ? <ScissorsIcon size={13} /> : <CopyIcon size={13} />}
+      </span>
+      <span className="wb-tree-clipboard-label" aria-hidden="true">
+        {t(
+          'explorer.clipboardTrayCount',
+          basename(clipboard.paths[0] ?? ''),
+          clipboard.paths.length
+        )}
+      </span>
+      <button type="button" className="wb-tree-clipboard-paste" onClick={onPaste}>
+        {t('explorer.clipboardPasteInto', destinationLabel)}
+      </button>
+      <IconButton
+        className="wb-tree-clipboard-dismiss"
+        label={t('explorer.clipboardClearLabel')}
+        onClick={onClear}
+      >
+        <CloseIcon size={12} />
+      </IconButton>
+    </div>
+  )
+}
+
+/**
+ * The panel-wide "Solte para importar" affordance (FM-R5), shown while an OS
+ * file drag hovers the rail. Purely visual — `pointer-events: none`, so the
+ * drop lands on the row/root handlers underneath and goes into the right
+ * folder; this only names where that will be.
+ */
+function ImportDropzone({
+  dragOverPath,
+  workspace
+}: {
+  dragOverPath: string | null
+  workspace: string
+}): React.JSX.Element {
+  return (
+    <div className="wb-rail-dropzone" aria-hidden="true">
+      <div className="wb-rail-dropzone-card">
+        <span className="wb-rail-dropzone-icon">
+          <DownloadIcon size={24} />
+        </span>
+        <span className="wb-rail-dropzone-title">{t('explorer.importDropTitle')}</span>
+        <span className="wb-rail-dropzone-dest">
+          {dragOverPath
+            ? t('explorer.importDropToFolder', basename(dragOverPath))
+            : t('explorer.importDropToRoot', basename(workspace) || workspace)}
+        </span>
+        <span className="wb-rail-dropzone-hint">{t('explorer.importDropHint')}</span>
+      </div>
+    </div>
+  )
+}
+
+/** The trash confirmation (FM-R3.1), for one row or a whole selection. */
+function DeleteDialog({
+  targets,
+  onCancel,
+  onConfirm
+}: {
+  targets: string[]
+  onCancel: () => void
+  onConfirm: () => void
+}): React.JSX.Element {
+  return (
+    <Dialog open onOpenChange={(open: boolean) => !open && onCancel()}>
+      <DialogContent>
+        <DialogTitle>{t('explorer.deleteDialogTitle')}</DialogTitle>
+        <DialogDescription>
+          {targets.length > 1
+            ? t('explorer.deleteManyDescription', targets.length)
+            : t('explorer.deleteDialogDescription', basename(targets[0] ?? ''))}
+        </DialogDescription>
+        <div className="wb-dialog-actions">
+          <Button className="wb-btn" onClick={onCancel}>
+            {t('explorer.deleteCancelCta')}
+          </Button>
+          <Button className="wb-btn hds-btn-primary" onClick={onConfirm}>
+            {t('explorer.deleteConfirmCta')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** The name-collision prompt (FM-R7) every write path funnels into. */
+function ConflictDialog({ conflict }: { conflict: ConflictState }): React.JSX.Element {
+  return (
+    <Dialog open onOpenChange={(open: boolean) => !open && conflict.onCancel()}>
+      <DialogContent>
+        <DialogTitle>{t('explorer.conflictDialogTitle')}</DialogTitle>
+        <DialogDescription>
+          {t('explorer.conflictDialogDescription', conflict.itemLabel)}
+        </DialogDescription>
+        <div className="wb-dialog-actions">
+          <Button className="wb-btn" onClick={conflict.onCancel}>
+            {t('explorer.conflictCancelCta')}
+          </Button>
+          <Button className="wb-btn" onClick={conflict.onRename}>
+            {t('explorer.conflictRenameCta')}
+          </Button>
+          {conflict.supportsOverwrite && (
+            <Button className="wb-btn hds-btn-primary" onClick={() => void conflict.onOverwrite()}>
+              {t('explorer.conflictOverwriteCta')}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function FileTree({
   workspace,
   selectedPath,
@@ -398,6 +771,12 @@ export function FileTree({
   // fires (React capture phase runs earlier), so the content below knows
   // whether it's row-scoped or empty-area-scoped when it opens.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
+  // file-clipboard: the pending cut/copy. Renderer state on purpose, not the
+  // system clipboard — the OS clipboard has no cross-platform way to say "I
+  // am *moving* these", and a Ctrl+X that silently became a copy is worse
+  // than one that only works inside the app. The absolute paths still go out
+  // as text on Ctrl+C, so a copy is pasteable into a terminal or a prompt.
+  const [clipboard, setClipboard] = useState<FileClipboard | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   // The message itself rather than a boolean: the OS-parity actions
   // (explorer-os-actions) fail for a reason of their own — the host has no
@@ -480,6 +859,19 @@ export function FileTree({
     () => (treeState.status === 'ready' ? toDsNodes(treeState.nodes) : []),
     [treeState]
   )
+
+  /** The workspace's own leaf name — what the tray calls the root destination. */
+  const workspaceName = useMemo(() => {
+    const parts = workspace.split(/[\\/]/).filter(Boolean)
+    return parts[parts.length - 1] ?? workspace
+  }, [workspace])
+
+  /** The on-screen row order — Ctrl+A's scope. */
+  const visiblePaths = useMemo(() => {
+    const out: string[] = []
+    collectVisiblePaths(dsNodes, new Set(expandedIds), out)
+    return out
+  }, [dsNodes, expandedIds])
 
   // T8: reconcile the selection on every refresh — drop any id whose path no
   // longer exists in the (re)loaded tree (design.md §2). The setState lives
@@ -602,7 +994,7 @@ export function FileTree({
           : Promise.all(targets.map((rel) => window.hive.fs.absolutePath(workspace, rel)))
       void resolved
         .then(async (paths) => {
-          await navigator.clipboard?.writeText(paths.join('\n'))
+          await copyText(paths.join('\n'))
           showFlash(t('explorer.pathCopiedFeedback', targets.length))
         })
         .catch(reportError)
@@ -891,15 +1283,30 @@ export function FileTree({
 
   // --- External OS import (FM-R5) -------------------------------------------
 
-  const importQueueRef = useRef<{ absPath: string; name: string }[]>([])
+  // The queue is generic over *how* an entry gets written, because two very
+  // different sources now feed it: an OS drop (`fs.importEntry`, from an
+  // absolute path outside the workspace) and a paste (`fs.copyEntry`, from
+  // one workspace path to another). Everything they share — the sequential
+  // walk, the exists() pre-check, the conflict dialog and its
+  // overwrite/rename/cancel branches — is the part worth having exactly once.
+  const importQueueRef = useRef<TransferItem[]>([])
   const importDestRef = useRef('')
+  // What to say in the live region once the queue drains, and how many items
+  // actually landed. `null` means "say nothing" — an OS import already has
+  // the drop overlay plus the tree updating under the pointer, so announcing
+  // it again would be noise; a paste has neither.
+  const transferReportRef = useRef<{ done: number; message: ((n: number) => string) | null }>({
+    done: 0,
+    message: null
+  })
 
   const doImport = useCallback(
-    async (absPath: string, destRel: string, opts?: { overwrite?: boolean }) => {
-      await window.hive.fs.importEntry(workspace, absPath, destRel, opts)
+    async (item: TransferItem, destRel: string, opts?: { overwrite?: boolean }) => {
+      await item.run(destRel, opts)
+      transferReportRef.current.done += 1
       refresh()
     },
-    [workspace, refresh]
+    [refresh]
   )
 
   // `processNextImport` recurses to advance the batch queue (FM-R5.3). A
@@ -913,7 +1320,14 @@ export function FileTree({
 
   const processNextImport = useCallback(() => {
     const next = importQueueRef.current.shift()
-    if (!next) return
+    if (!next) {
+      // Drained: report once for the whole batch rather than per item, so
+      // pasting six files says "6 itens colados" instead of six times "1".
+      const report = transferReportRef.current
+      if (report.message && report.done > 0) showFlash(report.message(report.done))
+      transferReportRef.current = { done: 0, message: null }
+      return
+    }
     const destDir = importDestRef.current
     const targetRel = joinRelative(destDir, next.name)
     window.hive.fs
@@ -925,7 +1339,7 @@ export function FileTree({
             supportsOverwrite: true,
             onOverwrite: async () => {
               try {
-                await doImport(next.absPath, targetRel, { overwrite: true })
+                await doImport(next, targetRel, { overwrite: true })
               } catch (err) {
                 reportError(err)
               }
@@ -941,7 +1355,7 @@ export function FileTree({
                 initialValue: next.name,
                 commit: async (name) => {
                   try {
-                    await doImport(next.absPath, joinRelative(destDir, name))
+                    await doImport(next, joinRelative(destDir, name))
                   } catch (err) {
                     reportError(err)
                   }
@@ -958,7 +1372,7 @@ export function FileTree({
           })
           return
         }
-        return doImport(next.absPath, targetRel).then(
+        return doImport(next, targetRel).then(
           () => processNextImportRef.current(),
           (err: unknown) => {
             if (isFsConflictError(err)) {
@@ -967,7 +1381,7 @@ export function FileTree({
                 supportsOverwrite: true,
                 onOverwrite: async () => {
                   try {
-                    await doImport(next.absPath, targetRel, { overwrite: true })
+                    await doImport(next, targetRel, { overwrite: true })
                   } catch (retryErr) {
                     reportError(retryErr)
                   }
@@ -994,7 +1408,7 @@ export function FileTree({
         reportError(err)
         processNextImportRef.current()
       })
-  }, [workspace, doImport, ensureExpanded, closeAllInputs, reportError])
+  }, [workspace, doImport, ensureExpanded, closeAllInputs, reportError, showFlash])
 
   // Ref assignment must happen post-render (react-hooks/refs) — an effect,
   // not a plain statement in the render body, keeps it pointed at the latest
@@ -1007,14 +1421,122 @@ export function FileTree({
     (files: File[], destDir: string) => {
       if (files.length === 0) return
       importDestRef.current = destDir
-      importQueueRef.current = files.map((file) => ({
-        absPath: window.hive.fs.pathForFile(file),
-        name: file.name
-      }))
+      transferReportRef.current = { done: 0, message: null }
+      importQueueRef.current = files.map((file) => {
+        const absPath = window.hive.fs.pathForFile(file)
+        return {
+          name: file.name,
+          run: (destRel, opts) => window.hive.fs.importEntry(workspace, absPath, destRel, opts)
+        }
+      })
       processNextImport()
     },
-    [processNextImport]
+    [workspace, processNextImport]
   )
+
+  // --- File clipboard: cut / copy / paste (VS Code parity) -----------------
+
+  /** Where a paste lands right now — a selected folder, a selected file's folder, or the active dir. */
+  const pasteDest = useMemo(
+    () => pasteDestination(selectedIds, fileTypes, activeDirPath),
+    [selectedIds, fileTypes, activeDirPath]
+  )
+
+  const clearClipboard = useCallback(() => setClipboard(null), [])
+
+  /** The rows a pending *cut* ghosts. Empty for a copy — nothing is leaving. */
+  const cutPaths = useMemo(
+    () => new Set(clipboard?.mode === 'cut' ? clipboard.paths : []),
+    [clipboard]
+  )
+
+  /**
+   * Ctrl+C / Ctrl+X. Both stage the same in-app payload; copy additionally
+   * puts the absolute paths on the *system* clipboard as text, because that
+   * is what someone who presses Ctrl+C over a file and then clicks into a
+   * terminal, a prompt or a document expects to get. Cut deliberately does
+   * not: putting the paths there would leave a "copy" of something the next
+   * paste is about to move.
+   */
+  const stageClipboard = useCallback(
+    (path: string, mode: 'cut' | 'copy') => {
+      setMenuFor(null)
+      const paths = targetsFor(path).filter((entry) => fileTypes.has(entry))
+      if (paths.length === 0) return
+      setClipboard({ mode, paths })
+      if (mode === 'cut') {
+        showFlash(t('explorer.cutFeedback', paths.length))
+        return
+      }
+      void Promise.all(paths.map((rel) => window.hive.fs.absolutePath(workspace, rel)))
+        .then((abs) => copyText(abs.join('\n')))
+        .catch((err) => console.error('[explorer] copy to system clipboard failed', err))
+      showFlash(t('explorer.copyFeedback', paths.length))
+    },
+    [targetsFor, fileTypes, workspace, showFlash]
+  )
+
+  /**
+   * Ctrl+V. A cut reuses the drag-and-drop move (same guards, same conflict
+   * dialog) and then empties the clipboard, because the staged paths no
+   * longer exist. A copy goes through the transfer queue, but with the
+   * destination's existing names checked *first*: pasting into the folder
+   * something already lives in is how every file manager duplicates, and
+   * answering that with a conflict dialog instead of `nota cópia.md` would
+   * turn the most common paste into a question.
+   */
+  const pasteInto = useCallback(
+    (destDir: string) => {
+      setMenuFor(null)
+      if (!clipboard) return
+      const sources = pasteableSources(clipboard.paths, destDir)
+      if (sources.length === 0) return
+
+      if (clipboard.mode === 'cut') {
+        const moving = sources.filter((path) => parentOf(path) !== destDir)
+        setClipboard(null)
+        if (moving.length === 0) return
+        moveInternal(moving, destDir)
+        showFlash(t('explorer.pasteFeedback', moving.length))
+        return
+      }
+
+      const taken = namesIn(destDir, fileTypes)
+      importDestRef.current = destDir
+      transferReportRef.current = { done: 0, message: (n) => t('explorer.pasteFeedback', n) }
+      importQueueRef.current = sources.map((fromRel) => {
+        // Reserve each chosen name as we go: pasting two `nota.md`s from
+        // different folders into one destination has to produce `nota
+        // cópia.md` and `nota cópia 2.md`, not the same name twice.
+        const name = nextCopyName(basename(fromRel), taken)
+        taken.add(name)
+        return {
+          name,
+          run: (destRel, opts) => window.hive.fs.copyEntry(workspace, fromRel, destRel, opts)
+        }
+      })
+      ensureExpanded(destDir)
+      processNextImport()
+    },
+    [clipboard, fileTypes, workspace, moveInternal, ensureExpanded, processNextImport, showFlash]
+  )
+
+  // A staged path that no longer exists (deleted, renamed, moved by an agent)
+  // must not sit in the clipboard waiting to fail on paste. The tree already
+  // reconciles `selectedIds` against every refresh; the clipboard gets the
+  // same treatment, and empties itself when nothing it holds survives.
+  useEffect(() => {
+    const reconcile = (): void => {
+      if (treeState.status !== 'ready') return
+      setClipboard((current) => {
+        if (!current) return current
+        const alive = current.paths.filter((path) => fileTypes.has(path))
+        if (alive.length === current.paths.length) return current
+        return alive.length === 0 ? null : { ...current, paths: alive }
+      })
+    }
+    reconcile()
+  }, [fileTypes, treeState.status])
 
   // --- Shared row drag-over/drop handler (internal move + OS import) -------
   // Pane drags (customizable-layout) fall through untouched — no
@@ -1141,6 +1663,222 @@ export function FileTree({
       }
     },
     []
+  )
+
+  // --- Keyboard: the file-manager shortcut set (VS Code parity) ------------
+
+  /**
+   * The pending first stroke of a two-key chord (only `Ctrl+K` today, the
+   * prefix VS Code uses for "Copy Relative Path"). Held in a ref rather than
+   * state because nothing renders from it except the hint, which is pushed
+   * through the existing live region — and because the timeout that clears it
+   * must not be able to re-render the tree mid-typing.
+   */
+  const chordRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const chordPendingRef = useRef(false)
+  const endChord = useCallback(() => {
+    if (chordRef.current) clearTimeout(chordRef.current)
+    chordRef.current = null
+    chordPendingRef.current = false
+  }, [])
+  useEffect(() => endChord, [endChord])
+
+  /** The row a keyboard action applies to: the focused treeitem, else the lone selection. */
+  const keyboardTarget = useCallback((): string | null => {
+    const focused = document.activeElement
+    if (focused instanceof HTMLElement) {
+      const row = focused.closest?.('[role="treeitem"]')?.querySelector?.('[data-tree-path]')
+      if (row instanceof HTMLElement && row.dataset.treePath !== undefined) {
+        return row.dataset.treePath
+      }
+    }
+    // Any selection at all is a valid target: `targetsFor` expands a member
+    // of a >1 selection back into the whole set, so Ctrl+C over three
+    // selected rows copies three. Bailing out on "more than one" would make
+    // every shortcut silently dead for exactly the case they matter most.
+    return selectedIds[0] ?? null
+  }, [selectedIds])
+
+  /**
+   * Every file-management shortcut a user already has in their fingers, bound
+   * on the tree container so they only fire while the Explorer has focus —
+   * Ctrl+C in the chat must still copy the chat.
+   *
+   * Deliberately NOT a `window` listener (the way the editor's Ctrl+S is):
+   * these verbs are about the selected rows, and a global binding would make
+   * Delete destructive from anywhere in the app. The inline create/rename
+   * inputs stop their own keydowns before they reach here, so typing a name
+   * containing "v" while holding nothing is never a paste.
+   */
+  /**
+   * True while an inline input or a dialog owns the keyboard. Every shortcut
+   * below defers to it: Delete must not trash the row behind a confirmation
+   * that is already asking about it, and typing a file name is just typing.
+   */
+  const isEditing = Boolean(pendingInput || renaming || conflict || deleteTargets)
+
+  /** The second stroke of `Ctrl+K …`, consumed whatever it turns out to be. */
+  const handleChordStroke = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>, stroke: Stroke) => {
+      endChord()
+      event.preventDefault()
+      event.stopPropagation()
+      // A chord that silently falls through to its own single-key meaning is
+      // how you end up deleting a file you meant to copy the path of, so
+      // anything that is not the chord is swallowed rather than re-dispatched.
+      const isChord = (event.ctrlKey || event.metaKey) && event.shiftKey && stroke.letter === 'c'
+      const target = isChord ? keyboardTarget() : null
+      if (target !== null) copyPaths(target, 'relative')
+    },
+    [endChord, keyboardTarget, copyPaths]
+  )
+
+  /**
+   * `Ctrl`/`Cmd` + a letter. Split out of the dispatcher below so each half
+   * stays readable (and inside the project's complexity budget) — the
+   * dispatcher decides *which* family a keystroke belongs to, these decide
+   * what it means. Returns whether the key was handled.
+   */
+  const handleModifierKey = useCallback(
+    (letter: string): boolean => {
+      if (letter === 'c' || letter === 'x') {
+        const target = keyboardTarget()
+        if (target === null) return false
+        stageClipboard(target, letter === 'c' ? 'copy' : 'cut')
+        return true
+      }
+      if (letter === 'v') {
+        if (!clipboard) return false
+        pasteInto(pasteDest)
+        return true
+      }
+      if (letter === 'a') {
+        setSelectedIds(visiblePaths)
+        return true
+      }
+      if (letter === 'k') {
+        chordPendingRef.current = true
+        showFlash(t('explorer.chordPendingHint', window.hive.platform))
+        // VS Code waits indefinitely; a desktop app that silently swallows
+        // the next keystroke forever is worse than one that gives up.
+        chordRef.current = setTimeout(endChord, 3000)
+        return true
+      }
+      return false
+    },
+    [
+      keyboardTarget,
+      stageClipboard,
+      clipboard,
+      pasteInto,
+      pasteDest,
+      visiblePaths,
+      showFlash,
+      endChord
+    ]
+  )
+
+  /**
+   * `Shift+Alt+C` — copy the absolute path (VS Code's binding). Its own
+   * branch, checked ahead of the plain `Ctrl` family, because on Windows and
+   * Linux AltGr reports as Ctrl+Alt and would otherwise shadow it.
+   */
+  const handleCopyPathKey = useCallback((): boolean => {
+    const target = keyboardTarget()
+    if (target === null) return false
+    copyPaths(target, 'absolute')
+    return true
+  }, [keyboardTarget, copyPaths])
+
+  /** An unmodified key: the three that act on the row, plus Escape. */
+  const handleBareKey = useCallback(
+    (key: string): boolean => {
+      if (key === 'F2' || key === 'Delete') {
+        const target = keyboardTarget()
+        if (target === null) return false
+        if (key === 'F2') startRename(target)
+        else requestDelete(target)
+        return true
+      }
+      if (key !== 'Escape') return false
+      // Escape unwinds one level at a time, the way it does everywhere else:
+      // the pending cut first (it is the state with a visible consequence),
+      // the selection only once there is no clipboard left.
+      if (clipboard) {
+        clearClipboard()
+        return true
+      }
+      if (selectedIds.length === 0) return false
+      setSelectedIds([])
+      return true
+    },
+    [keyboardTarget, startRename, requestDelete, clipboard, clearClipboard, selectedIds]
+  )
+
+  /**
+   * Every file-management shortcut a user already has in their fingers, bound
+   * on the tree container so they only fire while the Explorer has focus —
+   * Ctrl+C in the chat must still copy the chat.
+   *
+   * Deliberately NOT a `window` listener (the way the editor's Ctrl+S is):
+   * these verbs are about the selected rows, and a global binding would make
+   * Delete destructive from anywhere in the app. The inline create/rename
+   * inputs stop their own keydowns before they reach here, so typing a name
+   * containing "v" while holding nothing is never a paste.
+   */
+  const handleTreeKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (isEditing) return
+      const stroke = classifyStroke(event)
+      if (stroke === null) return
+
+      if (chordPendingRef.current) {
+        handleChordStroke(event, stroke)
+        return
+      }
+      if (stroke.shiftAlt && stroke.letter === 'c') {
+        if (handleCopyPathKey()) event.preventDefault()
+        return
+      }
+      if (stroke.modOnly) {
+        if (handleModifierKey(stroke.letter)) event.preventDefault()
+        return
+      }
+      if (stroke.bare && handleBareKey(stroke.key)) event.preventDefault()
+    },
+    [isEditing, handleChordStroke, handleCopyPathKey, handleModifierKey, handleBareKey]
+  )
+
+  /**
+   * Ctrl+V with files on the *system* clipboard — copied in Finder / Windows
+   * Explorer / Nautilus, pasted here. The keydown handler above cannot see
+   * them (only a real `paste` event carries `clipboardData`), so this is a
+   * separate listener, and it only acts when the in-app clipboard is empty:
+   * a pending cut is the more specific intent and must win.
+   */
+  const handleTreePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      if (clipboard || isEditing) return
+      const files = event.clipboardData?.files
+      if (!files || files.length === 0) return
+      event.preventDefault()
+      importFiles(Array.from(files), pasteDest)
+    },
+    [clipboard, isEditing, importFiles, pasteDest]
+  )
+
+  /** The handler bundle both menus render from. */
+  const actions = useMemo<FileActionHandlers>(
+    () => ({
+      startCreate,
+      stageClipboard,
+      pasteInto,
+      startRename,
+      requestDelete,
+      copyPaths,
+      revealInOs
+    }),
+    [startCreate, stageClipboard, pasteInto, startRename, requestDelete, copyPaths, revealInOs]
   )
 
   // Runs in React's capture phase on the tree container — before Radix's
@@ -1300,6 +2038,10 @@ export function FileTree({
           }
           data-tree-path={node.id}
           data-tree-dir={isDir || undefined}
+          /* A row staged for a cut dims, the way it does in every file
+             manager — the only on-screen trace of a pending Ctrl+X, and the
+             reason the clipboard tray below spells the rest out. */
+          data-tree-cut={cutPaths.has(node.id) || undefined}
           draggable
           onDragStart={(event) => handleRowDragStart(event, node.id)}
           onDragOver={(event) => handleRowDragOver(event, node.id, isDir)}
@@ -1356,41 +2098,14 @@ export function FileTree({
                 onClick={(event) => event.stopPropagation()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
               >
-                <DropdownMenuItem
-                  onSelect={() => startCreate(isDir ? node.id : parentOf(node.id), 'file')}
-                >
-                  <PlusIcon size={14} />
-                  {t('explorer.menuNewFile')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => startCreate(isDir ? node.id : parentOf(node.id), 'directory')}
-                >
-                  <FolderPlusIcon size={14} />
-                  {t('explorer.menuNewFolder')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => startRename(node.id)}>
-                  <PencilIcon size={14} />
-                  {t('explorer.menuRename')}
-                </DropdownMenuItem>
-                <DropdownMenuItem variant="danger" onSelect={() => requestDelete(node.id)}>
-                  <TrashIcon size={14} />
-                  {t('explorer.menuDelete')}
-                </DropdownMenuItem>
-                {/* Same set as the right-click menu, in the same order: this
-                    kebab and that menu are one menu with two openings, and a
-                    user who found an action in one must find it in the other. */}
-                <DropdownMenuItem onSelect={() => copyPaths(node.id, 'relative')}>
-                  <CopyIcon size={14} />
-                  {t('explorer.menuCopyRelativePath')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => copyPaths(node.id, 'absolute')}>
-                  <CopyIcon size={14} />
-                  {t('explorer.menuCopyPath')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => revealInOs(node.id, isDir)}>
-                  <ExternalFolderIcon size={14} />
-                  {t('explorer.menuRevealInOs', window.hive.platform)}
-                </DropdownMenuItem>
+                <FileActionItems
+                  Item={DropdownMenuItem}
+                  Separator={DropdownMenuSeparator}
+                  path={node.id}
+                  isDir={isDir}
+                  canPaste={Boolean(clipboard)}
+                  on={actions}
+                />
               </DropdownMenuContent>
             )}
           </DropdownMenu>
@@ -1404,14 +2119,12 @@ export function FileTree({
       handleRowDragStart,
       handleRowDragOver,
       handleRowDrop,
-      startCreate,
-      startRename,
-      requestDelete,
-      copyPaths,
-      revealInOs,
+      actions,
       onOpenFile,
       decorations,
-      changedFolders
+      changedFolders,
+      clipboard,
+      cutPaths
     ]
   )
 
@@ -1500,6 +2213,14 @@ export function FileTree({
           {actionError}
         </div>
       )}
+      {clipboard && (
+        <ClipboardTray
+          clipboard={clipboard}
+          destinationLabel={basename(pasteDest) || workspaceName}
+          onPaste={() => pasteInto(pasteDest)}
+          onClear={clearClipboard}
+        />
+      )}
       {/* Always mounted, empty when idle: a live region that only appears at
           the moment it has something to say is announced unreliably (the AT
           has nothing to observe until it is already too late).
@@ -1527,28 +2248,15 @@ export function FileTree({
           <div
             className={importActive ? 'wb-tree-body is-importing' : 'wb-tree-body'}
             onContextMenuCapture={handleTreeContextMenuCapture}
+            onKeyDown={handleTreeKeyDown}
+            onPaste={handleTreePaste}
             onDragEnter={handleBodyDragEnter}
             onDragOver={handleBodyDragOver}
             onDragLeave={handleBodyDragLeave}
             onDrop={handleBodyDrop}
           >
             {treeBody}
-            {importActive && (
-              <div className="wb-rail-dropzone" aria-hidden="true">
-                <div className="wb-rail-dropzone-card">
-                  <span className="wb-rail-dropzone-icon">
-                    <DownloadIcon size={24} />
-                  </span>
-                  <span className="wb-rail-dropzone-title">{t('explorer.importDropTitle')}</span>
-                  <span className="wb-rail-dropzone-dest">
-                    {dragOverPath
-                      ? t('explorer.importDropToFolder', basename(dragOverPath))
-                      : t('explorer.importDropToRoot', basename(workspace) || workspace)}
-                  </span>
-                  <span className="wb-rail-dropzone-hint">{t('explorer.importDropHint')}</span>
-                </div>
-              </div>
-            )}
+            {importActive && <ImportDropzone dragOverPath={dragOverPath} workspace={workspace} />}
           </div>
         </ContextMenuTrigger>
         {/* Same close-auto-focus guard as the row kebab menu: the inline
@@ -1560,56 +2268,14 @@ export function FileTree({
           {contextTarget ? (
             <>
               <StudioContextAction target={contextTarget} onOpen={onOpenDesignStudio} />
-              {/* Same two glyphs the toolbar uses for these exact actions —
-                  with eight items in the menu, the two that had no icon read
-                  as unfinished rather than as a different kind of thing. */}
-              <ContextMenuItem
-                onSelect={() =>
-                  startCreate(
-                    contextTarget.isDir ? contextTarget.path : parentOf(contextTarget.path),
-                    'file'
-                  )
-                }
-              >
-                <PlusIcon size={14} />
-                {t('explorer.menuNewFile')}
-              </ContextMenuItem>
-              <ContextMenuItem
-                onSelect={() =>
-                  startCreate(
-                    contextTarget.isDir ? contextTarget.path : parentOf(contextTarget.path),
-                    'directory'
-                  )
-                }
-              >
-                <FolderPlusIcon size={14} />
-                {t('explorer.menuNewFolder')}
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={() => startRename(contextTarget.path)}>
-                <PencilIcon size={14} />
-                {t('explorer.menuRename')}
-              </ContextMenuItem>
-              <ContextMenuItem variant="danger" onSelect={() => requestDelete(contextTarget.path)}>
-                <TrashIcon size={14} />
-                {t('explorer.menuDelete')}
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              {/* Below the separator on purpose: these leave the workspace
-                  untouched — they hand a path to the clipboard or to the OS —
-                  so they sit apart from the group that edits it. */}
-              <ContextMenuItem onSelect={() => copyPaths(contextTarget.path, 'relative')}>
-                <CopyIcon size={14} />
-                {t('explorer.menuCopyRelativePath')}
-              </ContextMenuItem>
-              <ContextMenuItem onSelect={() => copyPaths(contextTarget.path, 'absolute')}>
-                <CopyIcon size={14} />
-                {t('explorer.menuCopyPath')}
-              </ContextMenuItem>
-              <ContextMenuItem onSelect={() => revealInOs(contextTarget.path, contextTarget.isDir)}>
-                <ExternalFolderIcon size={14} />
-                {t('explorer.menuRevealInOs', window.hive.platform)}
-              </ContextMenuItem>
+              <FileActionItems
+                Item={ContextMenuItem}
+                Separator={ContextMenuSeparator}
+                path={contextTarget.path}
+                isDir={contextTarget.isDir}
+                canPaste={Boolean(clipboard)}
+                on={actions}
+              />
             </>
           ) : (
             <>
@@ -1620,6 +2286,18 @@ export function FileTree({
               <ContextMenuItem onSelect={() => startCreate('', 'directory')}>
                 <FolderPlusIcon size={14} />
                 {t('explorer.menuNewFolder')}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              {/* The empty area is the workspace root, so it takes a paste
+                  like any other folder row. */}
+              <ContextMenuItem
+                disabled={!clipboard}
+                aria-keyshortcuts={ariaKeyshortcuts('Ctrl+V', window.hive.platform)}
+                shortcut={t('explorer.keyPaste', window.hive.platform)}
+                onSelect={() => pasteInto('')}
+              >
+                <ClipboardIcon size={14} />
+                {t('explorer.menuPaste')}
               </ContextMenuItem>
               <ContextMenuSeparator />
               {/* The empty area IS the workspace root, so the same two actions
@@ -1638,51 +2316,13 @@ export function FileTree({
         </ContextMenuContent>
       </ContextMenu>
       {deleteTargets && (
-        <Dialog open onOpenChange={(open: boolean) => !open && setDeleteTargets(null)}>
-          <DialogContent>
-            <DialogTitle>{t('explorer.deleteDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {deleteTargets.length > 1
-                ? t('explorer.deleteManyDescription', deleteTargets.length)
-                : t('explorer.deleteDialogDescription', basename(deleteTargets[0] ?? ''))}
-            </DialogDescription>
-            <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={() => setDeleteTargets(null)}>
-                {t('explorer.deleteCancelCta')}
-              </Button>
-              <Button className="wb-btn hds-btn-primary" onClick={confirmDelete}>
-                {t('explorer.deleteConfirmCta')}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DeleteDialog
+          targets={deleteTargets}
+          onCancel={() => setDeleteTargets(null)}
+          onConfirm={confirmDelete}
+        />
       )}
-      {conflict && (
-        <Dialog open onOpenChange={(open: boolean) => !open && conflict.onCancel()}>
-          <DialogContent>
-            <DialogTitle>{t('explorer.conflictDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('explorer.conflictDialogDescription', conflict.itemLabel)}
-            </DialogDescription>
-            <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={conflict.onCancel}>
-                {t('explorer.conflictCancelCta')}
-              </Button>
-              <Button className="wb-btn" onClick={conflict.onRename}>
-                {t('explorer.conflictRenameCta')}
-              </Button>
-              {conflict.supportsOverwrite && (
-                <Button
-                  className="wb-btn hds-btn-primary"
-                  onClick={() => void conflict.onOverwrite()}
-                >
-                  {t('explorer.conflictOverwriteCta')}
-                </Button>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {conflict && <ConflictDialog conflict={conflict} />}
     </>
   )
 }

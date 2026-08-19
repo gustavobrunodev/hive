@@ -7,6 +7,7 @@ import {
   shortcutLabel,
   agentMeta,
   shellName,
+  shellSigil,
   shellSupportNote,
   provisionMessagesPtBR
 } from './pt-BR'
@@ -19,6 +20,7 @@ export {
   shortcutLabel,
   agentMeta,
   shellName,
+  shellSigil,
   shellSupportNote
 }
 export type { RoleMeta, ProvisionStage } from './pt-BR'

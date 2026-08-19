@@ -36,6 +36,7 @@ import {
   type ServerStat
 } from './logConsole'
 import { stateLabel, type McpRosterEntry } from './mcpRoster'
+import { copyText } from '../ui/clipboard'
 
 /**
  * `McpConsole` — the workbench's bottom dock: what every MCP server actually
@@ -199,7 +200,7 @@ function RowCopy({ raw }: { raw: string }): React.JSX.Element {
       type="button"
       className="wb-mcplog-copy"
       aria-label={t('mcpLogs.copyAria')}
-      onClick={() => void navigator.clipboard?.writeText(raw).then(() => setCopied(true))}
+      onClick={() => void copyText(raw).then(() => setCopied(true))}
     >
       {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
     </button>
@@ -447,9 +448,7 @@ function SourcePath({ location }: { location: McpLogLocation }): React.JSX.Eleme
         type="button"
         className="wb-mcplog-source-copy"
         aria-label={t('mcpLogs.sourceCopyAria')}
-        onClick={() =>
-          void navigator.clipboard?.writeText(location.dir).then(() => setCopied(true))
-        }
+        onClick={() => void copyText(location.dir).then(() => setCopied(true))}
       >
         {copied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
       </button>

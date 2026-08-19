@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createShellService } from './shellService'
 import type { AgentRegistry } from './agentRegistry'
 import type { ConfigStore } from './configStore'
-import type { AgentAdapter, ShellBinding } from './agentAdapter'
+import type { AgentAdapter, ShellBinding, ShellContext } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
 
 /**
@@ -32,6 +32,7 @@ function fakeConfig(initial: string | null = null): ConfigStore & { value: strin
 function fakeRegistry(adapters: Array<Partial<AgentAdapter> & { id: string }>): AgentRegistry {
   return {
     ids: () => adapters.map((adapter) => adapter.id),
+    defaultId: () => adapters[0]?.id ?? '',
     get: (id: string) => (adapters.find((adapter) => adapter.id === id) as AgentAdapter) ?? null
   } as unknown as AgentRegistry
 }
@@ -39,10 +40,39 @@ function fakeRegistry(adapters: Array<Partial<AgentAdapter> & { id: string }>): 
 const claudeLike = {
   id: 'claude-cli',
   displayName: 'Claude CLI',
-  shellBinding: (shell: ShellInfo): ShellBinding =>
+  commandName: 'claude',
+  shellBinding: (shell: ShellInfo, context: ShellContext): ShellBinding =>
     shell.family === 'zsh'
-      ? { support: 'native', env: { CLAUDE_CODE_SHELL: shell.path } }
-      : { support: 'launch-only', note: 'posix-bash-zsh-only', env: {} }
+      ? { support: 'native', runsIn: shell.id, env: { CLAUDE_CODE_SHELL: shell.path } }
+      : {
+          support: 'fallback',
+          note: 'posix-bash-zsh-only',
+          runsIn: context.available.find((entry) => entry.family === 'zsh')?.id ?? null,
+          env: {}
+        }
+}
+
+/** A Windows-shaped stand-in for the one case the whole feature turns on: cmd. */
+const cmd: ShellInfo = {
+  id: 'cmd',
+  path: 'C:\\Windows\\System32\\cmd.exe',
+  family: 'cmd',
+  systemDefault: true
+}
+const gitBash: ShellInfo = {
+  id: 'git-bash',
+  path: 'C:\\Program Files\\Git\\bin\\bash.exe',
+  family: 'bash',
+  systemDefault: false
+}
+const windowsClaude = {
+  id: 'claude-cli',
+  displayName: 'Claude CLI',
+  commandName: 'claude',
+  shellBinding: (shell: ShellInfo): ShellBinding =>
+    shell.id === 'git-bash'
+      ? { support: 'native', note: 'windows-git-bash', runsIn: 'git-bash', env: {} }
+      : { support: 'fallback', note: 'cmd-no-executor', runsIn: 'git-bash', env: {} }
 }
 
 describe('ShellService.list', () => {
@@ -57,7 +87,7 @@ describe('ShellService.list', () => {
 
   it('marks exactly the row automatic resolves to', () => {
     const service = createShellService(fakeConfig(), fakeRegistry([claudeLike]), () => [bash, zsh])
-    const marked = service.list().shells.filter((shell) => shell.systemDefault)
+    const marked = service.list().shells.filter((shell) => shell.automatic)
     expect(marked.map((shell) => shell.id)).toEqual(['zsh'])
   })
 
@@ -65,11 +95,18 @@ describe('ShellService.list', () => {
     const service = createShellService(fakeConfig(), fakeRegistry([claudeLike]), () => [zsh, fish])
     const view = service.list()
     expect(view.shells[0].agents).toEqual([
-      { agentId: 'claude-cli', displayName: 'Claude CLI', support: 'native', note: undefined }
+      {
+        agentId: 'claude-cli',
+        displayName: 'Claude CLI',
+        support: 'native',
+        note: undefined,
+        runsIn: 'zsh'
+      }
     ])
     expect(view.shells[1].agents[0]).toMatchObject({
-      support: 'launch-only',
-      note: 'posix-bash-zsh-only'
+      support: 'fallback',
+      note: 'posix-bash-zsh-only',
+      runsIn: 'zsh'
     })
   })
 
@@ -104,6 +141,55 @@ describe('ShellService.list', () => {
     expect(detect).toHaveBeenCalledTimes(1)
     service.list(true)
     expect(detect).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * The bug this feature was reopened for, at the level above the adapter. On
+   * Windows the machine's own default is cmd — the one shell no agent executes
+   * a command in — so "Automático = o padrão do sistema" shipped a default
+   * guaranteed to fall back, and the user who never touched the setting got
+   * whatever the CLI picked. Automatic now lands on a shell an agent runs in.
+   */
+  it('automatic skips the platform default when no agent can run in it', () => {
+    const service = createShellService(
+      fakeConfig(),
+      fakeRegistry([windowsClaude]),
+      () => [cmd, gitBash],
+      'win32'
+    )
+    const view = service.list()
+    expect(view.resolvedId).toBe('git-bash')
+    expect(view.shells.filter((shell) => shell.automatic).map((shell) => shell.id)).toEqual([
+      'git-bash'
+    ])
+  })
+
+  it('automatic still follows the platform default when an agent runs in it', () => {
+    // POSIX: $SHELL is both the machine's answer and one the CLI accepts, so
+    // there is nothing to improve on and nothing to explain.
+    const service = createShellService(fakeConfig(), fakeRegistry([claudeLike]), () => [bash, zsh])
+    expect(service.list().resolvedId).toBe('zsh')
+  })
+
+  it('automatic keeps the platform default when nothing else is better either', () => {
+    const service = createShellService(
+      fakeConfig(),
+      fakeRegistry([windowsClaude]),
+      () => [cmd],
+      'win32'
+    )
+    expect(service.list().resolvedId).toBe('cmd')
+  })
+
+  it('carries the real command line for each row, and the platform it was built on', () => {
+    const service = createShellService(fakeConfig(), fakeRegistry([claudeLike]), () => [zsh])
+    const view = service.list()
+    expect(view.platform).toBe(process.platform)
+    // Drawn from `shellSpawnTarget`, so it is the argv, not a retelling of it.
+    // The CLI's own path is whatever this machine resolved (or the bare name
+    // where it isn't installed), so the assertion is on the shape around it —
+    // `exec`, the quoting, the flags — which is the part that is ours.
+    expect(view.shells[0].preview).toMatch(/^\/usr\/bin\/zsh -c exec '.*claude.*' '-p' '…'$/)
   })
 
   it('falls back to every registered agent when the user has none enabled', () => {

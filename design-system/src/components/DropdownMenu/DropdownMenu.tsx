@@ -33,9 +33,12 @@ export type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenu
   /** Tints the item as a destructive action (e.g. delete). */
   variant?: "default" | "danger"
   /**
-   * Right-aligned shortcut hint (e.g. "⌘K"). Plain node/string for now — the
-   * real `Kbd` component (Phase 2, T33) can be swapped in later without any
-   * API change here.
+   * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
+   * visual reminder of a binding, not part of what the item *is*, and folding
+   * it into the accessible name turns "Recortar" into "Recortar Ctrl+X" for
+   * every screen-reader user and every name-based query. Announce the binding
+   * with `aria-keyshortcuts` on the item instead — that attribute takes the
+   * canonical key names, which this prop (localized glyphs on macOS) is not.
    */
   shortcut?: ReactNode
 }
@@ -49,7 +52,7 @@ export const DropdownMenuItem = forwardRef<ElementRef<typeof DropdownMenuPrimiti
         {...rest}
       >
         <span className="hds-dropdown-menu-item-label">{children}</span>
-        {shortcut && <span className="hds-dropdown-menu-shortcut">{shortcut}</span>}
+        {shortcut && <span className="hds-dropdown-menu-shortcut" aria-hidden="true">{shortcut}</span>}
       </DropdownMenuPrimitive.Item>
     )
   }

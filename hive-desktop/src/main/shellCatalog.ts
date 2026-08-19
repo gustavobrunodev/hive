@@ -349,5 +349,43 @@ export function shellSpawnTarget(shell: ShellInfo, command: string, args: string
 export function shellSpawnEnv(shell: ShellInfo): Record<string, string> {
   if (shell.family === 'cmd') return { ComSpec: shell.path }
   if (shell.family === 'powershell') return {}
+  if (shell.id === 'git-bash') {
+    return {
+      SHELL: shell.path,
+      // Git Bash is MSYS2, and MSYS2 rewrites any argument that *looks* like a
+      // POSIX path before handing it to a native Windows exe. The agent's turn
+      // goes out as `-p '<the user's message>'`, so a prompt that starts with a
+      // slash — every BMAD slash command, `/bmad-prd` first among them —
+      // arrives at claude.exe as `C:/Program Files/Git/bmad-prd`. Silent, and
+      // it turns the workflow into gibberish. These two switch the mangling
+      // off; both names exist because MSYS2 renamed the variable and honours
+      // either.
+      MSYS_NO_PATHCONV: '1',
+      MSYS2_ARG_CONV_EXCL: '*'
+    }
+  }
   return { SHELL: shell.path }
+}
+
+/**
+ * The spawn, rendered as the one line a person could paste into that terminal
+ * themselves — what the picker shows under "ver o comando".
+ *
+ * Built from `shellSpawnTarget`, never re-derived: a preview that drifted from
+ * the real argv would be a more convincing version of the bug this whole
+ * feature exists to end.
+ *
+ * One transform is applied on top, and only for cmd: the caret escaping is
+ * undone. Those carets are not part of the command — they are the
+ * `windowsVerbatimArguments` transport, the layer that survives CreateProcess
+ * so that *cmd itself* receives `"C:\…\claude.cmd" "-p" "…"`. Printing them
+ * shows the user a string they can neither read nor reuse, while the
+ * unescaped form is exactly what the shell runs and exactly what they would
+ * type. The strip is `^X → X`, total and reversible, and it never touches the
+ * POSIX or PowerShell targets, which carry no carets to begin with.
+ */
+export function shellCommandPreview(shell: ShellInfo, command: string, args: string[]): string {
+  const target = shellSpawnTarget(shell, command, args)
+  const line = [target.command, ...target.args].join(' ')
+  return shell.family === 'cmd' ? line.replace(/\^(.)/g, '$1') : line
 }

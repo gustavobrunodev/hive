@@ -31,6 +31,13 @@
   gap: var(--s-2);
 }
 
+/* A slot whose content rendered nothing must not leave a gap behind. Lets an
+   app pass a single self-deciding attachments component instead of computing
+   "is there anything to show" at the call site and passing undefined. */
+.hds-prompt-input-attachments:empty {
+  display: none;
+}
+
 .hds-prompt-input-textarea.hds-textarea {
   border: 0;
   background: transparent;

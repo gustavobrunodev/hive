@@ -8,7 +8,8 @@ import {
   EyeIcon,
   LockIcon,
   PencilIcon,
-  TerminalIcon
+  TerminalIcon,
+  UnlockIcon
 } from '../ui/icons'
 import { toolKind, toolLabel, type ToolKind } from './toolActivity'
 
@@ -20,12 +21,19 @@ export interface ApprovalRequest {
   input?: Record<string, unknown>
   turnId?: string
   /** `null` while the agent is still blocked on it. */
-  answer?: 'allow' | 'allow-always' | 'deny' | null
+  answer?: ApprovalAnswer | null
 }
+
+/**
+ * The four answers. `allow-session` is the only one that is not about *this*
+ * call: it stops the asking altogether until the app is closed, which is why
+ * it is offered apart from the three and never as the filled button.
+ */
+export type ApprovalAnswer = 'allow' | 'allow-always' | 'allow-session' | 'deny'
 
 interface ApprovalCardProps {
   request: ApprovalRequest
-  onDecide: (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => void
+  onDecide: (requestId: string, decision: ApprovalAnswer) => void
 }
 
 const ICONS: Record<ToolKind, typeof TerminalIcon> = {
@@ -188,6 +196,23 @@ export function ApprovalCard({ request, onDecide }: ApprovalCardProps): React.JS
         </Button>
         <span className="wb-approval-keys">{t('approval.keyboardHint')}</span>
       </div>
+
+      {/* The session-wide grant, deliberately *not* a fourth peer button. The
+          three above answer this call; this one turns the asking off, and a
+          row of four equal buttons would put the widest-reaching answer one
+          mis-click from the narrowest. It sits under a hairline, at link
+          weight, with its own end-condition spelled out beside it. */}
+      <div className="wb-approval-session">
+        <button
+          type="button"
+          className="wb-approval-session-cta"
+          onClick={() => onDecide(request.requestId, 'allow-session')}
+        >
+          <UnlockIcon size={13} />
+          {t('approval.allowSessionCta')}
+        </button>
+        <span className="wb-approval-session-hint">{t('approval.allowSessionHint')}</span>
+      </div>
     </div>
   )
 }
@@ -215,7 +240,9 @@ function AnsweredNote({
     ? t('approval.deniedState')
     : request.answer === 'allow-always'
       ? t('approval.allowedAlwaysState')
-      : t('approval.allowedState')
+      : request.answer === 'allow-session'
+        ? t('approval.allowedSessionState')
+        : t('approval.allowedState')
 
   return (
     <div className="wb-approval-note" data-answer={request.answer ?? undefined}>

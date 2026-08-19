@@ -194,6 +194,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         stop: vi.fn().mockResolvedValue(undefined),
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
+        approvalSession: vi.fn().mockResolvedValue(false),
+        setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
       installBmad: vi.fn().mockReturnValue(() => {}),
@@ -316,6 +318,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         createDirectory: vi.fn().mockResolvedValue(undefined),
         saveFile: vi.fn().mockResolvedValue({ mtimeMs: 1000, size: 0 }),
         move: vi.fn().mockResolvedValue(undefined),
+        copyEntry: vi.fn().mockResolvedValue(undefined),
         importEntry: vi.fn().mockResolvedValue(undefined),
         exists: vi.fn().mockResolvedValue(false),
         trash: vi.fn().mockResolvedValue(undefined),
@@ -323,6 +326,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         revealPath: vi.fn().mockResolvedValue(undefined),
         absolutePath: vi.fn().mockResolvedValue('/ws/abs')
       },
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),

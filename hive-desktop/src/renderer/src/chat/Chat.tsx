@@ -10,7 +10,6 @@ import {
 } from 'react'
 import {
   Alert,
-  Attachment,
   ChatMessage,
   MessageList,
   PromptInput,
@@ -30,7 +29,8 @@ import {
   QueueIcon,
   SlashIcon,
   SlidersIcon,
-  StopIcon
+  StopIcon,
+  UnlockIcon
 } from '../ui/icons'
 import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
 import { ScrollableRow } from '../ui/ScrollableRow'
@@ -40,7 +40,7 @@ import type { RoleAction } from '../ui/ActionRail'
 import { IntentGrid } from './IntentGrid'
 import { SlashMenu, type SlashSkill } from './SlashMenu'
 import { FileMentionMenu } from './FileMentionMenu'
-import { extractMentions, formatFileSize, mentionSegments } from './composerMentions'
+import { extractMentions, mentionSegments } from './composerMentions'
 import { composerBackdrop } from './composerBackdrop'
 import { DictationBar } from '../dictation/DictationBar'
 import { useComposerDictation } from '../dictation/useComposerDictation'
@@ -49,12 +49,16 @@ import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
+import { AttachmentTray } from './AttachmentTray'
+import { parkDraft, takeDraft, type DraftStore } from './composerDraft'
 import { useMentions } from './useMentions'
 import type { ChatSessionMeta } from './sessionMeta'
 import { ChangeCard } from './ChangeCard'
+import type { ApprovalAnswer } from './ApprovalCard'
 import { TurnTimeline } from './TurnTimeline'
 import { workspaceRelative, type ToolActivityEvent, type ToolPatch } from './toolActivity'
 import {
+  answerAllPendingApprovals,
   answerTurnApproval,
   appendTurnApproval,
   appendTurnMcp,
@@ -219,6 +223,18 @@ interface ChatProps {
 
 const SLASH_LISTBOX_ID = 'wb-slash-listbox'
 const MENTION_LISTBOX_ID = 'wb-mention-listbox'
+
+/**
+ * agent-approvals: the card's answer → the scope the main process records.
+ * `session` is the blanket, memory-only grant; `always` is the persisted rule
+ * (and the write into the agent's own config); `once` covers this call alone.
+ */
+const APPROVAL_SCOPE: Record<ApprovalAnswer, 'once' | 'always' | 'session'> = {
+  allow: 'once',
+  'allow-always': 'always',
+  'allow-session': 'session',
+  deny: 'once'
+}
 
 /** Binds a scope onto the customize hook, staying `undefined` when the host
  *  wired none (the surfaces hide their entry point on `undefined`). Module
@@ -679,12 +695,6 @@ function renderMentionBackdrop(
   })
 }
 
-/** Parent-folder line for a workspace attachment chip; `undefined` for a root-level file (the chip then shows only the name). */
-function parentDirOf(path: string): string | undefined {
-  const slash = path.lastIndexOf('/')
-  return slash === -1 ? undefined : path.slice(0, slash)
-}
-
 /** `aria-activedescendant` target for an open composer menu, or `undefined`. */
 function activeOptionId(
   open: boolean,
@@ -802,6 +812,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // app wraps Chat in a ReviewProvider); null in isolated tests → no cards.
   const review = useReviewOptional()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // agent-approvals (session grant): whether "permitir tudo nesta sessão" is
+  // armed. Owned by the main process (it is what the CLI's prompt tool asks),
+  // mirrored here so the footer chip can show it and take it back. Read once on
+  // mount, because a window reload must not claim the agent is still asking.
+  const [approvalSession, setApprovalSession] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void window.hive.agent.approvalSession().then((armed) => {
+      if (alive) setApprovalSession(armed)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
   // multi-agent: which agent drives THIS conversation. `null` → fall back to the
   // app default (`defaultAgent`); set explicitly by the composer switcher (fresh
   // conversation) or when restoring a stored conversation's own agent.
@@ -817,6 +841,25 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const attachments = useAttachments(capabilities?.supportsAttachments ?? false, workspace)
   const mentions = useMentions(workspace, composerValue, setComposerValue, composerTextareaRef)
+  // A draft belongs to its conversation, not to this pane (`composerDraft.ts`):
+  // conversation id → the text + files it left unsent. Leaving parks, entering
+  // takes back. Without this, a file attached here stayed clipped to the
+  // composer when the user opened an unrelated conversation — one Enter away
+  // from sending private context into the wrong session.
+  const draftsRef = useRef<DraftStore>(new Map())
+  // A draft that just came back, so the tray can say so. `null` the rest of the
+  // time — silence is the correct default for a composer the user just filled
+  // themselves. Counts, not booleans: returning twice to the same conversation
+  // has to re-announce, and a boolean already `true` renders nothing new.
+  const [restoredDraft, setRestoredDraft] = useState<{ files: number; at: number } | null>(null)
+  // The notice is a moment, not a state: it explains why the composer arrived
+  // full and then gets out of the way, so a draft the user has already taken
+  // over does not keep announcing itself.
+  useEffect(() => {
+    if (restoredDraft === null) return
+    const timer = window.setTimeout(() => setRestoredDraft(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [restoredDraft])
   // voice-prompt (M13): the composer gains dictation. The engine is M12's
   // embedded Whisper, reused as-is and pinned to pt-BR (D-VP-4); everything
   // else lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
@@ -1201,6 +1244,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const names = pending.length > 0 ? pending.map((entry) => entry.name) : undefined
       setComposerValue('')
       attachments.clear()
+      setRestoredDraft(null)
       submitOrQueue({ text: value, contextFiles, attachmentNames: names })
     },
     [attachments, mentions.fileSet, submitOrQueue]
@@ -1230,6 +1274,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // and its retry are on screen, and sending a prompt missing a segment is the
   // silent data loss this whole feature is built to avoid.
   const dictationStatus = dictation.phase.status
+  // Mirrors `composerValue` for the callbacks that must not re-bind on every
+  // keystroke: the deferred dictation send below, and `switchDraft`, which
+  // closes over the whole session plumbing.
   const composerValueRef = useRef(composerValue)
   useEffect(() => {
     composerValueRef.current = composerValue
@@ -1292,32 +1339,93 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // agent-approvals: releases the CLI child parked on this request. The card
   // keeps its answered state in place — in the transcript, where it was asked
   // — so the record of what was authorized survives the decision.
-  const handleApprovalDecision = useCallback(
-    (requestId: string, decision: 'allow' | 'allow-always' | 'deny') => {
-      // The card may live in a still-running turn or in one that has already
-      // settled into a message (a request can outlive its turn), so both
-      // stores are updated; whichever holds it, the answer lands in place.
-      // In-place for the same reason as `detachTurns`: the turn object is the
-      // identity the running stream keeps writing to.
-      for (const turn of turnsRef.current) {
-        // eslint-disable-next-line react-hooks/immutability
-        turn.blocks = answerTurnApproval(turn.blocks, requestId, decision)
-        if (turn.visible) setStreamingBlocks(turn.blocks)
-      }
-      setMessages((current) =>
-        current.map((message) =>
-          message.blocks === undefined
-            ? message
-            : { ...message, blocks: answerTurnApproval(message.blocks, requestId, decision) }
-        )
+  const handleApprovalDecision = useCallback((requestId: string, decision: ApprovalAnswer) => {
+    // "Permitir tudo nesta sessão" answers every card still open, because the
+    // main process releases every parked request with it (`approvalService`'s
+    // `armSessionAllowAll`). Leaving the others asking would be the UI
+    // claiming the agent is still blocked on a question already answered.
+    const answerAll = decision === 'allow-session'
+    const settleBlocks = (blocks: TurnBlock[]): TurnBlock[] =>
+      answerAll
+        ? answerAllPendingApprovals(blocks, decision)
+        : answerTurnApproval(blocks, requestId, decision)
+    // The card may live in a still-running turn or in one that has already
+    // settled into a message (a request can outlive its turn), so both
+    // stores are updated; whichever holds it, the answer lands in place.
+    // In-place for the same reason as `detachTurns`: the turn object is the
+    // identity the running stream keeps writing to.
+    for (const turn of turnsRef.current) {
+      // eslint-disable-next-line react-hooks/immutability
+      turn.blocks = settleBlocks(turn.blocks)
+      if (turn.visible) setStreamingBlocks(turn.blocks)
+    }
+    setMessages((current) =>
+      current.map((message) =>
+        message.blocks === undefined
+          ? message
+          : { ...message, blocks: settleBlocks(message.blocks) }
       )
-      void window.hive.agent.respondApproval(requestId, {
-        behavior: decision === 'deny' ? 'deny' : 'allow',
-        scope: decision === 'allow-always' ? 'always' : 'once',
-        message: decision === 'deny' ? t('approval.deniedMessage') : undefined
+    )
+    // The blanket grant is armed as a *mode*, not as an answer to this one
+    // request: arming already releases everything parked (including this
+    // call), and it still works when the card has outlived its turn — a
+    // request id the main process no longer knows makes `respondApproval` a
+    // no-op, which would have left the chip on with nothing behind it.
+    if (answerAll) {
+      setApprovalSession(true)
+      void window.hive.agent.setApprovalSession(true)
+      return
+    }
+    void window.hive.agent.respondApproval(requestId, {
+      behavior: decision === 'deny' ? 'deny' : 'allow',
+      scope: APPROVAL_SCOPE[decision],
+      message: decision === 'deny' ? t('approval.deniedMessage') : undefined
+    })
+  }, [])
+
+  /**
+   * Takes the session-wide grant back: the agent starts asking again from the
+   * next call. The footer chip is the only surface that shows the grant is on,
+   * so it is also the one that has to be able to end it.
+   */
+  const revokeApprovalSession = useCallback(() => {
+    setApprovalSession(false)
+    void window.hive.agent.setApprovalSession(false)
+  }, [])
+
+  /**
+   * Hands the composer over between conversations: parks what is on screen
+   * under the one being left, and restores what the one being entered had
+   * waiting. Text and files move together — they were written as one draft,
+   * and splitting them would put one conversation's message under another
+   * conversation's attachments.
+   */
+  const switchDraft = useCallback(
+    (from: string | null, to: string | null) => {
+      // Re-opening the conversation already on screen is not a switch: parking
+      // and immediately un-parking would work, but it would announce a restore
+      // for a draft that never went anywhere. Both being `null` is NOT that
+      // case — those are two different conversations that simply have no ids
+      // yet, and "Nova conversa" over an unsent draft has to clear it.
+      if (from !== null && from === to) return
+      parkDraft(draftsRef.current, from, {
+        text: composerValueRef.current,
+        attachments: attachments.items
       })
+      const draft = takeDraft(draftsRef.current, to)
+      setComposerValue(draft.text)
+      attachments.replace(draft.attachments)
+      // Restored text is not text the user is typing: a parked `/bmad-prd`
+      // must not reopen the slash menu over a transcript they just arrived at.
+      setSlashDismissed(true)
+      setSlashHighlight(0)
+      setRestoredDraft(
+        draft.text !== '' || draft.attachments.length > 0
+          ? { files: draft.attachments.length, at: Date.now() }
+          : null
+      )
     },
-    []
+    [attachments]
   )
 
   const newConversation = useCallback(() => {
@@ -1335,10 +1443,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     // running in the background, and they come back with it.
     setSessionUsage(EMPTY_SESSION_USAGE)
     queue.switchConversation(leaving, null)
+    // ...and so is the composer's unsent draft: a fresh conversation starts
+    // with an empty one, and the files picked for the old conversation stay
+    // parked with it rather than following the user here.
+    switchDraft(leaving, null)
     // multi-agent: a fresh conversation reverts to the app default agent (the
     // switcher can then re-pick before the first message).
     setConversationAgent(null)
-  }, [detachTurns, queue])
+  }, [detachTurns, queue, switchDraft])
 
   // skill-studio: launching a creation/generation opens a *fresh* conversation
   // rather than appending to whatever is on screen — the builder gets a clean
@@ -1385,6 +1497,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // whatever it had waiting.
       setSessionUsage(EMPTY_SESSION_USAGE)
       queue.switchConversation(leaving, stored.id)
+      // Same rule for the composer: this conversation gets its own unsent
+      // draft back — never the one belonging to the conversation just left.
+      switchDraft(leaving, stored.id)
       // background-turns: if THIS conversation still has a turn running,
       // re-attach its live stream — the user returns to find the reply
       // exactly where it is, still streaming.
@@ -1395,7 +1510,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         setStreamingMetrics(running.metrics)
       }
     },
-    [workspace, detachTurns, queue]
+    [workspace, detachTurns, queue, switchDraft]
   )
 
   useImperativeHandle(ref, () => ({ launchAction, launchCreation, newConversation, openSession }), [
@@ -1466,6 +1581,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // Any edit re-enables the menus and resets their highlights to the top.
       setSlashDismissed(false)
       setSlashHighlight(0)
+      // Typing is acknowledgement: the user has seen what came back.
+      setRestoredDraft(null)
       mentions.onValueEdited()
     },
     [mentions.onValueEdited]
@@ -1670,26 +1787,24 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         icon: undefined
       }
 
+  // The staged-files tray (chat-attachments + per-conversation drafts). Built
+  // here rather than inside `renderComposer` so the composer stays a layout
+  // function. Handed over unconditionally — the tray renders nothing when there
+  // is nothing staged and nothing to announce, and `PromptInput`'s slot hides
+  // itself when its content came out empty.
+  const attachmentTray = (
+    <AttachmentTray
+      items={attachments.items}
+      onRemove={attachments.removeAt}
+      onClear={attachments.clear}
+      restored={restoredDraft}
+    />
+  )
+
   // Nested so the menus'/attachments' conditionals stay off the Chat
   // component's complexity budget (same pattern as `renderToolbar`).
   function renderComposer(): React.JSX.Element {
     const mentionOpen = !slashOpen && mentions.open
-    const attachmentChips =
-      attachments.items.length > 0
-        ? attachments.items.map((entry, index) => (
-            <Attachment
-              key={entry.path}
-              className="wb-composer-chip"
-              name={entry.name}
-              meta={
-                entry.kind === 'workspace' ? parentDirOf(entry.path) : formatFileSize(entry.size)
-              }
-              icon={<FileTypeIcon path={entry.path} size={14} />}
-              onRemove={() => attachments.removeAt(index)}
-              removeLabel={t('chat.attachmentRemoveAria', entry.name)}
-            />
-          ))
-        : undefined
     return (
       <div
         className="wb-composer-wrap"
@@ -1704,6 +1819,26 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           <Alert variant="danger" role="alert" className="wb-composer-error">
             {t('chat.errorMessage', errorMessage)}
           </Alert>
+        )}
+        {/* agent-approvals (session grant): while the agent is not asking, the
+            composer says so. A blanket permission with no standing surface is
+            one the user grants for a task and keeps for the day — and it rides
+            the composer rather than the footer strip so it is also there in a
+            brand-new conversation, which has no footer at all. */}
+        {approvalSession && (
+          <p className="wb-approval-session-chip" aria-label={t('approval.sessionChipAria')}>
+            <span className="wb-approval-session-chip-mark" aria-hidden="true">
+              <UnlockIcon size={12} />
+            </span>
+            {t('approval.sessionChipLabel')}
+            <button
+              type="button"
+              className="wb-approval-session-chip-cta"
+              onClick={revokeApprovalSession}
+            >
+              {t('approval.sessionRevokeCta')}
+            </button>
+          </p>
         )}
         {slashOpen && (
           <SlashMenu
@@ -1759,7 +1894,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               MENTION_LISTBOX_ID
             )
           }
-          attachments={attachmentChips}
+          attachments={attachmentTray}
           allowEmptySubmit={attachments.items.length > 0}
           highlight={highlightComposer}
           textareaRef={composerTextareaRef}

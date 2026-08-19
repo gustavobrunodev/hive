@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answerAllPendingApprovals,
   answerTurnApproval,
   appendTurnApproval,
   appendTurnMcp,
@@ -132,6 +133,21 @@ describe('permission blocks', () => {
     expect(hasPendingApproval(answered)).toBe(false)
     // An unknown id is a no-op, not a crash: the card may have outlived its turn.
     expect(answerTurnApproval(answered, 'nope', 'allow')).toBe(answered)
+  })
+
+  it('the session grant answers every card still open, and leaves settled ones alone', () => {
+    let blocks = appendTurnApproval([], approval('req-1', 'Bash'))
+    blocks = appendTurnApproval(blocks, approval('req-2', 'WebFetch'))
+    blocks = answerTurnApproval(blocks, 'req-1', 'deny')
+
+    const all = answerAllPendingApprovals(blocks, 'allow-session')
+    const [first, second] = all
+    // A decision already made is a record, not a card to re-answer.
+    expect(first.kind === 'approval' && first.request.answer).toBe('deny')
+    expect(second.kind === 'approval' && second.request.answer).toBe('allow-session')
+    expect(hasPendingApproval(all)).toBe(false)
+    // Nothing pending → the same list, so React sees no change to re-render.
+    expect(answerAllPendingApprovals(all, 'allow-session')).toBe(all)
   })
 })
 

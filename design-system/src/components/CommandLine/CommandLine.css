@@ -1,0 +1,81 @@
+/* CommandLine — product-register command receipt. Sunken rather than raised:
+   this is machine text being quoted, not a surface the user acts on. */
+
+.hds-cmdline {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+}
+
+.hds-cmdline-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.hds-cmdline[data-overflow="wrap"] .hds-cmdline-text {
+  overflow-wrap: anywhere;
+}
+
+/* The command scrolls inside its own strip; the panel around it never does. */
+.hds-cmdline[data-overflow="scroll"] .hds-cmdline-text {
+  display: block;
+  white-space: pre;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.hds-cmdline-prompt {
+  display: inline-block;
+  margin-right: var(--s-2);
+  color: var(--accent-tint-ink);
+  user-select: none;
+}
+
+.hds-cmdline-copy {
+  flex-shrink: 0;
+  padding: 3px var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    color 0.18s var(--ease-quart),
+    background-color 0.18s var(--ease-quart),
+    border-color 0.18s var(--ease-quart);
+}
+
+.hds-cmdline-copy:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.hds-cmdline-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hds-cmdline-copy.is-copied {
+  color: var(--success-ink);
+  border-color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-cmdline-copy {
+    transition: none;
+  }
+}

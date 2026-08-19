@@ -61,6 +61,14 @@
 }
 
 .hds-dropdown-menu-item-label {
+  /* A menu item's children are commonly an icon followed by its label, so the
+     label slot is the row that has to space them — otherwise every consumer
+     re-declares the same flex+gap on top of the component. `min-width: 0` is
+     what lets the ellipsis actually engage inside the item's own flex row. */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

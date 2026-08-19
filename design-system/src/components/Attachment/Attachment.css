@@ -32,11 +32,33 @@
   font-weight: 500;
 }
 
+/* Middle truncation: the head takes the ellipsis, the tail is never allowed to
+   shrink. Two spans rather than a CSS trick because there is no CSS that can
+   ellipsize a run of text from the inside — and the pair still reads as one
+   uninterrupted string to a screen reader and to copy/paste. */
+.hds-attachment-name[data-truncate="middle"] {
+  display: flex;
+  min-width: 0;
+  overflow: visible;
+}
+
+.hds-attachment-name-head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-attachment-name-tail {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .hds-attachment-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 0.75rem;
 }
 

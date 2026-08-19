@@ -375,6 +375,8 @@ describe('Chat', () => {
        * "hide the picker, leave the value null" path only exists for them.
        */
       capabilities?: { models: unknown[]; efforts: unknown[]; supportsAttachments?: boolean }
+      /** agent-approvals: the session-wide grant already armed in the main process. */
+      sessionArmed?: boolean
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
@@ -435,6 +437,8 @@ describe('Chat', () => {
         stop: vi.fn().mockResolvedValue(undefined),
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
+        approvalSession: vi.fn().mockResolvedValue(options.sessionArmed ?? false),
+        setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn((onEvent: (event: AgentEventLike) => void) => {
           capturedOnEvent = onEvent
           return vi.fn()
@@ -1141,6 +1145,174 @@ describe('Chat', () => {
     await screen.findByText('relatorio.pdf')
     fireEvent.click(screen.getByLabelText('Remover anexo relatorio.pdf'))
     await waitFor(() => expect(screen.queryByText('relatorio.pdf')).toBeNull())
+  })
+
+  /**
+   * Per-conversation drafts (`composerDraft.ts`) — the defect: a file attached
+   * in one conversation stayed clipped to the composer when the user opened
+   * another, one Enter away from sending private context into a conversation
+   * it had nothing to do with.
+   */
+  it('a file attached here does NOT follow the user into another conversation', async () => {
+    const stored: StoredSessionLike = {
+      id: 'session-7',
+      workspace: '/ws',
+      agent: 'claude-cli',
+      title: 'Outra conversa',
+      createdAt: 10,
+      updatedAt: 20,
+      messages: [{ id: 'm1', role: 'user', text: 'assunto sem relação', at: 10 }]
+    }
+    const ref = createRef<ChatHandle>()
+    mockHive({
+      storedSession: stored,
+      pickedAttachments: [
+        { path: '/abs/contrato-sigiloso.pdf', name: 'contrato-sigiloso.pdf', size: 2048 }
+      ]
+    })
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        startActions: roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
+    await screen.findByText('Modelo A')
+
+    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await screen.findByText('contrato-sigiloso.pdf')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'rascunho privado' }
+    })
+
+    await act(async () => {
+      await ref.current?.openSession('session-7')
+    })
+
+    await screen.findByText('assunto sem relação')
+    expect(screen.queryByText('contrato-sigiloso.pdf')).toBeNull()
+    expect(
+      (screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLTextAreaElement).value
+    ).toBe('')
+  })
+
+  it('a new conversation starts with an empty composer, not the last one’s draft', async () => {
+    const ref = createRef<ChatHandle>()
+    mockHive({
+      pickedAttachments: [{ path: '/abs/notas.txt', name: 'notas.txt', size: 64 }]
+    })
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        startActions: roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
+    await screen.findByText('Modelo A')
+
+    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await screen.findByText('notas.txt')
+
+    await act(async () => {
+      ref.current?.newConversation()
+    })
+    await waitFor(() => expect(screen.queryByText('notas.txt')).toBeNull())
+  })
+
+  // The other half of the model: a draft is parked with its conversation, not
+  // discarded. Coming back finds the message and the files exactly as left —
+  // and the tray says why they are there.
+  it('returning to a conversation hands back the draft it had waiting', async () => {
+    const other: StoredSessionLike = {
+      id: 'session-7',
+      workspace: '/ws',
+      agent: 'claude-cli',
+      title: 'Outra',
+      createdAt: 10,
+      updatedAt: 20,
+      messages: [{ id: 'm1', role: 'user', text: 'outro assunto', at: 10 }]
+    }
+    const mine: StoredSessionLike = {
+      id: 'session-1',
+      workspace: '/ws',
+      agent: 'claude-cli',
+      title: 'Minha',
+      createdAt: 1,
+      updatedAt: 2,
+      messages: [{ id: 'm0', role: 'user', text: 'primeira mensagem', at: 1 }]
+    }
+    const ref = createRef<ChatHandle>()
+    const { chatHistory, emit } = mockHive({
+      pickedAttachments: [{ path: '/abs/relatorio.pdf', name: 'relatorio.pdf', size: 2048 }]
+    })
+    render(
+      createElement(Chat, {
+        workspace: '/ws',
+        startActions: roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        ref
+      })
+    )
+    await screen.findByText('Modelo A')
+
+    // Persist this conversation (it only gets an id once something is sent).
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'primeira mensagem' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+    await screen.findByText('primeira mensagem')
+    await act(async () => {
+      emit({ type: 'done' })
+    })
+
+    // …then leave an unsent draft in it.
+    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await screen.findByText('relatorio.pdf')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'continuar amanhã' }
+    })
+
+    chatHistory.get.mockResolvedValue(other)
+    await act(async () => {
+      await ref.current?.openSession('session-7')
+    })
+    await screen.findByText('outro assunto')
+    expect(screen.queryByText('relatorio.pdf')).toBeNull()
+
+    chatHistory.get.mockResolvedValue(mine)
+    await act(async () => {
+      await ref.current?.openSession('session-1')
+    })
+
+    expect(await screen.findByText('relatorio.pdf')).toBeTruthy()
+    expect(
+      (screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLTextAreaElement).value
+    ).toBe('continuar amanhã')
+    // Files reappearing without explanation look exactly like the leak this
+    // closes, so the tray names what happened.
+    expect(screen.getByTestId('draft-restored')).toBeTruthy()
+  })
+
+  it('the tray summarises a multi-file draft and clears all of it at once', async () => {
+    renderChat({
+      pickedAttachments: [
+        { path: '/abs/a.pdf', name: 'a.pdf', size: 1024 },
+        { path: '/abs/b.png', name: 'b.png', size: 3072 }
+      ]
+    })
+    await screen.findByText('Modelo A')
+
+    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    expect(await screen.findByText('2 arquivos · 4,0 KB')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Limpar'))
+    await waitFor(() => expect(screen.queryByText('a.pdf')).toBeNull())
+    expect(screen.queryByText('b.png')).toBeNull()
   })
 
   it('dropping explorer-tree workspace files onto the composer adds chips and sends relative paths', async () => {
@@ -1996,6 +2168,52 @@ describe('Chat', () => {
       message: 'Recusado pelo usuário no Hive.'
     })
     expect(await screen.findByText('Recusado')).toBeTruthy()
+  })
+
+  it('"Permitir tudo nesta sessão" closes every open card and shows the standing grant in the footer', async () => {
+    const hive = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'faça o setup' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    // Two calls blocked at once — the CLI can park several in one turn.
+    act(() => {
+      hive.emit({ type: 'approval', requestId: 'req-s1', tool: 'Bash', detail: 'npm ci' })
+      hive.emit({
+        type: 'approval',
+        requestId: 'req-s2',
+        tool: 'WebFetch',
+        detail: 'https://x.dev'
+      })
+    })
+    expect(await screen.findByText('Rodar um comando no terminal')).toBeTruthy()
+
+    fireEvent.click(screen.getAllByText('Permitir tudo nesta sessão')[0])
+
+    // Armed as a mode, not as an answer to this one request: arming releases
+    // everything parked, and it survives a card that outlived its turn (whose
+    // request id the main process no longer knows).
+    expect(window.hive.agent.setApprovalSession).toHaveBeenCalledWith(true)
+    // The second card is answered too: the main process released it with the
+    // first, so leaving it asking would be the UI inventing a blocked turn.
+    expect((await screen.findAllByText('Permitido — sessão liberada')).length).toBe(2)
+    expect(screen.queryByText('Permitir tudo nesta sessão')).toBeNull()
+
+    // And the grant is visible from then on, with its own undo.
+    const revoke = await screen.findByText('Voltar a perguntar')
+    expect(screen.getByText('Autorizações liberadas nesta sessão')).toBeTruthy()
+    fireEvent.click(revoke)
+    expect(window.hive.agent.setApprovalSession).toHaveBeenCalledWith(false)
+    await waitFor(() => expect(screen.queryByText('Voltar a perguntar')).toBeNull())
+  })
+
+  it('a window that reopens with the session grant already armed says so without being told again', async () => {
+    // The grant lives in the main process; a reloaded window that forgot it
+    // would show a composer claiming the agent is still asking when it isn't.
+    renderChat({ sessionArmed: true })
+    expect(await screen.findByText('Autorizações liberadas nesta sessão')).toBeTruthy()
   })
 
   it('Esc refuses a pending request, so the blocked turn is always answerable from the keyboard', async () => {

@@ -433,6 +433,72 @@ describe('FsService', () => {
     })
   })
 
+  // file-clipboard: the paste half of Ctrl+C. Unlike `importEntry` (whose
+  // source is an arbitrary OS path outside the workspace by design), both ends
+  // here are workspace-relative, so both are escape-checked — and a directory
+  // copied into its own subtree would make `cpSync` recurse into the copy it
+  // is writing, which is the one case worth refusing outright.
+  describe('copyEntry()', () => {
+    it('copies a file, leaving the original where it was', () => {
+      service.copyEntry(root, 'a.txt', 'docs/a.txt')
+      expect(readFileSync(join(root, 'docs', 'a.txt'), 'utf-8')).toBe('hello a')
+      expect(existsSync(join(root, 'a.txt'))).toBe(true)
+    })
+
+    it('copies a directory recursively', () => {
+      service.copyEntry(root, 'docs', 'docs-backup')
+      expect(readFileSync(join(root, 'docs-backup', 'prd.md'), 'utf-8')).toBe('# PRD')
+      expect(readFileSync(join(root, 'docs-backup', 'nested', 'notes.txt'), 'utf-8')).toBe(
+        'nested notes'
+      )
+      expect(existsSync(join(root, 'docs', 'prd.md'))).toBe(true)
+    })
+
+    it('duplicates within one directory (the copy/paste-in-place case)', () => {
+      service.copyEntry(root, 'a.txt', 'a cópia.txt')
+      expect(readFileSync(join(root, 'a cópia.txt'), 'utf-8')).toBe('hello a')
+    })
+
+    it('throws CONFLICT when the target exists and overwrite was not asked for', () => {
+      expect(() => service.copyEntry(root, 'a.txt', 'docs/prd.md')).toThrow(ConflictError)
+      try {
+        service.copyEntry(root, 'a.txt', 'docs/prd.md')
+      } catch (err) {
+        expect((err as ConflictError).code).toBe('CONFLICT')
+      }
+      // The pre-existing target is untouched by the refused copy.
+      expect(readFileSync(join(root, 'docs', 'prd.md'), 'utf-8')).toBe('# PRD')
+    })
+
+    it('overwrites when asked', () => {
+      service.copyEntry(root, 'a.txt', 'docs/prd.md', { overwrite: true })
+      expect(readFileSync(join(root, 'docs', 'prd.md'), 'utf-8')).toBe('hello a')
+    })
+
+    it('refuses to copy a directory into itself or into its own subtree', () => {
+      expect(() => service.copyEntry(root, 'docs', 'docs')).toThrow(/into itself/)
+      expect(() => service.copyEntry(root, 'docs', 'docs/copia')).toThrow(/into itself/)
+      expect(existsSync(join(root, 'docs', 'copia'))).toBe(false)
+    })
+
+    it('allows a sibling whose path merely shares a prefix', () => {
+      service.copyEntry(root, 'docs', 'docs-old')
+      expect(readFileSync(join(root, 'docs-old', 'prd.md'), 'utf-8')).toBe('# PRD')
+    })
+
+    it('rejects a source that escapes the workspace root', () => {
+      expect(() => service.copyEntry(root, '../../../etc/passwd', 'stolen')).toThrow(
+        /escapes workspace root/
+      )
+    })
+
+    it('rejects a destination that escapes the workspace root', () => {
+      expect(() => service.copyEntry(root, 'a.txt', '../../../tmp/leaked.txt')).toThrow(
+        /escapes workspace root/
+      )
+    })
+  })
+
   describe('exists()', () => {
     it('returns true for an existing file and directory', () => {
       expect(service.exists(root, 'a.txt')).toBe(true)

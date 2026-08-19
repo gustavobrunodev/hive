@@ -324,6 +324,23 @@ export function ClipboardIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * Cut — scissors. The blades cross at the pivot rather than meeting in a V,
+ * because at 16px a V reads as a checkmark; the crossing is what makes the
+ * shape unmistakable at this size.
+ */
+export function ScissorsIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="4" cy="4" r="2" />
+      <circle cx="4" cy="12" r="2" />
+      <path d="M13.33 2.67 5.41 10.59" />
+      <path d="m9.65 9.65 3.68 3.68" />
+      <path d="m5.41 5.41 2.59 2.59" />
+    </svg>
+  )
+}
+
 /** Epics & stories — stacked layers. */
 export function LayersIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
@@ -784,6 +801,20 @@ export function LockIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * Open padlock — the session-wide permission grant (agent-approvals): the same
+ * body as `LockIcon` with the shackle swung open, so "liberado" and "trancado"
+ * read as two states of one object rather than as two unrelated marks.
+ */
+export function UnlockIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.3" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 4.9-.65" />
+    </svg>
+  )
+}
+
 /** Zoom in — magnifier with a plus. Rich file viewer toolbar. */
 export function ZoomInIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
@@ -832,6 +863,25 @@ export function ChevronRightIcon({ size, ...rest }: IconProps): React.JSX.Elemen
 }
 
 /** Arrow up — npm-distribution's `UpdateNotice` header glyph (design.md §5 Tier 2's "▲"): a new version is something to rise to, not a warning. */
+export function ArrowRightIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3 8h10" />
+      <path d="m9 4 4 4-4 4" />
+    </svg>
+  )
+}
+
+/** An L-shaped arrow: "not there — over here instead". Marks a re-routed agent terminal. */
+export function CornerDownRightIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3.5 3v5.5h9" />
+      <path d="m9 5 3.5 3.5L9 12" />
+    </svg>
+  )
+}
+
 export function ArrowUpIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>

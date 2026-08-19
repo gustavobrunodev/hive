@@ -33,6 +33,12 @@
   --ff-display: "Funnel Display", Georgia, "Times New Roman", serif;
   --ff-body: "Inter", "Helvetica Neue", Arial, sans-serif;
   --ff-num: "Inter Tight", "Inter", sans-serif;
+  /* Machine text — commands, paths, anything that has to be read as one
+     character per cell. The two Linux defaults are named explicitly so the
+     stack lands on a real monospace before falling through to the generic. */
+  --ff-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono",
+    "Liberation Mono", monospace;
 
   /* 4pt spacing scale */
   --s-1: 4px;
@@ -86,6 +92,13 @@
   --accent: var(--coral);
   --accent-hover: var(--coral-hover);
   --accent-ink: oklch(20.6% 0.036 352.3); /* #241019, matches Button.css */
+  /* Ink for text sitting ON `--selected-bg` (the accent tint), as opposed to
+     `--accent-ink`, which is for text on a FILLED accent surface. The two are
+     opposites and confusing them is silent: `--accent-ink` on the tint measured
+     1.05:1 — dark ink on a dark tint. The accent itself is not enough either
+     (4.02:1 on this surface), so the tint ink is the accent hue lifted until it
+     clears 4.5:1 with headroom, while still reading as coral rather than white. */
+  --accent-tint-ink: oklch(76% 0.114 42.2);
   --focus: var(--accent);
 
   --danger: oklch(63.7% 0.208 25.3);
@@ -140,6 +153,10 @@
   --accent: var(--bordo-sensatez);
   --accent-hover: var(--bordo-2);
   --accent-ink: var(--n-0);
+  /* See the dark block: ink for text on `--selected-bg`, not on a filled
+     accent. The light theme's bordo is dark enough to serve as its own tint
+     ink (measured 7.49:1). */
+  --accent-tint-ink: var(--accent);
   --focus: var(--accent);
 
   --danger: oklch(50.1% 0.178 28.7);
@@ -196,6 +213,7 @@
   --accent: var(--coral);
   --accent-hover: var(--coral-hover);
   --accent-ink: oklch(20.6% 0.036 352.3);
+  --accent-tint-ink: oklch(76% 0.114 42.2);
   --focus: var(--accent);
 
   --danger: oklch(63.7% 0.208 25.3);
@@ -253,6 +271,7 @@
     --accent: var(--bordo-sensatez);
     --accent-hover: var(--bordo-2);
     --accent-ink: var(--n-0);
+    --accent-tint-ink: var(--accent);
     --focus: var(--accent);
 
     --danger: oklch(50.1% 0.178 28.7);
