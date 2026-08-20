@@ -100,6 +100,14 @@ export interface Config {
   // an app update that relocates it) still resolves, and an id whose shell is
   // gone falls back to automatic without erasing the choice (D-AT-4).
   agentShell: string | null
+  // second-brain (SB-R7.4): the Whisper model the user pinned by hand.
+  // `null` — the default, and what a "Automático" choice restores — means the
+  // app picks one from the hardware probe on every launch, so a machine that
+  // gains a GPU (or a user who moves their profile to a stronger laptop) is
+  // re-evaluated instead of being stuck with a decision made once. Stored as
+  // the bare id: an id that is neither bundled nor still downloaded falls back
+  // to automatic rather than failing to transcribe.
+  whisperModel: string | null
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -115,7 +123,8 @@ export const DEFAULT_CONFIG: Config = {
   shortcuts: EMPTY_SHORTCUT_SETTINGS,
   skippedUpdateVersion: null,
   approvalRules: [],
-  agentShell: null
+  agentShell: null,
+  whisperModel: null
 }
 
 /**
@@ -208,6 +217,9 @@ export interface ConfigStore {
   /** agent-terminal: the chosen shell id, or `null` for automatic. */
   getAgentShell(): string | null
   setAgentShell(id: string | null): void
+  /** second-brain: the pinned Whisper model id, or `null` for automatic. */
+  getWhisperModel(): string | null
+  setWhisperModel(id: string | null): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -329,6 +341,14 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setAgentShell: (id: string | null) => {
       const trimmed = id?.trim() ?? ''
       updateConfig({ agentShell: trimmed === '' ? null : trimmed })
+    },
+    getWhisperModel: () => {
+      const value = readConfig().whisperModel
+      return typeof value === 'string' && value.trim() !== '' ? value : null
+    },
+    setWhisperModel: (id: string | null) => {
+      const trimmed = id?.trim() ?? ''
+      updateConfig({ whisperModel: trimmed === '' ? null : trimmed })
     },
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {

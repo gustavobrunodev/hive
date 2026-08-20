@@ -112,6 +112,12 @@
   --success: var(--verde);
   --success-bg: oklch(75.5% 0.130 163.2 / 14%);
   --success-ink: var(--verde);
+  /* Ink for text sitting ON `--success-bg`, the same split `--accent-tint-ink`
+     documents: ink tuned against `--surface` is not automatically legible on a
+     tint of its own hue. On the dark tint the bright green already clears the
+     floor (measured 7.08:1 at 10px), so the two coincide here; in light they
+     do not, and that is exactly where the badge failed at 4.12:1. */
+  --success-tint-ink: var(--verde);
 
   --info: oklch(71.4% 0.104 246.2);
   --info-bg: oklch(71.4% 0.104 246.2 / 14%);
@@ -170,6 +176,9 @@
   --success: oklch(51.5% 0.110 156.8);
   --success-bg: oklch(51.5% 0.110 156.8 / 10%);
   --success-ink: oklch(51.5% 0.110 156.8);
+  /* Darkened until 10px/650 text clears 4.5:1 on the tint above — see the
+     dark-theme note for why this is a separate role from `--success-ink`. */
+  --success-tint-ink: oklch(42% 0.098 156.8);
 
   --info: oklch(49.9% 0.126 253.2);
   --info-bg: oklch(49.9% 0.126 253.2 / 10%);
@@ -227,6 +236,12 @@
   --success: var(--verde);
   --success-bg: oklch(75.5% 0.130 163.2 / 14%);
   --success-ink: var(--verde);
+  /* Ink for text sitting ON `--success-bg`, the same split `--accent-tint-ink`
+     documents: ink tuned against `--surface` is not automatically legible on a
+     tint of its own hue. On the dark tint the bright green already clears the
+     floor (measured 7.08:1 at 10px), so the two coincide here; in light they
+     do not, and that is exactly where the badge failed at 4.12:1. */
+  --success-tint-ink: var(--verde);
 
   --info: oklch(71.4% 0.104 246.2);
   --info-bg: oklch(71.4% 0.104 246.2 / 14%);
@@ -285,6 +300,7 @@
     --success: oklch(51.5% 0.110 156.8);
     --success-bg: oklch(51.5% 0.110 156.8 / 10%);
     --success-ink: oklch(51.5% 0.110 156.8);
+    --success-tint-ink: oklch(42% 0.098 156.8);
 
     --info: oklch(49.9% 0.126 253.2);
     --info-bg: oklch(49.9% 0.126 253.2 / 10%);

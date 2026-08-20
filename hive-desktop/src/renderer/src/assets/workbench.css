@@ -78,7 +78,8 @@ body h3 {
 .wb-tour-btn-primary,
 .wb-brain-health-btn[data-primary],
 .wb-brain-nudge-btn-primary,
-.wb-brain-record-btn,
+.wb-live-btn,
+.wb-stage-go,
 .wb-rail-dropzone-icon {
   --selection-bg: var(--accent-ink);
   --selection-ink: var(--accent);
@@ -10179,17 +10180,31 @@ button.wb-agent-pill-btn:focus-visible {
    the capture happen, read what came out, send it. Each stage only occupies
    space once it has something to say, which is what keeps a 520px column from
    feeling like a form. */
+/* The sheet's own width has to out-specify the DS default.
+   `.hds-sheet-content[data-side='right']` is (0,2,0); a bare `.wb-brain-ingest`
+   is (0,1,0), so the 520px this rule used to declare never applied at all and
+   the sheet had silently been 400px since M12 — which is why the source tabs
+   wrapped their labels and the model strip stacked on top of its own caption.
+   Found by measuring the rendered node, not by reading the file. */
+.hds-sheet-content[data-side='right'].wb-brain-ingest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: min(560px, 94vw);
+}
+
 .wb-brain-ingest {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  width: min(520px, 94vw);
 }
 
-/* Segmented control rather than underlined tabs: three peer capture modes are
-   a choice between equals, and a segmented track shows all three as one
-   control instead of three separate links. */
-.wb-brain-ingest-tabs {
+/* The three sources, as one segmented track: they are peers, and a track shows
+   all three at once instead of three separate links. The icon carries the
+   difference between "escrever" and "ditar" faster than the word does — the
+   two labels are the same length and start with different verbs, which is
+   exactly when an icon earns its place. */
+.wb-source-tabs {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
@@ -10201,7 +10216,11 @@ button.wb-agent-pill-btn:focus-visible {
   border-radius: var(--rounded-lg);
 }
 
-.wb-brain-ingest-tab {
+.wb-source-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 7px var(--s-2);
   font-size: 0.8125rem;
   font-weight: 550;
@@ -10215,63 +10234,62 @@ button.wb-agent-pill-btn:focus-visible {
     background 160ms ease;
 }
 
-.wb-brain-ingest-tab:hover:not([data-active]) {
+.wb-source-tab svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.wb-source-tab:hover:not([data-active]):not(:disabled) {
   color: var(--ink);
   background: color-mix(in oklab, var(--ink) 6%, transparent);
 }
 
-.wb-brain-ingest-tab[data-active] {
+.wb-source-tab[data-active] {
   color: var(--ink);
   font-weight: 650;
   background: var(--surface);
   box-shadow: 0 1px 2px oklch(0% 0 0 / 18%);
 }
 
-.wb-brain-ingest-tab:focus-visible {
+.wb-source-tab[data-active] svg {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Locked mid-take: switching source now would strand a running microphone or
+   a half-finished batch. Disabled rather than hidden — the other two modes
+   still have to be visible for the control to read as a set of three. */
+.wb-source-tab:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.wb-source-tab:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--focus);
 }
 
+/* One scrolling column between the tabs and the send bar. The children keep
+   their natural heights — before this, the stage and the document were both
+   `flex: 1 1 auto` and split the spare space between them, which is what left a
+   250px void under the transcript and a drop zone tall enough to collide with
+   the label beneath it. */
 .wb-brain-ingest-body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
 
-.wb-brain-ingest-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
+.wb-brain-ingest-body > * {
+  flex: 0 0 auto;
 }
 
-.wb-brain-ingest-field-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-2);
-}
-
-.wb-brain-ingest-field-label {
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.wb-brain-ingest-count {
-  font-size: 0.6875rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.wb-brain-ingest-textarea {
-  width: 100%;
-  min-height: 180px;
-  resize: vertical;
-  font-size: 0.8125rem;
-  line-height: 1.65;
+/* …except the document, which takes the remainder. */
+.wb-brain-ingest-body > .wb-transcript {
+  flex: 1 1 auto;
 }
 
 .wb-brain-ingest-error {
@@ -10338,9 +10356,8 @@ button.wb-agent-pill-btn:focus-visible {
   justify-content: center;
   gap: 5px;
   width: 100%;
-  flex: 1 1 auto;
-  min-height: 140px;
-  max-height: 300px;
+  flex: 0 0 auto;
+  min-height: 132px;
   padding: var(--s-4) var(--s-3);
   color: var(--ink);
   background: var(--surface-2);
@@ -10383,10 +10400,13 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 650;
 }
 
+/* Measured 4.48:1 against the drop zone's `--surface-2` — just under the floor
+   for 12px body text. `--accent-tint-ink` is the same hue lifted until it
+   clears 4.5:1, which is the token that exists for precisely this case. */
 .wb-brain-dropzone-action {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-tint-ink);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -10605,185 +10625,739 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
 }
 
-/* In-app recorder (SB-R5) — live waveform, timer, honest mic errors. */
-.wb-brain-recorder {
+/* ── Live dictation console (SB-R5.6) ─────────────────────────────────────
+   The record mode is no longer a recorder: the microphone, the engine and the
+   transcript all run at once, so this is a *stage* showing that, not a
+   transport bar. One primary control, one honest signal, one sentence. */
+.wb-live {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: var(--s-3);
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* The stage is where the take is *seen*. It fills the sheet's spare height so
-   the waveform has room to read as a signal rather than a strip, and centres
-   its idle copy so the empty state looks composed rather than half-filled. */
-.wb-brain-recorder-stage {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-3);
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 120px;
-  max-height: 200px;
-  padding: var(--s-4) var(--s-3);
+  padding: var(--s-4);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--rounded-lg);
-  transition: border-color 200ms ease;
 }
 
-.wb-brain-recorder[data-recording] .wb-brain-recorder-stage {
-  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+/* Live: the frame itself takes the accent, so the state is legible from the
+   edge of vision rather than only from the status line. */
+.wb-live[data-state='listening'],
+.wb-live[data-state='preparing'],
+.wb-live[data-state='finalizing'] {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  background: color-mix(in oklab, var(--accent) 5%, var(--surface-2));
 }
 
-.wb-brain-recorder-idle {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--muted);
-  max-width: 32ch;
-  text-align: center;
-  text-wrap: balance;
+.wb-live[data-state='silent'],
+.wb-live[data-state='autostop'] {
+  border-color: color-mix(in oklab, var(--warning) 45%, var(--border));
 }
 
-/* The meter itself. `--wave-color` is read by the canvas painter, which needs
-   a resolved colour rather than a custom property it cannot parse. */
-.wb-brain-wave {
-  flex: 1 1 auto;
-  min-width: 0;
-  --wave-color: var(--accent);
+.wb-live[data-state='denied'],
+.wb-live[data-state='unavailable'],
+.wb-live[data-state='error'] {
+  border-color: color-mix(in oklab, var(--danger) 45%, var(--border));
 }
 
-.wb-brain-wave[data-silent] {
-  --wave-color: var(--faint);
-}
-
-.wb-brain-wave-canvas {
-  display: block;
-  width: 100%;
-  height: 96px;
-}
-
-.wb-brain-wave-silent {
-  margin: 4px 0 0;
-  font-size: 0.6875rem;
-  color: var(--danger-ink);
-}
-
-.wb-brain-recorder-elapsed {
-  display: inline-flex;
+.wb-live-stage {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-3);
+}
+
+/* The one primary control. Round because every voice recorder on every
+   platform is round — this is the affordance people already have, and the
+   product register's whole bet is that familiarity is a feature here. */
+.wb-live-btn {
+  position: relative;
   flex: none;
-  font-family: var(--ff-num);
-  font-size: 0.9375rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.wb-brain-recorder-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--danger);
-  animation: wb-brain-rec-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes wb-brain-rec-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* The record control: filled while idle (it is the one thing to do here),
-   outlined danger while running (it now means "stop"). */
-.wb-brain-record-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-4);
-  font-size: 0.8125rem;
-  font-weight: 650;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
   color: var(--accent-ink);
   background: var(--accent);
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--rounded-full);
   cursor: pointer;
   transition:
-    background 160ms ease,
-    color 160ms ease;
+    background 160ms var(--ease-quart),
+    transform 160ms var(--ease-quart);
 }
 
-.wb-brain-record-btn:hover:not(:disabled) {
+.wb-live-btn:hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
-.wb-brain-record-btn[data-recording] {
-  color: var(--danger-ink);
-  background: var(--danger-bg);
-  border-color: var(--danger);
+.wb-live-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
-.wb-brain-record-btn:disabled {
+.wb-live-btn:disabled {
   color: var(--faint);
-  background: var(--surface-2);
-  border-color: var(--border-strong);
+  background: var(--surface-3);
   cursor: not-allowed;
 }
 
-.wb-brain-record-btn:focus-visible {
+.wb-live-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--focus);
+}
+
+/* The ring is **measured input level**, not decoration: it is the only thing
+   on screen that separates an open microphone hearing a voice from one hearing
+   nothing, which a counting timer cannot show. `--wb-live-level` is written
+   inline every frame, so this cannot live in a keyframe. */
+.wb-live-btn-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 calc(2px + var(--wb-live-level, 0) * 12px)
+    color-mix(in oklab, var(--accent) 28%, transparent);
+  opacity: 0;
+  transition: box-shadow 90ms linear;
+}
+
+.wb-live-btn[data-live] .wb-live-btn-ring {
+  opacity: 1;
+}
+
+.wb-live-readout {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wb-live-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.wb-live-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 46ch;
+}
+
+.wb-live[data-state='silent'] .wb-live-title,
+.wb-live[data-state='autostop'] .wb-live-title {
+  color: var(--warning-ink);
+}
+
+.wb-live[data-state='denied'] .wb-live-title,
+.wb-live[data-state='unavailable'] .wb-live-title,
+.wb-live[data-state='error'] .wb-live-title {
+  color: var(--danger-ink);
+}
+
+.wb-live-signal {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.wb-live-meter {
+  height: 22px;
+  min-width: 92px;
+}
+
+.wb-live-clock {
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.wb-live-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+/* Ghost buttons beside a filled primary control: two filled buttons in one row
+   is the "strangeness without purpose" the product register warns about. */
+.wb-live-action {
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.wb-live-action:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+}
+
+.wb-live-action[data-emphasis='primary'] {
+  color: var(--accent-tint-ink);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.wb-live-action[data-emphasis='primary']:hover {
+  color: var(--accent-tint-ink);
+  border-color: var(--accent);
+  background: var(--selected-bg);
+}
+
+.wb-live-action:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--focus);
 }
 
-/* Retry affordance on the mic-error state. */
-.wb-brain-audio-pick {
-  display: inline-flex;
+/* ── Audio staging (SB-R4.7) ───────────────────────────────────────────────
+   Files wait here until the user asks for the pass. A minutes-long CPU job
+   that starts without being asked for is the definition of a surprise. */
+.wb-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+}
+
+.wb-stage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.wb-stage-count {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-stage-size {
+  font-weight: 450;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-stage-clear {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+}
+
+.wb-stage-clear:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.wb-stage-clear:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.wb-stage-clear:focus-visible,
+.wb-stage-add:focus-visible,
+.wb-stage-file-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.wb-stage-files {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.wb-stage-file {
+  display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.8125rem;
+  padding: 5px 6px;
+  border-radius: var(--rounded-sm);
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.wb-stage-file:hover {
+  background: color-mix(in oklab, var(--ink) 5%, transparent);
+}
+
+.wb-stage-file svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.wb-stage-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-stage-file-size {
+  flex: none;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-stage-file-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+}
+
+.wb-stage-file-remove:hover:not(:disabled) {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+
+.wb-stage-file-remove:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.wb-stage-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.wb-stage-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+}
+
+.wb-stage-add:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.wb-stage-add:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+/* The one action that starts minutes of work. It is the only filled control
+   in this stage, for exactly that reason. */
+.wb-stage-go {
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition: background 160ms var(--ease-quart);
+}
+
+.wb-stage-go:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.wb-stage-go:disabled {
+  color: var(--faint);
+  background: var(--surface-3);
+  cursor: not-allowed;
+}
+
+.wb-stage-go:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--focus);
+}
+
+.wb-stage-note {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+/* ── The document (SB-R4.7/R5.6) ───────────────────────────────────────────
+   Always on screen, whichever source is filling it: the transcript is a draft
+   to correct, not a result to accept, and it is literally what "Ingerir"
+   sends. */
+/* The document takes whatever the sources leave: it is the thing being read
+   and corrected, so the leftover height belongs to it rather than to a void
+   above the send bar. */
+.wb-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.wb-transcript-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.wb-transcript-label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-transcript-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The field grows inside the document, and the textarea grows inside the
+   field — both links of the chain are needed, or the box keeps hugging six
+   lines while 250px of the panel sits empty under it. */
+.wb-transcript-field {
+  flex: 1 1 auto;
+}
+
+.wb-transcript-field textarea {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+/* The mirror has to match the field exactly or the mark drifts off its words. */
+.wb-transcript-field .hds-hl-textarea-backdrop {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+/* The run a segment just wrote. A tint that fades on its own — it answers
+   "what just arrived?" at a glance and then stops competing with the text it
+   is sitting behind. */
+.wb-transcript-fresh {
+  background: var(--selected-bg);
+  border-radius: 2px;
+  animation: wb-transcript-fresh-fade 0.6s var(--ease-quart) both;
+}
+
+/* Hold, then fade. A tint that starts fading on the frame it appears is gone
+   before the eye reaches it — measured: 600 ms after a phrase landed the mark
+   was already fully transparent. The hold is what makes it a glance rather
+   than a flicker. */
+@keyframes wb-transcript-fresh-fade {
+  0%,
+  45% {
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  100% {
+    background: color-mix(in oklab, var(--accent) 0%, transparent);
+  }
+}
+
+.wb-transcript-hint {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 56ch;
+}
+
+/* ── Model strip + picker (SB-R7.4) ────────────────────────────────────────
+   The model belongs next to the thing it affects, so this is a strip and a
+   popover rather than a dialog: picking one is a routine decision, and a modal
+   for a routine decision is the laziness the product register calls out. */
+.wb-model-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.wb-model-strip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  align-items: center;
+  white-space: nowrap;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  font-size: 0.75rem;
   color: var(--ink);
   background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--rounded-full);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
   cursor: pointer;
   transition:
     border-color 160ms ease,
     background 160ms ease;
 }
 
-.wb-brain-audio-pick:hover:not(:disabled) {
-  border-color: var(--accent);
+.wb-model-strip:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
 }
 
-.wb-brain-audio-pick:focus-visible {
+.wb-model-strip:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--focus);
 }
 
-.wb-brain-recorder-error {
+/* Reserves the strip's row while main resolves the preference, so the footer
+   does not jump when the answer lands. */
+.wb-model-strip[data-loading] {
+  display: inline-block;
+  width: 168px;
+  height: 28px;
+  cursor: default;
+  pointer-events: none;
+}
+
+.wb-model-strip-label {
+  color: var(--muted);
+}
+
+.wb-model-strip-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 650;
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+}
+
+.wb-model-strip-value svg {
+  color: var(--accent);
+}
+
+/* `--success-tint-ink`, not `--success-ink`: this 10px label sits ON the
+   success tint, and the surface-tuned ink measured 4.12:1 there in light. */
+.wb-model-strip-badge {
+  flex: none;
+  white-space: nowrap;
+  padding: 1px 6px;
+  font-size: 0.625rem;
+  font-weight: 650;
+  color: var(--success-tint-ink);
+  background: var(--success-bg);
+  border-radius: var(--rounded-full);
+}
+
+.wb-model-strip svg:last-child {
+  color: var(--muted);
+}
+
+.wb-model-caption {
   margin: 0;
+  flex: 1 1 16ch;
+  min-width: 16ch;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.wb-model-pop {
+  width: min(360px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.wb-model-pop-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-model-pop-note {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.wb-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The whole row is the radio (see `ModelOption`), so the DS's 20px circle has
+   to become a full-width row here. Two classes deep, deliberately: it must win
+   over `.hds-radio-item` regardless of stylesheet order. */
+.hds-radio-item.wb-model-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--s-2);
+  width: 100%;
+  height: auto;
+  padding: 7px 8px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.hds-radio-item.wb-model-option:hover:not([data-disabled]) {
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  border-color: transparent;
+}
+
+.hds-radio-item.wb-model-option[data-state='checked'] {
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+/* Radix's own `Indicator` is checked-only, so the ring is ours and it is
+   always there; the fill inside it is what changes. */
+.wb-model-option .hds-radio-indicator {
+  display: none;
+}
+
+.wb-model-option-dot {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  transition: border-color 160ms var(--ease-quart);
+}
+
+.wb-model-option-dot::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform 160ms var(--ease-quart);
+}
+
+.wb-model-option[data-state='checked'] .wb-model-option-dot {
+  border-color: var(--accent);
+}
+
+.wb-model-option[data-state='checked'] .wb-model-option-dot::after {
+  transform: scale(1);
+}
+
+.wb-model-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wb-model-option-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.wb-model-option-name {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-model-option[data-auto] .wb-model-option-name {
+  font-family: inherit;
+}
+
+/* The trade-off, not the parameter count, is the actual choice being made. */
+.wb-model-option-tradeoff {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--accent-tint-ink);
+}
+
+.wb-model-option-meta {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.wb-model-option-bundled {
+  color: var(--success-ink);
+  font-weight: 600;
+}
+
+.wb-model-pop-more {
+  align-self: flex-start;
+  padding: 4px 6px;
   font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--danger-ink);
-  max-width: 44ch;
+  font-weight: 600;
+  color: var(--accent-tint-ink);
+  background: none;
+  border: none;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wb-model-pop-more:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wb-brain-recorder-dot {
-    animation: none;
-  }
   /* The sweep is the only thing saying "still working" here, so it becomes a
      static filled track rather than disappearing: the state stays legible,
      the movement does not. */
@@ -10792,61 +11366,24 @@ button.wb-agent-pill-btn:focus-visible {
     width: 100%;
     opacity: 0.5;
   }
+  /* The fresh mark keeps its colour and simply stops fading: it is the answer
+     to "what just arrived?", so removing it would remove information, not
+     motion. It clears when the range expires either way. */
+  .wb-transcript-fresh {
+    animation: none;
+  }
   .wb-brain-progress-fill,
   .wb-brain-dropzone,
-  .wb-brain-recorder-stage,
-  .wb-brain-record-btn {
+  .wb-live-btn,
+  .wb-live-btn-ring,
+  .wb-live-action,
+  .wb-stage-go,
+  .wb-model-strip,
+  .hds-radio-item.wb-model-option,
+  .wb-model-option-dot,
+  .wb-model-option-dot::after {
     transition: none;
   }
-}
-
-/* Model selector (SB-R4.4). */
-.wb-brain-ingest-model {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding-top: var(--s-2);
-}
-
-.wb-brain-ingest-model-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.wb-brain-ingest-model-select {
-  flex: 0 1 auto;
-  padding: 4px var(--s-2);
-  font-size: 12px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-1, 6px);
-}
-
-.wb-brain-ingest-model-select:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--focus);
-}
-
-.wb-brain-ingest-manage {
-  margin-left: auto;
-  padding: 0;
-  font-size: 11px;
-  color: var(--accent);
-  background: none;
-  border: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.wb-brain-ingest-manage:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--focus);
-  border-radius: 2px;
 }
 
 /* Model manager (SB-R7.1/7.2) — dense, comparable facts, so: a real table. */
@@ -10923,6 +11460,14 @@ button.wb-agent-pill-btn:focus-visible {
   background: var(--surface-2, color-mix(in oklab, var(--ink) 8%, var(--surface)));
 }
 
+/* Ships inside the app (D-SB-8) — the row with nothing to download and nothing
+   the app may delete. Success green, because "already here" is the good news
+   this whole change exists to deliver. */
+.wb-brain-models-badge[data-kind='bundled'] {
+  color: var(--success-tint-ink);
+  background: var(--success-bg);
+}
+
 .wb-brain-models-note {
   font-size: 10px;
   font-weight: 400;
@@ -10932,6 +11477,33 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-brain-models-actions {
   text-align: right;
   white-space: nowrap;
+}
+
+.wb-brain-models-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The row currently transcribing. A tint on the row, not a badge: the table is
+   already carrying three badge kinds, and a fourth would be noise where a
+   background says the same thing without a word. */
+.wb-brain-models-row[data-selected] {
+  background: var(--selected-bg);
+}
+
+.wb-brain-models-btn[data-selected],
+.wb-brain-models-btn:disabled {
+  color: var(--muted);
+  border-color: transparent;
+  cursor: default;
+}
+
+.wb-brain-models-bundled {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .wb-brain-models-btn {
@@ -10994,12 +11566,6 @@ button.wb-agent-pill-btn:focus-visible {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wb-brain-audio-pick {
-    transition: none;
-  }
 }
 
 /* No-vault guard (SB-R3.3) — offer setup instead of writing to a missing path. */
@@ -11167,7 +11733,7 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wb-brain-ingest-tab {
+  .wb-source-tab {
     transition: none;
   }
 }

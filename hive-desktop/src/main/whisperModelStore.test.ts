@@ -120,7 +120,7 @@ describe('whisperModelStore', () => {
   describe('status/list', () => {
     it('reports nothing downloaded on a fresh store', () => {
       const store = createWhisperModelStore(root)
-      expect(store.status('base')).toEqual({ downloaded: false, variant: null })
+      expect(store.status('base')).toEqual({ downloaded: false, variant: null, bundled: false })
       expect(store.list().every((m) => !m.downloaded)).toBe(true)
     })
 
@@ -194,7 +194,7 @@ describe('whisperModelStore', () => {
 
     it('records the variant so status() reports what is actually on disk', async () => {
       await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8' })
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
       const info = store.list().find((m) => m.id === 'base')
       expect(info).toMatchObject({ downloaded: true, downloadedVariant: 'q8' })
     })
@@ -206,7 +206,7 @@ describe('whisperModelStore', () => {
       const events = await collect((on) => s.download('base', 'fp32', on))
 
       expect(events.at(-1)).toMatchObject({ type: 'error' })
-      expect(s.status('base')).toEqual({ downloaded: false, variant: null })
+      expect(s.status('base')).toEqual({ downloaded: false, variant: null, bundled: false })
       // No partial model dir, and the temp dir is cleaned up.
       expect(existsSync(join(root, 'base'))).toBe(false)
       expect(existsSync(join(root, '.tmp-base'))).toBe(false)
@@ -221,7 +221,7 @@ describe('whisperModelStore', () => {
       await collect((on) => s.download('base', 'fp32', on))
 
       // The old model is still there and still usable.
-      expect(s.status('base')).toEqual({ downloaded: true, variant: 'fp32' })
+      expect(s.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: false })
       expect(existsSync(join(root, 'base', 'onnx', 'encoder_model.onnx'))).toBe(true)
     })
 
@@ -250,7 +250,7 @@ describe('whisperModelStore', () => {
     it('re-downloading replaces the previous copy', async () => {
       await collect((on) => store.download('base', 'fp32', on))
       await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8' })
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
       expect(existsSync(join(root, 'base', 'onnx', 'encoder_model.onnx'))).toBe(false)
     })
   })
@@ -262,7 +262,8 @@ describe('whisperModelStore', () => {
       writeFileSync(join(dir, '.hive-complete.json'), '{not json')
       expect(createWhisperModelStore(root).status('base')).toEqual({
         downloaded: false,
-        variant: null
+        variant: null,
+        bundled: false
       })
     })
 
@@ -272,8 +273,115 @@ describe('whisperModelStore', () => {
       writeFileSync(join(dir, '.hive-complete.json'), JSON.stringify({ repo: 'x' }))
       expect(createWhisperModelStore(root).status('base')).toEqual({
         downloaded: true,
-        variant: null
+        variant: null,
+        bundled: false
       })
+    })
+  })
+
+  /**
+   * D-SB-8 — the three bundled models. The point of these is that a fresh
+   * install transcribes with **no download at all**, so what is asserted here
+   * is the absence of network work, not just a flag on a row.
+   */
+  describe('bundled models (ship inside the app)', () => {
+    let bundledDir: string
+
+    /** Lays down what the packaging script produces for one model. */
+    const ship = (id: string, withMarker = true): void => {
+      mkdirSync(join(bundledDir, id, 'onnx'), { recursive: true })
+      writeFileSync(join(bundledDir, id, 'config.json'), '{}')
+      writeFileSync(join(bundledDir, id, 'onnx', 'encoder_model.onnx'), 'e')
+      writeFileSync(join(bundledDir, id, 'onnx', 'decoder_model_merged.onnx'), 'd')
+      if (withMarker) {
+        writeFileSync(
+          join(bundledDir, id, '.hive-complete.json'),
+          JSON.stringify({ variant: 'fp32', bundled: true })
+        )
+      }
+    }
+
+    beforeEach(() => {
+      bundledDir = mkdtempSync(join(tmpdir(), 'whisper-bundled-'))
+    })
+    afterEach(() => rmSync(bundledDir, { recursive: true, force: true }))
+
+    it('reports a shipped model as downloaded fp32, flagged bundled', () => {
+      ship('base')
+      const store = createWhisperModelStore(root, { bundledDir })
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
+    })
+
+    it('accepts shipped weights with no marker — the build places them, not the downloader', () => {
+      ship('tiny', false)
+      const store = createWhisperModelStore(root, { bundledDir })
+      expect(store.status('tiny')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
+    })
+
+    it('rejects a half-written bundle rather than reporting a model that cannot load', () => {
+      mkdirSync(join(bundledDir, 'small', 'onnx'), { recursive: true })
+      writeFileSync(join(bundledDir, 'small', 'onnx', 'encoder_model.onnx'), 'e')
+      const store = createWhisperModelStore(root, { bundledDir })
+      expect(store.status('small').downloaded).toBe(false)
+    })
+
+    it('never claims a non-bundled id, even if a directory of that name is present', () => {
+      ship('medium')
+      const store = createWhisperModelStore(root, { bundledDir })
+      expect(store.status('medium')).toEqual({
+        downloaded: false,
+        variant: null,
+        bundled: false
+      })
+    })
+
+    it('downloads nothing for a bundled model — it answers `done` without a fetch', async () => {
+      ship('base')
+      const fetchFn = vi.fn()
+      const store = createWhisperModelStore(root, { bundledDir, fetchFn: fetchFn as never })
+      const events = await collect((on) => store.download('base', 'fp32', on))
+      expect(events).toEqual([{ type: 'done', id: 'base' }])
+      expect(fetchFn).not.toHaveBeenCalled()
+    })
+
+    it('still downloads when the user asks for a precision the bundle does not carry', async () => {
+      ship('base')
+      const store = createWhisperModelStore(root, {
+        bundledDir,
+        fetchFn: fakeRegistry({}) as never
+      })
+      await collect((on) => store.download('base', 'q8', on))
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
+    })
+
+    it('a downloaded copy shadows the bundled one, and deleting it reverts to bundled', async () => {
+      ship('base')
+      const store = createWhisperModelStore(root, {
+        bundledDir,
+        fetchFn: fakeRegistry({}) as never
+      })
+      await collect((on) => store.download('base', 'q8', on))
+      expect(store.status('base').bundled).toBe(false)
+
+      store.remove('base')
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
+      // The installation is never written to: removing must not reach into it.
+      expect(existsSync(join(bundledDir, 'base', 'config.json'))).toBe(true)
+    })
+
+    it('serves both roots, downloaded first', () => {
+      const store = createWhisperModelStore(root, { bundledDir })
+      expect(store.searchRoots()).toEqual([root, bundledDir])
+    })
+
+    it('lists bundled models as ready and everything else as absent', () => {
+      ship('tiny')
+      ship('base')
+      ship('small')
+      const list = createWhisperModelStore(root, { bundledDir }).list()
+      const ready = list.filter((model) => model.downloaded).map((model) => model.id)
+      expect(ready).toEqual(['tiny', 'base', 'small'])
+      expect(list.every((model) => model.bundled === model.downloaded)).toBe(true)
     })
   })
 

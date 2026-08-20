@@ -48,7 +48,7 @@ import { createSecondBrainService } from './secondBrainService'
 import { createSecondBrainVault } from './secondBrainVault'
 import { createSecondBrainHealthStore } from './secondBrainHealth'
 import {
-  resolveWhisperRequest,
+  resolveWhisperCandidates,
   whisperFileHeaders,
   WHISPER_MODELS_DIRNAME,
   WHISPER_SCHEME,
@@ -76,9 +76,15 @@ import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
 import { detectScreens } from './designStudio/screenDetection'
 import type { ScreenDetectionResult } from './designStudio/screenDetection'
 import type { Command, OperationError } from './designStudio/types'
-import { createWhisperModelStore } from './whisperModelStore'
-import { recommendWhisperModel } from './whisperHardware'
-import type { WhisperModelId, WhisperVariant } from './whisperTypes'
+import { createWhisperModelStore, DEFAULT_WHISPER_MODEL } from './whisperModelStore'
+import { isAutoSelectable, recommendWhisperModel } from './whisperHardware'
+import { bundledModelsRoot } from './whisperBundled'
+import type {
+  HardwareRecommendation,
+  WhisperModelId,
+  WhisperPreference,
+  WhisperVariant
+} from './whisperTypes'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
@@ -1118,23 +1124,37 @@ app.whenReady().then(() => {
 
   // Whisper model bytes → the sandboxed renderer (D-SB-1, design §4.3). The
   // renderer sets `env.localModelPath = 'hive-model://models/'`, so every model
-  // file Transformers.js asks for arrives through here, read off the local
-  // store in userData — no network from the renderer, ever. Unknown hosts and
-  // escaping paths are refused by `resolveWhisperRequest` (see its tests).
-  const whisperRoots = { models: join(app.getPath('userData'), WHISPER_MODELS_DIRNAME) }
+  // file Transformers.js asks for arrives through here — no network from the
+  // renderer, ever. Unknown hosts and escaping paths are refused by
+  // `resolveWhisperCandidates` (see its tests).
+  //
+  // Two roots, in priority order (D-SB-8): the download store in `userData`
+  // first, then the weights that ship inside the app. That order is what makes
+  // "bundled" a floor rather than a ceiling — `tiny`, `base` and `small` answer
+  // out of the box with nothing downloaded, and a user who fetches a model
+  // anyway (or a different precision of a bundled one) transparently shadows it.
+  const downloadedModelsDir = join(app.getPath('userData'), WHISPER_MODELS_DIRNAME)
+  const bundledModelsDir = bundledModelsRoot(__dirname)
+  const whisperRoots = { models: [downloadedModelsDir, bundledModelsDir] }
   protocol.handle(WHISPER_SCHEME, async (request) => {
-    const file = resolveWhisperRequest(whisperRoots, request.url)
-    if (!file) return new Response(null, { status: 404 })
+    // First candidate that exists on disk. `statSync` is doing double duty: it
+    // is the existence check *and* the size the response has to declare.
+    let file: string | null = null
+    let size = 0
+    for (const candidate of resolveWhisperCandidates(whisperRoots, request.url)) {
+      try {
+        size = statSync(candidate).size
+        file = candidate
+        break
+      } catch {
+        continue
+      }
+    }
+    if (file === null) return new Response(null, { status: 404 })
     // `Content-Length` is re-attached deliberately — see `whisperFileHeaders`.
     // Without it Transformers.js reads the 208 MB decoder by growing a buffer,
     // which is the difference between a ~20 s model load and minutes of what
     // looks to the user like a hang.
-    let size: number
-    try {
-      size = statSync(file).size
-    } catch {
-      return new Response(null, { status: 404 })
-    }
     const response = await net.fetch(pathToFileURL(file).toString())
     return new Response(response.body, {
       status: response.status,
@@ -1376,7 +1396,9 @@ app.whenReady().then(() => {
   // Whisper model store (D-SB-4): the catalog + which models are on disk, and
   // download/delete. Downloads stream byte progress on their own channel (the
   // bmad/secondBrain streamed pattern); everything else is request/response.
-  const whisperStore = createWhisperModelStore(whisperRoots.models)
+  const whisperStore = createWhisperModelStore(downloadedModelsDir, {
+    bundledDir: bundledModelsDir
+  })
 
   ipcMain.handle('whisper:listModels', async () => whisperStore.list())
   ipcMain.handle('whisper:modelStatus', async (_event, id: WhisperModelId) =>
@@ -1385,11 +1407,45 @@ app.whenReady().then(() => {
   ipcMain.handle('whisper:deleteModel', async (_event, id: WhisperModelId) => {
     whisperStore.remove(id)
   })
-  // Advisory hardware recommendation (SB-R7.1/7.3) — never blocks anything;
-  // `app.getGPUInfo` is the injected probe so whisperHardware stays Electron-free.
-  ipcMain.handle('whisper:recommend', async () =>
+  // The hardware probe (SB-R7.1/7.3) — never blocks anything; `app.getGPUInfo`
+  // is the injected probe so whisperHardware stays Electron-free.
+  const probeHardware = (): Promise<HardwareRecommendation> =>
     recommendWhisperModel({ gpuInfo: () => app.getGPUInfo('basic') })
-  )
+
+  ipcMain.handle('whisper:recommend', async () => probeHardware())
+
+  /**
+   * The model transcription actually runs with (SB-R7.4).
+   *
+   * Resolved in main rather than in the renderer so every surface that
+   * transcribes — the ingestion sheet, live dictation, anything wired later —
+   * gets the same answer without each of them re-deriving the rule. A pinned id
+   * only wins while it is still usable: a model the user downloaded and then
+   * deleted silently hands the decision back to the probe instead of leaving
+   * dictation pointing at weights that are no longer there.
+   */
+  const resolveWhisperPreference = async (): Promise<WhisperPreference> => {
+    const recommendation = await probeHardware()
+    const pinned = configStore.getWhisperModel()
+    if (pinned !== null) {
+      const known = whisperStore.list().find((model) => model.id === pinned)
+      if (known?.downloaded === true) {
+        return { id: known.id, auto: false, recommendation }
+      }
+    }
+    // The probe only ever answers with a bundled model, but a future catalog
+    // edit could break that; falling back keeps "automatic" meaning "ready now".
+    const auto = isAutoSelectable(recommendation.recommendedId)
+      ? recommendation.recommendedId
+      : DEFAULT_WHISPER_MODEL
+    return { id: auto, auto: true, recommendation }
+  }
+
+  ipcMain.handle('whisper:preference', async () => resolveWhisperPreference())
+  ipcMain.handle('whisper:setPreferredModel', async (_event, id: WhisperModelId | null) => {
+    configStore.setWhisperModel(id)
+    return resolveWhisperPreference()
+  })
 
   const activeWhisperDownloads = new Map<number, () => void>()
   ipcMain.on('whisper:download:start', (event, id: WhisperModelId, variant: WhisperVariant) => {

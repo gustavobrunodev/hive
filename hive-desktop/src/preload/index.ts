@@ -62,6 +62,7 @@ import type {
   WhisperDownloadEvent,
   WhisperModelId,
   WhisperModelInfo,
+  WhisperPreference,
   WhisperVariant
 } from '../main/whisperTypes'
 
@@ -858,6 +859,11 @@ const hive = {
     deleteModel: (id: WhisperModelId): Promise<void> =>
       ipcRenderer.invoke('whisper:deleteModel', id),
     recommend: (): Promise<HardwareRecommendation> => ipcRenderer.invoke('whisper:recommend'),
+    /** Which model transcription uses right now, and whether the app chose it. */
+    preference: (): Promise<WhisperPreference> => ipcRenderer.invoke('whisper:preference'),
+    /** Pins a model, or hands the choice back to the hardware probe with `null`. */
+    setPreferredModel: (id: WhisperModelId | null): Promise<WhisperPreference> =>
+      ipcRenderer.invoke('whisper:setPreferredModel', id),
     downloadModel: (
       id: WhisperModelId,
       variant: WhisperVariant,

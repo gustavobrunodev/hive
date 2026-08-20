@@ -2,49 +2,130 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@hive/design-system'
 import { t } from '../../i18n'
 import { TrashIcon } from '../../ui/icons'
-import { recommendationCopy, type Recommendation } from './recommendationCopy'
+import { recommendationCopy, type ModelInfo, type Recommendation } from './modelCopy'
 import type { WhisperModelId, WhisperVariant } from './useWhisper'
-
-/** Catalog entry as the bridge returns it. */
-type ModelInfo = Awaited<ReturnType<Window['hive']['whisper']['listModels']>>[number]
 
 interface ModelManagerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Which precision this machine will actually run (drives the size shown + downloaded). */
+  /** Which precision a *download* would fetch (drives the size shown). */
   variant: WhisperVariant
+  /** The model transcription currently runs with, marked in the table. */
+  selectedId: WhisperModelId
+  /** Pins a model straight from the catalog — the reason to open this at all. */
+  onSelect: (id: WhisperModelId) => void
 }
 
 /** In-flight download progress, keyed by model id. */
 type Progress = Record<string, number>
 
-/** One catalog row: facts, badges, and the download/delete action. */
+/**
+ * The action cell.
+ *
+ * Four states, and the one that matters most is the **bundled** one: a model
+ * that ships inside the app has nothing to download and nothing to delete, so
+ * offering either would be a control that lies. It gets "Usar" instead — the
+ * only thing there is to do with it.
+ */
+function RowAction({
+  model,
+  selected,
+  pct,
+  onDownload,
+  onDelete,
+  onSelect
+}: {
+  model: ModelInfo
+  selected: boolean
+  pct: number | undefined
+  onDownload: (id: WhisperModelId) => void
+  onDelete: (id: WhisperModelId) => void
+  onSelect: (id: WhisperModelId) => void
+}): React.JSX.Element {
+  if (pct !== undefined) {
+    return (
+      <span className="wb-brain-models-progress" role="status">
+        {t('secondBrain.modelsDownloading', pct)}
+      </span>
+    )
+  }
+  if (!model.downloaded) {
+    return (
+      <button
+        type="button"
+        className="wb-brain-models-btn"
+        aria-label={t('secondBrain.modelsDownloadAria', model.id)}
+        onClick={() => onDownload(model.id)}
+      >
+        {t('secondBrain.modelsDownload')}
+      </button>
+    )
+  }
+  return (
+    <span className="wb-brain-models-cell">
+      <button
+        type="button"
+        className="wb-brain-models-btn"
+        data-selected={selected || undefined}
+        disabled={selected}
+        onClick={() => onSelect(model.id)}
+      >
+        {selected ? t('secondBrain.modelsInUse') : t('secondBrain.modelsUse')}
+      </button>
+      {/* The installation is read-only — a bundled model has no delete. */}
+      {!model.bundled && (
+        <button
+          type="button"
+          className="wb-brain-models-icon-btn"
+          aria-label={t('secondBrain.modelsDeleteAria', model.id)}
+          onClick={() => onDelete(model.id)}
+        >
+          <TrashIcon size={14} />
+        </button>
+      )}
+    </span>
+  )
+}
+
+/** One catalog row: facts, badges, and the action. */
 function ModelRow({
   model,
   recommended,
+  selected,
   pct,
   variant,
   onDownload,
-  onDelete
+  onDelete,
+  onSelect
 }: {
   model: ModelInfo
   recommended: boolean
+  selected: boolean
   pct: number | undefined
   variant: WhisperVariant
   onDownload: (id: WhisperModelId) => void
   onDelete: (id: WhisperModelId) => void
+  onSelect: (id: WhisperModelId) => void
 }): React.JSX.Element {
-  const downloading = pct !== undefined
   return (
-    <tr className="wb-brain-models-row" data-recommended={recommended || undefined}>
+    <tr
+      className="wb-brain-models-row"
+      data-recommended={recommended || undefined}
+      data-selected={selected || undefined}
+    >
       <th scope="row" className="wb-brain-models-name">
         <span>{model.id}</span>
+        {model.bundled && (
+          <span className="wb-brain-models-badge" data-kind="bundled">
+            {t('secondBrain.modelsBundledBadge')}
+          </span>
+        )}
         {recommended && (
           <span className="wb-brain-models-badge" data-kind="recommended">
             {t('secondBrain.modelsRecommended')}
           </span>
         )}
-        {model.downloaded && (
+        {model.downloaded && !model.bundled && (
           <span className="wb-brain-models-badge" data-kind="downloaded">
             {t('secondBrain.modelsDownloaded')}
           </span>
@@ -54,33 +135,20 @@ function ModelRow({
         )}
       </th>
       <td>{model.params}</td>
-      <td>{t('secondBrain.modelsSizeMb', model.sizeMB[variant])}</td>
+      {/* A bundled model's size is the fp32 copy already on disk, not what a
+          download of some other precision would have cost. */}
+      <td>{t('secondBrain.modelsSizeMb', model.sizeMB[model.bundled ? 'fp32' : variant])}</td>
       <td>{t('secondBrain.modelsVramGb', model.approxVramGB)}</td>
       <td>{model.relativeSpeed}</td>
       <td className="wb-brain-models-actions">
-        {downloading ? (
-          <span className="wb-brain-models-progress" role="status">
-            {t('secondBrain.modelsDownloading', pct)}
-          </span>
-        ) : model.downloaded ? (
-          <button
-            type="button"
-            className="wb-brain-models-icon-btn"
-            aria-label={t('secondBrain.modelsDeleteAria', model.id)}
-            onClick={() => onDelete(model.id)}
-          >
-            <TrashIcon size={14} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="wb-brain-models-btn"
-            aria-label={t('secondBrain.modelsDownloadAria', model.id)}
-            onClick={() => onDownload(model.id)}
-          >
-            {t('secondBrain.modelsDownload')}
-          </button>
-        )}
+        <RowAction
+          model={model}
+          selected={selected}
+          pct={pct}
+          onDownload={onDownload}
+          onDelete={onDelete}
+          onSelect={onSelect}
+        />
       </td>
     </tr>
   )
@@ -95,11 +163,20 @@ function ModelRow({
  * exactly what a table is for. The size column shows the variant this machine
  * will actually download, so the number is the truth for *this* user rather
  * than a generic figure.
+ *
+ * Since the app ships `tiny`, `base` and `small` (D-SB-8), this is no longer
+ * the first thing a new user has to visit — it is the **overflow**, reached
+ * from the picker when someone wants a model that is genuinely a download. The
+ * three bundled rows still appear, marked as such and without a delete they
+ * could not perform, so the table stays the one complete picture of what is
+ * available rather than a second, partial one.
  */
 export function ModelManager({
   open,
   onOpenChange,
-  variant
+  variant,
+  selectedId,
+  onSelect
 }: ModelManagerProps): React.JSX.Element {
   const [models, setModels] = useState<ModelInfo[]>([])
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
@@ -171,16 +248,19 @@ export function ModelManager({
                   key={model.id}
                   model={model}
                   recommended={recommendation?.recommendedId === model.id}
+                  selected={model.id === selectedId}
                   pct={progress[model.id]}
                   variant={variant}
                   onDownload={download}
                   onDelete={remove}
+                  onSelect={onSelect}
                 />
               ))}
             </tbody>
           </table>
         </div>
 
+        <p className="wb-brain-models-bundled">{t('secondBrain.modelsBundledNote')}</p>
         {reason && <p className="wb-brain-models-reason">{reason}</p>}
 
         <div className="wb-brain-ingest-actions">

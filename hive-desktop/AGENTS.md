@@ -26,6 +26,12 @@ source ~/.nvm/nvm.sh && nvm use 22.22.1 && npm run <script>
   arquivos que a feature toca (não global) — acrescente o glob do arquivo novo
   em `vitest.config.ts`, senão ele não é medido.
 - `npm run dev` — app em modo dev.
+- `npm run models:fetch` — baixa os pesos do Whisper que **viajam dentro do
+  app** (`tiny`/`base`/`small`, fp32) para `resources/whisper-models/`. ~1,3 GB,
+  gitignorado, idempotente. Já está ligado aos `build:win|mac|linux`; rode à mão
+  antes de um `dev`/E2E em que a transcrição precise funcionar sem rede. Sem
+  ele, o app cai no caminho de download — que continua correto, só não é a
+  promessa da feature.
 - **E2E** (Electron real via Playwright):
 
   ```bash

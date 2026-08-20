@@ -116,7 +116,7 @@ async (page) => {
   // 3. The guard, inside the capture sheet.
   await page.locator('[aria-label="Base de conhecimento — perguntar ou capturar"]').click()
   await page.waitForTimeout(200)
-  await page.getByText('Colar texto').click()
+  await page.getByText('Escrever').click()
   await page.waitForTimeout(400)
   results.push(...(await probe('guard-running')))
   await page.keyboard.press('Escape')

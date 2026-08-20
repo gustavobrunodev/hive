@@ -1,36 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  Button,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  Textarea
-} from '@hive/design-system'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { Button, Sheet, SheetContent, SheetDescription, SheetTitle } from '@hive/design-system'
 import { t } from '../i18n'
+import { MicIcon, PencilIcon, WaveformIcon } from '../ui/icons'
 import type { RoleAction } from '../ui/ActionRail'
+import { useComposerDictation } from '../dictation/useComposerDictation'
+import type { DictationEngine } from '../dictation/useDictation'
+import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import type { IngestMode } from './SecondBrainFab'
 import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { VaultGuard } from './VaultGuard'
 import { secondBrainIngest } from './secondBrainPrompts'
-import { AudioFileTab } from './whisper/AudioFileTab'
 import { AudioJobList } from './whisper/AudioJobList'
-import { AudioRecorder } from './whisper/AudioRecorder'
+import { AudioStage } from './whisper/AudioStage'
 import { EngineProgress } from './whisper/EngineProgress'
+import { LiveConsole } from './whisper/LiveConsole'
+import { ModelCaption, ModelPicker } from './whisper/ModelPicker'
+import { TranscriptDocument } from './whisper/TranscriptDocument'
 import { useAudioIngest } from './whisper/useAudioIngest'
 import { enginePhaseView } from './whisper/enginePhase'
 import { ModelManager } from './whisper/ModelManager'
+import { useWhisperCatalog } from './whisper/useWhisperCatalog'
+import { useWhisperPreference } from './whisper/useWhisperPreference'
 import {
+  DEFAULT_LANGUAGE,
   DEFAULT_MODEL,
-  probeWebGpu,
   useWhisper,
-  type WhisperModelId,
-  type WhisperVariant
+  type WhisperModelId
 } from './whisper/useWhisper'
-
-/** Catalog entry as the bridge returns it (renderer never imports `src/main/*`). */
-type WhisperModelInfo = Awaited<ReturnType<Window['hive']['whisper']['listModels']>>[number]
 
 interface IngestPanelProps {
   /** The mode the FAB opened on, or null when the sheet is closed. */
@@ -47,11 +44,12 @@ interface IngestPanelProps {
 
 const TABS: ReadonlyArray<{
   mode: IngestMode
-  labelKey: 'fabText' | 'fabAudioFile' | 'fabRecord'
+  labelKey: 'sourceWrite' | 'sourceAudio' | 'sourceLive'
+  Icon: typeof PencilIcon
 }> = [
-  { mode: 'text', labelKey: 'fabText' },
-  { mode: 'audioFile', labelKey: 'fabAudioFile' },
-  { mode: 'record', labelKey: 'fabRecord' }
+  { mode: 'text', labelKey: 'sourceWrite', Icon: PencilIcon },
+  { mode: 'audioFile', labelKey: 'sourceAudio', Icon: WaveformIcon },
+  { mode: 'record', labelKey: 'sourceLive', Icon: MicIcon }
 ]
 
 /** Why **Ingerir** cannot run yet — `null` means it can. */
@@ -65,22 +63,32 @@ type IngestBlock = 'empty' | 'working' | null
 function blockHint(block: IngestBlock, mode: IngestMode): string {
   if (block === null) return t('secondBrain.ingestReady')
   if (block === 'working') return t('secondBrain.ingestBlockedWorking')
-  return mode === 'text'
-    ? t('secondBrain.ingestBlockedEmptyText')
-    : t('secondBrain.ingestBlockedEmptyAudio')
+  if (mode === 'text') return t('secondBrain.ingestBlockedEmptyText')
+  return mode === 'audioFile'
+    ? t('secondBrain.ingestBlockedEmptyAudio')
+    : t('secondBrain.ingestBlockedEmptyLive')
 }
 
-/** The three capture-mode tabs (extracted to keep `IngestPanel` within its complexity budget). */
-function ModeTabs({
+/** Which document captions the active source calls for. */
+function documentSource(mode: IngestMode): 'text' | 'audio' | 'live' {
+  if (mode === 'text') return 'text'
+  return mode === 'audioFile' ? 'audio' : 'live'
+}
+
+/** The three sources, as tabs. */
+function SourceTabs({
   activeMode,
-  onSelect
+  onSelect,
+  locked
 }: {
   activeMode: IngestMode
   onSelect: (mode: IngestMode) => void
+  /** True while a take or a batch is running — switching now would strand it. */
+  locked: boolean
 }): React.JSX.Element {
   return (
-    <div className="wb-brain-ingest-tabs" role="tablist" aria-label={t('secondBrain.fabMenuLabel')}>
-      {TABS.map(({ mode, labelKey }) => (
+    <div className="wb-source-tabs" role="tablist" aria-label={t('secondBrain.sourceGroupLabel')}>
+      {TABS.map(({ mode, labelKey, Icon }) => (
         <button
           key={mode}
           type="button"
@@ -88,10 +96,12 @@ function ModeTabs({
           id={`wb-ingest-tab-${mode}`}
           aria-selected={activeMode === mode}
           aria-controls={`wb-ingest-panel-${mode}`}
-          className="wb-brain-ingest-tab"
+          className="wb-source-tab"
           data-active={activeMode === mode || undefined}
+          disabled={locked && activeMode !== mode}
           onClick={() => onSelect(mode)}
         >
+          <Icon size={15} aria-hidden="true" />
           {t(`secondBrain.${labelKey}`)}
         </button>
       ))}
@@ -100,132 +110,183 @@ function ModeTabs({
 }
 
 /**
- * The active capture affordance. Typed text has none — the shared field below
- * *is* the whole interface there — while both audio modes hand their blobs to
- * the same queue, which is what keeps an upload and a recording identical from
- * the moment they produce sound.
+ * The capture surface for the active source.
+ *
+ * Typed text has none — the document below *is* the whole interface there —
+ * while the two audio sources are deliberately different shapes rather than one
+ * generalized "capture" widget: uploading is a batch you assemble and then run,
+ * dictating is a live take you watch. Pretending they are the same control was
+ * what made the old recorder feel like a file picker with a microphone in it.
  */
-function CaptureArea({
+function CaptureStage({
   mode,
-  busy,
-  onCapture
+  queue,
+  phaseView,
+  dictation
 }: {
   mode: IngestMode
-  busy: boolean
-  onCapture: (items: ReadonlyArray<{ blob: Blob; name: string }>) => void
+  queue: ReturnType<typeof useAudioIngest>
+  phaseView: ReturnType<typeof enginePhaseView>
+  dictation: ReturnType<typeof useComposerDictation>
 }): React.JSX.Element | null {
-  if (mode === 'text') return null
   if (mode === 'audioFile') {
     return (
-      <AudioFileTab
-        busy={busy}
-        onFiles={(files) => onCapture(files.map((file) => ({ blob: file, name: file.name })))}
+      <>
+        <AudioStage
+          busy={queue.busy}
+          onTranscribe={(files) =>
+            queue.add(files.map((file) => ({ blob: file, name: file.name })))
+          }
+        />
+        {phaseView && <EngineProgress view={phaseView} />}
+        <AudioJobList jobs={queue.jobs} onRemove={queue.remove} />
+      </>
+    )
+  }
+  if (mode === 'record') {
+    return (
+      <LiveConsole
+        phase={dictation.phase}
+        levels={dictation.levels}
+        failure={dictation.failure}
+        onStart={dictation.start}
+        onFinish={dictation.finish}
+        onDiscard={dictation.discard}
+        onRetry={dictation.retry}
+        onPrewarm={dictation.prewarm}
+        disabled={queue.busy}
       />
     )
   }
-  return (
-    <AudioRecorder
-      busy={busy}
-      onRecorded={(blob) =>
-        onCapture([{ blob, name: t('secondBrain.recordTakeName', new Date()) }])
-      }
-    />
-  )
+  return null
 }
 
 /**
- * The editable transcript — shown in the audio modes only once there is
- * something to edit.
+ * The model strip, its caption, and the catalog behind it.
  *
- * An empty 220px box under a recorder was answering a question nobody asked:
- * before a take exists there is nothing to type into it, and its presence
- * suggested typing was part of recording. After transcription it is essential,
- * because a local model's output always wants a human pass.
+ * Only where audio is involved: typed text needs no transcription model, and a
+ * control that has no effect on the current source is noise (SB-R4.4).
  */
-function TranscriptEditor({
+function ModelRow({
   mode,
-  content,
-  onChange
+  preference,
+  catalog,
+  model,
+  onSelect,
+  onAuto,
+  managerOpen,
+  setManagerOpen
 }: {
   mode: IngestMode
-  content: string
-  onChange: (next: string) => void
-}): React.JSX.Element | null {
-  const isText = mode === 'text'
-  if (!isText && content === '') return null
-  const label = isText
-    ? t('secondBrain.ingestTextPlaceholder')
-    : t('secondBrain.ingestTranscriptLabel')
-  return (
-    <div className="wb-brain-ingest-field">
-      {!isText && (
-        <div className="wb-brain-ingest-field-head">
-          <label className="wb-brain-ingest-field-label" htmlFor="wb-ingest-transcript">
-            {label}
-          </label>
-          <span className="wb-brain-ingest-count">
-            {t('secondBrain.ingestCharCount', content.trim().length)}
-          </span>
-        </div>
-      )}
-      <Textarea
-        id="wb-ingest-transcript"
-        className="wb-brain-ingest-textarea"
-        value={content}
-        placeholder={t('secondBrain.ingestTextPlaceholder')}
-        aria-label={label}
-        onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
-      />
-    </div>
-  )
-}
-
-/** Model picker + manager entry, only meaningful where audio is involved (SB-R4.4). */
-function ModelRow({
-  model,
-  models,
-  onSelect,
-  onManage
-}: {
+  preference: ReturnType<typeof useWhisperPreference>['preference']
+  catalog: ReturnType<typeof useWhisperCatalog>
   model: WhisperModelId
-  models: WhisperModelInfo[]
   onSelect: (id: WhisperModelId) => void
-  onManage: () => void
+  onAuto: () => void
+  managerOpen: boolean
+  setManagerOpen: (open: boolean) => void
 }): React.JSX.Element {
   return (
-    <div className="wb-brain-ingest-model">
-      <label className="wb-brain-ingest-model-label" htmlFor="wb-ingest-model">
-        {t('secondBrain.ingestModelLabel')}
-      </label>
-      <select
-        id="wb-ingest-model"
-        className="wb-brain-ingest-model-select"
-        value={model}
-        onChange={(event) => onSelect(event.target.value as WhisperModelId)}
-      >
-        {models.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.id} · {entry.params}
-            {entry.downloaded ? ' ✓' : ''}
-          </option>
-        ))}
-      </select>
-      <button type="button" className="wb-brain-ingest-manage" onClick={onManage}>
-        {t('secondBrain.ingestManageModels')}
-      </button>
-    </div>
+    <>
+      {mode !== 'text' && (
+        <div className="wb-model-row">
+          <ModelPicker
+            preference={preference}
+            models={catalog.models}
+            onSelect={onSelect}
+            onAuto={onAuto}
+            onOpenCatalog={() => setManagerOpen(true)}
+          />
+          <ModelCaption preference={preference} models={catalog.models} />
+        </div>
+      )}
+
+      <ModelManager
+        open={managerOpen}
+        onOpenChange={(next) => {
+          setManagerOpen(next)
+          // Downloads/deletions in the manager change the picker's list.
+          if (!next) catalog.refresh()
+        }}
+        variant={catalog.variant}
+        selectedId={model}
+        onSelect={onSelect}
+      />
+    </>
   )
 }
 
 /**
- * The ingestion sheet (SB-R3.2–3.4) — three capture modes feeding one editable
- * field and one **Ingerir** action, so pasted text and a transcript take the
- * exact same path: write the content to the vault's `raw/` inbox, then launch
- * `/second-brain-ingest` **with that text** so the transcript shows what was
- * actually sent and the agent files it into the wiki (D-SB-5).
+ * The send bar. The reason a send is blocked sits on the same line as the
+ * button that is blocked — a disabled control is not hoverable in every input
+ * model, and "why can't I click this" should never need discovery.
+ */
+function Footer({
+  block,
+  mode,
+  busy,
+  error,
+  onCancel,
+  onConfirm
+}: {
+  block: IngestBlock
+  mode: IngestMode
+  busy: boolean
+  error: string | null
+  onCancel: () => void
+  onConfirm: () => void
+}): React.JSX.Element {
+  return (
+    <>
+      {error !== null && (
+        <p className="wb-brain-ingest-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="wb-brain-ingest-actions">
+        <p className="wb-brain-ingest-block" id="wb-ingest-block">
+          {blockHint(block, mode)}
+        </p>
+        <div className="wb-brain-ingest-buttons">
+          <Button cut={false} variant="ghost" className="wb-btn" onClick={onCancel}>
+            {t('secondBrain.ingestCancel')}
+          </Button>
+          <Button
+            cut={false}
+            className="wb-btn wb-brain-ingest-confirm"
+            disabled={block !== null || busy}
+            aria-describedby="wb-ingest-block"
+            onClick={onConfirm}
+          >
+            {busy ? t('secondBrain.ingestStaging') : t('secondBrain.ingestConfirm')}
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * The ingestion sheet (SB-R3.2–3.4, SB-R4.7, SB-R5.6) — three ways to fill
+ * **one** document, and one **Ingerir** that sends it: write the content to the
+ * vault's `raw/` inbox, then launch `/second-brain-ingest` with that text so the
+ * transcript shows what was actually sent and the agent files it into the wiki
+ * (D-SB-5).
  *
- * Guards: with no vault the sheet offers "Configurar base" instead of writing
- * to a missing path (SB-R3.3), and **Ingerir** stays blocked — with the reason
+ * The two things that changed the shape of this screen:
+ *
+ * - **A transcript is a draft, not a result.** Every audio path now lands in an
+ *   editable field that is on screen the whole time, because a local model's
+ *   output always wants a human pass and the moment to make it is before the
+ *   text leaves for the wiki — not after, in a file the agent already filed.
+ * - **Speaking and transcribing happen at once.** "Ditar ao vivo" replaced a
+ *   record-then-wait recorder: phrases are cut on silence and transcribed while
+ *   the next one is being spoken, so the words appear as they are said and the
+ *   correction pass starts before the take is even over.
+ *
+ * Guards: with no vault the sheet offers "Configurar base" instead of writing to
+ * a missing path (SB-R3.3), and **Ingerir** stays blocked — with the reason
  * stated in words next to it — while there is nothing to send or while the
  * engine is still working (SB-R3.4).
  */
@@ -240,30 +301,9 @@ export function IngestPanel({
   const [content, setContent] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Whisper (SB-R4.4): the selected model, defaulting to `base` (D-SB-4), and
-  // the catalog for the picker (loaded lazily once the sheet opens).
-  const [model, setModel] = useState<WhisperModelId>(DEFAULT_MODEL)
-  const [models, setModels] = useState<WhisperModelInfo[]>([])
-  const whisper = useWhisper()
-
-  // Every finished transcript is appended under a heading naming its source.
-  // Two voice memos and a meeting recording become one reviewable document,
-  // and the wiki page the agent writes keeps the attribution.
-  const appendTranscript = useCallback((text: string, name: string) => {
-    if (text.trim() === '') return
-    setContent((current) =>
-      current.trim() === '' ? text : `${current.trim()}\n\n## ${name}\n\n${text}`
-    )
-  }, [])
-
-  // One audio→transcript queue for both the file picker and the recorder
-  // (SB-R4.5 / SB-R5.5), so an upload and a recording behave identically.
-  const queue = useAudioIngest(whisper, model, appendTranscript)
-  const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
-  const working = engineBusy || queue.busy
-  const phaseView = enginePhaseView(whisper.phase)
   const [modelsOpen, setModelsOpen] = useState(false)
-  const [engineVariant, setEngineVariant] = useState<WhisperVariant>('fp32')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const whisper = useWhisper()
 
   // The sheet is open whenever the FAB handed it a mode; opening re-syncs the
   // active tab to that mode (derived during render, no effect — the
@@ -276,38 +316,65 @@ export function IngestPanel({
   }
   if (mode === null && lastMode !== null) setLastMode(null)
 
-  // The catalog only matters once the sheet is open, and it changes when a
-  // model is downloaded — refetch on open rather than holding it app-wide.
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    void window.hive.whisper.listModels().then((list) => {
-      if (!cancelled) setModels(list)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [open, whisper.phase.status])
+  // Catalog + download precision, loaded only while the sheet is open. Keyed on
+  // the engine phase so a model fetched mid-session shows up without a reopen.
+  const catalog = useWhisperCatalog(open, whisper.phase.status)
 
-  // Which precision this machine will actually download/run. fp32 is the safe
-  // default until a WebGPU adapter is confirmed — it's the only variant that
-  // builds a session on the WASM backend (T2 spike).
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    void probeWebGpu().then((gpu) => {
-      if (!cancelled) setEngineVariant(gpu ? 'q8' : 'fp32')
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [open])
+  // Which model transcription runs with, resolved in main from the hardware
+  // probe unless the user pinned one (SB-R7.4). `DEFAULT_MODEL` covers only the
+  // round trip before main answers — an audio pass cannot start that fast.
+  const { preference, select, reset } = useWhisperPreference(open)
+  const model: WhisperModelId = preference?.id ?? DEFAULT_MODEL
+
+  // Every finished transcript is appended under a heading naming its source.
+  // Two voice memos and a meeting recording become one reviewable document,
+  // and the wiki page the agent writes keeps the attribution.
+  const appendTranscript = useCallback((text: string, name: string) => {
+    if (text.trim() === '') return
+    setContent((current) =>
+      current.trim() === '' ? text : `${current.trim()}\n\n## ${name}\n\n${text}`
+    )
+  }, [])
+
+  // One audio→transcript queue for the file stage (SB-R4.5): decode, transcribe,
+  // append — one file at a time, each with its own visible state.
+  const queue = useAudioIngest(whisper, model, appendTranscript)
+
+  // Live dictation reuses M13's engine and hook wholesale (VP-R5.1): the hook
+  // never imported from `chat/`, so pointing it at this field is wiring rather
+  // than a second implementation of segmenting, queueing and joining.
+  // Depends on the engine's *stable* pieces, not on the object `useWhisper`
+  // rebuilds every render — otherwise the memo recomputes on every keystroke in
+  // the transcript, which is the one thing this surface does constantly.
+  const { phase: whisperPhase, transcribe: whisperTranscribe } = whisper
+  const dictationEngine = useMemo<DictationEngine>(
+    () =>
+      // A real Whisper pass would add a model load to every E2E run; the seam
+      // returns null in every other context.
+      e2eDictationEngine() ?? {
+        phase: whisperPhase,
+        transcribe: (pcm) => whisperTranscribe(pcm, { model, language: DEFAULT_LANGUAGE })
+      },
+    [whisperPhase, whisperTranscribe, model]
+  )
+  const dictation = useComposerDictation({
+    value: content,
+    setValue: setContent,
+    textareaRef,
+    engine: dictationEngine
+  })
+
+  const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
+  const working = engineBusy || queue.busy || dictation.active
+  const phaseView = enginePhaseView(whisper.phase)
 
   const close = useCallback(() => {
+    // A sheet dismissed mid-take must not leave the microphone open.
+    if (dictation.active) dictation.discard()
     setContent('')
     setError(null)
     onClose()
-  }, [onClose])
+  }, [dictation, onClose])
 
   const block: IngestBlock = working ? 'working' : content.trim() === '' ? 'empty' : null
 
@@ -348,7 +415,11 @@ export function IngestPanel({
           />
         ) : (
           <>
-            <ModeTabs activeMode={activeMode} onSelect={setActiveMode} />
+            <SourceTabs
+              activeMode={activeMode}
+              onSelect={setActiveMode}
+              locked={queue.busy || dictation.active}
+            />
 
             <div
               className="wb-brain-ingest-body"
@@ -356,61 +427,43 @@ export function IngestPanel({
               id={`wb-ingest-panel-${activeMode}`}
               aria-labelledby={`wb-ingest-tab-${activeMode}`}
             >
-              <CaptureArea mode={activeMode} busy={working} onCapture={queue.add} />
+              <CaptureStage
+                mode={activeMode}
+                queue={queue}
+                phaseView={phaseView}
+                dictation={dictation}
+              />
 
-              {phaseView && <EngineProgress view={phaseView} />}
-              <AudioJobList jobs={queue.jobs} onRemove={queue.remove} />
-
-              <TranscriptEditor mode={activeMode} content={content} onChange={setContent} />
+              <TranscriptDocument
+                ref={textareaRef}
+                value={content}
+                onChange={setContent}
+                onKeyDown={dictation.handleKeyDown}
+                freshRange={dictation.freshRange}
+                live={dictation.active}
+                source={documentSource(activeMode)}
+              />
             </div>
 
-            {activeMode !== 'text' && (
-              <ModelRow
-                model={model}
-                models={models}
-                onSelect={setModel}
-                onManage={() => setModelsOpen(true)}
-              />
-            )}
-
-            <ModelManager
-              open={modelsOpen}
-              onOpenChange={(next) => {
-                setModelsOpen(next)
-                // Downloads/deletions in the manager change the picker's list.
-                if (!next) void window.hive.whisper.listModels().then(setModels)
-              }}
-              variant={engineVariant}
+            <ModelRow
+              mode={activeMode}
+              preference={preference}
+              catalog={catalog}
+              model={model}
+              onSelect={select}
+              onAuto={reset}
+              managerOpen={modelsOpen}
+              setManagerOpen={setModelsOpen}
             />
 
-            {error && (
-              <p className="wb-brain-ingest-error" role="alert">
-                {error}
-              </p>
-            )}
-
-            <div className="wb-brain-ingest-actions">
-              {/* The reason lives beside the button, not in a tooltip: a
-                  disabled control is not hoverable in every input model, and
-                  "why can't I click this" should never need discovery. */}
-              <p className="wb-brain-ingest-block" id="wb-ingest-block">
-                {blockHint(block, activeMode)}
-              </p>
-              <div className="wb-brain-ingest-buttons">
-                <Button cut={false} variant="ghost" className="wb-btn" onClick={close}>
-                  {t('secondBrain.ingestCancel')}
-                </Button>
-                <Button
-                  cut={false}
-                  className="wb-btn wb-brain-ingest-confirm"
-                  disabled={block !== null || busy}
-                  aria-describedby="wb-ingest-block"
-                  onClick={ingest}
-                >
-                  {busy ? t('secondBrain.ingestStaging') : t('secondBrain.ingestConfirm')}
-                </Button>
-              </div>
-            </div>
+            <Footer
+              block={block}
+              mode={activeMode}
+              busy={busy}
+              error={error}
+              onCancel={close}
+              onConfirm={ingest}
+            />
           </>
         )}
       </SheetContent>

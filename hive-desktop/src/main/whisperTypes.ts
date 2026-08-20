@@ -47,6 +47,15 @@ export interface WhisperModelInfo {
   downloaded: boolean
   /** Which variant is on disk, when downloaded. */
   downloadedVariant: WhisperVariant | null
+  /**
+   * Does this model ship **inside the app**?
+   *
+   * Kept separate from `downloaded` rather than folded into it, because the two
+   * answer different questions and the UI needs both: a bundled model is always
+   * `downloaded`, but it can never be deleted, never has to be fetched, and is
+   * the only kind the app is allowed to select on the user's behalf.
+   */
+  bundled: boolean
 }
 
 /** Byte progress for an in-flight model download. */
@@ -67,7 +76,8 @@ export type WhisperDownloadEvent =
   | { type: 'error'; id: WhisperModelId; message: string }
 
 /** Why a model was recommended — a key the renderer maps to pt-BR copy. */
-export type RecommendationReason = 'lowMemory' | 'noGpu' | 'discreteGpu' | 'balanced' | 'unknown'
+export type RecommendationReason =
+  'lowMemory' | 'cpuOnly' | 'noGpu' | 'discreteGpu' | 'balanced' | 'unknown'
 
 /** Best-effort hardware recommendation (P2, SB-R7). */
 export interface HardwareRecommendation {
@@ -75,4 +85,25 @@ export interface HardwareRecommendation {
   reason: RecommendationReason
   gpu: boolean
   ramGB: number
+  /** Logical CPU cores — the signal that decides `tiny` vs `base` without a GPU. */
+  cores: number
+}
+
+/**
+ * Which model transcription actually uses, and how that was decided (SB-R7.4).
+ *
+ * The recommendation on its own was advisory: it was rendered as a badge in the
+ * manager and nothing ever acted on it, so every machine transcribed with the
+ * same hardcoded default. This is the resolved answer instead — `auto` says
+ * whether the app chose it or the user did, and `recommendation` is carried
+ * alongside so the UI can explain the automatic pick *and* show what would be
+ * chosen if the user handed the decision back.
+ */
+export interface WhisperPreference {
+  /** The model to transcribe with. Always one of the bundled ids when `auto`. */
+  id: WhisperModelId
+  /** True when `id` came from the hardware probe rather than from the user. */
+  auto: boolean
+  /** The probe's own answer, regardless of whether it is in force. */
+  recommendation: HardwareRecommendation
 }

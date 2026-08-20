@@ -836,6 +836,71 @@ Updated as work progresses. Load at start of every session.
   renderer mirrors the flag from the main process at mount, so a reloaded
   window never claims the agent is still asking. (2026-08-19)
 
+- **D37 — Feature `second-brain` Fase 9: modelos embutidos + transcrição
+  editável (M23).** Dois pedidos do usuário, construídos 2026-08-19. Decisões:
+  (a) **Os três primeiros modelos do Whisper viajam dentro do app, em fp32.**
+  `tiny`/`base`/`small` em `resources/whisper-models/`, buscados por
+  `scripts/fetchWhisperModels.mjs` no empacotamento e **fora do git**: ~1,3 GB
+  de ONNX imutável e endereçável por conteúdo pertence ao instalador, não a
+  todo clone, todo branch e todo `git gc`. fp32 porque é a única precisão que
+  cria sessão no backend WASM (spike T2); o usuário escolheu explicitamente
+  pagar o tamanho em vez de verificar q8 antes.
+  (b) **`hive-model:` resolve por caminho de busca, não por raiz única.**
+  `userData` primeiro, `resources/` depois — "embutido" vira piso e não teto: um
+  modelo baixado sombreia o de fábrica, apagá-lo volta para ele, e `remove()`
+  nunca toca na instalação. A guarda de path-escape é aplicada **por raiz**, de
+  modo que a segunda raiz amplia o que pode ser servido sem ampliar onde um
+  caminho forjado alcança.
+  (c) **`useWhisper` prefere o que já está em disco — se este aparelho puder
+  rodar.** fp32 roda bem em WebGPU, então uma máquina com GPU usa a cópia
+  embutida em vez de baixar q8 para não economizar nada. O contrário **não** é
+  simétrico e a assimetria é a regra inteira: q8 não cria sessão em WASM, então
+  uma cópia q8 sobrando de uma execução WebGPU é inutilizável na CPU e precisa
+  ser rebaixada. Um teste existente pegou exatamente essa regressão.
+  (d) **A recomendação de hardware deixou de ser conselho e virou decisão.**
+  `whisper:preference` resolve no main — pin do usuário quando ainda utilizável,
+  sonda caso contrário — e **só responde com modelo embutido**, afirmado como
+  propriedade sobre toda a matriz RAM×GPU×núcleos. Uma escolha automática que
+  implicasse download seria o app decidindo gastar a noite de alguém.
+  (e) **Enviar áudio encena antes de processar.** Escolher arquivo não começa
+  mais minutos de CPU; os arquivos esperam numa lista removível com o tamanho
+  do lote, e um botão primário começa. Duas decisões voltaram para o usuário:
+  quais arquivos entram e qual modelo roda.
+  (f) **"Gravar áudio" morreu; "Ditar ao vivo" nasceu do M13.** Microfone,
+  segmentador e motor ao mesmo tempo — frases cortadas no silêncio, transcritas
+  enquanto a próxima é falada, cada uma caindo no documento com o trecho
+  recém-escrito marcado. `useDictation`/`useComposerDictation` reaproveitados
+  inteiros (nunca importaram de `chat/`), então foi fiação. `AudioRecorder`,
+  `Waveform` e `AudioFileTab` foram apagados.
+  (g) **Componente novo no DS: `HighlightedTextarea`.** A técnica do espelho
+  transparente estava soldada dentro do `PromptInput`; extraída, porque o que
+  precisa dela agora não é um compositor e sim um campo escrito **enquanto o
+  microfone está aberto**. `RadioGroupItem` ganhou `children` para que a linha
+  inteira seja o controle — `<label htmlFor>` não nomeia um `<button
+  role="radio">` do Radix, então a versão anterior tinha alvo de clique morto e
+  controle sem nome acessível.
+
+  **Armadilhas medidas neste passe (nenhuma pegável por teste):**
+  - A folha de ingestão era **400 px desde o M12**: `.wb-brain-ingest` (0,1,0)
+    perdia para `.hds-sheet-content[data-side="right"]` (0,2,0), então o
+    `width: 520px` do app nunca valeu. Achado medindo o nó renderizado.
+  - `.wb-doc` **já existia** para os viewers de documento (`flex: 1 1 0; height:
+    100%`), e a colisão esticava o container da transcrição para 574 px em
+    volta de um campo de 151 px. Renomeado para `.wb-transcript*`.
+  - `RadioGroup.Indicator` do Radix só monta quando marcado, então três das
+    quatro linhas do seletor não tinham bolinha nenhuma.
+  - A marca do trecho recém-transcrito começava a esmaecer no primeiro frame:
+    600 ms depois já estava totalmente transparente. Virou "segura, depois
+    esmaece".
+  - Um `vi.mock` de fábrica **síncrona** referenciando `createContext` do escopo
+    do módulo passa em execução normal e quebra sob instrumentação de cobertura
+    (`Cannot access '__vi_import_4__' before initialization`). Fábrica async com
+    os imports dentro.
+  - A sonda de contraste precisa de `oklch()` **e** `oklab()`: token declara num,
+    `color-mix(in oklab, …)` serializa no outro, e sem os dois ela devolve
+    `UNMEASURED` — que se lê como "sem achados". Dois contrastes reais só
+    apareceram depois disso, um deles virando `--success-tint-ink` no DS.
+
 ## Lessons (mcp-probe-path + approval-session, 2026-08-19)
 
 Built on `feat/voice-prompt`. `npm run verify` green (3673 tests); visual pass

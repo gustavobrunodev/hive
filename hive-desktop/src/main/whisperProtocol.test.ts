@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { join } from 'path'
 import {
+  resolveWhisperCandidates,
   resolveWhisperRequest,
   whisperFileHeaders,
   WHISPER_SCHEME,
@@ -8,7 +9,9 @@ import {
   type WhisperProtocolRoots
 } from './whisperProtocol'
 
-const roots: WhisperProtocolRoots = { models: join('/data', 'whisper-models') }
+const MODELS_ROOT = join('/data', 'whisper-models')
+const BUNDLED_ROOT = join('/app', 'resources', 'whisper-models')
+const roots: WhisperProtocolRoots = { models: MODELS_ROOT }
 
 describe('whisperProtocol', () => {
   describe('scheme privileges (T2 spike corrections)', () => {
@@ -31,7 +34,7 @@ describe('whisperProtocol', () => {
     it('resolves host=models + pathname to a file under the models root', () => {
       expect(
         resolveWhisperRequest(roots, 'hive-model://models/Xenova/whisper-base/config.json')
-      ).toBe(join(roots.models, 'Xenova/whisper-base/config.json'))
+      ).toBe(join(MODELS_ROOT, 'Xenova/whisper-base/config.json'))
     })
 
     it('resolves a nested onnx weight file', () => {
@@ -40,12 +43,12 @@ describe('whisperProtocol', () => {
           roots,
           'hive-model://models/Xenova/whisper-base/onnx/encoder_model.onnx'
         )
-      ).toBe(join(roots.models, 'Xenova/whisper-base/onnx/encoder_model.onnx'))
+      ).toBe(join(MODELS_ROOT, 'Xenova/whisper-base/onnx/encoder_model.onnx'))
     })
 
     it('percent-decodes the path', () => {
       expect(resolveWhisperRequest(roots, 'hive-model://models/a%20b/c.json')).toBe(
-        join(roots.models, 'a b/c.json')
+        join(MODELS_ROOT, 'a b/c.json')
       )
     })
 
@@ -59,7 +62,7 @@ describe('whisperProtocol', () => {
       // `new URL()` resolves `..` at parse time for a standard scheme, so the
       // request never escapes; it just lands on a (non-existent) in-root path.
       expect(resolveWhisperRequest(roots, 'hive-model://models/../../etc/passwd')).toBe(
-        join(roots.models, 'etc/passwd')
+        join(MODELS_ROOT, 'etc/passwd')
       )
     })
 
@@ -93,6 +96,44 @@ describe('whisperProtocol', () => {
       const trailing: WhisperProtocolRoots = { models: join('/data', 'whisper-models') + '/' }
       expect(resolveWhisperRequest(trailing, 'hive-model://models/x.json')).toBe(
         join('/data/whisper-models', 'x.json')
+      )
+    })
+  })
+
+  /**
+   * Bundled weights (D-SB-8) reach the renderer through the very same scheme,
+   * which is what lets `tiny`/`base`/`small` work with nothing downloaded. The
+   * search path is the whole mechanism, so the guard is asserted per root: a
+   * second root must widen what can be *served*, never where a crafted path can
+   * *reach*.
+   */
+  describe('resolveWhisperCandidates (search path)', () => {
+    const searched: WhisperProtocolRoots = { models: [MODELS_ROOT, BUNDLED_ROOT] }
+
+    it('offers the downloaded copy first and the bundled copy second', () => {
+      expect(resolveWhisperCandidates(searched, 'hive-model://models/base/config.json')).toEqual([
+        join(MODELS_ROOT, 'base/config.json'),
+        join(BUNDLED_ROOT, 'base/config.json')
+      ])
+    })
+
+    it('applies the path-escape guard to every root, not just the first', () => {
+      expect(
+        resolveWhisperCandidates(searched, 'hive-model://models/%2e%2e%2f%2e%2e%2fetc/passwd')
+      ).toEqual([])
+    })
+
+    it('refuses an unknown host however many roots are configured', () => {
+      expect(resolveWhisperCandidates(searched, 'hive-model://secrets/id_rsa')).toEqual([])
+    })
+
+    it('treats an empty search path as no root at all', () => {
+      expect(resolveWhisperCandidates({ models: [] }, 'hive-model://models/x.json')).toEqual([])
+    })
+
+    it('resolveWhisperRequest keeps answering with the highest-priority root', () => {
+      expect(resolveWhisperRequest(searched, 'hive-model://models/base/config.json')).toBe(
+        join(MODELS_ROOT, 'base/config.json')
       )
     })
   })

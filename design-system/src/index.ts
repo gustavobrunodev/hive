@@ -34,6 +34,8 @@ export { VisuallyHidden } from "./components/VisuallyHidden/VisuallyHidden";
 // Phase 1 — forms
 export { Input } from "./components/Input/Input";
 export { Textarea } from "./components/Textarea/Textarea";
+export { HighlightedTextarea } from "./components/HighlightedTextarea/HighlightedTextarea";
+export type { HighlightedTextareaProps } from "./components/HighlightedTextarea/HighlightedTextarea";
 export { Label } from "./components/Label/Label";
 export { Field } from "./components/Field/Field";
 export { Checkbox } from "./components/Checkbox/Checkbox";

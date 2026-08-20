@@ -87,6 +87,7 @@
   --success: var(--verde);
   --success-bg: oklch(75.5% 0.130 163.2 / 14%);
   --success-ink: var(--verde);
+  --success-tint-ink: var(--verde);
   --info: oklch(71.4% 0.104 246.2);
   --info-bg: oklch(71.4% 0.104 246.2 / 14%);
   --info-ink: oklch(71.4% 0.104 246.2);
@@ -124,6 +125,7 @@
   --success: oklch(51.5% 0.110 156.8);
   --success-bg: oklch(51.5% 0.110 156.8 / 10%);
   --success-ink: oklch(51.5% 0.110 156.8);
+  --success-tint-ink: oklch(42% 0.098 156.8);
   --info: oklch(49.9% 0.126 253.2);
   --info-bg: oklch(49.9% 0.126 253.2 / 10%);
   --info-ink: oklch(49.9% 0.126 253.2);
@@ -161,6 +163,7 @@
   --success: var(--verde);
   --success-bg: oklch(75.5% 0.130 163.2 / 14%);
   --success-ink: var(--verde);
+  --success-tint-ink: var(--verde);
   --info: oklch(71.4% 0.104 246.2);
   --info-bg: oklch(71.4% 0.104 246.2 / 14%);
   --info-ink: oklch(71.4% 0.104 246.2);
@@ -199,6 +202,7 @@
     --success: oklch(51.5% 0.110 156.8);
     --success-bg: oklch(51.5% 0.110 156.8 / 10%);
     --success-ink: oklch(51.5% 0.110 156.8);
+    --success-tint-ink: oklch(42% 0.098 156.8);
     --info: oklch(49.9% 0.126 253.2);
     --info-bg: oklch(49.9% 0.126 253.2 / 10%);
     --info-ink: oklch(49.9% 0.126 253.2);
@@ -1513,6 +1517,61 @@ a:hover {
   .hds-textarea {
     transition: none;
   }
+}
+
+/* src/components/HighlightedTextarea/HighlightedTextarea.css */
+.hds-hl-textarea {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  transition: border-color 0.2s var(--ease-quart), box-shadow 0.2s var(--ease-quart);
+}
+.hds-hl-textarea:focus-within {
+  border-color: var(--focus);
+}
+.hds-hl-textarea[data-active] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.hds-hl-textarea-backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 9px 12px;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+.hds-hl-textarea-field.hds-textarea {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
+  border-radius: inherit;
+}
+.hds-hl-textarea-field.hds-textarea:hover:not(:disabled),
+.hds-hl-textarea-field.hds-textarea:active:not(:disabled),
+.hds-hl-textarea-field.hds-textarea:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-hl-textarea {
+    transition: none;
+  }
+}
+.hds-hl-textarea[data-fill] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.hds-hl-textarea[data-fill] .hds-hl-textarea-field.hds-textarea {
+  flex: 1 1 auto;
 }
 
 /* src/components/Label/Label.css */

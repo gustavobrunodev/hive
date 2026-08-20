@@ -325,6 +325,105 @@ squeezing onto two lines in a narrow rail (now a container query + wrap).
 
 ---
 
+## Phase 9 — Bundled models + transcript review (M12.4, 2026-08-19)
+
+Two user-reported gaps, both about the moment a person actually meets
+transcription: the app asked for a download before it could hear anything, and
+a transcript arrived as a finished thing rather than a draft.
+
+### [x] T27 — The three models ship inside the app (SB-R7.5)
+
+`tiny`, `base` and `small` are packaged in `resources/whisper-models/` as fp32
+— the only precision that builds a session on the WASM backend — so a fresh
+install transcribes with **no download at all**. The weights are fetched at
+package time by `scripts/fetchWhisperModels.mjs` (wired into `build:win|mac|
+linux`) and gitignored: ~1.3 GB of immutable, content-addressable ONNX belongs
+in the installer, not in every clone.
+
+`whisperModelStore` gained a `bundledDir`, a `bundled` flag on every catalog
+row, and a `searchRoots()` the `hive-model:` protocol resolves through —
+downloaded copy first, shipped copy second — so a user who fetches a model
+anyway transparently shadows the bundled one, and deleting it reverts.
+`remove()` never touches the installation.
+
+**Verify:** real-Electron E2E fetches `hive-model://models/tiny/config.json`
+out of `resources/` with a throwaway userData and gets the file; `modelStatus`
+reports `{downloaded, fp32, bundled}`; unit tests cover the shadow/revert pair
+and the no-fetch download short-circuit.
+
+### [x] T28 — The model is chosen for the machine, not merely suggested (SB-R7.4)
+
+The hardware recommendation had been advisory since M12: rendered as a badge,
+acted on by nothing, so every machine transcribed with the same hardcoded
+`base`. `whisper:preference` now resolves the model in main — the user's pin
+when it is still usable, the probe's answer otherwise — and every transcribing
+surface reads it. The ladder was retuned around what these weights actually do
+(fp32 on one WASM thread) and gained core count; a property test asserts it can
+**only ever** answer with a bundled model, so an automatic choice can never
+imply a download.
+
+The picker moved out of the manager dialog into a popover on a strip beside the
+transcript: "Automático" is an option in the same list as the models, carrying
+the reason the probe gave.
+
+**Verify:** `isAutoSelectable` over the whole RAM×GPU×cores matrix; E2E asserts
+`preference.auto` and a bundled id; the manager offers neither download nor
+delete on a bundled row.
+
+### [x] T29 — Upload stages, then transcribes on request (SB-R4.7)
+
+Choosing a file used to start the pass immediately, which took two decisions
+away from the user — which files actually go in, and which model runs — and
+began minutes of CPU work nobody asked for. Files now land in a removable list
+with the batch's total size, and one primary **Transcrever N áudios** starts
+it. The per-file queue, progress and failure copy are `useAudioIngest` and
+`AudioJobList`, unchanged.
+
+**Verify:** component tests assert nothing decodes until the button is pressed,
+that a duplicate drop is ignored, and that the transcript still lands in the
+shared field and ingests identically.
+
+### [x] T30 — Live dictation replaces the recorder (SB-R5.6)
+
+"Gravar áudio" captured a take, stopped, and only then went looking for words.
+"Ditar ao vivo" runs the microphone, the segmenter and the engine at once:
+phrases are cut on silence and transcribed while the next one is spoken, each
+landing in the transcript with the run it wrote marked. This is M13's
+`useDictation`/`useComposerDictation` reused wholesale — the hook never
+imported from `chat/`, so this was wiring, not a second implementation.
+`AudioRecorder`, `Waveform` and `AudioFileTab` were deleted.
+
+New DS component: **`HighlightedTextarea`** — the transparent-mirror technique
+that was welded inside `PromptInput`, extracted so a field that is written into
+while the microphone is open can tint what just arrived without giving up a
+native textarea's caret, selection, IME or spellcheck. `RadioGroupItem` gained
+`children` so a whole row can be the control.
+
+**Verify:** component tests drive the E2E dictation seam and assert text
+appears **mid-take**, that a second phrase appends, that Descartar rewinds the
+draft, that dismissing the sheet releases the microphone, and that Ingerir is
+blocked while a take is live.
+
+### [x] T31 — Visual pass, dark + light
+
+Playwright-MCP against the built renderer. Found and fixed, none of which a
+test could have caught: the sheet had been **400 px since M12** (the app's
+`520px` lost to a more specific DS selector, so labels wrapped and the model
+strip stacked on its own caption); `.wb-doc` **collided with the file viewer's
+existing class**, stretching the transcript's container to 574 px around a
+151 px field; Radix's `RadioGroup.Indicator` mounts only when checked, so three
+of four picker rows had no radio at all; the fresh-mark animation started
+fading on frame one and was fully transparent before it could be read; and the
+FAB menu still said "Colar texto"/"Áudio (arquivo)" while the tabs said
+"Escrever"/"Enviar áudio" — one thing under two names.
+
+**Verify:** `tools/visual/ingestContrast.mjs` (new; parses `oklch()` and
+`oklab()`, composites every translucent layer) measures 34 targets across six
+states in both themes — **34/34 PASS in each**, floor 4.5:1. Two real failures
+were found and fixed: the drop zone's action link at 4.48:1 in dark, and the
+"no aplicativo" badge at 4.12:1 in light, which produced a new DS role token,
+`--success-tint-ink`, on the `--accent-tint-ink` precedent.
+
 ## Traceability (requirement → task)
 
 | SB-R | Task(s) |
@@ -376,6 +475,10 @@ squeezing onto two lines in a narrow rail (now a container query + wrap).
 | R10.4 ambient reminder + rail marker | T25 |
 | R10.5 snooze | T24, T25 |
 | R10.6 fresh/corrupt ledger | T24 |
+| R4.7 stage, then transcribe on request | T29, T31 |
+| R5.6 live dictation into the transcript | T30, T31 |
+| R7.4 the model is chosen and applied | T28, T31 |
+| R7.5 three models ship inside the app | T27, T31 |
 
 **Coverage:** all 45 functional requirements map to tasks; R6.1/R6.2 are satisfied
 by existing skill-discovery/workflow-turn machinery (asserted, not rebuilt). 26

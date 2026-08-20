@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ModelManager } from './ModelManager'
-import { recommendationCopy } from './recommendationCopy'
+import { recommendationCopy } from './modelCopy'
 
 vi.mock('@hive/design-system', () => ({
   Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
@@ -26,7 +26,8 @@ const CATALOG = [
     relativeSpeed: '~10x',
     multilingual: true,
     downloaded: false,
-    downloadedVariant: null
+    downloadedVariant: null,
+    bundled: false
   },
   {
     id: 'base',
@@ -37,7 +38,8 @@ const CATALOG = [
     relativeSpeed: '~7x',
     multilingual: true,
     downloaded: true,
-    downloadedVariant: 'fp32'
+    downloadedVariant: 'fp32',
+    bundled: false
   },
   {
     id: 'small.en',
@@ -48,7 +50,8 @@ const CATALOG = [
     relativeSpeed: '~4x',
     multilingual: false,
     downloaded: false,
-    downloadedVariant: null
+    downloadedVariant: null,
+    bundled: false
   }
 ]
 
@@ -60,9 +63,13 @@ describe('ModelManager (T19)', () => {
 
   beforeEach(() => {
     listModels = vi.fn().mockResolvedValue(CATALOG)
-    recommend = vi
-      .fn()
-      .mockResolvedValue({ recommendedId: 'base', reason: 'noGpu', gpu: false, ramGB: 16 })
+    recommend = vi.fn().mockResolvedValue({
+      recommendedId: 'base',
+      reason: 'noGpu',
+      gpu: false,
+      ramGB: 16,
+      cores: 8
+    })
     downloadModel = vi.fn().mockReturnValue(() => {})
     deleteModel = vi.fn().mockResolvedValue(undefined)
     window.hive = {
@@ -76,14 +83,34 @@ describe('ModelManager (T19)', () => {
     vi.restoreAllMocks()
   })
 
-  function open(variant: 'fp32' | 'q8' = 'fp32'): { onOpenChange: ReturnType<typeof vi.fn> } {
+  function open(variant: 'fp32' | 'q8' = 'fp32'): {
+    onOpenChange: ReturnType<typeof vi.fn>
+    onSelect: ReturnType<typeof vi.fn>
+  } {
     const onOpenChange = vi.fn()
-    render(createElement(ModelManager, { open: true, onOpenChange, variant }))
-    return { onOpenChange }
+    const onSelect = vi.fn()
+    render(
+      createElement(ModelManager, {
+        open: true,
+        onOpenChange,
+        variant,
+        selectedId: 'base',
+        onSelect
+      })
+    )
+    return { onOpenChange, onSelect }
   }
 
   it('renders nothing while closed, and loads nothing', () => {
-    render(createElement(ModelManager, { open: false, onOpenChange: vi.fn(), variant: 'fp32' }))
+    render(
+      createElement(ModelManager, {
+        open: false,
+        onOpenChange: vi.fn(),
+        variant: 'fp32',
+        selectedId: 'base',
+        onSelect: vi.fn()
+      })
+    )
     expect(screen.queryByText('Modelos de transcrição')).toBeNull()
     expect(listModels).not.toHaveBeenCalled()
   })
@@ -124,6 +151,58 @@ describe('ModelManager (T19)', () => {
     expect(screen.getByLabelText('Excluir o modelo base')).toBeTruthy()
     expect(screen.queryByLabelText('Baixar o modelo base')).toBeNull()
     expect(screen.getByLabelText('Baixar o modelo tiny')).toBeTruthy()
+  })
+
+  /**
+   * D-SB-8 — a model that ships inside the app. The controls it must NOT get
+   * are the point: there is nothing to fetch and nothing the app may delete
+   * from its own installation, so offering either would be a lie.
+   */
+  describe('bundled rows', () => {
+    beforeEach(() => {
+      listModels.mockResolvedValue(
+        CATALOG.map((m) =>
+          m.id === 'tiny' ? { ...m, downloaded: true, downloadedVariant: 'fp32', bundled: true } : m
+        )
+      )
+    })
+
+    it('is marked as shipping with the app, and offers neither download nor delete', async () => {
+      open()
+      await waitFor(() => expect(screen.getByText('No aplicativo')).toBeTruthy())
+      expect(screen.queryByLabelText('Baixar o modelo tiny')).toBeNull()
+      expect(screen.queryByLabelText('Excluir o modelo tiny')).toBeNull()
+    })
+
+    it('states its real on-disk size, not what some other precision would cost', async () => {
+      open('q8')
+      // tiny ships fp32 (144 MB); the q8 column figure (39 MB) would be fiction.
+      await waitFor(() => expect(screen.getByText('144 MB')).toBeTruthy())
+    })
+
+    it('can be selected straight from the table', async () => {
+      const { onSelect } = open()
+      await waitFor(() => expect(screen.getByText('No aplicativo')).toBeTruthy())
+      fireEvent.click(screen.getAllByText('Usar')[0])
+      expect(onSelect).toHaveBeenCalledWith('tiny')
+    })
+
+    it('shows the model in use as such, with no action to re-select it', async () => {
+      open()
+      await waitFor(() => expect(screen.getByText('Em uso')).toBeTruthy())
+      expect(screen.getByText('Em uso')).toHaveProperty('disabled', true)
+    })
+
+    it('explains the bundle once, under the table', async () => {
+      open()
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'tiny, base e small já vêm instalados: funcionam offline, sem download, desde o primeiro uso.'
+          )
+        ).toBeTruthy()
+      )
+    })
   })
 
   it('downloads a model with live progress, then refreshes the catalog (SB-R7.2)', async () => {
@@ -198,11 +277,12 @@ describe('ModelManager (T19)', () => {
 
   describe('recommendationCopy', () => {
     it('renders a sentence per reason, folding in the measured RAM', () => {
-      const base = { recommendedId: 'base' as const, gpu: false, ramGB: 8 }
+      const base = { recommendedId: 'base' as const, gpu: false, ramGB: 8, cores: 8 }
       expect(recommendationCopy({ ...base, reason: 'lowMemory', ramGB: 4 })).toContain('4 GB')
       expect(recommendationCopy({ ...base, reason: 'noGpu' })).toContain('sem GPU dedicada')
       expect(recommendationCopy({ ...base, reason: 'discreteGpu', ramGB: 32 })).toContain('32 GB')
       expect(recommendationCopy({ ...base, reason: 'balanced' })).toContain('equilíbrio')
+      expect(recommendationCopy({ ...base, reason: 'cpuOnly', cores: 4 })).toContain('4 núcleos')
       expect(recommendationCopy({ ...base, reason: 'unknown' })).toContain('avaliar seu hardware')
       expect(recommendationCopy(null)).toBeNull()
     })

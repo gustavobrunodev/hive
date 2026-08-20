@@ -147,6 +147,25 @@ describe('useWhisper (T14)', () => {
     expect(downloadModel).toHaveBeenCalledWith('base', 'fp32', expect.any(Function))
   })
 
+  /**
+   * D-SB-8 — the bundled models ship as fp32, so this is the path a WebGPU
+   * machine takes on a fresh install. Downloading a q8 copy of a model that is
+   * already inside the app would spend bandwidth to gain nothing.
+   */
+  it('runs the fp32 copy already on disk on WebGPU rather than fetching q8', async () => {
+    modelStatus.mockResolvedValue({ downloaded: true, variant: 'fp32', bundled: true })
+    const { result } = renderHook(() => useWhisper(makeDeps({ hasWebGpu: async () => true })))
+    await act(async () => {
+      await result.current.transcribe(new Float32Array([0.1]))
+    })
+    expect(downloadModel).not.toHaveBeenCalled()
+    expect(pipeline).toHaveBeenCalledWith(
+      'automatic-speech-recognition',
+      'base',
+      expect.objectContaining({ device: 'webgpu', dtype: 'fp32' })
+    )
+  })
+
   it('skips the download entirely when the right variant is already on disk', async () => {
     const { result } = renderHook(() => useWhisper(makeDeps()))
     await act(async () => {

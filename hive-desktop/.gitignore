@@ -17,3 +17,9 @@ playwright/.cache
 .env
 .env.*
 !.env.example
+
+# Whisper weights that ship inside the app (D-SB-8). ~1.3 GB of immutable,
+# content-addressable ONNX already published on the Hugging Face CDN — the repo
+# carries the recipe (`scripts/fetchWhisperModels.mjs`), the installer carries
+# the bytes. Run `npm run models:fetch` before packaging or a real dev run.
+resources/whisper-models/

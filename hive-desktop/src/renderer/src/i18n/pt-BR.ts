@@ -1434,9 +1434,13 @@ export const ptBR = {
     fabLabel: 'Base de conhecimento — perguntar ou capturar',
     fabMenuLabel: 'Ações da base de conhecimento',
     fabCaptureTitle: 'Capturar',
-    fabText: 'Colar texto',
-    fabAudioFile: 'Áudio (arquivo)',
-    fabRecord: 'Gravar áudio',
+    // One vocabulary for the three sources: the FAB menu opens the sheet on a
+    // tab, so a menu that says "Colar texto" landing on a tab that says
+    // "Escrever" is the same thing under two names — exactly the drift the
+    // shared-transcript redesign exists to remove.
+    fabText: 'Escrever',
+    fabAudioFile: 'Enviar áudio',
+    fabRecord: 'Ditar ao vivo',
     // Ingestion sheet (SB-R3.2–3.4).
     ingestTitle: 'Ingerir conhecimento',
     ingestDescription: 'O conteúdo vai para a base e o agente organiza no wiki.',
@@ -1457,6 +1461,43 @@ export const ptBR = {
       n === 1 ? '1 arquivo ignorado: não é áudio.' : `${n} arquivos ignorados: não são áudio.`,
     ingestTranscriptLabel: 'Transcrição (edite antes de ingerir)',
     ingestCharCount: (n: number) => (n === 1 ? '1 caractere' : `${n} caracteres`),
+    // The three sources, as tabs (SB-R3.2). "Ditar ao vivo" replaced "Gravar":
+    // the mode no longer produces a recording to transcribe afterwards, it
+    // writes into the transcript while you speak, and the label has to say so.
+    sourceWrite: 'Escrever',
+    sourceAudio: 'Enviar áudio',
+    sourceLive: 'Ditar ao vivo',
+    sourceGroupLabel: 'Como você quer capturar',
+    // Staging step (SB-R4.7) — files wait until the user asks for the pass.
+    stageTitle: (n: number) => (n === 1 ? '1 áudio pronto' : `${n} áudios prontos`),
+    stageTotalSize: (mb: string) => ` · ${mb} no total`,
+    stageAdd: 'Adicionar mais',
+    stageClear: 'Limpar',
+    stageRemove: (name: string) => `Remover ${name}`,
+    stageTranscribe: (n: number) => (n === 1 ? 'Transcrever 1 áudio' : `Transcrever ${n} áudios`),
+    stageTranscribing: 'Transcrevendo…',
+    stageHint:
+      'Nada é enviado para a internet. A transcrição aparece abaixo para você revisar antes de ingerir.',
+    // The document everything converges on.
+    documentLabel: 'Transcrição',
+    documentLabelText: 'Conteúdo',
+    documentHintAudio: 'Revise e corrija o que o modelo entendeu antes de ingerir.',
+    documentHintLive: 'O texto aparece aqui enquanto você fala — pode editar durante ou depois.',
+    documentClear: 'Limpar transcrição',
+    documentEmptyAudio: 'A transcrição aparece aqui assim que o modelo terminar.',
+    documentEmptyLive: 'As primeiras palavras aparecem aqui alguns segundos após você começar.',
+    // Live dictation console (SB-R5.6).
+    liveStart: 'Começar a ditar',
+    liveStop: 'Concluir o ditado',
+    liveDiscard: 'Descartar',
+    liveRetry: 'Tentar de novo',
+    liveIdleTitle: 'Fale e o texto aparece embaixo',
+    liveIdleHint: 'A transcrição acontece no seu computador, trecho a trecho, enquanto você fala.',
+    // Everything the console *says* while a take runs comes from `dictation.*`
+    // through `dictationView` — the same vocabulary the chat composer's
+    // transport uses. Two surfaces describing one state machine in two sets of
+    // words is how "Ouvindo…" and "Escutando…" end up in the same product.
+    liveMicRequest: 'Liberar microfone',
     // What the local engine is doing. Each phase says whether it can be
     // measured — an honest indeterminate state is what replaced the old
     // "Preparando o modelo… 100%" that then sat still (SB-R4.2).
@@ -1477,7 +1518,8 @@ export const ptBR = {
     // Why "Ingerir" cannot run yet — stated in words beside the button.
     ingestBlockedWorking: 'Aguarde a transcrição terminar.',
     ingestBlockedEmptyText: 'Escreva ou cole algo para ingerir.',
-    ingestBlockedEmptyAudio: 'Grave ou escolha um áudio para ingerir.',
+    ingestBlockedEmptyAudio: 'Escolha um áudio e peça a transcrição.',
+    ingestBlockedEmptyLive: 'Comece a ditar — o texto aparece acima.',
     ingestReady: 'Pronto para ingerir.',
     ingestModelLabel: 'Modelo',
     ingestManageModels: 'Gerenciar modelos',
@@ -1501,6 +1543,25 @@ export const ptBR = {
     recordRetry: 'Tentar de novo',
     recordingLabel: 'Gravando',
     ingestAudioSoon: 'O gravador chega já já.',
+    // Model picker (SB-R7.4) — the inline chooser beside the transcript.
+    modelPickerLabel: 'Modelo de transcrição',
+    modelPickerShort: 'Modelo',
+    modelPickerTrigger: (id: string) => `Modelo: ${id}`,
+    modelAuto: 'Automático',
+    modelAutoWith: (id: string) => `Automático · ${id}`,
+    modelAutoChosen: (ram: number) => `Escolhido para este computador (${ram} GB de memória).`,
+    modelPinnedBundled: 'Você escolheu este. Já vem no aplicativo.',
+    modelPinned: 'Você escolheu este.',
+    modelBundled: 'no aplicativo',
+    modelBundledSuffix: ' · no aplicativo',
+    modelBundledExplain: 'Os três já vêm instalados — nada para baixar.',
+    modelNeedsDownload: 'baixar',
+    modelTradeoffTiny: 'O mais rápido',
+    modelTradeoffBase: 'Equilibrado',
+    modelTradeoffSmall: 'O mais preciso',
+    modelMoreModels: 'Ver todos os modelos…',
+    modelParamsSize: (params: string, mb: number) =>
+      `${params} · ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`}`,
     // Model manager (SB-R7.1/7.2).
     modelsTitle: 'Modelos de transcrição',
     modelsDescription:
@@ -1519,10 +1580,17 @@ export const ptBR = {
     modelsSizeMb: (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`),
     modelsVramGb: (gb: number) => `~${gb} GB`,
     modelsClose: 'Fechar',
+    modelsUse: 'Usar',
+    modelsInUse: 'Em uso',
     modelsDeleteAria: (id: string) => `Excluir o modelo ${id}`,
     modelsDownloadAria: (id: string) => `Baixar o modelo ${id}`,
     // Why a model was recommended — keyed by whisperHardware's reason union.
+    modelsBundledBadge: 'No aplicativo',
+    modelsBundledNote:
+      'tiny, base e small já vêm instalados: funcionam offline, sem download, desde o primeiro uso.',
     modelsReasonLowMemory: (ram: number) => `Recomendado: pouca memória disponível (${ram} GB).`,
+    modelsReasonCpuOnly: (cores: number) =>
+      `Recomendado: sem GPU dedicada e ${cores} núcleos — um modelo leve responde na hora.`,
     modelsReasonNoGpu: 'Recomendado: sem GPU dedicada, um modelo leve responde melhor.',
     modelsReasonDiscreteGpu: (ram: number) => `Recomendado: GPU dedicada e ${ram} GB de memória.`,
     modelsReasonBalanced: 'Recomendado: bom equilíbrio entre velocidade e qualidade aqui.',

@@ -55,6 +55,27 @@ o script inteiro no prompt. Ele ainda planta fixtures pra dirigir estado depois
 do boot: `window.__setVault(v)`, `window.__fsChange(path)` e
 `window.__agentEvent(evt)`.
 
+### Sondas de contraste
+
+`tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
+toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
+(M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,
+ditado parado/ouvindo/em silêncio — em cada tema.
+
+Duas coisas que a sonda precisa saber fazer, e que uma versão ingênua não faz:
+
+- **Compor alpha.** Quase tudo aqui está sobre um tint translúcido
+  (`--selected-bg`, `--success-bg`, o banho de accent do quadro ao vivo). Ler a
+  cor do fundo direto mede contra um pixel que não existe na tela.
+- **Entender `oklch()` e `oklab()`.** Token declara em `oklch`; `color-mix(in
+  oklab, …)` serializa em `oklab`. Sem os dois parsers a sonda devolve
+  `UNMEASURED` — que se lê como "sem problemas" quando na verdade é "sem dados".
+  Foi assim que dois alvos reais passaram despercebidos na primeira rodada.
+
+Para o tema claro: `document.documentElement.setAttribute('data-theme','light')`
+e rode o arquivo de novo (a CSP do renderer bloqueia `addScriptTag`, então a
+sonda tem que viver dentro de `page.evaluate`).
+
 ### O gate de preparação exige o mock oposto
 
 O `boot.mjs` resolve `installBmad`/`updateBmad`/`secondBrain.*` com `done`

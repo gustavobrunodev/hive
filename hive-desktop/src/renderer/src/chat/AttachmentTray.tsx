@@ -110,7 +110,9 @@ export function AttachmentTray({
               name={entry.name}
               truncate="middle"
               title={entry.path}
-              meta={entry.kind === 'workspace' ? parentDirOf(entry.path) : formatFileSize(entry.size)}
+              meta={
+                entry.kind === 'workspace' ? parentDirOf(entry.path) : formatFileSize(entry.size)
+              }
               data-kind={entry.kind}
               icon={<FileTypeIcon path={entry.path} size={14} />}
               onRemove={() => onRemove(index)}

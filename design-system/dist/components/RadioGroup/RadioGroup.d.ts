@@ -13,5 +13,13 @@ export type RadioGroupItemProps = ComponentPropsWithoutRef<typeof RadioGroupPrim
  * A single radio option — wraps Radix's `RadioGroup.Item` + `Indicator`.
  * Visual states (unchecked/checked/hover/focus-visible/disabled) are driven
  * entirely by Radix's `data-state`/`data-disabled` attributes in CSS.
+ *
+ * `children` render **beside** the dot, inside the same control. That matters
+ * for more than layout: a `<label htmlFor>` cannot name a Radix radio, because
+ * Radix renders a `<button role="radio">` and a button is not a labelable
+ * element — so a row built as label-plus-dot ends up with a clickable area
+ * that does nothing and a control with no accessible name. Putting the row's
+ * own content inside the control gives it both, and keeps Radix's roving
+ * tabindex over whole rows rather than over bare dots.
  */
 export declare const RadioGroupItem: import("react").ForwardRefExoticComponent<Omit<RadioGroupPrimitive.RadioGroupItemProps & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;

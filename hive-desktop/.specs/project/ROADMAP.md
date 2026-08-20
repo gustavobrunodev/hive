@@ -952,6 +952,70 @@ mata em vez de parar.
 
 ---
 
+## M23 — Whisper embutido e a transcrição como rascunho ✅ Done (2026-08-19)
+
+**Feature:** `second-brain` (Fase 9) · branch `feat/voice-prompt` (continua
+M13–M22; o M22 — `mcp-probe-path` + `approval-session` — vive só no STATE, D36).
+
+**O pedido.** Dois itens: os três primeiros modelos do Whisper embutidos no
+aplicativo, sem download, com o mais adequado detectado e escolhido pelo
+hardware da pessoa; e, em Bases de conhecimento, a transcrição sempre visível
+numa caixa editável — para áudio enviado, depois que o modelo processa tudo;
+para áudio gravado na hora, **aparecendo em tempo real enquanto a pessoa fala**.
+
+### O que estava errado antes
+
+O app pedia um download de 278 MB antes de conseguir ouvir qualquer coisa, e
+depois transcrevia com o mesmo `base` fixo em toda máquina — a recomendação de
+hardware existia desde o M12, era desenhada como badge e **nada agia sobre
+ela**. No gravador, o take inteiro era capturado, parava, e só então a busca
+por palavras começava: a espera era a experiência, e não havia nada para
+corrigir até acabar.
+
+### O que mudou
+
+`tiny`, `base` e `small` viajam em `resources/whisper-models/` em fp32 — a
+única precisão que cria sessão no backend WASM. São buscados no momento do
+empacotamento (`npm run models:fetch`, ligado aos `build:*`) e ficam fora do
+git: ~1,3 GB de ONNX imutável pertence ao instalador, não a todo clone. O
+`hive-model:` passou a resolver por **caminho de busca** — cópia baixada
+primeiro, cópia embutida depois — então um modelo que o usuário baixe por conta
+própria sombreia o de fábrica, e apagá-lo volta para ele.
+
+A escolha virou decisão de verdade: `whisper:preference` resolve no main (pin do
+usuário quando ainda serve, resposta da sonda caso contrário) e **só responde
+com modelo embutido** — uma escolha automática nunca pode implicar download,
+propriedade afirmada sobre toda a matriz RAM×GPU×núcleos.
+
+"Gravar áudio" virou **"Ditar ao vivo"**: microfone, segmentador e motor rodam
+juntos, as frases são cortadas no silêncio e transcritas enquanto a próxima é
+falada, cada uma caindo no documento com o trecho recém-escrito marcado. É o
+`useDictation` do M13 reaproveitado inteiro — ele nunca importou de `chat/`,
+então isto foi fiação, não uma segunda implementação. Enviar áudio ganhou o
+passo que faltava: os arquivos ficam numa lista removível e **um botão** começa
+a passagem, em vez de minutos de CPU que ninguém pediu.
+
+### Exit criteria
+
+| Critério | Veredito |
+|---|---|
+| Três modelos utilizáveis sem rede, em instalação limpa | **Sim.** E2E real busca `hive-model://models/tiny/config.json` com userData descartável e recebe o arquivo; `modelStatus` responde `{downloaded, fp32, bundled}`. |
+| O modelo é escolhido pelo hardware e aplicado | **Sim.** `preference.auto` verdadeiro no E2E, id sempre entre os três embutidos. |
+| Transcrição de arquivo revisável antes de ingerir | **Sim** — e agora só começa quando pedida. |
+| Transcrição do ditado aparecendo em tempo real | **Sim.** Testes dirigem a costura de ditado e afirmam texto no campo **durante** o take; medido também no navegador (frase em campo com o take ainda "Ouvindo…"). |
+| Sem regressão | **Sim.** `npm run verify` verde: typecheck, 0 erros de lint, **3678** testes. |
+| Passe visual, claro + escuro | **Sim.** 34 alvos × 2 temas, **34/34 PASS** em cada; dois contrastes reais corrigidos, um deles virando token novo do DS (`--success-tint-ink`). |
+
+### O que ficou aberto
+
+O instalador cresce ~1,3 GB (decisão do usuário: fp32 nos três, sem verificar
+q8 antes). `medium` e `large-v3*` seguem como download opcional. O E2E completo
+tem `second-brain.spec.ts` estourando o timeout de 300 s **sob a suíte inteira
+em paralelo** enquanto passa em 12 s sozinho — contenção da máquina, não
+regressão da feature, mas não foi isolado.
+
+---
+
 ## Dependency Graph
 
 ```

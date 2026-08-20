@@ -1,0 +1,82 @@
+/* HighlightedTextarea — a textarea with a transparent-text mirror behind it,
+   so a run of characters can be tinted without replacing the native control.
+
+   Every metric below is duplicated between the mirror and the field on
+   purpose. They are two boxes the browser lays out independently, and the
+   illusion holds only while their font, size, line-height, padding, border box
+   and wrapping are identical — one different pixel and the tint slides off the
+   words it belongs to. Change one, change both. */
+
+.hds-hl-textarea {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  transition:
+    border-color 0.2s var(--ease-quart),
+    box-shadow 0.2s var(--ease-quart);
+}
+
+.hds-hl-textarea:focus-within {
+  border-color: var(--focus);
+}
+
+/* A mode, not a focus state — it outranks :focus-within so a field that loses
+   focus while dictation is still running does not flicker its ring off. */
+.hds-hl-textarea[data-active] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.hds-hl-textarea-backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 9px 12px;
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  /* The mirror exists to be seen *through*: only its children's backgrounds
+     paint, never its glyphs. */
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The field keeps its own metrics (they come from .hds-textarea) but gives up
+   its chrome to the wrapper, which now owns the border and the focus ring. */
+.hds-hl-textarea-field.hds-textarea {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
+  border-radius: inherit;
+}
+
+.hds-hl-textarea-field.hds-textarea:hover:not(:disabled),
+.hds-hl-textarea-field.hds-textarea:active:not(:disabled),
+.hds-hl-textarea-field.hds-textarea:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-hl-textarea {
+    transition: none;
+  }
+}
+
+/* Fill mode. The wrapper becomes the flex parent and the field grows into it:
+   `flex-basis: auto` still reads the autosize hook's inline height, so a short
+   transcript starts at its natural size and only the *leftover* space is taken.
+   The mirror is `inset: 0` either way, so the two stay locked together. */
+.hds-hl-textarea[data-fill] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.hds-hl-textarea[data-fill] .hds-hl-textarea-field.hds-textarea {
+  flex: 1 1 auto;
+}

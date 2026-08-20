@@ -135,7 +135,7 @@ test.describe('second-brain E2E (real Electron)', () => {
       await window
         .getByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
         .click()
-      await window.getByRole('menuitem', { name: 'Colar texto' }).click()
+      await window.getByRole('menuitem', { name: 'Escrever' }).click()
 
       const knowledge = 'Decisão da squad: o vault vive no workspace, versionado no git.'
       await window.getByRole('textbox').fill(knowledge)
@@ -205,6 +205,32 @@ test.describe('second-brain E2E (real Electron)', () => {
         return { ok: response.ok, body: (await response.text()).trim() }
       })
       expect(served).toEqual({ ok: true, body: '{"model_type":"whisper"}' })
+
+      // The BUNDLED models resolve through the very same scheme (D-SB-8), out
+      // of the app's own `resources/` — nothing was downloaded into this run's
+      // throwaway userData, so a body here proves the second search root is
+      // live. Skipped when the tree has not run `npm run models:fetch`, since
+      // the weights are deliberately not committed.
+      const bundledOnDisk = fs.existsSync(
+        path.join(__dirname, '..', 'resources', 'whisper-models', 'tiny', 'config.json')
+      )
+      if (bundledOnDisk) {
+        const shipped = await window.evaluate(async () => {
+          const response = await fetch('hive-model://models/tiny/config.json')
+          return { ok: response.ok, type: (await response.json()).model_type }
+        })
+        expect(shipped).toEqual({ ok: true, type: 'whisper' })
+
+        // And main reports it as usable without a download.
+        const status = await window.evaluate(async () => window.hive.whisper.modelStatus('tiny'))
+        expect(status).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
+
+        // The resolved preference is one of the bundled models, chosen by the
+        // hardware probe rather than a hardcoded default (SB-R7.4).
+        const preference = await window.evaluate(async () => window.hive.whisper.preference())
+        expect(preference.auto).toBe(true)
+        expect(['tiny', 'base', 'small']).toContain(preference.id)
+      }
 
       // An unknown store root is refused, not served.
       const refused = await window.evaluate(async () => {

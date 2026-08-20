@@ -92,6 +92,35 @@ export const DEFAULT_LANGUAGE = 'portuguese'
 /** D-SB-4: `base` is the default model. */
 export const DEFAULT_MODEL: WhisperModelId = 'base'
 
+/** What `modelStatus` reports back — the part the precision rule reads. */
+interface LocalModel {
+  downloaded: boolean
+  variant: WhisperVariant | null
+}
+
+/**
+ * Which precision to run, given the device and what is already on disk.
+ *
+ * **Weights already on the machine win — if this device can run them.** The
+ * three bundled models ship as fp32 (D-SB-8), and fp32 runs on WebGPU perfectly
+ * well, so a WebGPU machine uses the copy that is already here rather than
+ * downloading a ~4x smaller q8 to save nothing anyone asked to save.
+ *
+ * The reverse is **not** symmetric, and that asymmetry is the whole rule: the
+ * quantized decoder cannot create a session on onnxruntime-web's WASM backend
+ * at all ("MatMulNBits … Missing required scale", T2 spike). So a q8 copy left
+ * over from a WebGPU run is unusable on CPU and must be re-fetched as fp32
+ * rather than "reused" into a failure.
+ *
+ * Pure, so both directions are asserted without a pipeline or a device.
+ */
+export function chooseVariant(webgpu: boolean, present: LocalModel): WhisperVariant {
+  const usable =
+    present.downloaded && (webgpu ? present.variant !== null : present.variant === 'fp32')
+  if (usable && present.variant !== null) return present.variant
+  return webgpu ? 'q8' : 'fp32'
+}
+
 /**
  * Runs Whisper locally in the renderer (SB-R4.1/4.2/4.4).
  *
@@ -161,9 +190,8 @@ export function useWhisper(deps: WhisperDeps = browserWhisperDeps()): WhisperEng
       try {
         const webgpu = await deps.hasWebGpu()
         const device = webgpu ? 'webgpu' : 'wasm'
-        // fp32 is mandatory on WASM (quantized decoder can't build a session);
-        // WebGPU can take the ~4x smaller q8 weights.
-        const variant: WhisperVariant = webgpu ? 'q8' : 'fp32'
+        const present = await window.hive.whisper.modelStatus(model)
+        const variant = chooseVariant(webgpu, present)
 
         await ensureDownloaded(model, variant)
 

@@ -38,9 +38,9 @@ describe('SecondBrainFab (T9)', () => {
     const items = screen.getAllByRole('menuitem').map((i) => i.textContent)
     expect(items).toEqual([
       'Perguntar à baseCtrl+Shift+K',
-      'Colar texto',
-      'Áudio (arquivo)',
-      'Gravar áudio'
+      'Escrever',
+      'Enviar áudio',
+      'Ditar ao vivo'
     ])
   })
 
@@ -73,16 +73,16 @@ describe('SecondBrainFab (T9)', () => {
     const { onSelectMode, trigger } = renderFab()
 
     fireEvent.click(trigger)
-    fireEvent.click(screen.getByText('Colar texto'))
+    fireEvent.click(screen.getByText('Escrever'))
     expect(onSelectMode).toHaveBeenCalledWith('text')
     expect(screen.queryByRole('menu')).toBeNull()
 
     fireEvent.click(trigger)
-    fireEvent.click(screen.getByText('Áudio (arquivo)'))
+    fireEvent.click(screen.getByText('Enviar áudio'))
     expect(onSelectMode).toHaveBeenLastCalledWith('audioFile')
 
     fireEvent.click(trigger)
-    fireEvent.click(screen.getByText('Gravar áudio'))
+    fireEvent.click(screen.getByText('Ditar ao vivo'))
     expect(onSelectMode).toHaveBeenLastCalledWith('record')
   })
 

@@ -10,6 +10,7 @@ import {
 import { dirname, join } from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
+import { BUNDLED_WHISPER_VARIANT, isBundledModel } from './whisperBundled'
 import type {
   WhisperDownloadEvent,
   WhisperModelId,
@@ -26,7 +27,7 @@ export type { WhisperModelId, WhisperModelInfo, WhisperVariant } from './whisper
  * from the published Whisper table, which is what the model-manager UI shows.
  */
 export const WHISPER_CATALOG: ReadonlyArray<
-  Omit<WhisperModelInfo, 'downloaded' | 'downloadedVariant'>
+  Omit<WhisperModelInfo, 'downloaded' | 'downloadedVariant' | 'bundled'>
 > = [
   {
     id: 'tiny',
@@ -133,20 +134,44 @@ interface TreeEntry {
   size?: number
 }
 
+/** What `status()` answers: is it usable, in which precision, and from where. */
+export interface WhisperModelStatus {
+  downloaded: boolean
+  variant: WhisperVariant | null
+  /** True when the answer came from the weights that ship inside the app. */
+  bundled: boolean
+}
+
 export interface WhisperModelStore {
   list(): WhisperModelInfo[]
-  status(id: WhisperModelId): { downloaded: boolean; variant: WhisperVariant | null }
+  status(id: WhisperModelId): WhisperModelStatus
   download(
     id: WhisperModelId,
     variant: WhisperVariant,
     onEvent: (event: WhisperDownloadEvent) => void
   ): Promise<void>
   remove(id: WhisperModelId): void
+  /**
+   * Every directory a model's files may be read from, most-specific first.
+   *
+   * The protocol handler resolves through this rather than through a single
+   * root: a downloaded copy in `userData` shadows the bundled one (a user who
+   * deliberately fetched `small` in another precision gets what they asked
+   * for), and the bundled directory answers for everything else with no
+   * download ever having happened.
+   */
+  searchRoots(): string[]
 }
 
 export interface WhisperStoreDeps {
   /** Injected so tests drive a fake registry without touching the network. */
   fetchFn?: typeof fetch
+  /**
+   * Read-only directory of the weights that ship with the app, or `undefined`
+   * in the tests and tools that have none. Never written to, never deleted
+   * from — it lives inside the installation, not in the user's profile.
+   */
+  bundledDir?: string
 }
 
 /** Root-level files every Transformers.js Whisper repo needs (those that exist). */
@@ -195,27 +220,69 @@ export function createWhisperModelStore(
     return found
   }
 
-  function status(id: WhisperModelId): { downloaded: boolean; variant: WhisperVariant | null } {
-    const marker = join(modelDir(id), COMPLETE_MARKER)
-    if (!existsSync(marker)) return { downloaded: false, variant: null }
+  /** Reads a finalized directory's marker. `null` when absent or unreadable. */
+  function readMarker(dir: string): WhisperVariant | null | undefined {
+    const marker = join(dir, COMPLETE_MARKER)
+    if (!existsSync(marker)) return undefined
     try {
       const parsed: unknown = JSON.parse(readFileSync(marker, 'utf-8'))
       const variant = (parsed as { variant?: string } | null)?.variant
-      return {
-        downloaded: true,
-        variant: variant === 'q8' || variant === 'fp32' ? variant : null
-      }
+      return variant === 'q8' || variant === 'fp32' ? variant : null
     } catch {
       // A corrupt marker means we cannot trust the directory — treat as absent.
-      return { downloaded: false, variant: null }
+      return undefined
     }
+  }
+
+  /**
+   * Is this model present in the app's own `resources/`?
+   *
+   * The marker is honoured when the packaging script wrote one, but its absence
+   * is **not** disqualifying: bundled weights are placed by the build, not by
+   * the atomic download path the marker exists to guard, so the presence of the
+   * two ONNX files is itself the proof. Without this fallback a perfectly good
+   * bundled model would read as missing and the app would offer to download
+   * what it already ships.
+   */
+  function bundledVariant(id: WhisperModelId): WhisperVariant | null {
+    const dir = deps.bundledDir
+    if (dir === undefined || !isBundledModel(id)) return null
+    const marked = readMarker(join(dir, id))
+    if (marked !== undefined) return marked ?? BUNDLED_WHISPER_VARIANT
+    const onnx = join(dir, id, 'onnx')
+    const complete =
+      existsSync(join(onnx, 'encoder_model.onnx')) &&
+      existsSync(join(onnx, 'decoder_model_merged.onnx')) &&
+      existsSync(join(dir, id, 'config.json'))
+    return complete ? BUNDLED_WHISPER_VARIANT : null
+  }
+
+  function status(id: WhisperModelId): WhisperModelStatus {
+    // A user-fetched copy wins: they asked for it, possibly in another
+    // precision, and it is the one the protocol handler will serve first.
+    const marked = readMarker(modelDir(id))
+    if (marked !== undefined) return { downloaded: true, variant: marked, bundled: false }
+
+    const shipped = bundledVariant(id)
+    if (shipped !== null) return { downloaded: true, variant: shipped, bundled: true }
+
+    return { downloaded: false, variant: null, bundled: false }
   }
 
   function list(): WhisperModelInfo[] {
     return WHISPER_CATALOG.map((model) => {
       const state = status(model.id)
-      return { ...model, downloaded: state.downloaded, downloadedVariant: state.variant }
+      return {
+        ...model,
+        downloaded: state.downloaded,
+        downloadedVariant: state.variant,
+        bundled: state.bundled
+      }
     })
+  }
+
+  function searchRoots(): string[] {
+    return deps.bundledDir === undefined ? [rootDir] : [rootDir, deps.bundledDir]
   }
 
   async function listRepoFiles(repo: string, variant: WhisperVariant): Promise<TreeEntry[]> {
@@ -253,6 +320,17 @@ export function createWhisperModelStore(
       // event like every other failure, never as a rejected promise the IPC
       // layer would see as an unhandled rejection.
       const { repo } = entry(id)
+
+      // Already in the box. Answering `done` immediately (rather than refusing)
+      // is what lets every caller keep one code path: `useWhisper` still calls
+      // `ensureDownloaded` before building a pipeline, and for a bundled model
+      // that call simply costs nothing instead of needing a special case at
+      // each site.
+      if (bundledVariant(id) === variant) {
+        onEvent({ type: 'done', id })
+        return
+      }
+
       const files = await listRepoFiles(repo, variant)
       const total = files.reduce((sum, f) => sum + (f.size ?? 0), 0)
 
@@ -292,9 +370,19 @@ export function createWhisperModelStore(
     }
   }
 
+  /**
+   * Deletes the **downloaded** copy only.
+   *
+   * The bundled directory lives inside the installation and is deliberately
+   * untouched: deleting it would need write access to the app's own program
+   * files, would be undone by the next update, and would leave the product
+   * without the offline capability it advertises. Removing a model the user
+   * downloaded on top of a bundled one therefore reverts to the bundled copy,
+   * which `status()` reports on the very next call.
+   */
   function remove(id: WhisperModelId): void {
     rmSync(modelDir(id), { recursive: true, force: true })
   }
 
-  return { list, status, download, remove }
+  return { list, status, download, remove, searchRoots }
 }

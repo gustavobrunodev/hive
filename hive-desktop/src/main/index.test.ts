@@ -2440,16 +2440,62 @@ describe('main process bootstrap', () => {
       const models = (await findHandler('whisper:listModels')({})) as Array<{
         id: string
         downloaded: boolean
+        bundled: boolean
         repo: string
       }>
       expect(models.length).toBeGreaterThan(0)
       expect(models.map((m) => m.id)).toContain('base')
-      // Nothing is downloaded in a fresh temp userData dir.
-      expect(models.every((m) => m.downloaded === false)).toBe(true)
-      expect(await findHandler('whisper:modelStatus')({}, 'base')).toEqual({
-        downloaded: false,
-        variant: null
-      })
+
+      // The userData dir is a fresh temp one, so the ONLY thing that can be
+      // available here is a model shipping inside the app (D-SB-8) — which is
+      // present exactly when `npm run models:fetch` has run for this tree.
+      // Asserting the *implication* rather than a fixed list keeps this honest
+      // in both shapes: a clean clone has nothing, a packaged tree has three,
+      // and neither is allowed to report a downloaded model that isn't there.
+      for (const model of models) {
+        expect(model.downloaded).toBe(model.bundled)
+      }
+
+      const status = (await findHandler('whisper:modelStatus')({}, 'base')) as {
+        downloaded: boolean
+        variant: string | null
+        bundled: boolean
+      }
+      expect(status).toEqual(
+        status.bundled
+          ? { downloaded: true, variant: 'fp32', bundled: true }
+          : { downloaded: false, variant: null, bundled: false }
+      )
+    })
+
+    /**
+     * SB-R7.4 — the probe stopped being advisory. This is the handler every
+     * transcribing surface reads, so what matters is that it resolves to a
+     * model that is actually usable rather than merely recommended.
+     */
+    it('preference resolves a model, and setPreferredModel pins/unpins it', async () => {
+      const first = (await findHandler('whisper:preference')({})) as {
+        id: string
+        auto: boolean
+        recommendation: { recommendedId: string }
+      }
+      expect(first.auto).toBe(true)
+      expect(['tiny', 'base', 'small']).toContain(first.id)
+
+      // A model that is not on disk cannot be pinned — the pin is ignored and
+      // the probe keeps the decision, rather than transcription pointing at
+      // weights that were never fetched.
+      const pinnedMissing = (await findHandler('whisper:setPreferredModel')({}, 'large-v3')) as {
+        id: string
+        auto: boolean
+      }
+      expect(pinnedMissing.auto).toBe(true)
+      expect(pinnedMissing.id).not.toBe('large-v3')
+
+      const cleared = (await findHandler('whisper:setPreferredModel')({}, null)) as {
+        auto: boolean
+      }
+      expect(cleared.auto).toBe(true)
     })
 
     it('recommend returns an advisory model and never throws, even with no GPU probe', async () => {

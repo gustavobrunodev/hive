@@ -18,6 +18,8 @@ import { createHiveSecondBrainMock, FRESH_HEALTH } from './testSupport/hiveSecon
 import type { VaultHealth } from './secondBrain/useSecondBrain'
 import { makeStatus } from './testSupport/gitStoreMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
+import { createHiveWhisperMock } from './testSupport/hiveWhisperMock'
+import { HighlightedTextareaMock } from './testSupport/dsMocks'
 import type { McpLogEntry } from './mcpLogs/logConsole'
 
 /**
@@ -337,6 +339,7 @@ vi.mock('@hive/design-system', () => ({
     createElement('button', { type: 'button', onClick }, children),
   // git-management: the SCM panel's commit box + change-row context menus.
   Textarea: (props: Record<string, unknown>) => createElement('textarea', props),
+  HighlightedTextarea: HighlightedTextareaMock,
   DropdownMenuCheckboxItem: ({
     children,
     checked,
@@ -662,13 +665,11 @@ function createHiveMock(): Window['hive'] {
       create: vi.fn(async () => undefined),
       run: vi.fn(() => () => {})
     },
-    // The ingestion sheet's audio tabs mount the Whisper model store on open.
-    whisper: {
-      listModels: vi.fn(async () => []),
-      modelStatus: vi.fn(async () => ({ installed: false })),
-      deleteModel: vi.fn(async () => undefined),
-      downloadModel: vi.fn(() => () => {})
-    },
+    // The ingestion sheet's audio sources mount the Whisper model store and
+    // the preference probe on open. The shared mock, not a hand-rolled one:
+    // this stub had already drifted from the real bridge (`installed` for a
+    // field named `downloaded`), which is exactly what the helper prevents.
+    whisper: createHiveWhisperMock(),
     // The (closed) MCP module loads the server list on open.
     mcp: {
       list: vi.fn(async () => []),
@@ -1744,7 +1745,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
     )
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Colar texto' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Escrever' }))
     expect(await screen.findByText('Ingerir conhecimento')).toBeTruthy()
 
     // Closing has to actually clear the mode, or the sheet can never reopen.

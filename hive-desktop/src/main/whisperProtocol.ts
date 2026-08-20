@@ -46,49 +46,74 @@ export const WHISPER_SCHEME_PRIVILEGES = {
  * Store roots addressable by hostname. Today only `models`; the index
  * signature is what lets an arbitrary (attacker-supplied) hostname be looked up
  * safely — an unknown key simply yields `undefined` and the request is refused.
+ *
+ * A host maps to a **search path**, not a single directory, because the same
+ * model can live in two places: the copy a user downloaded into `userData`, and
+ * the copy that ships inside the app's `resources/`. Order is priority, and the
+ * guard below is applied to each root independently, so adding the bundled
+ * directory widens what can be served without widening where a crafted path can
+ * reach.
  */
 export interface WhisperProtocolRoots {
-  models: string
-  [host: string]: string | undefined
+  models: string | readonly string[]
+  [host: string]: string | readonly string[] | undefined
+}
+
+/** Contains `file` within `root`? Both traversal shapes are covered — see below. */
+function within(root: string, full: string): boolean {
+  return full === root || full.startsWith(root.endsWith(sep) ? root : root + sep)
 }
 
 /**
- * Resolves a `hive-model://<host>/<path>` request to an absolute file path
- * inside a known root, or `null` when the host is unknown or the path escapes
- * its root (path-escape guard — the `fsService`/protocol convention).
+ * Every absolute path a `hive-model://<host>/<path>` request may legally read,
+ * in priority order. Empty when the host is unknown or the path escapes every
+ * root (path-escape guard — the `fsService`/protocol convention).
  *
- * Pure and synchronous so it can be unit-tested exhaustively without Electron.
+ * Pure and synchronous so it can be unit-tested exhaustively without Electron;
+ * the caller is the one that touches the filesystem to pick the first candidate
+ * that exists.
  */
-export function resolveWhisperRequest(roots: WhisperProtocolRoots, url: string): string | null {
+export function resolveWhisperCandidates(roots: WhisperProtocolRoots, url: string): string[] {
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
-    return null
+    return []
   }
-  if (parsed.protocol !== `${WHISPER_SCHEME}:`) return null
+  if (parsed.protocol !== `${WHISPER_SCHEME}:`) return []
 
-  const root = roots[parsed.hostname]
-  if (!root) return null
+  const configured = roots[parsed.hostname]
+  if (!configured) return []
+  const candidates = typeof configured === 'string' ? [configured] : configured
+  if (candidates.length === 0) return []
 
   let rest: string
   try {
     rest = decodeURIComponent(parsed.pathname)
   } catch {
-    return null // malformed percent-encoding
+    return [] // malformed percent-encoding
   }
   rest = rest.replace(/^\/+/, '')
-  if (rest === '') return null
+  if (rest === '') return []
 
-  const full = join(root, rest)
   // Traversal is neutralized at two layers, and both matter:
   //   1. Literal `../` is resolved away by `new URL()` itself (a `standard`
   //      scheme normalizes the path at parse time), so it can never escape.
   //   2. Percent-encoded `%2e%2e%2f` is opaque to the parser and only becomes
   //      `../` after `decodeURIComponent` above — this explicit guard is what
   //      catches that shape.
-  if (full !== root && !full.startsWith(root.endsWith(sep) ? root : root + sep)) return null
-  return full
+  return candidates.flatMap((root) => {
+    const full = join(root, rest)
+    return within(root, full) ? [full] : []
+  })
+}
+
+/**
+ * The single best path for a request, or `null`. Kept as the narrow form for
+ * callers (and tests) that only ever configured one root per host.
+ */
+export function resolveWhisperRequest(roots: WhisperProtocolRoots, url: string): string | null {
+  return resolveWhisperCandidates(roots, url)[0] ?? null
 }
 
 /**

@@ -61,6 +61,7 @@ import type {
   WhisperDownloadEvent,
   WhisperModelId,
   WhisperModelInfo,
+  WhisperPreference,
   WhisperVariant
 } from '../main/whisperTypes'
 
@@ -431,7 +432,7 @@ declare global {
         listModels(): Promise<WhisperModelInfo[]>
         modelStatus(
           id: WhisperModelId
-        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }>
+        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null; bundled: boolean }>
         /** Downloads a model; streams byte progress, returns an unsubscribe. */
         downloadModel(
           id: WhisperModelId,
@@ -439,8 +440,15 @@ declare global {
           onEvent: (evt: WhisperDownloadEvent) => void
         ): () => void
         deleteModel(id: WhisperModelId): Promise<void>
-        /** SB-R7.1: advisory best-model-for-this-machine; falls back to `base`. */
+        /** SB-R7.1: best-model-for-this-machine probe; falls back to `base`. */
         recommend(): Promise<HardwareRecommendation>
+        /**
+         * SB-R7.4: the model transcription actually uses, resolved in main —
+         * the user's pin when it is still usable, the probe's answer otherwise.
+         */
+        preference(): Promise<WhisperPreference>
+        /** Pins a model, or returns to automatic with `null`. */
+        setPreferredModel(id: WhisperModelId | null): Promise<WhisperPreference>
       }
     }
   }
