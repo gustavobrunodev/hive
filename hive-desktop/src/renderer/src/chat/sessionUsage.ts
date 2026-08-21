@@ -88,10 +88,21 @@ export const EMPTY_SESSION_USAGE: SessionUsage = {
   apiMs: null
 }
 
-/** Tokens the model read on the last request — the window's occupancy. */
+/**
+ * Tokens the model read on the last request — the window's occupancy.
+ *
+ * The three fields are coalesced rather than trusted. A report missing any one
+ * of them — a CLI version that stops sending `cacheCreationTokens`, an adapter
+ * other than Claude's — turned this sum into `NaN`, and the composer footer
+ * then read **"NaN% de contexto"** for the rest of the session. The breakdown
+ * in `contextBreakdown` below already coalesced; the headline did not, so the
+ * detail sheet stayed plausible while the number everybody actually looks at
+ * was garbage. Degrading to a low reading is wrong by exactly the missing
+ * field; `NaN` is wrong in a way the user cannot even read.
+ */
 export function contextTokens(usage: TurnUsage | null): number {
   if (!usage) return 0
-  return usage.inputTokens + usage.cacheReadTokens + usage.cacheCreationTokens
+  return (usage.inputTokens ?? 0) + (usage.cacheReadTokens ?? 0) + (usage.cacheCreationTokens ?? 0)
 }
 
 /**

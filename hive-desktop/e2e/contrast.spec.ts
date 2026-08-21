@@ -138,6 +138,16 @@ async function sampleTextContrast(window: Page, rootSelector = 'body'): Promise<
       if (style.visibility === 'hidden' || style.opacity === '0') continue
       // Decorative glyphs carry no information; the a11y tree hides them.
       if (element.closest('[aria-hidden="true"]')) continue
+      // Inactive components are exempt from 1.4.3 by the success criterion
+      // itself, and the fade IS the affordance — a disabled "Colar" that met
+      // the floor would stop reading as unavailable. Skipped here rather than
+      // per-test because it is a property of the criterion, not of a surface:
+      // without it, any sweep over a menu with one greyed item can only fail.
+      // Radix marks disabled items with `data-disabled`; native controls with
+      // the attribute; ARIA widgets with `aria-disabled`.
+      if (element.closest('[data-disabled], [aria-disabled="true"], :disabled') !== null) {
+        continue
+      }
 
       const background = composite(backgroundLayers(element))
       // The text itself can be translucent — composite it over its own
@@ -496,6 +506,100 @@ for (const theme of THEMES) {
       failuresIn(profileSamples),
       `contrast failures in ${theme}, profile shortcuts:\n${failuresIn(profileSamples).join('\n')}`
     ).toEqual([])
+  })
+}
+
+/**
+ * The four on-demand surfaces an exploratory pass found still failing AA, all
+ * for the same reason and none of them reachable from an idle work UI: the
+ * Ctrl+P file palette, the MCP manager dialog, the conversation history
+ * popover, and a tree row's actions menu.
+ *
+ * They are grouped into one test because they share one root cause and one
+ * fix, and the group is what keeps that fix honest. Three of them had read
+ * text in `--faint`, which only clears its floor against the darkest
+ * background — a lesson this repo has now recorded four times (M14, M15, the
+ * patch gutter, and these). The fourth, the history popover, had accent-on-
+ * accent-tint, the composition `--accent-tint-ink` was added for and that
+ * three call sites still had not adopted.
+ *
+ * The row menu is included even though nothing in it changed: it is the one
+ * surface here whose failing sample was a *disabled* item ("Colar" with an
+ * empty clipboard), which WCAG 1.4.3 exempts. Sweeping it pins that boundary,
+ * so the next person to darken a disabled token has to mean it.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the on-demand palettes and menus meet WCAG AA in the ${theme} theme`, async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    const sweep = async (label: string): Promise<void> => {
+      const samples = await sampleTextContrast(window)
+      // `> 0`, not `> 5`, and the M25 lesson is why: the sampler dedupes by
+      // (colour, background, size, weight), so a surface built entirely from
+      // the shell's tokens yields few distinct samples *by construction* — the
+      // palette over this suite's small seeded workspace produces exactly five,
+      // and a floor of 5 fails on the deduper's arithmetic rather than on any
+      // contrast defect. What proves the surface actually opened is the
+      // `waitFor` at each call site, which fails with a timeout instead of with
+      // a quiet zero. This floor only guards the case where everything present
+      // is `aria-hidden` and the sweep skips it silently.
+      expect(samples.length).toBeGreaterThan(0)
+      expect(
+        failuresIn(samples),
+        `contrast failures in ${theme}, ${label}:\n${failuresIn(samples).join('\n')}`
+      ).toEqual([])
+    }
+
+    // The Ctrl+P palette. Its folder column and its keyboard-hint footer are
+    // the read text that was under the floor.
+    await window
+      .getByRole('navigation', { name: 'Ferramentas do workspace' })
+      .getByRole('button', { name: 'Buscar arquivos no workspace' })
+      .click()
+    await window.locator('.wb-filesearch-hint').waitFor({ state: 'visible' })
+    await sweep('file palette')
+    await window.keyboard.press('Escape')
+    await expect(window.locator('.wb-filesearch-hint')).toHaveCount(0)
+
+    // The MCP manager. Its server count and its "Não testado" status pill sit
+    // on the dialog's elevated surface, where `--faint` falls furthest.
+    // Scoped to the rail: the status bar carries a second control whose name
+    // also contains "Servidores MCP" (it opens the activity console, not this
+    // dialog), and an unscoped `getByRole` matches both.
+    await window
+      .getByRole('navigation', { name: 'Ferramentas do workspace' })
+      .getByRole('button', { name: 'Servidores MCP' })
+      .click()
+    await window.locator('.wb-mcp-dialog').waitFor({ state: 'visible' })
+    await sweep('MCP manager')
+    await window.keyboard.press('Escape')
+    await expect(window.locator('.wb-mcp-dialog')).toHaveCount(0)
+
+    // The conversation history popover: a date group header in `--faint`, plus
+    // the "ATUAL" badge and the "Em andamento" marker, which render only on the
+    // current row — the one painted with `--selected-bg`, so they are measured
+    // against the accent's own tint rather than against the popover.
+    await window.getByRole('button', { name: 'Histórico de conversas' }).click()
+    await window.locator('.wb-history-pop').waitFor({ state: 'visible' })
+    await sweep('history popover')
+    await window.keyboard.press('Escape')
+    await expect(window.locator('.wb-history-pop')).toHaveCount(0)
+
+    // A tree row's actions menu, disabled items included. Addressed by pattern
+    // rather than by filename: this suite's seeded workspace holds only
+    // `_bmad/`, and that is the useful row anyway — a *folder*, whose wrapper
+    // is the element that used to hide this button from the accessibility tree.
+    const rowMenu = window.getByRole('button', { name: /^Mais ações para / }).first()
+    await rowMenu.hover()
+    await rowMenu.click()
+    await window.getByRole('menuitem', { name: /^Renomear/ }).waitFor({ state: 'visible' })
+    await sweep('tree row menu')
+    await window.keyboard.press('Escape')
   })
 }
 

@@ -116,25 +116,33 @@ export function FileSearchDialog({
             value per item while a search for the filename matches both. */}
         {onOpenDesignStudio && (
           <CommandGroup heading={t('fileSearch.designStudioGroup')}>
-            {files.filter(isMarkdownPath).map((path) => (
-              <CommandItem
-                key={`studio:${path}`}
-                value={`${path} ${STUDIO_VALUE_SUFFIX}`}
-                onSelect={() => {
-                  onOpenDesignStudio(path)
-                  onOpenChange(false)
-                }}
-                aria-label={t('fileSearch.openDesignStudioAria', path)}
-              >
-                <span className="wb-filesearch-icon" aria-hidden="true">
-                  <LayersIcon size={15} />
-                </span>
-                <span className="wb-filesearch-text">
-                  <span className="wb-filesearch-name">{splitPath(path).name}</span>
-                  <span className="wb-filesearch-dir">{path}</span>
-                </span>
-              </CommandItem>
-            ))}
+            {files.filter(isMarkdownPath).map((path) => {
+              const { name, dir } = splitPath(path)
+              return (
+                <CommandItem
+                  key={`studio:${path}`}
+                  value={`${path} ${STUDIO_VALUE_SUFFIX}`}
+                  onSelect={() => {
+                    onOpenDesignStudio(path)
+                    onOpenChange(false)
+                  }}
+                  aria-label={t('fileSearch.openDesignStudioAria', path)}
+                >
+                  <span className="wb-filesearch-icon" aria-hidden="true">
+                    <LayersIcon size={15} />
+                  </span>
+                  {/* The folder, exactly as the files group above renders it —
+                      not the whole path. Printing `path` here repeated the
+                      name the line already starts with, so a root-level Spec
+                      read "README.md   README.md" and a nested one repeated
+                      its folder *and* its name. */}
+                  <span className="wb-filesearch-text">
+                    <span className="wb-filesearch-name">{name}</span>
+                    {dir !== null && <span className="wb-filesearch-dir">{dir}</span>}
+                  </span>
+                </CommandItem>
+              )
+            })}
           </CommandGroup>
         )}
       </CommandList>

@@ -45,7 +45,13 @@
 }
 
 .hds-command-input::placeholder {
-  color: var(--faint);
+  /* `--muted`, not `--faint`. A placeholder is read text, and it is often the
+     control's ONLY visible label — the chat composer has no other. `--faint`
+     measured 4.18:1 (dark) and 3.71:1 (light) here, below the 4.5:1 floor;
+     `--muted` measures 6.03 / 6.18 / 6.23 across the three themes.
+     WCAG 1.4.3. Disabled states below keep `--faint`: inactive components are
+     exempt, and the fade is what carries "you cannot type here". */
+  color: var(--muted);
 }
 
 .hds-command-list {

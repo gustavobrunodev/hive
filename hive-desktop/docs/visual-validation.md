@@ -754,3 +754,113 @@ só pode errar.
 A generalização, que vale para toda sonda daqui: **se o critério de parada
 depende de reconhecer um formato de cor, ele vai quebrar.** O navegador sabe
 compor; a sonda não precisa saber.
+
+## Passe exploratório 2026-08-21 — o que uma varredura ampla acha que uma sonda por feature não acha
+
+Todas as sondas acima nasceram de uma milestone e cobrem a superfície dela. Um
+passe que varre **todas** as vistas do rail, nos três temas, com um turno na
+tela, achou nove reprovações de contraste em seis módulos — nenhum deles o
+módulo que estava sendo trabalhado quando a regra foi escrita. A varredura tem
+esse valor justamente por não ter dono.
+
+**`--faint` em texto de leitura, quarta e quinta vez.** A regra já está escrita
+três vezes neste arquivo e mesmo assim reapareceu em: a coluna de pasta e o
+rodapé de teclas da paleta Ctrl+P, a contagem e a pílula "Não testado" do
+gerenciador MCP, o cabeçalho de grupo do histórico, e o rodapé do compositor
+("de contexto" e a linha que ensina Enter / Shift+Enter / `/` / `@`). Todos
+mediram 4,18:1 no escuro e 3,71:1 no claro — o mesmo par de números, porque é o
+mesmo token na mesma posição.
+
+O número que fecha o assunto: `--faint` mede **4,53 / 3,29 / 4,97** sobre
+`--bg` e **4,18 / 3,71 / 4,59** sobre `--surface` (escuro / claro / hive). Ele
+só limpa 4,5:1 sobre o `--bg` escuro — por 0,03 — e sobre o `hive`. **No tema
+claro ele não passa em lugar nenhum.** Não é um token de texto; é um token de
+ícone e marca inativa, e a única forma de parar de reencontrá-lo é essa tabela.
+
+**O placeholder é o caso mais caro dessa família, e mora no design system.**
+`Input`, `Textarea`, `Command` e `Select[data-placeholder]` pintavam
+`::placeholder` em `--faint`. O compositor do chat — o controle mais usado do
+app — **não tem outro rótulo além do placeholder**, e ele media 4,18 / 3,71 /
+4,59. Agora 6,03 / 6,18 / 6,23. Os `:disabled` desses mesmos arquivos seguem em
+`--faint` de propósito: componente inativo é isento (WCAG 1.4.3), e o
+apagamento é o que carrega "não dá para digitar aqui".
+
+**Tint por baixo de uma calha: um jeito novo de o token certo falhar.** O
+número de linha do patch já tinha sido corrigido para `--muted`, com um
+comentário citando esta lição — e continuava reprovando: 4,15 (del) e 4,08
+(add) no tema claro, contra 4,90 numa linha intocada. A causa não é o token, é
+a geometria: `.wb-patch-no` é uma coluna do grid `.wb-patch-line`, então numa
+linha alterada ele senta **sobre** o tint de add/del, que compõe a razão para
+baixo. O `.wb-patch-text` já era promovido a `--ink` nessas linhas; a calha
+nunca foi. A generalização: **quando uma regra tinge a linha inteira, toda
+coluna dela precisa ser remedida, não só a que carrega o conteúdo.**
+
+**`--accent-tint-ink` existe e três chamadas ainda não o usavam.** "ATUAL" e
+"Em andamento" do histórico só renderizam na linha *atual* — a que é pintada
+com `--selected-bg` — e a inicial do avatar do personalizador de atalhos senta
+literalmente sobre `--selected-bg`. Coral sobre o tint do próprio coral: 4,02
+no escuro, 4,18 no hive. Ao adicionar um token para resolver uma composição,
+**vale um grep pela composição, não só pelo call site que a descobriu.**
+
+### O que só o snapshot de acessibilidade pegou
+
+Contraste é o que este guia sabe medir, e por isso é o que ele encontra. Três
+defeitos deste passe são invisíveis para qualquer sonda de cor:
+
+**1. Toda pasta do explorer era um `treeitem` sem nome.** O `Tree` do DS
+embrulhava a linha de um nó com filhos num `<button aria-hidden="true">`; como
+o `li[role=treeitem]` calcula o nome a partir do conteúdo, e o conteúdo inteiro
+estava escondido, o leitor de tela anunciava "item de árvore, recolhido, nível
+1" — sem o nome da pasta. Arquivos passavam porque folhas já usavam `<span>`.
+O mesmo embrulho punha o botão "Mais ações" da linha **dentro** de uma subárvore
+`aria-hidden` (regra `aria-hidden-focus` do axe: um foco alcançável por Tab que
+não existe na árvore de acessibilidade) e **dentro de outro `<button>`**, que é
+HTML inválido. Um `<span>` resolve os três: o `li` já tinha o papel e já tratava
+o clique.
+
+O jeito de encontrar isto é `browser_snapshot` do MCP, não screenshot: a tela
+mostra "_bmad" perfeitamente legível.
+
+**2. Três `banner` e nenhum `main`.** `PaneHeader` renderizava `<header>`, e um
+`<header>` fora de elemento seccionador computa como `role="banner"` — um por
+painel, mais o da barra de título. E a área de trabalho não era `main`, então
+não havia para onde "pular para o conteúdo".
+
+**3. `<html>` sem `lang`.** Todo o texto do app é pt-BR e nada dizia isso.
+WCAG 3.1.1, nível A, uma linha.
+
+### Duas armadilhas do próprio passe
+
+**Trocar de tema por `element.click()` de dentro da página não funciona.** O
+gatilho do `DropdownMenu` do Radix escuta `pointerdown`, não `click`, então um
+`page.evaluate(() => btn.click())` abre coisa nenhuma e a sonda mede o tema
+anterior três vezes — a mesma classe de falha silenciosa que o M15 registrou
+com `localStorage`. Use o clique real do Playwright.
+
+**Um `Escape` para fechar um menu responde o card de autorização.** Já está
+escrito na sonda de approvals; vale repetir para qualquer passe que use
+`Escape` como "voltar ao estado neutro" com um turno na tela.
+
+### Defeito de layout que só existe fora de 1440×900
+
+O FAB da base de conhecimento é `position: fixed` no canto inferior direito e o
+rodapé do compositor vai até a borda da coluna. A 1440px a coluna já ficava
+132px longe dele; a ~1100px e abaixo — janela redimensionada, ou zoom de 200% —
+o botão pousava **em cima** do fim da dica, e "…· / para skills · @ para
+arquivos" chegava na tela como "· / p" (o `text-overflow: ellipsis` existia; as
+reticências ficavam atrás do botão). Reservar a pegada do próprio botão no
+`padding-right` do rodapé resolve em qualquer largura.
+
+A lição de método: **medir sobreposição é uma asserção de retângulos**, não um
+olhar. `!(a.right <= b.left || a.left >= b.right || …)` sobre dois
+`getBoundingClientRect` acha isso em qualquer viewport da lista, e o screenshot
+de 1440 nunca acharia.
+
+### Um `NaN` que a sonda de contraste não vê e o usuário não desgruda
+
+`contextTokens` somava três campos do `usage` sem coalescer, enquanto o
+detalhamento duas funções abaixo coalescia. Um relatório sem um dos campos — uma
+versão da CLI, um adaptador que não seja o da Claude — fazia o rodapé do
+compositor exibir **"NaN% de contexto"** pelo resto da sessão, com a folha de
+detalhe mostrando um detalhamento plausível ao lado. Guardas assimétricas dentro
+do mesmo arquivo são o cheiro; o `?? 0` que faltava era um.

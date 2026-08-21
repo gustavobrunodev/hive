@@ -81,13 +81,19 @@ export function PaneHeader({
   primaryActions
 }: PaneHeaderProps): React.JSX.Element {
   return (
-    <header className="wb-pane-header" {...dragProps}>
+    // A `<div>`, not a `<header>`. This strip is a pane's toolbar, not the
+    // document's banner — but a `<header>` that is not inside a sectioning
+    // element computes as `role="banner"`, so two panes on screen gave the app
+    // three banner landmarks (the title bar plus one per pane) where the spec
+    // allows one. The pane's name reaches the accessibility tree through the
+    // `aria-label` on its `ResizablePanel`, not through this element.
+    <div className="wb-pane-header" {...dragProps}>
       <GripIcon size={12} className="wb-pane-grip" />
       <span className="wb-pane-header-label">{title}</span>
       {primaryActions !== undefined && (
         <div className="wb-pane-header-primary">{primaryActions}</div>
       )}
       <div className="wb-pane-header-actions">{actions}</div>
-    </header>
+    </div>
   )
 }

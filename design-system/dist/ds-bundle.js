@@ -14417,23 +14417,31 @@ function TreeItem({
         if (!node.disabled) onFocus(node.id);
       },
       children: [
-        /* @__PURE__ */ jsx82("div", { className: "hds-tree-row", style: { paddingLeft: `calc(${level - 1} * var(--s-5))` }, children: hasChildren ? /* @__PURE__ */ jsx82(
-          "button",
-          {
-            type: "button",
-            className: "hds-tree-toggle",
-            tabIndex: -1,
-            "aria-hidden": "true",
-            onClick: (event) => {
-              event.stopPropagation();
-              if (node.disabled) return;
-              const mods = { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey };
-              onFocus(node.id);
-              onActivate(node.id, mods);
-              if (!mods.toggle && !mods.range) onToggleExpand(node.id);
-            },
-            children: renderLabel(node, { level, expanded, selected, hasChildren })
-          }
+        /* @__PURE__ */ jsx82("div", { className: "hds-tree-row", style: { paddingLeft: `calc(${level - 1} * var(--s-5))` }, children: hasChildren ? (
+          // A `<span>`, not a `<button aria-hidden>`. The `li` already carries
+          // `role="treeitem"` and the row's whole click behaviour, so the
+          // wrapper never needed to be interactive — and `aria-hidden` on it
+          // hid the ONLY thing that could name the row, leaving every folder
+          // as a nameless `treeitem` (WCAG 4.1.2). It also made any
+          // interactive content a consumer renders through `renderLabel` —
+          // Hive's per-row actions menu — both a `<button>` nested inside a
+          // `<button>` and a focusable node inside a hidden subtree.
+          // Leaves already used a `<span>`; folders now match them.
+          /* @__PURE__ */ jsx82(
+            "span",
+            {
+              className: "hds-tree-toggle",
+              onClick: (event) => {
+                event.stopPropagation();
+                if (node.disabled) return;
+                const mods = { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey };
+                onFocus(node.id);
+                onActivate(node.id, mods);
+                if (!mods.toggle && !mods.range) onToggleExpand(node.id);
+              },
+              children: renderLabel(node, { level, expanded, selected, hasChildren })
+            }
+          )
         ) : /* @__PURE__ */ jsx82("span", { className: "hds-tree-toggle hds-tree-toggle-leaf", children: renderLabel(node, { level, expanded, selected, hasChildren }) }) }),
         hasChildren && expanded && /* @__PURE__ */ jsx82("ul", { role: "group", children: node.children.map((child) => /* @__PURE__ */ jsx82(
           TreeItem,

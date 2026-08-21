@@ -1166,7 +1166,12 @@ export function WorkUI({
               onOpenAppSettings={() => setAppSettingsOpen(true)}
               updatePending={updateFlow.pending}
             />
-            <div className="wb-body">
+            {/* The work area is the app's one `main` landmark: everything a
+                user came here to do (the panes and, under them, the MCP
+                console) lives inside it, and the action rail beside it is a
+                sibling so the `nav` stays out. Before this the page had no
+                `main` at all, so "skip to content" had nothing to skip to. */}
+            <main className="wb-body">
               <Resizable
                 // Remounted when Focus Mode flips: `defaultLayout` is read at
                 // mount, so restoring the captured split needs a fresh group.
@@ -1196,7 +1201,7 @@ export function WorkUI({
                   onOpenManager={() => setMcpOpen(true)}
                 />
               )}
-            </div>
+            </main>
           </div>
           {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
             work-surface footer, above the status bar — present only while the

@@ -1917,7 +1917,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('leaving a hovered pane clears its drop hint', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),
@@ -1938,7 +1938,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('drag-and-drop guards: no phantom hints, before-half targeting, child leave keeps the hint', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
     const railPane = screen.getByTestId('panel-rail').querySelector('.wb-pane') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
@@ -1992,7 +1992,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('reorders panes by dragging a pane header onto another pane and persists it', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),
@@ -2021,7 +2021,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('a drag that ends without a drop clears the drop hint (dragend path)', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),

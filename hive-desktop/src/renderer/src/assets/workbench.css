@@ -1626,7 +1626,9 @@ body ::-webkit-scrollbar-corner {
 .wb-composer-hint {
   margin-top: var(--s-2);
   font-size: 0.71875rem;
-  color: var(--faint);
+  /* `--muted`, not `--faint` (3.29:1 on the light theme): this line is the
+     only place the app teaches Enter/Shift+Enter, `/` and `@`. */
+  color: var(--muted);
   text-align: right;
 }
 .wb-composer-hint .hds-kbd {
@@ -5089,7 +5091,11 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: "HOJE" / "ONTEM" is what turns a flat list into
+     a timeline, and it sits on the popover's elevated `--surface`, where
+     `--faint` measured 4.18:1 (escuro) and 3.71:1 (claro). At 10px it is the
+     smallest read text in the popover — the last place to shave contrast. */
+  color: var(--muted);
   margin: 0;
   padding: var(--s-2) var(--s-2) var(--s-1);
 }
@@ -5166,7 +5172,11 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--accent);
+  /* This badge only ever renders on the *current* row, which is painted with
+     `--selected-bg` — the accent's own tint. Coral on that tint composes down
+     to 4.02:1 (escuro) / 4.18:1 (hive): the exact trap `--accent-tint-ink`
+     exists for. Coral is safe on `--bg`; it is not safe on a coral wash. */
+  color: var(--accent-tint-ink);
 }
 .wb-history-row-meta {
   display: flex;
@@ -5200,7 +5210,8 @@ button.wb-agent-pill-btn:focus-visible {
   gap: 6px;
   font-size: 0.71875rem;
   font-weight: 650;
-  color: var(--accent);
+  /* Same tint, same trap as `.wb-history-current` above: 4.02:1 / 4.18:1. */
+  color: var(--accent-tint-ink);
   white-space: nowrap;
 }
 
@@ -6576,13 +6587,19 @@ button.wb-agent-pill-btn:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.75rem;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: the folder is what tells two same-named files apart. Measured 4.18:1 (escuro) and 3.71:1 (claro), below the 4.5:1 floor.
+     Same lesson as M14/M15 and the patch gutter — `--faint` only clears
+     its floor against the darkest background, and this is read text. */
+  color: var(--muted);
 }
 .wb-filesearch-hint {
   margin: 0;
   padding: var(--s-2) var(--s-3);
   font-size: 0.71875rem;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: this line is how the palette teaches its own keys. Measured 4.18:1 (escuro) and 3.71:1 (claro), below the 4.5:1 floor.
+     Same lesson as M14/M15 and the patch gutter — `--faint` only clears
+     its floor against the darkest background, and this is read text. */
+  color: var(--muted);
   border-top: 1px solid var(--border);
 }
 
@@ -7054,7 +7071,9 @@ button.wb-agent-pill-btn:focus-visible {
   flex-shrink: 0;
   font-size: 0.8125rem;
   font-weight: 650;
-  color: var(--accent);
+  /* Text ON `--selected-bg` — literally what `--accent-tint-ink` was added
+     for. `--accent` here measured 4.02:1 (escuro) / 4.18:1 (hive). */
+  color: var(--accent-tint-ink);
   background: var(--selected-bg);
   border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
 }
@@ -7178,7 +7197,12 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   flex-direction: column;
   width: min(680px, calc(100vw - var(--s-6)));
-  height: min(700px, calc(100vh - var(--s-7)));
+  /* `max-height`, not `height`: this dialog is a list whose length the user
+     does not control, and a fixed height made the sparse states — one MCP
+     server, the two Estúdio choices — reserve ~700px of empty surface that
+     reads as "still loading". The `min()` still caps it against short
+     viewports, which is the case the fixed value was really protecting. */
+  max-height: min(700px, calc(100vh - var(--s-7)));
   padding: 0;
   overflow: hidden;
 }
@@ -7692,7 +7716,12 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   flex-direction: column;
   width: min(760px, calc(100vw - var(--s-6)));
-  height: min(720px, calc(100vh - var(--s-7)));
+  /* `max-height`, not `height`: this dialog is a list whose length the user
+     does not control, and a fixed height made the sparse states — one MCP
+     server, the two Estúdio choices — reserve ~700px of empty surface that
+     reads as "still loading". The `min()` still caps it against short
+     viewports, which is the case the fixed value was really protecting. */
+  max-height: min(720px, calc(100vh - var(--s-7)));
   padding: 0;
   overflow: hidden;
 }
@@ -7725,7 +7754,10 @@ button.wb-agent-pill-btn:focus-visible {
 }
 .wb-mcp-count {
   font-size: 0.75rem;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: a count somebody reads off an elevated dialog. Measured 4.18:1 (escuro) and 3.71:1 (claro), below the 4.5:1 floor.
+     Same lesson as M14/M15 and the patch gutter — `--faint` only clears
+     its floor against the darkest background, and this is read text. */
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -7931,11 +7963,16 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 600;
   white-space: nowrap;
 }
+/* `--muted`, not `--faint`. "Não testado" / "Desativado" is the pill's whole
+   payload — the one word that says whether this server has ever answered — and
+   it sits on the dialog's elevated `--surface`, where `--faint` measured
+   4.18:1 (escuro) and 3.71:1 (claro). The row is not a disabled control, so
+   the WCAG 1.4.3 exemption does not apply to it. */
 .wb-mcp-statuspill[data-status='idle'] {
-  color: var(--faint);
+  color: var(--muted);
 }
 .wb-mcp-statuspill[data-status='disabled'] {
-  color: var(--faint);
+  color: var(--muted);
 }
 .wb-mcp-statuspill[data-status='ok'] {
   color: var(--success);
@@ -8065,7 +8102,11 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--faint);
+    /* `--muted`, not `--faint`: read text on the dialog's elevated `--surface`,
+     where `--faint` measures 4.18:1 (escuro) / 3.71:1 (claro). The status DOT
+     above keeps `--faint` — it is a non-text indicator against the 3:1 floor,
+     which `--faint` clears in all three themes. */
+  color: var(--muted);
   margin-bottom: var(--s-2);
 }
 
@@ -8126,7 +8167,11 @@ button.wb-agent-pill-btn:focus-visible {
 }
 .wb-mcp-config-term {
   font-size: 0.75rem;
-  color: var(--faint);
+    /* `--muted`, not `--faint`: read text on the dialog's elevated `--surface`,
+     where `--faint` measures 4.18:1 (escuro) / 3.71:1 (claro). The status DOT
+     above keeps `--faint` — it is a non-text indicator against the 3:1 floor,
+     which `--faint` clears in all three themes. */
+  color: var(--muted);
 }
 .wb-mcp-config-val {
   font-size: 0.8125rem;
@@ -8214,7 +8259,11 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--faint);
+    /* `--muted`, not `--faint`: read text on the dialog's elevated `--surface`,
+     where `--faint` measures 4.18:1 (escuro) / 3.71:1 (claro). The status DOT
+     above keeps `--faint` — it is a non-text indicator against the 3:1 floor,
+     which `--faint` clears in all three themes. */
+  color: var(--muted);
 }
 
 /* --- Preset grid (shared: empty state + add form) ------------------------- */
@@ -13414,12 +13463,18 @@ span.wb-change-card-open {
 .wb-patch-no {
   padding-right: 8px;
   text-align: right;
-  /* `--muted`, not `--faint`: measured 2.95:1 on the light theme, a fail at
-     12px. This is the same lesson M14 and M15 already recorded — the tertiary
-     role only clears its floor against the darkest backgrounds, and a line
-     number is a coordinate somebody reads, not an inactive glyph. The gutter
-     stays subordinate by position and width, which is where that job belongs. */
-  color: var(--muted);
+  /* `--muted` was the first fix here (`--faint` measured 2.95:1 on the light
+     theme) and it was not enough: the gutter is part of the `.wb-patch-line`
+     grid, so on a changed row it sits ON the add/del tint, which composes the
+     ratio down again — 4.15:1 (del) and 4.08:1 (add) on the light theme,
+     against 4.90:1 on an untouched line. The tint is why `.wb-patch-text`
+     already gets bumped to `--ink` a few rules below; the number needed the
+     same treatment and never got it.
+     One tone for the whole column, not a per-row override: a gutter that
+     changes shade with the row is a stripe, and the subordination this
+     number needs comes from position and width, not from tone. Measured on
+     the worst row in each theme — 5.66 (claro), 6.30 (escuro), 6.73 (hive). */
+  color: color-mix(in oklab, var(--muted) 75%, var(--ink));
   user-select: none;
 }
 .wb-patch-sign {
@@ -14587,6 +14642,13 @@ span.wb-change-card-open {
   align-items: center;
   gap: var(--s-3);
   margin-top: var(--s-2);
+  /* Keep clear of the Second Brain FAB, which is `position: fixed` at
+     `right: var(--s-4)` and 44px wide (`.wb-brain-fab-root`). At 1440px the
+     chat column's own inset already cleared it; at ~1100px and below — a
+     resized window, or 200% zoom — the button landed on top of this row and
+     ate the end of the hint, so "…· / para skills · @ para arquivos" read as
+     "· / p". Reserving the button's own footprint holds at every width. */
+  padding-right: calc(44px + var(--s-4));
 }
 .wb-composer-footer .wb-composer-hint {
   flex: 1;
@@ -14609,14 +14671,18 @@ span.wb-change-card-open {
   background: none;
   font: inherit;
   font-size: 0.71875rem;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: `.wb-ctx-meter-label` inherits this, and "de
+     contexto" is the word that makes the percentage mean anything. `--faint`
+     measured 3.29:1 on the light theme. The value beside it was already
+     `--muted`, so the two halves of one reading now match. */
+  color: var(--muted);
   cursor: pointer;
   transition:
     color 0.15s var(--ease-quart),
     background-color 0.15s var(--ease-quart);
 }
 .wb-ctx-meter:hover {
-  color: var(--muted);
+  color: var(--ink);
   background: var(--surface-2);
 }
 .wb-ctx-meter:focus-visible {

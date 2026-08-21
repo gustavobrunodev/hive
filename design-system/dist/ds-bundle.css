@@ -1430,7 +1430,7 @@ a:hover {
   padding-left: 36px;
 }
 .hds-input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 .hds-input:hover:not(:disabled) {
   border-color: var(--border-strong);
@@ -1485,7 +1485,7 @@ a:hover {
     color 0.2s var(--ease-quart);
 }
 .hds-textarea::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 .hds-textarea:hover:not(:disabled) {
   border-color: var(--border-strong);
@@ -2032,7 +2032,7 @@ a:hover {
   transition: border-color 0.2s var(--ease-quart), box-shadow 0.2s var(--ease-quart);
 }
 .hds-select-trigger[data-placeholder] {
-  color: var(--faint);
+  color: var(--muted);
 }
 .hds-select-trigger:hover:not([data-disabled]) {
   border-color: var(--border-strong);
@@ -3587,7 +3587,7 @@ a:hover {
   font-size: 0.9375rem;
 }
 .hds-command-input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 .hds-command-list {
   overflow-y: auto;
