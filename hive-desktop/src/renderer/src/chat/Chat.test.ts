@@ -261,15 +261,34 @@ vi.mock('../dictation/micCapture', async (importOriginal) => {
   }
 })
 
+import { createHiveWhisperMock } from '../testSupport/hiveWhisperMock'
+
 /** The Whisper engine, faked so a transcript is deterministic and instant. */
-const whisper = vi.hoisted(() => ({ text: 'arquivo de configuração', calls: 0 }))
+interface TranscribeOptions {
+  model?: string
+  language?: string
+}
+
+const whisper = vi.hoisted(
+  (): { text: string; calls: number; lastOptions: TranscribeOptions | null } => ({
+    text: 'arquivo de configuração',
+    calls: 0,
+    /** The options of the last `transcribe` — the model is a real behaviour now. */
+    lastOptions: null
+  })
+)
 
 vi.mock('../secondBrain/whisper/useWhisper', () => ({
   DEFAULT_LANGUAGE: 'portuguese',
+  // voice-settings (M25): `useWhisperPreference` reads this as the pre-answer
+  // fallback, and it is imported through this same module — a mock that omits
+  // it throws on every Chat render, not just on a dictation test.
+  DEFAULT_MODEL: 'base',
   useWhisper: () => ({
     phase: { status: 'idle' },
-    transcribe: async () => {
+    transcribe: async (_pcm: Float32Array, options?: TranscribeOptions) => {
       whisper.calls += 1
+      whisper.lastOptions = options ?? null
       return whisper.text
     },
     reset: () => undefined
@@ -377,6 +396,12 @@ describe('Chat', () => {
       capabilities?: { models: unknown[]; efforts: unknown[]; supportsAttachments?: boolean }
       /** agent-approvals: the session-wide grant already armed in the main process. */
       sessionArmed?: boolean
+      /**
+       * voice-settings: the globally-chosen transcription model, as main
+       * resolves it. The composer's dictation runs with THIS, not with the
+       * engine's built-in default.
+       */
+      whisperPreference?: { id: string; auto: boolean; recommendation: Record<string, unknown> }
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
@@ -412,6 +437,15 @@ describe('Chat', () => {
     window.hive = {
       ...window.hive,
       listFiles: vi.fn().mockResolvedValue(options.workspaceFiles ?? []),
+      // voice-settings (M25): the composer resolves its dictation model from
+      // the same global preference the profile sheet writes, so the bridge has
+      // to answer here — without it every Chat render throws on mount.
+      whisper: {
+        ...createHiveWhisperMock(),
+        ...(options.whisperPreference
+          ? { preference: vi.fn().mockResolvedValue(options.whisperPreference) }
+          : {})
+      },
       agent: {
         capabilities: vi.fn().mockResolvedValue(
           options.capabilities ?? {
@@ -843,6 +877,57 @@ describe('Chat', () => {
     fireEvent.click(stop)
     expect(window.hive.agent.interrupt).toHaveBeenCalled()
     expect(window.hive.agent.stop).not.toHaveBeenCalled()
+  })
+
+  // The other half of "cliquei em interromper e nada aconteceu": even with the
+  // adapter fixed, a control that looks identical the instant after it is
+  // pressed reads as dead. It has to change under the finger.
+  it('marks the Stop control as acting the moment it is pressed, and refuses a second press', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    emit({ type: 'token', text: 'thinking' })
+
+    const stop = await screen.findByLabelText('Interromper a resposta do agente')
+    expect(stop.getAttribute('data-stopping')).toBeNull()
+
+    fireEvent.click(stop)
+    expect(stop.getAttribute('data-stopping')).toBe('true')
+    expect(stop.getAttribute('title')).toBe('Interrompendo…')
+
+    // A second press must not send a second interrupt — but the button must
+    // stay focusable, so `disabled` is deliberately not how this is done.
+    fireEvent.click(stop)
+    expect(window.hive.agent.interrupt).toHaveBeenCalledTimes(1)
+    expect(stop.hasAttribute('disabled')).toBe(false)
+
+    // Cleared by the stream, not by a timer.
+    emit({ type: 'interrupted' })
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Interromper a resposta do agente')).toBeNull()
+    )
+  })
+
+  it('Esc stops the turn — but only once nothing else is open to close', async () => {
+    const { emit } = renderChat({
+      skills: [{ key: 'bmad-ux', label: 'Create UX', description: '' }]
+    })
+    await screen.findByText('Modelo A')
+    emit({ type: 'token', text: 'thinking' })
+    await screen.findByLabelText('Interromper a resposta do agente')
+
+    const composer = screen.getByPlaceholderText(/Escreva a próxima mensagem/)
+    // With the slash menu open, Esc belongs to the menu: closing what is open
+    // always outranks stopping what is running. Get this precedence wrong and
+    // dismissing a menu silently kills the turn behind it.
+    fireEvent.change(composer, { target: { value: '/' } })
+    await screen.findByText('/bmad-ux')
+    fireEvent.keyDown(composer, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText('/bmad-ux')).toBeNull())
+    expect(window.hive.agent.interrupt).not.toHaveBeenCalled()
+
+    // Nothing open now — Esc means stop.
+    fireEvent.keyDown(composer, { key: 'Escape' })
+    expect(window.hive.agent.interrupt).toHaveBeenCalledTimes(1)
   })
 
   it('an interrupted event keeps partial output as a finished message (no error Alert)', async () => {
@@ -2449,6 +2534,40 @@ describe('Chat', () => {
       await waitFor(() => {
         expect(composer().value).toContain('arquivo de configuração')
       })
+    })
+
+    /**
+     * voice-settings (M25). This composer used to pass no `model` at all, so
+     * every dictation in the chat ran the engine's built-in default no matter
+     * what the user had chosen — the setting existed and the surface people
+     * dictate into most was simply not covered by it.
+     */
+    it('dictates with the globally chosen model, not the engine default', async () => {
+      renderChat({
+        whisperPreference: {
+          id: 'small',
+          auto: false,
+          recommendation: {
+            recommendedId: 'small',
+            reason: 'discreteGpu',
+            gpu: true,
+            ramGB: 32,
+            cores: 12
+          }
+        }
+      })
+      const mic = await screen.findByRole('button', { name: 'Ditar' })
+      whisper.calls = 0
+      whisper.lastOptions = null
+
+      fireEvent.pointerEnter(mic)
+      await waitFor(() => expect(whisper.lastOptions).not.toBeNull())
+      // Read once into a local: assigning `null` above narrows the field for
+      // the rest of the block, so a second `whisper.lastOptions?.x` types as
+      // `never` no matter what the engine actually recorded.
+      const options: TranscribeOptions = whisper.lastOptions ?? {}
+      expect(options.model).toBe('small')
+      expect(options.language).toBe('portuguese')
     })
 
     it('warms the engine on intent, and not before (D-VP-6)', async () => {

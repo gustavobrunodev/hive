@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { cliEnv, resolveExecutable, spawnTarget } from './cliEnv'
 import { shellSpawnEnv, shellSpawnTarget, type ShellInfo } from './shellCatalog'
 
@@ -36,6 +37,29 @@ export interface RunOptions {
    * be risk without a request.
    */
   shell?: boolean
+  /**
+   * `kill()` takes down the **whole process tree**, not just the process this
+   * call started.
+   *
+   * This is what makes the Stop button work on Windows. `shellSpawnTarget`
+   * covers POSIX with `exec` — the shell replaces itself with the CLI, same
+   * pid, so a plain kill lands on the CLI — but there is no `exec` in `cmd` or
+   * PowerShell. There the tree is `cmd.exe` → `claude.cmd` (an npm batch shim)
+   * → `node`, and `child.kill()` reaped only `cmd.exe`: the CLI kept running,
+   * kept spending tokens, and kept the inherited stdout pipe open, so Node's
+   * `'close'` never fired, the turn never settled, and the transcript sat
+   * "respondendo" forever. Clicking Stop looked like it did nothing because,
+   * from the UI's side, it did.
+   *
+   * It matters on POSIX too, just less dramatically: `exec` puts the CLI at the
+   * shell's pid, but the CLI's own children (a tool call shelling out) are
+   * still separate processes that outlive it. A group kill reaches those.
+   *
+   * Opt-in for the same reason `shell` is: a one-shot `git status` has no tree
+   * to speak of, and putting every probe in its own process group would be
+   * blast radius with nothing asking for it.
+   */
+  processGroup?: boolean
 }
 
 /**
@@ -59,6 +83,48 @@ export interface ProcessHandle {
   readonly output: AsyncIterable<ProcessStreamChunk>
   readonly exitCode: Promise<ProcessExitResult>
   kill(signal?: NodeJS.Signals): void
+}
+
+/**
+ * Kills `child` and everything it started.
+ *
+ * Three platforms, three mechanisms, one meaning — and none of them is the
+ * plain `child.kill()` this used to be:
+ *
+ * - **POSIX, in its own group** (`processGroup`): signal the *negative* pid,
+ *   which POSIX defines as "every process in that group". This is the only
+ *   form that reaches a CLI running under a shell wrapper.
+ * - **Windows**: no process groups to signal, so `taskkill /T /F` walks the
+ *   child tree by pid. Spawned detached and ignored — its own exit is of no
+ *   interest, and an error here must never take the app with it.
+ * - **Anything else**: the direct child, exactly as before.
+ *
+ * Every path swallows its errors. Killing an already-dead process is the
+ * normal case (a second click, an escalation timer that lost a race), and
+ * `process.kill` answers that with a thrown ESRCH — which the documented
+ * "safe to call after exit" contract says callers must never see.
+ */
+function killTree(child: ChildProcess, signal: NodeJS.Signals, processGroup: boolean): void {
+  const pid = child.pid
+  if (pid === undefined) return
+  try {
+    if (process.platform === 'win32') {
+      const force = signal === 'SIGKILL' ? ['/f'] : []
+      spawn('taskkill', ['/pid', String(pid), '/t', ...force], {
+        stdio: 'ignore',
+        windowsHide: true,
+        detached: true
+      }).unref()
+      return
+    }
+    if (processGroup) {
+      process.kill(-pid, signal)
+      return
+    }
+    child.kill(signal)
+  } catch {
+    // Already gone — see the doc above.
+  }
 }
 
 export interface ProcessRunner {
@@ -175,9 +241,14 @@ export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner
     // lives — still wins over the generic ones.
     const env = { ...cliEnv(), ...(shell ? shellSpawnEnv(shell) : {}), ...opts?.env }
     const target = composeTarget(command, args, env, shell)
+    // `detached` is what creates the process group `killTree` signals. Only on
+    // POSIX: on Windows the same flag opens a console window instead, and the
+    // tree walk there is `taskkill`'s job anyway.
+    const processGroup = opts?.processGroup === true && process.platform !== 'win32'
     const child = spawn(target.command, target.args, {
       cwd: opts?.cwd,
       env,
+      detached: processGroup,
       windowsVerbatimArguments: target.windowsVerbatimArguments,
       // stdin is closed (`'ignore'` → /dev/null) rather than left as an open,
       // never-written pipe. Nothing this app spawns feeds stdin — the Claude
@@ -226,7 +297,7 @@ export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner
       output: queue,
       exitCode,
       kill(signal?: NodeJS.Signals): void {
-        child.kill(signal ?? 'SIGTERM')
+        killTree(child, signal ?? 'SIGTERM', processGroup)
       }
     }
   }
@@ -262,6 +333,20 @@ export interface FakeProcessScript {
    * (agentRegistry) to detect a missing CLI binary.
    */
   spawnError?: boolean
+  /**
+   * Simulates the process that made the Stop button look broken: it takes the
+   * signal and keeps its output pipe open anyway.
+   *
+   * That is not a hypothetical. An agent turn runs *inside a shell*, so the CLI
+   * is a grandchild; a kill aimed at the shell never reached it, and because the
+   * CLI still held the inherited stdout, Node's `'close'` never fired and the
+   * turn's exit never resolved. Any test that scripts a well-behaved kill
+   * cannot see that bug — the fake would settle the turn all by itself and the
+   * assertion would pass against a broken app.
+   *
+   * `kill()` is still recorded on the call, so a test can assert what was sent.
+   */
+  ignoresKill?: boolean
 }
 
 /** Record of a single `run()` invocation, for assertions in tests. */
@@ -276,6 +361,15 @@ export interface FakeProcessRunner extends ProcessRunner {
   script(script: FakeProcessScript): void
   /** Every `run()` invocation so far, in call order. */
   readonly calls: FakeProcessCall[]
+  /**
+   * The signals each call's handle received, in order and indexed alongside
+   * `calls` — `kill()` with no argument records `SIGTERM`.
+   *
+   * A sibling array rather than a field on `FakeProcessCall`, so the many
+   * existing `expect(runner.calls).toEqual([...])` assertions keep describing
+   * the spawn and nothing else.
+   */
+  readonly kills: NodeJS.Signals[][]
 }
 
 /**
@@ -290,9 +384,12 @@ export interface FakeProcessRunner extends ProcessRunner {
 export function createFakeProcessRunner(): FakeProcessRunner {
   const scripts: FakeProcessScript[] = []
   const calls: FakeProcessCall[] = []
+  const kills: NodeJS.Signals[][] = []
 
   function run(command: string, args: string[], opts?: RunOptions): ProcessHandle {
     calls.push({ command, args, opts })
+    const sent: NodeJS.Signals[] = []
+    kills.push(sent)
     const script = scripts.shift() ?? {}
     const chunks = script.chunks ?? []
 
@@ -330,7 +427,8 @@ export function createFakeProcessRunner(): FakeProcessRunner {
       output: queue,
       exitCode,
       kill(signal?: NodeJS.Signals): void {
-        if (settled) return
+        sent.push(signal ?? 'SIGTERM')
+        if (settled || script.ignoresKill) return
         settled = true
         queue.end()
         resolveExit({ code: null, signal: signal ?? 'SIGTERM' })
@@ -343,6 +441,7 @@ export function createFakeProcessRunner(): FakeProcessRunner {
     script(scriptEntry: FakeProcessScript): void {
       scripts.push(scriptEntry)
     },
-    calls
+    calls,
+    kills
   }
 }

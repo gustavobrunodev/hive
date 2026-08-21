@@ -14,6 +14,10 @@ import { BMAD_MODULE_CATALOG } from './bmadInstallCatalog'
  * user's whole workspace, silently.
  */
 vi.mock('@hive/design-system', () => ({
+  // The form wears the app's mark now; the mock has to answer for it or the
+  // whole screen fails to render.
+  Logo: ({ mark }: { mark?: string }) =>
+    createElement('span', { 'data-testid': 'logo', 'data-mark': mark ?? 'lockup' }),
   Button: ({ children, ...rest }: { children?: ReactNode; cut?: boolean }) => {
     delete rest.cut
     return createElement('button', { type: 'button', ...rest }, children)
@@ -92,7 +96,7 @@ vi.mock('@hive/design-system', () => ({
 }))
 
 function submit(): void {
-  fireEvent.click(screen.getByText('Instalar BMAD'))
+  fireEvent.click(screen.getByText('Preparar workspace'))
 }
 
 /** The checkbox of one catalog module, by its label's `htmlFor` id. */
@@ -151,7 +155,9 @@ describe('InstallConfigForm (P1-004)', () => {
     submit()
 
     expect(onSubmit).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('Selecione ao menos um módulo')
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Selecione ao menos um conjunto de fluxos'
+    )
 
     // Checking one again clears the complaint and lets it through.
     fireEvent.click(moduleBox('bmb'))

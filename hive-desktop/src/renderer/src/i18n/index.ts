@@ -9,6 +9,7 @@ import {
   shellName,
   shellSigil,
   shellSupportNote,
+  installStepLabelPtBR,
   provisionMessagesPtBR
 } from './pt-BR'
 
@@ -24,6 +25,9 @@ export {
   shellSupportNote
 }
 export type { RoleMeta, ProvisionStage } from './pt-BR'
+
+/** One raw install step, said in the product's own words (unknown steps pass through). */
+export const installStepLabel = installStepLabelPtBR
 
 /** Rotating reassurance for the provisioning gate, keyed by stage. */
 export const provisionMessages = provisionMessagesPtBR

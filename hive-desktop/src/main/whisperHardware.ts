@@ -40,8 +40,18 @@ export function hasRealGpu(info: unknown): boolean {
   })
 }
 
-/** The rung the ladder falls back to whenever a probe tells us nothing. */
+/**
+ * The rung the ladder falls back to when a probe tells us nothing at all.
+ *
+ * Deliberately **not** the bottom of the ladder. `tiny` is the smaller model,
+ * but picking it here would state a fact the probe never established ("this
+ * machine is weak"); `base` is the rung that runs acceptably everywhere, which
+ * is the right answer to "we could not measure".
+ */
 const FALLBACK: WhisperModelId = 'base'
+
+/** Below this much RAM nothing above `tiny` is a comfortable fit. */
+const SMALL_MIN_RAM_GB = 8
 
 /**
  * Picks the transcription model for **this** machine (SB-R7.1/7.3/7.4).
@@ -53,24 +63,26 @@ const FALLBACK: WhisperModelId = 'base'
  *    choice that implied a 900 MB download would be the app deciding to spend
  *    someone's evening; every rung below is one of `BUNDLED_WHISPER_MODELS`,
  *    asserted in the tests.
- * 2. **It degrades toward the model that works everywhere.** A probe that
- *    throws, or that reads back nothing, lands on `base` rather than guessing
- *    upward — the failure mode of guessing too high is a transcription that
- *    takes minutes, which reads as a broken app rather than a slow one.
+ * 2. **It degrades toward a model that works everywhere.** A probe that throws,
+ *    or that reads back nothing, lands on `base` rather than guessing upward —
+ *    the failure mode of guessing too high is a transcription that takes
+ *    minutes, which reads as a broken app rather than a slow one.
  *
- * The ladder tracks how these weights actually behave, not just the published
- * table. Without a GPU the pipeline runs fp32 on **single-threaded** WASM
- * (`SharedArrayBuffer` is unavailable on a `file://` origin, so `numThreads`
- * is forced to 1 — M12.3), and there `small` is minutes per take. So `small`
- * is reserved for a machine that has both a real GPU and the memory to hold
- * it, and core count is what separates a CPU-only machine that can still carry
- * `base` from one that should stay on `tiny`:
+ * **The ladder is `small` → `tiny` → `base`, in that order of preference**
+ * (product decision, 2026-08-20): prefer the most accurate model the machine
+ * can actually carry, drop to the fastest one when it cannot, and use `base`
+ * only when the hardware could not be read at all.
  *
- *   < 8 GB RAM                        → `tiny`   (the only comfortable fit)
- *   no GPU, < 8 cores                 → `tiny`   (fp32 on 1 WASM thread)
- *   no GPU, >= 8 cores                → `base`
- *   GPU + >= 16 GB RAM + >= 8 cores   → `small`  (accuracy worth the time)
- *   GPU, otherwise                    → `base`
+ *   GPU + >= 8 GB RAM   → `small`  (the preferred default)
+ *   GPU, < 8 GB RAM     → `tiny`   (no room to hold `small`)
+ *   no GPU              → `tiny`   (fp32 on one WASM thread)
+ *   RAM unreadable      → `base`   (measured nothing, claim nothing)
+ *
+ * **The GPU is the gate, and it is not negotiable.** Without one the pipeline
+ * runs fp32 on **single-threaded** WASM (`SharedArrayBuffer` is unavailable on
+ * a `file://` origin, so `numThreads` is forced to 1 — M12.3), and there
+ * `small` is minutes per take. Preferring it anyway would not deliver "the
+ * most accurate model"; it would deliver a dictation box that appears to hang.
  */
 export async function recommendWhisperModel(
   deps: HardwareDeps = {}
@@ -106,10 +118,13 @@ export async function recommendWhisperModel(
 
   // A probe that told us nothing: say so honestly and fall back.
   if (ramGB <= 0) return pick(FALLBACK, 'unknown')
-  if (ramGB < 8) return pick('tiny', 'lowMemory')
-  if (!gpu) return cores < 8 ? pick('tiny', 'cpuOnly') : pick('base', 'noGpu')
-  if (ramGB >= 16 && cores >= 8) return pick('small', 'discreteGpu')
-  return pick('base', 'balanced')
+  // Rung 1 — the model we want by default, wherever it will actually run.
+  if (gpu && ramGB >= SMALL_MIN_RAM_GB) return pick('small', 'discreteGpu')
+  // Rung 2 — `tiny`, for the two reasons a machine misses rung 1. The reason
+  // is what the UI reads to explain the pick, so the two stay distinct even
+  // though they land on the same model.
+  if (ramGB < SMALL_MIN_RAM_GB) return pick('tiny', 'lowMemory')
+  return cores < 8 ? pick('tiny', 'cpuOnly') : pick('tiny', 'noGpu')
 }
 
 /**

@@ -253,13 +253,27 @@ async function writeInstallerArtwork() {
   // Header: the lockup on white — the MUI header strip *is* white, and any
   // tinted ground here shows up as a visible rectangle pasted onto the page
   // rather than as branding. electron-builder sets `MUI_HEADERIMAGE_RIGHT`,
-  // so the bitmap sits at the right edge with the page title to its left;
-  // the lockup is right-aligned inside it with a margin that matches.
-  const header = await sharp(Buffer.from(lockupSvg(112, 22, BORDO)))
-    .resize(112, 22, { fit: 'inside' })
+  // so the bitmap sits at the right edge with the page title to its left.
+  //
+  // Rendered at 4x and downsampled, and sized to clear `BRAIN_FLOOR`, so the
+  // strip carries the **brain** rather than `lockupSvg`'s small-size hexagon
+  // fallback. The floor exists because hairlines close up when a *raster tile*
+  // is generated at its final pixel size; supersampling a vector into a 34px
+  // box is a different operation, and the result is a legible mark instead of
+  // a substitute one. Every logo in the install flow is now the same drawing.
+  const HEADER_MARK = 34
+  const SS = 4
+  const header = await sharp(Buffer.from(lockupSvg(118 * SS, HEADER_MARK * SS, BORDO)))
+    .resize(118, HEADER_MARK, { fit: 'inside' })
     .png()
     .toBuffer()
-  await writeBmp('installerHeader.bmp', 150, 57, [{ input: header, left: 24, top: 18 }], '#ffffff')
+  await writeBmp(
+    'installerHeader.bmp',
+    150,
+    57,
+    [{ input: header, left: 20, top: Math.round((57 - HEADER_MARK) / 2) }],
+    '#ffffff'
+  )
 
   // Sidebar: a tall bordô panel with the mark high and the wordmark under it —
   // the one drenched surface in the whole flow, so the install reads as Hive
@@ -292,7 +306,7 @@ async function writeInstallerArtwork() {
             font-weight="700" letter-spacing="4.4" fill="${PAPER}">HIVE</text>
       <text x="82" y="48" text-anchor="middle" dominant-baseline="central"
             font-family="Inter, DejaVu Sans, sans-serif" font-size="9.5"
-            letter-spacing="0.3" fill="${PAPER_MUTED}">Os fluxos do BMAD,</text>
+            letter-spacing="0.3" fill="${PAPER_MUTED}">Os fluxos da sua squad,</text>
       <text x="82" y="62" text-anchor="middle" dominant-baseline="central"
             font-family="Inter, DejaVu Sans, sans-serif" font-size="9.5"
             letter-spacing="0.3" fill="${PAPER_MUTED}">sem terminal.</text>

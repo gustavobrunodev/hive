@@ -253,6 +253,109 @@ for (const theme of THEMES) {
 }
 
 /**
+ * The Aparência menu itself. `setTheme` above opens it and immediately closes
+ * it again, so the sweep of the work UI has never once measured the surface it
+ * uses to get there — the M16 rule ("an on-demand surface joins the sweep in
+ * the same commit"), applied to the one menu this whole spec depends on.
+ *
+ * It is worth its own test rather than a line in the main sweep because its
+ * rows sit on `--selected-bg`, a tint: the checked option's name and hint are
+ * measured against the accent wash over the menu surface, not against the menu
+ * surface, and that is the exact composition this project has got wrong three
+ * times (see the token lessons in docs/visual-validation.md).
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the Aparência menu meets WCAG AA in the ${theme} theme`, async ({ hiveApp }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    await window.getByRole('button', { name: /^Aparência/ }).click()
+    await window.locator('.wb-theme-menu').waitFor({ state: 'visible' })
+
+    const menu = await sampleTextContrast(window, '.wb-theme-menu')
+    // Not a raw count: the sampler dedupes by (color, background, size,
+    // weight), so the two unchecked rows collapse into one sample each and a
+    // number here would be asserting the deduper's arithmetic. What has to be
+    // true is that **both roles** were measured — the option name and the hint
+    // under it — which is what proves the menu had actually rendered.
+    const roles = menu.map((sample) => sample.label).join('\n')
+    expect(roles, `Aparência menu samples in ${theme}:\n${roles}`).toContain('wb-theme-option-name')
+    expect(roles, `Aparência menu samples in ${theme}:\n${roles}`).toContain('wb-theme-option-hint')
+    expect(
+      failuresIn(menu),
+      `contrast failures in ${theme}, Aparência menu:\n${failuresIn(menu).join('\n')}`
+    ).toEqual([])
+
+    // The check mark is a meaningful non-text indicator — it is the only thing
+    // on the row that says "this is the current theme" — so it owes 3:1, and
+    // against the tint it sits on rather than against the bare menu surface.
+    //
+    // The layer walk has to go all the way up. A first version took the row's
+    // background plus its parent's and stopped: the parent is the radio group,
+    // which paints nothing, so the white the canvas starts on bled through and
+    // the *dark* theme reported the mark sitting on `#f8ece7`. Any probe that
+    // stops before the first opaque layer is measuring a surface that is not
+    // on screen.
+    const mark = await window.evaluate(() => {
+      const el = document.querySelector<SVGElement>(
+        '.wb-theme-menu [data-state="checked"] .hds-dropdown-menu-item-check svg'
+      )
+      if (!el) return null
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
+      const paint = (layers: string[]): string => {
+        ctx.clearRect(0, 0, 1, 1)
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, 1, 1)
+        for (const layer of layers) {
+          ctx.fillStyle = layer
+          ctx.fillRect(0, 0, 1, 1)
+        }
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+        const hex = (n: number): string => n.toString(16).padStart(2, '0')
+        return `#${hex(r)}${hex(g)}${hex(b)}`
+      }
+      // Outermost first, so `paint` composites them in real paint order.
+      //
+      // No early exit on "the first opaque layer", deliberately. Detecting
+      // opacity by string is the trap this repo has now hit twice: the app's
+      // tints are authored in `oklch(... / 14%)` and `color-mix`, neither of
+      // which `getComputedStyle` serializes as `rgba(…, 0.14)` — so an
+      // `rgba`-shaped test read the translucent selection tint as opaque,
+      // stopped there, and reported the *dark* theme's check mark sitting on
+      // `#f8ece7` (coral over the canvas's own white). Collecting every layer
+      // costs nothing: an opaque one painted mid-stack resets the canvas,
+      // which is exactly what it does on screen.
+      const layers: string[] = []
+      for (let node: Element | null = el.parentElement; node; node = node.parentElement) {
+        const bg = getComputedStyle(node).backgroundColor
+        if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') continue
+        layers.unshift(bg)
+      }
+      return {
+        color: paint([...layers, getComputedStyle(el).color]),
+        background: paint(layers)
+      }
+    })
+
+    expect(mark, 'the checked row has no selection mark').not.toBeNull()
+    if (mark) {
+      const { ratio } = checkContrast(mark.color, mark.background)
+      expect(
+        ratio ?? 0,
+        `${theme}: the Aparência check mark ${mark.color} on ${mark.background}`
+      ).toBeGreaterThanOrEqual(WCAG_AA_LARGE)
+    }
+
+    await window.keyboard.press('Escape')
+  })
+}
+
+/**
  * voice-prompt (VP-R6.3, VP-R7.4). The sweep above never sees the dictation
  * transport: it only exists while a take is live, and the work UI it samples is
  * idle. So the take is opened first, with the microphone and the transcriber
@@ -365,15 +468,33 @@ for (const theme of THEMES) {
     await window.getByRole('button', { name: 'Concluído' }).click()
     await expect(window.locator('.wb-sc-dialog')).toHaveCount(0)
 
-    // The profile sheet: the read-only role block and the two-set summary.
+    // The profile sheet. voice-settings (M25) turned it into a drill-down, so
+    // the index is now its own measurable surface — five rows carrying live
+    // values — and the two-set summary is one click deeper.
     await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.locator('.wb-pnav-list').waitFor({ state: 'visible' })
+
+    const indexSamples = await sampleTextContrast(window)
+    expect(indexSamples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(indexSamples),
+      `contrast failures in ${theme}, profile index:\n${failuresIn(indexSamples).join('\n')}`
+    ).toEqual([])
+
+    await window.locator('button.wb-pnav-row[data-scope="shortcuts"]').click()
     await window.locator('.wb-profile-shortcut-sets').waitFor({ state: 'visible' })
 
     const profileSamples = await sampleTextContrast(window)
-    expect(profileSamples.length).toBeGreaterThan(5)
+    // A lower floor than the index above, and deliberately so: the sampler
+    // deduplicates by (colour, background, size, weight), and this detail is
+    // eight text runs drawn from five distinct token combinations (L-DS-6).
+    // "Did the surface open?" is asserted by the `waitFor` a line up, which
+    // fails with a timeout rather than with a quiet zero; this only guards the
+    // case where everything present is `aria-hidden` and the sweep skips it.
+    expect(profileSamples.length).toBeGreaterThan(0)
     expect(
       failuresIn(profileSamples),
-      `contrast failures in ${theme}, profile sheet:\n${failuresIn(profileSamples).join('\n')}`
+      `contrast failures in ${theme}, profile shortcuts:\n${failuresIn(profileSamples).join('\n')}`
     ).toEqual([])
   })
 }
@@ -401,6 +522,8 @@ for (const theme of THEMES) {
     await freezeMotion(window)
 
     await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    // voice-settings (M25): one drill-down deep — the sheet opens on its index.
+    await window.locator('button.wb-pnav-row[data-scope="agents"]').click()
     await window.locator('.wb-agent-scan').waitFor({ state: 'visible' })
 
     const samples = await sampleTextContrast(window)
@@ -408,6 +531,55 @@ for (const theme of THEMES) {
     expect(
       failuresIn(samples),
       `contrast failures in ${theme}, agent picker:\n${failuresIn(samples).join('\n')}`
+    ).toEqual([])
+  })
+}
+
+/**
+ * voice-settings (M25). "Voz e transcrição" is the profile's newest scope and
+ * the home of the one setting shared by both surfaces that transcribe. Three
+ * things on it are unusual enough to be worth a real-app sweep rather than
+ * only the mocked one in `tools/visual/profile-voice-pass.mjs`:
+ *
+ * - the **hardware readout**, whose figures come from the actual probe on the
+ *   machine running the suite (a fixture cannot prove the real `app.getGPUInfo`
+ *   path renders at all);
+ * - the **radio rows**, which sit on `--selected-bg` when checked — the accent
+ *   tint that has produced a contrast failure in three previous milestones;
+ * - the **downloadable catalog**, expanded here, whose rows carry a `--muted`
+ *   size figure against the same surface.
+ *
+ * Nothing is downloaded: the sweep opens the disclosure and measures it. The
+ * `Baixar` buttons reach the network on click, which a contrast assertion has
+ * no business doing.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the transcription-model scope meets WCAG AA in the ${theme} theme`, async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.locator('button.wb-pnav-row[data-scope="voice"]').click()
+    await window.locator('.wb-mdl-list').waitFor({ state: 'visible' })
+
+    const chooserSamples = await sampleTextContrast(window)
+    expect(chooserSamples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(chooserSamples),
+      `contrast failures in ${theme}, model chooser:\n${failuresIn(chooserSamples).join('\n')}`
+    ).toEqual([])
+
+    await window.locator('.wb-cat-toggle').click()
+    await window.locator('.wb-cat-rows').waitFor({ state: 'visible' })
+
+    const catalogSamples = await sampleTextContrast(window)
+    expect(
+      failuresIn(catalogSamples),
+      `contrast failures in ${theme}, model catalog:\n${failuresIn(catalogSamples).join('\n')}`
     ).toEqual([])
   })
 }

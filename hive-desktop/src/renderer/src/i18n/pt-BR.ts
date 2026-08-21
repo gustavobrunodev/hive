@@ -59,8 +59,8 @@ export const ptBR = {
     checkingWorkspace: 'Verificando workspace…',
     pickerTitle: 'Bem-vindo ao Hive',
     pickerDescription:
-      'Escolha uma pasta no seu computador para ser o seu workspace — é nela que o BMAD e os agentes vão trabalhar e salvar os artefatos do seu projeto.',
-    pickerNote: 'Na primeira vez, o BMAD será instalado automaticamente no workspace escolhido.',
+      'Escolha uma pasta no seu computador para ser o seu workspace — é nela que os agentes vão trabalhar e salvar os documentos do seu projeto.',
+    pickerNote: 'Na primeira vez, o Hive prepara essa pasta sozinho. Leva alguns instantes.',
     chooseWorkspaceCta: 'Escolher workspace',
     // Provisioning gate (install/update → bases de conhecimento): one continuous
     // preparation, so the screens say how many steps are left instead of
@@ -85,6 +85,10 @@ export const ptBR = {
     // T8 — create/rename/delete/move/import actions (FM-R1, R3, R4, R5, R7)
     newFileLabel: 'Novo arquivo',
     newFolderLabel: 'Nova pasta',
+    collapseAllLabel: 'Recolher todas as pastas',
+    // Fala pela região viva do explorer: quem não vê a árvore encolher precisa
+    // ouvir que ela encolheu — a linha em que a pessoa estava pode ter sumido.
+    collapseAllFlash: 'Pastas recolhidas',
     newItemPlaceholder: 'Nome do arquivo ou pasta',
     renamePlaceholder: 'Novo nome',
     rowMenuLabel: (name: string) => `Mais ações para ${name}`,
@@ -280,21 +284,26 @@ export const ptBR = {
       }
     }
   },
+  // A copy do preparo fala do que a pessoa ganha, nunca do motor por baixo.
+  // Quem abre o Hive pela primeira vez não sabe (e não precisa saber) o nome do
+  // framework que orquestra os fluxos — "instalando o BMAD" só pode ser lido
+  // como "algo que eu não pedi está entrando na minha máquina".
   guidedInstall: {
     title: 'Preparando seu workspace',
-    description: 'Estamos instalando o BMAD no workspace escolhido. Isso leva só um instante.',
-    progressLabel: 'Instalando…',
-    errorTitle: 'Não foi possível concluir a instalação',
-    errorDescriptionFallback: 'Algo deu errado durante a instalação do BMAD.',
+    description: 'Estamos deixando essa pasta pronta para você trabalhar com os agentes.',
+    progressLabel: 'Preparando…',
+    errorTitle: 'Não foi possível concluir o preparo',
+    errorDescriptionFallback: 'Algo deu errado ao preparar o workspace.',
     retryCta: 'Tentar novamente',
     // Guided configuration form shown before the install runs (BUG 1): the
     // CLI's interactive questions abstracted into the app's own visual flow.
     form: {
-      title: 'Configurar o BMAD',
+      title: 'Como você quer trabalhar?',
       description:
-        'Escolha o que instalar e como os agentes devem se comunicar. Você pode reinstalar depois para ajustar.',
-      modulesLegend: 'Módulos',
-      modulesHint: 'O BMad Core é sempre instalado. Selecione os módulos adicionais que quiser.',
+        'Escolha quais fluxos entram no seu workspace e como os agentes devem falar com você. Dá para mudar depois.',
+      modulesLegend: 'Fluxos de trabalho',
+      modulesHint:
+        'O essencial já vem instalado. Marque os conjuntos de fluxos que fazem sentido para o seu time.',
       identityLegend: 'Sobre você',
       userNameLabel: 'Como os agentes devem te chamar?',
       userNamePlaceholder: 'Seu nome ou o nome do time',
@@ -302,28 +311,27 @@ export const ptBR = {
       documentOutputLanguageLabel: 'Idioma dos documentos gerados',
       skillLevelLabel: 'Seu nível de experiência em desenvolvimento',
       skillLevelHint: 'Afeta como os agentes explicam conceitos no chat.',
-      modulesRequiredError: 'Selecione ao menos um módulo para continuar.',
-      submitCta: 'Instalar BMAD'
+      modulesRequiredError: 'Selecione ao menos um conjunto de fluxos para continuar.',
+      submitCta: 'Preparar workspace'
     }
   },
   updateGate: {
-    title: 'Atualizando o BMAD',
-    description: 'Verificando se há atualizações do BMAD para este workspace.',
+    title: 'Atualizando seu workspace',
+    description: 'Verificando se há novidades para este workspace.',
     progressLabel: 'Atualizando…',
-    errorTitle: 'Não foi possível atualizar o BMAD',
-    errorDescriptionFallback: 'Algo deu errado durante a atualização do BMAD.',
+    errorTitle: 'Não foi possível atualizar o workspace',
+    errorDescriptionFallback: 'Algo deu errado durante a atualização.',
     retryCta: 'Tentar novamente',
     continueAnywayCta: 'Continuar mesmo assim'
   },
   secondBrainGate: {
-    title: 'Preparando as bases de conhecimento',
-    description:
-      'Instalando e atualizando as skills de base de conhecimento da squad para este workspace.',
+    title: 'Preparando a base de conhecimento',
+    description: 'Deixando pronto o lugar onde as decisões e as notas do time vão morar.',
     // O caption embaixo da barra diz o que está literalmente acontecendo — eco
     // do título aqui seria a mesma frase duas vezes na mesma tela.
-    progressLabel: 'Instalando as skills de base de conhecimento…',
-    errorTitle: 'Não foi possível preparar as bases de conhecimento',
-    errorDescriptionFallback: 'Algo deu errado ao provisionar as skills de base de conhecimento.',
+    progressLabel: 'Preparando a base de conhecimento…',
+    errorTitle: 'Não foi possível preparar a base de conhecimento',
+    errorDescriptionFallback: 'Algo deu errado ao preparar a base de conhecimento.',
     retryCta: 'Tentar novamente',
     continueAnywayCta: 'Continuar mesmo assim'
   },
@@ -350,7 +358,11 @@ export const ptBR = {
     // this is its own control in the toolbar, not the send button's other
     // state — the primary button always commits what was typed.
     stopAria: 'Interromper a resposta do agente',
-    stopTitle: 'Interromper o agente',
+    stopTitle: 'Interromper o agente (Esc)',
+    // Estado entre o clique e o turno fechar. Curto, mas não instantâneo — sem
+    // ele o botão fica idêntico logo depois de ser apertado, que é exatamente
+    // a leitura de "cliquei e não aconteceu nada".
+    stopPending: 'Interrompendo…',
     // agent-selection AG-R3.3: the active-agent indicator in the composer.
     agentIndicatorAria: (agent: string) => `Agente ativo: ${agent}`,
     // multi-agent: the composer's per-conversation agent switcher.
@@ -1521,8 +1533,6 @@ export const ptBR = {
     ingestBlockedEmptyAudio: 'Escolha um áudio e peça a transcrição.',
     ingestBlockedEmptyLive: 'Comece a ditar — o texto aparece acima.',
     ingestReady: 'Pronto para ingerir.',
-    ingestModelLabel: 'Modelo',
-    ingestManageModels: 'Gerenciar modelos',
     // Honest, specific decode failures (SB-R4.6).
     ingestAudioEmpty: 'O arquivo de áudio está vazio.',
     ingestAudioUnsupported: 'Não foi possível ler esse áudio. Tente wav, mp3, m4a, ogg ou webm.',
@@ -1543,58 +1553,84 @@ export const ptBR = {
     recordRetry: 'Tentar de novo',
     recordingLabel: 'Gravando',
     ingestAudioSoon: 'O gravador chega já já.',
-    // Model picker (SB-R7.4) — the inline chooser beside the transcript.
-    modelPickerLabel: 'Modelo de transcrição',
-    modelPickerShort: 'Modelo',
-    modelPickerTrigger: (id: string) => `Modelo: ${id}`,
-    modelAuto: 'Automático',
-    modelAutoWith: (id: string) => `Automático · ${id}`,
-    modelAutoChosen: (ram: number) => `Escolhido para este computador (${ram} GB de memória).`,
-    modelPinnedBundled: 'Você escolheu este. Já vem no aplicativo.',
-    modelPinned: 'Você escolheu este.',
-    modelBundled: 'no aplicativo',
-    modelBundledSuffix: ' · no aplicativo',
-    modelBundledExplain: 'Os três já vêm instalados — nada para baixar.',
-    modelNeedsDownload: 'baixar',
-    modelTradeoffTiny: 'O mais rápido',
-    modelTradeoffBase: 'Equilibrado',
-    modelTradeoffSmall: 'O mais preciso',
-    modelMoreModels: 'Ver todos os modelos…',
-    modelParamsSize: (params: string, mb: number) =>
+    // voice-settings (M25): the chooser itself moved to Perfil › Voz e
+    // transcrição — one model, one home, for both surfaces that transcribe.
+    // What stays here is a read-only statement of which model is about to run.
+    ingestModelRunning: (id: string) => `Transcrevendo com ${id}`,
+    ingestModelAuto: (id: string) => `Transcrevendo com ${id}, escolhido para este computador`,
+    ingestModelChange: 'Alterar',
+    ingestModelChangeAria: 'Alterar o modelo de transcrição no perfil'
+  },
+  /**
+   * voice-settings (M25) — the transcription model, which is **one global
+   * choice** covering both places the app turns speech into text: dictation in
+   * the chat composer and the Second Brain's audio ingestion. It used to live
+   * inside the ingestion sheet, where it read as a per-ingestion option and
+   * where the chat (which quietly ran a hardcoded `base`) never saw it.
+   */
+  voice: {
+    title: 'Voz e transcrição',
+    description:
+      'Um modelo, os dois lugares em que o Hive escuta você: o ditado no chat e a ingestão de conhecimento.',
+    offlineNote:
+      'Tudo roda no seu computador. Nada de áudio sai daqui, e a transcrição funciona sem internet.',
+    // The hardware readout — what makes "Automático" a statement instead of a
+    // shrug. Three measured facts, then the verdict they produce.
+    machineTitle: 'Neste computador',
+    machineGpu: 'Placa de vídeo',
+    machineGpuYes: 'Dedicada',
+    machineGpuNo: 'Integrada',
+    machineRam: 'Memória',
+    machineRamValue: (gb: number) => `${gb} GB`,
+    machineCores: 'Núcleos',
+    machineCoresValue: (cores: number) => `${cores}`,
+    machineUnknown: '—',
+    machineMeasuring: 'Avaliando este computador…',
+    // The chooser.
+    chooseLabel: 'Modelo de transcrição',
+    autoLabel: 'Automático',
+    autoMeta: (id: string) => `Escolhe pelo seu hardware · ${id}`,
+    tradeoffTiny: 'O mais rápido',
+    tradeoffBase: 'Equilibrado',
+    tradeoffSmall: 'O mais preciso',
+    bundledBadge: 'No aplicativo',
+    recommendedBadge: 'Recomendado',
+    englishOnly: 'só inglês',
+    paramsSize: (params: string, mb: number) =>
       `${params} · ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`}`,
-    // Model manager (SB-R7.1/7.2).
-    modelsTitle: 'Modelos de transcrição',
-    modelsDescription:
-      'Os modelos rodam no seu computador. Baixe uma vez e a transcrição funciona offline.',
-    modelsColModel: 'Modelo',
-    modelsColParams: 'Parâmetros',
-    modelsColSize: 'Tamanho',
-    modelsColVram: 'VRAM',
-    modelsColSpeed: 'Velocidade',
-    modelsRecommended: 'Recomendado',
-    modelsDownloaded: 'Baixado',
-    modelsEnglishOnly: 'só inglês',
-    modelsDownload: 'Baixar',
-    modelsDelete: 'Excluir',
-    modelsDownloading: (pct: number) => `Baixando… ${pct}%`,
-    modelsSizeMb: (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`),
-    modelsVramGb: (gb: number) => `~${gb} GB`,
-    modelsClose: 'Fechar',
-    modelsUse: 'Usar',
-    modelsInUse: 'Em uso',
-    modelsDeleteAria: (id: string) => `Excluir o modelo ${id}`,
-    modelsDownloadAria: (id: string) => `Baixar o modelo ${id}`,
-    // Why a model was recommended — keyed by whisperHardware's reason union.
-    modelsBundledBadge: 'No aplicativo',
-    modelsBundledNote:
-      'tiny, base e small já vêm instalados: funcionam offline, sem download, desde o primeiro uso.',
-    modelsReasonLowMemory: (ram: number) => `Recomendado: pouca memória disponível (${ram} GB).`,
-    modelsReasonCpuOnly: (cores: number) =>
-      `Recomendado: sem GPU dedicada e ${cores} núcleos — um modelo leve responde na hora.`,
-    modelsReasonNoGpu: 'Recomendado: sem GPU dedicada, um modelo leve responde melhor.',
-    modelsReasonDiscreteGpu: (ram: number) => `Recomendado: GPU dedicada e ${ram} GB de memória.`,
-    modelsReasonBalanced: 'Recomendado: bom equilíbrio entre velocidade e qualidade aqui.',
-    modelsReasonUnknown: 'Não foi possível avaliar seu hardware — usando o padrão.'
+    // The live caption under the group: why *this* model is the one running.
+    captionAuto: (id: string) => `O Hive está usando ${id}.`,
+    captionPinned: (id: string) => `Você fixou ${id}.`,
+    captionPinnedExtra: 'Se você excluir esse modelo, a escolha volta para o automático.',
+    // Why the probe recommended what it did.
+    reasonLowMemory: (ram: number) =>
+      `Com ${ram} GB de memória, um modelo leve é o que responde na hora.`,
+    reasonCpuOnly: (cores: number) =>
+      `Sem placa de vídeo dedicada e com ${cores} núcleos, um modelo leve é o que responde na hora.`,
+    reasonNoGpu: 'Sem placa de vídeo dedicada, os modelos maiores levariam minutos por trecho.',
+    reasonDiscreteGpu: (ram: number) =>
+      `Placa de vídeo dedicada e ${ram} GB de memória dão conta do modelo mais preciso.`,
+    reasonUnknown: 'Não foi possível avaliar este computador — ficando no padrão seguro.',
+    // The downloadable catalog, inline (no second modal on top of the sheet).
+    catalogToggle: (count: number) =>
+      count === 1 ? 'Mais 1 modelo para baixar' : `Mais ${count} modelos para baixar`,
+    catalogToggleAria: 'Mostrar os modelos que precisam de download',
+    catalogNote:
+      'Modelos maiores transcrevem melhor e demoram mais. Baixe uma vez e ficam disponíveis offline.',
+    catalogEmpty: 'Nada mais para baixar — você já tem todos os modelos.',
+    download: 'Baixar',
+    downloadAria: (id: string) => `Baixar o modelo ${id}`,
+    downloading: (pct: number) => `${pct}%`,
+    downloadingAria: (id: string, pct: number) => `Baixando ${id}: ${pct}%`,
+    downloadCancel: 'Cancelar',
+    downloadCancelAria: (id: string) => `Cancelar o download de ${id}`,
+    downloadFailed: 'O download falhou.',
+    downloadRetry: 'Tentar de novo',
+    deleteAria: (id: string) => `Excluir o modelo ${id}`,
+    useAria: (id: string) => `Usar o modelo ${id}`,
+    downloadedBadge: 'Baixado',
+    sizeMb: (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`),
+    speed: (relative: string) => `${relative} mais rápido que o maior`
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
@@ -1845,6 +1881,40 @@ export const ptBR = {
     openLabel: 'Abrir configurações de perfil',
     title: 'Perfil',
     description: 'Personalize o Hive para o seu jeito de trabalhar.',
+    // --- The drill-down index (M25) -----------------------------------------
+    // The sheet used to be one flat scroll of five sections (1771 px of
+    // content in a 900 px panel). It is now a list of scopes that opens into
+    // one detail at a time — so the first screen answers "what is set up?"
+    // instead of making the reader scroll to find out.
+    navLabel: 'Configurações do perfil',
+    navValueAria: (scope: string, value: string) => `${scope}: ${value}`,
+    backTo: 'Perfil',
+    backAria: 'Voltar para a lista de configurações',
+    scopeAccountLabel: 'Conta',
+    scopeAccountHint: 'Seu nome e o papel escolhido no primeiro acesso.',
+    scopeAgentsLabel: 'Agentes',
+    scopeAgentsHint: 'Quais CLIs de agente o Hive pode usar, e qual começa cada conversa.',
+    scopeShortcutsLabel: 'Atalhos',
+    scopeShortcutsHint: 'Os fluxos do BMAD que ficam à mão antes e durante a conversa.',
+    scopeVoiceLabel: 'Voz e transcrição',
+    scopeVoiceHint: 'O modelo que transcreve sua voz — no chat e na ingestão de conhecimento.',
+    scopeShellLabel: 'Terminal',
+    scopeShellHint: 'Onde os agentes executam os comandos no seu computador.',
+    // Live summaries on the index rows: the list states the setup instead of
+    // merely linking to it.
+    agentsSummary: (enabled: number) =>
+      enabled === 0
+        ? 'Nenhum habilitado'
+        : enabled === 1
+          ? '1 habilitado'
+          : `${enabled} habilitados`,
+    shortcutsSummary: (count: number) =>
+      count === 0 ? 'Nenhum' : count === 1 ? '1 atalho' : `${count} atalhos`,
+    // One shape for both automatic values on the index (voice + terminal): the
+    // row is ~15ch wide, and "Escolhe pelo seu hardware · small" truncated to
+    // "Escolhe pelo se…" — which says nothing at all.
+    autoSummary: (name: string) => `Automático · ${name}`,
+    summaryUnset: '—',
     nameSectionLabel: 'Seu nome',
     nameFieldLabel: 'Como você quer ser chamado?',
     nameHint: 'O Hive e os agentes usam esse nome para falar com você.',
@@ -1878,6 +1948,7 @@ export const ptBR = {
     shellSectionHint:
       'Onde os agentes executam os comandos no seu computador. O Hive lista só o que existe nesta máquina.',
     replayTourCta: 'Rever o tour guiado',
+    replayTourHint: 'Uma volta rápida pelas partes principais do aplicativo.',
     scopeNote: 'Seu perfil vale para todos os workspaces.',
     closeLabel: 'Fechar'
   },
@@ -2063,12 +2134,12 @@ export type ProvisionStage = 'install' | 'update' | 'secondBrain'
 export const provisionMessagesPtBR: Record<ProvisionStage, readonly string[]> = {
   install: [
     'Estamos preparando o ambiente Hive para você trabalhar.',
-    'Baixando o BMAD e os módulos que você escolheu.',
+    'Trazendo os fluxos de trabalho que você escolheu.',
     'Ensinando os agentes o jeito da sua squad.',
     'Já está quase — deixando tudo pronto no seu workspace.'
   ],
   update: [
-    'Conferindo se o BMAD deste workspace está em dia.',
+    'Conferindo se este workspace está em dia.',
     'Trazendo as novidades da squad.',
     'Quase lá — só alinhando as últimas peças.'
   ],
@@ -2077,6 +2148,38 @@ export const provisionMessagesPtBR: Record<ProvisionStage, readonly string[]> = 
     'Preparando o lugar onde as decisões do time vão morar.',
     'Último passo — já abrimos o Hive em seguida.'
   ]
+}
+
+/**
+ * Turns one raw install step, as the underlying CLI printed it, into the
+ * product's own words.
+ *
+ * The preparation screen has two registers on purpose: a caption that repeats
+ * the run's real current line verbatim (technical, monospaced, clearly the
+ * machine talking) and a checklist rendered as ordinary prose. The checklist is
+ * the one a first-time user reads, and echoing "Installing BMad Core module"
+ * into it puts a name they have never heard at the centre of the screen while
+ * their machine is busy — the single worst moment to introduce vocabulary.
+ *
+ * So: recognized steps are renamed to what they actually deliver, keyed on the
+ * module code the CLI always includes. Anything unrecognized **passes through
+ * untouched** — a preparation screen that invents a friendly label for a step
+ * it does not understand is worse than one that quotes the truth, and a new
+ * module added upstream must show up as itself rather than disappear.
+ */
+const INSTALL_STEP_MODULES: readonly { match: RegExp; label: string }[] = [
+  { match: /\bcore\b/i, label: 'Instalando o essencial' },
+  { match: /\bbmm\b|bmad\s*method/i, label: 'Instalando os fluxos de produto' },
+  { match: /\bbmb\b|bmad\s*builder/i, label: 'Instalando a oficina de agentes' },
+  { match: /\bcis\b|creative\s*intelligence/i, label: 'Instalando a inteligência criativa' },
+  { match: /\bgds\b|game\s*dev/i, label: 'Instalando o estúdio de jogos' }
+]
+
+export function installStepLabelPtBR(raw: string): string {
+  for (const { match, label } of INSTALL_STEP_MODULES) {
+    if (match.test(raw)) return label
+  }
+  return raw
 }
 
 /**

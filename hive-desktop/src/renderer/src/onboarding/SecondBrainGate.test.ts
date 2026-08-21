@@ -77,7 +77,7 @@ describe('SecondBrainGate (T5)', () => {
 
     await waitFor(() => expect(m.install).toHaveBeenCalledWith('/ws', expect.any(Function)))
     expect(m.update).not.toHaveBeenCalled()
-    expect(screen.getByText('Preparando as bases de conhecimento')).toBeTruthy()
+    expect(screen.getByText('Preparando a base de conhecimento')).toBeTruthy()
 
     m.emitInstall({ type: 'step', id: 'found', label: 'Found 4 skills' })
     await waitFor(() => expect(screen.getByText('Found 4 skills')).toBeTruthy())
@@ -101,9 +101,7 @@ describe('SecondBrainGate (T5)', () => {
 
     m.emitInstall({ type: 'error', message: '' })
     await waitFor(() =>
-      expect(
-        screen.getByText('Algo deu errado ao provisionar as skills de base de conhecimento.')
-      ).toBeTruthy()
+      expect(screen.getByText('Algo deu errado ao preparar a base de conhecimento.')).toBeTruthy()
     )
   })
 
@@ -193,9 +191,7 @@ describe('SecondBrainGate (T5)', () => {
     m.emitInstall({ type: 'progress' } as unknown as SkillEvent)
     // Back to the fallback caption — the assertion that actually proves the
     // `?? null` defence (the h1 above is present either way).
-    await waitFor(() =>
-      expect(screen.getByText('Instalando as skills de base de conhecimento…')).toBeTruthy()
-    )
+    await waitFor(() => expect(screen.getByText('Preparando a base de conhecimento…')).toBeTruthy())
 
     unmount()
     m.emitInstall({ type: 'done', ok: true })

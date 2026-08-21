@@ -53,6 +53,7 @@ import {
   CheckIcon,
   ClipboardIcon,
   CloseIcon,
+  CollapseAllIcon,
   CopyIcon,
   DownloadIcon,
   ExternalFolderIcon,
@@ -974,6 +975,25 @@ export function FileTree({
     },
     []
   )
+
+  /**
+   * Folds the whole tree back to its roots (FM: "recolher todas as pastas").
+   *
+   * Selection is deliberately left alone — VS Code and Finder both keep it, and
+   * a fold that also clears what you had highlighted turns one tidy-up into two
+   * undos. The open file stays open and stays selected; expanding its folder
+   * again shows it still highlighted, because `selectedIds` never moved.
+   *
+   * It also announces itself through the same live region the copy-path
+   * confirmation uses. The tree is the one thing that changed and it changed by
+   * *shrinking* — the row a screen-reader user was sitting on may simply have
+   * stopped existing, and nothing else on screen would say so.
+   */
+  const collapseAll = useCallback(() => {
+    if (expandedIds.length === 0) return
+    setExpandedIds([])
+    showFlash(t('explorer.collapseAllFlash'))
+  }, [expandedIds.length, showFlash])
 
   /**
    * Copies the target paths, one per line (FM copy-path parity).
@@ -2206,6 +2226,21 @@ export function FileTree({
           onClick={() => startCreate(activeDirPath, 'directory')}
         >
           <FolderPlusIcon />
+        </IconButton>
+        {/* Pushed to the far edge (`.wb-tree-toolbar` gives it `margin-left:
+            auto`), away from the two create actions: it acts on the *whole*
+            tree, while those act on wherever you are in it. Grouping it with
+            them would read as a third way to add something.
+
+            Disabled when nothing is open, because the alternative — a live
+            control that provably does nothing — is the worse of the two. */}
+        <IconButton
+          label={t('explorer.collapseAllLabel')}
+          className="wb-tree-toolbar-end"
+          disabled={expandedIds.length === 0}
+          onClick={collapseAll}
+        >
+          <CollapseAllIcon />
         </IconButton>
       </div>
       {actionError && (

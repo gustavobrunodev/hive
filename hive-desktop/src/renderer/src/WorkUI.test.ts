@@ -53,6 +53,21 @@ const RadioGroupMockCtx = createContext<{
   onValueChange?: (value: string) => void
 }>({})
 
+/** The radio-group bridge's leaf: a real input, so `getByRole('radio')` works. */
+function RadioItemMock({
+  value,
+  ...rest
+}: { value: string } & Record<string, unknown>): React.JSX.Element {
+  const group = useContext(RadioGroupMockCtx)
+  return createElement('input', {
+    type: 'radio',
+    value,
+    checked: group.value === value,
+    onChange: () => group.onValueChange?.(value),
+    ...rest
+  })
+}
+
 /** Same bridge for the session-history Popover (the chat pane header mounts the real `SessionHistory`, which rides DS `Popover`). */
 const PopoverMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 
@@ -232,6 +247,27 @@ vi.mock('@hive/design-system', () => ({
   SheetContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   SheetTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
   SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
+  // voice-settings (M25): the profile's "Voz e transcrição" scope renders the
+  // model chooser on the DS radio group. Without these two the scope throws on
+  // mount — and a crashed subtree looks, from a query, exactly like a scope
+  // that simply did not open.
+  RadioGroup: ({
+    children,
+    value,
+    onValueChange,
+    ...rest
+  }: {
+    children?: ReactNode
+    value?: string
+    onValueChange?: (value: string) => void
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', ...rest },
+      createElement(RadioGroupMockCtx.Provider, { value: { value, onValueChange } }, children)
+    ),
+  RadioGroupItem: ({ value, children, ...rest }: { value: string; children?: ReactNode }) =>
+    createElement('label', null, createElement(RadioItemMock, { value, ...rest }), children),
   // Profile sheet's name field (display-name editing).
   Field: ({
     label,
@@ -1597,16 +1633,21 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     fireEvent.click(avatar)
     expect(await screen.findByText('Perfil')).toBeTruthy()
 
-    // shortcut-scopes: the role reads as context, not a control — the sheet
-    // shows the active one and offers no other.
+    // voice-settings (M25): the sheet opens on its INDEX, which states the
+    // active role and the live setup without a click.
     expect(screen.getByText('Product Manager')).toBeTruthy()
     expect(screen.queryByText('Tech Lead')).toBeNull()
 
-    // Picking an agent in the sheet runs the (default no-op) handler.
+    // Agentes is one drill-down away, and picking one there runs the (default
+    // no-op) handler.
+    fireEvent.click(screen.getByRole('button', { name: /Agentes/ }))
     fireEvent.click(await screen.findByText('Claude Code'))
 
-    // Committing a new name runs the default no-op onUserNameChange too.
-    const nameInput = screen.getByPlaceholderText('Seu nome')
+    // Back to the index, then into Conta — committing a new name runs the
+    // default no-op onUserNameChange too.
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista de configurações' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Conta/ }))
+    const nameInput = await screen.findByPlaceholderText('Seu nome')
     fireEvent.change(nameInput, { target: { value: 'Nova Pessoa' } })
     fireEvent.blur(nameInput)
   })
@@ -2453,6 +2494,31 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
       })
     )
   }
+
+  /**
+   * voice-settings (M25): the transcription model is one global choice, so the
+   * ingestion sheet no longer owns the control — it points at the profile. The
+   * hand-off has to land ON the voice scope, and it has to close the sheet it
+   * came from: two sheets stacked trap focus twice.
+   */
+  it('the ingestion sheet hands the model choice off to the profile, on the right scope', async () => {
+    withVault()
+    renderWork()
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+    )
+    fireEvent.click(await screen.findByText('Enviar áudio'))
+    fireEvent.click(await screen.findByLabelText('Alterar o modelo de transcrição no perfil'))
+
+    // Landed on the scope itself, not on the index with the row still to find.
+    // Landed on the scope itself, not on the index with the row still to find:
+    // a detail view has a back button, and the index does not.
+    expect(await screen.findByLabelText('Voltar para a lista de configurações')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Voz e transcrição' })).toBeTruthy()
+    // …and the sheet it came from is gone.
+    expect(screen.queryByText('Ingerir conhecimento')).toBeNull()
+  })
 
   it('Ctrl+Shift+B opens the Second Brain view, the shortcut the rail advertises', async () => {
     withVault()

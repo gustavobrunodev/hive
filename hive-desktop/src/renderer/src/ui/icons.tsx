@@ -171,6 +171,23 @@ export function FolderPlusIcon({ size, ...rest }: IconProps): React.JSX.Element 
   )
 }
 
+/**
+ * "Recolher todas as pastas" — two chevrons folding toward a line between
+ * them, the shape every file tree uses for this (VS Code, Finder's outline
+ * views, JetBrains). Drawn as motion *toward* the fold line rather than as a
+ * minus-in-a-box: the action isn't "remove", it's "bring back together", and
+ * at 16px the direction of the two arrowheads is the only part that survives.
+ */
+export function CollapseAllIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M5.25 3 8 5.75 10.75 3" />
+      <path d="M10.75 13 8 10.25 5.25 13" />
+      <path d="M2.75 8h10.5" />
+    </svg>
+  )
+}
+
 export function TrashIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>

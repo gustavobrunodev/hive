@@ -35,7 +35,14 @@ describe('CopilotCliAdapter', () => {
     // agent-terminal: every agent turn is tagged `shell: true` (the runner
     // spawns directly while nothing is chosen). Copilot publishes no way to
     // pick the shell of its *own* commands, so it adds no env of its own.
-    expect(runner.calls[0].opts).toEqual({ cwd: '/ws', env: undefined, shell: true })
+    // `processGroup` rides with `shell` for every adapter: under a shell the
+    // CLI is a grandchild, and only a group kill can actually stop a turn.
+    expect(runner.calls[0].opts).toEqual({
+      cwd: '/ws',
+      env: undefined,
+      shell: true,
+      processGroup: true
+    })
   })
 
   it('appends --resume for conversation memory, and works with no model (adapter default)', async () => {

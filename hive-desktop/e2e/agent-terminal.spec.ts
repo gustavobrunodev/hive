@@ -26,6 +26,9 @@ test.describe('the terminal the agent runs in (M20)', () => {
     await waitForWorkUI(window)
 
     await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    // voice-settings (M25): the sheet is a drill-down — the terminal picker is
+    // its own scope, one click from the index.
+    await window.locator('button.wb-pnav-row[data-scope="shell"]').click()
 
     // AT-R1: the list is this machine's, not a fixed menu. Every row carries
     // the absolute path detection found, and POSIX always has at least `sh`.
@@ -53,7 +56,14 @@ test.describe('the terminal the agent runs in (M20)', () => {
       )
       .toBe(target === 'Bash' ? 'bash' : 'sh')
 
+    // Twice, and that is the behaviour rather than a workaround: voice-settings
+    // (M25) made the profile sheet a drill-down, so the first Escape leaves the
+    // terminal scope for the index and only the second closes the sheet. Waited
+    // on explicitly — with the sheet still up, its overlay swallows every click
+    // below and the failure reads as "Enviar not found" thirty seconds later.
     await window.keyboard.press('Escape')
+    await window.keyboard.press('Escape')
+    await expect(window.locator('.wb-profile-sheet')).toHaveCount(0)
 
     // AT-R3: the turn still completes. Everything about the reply arriving
     // depends on the shell wrap being transparent — the arguments surviving
@@ -121,6 +131,7 @@ test.describe('the terminal the agent runs in (M20)', () => {
     expect(turns[0].shellEnv?.CLAUDE_CODE_USE_POWERSHELL_TOOL).toBeNull()
 
     await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.locator('button.wb-pnav-row[data-scope="shell"]').click()
     await expect(window.locator('.hds-radio-card[data-selected]')).toContainText('Automático', {
       timeout: 20_000
     })

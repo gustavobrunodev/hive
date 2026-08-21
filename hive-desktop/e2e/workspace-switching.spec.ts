@@ -34,7 +34,7 @@ import fs from 'node:fs'
 // vs. the Recentes `onSelect` both funnel into the same `requestSwitch`).
 //
 // Workspace C's guided-install assertion deliberately stops at Act 1 (the
-// `InstallConfigForm` screen, heading "Configurar o BMAD") rather than
+// `InstallConfigForm` screen, heading "Como você quer trabalhar?") rather than
 // submitting the form and waiting out a real `bmad-method install` — WS-R4.2
 // only requires that switching to an unprovisioned workspace shows
 // `GuidedInstall` instead of the work UI, and `GuidedInstall.tsx` renders
@@ -140,7 +140,7 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
       // GuidedInstall, whose Act 1 (InstallConfigForm) renders immediately,
       // before anything is actually installed (GuidedInstall.tsx's own
       // header comment) — sufficient real-DOM proof of the routing decision.
-      await expect(window.getByRole('heading', { name: 'Configurar o BMAD' })).toBeVisible({
+      await expect(window.getByRole('heading', { name: 'Como você quer trabalhar?' })).toBeVisible({
         timeout: 30_000
       })
       await expect(window.locator('.wb-rail')).toHaveCount(0)

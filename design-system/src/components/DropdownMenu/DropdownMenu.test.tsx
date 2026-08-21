@@ -166,4 +166,78 @@ describe("DropdownMenu", () => {
     await user.click(screen.getByText("Sort"))
     expect(await screen.findByRole("menuitemradio", { name: "Date" })).toHaveAttribute("aria-checked", "true")
   })
+
+  // `indicator="trailing"`: for rows that already carry a leading visual of
+  // their own (a swatch, a preview, an avatar). Stacking a selection dot to the
+  // left of one puts two glyphs in a row and makes the reader work out which
+  // means "current".
+  it("puts the selection mark at the trailing edge on request, and leaves no leading gutter", async () => {
+    const user = userEvent.setup()
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Theme</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuRadioGroup value="dark">
+            <DropdownMenuRadioItem value="dark" indicator="trailing">
+              <span data-testid="swatch" />
+              Dark
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="light" indicator="trailing">
+              <span />
+              Light
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+    const checked = await screen.findByRole("menuitemradio", { name: /Dark/ })
+    // The gutter class is what the stylesheet keys the 20px left padding on,
+    // so its absence is the assertion that no gutter is reserved.
+    expect(checked.querySelector(".hds-dropdown-menu-item-indicator")).toBeNull()
+    const mark = checked.querySelector(".hds-dropdown-menu-item-check")
+    expect(mark).toBeInTheDocument()
+    // Last child: the mark rides at the end of the row, after the content.
+    expect(checked.lastElementChild).toBe(mark)
+    // Present but empty on the unchecked row — the box is reserved either way,
+    // which is what keeps the rows the same width.
+    const unchecked = screen.getByRole("menuitemradio", { name: /Light/ })
+    expect(unchecked.querySelector(".hds-dropdown-menu-item-check")?.textContent).toBe("")
+
+    await user.click(unchecked)
+  })
+
+  it("keeps the leading dot by default, so a plain radio list still aligns on a gutter", async () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Sort</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuRadioGroup value="name">
+            <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+    const item = await screen.findByRole("menuitemradio", { name: "Name" })
+    expect(item.querySelector(".hds-dropdown-menu-item-indicator")).toBeInTheDocument()
+    expect(item.querySelector(".hds-dropdown-menu-item-check")).toBeNull()
+  })
+
+  it("offers the same trailing placement to a checkbox item", async () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>View</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuCheckboxItem checked indicator="trailing">
+            Compact
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+    const item = await screen.findByRole("menuitemcheckbox", { name: /Compact/ })
+    expect(item.querySelector(".hds-dropdown-menu-item-indicator")).toBeNull()
+    expect(item.lastElementChild).toHaveClass("hds-dropdown-menu-item-check")
+  })
 })

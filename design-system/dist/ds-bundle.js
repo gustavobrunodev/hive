@@ -10967,19 +10967,36 @@ var DropdownMenuItem2 = forwardRef38(
   }
 );
 DropdownMenuItem2.displayName = "DropdownMenuItem";
-var DropdownMenuCheckboxItem2 = forwardRef38(function DropdownMenuCheckboxItem3({ className, children, ...rest }, ref) {
+function CheckGlyph() {
+  return /* @__PURE__ */ jsx63("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx63("path", { d: "M3 8.5l3 3 7-7", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) });
+}
+function DotGlyph() {
+  return /* @__PURE__ */ jsx63("svg", { width: "8", height: "8", viewBox: "0 0 8 8", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx63("circle", { cx: "4", cy: "4", r: "4", fill: "currentColor" }) });
+}
+function ItemIndicatorSlot({ placement, glyph }) {
+  return /* @__PURE__ */ jsx63(
+    "span",
+    {
+      className: placement === "leading" ? "hds-dropdown-menu-item-indicator" : "hds-dropdown-menu-item-check",
+      children: /* @__PURE__ */ jsx63(ItemIndicator2, { children: glyph === "check" ? /* @__PURE__ */ jsx63(CheckGlyph, {}) : /* @__PURE__ */ jsx63(DotGlyph, {}) })
+    }
+  );
+}
+var DropdownMenuCheckboxItem2 = forwardRef38(function DropdownMenuCheckboxItem3({ className, children, indicator = "leading", ...rest }, ref) {
   return /* @__PURE__ */ jsxs36(CheckboxItem2, { ref, className: cx("hds-dropdown-menu-item", className), ...rest, children: [
-    /* @__PURE__ */ jsx63("span", { className: "hds-dropdown-menu-item-indicator", children: /* @__PURE__ */ jsx63(ItemIndicator2, { children: /* @__PURE__ */ jsx63("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx63("path", { d: "M3 8.5l3 3 7-7", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }) }),
-    children
+    indicator === "leading" && /* @__PURE__ */ jsx63(ItemIndicatorSlot, { placement: "leading", glyph: "check" }),
+    children,
+    indicator === "trailing" && /* @__PURE__ */ jsx63(ItemIndicatorSlot, { placement: "trailing", glyph: "check" })
   ] });
 });
 DropdownMenuCheckboxItem2.displayName = "DropdownMenuCheckboxItem";
 var DropdownMenuRadioGroup2 = RadioGroup22;
 var DropdownMenuRadioItem2 = forwardRef38(
-  function DropdownMenuRadioItem3({ className, children, ...rest }, ref) {
+  function DropdownMenuRadioItem3({ className, children, indicator = "leading", ...rest }, ref) {
     return /* @__PURE__ */ jsxs36(RadioItem2, { ref, className: cx("hds-dropdown-menu-item", className), ...rest, children: [
-      /* @__PURE__ */ jsx63("span", { className: "hds-dropdown-menu-item-indicator", children: /* @__PURE__ */ jsx63(ItemIndicator2, { children: /* @__PURE__ */ jsx63("svg", { width: "8", height: "8", viewBox: "0 0 8 8", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx63("circle", { cx: "4", cy: "4", r: "4", fill: "currentColor" }) }) }) }),
-      children
+      indicator === "leading" && /* @__PURE__ */ jsx63(ItemIndicatorSlot, { placement: "leading", glyph: "dot" }),
+      children,
+      indicator === "trailing" && /* @__PURE__ */ jsx63(ItemIndicatorSlot, { placement: "trailing", glyph: "check" })
     ] });
   }
 );

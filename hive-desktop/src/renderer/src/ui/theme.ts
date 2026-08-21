@@ -32,19 +32,30 @@ export function readStoredTheme(): Theme {
 }
 
 export interface ThemeSwatch {
-  /** The theme's page background. */
+  /** The theme's page background — the preview's field. */
   bg: string
+  /** Its raised surface — the rail the preview draws down the left. */
+  surface: string
+  /** Its body ink — the type the preview stands in for. */
+  ink: string
   /** Its accent, the one saturated colour on that background. */
   accent: string
 }
 
 /**
  * Literal previews, kept in sync by hand with `assets/theme.css` — and by the
- * unit test that asserts each swatch pair still clears 3:1, so a drifted copy
- * shows up as a failure rather than as a muddy dot in a menu.
+ * unit tests that assert each set still clears the contrast floors, so a
+ * drifted copy shows up as a failure rather than as a muddy tile in a menu.
+ *
+ * Four values rather than two, because the picker draws a **miniature of the
+ * workbench** — rail, document, accent — instead of a coloured dot. A dot can
+ * only answer "what hue is this theme"; nobody picks a theme by hue. What they
+ * want to know is how light the surface is, how much the panel separates from
+ * the page, and where the one saturated colour lands — which is exactly what
+ * the four values below draw.
  */
 export const THEME_SWATCHES: Record<Theme, ThemeSwatch> = {
-  dark: { bg: '#1c1a1a', accent: '#cc7958' },
-  light: { bg: '#f5f0f0', accent: '#852838' },
-  hive: { bg: '#260a12', accent: '#cc7958' }
+  dark: { bg: '#1c1a1a', surface: '#2b2828', ink: '#ded4d4', accent: '#cc7958' },
+  light: { bg: '#f5f0f0', surface: '#ffffff', ink: '#260a12', accent: '#852838' },
+  hive: { bg: '#260a12', surface: '#3a1620', ink: '#ded4d4', accent: '#cc7958' }
 }

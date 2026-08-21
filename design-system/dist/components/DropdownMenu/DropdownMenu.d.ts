@@ -33,11 +33,38 @@ export declare const DropdownMenuItem: import("react").ForwardRefExoticComponent
      */
     shortcut?: ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
-export type DropdownMenuCheckboxItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>;
-export declare const DropdownMenuCheckboxItem: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuCheckboxItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+/**
+ * Where a selectable item shows that it is selected.
+ *
+ * `"leading"` is the default and the right answer for a plain list of labels:
+ * the mark sits in a reserved gutter, so the labels stay aligned whether they
+ * are checked or not.
+ *
+ * `"trailing"` is for rows that already carry a leading visual of their own —
+ * a swatch, a preview, an avatar. Stacking a selection dot to the left of one
+ * puts two circles in a row and makes the reader work out which one means
+ * "current"; moving the mark to the far edge keeps one meaning per position,
+ * which is also what the platform menus do. It becomes a check rather than a
+ * dot, because at the end of a row a dot reads as a bullet.
+ */
+export type DropdownMenuIndicatorPlacement = "leading" | "trailing";
+export type DropdownMenuCheckboxItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem> & {
+    /** Which edge carries the selection mark. Default: `"leading"`. */
+    indicator?: DropdownMenuIndicatorPlacement;
+};
+export declare const DropdownMenuCheckboxItem: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuCheckboxItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
+    /** Which edge carries the selection mark. Default: `"leading"`. */
+    indicator?: DropdownMenuIndicatorPlacement;
+} & import("react").RefAttributes<HTMLDivElement>>;
 export declare const DropdownMenuRadioGroup: import("react").ForwardRefExoticComponent<DropdownMenuPrimitive.DropdownMenuRadioGroupProps & import("react").RefAttributes<HTMLDivElement>>;
-export type DropdownMenuRadioItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>;
-export declare const DropdownMenuRadioItem: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuRadioItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+export type DropdownMenuRadioItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem> & {
+    /** Which edge carries the selection mark. Default: `"leading"`. */
+    indicator?: DropdownMenuIndicatorPlacement;
+};
+export declare const DropdownMenuRadioItem: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuRadioItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
+    /** Which edge carries the selection mark. Default: `"leading"`. */
+    indicator?: DropdownMenuIndicatorPlacement;
+} & import("react").RefAttributes<HTMLDivElement>>;
 export type DropdownMenuSeparatorProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>;
 export declare const DropdownMenuSeparator: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuSeparatorProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 export type DropdownMenuLabelProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>;

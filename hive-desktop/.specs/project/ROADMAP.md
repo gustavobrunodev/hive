@@ -1016,6 +1016,57 @@ regressão da feature, mas não foi isolado.
 
 ---
 
+## M25 — Voz e transcrição: um modelo, dois lugares, e o perfil por escopo ✅ Done (2026-08-21)
+
+Duas coisas, e a segunda existe porque a primeira precisava de um lugar.
+
+**1. A escolha do modelo virou global de verdade.** Ela sempre *foi* global — o
+`whisper:preference` mora no `configStore` e é resolvido no main — mas vivia no
+rodapé da folha de ingestão, onde lia como uma opção daquela ingestão. E o
+compositor do chat, que é onde as pessoas de fato ditam, **nunca consultava a
+preferência**: passava nenhum `model` e caía no `DEFAULT_MODEL`. O ajuste
+existia e a superfície mais usada não estava coberta por ele.
+
+Agora as duas resolvem a mesma preferência, e o padrão automático mudou de
+ladrilho: **`small` → `tiny` → `base`** (decisão do usuário) — o modelo mais
+preciso onde ele de fato roda (GPU dedicada + ≥ 8 GB), o mais rápido quando não,
+e `base` só quando a sonda não conseguiu medir nada. Sem GPU o pipeline roda
+fp32 numa única thread WASM (M12.3), onde `small` leva minutos por trecho: a GPU
+é o portão, e não é negociável.
+
+**2. A folha de perfil virou drill-down.** Cinco seções empilhadas mediam
+**1771 px** num painel de 900 — o seletor de terminal e o tour viviam abaixo da
+dobra, sem nada na tela dizendo que existiam. Agora ela abre num índice cujas
+linhas **carregam os valores vivos** (qual agente, quantos atalhos, qual modelo,
+qual terminal), e cada uma abre exatamente um escopo. O `Escape` volta um nível
+antes de fechar, que é o que o botão de voltar já promete.
+
+O escopo "Voz e transcrição" é onde o modelo é escolhido: a leitura do hardware
+que a sonda fez (GPU / memória / núcleos), o seletor com os três modelos
+embutidos, e o catálogo dos que são download de verdade — **inline**, não num
+segundo modal por cima da folha.
+
+### Veredito
+
+| Critério | Veredito |
+|---|---|
+| Um modelo, valendo no chat **e** na ingestão | **Sim.** Ambos resolvem `useTranscriptionModel`; teste no `Chat.test.ts` afirma que o ditado roda com o modelo escolhido, não com o default do engine. |
+| `small` por padrão onde o hardware aguenta | **Sim.** 18 testes de ladrilho em `whisperHardware.test.ts`, incluindo o piso exato de 8 GB e o caso "GPU sem memória". |
+| Baixar/excluir modelos fora da folha de ingestão | **Sim.** Catálogo inline no perfil, com progresso, cancelamento (o `unsubscribe` **é** o cancel) e falha que não se apaga sozinha. |
+| Perfil organizado por escopo | **Sim.** Índice + 5 escopos; 0 px de scroll no índice contra 871 px antes. |
+| Rádio do modelo alinhado | **Sim**, e medido: `centreDelta` 0,00 nas quatro linhas, anel e preenchimento concêntricos (`.playwright-mcp/m25-dot-proof.png`). |
+| Sem regressão | **Sim.** `npm run verify` verde: typecheck, 0 erros de lint, **3703** testes. |
+| Passe visual, três temas | **Sim.** 5 estados × 3 temas, 0 reprovações e 0 amostras `missing`; mais 9 sweeps de contraste no Electron real. |
+
+### O que ficou aberto
+
+A segunda ordem do ladrilho é uma troca de qualidade que o usuário pediu
+explicitamente: uma máquina sem GPU dedicada que hoje recebia `base` passa a
+receber `tiny`. É mais rápido e menos preciso — está registrado em D-VS-1 para
+não ser "corrigido" por engano numa próxima rodada.
+
+---
+
 ## Dependency Graph
 
 ```

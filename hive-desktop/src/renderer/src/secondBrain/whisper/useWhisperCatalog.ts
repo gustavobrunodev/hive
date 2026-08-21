@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { probeWebGpu, type WhisperVariant } from './useWhisper'
-import type { ModelInfo } from './modelCopy'
+import type { ModelInfo } from '../../profile/voiceCopy'
 
 export interface WhisperCatalog {
   /** Every model the app knows about, with its local availability. */
   models: ModelInfo[]
+  /**
+   * Has main answered yet?
+   *
+   * Distinct from `models.length === 0`, and the distinction is load-bearing:
+   * the app always ships three models, so an empty list means "not asked yet",
+   * never "nothing here". A surface that reads the length alone renders
+   * "nothing left to download" — a confident, wrong statement — for the length
+   * of one IPC round trip.
+   */
+  loaded: boolean
   /**
    * Which precision a **download** would fetch on this machine.
    *
@@ -27,7 +37,7 @@ export interface WhisperCatalog {
  * ceiling, which is the sensor that asked for this split.
  */
 export function useWhisperCatalog(open: boolean, refreshKey?: unknown): WhisperCatalog {
-  const [models, setModels] = useState<ModelInfo[]>([])
+  const [models, setModels] = useState<ModelInfo[] | null>(null)
   const [variant, setVariant] = useState<WhisperVariant>('fp32')
 
   const refresh = useCallback(() => {
@@ -58,5 +68,5 @@ export function useWhisperCatalog(open: boolean, refreshKey?: unknown): WhisperC
     }
   }, [open])
 
-  return { models, variant, refresh }
+  return { models: models ?? [], loaded: models !== null, variant, refresh }
 }

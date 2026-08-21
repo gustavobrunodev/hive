@@ -38,7 +38,15 @@ vi.mock('@hive/design-system', async () => {
       children?: ReactNode
     }) =>
       react.createElement(RadioGroupCtx.Provider, { value: { value, onValueChange } }, children),
-    DropdownMenuRadioItem: ({ value, children }: { value: string; children?: ReactNode }) => {
+    DropdownMenuRadioItem: ({
+      value,
+      indicator,
+      children
+    }: {
+      value: string
+      indicator?: string
+      children?: ReactNode
+    }) => {
       const ctx = react.useContext(RadioGroupCtx)
       return react.createElement(
         'button',
@@ -46,6 +54,8 @@ vi.mock('@hive/design-system', async () => {
           type: 'button',
           role: 'menuitemradio',
           'aria-checked': ctx.value === value,
+          // Surfaced so a test can assert the placement the real DS renders.
+          'data-indicator': indicator ?? 'leading',
           onClick: () => ctx.onValueChange?.(value)
         },
         children
@@ -70,7 +80,7 @@ describe('ThemePicker', () => {
     expect(screen.getByRole('button', { name: 'Aparência (atual: Hive)' })).toBeTruthy()
   })
 
-  it('lists the three themes with a name, a hint and a swatch of their own colours', () => {
+  it('lists the three themes with a name, a hint and a preview of their own colours', () => {
     render(createElement(ThemePicker, { theme: 'dark', onSelectTheme: vi.fn() }))
     fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
 
@@ -81,11 +91,30 @@ describe('ThemePicker', () => {
       'HiveEscuro, nas cores da marca'
     ])
 
-    // The swatch is painted from literal hex, not role tokens: a preview of a
-    // theme you are not in cannot be drawn in the theme you are in.
-    const swatch = options[2].querySelector<HTMLElement>('.wb-theme-swatch')
-    expect(swatch?.style.getPropertyValue('--wb-swatch-bg')).toBe('#260a12')
-    expect(swatch?.style.getPropertyValue('--wb-swatch-accent')).toBe('#cc7958')
+    // The preview is painted from literal hex, not role tokens: a preview of a
+    // theme you are not in cannot be drawn in the theme you are in. It is a
+    // miniature of the workbench — rail, document, accent — so it answers
+    // "how bright, how separated, where is the colour", which is what someone
+    // picking a theme actually wants to know and what a dot never said.
+    const preview = options[2].querySelector<SVGElement>('.wb-theme-preview')
+    const fills = Array.from(preview?.querySelectorAll('rect') ?? []).map((rect) =>
+      rect.getAttribute('fill')
+    )
+    expect(fills).toContain('#260a12') // its background
+    expect(fills).toContain('#3a1620') // its raised surface
+    expect(fills).toContain('#cc7958') // its accent
+  })
+
+  it('puts the selection mark at the trailing edge, away from the previews', () => {
+    // With a preview in the leading slot, a selection dot to its left made two
+    // glyphs the reader had to tell apart — and the DS then right-aligned the
+    // rest of the row, giving every option a different text indent.
+    render(createElement(ThemePicker, { theme: 'dark', onSelectTheme: vi.fn() }))
+    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+
+    for (const option of screen.getAllByRole('menuitemradio')) {
+      expect(option.getAttribute('data-indicator')).toBe('trailing')
+    }
   })
 
   it('marks the active theme and reports a pick', () => {

@@ -2653,7 +2653,7 @@ a:hover {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-3);
   border-radius: var(--rounded-sm);
@@ -2677,6 +2677,7 @@ a:hover {
   background: var(--danger-bg);
 }
 .hds-dropdown-menu-item-label {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
@@ -2701,6 +2702,15 @@ a:hover {
   display: inline-flex;
   align-items: center;
   color: currentColor;
+}
+.hds-dropdown-menu-item-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  margin-left: auto;
+  color: var(--accent);
 }
 .hds-dropdown-menu-separator {
   height: 1px;
@@ -3455,7 +3465,7 @@ a:hover {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-3);
   border-radius: var(--rounded-sm);
@@ -3479,6 +3489,7 @@ a:hover {
   background: var(--danger-bg);
 }
 .hds-context-menu-item-label {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);

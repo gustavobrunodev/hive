@@ -75,9 +75,15 @@ export type WhisperDownloadEvent =
   | { type: 'done'; id: WhisperModelId }
   | { type: 'error'; id: WhisperModelId; message: string }
 
-/** Why a model was recommended — a key the renderer maps to pt-BR copy. */
-export type RecommendationReason =
-  'lowMemory' | 'cpuOnly' | 'noGpu' | 'discreteGpu' | 'balanced' | 'unknown'
+/**
+ * Why a model was recommended — a key the renderer maps to pt-BR copy.
+ *
+ * `lowMemory`/`cpuOnly`/`noGpu` all land on `tiny` and `discreteGpu` lands on
+ * `small`; the reason is kept distinct from the model because the *sentence*
+ * the UI shows is the part that differs, and "not enough memory" and "no GPU"
+ * are different things to tell someone who wants a better transcription.
+ */
+export type RecommendationReason = 'lowMemory' | 'cpuOnly' | 'noGpu' | 'discreteGpu' | 'unknown'
 
 /** Best-effort hardware recommendation (P2, SB-R7). */
 export interface HardwareRecommendation {
@@ -85,7 +91,7 @@ export interface HardwareRecommendation {
   reason: RecommendationReason
   gpu: boolean
   ramGB: number
-  /** Logical CPU cores — the signal that decides `tiny` vs `base` without a GPU. */
+  /** Logical CPU cores — reported so the UI can say what it measured. */
   cores: number
 }
 

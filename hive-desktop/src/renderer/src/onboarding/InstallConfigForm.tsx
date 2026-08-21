@@ -15,6 +15,7 @@ import {
   SelectValue
 } from '@hive/design-system'
 import { t } from '../i18n'
+import { HiveLogo } from '../ui/HiveLogo'
 import {
   BMAD_LANGUAGE_OPTIONS,
   BMAD_MODULE_CATALOG,
@@ -45,14 +46,17 @@ interface InstallConfigFormProps {
 }
 
 /**
- * Guided BMAD install configuration form (BUG 1). Rather than driving the
- * real interactive `bmad-method install` clack TUI over a pty (fragile screen
+ * Guided workspace-configuration form (BUG 1). Rather than driving the real
+ * interactive `bmad-method install` clack TUI over a pty (fragile screen
  * scraping), the app abstracts the CLI's questions — which modules, what to
  * call you, communication/document language, experience level — into its own
  * visual form, then hands the answers to `installBmad`, which runs the CLI
  * non-interactively with the matching flags (see bmadService.ts). This keeps
  * the app's "terminal abstracted into visual UI" contract (context.md C2)
  * instead of installing silently with no questions asked.
+ *
+ * The questions are the CLI's; the words are the product's. See
+ * `bmadInstallCatalog.ts` for why the module labels are ours to write.
  */
 export function InstallConfigForm({ onSubmit }: InstallConfigFormProps): React.JSX.Element {
   const [selectedModules, setSelectedModules] = useState<string[]>(() =>
@@ -92,7 +96,12 @@ export function InstallConfigForm({ onSubmit }: InstallConfigFormProps): React.J
   }
 
   return (
-    <main className="wb-gate">
+    <main className="wb-gate wb-install-gate">
+      {/* Every other screen in the first run wears the mark; this one — the
+          only one that asks the user to decide something — used to be the one
+          that didn't, and a form that shows up unbranded in the middle of an
+          install reads as the underlying tool's, not as ours. */}
+      <HiveLogo className="wb-gate-logo wb-install-logo" />
       <form className="wb-gate-card wb-install-form" onSubmit={handleSubmit}>
         <h1 className="wb-gate-title">{t('guidedInstall.form.title')}</h1>
         <p className="wb-gate-desc">{t('guidedInstall.form.description')}</p>

@@ -361,6 +361,14 @@ async (page) => {
     }
     state.shellSelected = state.shellView.selectedId ?? null
 
+    const HARDWARE = globalThis.HIVE_HARDWARE ?? {
+      recommendedId: 'small',
+      reason: 'discreteGpu',
+      gpu: true,
+      ramGB: 32,
+      cores: 12
+    }
+
     const sessions = []
     window.hive = {
       ping: ok('pong'),
@@ -767,22 +775,23 @@ async (page) => {
           { id: 'base', repo: 'Xenova/whisper-base', params: '74 M', sizeMB: { fp32: 278, q8: 73 }, approxVramGB: 1, relativeSpeed: '~7x', multilingual: true, downloaded: true, downloadedVariant: 'fp32', bundled: true },
           { id: 'small', repo: 'Xenova/whisper-small', params: '244 M', sizeMB: { fp32: 923, q8: 238 }, approxVramGB: 2, relativeSpeed: '~4x', multilingual: true, downloaded: true, downloadedVariant: 'fp32', bundled: true },
           { id: 'medium', repo: 'Xenova/whisper-medium', params: '769 M', sizeMB: { fp32: 2916, q8: 740 }, approxVramGB: 5, relativeSpeed: '~2x', multilingual: true, downloaded: false, downloadedVariant: null, bundled: false },
+          // An English-only row so the `só inglês` tag is on screen for the
+          // contrast pass: a selector that never renders reports `missing`,
+          // which is noise rather than a finding (M19).
+          { id: 'medium.en', repo: 'Xenova/whisper-medium.en', params: '769 M', sizeMB: { fp32: 2916, q8: 740 }, approxVramGB: 5, relativeSpeed: '~2x', multilingual: false, downloaded: false, downloadedVariant: null, bundled: false },
           { id: 'large-v3-turbo', repo: 'onnx-community/whisper-large-v3-turbo', params: '809 M', sizeMB: { fp32: 3086, q8: 1035 }, approxVramGB: 6, relativeSpeed: '~8x', multilingual: true, downloaded: false, downloadedVariant: null, bundled: false }
         ]),
         modelStatus: ok({ downloaded: true, variant: 'fp32', bundled: true }),
         downloadModel: () => noop,
         deleteModel: ok(undefined),
-        recommend: ok({ recommendedId: 'base', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }),
-        preference: ok({
-          id: 'base',
-          auto: true,
-          recommendation: { recommendedId: 'base', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }
-        }),
-        setPreferredModel: ok({
-          id: 'base',
-          auto: true,
-          recommendation: { recommendedId: 'base', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }
-        })
+        recommend: ok(HARDWARE),
+        preference: ok({ id: 'small', auto: true, recommendation: HARDWARE }),
+        setPreferredModel: (id) =>
+          Promise.resolve(
+            id === null
+              ? { id: 'small', auto: true, recommendation: HARDWARE }
+              : { id, auto: false, recommendation: HARDWARE }
+          )
       }
     }
   }, theme)

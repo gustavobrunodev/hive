@@ -161,6 +161,7 @@ function open(
     onLaunch?: ReturnType<typeof vi.fn>
     store?: SecondBrainStore
     setup?: BrainSetup
+    onOpenVoiceSettings?: ReturnType<typeof vi.fn>
   } = {}
 ): {
   onClose: ReturnType<typeof vi.fn>
@@ -176,7 +177,8 @@ function open(
       onClose,
       onLaunch,
       store,
-      setup: overrides.setup ?? setup()
+      setup: overrides.setup ?? setup(),
+      onOpenVoiceSettings: overrides.onOpenVoiceSettings
     })
   )
   return { onClose, onLaunch, store }
@@ -548,53 +550,52 @@ describe('IngestPanel (T10)', () => {
   })
 
   /** SB-R7.4 — the model is chosen for the user, and the choice is theirs to take back. */
-  describe('model picker', () => {
-    it('shows the automatic pick and why, on audio sources only', async () => {
+  /**
+   * voice-settings (M25): the chooser moved to Perfil › Voz e transcrição —
+   * one model, both surfaces that transcribe. What this sheet still owes the
+   * reader is which model is about to run, and a way to reach the setting.
+   */
+  describe('which model is about to run', () => {
+    it('states the model on audio sources only, and says the app chose it', async () => {
       open('text')
-      expect(screen.queryByLabelText('Modelo de transcrição')).toBeNull()
+      expect(screen.queryByText(/Transcrevendo com/)).toBeNull()
 
       fireEvent.click(screen.getByRole('tab', { name: 'Enviar áudio' }))
-      expect(await screen.findByLabelText('Modelo de transcrição')).toBeTruthy()
-      expect(screen.getByText('Automático · base')).toBeTruthy()
-      await waitFor(() =>
-        expect(screen.getByText('Escolhido para este computador (16 GB de memória).')).toBeTruthy()
-      )
+      expect(
+        await screen.findByText('Transcrevendo com base, escolhido para este computador')
+      ).toBeTruthy()
     })
 
-    it('lists the bundled models as needing no download', async () => {
+    it('names a pinned model without claiming the app chose it', async () => {
+      vi.mocked(window.hive.whisper.preference).mockResolvedValue({
+        id: 'small',
+        auto: false,
+        recommendation: { recommendedId: 'tiny', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }
+      })
       open('audioFile')
-      await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(1))
-      // tiny + base are bundled here; `small` is not, so it is not offered inline.
-      expect(screen.getByText('tiny')).toBeTruthy()
-      expect(screen.getAllByText(/no aplicativo/).length).toBeGreaterThanOrEqual(2)
-      expect(screen.getByText('Os três já vêm instalados — nada para baixar.')).toBeTruthy()
+      expect(await screen.findByText('Transcrevendo com small')).toBeTruthy()
+      expect(screen.queryByText(/escolhido para este computador/)).toBeNull()
     })
 
-    it('pins a model, and hands the choice back with Automático', async () => {
+    it('offers no control at all — the readout is a statement, not a picker', async () => {
       open('audioFile')
-      await waitFor(() => expect(screen.getByText('tiny')).toBeTruthy())
-
-      // The whole row is the radio, so its accessible name is the row's text.
-      fireEvent.click(screen.getByRole('radio', { name: /tiny/ }))
-      await waitFor(() =>
-        expect(window.hive.whisper.setPreferredModel).toHaveBeenCalledWith('tiny')
-      )
-
-      fireEvent.click(screen.getByRole('radio', { name: /Automático/ }))
-      await waitFor(() => expect(window.hive.whisper.setPreferredModel).toHaveBeenCalledWith(null))
+      await screen.findByText(/Transcrevendo com/)
+      expect(screen.queryByRole('radio')).toBeNull()
     })
 
-    it('opens the full catalog for the models that really are a download', async () => {
-      open('audioFile')
-      fireEvent.click(await screen.findByText('Ver todos os modelos…'))
-      expect(await screen.findByText('Modelos de transcrição')).toBeTruthy()
+    it('sends the user to the profile, closing this sheet on the way', async () => {
+      const onOpenVoiceSettings = vi.fn()
+      open('audioFile', { onOpenVoiceSettings })
+      fireEvent.click(await screen.findByLabelText('Alterar o modelo de transcrição no perfil'))
+      expect(onOpenVoiceSettings).toHaveBeenCalledTimes(1)
+    })
 
-      // Closing it re-reads the catalog, so a just-downloaded model shows up.
-      const before = vi.mocked(window.hive.whisper.listModels).mock.calls.length
-      fireEvent.click(screen.getByText('Fechar'))
-      await waitFor(() =>
-        expect(vi.mocked(window.hive.whisper.listModels).mock.calls.length).toBeGreaterThan(before)
-      )
+    it('says nothing while main is still resolving the preference', () => {
+      // A line that said `base` and then changed to `small` under the reader is
+      // worse than a line that arrives — `null` is "not asked yet", not "none".
+      vi.mocked(window.hive.whisper.preference).mockReturnValue(new Promise(() => {}))
+      open('audioFile')
+      expect(screen.queryByText(/Transcrevendo com/)).toBeNull()
     })
   })
 

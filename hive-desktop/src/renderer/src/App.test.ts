@@ -352,7 +352,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     render(createElement(App))
 
-    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
+    expect(await screen.findByText('Atualizando seu workspace')).toBeTruthy()
     expect(screen.queryByText('Bem-vindo ao Hive')).toBeNull()
     expect(screen.queryByText('Preparando seu workspace')).toBeNull()
   })
@@ -370,7 +370,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     render(createElement(App))
 
-    await screen.findByText('Atualizando o BMAD')
+    await screen.findByText('Atualizando seu workspace')
     expect(emitDone).toBeTruthy()
     emitDone?.()
 
@@ -402,7 +402,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     render(createElement(App))
 
-    await screen.findByText('Atualizando o BMAD')
+    await screen.findByText('Atualizando seu workspace')
     emitError?.()
 
     const continueButton = await screen.findByText('Continuar mesmo assim')
@@ -420,7 +420,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     render(createElement(App))
 
     // Guided install now opens on its configuration form (BUG 1).
-    expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
+    expect(await screen.findByText('Como você quer trabalhar?')).toBeTruthy()
   })
 
   it('advances to the guided install screen (not straight to ready) after a fresh pick', async () => {
@@ -437,7 +437,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     // A fresh, unprovisioned pick lands on the guided-install configuration
     // form (BUG 1) — not straight to the work UI, and not silently installing.
-    expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
+    expect(await screen.findByText('Como você quer trabalhar?')).toBeTruthy()
   })
 
   it('routes a first-run pick of an already-provisioned folder to the update gate, not install (WS-R3.3)', async () => {
@@ -458,8 +458,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     const chooseButton = await screen.findByText('Escolher workspace')
     fireEvent.click(chooseButton)
 
-    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
-    expect(screen.queryByText('Configurar o BMAD')).toBeNull()
+    expect(await screen.findByText('Atualizando seu workspace')).toBeTruthy()
+    expect(screen.queryByText('Como você quer trabalhar?')).toBeNull()
     expect(provisionState).toHaveBeenCalledWith('/home/user/already-provisioned')
   })
 
@@ -479,7 +479,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     render(createElement(App))
 
     // Submit the config form to kick off the install, then drive it to done.
-    fireEvent.click(await screen.findByText('Instalar BMAD'))
+    fireEvent.click(await screen.findByText('Preparar workspace'))
     await screen.findByText('Preparando seu workspace')
     expect(emitDone).toBeTruthy()
     emitDone?.()
@@ -535,7 +535,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     // The agent step comes first — not the install form.
     expect(await screen.findByText('Escolha seus agentes')).toBeTruthy()
-    expect(screen.queryByText('Configurar o BMAD')).toBeNull()
+    expect(screen.queryByText('Como você quer trabalhar?')).toBeNull()
   })
 
   it('shows the required role setup step when the agent is set but the role is unset', async () => {
@@ -599,7 +599,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
     await waitFor(() => expect(setRole).toHaveBeenCalledWith('pm'))
     // Provisioned workspace → update gate after the role step.
-    expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
+    expect(await screen.findByText('Atualizando seu workspace')).toBeTruthy()
   })
 
   describe('T5 — runtime workspace switch entry (WS-R4.1, WS-R4.4)', () => {
@@ -618,7 +618,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       render(createElement(App))
 
       // Drive the initial (relaunch) update gate to ready first.
-      await screen.findByText('Atualizando o BMAD')
+      await screen.findByText('Atualizando seu workspace')
       emitDone?.()
 
       const originalWorkUi = await screen.findByText('WorkUI: /home/user/my-workspace')
@@ -629,7 +629,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       // Re-enters the checkingProvisioned gate — the spinner screen shows
       // again — then, since provisionState() resolves true for the new
       // path, lands on the update gate exactly as a relaunch would.
-      expect(await screen.findByText('Atualizando o BMAD')).toBeTruthy()
+      expect(await screen.findByText('Atualizando seu workspace')).toBeTruthy()
       expect(provisionState).toHaveBeenLastCalledWith('/home/user/switched-workspace')
 
       emitDone?.()
@@ -658,15 +658,15 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
 
       render(createElement(App))
 
-      await screen.findByText('Atualizando o BMAD')
+      await screen.findByText('Atualizando seu workspace')
       emitDone?.()
       await screen.findByText('WorkUI: /home/user/my-workspace')
 
       fireEvent.click(screen.getByText('switch workspace'))
 
-      expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
+      expect(await screen.findByText('Como você quer trabalhar?')).toBeTruthy()
       expect(provisionState).toHaveBeenLastCalledWith('/home/user/switched-workspace')
-      expect(screen.queryByText('Atualizando o BMAD')).toBeNull()
+      expect(screen.queryByText('Atualizando seu workspace')).toBeNull()
     })
   })
 })

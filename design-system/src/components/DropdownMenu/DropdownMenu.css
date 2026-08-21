@@ -32,7 +32,12 @@
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* `flex-start`, never `space-between`. The trailing shortcut is pushed right
+     by the label growing (below), which is the only arrangement that also
+     works for CheckboxItem/RadioItem — those render arbitrary children, and
+     `space-between` right-aligns whatever they pass, so every row in a radio
+     group indents differently depending on how long its own text is. */
+  justify-content: flex-start;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-3);
   border-radius: var(--rounded-sm);
@@ -64,7 +69,10 @@
   /* A menu item's children are commonly an icon followed by its label, so the
      label slot is the row that has to space them — otherwise every consumer
      re-declares the same flex+gap on top of the component. `min-width: 0` is
-     what lets the ellipsis actually engage inside the item's own flex row. */
+     what lets the ellipsis actually engage inside the item's own flex row.
+     `flex: 1` is what puts the shortcut at the far edge without the item
+     having to right-align its children. */
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
@@ -94,6 +102,20 @@
   display: inline-flex;
   align-items: center;
   color: currentColor;
+}
+
+/* `indicator="trailing"` — an ordinary flex child at the far edge, so it needs
+   no gutter and can never overlap the row's own leading visual. It reserves
+   its box whether or not Radix has rendered the glyph inside it, which is what
+   keeps every row in a group the same width. */
+.hds-dropdown-menu-item-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  margin-left: auto;
+  color: var(--accent);
 }
 
 .hds-dropdown-menu-separator {

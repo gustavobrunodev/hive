@@ -5,7 +5,7 @@
 // it flies past are exactly the ones no screenshot ever caught. This boots the
 // same mock surface with the gate held OPEN and driven by hand:
 //
-//   window.__install.step('Baixando o BMAD')
+//   window.__install.step('core', 'Installing BMad Core module')
 //   window.__install.progress('added 214 packages in 12s')
 //   window.__install.fail('npm ERR! network timeout')
 //   window.__brain.step(...)   // the second stage
@@ -61,8 +61,8 @@ async (page) => {
           // to install — `__brain.fail()` did nothing.
           install: brain,
           update: brain,
-          // `brain` reaches the second stage only after BMAD resolves, so the
-          // update stream auto-completes for that scenario.
+          // `brain` reaches the second stage only after stage 1 resolves, so
+          // the update stream auto-completes for that scenario.
           isProvisioned: ok(false),
           getVault: ok({ path: null, name: null, rawPending: 0 })
         },
@@ -85,7 +85,7 @@ async (page) => {
 
       if (gate === 'brain') {
         // Resolve stage 1 as soon as it subscribes, so the scene under test is
-        // the Second Brain one.
+        // the knowledge-base one.
         const passthrough = window.hive.updateBmad
         window.hive.updateBmad = (...args) => {
           const unsubscribe = passthrough(...args)

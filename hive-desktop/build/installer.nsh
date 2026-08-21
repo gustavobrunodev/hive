@@ -18,7 +18,7 @@
 
 !macro customHeader
   ; Replaces the stock "Hive 0.1.0" strip at the bottom of every page.
-  BrandingText "Hive · fluxos do BMAD sem terminal"
+  BrandingText "Hive · fluxos de squad sem terminal"
 !macroend
 
 ; ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@
 
 !macro customWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "Bem-vindo ao Hive"
-  !define MUI_WELCOMEPAGE_TEXT "O Hive dá uma superfície visual ao BMAD: conversar com agentes, rodar fluxos e ler os artefatos que eles produzem — sem abrir um terminal.$\r$\n$\r$\nA instalação leva alguns segundos. Nas próximas telas você escolhe para quem instalar e em qual pasta.$\r$\n$\r$\nClique em Próximo para começar."
+  !define MUI_WELCOMEPAGE_TEXT "O Hive é onde a sua squad conversa com agentes de IA, roda fluxos guiados e lê os documentos que eles produzem — sem abrir um terminal.$\r$\n$\r$\nA instalação leva alguns segundos. Nas próximas telas você escolhe para quem instalar e em qual pasta.$\r$\n$\r$\nClique em Próximo para começar."
   !insertmacro MUI_PAGE_WELCOME
 !macroend
 
@@ -142,7 +142,7 @@
   FunctionEnd
 
   !define MUI_FINISHPAGE_TITLE "O Hive está pronto"
-  !define MUI_FINISHPAGE_TEXT "O Hive foi instalado em:$\r$\n$INSTDIR$\r$\n$\r$\nHá um atalho na área de trabalho e no menu Iniciar. Na primeira execução o Hive prepara o BMAD e pergunta qual pasta você quer usar como workspace."
+  !define MUI_FINISHPAGE_TEXT "O Hive foi instalado em:$\r$\n$INSTDIR$\r$\n$\r$\nHá um atalho na área de trabalho e no menu Iniciar. Na primeira execução o Hive pergunta qual pasta você quer usar como workspace e prepara tudo sozinho."
   !define MUI_FINISHPAGE_RUN
   !define MUI_FINISHPAGE_RUN_TEXT "Abrir o Hive agora"
   !define MUI_FINISHPAGE_RUN_FUNCTION "StartApp"

@@ -68,7 +68,7 @@ Duas coisas que a sonda precisa saber fazer, e que uma versão ingênua não faz
   (`--selected-bg`, `--success-bg`, o banho de accent do quadro ao vivo). Ler a
   cor do fundo direto mede contra um pixel que não existe na tela.
 - **Entender `oklch()` e `oklab()`.** Token declara em `oklch`; `color-mix(in
-  oklab, …)` serializa em `oklab`. Sem os dois parsers a sonda devolve
+oklab, …)` serializa em `oklab`. Sem os dois parsers a sonda devolve
   `UNMEASURED` — que se lê como "sem problemas" quando na verdade é "sem dados".
   Foi assim que dois alvos reais passaram despercebidos na primeira rodada.
 
@@ -257,6 +257,79 @@ que é casado por construção.
 
 O mesmo módulo serve em teste unitário: dá para fixar o contraste de um par de
 tokens sem passe visual nenhum.
+
+## Sonda do perfil e do modelo de transcrição (M25)
+
+[`tools/visual/profile-voice-pass.mjs`](../tools/visual/profile-voice-pass.mjs)
+cobre a folha de perfil depois que ela virou **drill-down** e o escopo novo
+"Voz e transcrição": cinco estados (índice, escopo automático, catálogo de
+download aberto, modelo fixado, escopo de terminal) nos três temas, medindo
+também o anel do rádio contra o piso de 3:1. 0 reprovações e 0 amostras
+`missing` na versão final.
+
+O que ela produziu vale mais que o resultado:
+
+**1. `getBoundingClientRect` não enxerga o defeito que abriu a milestone.** A
+queixa era "a bola do rádio não está alinhada ao centro". A geometria de layout
+media **simétrica** — 3,5px de folga nos quatro lados — enquanto a tela mostrava
+o preenchimento deslocado para cima e para a esquerda. As duas causas são
+invisíveis para o DOM:
+
+- o anel era um `border` de 1,5px, e o Chromium resolve largura de borda para um
+  número **inteiro** de pixels de dispositivo por aresta; o preenchimento estava
+  posicionado com `inset`, que parte da **caixa de padding** e portanto se
+  desloca junto com esse arredondamento;
+- o controle estava alinhado ao **topo** de linhas com alturas diferentes — a
+  frase de justificativa morava dentro da linha "Automático", que ficava com
+  três linhas enquanto as vizinhas tinham duas.
+
+O conserto é estrutural, não de valor: anel por `box-shadow: inset` (não cria
+caixa de padding), preenchimento centrado por `place-items` (exato por
+construção), todas as linhas com duas linhas de texto, e a justificativa **fora**
+do grupo. E a prova é um pixel: a sonda renderiza uma cópia ampliada do controle
+**fora** do `overflow` da folha e fotografa. Comparar
+`.playwright-mcp/base-dot-zoom16.png` (antes) com `m25-dot-proof.png` (depois)
+responde a pergunta num olhar; nenhum número de layout responde.
+
+**2. Ampliar com `transform: scale()` no elemento original não funciona dentro
+de um `Sheet`.** O `.hds-sheet-content` é `overflow-y: auto`, então a cópia
+ampliada é recortada e o screenshot pega o que está atrás. Clone o nó para um
+host `position: fixed` fora da folha.
+
+**3. Truncamento é mensurável — não confie no screenshot.**
+`scrollWidth > clientWidth + 1` diz, por linha e por tema, se há reticências. Foi
+assim que "Automático · Git…" foi pego nos três temas de uma vez, e é a asserção
+que impede a regressão. A causa era `1fr` onde precisava ser `minmax(0, 1fr)`:
+uma trilha `1fr` tem **piso no próprio conteúdo**, então a coluna vizinha nunca
+consegue usar o espaço que esta não está usando.
+
+**4. Especificidade insuficiente não falha em lugar nenhum.** A largura da folha
+de perfil estava declarada em `.wb-profile-sheet` (0-1-0) e perdia para
+`.hds-sheet-content[data-side='right']` (0-2-1) do design system. A regra estava
+no arquivo, correta, e **sem efeito** desde que foi escrita — não é erro de CSS,
+não é erro de build, e o valor herdado é plausível. Ao sobrescrever uma medida do
+design system, **repita a forma do seletor dele**, não só a classe própria.
+
+**No gate E2E, no mesmo commit** (corolário do M16): `e2e/contrast.spec.ts` ganhou
+`@p0 @a11y the transcription-model scope`, que mede o que a sonda mockada não
+pode — a leitura de hardware vem do `app.getGPUInfo` real da máquina que roda a
+suíte. E os dois sweeps que já abriam a folha de perfil passaram a **navegar até
+o escopo**, porque o conteúdo que esperavam agora está um nível dentro.
+
+**Cuidado de piso que veio junto:** o sweep do escopo de atalhos reprovou com
+`expected > 5, received 5` — e não era contraste, era o `sampleTextContrast`
+deduplicando por (cor, fundo, tamanho, peso). Uma superfície pequena feita com os
+tokens da casca produz poucas amostras distintas por construção. O piso de
+contagem só serve para pegar "a superfície não abriu" ou "tudo estava
+`aria-hidden`"; quem prova que abriu é o `waitFor`, que falha com timeout em vez
+de com um zero silencioso.
+
+**E uma armadilha de semântica, não de pixel:** o drill-down fez o `Escape`
+voltar um nível antes de fechar. Um teste E2E que fechava a folha com um
+`Escape` só passou a deixar o overlay no ar, e a falha aparece 30 s depois como
+"botão Enviar não encontrado" — bem longe da causa. Superfície que ganha
+navegação interna: procure por `keyboard.press('Escape')` nos specs no mesmo
+commit.
 
 ## O que este passe não cobre
 
@@ -624,3 +697,60 @@ bytes-por-linha em **48** — errar esses dois offsets devolve `bpp: 4400`), pix
 BGRX depois de `header_size`. Vinte linhas de Node + `sharp` viram PNG. Não há
 `xdotool` nesta máquina, então dá para ver a primeira página, não clicar nas
 seguintes.
+
+## Trocar de tema **nunca** com `reload()` — a armadilha que reporta o dobro
+
+Está dito lá em cima ("depois do boot, troque pelo controle real") e vale repetir
+aqui com o número: [`tools/visual/four-fixes-pass.mjs`](../tools/visual/four-fixes-pass.mjs)
+começou fazendo `localStorage.setItem(tema)` + `reload()` por tema. O
+`addInitScript` do `boot.mjs` roda de novo a cada navegação e **regrava a chave
+para `dark`**, então as três rodadas mediram o tema escuro e o relatório saiu
+`pass` em quinze alvos — nenhum deles do tema que dizia estar medindo.
+
+O sinal foi as três colunas virem com **números idênticos** (`6.98`, `4.79` nos
+três temas). Contraste que não muda entre temas não é estabilidade, é a mesma
+página medida três vezes. A sonda hoje troca pelo menu Aparência de verdade e
+registra `applied` — o `data-theme` que o documento realmente tinha na hora da
+medição — para que a próxima versão dela não possa mentir do mesmo jeito.
+
+## `transform-origin: center` num SVG não é o centro do que você desenhou
+
+Numa `<circle>` dentro de um `viewBox`, `transform-origin: center` resolve contra
+o **viewport do SVG**, não contra o círculo. Os anéis de sinal do emblema de
+preparo (`HiveSignal.tsx`) saíram voando para cima e para a esquerda em vez de
+expandirem a partir da marca. `transform-box: fill-box` prende a origem à caixa
+do próprio elemento e resolve.
+
+O que este defeito ensina sobre a sonda: **um frame não prova animação.** O
+print de uma animação errada é só um anel fora do lugar, que se lê como decisão
+de design. Fotografe três fases (`t=400`, `t=1200`, `t=2000`) — a geometria
+errada só se denuncia quando as fases não são concêntricas entre si.
+
+## O viewport curto é um estado, não um caso de borda
+
+Trocar `max-height: calc(100vh - …)` por `min-height: 0` num filho flex só
+funciona se o **container** tiver altura. `.wb-gate` é `min-height: 100vh`, que
+cresce: a 1100×620 o formulário de configuração foi para 1053px, o `body` ganhou
+uma barra de rolagem, e a 1440×900 — o tamanho em que todo screenshot é tirado —
+nada disso aparecia. Meça `document.body.scrollHeight > window.innerHeight` em
+pelo menos um viewport baixo antes de dar uma tela de gate como pronta; uma
+barra de rolagem de página lateral num app desktop está nas anti-referências do
+`PRODUCT.md`.
+
+## Detectar opacidade por formato de string é a mesma armadilha, de novo
+
+Uma sonda que empilha fundos precisa saber onde parar — e a versão óbvia
+("pare na primeira camada opaca") testa a string com algo no formato de
+`rgba(…, 0.14)`. Os tints deste app são `oklch(… / 14%)` e `color-mix()`, que
+o `getComputedStyle` **não** serializa assim. O teste lia o tint da linha
+selecionada como opaco, parava ali, e reportava a marca de seleção do tema
+**escuro** pousada em `#f8ece7` — coral sobre o branco do próprio canvas.
+
+O conserto não é um regex melhor: é **não precisar do teste**. Colete todas as
+camadas até a raiz e pinte na ordem — uma camada opaca no meio da pilha zera o
+canvas, que é exatamente o que ela faz na tela. Parar cedo é uma otimização que
+só pode errar.
+
+A generalização, que vale para toda sonda daqui: **se o critério de parada
+depende de reconhecer um formato de cor, ele vai quebrar.** O navegador sabe
+compor; a sonda não precisa saber.

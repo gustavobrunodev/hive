@@ -158,6 +158,45 @@ describe('ProcessRunner — real child_process-backed runner', () => {
     expect(result.signal).toBe('SIGTERM')
   }, 10000)
 
+  /**
+   * The Stop-button regression, proved against real processes rather than a
+   * fake: a child that starts a grandchild and exits itself. Without a process
+   * group the grandchild outlives the kill (and, holding the inherited stdout,
+   * keeps `'close'` from firing at all); with one it goes down too.
+   *
+   * POSIX-only because the mechanism is `kill(-pid)`. Windows gets the same
+   * guarantee through `taskkill /T`, which needs a real Windows box to test.
+   */
+  const posixOnlyRoot = process.platform === 'win32' ? it.skip : it
+
+  posixOnlyRoot(
+    'processGroup: true kills the grandchildren too, not just the process it spawned',
+    async () => {
+      const runner = createProcessRunner()
+      // The parent exits at once, leaving a long-lived grandchild behind — the
+      // shape of `cmd.exe → claude.cmd → node`, which is what actually runs a
+      // turn on Windows.
+      const script = `require('child_process').spawn(process.execPath, ['-e', 'setTimeout(()=>{},9000)'], { stdio: 'inherit' }); console.log('spawned')`
+      const handle = runner.run('/bin/sh', ['-c', `exec '${process.execPath}' -e "${script}"`], {
+        processGroup: true
+      })
+
+      // Wait for the grandchild to exist before killing anything.
+      for await (const chunk of handle.output) {
+        if (chunk.data.includes('spawned')) break
+      }
+      handle.kill()
+
+      // `output` only ends once every inherited pipe is closed — so draining it
+      // is itself the assertion that no descendant is still holding one. Left
+      // alive, the grandchild would hold it for the full 9s and time this out.
+      const started = Date.now()
+      await collect(handle.output)
+      expect(Date.now() - started).toBeLessThan(4000)
+    },
+    12000
+  )
+
   it('respects a custom cwd', async () => {
     const runner = createProcessRunner()
     const handle = runner.run(process.execPath, ['-e', 'console.log(process.cwd())'], {

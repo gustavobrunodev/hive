@@ -60,7 +60,7 @@ describe('UpdateGate (T10)', () => {
     render(createElement(UpdateGate, { workspace: '/ws', onComplete: () => {} }))
 
     expect(window.hive.updateBmad).toHaveBeenCalledWith('/ws', expect.any(Function))
-    expect(screen.getByText('Atualizando o BMAD')).toBeTruthy()
+    expect(screen.getByText('Atualizando seu workspace')).toBeTruthy()
     expect(screen.getByRole('progressbar')).toBeTruthy()
   })
 
@@ -142,7 +142,7 @@ describe('UpdateGate (T10)', () => {
     emit({ type: 'progress', message: 'Baixando módulos' })
     await waitFor(() => expect(screen.getByText('Baixando módulos')).toBeTruthy())
 
-    await waitFor(() => expect(screen.getByText('Atualizando o BMAD')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Atualizando seu workspace')).toBeTruthy())
     expect(screen.queryByRole('alert')).toBeNull()
     expect(onComplete).not.toHaveBeenCalled()
   })

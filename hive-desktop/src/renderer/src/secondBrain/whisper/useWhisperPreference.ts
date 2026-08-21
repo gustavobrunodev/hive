@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { WhisperModelId } from './useWhisper'
+import { DEFAULT_MODEL, type WhisperModelId } from './useWhisper'
 
 /** The resolved preference as the bridge returns it (never imports `src/main/*`). */
 export type WhisperPreference = Awaited<ReturnType<Window['hive']['whisper']['preference']>>
@@ -18,6 +18,16 @@ export interface WhisperPreferenceState {
   select: (id: WhisperModelId) => void
   /** Hands the choice back to the hardware probe. */
   reset: () => void
+  /**
+   * Re-asks main.
+   *
+   * Needed because a pinned model can stop being the answer without anyone
+   * pinning anything else: deleting it from disk makes main fall back to the
+   * probe (`resolveWhisperPreference` refuses an id that is no longer
+   * downloaded), and a renderer that only read on mount would keep showing the
+   * deleted model as the one in force.
+   */
+  refresh: () => void
 }
 
 /**
@@ -50,9 +60,26 @@ export function useWhisperPreference(active = true): WhisperPreferenceState {
     void window.hive.whisper.setPreferredModel(id).then(setPreference)
   }, [])
 
+  const refresh = useCallback(() => {
+    void window.hive.whisper.preference().then(setPreference)
+  }, [])
+
   return {
     preference,
     select: useCallback((id: WhisperModelId) => apply(id), [apply]),
-    reset: useCallback(() => apply(null), [apply])
+    reset: useCallback(() => apply(null), [apply]),
+    refresh
   }
+}
+
+/**
+ * Just the model id, for the two surfaces that only need to know what to run.
+ *
+ * `DEFAULT_MODEL` covers the round trip before main answers and nothing else —
+ * no take or audio pass can start inside it. Its own hook so neither composer
+ * has to spell the fallback out: the chat's did not, which is exactly how it
+ * ended up dictating with a hardcoded model that no setting could change.
+ */
+export function useTranscriptionModel(active = true): WhisperModelId {
+  return useWhisperPreference(active).preference?.id ?? DEFAULT_MODEL
 }

@@ -324,7 +324,11 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
-        'src/renderer/src/ui/ProfileSheet.tsx': {
+        // voice-settings (M25): the profile sheet became a module — the shell,
+        // its index, one file per scope, and the transcription-model surfaces
+        // it exists to house. The glob replaces the single `ui/ProfileSheet.tsx`
+        // entry so the split does not quietly drop the gate.
+        'src/renderer/src/profile/**': {
           statements: 90,
           branches: 90,
           functions: 90,
@@ -384,9 +388,10 @@ export default defineConfig({
         // `ThemePicker.tsx` and `ProvisionScene.tsx` are small enough that the
         // full bar is signal rather than noise, and the gate screens are the
         // one surface where a regression is invisible until a first run.
-        // `HiveHoneycomb.tsx` earns it too: its geometry is arithmetic no
-        // screenshot review reliably catches (the first cut scaled a unit hex
-        // and turned every hairline into a slab).
+        // `HiveSignal.tsx` earns it too: its geometry is arithmetic no
+        // screenshot review reliably catches (an earlier cut scaled a unit hex
+        // and turned every hairline into a slab; the next one put the signal
+        // rings' origin somewhere other than the mark they leave).
         'src/renderer/src/ui/theme.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/renderer/src/ui/ThemePicker.tsx': {
           statements: 90,
@@ -406,7 +411,7 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
-        'src/renderer/src/onboarding/HiveHoneycomb.tsx': {
+        'src/renderer/src/onboarding/HiveSignal.tsx': {
           statements: 90,
           branches: 90,
           functions: 90,

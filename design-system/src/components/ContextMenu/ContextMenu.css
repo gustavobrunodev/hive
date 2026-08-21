@@ -33,7 +33,10 @@
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* Same reason as DropdownMenu: `space-between` right-aligns whatever a
+     CheckboxItem passes as children, so its rows indent by their own text
+     length. The label grows instead, which pushes the shortcut to the edge. */
+  justify-content: flex-start;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-3);
   border-radius: var(--rounded-sm);
@@ -65,7 +68,10 @@
   /* A menu item's children are commonly an icon followed by its label, so the
      label slot is the row that has to space them — otherwise every consumer
      re-declares the same flex+gap on top of the component. `min-width: 0` is
-     what lets the ellipsis actually engage inside the item's own flex row. */
+     what lets the ellipsis actually engage inside the item's own flex row.
+     `flex: 1` is what puts the shortcut at the far edge without the item
+     having to right-align its children. */
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);

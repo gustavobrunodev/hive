@@ -47,6 +47,7 @@ import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
+import { useTranscriptionModel } from '../secondBrain/whisper/useWhisperPreference'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
 import { AttachmentTray } from './AttachmentTray'
@@ -863,16 +864,26 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // voice-prompt (M13): the composer gains dictation. The engine is M12's
   // embedded Whisper, reused as-is and pinned to pt-BR (D-VP-4); everything
   // else lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
+  //
+  // voice-settings (M25): the **model** comes from the same global preference
+  // the ingestion sheet resolves, rather than from `useWhisper`'s built-in
+  // default. This composer used to pass no `model` at all, so every dictation
+  // in the chat ran `DEFAULT_MODEL` no matter what the user had chosen — the
+  // setting existed and this surface, the one people dictate into most, was
+  // not covered by it. `DEFAULT_MODEL` now covers only the round trip before
+  // main answers, which no take can start inside.
   const { phase: whisperPhase, transcribe: whisperTranscribe } = useWhisper()
+  const dictationModel = useTranscriptionModel()
   const dictationEngine = useMemo<DictationEngine>(
     () =>
       // A real Whisper pass would add a 278 MB download and ~4 s to every E2E
       // run; the seam returns null in every other context.
       e2eDictationEngine() ?? {
         phase: whisperPhase,
-        transcribe: (pcm) => whisperTranscribe(pcm, { language: DEFAULT_LANGUAGE })
+        transcribe: (pcm) =>
+          whisperTranscribe(pcm, { model: dictationModel, language: DEFAULT_LANGUAGE })
       },
-    [whisperPhase, whisperTranscribe]
+    [whisperPhase, whisperTranscribe, dictationModel]
   )
   const dictation = useComposerDictation({
     value: composerValue,
@@ -1288,11 +1299,39 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     if (dictationStatus === 'idle') handleSubmit(composerValueRef.current)
   }, [dictationStatus, handleSubmit])
 
+  /**
+   * Whether a stop is in flight: pressed, not yet acknowledged by the stream.
+   *
+   * The window is short — the adapter settles the turn the moment it receives
+   * the interrupt rather than waiting for the process to die — but it is a
+   * round trip through IPC and it is not zero, and a control that looks
+   * identical the instant after you press it is a control users press again
+   * and then report as broken. This is the press landing, visibly.
+   */
+  const [stopping, setStopping] = useState(false)
+  // Read by `handleStop`, which must stay dependency-free: it is wired to a
+  // button that only exists while a turn runs, and re-creating it on every
+  // state change would remount that button mid-press.
+  const stoppingRef = useRef(false)
+  useEffect(() => {
+    // Cleared by the stream, never by a timer: "stopped" is the turn ending,
+    // and only the event stream knows when that happened.
+    const settle = (): void => {
+      if (isStreaming) return
+      stoppingRef.current = false
+      setStopping(false)
+    }
+    settle()
+  }, [isStreaming])
+
   const handleStop = useCallback(() => {
     // CC-R1: interrupt only the on-screen conversation's turn, never
     // `stop()` (which would tear down the whole session) and never a blanket
     // interrupt (which would kill other conversations' background turns).
+    if (stoppingRef.current) return
     const visible = [...turnsRef.current].reverse().find((turn) => turn.visible)
+    stoppingRef.current = true
+    setStopping(true)
     void window.hive.agent.interrupt(visible?.id)
   }, [])
 
@@ -1630,8 +1669,27 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // Last, and only if a menu did not already claim the event: Esc belongs
       // to an open menu before it belongs to the take (VP-R1.5, VP-R1.7).
       dictation.handleKeyDown(event)
+      // …and after all of those, Esc means "stop the agent" — the binding every
+      // agent CLI already trained these users on. Strictly last, because Esc's
+      // first job is always to close whatever is open: a press that dismisses
+      // the slash menu must not also kill the turn behind it. Scoped to the
+      // composer subtree, so a pending permission card (which reads Esc as
+      // "Recusar" and holds focus itself) is never second-guessed from here.
+      if (event.defaultPrevented || event.key !== 'Escape') return
+      if (!isStreaming) return
+      event.preventDefault()
+      handleStop()
     },
-    [slashOpen, filteredSkills, slashHighlight, selectSlashSkill, mentions, dictation]
+    [
+      slashOpen,
+      filteredSkills,
+      slashHighlight,
+      selectSlashSkill,
+      mentions,
+      dictation,
+      isStreaming,
+      handleStop
+    ]
   )
 
   const assistantAvatar = (
@@ -1757,10 +1815,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             type="button"
             className="wb-stop-btn"
             aria-label={t('chat.stopAria')}
-            title={t('chat.stopTitle')}
+            title={stopping ? t('chat.stopPending') : t('chat.stopTitle')}
+            aria-keyshortcuts="Escape"
+            // Not `disabled`: a disabled button drops focus to the body, which
+            // strands a keyboard user in the middle of the one interaction
+            // where they most need to stay put. The repeat press is refused in
+            // `handleStop` instead, where refusing costs nobody their place.
+            data-stopping={stopping || undefined}
             onClick={handleStop}
           >
-            <StopIcon size={12} />
+            <StopIcon size={14} className="wb-stop-glyph" />
           </button>
         )}
       </>

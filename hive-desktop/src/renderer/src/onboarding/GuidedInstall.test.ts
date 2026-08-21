@@ -107,7 +107,7 @@ describe('GuidedInstall (T9)', () => {
    * runs the submit handler via its `onClick` (not a native form submit).
    */
   function submitConfigForm(): void {
-    fireEvent.click(screen.getByText('Instalar BMAD'))
+    fireEvent.click(screen.getByText('Preparar workspace'))
   }
 
   it('shows the config form first and does not install until it is submitted', () => {
@@ -116,7 +116,7 @@ describe('GuidedInstall (T9)', () => {
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
 
     // The form is up; nothing has been installed yet.
-    expect(screen.getByText('Configurar o BMAD')).toBeTruthy()
+    expect(screen.getByText('Como você quer trabalhar?')).toBeTruthy()
     expect(window.hive.installBmad).not.toHaveBeenCalled()
   })
 
@@ -137,18 +137,35 @@ describe('GuidedInstall (T9)', () => {
     expect(screen.getByRole('progressbar')).toBeTruthy()
   })
 
-  it('renders each step event as a SteppedList item, in order', async () => {
+  it('renders each step event as a SteppedList item, in order — in the product\u2019s words', async () => {
     const { emit } = mockInstallBmad()
 
     render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
     submitConfigForm()
 
-    emit({ type: 'step', id: 'install-core', label: 'Instalando módulo core' })
-    emit({ type: 'step', id: 'install-bmm', label: 'Instalando módulo bmm' })
+    emit({ type: 'step', id: 'install-core', label: 'Installing BMad Core module' })
+    emit({ type: 'step', id: 'install-bmm', label: 'Installing module: bmm' })
+
+    // The checklist is prose the user reads while their machine is busy; it
+    // must not be where they first meet the engine's product names.
+    await waitFor(() => {
+      expect(screen.getByText('Instalando o essencial')).toBeTruthy()
+      expect(screen.getByText('Instalando os fluxos de produto')).toBeTruthy()
+    })
+  })
+
+  it('quotes a step it does not recognize rather than inventing a name for it', async () => {
+    const { emit } = mockInstallBmad()
+
+    render(createElement(GuidedInstall, { workspace: '/ws', onComplete: () => {} }))
+    submitConfigForm()
+
+    // A module added upstream has to show up as itself. Guessing a friendly
+    // label for an unknown step would hide work the user is waiting on.
+    emit({ type: 'step', id: 'install-xyz', label: 'Installing something brand new' })
 
     await waitFor(() => {
-      expect(screen.getByText('Instalando módulo core')).toBeTruthy()
-      expect(screen.getByText('Instalando módulo bmm')).toBeTruthy()
+      expect(screen.getByText('Installing something brand new')).toBeTruthy()
     })
   })
 

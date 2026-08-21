@@ -901,6 +901,147 @@ Updated as work progresses. Load at start of every session.
     `UNMEASURED` — que se lê como "sem achados". Dois contrastes reais só
     apareceram depois disso, um deles virando `--success-tint-ink` no DS.
 
+## Lessons (four fixes: collapse-all, appearance menu, the interrupt, the first-run copy — 2026-08-21)
+
+On `feat/voice-prompt`. `npm run verify` green (3719 tests, typecheck + lint
+clean). The coverage gate's only two misses are the pre-existing ones, and both
+**improved**: `preload/index.ts` functions 88.99 → 89.92, `explorer/Explorer.tsx`
+branches 89.56 → 89.96. Visual pass: 3 themes x (explorer, appearance menu,
+interrupt, pane menu, context menu) + the preparation gate, 15 contrast targets,
+0 failures.
+
+- **`justify-content: space-between` is wrong on a menu item whose children are
+  the consumer's.** It shipped in the DS to push the `Ctrl+X` shortcut to the
+  edge, and for `DropdownMenuItem` — exactly two children, one of them the
+  shortcut — it does that correctly. `RadioItem`/`CheckboxItem` render whatever
+  the caller passes, so the same rule **right-aligns their content**: the
+  appearance menu's three options indented at 69px, 92px and 120px, each by the
+  length of its own text. Nobody measures indentation, so it lived in the DS
+  from the day the component was written. `flex-start` on the item plus
+  `flex: 1` on the label slot gives the shortcut the same position and stops
+  punishing everyone else. `ContextMenu` had the identical latent defect.
+
+- **`child.kill()` does not stop the agent on Windows, and the failure is
+  silent.** The agent turn runs inside a shell (agent-terminal). On POSIX
+  `shellSpawnTarget` uses `exec`, so the shell *becomes* the CLI at the same pid
+  and the signal lands. Windows has no `exec`: the tree is
+  `cmd.exe → claude.cmd → node`, `kill()` reaped only `cmd.exe`, and the
+  surviving CLI held the inherited stdout — so Node's `'close'` never fired,
+  `exitCode` never resolved, the turn never settled, and the Stop button was
+  exactly what the user reported: click, nothing. Fix is two independent parts
+  and both are load-bearing: kill the **tree** (`detached` + `kill(-pid)` on
+  POSIX, `taskkill /T` on Windows), and **settle the turn on the click** rather
+  than on the process agreeing to die.
+
+- **A fake that always behaves cannot catch a bug about misbehaviour.** Every
+  existing interrupt test passed against the broken app, because
+  `createFakeProcessRunner`'s `kill()` resolved the exit immediately — the
+  double settled the turn all by itself. `ignoresKill` is the script option
+  that reproduces the real process; the regression test that matters uses
+  **real** processes (a child that spawns a grandchild and exits) and asserts
+  that `output` *ends*, which is the only observable proof that no descendant
+  is still holding a file descriptor.
+
+- **A control that looks identical after you press it reads as broken**, and the
+  user is right about the experience even when the backend is now correct. The
+  interrupt was a grey chip beside a filled accent send button — two circles of
+  the same weight, neither saying which one halts. It now carries the danger
+  family at rest, and a `data-stopping` state closes a solid ring the moment it
+  is pressed. `disabled` was deliberately **not** used for that state: a
+  disabled button drops focus to the body, stranding a keyboard user in the one
+  interaction where staying put matters most. The repeat press is refused in
+  the handler instead.
+
+- **Esc means "close what is open" before it means "stop what is running."** The
+  binding is scoped to the composer subtree and runs strictly after the slash
+  menu, the mention menu and the dictation take have each had the event — get
+  the order wrong and dismissing a menu silently kills the turn behind it. A
+  pending permission card holds its own focus and reads Esc as "Recusar", so it
+  is never second-guessed from here.
+
+- **The first-run screens were teaching the engine's vocabulary.** "Instalando o
+  BMAD", "BMad Method", "skills de base de conhecimento da squad" — none of it
+  means anything in a user's first minute, and "something I didn't ask for is
+  installing itself" is the available reading. The copy now names the delivery.
+  The `--modules` **ids** are untouched (they are wire format); only the labels
+  are ours. Step labels stream from the CLI, so they pass through
+  `installStepLabelPtBR`, which renames what it recognizes by module code and
+  **quotes verbatim what it does not** — inventing a friendly name for an
+  unknown step would hide work the user is actively waiting on.
+
+- **The emblem was a lattice with a logo in it.** 19 hexagons around a 40px mark
+  in a 184px frame: the identity on the most-seen first-run screen was a grid,
+  and the brain rendered as a small dark ring inside somebody else's pattern.
+  It is now the mark at 96px with signal rings leaving it. Two traps came with
+  that — `transform-origin: center` on an SVG circle resolves against the
+  *viewport* without `transform-box: fill-box`, and one screenshot cannot tell
+  a wrong animation from a design decision (photograph three phases).
+
+## Lessons (voice-settings, 2026-08-21)
+
+M25 on `feat/voice-prompt`. `npm run verify` green (3703 tests, typecheck +
+lint clean); the only coverage miss is `preload/index.ts`'s pre-existing
+89.92% functions, untouched here. Visual pass 5 states x 3 themes via
+`tools/visual/profile-voice-pass.mjs` (0 failures, 0 `missing`) plus 9 real-app
+`e2e/contrast.spec.ts` sweeps.
+
+**The shape of the change.** The transcription model was a *global* setting
+living in a *local* place: it sat at the bottom of the ingestion sheet, where it
+read as a per-ingestion option — and the chat composer, the surface people
+actually dictate into, never consulted it at all and ran a hardcoded `base`. The
+chooser moved to Perfil › Voz e transcrição; both composers now resolve the same
+preference from main; the ingestion sheet keeps a read-only statement of which
+model is about to run, plus a link to the one place that changes it.
+
+- **D-VS-1 — the automatic ladder is `small` → `tiny` → `base`.** Prefer the
+  most accurate bundled model wherever it will actually run (a real GPU and
+  >= 8 GB RAM), drop to the *fastest* model when it will not, and use `base`
+  only when the probe read nothing at all. User decision, 2026-08-20.
+  **The GPU is the gate and is not negotiable:** without one the pipeline runs
+  fp32 on a single WASM thread (M12.3), where `small` is minutes per take —
+  preferring it anyway would ship a dictation box that appears to hang, not a
+  more accurate one. Note the second rung is a deliberate *quality* trade the
+  user asked for: a CPU-only machine that used to get `base` now gets `tiny`.
+- **L-VS-1 — `getBoundingClientRect` cannot see a rasterisation defect.** The
+  bug that opened this milestone ("the radio dot is not centred") measured
+  **perfectly symmetric** in layout — 3.5px on all four sides — while the screen
+  showed the fill pushed up and left. A 1.5px `border` resolves to an integer
+  number of device pixels per edge, and the fill was `inset`-positioned from the
+  padding box, which moves with that rounding. The fix is structural, not a
+  value: ring by `box-shadow: inset` (no padding box), fill centred by
+  `place-items` (exact by construction). **The proof is a pixel, not a number** —
+  render a magnified clone outside the sheet's `overflow` and photograph it.
+- **L-VS-2 — the same fact three times, again.** The scope opened with the
+  sheet's description ("the model … in the chat and in ingestion"), repeated it
+  as its own paragraph 40px below, and announced "Melhor escolha aqui: small"
+  directly above a chooser whose first row and caption both already said it.
+  Third milestone with this class (M19's status bar, M20's terminal picker).
+  The rule that resolves it: two voices survive only if they answer *different*
+  questions — the description says **where it applies**, the paragraph says
+  **where it runs**.
+- **L-VS-3 — `1fr` is not `minmax(0, 1fr)`.** A `1fr` track floors at its own
+  content width, so the neighbouring column can never claim space the first one
+  is not using: "Automático · Git Bash" arrived as "Automático · Git…" with half
+  the row empty. Truncation is *measurable* (`scrollWidth > clientWidth`) — that
+  assertion now runs across all three themes, which a screenshot cannot.
+- **L-VS-4 — insufficient specificity fails nowhere.** `.wb-profile-sheet`
+  (0-1-0) lost to the DS's `.hds-sheet-content[data-side='right']` (0-2-1), so
+  the sheet's `width` declaration had been in the file, correct, and **inert**
+  since the day it was written. No CSS error, no build error, and the inherited
+  value is plausible. When overriding a design-system measurement, **repeat the
+  shape of its selector**, not just your own class.
+- **L-VS-5 — a sample-count floor is not a contrast assertion.** The shortcuts
+  sweep failed with `expected > 5, received 5` after the drill-down made that
+  detail smaller — `sampleTextContrast` deduplicates by (colour, background,
+  size, weight), so a small surface built from shell tokens yields few distinct
+  samples *by construction* (L-DS-6, one milestone on). What proves the surface
+  opened is the `waitFor`, which fails with a timeout rather than a quiet zero.
+- **L-VS-6 — splitting a gated file silently drops its gate.** `ProfileSheet.tsx`
+  became a module of eleven files; the `vitest.config.ts` entry named the old
+  path, so every new file would simply not have been measured and the report
+  would have stayed green. The entry is now the glob `profile/**`. Same family
+  as L-AS-3: **the harness is part of the change, not a follow-up to it.**
+
 ## Lessons (mcp-probe-path + approval-session, 2026-08-19)
 
 Built on `feat/voice-prompt`. `npm run verify` green (3673 tests); visual pass

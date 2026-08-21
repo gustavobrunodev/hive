@@ -524,24 +524,49 @@ function emitToolEvents(
 }
 
 /**
+ * One in-flight turn: its process, its id, and the two facts every other part
+ * of this file needs to agree on about it.
+ *
+ * `settled` is the important one. Exactly one terminal event may ever be
+ * pushed for a turn, and after an interrupt that event has *already* been
+ * pushed — synchronously, at the moment the user clicked — so everything the
+ * dying process still says on its way out has to be dropped rather than
+ * appended to a transcript the UI has already closed.
+ */
+interface TurnRun {
+  handle: ProcessHandle
+  turnId: string | undefined
+  /** The user asked for this — its terminal event is `interrupted`, never `error`. */
+  interrupted: boolean
+  /** A terminal event has been pushed; nothing further may be pushed for this turn. */
+  settled: boolean
+}
+
+/**
  * Pipes one spawned turn's `ProcessHandle` into the session's shared event
  * queue: stdout is consumed as line-buffered stream-json, stderr is collected
  * as error context (never rendered into the transcript), then exactly one
  * terminal event — `done` (clean exit), `interrupted` (a deliberate user
  * `stop()`/`interrupt()` killed it), or `error` (unexpected exit/signal, with
  * the stderr tail appended). Partial `token`s already delivered are unaffected.
+ *
+ * A turn already settled by `interrupt()` produces neither content nor a
+ * second terminal event from here, however long the process takes to actually
+ * die — and it may take a while, or never finish at all if a grandchild is
+ * holding the pipe. That is the whole point: settling is not allowed to depend
+ * on a process that has just been told it is no longer wanted.
  */
 async function pipeTurn(
-  handle: ProcessHandle,
+  run: TurnRun,
   queue: ReturnType<typeof createAgentEventQueue>,
-  turnId: string | undefined,
-  wasInterrupted: () => boolean,
   errorLabel: string
 ): Promise<void> {
+  const { handle, turnId } = run
   const tracker: TurnTracker = { lastId: null, context: null }
   let stdoutRest = ''
   let stderrTail = ''
   for await (const chunk of handle.output) {
+    if (run.settled) continue
     if (chunk.stream === 'stderr') {
       stderrTail = (stderrTail + chunk.data).slice(-500)
       continue
@@ -553,9 +578,12 @@ async function pipeTurn(
       handleStdoutLine(line, queue, turnId, tracker)
     }
   }
+  if (run.settled) return
   handleStdoutLine(stdoutRest, queue, turnId, tracker)
   const result = await handle.exitCode
-  if (wasInterrupted()) {
+  if (run.settled) return
+  run.settled = true
+  if (run.interrupted) {
     queue.push({ type: 'interrupted', turnId })
   } else if (result.code === 0) {
     queue.push({ type: 'done', turnId })
@@ -576,6 +604,16 @@ async function pipeTurn(
 }
 
 /**
+ * How long a turn gets to honour SIGTERM before it is taken out with SIGKILL.
+ *
+ * Short on purpose. Nothing is waiting on the graceful exit any more — the UI
+ * settled the turn the instant Stop was pressed — so this window buys only the
+ * CLI's own cleanup, and a CLI that has not finished cleaning up in two
+ * seconds is a CLI that is still spending the user's tokens.
+ */
+const KILL_ESCALATION_MS = 2000
+
+/**
  * Builds an `AgentSession` for a one-shot-per-turn CLI adapter. Shared by
  * every adapter (see file header); the `config` is the only per-adapter input.
  */
@@ -585,13 +623,10 @@ export function createCliAgentSession(
   config: CliAdapterConfig
 ): AgentSession {
   const queue = createAgentEventQueue()
-  // Every in-flight turn's handle, keyed by its caller turnId (or an internal
-  // key when none was given). One process per turn; background-turns means
-  // several can run concurrently, so this is a map, not a single handle.
-  const activeHandles = new Map<string, ProcessHandle>()
-  // Handles a user interrupt/stop killed, so `pipeTurn` can distinguish a
-  // deliberate interrupt (emit `interrupted`) from a real failure (emit `error`).
-  const interruptedHandles = new Set<ProcessHandle>()
+  // Every in-flight turn, keyed by its caller turnId (or an internal key when
+  // none was given). One process per turn; background-turns means several can
+  // run concurrently, so this is a map, not a single handle.
+  const activeRuns = new Map<string, TurnRun>()
   let anonymousTurnCounter = 0
 
   function spawnTurn(prompt: string, turnOpts: TurnOpts | undefined): void {
@@ -610,28 +645,47 @@ export function createCliAgentSession(
         // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
         // inside the user's chosen terminal. With nothing chosen the runner
         // spawns exactly as it always did.
-        shell: true
+        shell: true,
+        // …which is precisely why the turn also needs its own process group.
+        // POSIX gets away with `exec` (the shell becomes the CLI), but Windows
+        // has no exec: there the turn is cmd.exe → claude.cmd → node, and a
+        // kill aimed at the shell left the agent running. See
+        // RunOptions.processGroup for the full account.
+        processGroup: true
       }
     )
-    activeHandles.set(handleKey, handle)
-    void pipeTurn(
-      handle,
-      queue,
-      turnId,
-      () => interruptedHandles.has(handle),
-      config.errorLabel
-    ).then(() => {
-      if (activeHandles.get(handleKey) === handle) {
-        activeHandles.delete(handleKey)
-      }
-      interruptedHandles.delete(handle)
+    const run: TurnRun = { handle, turnId, interrupted: false, settled: false }
+    activeRuns.set(handleKey, run)
+    void pipeTurn(run, queue, config.errorLabel).then(() => {
+      if (activeRuns.get(handleKey) === run) activeRuns.delete(handleKey)
     })
   }
 
-  /** Marks a handle as deliberately killed (its terminal event becomes `interrupted`, not `error`), then kills it. */
-  function killAsInterrupt(handle: ProcessHandle): void {
-    interruptedHandles.add(handle)
-    handle.kill()
+  /**
+   * Stops one turn, from the user's side.
+   *
+   * The order matters, and it is not the obvious one: the turn is **settled
+   * first** and killed second. Waiting for the process to die before telling
+   * the UI anything is what made Stop look broken — a CLI that ignores SIGTERM,
+   * or a grandchild still holding the stdout pipe, and the transcript sits
+   * "respondendo" indefinitely with the button doing nothing visible. Nothing
+   * about "the user is done with this turn" depends on the process agreeing, so
+   * nothing here waits for it.
+   *
+   * The kill still happens, twice if it has to: SIGTERM for the CLI's own
+   * cleanup, then SIGKILL if it is still alive shortly after. The escalation
+   * timer is unref'd — it must never be the reason the app stays awake.
+   */
+  function interruptRun(run: TurnRun): void {
+    run.interrupted = true
+    if (!run.settled) {
+      run.settled = true
+      queue.push({ type: 'interrupted', turnId: run.turnId })
+    }
+    run.handle.kill()
+    const escalation = setTimeout(() => run.handle.kill('SIGKILL'), KILL_ESCALATION_MS)
+    escalation.unref?.()
+    void run.handle.exitCode.then(() => clearTimeout(escalation))
   }
 
   return {
@@ -647,14 +701,14 @@ export function createCliAgentSession(
     },
     interrupt(turnId?: string): void {
       if (turnId !== undefined) {
-        const handle = activeHandles.get(turnId)
-        if (handle) killAsInterrupt(handle)
+        const run = activeRuns.get(turnId)
+        if (run) interruptRun(run)
         return
       }
-      for (const handle of activeHandles.values()) killAsInterrupt(handle)
+      for (const run of activeRuns.values()) interruptRun(run)
     },
     stop(): void {
-      for (const handle of activeHandles.values()) killAsInterrupt(handle)
+      for (const run of activeRuns.values()) interruptRun(run)
     }
   }
 }

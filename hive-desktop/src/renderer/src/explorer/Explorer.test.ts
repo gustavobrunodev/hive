@@ -10,7 +10,7 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
-import { cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { FileTree, FileViewer } from './Explorer'
 import { createHiveGitMock, createHiveReviewMock } from '../testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from '../testSupport/hiveSecondBrainMock'
@@ -101,6 +101,12 @@ const ContextMenuMockCtx = createContext<{ open: boolean; setOpen: (open: boolea
   setOpen: () => {}
 })
 
+/** Last expansion props the mocked `Tree` was rendered with — see the mock. */
+const treeProps: {
+  expandedIds?: string[]
+  onExpandedIdsChange?: (ids: string[]) => void
+} = {}
+
 vi.mock('@hive/design-system', () => ({
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', { type: 'button', ...rest }, children),
@@ -118,14 +124,24 @@ vi.mock('@hive/design-system', () => ({
     nodes,
     selectedIds,
     onSelectedIdsChange,
+    expandedIds,
+    onExpandedIdsChange,
     renderLabel
   }: {
     nodes: MockTreeNode[]
     selectedIds?: string[]
     onSelectedIdsChange?: (ids: string[]) => void
+    expandedIds?: string[]
+    onExpandedIdsChange?: (ids: string[]) => void
     renderLabel?: (node: MockTreeNode, state: MockTreeRenderState) => ReactNode
-  }) =>
-    createElement(
+  }) => {
+    // The flattening below renders every node regardless of expansion, so a
+    // test cannot see folding by looking at the DOM. Recording the expansion
+    // props is how it sees it instead — the real DS Tree owns that rendering,
+    // and what this app controls is exactly these two values.
+    treeProps.expandedIds = expandedIds
+    treeProps.onExpandedIdsChange = onExpandedIdsChange
+    return createElement(
       'div',
       { role: 'tree' },
       flattenTreeNodes(nodes).map((node) => {
@@ -175,7 +191,8 @@ vi.mock('@hive/design-system', () => ({
           content
         )
       })
-    ),
+    )
+  },
   CodeBlock: ({ children }: { children?: ReactNode }) =>
     createElement('pre', { 'data-testid': 'code-viewer' }, children),
   // Honours `onOpenChange` (via an explicit dismiss affordance) rather than
@@ -726,6 +743,47 @@ describe('Explorer (T12/T8)', () => {
     await waitFor(() => {
       expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'notes.txt', undefined)
     })
+  })
+
+  // --- "Recolher todas as pastas" -------------------------------------------
+
+  it('folds every open folder back to the root, and says so', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    const collapse = screen.getByRole('button', { name: 'Recolher todas as pastas' })
+    // Nothing is open yet, so the control has nothing to do — and a live
+    // control that provably does nothing is worse than a disabled one.
+    expect((collapse as HTMLButtonElement).disabled).toBe(true)
+    expect(treeProps.expandedIds).toEqual([])
+
+    act(() => treeProps.onExpandedIdsChange?.(['docs']))
+    await waitFor(() => expect((collapse as HTMLButtonElement).disabled).toBe(false))
+
+    fireEvent.click(collapse)
+
+    await waitFor(() => expect(treeProps.expandedIds).toEqual([]))
+    expect((collapse as HTMLButtonElement).disabled).toBe(true)
+    // The tree changed by *shrinking*: the row a screen-reader user was on may
+    // have stopped existing, and nothing else on screen would say so.
+    expect(screen.getByText('Pastas recolhidas')).toBeTruthy()
+  })
+
+  it('keeps the selection when it folds the tree', async () => {
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    const tree = within(await screen.findByRole('tree'))
+    await tree.findByText('a.txt')
+
+    fireEvent.click(tree.getByText('a.txt').closest('[role="treeitem"]') as HTMLElement)
+    act(() => treeProps.onExpandedIdsChange?.(['docs']))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recolher todas as pastas' }))
+
+    // Folding is a tidy-up, not a reset. VS Code and Finder both keep the
+    // selection; clearing it would make one action cost the user two undos.
+    await waitFor(() => expect(treeProps.expandedIds).toEqual([]))
+    const aRow = tree.getByText('a.txt').closest('[role="treeitem"]') as HTMLElement
+    expect(aRow.className).toContain('hds-tree-item-selected')
   })
 
   it('"New folder" creates a directory at the workspace root via createDirectory', async () => {

@@ -6,7 +6,8 @@ import {
   roleActionLabel,
   shortcutLabel,
   agentMeta,
-  relativeTimeLabel
+  relativeTimeLabel,
+  installStepLabelPtBR
 } from './pt-BR'
 
 /**
@@ -137,5 +138,26 @@ describe('pt-BR — update flow (npm-distribution)', () => {
 
   it('skippedVersionNote() names the version the user chose to skip', () => {
     expect(ptBR.update.skippedVersionNote('0.2.0')).toBe('Você pulou a versão 0.2.0')
+  })
+})
+
+describe('pt-BR — the preparation checklist speaks the product\u2019s language', () => {
+  it('renames the steps it recognizes, by module, however the CLI phrased them', () => {
+    // The CLI wording is not ours and is not stable; the module code inside it
+    // is. Matching on that rather than on a whole sentence is what keeps this
+    // from silently going back to quoting English.
+    expect(installStepLabelPtBR('Installing BMad Core module')).toBe('Instalando o essencial')
+    expect(installStepLabelPtBR('Installing module: bmm')).toBe('Instalando os fluxos de produto')
+    expect(installStepLabelPtBR('Installing BMad Builder')).toBe('Instalando a oficina de agentes')
+    expect(installStepLabelPtBR('Installing cis')).toBe('Instalando a inteligência criativa')
+    expect(installStepLabelPtBR('Installing gds')).toBe('Instalando o estúdio de jogos')
+  })
+
+  it('quotes anything it does not recognize, rather than inventing a name', () => {
+    // A module added upstream has to appear as itself. A friendly guess would
+    // hide work the user is actively waiting on, and a dropped step would make
+    // the checklist lie about what is happening.
+    expect(installStepLabelPtBR('Linking workspace tools')).toBe('Linking workspace tools')
+    expect(installStepLabelPtBR('')).toBe('')
   })
 })

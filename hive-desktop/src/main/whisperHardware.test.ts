@@ -56,17 +56,43 @@ describe('whisperHardware', () => {
       expect(result).toMatchObject({ recommendedId: 'tiny', reason: 'lowMemory', ramGB: 4 })
     })
 
-    it('recommends base without a real GPU when there are cores to carry it', async () => {
+    it('prefers small whenever there is a GPU and the memory to hold it', async () => {
+      // The default the product asks for (2026-08-20): the most accurate
+      // bundled model, wherever it will actually run.
+      expect(await recommendWhisperModel(machine(32, discreteGpu, 12))).toMatchObject({
+        recommendedId: 'small',
+        reason: 'discreteGpu',
+        gpu: true
+      })
+    })
+
+    it('commits to small on a GPU machine with exactly the floor of RAM', async () => {
+      // 8 GB is the floor, not a value above it: an off-by-one here silently
+      // demotes every machine sitting on the boundary.
+      expect(await recommendWhisperModel(machine(8, discreteGpu, 4))).toMatchObject({
+        recommendedId: 'small',
+        reason: 'discreteGpu'
+      })
+    })
+
+    it('does not need cores once there is a GPU — the GPU is the gate', async () => {
+      expect(await recommendWhisperModel(machine(32, discreteGpu, 2))).toMatchObject({
+        recommendedId: 'small',
+        reason: 'discreteGpu'
+      })
+    })
+
+    it('drops to tiny — not base — on a strong CPU-only machine', async () => {
+      // fp32 on a single WASM thread (M12.3): `small` is minutes per take
+      // here, so the ladder's second rung is `tiny`, the fastest model.
       expect(await recommendWhisperModel(machine(32, null, 8))).toMatchObject({
-        recommendedId: 'base',
+        recommendedId: 'tiny',
         reason: 'noGpu',
         gpu: false
       })
     })
 
-    it('drops to tiny on a CPU-only machine with few cores', async () => {
-      // fp32 on a single WASM thread: `base` here is minutes per take, which
-      // reads as a broken app rather than a slow one (M12.3).
+    it('drops to tiny on a CPU-only machine with few cores, and says which', async () => {
       expect(await recommendWhisperModel(machine(16, null, 4))).toMatchObject({
         recommendedId: 'tiny',
         reason: 'cpuOnly',
@@ -75,14 +101,16 @@ describe('whisperHardware', () => {
       })
     })
 
-    it('needs cores as well as a GPU before it commits to small', async () => {
-      expect(await recommendWhisperModel(machine(32, discreteGpu, 4))).toMatchObject({
-        recommendedId: 'base',
-        reason: 'balanced'
+    it('drops to tiny on a GPU machine that has no room for small', async () => {
+      // A GPU is not enough on its own — `small`'s weights still have to fit.
+      expect(await recommendWhisperModel(machine(6, discreteGpu, 16))).toMatchObject({
+        recommendedId: 'tiny',
+        reason: 'lowMemory',
+        gpu: true
       })
     })
 
-    it('degrades to the fallback when the core probe throws', async () => {
+    it('degrades to tiny when the core probe throws', async () => {
       const result = await recommendWhisperModel({
         totalMemory: () => 32 * GB,
         coreCount: () => {
@@ -92,20 +120,9 @@ describe('whisperHardware', () => {
       expect(result).toMatchObject({ recommendedId: 'tiny', reason: 'cpuOnly', cores: 0 })
     })
 
-    it('recommends small on a GPU machine with plenty of RAM and cores', async () => {
-      const result = await recommendWhisperModel(machine(32, discreteGpu, 12))
-      expect(result).toMatchObject({ recommendedId: 'small', reason: 'discreteGpu', gpu: true })
-    })
-
-    it('stays on base for a GPU machine with middling RAM', async () => {
-      expect(await recommendWhisperModel(machine(8, discreteGpu))).toMatchObject({
-        recommendedId: 'base',
-        reason: 'balanced',
-        gpu: true
-      })
-    })
-
-    it('falls back to base and says so when RAM cannot be read (SB-R7.3)', async () => {
+    it('falls back to base — the rung that runs anywhere — when RAM cannot be read', async () => {
+      // SB-R7.3. `base`, not `tiny`: picking the smallest model would assert
+      // "this machine is weak", which is precisely what was not measured.
       expect(await recommendWhisperModel({ totalMemory: () => 0 })).toMatchObject({
         recommendedId: 'base',
         reason: 'unknown'
@@ -134,7 +151,7 @@ describe('whisperHardware', () => {
     it('treats an absent gpuInfo probe as no GPU', async () => {
       expect(
         await recommendWhisperModel({ totalMemory: () => 32 * GB, coreCount: () => 8 })
-      ).toMatchObject({ recommendedId: 'base', reason: 'noGpu' })
+      ).toMatchObject({ recommendedId: 'tiny', reason: 'noGpu' })
     })
 
     /**

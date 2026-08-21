@@ -56,7 +56,8 @@ import { UnsavedGuardDialog } from './ui/UnsavedGuardDialog'
 import { GitOpToast } from './ui/GitOpToast'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
-import { ProfileSheet } from './ui/ProfileSheet'
+import { ProfileSheet } from './profile/ProfileSheet'
+import type { ProfileScope } from './profile/scopes'
 import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
@@ -408,6 +409,9 @@ export function WorkUI({
     during: []
   })
   const [profileOpen, setProfileOpen] = useState(false)
+  // voice-settings: a deep link into one scope of the profile sheet (the
+  // ingestion sheet's "Alterar" points at `voice`). `null` opens the index.
+  const [profileScope, setProfileScope] = useState<ProfileScope | null>(null)
   // shortcut-customization: the "Personalizar atalhos" picker dialog — `null`
   // while closed, otherwise the scope it opened on.
   const [shortcutsScope, setShortcutsScope] = useState<ShortcutScope | null>(null)
@@ -532,6 +536,18 @@ export function WorkUI({
       cancelled = true
     }
   }, [role, workspace])
+
+  /**
+   * Opens the profile sheet, optionally straight on one scope.
+   *
+   * The scope is set *before* `open` so the sheet's first render is already on
+   * the right detail — flipping it afterwards would show the index for a frame
+   * and then slide, which reads as the sheet correcting itself.
+   */
+  const openProfile = useCallback((scope: ProfileScope | null) => {
+    setProfileScope(scope)
+    setProfileOpen(true)
+  }, [])
 
   // shortcut-scopes: opening the picker from the profile sheet closes the
   // sheet first — a dialog stacked on a sheet traps focus twice, and the
@@ -981,7 +997,7 @@ export function WorkUI({
             conversationActions={shortcutSets.during}
             agents={agents}
             defaultAgent={defaultAgent}
-            onManageAgents={() => setProfileOpen(true)}
+            onManageAgents={() => openProfile('agents')}
             userName={userName}
             onSessionChange={setActiveSessionId}
             onRunningSessionsChange={setRunningSessionIds}
@@ -1126,7 +1142,7 @@ export function WorkUI({
               data-tour="profile"
               title={t('profile.openLabel')}
               aria-label={t('profile.openLabel')}
-              onClick={() => setProfileOpen(true)}
+              onClick={() => openProfile(null)}
             >
               {initialsOf(userName) ?? <UserIcon size={15} />}
             </button>
@@ -1214,6 +1230,10 @@ export function WorkUI({
             store={secondBrain}
             onLaunch={launchBrainAction}
             setup={brainSetup}
+            onOpenVoiceSettings={() => {
+              setIngestMode(null)
+              openProfile('voice')
+            }}
           />
           {/* The "your conversation is safe, here's the way back" hand-off for
               every Second Brain command that opened its own conversation. */}
@@ -1339,6 +1359,7 @@ export function WorkUI({
           <ProfileSheet
             open={profileOpen}
             onOpenChange={setProfileOpen}
+            initialScope={profileScope}
             role={role}
             agents={agents}
             defaultAgent={defaultAgent}

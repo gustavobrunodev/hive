@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button, Sheet, SheetContent, SheetDescription, SheetTitle } from '@hive/design-system'
 import { t } from '../i18n'
-import { MicIcon, PencilIcon, WaveformIcon } from '../ui/icons'
+import { MicIcon, PencilIcon, SparkleIcon, WaveformIcon } from '../ui/icons'
 import type { RoleAction } from '../ui/ActionRail'
 import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
@@ -15,19 +15,11 @@ import { AudioJobList } from './whisper/AudioJobList'
 import { AudioStage } from './whisper/AudioStage'
 import { EngineProgress } from './whisper/EngineProgress'
 import { LiveConsole } from './whisper/LiveConsole'
-import { ModelCaption, ModelPicker } from './whisper/ModelPicker'
 import { TranscriptDocument } from './whisper/TranscriptDocument'
 import { useAudioIngest } from './whisper/useAudioIngest'
 import { enginePhaseView } from './whisper/enginePhase'
-import { ModelManager } from './whisper/ModelManager'
-import { useWhisperCatalog } from './whisper/useWhisperCatalog'
-import { useWhisperPreference } from './whisper/useWhisperPreference'
-import {
-  DEFAULT_LANGUAGE,
-  DEFAULT_MODEL,
-  useWhisper,
-  type WhisperModelId
-} from './whisper/useWhisper'
+import { useTranscriptionModel, useWhisperPreference } from './whisper/useWhisperPreference'
+import { DEFAULT_LANGUAGE, useWhisper, type WhisperModelId } from './whisper/useWhisper'
 
 interface IngestPanelProps {
   /** The mode the FAB opened on, or null when the sheet is closed. */
@@ -40,6 +32,13 @@ interface IngestPanelProps {
   onLaunch: (action: RoleAction) => void
   /** The vault-setup flow — drives the no-vault guard's two states (SB-R3.3). */
   setup: BrainSetup
+  /**
+   * voice-settings: opens Perfil › Voz e transcrição, where the model is now
+   * chosen. The sheet closes first — a second sheet over this one would trap
+   * focus twice, and the choice being made is about every transcription, not
+   * about this ingestion.
+   */
+  onOpenVoiceSettings?: () => void
 }
 
 const TABS: ReadonlyArray<{
@@ -162,57 +161,47 @@ function CaptureStage({
 }
 
 /**
- * The model strip, its caption, and the catalog behind it.
+ * Which model is about to transcribe — a **statement, not a control**.
+ *
+ * The chooser used to live here, which made a global setting read as a
+ * per-ingestion option (and meanwhile the chat composer, which dictates through
+ * the same engine, never consulted it at all). It moved to Perfil › Voz e
+ * transcrição; what stays is the one fact this screen genuinely owes the
+ * reader — a download or a slow take is about to be explained by this model —
+ * plus one link to the place that changes it.
  *
  * Only where audio is involved: typed text needs no transcription model, and a
- * control that has no effect on the current source is noise (SB-R4.4).
+ * readout about a model that will not run is noise (SB-R4.4).
  */
-function ModelRow({
-  mode,
+function ModelNote({
   preference,
-  catalog,
-  model,
-  onSelect,
-  onAuto,
-  managerOpen,
-  setManagerOpen
+  onOpenVoiceSettings
 }: {
-  mode: IngestMode
   preference: ReturnType<typeof useWhisperPreference>['preference']
-  catalog: ReturnType<typeof useWhisperCatalog>
-  model: WhisperModelId
-  onSelect: (id: WhisperModelId) => void
-  onAuto: () => void
-  managerOpen: boolean
-  setManagerOpen: (open: boolean) => void
-}): React.JSX.Element {
+  onOpenVoiceSettings?: () => void
+}): React.JSX.Element | null {
+  // Nothing is claimed until main answers: a line that said `base` and then
+  // changed to `small` under the reader is worse than a line that arrives.
+  if (preference === null) return null
   return (
-    <>
-      {mode !== 'text' && (
-        <div className="wb-model-row">
-          <ModelPicker
-            preference={preference}
-            models={catalog.models}
-            onSelect={onSelect}
-            onAuto={onAuto}
-            onOpenCatalog={() => setManagerOpen(true)}
-          />
-          <ModelCaption preference={preference} models={catalog.models} />
-        </div>
+    <p className="wb-ingest-model">
+      {preference.auto && <SparkleIcon size={12} aria-hidden="true" />}
+      <span className="wb-ingest-model-text">
+        {preference.auto
+          ? t('secondBrain.ingestModelAuto', preference.id)
+          : t('secondBrain.ingestModelRunning', preference.id)}
+      </span>
+      {onOpenVoiceSettings && (
+        <button
+          type="button"
+          className="wb-ingest-model-link"
+          aria-label={t('secondBrain.ingestModelChangeAria')}
+          onClick={onOpenVoiceSettings}
+        >
+          {t('secondBrain.ingestModelChange')}
+        </button>
       )}
-
-      <ModelManager
-        open={managerOpen}
-        onOpenChange={(next) => {
-          setManagerOpen(next)
-          // Downloads/deletions in the manager change the picker's list.
-          if (!next) catalog.refresh()
-        }}
-        variant={catalog.variant}
-        selectedId={model}
-        onSelect={onSelect}
-      />
-    </>
+    </p>
   )
 }
 
@@ -295,13 +284,13 @@ export function IngestPanel({
   onClose,
   store,
   onLaunch,
-  setup
+  setup,
+  onOpenVoiceSettings
 }: IngestPanelProps): React.JSX.Element {
   const [activeMode, setActiveMode] = useState<IngestMode>('text')
   const [content, setContent] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [modelsOpen, setModelsOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const whisper = useWhisper()
 
@@ -316,15 +305,11 @@ export function IngestPanel({
   }
   if (mode === null && lastMode !== null) setLastMode(null)
 
-  // Catalog + download precision, loaded only while the sheet is open. Keyed on
-  // the engine phase so a model fetched mid-session shows up without a reopen.
-  const catalog = useWhisperCatalog(open, whisper.phase.status)
-
   // Which model transcription runs with, resolved in main from the hardware
   // probe unless the user pinned one (SB-R7.4). `DEFAULT_MODEL` covers only the
   // round trip before main answers — an audio pass cannot start that fast.
-  const { preference, select, reset } = useWhisperPreference(open)
-  const model: WhisperModelId = preference?.id ?? DEFAULT_MODEL
+  const { preference } = useWhisperPreference(open)
+  const model: WhisperModelId = useTranscriptionModel(open)
 
   // Every finished transcript is appended under a heading naming its source.
   // Two voice memos and a meeting recording become one reviewable document,
@@ -445,16 +430,9 @@ export function IngestPanel({
               />
             </div>
 
-            <ModelRow
-              mode={activeMode}
-              preference={preference}
-              catalog={catalog}
-              model={model}
-              onSelect={select}
-              onAuto={reset}
-              managerOpen={modelsOpen}
-              setManagerOpen={setModelsOpen}
-            />
+            {activeMode !== 'text' && (
+              <ModelNote preference={preference} onOpenVoiceSettings={onOpenVoiceSettings} />
+            )}
 
             <Footer
               block={block}

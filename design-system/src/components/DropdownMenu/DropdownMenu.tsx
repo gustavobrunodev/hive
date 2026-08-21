@@ -60,22 +60,72 @@ export const DropdownMenuItem = forwardRef<ElementRef<typeof DropdownMenuPrimiti
 
 DropdownMenuItem.displayName = "DropdownMenuItem"
 
-export type DropdownMenuCheckboxItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
+/**
+ * Where a selectable item shows that it is selected.
+ *
+ * `"leading"` is the default and the right answer for a plain list of labels:
+ * the mark sits in a reserved gutter, so the labels stay aligned whether they
+ * are checked or not.
+ *
+ * `"trailing"` is for rows that already carry a leading visual of their own —
+ * a swatch, a preview, an avatar. Stacking a selection dot to the left of one
+ * puts two circles in a row and makes the reader work out which one means
+ * "current"; moving the mark to the far edge keeps one meaning per position,
+ * which is also what the platform menus do. It becomes a check rather than a
+ * dot, because at the end of a row a dot reads as a bullet.
+ */
+export type DropdownMenuIndicatorPlacement = "leading" | "trailing"
+
+/** The two selection glyphs, shared by CheckboxItem and RadioItem. */
+function CheckGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function DotGlyph() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+      <circle cx="4" cy="4" r="4" fill="currentColor" />
+    </svg>
+  )
+}
+
+/**
+ * The indicator slot itself. Leading renders into the absolutely-positioned
+ * gutter the item reserves; trailing is an ordinary flex child pushed to the
+ * edge, so it never overlaps content and never needs a gutter.
+ */
+function ItemIndicatorSlot({ placement, glyph }: { placement: DropdownMenuIndicatorPlacement; glyph: "check" | "dot" }) {
+  return (
+    <span
+      className={
+        placement === "leading" ? "hds-dropdown-menu-item-indicator" : "hds-dropdown-menu-item-check"
+      }
+    >
+      <DropdownMenuPrimitive.ItemIndicator>
+        {glyph === "check" ? <CheckGlyph /> : <DotGlyph />}
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+  )
+}
+
+export type DropdownMenuCheckboxItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem> & {
+  /** Which edge carries the selection mark. Default: `"leading"`. */
+  indicator?: DropdownMenuIndicatorPlacement
+}
 
 export const DropdownMenuCheckboxItem = forwardRef<
   ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
   DropdownMenuCheckboxItemProps
->(function DropdownMenuCheckboxItem({ className, children, ...rest }, ref) {
+>(function DropdownMenuCheckboxItem({ className, children, indicator = "leading", ...rest }, ref) {
   return (
     <DropdownMenuPrimitive.CheckboxItem ref={ref} className={cx("hds-dropdown-menu-item", className)} {...rest}>
-      <span className="hds-dropdown-menu-item-indicator">
-        <DropdownMenuPrimitive.ItemIndicator>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </DropdownMenuPrimitive.ItemIndicator>
-      </span>
+      {indicator === "leading" && <ItemIndicatorSlot placement="leading" glyph="check" />}
       {children}
+      {indicator === "trailing" && <ItemIndicatorSlot placement="trailing" glyph="check" />}
     </DropdownMenuPrimitive.CheckboxItem>
   )
 })
@@ -84,20 +134,18 @@ DropdownMenuCheckboxItem.displayName = "DropdownMenuCheckboxItem"
 
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup
 
-export type DropdownMenuRadioItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+export type DropdownMenuRadioItemProps = ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem> & {
+  /** Which edge carries the selection mark. Default: `"leading"`. */
+  indicator?: DropdownMenuIndicatorPlacement
+}
 
 export const DropdownMenuRadioItem = forwardRef<ElementRef<typeof DropdownMenuPrimitive.RadioItem>, DropdownMenuRadioItemProps>(
-  function DropdownMenuRadioItem({ className, children, ...rest }, ref) {
+  function DropdownMenuRadioItem({ className, children, indicator = "leading", ...rest }, ref) {
     return (
       <DropdownMenuPrimitive.RadioItem ref={ref} className={cx("hds-dropdown-menu-item", className)} {...rest}>
-        <span className="hds-dropdown-menu-item-indicator">
-          <DropdownMenuPrimitive.ItemIndicator>
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-              <circle cx="4" cy="4" r="4" fill="currentColor" />
-            </svg>
-          </DropdownMenuPrimitive.ItemIndicator>
-        </span>
+        {indicator === "leading" && <ItemIndicatorSlot placement="leading" glyph="dot" />}
         {children}
+        {indicator === "trailing" && <ItemIndicatorSlot placement="trailing" glyph="check" />}
       </DropdownMenuPrimitive.RadioItem>
     )
   }

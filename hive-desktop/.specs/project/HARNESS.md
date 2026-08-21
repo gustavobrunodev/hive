@@ -452,6 +452,104 @@ dois lados — 1,3 aprovou uma mancha, 1,7 reprovou uma pílula legível. O valo
 final (1,5) está no arquivo **com os dois screenshots que o cercam citados no
 comentário**. Piso sem evidência ao lado é preferência com casa decimal.
 
+### 2026-08-21 — voice-settings (M25): a folha de perfil vira drill-down, e a escolha do modelo de transcrição vira global
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Gate de cobertura 90% em `src/renderer/src/profile/**` | `vitest.config.ts` | Substitui a entrada única `ui/ProfileSheet.tsx`. A folha virou módulo (casca + índice + um arquivo por escopo + as superfícies do modelo); sem o glob, dividir o arquivo **derruba o gate em silêncio** — os arquivos novos simplesmente não seriam medidos, e o relatório continuaria verde. |
+| — | Sweep de contraste do escopo "Voz e transcrição", nos três temas | `e2e/contrast.spec.ts` | Regra do M16/M19/M20 outra vez (superfície sob demanda entra no sweep no mesmo commit). Mede o que a sonda mockada **não pode**: a leitura de hardware vem do `app.getGPUInfo` real da máquina que roda a suíte. Também abre o catálogo de download — sem clicar em "Baixar", que iria à rede. |
+| — | `tools/visual/profile-voice-pass.mjs` — 5 estados × 3 temas, com o anel do rádio no piso de 3:1 | `tools/visual/` | 0 reprovações e 0 amostras `missing` na versão final. O que ele achou foi tudo **com o contraste já verde** — ver abaixo. |
+
+**Os três defeitos que o contraste verde não pegou** (a categoria que este
+projeto já registrou no M19 e no M20, terceira vez):
+
+1. **O mesmo fato dito três vezes.** O escopo abria com a descrição da folha
+   ("o modelo … no chat e na ingestão"), repetia a frase 40px abaixo num
+   parágrafo próprio, e anunciava "Melhor escolha aqui: small" logo acima de um
+   seletor cuja primeira linha (`Automático · small`) e cuja legenda ("O Hive
+   está usando small") já diziam isso. Sobraram duas vozes com trabalhos
+   distintos: a descrição diz **onde vale**, o parágrafo diz **onde roda**.
+2. **`1fr` não é `minmax(0, 1fr)`.** A trilha do rótulo nas linhas do índice
+   tinha piso no próprio conteúdo, então a coluna de valor nunca podia usar o
+   espaço que o rótulo não usava: "Automático · Git Bash" chegava como
+   "Automático · Git…" com meia linha vazia ao lado. Agora há uma asserção de
+   truncamento (`scrollWidth > clientWidth`) nos três temas, que é objetiva —
+   diferente de olhar o screenshot.
+3. **A regra de largura da folha nunca tinha valido.** `.wb-profile-sheet` (0-1-0)
+   perdia para `.hds-sheet-content[data-side='right']` (0-2-1) do design system,
+   então a declaração `width: min(420px, 92vw)` estava no arquivo, correta, e
+   **sem nenhum efeito** desde que foi escrita. Especificidade insuficiente não
+   falha em lugar nenhum: não é erro de CSS, não é erro de build, e o valor
+   herdado é plausível.
+
+**A lição de método, e ela é sobre a sonda:** o defeito que abriu esta
+milestone — "a bola do rádio não está alinhada ao centro" — **não é mensurável
+por `getBoundingClientRect`**. A geometria de layout media simétrica (3,5px de
+folga nos quatro lados) enquanto a tela mostrava o preenchimento deslocado para
+cima e para a esquerda. Duas causas, as duas invisíveis para o DOM:
+
+- o anel era um `border` de 1,5px, que o Chromium resolve para um número
+  **inteiro** de pixels de dispositivo por aresta — e o preenchimento estava
+  posicionado com `inset` a partir da caixa de padding, que se desloca junto;
+- o controle estava **alinhado ao topo** (`align-items: flex-start`) em linhas de
+  duas e de três alturas diferentes, porque a frase de justificativa morava
+  dentro da linha "Automático".
+
+O conserto é estrutural, não de valor: anel por `box-shadow: inset` (não cria
+caixa de padding), preenchimento centrado por `place-items` (exato por
+construção), linhas todas de duas linhas, e a justificativa movida para **fora**
+do grupo. E a prova é um **pixel**, não um número de layout: a sonda renderiza
+uma cópia ampliada do controle fora do `overflow` da folha e fotografa
+(`.playwright-mcp/m25-dot-proof.png`). Antes: `base-dot-zoom16.png`.
+
+### 2026-08-21 — quatro correções: um botão novo, um menu desalinhado, uma interrupção que não interrompia, e o instalador sem o nome do motor
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `ignoresKill` no `createFakeProcessRunner`, + `runner.kills` | `src/main/processRunner.ts` | O fake sempre encerrou o processo educadamente no `kill()`, então **nenhum teste de interrupção podia falhar** — o dublê liquidava o turno sozinho e a asserção passava contra um app quebrado. `ignoresKill` reproduz o processo real que sobrevive ao sinal; `kills` é um array irmão de `calls` (não um campo dentro dele, para não reescrever as dezenas de asserções que descrevem só o spawn). |
+| — | Teste de árvore de processos com processos **reais** | `src/main/processRunner.test.ts` | Um filho que gera um neto e sai. Sem `processGroup` o neto sobrevive e segura o pipe herdado — verificado: o teste leva os 9s inteiros e reprova. A asserção é o `output` **terminar**, que é a única prova de que nenhum descendente ficou segurando um fd. |
+| — | Sonda de tema por **controle real**, nunca por `reload` | `tools/visual/four-fixes-pass.mjs` | O `boot.mjs` planta o tema num init script, então recarregar devolve tudo para `dark`. A primeira rodada desta sonda mediu o tema escuro três vezes e reportou `pass` em tudo — o sinal foi as três colunas virem com **números idênticos**. Trocar pelo menu Aparência é a única forma honesta. |
+| — | Piso de contraste do preview de tema | `src/renderer/src/ui/theme.test.ts` | O swatch virou uma miniatura da bancada (fundo + trilho + tinta + accent), então o tripwire cresceu junto: além do accent em 3:1, o trilho tem que **separar** do próprio fundo e a tinta tem que ser legível sobre ele. Um `surface` copiado igual ao `bg` devolveria exatamente o chip de cor chapado que este desenho substituiu. |
+| — | Sweep de contraste do **menu Aparência**, nos três temas | `e2e/contrast.spec.ts` | Regra do M16 aplicada ao menu de que o próprio spec depende: o `setTheme` o abre e fecha em seguida, então o sweep da work UI nunca mediu a superfície que ele usa para chegar lá. Vale um teste próprio porque as linhas ficam sobre `--selected-bg` — um tint —, e essa é exatamente a composição que este projeto já errou três vezes. Mede também a marca de seleção contra o piso não-textual de 3:1. |
+
+**Os quatro defeitos, e o que cada um ensina:**
+
+1. **`justify-content: space-between` num item de menu do DS.** Existia para
+   empurrar o atalho (`Ctrl+X`) para a borda, e funcionava para o `MenuItem` —
+   que tem exatamente dois filhos. No `RadioItem`/`CheckboxItem`, cujos filhos
+   são o que o consumidor passar, ele **alinha o conteúdo à direita**: no menu
+   Aparência as três opções indentavam em 69px, 92px e 120px, cada uma pelo
+   comprimento do próprio texto. Ninguém mede indentação; o defeito viveu no DS
+   desde que o componente existe. O conserto é `flex-start` + `flex: 1` no
+   rótulo — mesmo resultado para o atalho, sem tocar em quem não pediu.
+2. **`kill()` não é matar.** O turno do agente roda dentro de um shell. No POSIX
+   o `shellSpawnTarget` usa `exec` (o shell **vira** a CLI, mesmo pid) e o kill
+   chegava; no Windows não há `exec` — a árvore é `cmd.exe → claude.cmd → node`,
+   o kill reapava só o `cmd.exe`, e a CLI sobrevivente segurava o stdout
+   herdado. O `'close'` do Node nunca disparava, o turno nunca liquidava, e o
+   botão de interromper era exatamente o que o usuário disse: nada acontece.
+   Duas correções, e as duas são necessárias: matar a **árvore**
+   (`detached` + `kill(-pid)` no POSIX, `taskkill /T` no Windows) e **liquidar o
+   turno na hora do clique**, sem esperar o processo concordar.
+3. **Um controle que não muda debaixo do dedo lê como morto.** Mesmo com o
+   backend certo, o botão continuava idêntico no instante seguinte ao clique —
+   e um usuário que clica de novo e reporta "não funciona" está certo sobre a
+   experiência. Estado `data-stopping` + `Esc` (depois de todos os menus, nunca
+   antes) fecham a outra metade do bug.
+4. **A tela mais vista da primeira execução falava do motor.** "Instalando o
+   BMAD", "BMad Method", "skills de base de conhecimento da squad" — vocabulário
+   que ninguém tem no primeiro minuto. A copy passou a falar de entrega, e os
+   rótulos dos passos passam por um normalizador que **repassa intacto** o que
+   não reconhece: inventar um nome amigável para um passo desconhecido esconde
+   trabalho que o usuário está esperando.
+
+**A armadilha de SVG registrada aqui:** `transform-origin: center` num `<circle>`
+resolve contra o *viewport* do SVG, não contra o círculo, a menos que se declare
+`transform-box: fill-box`. Sem isso os anéis de sinal do emblema saíam voando
+para cima e para a esquerda em vez de expandir a partir da marca — e o print de
+um único frame não denuncia: parece um anel qualquer fora de lugar. A prova são
+três frames em fases diferentes da animação, não um.
+
 ## 6. Steering loop
 
 - **Observar:** toda lição do `STATE.md` que comece com "de novo" / "a lição do

@@ -1,5 +1,5 @@
 /**
- * Curated catalog backing the guided BMAD install form (BUG 1,
+ * Curated catalog backing the guided install form (BUG 1,
  * InstallConfigForm.tsx). This is *data*, not UI chrome — it lives in a `.ts`
  * module (like main/workflowCatalog.ts) rather than being inlined into the
  * form's JSX, so its labels/descriptions are rendered as `{item.label}`
@@ -11,10 +11,18 @@
  * recommended, code-confirmed modules are hand-maintained here. Codes were
  * confirmed against `bmad-method install --list-options`. `core` is always
  * installed by the CLI and is intentionally not listed as a togglable option.
+ *
+ * **`id` is the wire, `label` is the product.** The ids below are the exact
+ * `--modules` codes the CLI expects and must never be localized or renamed.
+ * The labels are ours, and they name what the user *gets* — "Método de
+ * produto", not "BMad Method". Someone on their first run has no idea what
+ * BMad is, and a checklist of unexplained product names is a checklist nobody
+ * can make an informed choice from. The engine's name belongs in the code and
+ * in the docs, not in the one screen that has to earn a stranger's trust.
  */
 
 export interface BmadModuleOption {
-  /** `--modules` id, e.g. `bmm`. */
+  /** `--modules` id, e.g. `bmm`. Wire format — never localized. */
   id: string
   label: string
   description: string
@@ -25,25 +33,25 @@ export interface BmadModuleOption {
 export const BMAD_MODULE_CATALOG: readonly BmadModuleOption[] = [
   {
     id: 'bmm',
-    label: 'BMad Method',
+    label: 'Método de produto',
     description:
-      'Fluxos de PM, arquiteto, dev e UX — o núcleo do BMAD para planejar e construir produtos.',
+      'Fluxos de PM, arquiteto, dev e UX — o essencial para planejar e construir produtos.',
     recommended: true
   },
   {
     id: 'bmb',
-    label: 'BMad Builder',
-    description: 'Ferramentas para criar seus próprios agentes, workflows e módulos.'
+    label: 'Oficina de agentes',
+    description: 'Ferramentas para criar seus próprios agentes, fluxos e módulos.'
   },
   {
     id: 'cis',
-    label: 'BMad Creative Intelligence Suite',
+    label: 'Inteligência criativa',
     description: 'Brainstorming, pesquisa criativa e geração de ideias.'
   },
   {
     id: 'gds',
-    label: 'BMad Game Dev Studio',
-    description: 'Workflows voltados a desenvolvimento de jogos.'
+    label: 'Estúdio de jogos',
+    description: 'Fluxos voltados a desenvolvimento de jogos.'
   }
 ]
 

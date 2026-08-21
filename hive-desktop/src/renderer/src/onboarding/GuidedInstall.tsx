@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@hive/design-system'
-import { provisionMessages, t } from '../i18n'
+import { installStepLabel, provisionMessages, t } from '../i18n'
 import { InstallConfigForm, type BmadInstallConfig } from './InstallConfigForm'
 import { ProvisionScene, type ProvisionStep } from './ProvisionScene'
 
 interface GuidedInstallProps {
-  /** Workspace path to install BMAD into. */
+  /** Workspace path to prepare. */
   workspace: string
   /** Invoked once the install stream ends with a success (`done`) event. */
   onComplete: () => void
@@ -14,8 +14,8 @@ interface GuidedInstallProps {
 type Phase = { status: 'running' } | { status: 'error'; message: string; detail?: string }
 
 /**
- * Guided BMAD install screen (task T9, design.md §5.1, R3.2–R3.4). Runs in
- * two acts:
+ * Guided workspace-preparation screen (task T9, design.md §5.1, R3.2–R3.4).
+ * Runs in two acts:
  *
  *  1. **Configure** (BUG 1): the CLI's interactive questions abstracted into
  *     the app's own visual form (`InstallConfigForm`). Nothing is installed
@@ -59,7 +59,9 @@ export function GuidedInstall({ workspace, onComplete }: GuidedInstallProps): Re
       if (!active) return
       switch (event.type) {
         case 'step':
-          collectedSteps.push({ id: event.id, label: event.label })
+          // The id stays the CLI's (it is the checklist's React key and has to
+          // stay stable); only the label is re-said in the product's words.
+          collectedSteps.push({ id: event.id, label: installStepLabel(event.label) })
           setSteps([...collectedSteps])
           break
         case 'progress':

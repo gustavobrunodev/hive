@@ -181,7 +181,14 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     // agent-terminal: `shell: true` marks this as an agent turn — the one
     // spawn routed through the user's chosen terminal. With no adapter env and
     // nothing chosen, the runner still spawns exactly as it did before.
-    expect(fakeRunner.calls[0].opts).toEqual({ cwd: '/ws', env: undefined, shell: true })
+    // `processGroup: true` rides along with it: under a shell the CLI is a
+    // grandchild, so only a group kill can actually stop a turn.
+    expect(fakeRunner.calls[0].opts).toEqual({
+      cwd: '/ws',
+      env: undefined,
+      shell: true,
+      processGroup: true
+    })
   })
 
   it('emits a tool start per tool_use block — every tool, with filePath only for file-editing ones (agent-activity + ACR-C7)', async () => {
@@ -848,6 +855,108 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
 
     const events = await take(session.events, 1)
     expect(events).toEqual([{ type: 'interrupted' }])
+  })
+
+  // chat-controls, the bug users actually hit on Windows: "clico em interromper
+  // e nada acontece". Every test above scripts a process that dies politely, so
+  // none of them could have caught it — the real tree there is cmd.exe →
+  // claude.cmd → node, the kill reached only cmd.exe, and the surviving CLI
+  // held the inherited stdout pipe open, so the turn's exit never resolved and
+  // the transcript never closed.
+  it('settles the turn the moment the user interrupts, even if the process ignores the signal', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ ignoresKill: true, delayMs: 100_000 })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'long task', turnId: 'turn-x' })
+    session.interrupt('turn-x')
+
+    // No timers advanced, no exit awaited: the transcript closes on the click.
+    expect(await take(session.events, 1)).toEqual([{ type: 'interrupted', turnId: 'turn-x' }])
+  })
+
+  it('escalates to SIGKILL when a turn survives the polite signal', async () => {
+    vi.useFakeTimers()
+    try {
+      const fakeRunner = createFakeProcessRunner()
+      fakeRunner.script({ ignoresKill: true, delayMs: 100_000 })
+      const adapter = createClaudeCliAdapter(fakeRunner)
+      const session = adapter.startSession({
+        workspace: '/ws',
+        model: 'claude-sonnet-4-5',
+        effort: 'medium'
+      })
+
+      session.send({ text: 'long task', turnId: 'turn-x' })
+      session.interrupt('turn-x')
+
+      expect(fakeRunner.kills[0]).toEqual(['SIGTERM'])
+      await vi.advanceTimersByTimeAsync(2000)
+      // A CLI that outlives SIGTERM is a CLI still spending the user's tokens.
+      expect(fakeRunner.kills[0]).toEqual(['SIGTERM', 'SIGKILL'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never escalates a turn that honoured the first signal', async () => {
+    vi.useFakeTimers()
+    try {
+      const fakeRunner = createFakeProcessRunner()
+      fakeRunner.script({ delayMs: 100_000 })
+      const adapter = createClaudeCliAdapter(fakeRunner)
+      const session = adapter.startSession({
+        workspace: '/ws',
+        model: 'claude-sonnet-4-5',
+        effort: 'medium'
+      })
+
+      session.send({ text: 'long task', turnId: 'turn-x' })
+      session.interrupt('turn-x')
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(fakeRunner.kills[0]).toEqual(['SIGTERM'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('drops whatever an interrupted turn says on its way out — one terminal event, ever', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    // Output still in flight when the user stops: it belongs to a transcript
+    // the UI has already closed, so appending it would make a turn grow after
+    // it finished.
+    fakeRunner.script({
+      chunks: [{ stream: 'stdout', data: textDelta('tarde demais', 'cli-late') }],
+      code: 0,
+      delayMs: 20
+    })
+    fakeRunner.script({
+      chunks: [{ stream: 'stdout', data: textDelta('depois', 'cli-2') }],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({
+      workspace: '/ws',
+      model: 'claude-sonnet-4-5',
+      effort: 'medium'
+    })
+
+    session.send({ text: 'primeira', turnId: 'turn-a' })
+    session.interrupt('turn-a')
+    session.send({ text: 'segunda', turnId: 'turn-b' })
+
+    const events = await take(session.events, 3)
+    expect(events).toEqual([
+      { type: 'interrupted', turnId: 'turn-a' },
+      { type: 'session', id: 'cli-2', turnId: 'turn-b' },
+      { type: 'token', text: 'depois', turnId: 'turn-b' }
+    ])
   })
 
   it('after an interrupt, a fresh turn still ends in done (session stays usable)', async () => {
