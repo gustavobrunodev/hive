@@ -63,21 +63,59 @@ describe('preload: window.hive bridge', () => {
 
   // T5: WorkspaceService IPC methods, added to the same `hive` bridge object
   // following the exact ping() pattern above.
-  it('exposes hive.chooseWorkspace/getWorkspace/isProvisioned as typed methods', () => {
+  it('exposes hive.getWorkspace/isProvisioned and the workspaces namespace as typed methods', () => {
     const globals = exposedGlobals()
     expect(globals.get('hive')).toEqual(
       expect.objectContaining({
-        chooseWorkspace: expect.any(Function),
         getWorkspace: expect.any(Function),
-        isProvisioned: expect.any(Function)
+        isProvisioned: expect.any(Function),
+        workspaces: expect.objectContaining({
+          pickFolder: expect.any(Function),
+          preview: expect.any(Function),
+          list: expect.any(Function),
+          rename: expect.any(Function),
+          adopt: expect.any(Function),
+          setPrimary: expect.any(Function),
+          forget: expect.any(Function)
+        })
       })
     )
   })
 
-  it('hive.chooseWorkspace() round-trips through ipcRenderer.invoke("workspace:choose")', async () => {
-    const hive = exposedGlobals().get('hive') as { chooseWorkspace: () => Promise<string> }
-    await expect(hive.chooseWorkspace()).resolves.toBe('invoked:workspace:choose')
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:choose')
+  // multi-workspace: picking a folder is deliberately separate from
+  // committing to it, so the kind question can be asked in between.
+  it('hive.workspaces.pickFolder() round-trips through ipcRenderer.invoke("workspace:pickFolder")', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      workspaces: { pickFolder: () => Promise<string> }
+    }
+    await expect(hive.workspaces.pickFolder()).resolves.toBe('invoked:workspace:pickFolder')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:pickFolder')
+  })
+
+  it('hive.workspaces.* forward the registry edits on their own channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      workspaces: {
+        preview: (p: string) => Promise<unknown>
+        list: () => Promise<unknown>
+        rename: (p: string, n: string | null) => Promise<unknown>
+        adopt: (p: string) => Promise<unknown>
+        setPrimary: (p: string) => Promise<unknown>
+        forget: (p: string) => Promise<unknown>
+      }
+    }
+    await hive.workspaces.preview('/some/path')
+    await hive.workspaces.list()
+    await hive.workspaces.rename('/some/path', 'Nome')
+    await hive.workspaces.adopt('/some/path')
+    await hive.workspaces.setPrimary('/some/path')
+    await hive.workspaces.forget('/some/path')
+
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:preview', '/some/path')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:list')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:rename', '/some/path', 'Nome')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:adopt', '/some/path')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:setPrimary', '/some/path')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:forget', '/some/path')
   })
 
   it('hive.getWorkspace() round-trips through ipcRenderer.invoke("workspace:get")', async () => {
@@ -93,8 +131,8 @@ describe('preload: window.hive bridge', () => {
   })
 
   // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching IPC methods, added to
-  // the same `hive` bridge object following the exact chooseWorkspace()/
-  // getWorkspace()/isProvisioned() pattern above.
+  // the same `hive` bridge object following the exact getWorkspace()/
+  // isProvisioned() pattern above.
   it('exposes hive.provisionState/getRecentWorkspaces/openWorkspace as typed methods', () => {
     const globals = exposedGlobals()
     expect(globals.get('hive')).toEqual(
@@ -122,12 +160,17 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:recents')
   })
 
-  it('hive.openWorkspace(path) round-trips through ipcRenderer.invoke("workspace:open", path)', async () => {
+  it('hive.openWorkspace(path, kind?) round-trips through ipcRenderer.invoke("workspace:open", path, kind)', async () => {
     const hive = exposedGlobals().get('hive') as {
-      openWorkspace: (path: string) => Promise<unknown>
+      openWorkspace: (path: string, kind?: string) => Promise<unknown>
     }
     await expect(hive.openWorkspace('/some/path')).resolves.toBe('invoked:workspace:open')
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:open', '/some/path')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:open', '/some/path', undefined)
+
+    // multi-workspace: the kind rides along only when the user has just been
+    // asked for it.
+    await hive.openWorkspace('/some/path', 'light')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('workspace:open', '/some/path', 'light')
   })
 
   // Proving "renderer has no require/fs/child_process access" from *this*

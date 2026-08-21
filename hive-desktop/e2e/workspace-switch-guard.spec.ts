@@ -40,9 +40,17 @@ async function dirtyTheEditor(window: Page, text: string): Promise<void> {
   await window.getByRole('button', { name: 'Salvar' }).waitFor({ state: 'visible' })
 }
 
+/**
+ * Opens the workspace switcher and picks a row by workspace name
+ * (multi-workspace). Rows are buttons, not menu items, and their accessible
+ * name is "<nome>. <estado>. <caminho>" — so the name is matched at the start,
+ * which also keeps the title-bar chip (whose own label mentions the *active*
+ * workspace) out of the match.
+ */
 async function requestSwitchTo(window: Page, name: string): Promise<void> {
   await window.locator('.wb-workspace-chip').click()
-  await window.getByRole('menuitem', { name }).click()
+  await window.locator('.wb-ws-panel').waitFor({ state: 'visible' })
+  await window.getByRole('button', { name: new RegExp(`^${name}\\.`) }).click()
 }
 
 test.describe('workspace switch guard (P1-009)', () => {

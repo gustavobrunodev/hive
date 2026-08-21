@@ -348,12 +348,20 @@ describe('Explorer (T12/T8)', () => {
     const defaults: typeof window.hive = {
       platform: 'linux',
       ping: vi.fn().mockResolvedValue('pong'),
-      chooseWorkspace: vi.fn().mockResolvedValue(null),
       openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
       provisionState: vi.fn().mockResolvedValue(false),
       getRecentWorkspaces: vi.fn().mockResolvedValue([]),
+      workspaces: {
+        pickFolder: vi.fn().mockResolvedValue(null),
+        preview: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
+        list: vi.fn().mockResolvedValue([]),
+        rename: vi.fn().mockResolvedValue(undefined),
+        adopt: vi.fn().mockResolvedValue(undefined),
+        setPrimary: vi.fn().mockResolvedValue(undefined),
+        forget: vi.fn().mockResolvedValue(true)
+      },
       openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue(fixtureTree),
       listFiles: vi.fn().mockResolvedValue([]),

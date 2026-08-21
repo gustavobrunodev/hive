@@ -1976,6 +1976,126 @@ export const ptBR = {
   },
 
   /**
+   * multi-workspace: a lista de workspaces e o momento em que o Hive pergunta
+   * o que pode escrever numa pasta nova.
+   *
+   * Duas decisões de copy sustentam o resto:
+   *  - o par é **completo / leve**, não "com BMAD / sem BMAD". O usuário não
+   *    escolhe uma dependência, escolhe quanto o Hive se instala na pasta dele
+   *    — e a linha de detalhe diz, com os nomes das pastas, exatamente o que
+   *    acontece no disco. Uma promessa verificável vale mais que um rótulo.
+   *  - "principal" nunca aparece sozinho: sempre que ele aparece, a copy
+   *    vizinha diz por que ele tem BMAD (é onde o método da squad vive).
+   */
+  workspaces: {
+    // --- Chip do topo -----------------------------------------------------
+    /** Nome acessível do chip: diz o estado e o que ativar faz. */
+    chipAria: (name: string) => `Workspace ativo: ${name}. Abrir a lista de workspaces.`,
+
+    // --- Painel -----------------------------------------------------------
+    panelLabel: 'Lista de workspaces',
+    searchPlaceholder: 'Filtrar workspaces…',
+    searchEmpty: 'Nenhum workspace com esse nome.',
+    sectionPrimary: 'Principal',
+    sectionOthers: 'Outros workspaces',
+    addCta: 'Adicionar workspace…',
+    /** Dica de atalho ao lado do nome do painel. */
+    openShortcut: 'Ctrl+Shift+W',
+    /** Atalho de salto direto, mostrado à direita das nove primeiras linhas. */
+    jumpShortcut: (position: number) => `Ctrl+${position}`,
+    activeTag: 'ativo',
+
+    // --- Estado de cada linha --------------------------------------------
+    stateManaged: 'BMAD instalado',
+    /** Marcado como completo, mas o `_bmad/` ainda não está no disco (instalação pendente ou interrompida). */
+    statePending: 'BMAD ainda não instalado',
+    /** The row's label is one word on purpose — the sentence under it is what
+        a hover (and the kind gate, where the choice is actually made) carries.
+        The full version was measured squeezing the folder path off the row. */
+    stateLight: 'Leve',
+    stateLightTitle: 'Workspace leve: o Hive não escreve nada dentro desta pasta.',
+    stateMissing: 'Pasta não encontrada',
+    /** Linha de estado completa, lida por leitores de tela junto do nome. */
+    rowAria: (name: string, state: string, path: string) => `${name}. ${state}. ${path}`,
+
+    // --- Ações de cada linha ---------------------------------------------
+    rowMenuLabel: (name: string) => `Ações de ${name}`,
+    actionSetPrimary: 'Tornar principal',
+    actionAdopt: 'Instalar o BMAD aqui',
+    actionRename: 'Renomear',
+    actionForget: 'Remover da lista',
+
+    // --- Renomear ---------------------------------------------------------
+    renameTitle: (name: string) => `Renomear “${name}”`,
+    renameDescription:
+      'Só muda o nome dentro do Hive. A pasta no seu computador continua com o nome que tem.',
+    renameLabel: 'Nome do workspace',
+    renameHint: (folder: string) => `Deixe em branco para usar o nome da pasta (${folder}).`,
+    renameSave: 'Salvar',
+
+    // --- Tornar principal -------------------------------------------------
+    promoteTitle: (name: string) => `Tornar “${name}” o workspace principal?`,
+    /** Alvo ainda sem BMAD: promover implica instalar. */
+    promoteBodyInstall:
+      'O principal é onde o método da squad vive, então o BMAD será instalado nesta pasta. O workspace principal de hoje continua exatamente como está.',
+    /** Alvo que já tem BMAD: nada novo é escrito. */
+    promoteBodyReady:
+      'Nada novo é instalado — esta pasta já tem o BMAD. O workspace principal de hoje continua exatamente como está.',
+    promoteConfirm: 'Tornar principal',
+
+    // --- Instalar o BMAD num workspace leve -------------------------------
+    adoptTitle: (name: string) => `Instalar o BMAD em “${name}”?`,
+    adoptBody:
+      'O Hive vai criar as pastas _bmad/, .claude/skills/ e second-brain/ dentro deste workspace. Remover isso depois é feito por você, fora do app.',
+    adoptConfirm: 'Instalar aqui',
+
+    // --- Remover da lista -------------------------------------------------
+    forgetTitle: (name: string) => `Remover “${name}” da lista?`,
+    forgetBody:
+      'Some da lista de workspaces do Hive. A pasta e todos os arquivos dela continuam intactos no seu computador — você pode adicioná-la de volta quando quiser.',
+    forgetConfirm: 'Remover da lista',
+
+    cancel: 'Cancelar',
+
+    // --- Erros ao adicionar ----------------------------------------------
+    addErrorMissing: 'Não foi possível adicionar: a pasta selecionada não foi encontrada.',
+    addErrorNotADirectory: 'Não foi possível adicionar: o caminho selecionado não é uma pasta.',
+    addErrorUnreadable: 'Não foi possível adicionar: não foi possível ler a pasta selecionada.'
+  },
+
+  /**
+   * multi-workspace: o passo em que o Hive pergunta o que pode escrever numa
+   * pasta nova. Aparece uma única vez por workspace, e só quando a pergunta é
+   * genuína — uma pasta que já tem `_bmad/` não é questionada, e o primeiro
+   * workspace da vida do app é o principal sem perguntar nada.
+   */
+  workspaceKind: {
+    eyebrow: 'Novo workspace',
+    title: (name: string) => `Como o Hive deve tratar “${name}”?`,
+    description:
+      'Seu workspace principal já tem o BMAD instalado. Para este aqui, a escolha é sua — e dá para mudar de ideia a qualquer momento.',
+    pathLabel: 'Pasta escolhida',
+    groupLabel: 'Tipo de workspace',
+
+    managedTitle: 'Workspace completo',
+    managedDescription:
+      'Instala o BMAD aqui. Workflows, personas e as skills da squad ficam disponíveis neste workspace.',
+    managedDetail: 'Cria _bmad/, .claude/skills/ e second-brain/ dentro da pasta.',
+
+    lightTitle: 'Workspace leve',
+    lightDescription:
+      'Só o agente e os seus arquivos. Conversa, explorador e controle de versão funcionam normalmente.',
+    lightDetail: 'O Hive não cria nenhuma pasta aqui.',
+
+    confirmManaged: 'Instalar e abrir',
+    confirmLight: 'Abrir sem instalar',
+    /** Nothing chosen yet: the button can't promise an outcome it doesn't have. */
+    confirmPending: 'Continuar',
+    pickHint: 'Escolha uma das duas opções para continuar.',
+    cancel: 'Cancelar'
+  },
+
+  /**
    * voice-prompt (M13): ditar direto no compositor. Toda a copy passa por
    * `dictationCopy.ts` ou pelos controles do `DictationBar` (VP-R6.5).
    *

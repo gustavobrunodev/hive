@@ -115,6 +115,57 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // multi-workspace: the registry, its rules, and the surfaces that
+        // render them. `configStore.ts` is already gated above.
+        'src/main/workspaceService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/ui/WorkspaceMark.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/WorkspaceRow.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/WorkspaceSwitcher.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/WorkspaceActionDialog.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/useWorkspaces.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/workspacePath.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/ui/workspaceName.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/onboarding/WorkspaceKindChoice.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         // shortcut-customization: files this feature added/touched.
         'src/main/workflowCatalog.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/main/configStore.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },

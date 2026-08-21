@@ -452,6 +452,32 @@ dois lados — 1,3 aprovou uma mancha, 1,7 reprovou uma pílula legível. O valo
 final (1,5) está no arquivo **com os dois screenshots que o cercam citados no
 comentário**. Piso sem evidência ao lado é preferência com casa decimal.
 
+### 2026-08-20 — multi-workspace (M24): um sweep novo, nove globs de cobertura, e uma sonda que nasceu cega
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Sweep de contraste do seletor de workspaces (lista + filtro vazio), nos três temas | `e2e/contrast.spec.ts` | Regra do M16 mais uma vez: superfície sob demanda entra no sweep no commit que a cria. O painel é um popover atrás do chip da barra de título, então uma work UI ociosa nunca o renderiza. O filtro vazio entra à parte porque é o único estado em que a frase explicando o vazio é o único texto da superfície. |
+| — | `tools/visual/workspaceContrast.mjs` — 18 seletores × 4 estados × 3 temas, medindo **todas** as linhas | `tools/visual/` | Cada workspace tem matiz própria, então medir a primeira linha não diz nada sobre as outras oito. Achou **seis** reprovações reais (`--faint` a 11px sobre superfície elevada) e a mais grave num chip de tecla no tema claro, a 2,95:1. A pergunta de tipo de workspace fica aqui e não no E2E: chegar nela exige escolher uma pasta pelo diálogo do SO, que o suite não consegue fazer. |
+| — | Nove globs de cobertura 90/90/90/90 para os arquivos da feature | `vitest.config.ts` | O registro é o único lugar do app onde uma invariante ("existe exatamente um principal, e ele tem BMAD") é imposta em código em vez de verificada por um teste de fluxo. Os ramos que a restauram — registro duplicado, tipo desconhecido, principal removido — não aparecem em nenhum caminho de UI. |
+
+**A lição de sensor desta milestone: uma sonda nova herda o corpo da anterior,
+não os avisos dela.** `docs/visual-validation.md` documenta desde o M12.4 que
+uma sonda precisa entender `oklch()` e `oklab()`, e o M21 registrou o mesmo
+defeito de novo. A sonda deste marco nasceu **sem** os dois parsers e devolveu
+`UNMEASURED` para toda marca de workspace e todo estado de linha — uma lista
+que se lê como "sem problemas" e é "sem dados". Só depois de ensiná-la é que os
+alvos coloridos foram de fato medidos. *Corolário:* copie a `parse()` de
+`ingestContrast.mjs` como bloco, sempre; escrever uma nova a partir do zero é
+recriar o ponto cego.
+
+**Uma segunda, sobre o lint como sensor de arquitetura.** Colar o chip novo
+direto no `WorkUI` disparou `complexity 16` **e cinco** erros
+`react-hooks/preserve-manual-memoization` em `useCallback`s intocados — o React
+compiler faz bail da função inteira e reporta a memoização que não conseguiu
+preservar. Extrair `ui/WorkspaceChip.tsx` zerou os seis. O sinal vale para a
+próxima vez: erro de memoização longe do que você mexeu aponta para o que
+**cresceu**, não para o que mudou.
+
 ## 6. Steering loop
 
 - **Observar:** toda lição do `STATE.md` que comece com "de novo" / "a lição do

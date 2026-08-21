@@ -637,18 +637,34 @@ let WorkUI: typeof import('./WorkUI').WorkUI
 
 /**
  * Minimal `window.hive` bridge stand-in — this environment has no real main
- * process, so `chooseWorkspace`/`getRecentWorkspaces`/`openWorkspace` are
- * spies the tests drive directly (mirrors `explorer/Explorer.test.ts`'s
- * per-test `window.hive` mocking approach). `openWorkspace` defaults to
- * succeeding with whatever path it's given (T8, WS-R4/R6.3) — most tests
- * only care that the pipeline reaches it and proceeds; the failure-path
- * tests override it per-case.
+ * process, so the `workspaces` namespace and `openWorkspace` are spies the
+ * tests drive directly (mirrors `explorer/Explorer.test.ts`'s per-test
+ * `window.hive` mocking approach). `openWorkspace` defaults to succeeding
+ * with whatever path it's given and a `ready` route (T8, WS-R4/R6.3 +
+ * multi-workspace) — most tests only care that the pipeline reaches it and
+ * proceeds; the failure-path tests override it per-case.
  */
 function createHiveMock(): Window['hive'] {
   return {
-    chooseWorkspace: vi.fn(async () => null),
     getRecentWorkspaces: vi.fn(async () => []),
-    openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),
+    workspaces: {
+      pickFolder: vi.fn(async () => null),
+      preview: vi.fn(async (path: string) => ({
+        ok: true as const,
+        path,
+        route: { step: 'ready' as const }
+      })),
+      list: vi.fn(async () => []),
+      rename: vi.fn(async () => undefined),
+      adopt: vi.fn(async () => undefined),
+      setPrimary: vi.fn(async () => undefined),
+      forget: vi.fn(async () => true)
+    },
+    openWorkspace: vi.fn(async (path: string) => ({
+      ok: true as const,
+      path,
+      route: { step: 'ready' as const }
+    })),
     // The file-search palette loads the flat workspace file list on open.
     listFiles: vi.fn(async () => []),
     // WorkUI loads the role's actions on mount; the (closed) ProfileSheet
@@ -934,170 +950,382 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
 })
 
 /**
- * Task T7 — workspace chip menu (design.md §5.1, WS-R1.1–R1.4/R7).
+ * Workspace switcher (multi-workspace) — the panel behind the `wb-workspace-chip`.
  *
- * The `wb-workspace-chip` becomes a DS `DropdownMenu` trigger: opening it
- * loads the MRU via `window.hive.getRecentWorkspaces()`, excludes the
- * active workspace (WS-R1.4), and omits the whole Recentes section when
- * nothing else is left (WS-R1.3). "Abrir pasta…" resolves a candidate via
- * `window.hive.chooseWorkspace()`; a recents entry resolves its own path.
- * Either way the candidate is only ever handed off via `onCandidateWorkspace`
- * — WorkUI does not perform the switch itself (that's T8's guard/pipeline).
+ * It replaced the T7 "Abrir pasta… / Recentes" dropdown. Opening it re-reads
+ * the registry via `window.hive.workspaces.list()`; rows carry the workspace's
+ * kind and disk state; selecting one hands it to the switch pipeline; and
+ * "Adicionar workspace…" previews a picked folder *before* anything is
+ * written, so the kind question can be asked while the current workspace is
+ * still untouched.
  */
-describe('WorkUI — workspace chip menu (T7)', () => {
-  it('opens the menu on click and loads recents, excluding the active workspace', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
-      '/home/user/my-workspace',
-      '/home/user/other-project',
-      '/home/user/third-project'
+type WorkspaceFixture = Awaited<ReturnType<Window['hive']['workspaces']['list']>>[number]
+
+function workspaceFixture(over: Partial<WorkspaceFixture> & { path: string }): WorkspaceFixture {
+  return {
+    name: null,
+    displayName: over.path.split('/').filter(Boolean).pop() ?? over.path,
+    kind: 'managed',
+    primary: false,
+    lastOpenedAt: Date.now(),
+    provisioned: true,
+    missing: false,
+    ...over
+  }
+}
+
+/** The three-workspace registry most tests below drive: primary + two secondaries. */
+function threeWorkspaces(): WorkspaceFixture[] {
+  return [
+    workspaceFixture({ path: '/home/user/my-workspace', primary: true }),
+    workspaceFixture({ path: '/home/user/other-project' }),
+    workspaceFixture({ path: '/home/user/notes', kind: 'light', provisioned: false })
+  ]
+}
+
+function renderWorkUI(props: Record<string, unknown> = {}): void {
+  render(
+    createElement(WorkUI, {
+      workspace: '/home/user/my-workspace',
+      theme: 'dark',
+      onSelectTheme: vi.fn(),
+      ...props
+    })
+  )
+}
+
+/** Opens the switcher and waits for the registry read it triggers. */
+async function openSwitcher(): Promise<void> {
+  fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+  await waitFor(() => expect(screen.getByText('Adicionar workspace…')).toBeTruthy())
+}
+
+describe('WorkUI — workspace switcher (multi-workspace)', () => {
+  it('lists every registered workspace, grouped, with the active one marked as current', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+
+    renderWorkUI()
+    await openSwitcher()
+
+    const panel = within(screen.getByRole('dialog'))
+    expect(panel.getByText('Principal')).toBeTruthy()
+    expect(panel.getByText('Outros workspaces')).toBeTruthy()
+    // The active workspace stays in the list (hiding it would make the list
+    // jump on every switch) but reads as current, not as actionable.
+    const active = panel.getByRole('button', { name: /my-workspace\./i })
+    expect(active.getAttribute('aria-current')).toBe('true')
+    // `aria-disabled`, not `disabled`: the row still carries information worth
+    // reading, and a truly disabled button drops out of the focus order.
+    expect(active.getAttribute('aria-disabled')).toBe('true')
+    expect(panel.getByRole('button', { name: /other-project\./i })).toBeTruthy()
+  })
+
+  it('states each workspace kind: BMAD installed, leve, and pasta não encontrada', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue([
+      ...threeWorkspaces(),
+      workspaceFixture({ path: '/home/user/gone', missing: true, provisioned: false })
     ])
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
+    renderWorkUI()
+    await openSwitcher()
+
+    const panel = within(screen.getByRole('dialog'))
+    expect(panel.getAllByText('BMAD instalado').length).toBeGreaterThan(0)
+    expect(panel.getAllByText('Leve').length).toBeGreaterThan(0)
+    expect(panel.getByText('Pasta não encontrada')).toBeTruthy()
+    // A folder that isn't there can't be opened — the row says so structurally,
+    // not just in words.
+    expect(panel.getByRole('button', { name: /gone\./i }).getAttribute('aria-disabled')).toBe(
+      'true'
     )
-
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-
-    expect(window.hive.getRecentWorkspaces).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
-    const menu = within(screen.getByRole('menu'))
-    expect(menu.getByText('other-project')).toBeTruthy()
-    expect(menu.getByText('third-project')).toBeTruthy()
-    // The active workspace's own name is only the chip's label — never
-    // repeated inside the menu (WS-R1.4: never "switch" to where you are).
-    expect(menu.queryByText('my-workspace')).toBeNull()
-    expect(menu.getByText('Abrir pasta…')).toBeTruthy()
   })
 
-  it('is a native <button> trigger, so it is keyboard-operable (Enter/Space) without bespoke key handling', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue(['/home/user/other-project'])
+  it('filters the list by name and by path', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
-    )
+    renderWorkUI()
+    await openSwitcher()
 
-    const trigger = screen.getByRole('button', { name: /workspace ativo/i })
-    // A real <button type="button"> gets Enter/Space activation for free from
-    // the browser (jsdom doesn't simulate that dispatch, so this asserts the
-    // semantics that make it true rather than re-simulating the browser):
-    expect(trigger.tagName).toBe('BUTTON')
-    expect(trigger.getAttribute('type')).toBe('button')
+    const filter = screen.getByRole('textbox', { name: 'Filtrar workspaces…' })
+    fireEvent.change(filter, { target: { value: 'notes' } })
 
-    trigger.focus()
-    expect(document.activeElement).toBe(trigger)
+    const panel = within(screen.getByRole('dialog'))
+    expect(panel.getByRole('button', { name: /notes\./i })).toBeTruthy()
+    expect(panel.queryByRole('button', { name: /other-project\./i })).toBeNull()
 
-    // Activating it (click — what a native button's Enter/Space collapses to)
-    // opens the menu, same as a mouse click.
-    fireEvent.click(trigger)
-    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+    // A path fragment matches too — two workspaces can share a folder name.
+    fireEvent.change(filter, { target: { value: '/home/user/other' } })
+    expect(panel.getByRole('button', { name: /other-project\./i })).toBeTruthy()
   })
 
-  it('omits the Recentes section entirely when there are no other recent workspaces', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue(['/home/user/my-workspace'])
+  it('reports an empty state rather than a blank panel when nothing matches', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
-    )
+    renderWorkUI()
+    await openSwitcher()
 
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filtrar workspaces…' }), {
+      target: { value: 'zzzz' }
+    })
 
-    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
-    expect(screen.getByText('Abrir pasta…')).toBeTruthy()
-    expect(screen.queryByText('Recentes')).toBeNull()
+    expect(screen.getByText('Nenhum workspace com esse nome.')).toBeTruthy()
   })
 
-  it('"Abrir pasta…" invokes window.hive.chooseWorkspace and reports a picked candidate', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/picked-workspace')
+  it('selecting a row opens it and reports the path with the route main resolved', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    vi.mocked(window.hive.openWorkspace).mockResolvedValue({
+      ok: true,
+      path: '/home/user/other-project',
+      route: { step: 'update' }
+    })
     const onCandidateWorkspace = vi.fn()
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn(),
-        onCandidateWorkspace
-      })
-    )
+    renderWorkUI({ onCandidateWorkspace })
+    await openSwitcher()
 
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /other-project\./i }))
 
-    fireEvent.click(screen.getByText('Abrir pasta…'))
-
-    expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1)
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/picked-workspace')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'update'
+      })
     )
   })
 
-  it('does not report a candidate when the native picker is cancelled', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue(null)
+  it('Ctrl+N jumps straight to the Nth workspace in the panel order', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
     const onCandidateWorkspace = vi.fn()
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn(),
-        onCandidateWorkspace
+    renderWorkUI({ onCandidateWorkspace })
+    // The jump reads the same store the panel renders, so it works without
+    // ever opening the panel — that is the point of the shortcut.
+    await waitFor(() => expect(window.hive.workspaces.list).toHaveBeenCalled())
+
+    fireEvent.keyDown(window, { key: '2', ctrlKey: true })
+
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
       })
     )
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
-    fireEvent.click(screen.getByText('Abrir pasta…'))
+  it('Ctrl+N on the active workspace is a no-op — you are already there', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    const onCandidateWorkspace = vi.fn()
 
-    await waitFor(() => expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1))
+    renderWorkUI({ onCandidateWorkspace })
+    await waitFor(() => expect(window.hive.workspaces.list).toHaveBeenCalled())
+
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true })
+
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
     expect(onCandidateWorkspace).not.toHaveBeenCalled()
   })
 
-  it('selecting a recent entry invokes onCandidateWorkspace with its path', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
-      '/home/user/my-workspace',
-      '/home/user/other-project'
-    ])
+  it('"Adicionar workspace…" previews the picked folder and opens it when no question is owed', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/picked')
+    vi.mocked(window.hive.workspaces.preview).mockResolvedValue({
+      ok: true,
+      path: '/home/user/picked',
+      route: { step: 'update' }
+    })
+    vi.mocked(window.hive.openWorkspace).mockResolvedValue({
+      ok: true,
+      path: '/home/user/picked',
+      route: { step: 'update' }
+    })
     const onCandidateWorkspace = vi.fn()
+    const onCandidateKind = vi.fn()
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn(),
-        onCandidateWorkspace
-      })
-    )
+    renderWorkUI({ onCandidateWorkspace, onCandidateKind })
+    await openSwitcher()
 
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
-
-    fireEvent.click(screen.getByText('other-project'))
+    fireEvent.click(screen.getByText('Adicionar workspace…'))
 
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(window.hive.workspaces.preview).toHaveBeenCalledWith('/home/user/picked')
     )
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/picked', { step: 'update' })
+    )
+    // A folder that already carries BMAD is adopted, never questioned.
+    expect(onCandidateKind).not.toHaveBeenCalled()
+  })
+
+  it('a folder that owes the kind question is reported without being opened or written to', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/fresh')
+    vi.mocked(window.hive.workspaces.preview).mockResolvedValue({
+      ok: true,
+      path: '/home/user/fresh',
+      route: { step: 'choose' }
+    })
+    const onCandidateWorkspace = vi.fn()
+    const onCandidateKind = vi.fn()
+
+    renderWorkUI({ onCandidateWorkspace, onCandidateKind })
+    await openSwitcher()
+
+    fireEvent.click(screen.getByText('Adicionar workspace…'))
+
+    await waitFor(() =>
+      expect(onCandidateKind).toHaveBeenCalledWith('/home/user/fresh', '/home/user/my-workspace')
+    )
+    // Nothing is persisted until the question is answered.
+    expect(window.hive.openWorkspace).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a non-fatal error when the picked folder cannot be read, leaving the workspace active', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/nope')
+    vi.mocked(window.hive.workspaces.preview).mockResolvedValue({
+      ok: false,
+      reason: 'not-a-directory'
+    })
+    const onCandidateWorkspace = vi.fn()
+
+    renderWorkUI({ onCandidateWorkspace })
+    await openSwitcher()
+
+    fireEvent.click(screen.getByText('Adicionar workspace…'))
+
+    expect(
+      await screen.findByText('Não foi possível adicionar: o caminho selecionado não é uma pasta.')
+    ).toBeTruthy()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('does not report a candidate when the native picker is cancelled', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue(null)
+    const onCandidateWorkspace = vi.fn()
+
+    renderWorkUI({ onCandidateWorkspace })
+    await openSwitcher()
+
+    fireEvent.click(screen.getByText('Adicionar workspace…'))
+
+    await waitFor(() => expect(window.hive.workspaces.pickFolder).toHaveBeenCalledTimes(1))
+    expect(window.hive.workspaces.preview).not.toHaveBeenCalled()
+    expect(onCandidateWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('"Instalar o BMAD aqui" confirms first, then adopts and takes the user there', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+    const onCandidateWorkspace = vi.fn()
+
+    renderWorkUI({ onCandidateWorkspace })
+    await openSwitcher()
+
+    const lightRow = screen.getByRole('button', { name: /notes\./i }).closest('li') as HTMLElement
+    fireEvent.click(within(lightRow).getByText('Instalar o BMAD aqui'))
+
+    // Nothing is written off a menu item — the folders it creates are named
+    // in the confirm step first.
+    expect(window.hive.workspaces.adopt).not.toHaveBeenCalled()
+    const confirm = await screen.findByRole('alertdialog')
+    expect(within(confirm).getByText(/_bmad\//)).toBeTruthy()
+
+    fireEvent.click(within(confirm).getByText('Instalar aqui'))
+
+    await waitFor(() =>
+      expect(window.hive.workspaces.adopt).toHaveBeenCalledWith('/home/user/notes')
+    )
+    // The install gate lives on the workspace itself, so adopting takes you there.
+    await waitFor(() =>
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/notes', { step: 'ready' })
+    )
+  })
+
+  it('"Tornar principal" is offered on secondaries only, and confirms before moving the primary', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+
+    renderWorkUI()
+    await openSwitcher()
+
+    const panel = within(screen.getByRole('dialog'))
+    const primaryRow = panel
+      .getByRole('button', { name: /my-workspace\./i })
+      .closest('li') as HTMLElement
+    expect(within(primaryRow).queryByText('Tornar principal')).toBeNull()
+    // Nor can the primary be dropped from the list — the app would be left
+    // with no main workspace.
+    expect(within(primaryRow).queryByText('Remover da lista')).toBeNull()
+
+    const otherRow = screen
+      .getByRole('button', { name: /other-project\./i })
+      .closest('li') as HTMLElement
+    fireEvent.click(within(otherRow).getByText('Tornar principal'))
+
+    const confirm = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirm).getByText('Tornar principal'))
+
+    await waitFor(() =>
+      expect(window.hive.workspaces.setPrimary).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('"Remover da lista" promises the folder stays on disk, and forgets it on confirm', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+
+    renderWorkUI()
+    await openSwitcher()
+
+    const otherRow = screen
+      .getByRole('button', { name: /other-project\./i })
+      .closest('li') as HTMLElement
+    fireEvent.click(within(otherRow).getByText('Remover da lista'))
+
+    const confirm = await screen.findByRole('alertdialog')
+    expect(within(confirm).getByText(/continuam intactos no seu computador/)).toBeTruthy()
+    fireEvent.click(within(confirm).getByText('Remover da lista'))
+
+    await waitFor(() =>
+      expect(window.hive.workspaces.forget).toHaveBeenCalledWith('/home/user/other-project')
+    )
+  })
+
+  it('renaming writes the new display name and keeps the folder name as the placeholder', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+
+    renderWorkUI()
+    await openSwitcher()
+
+    const otherRow = screen
+      .getByRole('button', { name: /other-project\./i })
+      .closest('li') as HTMLElement
+    fireEvent.click(within(otherRow).getByText('Renomear'))
+
+    const field = await screen.findByLabelText('Nome do workspace')
+    expect(field.getAttribute('placeholder')).toBe('other-project')
+    fireEvent.change(field, { target: { value: 'API Gateway' } })
+    fireEvent.click(screen.getByText('Salvar'))
+
+    await waitFor(() =>
+      expect(window.hive.workspaces.rename).toHaveBeenCalledWith(
+        '/home/user/other-project',
+        'API Gateway'
+      )
+    )
+  })
+
+  it('tolerates a registry read failure by rendering an empty panel that can still add a workspace', async () => {
+    vi.mocked(window.hive.workspaces.list).mockRejectedValue(new Error('ipc failure'))
+
+    renderWorkUI()
+    await openSwitcher()
+
+    expect(screen.getByText('Nenhum workspace com esse nome.')).toBeTruthy()
+    expect(screen.getByText('Adicionar workspace…')).toBeTruthy()
   })
 
   // Agent Change Review (M11, T19): switching away with a non-empty pending set
   // is guarded (ACR-R4.3).
   it('guards a workspace switch when the review set is non-empty, then continues on keep', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
-      '/home/user/my-workspace',
-      '/home/user/other-project'
-    ])
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
     ;(window.hive.review.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       changes: [
         { path: 'a.txt', status: 'modified', diff: { hunks: [], binary: false }, adds: 1, dels: 0 }
@@ -1106,20 +1334,12 @@ describe('WorkUI — workspace chip menu (T7)', () => {
     })
     const onCandidateWorkspace = vi.fn()
 
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn(),
-        onCandidateWorkspace
-      })
-    )
+    renderWorkUI({ onCandidateWorkspace })
     // Wait for the pending set to load.
     await screen.findByText('1 mudança pendente')
 
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
-    fireEvent.click(screen.getByText('other-project'))
+    await openSwitcher()
+    fireEvent.click(screen.getByRole('button', { name: /other-project\./i }))
 
     // The switch is parked behind the review guard — not yet handed off.
     expect(await screen.findByText('Sair com mudanças pendentes?')).toBeTruthy()
@@ -1128,15 +1348,14 @@ describe('WorkUI — workspace chip menu (T7)', () => {
     // "Sair mantendo pendentes" continues the switch (the set survives).
     fireEvent.click(screen.getByText('Sair mantendo pendentes'))
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
+      })
     )
   })
 
   it('reject-all-and-leave clears the set before switching', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
-      '/home/user/my-workspace',
-      '/home/user/other-project'
-    ])
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
     ;(window.hive.review.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       changes: [
         { path: 'a.txt', status: 'modified', diff: { hunks: [], binary: false }, adds: 1, dels: 0 }
@@ -1144,18 +1363,12 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       turns: []
     })
     const onCandidateWorkspace = vi.fn()
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn(),
-        onCandidateWorkspace
-      })
-    )
+
+    renderWorkUI({ onCandidateWorkspace })
     await screen.findByText('1 mudança pendente')
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    await waitFor(() => expect(screen.getByText('other-project')).toBeTruthy())
-    fireEvent.click(screen.getByText('other-project'))
+
+    await openSwitcher()
+    fireEvent.click(screen.getByRole('button', { name: /other-project\./i }))
     await screen.findByText('Sair com mudanças pendentes?')
 
     fireEvent.click(screen.getByText('Rejeitar tudo e sair'))
@@ -1163,46 +1376,21 @@ describe('WorkUI — workspace chip menu (T7)', () => {
       expect(window.hive.review.rejectAll).toHaveBeenCalledWith('/home/user/my-workspace')
     )
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
+      })
     )
   })
 
-  it('shows the full path as a tooltip on each recent entry', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([
-      '/home/user/my-workspace',
+  it('shows the full path as the row tooltip, so two folders with the same name stay distinguishable', async () => {
+    vi.mocked(window.hive.workspaces.list).mockResolvedValue(threeWorkspaces())
+
+    renderWorkUI()
+    await openSwitcher()
+
+    expect(screen.getByRole('button', { name: /other-project\./i }).getAttribute('title')).toBe(
       '/home/user/other-project'
-    ])
-
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
     )
-
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-
-    const entry = await screen.findByText('other-project')
-    expect(entry.closest('[title]')?.getAttribute('title')).toBe('/home/user/other-project')
-  })
-
-  it('tolerates a getRecentWorkspaces rejection by rendering an empty Recentes-less menu', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockRejectedValue(new Error('ipc failure'))
-
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-
-    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
-    expect(screen.getByText('Abrir pasta…')).toBeTruthy()
-    expect(screen.queryByText('Recentes')).toBeNull()
   })
 })
 
@@ -1221,14 +1409,14 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
     fireEvent.click(screen.getByTestId('mark-dirty'))
   }
 
+  /** Opens the switcher and starts the add-workspace flow (the picker entry point). */
   function openChipAndPickFolder(): void {
     fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
-    fireEvent.click(screen.getByText('Abrir pasta…'))
+    fireEvent.click(screen.getByText('Adicionar workspace…'))
   }
 
   it('proceeds directly through openWorkspace, with no dialog, when the viewer is not dirty', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1247,13 +1435,14 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
     )
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
+      })
     )
   })
 
   it('dirty + Cancelar aborts the switch entirely: no openWorkspace call, onCandidateWorkspace not called', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1277,8 +1466,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   })
 
   it('dismissing the guard dialog (e.g. Escape/backdrop, not just the Cancelar button) also aborts the switch', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1302,8 +1490,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   })
 
   it('dirty + Descartar proceeds with the switch, dropping the unsaved edits', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1326,13 +1513,14 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
     )
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
+      })
     )
   })
 
   it('dirty + Salvar saves via the imperative handle first, then proceeds once the save lands', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1355,14 +1543,15 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
       expect(window.hive.openWorkspace).toHaveBeenCalledWith('/home/user/other-project')
     )
     await waitFor(() =>
-      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project')
+      expect(onCandidateWorkspace).toHaveBeenCalledWith('/home/user/other-project', {
+        step: 'ready'
+      })
     )
   })
 
   it('dirty + Salvar aborts the switch when the save itself fails (e.g. a STALE conflict)', async () => {
     fileViewerMock.requestSave.mockResolvedValueOnce(false)
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/other-project')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/other-project')
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1386,8 +1575,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   })
 
   it('an openWorkspace failure keeps the current workspace, shows a non-fatal error, and never calls onCandidateWorkspace (WS-R6.3)', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/missing-folder')
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/missing-folder')
     vi.mocked(window.hive.openWorkspace).mockResolvedValue({ ok: false, reason: 'missing' })
     const onCandidateWorkspace = vi.fn()
 
@@ -1415,8 +1603,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   ] as const)(
     'maps an openWorkspace "%s" failure to its own user-facing message (WS-R6.3)',
     async (reason, expectedSubstring) => {
-      vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-      vi.mocked(window.hive.chooseWorkspace).mockResolvedValue('/home/user/bad-folder')
+      vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue('/home/user/bad-folder')
       vi.mocked(window.hive.openWorkspace).mockResolvedValue({ ok: false, reason })
 
       render(
@@ -1435,8 +1622,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   )
 
   it('a cancelled native picker remains a no-op even with a dirty viewer (WS-R4.5)', async () => {
-    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
-    vi.mocked(window.hive.chooseWorkspace).mockResolvedValue(null)
+    vi.mocked(window.hive.workspaces.pickFolder).mockResolvedValue(null)
     const onCandidateWorkspace = vi.fn()
 
     render(
@@ -1451,7 +1637,7 @@ describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
     openDirtyViewer()
     openChipAndPickFolder()
 
-    await waitFor(() => expect(window.hive.chooseWorkspace).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(window.hive.workspaces.pickFolder).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(window.hive.openWorkspace).not.toHaveBeenCalled()
     expect(onCandidateWorkspace).not.toHaveBeenCalled()

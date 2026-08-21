@@ -23,8 +23,13 @@ import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
 import type { McpLogLocation, McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
-import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
-import type { OpenResult } from '../main/workspaceService'
+import type {
+  ShortcutPrefs,
+  ShortcutScope,
+  ShortcutSettings,
+  WorkspaceKind
+} from '../main/configStore'
+import type { OpenResult, WorkspaceInfo } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ShellCatalogView } from '../main/shellService'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
@@ -73,7 +78,6 @@ declare global {
       /** explorer-os-actions: the host OS, for labels the OS itself names differently (Explorador/Finder/…). */
       platform: NodeJS.Platform
       ping(): Promise<string>
-      chooseWorkspace(): Promise<string | null>
       /** T3 (UX-R7.3): opens an http(s)/mailto URL in the OS default handler; see preload/index.ts for the full channel design. */
       openExternal(url: string): Promise<void>
       getWorkspace(): Promise<string | null>
@@ -82,8 +86,22 @@ declare global {
       provisionState(path: string): Promise<boolean>
       /** T3 (WS-R2): the persisted MRU workspace list, newest-first — see preload/index.ts for the full channel design. */
       getRecentWorkspaces(): Promise<string[]>
-      /** T3 (WS-R6.3): validates and opens `path` as the active workspace, persisting it as the MRU head — see preload/index.ts for the full channel design. */
-      openWorkspace(path: string): Promise<OpenResult>
+      /**
+       * multi-workspace: the workspace registry and the flow that adds to it —
+       * see preload/index.ts for the full channel design and why picking a
+       * folder is separate from committing to it.
+       */
+      workspaces: {
+        pickFolder(): Promise<string | null>
+        preview(path: string): Promise<OpenResult>
+        list(): Promise<WorkspaceInfo[]>
+        rename(path: string, name: string | null): Promise<void>
+        adopt(path: string): Promise<void>
+        setPrimary(path: string): Promise<void>
+        forget(path: string): Promise<boolean>
+      }
+      /** T3 (WS-R6.3): validates and opens `path` as the active workspace, persisting it as the MRU head and reporting the route to take next. */
+      openWorkspace(path: string, kind?: WorkspaceKind): Promise<OpenResult>
       listTree(root: string, relativePath?: string): Promise<TreeNode[]>
       /** chat-attachments: flat workspace file list for the composer's `@` mention menu. */
       listFiles(root: string): Promise<string[]>

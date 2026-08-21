@@ -453,8 +453,8 @@ describe('main process bootstrap', () => {
   // T5: WorkspaceService wiring — the three window.hive workspace methods
   // route to a real WorkspaceService/ConfigStore pair backed by the mocked
   // app.getPath('userData') temp dir above.
-  it('registers workspace:choose, workspace:get, and workspace:isProvisioned handlers', () => {
-    expect(ipcMain.handle).toHaveBeenCalledWith('workspace:choose', expect.any(Function))
+  it('registers workspace:pickFolder, workspace:get, and workspace:isProvisioned handlers', () => {
+    expect(ipcMain.handle).toHaveBeenCalledWith('workspace:pickFolder', expect.any(Function))
     expect(ipcMain.handle).toHaveBeenCalledWith('workspace:get', expect.any(Function))
     expect(ipcMain.handle).toHaveBeenCalledWith('workspace:isProvisioned', expect.any(Function))
   })
@@ -464,21 +464,93 @@ describe('main process bootstrap', () => {
     await expect(findHandler('workspace:isProvisioned')()).resolves.toBe(false)
   })
 
-  it('workspace:choose drives dialog.showOpenDialog, persists the pick, and is readable back via workspace:get', async () => {
-    // WorkspaceService (T2) now validates the picked path against the real
-    // filesystem (openWorkspace's default pathExists/isDirectory), so this
-    // uses a real, existing directory rather than an arbitrary fake path.
+  it('workspace:pickFolder drives dialog.showOpenDialog and, on its own, persists nothing', async () => {
     const pickedWorkspace = mkdtempSync(join(tmpdir(), 'hive-main-index-picked-'))
     vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
       canceled: false,
       filePaths: [pickedWorkspace]
     } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
 
-    await expect(findHandler('workspace:choose')()).resolves.toBe(pickedWorkspace)
+    await expect(findHandler('workspace:pickFolder')()).resolves.toBe(pickedWorkspace)
     expect(dialog.showOpenDialog).toHaveBeenCalledWith({ properties: ['openDirectory'] })
-    await expect(findHandler('workspace:get')()).resolves.toBe(pickedWorkspace)
+    // multi-workspace: picking is separated from committing so the kind
+    // question can be asked in between — the active workspace is untouched
+    // until `workspace:open` runs.
+    await expect(findHandler('workspace:get')()).resolves.toBeNull()
 
     rmSync(pickedWorkspace, { recursive: true, force: true })
+  })
+
+  it('workspace:preview reports the route without persisting, and workspace:open commits it', async () => {
+    const fakeInvokeEvent = {}
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-preview-'))
+
+    // The exact route depends on what earlier tests in this describe left in
+    // the shared ConfigStore (a primary may already exist), which is not what
+    // this spec is about — that preview *answers* and doesn't *persist* is.
+    const preview = (await findHandler('workspace:preview')(fakeInvokeEvent, dir)) as {
+      ok: boolean
+      path: string
+      route: { step: string }
+    }
+    expect(preview).toMatchObject({ ok: true, path: dir })
+    expect(['install', 'update', 'choose', 'ready']).toContain(preview.route.step)
+    await expect(findHandler('workspace:get')()).resolves.toBeNull()
+
+    // Opening commits: the workspace becomes active and lands in the registry.
+    const opened = (await findHandler('workspace:open')(fakeInvokeEvent, dir, 'light')) as {
+      ok: boolean
+      route: { step: string }
+    }
+    expect(opened.ok).toBe(true)
+    await expect(findHandler('workspace:get')()).resolves.toBe(dir)
+
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('refuses to make the primary workspace light, whatever the renderer asks for', async () => {
+    const fakeInvokeEvent = {}
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-primarykind-'))
+
+    await findHandler('workspace:open')(fakeInvokeEvent, dir, 'managed')
+    await findHandler('workspace:setPrimary')(fakeInvokeEvent, dir)
+    // Ask for the one thing the invariant forbids.
+    await findHandler('workspace:open')(fakeInvokeEvent, dir, 'light')
+
+    const list = (await findHandler('workspace:list')()) as Array<{
+      path: string
+      kind: string
+      primary: boolean
+    }>
+    const entry = list.find((candidate) => candidate.path === dir)
+    expect(entry).toMatchObject({ primary: true, kind: 'managed' })
+
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('workspace:open drops a kind the renderer made up rather than trusting it', async () => {
+    const fakeInvokeEvent = {}
+    const dir = mkdtempSync(join(tmpdir(), 'hive-main-index-kindguard-'))
+
+    await findHandler('workspace:open')(fakeInvokeEvent, dir, 'heavy')
+
+    const list = (await findHandler('workspace:list')()) as Array<{ path: string; kind: string }>
+    expect(list.find((entry) => entry.path === dir)?.kind).toBe('managed')
+
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('registers the workspace registry handlers the switcher edits', () => {
+    for (const channel of [
+      'workspace:preview',
+      'workspace:list',
+      'workspace:rename',
+      'workspace:adopt',
+      'workspace:setPrimary',
+      'workspace:forget'
+    ]) {
+      expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+    }
   })
 
   // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching handlers, delegating to
@@ -504,10 +576,11 @@ describe('main process bootstrap', () => {
 
     await expect(findHandler('workspace:open')(fakeInvokeEvent, dir)).resolves.toEqual({
       ok: true,
-      path: dir
+      path: dir,
+      route: { step: 'install', primary: expect.any(Boolean) }
     })
     await expect(findHandler('workspace:get')()).resolves.toBe(dir)
-    // MRU is shared with the earlier workspace:choose test in this describe
+    // MRU is shared with the earlier workspace tests in this describe
     // block (same ConfigStore instance), so only the head (this open) is
     // asserted rather than the full list.
     await expect(findHandler('workspace:recents')()).resolves.toEqual(expect.arrayContaining([dir]))

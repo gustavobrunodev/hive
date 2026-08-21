@@ -7,9 +7,11 @@ import {
   MAX_RECENT_WORKSPACES,
   createConfigStore,
   isShortcutScope,
+  isWorkspaceKind,
   sanitizeAgentList,
   sanitizeShortcutPrefs,
-  sanitizeShortcutSettings
+  sanitizeShortcutSettings,
+  sanitizeWorkspaces
 } from './configStore'
 
 // `createConfigStore` takes its base directory as a plain argument instead of
@@ -63,6 +65,18 @@ describe('ConfigStore', () => {
       workspacePath: '/Users/dev/my-workspace',
       provisioned: true,
       recentWorkspaces: [],
+      // multi-workspace: a bare `setWorkspacePath` (no `pushRecentWorkspace`)
+      // still gets migrated into the registry on read — the active path is,
+      // by definition, a workspace this install knows about.
+      workspaces: [
+        {
+          path: '/Users/dev/my-workspace',
+          name: null,
+          kind: 'managed',
+          primary: true,
+          lastOpenedAt: expect.any(Number)
+        }
+      ],
       lastModel: 'claude-opus-4',
       lastEffort: 'high',
       agent: null,
@@ -88,6 +102,15 @@ describe('ConfigStore', () => {
       workspacePath: '/workspace',
       provisioned: true,
       recentWorkspaces: [],
+      workspaces: [
+        {
+          path: '/workspace',
+          name: null,
+          kind: 'managed',
+          primary: true,
+          lastOpenedAt: expect.any(Number)
+        }
+      ],
       lastModel: 'claude-sonnet-4',
       lastEffort: 'medium',
       agent: null,
@@ -117,6 +140,15 @@ describe('ConfigStore', () => {
       workspacePath: '/persisted/workspace',
       provisioned: true,
       recentWorkspaces: [],
+      workspaces: [
+        {
+          path: '/persisted/workspace',
+          name: null,
+          kind: 'managed',
+          primary: true,
+          lastOpenedAt: expect.any(Number)
+        }
+      ],
       lastModel: 'claude-haiku-4',
       lastEffort: 'low',
       agent: null,
@@ -451,5 +483,189 @@ describe('ConfigStore — skippedUpdateVersion (npm-distribution)', () => {
       role: 'dev',
       skippedUpdateVersion: '0.3.0'
     })
+  })
+})
+
+describe('ConfigStore — workspace registry (multi-workspace)', () => {
+  let baseDir: string
+
+  beforeEach(() => {
+    baseDir = mkdtempSync(join(tmpdir(), 'hive-config-workspaces-'))
+  })
+
+  afterEach(() => {
+    rmSync(baseDir, { recursive: true, force: true })
+  })
+
+  /** Writes a raw config.json, so migrations can be tested from real on-disk shapes. */
+  function writeRaw(config: Record<string, unknown>): void {
+    mkdirSync(baseDir, { recursive: true })
+    writeFileSync(join(baseDir, 'config.json'), JSON.stringify(config))
+  }
+
+  it('starts empty on a fresh install', () => {
+    expect(createConfigStore(baseDir).getWorkspaces()).toEqual([])
+  })
+
+  it('migrates a pre-registry config: the active workspace becomes the managed primary, recents follow', () => {
+    writeRaw({
+      workspacePath: '/home/dev/main',
+      recentWorkspaces: ['/home/dev/main', '/home/dev/other', '/home/dev/third'],
+      provisioned: true
+    })
+
+    const entries = createConfigStore(baseDir).getWorkspaces()
+
+    expect(entries.map((entry) => entry.path)).toEqual([
+      '/home/dev/main',
+      '/home/dev/other',
+      '/home/dev/third'
+    ])
+    // Before the registry existed, opening a workspace at all meant going
+    // through the BMAD gate — so every migrated entry is `managed`.
+    expect(entries.every((entry) => entry.kind === 'managed')).toBe(true)
+    expect(entries.filter((entry) => entry.primary).map((entry) => entry.path)).toEqual([
+      '/home/dev/main'
+    ])
+  })
+
+  it('migrates a config with recents but no active workspace, promoting the most recent', () => {
+    writeRaw({ workspacePath: null, recentWorkspaces: ['/a', '/b'] })
+
+    const entries = createConfigStore(baseDir).getWorkspaces()
+
+    expect(entries.map((entry) => entry.path)).toEqual(['/a', '/b'])
+    expect(entries[0].primary).toBe(true)
+  })
+
+  it('the first workspace ever registered becomes the primary', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/home/dev/first', { lastOpenedAt: 1000 })
+
+    expect(store.getWorkspaces()).toEqual([
+      { path: '/home/dev/first', name: null, kind: 'managed', primary: true, lastOpenedAt: 1000 }
+    ])
+  })
+
+  it('a later workspace does not steal the primary, and can be registered as light', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/first', { lastOpenedAt: 1000 })
+    store.upsertWorkspace('/second', { kind: 'light', lastOpenedAt: 2000 })
+
+    const entries = store.getWorkspaces()
+    // MRU order: the newer one leads.
+    expect(entries.map((entry) => entry.path)).toEqual(['/second', '/first'])
+    expect(entries.find((entry) => entry.primary)?.path).toBe('/first')
+    expect(entries.find((entry) => entry.path === '/second')?.kind).toBe('light')
+  })
+
+  it('upsertWorkspace patches an existing entry without touching the rest', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/first', { lastOpenedAt: 1000 })
+    store.upsertWorkspace('/second', { kind: 'light', lastOpenedAt: 2000 })
+    store.upsertWorkspace('/second', { name: 'Notas' })
+
+    const second = store.getWorkspaces().find((entry) => entry.path === '/second')
+    expect(second).toMatchObject({ name: 'Notas', kind: 'light', lastOpenedAt: 2000 })
+  })
+
+  it('setPrimaryWorkspace moves the flag and forces the new primary to be managed', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/first', { lastOpenedAt: 1000 })
+    store.upsertWorkspace('/second', { kind: 'light', lastOpenedAt: 2000 })
+
+    store.setPrimaryWorkspace('/second')
+
+    const entries = store.getWorkspaces()
+    expect(entries.filter((entry) => entry.primary).map((entry) => entry.path)).toEqual(['/second'])
+    // The invariant the whole feature rests on: the primary always has BMAD.
+    expect(entries.find((entry) => entry.path === '/second')?.kind).toBe('managed')
+  })
+
+  it('setPrimaryWorkspace on an unregistered path is a no-op', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/first', { lastOpenedAt: 1000 })
+
+    store.setPrimaryWorkspace('/never-seen')
+
+    expect(store.getWorkspaces().find((entry) => entry.primary)?.path).toBe('/first')
+  })
+
+  it('pushRecentWorkspace writes the MRU and the registry in one transaction', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/b')
+
+    // The flat list older builds understand…
+    expect(store.getRecentWorkspaces()).toEqual(['/b', '/a'])
+    // …and the registry the switcher reads, in the same order.
+    expect(store.getWorkspaces().map((entry) => entry.path)).toEqual(['/b', '/a'])
+  })
+
+  it('removeWorkspace drops the entry from both halves of the list', () => {
+    const store = createConfigStore(baseDir)
+    store.pushRecentWorkspace('/a')
+    store.pushRecentWorkspace('/b')
+
+    store.removeWorkspace('/b')
+
+    expect(store.getRecentWorkspaces()).toEqual(['/a'])
+    expect(store.getWorkspaces().map((entry) => entry.path)).toEqual(['/a'])
+  })
+
+  it('removing the primary promotes the next entry rather than leaving the app without one', () => {
+    const store = createConfigStore(baseDir)
+    store.upsertWorkspace('/first', { lastOpenedAt: 1000 })
+    store.upsertWorkspace('/second', { kind: 'light', lastOpenedAt: 2000 })
+
+    // The service refuses this, but a corrupted config can arrive here — the
+    // repair has to be a workspace that is primary AND managed.
+    store.removeWorkspace('/first')
+
+    const entries = store.getWorkspaces()
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ path: '/second', primary: true, kind: 'managed' })
+  })
+
+  it('sanitizeWorkspaces repairs a hand-edited registry: garbage dropped, one primary, MRU order', () => {
+    const repaired = sanitizeWorkspaces([
+      { path: '/late', primary: true, lastOpenedAt: 10, kind: 'light' },
+      { path: '', primary: false, lastOpenedAt: 99 },
+      null,
+      'nonsense',
+      { path: '/early', primary: true, lastOpenedAt: 50, kind: 'nonsense' },
+      { path: '/late', primary: false, lastOpenedAt: 999 }
+    ])
+
+    expect(repaired.map((entry) => entry.path)).toEqual(['/early', '/late'])
+    // Two entries claimed the primary; the higher-ranked one keeps it, and it
+    // is forced managed even though the duplicate said otherwise.
+    expect(repaired.filter((entry) => entry.primary).map((entry) => entry.path)).toEqual(['/early'])
+    expect(repaired[0].kind).toBe('managed')
+    // An unrecognised kind falls back to `managed`, never to a third state.
+    expect(repaired[1].kind).toBe('light')
+  })
+
+  it('sanitizeWorkspaces survives a non-array value without throwing', () => {
+    expect(sanitizeWorkspaces('nope')).toEqual([])
+    expect(sanitizeWorkspaces(null)).toEqual([])
+    expect(sanitizeWorkspaces({ path: '/x' })).toEqual([])
+  })
+
+  it('isWorkspaceKind guards the IPC boundary against a third state', () => {
+    expect(isWorkspaceKind('managed')).toBe(true)
+    expect(isWorkspaceKind('light')).toBe(true)
+    expect(isWorkspaceKind('heavy')).toBe(false)
+    expect(isWorkspaceKind(undefined)).toBe(false)
+  })
+
+  it('a corrupt registry never breaks the rest of the config', () => {
+    writeRaw({ workspacePath: '/home/dev/main', role: 'pm', workspaces: 'not an array' })
+
+    const store = createConfigStore(baseDir)
+
+    // Falls back to the migration path, and the untouched fields survive.
+    expect(store.getWorkspaces().map((entry) => entry.path)).toEqual(['/home/dev/main'])
+    expect(store.getRole()).toBe('pm')
   })
 })

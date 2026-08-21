@@ -361,16 +361,101 @@ async (page) => {
     }
     state.shellSelected = state.shellView.selectedId ?? null
 
+    state.workspaces = [
+      {
+        path: '/ws',
+        name: null,
+        displayName: 'hive-desktop',
+        kind: 'managed',
+        primary: true,
+        lastOpenedAt: Date.now(),
+        provisioned: true,
+        missing: false
+      },
+      {
+        path: '/home/dev/work/api-gateway',
+        name: null,
+        displayName: 'api-gateway',
+        kind: 'managed',
+        primary: false,
+        lastOpenedAt: Date.now() - 2 * 60 * 60 * 1000,
+        provisioned: true,
+        missing: false
+      },
+      {
+        path: '/home/dev/Documentos/notas-da-squad',
+        name: null,
+        displayName: 'notas-da-squad',
+        kind: 'light',
+        primary: false,
+        lastOpenedAt: Date.now() - 26 * 60 * 60 * 1000,
+        provisioned: false,
+        missing: false
+      },
+      {
+        path: '/home/dev/lab/spike-pagamentos',
+        name: 'Spike de pagamentos',
+        displayName: 'Spike de pagamentos',
+        kind: 'managed',
+        primary: false,
+        lastOpenedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+        provisioned: false,
+        missing: false
+      },
+      {
+        path: '/home/dev/arquivadas/portal-legado',
+        name: null,
+        displayName: 'portal-legado',
+        kind: 'managed',
+        primary: false,
+        lastOpenedAt: Date.now() - 40 * 24 * 60 * 60 * 1000,
+        provisioned: false,
+        missing: true
+      }
+    ]
+
     const sessions = []
     window.hive = {
       ping: ok('pong'),
-      chooseWorkspace: ok('/ws'),
       openExternal: ok(undefined),
       getWorkspace: ok('/ws'),
       isProvisioned: ok(true),
       provisionState: ok(true),
       getRecentWorkspaces: ok(['/ws']),
-      openWorkspace: ok({ ok: true, path: '/ws' }),
+      // multi-workspace: a registry with every state the switcher can render —
+      // the primary, a managed secondary, a `light` one, a managed one whose
+      // install never finished, and a folder that has since been deleted.
+      // Names deliberately vary in length and word count so the row's
+      // truncation and the mark's one-vs-two-letter monogram both get exercised.
+      workspaces: {
+        pickFolder: ok('/home/dev/picked-folder'),
+        preview: (path) =>
+          Promise.resolve({ ok: true, path, route: { step: 'choose' } }),
+        list: () => Promise.resolve(state.workspaces),
+        rename: (path, name) => {
+          const entry = state.workspaces.find((w) => w.path === path)
+          if (entry) {
+            entry.name = name || null
+            entry.displayName = name || path.split('/').filter(Boolean).pop()
+          }
+          return Promise.resolve(undefined)
+        },
+        adopt: (path) => {
+          const entry = state.workspaces.find((w) => w.path === path)
+          if (entry) entry.kind = 'managed'
+          return Promise.resolve(undefined)
+        },
+        setPrimary: (path) => {
+          for (const entry of state.workspaces) entry.primary = entry.path === path
+          return Promise.resolve(undefined)
+        },
+        forget: (path) => {
+          state.workspaces = state.workspaces.filter((w) => w.path !== path)
+          return Promise.resolve(true)
+        }
+      },
+      openWorkspace: (path) =>
+        Promise.resolve({ ok: true, path, route: { step: 'ready' } }),
       // The field is `type`, not `kind` (Explorer's `FsTreeNode`): a fixture
       // written with `kind` makes every row a *leaf* — no folders, no nesting,
       // no multi-select range worth the name — and the pass reads that as the

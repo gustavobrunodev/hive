@@ -58,7 +58,12 @@ do boot: `window.__setVault(v)`, `window.__fsChange(path)` e
 ### Sondas de contraste
 
 `tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
-toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
+toast). `tools/visual/workspaceContrast.mjs` cobre as superfícies de
+multi-workspace (M24) — o painel do seletor com **todas** as linhas (cada
+workspace tem matiz própria, então medir a primeira não diz nada sobre as
+outras), o filtro vazio e a pergunta de tipo, nos três temas numa execução só.
+Ela também dirige a pergunta, que o E2E não alcança: chegar lá exige escolher
+uma pasta pelo diálogo do SO. `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
 (M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,
 ditado parado/ouvindo/em silêncio — em cada tema.
 
@@ -68,7 +73,7 @@ Duas coisas que a sonda precisa saber fazer, e que uma versão ingênua não faz
   (`--selected-bg`, `--success-bg`, o banho de accent do quadro ao vivo). Ler a
   cor do fundo direto mede contra um pixel que não existe na tela.
 - **Entender `oklch()` e `oklab()`.** Token declara em `oklch`; `color-mix(in
-  oklab, …)` serializa em `oklab`. Sem os dois parsers a sonda devolve
+oklab, …)` serializa em `oklab`. Sem os dois parsers a sonda devolve
   `UNMEASURED` — que se lê como "sem problemas" quando na verdade é "sem dados".
   Foi assim que dois alvos reais passaram despercebidos na primeira rodada.
 

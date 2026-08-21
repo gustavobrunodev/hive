@@ -91,7 +91,7 @@ import { createMcpService, type McpServerConfig } from './mcpService'
 import { mcpProbe } from './mcpProbe'
 import { createMcpLogService, type McpLogQuery } from './mcpLogService'
 import { resolveAllShortcuts, resolveRoleActions } from './roleCatalog'
-import { isShortcutScope, sanitizeShortcutPrefs } from './configStore'
+import { isShortcutScope, isWorkspaceKind, sanitizeShortcutPrefs } from './configStore'
 import {
   createRegistryClient,
   createDownloader,
@@ -282,7 +282,7 @@ app.whenReady().then(() => {
       dialog.showOpenDialog(options as Parameters<typeof dialog.showOpenDialog>[0])
   })
 
-  ipcMain.handle('workspace:choose', async () => workspaceService.chooseWorkspace())
+  ipcMain.handle('workspace:pickFolder', async () => workspaceService.pickFolder())
   ipcMain.handle('workspace:get', async () => workspaceService.getWorkspace())
   ipcMain.handle('workspace:isProvisioned', async () => workspaceService.isProvisioned())
   // T3 (WS-R3.2/WS-R2/WS-R6.3): workspace-switching methods, following the
@@ -291,8 +291,29 @@ app.whenReady().then(() => {
     workspaceService.provisionState(path)
   )
   ipcMain.handle('workspace:recents', async () => workspaceService.getRecentWorkspaces())
-  ipcMain.handle('workspace:open', async (_event, path: string) =>
-    workspaceService.openWorkspace(path)
+  ipcMain.handle('workspace:preview', async (_event, path: string) =>
+    workspaceService.previewWorkspace(path)
+  )
+  ipcMain.handle('workspace:open', async (_event, path: string, kind?: unknown) =>
+    // The renderer can only ever hand back one of the two kinds; anything
+    // else is dropped rather than trusted, so a compromised renderer can't
+    // invent a third state for the registry (same guard style as
+    // `isShortcutScope` on the shortcuts channel).
+    workspaceService.openWorkspace(path, isWorkspaceKind(kind) ? kind : undefined)
+  )
+  // multi-workspace: the registry the switcher renders and edits.
+  ipcMain.handle('workspace:list', async () => workspaceService.listWorkspaces())
+  ipcMain.handle('workspace:rename', async (_event, path: string, name: string | null) =>
+    workspaceService.renameWorkspace(path, name)
+  )
+  ipcMain.handle('workspace:adopt', async (_event, path: string) =>
+    workspaceService.adoptWorkspace(path)
+  )
+  ipcMain.handle('workspace:setPrimary', async (_event, path: string) =>
+    workspaceService.setPrimaryWorkspace(path)
+  )
+  ipcMain.handle('workspace:forget', async (_event, path: string) =>
+    workspaceService.forgetWorkspace(path)
   )
 
   // FsService (T11/T6): a single stateless instance (it takes `root` per

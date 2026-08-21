@@ -24,7 +24,8 @@ import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
 import type { McpLogLocation, McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
-import type { OpenResult } from '../main/workspaceService'
+import type { OpenResult, WorkspaceInfo } from '../main/workspaceService'
+import type { WorkspaceKind } from '../main/configStore'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ShellCatalogView } from '../main/shellService'
 import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
@@ -167,7 +168,6 @@ const hive = {
    */
   platform: process.platform as NodeJS.Platform,
   ping: (): Promise<string> => ipcRenderer.invoke('ping'),
-  chooseWorkspace: (): Promise<string | null> => ipcRenderer.invoke('workspace:choose'),
   // openExternal (T3, UX-R7.3): forwards to main's 'shell:openExternal'
   // handler, which validates the URL is http(s)/mailto before calling
   // shell.openExternal — see main/index.ts for the full rationale.
@@ -179,7 +179,33 @@ const hive = {
   provisionState: (path: string): Promise<boolean> =>
     ipcRenderer.invoke('workspace:provisionState', path),
   getRecentWorkspaces: (): Promise<string[]> => ipcRenderer.invoke('workspace:recents'),
-  openWorkspace: (path: string): Promise<OpenResult> => ipcRenderer.invoke('workspace:open', path),
+
+  /**
+   * multi-workspace: the workspace registry and the flow that adds to it.
+   *
+   * Grouped under one namespace (like `profile`, `mcp` and `shortcuts`)
+   * because it is one subject with a sequence: `pickFolder` → `preview` →
+   * (the kind question, if `preview` asks for it) → `open`. Splitting the
+   * pick from the open is what lets the app ask before it writes anything —
+   * cancelling the question leaves the active workspace untouched.
+   */
+  workspaces: {
+    /** Native directory picker; resolves `null` when cancelled. No side effects. */
+    pickFolder: (): Promise<string | null> => ipcRenderer.invoke('workspace:pickFolder'),
+    /** Read-only: what opening `path` would mean, without persisting anything. */
+    preview: (path: string): Promise<OpenResult> => ipcRenderer.invoke('workspace:preview', path),
+    /** The registry joined with disk state (BMAD present? folder still there?). */
+    list: (): Promise<WorkspaceInfo[]> => ipcRenderer.invoke('workspace:list'),
+    rename: (path: string, name: string | null): Promise<void> =>
+      ipcRenderer.invoke('workspace:rename', path, name),
+    /** "Instalar o BMAD aqui" — turns a `light` workspace into a managed one. */
+    adopt: (path: string): Promise<void> => ipcRenderer.invoke('workspace:adopt', path),
+    setPrimary: (path: string): Promise<void> => ipcRenderer.invoke('workspace:setPrimary', path),
+    /** Drops it from the list; the folder on disk is never touched. `false` = refused (primary). */
+    forget: (path: string): Promise<boolean> => ipcRenderer.invoke('workspace:forget', path)
+  },
+  openWorkspace: (path: string, kind?: WorkspaceKind): Promise<OpenResult> =>
+    ipcRenderer.invoke('workspace:open', path, kind),
 
   // FsService (T11), request/response — same invoke/response shape as the
   // methods above.

@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/workspace'
 import { launchSeededApp } from './fixtures/workspace'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -96,18 +96,20 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
       })
       await expect(window.locator('.wb-workspace-chip-name')).toHaveText(path.basename(workspaceA))
 
-      // --- WS-R8.4: screenshot the chip menu open, showing Recentes --------
+      // --- WS-R8.4: screenshot the switcher open, listing the registry -----
       await openChipMenu(window)
-      const recentsSection = window.getByText('Recentes', { exact: true })
-      await expect(recentsSection).toBeVisible()
-      await expect(window.getByRole('menuitem', { name: 'workspace-b' })).toBeVisible()
-      await expect(window.getByRole('menuitem', { name: 'workspace-c' })).toBeVisible()
+      // multi-workspace: the flat "Recentes" list became a registry the
+      // switcher groups — the seeded MRU migrates into it on first read, so
+      // both siblings appear under "Outros workspaces".
+      await expect(window.getByText('Outros workspaces', { exact: true })).toBeVisible()
+      await expect(workspaceRow(window, 'workspace-b')).toBeVisible()
+      await expect(workspaceRow(window, 'workspace-c')).toBeVisible()
       await window.screenshot({
         path: path.join(screenshotsDir, '01-chip-menu-recentes.png')
       })
 
-      // --- Switch A -> B via Recentes (WS-R1.2, WS-R4.1/R4.3) ---------------
-      await window.getByRole('menuitem', { name: 'workspace-b' }).click()
+      // --- Switch A -> B from the switcher (WS-R1.2, WS-R4.1/R4.3) ---------
+      await workspaceRow(window, 'workspace-b').click()
 
       // B is provisioned (disk marker) -> routes to UpdateGate, same
       // race-the-real-CLI pattern as every other spec's initial boot.
@@ -131,10 +133,10 @@ test.describe('workspace switching E2E (real Electron, throwaway workspaces)', (
         path: path.join(screenshotsDir, '02-post-switch-work-ui.png')
       })
 
-      // --- Switch B -> C via Recentes (unprovisioned) -----------------------
+      // --- Switch B -> C from the switcher (unprovisioned) ------------------
       await openChipMenu(window)
-      await expect(window.getByRole('menuitem', { name: 'workspace-c' })).toBeVisible()
-      await window.getByRole('menuitem', { name: 'workspace-c' }).click()
+      await expect(workspaceRow(window, 'workspace-c')).toBeVisible()
+      await workspaceRow(window, 'workspace-c').click()
 
       // C is NOT provisioned (no _bmad/ at all) -> WS-R4.2 routes to
       // GuidedInstall, whose Act 1 (InstallConfigForm) renders immediately,
@@ -171,9 +173,20 @@ function readConfig(userDataDir: string): OnDiskConfig {
   return JSON.parse(raw) as OnDiskConfig
 }
 
-/** Opens the workspace chip's dropdown menu (`WorkUI.tsx`'s `DropdownMenuTrigger`). */
+/** Opens the workspace switcher behind the title-bar chip (`ui/WorkspaceChip.tsx`). */
 async function openChipMenu(window: Page): Promise<void> {
   await window.locator('.wb-workspace-chip').click()
+  await window.locator('.wb-ws-panel').waitFor({ state: 'visible' })
+}
+
+/**
+ * One row of the switcher, by workspace name (multi-workspace). Rows are
+ * buttons whose accessible name is "<nome>. <estado>. <caminho>", so the name
+ * is anchored at the start — which also keeps the title-bar chip (whose label
+ * names the *active* workspace) out of the match.
+ */
+function workspaceRow(window: Page, name: string): Locator {
+  return window.getByRole('button', { name: new RegExp(`^${name}\\.`) })
 }
 
 /**

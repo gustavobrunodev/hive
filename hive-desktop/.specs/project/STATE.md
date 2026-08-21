@@ -289,6 +289,48 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+- **D38 — Feature `multi-workspace` (M24).** Vários workspaces ao mesmo tempo,
+  com um **principal** que obrigatoriamente tem o BMAD, construída 2026-08-20.
+  Spec/design em `.specs/features/multi-workspace/`. Decisões do usuário:
+  mesma janela (não uma janela por workspace); o seletor mora no chip da barra
+  de título; e "leve" significa **nada escrito na pasta** — sem `_bmad/`, sem
+  `.claude/skills/`, sem `second-brain/`. Decisões de implementação:
+  (a) **O registro substitui a MRU como o que a UI lê.** `Config.workspaces`
+  guarda caminho, nome, tipo (`managed`|`light`), principal e recência.
+  `recentWorkspaces` continua sendo escrito **na mesma transação** — nada o lê
+  mais, mas ele é a fonte da migração e a forma que um build anterior entende,
+  então um downgrade não perde a lista. As invariantes (caminhos únicos,
+  exatamente um principal, principal sempre `managed`, ordem por recência) são
+  **impostas** por `sanitizeWorkspaces` em toda leitura e escrita, não
+  verificadas — é por isso que um `config.json` editado à mão não consegue
+  violá-las.
+  (b) **A intenção do usuário e o estado do disco são campos diferentes.**
+  `kind` diz o que o Hive tem permissão de fazer na pasta; `_bmad/_config/
+  manifest.yaml` diz o que existe. Manter os dois separados é o que deixa um
+  workspace `managed` cuja instalação falhou tentar de novo, e o que impede um
+  workspace `light` que por acaso contém o `_bmad/` de outra pessoa de ser
+  adotado em silêncio.
+  (c) **Escolher a pasta deixou de persistir.** `chooseWorkspace()` abria o
+  seletor *e* commitava, o que torna impossível perguntar qualquer coisa no
+  meio. Virou `pickFolder()` → `preview(path)` → (a pergunta, se for devida) →
+  `open(path, kind)`. Cancelar a pergunta é um no-op real: nada foi escrito e o
+  workspace ativo não mudou.
+  (d) **Uma função decide o próximo passo, e ela vive no main.**
+  `workspaceService.routeFor` devolve `install`/`update`/`choose`/`ready`/
+  `missing`; `App.tsx` é um `switch` sobre isso. A parte difícil da feature é
+  testável sem uma janela, e o renderer não pode divergir da regra.
+  (e) **A pergunta aparece uma vez, e só quando é genuína.** Pasta secundária,
+  nova, sem BMAD no disco. O primeiro workspace da vida do app é o principal e
+  não é questionado; uma pasta que já tem `_bmad/` é adotada — a resposta está
+  no disco, e perguntar seria ruído.
+  (f) **Cada workspace ganhou um rosto.** Monograma numa matiz derivada do
+  caminho (FNV-1a sobre a paleta `--wb-ic-*` que já existia). Determinístico e
+  sem configuração. Com uma lista, reconhecer precisa ser possível antes de ler.
+  (g) **`managed` usa o accent; `light` usa a tinta neutra.** Um tique verde no
+  primeiro enquadraria o segundo como defeito — o enquadramento que a feature
+  existe para evitar. Só as duas anomalias reais (instalação interrompida,
+  pasta sumida) pegam cor semântica.
+
 ## Lessons (npm-distribution — real publish attempt, 2026-07-22)
 
 - **T1's spike verified the download side of the registry assumptions but
@@ -900,6 +942,58 @@ Updated as work progresses. Load at start of every session.
     `color-mix(in oklab, …)` serializa no outro, e sem os dois ela devolve
     `UNMEASURED` — que se lê como "sem achados". Dois contrastes reais só
     apareceram depois disso, um deles virando `--success-tint-ink` no DS.
+
+## Lessons (multi-workspace, 2026-08-20)
+
+- **L-MW-1 — `--faint` a 11px reprova fora do `--bg`, de novo.** A sonda de
+  contraste das superfícies novas achou seis alvos: cabeçalhos de grupo, hora
+  relativa, atalho `Ctrl+N`, a linha de detalhe da pergunta e o chip de tecla —
+  4,18:1 no tema escuro, 3,71:1 no claro, 2,95:1 no pior caso. O token é
+  documentado contra `--bg`; estas superfícies são **elevadas**, e a superfície
+  come a margem. É a mesma lição do M-TI, e vale escrever de novo: `--faint`
+  serve para marca não-textual e texto grande, e mais nada. Todo rótulo de 11px
+  destas telas usa `--muted`.
+
+- **L-MW-2 — Uma sonda sem os parsers de `oklch`/`oklab` mente por omissão.**
+  A primeira versão de `tools/visual/workspaceContrast.mjs` devolveu
+  `UNMEASURED` para *toda* marca de workspace e *todo* estado de linha — porque
+  os tokens declaram em `oklch` e `color-mix(in oklab, …)` serializa em
+  `oklab`. Uma lista de `UNMEASURED` se lê como "sem problemas" e é "sem
+  dados". `docs/visual-validation.md` já avisava; a sonda nova nasceu sem.
+  Copie os parsers de `ingestContrast.mjs`, sempre.
+
+- **L-MW-3 — `disabled` de verdade tira a linha da ordem de foco.** A linha do
+  workspace ativo e a de uma pasta sumida eram `<button disabled>`. As setas do
+  painel travavam ao chegar nelas: um botão desabilitado não recebe foco, então
+  `focus()` não fazia nada e o cursor ficava parado. `aria-disabled` mais um
+  `onClick` que retorna cedo mantém as duas legíveis e alcançáveis por Tab, e é
+  o que o padrão ARIA pede para um controle que ainda carrega informação.
+
+- **L-MW-4 — JSX demais dentro de `WorkUI` faz o React compiler desistir da
+  função inteira.** Colar o chip novo (um `WorkspaceSwitcher` com trigger,
+  marca e um ramo condicional) direto no `WorkUI` disparou `complexity 16` e
+  **cinco** erros `react-hooks/preserve-manual-memoization` em `useCallback`s
+  que eu não tinha tocado — o compilador reporta a memoização que não
+  conseguiu preservar quando faz bail. Extrair para `ui/WorkspaceChip.tsx`
+  zerou os seis. O sinal é útil: quando um erro de memoização aparece longe do
+  que você mexeu, procure o que cresceu, não o que mudou.
+
+- **L-MW-5 — Um store devolvido como objeto literal invalida arrays de
+  dependência.** `useWorkspaces` devolvia `{ list, reload }` novo a cada render,
+  e consumidores o punham em `useCallback([workspaces])`. Memoizar o retorno é
+  parte do contrato de um hook que devolve objeto.
+
+- **L-MW-6 — Truncar um caminho nas duas pontas não informa nada.** Mostrar o
+  caminho completo na linha dava `…/dev/work/api-ga…`: ellipsis no começo (pelo
+  encurtador) e no fim (pelo `text-overflow`). O nome já está na linha de cima,
+  então a linha de baixo passou a mostrar a **pasta-mãe** — que é a informação
+  que desambigua duas pastas com o mesmo nome.
+
+- **L-MW-7 — `.wb-btn:disabled` não existia.** A CTA da pergunta é desabilitada
+  de propósito até haver uma escolha, e ficava com o preenchimento primário
+  inteiro, apenas sem responder — lê-se como controle quebrado, não como
+  pré-condição não atendida. A regra nova vale para toda a app (o passo de
+  agentes do primeiro acesso tem a mesma forma).
 
 ## Lessons (mcp-probe-path + approval-session, 2026-08-19)
 

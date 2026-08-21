@@ -2228,6 +2228,23 @@ body ::-webkit-scrollbar-corner {
     inset 0 0 0 4px var(--bg);
 }
 
+/* A disabled app Button had no visual state at all: it kept the full primary
+   fill and only stopped responding, which reads as a broken control rather
+   than an unmet precondition. Measured on the workspace kind gate, whose CTA
+   is deliberately disabled until one of the two options is chosen. */
+.wb-btn.hds-btn:disabled,
+.wb-btn-lg.hds-btn:disabled,
+.wb-btn-sm.hds-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.wb-btn.hds-btn:disabled:hover,
+.wb-btn-lg.hds-btn:disabled:hover,
+.wb-btn-sm.hds-btn:disabled:hover {
+  background: var(--accent);
+  filter: none;
+}
+
 /* DS primary Button hardcodes its dark-theme ink/hover; retint per theme.
    T7.6 found the other half of this: the retint only reached buttons that also
    carry a `wb-btn*` class, so a bare `<Button>` kept the vendor's `#241019` —
@@ -16225,4 +16242,485 @@ button.wb-mcplog-summary:focus-visible {
   align-items: center;
   justify-content: center;
   min-width: 0;
+}
+
+/* ==========================================================================
+   Multi-workspace — identity marks, the switcher panel, and the kind gate
+   --------------------------------------------------------------------------
+   With one workspace, a folder icon and a name were enough. With a list of
+   them the eye needs something to recognise *before* it reads, so every
+   workspace wears a small monogram tile in a hue derived from its path
+   (`ui/WorkspaceMark.tsx`). The hues are the existing `--wb-ic-*` recognition
+   palette — one vocabulary, three themes already resolved.
+   ========================================================================== */
+
+/* --- The identity mark ---------------------------------------------------
+   A tinted tile with an ink-mixed glyph, the same derivation
+   `--wb-patch-add-ink` uses at the top of this file: the hue stays
+   recognisable while the letters keep the luminance small type needs. A
+   saturated fill with reversed text would have been the louder answer and
+   the wrong one — this appears in the title bar of a tool people sit inside
+   for eight hours, next to a logo that is already the accent. */
+.wb-ws-mark {
+  --wb-ws-hue: var(--wb-ic-blue);
+  --wb-ws-size: 28px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--wb-ws-size);
+  height: var(--wb-ws-size);
+  border-radius: calc(var(--wb-ws-size) * 0.28);
+  background: color-mix(in oklab, var(--wb-ws-hue) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--wb-ws-hue) 38%, transparent);
+}
+.wb-ws-mark-text {
+  font-size: calc(var(--wb-ws-size) * 0.4);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: color-mix(in oklab, var(--wb-ws-hue) 58%, var(--ink));
+  /* Two-letter monograms are the reason: the tile is square and the glyphs
+     have to sit optically centred inside it, not flush to a text baseline. */
+  transform: translateY(0.5px);
+}
+/* No corner badge for the primary, on purpose. The first pass floated a
+   honeycomb on the tile — but the row's state line already uses that exact
+   glyph for "BMAD instalado", so one row carried two honeycombs meaning two
+   different things, and at 30px the floated one read as a smudge. The
+   "Principal" group header (always first, always present when the primary
+   matches the filter) says it in words instead. */
+.wb-ws-mark[data-missing] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.wb-ws-mark[data-missing] .wb-ws-mark-text {
+  color: var(--muted);
+}
+
+/* --- The chip, now carrying the mark ------------------------------------- */
+.wb-workspace-chip {
+  gap: var(--s-2);
+  padding: 3px 6px 3px 4px;
+}
+/* A leve workspace says so in the title bar, quietly. It is the one piece of
+   state that changes what the rest of the app can offer, so it is worth the
+   two words — and it is a fact, not a warning, so it wears the neutral ink. */
+.wb-workspace-chip-light {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--rounded-full);
+  font-size: 0.6875rem;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+  white-space: nowrap;
+}
+
+/* Every 11px label on these surfaces uses `--muted`, never `--faint`. The
+   contrast sweep (tools/visual/workspaceContrast.mjs) measured `--faint` at
+   4.18:1 on dark and 3.71:1 on light *here* — the token is documented against
+   `--bg`, and this panel is a raised surface, which eats the margin. `--faint`
+   stays legitimate for the non-text dot and separator below. */
+
+/* --- The switcher panel --------------------------------------------------- */
+.wb-ws-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 400px;
+  max-width: calc(100vw - var(--s-5));
+  padding: var(--s-2);
+}
+/* The popover arrow points at the chip, which is exactly the relationship
+   this panel has — kept, and recoloured to the panel's own surface. */
+.wb-ws-panel + .hds-popover-arrow,
+.wb-ws-panel .hds-popover-arrow {
+  fill: var(--surface);
+}
+
+.wb-ws-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-2);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  transition: border-color 160ms ease;
+}
+.wb-ws-search:focus-within {
+  border-color: var(--focus);
+}
+.wb-ws-search-icon {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+.wb-ws-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: none;
+  border: none;
+  outline: none;
+}
+.wb-ws-search-input::placeholder {
+  /* `--muted` clears the 4.5:1 body floor in all three themes; the usual
+     `--faint` placeholder would not, and a filter field people are meant to
+     type into is not the place to lose the hint. */
+  color: var(--muted);
+}
+/* Outlined rather than filled: the ink-tint fill darkened the light theme just
+   enough to drop `--muted` on it to 4.25:1 (measured). A hairline keeps the
+   key-cap read and leaves the text on `--bg-2`, where the token is safe. */
+.wb-ws-search-kbd {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-sm);
+  font-family: var(--ff-body);
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--muted);
+  background: none;
+}
+
+.wb-ws-scroll {
+  overflow-y: auto;
+  max-height: min(52vh, 440px);
+  /* The scroll container is also the focus container: a row focused by the
+     arrow keys must be able to scroll into view without the ring being
+     clipped by the panel's padding. */
+  margin: 0 calc(var(--s-1) * -1);
+  padding: 0 var(--s-1);
+}
+.wb-ws-group {
+  margin: var(--s-2) var(--s-2) var(--s-1);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.wb-ws-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wb-ws-empty {
+  margin: 0;
+  padding: var(--s-5) var(--s-3);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* --- One row -------------------------------------------------------------- */
+.wb-ws-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--rounded-md);
+  transition: background 140ms ease;
+}
+.wb-ws-row:hover,
+.wb-ws-row:focus-within {
+  background: var(--surface-2);
+}
+.wb-ws-row[data-active] {
+  background: var(--selected-bg);
+}
+
+.wb-ws-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  padding: var(--s-2) var(--s-2);
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+}
+.wb-ws-row-main:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+/* The active row and a missing folder are both non-actionable, and for
+   different reasons — so neither is dimmed into looking broken. The active
+   one keeps full contrast (you are reading where you are); only the pointer
+   changes. Keyed on `aria-disabled` because that is what the row actually
+   sets: a real `disabled` attribute would drop both rows out of the focus
+   order, which is where the arrow keys used to stall. */
+.wb-ws-row-main[aria-disabled] {
+  cursor: default;
+}
+.wb-ws-row[data-state='missing'] .wb-ws-row-main[aria-disabled] {
+  opacity: 0.72;
+}
+
+.wb-ws-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.wb-ws-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.wb-ws-row-time {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--s-2);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.wb-ws-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-ws-row-active {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--rounded-full);
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent-tint-ink, var(--accent));
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+}
+
+.wb-ws-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-ws-row-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* The state vocabulary. `managed` wears the accent because the app's own
+   thing is present — not because it is the "good" value; `light` is a
+   deliberate choice and wears the neutral ink, so the other option is never
+   framed as a defect. Only the two genuine anomalies borrow a semantic hue. */
+.wb-ws-row[data-state='managed'] .wb-ws-row-state {
+  color: var(--accent-tint-ink, var(--accent));
+}
+.wb-ws-row[data-state='pending'] .wb-ws-row-state {
+  color: var(--warning-ink, var(--warning));
+}
+.wb-ws-row[data-state='missing'] .wb-ws-row-state {
+  color: var(--danger-ink, var(--danger));
+}
+.wb-ws-row-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  box-shadow: inset 0 0 0 1.5px currentcolor;
+}
+.wb-ws-row-sep {
+  flex-shrink: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: var(--rounded-full);
+  background: var(--faint);
+}
+.wb-ws-row-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* The tail slot holds two things that are never useful at the same time: the
+   jump shortcut (how to get here without the mouse) and the row menu (what
+   else you can do to it). They swap on hover/focus, which keeps a list of
+   eight rows from carrying eight ⋯ buttons at rest. */
+.wb-ws-row-tail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+}
+.wb-ws-row-jump {
+  grid-area: 1 / 1;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--muted);
+  transition: opacity 140ms ease;
+}
+.wb-ws-row-menu {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+.wb-ws-row:hover .wb-ws-row-jump,
+.wb-ws-row:focus-within .wb-ws-row-jump {
+  opacity: 0;
+}
+.wb-ws-row:hover .wb-ws-row-menu,
+.wb-ws-row:focus-within .wb-ws-row-menu,
+.wb-ws-row-menu[data-state='open'] {
+  opacity: 1;
+}
+.wb-ws-row-menu:hover,
+.wb-ws-row-menu[data-state='open'] {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+.wb-ws-row-menu:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-ws-row-menu-content {
+  min-width: 200px;
+}
+
+/* --- Adding one ----------------------------------------------------------- */
+.wb-ws-add {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--rounded-md) var(--rounded-md);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.wb-ws-add svg {
+  color: var(--muted);
+  transition: color 140ms ease;
+}
+.wb-ws-add:hover {
+  background: var(--surface-2);
+}
+.wb-ws-add:hover svg {
+  color: var(--accent);
+}
+.wb-ws-add:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* --- Rename --------------------------------------------------------------- */
+.wb-ws-rename-label {
+  display: block;
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-ws-rename-hint {
+  margin: var(--s-2) 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* --- The kind gate -------------------------------------------------------- */
+.wb-wskind-card {
+  max-width: 620px;
+}
+.wb-wskind-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+.wb-wskind-head-text {
+  min-width: 0;
+}
+.wb-wskind-head .wb-gate-title {
+  margin: 0;
+  text-align: left;
+}
+/* The folder's real path, under the question. It is the single most useful
+   thing on this screen — the user is about to decide whether files may be
+   written into it — so it is shown in full and in the monospace stack the
+   rest of the app uses for paths, not paraphrased. */
+.wb-wskind-path {
+  margin: 4px 0 0;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.wb-wskind-card .wb-gate-desc {
+  text-align: left;
+  margin-bottom: var(--s-5);
+  max-width: 62ch;
+}
+/* What each choice does on disk, named. An adjective ("leve") is a promise;
+   a folder list is a fact the user can go and check. */
+.wb-wskind-detail {
+  display: block;
+  margin-top: var(--s-2);
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.wb-wskind-card .wb-setup-actions {
+  justify-content: flex-end;
+  gap: var(--s-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-ws-row,
+  .wb-ws-row-jump,
+  .wb-ws-row-menu,
+  .wb-ws-add,
+  .wb-ws-add svg,
+  .wb-ws-search {
+    transition: none;
+  }
 }

@@ -379,6 +379,53 @@ for (const theme of THEMES) {
 }
 
 /**
+ * multi-workspace. The switcher panel is a popover behind the title-bar chip,
+ * so an idle work UI never renders it — the same reason the two surfaces above
+ * needed their own test (the M16 rule: an on-demand surface joins the sweep in
+ * the commit that adds it).
+ *
+ * Two states are visited because they paint differently: the list, whose rows
+ * carry a per-workspace hue and a per-state colour, and the empty filter,
+ * which is the only text on the surface when nothing matches.
+ *
+ * The kind gate is deliberately **not** driven here: reaching it means picking
+ * a real folder through the OS dialog, which this suite cannot do. It is
+ * measured instead by `tools/visual/workspaceContrast.mjs`, across all three
+ * themes, from a mocked bridge.
+ */
+for (const theme of THEMES) {
+  test(`@p0 @a11y the workspace switcher meets WCAG AA in the ${theme} theme`, async ({
+    hiveApp
+  }) => {
+    const { window } = hiveApp
+
+    await setTheme(window, theme)
+    await freezeMotion(window)
+
+    await window.locator('.wb-workspace-chip').click()
+    await window.locator('.wb-ws-panel').waitFor({ state: 'visible' })
+
+    const listSamples = await sampleTextContrast(window)
+    expect(listSamples.length).toBeGreaterThan(5)
+    expect(
+      failuresIn(listSamples),
+      `contrast failures in ${theme}, workspace switcher:\n${failuresIn(listSamples).join('\n')}`
+    ).toEqual([])
+
+    // The empty filter: the one state where the panel's only text is the
+    // sentence explaining why it is empty.
+    await window.locator('.wb-ws-search-input').fill('zzzzzz')
+    await window.locator('.wb-ws-empty').waitFor({ state: 'visible' })
+
+    const emptySamples = await sampleTextContrast(window)
+    expect(
+      failuresIn(emptySamples),
+      `contrast failures in ${theme}, switcher empty state:\n${failuresIn(emptySamples).join('\n')}`
+    ).toEqual([])
+  })
+}
+
+/**
  * agent-onboarding (AO-R5). The agent picker lives inside the profile sheet,
  * so the sweep at the top of this file never sees it — same reason the two
  * surfaces above needed their own test. What is new here is the scan strip and

@@ -129,11 +129,13 @@ vi.mock('./WorkUI', () => ({
   WorkUI: ({
     workspace,
     onSelectTheme,
-    onCandidateWorkspace
+    onCandidateWorkspace,
+    onCandidateKind
   }: {
     workspace: string
     onSelectTheme?: (theme: string) => void
-    onCandidateWorkspace?: (path: string) => void
+    onCandidateWorkspace?: (path: string, route: { step: string }) => void
+    onCandidateKind?: (candidatePath: string, returnTo: string) => void
   }) => {
     const [instanceId] = useState(() => Math.random().toString(36).slice(2))
     return createElement(
@@ -149,10 +151,28 @@ vi.mock('./WorkUI', () => ({
           `pick ${theme}`
         )
       ),
+      // The real `WorkUI` opens the workspace itself and reports the route
+      // main resolved for it (multi-workspace); the stand-in does the same,
+      // so App's specs still drive install-vs-update through the bridge
+      // rather than through a route hardcoded here.
       createElement(
         'button',
-        { onClick: () => onCandidateWorkspace?.('/home/user/switched-workspace') },
+        {
+          onClick: () =>
+            void window.hive.openWorkspace('/home/user/switched-workspace').then((result) => {
+              if (result.ok) {
+                onCandidateWorkspace?.('/home/user/switched-workspace', result.route)
+              }
+            })
+        },
         'switch workspace'
+      ),
+      // The other half of the switch surface: a folder that owes the kind
+      // question is reported without being opened.
+      createElement(
+        'button',
+        { onClick: () => onCandidateKind?.('/home/user/fresh-folder', workspace) },
+        'ask workspace kind'
       )
     )
   }
@@ -168,16 +188,29 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     vi.restoreAllMocks()
   })
 
+  /** The `workspaces` namespace stub, so an override can replace one method without hand-rolling the rest. */
+  function defaultWorkspacesMock(): typeof window.hive.workspaces {
+    return {
+      pickFolder: vi.fn().mockResolvedValue(null),
+      preview: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
+      list: vi.fn().mockResolvedValue([]),
+      rename: vi.fn().mockResolvedValue(undefined),
+      adopt: vi.fn().mockResolvedValue(undefined),
+      setPrimary: vi.fn().mockResolvedValue(undefined),
+      forget: vi.fn().mockResolvedValue(true)
+    }
+  }
+
   function mockHive(overrides: Partial<typeof window.hive>): void {
     const defaults: typeof window.hive = {
       platform: 'linux',
       ping: vi.fn().mockResolvedValue('pong'),
-      chooseWorkspace: vi.fn().mockResolvedValue(null),
       openExternal: vi.fn().mockResolvedValue(undefined),
       getWorkspace: vi.fn().mockResolvedValue(null),
       isProvisioned: vi.fn().mockResolvedValue(false),
       provisionState: vi.fn().mockResolvedValue(false),
       getRecentWorkspaces: vi.fn().mockResolvedValue([]),
+      workspaces: defaultWorkspacesMock(),
       openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' }),
       listTree: vi.fn().mockResolvedValue([]),
       listFiles: vi.fn().mockResolvedValue([]),
@@ -332,7 +365,24 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       secondBrain: createHiveSecondBrainMock(),
       whisper: createHiveWhisperMock()
     }
-    window.hive = Object.assign(defaults, overrides)
+    const hive = Object.assign(defaults, overrides)
+    // multi-workspace: routing moved from a bare `provisionState()` call in
+    // `App` into main's `openWorkspace(...).route`. Unless a test overrides it
+    // outright, the fake bridge mirrors main's rule for a **managed**
+    // workspace — BMAD on disk means update, otherwise install — so the specs
+    // below keep expressing their intent as "is BMAD installed here?" instead
+    // of restating a route in every case. The `light`/`choose` routes have
+    // their own dedicated specs, which do override this.
+    if (!overrides.openWorkspace) {
+      hive.openWorkspace = vi.fn(async (path: string) => ({
+        ok: true as const,
+        path,
+        route: (await hive.provisionState(path))
+          ? ({ step: 'update' } as const)
+          : ({ step: 'install', primary: true } as const)
+      }))
+    }
+    window.hive = hive
   }
 
   it('shows the picker screen when no workspace is persisted', async () => {
@@ -426,7 +476,10 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
   it('advances to the guided install screen (not straight to ready) after a fresh pick', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue(null),
-      chooseWorkspace: vi.fn().mockResolvedValue('/home/user/chosen-workspace'),
+      workspaces: {
+        ...defaultWorkspacesMock(),
+        pickFolder: vi.fn().mockResolvedValue('/home/user/chosen-workspace')
+      },
       provisionState: vi.fn().mockResolvedValue(false)
     })
 
@@ -449,7 +502,10 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
     const provisionState = vi.fn().mockResolvedValue(true)
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue(null),
-      chooseWorkspace: vi.fn().mockResolvedValue('/home/user/already-provisioned'),
+      workspaces: {
+        ...defaultWorkspacesMock(),
+        pickFolder: vi.fn().mockResolvedValue('/home/user/already-provisioned')
+      },
       provisionState
     })
 
@@ -490,7 +546,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
   it('stays on the picker screen (no crash) when the user cancels the pick', async () => {
     mockHive({
       getWorkspace: vi.fn().mockResolvedValue(null),
-      chooseWorkspace: vi.fn().mockResolvedValue(null)
+      workspaces: { ...defaultWorkspacesMock(), pickFolder: vi.fn().mockResolvedValue(null) }
     })
 
     render(createElement(App))
@@ -667,6 +723,114 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       expect(await screen.findByText('Configurar o BMAD')).toBeTruthy()
       expect(provisionState).toHaveBeenLastCalledWith('/home/user/switched-workspace')
       expect(screen.queryByText('Atualizando o BMAD')).toBeNull()
+    })
+  })
+
+  /**
+   * multi-workspace: the two routes the single-workspace era had no concept
+   * of — a `light` workspace, which skips every provisioning gate because
+   * Hive writes nothing into it, and `choose`, the one moment the app asks.
+   */
+  describe('multi-workspace routing', () => {
+    it('a light workspace goes straight to the work UI — no install, no update, no second brain', async () => {
+      const installBmad = vi.fn(() => () => {})
+      const updateBmad = vi.fn(() => () => {})
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/notes'),
+        openWorkspace: vi
+          .fn()
+          .mockResolvedValue({ ok: true, path: '/home/user/notes', route: { step: 'ready' } }),
+        installBmad,
+        updateBmad
+      })
+
+      render(createElement(App))
+
+      expect(await screen.findByText('WorkUI: /home/user/notes')).toBeTruthy()
+      // The promise of a light workspace is that nothing is written into it.
+      expect(installBmad).not.toHaveBeenCalled()
+      expect(updateBmad).not.toHaveBeenCalled()
+      expect(window.hive.secondBrain.install).not.toHaveBeenCalled()
+    })
+
+    it('a workspace whose folder vanished between sessions falls back to the picker', async () => {
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/deleted'),
+        openWorkspace: vi.fn().mockResolvedValue({ ok: false, reason: 'missing' })
+      })
+
+      render(createElement(App))
+
+      expect(await screen.findByText('Bem-vindo ao Hive')).toBeTruthy()
+    })
+
+    it('a candidate that owes the kind question shows the gate without writing anything', async () => {
+      const openWorkspace = vi
+        .fn()
+        .mockResolvedValue({ ok: true, path: '/home/user/my-workspace', route: { step: 'ready' } })
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+        openWorkspace
+      })
+
+      render(createElement(App))
+      await screen.findByText('WorkUI: /home/user/my-workspace')
+      openWorkspace.mockClear()
+
+      fireEvent.click(screen.getByText('ask workspace kind'))
+
+      expect(await screen.findByText('Como o Hive deve tratar “fresh-folder”?')).toBeTruthy()
+      expect(openWorkspace).not.toHaveBeenCalled()
+    })
+
+    it('answering the question opens the folder with that kind and routes on the answer', async () => {
+      const openWorkspace = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          path: '/home/user/my-workspace',
+          route: { step: 'ready' }
+        })
+        .mockResolvedValue({ ok: true, path: '/home/user/fresh-folder', route: { step: 'ready' } })
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+        openWorkspace
+      })
+
+      render(createElement(App))
+      await screen.findByText('WorkUI: /home/user/my-workspace')
+      fireEvent.click(screen.getByText('ask workspace kind'))
+      await screen.findByText('Como o Hive deve tratar “fresh-folder”?')
+
+      fireEvent.click(screen.getByText('Workspace leve'))
+      fireEvent.click(screen.getByText('Abrir sem instalar'))
+
+      await waitFor(() =>
+        expect(openWorkspace).toHaveBeenLastCalledWith('/home/user/fresh-folder', 'light')
+      )
+      expect(await screen.findByText('WorkUI: /home/user/fresh-folder')).toBeTruthy()
+    })
+
+    it('cancelling the question puts the workspace it started from back on screen', async () => {
+      const openWorkspace = vi
+        .fn()
+        .mockResolvedValue({ ok: true, path: '/home/user/my-workspace', route: { step: 'ready' } })
+      mockHive({
+        getWorkspace: vi.fn().mockResolvedValue('/home/user/my-workspace'),
+        openWorkspace
+      })
+
+      render(createElement(App))
+      await screen.findByText('WorkUI: /home/user/my-workspace')
+      fireEvent.click(screen.getByText('ask workspace kind'))
+      await screen.findByText('Como o Hive deve tratar “fresh-folder”?')
+      openWorkspace.mockClear()
+
+      fireEvent.click(screen.getByText('Cancelar'))
+
+      expect(await screen.findByText('WorkUI: /home/user/my-workspace')).toBeTruthy()
+      // Cancelling is a true no-op: nothing was opened, nothing was written.
+      expect(openWorkspace).not.toHaveBeenCalled()
     })
   })
 })

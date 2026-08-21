@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, HTMLAttributes, ReactNode } from 'react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Resizable,
-  ResizableHandle,
-  ResizablePanel
-} from '@hive/design-system'
+import { Resizable, ResizableHandle, ResizablePanel } from '@hive/design-system'
 import { t } from './i18n'
 import { FileTree, FileViewer } from './explorer/Explorer'
 import { Chat, type ChatHandle } from './chat/Chat'
@@ -58,6 +48,8 @@ import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './ui/ProfileSheet'
 import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
+import { WorkspaceChip } from './ui/WorkspaceChip'
+import { panelOrder, useWorkspaces, type WorkspaceRoute } from './ui/useWorkspaces'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
 import { UpdateCenter } from './ui/UpdateCenter'
@@ -72,7 +64,7 @@ import { PANE_DRAG_MIME } from './ui/paneDnd'
 import { HiveLogo } from './ui/HiveLogo'
 import { ThemePicker } from './ui/ThemePicker'
 import type { Theme } from './ui/theme'
-import { ChevronDownIcon, FolderIcon, FolderOpenIcon, UserIcon } from './ui/icons'
+import { UserIcon } from './ui/icons'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -86,26 +78,49 @@ function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'
   }
 }
 
+/** Same three failures, worded for the "adicionar workspace" flow rather than a switch. */
+function addErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
+  switch (reason) {
+    case 'missing':
+      return t('workspaces.addErrorMissing')
+    case 'not-a-directory':
+      return t('workspaces.addErrorNotADirectory')
+    case 'unreadable':
+      return t('workspaces.addErrorUnreadable')
+  }
+}
+
+/**
+ * A workspace waiting to be opened, parked behind one of the two switch
+ * guards. `askKind` travels with it (multi-workspace) because the guards can
+ * defer a switch for a long time — the answer to "does this folder still owe
+ * the user a question?" was computed before the guard and must survive it.
+ */
+interface SwitchCandidate {
+  path: string
+  askKind: boolean
+}
+
 interface WorkUIProps {
   /** Absolute path to the provisioned, up-to-date workspace. */
   workspace: string
   theme: Theme
   onSelectTheme: (theme: Theme) => void
   /**
-   * T7 (WS-R1/R7): reports a resolved candidate workspace path once the user
-   * picks "Abrir pasta…" or a Recentes entry from the workspace chip menu.
-   * `WorkUI` only resolves the candidate here — it does NOT itself switch to
-   * it (no guard, no re-provisioning). That's T8's job (WS-R4/R5): the
-   * unsaved-work guard and the actual `checkingProvisioned` re-entry belong
-   * to the caller.
-   *
-   * TODO(T8): `App.tsx` does not yet pass this prop when instantiating
-   * `WorkUI` — wire `onCandidateWorkspace` there to the switch-guard +
-   * `checkingProvisioned` re-entry handler described in design.md §4/§5.
-   * Left unwired here deliberately: T7 must not touch `App.tsx` (owned by a
-   * concurrent task).
+   * WS-R1/R7 + multi-workspace: reports a workspace that has just been opened
+   * (through the unsaved-work guard) along with the route main resolved for
+   * it, so `App` can render the install / update / work screen it needs.
+   * `WorkUI` owns the guard and the opening; `App` owns which screen shows.
    */
-  onCandidateWorkspace?: (path: string) => void
+  onCandidateWorkspace?: (path: string, route: WorkspaceRoute) => void
+  /**
+   * multi-workspace: reports a folder the user picked that Hive has never
+   * seen, carries no BMAD, and isn't the first workspace — the one case that
+   * owes the user the kind question. Nothing has been written or switched at
+   * this point, which is why the caller also gets the workspace to return to
+   * if the question is cancelled.
+   */
+  onCandidateKind?: (candidatePath: string, returnTo: string) => void
   /**
    * Active app-wide role (role-personalization) — seeds both shortcut sets.
    * Chosen once at first access (shortcut-scopes): read here, never written,
@@ -143,12 +158,6 @@ function buildPanels(
     panels.push(renderers[pane]())
   }
   return panels
-}
-
-/** Last path segment of an absolute workspace path (both separators, so a Windows path renders its folder name too). */
-function workspaceName(workspace: string): string {
-  const segments = workspace.split(/[/\\]/).filter(Boolean)
-  return segments[segments.length - 1] ?? workspace
 }
 
 /** Up to two initials from the display name ("Gustavo Bruno" → "GB", "Gustavo" → "G"); `null` when unset — the avatar then falls back to a person glyph. */
@@ -318,6 +327,7 @@ export function WorkUI({
   theme,
   onSelectTheme,
   onCandidateWorkspace,
+  onCandidateKind,
   role = null,
   agents = [],
   defaultAgent = null,
@@ -397,7 +407,10 @@ export function WorkUI({
   const [dragPane, setDragPane] = useState<PaneId | null>(null)
   const [dropHint, setDropHint] = useState<PaneDropHint | null>(null)
   const [chipMenuOpen, setChipMenuOpen] = useState(false)
-  const [recents, setRecents] = useState<string[]>([])
+  // multi-workspace: the registry the switcher renders and the `Ctrl+1…9`
+  // jump resolves against — one store, so the two can never disagree about
+  // which workspace is in which position.
+  const workspaces = useWorkspaces(workspace)
   // role-personalization + shortcut-scopes: the two resolved shortcut sets
   // (role defaults, or the user's custom selection per scope) — `start` for
   // the chat hero, `during` for the composer strip. Loaded once here so both
@@ -649,56 +662,60 @@ export function WorkUI({
   }, [tour])
   // The candidate path currently blocked behind the three-way unsaved-work
   // dialog (WS-R5.1/R5.3); `null` means no guard dialog is open.
-  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null)
+  const [pendingSwitch, setPendingSwitch] = useState<SwitchCandidate | null>(null)
   // WS-R6.3: a non-fatal message when the last switch attempt's
   // `openWorkspace` call failed — the current workspace stays active.
   const [switchError, setSwitchError] = useState<string | null>(null)
 
-  /** WS-R1.2/R1.4: loads the MRU list fresh each time the chip menu opens, excluding the currently-active workspace so the user never "switches" to where they already are. */
+  /** Re-reads the registry whenever the panel opens, so a folder deleted or provisioned outside the app tells the truth. */
   const handleChipMenuOpenChange = useCallback(
     (open: boolean) => {
       setChipMenuOpen(open)
-      if (!open) return
-      window.hive
-        .getRecentWorkspaces()
-        .then((paths) => setRecents(paths.filter((path) => path !== workspace)))
-        .catch(() => setRecents([]))
+      if (open) workspaces.reload()
     },
-    [workspace]
+    [workspaces]
   )
 
   // T8 (WS-R4.5 extended to this entry point, WS-R6.3): the actual "proceed"
   // step of the switch pipeline — validates + persists `path` as the active
-  // workspace via `openWorkspace`, then, only on success, hands it off to
-  // `onCandidateWorkspace` (App's `handleSwitchWorkspace`, T5), which is
-  // what actually re-enters the onboarding gate / remounts `WorkUI`. A
-  // failure surfaces a clear, non-fatal error and leaves the current
-  // workspace untouched — `onCandidateWorkspace` is never called.
+  // workspace via `openWorkspace`, then, only on success, hands it and the
+  // route main resolved for it off to `onCandidateWorkspace` (App's
+  // `handleSwitchWorkspace`), which is what re-enters the onboarding gate /
+  // remounts `WorkUI`. A failure surfaces a clear, non-fatal error and leaves
+  // the current workspace untouched — `onCandidateWorkspace` is never called.
+  //
+  // `askKind` (multi-workspace) short-circuits before any of that: the folder
+  // is new, unprovisioned and secondary, so the app owes the user a question
+  // before it writes anything or leaves the current workspace.
   const proceedSwitch = useCallback(
-    async (path: string): Promise<void> => {
+    async (path: string, askKind = false): Promise<void> => {
       setSwitchError(null)
+      if (askKind) {
+        onCandidateKind?.(path, workspace)
+        return
+      }
       const result = await window.hive.openWorkspace(path)
       if (result.ok) {
-        onCandidateWorkspace?.(path)
+        onCandidateWorkspace?.(path, result.route)
       } else {
         setSwitchError(switchErrorMessage(result.reason))
       }
     },
-    [onCandidateWorkspace]
+    [onCandidateWorkspace, onCandidateKind, workspace]
   )
 
   // The candidate parked behind the agent-review pending-set switch guard
   // (ACR-R4.3), separate from the editor-dirty guard below.
-  const [pendingReviewSwitch, setPendingReviewSwitch] = useState<string | null>(null)
+  const [pendingReviewSwitch, setPendingReviewSwitch] = useState<SwitchCandidate | null>(null)
 
   // T8 (WS-R5.1/R5.3): the editor-dirty half of the switch guard — dirty parks
   // the candidate behind the three-way unsaved dialog; clean proceeds.
   const continueSwitch = useCallback(
-    (path: string) => {
+    (candidate: SwitchCandidate) => {
       if (editor.dirtyPaths.size > 0) {
-        setPendingSwitch(path)
+        setPendingSwitch(candidate)
       } else {
-        void proceedSwitch(path)
+        void proceedSwitch(candidate.path, candidate.askKind)
       }
     },
     [editor.dirtyPaths, proceedSwitch]
@@ -708,27 +725,78 @@ export function WorkUI({
   // non-empty pending review set (ACR-R4.3) is guarded first; then the
   // editor-dirty guard runs.
   const requestSwitch = useCallback(
-    (path: string) => {
+    (candidate: SwitchCandidate) => {
       if (review.pendingCount > 0) {
-        setPendingReviewSwitch(path)
+        setPendingReviewSwitch(candidate)
       } else {
-        continueSwitch(path)
+        continueSwitch(candidate)
       }
     },
     [review.pendingCount, continueSwitch]
   )
 
-  /** WS-R1.2: "Abrir pasta…" resolves a candidate via the native picker; a cancelled picker (null) is a no-op (WS-R4.5). */
-  const handleChooseFolder = useCallback(() => {
-    window.hive
-      .chooseWorkspace()
-      .then((path) => {
-        if (path) requestSwitch(path)
+  /** Switching to a workspace that is already in the list — the common case. */
+  const switchToWorkspace = useCallback(
+    (path: string) => requestSwitch({ path, askKind: false }),
+    [requestSwitch]
+  )
+
+  /**
+   * "Adicionar workspace…" (multi-workspace): pick a folder, ask main what
+   * opening it would mean — *without persisting anything* — and only then
+   * enter the guard. Splitting preview from open is what lets the kind
+   * question be asked before the folder is touched, so cancelling it leaves
+   * the app exactly as it was. A cancelled picker (null) is a no-op (WS-R4.5).
+   */
+  const handleAddWorkspace = useCallback(() => {
+    window.hive.workspaces
+      .pickFolder()
+      .then(async (path) => {
+        if (!path) return
+        const preview = await window.hive.workspaces.preview(path)
+        if (!preview.ok) {
+          setSwitchError(addErrorMessage(preview.reason))
+          return
+        }
+        requestSwitch({ path, askKind: preview.route.step === 'choose' })
       })
       .catch(() => {
         // Picker failure is a no-op here — no partial candidate to report.
       })
   }, [requestSwitch])
+
+  /**
+   * `Ctrl/Cmd+1…9` jumps straight to the Nth workspace in the panel's order
+   * (the browser-tab / Slack muscle memory). Bound to the same list the panel
+   * renders, so what the row advertises is what the key does.
+   */
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return
+      const position = Number(event.key)
+      if (!Number.isInteger(position) || position < 1 || position > 9) return
+      // The panel's order, not the raw registry's: the row that advertises
+      // `Ctrl+N` and the workspace `Ctrl+N` opens have to be the same one.
+      const target = panelOrder(workspaces.list)[position - 1]
+      if (!target || target.path === workspace || target.missing) return
+      event.preventDefault()
+      switchToWorkspace(target.path)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [workspaces.list, workspace, switchToWorkspace])
+
+  /** `Ctrl/Cmd+Shift+W` opens the switcher — the panel's own advertised shortcut. */
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'w') {
+        event.preventDefault()
+        handleChipMenuOpenChange(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleChipMenuOpenChange])
 
   // "Cancelar" (WS-R4.5 extended to the switch guard): dismiss the dialog,
   // no state change beyond that — the switch never happened.
@@ -867,9 +935,9 @@ export function WorkUI({
   // comment for why this skips a defensive null-check branch): proceed with
   // the switch, dropping the viewer's unsaved edits.
   const handleDiscardSwitch = useCallback(() => {
-    const path = pendingSwitch as string
+    const candidate = pendingSwitch as SwitchCandidate
     setPendingSwitch(null)
-    void proceedSwitch(path)
+    void proceedSwitch(candidate.path, candidate.askKind)
   }, [pendingSwitch, proceedSwitch])
 
   // "Salvar": flush every dirty tab's draft first (each viewer's own
@@ -879,10 +947,10 @@ export function WorkUI({
   // dialog/error inline — this just dismisses the switch guard and aborts
   // the switch, same as the in-viewer guard's own "Salvar" choice.
   const handleSaveSwitch = useCallback(() => {
-    const path = pendingSwitch as string
+    const candidate = pendingSwitch as SwitchCandidate
     setPendingSwitch(null)
     void editor.saveAllDirty().then((ok) => {
-      if (ok) void proceedSwitch(path)
+      if (ok) void proceedSwitch(candidate.path, candidate.askKind)
     })
   }, [pendingSwitch, editor, proceedSwitch])
 
@@ -1067,54 +1135,14 @@ export function WorkUI({
             reading the accessibility tree, where the drawing says nothing. */}
             <HiveLogo className="wb-topbar-logo" aria-label={t('app.title')} />
             <span className="wb-topbar-sep" aria-hidden="true" />
-            <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="wb-workspace-chip"
-                  title={t('workUI.workspaceChipTitle', workspace)}
-                  aria-label={t('workUI.workspaceChipAria', workspace)}
-                >
-                  <FolderIcon size={14} className="wb-workspace-chip-icon" />
-                  <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
-                  <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
-                </button>
-              </DropdownMenuTrigger>
-              {chipMenuOpen && (
-                <DropdownMenuContent align="start" className="wb-workspace-menu">
-                  <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={handleChooseFolder}>
-                    <span className="wb-menu-item-icon" aria-hidden="true">
-                      <FolderOpenIcon size={15} />
-                    </span>
-                    <span className="wb-menu-item-text">
-                      <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
-                    </span>
-                  </DropdownMenuItem>
-                  {recents.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
-                      {recents.map((path) => (
-                        <DropdownMenuItem
-                          key={path}
-                          title={path}
-                          onSelect={() => requestSwitch(path)}
-                        >
-                          <span className="wb-menu-item-icon" aria-hidden="true">
-                            <FolderIcon size={15} />
-                          </span>
-                          <span className="wb-menu-item-text">
-                            <span className="wb-menu-item-title">{workspaceName(path)}</span>
-                            <span className="wb-menu-item-sub">{path}</span>
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                </DropdownMenuContent>
-              )}
-            </DropdownMenu>
+            <WorkspaceChip
+              workspace={workspace}
+              workspaces={workspaces}
+              open={chipMenuOpen}
+              onOpenChange={handleChipMenuOpenChange}
+              onSwitch={switchToWorkspace}
+              onAdd={handleAddWorkspace}
+            />
             <div className="wb-topbar-spacer" />
             <ThemePicker theme={theme} onSelectTheme={onSelectTheme} />
             {/* Profile avatar (top-right, the desktop-app convention): the user's
@@ -1228,19 +1256,19 @@ export function WorkUI({
               count={review.pendingCount}
               onCancel={() => setPendingReviewSwitch(null)}
               onKeep={() => {
-                const path = pendingReviewSwitch
+                const candidate = pendingReviewSwitch
                 setPendingReviewSwitch(null)
-                continueSwitch(path)
+                continueSwitch(candidate)
               }}
               onAcceptAll={() => {
-                const path = pendingReviewSwitch
+                const candidate = pendingReviewSwitch
                 setPendingReviewSwitch(null)
-                void review.acceptAll().then(() => continueSwitch(path))
+                void review.acceptAll().then(() => continueSwitch(candidate))
               }}
               onRejectAll={() => {
-                const path = pendingReviewSwitch
+                const candidate = pendingReviewSwitch
                 setPendingReviewSwitch(null)
-                void review.rejectAll().then(() => continueSwitch(path))
+                void review.rejectAll().then(() => continueSwitch(candidate))
               }}
             />
           )}

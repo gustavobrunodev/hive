@@ -6,18 +6,22 @@ import { WorkspacePicker } from './onboarding/WorkspacePicker'
 import { AgentSetup } from './onboarding/AgentSetup'
 import { RoleSetup } from './onboarding/RoleSetup'
 import { GuidedInstall } from './onboarding/GuidedInstall'
+import { WorkspaceKindChoice, type WorkspaceKind } from './onboarding/WorkspaceKindChoice'
 import { UpdateGate } from './onboarding/UpdateGate'
 import { SecondBrainGate } from './onboarding/SecondBrainGate'
 import { THEME_STORAGE_KEY, readStoredTheme, type Theme } from './ui/theme'
+import type { WorkspaceRoute } from './ui/useWorkspaces'
 import { WorkUI } from './WorkUI'
 
 /**
  * First-run + relaunch gate state (design.md §5.1–§5.2, tasks T6 + T9 + T10):
  *  - `checking`: initial `getWorkspace()` call is still in flight.
  *  - `picker`: no workspace persisted — show the workspace-pick screen.
- *  - `checkingProvisioned`: a workspace is known, checking `provisionState()`
- *    (disk-based, for this specific path) to decide between `installing` and
- *    `updating`.
+ *  - `routing`: a workspace is known — main is asked what it owes this
+ *    specific path (multi-workspace: `light`/`managed`, BMAD on disk or not),
+ *    and the verdict picks the next screen.
+ *  - `choosingKind`: a folder has been picked but nothing written yet — the
+ *    one moment the app asks whether it may install BMAD there.
  *  - `installing`: workspace known but not yet BMAD-provisioned — guided
  *    install screen (T9). Completing it goes straight to `ready` (a
  *    just-provisioned workspace doesn't need an update in the same launch).
@@ -31,11 +35,48 @@ type OnboardingState =
   | { status: 'picker' }
   | { status: 'setupAgent'; workspacePath: string }
   | { status: 'setupRole'; workspacePath: string }
-  | { status: 'checkingProvisioned'; workspacePath: string }
+  | { status: 'routing'; workspacePath: string }
+  | {
+      status: 'choosingKind'
+      /** Picked but not yet committed — nothing is persisted until the user answers. */
+      candidatePath: string
+      /** Where "Cancelar" goes back to; `null` only if there was nowhere to go back to. */
+      returnTo: string | null
+    }
   | { status: 'installing'; workspacePath: string }
   | { status: 'updating'; workspacePath: string }
   | { status: 'provisioningSecondBrain'; workspacePath: string }
   | { status: 'ready'; workspacePath: string }
+
+/**
+ * Turns main's routing verdict into the screen that serves it
+ * (multi-workspace). All the rules live in `workspaceService.routeFor` — this
+ * is the projection, so install-vs-update-vs-ask can be unit-tested in the
+ * main process without a window, and the renderer can never drift from it.
+ *
+ * `returnTo` is where a cancelled `choose` goes back to: the workspace that
+ * was active when the user started adding one.
+ */
+function stateForRoute(
+  path: string,
+  route: WorkspaceRoute,
+  returnTo: string | null
+): OnboardingState {
+  switch (route.step) {
+    case 'install':
+      return { status: 'installing', workspacePath: path }
+    case 'update':
+      return { status: 'updating', workspacePath: path }
+    case 'ready':
+      return { status: 'ready', workspacePath: path }
+    case 'choose':
+      return { status: 'choosingKind', candidatePath: path, returnTo }
+    case 'missing':
+      // The folder went away between sessions: back to the first-run picker
+      // rather than a dead work UI pointed at nothing.
+      return { status: 'picker' }
+  }
+}
 
 /**
  * Routes a known workspace to the next onboarding step (multi-agent /
@@ -51,7 +92,7 @@ function routeAfterWorkspace(
 ): OnboardingState {
   if (enabledAgents.length === 0) return { status: 'setupAgent', workspacePath }
   if (!role) return { status: 'setupRole', workspacePath }
-  return { status: 'checkingProvisioned', workspacePath }
+  return { status: 'routing', workspacePath }
 }
 
 function App(): React.JSX.Element {
@@ -96,22 +137,21 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  // Once a workspace is known (persisted, or just picked), decide between
-  // the guided install (T9) and the auto-update gate (T10) based on a
-  // disk-based provisionState() check for this specific workspacePath
-  // (WS-R3.3: routing must depend on the selected path, not a global
-  // config flag — R2.3, R8.2: a returning user's remembered workspace
-  // updates before the work UI; a fresh/unprovisioned one installs first).
+  // Once a workspace is known (persisted, or just picked), ask main what it
+  // owes this specific path and render the screen that serves the answer
+  // (WS-R3.3: routing depends on the selected path, never on a global config
+  // flag — R2.3, R8.2). Opening it here is also what refreshes its MRU rank,
+  // so the switcher's order is a fact about the app, not a guess.
   useEffect(() => {
-    if (onboarding.status !== 'checkingProvisioned') return
+    if (onboarding.status !== 'routing') return
     let cancelled = false
     const { workspacePath } = onboarding
-    window.hive.provisionState(workspacePath).then((provisioned) => {
+    window.hive.openWorkspace(workspacePath).then((result) => {
       if (cancelled) return
+      // A workspace that can no longer be opened (folder deleted between
+      // sessions) drops back to the picker rather than into a dead work UI.
       setOnboarding(
-        provisioned
-          ? { status: 'updating', workspacePath }
-          : { status: 'installing', workspacePath }
+        result.ok ? stateForRoute(workspacePath, result.route, null) : { status: 'picker' }
       )
     })
     return () => {
@@ -120,11 +160,14 @@ function App(): React.JSX.Element {
   }, [onboarding])
 
   const handleChooseWorkspace = useCallback(() => {
-    window.hive.chooseWorkspace().then((path) => {
+    window.hive.workspaces.pickFolder().then((path) => {
       // Cancelled pick resolves null — stay on the picker screen as-is. A
       // first-time user still needs the required agent + role steps before the
       // work UI; a returning one (agents+role already set) skips them.
-      if (path) setOnboarding(routeAfterWorkspace(path, agents, role))
+      if (!path) return
+      void window.hive.openWorkspace(path).then((result) => {
+        if (result.ok) setOnboarding(routeAfterWorkspace(path, agents, role))
+      })
     })
   }, [agents, role])
 
@@ -146,7 +189,7 @@ function App(): React.JSX.Element {
   const handleRoleSetupComplete = useCallback((workspacePath: string, roleId: string) => {
     void window.hive.profile.setRole(roleId)
     setRoleState(roleId)
-    setOnboarding({ status: 'checkingProvisioned', workspacePath })
+    setOnboarding({ status: 'routing', workspacePath })
   }, [])
 
   // Live profile changes from the work UI's profile sheet (multi-agent).
@@ -208,11 +251,31 @@ function App(): React.JSX.Element {
   // Note: the unsaved-work guard + session teardown (WS-R5) is T8's job,
   // layered inside WorkUI before it calls onCandidateWorkspace — this
   // handler only performs the state re-entry.
-  const handleSwitchWorkspace = useCallback((workspacePath: string) => {
-    setOnboarding({ status: 'checkingProvisioned', workspacePath })
+  const handleSwitchWorkspace = useCallback((workspacePath: string, route: WorkspaceRoute) => {
+    // `WorkUI` has already opened the workspace (that is what produced
+    // `route`), so this is the projection step only — no second round trip.
+    setOnboarding(stateForRoute(workspacePath, route, null))
   }, [])
 
-  if (onboarding.status === 'checking' || onboarding.status === 'checkingProvisioned') {
+  /**
+   * multi-workspace: the user picked a folder that Hive has never seen and
+   * that carries no BMAD, and there is already a primary workspace — so the
+   * kind question is owed. Nothing has been persisted at this point; the
+   * active workspace is still whatever it was, which is what `returnTo`
+   * carries so "Cancelar" can put it back on screen.
+   */
+  const handleCandidateKind = useCallback((candidatePath: string, returnTo: string) => {
+    setOnboarding({ status: 'choosingKind', candidatePath, returnTo })
+  }, [])
+
+  /** The kind answer — the first moment anything about this folder is written. */
+  const handleKindChosen = useCallback((candidatePath: string, kind: WorkspaceKind) => {
+    void window.hive.openWorkspace(candidatePath, kind).then((result) => {
+      if (result.ok) setOnboarding(stateForRoute(candidatePath, result.route, null))
+    })
+  }, [])
+
+  if (onboarding.status === 'checking' || onboarding.status === 'routing') {
     return (
       <main className="wb-gate">
         <div className="wb-gate-inner">
@@ -245,6 +308,21 @@ function App(): React.JSX.Element {
   if (onboarding.status === 'setupRole') {
     const { workspacePath } = onboarding
     return <RoleSetup onComplete={(roleId) => handleRoleSetupComplete(workspacePath, roleId)} />
+  }
+
+  if (onboarding.status === 'choosingKind') {
+    const { candidatePath, returnTo } = onboarding
+    return (
+      <WorkspaceKindChoice
+        path={candidatePath}
+        onConfirm={(kind) => handleKindChosen(candidatePath, kind)}
+        onCancel={() =>
+          setOnboarding(
+            returnTo ? { status: 'ready', workspacePath: returnTo } : { status: 'picker' }
+          )
+        }
+      />
+    )
   }
 
   if (onboarding.status === 'installing') {
@@ -288,6 +366,7 @@ function App(): React.JSX.Element {
       theme={theme}
       onSelectTheme={setTheme}
       onCandidateWorkspace={handleSwitchWorkspace}
+      onCandidateKind={handleCandidateKind}
       // Lifted profile state (multi-agent + role-personalization): the role,
       // the enabled agent set + default, and change handlers, so the action
       // rail, intent grid and chat all react to a profile change made in the

@@ -1016,6 +1016,68 @@ regressão da feature, mas não foi isolado.
 
 ---
 
+## M24 — Múltiplos workspaces, com um principal ✅ Done (2026-08-20)
+
+**Feature:** `multi-workspace` · branch `feat/voice-prompt` (continua M13–M23).
+Spec/design em `.specs/features/multi-workspace/`.
+
+**O pedido.** Vários workspaces, como no VS Code. O principal obrigatoriamente
+com o BMAD instalado; os secundários podem ou não ter — e isso deve ser
+perguntado no melhor momento durante a criação/seleção de um workspace novo.
+
+### O que estava errado antes
+
+O app tinha um workspace de cada vez, e **todo** workspace passava pelos portões
+de instalação do BMAD → update → segundo cérebro antes da UI de trabalho. Abrir
+a pasta de um repositório de terceiros só para conversar com o agente sobre ela
+escrevia `_bmad/`, `.claude/skills/` e `second-brain/` dentro dela. Não havia
+como dizer não, porque não havia onde perguntar: escolher a pasta e commitar
+com ela eram a mesma chamada.
+
+### O que mudou
+
+O `workspacePath` mais a MRU de caminhos viraram um **registro**: cada workspace
+tem nome, tipo (`managed` | `light`), sinalizador de principal e recência. As
+invariantes — caminhos únicos, exatamente um principal, principal sempre
+`managed` — são impostas em toda leitura e escrita, não verificadas. Um usuário
+que já tinha workspaces encontra a lista povoada na primeira abertura.
+
+Escolher a pasta deixou de persistir. `pickFolder()` → `preview(path)` → (a
+pergunta, se for devida) → `open(path, kind)`. É esse corte que permite
+perguntar antes de escrever, e é por isso que cancelar a pergunta é um no-op de
+verdade. A pergunta aparece **uma vez**, e só quando é genuína: pasta
+secundária, nova, sem `_bmad/` no disco — o primeiro workspace da vida do app é
+o principal e não é questionado, e uma pasta que já tem BMAD é adotada.
+
+O menuzinho "Abrir pasta… / Recentes" virou um painel: filtro por nome e por
+caminho, `Ctrl+1…9` para pular, e ações por linha (tornar principal, instalar o
+BMAD aqui, renomear, remover da lista). Cada workspace ganhou uma marca
+determinística — monograma numa matiz derivada do caminho — porque, com uma
+lista, reconhecer precisa ser possível antes de ler.
+
+### Exit criteria
+
+| Critério | Veredito |
+|---|---|
+| Vários workspaces persistidos, com exatamente um principal | **Sim.** Registro em `Config.workspaces`, invariantes impostas por `sanitizeWorkspaces` (testadas com registro corrompido à mão). |
+| O principal sempre tem o BMAD | **Sim.** Forçado no store *e* no serviço: promover um workspace leve o converte e o manda pelo portão de instalação. |
+| A pergunta no momento certo, uma vez só | **Sim.** `routeFor` responde `choose` apenas para pasta secundária, nova e sem BMAD; testes cobrem as outras quatro rotas. |
+| Cancelar não escreve nada | **Sim.** `preview` é read-only; `App.test.ts` afirma que `openWorkspace` não é chamado. |
+| Workspace leve não recebe nenhuma pasta | **Sim.** Rota `ready` pula install, update e segundo cérebro — asseverado com os três espiões. |
+| Migração de quem já usava | **Sim.** Ativo vira principal, recentes viram secundários, todos `managed`; E2E real em Electron faz a troca A→B→C com config semeado. |
+| Sem regressão | **Sim.** `npm run verify` verde: typecheck, **0 erros** de lint, **3791** testes, gate de cobertura incluído. |
+| Passe visual, três temas | **Sim.** 18 seletores × 4 estados × 3 temas, ALL PASS depois de corrigir seis reprovações reais; sweep de contraste em Electron real verde nos três temas. |
+
+### O que ficou aberto
+
+Uma janela por workspace (a forma literal do VS Code) foi decidida contra: o
+registro está pronto para um segundo `BrowserWindow`, mas o pool de sessões do
+agente, os watchers de fs e a escrita concorrente no config precisariam ser
+repensados. Converter `managed` → `light` não existe de propósito — deixaria um
+`_bmad/` para trás e faria do rótulo uma mentira.
+
+---
+
 ## Dependency Graph
 
 ```
