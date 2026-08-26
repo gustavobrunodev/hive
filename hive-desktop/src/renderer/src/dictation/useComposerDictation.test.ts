@@ -32,7 +32,7 @@ vi.mock('./micCapture', async (importOriginal) => {
 })
 
 function engineReturning(text: string): DictationEngine {
-  return { phase: { status: 'idle' }, transcribe: async () => text }
+  return { phase: { status: 'idle' }, transcribe: async () => text, warm: async () => {} }
 }
 
 /** Feeds `ms` of audio at one level, in 32 ms ticks. */

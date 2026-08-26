@@ -87,7 +87,7 @@ function fakeCapture(): FakeCapture {
 }
 
 function fakeEngine(text = '', phase: WhisperPhase = { status: 'idle' }): DictationEngine {
-  return { phase, transcribe: async () => text }
+  return { phase, transcribe: async () => text, warm: async () => {} }
 }
 
 function fakeDeps(capture: FakeCapture, overrides: Partial<DictationDeps> = {}): DictationDeps {
@@ -189,7 +189,11 @@ describe('useDictation', () => {
     const capture = fakeCapture()
     let phase: WhisperPhase = { status: 'idle' }
     const { result, rerender } = renderHook(() =>
-      useDictation(fakeTarget(), { phase, transcribe: async () => '' }, fakeDeps(capture))
+      useDictation(
+        fakeTarget(),
+        { phase, transcribe: async () => '', warm: async () => {} },
+        fakeDeps(capture)
+      )
     )
     await startTake(result, capture)
     expect(result.current.phase.status).toBe('listening')
@@ -230,7 +234,8 @@ describe('useDictation', () => {
     // assertion can see it — with an instant engine it would already be written.
     const engine: DictationEngine = {
       phase: { status: 'idle' },
-      transcribe: () => new Promise(() => {})
+      transcribe: () => new Promise(() => {}),
+      warm: async () => {}
     }
     const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
     await startTake(result, capture)
@@ -269,7 +274,8 @@ describe('useDictation', () => {
       transcribe: () =>
         new Promise<string>((resolve) => {
           settle = resolve
-        })
+        }),
+      warm: async () => {}
     }
     const target = fakeTarget('revisa o ')
     const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
@@ -527,7 +533,8 @@ describe('useDictation', () => {
     const settlers: ((text: string) => void)[] = []
     const engine: DictationEngine = {
       phase: { status: 'warming' },
-      transcribe: () => new Promise<string>((resolve) => settlers.push(resolve))
+      transcribe: () => new Promise<string>((resolve) => settlers.push(resolve)),
+      warm: async () => {}
     }
     const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
     await startTake(result, capture)
@@ -568,7 +575,8 @@ describe('useDictation', () => {
         attempt += 1
         if (attempt === 1) throw new Error('sessão falhou')
         return 'recuperada'
-      }
+      },
+      warm: async () => {}
     }
     const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
     await startTake(result, capture)
@@ -596,7 +604,8 @@ describe('useDictation', () => {
       phase: { status: 'idle' },
       transcribe: async () => {
         throw new Error('modelo sumiu')
-      }
+      },
+      warm: async () => {}
     }
     const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
     await startTake(result, capture)
@@ -625,7 +634,8 @@ describe('useDictation', () => {
       transcribe: () =>
         new Promise<string>((resolve) => {
           settle = resolve
-        })
+        }),
+      warm: async () => {}
     }
     const { result } = renderHook(() => useDictation(target, engine, fakeDeps(capture)))
     await startTake(result, capture)
@@ -646,52 +656,105 @@ describe('useDictation', () => {
     expect(result.current.phase.status).toBe('idle')
   })
 
-  it('pre-warms only on intent, only once, and never during a take (D-VP-6)', async () => {
+  /**
+   * D-VP-6, rewritten by the streaming work.
+   *
+   * Pre-warming used to mean pushing a tenth of a second of fake silence
+   * through `transcribe`, which is why it had to be refused during a take: it
+   * competed for the single pipeline slot the take itself needed. It is now a
+   * real `warm()` on the engine — a session build, no audio, chained behind
+   * whatever is running and idempotent inside the process-wide client. So the
+   * rules this asserts are the new ones: nothing at mount, a build on intent,
+   * no fake audio, and **allowed** mid-take.
+   */
+  it('pre-warms on intent, without pushing audio through the engine (D-VP-6)', async () => {
     const capture = fakeCapture()
     const transcribe = vi.fn<(pcm: Float32Array) => Promise<string>>(async () => '')
+    const warm = vi.fn(async () => {})
     const { result } = renderHook(() =>
-      useDictation(fakeTarget(), { phase: { status: 'idle' }, transcribe }, fakeDeps(capture))
+      useDictation(fakeTarget(), { phase: { status: 'idle' }, transcribe, warm }, fakeDeps(capture))
     )
 
     // Nothing at mount: a user who never dictates downloads nothing.
+    expect(warm).not.toHaveBeenCalled()
+
+    await act(async () => {
+      result.current.prewarm()
+    })
+    expect(warm).toHaveBeenCalledTimes(1)
+    // A build, never a transcription — the old trick cost a full inference pass.
     expect(transcribe).not.toHaveBeenCalled()
-
-    await act(async () => {
-      result.current.prewarm()
-    })
-    expect(transcribe).toHaveBeenCalledTimes(1)
-    // Silence, not a take.
-    const prewarmPcm = transcribe.mock.calls[0][0]
-    expect(prewarmPcm.length).toBeGreaterThan(0)
-    expect([...prewarmPcm].every((sample) => sample === 0)).toBe(true)
-
-    // Hovering again costs nothing.
-    await act(async () => {
-      result.current.prewarm()
-    })
-    expect(transcribe).toHaveBeenCalledTimes(1)
-
-    // And it never steals the single pipeline slot from a live take.
-    await startTake(result, capture)
-    await act(async () => {
-      result.current.prewarm()
-    })
-    expect(transcribe).toHaveBeenCalledTimes(1)
   })
 
-  it('lets a failed pre-warm be retried on the next intent', async () => {
+  /**
+   * Pressing the microphone is the clearest statement of intent there is, and
+   * it is the path hover cannot cover: the keyboard toggle, the shortcut, and
+   * the model gate's remembered intent after a download all used to reach a
+   * cold engine and pay the whole session build with the first phrase.
+   */
+  it('starts warming the moment capture starts, not when the first phrase is ready', async () => {
     const capture = fakeCapture()
-    const transcribe = vi.fn().mockRejectedValueOnce(new Error('rede caiu')).mockResolvedValue('')
+    const warm = vi.fn(async () => {})
     const { result } = renderHook(() =>
-      useDictation(fakeTarget(), { phase: { status: 'idle' }, transcribe }, fakeDeps(capture))
+      useDictation(
+        fakeTarget(),
+        { phase: { status: 'idle' }, transcribe: async () => '', warm },
+        fakeDeps(capture)
+      )
+    )
+
+    await startTake(result, capture)
+    expect(warm).toHaveBeenCalled()
+  })
+
+  it('a failed pre-warm is swallowed — the user has not asked for anything yet', async () => {
+    const capture = fakeCapture()
+    const warm = vi.fn().mockRejectedValue(new Error('rede caiu'))
+    const { result } = renderHook(() =>
+      useDictation(
+        fakeTarget(),
+        { phase: { status: 'idle' }, transcribe: async () => '', warm },
+        fakeDeps(capture)
+      )
     )
 
     await act(async () => {
       result.current.prewarm()
     })
+    expect(result.current.phase.status).toBe('idle')
+  })
+
+  /** The partial text the transport shows, relayed from the engine. */
+  it('exposes the running partial of the segment being transcribed', async () => {
+    const capture = fakeCapture()
+    let report: ((text: string) => void) | undefined
+    let settle: ((text: string) => void) | undefined
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: (_pcm, options) =>
+        new Promise<string>((resolve) => {
+          report = options?.onPartial
+          settle = resolve
+        }),
+      warm: async () => {}
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
     await act(async () => {
-      result.current.prewarm()
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
     })
-    expect(transcribe).toHaveBeenCalledTimes(2)
+    await act(async () => {
+      report?.('olá squ')
+    })
+    expect(result.current.partial).toBe('olá squ')
+
+    // Once the segment is written, the provisional line goes: leaving it would
+    // show the same words twice.
+    await act(async () => {
+      settle?.('olá squad')
+    })
+    expect(result.current.partial).toBe('')
   })
 })

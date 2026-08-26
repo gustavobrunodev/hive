@@ -37,7 +37,19 @@ export interface SegmenterConfig {
    * — see the header — a short segment costs a full pipeline slot anyway.
    */
   minSpeechMs: number
-  /** Hard ceiling for one segment. */
+  /**
+   * Hard ceiling for one segment — the only thing that cuts someone who does
+   * not pause.
+   *
+   * It was 15 s, on the T1 evidence that an 11 s take still transcribed in
+   * 3.9 s. That measured throughput, and throughput was never the complaint:
+   * a speaker in full flow saw **nothing** for fifteen seconds plus the
+   * transcription, which is a long time to wonder whether the microphone is
+   * working. Lowered to 9 s now that the engine runs off the main thread (so a
+   * denser queue no longer costs frames) and that partial text arrives during
+   * the segment anyway. Cutting mid-phrase is the price, which is exactly why
+   * this is a ceiling and not the usual boundary — silence still is.
+   */
   maxSegmentMs: number
   /** Audio kept from before onset, so the first phoneme survives. */
   preRollMs: number
@@ -55,7 +67,7 @@ export const DEFAULT_SEGMENTER_CONFIG: SegmenterConfig = {
   rmsMargin: 0.015,
   silenceHoldMs: 700,
   minSpeechMs: 2000,
-  maxSegmentMs: 15_000,
+  maxSegmentMs: 9000,
   preRollMs: 300,
   tailPadMs: 200,
   silenceNoticeMs: 3000,

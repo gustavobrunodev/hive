@@ -146,7 +146,15 @@ function mockHive(
       get: vi.fn().mockResolvedValue({ start: options.prefs ?? null, during: null }),
       set
     },
-    profile: { roleActions: vi.fn().mockResolvedValue(PM_DEFAULTS) },
+    profile: {
+      roleActions: vi.fn().mockResolvedValue(PM_DEFAULTS),
+      // M26: the create form names the agents it can build with, from the same
+      // roster the chat's switcher uses.
+      agents: vi.fn().mockResolvedValue([
+        { id: 'claude-cli', displayName: 'Claude Code' },
+        { id: 'copilot-cli', displayName: 'GitHub Copilot' }
+      ])
+    },
     agent: {
       capabilities: vi.fn().mockResolvedValue({
         models: [
@@ -172,7 +180,7 @@ interface Callbacks {
   onOpenFile: ReturnType<typeof vi.fn>
 }
 
-function renderStudio(): Callbacks {
+function renderStudio(props: { agents?: string[]; defaultAgent?: string | null } = {}): Callbacks {
   const callbacks: Callbacks = {
     onLaunch: vi.fn(),
     onOpenChange: vi.fn(),
@@ -184,6 +192,8 @@ function renderStudio(): Callbacks {
       open: true,
       workspace: '/ws',
       role: 'pm',
+      agents: props.agents ?? ['claude-cli', 'copilot-cli'],
+      defaultAgent: props.defaultAgent ?? 'claude-cli',
       ...callbacks
     })
   )
@@ -397,8 +407,69 @@ describe('SkillStudio', () => {
 
     expect(onLaunch.mock.calls.at(-1)?.[1]).toMatchObject({
       newConversation: true,
+      agentId: 'claude-cli',
       model: 'sonnet',
       effort: 'high'
+    })
+  })
+
+  /**
+   * M26 — the build *is* a conversation, so whoever the create form picks is
+   * also whoever the user goes on talking to. Before this the studio silently
+   * inherited the app default, which meant a squad running Copilot in chat
+   * still had every skill built by Claude.
+   */
+  describe('choosing the builder agent', () => {
+    async function openCreateForm(): Promise<void> {
+      fireEvent.click(await screen.findByRole('button', { name: /Uma skill/ }))
+      fireEvent.change(screen.getByPlaceholderText('ex.: Revisor de release notes'), {
+        target: { value: 'Guia de Estilo' }
+      })
+      fireEvent.change(
+        screen.getByPlaceholderText(
+          'Descreva o objetivo, quando deve ser usada e como é um bom resultado. Quanto mais contexto, melhor o construtor trabalha.'
+        ),
+        { target: { value: 'Aplicar o guia de estilo.' } }
+      )
+    }
+
+    it('rides the chosen agent into the launch, alongside model and effort', async () => {
+      mockHive({ created: [] })
+      const { onLaunch } = renderStudio()
+      await openCreateForm()
+
+      const copilot = await screen.findByRole('radio', { name: /GitHub Copilot/ })
+      fireEvent.click(copilot)
+
+      await waitFor(() => expect(copilot.getAttribute('aria-checked')).toBe('true'))
+      fireEvent.click(screen.getByRole('button', { name: /Criar com o Construtor/ }))
+
+      expect(onLaunch.mock.calls.at(-1)?.[1]).toMatchObject({
+        newConversation: true,
+        agentId: 'copilot-cli'
+      })
+    })
+
+    it('re-reads capabilities for the agent it switched to', async () => {
+      mockHive({ created: [] })
+      renderStudio()
+      await openCreateForm()
+      await waitFor(() => expect(screen.getAllByRole('combobox').length).toBe(2))
+
+      fireEvent.click(screen.getByRole('radio', { name: /GitHub Copilot/ }))
+
+      await waitFor(() =>
+        expect(window.hive.agent.capabilities).toHaveBeenCalledWith('copilot-cli')
+      )
+    })
+
+    it('offers no picker at all when there is only one agent to pick', async () => {
+      mockHive({ created: [] })
+      renderStudio({ agents: ['claude-cli'] })
+      await openCreateForm()
+
+      await waitFor(() => expect(screen.getAllByRole('combobox').length).toBe(2))
+      expect(screen.queryByRole('radio', { name: /Claude Code/ })).toBeNull()
     })
   })
 })

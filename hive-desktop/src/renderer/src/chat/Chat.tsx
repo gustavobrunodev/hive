@@ -43,11 +43,12 @@ import { FileMentionMenu } from './FileMentionMenu'
 import { extractMentions, mentionSegments } from './composerMentions'
 import { composerBackdrop } from './composerBackdrop'
 import { DictationBar } from '../dictation/DictationBar'
+import { VoiceModelGate } from '../voice/VoiceModelGate'
+import { useVoiceGate } from '../voice/useVoiceGate'
 import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
-import { useTranscriptionModel } from '../secondBrain/whisper/useWhisperPreference'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
 import { AttachmentTray } from './AttachmentTray'
@@ -168,7 +169,14 @@ export interface ChatHandle {
    * for that turn. Used by the studio's "Criar" so a generation always starts
    * clean, on the model the user picked, without disturbing work in flight.
    */
-  launchCreation: (action: RoleAction, opts?: { model?: string; effort?: string }) => void
+  /**
+   * skill-studio: opens a fresh conversation and runs the builder in it, on the
+   * agent/model/effort the create form picked.
+   */
+  launchCreation: (
+    action: RoleAction,
+    opts?: { model?: string; effort?: string; agentId?: string }
+  ) => void
   /** session-history: clears the pane into a fresh, not-yet-persisted conversation. */
   newConversation: () => void
   /** session-history: restores a stored conversation's transcript into the pane. */
@@ -196,6 +204,8 @@ interface ChatProps {
   defaultAgent: string | null
   /** Opens the profile sheet's agent section (the switcher's "Gerenciar agentes…"). */
   onManageAgents?: () => void
+  /** Opens Perfil › Voz e transcrição — the model gate's way out to the full library. */
+  onOpenVoiceSettings?: () => void
   /** Display name for the empty-state hero greeting ("Olá <nome>, …"). */
   userName?: string | null
   /** session-history: notifies the work UI which stored conversation is on screen (highlight in the history panel). */
@@ -785,6 +795,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     agents,
     defaultAgent,
     onManageAgents = () => {},
+    onOpenVoiceSettings = () => {},
     userName = null,
     onSessionChange,
     onRunningSessionsChange,
@@ -872,18 +883,33 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // setting existed and this surface, the one people dictate into most, was
   // not covered by it. `DEFAULT_MODEL` now covers only the round trip before
   // main answers, which no take can start inside.
-  const { phase: whisperPhase, transcribe: whisperTranscribe } = useWhisper()
-  const dictationModel = useTranscriptionModel()
+  //
+  // M26: the model can be **absent** — the app ships none, so pressing the
+  // microphone on a fresh install has no honest outcome. `useVoiceGate` owns
+  // that: it holds the live preference, answers `null` while nothing is
+  // installed, and remembers the take the user asked for across the download.
+  const { phase: whisperPhase, transcribe: whisperTranscribe, warm: whisperWarm } = useWhisper()
+  const voiceGate = useVoiceGate()
+  const dictationModel = voiceGate.model
   const dictationEngine = useMemo<DictationEngine>(
     () =>
       // A real Whisper pass would add a 278 MB download and ~4 s to every E2E
       // run; the seam returns null in every other context.
       e2eDictationEngine() ?? {
         phase: whisperPhase,
-        transcribe: (pcm) =>
-          whisperTranscribe(pcm, { model: dictationModel, language: DEFAULT_LANGUAGE })
+        transcribe: (pcm, options) =>
+          whisperTranscribe(pcm, {
+            ...options,
+            // `?? undefined` rather than a default id: a take cannot start
+            // without a model (the gate sees to that), so this only covers the
+            // IPC round trip, where the engine's own default is the honest
+            // answer and inventing one here would hide the gap.
+            model: dictationModel ?? undefined,
+            language: DEFAULT_LANGUAGE
+          }),
+        warm: () => whisperWarm(dictationModel ?? undefined)
       },
-    [whisperPhase, whisperTranscribe, dictationModel]
+    [whisperPhase, whisperTranscribe, whisperWarm, dictationModel]
   )
   const dictation = useComposerDictation({
     value: composerValue,
@@ -1152,15 +1178,26 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   )
 
   const startWorkflowTurn = useCallback(
-    (command: WorkflowCommand, label: string, opts?: { model?: string; effort?: string }) => {
+    (
+      command: WorkflowCommand,
+      label: string,
+      opts?: { model?: string; effort?: string; agentId?: string }
+    ) => {
       const resume = cliSessionRef.current
       const conversationId = sessionIdRef.current ?? undefined
       const turnId = beginTurn(label)
       // multi-agent: the turn runs on THIS conversation's agent. Per-turn
       // model/effort (skill-studio override, else the current selection) travel
       // along; `undefined` lets the agent's CLI use its own default.
+      //
+      // `opts.agentId` exists for exactly one caller — a studio creation, which
+      // opens a fresh conversation on the agent the user picked in the create
+      // form. It cannot read `activeAgent` for that: `setConversationAgent` was
+      // called one line earlier and React state does not update mid-callback,
+      // so the turn would go to the *previous* agent while the badge showed the
+      // new one.
       window.hive.agent.runWorkflow(command, {
-        agentId: activeAgent ?? undefined,
+        agentId: opts?.agentId ?? activeAgent ?? undefined,
         resume,
         turnId,
         conversationId,
@@ -1498,8 +1535,12 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // being interrupted. The studio's chosen model/effort ride along per-turn,
   // so this never restarts (and so tears down) the shared session.
   const launchCreation = useCallback(
-    (action: RoleAction, opts?: { model?: string; effort?: string }) => {
+    (action: RoleAction, opts?: { model?: string; effort?: string; agentId?: string }) => {
       newConversation()
+      // The chosen agent becomes this conversation's agent, so the badge, the
+      // switcher's lock and every follow-up turn agree with the one that is
+      // actually running the build.
+      if (opts?.agentId !== undefined) setConversationAgent(opts.agentId)
       startWorkflowTurn(action.command, action.command.prompt ?? `/${action.command.key}`, opts)
     },
     [newConversation, startWorkflowTurn]
@@ -1751,9 +1792,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           aria-label={t('dictation.start')}
           aria-pressed={dictation.active}
           title={t('dictation.startHint')}
-          onPointerEnter={dictation.prewarm}
-          onFocus={dictation.prewarm}
-          onClick={() => (dictation.active ? dictation.finish() : dictation.start())}
+          // Warming a model that is not there would be a download nobody
+          // asked for, so hovering only preheats once one exists.
+          onPointerEnter={voiceGate.blocked ? undefined : dictation.prewarm}
+          onFocus={voiceGate.blocked ? undefined : dictation.prewarm}
+          onClick={() => (dictation.active ? dictation.finish() : voiceGate.guard(dictation.start))}
         >
           <MicIcon size={15} />
         </button>
@@ -1970,6 +2013,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 phase={dictation.phase}
                 levels={dictation.levels}
                 failure={dictation.failure}
+                partial={dictation.partial}
                 onFinish={dictation.finish}
                 onDiscard={dictation.discard}
                 onRetry={dictation.retry}
@@ -2059,6 +2103,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   const composer = renderComposer()
 
+  /* M26: reaching for the microphone with no model installed opens the way to
+     get one, right here — and the take the user asked for starts by itself once
+     it lands. Rendered in BOTH branches below: the composer (and its
+     microphone) is present on the empty hero too, and a gate that only existed
+     inside a started conversation would leave the very first dictation — the
+     one most likely to hit this — with nowhere to go. */
+  const voiceModelGate = (
+    <VoiceModelGate
+      open={voiceGate.open}
+      onOpenChange={voiceGate.setOpen}
+      onOpenSettings={onOpenVoiceSettings}
+    />
+  )
+
   if (isEmpty) {
     return (
       <div className="wb-chat">
@@ -2072,6 +2130,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           userName={userName}
           onCustomize={customizeHandler(onCustomizeShortcuts, 'start')}
         />
+        {voiceModelGate}
       </div>
     )
   }
@@ -2157,6 +2216,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           <p className="wb-composer-hint">{t('chat.composerHint')}</p>
         </div>
       </div>
+
+      {voiceModelGate}
     </div>
   )
 })

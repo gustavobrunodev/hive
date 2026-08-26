@@ -50,6 +50,12 @@ export default defineConfig({
     }
   },
   renderer: {
+    // Whisper's dictation worker is loaded via `new Worker(..., { type: 'module' })`.
+    // Vite's default worker output format is 'iife', which Rollup rejects once the
+    // main build is code-split — must match with 'es'.
+    worker: {
+      format: 'es'
+    },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')

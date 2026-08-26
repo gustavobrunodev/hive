@@ -47,12 +47,11 @@ export const WHISPER_SCHEME_PRIVILEGES = {
  * signature is what lets an arbitrary (attacker-supplied) hostname be looked up
  * safely — an unknown key simply yields `undefined` and the request is refused.
  *
- * A host maps to a **search path**, not a single directory, because the same
- * model can live in two places: the copy a user downloaded into `userData`, and
- * the copy that ships inside the app's `resources/`. Order is priority, and the
- * guard below is applied to each root independently, so adding the bundled
- * directory widens what can be served without widening where a crafted path can
- * reach.
+ * A host maps to a **search path**, not a single directory. Today it holds
+ * exactly one root — the download store in `userData`, since the app ships no
+ * weights — but the shape is kept because the guard below is applied to each
+ * root independently, so a second root would widen what can be served without
+ * widening where a crafted path can reach.
  */
 export interface WhisperProtocolRoots {
   models: string | readonly string[]

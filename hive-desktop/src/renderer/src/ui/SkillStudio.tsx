@@ -27,6 +27,8 @@ import {
   type StudioCommand
 } from './studioPrompts'
 import type { RoleAction } from './ActionRail'
+import { agentVisual } from './agentVisuals'
+import type { SwitchableAgent } from './AgentSwitcher'
 import {
   ArrowLeftIcon,
   FileTextIcon,
@@ -72,6 +74,13 @@ export interface StudioLaunchOpts {
   newConversation?: boolean
   model?: string
   effort?: string
+  /**
+   * multi-agent: which agent drives the build — and, because the build *is* a
+   * conversation, which agent the user goes on talking to. The studio used to
+   * silently inherit the app default, which meant a squad running Copilot in
+   * chat still had every skill built by Claude.
+   */
+  agentId?: string
 }
 
 interface SkillStudioProps {
@@ -79,6 +88,10 @@ interface SkillStudioProps {
   onOpenChange: (open: boolean) => void
   workspace: string
   role: string | null
+  /** multi-agent: enabled agent ids, in display order — the builder's pool. */
+  agents?: string[]
+  /** multi-agent: the app default, which a build starts on unless changed. */
+  defaultAgent?: string | null
   /**
    * background-turns: whether any conversation is currently generating — the
    * create form uses it to reassure that launching a build won't drop it (it
@@ -288,6 +301,10 @@ function EmptyState({
  * of how the chat keeps model/effort as session state.
  */
 interface RunConfig {
+  /** multi-agent: the enabled agents, with display names for the cards. */
+  agents: SwitchableAgent[]
+  agent: string | null
+  onAgentChange: (id: string) => void
   models: AgentOption[]
   efforts: AgentOption[]
   model: string | null
@@ -305,52 +322,93 @@ interface RunConfig {
  * the composer's borderless compact variant) so they read as form fields
  * alongside the name/idea inputs.
  */
+function AgentChoice({ config }: { config: RunConfig }): React.JSX.Element | null {
+  if (config.agents.length < 2) return null
+  return (
+    <div className="wb-studio-agents" role="radiogroup" aria-label={t('studio.agentLabel')}>
+      {config.agents.map((agent) => {
+        const visual = agentVisual(agent.id)
+        const selected = agent.id === config.agent
+        return (
+          <button
+            key={agent.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className="wb-studio-agent"
+            style={{ ['--agent-accent' as string]: `var(${visual.accentVar})` }}
+            onClick={() => config.onAgentChange(agent.id)}
+          >
+            <span className="wb-studio-agent-mark" aria-hidden="true">
+              <visual.icon size={16} />
+            </span>
+            <span className="wb-studio-agent-name">{agent.displayName}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** One capability select — rendered only when the chosen agent exposes it. */
+function RunSelect({
+  label,
+  description,
+  value,
+  options,
+  loading,
+  onChange
+}: {
+  label: string
+  description?: string
+  value: string | null
+  options: AgentOption[]
+  loading: boolean
+  onChange: (id: string) => void
+}): React.JSX.Element | null {
+  if (options.length === 0) return null
+  return (
+    <Field label={label} description={description} className="wb-studio-run-field">
+      <Select value={value ?? undefined} onValueChange={onChange} disabled={loading}>
+        <SelectTrigger aria-label={label}>
+          <SelectValue placeholder={t('studio.runConfigLoading')} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
+}
+
 function StudioRunConfig({ config }: { config: RunConfig }): React.JSX.Element {
+  const noLevers = !config.loading && config.models.length === 0 && config.efforts.length === 0
   return (
     <fieldset className="wb-studio-run" disabled={config.loading}>
       <legend className="wb-studio-run-legend">{t('studio.runConfigLegend')}</legend>
+      <AgentChoice config={config} />
       <div className="wb-studio-run-grid">
-        <Field label={t('studio.modelLabel')} className="wb-studio-run-field">
-          <Select
-            value={config.model ?? undefined}
-            onValueChange={config.onModelChange}
-            disabled={config.loading}
-          >
-            <SelectTrigger aria-label={t('studio.modelLabel')}>
-              <SelectValue placeholder={t('studio.runConfigLoading')} />
-            </SelectTrigger>
-            <SelectContent>
-              {config.models.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field
+        <RunSelect
+          label={t('studio.modelLabel')}
+          value={config.model}
+          options={config.models}
+          loading={config.loading}
+          onChange={config.onModelChange}
+        />
+        <RunSelect
           label={t('studio.effortLabel')}
           description={t('studio.effortHint')}
-          className="wb-studio-run-field"
-        >
-          <Select
-            value={config.effort ?? undefined}
-            onValueChange={config.onEffortChange}
-            disabled={config.loading}
-          >
-            <SelectTrigger aria-label={t('studio.effortLabel')}>
-              <SelectValue placeholder={t('studio.runConfigLoading')} />
-            </SelectTrigger>
-            <SelectContent>
-              {config.efforts.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+          value={config.effort}
+          options={config.efforts}
+          loading={config.loading}
+          onChange={config.onEffortChange}
+        />
       </div>
+      {noLevers && <p className="wb-studio-run-none">{t('studio.runConfigNoLevers')}</p>}
     </fieldset>
   )
 }
@@ -561,6 +619,8 @@ function StudioDialog({
   onOpenChange,
   workspace,
   role,
+  agents = [],
+  defaultAgent = null,
   hasRunningConversation = false,
   onLaunch,
   onShortcutsChanged,
@@ -583,16 +643,50 @@ function StudioDialog({
     models: AgentOption[]
     efforts: AgentOption[]
   } | null>(null)
+  const [agentId, setAgentId] = useState<string | null>(defaultAgent)
   const [model, setModel] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
+  // id → displayName for the agent cards. Same source as the chat's switcher,
+  // so the two surfaces name the same agent the same way.
+  const [agentNames, setAgentNames] = useState<Record<string, string>>({})
+
+  const activeAgentId = agentId ?? defaultAgent ?? agents[0] ?? null
+
+  /**
+   * Capabilities follow the **chosen** agent, and the selection resets with it.
+   *
+   * Model ids are not portable across agents — Claude's `opus` means nothing to
+   * Copilot — and an agent may expose no effort at all, so carrying the
+   * previous pick across a switch would send the CLI a flag it cannot parse.
+   * The same rule the chat composer already follows on an agent switch.
+   */
+  useEffect(() => {
+    let cancelled = false
+    // Named-and-invoked (the repo's `load()` pattern) so the reset is not a
+    // bare synchronous `setState` in the effect body — react-hooks'
+    // set-state-in-effect rule. The reset itself matters: the selects have to
+    // go back to "Carregando…" while the new agent's capabilities are in
+    // flight, or they show the previous agent's model ids as if they applied.
+    function clearWhileLoading(): void {
+      setCapabilities(null)
+    }
+    clearWhileLoading()
+    void window.hive.agent.capabilities(activeAgentId ?? undefined).then((caps) => {
+      if (cancelled) return
+      setCapabilities({ models: caps.models, efforts: caps.efforts })
+      setModel(caps.models[0]?.id ?? null)
+      setEffort(caps.efforts[0]?.id ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [activeAgentId])
 
   useEffect(() => {
     let cancelled = false
-    void window.hive.agent.capabilities().then((caps) => {
+    void window.hive.profile.agents().then((list) => {
       if (cancelled) return
-      setCapabilities({ models: caps.models, efforts: caps.efforts })
-      setModel((current) => current ?? caps.models[0]?.id ?? null)
-      setEffort((current) => current ?? caps.efforts[0]?.id ?? null)
+      setAgentNames(Object.fromEntries(list.map((meta) => [meta.id, meta.displayName])))
     })
     return () => {
       cancelled = true
@@ -655,12 +749,13 @@ function StudioDialog({
     (final: Draft) => {
       onLaunch(commandAction(buildCreationCommand(final)), {
         newConversation: true,
+        agentId: activeAgentId ?? undefined,
         model: model ?? undefined,
         effort: effort ?? undefined
       })
       onOpenChange(false)
     },
-    [onLaunch, onOpenChange, model, effort]
+    [onLaunch, onOpenChange, activeAgentId, model, effort]
   )
 
   const handleTogglePin = useCallback(
@@ -781,6 +876,9 @@ function StudioDialog({
                 onCreate={handleCreate}
                 hasRunningConversation={hasRunningConversation}
                 runConfig={{
+                  agents: agents.map((id) => ({ id, displayName: agentNames[id] ?? id })),
+                  agent: activeAgentId,
+                  onAgentChange: setAgentId,
                   models: capabilities?.models ?? [],
                   efforts: capabilities?.efforts ?? [],
                   model,

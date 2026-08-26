@@ -34,8 +34,13 @@ export interface DictationTarget {
 export interface DictationEngine {
   /** The engine's own phase — real download/load progress (VP-R3.2). */
   phase: WhisperPhase
-  /** Transcribes 16 kHz mono PCM. Downloads and warms first if it must. */
-  transcribe: (pcm: Float32Array) => Promise<string>
+  /**
+   * Transcribes 16 kHz mono PCM. Downloads and warms first if it must.
+   * `onPartial` reports the running text as the engine decodes it.
+   */
+  transcribe: (pcm: Float32Array, options?: { onPartial?: (text: string) => void }) => Promise<string>
+  /** Builds the session ahead of time. Idempotent, and shared app-wide. */
+  warm: () => Promise<void>
 }
 
 export interface DictationDeps {
@@ -60,6 +65,15 @@ export interface Dictation {
   phase: DictationPhase
   /** Live 0–1 levels for the meter. Empty when not capturing. */
   levels: number[]
+  /**
+   * The words of the phrase being transcribed right now, as they arrive.
+   *
+   * The transport shows them; the field never does (see `QueueState.partial`).
+   * This is what closes the gap between finishing a phrase and seeing it: the
+   * first piece lands about a second and a half into a segment, where the whole
+   * segment takes several.
+   */
+  partial: string
   /** True while dictation owns the composer — drives the accent ring. */
   active: boolean
   /** Opens the microphone. Never waits on the engine (VP-R3.1, D-VP-5). */
@@ -263,6 +277,13 @@ export function useDictation(
     })()
     sink.clear()
     startedAtRef.current = Date.now()
+    // Pressing the microphone is the clearest statement of intent there is, so
+    // the session starts building **now** rather than when the first phrase is
+    // ready for it. Hover already warmed for pointer users; this covers the
+    // keyboard, the shortcut, and the gate's remembered intent after a
+    // download — the paths where the first phrase used to wait for the whole
+    // build with nothing on screen to explain why.
+    sink.prewarm(false)
     // Capture is announced as live *before* the engine is consulted: pressing
     // the microphone never waits on a download or a 51 s session build
     // (D-VP-5, measured in the T1 spike).
@@ -312,12 +333,16 @@ export function useDictation(
   return {
     phase,
     levels,
+    partial: sink.partial,
     active: phase.status !== 'idle',
     start,
     finish,
     discard,
     failure: sink.failure,
     retry,
-    prewarm: useCallback(() => sink.prewarm(captureRef.current !== null), [sink])
+    // No longer refused mid-take: warming is a session build the worker chains
+    // behind whatever is running, not a fake transcription competing for the
+    // pipeline slot the take needs.
+    prewarm: useCallback(() => sink.prewarm(false), [sink])
   }
 }

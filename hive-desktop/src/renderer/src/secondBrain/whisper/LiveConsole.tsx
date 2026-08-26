@@ -2,6 +2,7 @@ import { LevelMeter } from '@hive/design-system'
 import { t } from '../../i18n'
 import { MicIcon, StopIcon } from '../../ui/icons'
 import type { DictationView } from '../../dictation/dictationCopy'
+import { partialTail } from '../../dictation/partialText'
 import type { DictationPhase } from '../../dictation/phase'
 import { formatElapsed } from './recorderFormat'
 import { currentLevel, liveConsoleView, meterLevels } from './liveConsoleView'
@@ -12,12 +13,27 @@ export interface LiveConsoleProps {
   levels: number[]
   /** A segment failure that has not been retried yet (VP-R4.4). */
   failure: string | null
+  /**
+   * The phrase being transcribed right now, word by word.
+   *
+   * The console is where the wait used to be most visible: a phrase ends, and
+   * several seconds pass before it appears in the document below. Those seconds
+   * now carry the words themselves — provisional, in the console, never in the
+   * draft, because the draft is what the user is about to edit.
+   */
+  partial?: string
   onStart: () => void
   onFinish: () => void
   onDiscard: () => void
   onRetry: () => void
   /** Warms the engine on intent, so the first phrase is not the one that waits. */
-  onPrewarm: () => void
+  /**
+   * Starts the engine warming on hover/focus, or `undefined` when there is
+   * nothing warm to reach for — M26's gate passes nothing while no model is
+   * installed, since preheating there would mean starting a download the user
+   * has not agreed to.
+   */
+  onPrewarm?: () => void
   /** True while the sheet is busy elsewhere (a file batch is transcribing). */
   disabled: boolean
 }
@@ -28,7 +44,13 @@ export interface LiveConsoleProps {
  * Idle teaches, everything else reports — and the reporting half announces
  * politely, so a take can be followed without watching it.
  */
-function Readout({ view }: { view: DictationView | null }): React.JSX.Element {
+function Readout({
+  view,
+  partial
+}: {
+  view: DictationView | null
+  partial: string
+}): React.JSX.Element {
   return (
     <div className="wb-live-readout">
       {view === null ? (
@@ -42,6 +64,15 @@ function Readout({ view }: { view: DictationView | null }): React.JSX.Element {
             {view.status}
           </p>
           {view.hint !== undefined && <p className="wb-live-hint">{view.hint}</p>}
+          {/* `aria-hidden`: this rewrites itself several times a second, which
+              a live region cannot survive — the title above stays the polite
+              announcement. */}
+          {partial !== '' && (
+            <p className="wb-live-partial" aria-hidden="true">
+              <span className="wb-live-partial-label">{t('dictation.partialLabel')}</span>
+              <span className="wb-live-partial-text">{partialTail(partial)}</span>
+            </p>
+          )}
         </>
       )}
     </div>
@@ -138,6 +169,7 @@ export function LiveConsole({
   phase,
   levels,
   failure,
+  partial = '',
   onStart,
   onFinish,
   onDiscard,
@@ -169,7 +201,7 @@ export function LiveConsole({
           <span className="wb-visually-hidden">{buttonLabel}</span>
         </button>
 
-        <Readout view={view} />
+        <Readout view={view} partial={partial} />
 
         {seconds !== null && <Signal seconds={seconds} levels={meterLevels(view, levels)} />}
       </div>

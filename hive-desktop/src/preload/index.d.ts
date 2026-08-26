@@ -58,7 +58,7 @@ import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type {
   HardwareRecommendation,
-  WhisperDownloadEvent,
+  WhisperDownload,
   WhisperModelId,
   WhisperModelInfo,
   WhisperPreference,
@@ -432,23 +432,31 @@ declare global {
         listModels(): Promise<WhisperModelInfo[]>
         modelStatus(
           id: WhisperModelId
-        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null; bundled: boolean }>
-        /** Downloads a model; streams byte progress, returns an unsubscribe. */
-        downloadModel(
-          id: WhisperModelId,
-          variant: WhisperVariant,
-          onEvent: (evt: WhisperDownloadEvent) => void
-        ): () => void
+        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }>
         deleteModel(id: WhisperModelId): Promise<void>
         /** SB-R7.1: best-model-for-this-machine probe; falls back to `base`. */
         recommend(): Promise<HardwareRecommendation>
         /**
          * SB-R7.4: the model transcription actually uses, resolved in main —
-         * the user's pin when it is still usable, the probe's answer otherwise.
+         * the user's pin when it is still usable, the probe's answer otherwise,
+         * and `id: null` when nothing has been downloaded yet.
          */
         preference(): Promise<WhisperPreference>
         /** Pins a model, or returns to automatic with `null`. */
         setPreferredModel(id: WhisperModelId | null): Promise<WhisperPreference>
+        /**
+         * M26 — downloads are owned by **main**, not by the window that started
+         * one. `startDownload` registers (or resumes) a job and returns; the
+         * transfer keeps running whatever this window does next. `onDownloads`
+         * is a read-only view: unsubscribing stops watching, never downloading.
+         */
+        downloads(): Promise<WhisperDownload[]>
+        startDownload(id: WhisperModelId, variant: WhisperVariant): Promise<WhisperDownload>
+        cancelDownload(id: WhisperModelId): Promise<void>
+        dismissDownload(id: WhisperModelId): Promise<void>
+        onDownloads(onSnapshot: (downloads: WhisperDownload[]) => void): () => void
+        /** Endings, on their own channel — a finished job leaves the snapshot. */
+        onDownloadSettled(onSettled: (download: WhisperDownload) => void): () => void
       }
     }
   }

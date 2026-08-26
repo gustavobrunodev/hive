@@ -1,4 +1,0 @@
-[    7771ms] SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.
-    at <anonymous>:72:7
-    at <anonymous>:73:7
-[   23539ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8123/favicon.ico:0

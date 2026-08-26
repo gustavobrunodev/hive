@@ -725,13 +725,17 @@ export const ptBR = {
       'Descreva o objetivo, quando deve ser usada e como é um bom resultado. Quanto mais contexto, melhor o construtor trabalha.',
     withEvalsLabel: 'Gerar evals junto',
     withEvalsHint: 'Casos de teste que medem a skill — depois é só usar "Rodar evals".',
-    // Run configuration (skill-studio): the same model/effort levers as the
-    // chat, so a build launched here runs exactly like one driven by hand.
+    // Run configuration (skill-studio): the same agent/model/effort levers as
+    // the chat, so a build launched here runs exactly like one driven by hand —
+    // and, since the build *is* a conversation, so does everything after it.
     runConfigLegend: 'Como o construtor vai trabalhar',
     runConfigLoading: 'Carregando…',
+    agentLabel: 'Agente',
+    agentHint: 'Quem conduz a construção — e a conversa que vem depois dela.',
     modelLabel: 'Modelo',
     effortLabel: 'Esforço',
     effortHint: 'Quanto o agente raciocina antes de responder.',
+    runConfigNoLevers: 'Este agente não expõe modelo nem esforço — ele decide sozinho.',
     createCta: 'Criar com o Construtor',
     handoffHint:
       'Ao criar, abrimos uma nova conversa e o construtor do BMAD assume o chat para lapidar os detalhes com você.',
@@ -1559,7 +1563,11 @@ export const ptBR = {
     ingestModelRunning: (id: string) => `Transcrevendo com ${id}`,
     ingestModelAuto: (id: string) => `Transcrevendo com ${id}, escolhido para este computador`,
     ingestModelChange: 'Alterar',
-    ingestModelChangeAria: 'Alterar o modelo de transcrição no perfil'
+    ingestModelChangeAria: 'Alterar o modelo de transcrição no perfil',
+    // M26: the app ships no weights, so this surface can be reached with
+    // nothing installed — and the two audio sources above it cannot work.
+    ingestModelMissing: 'Nenhum modelo de transcrição baixado ainda.',
+    ingestModelGet: 'Baixar um modelo'
   },
   /**
    * voice-settings (M25) — the transcription model, which is **one global
@@ -1586,22 +1594,94 @@ export const ptBR = {
     machineCoresValue: (cores: number) => `${cores}`,
     machineUnknown: '—',
     machineMeasuring: 'Avaliando este computador…',
+    // What is transcribing right now — the first question, answered first.
+    inForceLabel: 'Em uso',
+    inForceAuto: 'escolhido pelo Hive',
+    inForcePinned: 'fixado por você',
     // The chooser.
-    chooseLabel: 'Modelo de transcrição',
     autoLabel: 'Automático',
-    autoMeta: (id: string) => `Escolhe pelo seu hardware · ${id}`,
-    tradeoffTiny: 'O mais rápido',
-    tradeoffBase: 'Equilibrado',
-    tradeoffSmall: 'O mais preciso',
-    bundledBadge: 'No aplicativo',
+    autoMeta: (id: string) => `Escolhe pelo seu hardware · hoje seria ${id}`,
+    autoMetaEmpty: 'Escolhe pelo seu hardware assim que houver um modelo baixado',
     recommendedBadge: 'Recomendado',
     englishOnly: 'só inglês',
-    paramsSize: (params: string, mb: number) =>
-      `${params} · ${mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`}`,
-    // The live caption under the group: why *this* model is the one running.
-    captionAuto: (id: string) => `O Hive está usando ${id}.`,
-    captionPinned: (id: string) => `Você fixou ${id}.`,
-    captionPinnedExtra: 'Se você excluir esse modelo, a escolha volta para o automático.',
+    // The character of a model, derived from its own numbers (voice/modelFacts).
+    tradeoffFastest: 'O mais rápido',
+    tradeoffFast: 'Rápido',
+    tradeoffBalanced: 'Equilibrado',
+    tradeoffAccurate: 'O mais preciso',
+    tradeoffBalancedStrong: 'Preciso e rápido',
+    // The two readings that answer "qual eu quero?".
+    meterAccuracy: 'Precisão',
+    meterSpeed: 'Velocidade',
+    meterAria: (label: string, value: number) => `${label}: ${value} de 5`,
+    // The library.
+    installedTitle: 'Seus modelos',
+    libraryTitle: 'Biblioteca',
+    libraryNote:
+      'Modelos maiores transcrevem melhor e demoram mais. Você baixa uma vez e eles ficam disponíveis offline.',
+    catalogEmpty: 'Você já tem todos os modelos do catálogo.',
+    paramsSize: (params: string, size: string) => `${params} · ${size}`,
+    // Sizes and rates, em pt-BR (vírgula decimal).
+    zeroBytes: '0 MB',
+    megabytes: (mb: number) => `${mb} MB`,
+    gigabytes: (gb: string) => `${gb} GB`,
+    rate: (mbps: string) => `${mbps} MB/s`,
+    percent: (pct: number) => `${pct}%`,
+    // Downloads.
+    download: 'Baixar',
+    downloadAria: (id: string) => `Baixar o modelo ${id}`,
+    downloadStarting: 'Preparando o download…',
+    downloadOf: (loaded: string, total: string) => `${loaded} de ${total}`,
+    downloadingAria: (id: string, pct: number) => `Baixando ${id}: ${pct}%`,
+    downloadCancel: 'Cancelar',
+    downloadCancelAria: (id: string) => `Cancelar o download de ${id}`,
+    downloadRetry: 'Tentar de novo',
+    downloadRetryShort: 'Tentar de novo',
+    downloadResume: 'Continuar',
+    etaUnderMinute: 'menos de 1 min restante',
+    etaMinutes: (minutes: number) => `cerca de ${minutes} min restantes`,
+    etaHours: (hours: number) => `cerca de ${String(hours).replace('.', ',')} h restantes`,
+    // Failures — one sentence per cause, each with a next step in it.
+    failOffline: 'A conexão caiu no meio do download.',
+    failServer: 'O servidor dos modelos não respondeu agora.',
+    failNotFound: 'Este modelo não está mais publicado onde o Hive o procura.',
+    failDisk: 'Não há espaço em disco suficiente para este modelo.',
+    failUnsupported: 'Este modelo não publica pesos na precisão que este computador usa.',
+    failUnknown: 'O download parou por um motivo que o Hive não soube ler.',
+    failResumeFrom: (loaded: string) => `Os ${loaded} já baixados continuam aqui.`,
+    dismissFailureAria: (id: string) => `Dispensar o aviso de falha de ${id}`,
+    // Deleting — a confirmation, because the undo is a download.
+    deleteAria: (id: string) => `Excluir o modelo ${id}`,
+    deleteTitle: 'Excluir do computador',
+    deleteConfirmTitle: (id: string) => `Excluir ${id}?`,
+    deleteConfirmText: (size: string) =>
+      `Os arquivos saem deste computador agora. Para usar este modelo de novo você vai baixar ${size} outra vez.`,
+    deleteConfirmKeepCta: 'Manter',
+    deleteConfirmCta: 'Excluir',
+    deleteFailed: 'Não foi possível excluir este modelo agora. Feche o que estiver usando a voz e tente de novo.',
+    useAria: (id: string) => `Usar o modelo ${id}`,
+    // What this computer can and cannot run (voice/modelFit) — measured
+    // ceilings, not warnings invented to sound careful.
+    fitTooLargeTitle: 'Não roda neste computador',
+    fitTooLargeText: (size: string) =>
+      `Um dos arquivos deste modelo tem ${size} e o Hive não consegue carregar um arquivo tão grande sem placa de vídeo compatível.`,
+    fitTooHeavyTitle: 'Pesado demais para esta memória',
+    fitTooHeavyText: (need: string, ram: number) =>
+      `Carregar este modelo pede cerca de ${need} de memória de uma vez, e este computador tem ${ram} GB no total.`,
+    fitLearnMore: 'Escolha um modelo menor — a transcrição fica boa a partir do small.',
+    // The empty state — where a fresh install now starts.
+    emptyTitle: 'Nenhum modelo de voz ainda',
+    emptyText:
+      'O Hive transcreve no seu computador, sem enviar áudio para lugar nenhum. Para isso ele precisa de um modelo — escolha um e baixe uma única vez.',
+    emptyPickLabel: 'Recomendado para este computador',
+    emptyDownloadCta: (size: string) => `Baixar · ${size}`,
+    // The endings, announced wherever the user is.
+    noticeDoneTitle: (id: string) => `${id} está pronto`,
+    noticeDoneText: 'O ditado e a ingestão de áudio já podem usar este modelo.',
+    noticeUseCta: (id: string) => `Usar ${id}`,
+    noticeFailTitle: (id: string) => `O download de ${id} parou`,
+    noticeOpenSettings: 'Abrir Voz e transcrição',
+    noticeDismissAria: 'Dispensar este aviso',
     // Why the probe recommended what it did.
     reasonLowMemory: (ram: number) =>
       `Com ${ram} GB de memória, um modelo leve é o que responde na hora.`,
@@ -1610,27 +1690,37 @@ export const ptBR = {
     reasonNoGpu: 'Sem placa de vídeo dedicada, os modelos maiores levariam minutos por trecho.',
     reasonDiscreteGpu: (ram: number) =>
       `Placa de vídeo dedicada e ${ram} GB de memória dão conta do modelo mais preciso.`,
-    reasonUnknown: 'Não foi possível avaliar este computador — ficando no padrão seguro.',
-    // The downloadable catalog, inline (no second modal on top of the sheet).
-    catalogToggle: (count: number) =>
-      count === 1 ? 'Mais 1 modelo para baixar' : `Mais ${count} modelos para baixar`,
-    catalogToggleAria: 'Mostrar os modelos que precisam de download',
-    catalogNote:
-      'Modelos maiores transcrevem melhor e demoram mais. Baixe uma vez e ficam disponíveis offline.',
-    catalogEmpty: 'Nada mais para baixar — você já tem todos os modelos.',
-    download: 'Baixar',
-    downloadAria: (id: string) => `Baixar o modelo ${id}`,
-    downloading: (pct: number) => `${pct}%`,
-    downloadingAria: (id: string, pct: number) => `Baixando ${id}: ${pct}%`,
-    downloadCancel: 'Cancelar',
-    downloadCancelAria: (id: string) => `Cancelar o download de ${id}`,
-    downloadFailed: 'O download falhou.',
-    downloadRetry: 'Tentar de novo',
-    deleteAria: (id: string) => `Excluir o modelo ${id}`,
-    useAria: (id: string) => `Usar o modelo ${id}`,
-    downloadedBadge: 'Baixado',
-    sizeMb: (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`),
-    speed: (relative: string) => `${relative} mais rápido que o maior`
+    reasonUnknown: 'Não foi possível avaliar este computador — ficando no padrão seguro.'
+  },
+  /**
+   * What the transcription engine says when it fails — in the user's language.
+   *
+   * The engine speaks V8 and onnxruntime, and the transport used to print that
+   * verbatim: a real take ended with "Array buffer allocation failed" on
+   * screen, which names the mechanism and hides the fix.
+   */
+  whisperError: {
+    memory: 'Este modelo não cabe na memória deste computador. Escolha um modelo menor em Perfil › Voz e transcrição.',
+    missing: 'Os arquivos deste modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
+    generic: 'A transcrição falhou neste trecho.'
+  },
+  /**
+   * The gate every recording surface passes through when no model is installed
+   * (M26). It is a way in, not a wall: the download happens here and the take
+   * the user asked for starts by itself when it lands.
+   */
+  voiceGate: {
+    title: 'Escolha um modelo para gravar',
+    description:
+      'A transcrição do Hive roda no seu computador — nenhum áudio sai daqui. Falta só baixar o modelo que vai ouvir você.',
+    chooseAria: 'Modelo de transcrição para baixar',
+    recommendedNote: 'É o que o Hive recomenda para este computador.',
+    downloadCta: (size: string) => `Baixar e gravar · ${size}`,
+    onceOnly: 'Só uma vez — depois funciona offline.',
+    keepsGoing:
+      'Pode fechar — o download continua em segundo plano e o Hive avisa quando terminar.',
+    allModelsCta: 'Ver todos os modelos',
+    emptyCatalog: 'Nenhum modelo pôde ser oferecido aqui.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
@@ -1914,6 +2004,9 @@ export const ptBR = {
     // row is ~15ch wide, and "Escolhe pelo seu hardware · small" truncated to
     // "Escolhe pelo se…" — which says nothing at all.
     autoSummary: (name: string) => `Automático · ${name}`,
+    // voice (M26): the app ships no weights any more, so "nothing yet" is a
+    // real resting state for this row and says so instead of showing a dash.
+    voiceNoneSummary: 'Nenhum modelo baixado',
     summaryUnset: '—',
     nameSectionLabel: 'Seu nome',
     nameFieldLabel: 'Como você quer ser chamado?',
@@ -2088,7 +2181,16 @@ export const ptBR = {
     error: 'Não consegui transcrever este trecho',
     errorKeep: 'Seu áudio está guardado — pode tentar de novo.',
     /** Enviar durante o ditado finaliza antes de enviar (VP-R1.6). */
-    finishAndSend: 'Concluindo o ditado antes de enviar…'
+    finishAndSend: 'Concluindo o ditado antes de enviar…',
+    /**
+     * O texto do trecho que está sendo transcrito **agora**, palavra a palavra.
+     * Fica no transporte, nunca no campo: é um palpite que o próximo token pode
+     * corrigir, e corrigir texto debaixo do cursor de quem está editando é pior
+     * do que esperar. O rótulo existe para que a linha não se confunda com o
+     * que já foi escrito no rascunho.
+     */
+    partialLabel: 'Transcrevendo',
+    partialAria: (text: string) => `Transcrevendo agora: ${text}`
   }
 } as const
 

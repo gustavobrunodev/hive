@@ -63,6 +63,7 @@ import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
 import { McpManager } from './ui/McpManager'
 import { UpdateCenter } from './ui/UpdateCenter'
 import { UpdateNotice } from './ui/UpdateNotice'
+import { VoiceDownloadNotices } from './voice/VoiceDownloadNotices'
 import { useUpdateFlow } from './ui/useUpdateFlow'
 import { FileSearchDialog } from './ui/FileSearchDialog'
 import { DesignStudioViewer } from './designStudio/DesignStudioViewer'
@@ -514,7 +515,11 @@ export function WorkUI({
   // continue the on-screen conversation as before.
   const handleStudioLaunch = useCallback((action: RoleAction, opts?: StudioLaunchOpts) => {
     if (opts?.newConversation) {
-      chatRef.current?.launchCreation(action, { model: opts.model, effort: opts.effort })
+      chatRef.current?.launchCreation(action, {
+        model: opts.model,
+        effort: opts.effort,
+        agentId: opts.agentId
+      })
     } else {
       chatRef.current?.launchAction(action)
     }
@@ -998,6 +1003,7 @@ export function WorkUI({
             agents={agents}
             defaultAgent={defaultAgent}
             onManageAgents={() => openProfile('agents')}
+            onOpenVoiceSettings={() => openProfile('voice')}
             userName={userName}
             onSessionChange={setActiveSessionId}
             onRunningSessionsChange={setRunningSessionIds}
@@ -1228,6 +1234,10 @@ export function WorkUI({
             store={secondBrain}
             onLaunch={launchBrainAction}
             setup={brainSetup}
+            onOpenVoiceSettings={() => {
+              setAskOpen(false)
+              openProfile('voice')
+            }}
           />
           <IngestPanel
             mode={ingestMode}
@@ -1318,18 +1328,33 @@ export function WorkUI({
             onOpenDesignStudio={editor.openDesignStudio}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
-          <UpdateNotice
-            state={updateFlow.state}
-            currentVersion={updateFlow.currentVersion}
-            canApply={updateFlow.canApply}
-            onUpdateNow={updateFlow.updateNow}
-            onNotNow={updateFlow.notNow}
-            onSkip={updateFlow.skip}
-            onCancel={updateFlow.cancel}
-            onRetry={updateFlow.retry}
-            onOpenInstaller={updateFlow.openInstaller}
-            onViewNotes={() => setAppSettingsOpen(true)}
-          />
+          {/* One notification column, bottom-left, above the rail's gear. Both
+              notices are fixed-positioned cards that would otherwise land on
+              the same coordinates; stacking them in one flex column is what
+              keeps a finished model download from covering an update prompt. */}
+          <div className="wb-notice-column">
+            <UpdateNotice
+              state={updateFlow.state}
+              currentVersion={updateFlow.currentVersion}
+              canApply={updateFlow.canApply}
+              onUpdateNow={updateFlow.updateNow}
+              onNotNow={updateFlow.notNow}
+              onSkip={updateFlow.skip}
+              onCancel={updateFlow.cancel}
+              onRetry={updateFlow.retry}
+              onOpenInstaller={updateFlow.openInstaller}
+              onViewNotes={() => setAppSettingsOpen(true)}
+            />
+            {/* M26: a model download outlives every surface that could show it,
+                so its ending is announced here — app-wide, whatever is open. */}
+            <VoiceDownloadNotices
+              onUseModel={(id) => void window.hive.whisper.setPreferredModel(id)}
+              onRetry={(download) =>
+                void window.hive.whisper.startDownload(download.id, download.variant)
+              }
+              onOpenSettings={() => openProfile('voice')}
+            />
+          </div>
           <ShortcutCustomizer
             open={shortcutsScope !== null}
             onOpenChange={(next) => setShortcutsScope(next ? 'start' : null)}
@@ -1348,6 +1373,8 @@ export function WorkUI({
             workspace={workspace}
             role={role}
             hasRunningConversation={runningSessionIds.length > 0}
+            agents={agents}
+            defaultAgent={defaultAgent}
             onLaunch={handleStudioLaunch}
             onShortcutsChanged={refreshShortcuts}
             onOpenFile={editor.openFile}

@@ -2,6 +2,7 @@ import { LevelMeter } from '@hive/design-system'
 import { t } from '../i18n'
 import { formatElapsed } from '../secondBrain/whisper/recorderFormat'
 import { dictationView } from './dictationCopy'
+import { partialTail } from './partialText'
 import type { DictationPhase } from './phase'
 
 /**
@@ -25,6 +26,16 @@ export interface DictationBarProps {
   levels: number[]
   /** A segment failure that has not been retried yet (VP-R4.4). */
   failure: string | null
+  /**
+   * Words of the phrase being transcribed right now, as they decode.
+   *
+   * They are shown here and never written into the field: a partial is a guess
+   * the next token can revise, and revising text under the user's caret is
+   * worse than making them wait. What it buys is the seconds between finishing
+   * a phrase and seeing it — which used to be silent, and read as "it only
+   * transcribes when I stop talking".
+   */
+  partial?: string
   /** Concluir. */
   onFinish: () => void
   /** Descartar / Esc. */
@@ -44,6 +55,7 @@ export function DictationBar({
   phase,
   levels,
   failure,
+  partial = '',
   onFinish,
   onDiscard,
   onRetry,
@@ -85,7 +97,18 @@ export function DictationBar({
       {/* Phase changes announce politely, so a take is followed without sight. */}
       <span className="wb-dictation-status" role="status" aria-live="polite">
         <span className="wb-dictation-status-line">{view.status}</span>
-        {view.hint !== undefined && <span className="wb-dictation-hint">{view.hint}</span>}
+        {/* The partial replaces the hint while it exists: one quiet line under
+            the status, not two competing ones. It is `aria-hidden` on purpose —
+            it changes several times a second, and a live region that rewrites
+            itself that often is unusable with a screen reader; the status line
+            beside it keeps the polite announcements. */}
+        {partial !== '' ? (
+          <span className="wb-dictation-partial" aria-hidden="true">
+            {partialTail(partial)}
+          </span>
+        ) : (
+          view.hint !== undefined && <span className="wb-dictation-hint">{view.hint}</span>
+        )}
       </span>
 
       <span className="wb-dictation-actions">

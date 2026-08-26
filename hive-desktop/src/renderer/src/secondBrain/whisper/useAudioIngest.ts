@@ -44,6 +44,17 @@ export interface AudioJob {
   failure?: AudioFailure
   /** Transcript length, set when `status` is `done` — proof something came out. */
   chars?: number
+  /**
+   * Text decoded so far, while `status` is `transcribing`.
+   *
+   * A recording of any length used to be a single silent wait: the row said
+   * "Transcrevendo…" from the first second to the last, and a meeting recording
+   * can spend minutes there. The engine has always produced its text
+   * incrementally — nothing was listening. Now the row shows the words arriving,
+   * which is both the progress bar this never had and proof that the file was
+   * readable at all.
+   */
+  partial?: string
 }
 
 export interface AudioIngestQueue {
@@ -74,7 +85,13 @@ const nextId = (): string => `audio-${++sequence}`
  */
 export function useAudioIngest(
   whisper: WhisperEngine,
-  model: WhisperModelId,
+  /**
+   * The model to transcribe with, or `null` while none is installed (M26).
+   * The queue never runs in that state — the sheet gates the file picker
+   * behind the model gate — so it is carried through rather than defaulted,
+   * which would let a stray call pick weights that are not on disk.
+   */
+  model: WhisperModelId | null,
   onTranscript: (text: string, name: string) => void
 ): AudioIngestQueue {
   const [jobs, setJobs] = useState<AudioJob[]>([])
@@ -122,9 +139,12 @@ export function useAudioIngest(
         try {
           patch(next.id, { status: 'decoding' })
           const pcm = await decodeToWhisperPcm(blob)
-          patch(next.id, { status: 'transcribing' })
-          const text = await whisper.transcribe(pcm, { model })
-          patch(next.id, { status: 'done', chars: text.length })
+          patch(next.id, { status: 'transcribing', partial: '' })
+          const text = await whisper.transcribe(pcm, {
+            model: model ?? undefined,
+            onPartial: (partial) => patch(next.id, { partial })
+          })
+          patch(next.id, { status: 'done', chars: text.length, partial: undefined })
           transcriptRef.current(text, next.name)
         } catch (error) {
           patch(next.id, { status: 'error', failure: audioErrorMessage(error) })

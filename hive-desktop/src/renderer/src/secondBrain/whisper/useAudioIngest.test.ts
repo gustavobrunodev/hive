@@ -12,7 +12,7 @@ vi.mock('./audio', async (importOriginal) => ({
 }))
 
 function engine(transcribe = vi.fn().mockResolvedValue('transcrito')): WhisperEngine {
-  return { phase: { status: 'idle' }, transcribe, reset: vi.fn() }
+  return { phase: { status: 'idle' }, transcribe, warm: vi.fn().mockResolvedValue(undefined), reset: vi.fn() }
 }
 
 function setup(whisper = engine()): {

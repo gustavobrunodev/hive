@@ -86,6 +86,13 @@ vi.mock('@hive/design-system', () => ({
       ),
       selected ? children : null
     ),
+  // The delete confirmation (M26 bugfix) is a Dialog rendered inside this
+  // sheet: a mock without it throws the moment the trash button is pressed.
+  Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
+    open === false ? null : createElement('div', { role: 'dialog' }, children),
+  DialogContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  DialogTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
+  DialogDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
   CommandLine: ({ command, onCopy }: { command: string; onCopy?: (text: string) => void }) =>
     createElement(
       'div',
@@ -220,7 +227,15 @@ const HARDWARE = {
   cores: 12
 }
 
-const PREFERENCE = { id: 'small' as const, auto: true, recommendation: HARDWARE }
+const PREFERENCE = {
+  id: 'small' as const,
+  auto: true,
+  installed: ['tiny' as const, 'base' as const, 'small' as const],
+  recommendation: HARDWARE
+}
+
+/** A fresh install: the app ships no weights, so this is where a new user starts. */
+const NO_MODELS = { id: null, auto: true, installed: [], recommendation: HARDWARE }
 
 const CATALOG = [
   whisperModelFixture({ id: 'tiny', params: '39 M', sizeMB: { fp32: 144, q8: 39 } }),
@@ -231,8 +246,7 @@ const CATALOG = [
     params: '769 M',
     sizeMB: { fp32: 2916, q8: 740 },
     downloaded: false,
-    downloadedVariant: null,
-    bundled: false
+    downloadedVariant: null
   })
 ]
 
@@ -262,6 +276,7 @@ let emitInstall: (event: unknown) => void = () => {}
 
 beforeEach(() => {
   emitInstall = () => {}
+  settledListeners = []
   window.hive = {
     ...window.hive,
     profile: {
@@ -289,11 +304,63 @@ beforeEach(() => {
       // and jsdom fires no `change` on a radio that is already checked — so a
       // second selection would silently assert nothing.
       setPreferredModel: vi.fn(async (id: string | null) =>
-        id === null ? PREFERENCE : { id, auto: false, recommendation: HARDWARE }
-      )
+        id === null
+          ? PREFERENCE
+          : { id, auto: false, installed: PREFERENCE.installed, recommendation: HARDWARE }
+      ),
+      // M26: downloads live in main. `onDownloads` is a read-only broadcast —
+      // the test captures the listener and pushes snapshots through it, exactly
+      // as main's manager does.
+      onDownloads: vi.fn((listener: (list: unknown[]) => void) => {
+        pushDownloads = (list) => act(() => listener(list))
+        downloadUnsubscribes += 1
+        return () => {
+          downloadUnsubscribes -= 1
+        }
+      }),
+      // The ending is its own channel: a finished download LEAVES the snapshot,
+      // so a screen watching only `onDownloads` sees it vanish and cannot tell
+      // "arrived" from "cancelled". Every listener is kept, as main broadcasts
+      // to every window.
+      onDownloadSettled: vi.fn((listener: (record: unknown) => void) => {
+        settledListeners.push(listener)
+        return () => {
+          const at = settledListeners.indexOf(listener)
+          if (at >= 0) settledListeners.splice(at, 1)
+        }
+      })
     }
   } as typeof window.hive
 })
+
+/** Pushes a downloads snapshot from "main" into whatever is subscribed. */
+let pushDownloads: (list: unknown[]) => void = () => {}
+/** Everything listening for a download's ending. */
+let settledListeners: ((record: unknown) => void)[] = []
+/** Announces one download's ending, as main does when the bytes land. */
+const pushSettled = (record: unknown): void =>
+  act(() => {
+    for (const listener of [...settledListeners]) listener(record)
+  })
+/** How many live `onDownloads` subscriptions exist — never a cancel signal. */
+let downloadUnsubscribes = 0
+
+/** One in-flight download record, as main broadcasts it. */
+function downloading(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'medium',
+    variant: 'fp32',
+    status: 'downloading',
+    loaded: 512 * 1024 * 1024,
+    total: 3_057 * 1024 * 1024,
+    file: 'onnx/encoder_model.onnx',
+    bytesPerSecond: 2 * 1024 * 1024,
+    failure: null,
+    startedAt: 0,
+    updatedAt: 0,
+    ...over
+  }
+}
 
 /** Opens one scope from the index — every detail is one click deep now. */
 function goTo(scope: RegExp): void {
@@ -303,7 +370,6 @@ function goTo(scope: RegExp): void {
 const BACK = 'Voltar para a lista de configurações'
 
 /** The download stream's callback, as the preload bridge types it. */
-type DownloadEvent = Parameters<Window['hive']['whisper']['downloadModel']>[2]
 
 afterEach(() => {
   cleanup()
@@ -676,7 +742,7 @@ describe('ProfileSheet (P1-010)', () => {
       // The ingestion sheet's "Alterar" points here; landing on the index with
       // the reader left to find the row would waste the click they just spent.
       renderSheet({ initialScope: 'voice' })
-      expect(await screen.findByText('Modelo de transcrição')).toBeTruthy()
+      expect(await screen.findByText('Seus modelos')).toBeTruthy()
     })
 
     it('hides the tour entry when the host wired none, and keeps it off details', () => {
@@ -710,12 +776,12 @@ describe('ProfileSheet (P1-010)', () => {
       expect(screen.queryByText(/Melhor escolha/)).toBeNull()
     })
 
-    it('offers automatic first, then the models that ship in the app', async () => {
+    it('offers automatic first, then every model that is on disk', async () => {
       openVoice()
-      await screen.findByText('Modelo de transcrição')
+      await screen.findByText('Seus modelos')
       const radios = screen.getAllByRole('radio')
-      expect(radios[0].getAttribute('value')).toBe('auto')
-      // `medium` is a download, so it is not in the inline chooser.
+      // `medium` is not downloaded, so it is in the library below — not in the
+      // list of things that could be chosen right now.
       expect(radios.map((r) => r.getAttribute('value'))).toEqual(['auto', 'tiny', 'base', 'small'])
     })
 
@@ -732,111 +798,222 @@ describe('ProfileSheet (P1-010)', () => {
 
     it("marks the probe's pick so the automatic answer is visible in the list", async () => {
       openVoice()
-      await screen.findByText('Modelo de transcrição')
+      await screen.findByText('Seus modelos')
       expect(screen.getByText('Recomendado')).toBeTruthy()
+    })
+
+    it('states what is transcribing right now, before offering any control', async () => {
+      openVoice()
+      expect(await screen.findByText('Em uso')).toBeTruthy()
+      expect(screen.getByText('escolhido pelo Hive')).toBeTruthy()
     })
 
     it('explains a pinned choice differently from an automatic one', async () => {
       vi.mocked(window.hive.whisper.preference).mockResolvedValue({
         id: 'tiny',
         auto: false,
+        installed: PREFERENCE.installed,
         recommendation: HARDWARE
       })
       openVoice()
-      expect(await screen.findByText('Você fixou tiny.')).toBeTruthy()
-      expect(screen.queryByText(/O Hive está usando/)).toBeNull()
+      expect(await screen.findByText('fixado por você')).toBeTruthy()
+      expect(screen.queryByText('escolhido pelo Hive')).toBeNull()
     })
 
-    it('still offers a row for a pinned model that does not ship in the app', async () => {
-      // Otherwise the group would report no checked option at all — the reader
-      // would see their own choice as unselected.
-      vi.mocked(window.hive.whisper.preference).mockResolvedValue({
-        id: 'medium',
-        auto: false,
-        recommendation: HARDWARE
+    /**
+     * M26 — the app ships no weights, so this is what a new user opens on. It
+     * used to be unreachable: three models arrived inside the installer.
+     */
+    describe('with nothing downloaded', () => {
+      function openEmpty(): void {
+        vi.mocked(window.hive.whisper.preference).mockResolvedValue(NO_MODELS)
+        vi.mocked(window.hive.whisper.listModels).mockResolvedValue(
+          CATALOG.map((model) => ({ ...model, downloaded: false, downloadedVariant: null }))
+        )
+        openVoice()
+      }
+
+      it('leads with the model this machine should run, and its real size', async () => {
+        openEmpty()
+        expect(await screen.findByText('Nenhum modelo de voz ainda')).toBeTruthy()
+        expect(screen.getByText('Recomendado para este computador')).toBeTruthy()
+        // fp32, because this jsdom has no WebGPU adapter to ask.
+        expect(screen.getByRole('button', { name: /Baixar · 923 MB/ })).toBeTruthy()
       })
-      openVoice()
-      expect(await screen.findByRole('radio', { name: /medium/ })).toBeTruthy()
-    })
 
-    it('keeps the downloads collapsed, then lists them with their real size', async () => {
-      openVoice()
-      const toggle = await screen.findByLabelText('Mostrar os modelos que precisam de download')
-      expect(toggle.textContent).toContain('Mais 1 modelo para baixar')
-      expect(screen.queryByLabelText('Baixar o modelo medium')).toBeNull()
-
-      fireEvent.click(toggle)
-      expect(screen.getByLabelText('Baixar o modelo medium')).toBeTruthy()
-      // fp32, because this jsdom has no WebGPU adapter to ask.
-      expect(screen.getByText('769 M · 2.8 GB')).toBeTruthy()
-    })
-
-    it('reports download progress and re-reads the catalog when it lands', async () => {
-      let emit: DownloadEvent = () => {}
-      vi.mocked(window.hive.whisper.downloadModel).mockImplementation((_id, _variant, onEvent) => {
-        emit = onEvent
-        return () => {}
+      it('claims no model is in force, rather than naming one that is not there', async () => {
+        openEmpty()
+        await screen.findByText('Nenhum modelo de voz ainda')
+        expect(screen.queryByText('Em uso')).toBeNull()
       })
-      openVoice()
-      fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-      fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
 
-      act(() => emit({ type: 'progress', id: 'medium', loaded: 50, total: 200, file: 'x.onnx' }))
-      expect(screen.getByText('25%')).toBeTruthy()
-
-      const before = vi.mocked(window.hive.whisper.listModels).mock.calls.length
-      act(() => emit({ type: 'done', id: 'medium' }))
-      await waitFor(() =>
-        expect(vi.mocked(window.hive.whisper.listModels).mock.calls.length).toBeGreaterThan(before)
-      )
-    })
-
-    it('keeps a failed download visible instead of silently reverting', async () => {
-      // A row that went back to "Baixar" after a network drop is
-      // indistinguishable from one that was never clicked.
-      let emit: DownloadEvent = () => {}
-      vi.mocked(window.hive.whisper.downloadModel).mockImplementation((_id, _variant, onEvent) => {
-        emit = onEvent
-        return () => {}
+      it('does not announce the empty state while the catalog is still in flight', () => {
+        vi.mocked(window.hive.whisper.listModels).mockReturnValue(new Promise(() => {}))
+        openVoice()
+        expect(screen.queryByText('Nenhum modelo de voz ainda')).toBeNull()
+        expect(screen.getByText('Avaliando este computador…')).toBeTruthy()
       })
-      openVoice()
-      fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-      fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
-      act(() => emit({ type: 'error', id: 'medium', message: 'ECONNRESET' }))
-
-      expect(screen.getByRole('alert').textContent).toContain('O download falhou')
-      fireEvent.click(screen.getByText('Tentar de novo'))
-      expect(vi.mocked(window.hive.whisper.downloadModel).mock.calls.length).toBe(2)
     })
 
-    it('cancelling unsubscribes, which is what actually stops the stream', async () => {
-      const off = vi.fn()
-      vi.mocked(window.hive.whisper.downloadModel).mockReturnValue(off)
+    it('lists the downloadable models in the open, with no disclosure to find', async () => {
       openVoice()
-      fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-      fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
+      expect(await screen.findByLabelText('Baixar o modelo medium')).toBeTruthy()
+      expect(screen.getByText('769 M · 2,8 GB')).toBeTruthy()
+    })
+
+    it('starts a download in main by id — never by opening a subscription', async () => {
+      openVoice()
+      fireEvent.click(await screen.findByLabelText('Baixar o modelo medium'))
+      expect(window.hive.whisper.startDownload).toHaveBeenCalledWith('medium', 'fp32')
+    })
+
+    /**
+     * The reading this surface exists to give. The bar it replaces moved once
+     * per *file* — `medium` is two files and 2.8 GB, so it showed 0 %, then
+     * 42 %, then done, over twenty minutes of apparent hang.
+     */
+    it('reports bytes, rate and remaining time, not just a percentage', async () => {
+      openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      pushDownloads([downloading()])
+
+      expect(screen.getByText('17%')).toBeTruthy()
+      expect(screen.getByText('512 MB de 3,0 GB')).toBeTruthy()
+      expect(screen.getByText('2,0 MB/s')).toBeTruthy()
+      expect(screen.getByText(/cerca de 21 min restantes/)).toBeTruthy()
+    })
+
+    it('says "preparing" rather than 0% before the file index lands', async () => {
+      openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      pushDownloads([downloading({ loaded: 0, total: 0, bytesPerSecond: 0 })])
+      expect(screen.getByText('Preparando o download…')).toBeTruthy()
+    })
+
+    it('names the cause of a failure, and offers to continue from what arrived', async () => {
+      openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      pushDownloads([
+        downloading({
+          status: 'error',
+          failure: { kind: 'offline', detail: 'fetch failed' },
+          loaded: 512 * 1024 * 1024
+        })
+      ])
+
+      expect(screen.getByRole('alert').textContent).toContain('A conexão caiu')
+      expect(screen.getByRole('alert').textContent).toContain('Os 512 MB já baixados continuam')
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+      expect(window.hive.whisper.startDownload).toHaveBeenCalledWith('medium', 'fp32')
+    })
+
+    it('offers no retry for a failure that will answer the same way next time', async () => {
+      openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      pushDownloads([
+        downloading({ status: 'error', failure: { kind: 'notFound', detail: 'HTTP 404' } })
+      ])
+      expect(screen.getByRole('alert').textContent).toContain('não está mais publicado')
+      expect(screen.queryByRole('button', { name: 'Continuar' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    })
+
+    it('cancels by id in main, rather than by unsubscribing', async () => {
+      openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      pushDownloads([downloading()])
+
       fireEvent.click(screen.getByLabelText('Cancelar o download de medium'))
+      expect(window.hive.whisper.cancelDownload).toHaveBeenCalledWith('medium')
+    })
 
-      expect(off).toHaveBeenCalled()
-      expect(screen.getByLabelText('Baixar o modelo medium')).toBeTruthy()
+    /**
+     * The regression this whole redesign exists for: closing the sheet used to
+     * send `whisper:download:stop`, killing a 2.8 GB transfer that was minutes
+     * from finishing. Unsubscribing must now stop *watching* and nothing else.
+     */
+    it('leaves the download running when the sheet closes', async () => {
+      const props = openVoice()
+      await screen.findByLabelText('Baixar o modelo medium')
+      fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
+
+      cleanup()
+      render(createElement(ProfileSheet, { ...props, open: false }))
+
+      expect(window.hive.whisper.cancelDownload).not.toHaveBeenCalled()
+      expect(downloadUnsubscribes).toBe(0)
+    })
+
+    /**
+     * Deleting asks first. The undo for this button is a multi-gigabyte
+     * download, which is the whole argument for a confirmation on a screen
+     * that otherwise has none.
+     */
+    it('asks before deleting, and does nothing if the answer is no', async () => {
+      openVoice()
+      fireEvent.click(await screen.findByLabelText('Excluir o modelo small'))
+
+      expect(screen.getByText('Excluir small?')).toBeTruthy()
+      expect(screen.getByRole('dialog').textContent).toContain('923 MB')
+      fireEvent.click(screen.getByRole('button', { name: 'Manter' }))
+      expect(window.hive.whisper.deleteModel).not.toHaveBeenCalled()
     })
 
     it('deletes a downloaded model and re-reads BOTH the catalog and the choice', async () => {
-      vi.mocked(window.hive.whisper.listModels).mockResolvedValue([
-        ...CATALOG.slice(0, 3),
-        whisperModelFixture({ id: 'medium', bundled: false, downloaded: true })
-      ])
       openVoice()
-      fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-      fireEvent.click(screen.getByLabelText('Excluir o modelo medium'))
+      fireEvent.click(await screen.findByLabelText('Excluir o modelo small'))
+      fireEvent.click(screen.getByRole('button', { name: 'Excluir' }))
 
-      await waitFor(() => expect(window.hive.whisper.deleteModel).toHaveBeenCalledWith('medium'))
+      await waitFor(() => expect(window.hive.whisper.deleteModel).toHaveBeenCalledWith('small'))
       // Deleting the model that was in force hands the choice back to the probe
       // IN MAIN, without the user picking anything — a renderer that only read
       // the preference on mount would keep showing a model that is gone.
       await waitFor(() =>
         expect(vi.mocked(window.hive.whisper.preference).mock.calls.length).toBeGreaterThan(1)
       )
+    })
+
+    /**
+     * A `remove` that throws part-way (Windows will not unlink a weight file
+     * the engine still has open) used to leave the screen frozen on a model
+     * that was already half gone: the refresh hung off `.then`.
+     */
+    it('re-reads the catalog even when the delete itself failed', async () => {
+      vi.mocked(window.hive.whisper.deleteModel).mockRejectedValueOnce(new Error('EBUSY'))
+      const before = vi.mocked(window.hive.whisper.listModels).mock.calls.length
+      openVoice()
+      fireEvent.click(await screen.findByLabelText('Excluir o modelo small'))
+      fireEvent.click(screen.getByRole('button', { name: 'Excluir' }))
+
+      await waitFor(() =>
+        expect(vi.mocked(window.hive.whisper.listModels).mock.calls.length).toBeGreaterThan(
+          before + 1
+        )
+      )
+      expect((await screen.findByRole('alert')).textContent).toContain('Não foi possível excluir')
+    })
+
+    /**
+     * The bug a user reported verbatim: `medium` finished downloading and the
+     * row kept its "Baixar" button until the app was closed and reopened. The
+     * transfer belongs to main, so the only thing that reaches this screen is
+     * the ending — and nothing was listening for it.
+     */
+    it('moves a model into "Seus modelos" the moment its download lands', async () => {
+      openVoice()
+      expect(await screen.findByLabelText('Baixar o modelo medium')).toBeTruthy()
+
+      vi.mocked(window.hive.whisper.listModels).mockResolvedValue(
+        CATALOG.map((model) =>
+          model.id === 'medium'
+            ? { ...model, downloaded: true, downloadedVariant: 'fp32' as const }
+            : model
+        )
+      )
+      pushSettled({ id: 'medium', status: 'done' })
+
+      await waitFor(() => expect(screen.queryByLabelText('Baixar o modelo medium')).toBeNull())
+      expect(screen.getByLabelText('Usar o modelo medium')).toBeTruthy()
     })
 
     it('says so when there is genuinely nothing left to download', async () => {
@@ -846,9 +1023,6 @@ describe('ProfileSheet (P1-010)', () => {
     })
 
     it('does not announce "nothing to download" while the catalog is in flight', () => {
-      // The app always ships three models, so an empty list means "not asked
-      // yet". Reading the length alone printed a confident, wrong sentence for
-      // the length of one IPC round trip.
       vi.mocked(window.hive.whisper.listModels).mockReturnValue(new Promise(() => {}))
       openVoice()
       expect(screen.queryByText(/você já tem todos os modelos/i)).toBeNull()
@@ -879,38 +1053,6 @@ describe('ProfileSheet (P1-010)', () => {
     render(createElement(ProfileSheet, { ...props, userName: 'Ana' }))
     goTo(/Conta/)
     expect((screen.getByPlaceholderText('Seu nome') as HTMLInputElement).value).toBe('Ana')
-  })
-
-  it('reports 0% rather than NaN for a download whose total is not known yet', async () => {
-    // The stream's first events can carry `total: 0`; dividing by it renders
-    // "NaN%" in a progress bar, which reads as a crash rather than a wait.
-    let emit: DownloadEvent = () => {}
-    vi.mocked(window.hive.whisper.downloadModel).mockImplementation((_id, _variant, onEvent) => {
-      emit = onEvent
-      return () => {}
-    })
-    renderSheet()
-    goTo(/Voz e transcrição/)
-    fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-    fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
-
-    act(() => emit({ type: 'progress', id: 'medium', loaded: 0, total: 0, file: 'x.onnx' }))
-    expect(screen.getByText('0%')).toBeTruthy()
-  })
-
-  it('releases every live download stream when the sheet unmounts', async () => {
-    // No `whisper:download:cancel` exists — unsubscribing IS the cancel, so a
-    // handle left behind keeps a stream running in main after the sheet is gone.
-    const off = vi.fn()
-    vi.mocked(window.hive.whisper.downloadModel).mockReturnValue(off)
-    const props = renderSheet()
-    goTo(/Voz e transcrição/)
-    fireEvent.click(await screen.findByLabelText('Mostrar os modelos que precisam de download'))
-    fireEvent.click(screen.getByLabelText('Baixar o modelo medium'))
-
-    cleanup()
-    render(createElement(ProfileSheet, { ...props, open: false }))
-    expect(off).toHaveBeenCalled()
   })
 
   it('drops a late probe answer after the sheet closes', async () => {

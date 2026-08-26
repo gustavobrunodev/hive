@@ -4,7 +4,7 @@ import { Alert, Progress } from '@hive/design-system'
 import { t } from '../i18n'
 import { CheckIcon } from '../ui/icons'
 import { HiveLogo } from '../ui/HiveLogo'
-import { HiveSignal } from './HiveSignal'
+import { HiveHoneycomb } from './HiveHoneycomb'
 
 /** How long each reassurance line holds before the next one crossfades in. */
 const MESSAGE_INTERVAL_MS = 4200
@@ -39,19 +39,19 @@ export interface ProvisionSceneProps {
 }
 
 /**
- * The surface every "we're setting things up" gate shares — the workspace
- * install, its update, and the knowledge base.
+ * The surface every "we're setting things up" gate shares — BMAD install,
+ * BMAD update, Second Brain provisioning.
  *
  * Before this, each gate was its own small card with a title, an indeterminate
  * bar and a caption, and a first run flashed through three of them in a row;
  * the effect was three anonymous loading screens rather than one preparation.
  * So the composition is fixed here and the three gates supply only their own
- * words: one emblem, one heading, rotating reassurance, the truthful caption,
+ * words: one lattice, one heading, rotating reassurance, the truthful caption,
  * and a stage counter that says how many steps are left.
  *
- * Motion is state, not decoration (PRODUCT.md §5): the signal rings run only
- * while work is in flight and hold still on error, the message crossfade marks
- * the passage of time in a wait with no percentage to show, and both have a
+ * Motion is state, not decoration (PRODUCT.md §5): the lattice runs only while
+ * work is in flight and holds still on error, the message crossfade marks the
+ * passage of time in a wait with no percentage to show, and both have a
  * `prefers-reduced-motion` fallback in `workbench.css`.
  */
 export function ProvisionScene({
@@ -84,7 +84,7 @@ export function ProvisionScene({
     <main className="wb-gate wb-provision">
       <div className="wb-provision-inner">
         <div className="wb-provision-emblem">
-          <HiveSignal running={running} className="wb-signal" />
+          <HiveHoneycomb running={running} className="wb-honeycomb" />
           <span className="wb-provision-halo" aria-hidden="true" />
           <HiveLogo mark="mark" className="wb-provision-mark" />
         </div>

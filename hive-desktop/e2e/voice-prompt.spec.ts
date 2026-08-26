@@ -86,6 +86,19 @@ test.describe('voice-prompt E2E (real Electron)', () => {
       })
     )
 
+    // M26: the app ships no weights, and every recording surface now passes
+    // through the model gate — so a userData with no model installed answers
+    // the microphone with a download dialog and this spec never sees a take.
+    // The marker alone is enough: `status()` reads only the marker, and the
+    // transcriber here is the seam, which never opens a weight file. Acquiring
+    // a model is `voice-model-gate.spec.ts`'s subject, not this one's.
+    const modelDir = path.join(userDataDir, 'whisper-models', 'base')
+    fs.mkdirSync(modelDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(modelDir, '.hive-complete.json'),
+      JSON.stringify({ variant: 'fp32', repo: 'Xenova/whisper-base' })
+    )
+
     const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
     const launchEnv = { ...process.env }
     // WSL interop leak: inherited, Electron boots as plain Node and the launch

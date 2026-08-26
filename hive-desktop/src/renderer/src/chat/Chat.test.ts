@@ -208,7 +208,17 @@ vi.mock('@hive/design-system', () => ({
   PopoverContent: ({ children, className }: { children?: ReactNode; className?: string }) => {
     const ctx = useContext(PopoverContext)
     return ctx?.open === true ? createElement('div', { className }, children) : null
-  }
+  },
+  // M26: the composer's microphone opens the voice-model gate when nothing is
+  // installed, so Chat now pulls a Dialog into its tree.
+  Dialog: ({ children, open }: { children?: ReactNode; open?: boolean }) =>
+    open === true ? createElement('div', { role: 'dialog' }, children) : null,
+  DialogContent: ({ children, className }: { children?: ReactNode; className?: string }) =>
+    createElement('div', { className }, children),
+  DialogTitle: ({ children, className }: { children?: ReactNode; className?: string }) =>
+    createElement('h2', { className }, children),
+  DialogDescription: ({ children, className }: { children?: ReactNode; className?: string }) =>
+    createElement('p', { className }, children)
 }))
 
 /**
@@ -220,6 +230,8 @@ const capture = vi.hoisted(() => {
   const state = {
     tickListeners: [] as ((tick: { rms: number; samples: Float32Array }) => void)[],
     levelListeners: [] as ((levels: number[]) => void)[],
+    /** How many times the microphone was actually opened (M26's gate asserts 0). */
+    started: 0,
     stopped: 0,
     fail: null as Error | null
   }
@@ -228,6 +240,7 @@ const capture = vi.hoisted(() => {
     reset(): void {
       state.tickListeners = []
       state.levelListeners = []
+      state.started = 0
       state.stopped = 0
       state.fail = null
     },
@@ -248,6 +261,7 @@ vi.mock('../dictation/micCapture', async (importOriginal) => {
     ...actual,
     startCapture: async () => {
       if (capture.state.fail !== null) throw capture.state.fail
+      capture.state.started += 1
       return {
         onTick: (listener: (tick: { rms: number; samples: Float32Array }) => void) =>
           capture.state.tickListeners.push(listener),
@@ -269,6 +283,23 @@ interface TranscribeOptions {
   language?: string
 }
 
+/** A machine with `base` downloaded — what every dictation test assumes. */
+const INSTALLED_PREFERENCE = {
+  id: 'base',
+  auto: true,
+  installed: ['base'],
+  recommendation: {
+    recommendedId: 'base',
+    reason: 'unknown',
+    gpu: false,
+    ramGB: 0,
+    cores: 0
+  }
+} as const
+
+/** A fresh install: nothing downloaded, so the microphone opens the gate. */
+const EMPTY_PREFERENCE = { ...INSTALLED_PREFERENCE, id: null, installed: [] }
+
 const whisper = vi.hoisted(
   (): { text: string; calls: number; lastOptions: TranscribeOptions | null } => ({
     text: 'arquivo de configuração',
@@ -280,6 +311,9 @@ const whisper = vi.hoisted(
 
 vi.mock('../secondBrain/whisper/useWhisper', () => ({
   DEFAULT_LANGUAGE: 'portuguese',
+  // M26: the model gate reads the catalog, which probes for a WebGPU adapter to
+  // decide which precision a download would fetch. jsdom has none.
+  probeWebGpu: async () => false,
   // voice-settings (M25): `useWhisperPreference` reads this as the pre-answer
   // fallback, and it is imported through this same module — a mock that omits
   // it throws on every Chat render, not just on a dictation test.
@@ -401,7 +435,13 @@ describe('Chat', () => {
        * resolves it. The composer's dictation runs with THIS, not with the
        * engine's built-in default.
        */
-      whisperPreference?: { id: string; auto: boolean; recommendation: Record<string, unknown> }
+      whisperPreference?: {
+        /** `null` is a real answer now: a machine with no model downloaded. */
+        id: string | null
+        auto: boolean
+        installed: readonly string[]
+        recommendation: Record<string, unknown>
+      }
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
@@ -440,11 +480,15 @@ describe('Chat', () => {
       // voice-settings (M25): the composer resolves its dictation model from
       // the same global preference the profile sheet writes, so the bridge has
       // to answer here — without it every Chat render throws on mount.
+      //
+      // M26: the shared mock's default is the *fresh-install* state (no model
+      // downloaded), where pressing the microphone opens the download gate
+      // instead of a take. Dictation is only reachable with a model on disk, so
+      // that is the default here — and `whisperPreference: EMPTY_PREFERENCE`
+      // is how a test asks for the gate.
       whisper: {
         ...createHiveWhisperMock(),
-        ...(options.whisperPreference
-          ? { preference: vi.fn().mockResolvedValue(options.whisperPreference) }
-          : {})
+        preference: vi.fn().mockResolvedValue(options.whisperPreference ?? INSTALLED_PREFERENCE)
       },
       agent: {
         capabilities: vi.fn().mockResolvedValue(
@@ -2547,6 +2591,7 @@ describe('Chat', () => {
         whisperPreference: {
           id: 'small',
           auto: false,
+          installed: ['small'],
           recommendation: {
             recommendedId: 'small',
             reason: 'discreteGpu',
@@ -2597,6 +2642,37 @@ describe('Chat', () => {
       expect(screen.getByRole('status').textContent).toContain('Sem acesso ao microfone')
       expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
       expect(composer().value).toBe('meu rascunho')
+    })
+
+    /**
+     * M26 — the app ships no weights, so on a fresh install the microphone has
+     * no honest outcome. The alternative to this gate is a take that records
+     * happily and fails at transcription, minutes of speech later.
+     */
+    describe('with no model downloaded', () => {
+      it('opens the download gate instead of the microphone', async () => {
+        renderChat({ whisperPreference: EMPTY_PREFERENCE })
+        await screen.findByRole('button', { name: 'Ditar' })
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: 'Ditar' }))
+        })
+
+        expect(screen.getByRole('dialog').textContent).toContain('Escolha um modelo para gravar')
+        // The microphone was never opened: no take, no capture, no draft change.
+        expect(capture.state.started).toBe(0)
+      })
+
+      it('does not warm the engine on hover — that would be an unasked-for download', async () => {
+        renderChat({ whisperPreference: EMPTY_PREFERENCE })
+        const mic = await screen.findByRole('button', { name: 'Ditar' })
+
+        await act(async () => {
+          fireEvent.pointerEnter(mic)
+        })
+
+        expect(whisper.calls).toBe(0)
+      })
     })
   })
   // --- chat-timing / chat-queue / session-usage ----------------------------

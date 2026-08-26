@@ -1,6 +1,0 @@
-- main [ref=f8e3]:
-  - generic [ref=f8e4]:
-    - heading "Atualizando o BMAD" [level=1] [ref=f8e5]
-    - paragraph [ref=f8e6]: Verificando se há atualizações do BMAD para este workspace.
-    - progressbar [ref=f8e7]
-    - status [ref=f8e9]: Atualizando…

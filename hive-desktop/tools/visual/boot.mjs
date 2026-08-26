@@ -369,6 +369,63 @@ async (page) => {
       cores: 12
     }
 
+    /**
+     * M26 — the app ships no weights, so the catalog fixture has to be able to
+     * describe BOTH shapes: a machine that has downloaded a few models, and the
+     * fresh install that has none. Drive the second with
+     * `globalThis.HIVE_NO_MODELS = true` before running this file.
+     */
+    // id, repo, params, fp32 total, q8 total, fp32 max FILE, q8 max FILE, vram,
+    // speed, multilingual. The per-file maxima are what decide whether a model
+    // can be loaded at all (see voice/modelFit), so a fixture without them
+    // renders a library that offers models the real app refuses.
+    const CATALOG_ROWS = [
+      ['tiny', 'Xenova/whisper-tiny', '39 M', 144, 39, 113, 29, 1, '~10x', true],
+      ['tiny.en', 'Xenova/whisper-tiny.en', '39 M', 144, 39, 113, 29, 1, '~10x', false],
+      ['base', 'Xenova/whisper-base', '74 M', 278, 73, 199, 51, 1, '~7x', true],
+      ['small', 'Xenova/whisper-small', '244 M', 923, 238, 587, 150, 2, '~4x', true],
+      ['medium', 'Xenova/whisper-medium', '769 M', 2916, 740, 1744, 441, 5, '~2x', true],
+      ['medium.en', 'Xenova/whisper-medium.en', '769 M', 4861, 740, 1945, 441, 5, '~2x', false],
+      ['large-v3-turbo', 'onnx-community/whisper-large-v3-turbo', '809 M', 3086, 1035, 2430, 615, 6, '~8x', true],
+      ['large-v3', 'onnx-community/whisper-large-v3-ONNX', '1.55 B', 5891, 1738, 3458, 1123, 10, '1x', true]
+    ]
+    const HAVE = globalThis.HIVE_NO_MODELS === true ? [] : ['tiny', 'base', 'small']
+    const DEFAULT_MODELS = CATALOG_ROWS.map(
+      ([id, repo, params, fp32, q8, fp32Max, q8Max, vram, speed, multi]) => ({
+        id,
+        repo,
+        params,
+        sizeMB: { fp32, q8 },
+        maxFileMB: { fp32: fp32Max, q8: q8Max },
+        approxVramGB: vram,
+        relativeSpeed: speed,
+        multilingual: multi,
+        downloaded: HAVE.includes(id),
+        downloadedVariant: HAVE.includes(id) ? 'fp32' : null
+      })
+    )
+    // Exposed so a scene can re-derive the catalog for the empty state without
+    // restating eight rows (the pass reads `__HIVE_ALL`/`__HIVE_HW`).
+    window.__HIVE_ALL = DEFAULT_MODELS
+    window.__HIVE_HW = HARDWARE
+    const INSTALLED = HAVE
+    const DEFAULT_PREF = {
+      id: HAVE.length > 0 ? 'small' : null,
+      auto: true,
+      installed: INSTALLED,
+      recommendation: HARDWARE
+    }
+    const downloadSubs = []
+    const settledSubs = []
+    /** Push a downloads snapshot to every subscriber, as main's manager does. */
+    window.__downloads = (list) => {
+      for (const fn of [...downloadSubs]) fn(list)
+    }
+    /** Push one ending to every subscriber. */
+    window.__downloadSettled = (record) => {
+      for (const fn of [...settledSubs]) fn(record)
+    }
+
     const sessions = []
     window.hive = {
       ping: ok('pong'),
@@ -445,18 +502,35 @@ async (page) => {
       agent: {
         // session-usage: the meter's denominator comes from the model list, so
         // the mock has to declare one or the context readout never appears.
-        capabilities: ok({
-          models: [
-            { id: 'opus', label: 'Opus', contextWindow: 200000 },
-            { id: 'sonnet', label: 'Sonnet', contextWindow: 200000 }
-          ],
-          efforts: [
-            { id: 'medium', label: 'Medium' },
-            { id: 'high', label: 'High' }
-          ],
-          supportsAttachments: true,
-          supportsResume: true
-        }),
+        //
+        // Per-agent, because that is the real contract: Copilot exposes models
+        // but no effort, and a fixture that answers the same for every agent
+        // hides the whole point of a picker that reshapes the form under it.
+        capabilities: (agentId) =>
+          Promise.resolve(
+            agentId === 'github-copilot'
+              ? {
+                  models: [
+                    { id: 'gpt-5', label: 'GPT-5', contextWindow: 200000 },
+                    { id: 'claude-sonnet', label: 'Claude Sonnet', contextWindow: 200000 }
+                  ],
+                  efforts: [],
+                  supportsAttachments: false,
+                  supportsResume: true
+                }
+              : {
+                  models: [
+                    { id: 'opus', label: 'Opus', contextWindow: 200000 },
+                    { id: 'sonnet', label: 'Sonnet', contextWindow: 200000 }
+                  ],
+                  efforts: [
+                    { id: 'medium', label: 'Medium' },
+                    { id: 'high', label: 'High' }
+                  ],
+                  supportsAttachments: true,
+                  supportsResume: true
+                }
+          ),
         chooseAttachments: ok([]),
         start: ok(undefined),
         send: ok(undefined),
@@ -625,10 +699,18 @@ async (page) => {
         onUpdateEvent: unsub
       },
       profile: {
-        agents: ok([{ id: 'claude', label: 'Claude Code', available: true }]),
-        getAgent: ok('claude'),
+        // `AgentMeta`'s field is `displayName`, not `label` — a fixture using
+        // the wrong key makes every surface fall back to the raw id, and the
+        // composer's agent pill reads "claude" instead of "Claude Code".
+        // Two agents, because the pickers that offer a choice (the chat
+        // switcher, the studio's builder picker) only appear when there is one.
+        agents: ok([
+          { id: 'claude-cli', displayName: 'Claude Code', available: true },
+          { id: 'github-copilot', displayName: 'GitHub Copilot', available: true }
+        ]),
+        getAgent: ok('claude-cli'),
         setAgent: ok(undefined),
-        getAgents: ok(['claude']),
+        getAgents: ok(['claude-cli', 'github-copilot']),
         setAgents: ok(undefined),
         getRole: ok(globalThis.HIVE_ROLE ?? 'pm'),
         setRole: ok(undefined),
@@ -767,31 +849,42 @@ async (page) => {
         noteLint: ok(FRESH_HEALTH),
         snoozeHealth: ok(FRESH_HEALTH)
       },
-      // D-SB-8: tiny/base/small ship inside the app, so the honest default
-      // for a visual pass is "already here", not "nothing downloaded".
+      // M26: nothing ships inside the app. The default fixture still has three
+      // models downloaded because that is the state most passes want to look
+      // at; `globalThis.HIVE_NO_MODELS = true` gives the fresh install.
       whisper: {
-        listModels: ok([
-          { id: 'tiny', repo: 'Xenova/whisper-tiny', params: '39 M', sizeMB: { fp32: 144, q8: 39 }, approxVramGB: 1, relativeSpeed: '~10x', multilingual: true, downloaded: true, downloadedVariant: 'fp32', bundled: true },
-          { id: 'base', repo: 'Xenova/whisper-base', params: '74 M', sizeMB: { fp32: 278, q8: 73 }, approxVramGB: 1, relativeSpeed: '~7x', multilingual: true, downloaded: true, downloadedVariant: 'fp32', bundled: true },
-          { id: 'small', repo: 'Xenova/whisper-small', params: '244 M', sizeMB: { fp32: 923, q8: 238 }, approxVramGB: 2, relativeSpeed: '~4x', multilingual: true, downloaded: true, downloadedVariant: 'fp32', bundled: true },
-          { id: 'medium', repo: 'Xenova/whisper-medium', params: '769 M', sizeMB: { fp32: 2916, q8: 740 }, approxVramGB: 5, relativeSpeed: '~2x', multilingual: true, downloaded: false, downloadedVariant: null, bundled: false },
-          // An English-only row so the `só inglês` tag is on screen for the
-          // contrast pass: a selector that never renders reports `missing`,
-          // which is noise rather than a finding (M19).
-          { id: 'medium.en', repo: 'Xenova/whisper-medium.en', params: '769 M', sizeMB: { fp32: 2916, q8: 740 }, approxVramGB: 5, relativeSpeed: '~2x', multilingual: false, downloaded: false, downloadedVariant: null, bundled: false },
-          { id: 'large-v3-turbo', repo: 'onnx-community/whisper-large-v3-turbo', params: '809 M', sizeMB: { fp32: 3086, q8: 1035 }, approxVramGB: 6, relativeSpeed: '~8x', multilingual: true, downloaded: false, downloadedVariant: null, bundled: false }
-        ]),
-        modelStatus: ok({ downloaded: true, variant: 'fp32', bundled: true }),
-        downloadModel: () => noop,
+        listModels: () => Promise.resolve(globalThis.__HIVE_MODELS ?? DEFAULT_MODELS),
+        modelStatus: ok({ downloaded: true, variant: 'fp32' }),
         deleteModel: ok(undefined),
         recommend: ok(HARDWARE),
-        preference: ok({ id: 'small', auto: true, recommendation: HARDWARE }),
+        preference: () => Promise.resolve(globalThis.__HIVE_PREF ?? DEFAULT_PREF),
         setPreferredModel: (id) =>
           Promise.resolve(
             id === null
-              ? { id: 'small', auto: true, recommendation: HARDWARE }
-              : { id, auto: false, recommendation: HARDWARE }
-          )
+              ? { id: 'small', auto: true, installed: INSTALLED, recommendation: HARDWARE }
+              : { id, auto: false, installed: INSTALLED, recommendation: HARDWARE }
+          ),
+        // M26: downloads are owned by main and broadcast to every window. The
+        // harness plants the listener so a scene can drive a live transfer:
+        //   window.__downloads([{ id: 'medium', status: 'downloading', … }])
+        downloads: () => Promise.resolve(globalThis.__HIVE_DOWNLOADS ?? []),
+        startDownload: (id, variant) =>
+          Promise.resolve({ id, variant, status: 'downloading', loaded: 0, total: 0, file: '', bytesPerSecond: 0, failure: null, startedAt: Date.now(), updatedAt: Date.now() }),
+        cancelDownload: ok(undefined),
+        dismissDownload: ok(undefined),
+        // Every listener, not the last one. Main broadcasts to all live
+        // windows; a fixture that keeps only the newest subscriber silently
+        // hands the stream to whichever surface mounted most recently — which
+        // is how a probe ends up pushing an ending into the model gate and
+        // waiting forever for the notice that was never told.
+        onDownloads: (fn) => {
+          downloadSubs.push(fn)
+          return () => downloadSubs.splice(downloadSubs.indexOf(fn), 1)
+        },
+        onDownloadSettled: (fn) => {
+          settledSubs.push(fn)
+          return () => settledSubs.splice(settledSubs.indexOf(fn), 1)
+        }
       }
     }
   }, theme)

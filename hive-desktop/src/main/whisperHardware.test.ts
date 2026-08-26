@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { hasRealGpu, isAutoSelectable, recommendWhisperModel } from './whisperHardware'
-import { BUNDLED_WHISPER_MODELS } from './whisperBundled'
+import { hasRealGpu, pickAutoModel, recommendWhisperModel } from './whisperHardware'
+
+/**
+ * The rungs the probe is allowed to land on. It used to be
+ * `BUNDLED_WHISPER_MODELS` — the models that shipped inside the installer —
+ * and the property it guarded (an automatic pick never implies a download) is
+ * now enforced somewhere else entirely: the probe advises, and `pickAutoModel`
+ * only ever answers with something already on disk.
+ */
+const PROBE_RUNGS = ['tiny', 'base', 'small'] as const
 
 const GB = 2 ** 30
 
@@ -160,22 +168,15 @@ describe('whisperHardware', () => {
      * the whole matrix rather than the handful of cases above, because a future
      * rung added to the ladder is exactly what would break it quietly.
      */
-    it('only ever recommends a model that ships inside the app', async () => {
+    it('only ever recommends a light rung of the ladder', async () => {
       for (const ramGB of [0, 2, 4, 7.9, 8, 15.9, 16, 64]) {
         for (const gpu of [null, discreteGpu]) {
           for (const cores of [0, 1, 4, 7, 8, 32]) {
             const { recommendedId } = await recommendWhisperModel(machine(ramGB, gpu, cores))
-            expect(BUNDLED_WHISPER_MODELS).toContain(recommendedId)
-            expect(isAutoSelectable(recommendedId)).toBe(true)
+            expect(PROBE_RUNGS).toContain(recommendedId)
           }
         }
       }
-    })
-
-    it('does not consider a downloadable-only model auto-selectable', () => {
-      expect(isAutoSelectable('medium')).toBe(false)
-      expect(isAutoSelectable('large-v3-turbo')).toBe(false)
-      expect(isAutoSelectable('base')).toBe(true)
     })
 
     it('reports RAM to one decimal so the UI can state what it measured', async () => {
@@ -187,7 +188,42 @@ describe('whisperHardware', () => {
       const result = await recommendWhisperModel()
       expect(result.ramGB).toBeGreaterThan(0)
       expect(result.cores).toBeGreaterThan(0)
-      expect(BUNDLED_WHISPER_MODELS).toContain(result.recommendedId)
+      expect(PROBE_RUNGS).toContain(result.recommendedId)
+    })
+  })
+
+  /**
+   * What "Automático" actually resolves to now that nothing ships inside the
+   * app: advice on one side, an inventory on the other, and a rule that never
+   * points transcription at files that are not there.
+   */
+  describe('pickAutoModel', () => {
+    it('answers null when nothing is installed — the fresh-install state', () => {
+      expect(pickAutoModel('small', [])).toBeNull()
+    })
+
+    it('takes the advised model when it is on disk', () => {
+      expect(pickAutoModel('small', ['tiny', 'small', 'medium'])).toBe('small')
+    })
+
+    it('never rounds up: the heaviest installed model at or below the advice wins', () => {
+      expect(pickAutoModel('small', ['tiny', 'base', 'medium'])).toBe('base')
+    })
+
+    it('falls to the lightest installed model when everything is heavier than advised', () => {
+      expect(pickAutoModel('tiny', ['medium', 'large-v3'])).toBe('medium')
+    })
+
+    it('treats an .en build as the same rung as its multilingual sibling', () => {
+      expect(pickAutoModel('base', ['tiny.en', 'base.en'])).toBe('base.en')
+    })
+
+    it('never picks English-only for a pt-BR squad while a multilingual model exists', () => {
+      expect(pickAutoModel('small', ['small.en', 'tiny'])).toBe('tiny')
+    })
+
+    it('answers something for an id outside the ladder rather than nothing', () => {
+      expect(pickAutoModel('base', ['mystery' as never])).toBe('mystery')
     })
   })
 })

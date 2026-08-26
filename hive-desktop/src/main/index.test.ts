@@ -84,7 +84,15 @@ vi.mock('electron', () => {
     // Second Brain recorder: the microphone permission handler.
     session: { defaultSession: { setPermissionRequestHandler: vi.fn() } },
     screen: { getDisplayMatching: vi.fn(() => ({ workArea: windowGeometry.workArea })) },
-    net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) }
+    net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) },
+    // Whisper downloads (M26): the snapshot is broadcast to every live window,
+    // so main reaches for `webContents` rather than answering one sender.
+    webContents: { getAllWebContents: vi.fn(() => []) },
+    // The OS notification raised when a long download ends off-screen.
+    Notification: Object.assign(
+      vi.fn(() => ({ show: vi.fn() })),
+      { isSupported: vi.fn(() => true) }
+    )
   }
 })
 
@@ -2432,40 +2440,37 @@ describe('main process bootstrap', () => {
       ]) {
         expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
       }
-      expect(ipcMain.on).toHaveBeenCalledWith('whisper:download:start', expect.any(Function))
-      expect(ipcMain.on).toHaveBeenCalledWith('whisper:download:stop', expect.any(Function))
+      // M26: downloads are request/response now, not a sender-scoped stream —
+      // that shape is exactly what let closing a sheet kill a 2.8 GB transfer.
+      for (const ch of [
+        'whisper:downloads',
+        'whisper:download:start',
+        'whisper:download:cancel',
+        'whisper:download:dismiss'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
+      }
+      expect(ipcMain.on).not.toHaveBeenCalledWith('whisper:download:stop', expect.any(Function))
     })
 
-    it('listModels returns the catalog with per-model download state', async () => {
+    it('listModels returns the catalog, with nothing downloaded on a fresh profile', async () => {
       const models = (await findHandler('whisper:listModels')({})) as Array<{
         id: string
         downloaded: boolean
-        bundled: boolean
         repo: string
       }>
       expect(models.length).toBeGreaterThan(0)
       expect(models.map((m) => m.id)).toContain('base')
 
-      // The userData dir is a fresh temp one, so the ONLY thing that can be
-      // available here is a model shipping inside the app (D-SB-8) — which is
-      // present exactly when `npm run models:fetch` has run for this tree.
-      // Asserting the *implication* rather than a fixed list keeps this honest
-      // in both shapes: a clean clone has nothing, a packaged tree has three,
-      // and neither is allowed to report a downloaded model that isn't there.
-      for (const model of models) {
-        expect(model.downloaded).toBe(model.bundled)
-      }
+      // The app ships no weights any more (M26), and `userData` is a fresh temp
+      // dir — so every row must read as absent. Anything else would mean the
+      // store is claiming a model whose bytes are nowhere on this machine.
+      expect(models.every((model) => !model.downloaded)).toBe(true)
 
-      const status = (await findHandler('whisper:modelStatus')({}, 'base')) as {
-        downloaded: boolean
-        variant: string | null
-        bundled: boolean
-      }
-      expect(status).toEqual(
-        status.bundled
-          ? { downloaded: true, variant: 'fp32', bundled: true }
-          : { downloaded: false, variant: null, bundled: false }
-      )
+      expect(await findHandler('whisper:modelStatus')({}, 'base')).toEqual({
+        downloaded: false,
+        variant: null
+      })
     })
 
     /**
@@ -2475,18 +2480,24 @@ describe('main process bootstrap', () => {
      */
     it('preference resolves a model, and setPreferredModel pins/unpins it', async () => {
       const first = (await findHandler('whisper:preference')({})) as {
-        id: string
+        id: string | null
         auto: boolean
+        installed: string[]
         recommendation: { recommendedId: string }
       }
       expect(first.auto).toBe(true)
-      expect(['tiny', 'base', 'small']).toContain(first.id)
+      // Nothing is installed on a fresh profile, so the honest answer is `null`
+      // — the state every recording surface now has to offer to fix, instead of
+      // naming a model whose weights were never fetched.
+      expect(first.id).toBeNull()
+      expect(first.installed).toEqual([])
+      expect(['tiny', 'base', 'small']).toContain(first.recommendation.recommendedId)
 
       // A model that is not on disk cannot be pinned — the pin is ignored and
       // the probe keeps the decision, rather than transcription pointing at
       // weights that were never fetched.
       const pinnedMissing = (await findHandler('whisper:setPreferredModel')({}, 'large-v3')) as {
-        id: string
+        id: string | null
         auto: boolean
       }
       expect(pinnedMissing.auto).toBe(true)
@@ -2514,14 +2525,21 @@ describe('main process bootstrap', () => {
       await expect(findHandler('whisper:deleteModel')({}, 'base')).resolves.toBeUndefined()
     })
 
-    it('download:start streams events to the sender, and stop halts forwarding', async () => {
-      const send = vi.fn()
-      const event = { sender: { id: 7, send } }
-      findOnHandler('whisper:download:start')(event, 'base', 'fp32')
-      // The real download hits the network; the store surfaces that failure as
-      // an `error` event rather than rejecting (asserted in whisperModelStore's
-      // own tests). Either way, stop() must never throw.
-      expect(() => findOnHandler('whisper:download:stop')(event)).not.toThrow()
+    it('download:start registers a job that outlives the caller, and cancel clears it', async () => {
+      const started = (await findHandler('whisper:download:start')({}, 'base', 'fp32')) as {
+        id: string
+        status: string
+      }
+      expect(started).toMatchObject({ id: 'base', status: 'downloading' })
+      // The list is a fact about the app, readable by any window — including
+      // one that opens after the download started.
+      expect(await findHandler('whisper:downloads')({})).toMatchObject([{ id: 'base' }])
+
+      await findHandler('whisper:download:cancel')({}, 'base')
+      // The real transfer reaches the network and unwinds asynchronously; what
+      // matters here is that cancelling is a call that returns, not a teardown
+      // hidden in some renderer's unmount.
+      await expect(findHandler('whisper:download:dismiss')({}, 'base')).resolves.toBeUndefined()
     })
 
     it('update:start streams via the update channel', async () => {

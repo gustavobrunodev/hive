@@ -269,9 +269,35 @@ async (page) => {
       whisper: {
         listModels: ok([{ id: 'base', params: '74M', downloaded: false }]),
         modelStatus: ok({ downloaded: false, variant: null }),
-        downloadModel: () => noop,
+        downloads: () => Promise.resolve([]),
+        startDownload: () => Promise.resolve(undefined),
+        cancelDownload: () => Promise.resolve(undefined),
+        dismissDownload: () => Promise.resolve(undefined),
+        onDownloads: () => noop,
+        onDownloadSettled: () => noop,
         deleteModel: ok(undefined),
-        recommend: ok({ id: 'base', reason: 'balanced' })
+        recommend: ok({
+          recommendedId: 'base',
+          reason: 'unknown',
+          gpu: false,
+          ramGB: 0,
+          cores: 0
+        }),
+        // M26: `id: null` is the fresh-install answer, and every surface that
+        // listens has to render it — a demo that hands back a model nobody
+        // downloaded shows a flow that no new user can reach.
+        preference: ok({
+          id: null,
+          auto: true,
+          installed: [],
+          recommendation: { recommendedId: 'base', reason: 'unknown', gpu: false, ramGB: 0, cores: 0 }
+        }),
+        setPreferredModel: ok({
+          id: null,
+          auto: true,
+          installed: [],
+          recommendation: { recommendedId: 'base', reason: 'unknown', gpu: false, ramGB: 0, cores: 0 }
+        })
       }
     }
   })

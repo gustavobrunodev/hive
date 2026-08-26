@@ -4,6 +4,7 @@ import { t } from '../i18n'
 import { MicIcon, PencilIcon, SparkleIcon, WaveformIcon } from '../ui/icons'
 import type { RoleAction } from '../ui/ActionRail'
 import { useComposerDictation } from '../dictation/useComposerDictation'
+import { usePrewarm } from '../dictation/usePrewarm'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import type { IngestMode } from './SecondBrainFab'
@@ -18,8 +19,10 @@ import { LiveConsole } from './whisper/LiveConsole'
 import { TranscriptDocument } from './whisper/TranscriptDocument'
 import { useAudioIngest } from './whisper/useAudioIngest'
 import { enginePhaseView } from './whisper/enginePhase'
-import { useTranscriptionModel, useWhisperPreference } from './whisper/useWhisperPreference'
-import { DEFAULT_LANGUAGE, useWhisper, type WhisperModelId } from './whisper/useWhisper'
+import { useWhisperPreference } from './whisper/useWhisperPreference'
+import { DEFAULT_LANGUAGE, useWhisper } from './whisper/useWhisper'
+import { VoiceModelGate } from '../voice/VoiceModelGate'
+import { useVoiceGate, type VoiceGate } from '../voice/useVoiceGate'
 
 interface IngestPanelProps {
   /** The mode the FAB opened on, or null when the sheet is closed. */
@@ -121,20 +124,27 @@ function CaptureStage({
   mode,
   queue,
   phaseView,
-  dictation
+  dictation,
+  voiceGate
 }: {
   mode: IngestMode
   queue: ReturnType<typeof useAudioIngest>
   phaseView: ReturnType<typeof enginePhaseView>
   dictation: ReturnType<typeof useComposerDictation>
+  voiceGate: VoiceGate
 }): React.JSX.Element | null {
   if (mode === 'audioFile') {
     return (
       <>
         <AudioStage
           busy={queue.busy}
+          // M26: both audio sources make the same promise ("this becomes
+          // text"), so both pass through the same gate. A batch of files
+          // queued with no model on disk would decode, transcribe nothing and
+          // report a row of failures — long after the point where the missing
+          // download could still have been offered.
           onTranscribe={(files) =>
-            queue.add(files.map((file) => ({ blob: file, name: file.name })))
+            voiceGate.guard(() => queue.add(files.map((file) => ({ blob: file, name: file.name }))))
           }
         />
         {phaseView && <EngineProgress view={phaseView} />}
@@ -148,11 +158,14 @@ function CaptureStage({
         phase={dictation.phase}
         levels={dictation.levels}
         failure={dictation.failure}
-        onStart={dictation.start}
+        partial={dictation.partial}
+        onStart={() => voiceGate.guard(dictation.start)}
         onFinish={dictation.finish}
         onDiscard={dictation.discard}
         onRetry={dictation.retry}
-        onPrewarm={dictation.prewarm}
+        // Warming a model that is not there would be a download nobody asked
+        // for, so hovering only preheats once one exists.
+        onPrewarm={voiceGate.blocked ? undefined : dictation.prewarm}
         disabled={queue.busy}
       />
     )
@@ -182,7 +195,24 @@ function ModelNote({
 }): React.JSX.Element | null {
   // Nothing is claimed until main answers: a line that said `base` and then
   // changed to `small` under the reader is worse than a line that arrives.
+  // Nothing is claimed until main answers: a line that said `base` and then
+  // changed to `small` under the reader is worse than a line that arrives.
   if (preference === null) return null
+  // M26: no model is a real, common state now — and here it is a *warning*,
+  // not a readout, because the transcribe button below it is about to be
+  // pressed by someone who has no idea it cannot work yet.
+  if (preference.id === null) {
+    return (
+      <p className="wb-ingest-model" data-missing="true">
+        <span className="wb-ingest-model-text">{t('secondBrain.ingestModelMissing')}</span>
+        {onOpenVoiceSettings && (
+          <button type="button" className="wb-ingest-model-link" onClick={onOpenVoiceSettings}>
+            {t('secondBrain.ingestModelGet')}
+          </button>
+        )}
+      </p>
+    )
+  }
   return (
     <p className="wb-ingest-model">
       {preference.auto && <SparkleIcon size={12} aria-hidden="true" />}
@@ -306,10 +336,16 @@ export function IngestPanel({
   if (mode === null && lastMode !== null) setLastMode(null)
 
   // Which model transcription runs with, resolved in main from the hardware
-  // probe unless the user pinned one (SB-R7.4). `DEFAULT_MODEL` covers only the
-  // round trip before main answers — an audio pass cannot start that fast.
+  // probe unless the user pinned one (SB-R7.4).
+  //
+  // M26: it can be **absent**, and both audio sources have to respect that —
+  // sending a file and pressing record are the same promise ("this becomes
+  // text"), and both used to keep that promise only because the app shipped
+  // weights. `useVoiceGate` holds the live preference and remembers what the
+  // user asked for across the download.
   const { preference } = useWhisperPreference(open)
-  const model: WhisperModelId = useTranscriptionModel(open)
+  const voiceGate = useVoiceGate(open)
+  const model = voiceGate.model
 
   // Every finished transcript is appended under a heading naming its source.
   // Two voice memos and a meeting recording become one reviewable document,
@@ -331,16 +367,22 @@ export function IngestPanel({
   // Depends on the engine's *stable* pieces, not on the object `useWhisper`
   // rebuilds every render — otherwise the memo recomputes on every keystroke in
   // the transcript, which is the one thing this surface does constantly.
-  const { phase: whisperPhase, transcribe: whisperTranscribe } = whisper
+  const { phase: whisperPhase, transcribe: whisperTranscribe, warm: whisperWarm } = whisper
   const dictationEngine = useMemo<DictationEngine>(
     () =>
       // A real Whisper pass would add a model load to every E2E run; the seam
       // returns null in every other context.
       e2eDictationEngine() ?? {
         phase: whisperPhase,
-        transcribe: (pcm) => whisperTranscribe(pcm, { model, language: DEFAULT_LANGUAGE })
+        transcribe: (pcm, options) =>
+          whisperTranscribe(pcm, {
+            ...options,
+            model: model ?? undefined,
+            language: DEFAULT_LANGUAGE
+          }),
+        warm: () => whisperWarm(model ?? undefined)
       },
-    [whisperPhase, whisperTranscribe, model]
+    [whisperPhase, whisperTranscribe, whisperWarm, model]
   )
   const dictation = useComposerDictation({
     value: content,
@@ -348,6 +390,11 @@ export function IngestPanel({
     textareaRef,
     engine: dictationEngine
   })
+
+  // Opening "Ditar ao vivo" is intent: the session starts building while the
+  // user is still reaching for the microphone, instead of after the first
+  // phrase is already waiting on it (see `usePrewarm`).
+  usePrewarm(open && activeMode === 'record' && model !== null, dictation.prewarm)
 
   const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
   const working = engineBusy || queue.busy || dictation.active
@@ -417,6 +464,7 @@ export function IngestPanel({
                 queue={queue}
                 phaseView={phaseView}
                 dictation={dictation}
+                voiceGate={voiceGate}
               />
 
               <TranscriptDocument
@@ -444,6 +492,14 @@ export function IngestPanel({
             />
           </>
         )}
+        {/* Nested inside the sheet on purpose: the transcript being drafted
+            here has to survive the detour, and closing the sheet to fetch a
+            model would throw away whatever is already typed in it. */}
+        <VoiceModelGate
+          open={voiceGate.open}
+          onOpenChange={voiceGate.setOpen}
+          onOpenSettings={() => onOpenVoiceSettings?.()}
+        />
       </SheetContent>
     </Sheet>
   )

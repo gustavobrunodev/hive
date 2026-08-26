@@ -90,6 +90,16 @@ export function e2eDictationEngine(scope?: SeamScope): DictationEngine | null {
   if (harness === null) return null
   return {
     phase: { status: 'idle' },
-    transcribe: async () => harness.transcript ?? ''
+    // The stand-in reports the whole transcript as one partial before
+    // resolving, so the partial path is exercised end to end rather than only
+    // in unit tests — the transport's provisional line is production code and
+    // an E2E that never sees it would not notice it disappearing.
+    transcribe: async (_pcm, options) => {
+      const text = harness.transcript ?? ''
+      options?.onPartial?.(text)
+      return text
+    },
+    // Nothing to warm: there is no engine behind this seam.
+    warm: async () => {}
   }
 }

@@ -289,6 +289,50 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+## Lessons (voice-models, 2026-08-23)
+
+- **"O download falhou" was, in part, a progress bar that did not move.** The
+  store emitted progress once per *file*, and the model the user reported
+  (`medium`) is two files. Twenty-odd minutes at 0 %, one jump to 42 %, then
+  silence. Before hunting a network bug, check whether the UI is *capable* of
+  showing the work happening — a user cannot distinguish a stalled transfer from
+  a stalled readout, and will report the one they can name.
+- **Whatever outlives the surface that started it does not belong to that
+  surface.** A hook held the download's only handle, so its unmount cleanup was
+  the cancel. Every long job — a download, an install, an upload — wants an
+  owner in main and a *subscriber* in the renderer. The test that pins this is
+  worth writing explicitly: "unsubscribing stops watching and never cancels".
+- **A nullable field is a design decision, not a type change.** Making
+  `WhisperPreference.id` nullable is one line; the work is that every surface
+  which listens now has to answer "and what do I do with nothing?" — the
+  composer's mic, the ingestion sheet's two audio sources, the profile index
+  row, the auto-resolution ladder. That rippling is the *point*: it is what
+  stops a fresh install from offering a microphone that can only fail.
+- **The HF tree API pages at 50.** `whisper-medium` ships 31 files under
+  `onnx/` alone, and a repo with more would have pushed the two files we
+  actually want off the first page — surfacing as "no fp32 weights published
+  for this model" for a model that has them. Always ask for the page you need.
+- **A fixture that keeps only the newest subscriber is a broken broadcast.**
+  `boot.mjs` overwrote `window.__downloadSettled` on every `onDownloadSettled`
+  call, so the moment the model gate mounted, the app-wide notice stopped
+  receiving — and the probe waited thirty seconds for a card nobody had been
+  told to render. The mock must have the same fan-out shape as main, or it
+  silently tests a different app.
+- **Two probe traps, both "a state the component never rendered":** the profile
+  sheet reads its catalog when *the sheet* opens, not when the scope changes, so
+  the empty library needs a close-and-reopen rather than a "back"; and a fixture
+  planted with `page.evaluate` is wiped by the next `reload()`, so anything a
+  reload has to survive belongs in `addInitScript`. Both produced clean-looking
+  `missing` reports rather than errors, which is exactly why the probes report
+  `missing` separately from `failures`.
+- **Playwright refuses to screenshot a 340×0 element.** The shared notice column
+  is always mounted (it also holds the update notice) and has no height while
+  empty. Photograph the card, not its container.
+- **A picker that reshapes the form under it earns cards over a dropdown.** The
+  Estúdio's agent choice changes which *fields* exist (Copilot has no effort),
+  and a `Select` collapsing a field below itself reads as a glitch. Model and
+  effort stay dropdowns because they only change a value.
+
 ## Lessons (npm-distribution — real publish attempt, 2026-07-22)
 
 - **T1's spike verified the download side of the registry assumptions but
@@ -1888,6 +1932,66 @@ capture=…`), so every number is against actual signal, not silence.
 
 ## Lessons
 
+- **M26.1 — the voice bugfix round (2026-08-23).** Six defects reported from a
+  real session, all in M26's surfaces. What each one turned out to be:
+
+  - **"Array buffer allocation failed" during transcription.** Measured in this
+    app's own renderer, not inferred: `new ArrayBuffer(2040 MiB)` succeeds and
+    `2047 MiB` throws with exactly that sentence — V8's **2 GiB per-buffer
+    ceiling**. Transformers.js reads each weight file into one such buffer, so
+    a model with any single file at or past 2 GiB **cannot be loaded on any
+    machine**: `large-v3-turbo` fp32 ships a 2430 MB `encoder_model.onnx_data`
+    and `large-v3` fp32 a 3458 MB one. Both were offered in the library with a
+    download button — a 3.0 GB and a 5.8 GB download that end in a `RangeError`.
+    `voice/modelFit.ts` now carries that ceiling plus a memory rule (the load
+    peaks at `total + largest file`, and may claim at most half the machine),
+    and `maxFileMB` joined the catalog, measured per repo per variant.
+  - **The same failure was made twice as likely by a second bug.** Passing
+    `progress_callback` to `pipeline()` makes Transformers.js v4 probe every
+    expected file's metadata first, and for a **non-http** model path — which
+    `hive-model:` is — that probe is a *full GET whose body it never reads*,
+    just to look at `Content-Length`. Measured in the real Electron app: two
+    requests per `.onnx`, one left hanging for the life of the window. On
+    `medium` that is a 1.7 GB response held open, and an open file handle in
+    main that Windows will not let the user delete the model through.
+    `whisperEnv.installLoadMeter` replaces the option: it wraps `env.fetch` and
+    counts bytes off the stream the library already reads. Same percentages,
+    one request per file — verified end to end against the real protocol.
+  - **q8-on-WASM re-verified, and it still fails** (`MatMulNBits … Missing
+    required scale`, the T2 spike's finding, unchanged with ORT as bundled
+    today). So there is no quantized escape hatch on a CPU-only machine; fp32
+    is the only path, which is what makes the size ceiling load-bearing.
+  - **A finished download did not move the model out of "Biblioteca".**
+    `VoiceScope` never subscribed to `onDownloadSettled`. The transfer belongs
+    to main and outlives the sheet, so the *ending* is the only thing that
+    reaches the screen — and nothing was listening. The gate had the
+    subscription; the settings screen did not.
+  - **Deleting asked nothing and refreshed nothing on failure.** The undo for
+    that button is a multi-gigabyte download, so it now confirms; and the
+    re-read moved from `.then` to `.finally`, because a `remove` that throws
+    part-way (Windows will not unlink a file the engine still holds) left the
+    screen showing a model that was already half gone.
+  - **The chosen-model rows were ragged.** `.hds-radio-item` sets
+    `justify-content: center` — right for a 20 px disc, wrong for a row — and
+    the M26 override never erased it, so each row's content floated in whatever
+    width was left over: "Automático" (no trash button) sat 34 px right of the
+    rows under it, and neither lined up with the library. Same lesson M17's
+    agent-card block recorded: **a rewrite that changes a component's axis must
+    ERASE the old rule, not stack on it.**
+  - **The one item that was already correct: the microphone gate.** Verified in
+    the real app with an empty userData — `whisper:preference` answers `id:
+    null`, the mic opens the gate, and `getUserMedia` is never called. It is
+    now covered permanently by `e2e/voice-model-gate.spec.ts`, which is the gap
+    that let this reach a user: every unit test injects a fake preference, and
+    `voice-prompt.spec.ts` was itself **red** on this branch because M26's gate
+    blocks a userData with no model — the spec now seeds one.
+
+  Gates: 3865 unit tests green (220 files), typecheck + lint clean (0 errors),
+  E2E green (`voice-prompt`, `voice-model-gate`, `second-brain`), visual pass
+  PASS in three themes over the blocked rows, the confirmation and the
+  post-download refresh. Two design defects the visual pass caught that no test
+  would have — see Lessons (visual).
+
 - **git-management (M10) — COMPLETE (T1–T32), 2026-07-24.** The whole VS Code/
   Cursor-parity loop ships on `feat/git-management`: detect → status → stage/
   unstage/discard → commit (amend/stage-all/commit&sync) → diff (unified + side-
@@ -2522,6 +2626,72 @@ capture=…`), so every number is against actual signal, not silence.
     as planned — ND-B1 (npm username unresolved) and real Windows hardware,
     respectively. Everything else was built and verified without them.
   - **`tasks.md` T1–T16+T19 marked `[x]`; ROADMAP M6 updated.**
+
+- **voice-models (M26) IMPLEMENTED on `feat/voice-prompt` (2026-08-23).** Four
+  changes that turned out to be one feature: model downloads that survive the
+  surface that started them, an app that ships no weights at all, a gate on
+  every recording surface, and a builder picker in the Estúdio.
+
+  - **The reported bug had two causes, and neither was "the download failed".**
+    (1) Progress was emitted **once per file**, and `medium` is two files and
+    2.8 GB — so a 25-minute download reported 0 %, then 42 %, then done. A
+    number that does not move is read as a hang, and a hang gets reported as a
+    failure. (2) The renderer **owned** the download: `downloadModel` opened an
+    IPC subscription and the preload's teardown sent `whisper:download:stop`,
+    so closing the sheet killed the transfer. Both were structural, not flaky.
+  - **Main now owns downloads** (`whisperDownloads.ts`): records with a lifetime
+    of their own, several at once, broadcast to every window, cancellable by id.
+    `whisperModelStore` gained **resume** (a `.hive-partial.json` manifest +
+    `Range` per file, and a `200` answer to a `Range` request truncates rather
+    than corrupting), **retry with backoff** on transport failures only, a
+    **disk-space refusal** before spending an hour proving it, byte-level
+    progress, and typed failures (`offline`/`server`/`notFound`/`disk`/
+    `unsupported`) so the UI can say something actionable. The tree API is now
+    asked with `?limit=1000` — the default page is 50, and `whisper-medium`
+    ships 31 files under `onnx/` alone.
+  - **Nothing ships inside the app any more.** `resources/whisper-models/`,
+    `scripts/fetchWhisperModels.mjs` and `npm run models:fetch` are gone (~1.3 GB
+    off every installer). `WhisperPreference.id` is now **nullable**, which is
+    the change that rippled furthest: "there is no model" is a real state a
+    fresh install is in, and every surface that listens had to learn it.
+    `pickAutoModel` replaced `isAutoSelectable` — it never rounds *up* (a
+    GPU-less laptop must not auto-pick a 2.8 GB `medium` downloaded for another
+    machine) and never auto-picks an `.en` build, which would transcribe pt-BR
+    into confident nonsense.
+  - **The gate** (`voice/useVoiceGate.ts` + `VoiceModelGate.tsx`) is a way in,
+    not a wall: it downloads in place and then **starts the take the user
+    originally asked for**. The memory ends when the dialog does — a microphone
+    that opens by itself ten minutes later, with nothing on screen to explain
+    it, is worse than one more click; the completion notice covers that case and
+    offers the *model* instead. Wired into the chat composer's mic AND both of
+    the ingestion sheet's audio sources (sending a file and pressing record make
+    the same promise).
+  - **The ending is announced twice, without duplication**: in-app
+    (`VoiceDownloadNotices`, app-wide) whenever Hive is on screen, and by the OS
+    notification centre when the window is unfocused. The OS strings are the
+    only user-facing copy in `src/main` — kept in one named file
+    (`osNotificationCopy.ts`) with the exception documented, because the
+    renderer's `Notification` web API is denied by `setPermissionRequestHandler`
+    and widening that handler for a toast is not a trade worth making.
+  - **The Estúdio picks its builder** (`studio.agentLabel`): cards rather than a
+    third `Select`, because unlike model and effort this choice *reshapes the
+    form under it* — Copilot exposes no effort, so the field disappears. The
+    picked agent rides the launch as `StudioLaunchOpts.agentId` and becomes the
+    conversation's agent; `startWorkflowTurn` gained an `agentId` override
+    because `setConversationAgent` cannot be read back inside the same callback.
+  - **Gates:** 3840 unit/component tests green (219 files), typecheck + lint
+    clean. Every new file clears the 90/90/90/90 per-file bar; the only
+    coverage ERRORs left are the three inherited ones in HARNESS.md, and all
+    three *improved*. Visual pass PASS in **three themes** across the library
+    (in-use / pinned / downloading / failed / empty), the gate (idle + busy),
+    the notices (done + failed) and the builder picker — zero contrast failures,
+    zero unmeasured targets.
+  - **Four real defects the visual pass caught, that no test would have:** the
+    failed row carried a retry button 60 px from the banner's retry (duplicated
+    affordance); the gate's grid used `1fr` and clipped its third card off the
+    dialog; the gate cards ran name and trade-off together ("smallEquilibrado");
+    and the rate/ETA separator double-spaced. Plus two *harness* defects worth
+    more than the UI ones — see Lessons.
 
 ## Deferred Ideas
 

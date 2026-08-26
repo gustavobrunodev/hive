@@ -1,5 +1,4 @@
 import { cpus, totalmem } from 'os'
-import { BUNDLED_WHISPER_MODELS } from './whisperBundled'
 import type { HardwareRecommendation, RecommendationReason, WhisperModelId } from './whisperTypes'
 
 /**
@@ -59,10 +58,11 @@ const SMALL_MIN_RAM_GB = 8
  * Two properties make this safe to act on automatically rather than merely
  * display, which is what it used to be:
  *
- * 1. **It only ever answers with a model that ships in the app.** An automatic
- *    choice that implied a 900 MB download would be the app deciding to spend
- *    someone's evening; every rung below is one of `BUNDLED_WHISPER_MODELS`,
- *    asserted in the tests.
+ * 1. **It is advice about hardware, never an instruction to spend bandwidth.**
+ *    The answer names the model this machine should run; whether that model is
+ *    on disk is a separate question, answered by `pickAutoModel` below. An
+ *    automatic choice that silently started a 900 MB download would be the app
+ *    deciding to spend someone's evening.
  * 2. **It degrades toward a model that works everywhere.** A probe that throws,
  *    or that reads back nothing, lands on `base` rather than guessing upward —
  *    the failure mode of guessing too high is a transcription that takes
@@ -128,10 +128,66 @@ export async function recommendWhisperModel(
 }
 
 /**
- * Is `id` a model this probe is allowed to choose on its own? Exported so the
- * resolver in `index.ts` can refuse a stale config entry (a model the user
- * downloaded and later deleted) without re-deriving the bundled list.
+ * Each model's rung on the weight ladder — heavier means more accurate and
+ * slower. The `.en` build of a model is the **same rung** as its multilingual
+ * sibling: it is the same network, trained on one language, so ranking them as
+ * neighbours (which a flat ordered list does) would make "one step lighter"
+ * mean "same size, different language".
  */
-export function isAutoSelectable(id: WhisperModelId): boolean {
-  return BUNDLED_WHISPER_MODELS.includes(id)
+const RUNG: Record<WhisperModelId, number> = {
+  tiny: 0,
+  'tiny.en': 0,
+  base: 1,
+  'base.en': 1,
+  small: 2,
+  'small.en': 2,
+  medium: 3,
+  'medium.en': 3,
+  'large-v3-turbo': 4,
+  'large-v3': 5
+}
+
+/** True for the English-only builds — the ones that cannot serve a pt-BR squad. */
+const englishOnly = (id: WhisperModelId): boolean => id.endsWith('.en')
+
+/**
+ * Which installed model "Automático" resolves to, given what the probe advises.
+ *
+ * The rule has to exist because the app no longer ships weights: the probe can
+ * recommend `small` on a machine that has only downloaded `tiny`, and a
+ * resolver that trusted the recommendation outright would point transcription
+ * at files that are not there.
+ *
+ * Two commitments, in order:
+ *
+ * 1. **Never round up.** Among what is installed, the answer is the heaviest
+ *    model still no heavier than the advice. Rounding up is how "automatic"
+ *    would hand a GPU-less laptop the 2.8 GB `medium` downloaded for a
+ *    different machine, and then take minutes per phrase. Only when everything
+ *    installed is heavier does it take the lightest of those — something beats
+ *    a microphone that cannot run.
+ * 2. **Never choose English-only on its own.** This squad works in pt-BR
+ *    (D-SB-6), and an `.en` model does not refuse Portuguese — it transcribes
+ *    it into confident nonsense, which is far worse than being slow. A user can
+ *    still pin one deliberately; the app will not pick it for them unless it is
+ *    the only thing on the machine.
+ */
+export function pickAutoModel(
+  recommendedId: WhisperModelId,
+  installed: readonly WhisperModelId[]
+): WhisperModelId | null {
+  if (installed.length === 0) return null
+
+  const known = installed.filter((id) => id in RUNG)
+  if (known.length === 0) return installed[0] ?? null
+
+  const ceiling = RUNG[recommendedId]
+  const best = (pool: WhisperModelId[]): WhisperModelId | null => {
+    if (pool.length === 0) return null
+    const ranked = [...pool].sort((a, b) => RUNG[a] - RUNG[b])
+    const atOrBelow = ranked.filter((id) => RUNG[id] <= ceiling)
+    return atOrBelow.length > 0 ? atOrBelow[atOrBelow.length - 1] : ranked[0]
+  }
+
+  return best(known.filter((id) => !englishOnly(id))) ?? best(known)
 }

@@ -26,12 +26,12 @@ source ~/.nvm/nvm.sh && nvm use 22.22.1 && npm run <script>
   arquivos que a feature toca (não global) — acrescente o glob do arquivo novo
   em `vitest.config.ts`, senão ele não é medido.
 - `npm run dev` — app em modo dev.
-- `npm run models:fetch` — baixa os pesos do Whisper que **viajam dentro do
-  app** (`tiny`/`base`/`small`, fp32) para `resources/whisper-models/`. ~1,3 GB,
-  gitignorado, idempotente. Já está ligado aos `build:win|mac|linux`; rode à mão
-  antes de um `dev`/E2E em que a transcrição precise funcionar sem rede. Sem
-  ele, o app cai no caminho de download — que continua correto, só não é a
-  promessa da feature.
+- **Modelos de voz não viajam mais no app** (M26). Não existe mais
+  `npm run models:fetch` nem `resources/whisper-models/`: todo modelo Whisper é
+  baixado pelo usuário, para `userData/whisper-models/`, pelo gerenciador em
+  `src/main/whisperDownloads.ts` — que é dono do download, não a janela que o
+  começou. Para um `dev`/E2E em que a transcrição precise funcionar, baixe um
+  modelo pela folha **Voz e transcrição** uma vez; o `userData` persiste.
 - **E2E** (Electron real via Playwright):
 
   ```bash

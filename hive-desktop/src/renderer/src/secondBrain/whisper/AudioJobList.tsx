@@ -1,5 +1,6 @@
 import { t } from '../../i18n'
 import { CheckIcon, CloseIcon, WaveformIcon } from '../../ui/icons'
+import { partialTail } from '../../dictation/partialText'
 import { formatBytes, jobStatusText } from './audioJobCopy'
 import type { AudioJob } from './useAudioIngest'
 
@@ -39,6 +40,14 @@ export function AudioJobList({ jobs, onRemove }: AudioJobListProps): React.JSX.E
                   <span className="wb-brain-job-size"> · {formatBytes(job.size)}</span>
                 )}
               </span>
+              {/* The words arriving right now. `aria-hidden` because it
+                  rewrites itself several times a second; the status line above
+                  is what announces. */}
+              {job.partial !== undefined && job.partial !== '' && (
+                <span className="wb-brain-job-partial" aria-hidden="true">
+                  {partialTail(job.partial)}
+                </span>
+              )}
               {job.failure?.detail !== undefined && (
                 <details className="wb-brain-job-detail">
                   <summary>{t('secondBrain.jobDetails')}</summary>

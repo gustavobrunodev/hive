@@ -105,7 +105,7 @@ export interface Config {
   // app picks one from the hardware probe on every launch, so a machine that
   // gains a GPU (or a user who moves their profile to a stronger laptop) is
   // re-evaluated instead of being stuck with a decision made once. Stored as
-  // the bare id: an id that is neither bundled nor still downloaded falls back
+  // the bare id: an id that is no longer downloaded falls back
   // to automatic rather than failing to transcribe.
   whisperModel: string | null
 }

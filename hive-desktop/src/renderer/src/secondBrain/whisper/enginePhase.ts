@@ -1,4 +1,5 @@
 import { t } from '../../i18n'
+import { isMemoryFailure } from '../../voice/modelFit'
 import type { WhisperPhase } from './useWhisper'
 
 /**
@@ -62,4 +63,20 @@ export function enginePhaseView(phase: WhisperPhase): EnginePhaseView | null {
     default:
       return null
   }
+}
+
+/**
+ * The engine's failure, in the user's language.
+ *
+ * The engine speaks V8 and onnxruntime, and every surface used to print that
+ * verbatim: a real take ended with **"Array buffer allocation failed"** on
+ * screen — a sentence that names the mechanism, hides the cause (the chosen
+ * model does not fit in this renderer's memory) and offers no next step. Only
+ * two causes are worth telling apart here, because only two have a different
+ * next step: pick a smaller model, or fetch the one you deleted.
+ */
+export function engineErrorCopy(message: string): string {
+  if (isMemoryFailure(message)) return t('whisperError.memory')
+  if (/no such file|404|not found|failed to fetch/i.test(message)) return t('whisperError.missing')
+  return message.trim() === '' ? t('whisperError.generic') : message
 }

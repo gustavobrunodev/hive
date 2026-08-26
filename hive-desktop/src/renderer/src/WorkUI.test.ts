@@ -2509,7 +2509,10 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
       await screen.findByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
     )
     fireEvent.click(await screen.findByText('Enviar áudio'))
-    fireEvent.click(await screen.findByLabelText('Alterar o modelo de transcrição no perfil'))
+    // M26: with nothing downloaded (the mock's default, and a fresh install's
+    // real state) this line is a warning rather than a readout — but it lands
+    // on the same scope, which is the handoff being asserted.
+    fireEvent.click(await screen.findByText('Baixar um modelo'))
 
     // Landed on the scope itself, not on the index with the row still to find.
     // Landed on the scope itself, not on the index with the row still to find:

@@ -5,10 +5,12 @@ import {
   clipboard,
   ipcMain,
   dialog,
+  Notification,
   protocol,
   net,
   screen,
-  session
+  session,
+  webContents
 } from 'electron'
 import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
@@ -76,11 +78,13 @@ import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
 import { detectScreens } from './designStudio/screenDetection'
 import type { ScreenDetectionResult } from './designStudio/screenDetection'
 import type { Command, OperationError } from './designStudio/types'
-import { createWhisperModelStore, DEFAULT_WHISPER_MODEL } from './whisperModelStore'
-import { isAutoSelectable, recommendWhisperModel } from './whisperHardware'
-import { bundledModelsRoot } from './whisperBundled'
+import { createWhisperModelStore } from './whisperModelStore'
+import { createWhisperDownloadManager } from './whisperDownloads'
+import { whisperDownloadNotification } from './osNotificationCopy'
+import { pickAutoModel, recommendWhisperModel } from './whisperHardware'
 import type {
   HardwareRecommendation,
+  WhisperDownload,
   WhisperModelId,
   WhisperPreference,
   WhisperVariant
@@ -1128,14 +1132,13 @@ app.whenReady().then(() => {
   // renderer, ever. Unknown hosts and escaping paths are refused by
   // `resolveWhisperCandidates` (see its tests).
   //
-  // Two roots, in priority order (D-SB-8): the download store in `userData`
-  // first, then the weights that ship inside the app. That order is what makes
-  // "bundled" a floor rather than a ceiling — `tiny`, `base` and `small` answer
-  // out of the box with nothing downloaded, and a user who fetches a model
-  // anyway (or a different precision of a bundled one) transparently shadows it.
+  // One root: the download store in `userData`. The app used to also carry a
+  // read-only copy of `tiny`/`base`/`small` inside its own `resources/`, which
+  // added ~1.3 GB to every installer to pre-answer a choice most users make
+  // once. Every model is a download now, so there is exactly one place a
+  // model's bytes can be — and exactly one place to delete them from.
   const downloadedModelsDir = join(app.getPath('userData'), WHISPER_MODELS_DIRNAME)
-  const bundledModelsDir = bundledModelsRoot(__dirname)
-  const whisperRoots = { models: [downloadedModelsDir, bundledModelsDir] }
+  const whisperRoots = { models: [downloadedModelsDir] }
   protocol.handle(WHISPER_SCHEME, async (request) => {
     // First candidate that exists on disk. `statSync` is doing double duty: it
     // is the existence check *and* the size the response has to declare.
@@ -1396,9 +1399,7 @@ app.whenReady().then(() => {
   // Whisper model store (D-SB-4): the catalog + which models are on disk, and
   // download/delete. Downloads stream byte progress on their own channel (the
   // bmad/secondBrain streamed pattern); everything else is request/response.
-  const whisperStore = createWhisperModelStore(downloadedModelsDir, {
-    bundledDir: bundledModelsDir
-  })
+  const whisperStore = createWhisperModelStore(downloadedModelsDir)
 
   ipcMain.handle('whisper:listModels', async () => whisperStore.list())
   ipcMain.handle('whisper:modelStatus', async (_event, id: WhisperModelId) =>
@@ -1419,26 +1420,31 @@ app.whenReady().then(() => {
    *
    * Resolved in main rather than in the renderer so every surface that
    * transcribes — the ingestion sheet, live dictation, anything wired later —
-   * gets the same answer without each of them re-deriving the rule. A pinned id
-   * only wins while it is still usable: a model the user downloaded and then
-   * deleted silently hands the decision back to the probe instead of leaving
-   * dictation pointing at weights that are no longer there.
+   * gets the same answer without each of them re-deriving the rule.
+   *
+   * **It answers `null` when nothing is installed**, which is the state a fresh
+   * install is now in: the app ships no weights, so until the user downloads a
+   * model there is no model, and saying so is what lets the recording surfaces
+   * offer to fix that instead of failing halfway through a take. A pinned id
+   * only wins while it is still usable; a model the user downloaded and then
+   * deleted hands the decision back to the probe.
    */
   const resolveWhisperPreference = async (): Promise<WhisperPreference> => {
     const recommendation = await probeHardware()
+    const installed = whisperStore
+      .list()
+      .filter((model) => model.downloaded)
+      .map((model) => model.id)
     const pinned = configStore.getWhisperModel()
-    if (pinned !== null) {
-      const known = whisperStore.list().find((model) => model.id === pinned)
-      if (known?.downloaded === true) {
-        return { id: known.id, auto: false, recommendation }
-      }
+    if (pinned !== null && installed.includes(pinned as WhisperModelId)) {
+      return { id: pinned as WhisperModelId, auto: false, recommendation, installed }
     }
-    // The probe only ever answers with a bundled model, but a future catalog
-    // edit could break that; falling back keeps "automatic" meaning "ready now".
-    const auto = isAutoSelectable(recommendation.recommendedId)
-      ? recommendation.recommendedId
-      : DEFAULT_WHISPER_MODEL
-    return { id: auto, auto: true, recommendation }
+    return {
+      id: pickAutoModel(recommendation.recommendedId, installed),
+      auto: true,
+      recommendation,
+      installed
+    }
   }
 
   ipcMain.handle('whisper:preference', async () => resolveWhisperPreference())
@@ -1447,22 +1453,59 @@ app.whenReady().then(() => {
     return resolveWhisperPreference()
   })
 
-  const activeWhisperDownloads = new Map<number, () => void>()
-  ipcMain.on('whisper:download:start', (event, id: WhisperModelId, variant: WhisperVariant) => {
-    activeWhisperDownloads.get(event.sender.id)?.()
-    let stopped = false
-    void whisperStore.download(id, variant, (downloadEvent) => {
-      if (stopped) return
-      event.sender.send('whisper:download:event', downloadEvent)
-    })
-    activeWhisperDownloads.set(event.sender.id, () => {
-      stopped = true
-    })
+  /**
+   * Model downloads (M26): owned here, not by whichever window started them.
+   *
+   * The snapshot is broadcast to **every** live window rather than answered to
+   * the sender, because "is `medium` still downloading?" is a fact about the
+   * app, not about a subscription. That is also what makes closing the sheet
+   * harmless: nothing is torn down, the next window to open simply reads the
+   * same list.
+   */
+  const whisperDownloads = createWhisperDownloadManager({ store: whisperStore })
+
+  const broadcastDownloads = (downloads: WhisperDownload[]): void => {
+    for (const contents of webContents.getAllWebContents()) {
+      if (contents.isDestroyed()) continue
+      contents.send('whisper:downloads', downloads)
+    }
+  }
+  whisperDownloads.subscribe(broadcastDownloads)
+
+  /**
+   * The ending, announced by the operating system when Hive is not on screen.
+   *
+   * A model download is the app's only job that can outlive the user's
+   * attention by twenty minutes, so it is the only one that has earned a
+   * system notification — and only when the window is not focused, since an
+   * in-app toast already covers the case where the user is looking at us.
+   */
+  whisperDownloads.onSettled((download) => {
+    // The ending is pushed on its own channel as well as through the snapshot:
+    // a completed download *leaves* the list, so a renderer diffing snapshots
+    // could not tell "finished" from "cancelled" from "the window just opened".
+    for (const contents of webContents.getAllWebContents()) {
+      if (!contents.isDestroyed()) contents.send('whisper:download:settled', download)
+    }
+    if (download.status === 'cancelled') return
+    const focused = BrowserWindow.getAllWindows().some((win) => win.isFocused())
+    if (focused || !Notification.isSupported()) return
+    new Notification(whisperDownloadNotification(download)).show()
   })
-  ipcMain.on('whisper:download:stop', (event) => {
-    activeWhisperDownloads.get(event.sender.id)?.()
-    activeWhisperDownloads.delete(event.sender.id)
+
+  ipcMain.handle('whisper:downloads', async () => whisperDownloads.list())
+  ipcMain.handle(
+    'whisper:download:start',
+    async (_event, id: WhisperModelId, variant: WhisperVariant) =>
+      whisperDownloads.start(id, variant)
+  )
+  ipcMain.handle('whisper:download:cancel', async (_event, id: WhisperModelId) => {
+    whisperDownloads.cancel(id)
   })
+  ipcMain.handle('whisper:download:dismiss', async (_event, id: WhisperModelId) => {
+    whisperDownloads.dismiss(id)
+  })
+  app.on('before-quit', () => whisperDownloads.stopAll())
 
   // ChatHistoryStore (session-history): request/response, same
   // synchronous-delegate-wrapped-in-async-handle shape as the workspace

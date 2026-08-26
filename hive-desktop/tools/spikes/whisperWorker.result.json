@@ -1,0 +1,25 @@
+{
+  "w1": "module worker booted",
+  "build": {
+    "id": 1,
+    "ok": true,
+    "buildMs": 4132,
+    "main": {
+      "worstFrameMs": 40,
+      "frames": 239
+    }
+  },
+  "w2": "hive-model: readable from the worker",
+  "run": {
+    "id": 2,
+    "ok": true,
+    "runMs": 2232,
+    "firstPartialMs": 1795,
+    "partials": 23,
+    "text": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+    "main": {
+      "worstFrameMs": 19,
+      "frames": 134
+    }
+  }
+}

@@ -34,10 +34,26 @@ export interface QueueState {
   pending: number
   /** The last unresolved failure, or `null`. Never silently dropped. */
   failure: string | null
+  /**
+   * Text decoded so far for the segment **currently in flight**, or `''`.
+   *
+   * It is not written into the field — a partial is a guess that the next token
+   * can revise, and revising text under a caret the user may already be editing
+   * is worse than waiting. It goes to the transport instead, which is where
+   * "something is happening" belongs: the alternative was several seconds of a
+   * silent counter, which is precisely what read as "it waits until I stop
+   * talking".
+   */
+  partial: string
 }
 
 export interface TranscriptionQueueDeps {
-  transcribe: (pcm: Float32Array) => Promise<string>
+  /**
+   * Transcribes one segment. `onPartial` receives the running text as the
+   * engine decodes it — the queue only relays it, so the rule that partial text
+   * never reaches the field lives in one place.
+   */
+  transcribe: (pcm: Float32Array, onPartial: (text: string) => void) => Promise<string>
   /** Writes one finished segment's text into the field, in spoken order. */
   insert: (text: string) => void
   /** Announces a state change, so the caller can re-render. */
@@ -62,12 +78,14 @@ export function createTranscriptionQueue(deps: TranscriptionQueueDeps): Transcri
   let writeIndex = 0
   let running = false
   let failure: string | null = null
+  let partial = ''
   /** Bumped by `clear()`; every continuation checks it before doing anything. */
   let generation = 0
 
   const state = (): QueueState => ({
     pending: items.filter((item) => item.status === 'queued' || item.status === 'running').length,
-    failure
+    failure,
+    partial
   })
 
   const announce = (): void => deps.onChange(state())
@@ -119,10 +137,15 @@ export function createTranscriptionQueue(deps: TranscriptionQueueDeps): Transcri
     running = true
     next.status = 'running'
     const take = generation
+    partial = ''
     announce()
 
     deps
-      .transcribe(next.pcm)
+      .transcribe(next.pcm, (text) => {
+        if (generation !== take) return
+        partial = text
+        announce()
+      })
       .then((text) => {
         if (generation !== take) return
         next.status = 'done'
@@ -140,6 +163,9 @@ export function createTranscriptionQueue(deps: TranscriptionQueueDeps): Transcri
       .finally(() => {
         if (generation !== take) return
         running = false
+        // The finished segment's text is in the field now; leaving its last
+        // partial on screen would show the same words twice.
+        partial = ''
         announce()
         pump()
       })
@@ -171,6 +197,7 @@ export function createTranscriptionQueue(deps: TranscriptionQueueDeps): Transcri
       writeIndex = 0
       running = false
       failure = null
+      partial = ''
       announce()
     },
     state,

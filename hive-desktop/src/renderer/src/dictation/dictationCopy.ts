@@ -1,5 +1,5 @@
 import { t } from '../i18n'
-import { enginePhaseView } from '../secondBrain/whisper/enginePhase'
+import { enginePhaseView, engineErrorCopy } from '../secondBrain/whisper/enginePhase'
 import { DEFAULT_SEGMENTER_CONFIG } from './segmenter'
 import type { DictationPhase } from './phase'
 
@@ -94,7 +94,9 @@ function failureView(phase: Extract<DictationPhase, { status: 'error' }>): Dicta
   return {
     ...base,
     kind: 'error',
-    status: phase.message ?? t('dictation.error'),
+    // Never the engine's own words: `engineErrorCopy` turns "Array buffer
+    // allocation failed" into the sentence that says which model to pick.
+    status: phase.message === undefined ? t('dictation.error') : engineErrorCopy(phase.message),
     // The promise that makes a retry worth offering: the audio is still here.
     hint: t('dictation.errorKeep')
   }

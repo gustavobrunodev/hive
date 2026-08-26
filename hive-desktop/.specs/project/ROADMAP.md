@@ -1065,6 +1065,85 @@ explicitamente: uma máquina sem GPU dedicada que hoje recebia `base` passa a
 receber `tiny`. É mais rápido e menos preciso — está registrado em D-VS-1 para
 não ser "corrigido" por engano numa próxima rodada.
 
+## M26 — Modelos de voz: baixados, em segundo plano, e anunciados ✅ Done (2026-08-23)
+
+O M23 pôs `tiny`/`base`/`small` **dentro** do app: ~1,3 GB em todo instalador
+para pré-responder uma escolha que a maioria faz uma vez. O M26 desfaz isso e
+resolve o que a desfeita expõe.
+
+**O que mudou**
+
+1. **Nada mais viaja no app.** `resources/whisper-models/`,
+   `scripts/fetchWhisperModels.mjs` e `npm run models:fetch` deixaram de
+   existir. Todo modelo é um download do usuário, em `userData/whisper-models/`.
+2. **O download é do main, não da janela.** Ele sobrevive a fechar a folha,
+   roda vários ao mesmo tempo, retoma de onde parou (`Range` por arquivo),
+   tenta de novo com backoff em falha de transporte, recusa antes de começar
+   quando não cabe no disco, e reporta **byte a byte** — não uma vez por
+   arquivo, que era o que fazia um download de 2,8 GB parecer travado.
+3. **Toda superfície de gravação passa por uma guarda.** Sem modelo, o
+   microfone abre o caminho para conseguir um — e a gravação que o usuário
+   pediu começa sozinha quando ele chega.
+4. **O fim é anunciado onde o usuário está**: no app enquanto o Hive está na
+   tela, e pelo sistema operacional quando não está.
+5. **O Estúdio escolhe o construtor.** Como a construção *é* uma conversa, o
+   agente escolhido é também com quem o usuário continua falando — e as
+   capacidades (modelo, esforço) seguem o agente.
+
+**D-VM-1 — "Automático" nunca arredonda para cima.** Entre o que está no disco,
+a resposta é o modelo mais pesado que ainda não passa da recomendação. Arredondar
+para cima é como o automático entregaria a um notebook sem GPU o `medium` de
+2,8 GB baixado para outra máquina — e depois levaria minutos por frase.
+
+**D-VM-2 — "Automático" nunca escolhe um modelo `.en`.** Este squad trabalha em
+pt-BR (D-SB-6), e um modelo só-inglês não recusa português: ele o transcreve em
+absurdo confiante, o que é muito pior do que ser lento. O usuário ainda pode
+fixar um de propósito.
+
+**D-VM-3 — a memória da guarda acaba quando o diálogo acaba.** Um microfone que
+abre sozinho dez minutos depois, sem nada na tela explicando por quê, é pior do
+que um clique a mais. O aviso de conclusão cobre esse caso — e oferece o
+*modelo*, não a gravação.
+
+---
+
+## M26.1 — Correções de voz: o que a máquina aguenta, e o que a tela conta ✅ Done (2026-08-23)
+
+Seis defeitos vindos de uma sessão real, todos nas superfícies do M26.
+
+1. **O catálogo oferecia modelos que este computador não consegue carregar.**
+   O renderer lê cada arquivo de pesos num único `ArrayBuffer`, e o V8 recusa
+   qualquer alocação de 2 GiB ou mais — **medido aqui**: 2040 MiB aloca, 2047
+   MiB estoura com `Array buffer allocation failed`, exatamente a frase que o
+   usuário viu. `large-v3-turbo` (arquivo de 2,4 GB) e `large-v3` (3,4 GB) em
+   fp32 são impossíveis em qualquer máquina; `medium` cabe nos arquivos mas
+   pede ~4,6 GB de memória de uma vez. A biblioteca agora diz isso na linha do
+   modelo, com o motivo, em vez de oferecer um download de horas que termina
+   em erro.
+2. **A biblioteca lia progresso pedindo, e pedir custava o dobro.** Passar
+   `progress_callback` faz o Transformers.js v4 sondar cada arquivo com um GET
+   **inteiro que ele nunca lê**, só para olhar o `Content-Length` — dois
+   pedidos por `.onnx`, um pendurado até a janela fechar. Agora o progresso é
+   medido no próprio fluxo de bytes (`installLoadMeter`): mesmos números, um
+   pedido por arquivo.
+3. **Um download que terminava não saía da "Biblioteca"** até fechar e reabrir
+   o app — a folha de perfil não ouvia o fim do download, só a guarda ouvia.
+4. **Excluir não perguntava** (o desfazer é um download de gigabytes) e não
+   atualizava a tela quando a própria exclusão falhava.
+5. **Os cartões de "Seus modelos" estavam desalinhados**: o `justify-content:
+   center` do rádio do DS nunca foi apagado pelo M26, então cada linha flutuava
+   na sobra de largura.
+6. **A guarda do microfone já estava certa** — verificada no app real com
+   `userData` vazio: `getUserMedia` nunca é chamado. O que faltava era o teste;
+   agora existe (`e2e/voice-model-gate.spec.ts`), e ele expôs que o
+   `voice-prompt.spec.ts` estava **vermelho** nesta branch desde o M26.
+
+**D-VM-4 — o que não roda não se oferece.** O piso é medido, não estimado: um
+arquivo de pesos ≥ 2 GiB é impossível, e um carregamento que pede mais da
+metade da memória da máquina é recusado com o número na tela. Uma biblioteca
+que deixa alguém gastar uma hora de download em algo que não pode funcionar não
+é uma biblioteca, é uma armadilha.
+
 ---
 
 ## Dependency Graph

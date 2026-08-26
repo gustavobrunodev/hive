@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { modelTradeoff, preferenceCaption, preferenceSummary, reasonCopy } from './voiceCopy'
-import { AUTO, modelRowMeta, pickedModel } from './modelChoiceValue'
+import { preferenceSummary, reasonCopy } from './voiceCopy'
 import { profileScopes, scopeMeta } from './scopes'
-import { whisperModelFixture } from '../testSupport/hiveWhisperMock'
 import type { RecommendationReason } from '../../../main/whisperTypes'
 
 /** A probe result with the reason under test. */
@@ -42,22 +40,6 @@ describe('voiceCopy', () => {
     })
   })
 
-  describe('modelTradeoff', () => {
-    /**
-     * The trade-off, not the parameter count, is the choice being made. The
-     * `.en` variants share their base model's character — a reader picking
-     * `small.en` is picking accuracy, same as `small`.
-     */
-    it('maps each family to the choice it represents, English-only included', () => {
-      expect(modelTradeoff('tiny')).toBe('O mais rápido')
-      expect(modelTradeoff('tiny.en')).toBe('O mais rápido')
-      expect(modelTradeoff('base')).toBe('Equilibrado')
-      expect(modelTradeoff('base.en')).toBe('Equilibrado')
-      expect(modelTradeoff('small')).toBe('O mais preciso')
-      expect(modelTradeoff('large-v3')).toBe('O mais preciso')
-    })
-  })
-
   describe('preferenceSummary', () => {
     it('names what automatic resolved to, never just "Automático"', () => {
       expect(preferenceSummary({ id: 'small', auto: true })).toBe('Automático · small')
@@ -67,47 +49,18 @@ describe('voiceCopy', () => {
       expect(preferenceSummary({ id: 'tiny', auto: false })).toBe('tiny')
     })
 
+    /**
+     * M26 — three answers, not two. The app ships no weights, so "nenhum
+     * modelo" is a real resting state, and the profile index is where a user is
+     * most likely to notice it before reaching for the microphone.
+     */
+    it('says so when nothing is downloaded, rather than showing a dash', () => {
+      expect(preferenceSummary({ id: null, auto: true })).toBe('Nenhum modelo baixado')
+    })
+
     it('is null — a skeleton, not a guess — before main answers', () => {
       expect(preferenceSummary(null)).toBeNull()
     })
-  })
-
-  describe('preferenceCaption', () => {
-    it('distinguishes the app choosing from the user choosing', () => {
-      expect(preferenceCaption({ id: 'small', auto: true })).toBe('O Hive está usando small.')
-      expect(preferenceCaption({ id: 'tiny', auto: false })).toBe('Você fixou tiny.')
-    })
-  })
-})
-
-describe('modelChoiceValue', () => {
-  it('round-trips the automatic sentinel back to "hand it to the probe"', () => {
-    expect(pickedModel(AUTO)).toBeNull()
-    expect(pickedModel('small')).toBe('small')
-  })
-
-  /**
-   * A bundled model's size is the fp32 copy **already on disk** — never what a
-   * download at some other precision would have cost. Quoting the download
-   * figure for a file that is already here describes a hypothetical.
-   */
-  it('quotes the on-disk size and flags what the row is', () => {
-    expect(
-      modelRowMeta(whisperModelFixture({ params: '74 M', sizeMB: { fp32: 278, q8: 73 } }))
-    ).toBe('74 M · 278 MB · No aplicativo')
-  })
-
-  it('marks an English-only model, and omits the bundled suffix for a download', () => {
-    const meta = modelRowMeta(
-      whisperModelFixture({
-        id: 'medium.en',
-        params: '769 M',
-        sizeMB: { fp32: 2916, q8: 740 },
-        multilingual: false,
-        bundled: false
-      })
-    )
-    expect(meta).toBe('769 M · 2.8 GB · só inglês')
   })
 })
 

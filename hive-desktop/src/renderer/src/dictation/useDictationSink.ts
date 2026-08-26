@@ -21,16 +21,14 @@ import type { DictationEngine, DictationTarget } from './useDictation'
  * holds the actual ordering and failure rules and is tested without React.
  */
 
-/**
- * A tenth of a second of silence: enough for the pipeline to download, build its
- * session and cache itself — which is the whole point of pre-warming — while
- * being obviously not a take.
- */
-const PREWARM_PCM_SAMPLES = 1600
-
 export interface DictationSink {
   /** Segments queued or in flight. A count, never guessed words (D-VP-8). */
   pending: number
+  /**
+   * The words of the segment being transcribed right now, as they decode.
+   * Shown by the transport, never written into the field — see `QueueState`.
+   */
+  partial: string
   /** The last unresolved failure, visible while capture continues (VP-R4.4). */
   failure: string | null
   /** Hands a finished segment over. Does not interrupt capture (VP-R2.1). */
@@ -50,7 +48,17 @@ export interface DictationSink {
    * count truthful instead of one tick behind.
    */
   count: () => number
-  /** Warms the engine in the background, on intent only (D-VP-6). */
+  /**
+   * Warms the engine in the background, on intent (D-VP-6).
+   *
+   * `blocked` used to mean "a take is live, don't take the pipeline slot",
+   * because warming meant pushing fake audio through `transcribe`. It no longer
+   * does: the engine has a real `warm` that builds the session and returns, the
+   * worker chains it behind whatever is running, and a warm that is already
+   * done is free. So it stays as a *policy* flag — the model gate passes `true`
+   * while no model is installed, where warming would mean starting a download
+   * nobody agreed to.
+   */
   prewarm: (blocked: boolean) => void
 }
 
@@ -68,9 +76,9 @@ export function useDictationSink(
 ): DictationSink {
   const [pending, setPending] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
+  const [partial, setPartial] = useState('')
 
   const queueRef = useRef<TranscriptionQueue | null>(null)
-  const prewarmedRef = useRef(false)
 
   /**
    * The engine and the target are mirrored into refs because the queue outlives
@@ -89,7 +97,7 @@ export function useDictationSink(
   const queue = useCallback((): TranscriptionQueue => {
     if (queueRef.current === null) {
       queueRef.current = createTranscriptionQueue({
-        transcribe: (pcm) => engineRef.current.transcribe(pcm),
+        transcribe: (pcm, onPartial) => engineRef.current.transcribe(pcm, { onPartial }),
         insert: (text) => {
           const { value, selectionStart, selectionEnd } = targetRef.current.read()
           targetRef.current.write(joinTranscript(value, selectionStart, selectionEnd, text))
@@ -97,6 +105,7 @@ export function useDictationSink(
         onChange: (state) => {
           setPending(state.pending)
           setFailure(state.failure)
+          setPartial(state.partial)
           onChangeRef.current?.(state)
         }
       })
@@ -107,24 +116,25 @@ export function useDictationSink(
   return {
     pending,
     failure,
+    partial,
     enqueue: useCallback((index, pcm) => queue().enqueue(index, pcm), [queue]),
     retry: useCallback(() => queueRef.current?.retry(), []),
     clear: useCallback(() => {
       queueRef.current?.clear()
       setPending(0)
       setFailure(null)
+      setPartial('')
     }, []),
     busy: useCallback(() => queueRef.current?.busy() ?? false, []),
     count: useCallback(() => queueRef.current?.state().pending ?? 0, []),
     prewarm: useCallback((blocked: boolean) => {
-      // Never while a take is live: it would occupy the single serial pipeline
-      // slot the take itself needs.
-      if (prewarmedRef.current || blocked) return
-      prewarmedRef.current = true
-      void engineRef.current.transcribe(new Float32Array(PREWARM_PCM_SAMPLES)).catch(() => {
+      if (blocked) return
+      // Idempotence lives in the engine, which is process-wide: warming from
+      // here, from another surface, or from a take already under way are all
+      // the same one build.
+      void engineRef.current.warm().catch(() => {
         // A failed pre-warm is not the user's problem — they have not asked for
         // anything yet. The real attempt will surface its own error.
-        prewarmedRef.current = false
       })
     }, [])
   }

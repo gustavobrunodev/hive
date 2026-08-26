@@ -9,19 +9,20 @@ export interface WhisperCatalog {
    * Has main answered yet?
    *
    * Distinct from `models.length === 0`, and the distinction is load-bearing:
-   * the app always ships three models, so an empty list means "not asked yet",
-   * never "nothing here". A surface that reads the length alone renders
-   * "nothing left to download" — a confident, wrong statement — for the length
-   * of one IPC round trip.
+   * the catalog always has ten rows whether or not any of them is on disk, so
+   * an empty list means "not asked yet", never "nothing here". A surface that
+   * reads the length alone renders "nothing left to download" — a confident,
+   * wrong statement — for the length of one IPC round trip.
    */
   loaded: boolean
   /**
    * Which precision a **download** would fetch on this machine.
    *
-   * Not what will actually run: the bundled models ship as fp32 and are used as
-   * they are (see `chooseVariant`). This only sizes the rows for a model that
-   * is not here yet, so the figure in the catalog is the truth for *this* user
-   * rather than a generic one.
+   * Not what will actually run: a model already on disk is used in whichever
+   * precision it was fetched in, if this device can load it (see
+   * `chooseVariant`). This only sizes the rows for a model that is not here
+   * yet, so the figure in the catalog is the truth for *this* user rather than
+   * a generic one.
    */
   variant: WhisperVariant
   /** Re-reads the catalog — after a download, a deletion, or a manager close. */

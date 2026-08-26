@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync
 } from 'fs'
 import { tmpdir } from 'os'
@@ -13,19 +14,30 @@ import { join } from 'path'
 import {
   createWhisperModelStore,
   DEFAULT_WHISPER_MODEL,
+  toDownloadFailure,
   WHISPER_CATALOG,
+  WhisperDownloadCancelled,
+  WhisperDownloadError,
   type WhisperModelStore
 } from './whisperModelStore'
 import type { WhisperDownloadEvent, WhisperVariant } from './whisperTypes'
 
-/** A tiny fake of the HF tree API + file CDN, with no network involved. */
-function fakeRegistry(options: {
+interface RegistryOptions {
   root?: Array<{ path: string; size: number }>
   onnx?: Array<{ path: string; size: number }>
   bodies?: Record<string, string>
+  /** File whose GET fails, and how (status, or `'network'` for a rejected fetch). */
   failFile?: string
+  failWith?: number | 'network'
+  /** How many times `failFile` fails before succeeding. `Infinity` by default. */
+  failTimes?: number
   treeStatus?: number
-}): ReturnType<typeof vi.fn> {
+  /** Serve `200` (whole body) even when a `Range` header is sent. */
+  ignoreRange?: boolean
+}
+
+/** A tiny fake of the HF tree API + file CDN, with no network involved. */
+function fakeRegistry(options: RegistryOptions): ReturnType<typeof vi.fn> {
   const root = options.root ?? [
     { path: 'config.json', size: 10 },
     { path: 'tokenizer.json', size: 20 },
@@ -38,7 +50,9 @@ function fakeRegistry(options: {
     { path: 'onnx/encoder_model_quantized.onnx', size: 30 },
     { path: 'onnx/decoder_model_merged_quantized.onnx', size: 40 }
   ]
-  return vi.fn(async (url: string) => {
+  const failures = new Map<string, number>()
+
+  return vi.fn(async (url: string, init?: RequestInit) => {
     if (url.includes('/tree/main/onnx')) {
       if (options.treeStatus) return { ok: false, status: options.treeStatus } as Response
       return {
@@ -55,17 +69,29 @@ function fakeRegistry(options: {
         json: async () => root.map((f) => ({ type: 'file', ...f }))
       } as unknown as Response
     }
+
     const relative = url.split('/resolve/main/')[1]
-    if (options.failFile && relative === options.failFile) {
-      return { ok: false, status: 500, body: null } as unknown as Response
+    if (options.failFile === relative) {
+      const seen = failures.get(relative) ?? 0
+      if (seen < (options.failTimes ?? Number.POSITIVE_INFINITY)) {
+        failures.set(relative, seen + 1)
+        if (options.failWith === 'network') throw new TypeError('fetch failed')
+        return { ok: false, status: options.failWith ?? 500, body: null } as unknown as Response
+      }
     }
+
     const content = options.bodies?.[relative] ?? `bytes:${relative}`
+    const rangeHeader = (init?.headers as Record<string, string> | undefined)?.Range
+    const from =
+      rangeHeader !== undefined && !options.ignoreRange
+        ? Number(/bytes=(\d+)-/.exec(rangeHeader)?.[1] ?? 0)
+        : 0
     return {
       ok: true,
-      status: 200,
+      status: rangeHeader !== undefined && !options.ignoreRange ? 206 : 200,
       body: new ReadableStream({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(content))
+          controller.enqueue(new TextEncoder().encode(content.slice(from)))
           controller.close()
         }
       })
@@ -81,8 +107,20 @@ async function collect(
   return events
 }
 
+/** Runs a download that is expected to reject, returning the thrown value. */
+async function failure(run: () => Promise<void>): Promise<unknown> {
+  try {
+    await run()
+  } catch (error) {
+    return error
+  }
+  throw new Error('expected the download to reject')
+}
+
 describe('whisperModelStore', () => {
   let root: string
+  /** No waiting in tests: retries must be asserted, not slept through. */
+  const noWait = (): Promise<void> => Promise.resolve()
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'hive-whisper-store-'))
@@ -118,19 +156,21 @@ describe('whisperModelStore', () => {
   })
 
   describe('status/list', () => {
-    it('reports nothing downloaded on a fresh store', () => {
+    it('reports nothing downloaded on a fresh store — the app ships no weights', () => {
       const store = createWhisperModelStore(root)
-      expect(store.status('base')).toEqual({ downloaded: false, variant: null, bundled: false })
+      expect(store.status('base')).toEqual({ downloaded: false, variant: null })
       expect(store.list().every((m) => !m.downloaded)).toBe(true)
     })
 
-    it('throws on an unknown model id rather than inventing a repo', async () => {
+    it('serves exactly one root: the user profile', () => {
+      expect(createWhisperModelStore(root).searchRoots()).toEqual([root])
+    })
+
+    it('rejects an unknown model id rather than inventing a repo', async () => {
       const store = createWhisperModelStore(root, { fetchFn: fakeRegistry({}) as never })
-      const events = await collect((on) => store.download('nope' as never, 'fp32', on))
-      expect(events.at(-1)).toMatchObject({
-        type: 'error',
-        message: expect.stringContaining('unknown model')
-      })
+      const error = await failure(() => store.download('nope' as never, 'fp32', () => {}))
+      expect(error).toBeInstanceOf(WhisperDownloadError)
+      expect((error as WhisperDownloadError).kind).toBe('unsupported')
     })
   })
 
@@ -140,7 +180,7 @@ describe('whisperModelStore', () => {
 
     beforeEach(() => {
       fetchFn = fakeRegistry({})
-      store = createWhisperModelStore(root, { fetchFn: fetchFn as never })
+      store = createWhisperModelStore(root, { fetchFn: fetchFn as never, wait: noWait })
     })
 
     it('downloads the fp32 pair + config files, emits byte progress, then done', async () => {
@@ -163,6 +203,17 @@ describe('whisperModelStore', () => {
       // README/quant_config are skipped (not needed by Transformers.js).
       expect(existsSync(join(dir, 'README.md'))).toBe(false)
       expect(existsSync(join(dir, 'quant_config.json'))).toBe(false)
+      // The resume manifest never survives into the finalized model.
+      expect(existsSync(join(dir, '.hive-partial.json'))).toBe(false)
+    })
+
+    it('asks the tree API for a full page — the default 50 hides medium‘s weights', async () => {
+      await collect((on) => store.download('base', 'fp32', on))
+      const treeCalls = fetchFn.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes('/tree/main'))
+      expect(treeCalls.length).toBeGreaterThan(0)
+      for (const url of treeCalls) expect(url).toContain('limit=1000')
     })
 
     it('downloads only the quantized weights for a q8 download', async () => {
@@ -184,7 +235,7 @@ describe('whisperModelStore', () => {
           { path: 'onnx/decoder_model_merged.onnx', size: 600 }
         ]
       })
-      const s = createWhisperModelStore(root, { fetchFn: external as never })
+      const s = createWhisperModelStore(root, { fetchFn: external as never, wait: noWait })
       await collect((on) => s.download('large-v3-turbo', 'fp32', on))
 
       const onnxDir = join(root, 'large-v3-turbo', 'onnx')
@@ -194,64 +245,433 @@ describe('whisperModelStore', () => {
 
     it('records the variant so status() reports what is actually on disk', async () => {
       await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8' })
       const info = store.list().find((m) => m.id === 'base')
       expect(info).toMatchObject({ downloaded: true, downloadedVariant: 'q8' })
     })
 
     it('finalizes atomically — an interrupted download is never "downloaded"', async () => {
-      const failing = fakeRegistry({ failFile: 'onnx/decoder_model_merged.onnx' })
-      const s = createWhisperModelStore(root, { fetchFn: failing as never })
+      const failing = fakeRegistry({ failFile: 'onnx/decoder_model_merged.onnx', failWith: 404 })
+      const s = createWhisperModelStore(root, { fetchFn: failing as never, wait: noWait })
 
-      const events = await collect((on) => s.download('base', 'fp32', on))
+      await failure(() => s.download('base', 'fp32', () => {}))
 
-      expect(events.at(-1)).toMatchObject({ type: 'error' })
-      expect(s.status('base')).toEqual({ downloaded: false, variant: null, bundled: false })
-      // No partial model dir, and the temp dir is cleaned up.
+      expect(s.status('base')).toEqual({ downloaded: false, variant: null })
       expect(existsSync(join(root, 'base'))).toBe(false)
-      expect(existsSync(join(root, '.tmp-base'))).toBe(false)
     })
 
     it('a failed re-download leaves the previously-complete model intact', async () => {
       await collect((on) => store.download('base', 'fp32', on))
       expect(store.status('base').downloaded).toBe(true)
 
-      const failing = fakeRegistry({ failFile: 'config.json' })
-      const s = createWhisperModelStore(root, { fetchFn: failing as never })
-      await collect((on) => s.download('base', 'fp32', on))
+      const failing = fakeRegistry({ failFile: 'config.json', failWith: 404 })
+      const s = createWhisperModelStore(root, { fetchFn: failing as never, wait: noWait })
+      await failure(() => s.download('base', 'fp32', () => {}))
 
       // The old model is still there and still usable.
-      expect(s.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: false })
+      expect(s.status('base')).toEqual({ downloaded: true, variant: 'fp32' })
       expect(existsSync(join(root, 'base', 'onnx', 'encoder_model.onnx'))).toBe(true)
     })
 
-    it('surfaces an unavailable model index as an error event', async () => {
+    it('types an unavailable model index as a server failure', async () => {
       const offline = fakeRegistry({ treeStatus: 503 })
-      const s = createWhisperModelStore(root, { fetchFn: offline as never })
-      const events = await collect((on) => s.download('base', 'fp32', on))
-      expect(events.at(-1)).toMatchObject({
-        type: 'error',
-        message: expect.stringContaining('503')
-      })
+      const s = createWhisperModelStore(root, { fetchFn: offline as never, wait: noWait })
+      const error = await failure(() => s.download('base', 'fp32', () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({ kind: 'server' })
     })
 
     it('errors clearly when the repo publishes no weights for the requested variant', async () => {
       const noQ8 = fakeRegistry({
         onnx: [{ path: 'onnx/encoder_model.onnx', size: 10 }]
       })
-      const s = createWhisperModelStore(root, { fetchFn: noQ8 as never })
-      const events = await collect((on) => s.download('base', 'q8' as WhisperVariant, on))
-      expect(events.at(-1)).toMatchObject({
-        type: 'error',
-        message: expect.stringContaining('no q8 weights')
+      const s = createWhisperModelStore(root, { fetchFn: noQ8 as never, wait: noWait })
+      const error = await failure(() => s.download('base', 'q8' as WhisperVariant, () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({
+        kind: 'unsupported',
+        detail: expect.stringContaining('no q8 weights')
       })
     })
 
     it('re-downloading replaces the previous copy', async () => {
       await collect((on) => store.download('base', 'fp32', on))
       await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
+      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8' })
       expect(existsSync(join(root, 'base', 'onnx', 'encoder_model.onnx'))).toBe(false)
+    })
+  })
+
+  /**
+   * The behaviour the previous store did not have, and the reason a 2.8 GB
+   * `medium` download reported "falhou" on a connection that only blinked.
+   */
+  describe('resume + retry', () => {
+    it('keeps partial bytes after a failure and continues from them', async () => {
+      // Sizes match the bodies exactly, as they do against the real registry:
+      // that is what lets the resumed pass recognise a file as already complete
+      // instead of re-fetching it.
+      const shape = {
+        root: [{ path: 'config.json', size: 2 }],
+        onnx: [
+          { path: 'onnx/encoder_model.onnx', size: 100 },
+          { path: 'onnx/decoder_model_merged.onnx', size: 200 }
+        ],
+        bodies: {
+          'config.json': 'ok',
+          'onnx/encoder_model.onnx': 'E'.repeat(100),
+          'onnx/decoder_model_merged.onnx': 'D'.repeat(200)
+        }
+      }
+      const failing = fakeRegistry({
+        ...shape,
+        failFile: 'onnx/decoder_model_merged.onnx',
+        failWith: 404
+      })
+      const s = createWhisperModelStore(root, { fetchFn: failing as never, wait: noWait })
+      await failure(() => s.download('base', 'fp32', () => {}))
+
+      // The encoder that *did* arrive is still on disk, ready to be resumed.
+      const temp = join(root, '.tmp-base')
+      expect(existsSync(join(temp, 'onnx', 'encoder_model.onnx'))).toBe(true)
+      expect(s.partialBytes('base')).toBeGreaterThan(0)
+
+      const healthy = fakeRegistry(shape)
+      const s2 = createWhisperModelStore(root, { fetchFn: healthy as never, wait: noWait })
+      await collect((on) => s2.download('base', 'fp32', on))
+      expect(s2.status('base').downloaded).toBe(true)
+
+      // The already-complete encoder was never re-fetched.
+      const fetched = healthy.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes('/resolve/main/onnx/encoder_model.onnx'))
+      expect(fetched).toHaveLength(0)
+    })
+
+    it('sends a Range header for a half-written file and appends the rest', async () => {
+      const body = 'ABCDEFGHIJ'
+      const temp = join(root, '.tmp-base')
+      mkdirSync(join(temp, 'onnx'), { recursive: true })
+      writeFileSync(
+        join(temp, '.hive-partial.json'),
+        JSON.stringify({ repo: 'Xenova/whisper-base', variant: 'fp32', files: [] })
+      )
+      writeFileSync(join(temp, 'onnx', 'encoder_model.onnx'), body.slice(0, 4))
+
+      const registry = fakeRegistry({
+        onnx: [{ path: 'onnx/encoder_model.onnx', size: body.length }],
+        root: [{ path: 'config.json', size: 2 }],
+        bodies: { 'onnx/encoder_model.onnx': body, 'config.json': 'ok' }
+      })
+      const s = createWhisperModelStore(root, { fetchFn: registry as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+
+      expect(readFileSync(join(root, 'base', 'onnx', 'encoder_model.onnx'), 'utf-8')).toBe(body)
+      const ranged = registry.mock.calls.find(
+        ([url]) => String(url).includes('encoder_model.onnx') && String(url).includes('/resolve/')
+      )
+      expect((ranged?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+        Range: 'bytes=4-'
+      })
+    })
+
+    it('restarts the file when the server answers 200 to a Range request', async () => {
+      const body = 'ABCDEFGHIJ'
+      const temp = join(root, '.tmp-base')
+      mkdirSync(join(temp, 'onnx'), { recursive: true })
+      writeFileSync(
+        join(temp, '.hive-partial.json'),
+        JSON.stringify({ repo: 'Xenova/whisper-base', variant: 'fp32', files: [] })
+      )
+      writeFileSync(join(temp, 'onnx', 'encoder_model.onnx'), body.slice(0, 4))
+
+      const registry = fakeRegistry({
+        ignoreRange: true,
+        onnx: [{ path: 'onnx/encoder_model.onnx', size: body.length }],
+        root: [{ path: 'config.json', size: 2 }],
+        bodies: { 'onnx/encoder_model.onnx': body, 'config.json': 'ok' }
+      })
+      const s = createWhisperModelStore(root, { fetchFn: registry as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+
+      // Appending the whole body to the 4 bytes already there would corrupt it.
+      expect(readFileSync(join(root, 'base', 'onnx', 'encoder_model.onnx'), 'utf-8')).toBe(body)
+    })
+
+    it('drops a partial left by a different precision instead of resuming into it', async () => {
+      const temp = join(root, '.tmp-base')
+      mkdirSync(join(temp, 'onnx'), { recursive: true })
+      writeFileSync(
+        join(temp, '.hive-partial.json'),
+        JSON.stringify({ repo: 'Xenova/whisper-base', variant: 'q8', files: [] })
+      )
+      writeFileSync(join(temp, 'onnx', 'encoder_model_quantized.onnx'), 'stale')
+
+      const s = createWhisperModelStore(root, { fetchFn: fakeRegistry({}) as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+      expect(existsSync(join(root, 'base', 'onnx', 'encoder_model_quantized.onnx'))).toBe(false)
+    })
+
+    it('retries a transport failure instead of surfacing a blip as "falhou"', async () => {
+      const flaky = fakeRegistry({
+        failFile: 'onnx/encoder_model.onnx',
+        failWith: 'network',
+        failTimes: 2
+      })
+      const s = createWhisperModelStore(root, { fetchFn: flaky as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+      expect(s.status('base').downloaded).toBe(true)
+    })
+
+    it('does not retry a 404 — that answer will not change', async () => {
+      const gone = fakeRegistry({ failFile: 'onnx/encoder_model.onnx', failWith: 404 })
+      const s = createWhisperModelStore(root, { fetchFn: gone as never, wait: noWait })
+      const error = await failure(() => s.download('base', 'fp32', () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({ kind: 'notFound' })
+
+      const attempts = gone.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes('/resolve/main/onnx/encoder_model.onnx'))
+      expect(attempts).toHaveLength(1)
+    })
+
+    it('gives up after the attempt budget rather than retrying forever', async () => {
+      const broken = fakeRegistry({ failFile: 'onnx/encoder_model.onnx', failWith: 500 })
+      const s = createWhisperModelStore(root, { fetchFn: broken as never, wait: noWait })
+      await failure(() => s.download('base', 'fp32', () => {}))
+      const attempts = broken.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes('/resolve/main/onnx/encoder_model.onnx'))
+      expect(attempts).toHaveLength(4)
+    })
+
+    it('reports the bytes a previous attempt left behind', () => {
+      const temp = join(root, '.tmp-base')
+      mkdirSync(join(temp, 'onnx'), { recursive: true })
+      writeFileSync(
+        join(temp, '.hive-partial.json'),
+        JSON.stringify({
+          repo: 'Xenova/whisper-base',
+          variant: 'fp32',
+          files: ['onnx/encoder_model.onnx']
+        })
+      )
+      writeFileSync(join(temp, 'onnx', 'encoder_model.onnx'), '12345')
+      const s = createWhisperModelStore(root)
+      expect(s.partialBytes('base')).toBe(5)
+      s.discardPartial('base')
+      expect(s.partialBytes('base')).toBe(0)
+    })
+
+    it('reads no partial bytes when there is no manifest to trust', () => {
+      expect(createWhisperModelStore(root).partialBytes('base')).toBe(0)
+    })
+  })
+
+  describe('cancellation', () => {
+    it('rejects with WhisperDownloadCancelled once the signal aborts', async () => {
+      const controller = new AbortController()
+      controller.abort()
+      const s = createWhisperModelStore(root, { fetchFn: fakeRegistry({}) as never, wait: noWait })
+      const error = await failure(() =>
+        s.download('base', 'fp32', () => {}, { signal: controller.signal })
+      )
+      expect(error).toBeInstanceOf(WhisperDownloadCancelled)
+    })
+  })
+
+  /**
+   * The store's defensive edges. Each of these is a real shape the outside
+   * world hands back — a corrupt manifest, a 401 behind a proxy, a tree entry
+   * that is a directory — and every one of them used to be an unmeasured
+   * branch between a user's download and a stack trace.
+   */
+  describe('defensive edges', () => {
+    it('types a non-Error rejection without losing what it said', () => {
+      expect(toDownloadFailure('plain string failure')).toEqual({
+        kind: 'unknown',
+        detail: 'plain string failure'
+      })
+    })
+
+    it('reads a cancellation as a cancellation, never as a failure to retry', () => {
+      expect(toDownloadFailure(new WhisperDownloadCancelled())).toMatchObject({ kind: 'unknown' })
+    })
+
+    it('treats an auth failure like a missing file — retrying will not fix it', async () => {
+      const denied = fakeRegistry({ failFile: 'onnx/encoder_model.onnx', failWith: 401 })
+      const s = createWhisperModelStore(root, { fetchFn: denied as never, wait: noWait })
+      const error = await failure(() => s.download('base', 'fp32', () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({ kind: 'notFound' })
+    })
+
+    it('retries a rate limit, which is a "later", not a "no"', async () => {
+      const throttled = fakeRegistry({
+        failFile: 'onnx/encoder_model.onnx',
+        failWith: 429,
+        failTimes: 1
+      })
+      const s = createWhisperModelStore(root, { fetchFn: throttled as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+      expect(s.status('base').downloaded).toBe(true)
+    })
+
+    it('ignores directories in the tree listing', async () => {
+      const withDir = vi.fn(async (url: string) => {
+        if (url.includes('/tree/main/onnx')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [
+              { type: 'directory', path: 'onnx/nested', size: 0 },
+              { type: 'file', path: 'onnx/encoder_model.onnx', size: 5 },
+              { type: 'file', path: 'onnx/decoder_model_merged.onnx', size: 5 }
+            ]
+          } as unknown as Response
+        }
+        if (url.includes('/tree/main')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [{ type: 'file', path: 'config.json', size: 2 }]
+          } as unknown as Response
+        }
+        return {
+          ok: true,
+          status: 200,
+          body: new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('xxxxx'))
+              controller.close()
+            }
+          })
+        } as unknown as Response
+      })
+      const s = createWhisperModelStore(root, { fetchFn: withDir as never, wait: noWait })
+      await collect((on) => s.download('base', 'fp32', on))
+      expect(existsSync(join(root, 'base', 'onnx', 'nested'))).toBe(false)
+    })
+
+    it('refuses a body-less 200 rather than finalizing an empty file', async () => {
+      const empty = vi.fn(async (url: string) => {
+        if (url.includes('/tree/main/onnx')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [
+              { type: 'file', path: 'onnx/encoder_model.onnx', size: 5 },
+              { type: 'file', path: 'onnx/decoder_model_merged.onnx', size: 5 }
+            ]
+          } as unknown as Response
+        }
+        if (url.includes('/tree/main')) {
+          return { ok: true, status: 200, json: async () => [] } as unknown as Response
+        }
+        return { ok: true, status: 200, body: null } as unknown as Response
+      })
+      const s = createWhisperModelStore(root, { fetchFn: empty as never, wait: noWait })
+      const error = await failure(() => s.download('base', 'fp32', () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({ kind: 'server' })
+    })
+
+    for (const [label, body] of [
+      ['unparseable', '{not json'],
+      ['missing its repo', JSON.stringify({ variant: 'fp32' })],
+      ['carrying an unknown precision', JSON.stringify({ repo: 'x', variant: 'int4' })],
+      [
+        'with a files field that is not a list',
+        JSON.stringify({ repo: 'x', variant: 'fp32', files: 7 })
+      ]
+    ] as const) {
+      it(`reads a partial manifest ${label} as no partial at all`, () => {
+        const temp = join(root, '.tmp-base')
+        mkdirSync(temp, { recursive: true })
+        writeFileSync(join(temp, '.hive-partial.json'), body)
+        expect(createWhisperModelStore(root).partialBytes('base')).toBe(0)
+      })
+    }
+
+    it('counts nothing for a manifest naming a file that is not there', () => {
+      const temp = join(root, '.tmp-base')
+      mkdirSync(temp, { recursive: true })
+      writeFileSync(
+        join(temp, '.hive-partial.json'),
+        JSON.stringify({ repo: 'x', variant: 'fp32', files: ['onnx/gone.onnx', 7] })
+      )
+      expect(createWhisperModelStore(root).partialBytes('base')).toBe(0)
+    })
+
+    it('reads a tree entry with no declared size as zero rather than NaN', async () => {
+      const sizeless = vi.fn(async (url: string) => {
+        if (url.includes('/tree/main/onnx')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => [
+              { type: 'file', path: 'onnx/encoder_model.onnx' },
+              { type: 'file', path: 'onnx/decoder_model_merged.onnx' }
+            ]
+          } as unknown as Response
+        }
+        if (url.includes('/tree/main')) {
+          return { ok: true, status: 200, json: async () => [] } as unknown as Response
+        }
+        return {
+          ok: true,
+          status: 200,
+          body: new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('abc'))
+              controller.close()
+            }
+          })
+        } as unknown as Response
+      })
+      const s = createWhisperModelStore(root, { fetchFn: sizeless as never, wait: noWait })
+      const events = await collect((on) => s.download('base', 'fp32', on))
+      const progress = events.filter((e) => e.type === 'progress')
+      for (const event of progress) {
+        expect(Number.isFinite(event.loaded)).toBe(true)
+        expect(Number.isFinite(event.total)).toBe(true)
+      }
+      expect(s.status('base').downloaded).toBe(true)
+    })
+
+    it('backs off between attempts, with a growing delay', async () => {
+      const waits: number[] = []
+      const broken = fakeRegistry({ failFile: 'onnx/encoder_model.onnx', failWith: 500 })
+      const s = createWhisperModelStore(root, {
+        fetchFn: broken as never,
+        wait: async (ms) => void waits.push(ms)
+      })
+      await failure(() => s.download('base', 'fp32', () => {}))
+
+      // Three waits for four attempts, each at least as long as the last: a
+      // flat retry loop hammers a server that is already struggling.
+      expect(waits).toHaveLength(3)
+      expect(waits[0]).toBeGreaterThan(0)
+      expect(waits[2]).toBeGreaterThanOrEqual(waits[1])
+      expect(waits[1]).toBeGreaterThanOrEqual(waits[0])
+    })
+  })
+
+  describe('disk space', () => {
+    it('refuses before downloading when the volume cannot hold the model', async () => {
+      const s = createWhisperModelStore(root, {
+        fetchFn: fakeRegistry({}) as never,
+        freeSpace: () => 1_000,
+        wait: noWait
+      })
+      const error = await failure(() => s.download('base', 'fp32', () => {}))
+      expect(toDownloadFailure(error)).toMatchObject({ kind: 'disk' })
+    })
+
+    it('proceeds when free space cannot be read — a probe is not a gate', async () => {
+      const s = createWhisperModelStore(root, {
+        fetchFn: fakeRegistry({}) as never,
+        freeSpace: () => null,
+        wait: noWait
+      })
+      await collect((on) => s.download('base', 'fp32', on))
+      expect(s.status('base').downloaded).toBe(true)
     })
   })
 
@@ -262,8 +682,7 @@ describe('whisperModelStore', () => {
       writeFileSync(join(dir, '.hive-complete.json'), '{not json')
       expect(createWhisperModelStore(root).status('base')).toEqual({
         downloaded: false,
-        variant: null,
-        bundled: false
+        variant: null
       })
     })
 
@@ -273,139 +692,27 @@ describe('whisperModelStore', () => {
       writeFileSync(join(dir, '.hive-complete.json'), JSON.stringify({ repo: 'x' }))
       expect(createWhisperModelStore(root).status('base')).toEqual({
         downloaded: true,
-        variant: null,
-        bundled: false
+        variant: null
       })
-    })
-  })
-
-  /**
-   * D-SB-8 — the three bundled models. The point of these is that a fresh
-   * install transcribes with **no download at all**, so what is asserted here
-   * is the absence of network work, not just a flag on a row.
-   */
-  describe('bundled models (ship inside the app)', () => {
-    let bundledDir: string
-
-    /** Lays down what the packaging script produces for one model. */
-    const ship = (id: string, withMarker = true): void => {
-      mkdirSync(join(bundledDir, id, 'onnx'), { recursive: true })
-      writeFileSync(join(bundledDir, id, 'config.json'), '{}')
-      writeFileSync(join(bundledDir, id, 'onnx', 'encoder_model.onnx'), 'e')
-      writeFileSync(join(bundledDir, id, 'onnx', 'decoder_model_merged.onnx'), 'd')
-      if (withMarker) {
-        writeFileSync(
-          join(bundledDir, id, '.hive-complete.json'),
-          JSON.stringify({ variant: 'fp32', bundled: true })
-        )
-      }
-    }
-
-    beforeEach(() => {
-      bundledDir = mkdtempSync(join(tmpdir(), 'whisper-bundled-'))
-    })
-    afterEach(() => rmSync(bundledDir, { recursive: true, force: true }))
-
-    it('reports a shipped model as downloaded fp32, flagged bundled', () => {
-      ship('base')
-      const store = createWhisperModelStore(root, { bundledDir })
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
-    })
-
-    it('accepts shipped weights with no marker — the build places them, not the downloader', () => {
-      ship('tiny', false)
-      const store = createWhisperModelStore(root, { bundledDir })
-      expect(store.status('tiny')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
-    })
-
-    it('rejects a half-written bundle rather than reporting a model that cannot load', () => {
-      mkdirSync(join(bundledDir, 'small', 'onnx'), { recursive: true })
-      writeFileSync(join(bundledDir, 'small', 'onnx', 'encoder_model.onnx'), 'e')
-      const store = createWhisperModelStore(root, { bundledDir })
-      expect(store.status('small').downloaded).toBe(false)
-    })
-
-    it('never claims a non-bundled id, even if a directory of that name is present', () => {
-      ship('medium')
-      const store = createWhisperModelStore(root, { bundledDir })
-      expect(store.status('medium')).toEqual({
-        downloaded: false,
-        variant: null,
-        bundled: false
-      })
-    })
-
-    it('downloads nothing for a bundled model — it answers `done` without a fetch', async () => {
-      ship('base')
-      const fetchFn = vi.fn()
-      const store = createWhisperModelStore(root, { bundledDir, fetchFn: fetchFn as never })
-      const events = await collect((on) => store.download('base', 'fp32', on))
-      expect(events).toEqual([{ type: 'done', id: 'base' }])
-      expect(fetchFn).not.toHaveBeenCalled()
-    })
-
-    it('still downloads when the user asks for a precision the bundle does not carry', async () => {
-      ship('base')
-      const store = createWhisperModelStore(root, {
-        bundledDir,
-        fetchFn: fakeRegistry({}) as never
-      })
-      await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'q8', bundled: false })
-    })
-
-    it('a downloaded copy shadows the bundled one, and deleting it reverts to bundled', async () => {
-      ship('base')
-      const store = createWhisperModelStore(root, {
-        bundledDir,
-        fetchFn: fakeRegistry({}) as never
-      })
-      await collect((on) => store.download('base', 'q8', on))
-      expect(store.status('base').bundled).toBe(false)
-
-      store.remove('base')
-      expect(store.status('base')).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
-      // The installation is never written to: removing must not reach into it.
-      expect(existsSync(join(bundledDir, 'base', 'config.json'))).toBe(true)
-    })
-
-    it('serves both roots, downloaded first', () => {
-      const store = createWhisperModelStore(root, { bundledDir })
-      expect(store.searchRoots()).toEqual([root, bundledDir])
-    })
-
-    it('lists bundled models as ready and everything else as absent', () => {
-      ship('tiny')
-      ship('base')
-      ship('small')
-      const list = createWhisperModelStore(root, { bundledDir }).list()
-      const ready = list.filter((model) => model.downloaded).map((model) => model.id)
-      expect(ready).toEqual(['tiny', 'base', 'small'])
-      expect(list.every((model) => model.bundled === model.downloaded)).toBe(true)
     })
   })
 
   describe('remove', () => {
-    it('deletes the model directory and is a no-op when absent', async () => {
-      const store = createWhisperModelStore(root, { fetchFn: fakeRegistry({}) as never })
+    it('deletes the model directory and any partial, and is a no-op when absent', async () => {
+      const store = createWhisperModelStore(root, {
+        fetchFn: fakeRegistry({}) as never,
+        wait: noWait
+      })
       await collect((on) => store.download('base', 'fp32', on))
       expect(store.status('base').downloaded).toBe(true)
+      expect(statSync(join(root, 'base')).isDirectory()).toBe(true)
 
       store.remove('base')
       expect(store.status('base').downloaded).toBe(false)
       expect(existsSync(join(root, 'base'))).toBe(false)
+      expect(existsSync(join(root, '.tmp-base'))).toBe(false)
 
       expect(() => store.remove('base')).not.toThrow()
     })
-  })
-
-  it('writes the real file bytes it received', async () => {
-    const store = createWhisperModelStore(root, {
-      fetchFn: fakeRegistry({ bodies: { 'config.json': '{"model_type":"whisper"}' } }) as never
-    })
-    await collect((on) => store.download('base', 'fp32', on))
-    expect(readFileSync(join(root, 'base', 'config.json'), 'utf-8')).toBe(
-      '{"model_type":"whisper"}'
-    )
   })
 })

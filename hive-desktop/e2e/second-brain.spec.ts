@@ -206,31 +206,24 @@ test.describe('second-brain E2E (real Electron)', () => {
       })
       expect(served).toEqual({ ok: true, body: '{"model_type":"whisper"}' })
 
-      // The BUNDLED models resolve through the very same scheme (D-SB-8), out
-      // of the app's own `resources/` — nothing was downloaded into this run's
-      // throwaway userData, so a body here proves the second search root is
-      // live. Skipped when the tree has not run `npm run models:fetch`, since
-      // the weights are deliberately not committed.
-      const bundledOnDisk = fs.existsSync(
-        path.join(__dirname, '..', 'resources', 'whisper-models', 'tiny', 'config.json')
-      )
-      if (bundledOnDisk) {
-        const shipped = await window.evaluate(async () => {
-          const response = await fetch('hive-model://models/tiny/config.json')
-          return { ok: response.ok, type: (await response.json()).model_type }
-        })
-        expect(shipped).toEqual({ ok: true, type: 'whisper' })
+      // M26: the app ships NO weights. The installation carries no
+      // `resources/whisper-models/`, so the only place a model can come from is
+      // the user's own profile — which is what the two assertions below check
+      // from opposite sides.
+      expect(fs.existsSync(path.join(__dirname, '..', 'resources', 'whisper-models'))).toBe(false)
 
-        // And main reports it as usable without a download.
-        const status = await window.evaluate(async () => window.hive.whisper.modelStatus('tiny'))
-        expect(status).toEqual({ downloaded: true, variant: 'fp32', bundled: true })
+      // `base` was seeded into userData above but carries no completion marker,
+      // so the store correctly refuses to call it downloaded — a directory of
+      // bytes is not a finished model.
+      const status = await window.evaluate(async () => window.hive.whisper.modelStatus('base'))
+      expect(status).toEqual({ downloaded: false, variant: null })
 
-        // The resolved preference is one of the bundled models, chosen by the
-        // hardware probe rather than a hardcoded default (SB-R7.4).
-        const preference = await window.evaluate(async () => window.hive.whisper.preference())
-        expect(preference.auto).toBe(true)
-        expect(['tiny', 'base', 'small']).toContain(preference.id)
-      }
+      // And with nothing installed, the resolved preference says so rather than
+      // naming a model whose weights are nowhere on this machine (SB-R7.4).
+      const preference = await window.evaluate(async () => window.hive.whisper.preference())
+      expect(preference.auto).toBe(true)
+      expect(preference.id).toBeNull()
+      expect(preference.installed).toEqual([])
 
       // An unknown store root is refused, not served.
       const refused = await window.evaluate(async () => {

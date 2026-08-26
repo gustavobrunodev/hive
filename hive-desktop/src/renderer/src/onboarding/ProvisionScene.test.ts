@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { ProvisionScene } from './ProvisionScene'
-import { HiveSignal } from './HiveSignal'
+import { HiveHoneycomb } from './HiveHoneycomb'
 
 vi.mock('@hive/design-system', () => ({
   Alert: ({ title, children, ...rest }: { title?: ReactNode; children?: ReactNode }) =>
@@ -117,39 +117,42 @@ describe('ProvisionScene', () => {
   })
 })
 
-describe('HiveSignal', () => {
+describe('HiveHoneycomb', () => {
   afterEach(cleanup)
 
-  it('draws signals that start at the mark\u2019s edge, not at its centre', () => {
-    const { container } = render(createElement(HiveSignal, { running: true }))
+  it('draws the ring cells around an empty centre the mark occupies', () => {
+    const { container } = render(createElement(HiveHoneycomb, { running: true }))
 
-    // A ring born at r=0 reads as the mark inflating; born at the mark's own
-    // radius it reads as something leaving it, which is the whole idea.
-    const radii = Array.from(container.querySelectorAll('.wb-signal-ring')).map((ring) =>
-      ring.getAttribute('r')
-    )
-    expect(radii).toEqual(['30', '30', '30'])
+    // Two rings of a hex grid are 6 + 12 cells; the centre one is deliberately
+    // absent so the mark sits *in* the lattice rather than on top of it.
+    expect(container.querySelectorAll('.wb-honeycomb-cell')).toHaveLength(18)
   })
 
-  it('always draws a still ring, so the emblem is complete on the first frame', () => {
-    const { container } = render(createElement(HiveSignal, { running: true }))
+  it('keeps hairlines hairline-thin by baking the size into the path', () => {
+    const { container } = render(createElement(HiveHoneycomb, { running: true }))
 
-    // A shape that exists only inside an animation ships missing wherever
-    // animations don't run — a headless render, a paused tab, reduced motion.
-    expect(container.querySelector('.wb-signal-ring-rest')).toBeTruthy()
+    // SVG scales `stroke-width` along with geometry, so a `scale()` transform
+    // turned a 1.1 hairline into a ~13-unit slab and the wireframe painted as
+    // solid blobs. Real coordinates, no scale, is the fix.
+    for (const cell of container.querySelectorAll('.wb-honeycomb-cell')) {
+      expect(cell.getAttribute('transform')).toBeNull()
+      expect(cell.getAttribute('d')).toMatch(/^M-?\d/)
+    }
   })
 
-  it('spreads the signals evenly through one period so they read as one pulse', () => {
-    const { container } = render(createElement(HiveSignal, { running: true }))
+  it('staggers the charge by ring distance so it reads as one outward wave', () => {
+    const { container } = render(createElement(HiveHoneycomb, { running: true }))
 
-    const delays = Array.from(container.querySelectorAll<SVGCircleElement>('.wb-signal-ring')).map(
-      (ring) => ring.style.getPropertyValue('--wb-ring-delay')
+    const delays = new Set(
+      Array.from(container.querySelectorAll<SVGPathElement>('.wb-honeycomb-cell')).map((cell) =>
+        cell.style.getPropertyValue('--wb-cell-delay')
+      )
     )
-    expect(delays).toEqual(['0.00s', '0.93s', '1.87s'])
+    expect(delays).toEqual(new Set(['0.16s', '0.32s']))
   })
 
   it('holds still when the run is no longer in flight', () => {
-    const { container } = render(createElement(HiveSignal, { running: false }))
+    const { container } = render(createElement(HiveHoneycomb, { running: false }))
 
     expect(container.querySelector('svg')?.getAttribute('data-state')).toBe('idle')
   })

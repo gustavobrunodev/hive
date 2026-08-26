@@ -1156,25 +1156,42 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:recommend')
     })
 
-    it('downloadModel subscribes, relays progress, and unsubscribes', () => {
-      const onEvent = vi.fn()
-      const unsubscribe = whisper().downloadModel('base', 'fp32', onEvent)
-      expect(ipcRenderer.on).toHaveBeenCalledWith('whisper:download:event', expect.any(Function))
-      expect(ipcRenderer.send).toHaveBeenCalledWith('whisper:download:start', 'base', 'fp32')
+    it('starts, cancels and dismisses a download by id — never by subscription', async () => {
+      await whisper().startDownload('medium', 'fp32')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:start', 'medium', 'fp32')
+      await whisper().cancelDownload('medium')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:cancel', 'medium')
+      await whisper().dismissDownload('medium')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:dismiss', 'medium')
+      await whisper().downloads()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:downloads')
+    })
+
+    /**
+     * The bug this shape exists to make impossible: the previous bridge's
+     * teardown *stopped the download*, so closing the sheet killed a transfer
+     * that was minutes from finishing. Unsubscribing here must remove a
+     * listener and send nothing at all.
+     */
+    it('onDownloads relays snapshots, and unsubscribing never stops a download', () => {
+      const onSnapshot = vi.fn()
+      const unsubscribe = whisper().onDownloads(onSnapshot)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('whisper:downloads', expect.any(Function))
 
       const listener = vi
         .mocked(ipcRenderer.on)
-        .mock.calls.find(([ch]) => ch === 'whisper:download:event')?.[1] as (
+        .mock.calls.find(([ch]) => ch === 'whisper:downloads')?.[1] as (
         event: unknown,
-        evt: unknown
+        snapshot: unknown
       ) => void
-      const evt = { type: 'progress', id: 'base', loaded: 10, total: 20, file: 'config.json' }
-      listener({}, evt)
-      expect(onEvent).toHaveBeenCalledWith(evt)
+      const snapshot = [{ id: 'medium', status: 'downloading', loaded: 10, total: 20 }]
+      listener({}, snapshot)
+      expect(onSnapshot).toHaveBeenCalledWith(snapshot)
 
+      vi.mocked(ipcRenderer.send).mockClear()
       unsubscribe()
-      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('whisper:download:event', listener)
-      expect(ipcRenderer.send).toHaveBeenCalledWith('whisper:download:stop')
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('whisper:downloads', listener)
+      expect(ipcRenderer.send).not.toHaveBeenCalled()
     })
   })
 })

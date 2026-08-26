@@ -238,6 +238,76 @@ não contra a superfície dois níveis acima. Foi assim que o primeiro número s
 [`tools/visual/tray-contrast.mjs`](../tools/visual/tray-contrast.mjs) começa a
 pilha no próprio elemento e percorre os três temas num run só.
 
+[`tools/visual/profile-voice-pass.mjs`](../tools/visual/profile-voice-pass.mjs) e
+[`tools/visual/voice-gate-pass.mjs`](../tools/visual/voice-gate-pass.mjs) cobrem o
+sistema de modelos de voz do M26 — a biblioteca (em uso, fixado, baixando,
+falhou, **vazia**), a guarda que toda superfície de gravação atravessa e os
+avisos de fim de download — nos três temas, medindo também os portadores não
+textuais (a barra de progresso, o passo aceso do medidor, o ponto de "em uso")
+contra o piso de 3:1.
+
+[`tools/visual/ask-dictation-pass.mjs`](../tools/visual/ask-dictation-pass.mjs)
+cobre o ditado dentro de **Perguntar à base** — a linha em repouso (microfone +
+dica de envio), o transporte ao vivo que a substitui, o trecho pousando no campo
+da pergunta e a volta ao repouso — nos três temas. O microfone é a costura de
+E2E (`__hiveDictationE2E`), e ela **precisa** ser armada num init script com
+reload: `useWhisperDictation` lê a costura uma vez, ao montar o motor, então
+plantá-la numa página já viva não muda nada na tela.
+
+[`tools/visual/voice-fit-pass.mjs`](../tools/visual/voice-fit-pass.mjs) cobre a
+rodada de correções do M26.1 numa máquina forçada a 8 GB sem GPU — as linhas que
+este computador não consegue rodar (com os dois motivos distintos), a
+confirmação de exclusão e a biblioteca se relendo sozinha quando um download
+termina — nos três temas.
+
+**Mais três armadilhas, dessa rodada:**
+
+1. **O `Button` do DS nasce `primary`.** `<Button>Manter</Button>` e
+   `<Button className="hds-btn-primary">Excluir</Button>` renderizam **iguais**:
+   dois preenchimentos de accent lado a lado, a resposta segura
+   indistinguível da destrutiva. Quem cancela precisa de `variant="ghost"`
+   explícito. (O mesmo padrão está no `McpManager`.)
+2. **A armadilha do `parentElement` de novo, e ela mente para cima e para
+   baixo.** O botão preenchido medido a partir do pai deu **1,13:1** — número
+   com cara de defeito grave — quando o valor real, começando a pilha no
+   próprio elemento, é 5,54:1. A regra é a mesma de sempre: comece no elemento.
+3. **Init script é do contexto, não da chamada.** Rodar o `boot.mjs` uma vez e
+   depois plantar fixtures com `addInitScript` empilha scripts que **continuam
+   valendo** nas chamadas seguintes — inclusive uma fixture de catálogo antiga,
+   que aqui derrubou a tela inteira (`Cannot read properties of undefined`)
+   contra um build novo. Quando o `boot.mjs` mudar, feche a página e comece um
+   contexto novo antes de rodar o passe.
+
+**Três armadilhas que esses dois passes produziram, e que valem para qualquer
+sonda daqui pra frente:**
+
+1. **Um estado que a UI só lê uma vez não muda mudando a fixture.** A folha de
+   perfil lê o catálogo quando _ela_ abre, não quando o escopo troca — então
+   para ver a biblioteca vazia é preciso **fechar e reabrir a folha**, não
+   apenas clicar em "voltar". Mutar e medir sem isso reporta um estado que
+   nunca foi renderizado.
+2. **Init script, não `page.evaluate`, quando há reload no meio.** A guarda no
+   chat resolve a preferência na montagem; uma fixture plantada com `evaluate`
+   é apagada pela próxima navegação. Só `addInitScript` roda em todo load — e
+   roda **depois** do `boot.mjs`, então dá para derivar de `window.__HIVE_ALL`.
+3. **Um mock de assinatura tem que entregar para TODOS os inscritos.** O
+   `boot.mjs` guardava só o último `onDownloadSettled`, então quando a guarda
+   montava, o aviso global parava de receber — e a sonda esperava para sempre
+   por um card que ninguém foi avisado de renderizar. O main faz broadcast; a
+   fixture também precisa fazer.
+
+E uma armadilha de screenshot: `.wb-notice-column` está **sempre** montada
+(ela também abriga o aviso de atualização) e mede 340×0 enquanto vazia — o
+Playwright recusa isso como "element is not visible". Fotografe o card
+(`.wb-vnotice`), não a coluna.
+
+[`tools/visual/studio-agent-pass.mjs`](../tools/visual/studio-agent-pass.mjs)
+cobre o seletor de construtor do Estúdio (M26) — e prova o que ele existe para
+fazer: com o Copilot escolhido, o campo **Esforço some**, porque as capacidades
+vêm do agente. Só funciona porque a fixture responde `capabilities(agentId)`
+**por agente**; um mock que responde igual para todos esconde exatamente o
+comportamento sob teste.
+
 [`tools/visual/approvals.mjs`](../tools/visual/approvals.mjs) cobre o card de
 autorização com a concessão de sessão (agent-approvals): o card pendente com a
 linha "Permitir tudo nesta sessão" e o estado concedido — os dois cards
@@ -796,7 +866,7 @@ nunca foi. A generalização: **quando uma regra tinge a linha inteira, toda
 coluna dela precisa ser remedida, não só a que carrega o conteúdo.**
 
 **`--accent-tint-ink` existe e três chamadas ainda não o usavam.** "ATUAL" e
-"Em andamento" do histórico só renderizam na linha *atual* — a que é pintada
+"Em andamento" do histórico só renderizam na linha _atual_ — a que é pintada
 com `--selected-bg` — e a inicial do avatar do personalizador de atalhos senta
 literalmente sobre `--selected-bg`. Coral sobre o tint do próprio coral: 4,02
 no escuro, 4,18 no hive. Ao adicionar um token para resolver uma composição,

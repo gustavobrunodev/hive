@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { DEFAULT_MODEL, type WhisperModelId } from './useWhisper'
+import type { WhisperModelId } from './useWhisper'
 
 /** The resolved preference as the bridge returns it (never imports `src/main/*`). */
 export type WhisperPreference = Awaited<ReturnType<Window['hive']['whisper']['preference']>>
@@ -73,13 +73,15 @@ export function useWhisperPreference(active = true): WhisperPreferenceState {
 }
 
 /**
- * Just the model id, for the two surfaces that only need to know what to run.
+ * Just the model id, for the surfaces that only need to know what to run.
  *
- * `DEFAULT_MODEL` covers the round trip before main answers and nothing else —
- * no take or audio pass can start inside it. Its own hook so neither composer
- * has to spell the fallback out: the chat's did not, which is exactly how it
- * ended up dictating with a hardcoded model that no setting could change.
+ * **`null` is a real answer**, and the reason this signature changed: the app
+ * ships no weights any more, so "there is no model" is the state a fresh
+ * install is in, and every recording surface has to see it in order to offer
+ * the download instead of opening a microphone that can only fail. It is also
+ * the value during the IPC round trip before main answers — no take can start
+ * inside that window either, so the two collapse safely into one.
  */
-export function useTranscriptionModel(active = true): WhisperModelId {
-  return useWhisperPreference(active).preference?.id ?? DEFAULT_MODEL
+export function useTranscriptionModel(active = true): WhisperModelId | null {
+  return useWhisperPreference(active).preference?.id ?? null
 }

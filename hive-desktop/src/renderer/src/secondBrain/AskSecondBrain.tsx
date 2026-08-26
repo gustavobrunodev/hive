@@ -5,16 +5,21 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-  Textarea
+  HighlightedTextarea
 } from '@hive/design-system'
 import { t } from '../i18n'
 import type { RoleAction } from '../ui/ActionRail'
-import { BrainIcon, HistoryIcon } from '../ui/icons'
+import { BrainIcon, HistoryIcon, MicIcon } from '../ui/icons'
+import { DictationBar } from '../dictation/DictationBar'
+import { useWhisperDictation, type WhisperDictation } from '../dictation/useWhisperDictation'
+import type { ComposerDictation } from '../dictation/useComposerDictation'
+import { VoiceModelGate } from '../voice/VoiceModelGate'
 import { loadRecentQuestions, rememberQuestion } from './askHistory'
 import { secondBrainQuery } from './secondBrainPrompts'
 import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { VaultGuard } from './VaultGuard'
+import { transcriptRuns } from './whisper/transcriptBackdrop'
 
 /**
  * Question openers shown to someone facing an empty field (SB-R9.3). They
@@ -44,6 +49,53 @@ interface AskSecondBrainProps {
   onLaunch: (action: RoleAction) => void
   /** The vault-setup flow — drives the no-vault guard's two states. */
   setup: BrainSetup
+  /** Opens Perfil › Voz e transcrição, for the model gate's way out (M26). */
+  onOpenVoiceSettings?: () => void
+}
+
+/**
+ * The footer's leading half: the microphone, and the transport it becomes.
+ *
+ * Deliberately the chat composer's shape rather than the ingestion sheet's
+ * console (VP-R1.1/R1.3) — a quiet control beside the field, handing the row
+ * over to `DictationBar` while a take is live. Dictating a question and
+ * dictating a message are the same gesture, and a second dialect of it here
+ * would be one more thing to learn for nothing.
+ */
+function AskDictation({ voice }: { voice: WhisperDictation }): React.JSX.Element {
+  const { dictation, voiceGate } = voice
+  if (dictation.active) {
+    return (
+      <DictationBar
+        phase={dictation.phase}
+        levels={dictation.levels}
+        failure={dictation.failure}
+        partial={dictation.partial}
+        onFinish={dictation.finish}
+        onDiscard={dictation.discard}
+        onRetry={dictation.retry}
+        onRequestMic={dictation.start}
+      />
+    )
+  }
+  return (
+    <span className="wb-brain-ask-foot-lead">
+      <button
+        type="button"
+        className="wb-attach-btn wb-mic-btn"
+        aria-label={t('dictation.start')}
+        title={t('dictation.startHint')}
+        // Warming a model that is not there would be a download nobody asked
+        // for, so hovering only preheats once one exists.
+        onPointerEnter={voiceGate.blocked ? undefined : dictation.prewarm}
+        onFocus={voiceGate.blocked ? undefined : dictation.prewarm}
+        onClick={() => voiceGate.guard(dictation.start)}
+      >
+        <MicIcon size={15} />
+      </button>
+      <span className="wb-brain-ask-hint">{t('secondBrain.askSubmitHint')}</span>
+    </span>
+  )
 }
 
 /** The four openers, as a chip row that fills the field instead of submitting. */
@@ -105,6 +157,43 @@ function AskRecents({
 }
 
 /**
+ * VP-R1.6, applied to a question: asking *during* a take finalizes it first and
+ * sends what the transcription actually produced — never half a question.
+ *
+ * The ask is deferred until the queue drains, and a take that ended in an error
+ * does not send at all: the failure and its retry are on screen, and asking the
+ * base a question missing a phrase is exactly the silent loss the whole feature
+ * exists to prevent.
+ */
+function useAskAfterDictation(dictation: ComposerDictation, ask: () => void): () => void {
+  const pending = useRef(false)
+  const status = dictation.phase.status
+
+  useEffect(() => {
+    if (!pending.current) return
+    if (status === 'finalizing') return
+    pending.current = false
+    if (status !== 'idle') return
+    // Named-and-invoked (the `useVoiceGate` pattern): the send is a reaction to
+    // the queue draining, not a bare state write in an effect body.
+    function send(): void {
+      ask()
+    }
+    send()
+  }, [ask, status])
+
+  const { active, finish } = dictation
+  return useCallback(() => {
+    if (active) {
+      pending.current = true
+      finish()
+      return
+    }
+    ask()
+  }, [active, ask, finish])
+}
+
+/**
  * **Perguntar à base** (SB-R9) — ask the Second Brain anything, from anywhere:
  * `Ctrl+Shift+K`, the sidebar's primary action, or the floating button's menu.
  *
@@ -124,7 +213,8 @@ export function AskSecondBrain({
   onOpenChange,
   store,
   onLaunch,
-  setup
+  setup,
+  onOpenVoiceSettings
 }: AskSecondBrainProps): React.JSX.Element {
   const [question, setQuestion] = useState('')
   const [recents, setRecents] = useState<string[]>([])
@@ -168,6 +258,30 @@ export function AskSecondBrain({
     onOpenChange(false)
   }, [question, store.workspace, onLaunch, onOpenChange])
 
+  // A question can be spoken instead of typed, with the composer's own
+  // machinery: the field is the target, the engine is the embedded Whisper, and
+  // the installed-model gate stands in front of both. `active: open` keeps a
+  // closed dialog off the model preference's subscription.
+  const voice = useWhisperDictation({
+    value: question,
+    setValue: setQuestion,
+    textareaRef: fieldRef,
+    active: open
+  })
+  const { dictation } = voice
+
+  const askOrFinish = useAskAfterDictation(dictation, ask)
+
+  // A dialog dismissed mid-take must not leave the OS microphone lit (VP-R4.6),
+  // and the words already transcribed leave with the question being abandoned.
+  const changeOpen = useCallback(
+    (next: boolean) => {
+      if (!next && dictation.active) dictation.discard()
+      onOpenChange(next)
+    },
+    [dictation, onOpenChange]
+  )
+
   const startSetup = useCallback(() => {
     setup.start()
     onOpenChange(false)
@@ -176,13 +290,20 @@ export function AskSecondBrain({
   const empty = question.trim() === ''
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogContent
         className="wb-brain-ask-dialog"
         // Radix focuses the panel by default; the field is the whole point.
         onOpenAutoFocus={(event: Event) => {
           event.preventDefault()
           fieldRef.current?.focus()
+        }}
+        // While a take is live, Esc belongs to the take: it discards and rewinds
+        // the draft (VP-R1.5) instead of closing the surface being spoken into.
+        onEscapeKeyDown={(event: KeyboardEvent) => {
+          if (!dictation.active) return
+          event.preventDefault()
+          dictation.discard()
         }}
       >
         <header className="wb-brain-ask-head">
@@ -204,18 +325,31 @@ export function AskSecondBrain({
           <VaultGuard setup={setup} verb="ask" onStart={startSetup} />
         ) : (
           <>
-            <Textarea
+            {/* A mirror behind the glyphs, so a phrase that just arrived from
+                the microphone is visibly *what arrived* rather than something
+                the user has to diff against their memory of the field
+                (VP-R2.3). Same mechanism the transcript document uses. */}
+            <HighlightedTextarea
               ref={fieldRef}
               className="wb-brain-ask-field"
               minRows={2}
               maxRows={7}
               value={question}
+              active={dictation.active}
               placeholder={t('secondBrain.askPlaceholder')}
               aria-label={t('secondBrain.askFieldLabel')}
+              onKeyDown={dictation.handleKeyDown}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
                 setQuestion(event.target.value)
               }
-              onSubmit={ask}
+              onSubmit={askOrFinish}
+              highlight={(current: string) =>
+                transcriptRuns(current, dictation.freshRange).map((run, index) => (
+                  <span key={index} className={run.fresh ? 'wb-composer-fresh' : undefined}>
+                    {run.text}
+                  </span>
+                ))
+              }
             />
 
             {store.rawPending > 0 && (
@@ -233,13 +367,26 @@ export function AskSecondBrain({
             )}
 
             <footer className="wb-brain-ask-foot">
-              <span className="wb-brain-ask-hint">{t('secondBrain.askSubmitHint')}</span>
-              <Button cut={false} className="wb-btn hds-btn-primary" disabled={empty} onClick={ask}>
+              <AskDictation voice={voice} />
+              <Button
+                cut={false}
+                className="wb-btn hds-btn-primary"
+                disabled={empty}
+                onClick={askOrFinish}
+              >
                 {t('secondBrain.askSubmit')}
               </Button>
             </footer>
           </>
         )}
+        {/* Nested inside the dialog on purpose (the ingestion sheet's rule):
+            the question already typed here has to survive the detour, and
+            closing this to fetch a model would throw it away. */}
+        <VoiceModelGate
+          open={voice.voiceGate.open}
+          onOpenChange={voice.voiceGate.setOpen}
+          onOpenSettings={() => onOpenVoiceSettings?.()}
+        />
       </DialogContent>
     </Dialog>
   )

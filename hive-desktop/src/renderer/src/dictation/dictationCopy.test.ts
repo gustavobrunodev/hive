@@ -213,3 +213,33 @@ describe('the pt-BR dictation strings', () => {
     expect(strings.dictation.elapsed('0:07')).toContain('0:07')
   })
 })
+
+/**
+ * The engine's own words never reach the user. A real take ended with
+ * **"Array buffer allocation failed"** on screen — a sentence that names the
+ * mechanism, hides the cause (the chosen model does not fit in this
+ * renderer's memory) and offers no next step.
+ */
+describe("engine failures, in the user's language", () => {
+  it('turns the allocation failure into the model choice it is really about', () => {
+    const view = dictationView({
+      status: 'error',
+      kind: 'engine',
+      message: 'Array buffer allocation failed'
+    })
+    expect(view?.status).toContain('não cabe na memória')
+    expect(view?.status).not.toContain('Array buffer')
+    // The promise that makes the retry worth offering survives.
+    expect(view?.hint).toBeTruthy()
+    expect(view?.retry).toBe(true)
+  })
+
+  it('leaves a failure it has no better words for exactly as it came', () => {
+    const view = dictationView({
+      status: 'error',
+      kind: 'engine',
+      message: 'Missing required scale for node'
+    })
+    expect(view?.status).toBe('Missing required scale for node')
+  })
+})

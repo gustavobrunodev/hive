@@ -107,6 +107,14 @@ rodar `npm run verify`. Não existe nenhuma execução em infra limpa.
   custou: o STATE.md registra que **4 specs E2E estavam quebradas há tempo
   indeterminado** e só foram descobertas (e confirmadas como pré-existentes)
   durante uma investigação ad-hoc no M12.
+- **[Controle novo, M26] O sistema de modelos de voz é medido como um módulo.**
+  `vitest.config.ts` ganhou `src/renderer/src/voice/**` a 90/90/90/90, mais
+  `whisperModelStore.ts`, `whisperDownloads.ts` e `whisperHardware.ts` do lado
+  do main. O glob de diretório é deliberado: as falhas interessantes desse
+  módulo são **entre** as partes (um download que sobrevive à superfície que o
+  começou, uma gravação lembrada que é honrada quando o modelo chega, um fim
+  anunciado onde o usuário está), e um gate por arquivo convida a fatiar o
+  módulo até cada pedaço passar sozinho.
 - **[Falsa segurança] "verify green" não inclui o gate de cobertura — e o gate
   está vermelho.** `verify = typecheck && lint && test` — `test`, não
   `test:coverage`. Rodando o gate pela primeira vez (2026-07-27) ele reprova em
@@ -116,18 +124,23 @@ rodar `npm run verify`. Não existe nenhuma execução em infra limpa.
   | --- | --- |
   | `explorer/viewers/ImageViewer.tsx` | branches 79.06 · statements 85.84 · lines 85.84 |
   | `explorer/viewers/PdfViewer.tsx` | branches 79.66 · functions 81.81 |
-  | `explorer/Explorer.tsx` | functions 82.95 · branches 89.56 |
+  | `explorer/Explorer.tsx` | functions 82.95 · branches 89.56 → **89.96** (M26) |
   | `explorer/viewers/SlidesViewer.tsx` | functions 83.33 |
   | `explorer/viewers/docViewerShared.tsx` | functions 83.33 |
   | `explorer/viewers/DocxViewer.tsx` | branches 85.71 |
   | `explorer/viewers/SheetViewer.tsx` | branches 85.71 |
-  | `WorkUI.tsx` | functions 85.96 |
-  | `preload/index.ts` | functions 88.99 |
-  | `chat/Chat.tsx` | branches 88.98 |
+  | `WorkUI.tsx` | functions 85.96 → **86.3** (M26) |
+  | `preload/index.ts` | functions 88.99 → **89.58** (M26) |
+  | `chat/Chat.tsx` | branches 88.98 → limpo (M26) |
 
   "1570 testes, verify verde" lia como completo e não era. O CI reporta esses
   números sem bloquear até que estejam limpos — um gate permanentemente vermelho
   ensina todo mundo a ignorá-lo.
+
+  **Estado em 2026-08-23 (M26): 3 pontos, não 14.** A lista encolheu por
+  arrasto — cada feature que tocou um desses arquivos levou os números junto —
+  e o M26 empurrou os três que sobraram na direção certa sem fechar nenhum.
+  A regra continua a mesma: **não aumente a lista.**
 - **[Desequilíbrio] A regressão visual/a11y é a falha mais recorrente e é a única
   sem nenhum sensor.** STATE.md, M12.1: *"quatro defeitos que os testes não
   poderiam ter pego, todos achados olhando o app rodando (a lição do M12 se

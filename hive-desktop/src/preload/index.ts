@@ -59,7 +59,7 @@ import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type {
   HardwareRecommendation,
-  WhisperDownloadEvent,
+  WhisperDownload,
   WhisperModelId,
   WhisperModelInfo,
   WhisperPreference,
@@ -848,8 +848,8 @@ const hive = {
 
   // Whisper model store (D-SB-4). Transcription itself is renderer-local (the
   // model bytes cross via the `hive-model:` protocol, not IPC); only model-file
-  // management lives here. `downloadModel` streams byte progress and returns an
-  // unsubscribe, like the other streamed bridges.
+  // management lives here — and, since M26, the downloads that fetch them,
+  // which are owned by main rather than by whichever window asked.
   whisper: {
     listModels: (): Promise<WhisperModelInfo[]> => ipcRenderer.invoke('whisper:listModels'),
     modelStatus: (
@@ -864,18 +864,45 @@ const hive = {
     /** Pins a model, or hands the choice back to the hardware probe with `null`. */
     setPreferredModel: (id: WhisperModelId | null): Promise<WhisperPreference> =>
       ipcRenderer.invoke('whisper:setPreferredModel', id),
-    downloadModel: (
-      id: WhisperModelId,
-      variant: WhisperVariant,
-      onEvent: (evt: WhisperDownloadEvent) => void
-    ): (() => void) => {
-      const listener = (_event: IpcRendererEvent, evt: WhisperDownloadEvent): void => onEvent(evt)
-      ipcRenderer.on('whisper:download:event', listener)
-      ipcRenderer.send('whisper:download:start', id, variant)
-      return () => {
-        ipcRenderer.removeListener('whisper:download:event', listener)
-        ipcRenderer.send('whisper:download:stop')
-      }
+    /**
+     * Model downloads (M26) — **request/response plus a broadcast**, never a
+     * subscription that owns the transfer.
+     *
+     * The previous shape made the renderer the owner: `downloadModel` opened a
+     * listener and its teardown sent `whisper:download:stop`, so unmounting the
+     * sheet killed the download it had started. Here `startDownload` is a plain
+     * call that returns once the job is registered in main, and `onDownloads`
+     * is a read-only view of every job in flight. Unsubscribing stops watching;
+     * it never stops downloading. Cancelling is explicit, by id, which is also
+     * what lets two models download at once.
+     */
+    downloads: (): Promise<WhisperDownload[]> => ipcRenderer.invoke('whisper:downloads'),
+    startDownload: (id: WhisperModelId, variant: WhisperVariant): Promise<WhisperDownload> =>
+      ipcRenderer.invoke('whisper:download:start', id, variant),
+    cancelDownload: (id: WhisperModelId): Promise<void> =>
+      ipcRenderer.invoke('whisper:download:cancel', id),
+    /** Clears a settled (failed) row the user has acknowledged. */
+    dismissDownload: (id: WhisperModelId): Promise<void> =>
+      ipcRenderer.invoke('whisper:download:dismiss', id),
+    onDownloads: (onSnapshot: (downloads: WhisperDownload[]) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, downloads: WhisperDownload[]): void =>
+        onSnapshot(downloads)
+      ipcRenderer.on('whisper:downloads', listener)
+      return () => ipcRenderer.removeListener('whisper:downloads', listener)
+    },
+    /**
+     * Endings, on their own channel.
+     *
+     * A finished download *leaves* the snapshot, so a renderer watching only
+     * `onDownloads` cannot tell "it completed" from "it was cancelled" from
+     * "this window just opened after it ended". The announcement has to be an
+     * event, not a diff.
+     */
+    onDownloadSettled: (onSettled: (download: WhisperDownload) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, download: WhisperDownload): void =>
+        onSettled(download)
+      ipcRenderer.on('whisper:download:settled', listener)
+      return () => ipcRenderer.removeListener('whisper:download:settled', listener)
     }
   }
 }

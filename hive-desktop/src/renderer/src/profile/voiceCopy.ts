@@ -29,36 +29,18 @@ export function reasonCopy(recommendation: Recommendation | null): string | null
 }
 
 /**
- * The one-word trade-off each bundled model represents.
- *
- * Parameter counts and "~7x" speed multipliers are the *evidence*, not the
- * answer: nobody picking a transcription model is asking how many weights it
- * has, they are asking whether they want it fast or accurate. The numbers stay
- * on the row as supporting detail; this is the part that is actually a choice.
- */
-export function modelTradeoff(id: WhisperModelId): string {
-  if (id === 'tiny' || id === 'tiny.en') return t('voice.tradeoffTiny')
-  if (id === 'base' || id === 'base.en') return t('voice.tradeoffBase')
-  return t('voice.tradeoffSmall')
-}
-
-/**
  * The one-line summary the profile index shows on the "Voz e transcrição" row.
  *
- * `null` while main is still resolving the preference — the row renders a
- * skeleton for that rather than a model id that is about to change under the
- * reader.
+ * Three answers, not two. `null` means main has not replied yet and the row
+ * renders a skeleton for it; a resolved preference with **no model** is its own
+ * statement — since the app stopped shipping weights, "nenhum modelo" is a real
+ * and common state, and the index is where a user is most likely to notice it
+ * before reaching for the microphone.
  */
 export function preferenceSummary(
-  preference: { id: WhisperModelId; auto: boolean } | null
+  preference: { id: WhisperModelId | null; auto: boolean } | null
 ): string | null {
   if (preference === null) return null
+  if (preference.id === null) return t('profile.voiceNoneSummary')
   return preference.auto ? t('profile.autoSummary', preference.id) : preference.id
-}
-
-/** The caption under the chooser — why *this* model is the one running. */
-export function preferenceCaption(preference: { id: WhisperModelId; auto: boolean }): string {
-  return preference.auto
-    ? t('voice.captionAuto', preference.id)
-    : t('voice.captionPinned', preference.id)
 }

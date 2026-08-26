@@ -334,6 +334,38 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // voice (M26): the model system, used by the profile sheet, the chat
+        // composer and the ingestion sheet alike. Gated as one module because
+        // the interesting failures are *between* its parts — a download that
+        // survives the surface that started it, a remembered take that is
+        // honoured after it lands, an ending announced where the user is.
+        'src/renderer/src/voice/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // The main half of the same feature: the store that fetches (resume,
+        // retry, disk-space refusal), the manager that owns a download beyond
+        // any window's lifetime, and the ladder "Automático" resolves along.
+        'src/main/whisperModelStore.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/whisperDownloads.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/whisperHardware.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         'src/renderer/src/ui/FileSearchDialog.tsx': {
           statements: 90,
           branches: 90,
@@ -484,6 +516,17 @@ export default defineConfig({
           lines: 100
         },
         'src/renderer/src/dictation/useComposerDictation.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // The bundle every dictating field mounts (engine + gate + composer
+        // wiring). Gated because the failure it prevents is silent: a surface
+        // that assembles these three by hand can pass the wrong model and
+        // dictate perfectly well with it, which is exactly what happened to
+        // the chat composer for a whole milestone (M25).
+        'src/renderer/src/dictation/useWhisperDictation.ts': {
           statements: 90,
           branches: 90,
           functions: 90,

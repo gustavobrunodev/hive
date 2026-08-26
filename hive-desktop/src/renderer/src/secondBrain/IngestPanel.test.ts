@@ -213,11 +213,10 @@ describe('IngestPanel (T10)', () => {
         params: '244 M',
         sizeMB: { fp32: 923, q8: 238 },
         downloaded: false,
-        downloadedVariant: null,
-        bundled: false
+        downloadedVariant: null
       })
     ])
-    whisper.modelStatus.mockResolvedValue({ downloaded: true, variant: 'fp32', bundled: true })
+    whisper.modelStatus.mockResolvedValue({ downloaded: true, variant: 'fp32' })
     const recommendation = {
       recommendedId: 'base',
       reason: 'noGpu',
@@ -570,6 +569,7 @@ describe('IngestPanel (T10)', () => {
       vi.mocked(window.hive.whisper.preference).mockResolvedValue({
         id: 'small',
         auto: false,
+        installed: ['small'],
         recommendation: { recommendedId: 'tiny', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }
       })
       open('audioFile')
