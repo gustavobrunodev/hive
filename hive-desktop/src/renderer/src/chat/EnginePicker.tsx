@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
-import { OptionPicker, SegmentedControl } from '@hive/design-system'
-import type { PickerOption } from '@hive/design-system'
+import { forwardRef, useMemo } from 'react'
+import { OptionPicker, RampSelect } from '@hive/design-system'
+import type { PickerOption, RampStep } from '@hive/design-system'
 import { t } from '../i18n'
 import { modelTraitLabel } from '../i18n/pt-BR'
 import {
@@ -108,7 +108,7 @@ export function EnginePicker({
         />
       }
     >
-      <EngineTrigger model={current} effort={currentEffort} />
+      <EngineTrigger model={current} effort={currentEffort} efforts={efforts} />
     </OptionPicker>
   )
 }
@@ -117,14 +117,26 @@ export function EnginePicker({
  * The closed control. It carries the whole decision in one line — the model,
  * what "Automático" resolves to, and the effort — so the common case (glance,
  * keep going) never needs the panel at all.
+ *
+ * **It has to forward props and ref.** `OptionPicker` renders whatever it is
+ * given as the Radix popover trigger via `asChild`, which *clones the child
+ * element* with the open handler, the `aria-expanded`/`data-state` pair and a
+ * ref. A component that renders a `<button>` while quietly dropping the props
+ * handed to it produces a control that looks finished and cannot be opened —
+ * which is exactly what shipped, and what nothing caught, because the app's
+ * suite stubbed `OptionPicker` and the design system's exercised it with a
+ * plain `<button>`. See `EnginePicker.open.test.ts`, which drives the real
+ * popover for this reason.
  */
-function EngineTrigger({
-  model,
-  effort
-}: {
-  model: EngineOption | null
-  effort: EngineOption | null
-}): React.JSX.Element {
+const EngineTrigger = forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<'button'> & {
+    model: EngineOption | null
+    effort: EngineOption | null
+    /** The whole effort ladder, so the trigger can show *where on it* we are. */
+    efforts: EngineOption[]
+  }
+>(function EngineTrigger({ model, effort, efforts, ...rest }, ref): React.JSX.Element {
   const label = model?.label ?? t('chat.modelLabel')
   // "Automático" alone does not say what will run. When the CLI's own default
   // is known, the trigger names it — that is the whole reason to trust the
@@ -132,6 +144,8 @@ function EngineTrigger({
   const resolved = model?.traits?.includes('cli-default') ? model.resolvedId : undefined
   return (
     <button
+      {...rest}
+      ref={ref}
       type="button"
       className="wb-engine-btn"
       aria-label={t('chat.engine.triggerAria', label)}
@@ -141,12 +155,52 @@ function EngineTrigger({
       </span>
       <span className="wb-engine-name">{label}</span>
       {resolved && <span className="wb-engine-resolved">{resolved}</span>}
-      {/* The effort rides along so the second half of the decision is legible
-          without opening anything — except on the automatic row, where there
-          is nothing to report. */}
-      {effort && effort.id !== '' && <span className="wb-engine-effort-chip">{effort.label}</span>}
+      {/* The second half of the decision, always — including on "Automático".
+          Hiding it there was the state a first-time user is *in*, so the one
+          person who most needs to learn that effort is adjustable was the one
+          person shown no sign of it. */}
+      {efforts.length > 0 && (
+        <>
+          <span className="wb-engine-sep" aria-hidden="true" />
+          <span className="wb-engine-effort-chip" data-auto={effort?.id === '' || undefined}>
+            <EffortSpark efforts={efforts} effort={effort} />
+            <span className="wb-engine-effort-name">
+              {effort && effort.id !== '' ? effort.label : t('chat.engine.effortAuto')}
+            </span>
+          </span>
+        </>
+      )}
       <ChevronDownIcon size={12} />
     </button>
+  )
+})
+
+/**
+ * The effort level as three bars on the closed control — the same climb the
+ * panel's ramp draws, small enough to ride in a pill. It is the part that makes
+ * the trigger answer "how hard is it thinking?" at a glance instead of only
+ * naming a rung the user may not have the vocabulary for.
+ */
+function EffortSpark({
+  efforts,
+  effort
+}: {
+  efforts: EngineOption[]
+  effort: EngineOption | null
+}): React.JSX.Element {
+  const rungs = efforts.filter((option) => option.id !== '')
+  const index = rungs.findIndex((option) => option.id === effort?.id)
+  // Three bars over however many rungs the agent has: the mark reports a
+  // proportion, not a count, so a five-rung ladder and a three-rung one both
+  // read as "about here". Every real rung lights at least one bar — an empty
+  // mark is reserved for the delegated case, where nothing was chosen at all.
+  const lit = index < 0 ? 0 : Math.ceil(((index + 1) / rungs.length) * 3)
+  return (
+    <span className="wb-engine-spark" aria-hidden="true">
+      {[1, 2, 3].map((bar) => (
+        <i key={bar} data-on={lit >= bar || undefined} />
+      ))}
+    </span>
   )
 }
 
@@ -174,26 +228,22 @@ function EngineFooter({
     <div className="wb-engine-foot">
       {capabilities.efforts.length > 0 && (
         <div className="wb-engine-effort">
-          <div className="wb-engine-effort-head">
-            <span className="wb-engine-effort-title">{t('chat.engine.effortHeading')}</span>
-            <SegmentedControl
-              options={capabilities.efforts.map((option) => ({
-                id: option.id,
-                // "Automático" is the right word on a row with space for a
-                // sentence and the wrong one inside a six-segment track.
-                label: option.id === '' ? 'Auto' : option.label
-              }))}
-              value={currentEffort?.id ?? ''}
-              onChange={onEffortChange}
-              ariaLabel={t('chat.engine.effortAria')}
-            />
-          </div>
-          {/* The hint follows the selection: a ladder whose rungs are named
-              "alto" and "extra" says nothing about what actually changes —
-              time and cost — which is all the user is choosing between. */}
-          <p className="wb-engine-effort-hint">
-            {describeOption(currentEffort) ?? t('chat.engine.effortAria')}
-          </p>
+          <span className="wb-engine-effort-title">{t('chat.engine.effortHeading')}</span>
+          {/* A `RampSelect`, not a segmented track: effort is a *ladder*, and
+              six equal pills put the order in the words alone — you had to
+              already know that "extra" outranks "alto" to read the control at
+              all. The ramp draws the climb, so the picture answers "which way
+              is more?" before any label is read. Its description line follows
+              the selection, because the rung names say nothing about what
+              actually changes — time and cost — which is the real choice. */}
+          <RampSelect
+            steps={effortRungs(capabilities.efforts)}
+            autoStep={autoRung(capabilities.efforts)}
+            value={currentEffort?.id ?? ''}
+            onChange={onEffortChange}
+            ariaLabel={t('chat.engine.effortAria')}
+            descriptionFallback={t('chat.engine.effortAria')}
+          />
         </div>
       )}
       <div className="wb-engine-provenance">
@@ -218,6 +268,33 @@ function EngineFooter({
       )}
     </div>
   )
+}
+
+/** The ladder's real rungs, in order — the "let the CLI decide" row is not one. */
+function effortRungs(efforts: EngineOption[]): RampStep[] {
+  return efforts
+    .filter((option) => option.id !== '')
+    .map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(describeOption(option) ? { description: describeOption(option) as string } : {})
+    }))
+}
+
+/**
+ * The delegated rung, rendered beside the ramp rather than as its foot. Named
+ * "Auto" there and "Automático" on a row with space for a sentence: a
+ * ~48px column truncates the long word to "Automáti…", which reads as a
+ * rendering failure rather than as a choice.
+ */
+function autoRung(efforts: EngineOption[]): RampStep | undefined {
+  const auto = efforts.find((option) => option.id === '')
+  if (!auto) return undefined
+  return {
+    id: '',
+    label: t('chat.engine.effortAuto'),
+    ...(describeOption(auto) ? { description: describeOption(auto) as string } : {})
+  }
 }
 
 /** One capability row → one picker row, with its copy and glyph resolved. */

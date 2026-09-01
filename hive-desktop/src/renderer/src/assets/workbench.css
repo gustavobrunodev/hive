@@ -1676,10 +1676,16 @@ body ::-webkit-scrollbar-corner {
    Engine picker (model-picker) — one control for "quanta potência nesta
    conversa": which model, and how hard it thinks.
 
-   It replaced two unlabelled `Select`s in the composer toolbar. The trigger
-   stays quieter than the agent pill next to it on purpose: the agent is the
-   identity of the conversation, the engine is a setting inside it, and two
-   accent-tinted pills side by side read as two competing headlines.
+   It replaced two unlabelled `Select`s in the composer toolbar, and it stays
+   quieter than the agent pill beside it: the agent is the *identity* of the
+   conversation, the engine is a setting inside it, and two accent-tinted pills
+   side by side read as two competing headlines.
+
+   "Quieter" is not "invisible", and the first cut got that wrong — a
+   transparent, borderless trigger among icon buttons reads as a *label*, so
+   the one control on this row that names a decision looked like the one thing
+   on it you could not touch. It now carries a neutral container: unmistakably
+   a control, still visibly subordinate to the accented pill next to it.
    ========================================================================== */
 
 .wb-engine-btn {
@@ -1687,10 +1693,10 @@ body ::-webkit-scrollbar-corner {
   align-items: center;
   gap: 6px;
   height: 26px;
-  padding: 0 7px 0 6px;
+  padding: 0 6px 0 7px;
   border-radius: var(--rounded-full);
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   color: var(--muted);
   font-family: var(--ff-body);
   font-size: 0.75rem;
@@ -1703,16 +1709,35 @@ body ::-webkit-scrollbar-corner {
     color 0.16s var(--ease-quart);
 }
 
-.wb-engine-btn:hover,
+.wb-engine-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+/* Open: the trigger and the panel are one object, so the trigger takes the
+   panel's focus colour rather than merely staying hovered. */
 .wb-engine-btn[data-state='open'] {
-  background: var(--surface-2);
-  border-color: var(--border);
+  background: var(--surface-3);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
   color: var(--ink);
 }
 
 .wb-engine-btn:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+/* The chevron is the affordance of last resort — it should read as part of the
+   control, not as a third word in the sentence. */
+.wb-engine-btn > svg:last-child {
+  color: var(--faint);
+  transition: color 0.16s var(--ease-quart);
+}
+
+.wb-engine-btn:hover > svg:last-child,
+.wb-engine-btn[data-state='open'] > svg:last-child {
+  color: var(--muted);
 }
 
 .wb-engine-glyph {
@@ -1727,9 +1752,6 @@ body ::-webkit-scrollbar-corner {
   color: var(--ink);
 }
 
-/* The effort rides along on the trigger, so the second half of the decision
-   is legible without opening anything. Opaque tint + `--ink`: at 10px bold it
-   takes the 4.5:1 body floor, which the `*-ink on *-bg` pairs miss in light. */
 /* What "Automático" resolves to, in the mono face: it is an id the user can
    check against their own config, not prose. */
 .wb-engine-resolved {
@@ -1742,14 +1764,70 @@ body ::-webkit-scrollbar-corner {
   text-overflow: ellipsis;
 }
 
+/* The trigger holds two decisions. A hairline says so — without it, "Opus" and
+   "Alto" run together into one phrase that names neither. */
+.wb-engine-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 5px 1px;
+  background: var(--border);
+}
+
+/* The effort rides along on the trigger, so the second half of the decision is
+   legible without opening anything. Opaque tint + `--ink`: at 10px bold it
+   takes the 4.5:1 body floor, which the `*-ink on *-bg` pairs miss in light. */
 .wb-engine-effort-chip {
-  padding: 1px 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 5px;
   border-radius: var(--rounded-sm);
   background: color-mix(in oklab, var(--accent) 18%, var(--surface));
   color: var(--ink);
   font-size: 0.625rem;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+/* Delegated effort is a quieter statement than a chosen rung: it reports what
+   the CLI will do, it doesn't claim a setting. Neutral fill, not the accent. */
+.wb-engine-effort-chip[data-auto] {
+  background: color-mix(in oklab, var(--ink) 8%, var(--surface));
+  color: var(--muted);
+}
+
+/* Three bars: the same climb the panel's ramp draws, at pill scale. */
+.wb-engine-spark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 9px;
+}
+
+.wb-engine-spark i {
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in oklab, var(--ink) 26%, transparent);
+  transition: background-color 0.16s var(--ease-quart);
+}
+
+.wb-engine-spark i:nth-child(1) {
+  height: 40%;
+}
+.wb-engine-spark i:nth-child(2) {
+  height: 70%;
+}
+.wb-engine-spark i:nth-child(3) {
+  height: 100%;
+}
+
+.wb-engine-spark i[data-on] {
+  background: var(--accent);
+}
+
+.wb-engine-effort-name {
+  white-space: nowrap;
 }
 
 /* ---- the panel's footer ---------------------------------------------- */
@@ -1760,32 +1838,14 @@ body ::-webkit-scrollbar-corner {
   gap: var(--s-3);
 }
 
+/* Title over the ramp, not beside it. Measured on the track this replaced:
+   sharing one row with the heading left the six rungs ~46px each and every
+   label truncated to a letter and an ellipsis ("A… B… M…"). The ramp keeps
+   the full width for the same reason. */
 .wb-engine-effort {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-/* Title over the track, not beside it. Measured: sharing one row with the
-   heading left the six segments ~46px each and every label truncated to a
-   letter and an ellipsis ("A… B… M…"), which is a ladder nobody can read. */
-.wb-engine-effort-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* The track claims the full panel width and divides it evenly, so the six
-   rungs are the same size whatever they are called. */
-.wb-engine-effort-head .hds-seg {
-  display: flex;
-  width: 100%;
-}
-
-.wb-engine-effort-head .hds-seg-item {
-  flex: 1 1 0;
-  justify-content: center;
-  padding: 5px 4px;
 }
 
 .wb-engine-effort-title {
@@ -1794,17 +1854,6 @@ body ::-webkit-scrollbar-corner {
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--muted);
-}
-
-.wb-engine-effort-hint {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--muted);
-  /* Two lines' worth of room reserved: the hint changes with the selection,
-     and a footer that grows and shrinks under the pointer makes the segment
-     the user is aiming at move away from them. */
-  min-height: 2.1em;
 }
 
 .wb-engine-provenance {
@@ -1913,6 +1962,8 @@ body ::-webkit-scrollbar-corner {
 
 @media (prefers-reduced-motion: reduce) {
   .wb-engine-btn,
+  .wb-engine-btn > svg:last-child,
+  .wb-engine-spark i,
   .wb-engine-refresh {
     transition: none;
   }

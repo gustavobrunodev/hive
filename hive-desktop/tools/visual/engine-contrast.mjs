@@ -41,6 +41,14 @@ async (page) => {
 
   const measure = async () =>
     await page.evaluate(() => {
+      // The ramp's bars cross-fade their fill over 200ms, and getComputedStyle
+      // during a transition returns the colour being animated AWAY from. A
+      // probe that measures straight after a click therefore grades the
+      // previous state and calls it the current one — this cost a full sweep
+      // that reported an identical number for every candidate value.
+      const stillness = document.createElement('style')
+      stillness.textContent = '.hds-ramp-bar{transition:none !important}'
+      document.head.appendChild(stillness)
       const canvas = document.createElement('canvas')
       canvas.width = canvas.height = 1
       const ctx = canvas.getContext('2d', { willReadFrequently: true })
@@ -102,9 +110,13 @@ async (page) => {
           '.hds-picker-item:not([data-selected-option]) .hds-picker-meta'
         ],
         ['título do esforço', '.wb-engine-effort-title'],
-        ['esforço ativo', '.hds-seg-item[data-active="true"] .hds-seg-label'],
-        ['esforço inativo', '.hds-seg-item[data-active="false"] .hds-seg-label'],
-        ['dica do esforço', '.wb-engine-effort-hint'],
+        // The effort ladder is a `RampSelect` since the model-picker fix — the
+        // old `.hds-seg-*` selectors matched a control that no longer exists,
+        // and a probe reporting "ausente" for the surface it was written to
+        // guard is a probe measuring nothing.
+        ['esforço: degrau escolhido', '.hds-ramp-step[data-checked] .hds-ramp-label'],
+        ['esforço: degrau livre', '.hds-ramp-step:not([data-checked]) .hds-ramp-label'],
+        ['dica do esforço', '.hds-ramp-description'],
         ['procedência', '.wb-engine-source-text'],
         ['redetectar', '.wb-engine-refresh'],
         ['aviso', '.wb-engine-note'],
@@ -112,11 +124,41 @@ async (page) => {
       ]
 
       /** Non-text that carries meaning — 3:1. */
-      const MARKS = [
+          const MARKS = [
         ['ponto de procedência', '.wb-engine-source-dot'],
         ['glifo do gatilho', '.wb-engine-glyph svg'],
         ['glifo da linha', '.hds-picker-icon svg'],
-        ['marca de escolhido', '.hds-picker-check svg']
+        ['marca de escolhido', '.hds-picker-check svg'],
+        // The ramp says "how much" in bars before it says it in words, so the
+        // bars are load-bearing meaning and take the 3:1 non-text floor — the
+        // unfilled one included: "the ladder continues above you" is only
+        // information if you can see it.
+        ['rampa: barra preenchida', '.hds-ramp-step[data-filled] .hds-ramp-bar'],
+        ['faísca do gatilho', '.wb-engine-spark i[data-on]']
+      ]
+
+      /**
+       * Adjacent surfaces that have to be told APART, measured against each
+       * other rather than against the page — 3:1.
+       *
+       * The ramp's empty bar is deliberately NOT in `MARKS`. It is the groove
+       * the indicator sits in, not the indicator; measured against the panel it
+       * fails a floor it was never the right subject of, and pushing it up to
+       * 3:1 collapses the gap that makes the control say "how much" (measured:
+       * the two move in opposite directions as the groove brightens — see
+       * `--hds-ramp-groove`).
+       *
+       * What has to hold is the CHOSEN rung against the groove. The cumulative
+       * bars under it are reinforcement: their carrier is the chosen rung's
+       * position, and every rung is named in a label that clears the 4.5:1
+       * text floor, so nothing here rides on the bars alone.
+       */
+      const PAIRS = [
+        [
+          'rampa: escolhido vs. vazio',
+          '.hds-ramp-step[data-checked] .hds-ramp-bar',
+          '.hds-ramp-step:not([data-filled]):not([data-checked]) .hds-ramp-bar'
+        ]
       ]
 
       const results = []
@@ -145,7 +187,28 @@ async (page) => {
         const bg = backdrop(node.parentElement ?? node)
         results.push({ label, ratio: Math.round(ratio(over(mark, bg), bg) * 100) / 100, min: 3 })
       }
+      /** Same painting rules, but both sides are surfaces we chose. */
+      const surface = (node) => {
+        const style = getComputedStyle(node)
+        const own = paint(style.backgroundColor)
+        const bg = backdrop(node.parentElement ?? node)
+        return over(own.a > 0 ? own : paint(style.color), bg)
+      }
+      for (const [label, a, b] of PAIRS) {
+        const one = document.querySelector(a)
+        const two = document.querySelector(b)
+        if (!one || !two) {
+          results.push({ label, ratio: null, min: 3, note: 'ausente' })
+          continue
+        }
+        results.push({
+          label,
+          ratio: Math.round(ratio(surface(one), surface(two)) * 100) / 100,
+          min: 3
+        })
+      }
 
+      stillness.remove()
       return {
         theme: document.documentElement.dataset.theme ?? 'dark',
         failures: results.filter((r) => r.ratio !== null && r.ratio < r.min),

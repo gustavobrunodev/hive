@@ -8,6 +8,14 @@
   display: flex;
   flex-direction: column;
   max-width: calc(100vw - var(--s-5));
+  /* Never taller than the space Radix measured for it. Without this the panel
+     is only bounded by the LIST's own max-height, so a long catalogue plus a
+     tall footer runs off the top of a short window and takes the search field
+     with it — seen with the 18 models a real Claude install detects, in the
+     app's default window. The list absorbs the shrink (see below); the search
+     row and the footer keep their size, because they are the two parts that
+     stop being useful the moment they are clipped. */
+  max-height: var(--radix-popover-content-available-height, none);
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -34,6 +42,10 @@
 .hds-picker-command {
   display: flex;
   flex-direction: column;
+  /* `flex: 1` + `min-height: 0` is what lets the list shrink past its own
+     max-height when the panel is capped — without both, the flex item refuses
+     to go below its content size and the cap does nothing. */
+  flex: 1;
   min-height: 0;
 }
 

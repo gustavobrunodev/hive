@@ -67,6 +67,8 @@ export { Kbd } from "./components/Kbd/Kbd";
 export { Resizable, ResizablePanel, ResizableHandle } from "./components/Resizable/Resizable";
 export { SegmentedControl } from "./components/SegmentedControl/SegmentedControl";
 export type { SegmentedControlProps, SegmentedOption, SegmentedTone, } from "./components/SegmentedControl/SegmentedControl";
+export { RampSelect } from "./components/RampSelect/RampSelect";
+export type { RampSelectProps, RampStep } from "./components/RampSelect/RampSelect";
 export { ChatMessage } from "./components/ChatMessage/ChatMessage";
 export { TypingIndicator } from "./components/TypingIndicator/TypingIndicator";
 export { MessageList } from "./components/MessageList/MessageList";

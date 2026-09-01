@@ -140,6 +140,8 @@ export type {
   SegmentedOption,
   SegmentedTone,
 } from "./components/SegmentedControl/SegmentedControl";
+export { RampSelect } from "./components/RampSelect/RampSelect";
+export type { RampSelectProps, RampStep } from "./components/RampSelect/RampSelect";
 
 // Phase 3 — generic AI-chat primitives
 export { ChatMessage } from "./components/ChatMessage/ChatMessage";

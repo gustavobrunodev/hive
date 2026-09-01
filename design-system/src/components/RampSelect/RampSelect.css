@@ -1,0 +1,197 @@
+/* RampSelect — an ordinal scale drawn as a climb. The bars carry the order and
+   the amount; the labels only name what the picture already showed. */
+
+.hds-ramp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hds-ramp {
+  /*
+   * The groove — the empty part of the ladder. One token, because it has to
+   * settle two constraints that pull against each other, and the balance point
+   * was measured rather than guessed:
+   *
+   *   - visible against the panel, so the ladder's remaining rungs read; and
+   *   - far enough in LUMINANCE from the accent that the chosen rung stands
+   *     out — WCAG contrast is luminance-only, and the accent is a mid-light
+   *     coral, so a groove bright enough to be obvious lands right on top of
+   *     it and the control stops saying "how much".
+   *
+   * Swept across all three themes (14/22/30/44/60% ink, plus bg-ward mixes).
+   * At 14% the *chosen* bar clears 3:1 against the groove everywhere — 3.29
+   * dark, 5.62 light, 3.61 Hive — and every point above it fails that in the
+   * dark themes. The cumulative bars below the selection land at 2.0–3.0 and
+   * are deliberately not held to 3:1: they reinforce an amount whose carrier
+   * is the chosen rung, and every rung is additionally named in a label that
+   * clears the 4.5:1 text floor.
+   */
+  --hds-ramp-groove: color-mix(in oklab, var(--ink) 14%, var(--surface-2));
+}
+
+.hds-ramp-track {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  max-width: 100%;
+}
+
+/* Every rung is an equal column: the bars differ in height, never in width, so
+   the climb reads as one continuous slope instead of a set of odd blocks. */
+.hds-ramp-step {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 5px 2px 4px;
+  border: 0;
+  border-radius: calc(var(--rounded-lg) - 4px);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ff-body);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-quart),
+    color 160ms var(--ease-quart);
+}
+
+.hds-ramp-step:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.hds-ramp-step:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.hds-ramp-step:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The chosen rung gets a surface of its own — the same "lifted" language as
+   the SegmentedControl thumb, so the two controls read as one family. */
+.hds-ramp-step[data-checked] {
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+}
+
+.hds-ramp-slot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 28px;
+}
+
+.hds-ramp-md .hds-ramp-slot {
+  height: 38px;
+}
+
+/* One bar per rung, height set from its index (see the component), all sharing
+   one baseline — that is what makes the row read as a *climb* rather than as
+   blocks of assorted sizes. Narrow on purpose: measured at 16px the bars came
+   out square and the slope disappeared into them.
+
+   Unfilled bars stay visible: the ladder above you is part of what the control
+   is telling you. */
+.hds-ramp-bar {
+  width: 100%;
+  max-width: 8px;
+  height: var(--hds-ramp-height, 100%);
+  border-radius: 1.5px 1.5px 1px 1px;
+  /* Opaque over the track, not a translucent wash: the groove has to look the
+     same wherever the ramp is placed. See `--hds-ramp-groove` for why the
+     value is where it is. */
+  background: var(--hds-ramp-groove);
+  transition:
+    background-color 200ms var(--ease-quart),
+    height 240ms var(--ease-quart);
+}
+
+.hds-ramp-md .hds-ramp-bar {
+  max-width: 12px;
+}
+
+.hds-ramp-step[data-filled] .hds-ramp-bar {
+  background: color-mix(in oklab, var(--accent) 62%, var(--ink) 6%);
+}
+
+.hds-ramp-step[data-checked] .hds-ramp-bar {
+  background: var(--accent);
+}
+
+/* What the pointer would buy: outlined rather than merely dimmer, so a
+   *candidate* bar can't be misread as a quieter kind of filled one. It answers
+   "how much more is 'Extra'?" before anything is committed. */
+.hds-ramp-step[data-preview] .hds-ramp-bar {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* Delegated: the ramp is drawn but nobody is on it. Every bar drops to the
+   groove treatment, so the emptiness is the message. */
+.hds-ramp-track[data-delegated] .hds-ramp-bar {
+  background: var(--hds-ramp-groove);
+}
+
+.hds-ramp-auto-glyph {
+  color: var(--muted);
+}
+
+.hds-ramp-step[data-checked] .hds-ramp-auto-glyph {
+  color: var(--accent);
+}
+
+/* The divider says the auto option is not a rung of the scale beside it. */
+.hds-ramp-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 3px 4px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.hds-ramp-label {
+  max-width: 100%;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hds-ramp-md .hds-ramp-label {
+  font-size: 0.78rem;
+}
+
+/* The consequence of the current rung. `--muted`, not `--faint`: this is read
+   text and takes the 4.5:1 body floor. Two lines of room are reserved so the
+   panel around it doesn't resize under the pointer as the selection moves. */
+.hds-ramp-description {
+  margin: 0;
+  min-height: 2.1em;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-ramp-step,
+  .hds-ramp-bar {
+    transition: none;
+  }
+}

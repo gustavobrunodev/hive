@@ -58,10 +58,22 @@ do boot: `window.__setVault(v)`, `window.__fsChange(path)` e
 ### Sondas de contraste
 
 `tools/visual/engine-contrast.mjs` cobre o seletor de motor do composer
-(modelo + esforço) — 24 alvos, nos três temas **e** nas duas formas que o
-painel assume (Claude, com escada de esforço; Copilot, agrupado por fabricante
-e sem esforço). Ele guarda duas lições que custaram uma rodada cada:
+(modelo + esforço) — 29 alvos (22 de texto a 4,5:1, 6 de marca a 3:1 e 1 par
+de superfícies que precisam ser distinguidas entre si), nos três temas **e**
+nas duas formas que o painel assume (Claude, com escada de esforço; Copilot,
+agrupado por fabricante e sem esforço). Ele guarda cinco lições que custaram
+uma rodada cada:
 
+- **Transição em curso mascara a medição.** As barras da rampa fazem
+  cross-fade de 200ms, e `getComputedStyle` no meio da transição devolve a cor
+  de onde ela está saindo — ou seja, a sonda mede o estado ANTERIOR e chama de
+  atual. Uma varredura de sete valores candidatos reportou o mesmo número para
+  todos antes de a sonda passar a injetar `transition: none` antes de medir.
+- **Quando a sonda troca de componente, os seletores dela também trocam.** A
+  escada de esforço virou `RampSelect`; os alvos `.hds-seg-*` continuavam lá,
+  medindo um controle que não existe mais. A sonda reporta `ausente` em vez de
+  pular — foi o que denunciou —, mas nada substitui reler a lista de alvos
+  quando o componente muda.
 - **Force o tema inicial pelo menu, não confie no boot.** A primeira rodada
   rodou logo depois de uma cena que tinha deixado o app no claro, mediu claro
   três vezes e reportou a linha como "escuro". O probe agora seleciona
@@ -73,6 +85,13 @@ e sem esforço). Ele guarda duas lições que custaram uma rodada cada:
   devolve a primeira do DOM, que é a da linha selecionada — sobre um tint
   translúcido. As duas medem diferente, e foi a selecionada que reprovou
   (4,34:1 no tema Hive).
+- **Nem todo pixel colorido é um indicador.** A barra vazia da rampa reprovou
+  em 1,46:1 contra o painel — mas ela é a *calha*, não o indicador, e subir seu
+  brilho até 3:1 achata justamente o vão cheio↔vazio que faz o controle dizer
+  "quanto". Medido nos três temas: os dois números andam em direções opostas
+  conforme a calha clareia. O alvo certo é o degrau **escolhido** contra a
+  calha (3,29 escuro · 5,62 claro · 3,61 Hive), e cada degrau ainda é nomeado
+  por um rótulo que passa dos 4,5:1 — nenhuma informação depende só das barras.
 
 `tools/visual/live-dictation-pass.mjs` cobre o ditado ao vivo (M28). Ele arma o
 seam de E2E do ditado e empurra **ticks de áudio reais** no segmentador de

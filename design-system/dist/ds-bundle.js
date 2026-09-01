@@ -17201,17 +17201,157 @@ function SegmentedControl({
   );
 }
 
+// src/components/RampSelect/RampSelect.tsx
+import { useId as useId4, useState as useState37 } from "react";
+import { Fragment as Fragment17, jsx as jsx94, jsxs as jsxs55 } from "react/jsx-runtime";
+function RampSelect({
+  steps,
+  value,
+  onChange,
+  ariaLabel,
+  autoStep,
+  showDescription = true,
+  descriptionFallback,
+  size: size4 = "sm",
+  className
+}) {
+  const descriptionId = useId4();
+  const [preview, setPreview] = useState37(-1);
+  const all = autoStep ? [autoStep, ...steps] : steps;
+  const level = steps.findIndex((step) => step.id === value);
+  const selected = all.find((step) => step.id === value) ?? null;
+  const description = selected?.description;
+  const handleKeyDown = (event) => {
+    const selectable = all.filter((step) => !step.disabled);
+    if (selectable.length === 0) return;
+    const current = selectable.findIndex((step) => step.id === value);
+    let next = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+      next = (current + 1 + selectable.length) % selectable.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+      next = (current - 1 + selectable.length) % selectable.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = selectable.length - 1;
+    }
+    const target = next === -1 ? void 0 : selectable[next];
+    if (!target) return;
+    event.preventDefault();
+    onChange(target.id);
+  };
+  return /* @__PURE__ */ jsxs55("div", { className: cx("hds-ramp", `hds-ramp-${size4}`, className), children: [
+    /* @__PURE__ */ jsxs55(
+      "div",
+      {
+        role: "radiogroup",
+        "aria-label": ariaLabel,
+        "aria-describedby": showDescription ? descriptionId : void 0,
+        className: "hds-ramp-track",
+        "data-delegated": autoStep && value === autoStep.id ? "" : void 0,
+        onKeyDown: handleKeyDown,
+        onPointerLeave: () => setPreview(-1),
+        children: [
+          autoStep && /* @__PURE__ */ jsxs55(Fragment17, { children: [
+            /* @__PURE__ */ jsx94(
+              Rung,
+              {
+                step: autoStep,
+                checked: value === autoStep.id,
+                onSelect: () => onChange(autoStep.id),
+                onPreview: () => setPreview(-1),
+                glyph: /* @__PURE__ */ jsx94(AutoGlyph, {})
+              }
+            ),
+            /* @__PURE__ */ jsx94("span", { className: "hds-ramp-divider", "aria-hidden": "true" })
+          ] }),
+          steps.map((step, index2) => /* @__PURE__ */ jsx94(
+            Rung,
+            {
+              step,
+              checked: step.id === value,
+              filled: level >= 0 && index2 <= level,
+              preview: preview > level && index2 <= preview && index2 > level,
+              onSelect: () => onChange(step.id),
+              onPreview: () => setPreview(step.disabled ? -1 : index2),
+              glyph: /* @__PURE__ */ jsx94(
+                "span",
+                {
+                  className: "hds-ramp-bar",
+                  "aria-hidden": "true",
+                  style: {
+                    ["--hds-ramp-height"]: steps.length > 1 ? `${18 + index2 / (steps.length - 1) * 82}%` : "100%"
+                  }
+                }
+              )
+            },
+            step.id
+          ))
+        ]
+      }
+    ),
+    showDescription && /* @__PURE__ */ jsx94("p", { className: "hds-ramp-description", id: descriptionId, children: description ?? descriptionFallback ?? "" })
+  ] });
+}
+function Rung({
+  step,
+  checked,
+  filled,
+  preview,
+  onSelect,
+  onPreview,
+  glyph
+}) {
+  return /* @__PURE__ */ jsxs55(
+    "button",
+    {
+      type: "button",
+      role: "radio",
+      "aria-checked": checked,
+      disabled: step.disabled,
+      tabIndex: checked ? 0 : -1,
+      className: "hds-ramp-step",
+      "data-checked": checked || void 0,
+      "data-filled": filled || void 0,
+      "data-preview": preview || void 0,
+      onClick: onSelect,
+      onPointerEnter: onPreview,
+      children: [
+        /* @__PURE__ */ jsx94("span", { className: "hds-ramp-slot", children: glyph }),
+        /* @__PURE__ */ jsx94("span", { className: "hds-ramp-label", children: step.label })
+      ]
+    }
+  );
+}
+function AutoGlyph() {
+  return /* @__PURE__ */ jsxs55(
+    "svg",
+    {
+      className: "hds-ramp-auto-glyph",
+      width: "14",
+      height: "14",
+      viewBox: "0 0 14 14",
+      fill: "none",
+      "aria-hidden": "true",
+      children: [
+        /* @__PURE__ */ jsx94("path", { d: "M1.5 7h11", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", opacity: "0.5" }),
+        /* @__PURE__ */ jsx94("circle", { cx: "7", cy: "7", r: "2.6", fill: "currentColor" })
+      ]
+    }
+  );
+}
+
 // src/components/ChatMessage/ChatMessage.tsx
 import { forwardRef as forwardRef63 } from "react";
-import { jsx as jsx94, jsxs as jsxs55 } from "react/jsx-runtime";
+import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
 var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs55("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
-    role !== "system" && avatar && /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-avatar", children: avatar }),
-    /* @__PURE__ */ jsxs55("div", { className: "hds-chat-message-body", children: [
-      /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-bubble", children }),
-      (timestamp || actions) && /* @__PURE__ */ jsxs55("div", { className: "hds-chat-message-meta", children: [
-        timestamp && /* @__PURE__ */ jsx94("span", { className: "hds-chat-message-timestamp", children: timestamp }),
-        actions && /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-actions", children: actions })
+  return /* @__PURE__ */ jsxs56("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs56("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs56("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx95("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-actions", children: actions })
       ] })
     ] })
   ] });
@@ -17219,19 +17359,19 @@ var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, 
 ChatMessage.displayName = "ChatMessage";
 
 // src/components/TypingIndicator/TypingIndicator.tsx
-import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
+import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
 function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
-  return /* @__PURE__ */ jsxs56("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
-    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx95(VisuallyHidden2, { children: label })
+  return /* @__PURE__ */ jsxs57("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx96(VisuallyHidden2, { children: label })
   ] });
 }
 
 // src/components/MessageList/MessageList.tsx
-import { useCallback as useCallback26, useEffect as useEffect38, useRef as useRef45, useState as useState37 } from "react";
-import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
+import { useCallback as useCallback26, useEffect as useEffect38, useRef as useRef45, useState as useState38 } from "react";
+import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
 function prefersReducedMotion3() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -17245,7 +17385,7 @@ function MessageList({
 }) {
   const viewportRef = useRef45(null);
   const contentRef = useRef45(null);
-  const [isPinned, setIsPinned] = useState37(true);
+  const [isPinned, setIsPinned] = useState38(true);
   const isPinnedRef = useRef45(isPinned);
   isPinnedRef.current = isPinned;
   const isNearBottom = useCallback26(() => {
@@ -17287,9 +17427,9 @@ function MessageList({
   useEffect38(() => {
     scrollToBottom("instant");
   }, [scrollToBottom]);
-  return /* @__PURE__ */ jsxs57("div", { className: cx("hds-message-list", className), ...rest, children: [
-    /* @__PURE__ */ jsx96(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx96("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
-    !isPinned && /* @__PURE__ */ jsx96(
+  return /* @__PURE__ */ jsxs58("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx97(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx97("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx97(
       "button",
       {
         type: "button",
@@ -17306,7 +17446,7 @@ function MessageList({
 
 // src/components/Attachment/Attachment.tsx
 import { forwardRef as forwardRef64 } from "react";
-import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
+import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
 function splitAtTail(name) {
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 && name.length - dot <= 7 ? name.length - dot : 0;
@@ -17318,28 +17458,28 @@ var Attachment = forwardRef64(function Attachment2({ name, meta, icon, onRemove,
   const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
   const middle = truncate === "middle" && typeof name === "string";
   const [head, tail] = middle ? splitAtTail(name) : ["", ""];
-  return /* @__PURE__ */ jsxs58("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-icon", children: icon }),
-    /* @__PURE__ */ jsxs58("span", { className: "hds-attachment-text", children: [
-      middle ? /* @__PURE__ */ jsxs58("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
-        /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name-head", children: head }),
-        tail !== "" && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name-tail", children: tail })
-      ] }) : /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name", children: name }),
-      meta && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-meta", children: meta })
+  return /* @__PURE__ */ jsxs59("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs59("span", { className: "hds-attachment-text", children: [
+      middle ? /* @__PURE__ */ jsxs59("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
+        /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name-head", children: head }),
+        tail !== "" && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name-tail", children: tail })
+      ] }) : /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-meta", children: meta })
     ] }),
-    onRemove && /* @__PURE__ */ jsx97("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx97("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx97("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+    onRemove && /* @__PURE__ */ jsx98("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx98("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
   ] });
 });
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
 import { useLayoutEffect as useLayoutEffect7, useRef as useRef46 } from "react";
-import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
+import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx98("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx99("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx99("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
 }
 function StopIcon() {
-  return /* @__PURE__ */ jsx98("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
+  return /* @__PURE__ */ jsx99("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx99("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -17397,7 +17537,7 @@ function PromptInput({
   useLayoutEffect7(() => {
     if (highlight) syncBackdropScroll();
   });
-  const textarea = /* @__PURE__ */ jsx98(
+  const textarea = /* @__PURE__ */ jsx99(
     Textarea,
     {
       ref: setTextareaNode,
@@ -17415,7 +17555,7 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs59(
+  return /* @__PURE__ */ jsxs60(
     "div",
     {
       className: cx("hds-prompt-input", className),
@@ -17423,14 +17563,14 @@ function PromptInput({
       "data-highlighted": highlighted || void 0,
       ...rest,
       children: [
-        attachments && /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-attachments", children: attachments }),
-        highlight ? /* @__PURE__ */ jsxs59("div", { className: "hds-prompt-input-editor", children: [
-          /* @__PURE__ */ jsx98("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
+        attachments && /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight ? /* @__PURE__ */ jsxs60("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx99("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
           textarea
         ] }) : textarea,
-        /* @__PURE__ */ jsxs59("div", { className: "hds-prompt-input-toolbar", children: [
-          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
-          /* @__PURE__ */ jsxs59(
+        /* @__PURE__ */ jsxs60("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs60(
             "button",
             {
               type: "button",
@@ -17441,8 +17581,8 @@ function PromptInput({
               title: stopMode ? stopLabel : sendLabel,
               onClick: stopMode ? onStop : submit,
               children: [
-                sendIcon === void 0 ? /* @__PURE__ */ jsx98(SendIcon, {}) : /* @__PURE__ */ jsx98("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
-                /* @__PURE__ */ jsx98(StopIcon, {})
+                sendIcon === void 0 ? /* @__PURE__ */ jsx99(SendIcon, {}) : /* @__PURE__ */ jsx99("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
+                /* @__PURE__ */ jsx99(StopIcon, {})
               ]
             }
           )
@@ -17544,6 +17684,7 @@ export {
   RadioCard,
   RadioGroup2 as RadioGroup,
   RadioGroupItem2 as RadioGroupItem,
+  RampSelect,
   Resizable,
   ResizableHandle,
   ResizablePanel,

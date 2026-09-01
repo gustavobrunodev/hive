@@ -68,34 +68,46 @@ vi.mock('@hive/design-system', () => ({
       ),
       footer
     ),
-  SegmentedControl: ({
-    options,
+  // The ramp's own behaviour (cumulative fill, the delegated rung sitting apart
+  // from the scale, the keyboard contract) is the design system's to prove —
+  // `RampSelect.test.tsx` does that. What matters here is the *mapping*: which
+  // rungs this agent gets, which one is marked, and what the chosen one says.
+  RampSelect: ({
+    steps,
+    autoStep,
     value,
     onChange,
-    ariaLabel
+    ariaLabel,
+    descriptionFallback
   }: {
-    options?: { id: string; label: string }[]
+    steps?: { id: string; label: string; description?: string }[]
+    autoStep?: { id: string; label: string; description?: string }
     value?: string
     onChange?: (id: string) => void
     ariaLabel?: string
-  }) =>
-    createElement(
+    descriptionFallback?: ReactNode
+  }) => {
+    const all = autoStep ? [autoStep, ...(steps ?? [])] : (steps ?? [])
+    const selected = all.find((step) => step.id === value)
+    return createElement(
       'div',
       { role: 'radiogroup', 'aria-label': ariaLabel },
-      ...(options ?? []).map((option) =>
+      ...all.map((step) =>
         createElement(
           'button',
           {
-            key: option.id,
+            key: step.id,
             type: 'button',
             role: 'radio',
-            'aria-checked': option.id === value,
-            onClick: () => onChange?.(option.id)
+            'aria-checked': step.id === value,
+            onClick: () => onChange?.(step.id)
           },
-          option.label
+          step.label
         )
-      )
+      ),
+      createElement('p', null, selected?.description ?? descriptionFallback ?? '')
     )
+  }
 }))
 
 const CLAUDE: EngineCapabilities = {
@@ -256,7 +268,7 @@ describe('EnginePicker', () => {
     expect(screen.getByText('Raciocina mais antes de responder')).toBeTruthy()
   })
 
-  it('shortens the automatic effort to fit the segmented track', () => {
+  it('shortens the automatic effort to fit the ramp', () => {
     renderPicker(CLAUDE)
     expect(screen.getByRole('radio', { name: 'Auto' })).toBeTruthy()
   })

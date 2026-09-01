@@ -350,7 +350,11 @@ export const ptBR = {
       effortAria: 'Nível de esforço',
       searchPlaceholder: 'Buscar modelo…',
       empty: 'Nenhum modelo com esse nome',
-      effortHeading: 'Esforço',
+      effortHeading: 'Esforço de raciocínio',
+      // O degrau delegado, dentro de uma coluna de ~48px da rampa e do chip do
+      // gatilho. "Automático" por extenso trunca para "Automáti…", que se lê
+      // como falha de renderização e não como escolha.
+      effortAuto: 'Auto',
       // Só aparece quando o agente não expõe modelo nenhum — hoje, nenhum dos
       // três. Existe porque a alternativa (um painel vazio) some com a
       // explicação justamente onde ela é necessária.
@@ -624,7 +628,7 @@ export const ptBR = {
     title: 'O que você quer fazer hoje?',
     /** Named greeting — used when the profile has a display name. */
     titleNamed: (name: string) => `Olá ${name}, o que você quer fazer hoje?`,
-    description: 'Escreva sua mensagem ou comece por um fluxo guiado do BMAD.',
+    description: 'Escreva sua mensagem ou comece por um fluxo guiado pelo HIVE.',
     plannedBadge: 'Em breve',
     // role-personalization RP-R4: the persona action is grouped apart from the
     // workflow pills, under this quiet label.
