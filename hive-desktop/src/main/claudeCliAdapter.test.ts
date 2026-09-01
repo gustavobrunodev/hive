@@ -69,15 +69,18 @@ describe('ClaudeCliAdapter — contract', () => {
 
     expect(caps.models.length).toBeGreaterThan(0)
     expect(caps.efforts.length).toBeGreaterThan(0)
+    // model-picker: exactly one row per list carries the empty id — the "let
+    // the CLI decide" option, whose id IS the absence of the flag. Every other
+    // row must name a real value the CLI accepts.
+    expect(caps.models.filter((model) => model.id === '')).toHaveLength(1)
+    expect(caps.efforts.filter((effort) => effort.id === '')).toHaveLength(1)
     for (const model of caps.models) {
       expect(typeof model.id).toBe('string')
-      expect(model.id.length).toBeGreaterThan(0)
       expect(typeof model.label).toBe('string')
       expect(model.label.length).toBeGreaterThan(0)
     }
     for (const effort of caps.efforts) {
       expect(typeof effort.id).toBe('string')
-      expect(effort.id.length).toBeGreaterThan(0)
       expect(typeof effort.label).toBe('string')
       expect(effort.label.length).toBeGreaterThan(0)
     }
@@ -93,7 +96,9 @@ describe('ClaudeCliAdapter — contract', () => {
     const caps = createClaudeCliAdapter(createFakeProcessRunner()).capabilities()
 
     for (const model of caps.models) {
-      expect(model.contextWindow).toBe(200_000)
+      // The `[1m]` aliases exist precisely because their window is different —
+      // asserting one number for every row would have made them unrepresentable.
+      expect(model.contextWindow).toBe(model.id.includes('[1m]') ? 1_000_000 : 200_000)
     }
   })
 })

@@ -11,16 +11,22 @@ async function take(events: AsyncIterable<AgentEvent>, count: number): Promise<A
 }
 
 describe('DevinCliAdapter', () => {
-  it('is a fixed-model agent: NO models, NO efforts, but supports attachments', () => {
+  // The bug this replaced: the adapter declared `models: []` on the premise
+  // that Devin is a fixed-model agent, so the composer hid the picker and the
+  // user could not choose. Devin fronts four vendors and documents `--model`.
+  it('offers models (Adaptive included) and no effort ladder', () => {
     const adapter = createDevinCliAdapter(createFakeProcessRunner())
     expect(adapter.id).toBe('devin')
     const caps = adapter.capabilities()
-    expect(caps.models).toEqual([])
+    expect(caps.models.length).toBeGreaterThan(1)
+    expect(caps.models.map((model) => model.id)).toContain('adaptive')
+    // The Devin CLI's autonomy dial is `--permission-mode`, not an effort
+    // level — so there is nothing to show, and the composer shows nothing.
     expect(caps.efforts).toEqual([])
     expect(caps.supportsAttachments).toBe(true)
   })
 
-  it('spawns `devin -p <prompt>` with no model/effort flags; appends --resume', async () => {
+  it('spawns `devin -p <prompt>` with no flags beyond the prompt; appends --resume', async () => {
     const runner = createFakeProcessRunner()
     runner.script({ chunks: [{ stream: 'stdout', data: 'ok' }], code: 0 })
     const adapter = createDevinCliAdapter(runner)

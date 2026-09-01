@@ -1,14 +1,23 @@
+import { homedir } from 'os'
 import type { ProcessRunner } from './processRunner'
 import type {
   AgentAdapter,
   AgentAdapterDeps,
   AgentCapabilities,
+  CapabilityContext,
   SessionOpts,
   ShellBinding,
   ShellContext
 } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
 import { createCliAgentSession } from './cliAdapterCore'
+import {
+  CLAUDE_ALIAS_CATALOG,
+  CLAUDE_EFFORTS,
+  CLAUDE_PINNED_CATALOG,
+  detectClaudeCapabilities
+} from './claudeModelCatalog'
+import { CLI_DEFAULT_ID } from './modelCatalog'
 
 /**
  * The Claude Code adapter (T13, C1): drives the real `claude` CLI via the
@@ -61,25 +70,41 @@ const CLAUDE_COMMAND = 'claude'
 const CLAUDE_CONTEXT_WINDOW = 200_000
 
 function capabilities(): AgentCapabilities {
-  // Curated per C5 — the full set of model aliases and effort levels the
-  // Claude Code CLI accepts, not an arbitrarily trimmed subset.
+  // The floor: what the CLI accepts regardless of how it is configured. The
+  // *measured* answer — which models this machine's account, provider and
+  // settings actually put on the table — comes from `detectCapabilities`
+  // below; this stays synchronous so anything that only needs a shape (a
+  // turn's flag check, a test) gets one without touching disk.
   return {
     models: [
-      { id: 'opus', label: 'Opus', contextWindow: CLAUDE_CONTEXT_WINDOW },
-      { id: 'sonnet', label: 'Sonnet', contextWindow: CLAUDE_CONTEXT_WINDOW },
-      { id: 'haiku', label: 'Haiku', contextWindow: CLAUDE_CONTEXT_WINDOW },
-      { id: 'fable', label: 'Fable', contextWindow: CLAUDE_CONTEXT_WINDOW }
+      {
+        id: CLI_DEFAULT_ID,
+        label: 'Automático',
+        descriptionKey: 'cliDefault',
+        traits: ['cli-default'],
+        group: 'default',
+        source: 'catalog',
+        contextWindow: CLAUDE_CONTEXT_WINDOW
+      },
+      ...CLAUDE_ALIAS_CATALOG,
+      ...CLAUDE_PINNED_CATALOG
     ],
     efforts: [
-      { id: 'low', label: 'Low' },
-      { id: 'medium', label: 'Medium' },
-      { id: 'high', label: 'High' },
-      { id: 'xhigh', label: 'Extra High' },
-      { id: 'max', label: 'Max' }
+      {
+        id: CLI_DEFAULT_ID,
+        label: 'Automático',
+        descriptionKey: 'effort.cliDefault',
+        traits: ['cli-default'],
+        group: 'default',
+        source: 'catalog'
+      },
+      ...CLAUDE_EFFORTS
     ],
     // R6.5/T16: attached/referenced file paths are folded into the turn's
     // prompt — the CLI reads the files itself via its Read tool.
-    supportsAttachments: true
+    supportsAttachments: true,
+    provider: { id: 'anthropic', detail: null },
+    modelSource: 'catalog'
   }
 }
 
@@ -222,6 +247,20 @@ export function createClaudeCliAdapter(
     id: 'claude-cli',
     displayName: 'Claude CLI',
     capabilities,
+    // The real answer, read off this machine: the settings chain (including an
+    // admin's managed settings), the provider switches that repoint the CLI at
+    // Bedrock/Vertex/Foundry, and the model rows the CLI itself cached for this
+    // account. See `claudeModelCatalog.ts` for what each source is worth.
+    detectCapabilities: (context: CapabilityContext) =>
+      Promise.resolve(
+        detectClaudeCapabilities({
+          env: deps?.host?.env ?? process.env,
+          home: deps?.host?.home ?? homedir(),
+          platform: deps?.host?.platform ?? process.platform,
+          ...(deps?.host?.readJson ? { readJson: deps.host.readJson } : {}),
+          ...(context.workspace ? { workspace: context.workspace } : {})
+        })
+      ),
     commandName: CLAUDE_COMMAND,
     shellBinding: claudeShellBinding,
     startSession: (opts: SessionOpts) =>

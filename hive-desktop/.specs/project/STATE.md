@@ -289,6 +289,92 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+## Lessons (crash no processo principal ao fechar o app — 2026-08-31)
+
+- **A janela que morre sem se despedir.** O usuário reportou o diálogo "A
+  JavaScript error occurred in the main process" **depois** de fechar o Hive:
+  `TypeError: Object has been destroyed` em `WebContents.send`, chamado de
+  `FSWatcher.handleRawEvent`. Toda stream main → renderer daqui é uma assinatura
+  por sender desmontada por um `:stop` explícito do renderer — e uma janela
+  fechada nunca manda um. O watcher do workspace sobrevive à janela e o próximo
+  evento de inotify chama `send` num objeto destruído, dentro de um callback
+  nativo sem `try` acima: exceção não capturada no processo principal.
+- **Guardar o `send` não basta; a assinatura tem que morrer junto.** A correção
+  tem duas metades em `index.ts`: `sendTo` (nunca tocar um WebContents
+  destruído — sem corrida, main é single-threaded) e `whenSenderGone` (roda o
+  próprio teardown da stream no evento `destroyed` do sender, com chave por
+  stream, para que um start repetido substitua o teardown em vez de empilhar um
+  obsoleto). Aplicado às nove streams: `fs:watch`, `git:changed`,
+  `review:changed`, `agent:event`, `bmad:install`/`update`, as streams do
+  Second Brain/Design Studio, `mcpLogs:watch`, `agents:install` e
+  `update:event`. Os watchers de review são chaveados por **workspace**, não
+  por janela — esses saem no `before-quit`.
+- **A exceção não mata o processo: ela o trava.** Medido no app real (E2E
+  `window-close-teardown.spec.ts`, build pré-correção): depois da janela
+  destruída e de uma escrita no workspace, `app.evaluate` **nunca responde** —
+  o Electron para tudo no diálogo de erro. Então "main continua respondendo" é
+  o sinal do teste, não o stderr: o Playwright é dono daquele pipe e o
+  `app.process().stderr` chega vazio.
+- **`process.getActiveResourcesInfo()` mede o watcher.** Um `fs.watch`
+  recursivo aparece como N × `'FSEventWrap'` (um por diretório; 9 no workspace
+  semeado, 150 em `src/main`). Isso torna "o watcher morreu junto com a janela"
+  uma medição, não uma inferência — as duas asserções falham no build
+  pré-correção e passam no pós.
+- **Fakes de teste que não modelam o objeto real escondem a classe do bug.**
+  Os `{ id, send }` do `index.test.ts` não tinham `isDestroyed` nem `once`, ou
+  seja, nenhum teste podia sequer expressar "a janela fechou". Agora todos usam
+  `fakeSender(id)`, que carrega as duas coisas e um `close()` que executa o
+  listener de `destroyed`.
+
+## Lessons (four fixes: reload, discard contrast, modal centring, checkout — 2026-08-31)
+
+- **Um centro feito de porcentagem envelhece.** O `DialogContent` do DS centrava
+  com `top/left: 50%` + `translate(-50%, -50%)`. Porcentagem em `translate`
+  resolve contra o **tamanho da própria caixa** — e todo diálogo que carrega
+  lista (Estúdio, MCP, branches) abre pequeno e cresce. Medido no navegador: o
+  Estúdio abre com 145px (cabeçalho + spinner) e assenta em 592px; o translate
+  vai de −72,5px para −296px. A thread principal refaz a conta; um compositor
+  que já fotografou o transform animado, não — e o painel pinta ~metade do
+  próprio crescimento abaixo do centro, com o rodapé cortado pela borda da
+  janela. **Intermitente por construção**: depende de os dados chegarem antes ou
+  depois de a animação de abertura ser commitada. A correção é centrar por
+  layout (`inset: 0` + `margin: auto` + `height: fit-content`) e animar só
+  `scale`. `height: fit-content` é carga estrutural, não enfeite: com `top` e
+  `bottom` em 0 e altura `auto`, o CSS resolve para a *altura* e o diálogo
+  ocuparia a janela inteira.
+
+- **`getBoundingClientRect` não enxerga esse defeito** — ele lê o layout da
+  thread principal, que está certo. A sonda tem que provar a *propriedade* ("não
+  existe porcentagem no transform de uma caixa que muda de tamanho depois de
+  aparecer"), não medir a instância. E a cena precisa conter o crescimento: um
+  fixture que resolve a lista na hora nunca reproduz nada.
+
+- **`--danger-ink` não é tinta para o `--danger` preenchido.** Terceira
+  reincidência da mesma família (M22 foi `--accent-ink` sobre `--selected-bg`):
+  `.wb-btn-danger` pintava `--danger-ink` sobre `--danger`, que é o mesmo
+  vermelho sobre o mesmo vermelho — **1,31:1 no escuro, 1,04:1 no claro, 1,33:1
+  no hive**. O botão "Descartar" estava no DOM e não na tela. O par que faltava
+  agora existe: **`--danger-fill-ink`** (`design-system/src/tokens.css` + o bloco
+  `hive` de `assets/theme.css`), medido em 5,04 / 6,54 / 5,04. A regra
+  generalizável: em toda família de cor, `X-ink` é tinta para o **tint**
+  (`X-bg`); tinta para o **preenchimento** é um segundo papel e precisa de um
+  segundo token — e o sinal de que ele não existe é a tinta e o fundo saírem do
+  mesmo `oklch`.
+
+- **Recarregar é do main, não do documento.** `location.reload()` no renderer
+  re-executa a SPA dentro do mesmo processo e preserva justamente o estado que
+  motivou o recarregamento. `app:reload` chama `reloadIgnoringCache()` na janela
+  **do remetente** (`BrowserWindow.fromWebContents(event.sender)`), não na
+  focada: o foco pode ter mudado enquanto o IPC estava no ar. E em build
+  empacotado o acelerador Ctrl+R do menu do Electron já não existe
+  (`optimizer.watchWindowShortcuts`), então sem o handler do renderer a memória
+  muscular não faz nada.
+
+- **Checkout é operação local; o menu de estouro do SCM estava atrás de
+  `remote`.** Um repositório sem remoto não mostrava menu nenhum — e é
+  exatamente onde trocar de branch continua fazendo sentido. Só o grupo remoto é
+  condicional agora.
+
 ## Lessons (voice-models, 2026-08-23)
 
 - **"O download falhou" was, in part, a progress bar that did not move.** The
@@ -2692,6 +2778,160 @@ capture=…`), so every number is against actual signal, not silence.
     dialog; the gate cards ran name and trade-off together ("smallEquilibrado");
     and the rate/ETA separator double-spaced. Plus two *harness* defects worth
     more than the UI ones — see Lessons.
+
+## M27 — Seletor de motor (modelo + esforço) com detecção real
+
+**2026-08-31.** Três defeitos relatados, uma causa comum: o app *afirmava* o
+que cada agente podia rodar em vez de *perguntar* à máquina.
+
+- **Devin sem modelos.** `devinCliAdapter` declarava `models: []` sob a
+  premissa "Devin é um agente de modelo fixo". A premissa é falsa: a CLI do
+  Devin aceita `--model` (env `DEVIN_MODEL`), guarda um padrão em
+  `agent.model` do `~/.config/devin/config.json` e — o que torna isto real —
+  **publica a lista**: `devin models list --format json`. O adapter agora
+  pergunta; o catálogo curado só existe para a máquina sem a CLI instalada.
+- **Modelos do Claude fixos (ex.: Bedrock).** Quatro aliases no código, que
+  ficam silenciosamente errados no instante em que a CLI é apontada para
+  Bedrock/Vertex/Foundry/gateway. `claudeModelCatalog.ts` lê quatro fontes,
+  em ordem crescente de especificidade: catálogo de aliases → cadeia de
+  settings (policy > local > projeto > usuário) → env do provedor
+  (`ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL` com
+  `_NAME`/`_DESCRIPTION`, `ANTHROPIC_CUSTOM_MODEL_OPTION`) → **os caches da
+  própria CLI** em `~/.claude.json` (`additionalModelOptionsCache`,
+  `modelAccessCache`). Medido nesta máquina: a detecção trouxe
+  `claude-fable-5[1m]` com a descrição que a CLI escreveu e janela de 1M —
+  uma linha que a lista fixa não tinha.
+- **Dois dropdowns anônimos.** `Opus` e `Low`, sem dizer o que são nem por
+  que escolher um. Viraram **um** controle (`EnginePicker` + o novo
+  `OptionPicker` do DS): linhas descritas, agrupadas, com janela de contexto,
+  o id em que o alias resolve, filtro por digitação, e a escada de esforço no
+  rodapé com uma frase que muda junto com a seleção.
+
+- **Procedência é o produto.** Cada linha carrega `source`
+  (`detected`/`configured`/`catalog`) e o rodapé diz qual é a mais forte da
+  lista, com o provedor: "Lido da CLI nesta máquina · Amazon Bedrock
+  (us-east-1)". Uma lista conferível vale mais que uma lista certa que pede fé.
+- **O `''` é a linha "Automático"** — a *ausência* da flag, não uma string
+  vazia atravessando o IPC (`Chat` normaliza com `|| undefined`). É também o
+  novo padrão: o Hive parou de sobrescrever o modelo que o usuário configurou
+  na própria CLI, que era o efeito de `caps.models[0]`.
+- **A forma se adapta:** Claude tem 17 linhas em quatro grupos + esforço;
+  Copilot agrupa por fabricante (Anthropic/OpenAI/Google) e **não** tem
+  esforço (verificado no binário instalado: a flag não existe); Devin lidera
+  com o Adaptive marcado como roteador.
+- **Não implementado, por medição:** um toggle de *thinking* para o Claude.
+  `--settings '{"alwaysThinkingEnabled":true}'` foi testado contra a CLI real
+  (2.1.226) em dois turnos com e sem a flag — nenhum bloco de thinking a mais.
+  O `--effort` é o controle de raciocínio real da CLI, e é assim que a UI o
+  apresenta.
+- **Gates:** 3964 testes verdes (+78), typecheck limpo, lint sem erros novos.
+  Passe visual PASS nos três temas × duas formas do seletor
+  (`tools/visual/engine-contrast.mjs`), zero alvos não medidos.
+- **Três defeitos que só o passe visual pegou:** a escada de esforço dividia a
+  linha com o título e saía com seis rótulos truncados ("A… B… M…"); a linha
+  de procedência cortava exatamente a metade que responde à pergunta que ela
+  existe para responder; e `--faint` no id resolvido media 2.78:1 no tema
+  claro. Os três estão corrigidos e medidos.
+- **Falhas herdadas:** as 15 falhas de ditado/whisper na suíte já existiam em
+  `HEAD` (medidas antes de tocar em qualquer coisa) e não foram tocadas.
+
+## M28 — Três defeitos: explorador em loop, transcrição quebrada, ditado ao vivo (2026-08-31)
+
+Um pedido com três itens, e nenhum deles era o que parecia.
+
+### 1. "A aba de arquivos fica piscando e carregando pra sempre" — três causas, todas medidas
+
+Depois de `git init` + reverter tudo. Nenhuma das três é o explorador *sozinho*:
+
+- **`git status` escreve.** Ele atualiza o cache de `stat` do índice e salva.
+  Medido em 2026-08-31 num repo de teste: o `mtime` de `.git/index` sobe na
+  execução seguinte a um `touch`, e **não sobe** com `--no-optional-locks`. Como
+  o watcher reporta essa escrita e o store de git responde re-rodando `status`,
+  o app se realimentava. `gitService` agora passa `--no-optional-locks` em todo
+  comando (as travas *obrigatórias* de commit/add continuam sendo tomadas).
+- **`listTree` andava dentro do `.git`.** A varredura é recursiva e ansiosa, e
+  o watcher a re-dispara a cada mudança lá dentro. Medido neste repo: **61 824
+  entradas com `.git`, 56 369 sem** — e o `.git` é o diretório mais movimentado
+  do disco. `listTree` agora pula `.git`/`.hg`/`.svn` (o VS Code esconde os
+  mesmos três); dotfiles do usuário (`.specs`, `.claude`, `.env`) continuam
+  visíveis — isto **não** é uma política de arquivos ocultos.
+- **Todo refresh apagava a árvore.** `setTreeState({status:'loading'})` rodava
+  em toda re-leitura, então cada evento de escrita trocava as linhas por um
+  spinner. Agora o spinner é só da **primeira** carga de um workspace; um
+  refresh mantém as linhas na tela, e a rajada é coalescida em 250 ms (o mesmo
+  debounce que o `useGit` já usava).
+
+O watcher também filtra `.git/**`, **menos** `HEAD` e `refs/**`: um commit ou
+checkout feito no terminal é uma mudança real, e é ali que ela aparece. `.lock`
+fica de fora — git escreve `refs/heads/x.lock` e renomeia, então deixá-lo passar
+reportaria toda atualização duas vezes, a primeira para um arquivo que já não
+existe.
+
+### 2. Os dois erros da transcrição eram um só, em cadeia
+
+- **`An ArrayBuffer is detached`** era consequência, não causa. `transferOf`
+  transfere o PCM para o worker — o que **destaca** o buffer — e o comentário
+  afirmava que a fila guardava uma cópia para os retries. Não guardava:
+  `transcriptionQueue` retém o mesmíssimo array que foi transferido. Então a
+  primeira falha de um take transformava o botão "Tentar de novo" num segundo
+  erro, para sempre. A cópia agora é feita no `whisperClient` (`pcm.slice()`),
+  onde vale para todos os chamadores.
+- **`std::bad_alloc` no `OrtRun`** é o heap do WASM acabando, e ele **não se
+  recupera**: a memória do WebAssembly cresce e nunca volta, então toda execução
+  seguinte falha igual. Três frentes: (a) `chunk_length_s` só é pedido para
+  áudio maior que a janela de 30 s — numa frase ditada aquilo era alocação
+  excedente pura; (b) trocar de modelo agora dá `dispose()` no pipeline que sai,
+  em vez de deixar ~1 GB de pesos fp32 no heap de onde o próximo tem que
+  alocar; (c) a falha é classificada (`kind: 'memory'`) e o cliente **troca o
+  worker** — é a única coisa que devolve o heap. E a mensagem vira conselho
+  acionável ("escolha um modelo menor"), porque repetir não muda nada.
+
+### 3. Ditado ao vivo (VP-R2.9) — o pedido explícito
+
+*"não deveria o usuário ter que terminar tudo para só depois transcrever"*. Nada
+estava quebrado: o pipeline era construído em torno de um **limite**. Um segmento
+só é entregue quando o silêncio o fecha ou quando ele bate no teto de 9 s, então
+quem fala emendado via as primeiras palavras nove segundos depois de dizê-las.
+
+Agora a frase **aberta** também é transcrita, repetidamente, enquanto cresce
+(`livePass.ts` + `Segmenter.draft()`), e o resultado vira um trecho provisório no
+campo (`previewRun.ts`), sublinhado tracejado, substituído pelo próximo palpite e
+por fim pelo texto real do segmento. O ritmo é o projeto inteiro: um por vez, só
+com a fila ociosa (um palpite que atrasa o segmento que ele adivinha piorou as
+coisas), só com fala nova o bastante para valer uma vaga do pipeline, e desiste
+depois de 2 falhas seguidas.
+
+**Defeito que só o passe visual pegou, e que nenhum teste tinha:** o texto
+aparecia **duas vezes**. Duas escritas no mesmo tick — o palpite saindo, o texto
+real entrando um microtask depois — e a segunda perguntava ao campo onde estava o
+cursor. O campo respondia pelo DOM, que o React ainda não tinha atualizado. Então
+o texto real entrava *depois* do palpite em vez de por cima. `useComposerDictation`
+agora espelha o valor e o cursor pendente de forma síncrona na escrita.
+`useComposerDictation.test.ts` reproduz exatamente isso (verificado que morde:
+sem o espelho, o teste falha com a frase duplicada).
+
+### Gates
+
+- **4045 testes verdes**, typecheck limpo, lint **sem erros** (os 12 que havia
+  eram herdados: `tools/spikes/**.mjs` eram JS puro sendo cobrado por uma regra
+  de TS — agora isentos como `scripts/**` já era — e um `setState` direto em
+  efeito no `useWhisper`).
+- **15 testes de ditado/whisper que já estavam vermelhos em `HEAD`** foram
+  corrigidos: eram todos defasagem (o `partial` novo no `QueueState`, o `warm`
+  que virou método próprio, o `onPartial` na ingestão) mais um de causa real —
+  `IngestPanel` dublava `@huggingface/transformers`, o que parou de funcionar
+  quando o motor foi para um worker que o jsdom não tem. O dublê agora é do
+  **thread** (`testSupport/whisperWorkerMock.ts`).
+- **Cobertura:** `livePass.ts` e `previewRun.ts` entram no gate a 100%.
+  `useWhisperDictation` subiu de 85,71 → 87,5 em branches. A lista herdada
+  **não cresceu**.
+- **Passe visual/funcional** (`tools/visual/live-dictation-pass.mjs`,
+  `tools/visual/explorer-refresh-pass.mjs`) nos temas escuro e claro: texto no
+  campo a ~1,3 s de fala (antes: nada até o corte), sublinhado tracejado real
+  (`text-decoration-color` explícito — o backdrop é `color: transparent`, sem
+  ele não se desenha nada), substituição sem duplicar; e a árvore com 12 linhas
+  na tela durante uma varredura que nunca retorna, com 20 eventos virando 1
+  varredura.
 
 ## Deferred Ideas
 

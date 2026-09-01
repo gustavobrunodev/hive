@@ -24,23 +24,34 @@ export interface BackdropSegment {
   mention: boolean
   /** Part of the run a dictated segment just inserted. */
   fresh: boolean
+  /**
+   * Part of the provisional run dictation is still revising (VP-R2.9).
+   *
+   * Distinct from `fresh` and not a stronger version of it: `fresh` is a
+   * 600 ms glance at text that has arrived and is staying, this is a standing
+   * mark on text that has *not* arrived and may be rewritten a second from now.
+   * Confusing the two would tell the user their words are final while the
+   * engine is still choosing them.
+   */
+  preview: boolean
 }
 
 /**
- * Splits `value` into runs marked with the mention and freshly-inserted flags.
+ * Splits `value` into runs marked with the mention, freshly-inserted and
+ * provisional flags.
  *
- * `freshRange` is `[start, end)` in `value`'s own offsets, or `null` when
- * nothing has just arrived. It is clamped rather than trusted: the range comes
- * from a transcription that resolved asynchronously, and the user may have
- * edited the field in between — a stale range must degrade to marking less,
- * never to shifting the backdrop.
+ * Each range is `[start, end)` in `value`'s own offsets, or `null`. They are
+ * clamped rather than trusted: a range comes from a transcription that resolved
+ * asynchronously, and the user may have edited the field in between — a stale
+ * range must degrade to marking less, never to shifting the backdrop.
  */
 export function composerBackdrop(
   value: string,
   knownFiles: ReadonlySet<string>,
-  freshRange: readonly [number, number] | null
+  freshRange: readonly [number, number] | null,
+  previewRange: readonly [number, number] | null = null
 ): BackdropSegment[] {
-  const fresh = clampRange(freshRange, value.length)
+  const marks = [clampRange(freshRange, value.length), clampRange(previewRange, value.length)]
   const segments: BackdropSegment[] = []
   let offset = 0
 
@@ -49,29 +60,51 @@ export function composerBackdrop(
     const end = offset + segment.text.length
     offset = end
 
-    if (fresh === null || fresh[1] <= start || fresh[0] >= end) {
-      push(segments, segment.text, segment.mention, false)
-      continue
+    // Every mark boundary that falls strictly inside this run becomes a cut, so
+    // a mark follows the characters it covers exactly and not the token they
+    // happen to sit in. Sorted and de-duplicated, because two marks may share
+    // an edge and a zero-length piece would be dropped anyway.
+    const cuts = [start, end]
+    for (const mark of marks) {
+      if (mark === null) continue
+      for (const edge of mark) if (edge > start && edge < end) cuts.push(edge)
     }
+    cuts.sort((a, b) => a - b)
 
-    // The fresh range cuts across this run: emit up to three pieces, so the
-    // mark follows the inserted characters exactly and not the token they
-    // happen to sit in.
-    const cutStart = Math.max(start, fresh[0])
-    const cutEnd = Math.min(end, fresh[1])
-    push(segments, value.slice(start, cutStart), segment.mention, false)
-    push(segments, value.slice(cutStart, cutEnd), segment.mention, true)
-    push(segments, value.slice(cutEnd, end), segment.mention, false)
+    for (let i = 0; i < cuts.length - 1; i += 1) {
+      const from = cuts[i]
+      const to = cuts[i + 1]
+      push(
+        segments,
+        value.slice(from, to),
+        segment.mention,
+        covers(marks[0], from, to),
+        covers(marks[1], from, to)
+      )
+    }
   }
 
   // An empty composer still needs one run: the backdrop element must exist to
   // stay aligned with the textarea's own empty first line.
-  if (segments.length === 0) segments.push({ text: '', mention: false, fresh: false })
+  if (segments.length === 0) {
+    segments.push({ text: '', mention: false, fresh: false, preview: false })
+  }
   return segments
 }
 
-function push(segments: BackdropSegment[], text: string, mention: boolean, fresh: boolean): void {
-  if (text !== '') segments.push({ text, mention, fresh })
+/** Does `mark` cover the whole piece `[from, to)`? The cuts guarantee all-or-nothing. */
+function covers(mark: readonly [number, number] | null, from: number, to: number): boolean {
+  return mark !== null && mark[0] <= from && mark[1] >= to
+}
+
+function push(
+  segments: BackdropSegment[],
+  text: string,
+  mention: boolean,
+  fresh: boolean,
+  preview: boolean
+): void {
+  if (text !== '') segments.push({ text, mention, fresh, preview })
 }
 
 /** A usable `[start, end)` inside `value`, or `null` if it marks nothing. */

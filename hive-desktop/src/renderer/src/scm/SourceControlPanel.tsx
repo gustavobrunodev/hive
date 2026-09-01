@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@hive/design-system'
 import { t } from '../i18n'
@@ -62,11 +63,12 @@ function ScmEmpty({
   )
 }
 
-/** The panel header: the current branch chip, a refresh affordance, and the remote-ops overflow (GIT-R7). */
+/** The panel header: the current branch chip, a refresh affordance, and the overflow menu — checkout + remote ops (GIT-R6/R7). */
 function ScmHeader({
   branch,
   detached,
   onRefresh,
+  onCheckout,
   remote,
   showHistory,
   onToggleHistory
@@ -74,6 +76,7 @@ function ScmHeader({
   branch: string | null
   detached: boolean
   onRefresh: () => void
+  onCheckout?: () => void
   remote?: GitRemote
   showHistory: boolean
   onToggleHistory: () => void
@@ -101,7 +104,10 @@ function ScmHeader({
         <IconButton label={t('git.refreshLabel')} onClick={onRefresh}>
           <RefreshIcon size={15} />
         </IconButton>
-        {remote && (
+        {/* The menu is no longer gated on `remote`: checkout is a local
+            operation, and a repo without a remote still has branches to move
+            between. Only the remote group below is conditional. */}
+        {(onCheckout || remote) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <IconButton label={t('git.moreActions')}>
@@ -109,12 +115,24 @@ function ScmHeader({
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={remote.sync}>
-                <SyncIcon size={14} /> {t('git.syncAction')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={remote.fetch}>{t('git.fetchAction')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={remote.pull}>{t('git.pullAction')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={remote.push}>{t('git.pushAction')}</DropdownMenuItem>
+              {onCheckout && (
+                <DropdownMenuItem onSelect={onCheckout}>
+                  <BranchIcon size={14} /> {t('git.checkoutAction')}
+                </DropdownMenuItem>
+              )}
+              {onCheckout && remote && <DropdownMenuSeparator />}
+              {remote && (
+                <>
+                  <DropdownMenuItem onSelect={remote.sync}>
+                    <SyncIcon size={14} /> {t('git.syncAction')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={remote.fetch}>
+                    {t('git.fetchAction')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={remote.pull}>{t('git.pullAction')}</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={remote.push}>{t('git.pushAction')}</DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -130,6 +148,13 @@ export interface SourceControlPanelProps {
   onOpenCommit?: (hash: string, label: string) => void
   /** Toast-wrapped remote ops for the header overflow menu (GIT-R7). */
   remote?: GitRemote
+  /**
+   * Opens the branch quick-pick — the "Trocar de branch (checkout)…" command
+   * in the header overflow (GIT-R6). Owned by `WorkUI` because a checkout has
+   * to pass the unsaved-work guard first (GIT-R6.3), exactly like the status
+   * bar's branch pill; the panel only offers the command.
+   */
+  onCheckout?: () => void
 }
 
 /** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
@@ -149,7 +174,8 @@ function sidePaths(groups: GitGroups, side: RowSide): GitFileChange[] {
 export function SourceControlPanel({
   onOpenDiff,
   onOpenCommit,
-  remote
+  remote,
+  onCheckout
 }: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
   // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
@@ -268,6 +294,7 @@ export function SourceControlPanel({
         branch={branch}
         detached={detached}
         onRefresh={git.refresh}
+        onCheckout={onCheckout}
         remote={remote}
         showHistory={showHistory}
         onToggleHistory={toggleHistory}

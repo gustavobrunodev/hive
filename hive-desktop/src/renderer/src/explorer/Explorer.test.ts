@@ -400,6 +400,7 @@ describe('Explorer (T12/T8)', () => {
         info: vi
           .fn()
           .mockResolvedValue({ name: 'hive-desktop', version: '0.1.0', updatesSupported: false }),
+        reload: vi.fn().mockResolvedValue(undefined),
         checkForUpdates: vi.fn().mockResolvedValue(undefined),
         downloadUpdate: vi.fn().mockResolvedValue(undefined),
         installUpdate: vi.fn().mockResolvedValue(undefined),
@@ -581,6 +582,40 @@ describe('Explorer (T12/T8)', () => {
     await waitFor(() => {
       expect(window.hive.listTree).toHaveBeenCalledTimes(2)
     })
+  })
+
+  // The Files tab "flashing its spinner forever" after a `git init`: every
+  // write under the root re-walks the tree, and the old code blanked the rows
+  // for the duration of every walk. The rows the user is pointing at are still
+  // correct while the next answer is being fetched.
+  it('a refresh keeps the rows on screen — the spinner is for the first load only', async () => {
+    const { watchListeners } = mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    // A walk that never resolves: whatever is on screen during it is what a
+    // refresh looks like.
+    ;(window.hive.listTree as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}))
+    watchListeners[0]({ type: 'change', path: 'a.txt' })
+
+    await waitFor(() => expect(window.hive.listTree).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('Carregando arquivos…')).toBeNull()
+    expect(screen.getByText('a.txt')).toBeTruthy()
+  })
+
+  it('coalesces a burst of writes into one re-walk', async () => {
+    const { watchListeners } = mockHive()
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    await screen.findByText('a.txt')
+
+    // What an `npm install`, a checkout or an agent rewriting a dozen files
+    // actually looks like at this seam.
+    for (let i = 0; i < 20; i += 1) watchListeners[0]({ type: 'add', path: `f${i}.txt` })
+
+    await waitFor(() => expect(window.hive.listTree).toHaveBeenCalledTimes(2))
+    // Still 2 once the debounce window has certainly closed.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(window.hive.listTree).toHaveBeenCalledTimes(2)
   })
 
   it('unsubscribes the watcher on unmount', async () => {

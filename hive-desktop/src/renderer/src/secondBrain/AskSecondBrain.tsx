@@ -344,11 +344,23 @@ export function AskSecondBrain({
               }
               onSubmit={askOrFinish}
               highlight={(current: string) =>
-                transcriptRuns(current, dictation.freshRange).map((run, index) => (
-                  <span key={index} className={run.fresh ? 'wb-composer-fresh' : undefined}>
-                    {run.text}
-                  </span>
-                ))
+                transcriptRuns(current, dictation.freshRange, dictation.previewRange).map(
+                  (run, index) => (
+                    <span
+                      key={index}
+                      className={
+                        [
+                          run.fresh ? 'wb-composer-fresh' : null,
+                          run.preview ? 'wb-composer-preview' : null
+                        ]
+                          .filter((name) => name !== null)
+                          .join(' ') || undefined
+                      }
+                    >
+                      {run.text}
+                    </span>
+                  )
+                )
               }
             />
 

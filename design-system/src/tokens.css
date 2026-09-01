@@ -104,6 +104,15 @@
   --danger: oklch(63.7% 0.208 25.3);
   --danger-bg: oklch(63.7% 0.208 25.3 / 14%);
   --danger-ink: oklch(63.7% 0.208 25.3);
+  /* Ink for text on a FILLED `--danger` surface (the destructive button), as
+     opposed to `--danger-ink`, which is for text sitting ON the `--danger-bg`
+     tint. Exactly the `--accent-ink` / `--accent-tint-ink` split, and confusing
+     the two is just as silent: `--danger-ink` on the fill is the same red on
+     the same red, measured 1.31:1 on dark, 1.04:1 on light — the label is in
+     the DOM and not on the screen. The fill is light enough here that white
+     fails too (3.76:1), so the ink is near-black with the family's own hue.
+     Measured 5.04:1 (dark) / 4.95:1 (hive). */
+  --danger-fill-ink: oklch(18% 0.05 25.3);
 
   --warning: oklch(76.7% 0.157 71.7);
   --warning-bg: oklch(76.7% 0.157 71.7 / 14%);
@@ -168,6 +177,10 @@
   --danger: oklch(50.1% 0.178 28.7);
   --danger-bg: oklch(50.1% 0.178 28.7 / 10%);
   --danger-ink: oklch(50.1% 0.178 28.7);
+  /* See the dark block: ink for a FILLED `--danger` surface, not for its tint.
+     The light theme's danger fill is dark, so here it inverts to white
+     (measured 6.29:1) exactly as `--accent-ink` does. */
+  --danger-fill-ink: var(--n-0);
 
   --warning: oklch(45.5% 0.098 67.2);
   --warning-bg: oklch(45.5% 0.098 67.2 / 10%);
@@ -228,6 +241,15 @@
   --danger: oklch(63.7% 0.208 25.3);
   --danger-bg: oklch(63.7% 0.208 25.3 / 14%);
   --danger-ink: oklch(63.7% 0.208 25.3);
+  /* Ink for text on a FILLED `--danger` surface (the destructive button), as
+     opposed to `--danger-ink`, which is for text sitting ON the `--danger-bg`
+     tint. Exactly the `--accent-ink` / `--accent-tint-ink` split, and confusing
+     the two is just as silent: `--danger-ink` on the fill is the same red on
+     the same red, measured 1.31:1 on dark, 1.04:1 on light — the label is in
+     the DOM and not on the screen. The fill is light enough here that white
+     fails too (3.76:1), so the ink is near-black with the family's own hue.
+     Measured 5.04:1 (dark) / 4.95:1 (hive). */
+  --danger-fill-ink: oklch(18% 0.05 25.3);
 
   --warning: oklch(76.7% 0.157 71.7);
   --warning-bg: oklch(76.7% 0.157 71.7 / 14%);
@@ -292,6 +314,10 @@
     --danger: oklch(50.1% 0.178 28.7);
     --danger-bg: oklch(50.1% 0.178 28.7 / 10%);
     --danger-ink: oklch(50.1% 0.178 28.7);
+  /* See the dark block: ink for a FILLED `--danger` surface, not for its tint.
+     The light theme's danger fill is dark, so here it inverts to white
+     (measured 6.29:1) exactly as `--accent-ink` does. */
+  --danger-fill-ink: var(--n-0);
 
     --warning: oklch(45.5% 0.098 67.2);
     --warning-bg: oklch(45.5% 0.098 67.2 / 10%);

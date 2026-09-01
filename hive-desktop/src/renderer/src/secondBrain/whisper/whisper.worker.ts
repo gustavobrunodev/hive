@@ -20,8 +20,7 @@ import type { WhisperWorkerRequest, WhisperWorkerResponse } from './whisperWorke
 const scope = self as unknown as DedicatedWorkerGlobalScope
 
 const core = createWhisperEngineCore({
-  loadLibrary: () =>
-    import('@huggingface/transformers') as unknown as Promise<TransformersModule>,
+  loadLibrary: () => import('@huggingface/transformers') as unknown as Promise<TransformersModule>,
   post: (message: WhisperWorkerResponse) => scope.postMessage(message)
 })
 

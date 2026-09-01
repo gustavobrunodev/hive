@@ -29,6 +29,7 @@ vi.mock('@hive/design-system', async (orig) => {
       createElement('div', { role: 'menu' }, children),
     DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
       createElement('button', { role: 'menuitem', onClick: onSelect }, children),
+    DropdownMenuSeparator: () => createElement('hr'),
     DropdownMenuCheckboxItem: ({
       children,
       checked,
@@ -179,9 +180,23 @@ describe('SourceControlPanel', () => {
     expect(remote.push).toHaveBeenCalled()
   })
 
-  it('omits the overflow menu when no remote handlers are given', () => {
+  it('omits the overflow menu when neither checkout nor remote handlers are given', () => {
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
     expect(screen.queryByLabelText('Mais ações')).toBeNull()
+  })
+
+  it('offers the checkout command in the overflow and routes it (GIT-R6)', () => {
+    const onCheckout = vi.fn()
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onCheckout })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Trocar de branch (checkout)…' }))
+    expect(onCheckout).toHaveBeenCalled()
+  })
+
+  it('keeps the checkout command on a repo with no remote — checkout is local (GIT-R6)', () => {
+    const onCheckout = vi.fn()
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onCheckout })
+    expect(screen.getByLabelText('Mais ações')).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Sincronizar' })).toBeNull()
   })
 
   it('shows the merge banner and continues/aborts (GIT-R9.3)', () => {

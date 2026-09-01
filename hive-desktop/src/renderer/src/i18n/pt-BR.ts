@@ -341,6 +341,39 @@ export const ptBR = {
     typingLabel: 'O agente está respondendo',
     modelLabel: 'Modelo',
     effortLabel: 'Esforço',
+    // model-picker: o controle único que substituiu os dois seletores soltos.
+    // Um agente escolhe o *motor* da conversa — qual modelo e quanto esforço —
+    // e a pergunta só faz sentido junta: "quanta potência eu quero aqui".
+    engine: {
+      triggerAria: (model: string) => `Motor da conversa: ${model}. Escolher modelo e esforço`,
+      modelListAria: 'Escolher modelo',
+      effortAria: 'Nível de esforço',
+      searchPlaceholder: 'Buscar modelo…',
+      empty: 'Nenhum modelo com esse nome',
+      effortHeading: 'Esforço',
+      // Só aparece quando o agente não expõe modelo nenhum — hoje, nenhum dos
+      // três. Existe porque a alternativa (um painel vazio) some com a
+      // explicação justamente onde ela é necessária.
+      noModels: 'Este agente não expõe escolha de modelo.',
+      refresh: 'Redetectar',
+      refreshing: 'Detectando…',
+      refreshHint: 'Relê as configurações e o catálogo da CLI nesta máquina',
+      // A linha de procedência no rodapé: de onde saiu essa lista. É o que
+      // torna a lista conferível em vez de uma promessa.
+      sourceDetected: 'Lido da CLI nesta máquina',
+      sourceConfigured: 'Vem das suas configurações',
+      sourceCatalog: 'Catálogo conhecido do Hive',
+      noteCliMissing: 'CLI não encontrada aqui — mostrando o catálogo conhecido.',
+      noteProbeFailed: 'Não consegui ler a lista da CLI — mostrando o catálogo conhecido.',
+      noteNoListing: 'Esta CLI não publica a lista de modelos; estes são os conhecidos.',
+      // O modelo que o turno realmente reportou (evento `usage`). Chega depois
+      // da primeira resposta, e é a única confirmação de verdade do que rodou.
+      running: (model: string) => `Rodando em ${model}`,
+      // O alias não é o modelo: dizer no que ele resolveu é o que impede
+      // "Sonnet" de significar coisas diferentes em duas máquinas.
+      resolves: (id: string) => `→ ${id}`,
+      contextWindow: (tokens: string) => `${tokens} de contexto`
+    },
     jumpToLatestLabel: 'Ir para a última mensagem',
     // A launched skill can carry the material it was launched with; a long
     // one collapses so it doesn't bury the conversation it started.
@@ -1166,6 +1199,12 @@ export const ptBR = {
     deleteBranchCancel: 'Cancelar',
     // Remote sync (GIT-R7): overflow menu + op-result toasts.
     moreActions: 'Mais ações',
+    /**
+     * GIT-R6: the checkout command in the SCM overflow menu (VS Code's
+     * "Git: Checkout to…"). Written like its neighbours below — the Portuguese
+     * verb with git's own name in parentheses — so the menu reads as one list.
+     */
+    checkoutAction: 'Trocar de branch (checkout)…',
     fetchAction: 'Buscar (fetch)',
     pullAction: 'Receber (pull)',
     pushAction: 'Enviar (push)',
@@ -1542,6 +1581,15 @@ export const ptBR = {
     ingestAudioUnsupported: 'Não foi possível ler esse áudio. Tente wav, mp3, m4a, ogg ou webm.',
     ingestAudioSilent: 'Não há som nesse áudio.',
     ingestTranscribeFailed: 'Não foi possível transcrever o áudio.',
+    /**
+     * Memória esgotada no motor (VP-R4.7). É a única falha de transcrição que
+     * **não** adianta repetir: o `onnxruntime` cresce a memória do WebAssembly
+     * e nunca devolve, então a próxima tentativa esbarra no mesmo teto. O que
+     * muda o resultado é um modelo menor — e é isso que a frase diz, em vez de
+     * repassar "std::bad_alloc".
+     */
+    ingestMemoryFailed:
+      'Faltou memória para rodar esse modelo. Escolha um modelo menor em Voz e transcrição e tente de novo.',
     // Recorder (SB-R5).
     recordStart: 'Gravar',
     recordStop: 'Parar',
@@ -1658,7 +1706,8 @@ export const ptBR = {
       `Os arquivos saem deste computador agora. Para usar este modelo de novo você vai baixar ${size} outra vez.`,
     deleteConfirmKeepCta: 'Manter',
     deleteConfirmCta: 'Excluir',
-    deleteFailed: 'Não foi possível excluir este modelo agora. Feche o que estiver usando a voz e tente de novo.',
+    deleteFailed:
+      'Não foi possível excluir este modelo agora. Feche o que estiver usando a voz e tente de novo.',
     useAria: (id: string) => `Usar o modelo ${id}`,
     // What this computer can and cannot run (voice/modelFit) — measured
     // ceilings, not warnings invented to sound careful.
@@ -1700,8 +1749,10 @@ export const ptBR = {
    * screen, which names the mechanism and hides the fix.
    */
   whisperError: {
-    memory: 'Este modelo não cabe na memória deste computador. Escolha um modelo menor em Perfil › Voz e transcrição.',
-    missing: 'Os arquivos deste modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
+    memory:
+      'Este modelo não cabe na memória deste computador. Escolha um modelo menor em Perfil › Voz e transcrição.',
+    missing:
+      'Os arquivos deste modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
     generic: 'A transcrição falhou neste trecho.'
   },
   /**
@@ -2136,7 +2187,13 @@ export const ptBR = {
     switchErrorNotADirectory:
       'Não foi possível trocar de workspace: o caminho selecionado não é uma pasta.',
     switchErrorUnreadable:
-      'Não foi possível trocar de workspace: não foi possível ler a pasta selecionada.'
+      'Não foi possível trocar de workspace: não foi possível ler a pasta selecionada.',
+    /** app-reload: window-scoped section of the workspace chip menu. */
+    windowSection: 'Janela',
+    /** app-reload: the VS Code "Reload Window" command, in the chip menu. */
+    reloadWindow: 'Recarregar janela',
+    /** The chord shown next to it — ⌘R on macOS, where the handler takes `metaKey` too. */
+    reloadWindowKey: (platform: string): string => chordLabel('Ctrl+R', platform)
   },
 
   /**
@@ -2180,6 +2237,9 @@ export const ptBR = {
     unavailableHint: 'Conecte um microfone e tente de novo.',
     error: 'Não consegui transcrever este trecho',
     errorKeep: 'Seu áudio está guardado — pode tentar de novo.',
+    /** Ver `secondBrain.ingestMemoryFailed` — mesma causa, mesmo conselho. */
+    memoryFailed:
+      'Faltou memória para rodar esse modelo. Escolha um modelo menor em Voz e transcrição.',
     /** Enviar durante o ditado finaliza antes de enviar (VP-R1.6). */
     finishAndSend: 'Concluindo o ditado antes de enviar…',
     /**
@@ -2604,4 +2664,108 @@ export function relativeTimeLabel(timestamp: number, now: number = Date.now()): 
   const then = new Date(timestamp)
   const sameYear = then.getFullYear() === new Date(now).getFullYear()
   return (sameYear ? shortDate : shortDateWithYear).format(then)
+}
+
+/* --- model-picker: códigos → cópia --------------------------------------
+   O processo main não guarda string de UI (R1.6): ele manda *códigos* —
+   `descriptionKey`, `ModelTrait`, `AgentProvider['id']`, `CapabilityNote` — e
+   a tradução acontece aqui. É o mesmo contrato do `shellSupportNote` acima,
+   e é o que permite detectar um modelo numa máquina em inglês e ainda
+   descrevê-lo em pt-BR. A exceção proposital: uma descrição que a *própria*
+   CLI escreveu passa direto, sem tradução — inventar uma versão em português
+   apagaria a evidência de onde ela veio. */
+
+const MODEL_DESCRIPTIONS: Record<string, string> = {
+  // A linha "automático" de todo agente: não é um modelo, é a ausência da
+  // flag. Diz o que vai acontecer, porque é isso que separa um auto em que se
+  // confia de um que o usuário contorna.
+  cliDefault: 'Deixa a CLI decidir — usa o modelo configurado nela',
+
+  'claude.opus': 'O mais capaz para tarefas complexas do dia a dia',
+  'claude.sonnet': 'Eficiente para trabalho de rotina — o equilíbrio recomendado',
+  'claude.haiku': 'O mais rápido e barato, para respostas curtas',
+  'claude.fable': 'Para as tarefas mais difíceis e mais longas',
+  'claude.opus1m': 'Opus com janela de 1M — sessões longas em bases grandes',
+  'claude.sonnet1m': 'Sonnet com janela de 1M — sessões longas em bases grandes',
+  'claude.opusplan': 'Opus no modo plano, Sonnet no resto da conversa',
+  'claude.pinned': 'Versão fixada — conversas presas a ela continuam nela',
+  'claude.smallFast': 'Modelo auxiliar rápido, usado pela própria CLI em tarefas internas',
+
+  'devin.adaptive': 'Roteador da Cognition: escolhe o modelo por tarefa',
+  'devin.swe': 'Modelo da Cognition afinado para engenharia de software',
+  'devin.opus': 'Opus, da Anthropic — o mais capaz para tarefas complexas',
+  'devin.sonnet': 'Sonnet, da Anthropic — equilíbrio para o dia a dia',
+  'devin.gpt': 'GPT, da OpenAI — a família mais recente',
+  'devin.codex': 'Codex, da OpenAI — afinado para código',
+  'devin.gemini': 'Gemini, do Google',
+
+  'copilot.sonnet45': 'Padrão do Copilot — equilíbrio para o dia a dia',
+  'copilot.sonnet46': 'Sonnet mais recente disponível no Copilot',
+  'copilot.opus45': 'O mais capaz da Anthropic no Copilot',
+  'copilot.haiku45': 'Rápido e barato, para respostas curtas',
+  'copilot.gpt51': 'O mais capaz da OpenAI no Copilot',
+  'copilot.gpt5': 'GPT-5 — equilíbrio para o dia a dia',
+  'copilot.codex': 'Afinado para código e execução de tarefas longas',
+  'copilot.gpt5mini': 'Mais rápido e barato que o GPT-5',
+  'copilot.gemini3': 'Gemini 3 Pro, do Google',
+
+  // A escada de esforço. Cada degrau diz o que muda *para o usuário* — tempo e
+  // custo — porque "alto" e "extra" não significam nada sozinhos.
+  'effort.cliDefault': 'Deixa a CLI decidir',
+  'effort.low': 'Responde rápido, raciocina pouco',
+  'effort.medium': 'Equilíbrio entre rapidez e profundidade',
+  'effort.high': 'Raciocina mais antes de responder',
+  'effort.xhigh': 'Raciocínio extenso — turnos mais lentos',
+  'effort.max': 'O máximo de raciocínio; mais lento e mais caro'
+}
+
+/** A descrição curada de um modelo/esforço, ou `null` quando a chave é desconhecida. */
+export function modelDescription(key: string | undefined): string | null {
+  return key ? (MODEL_DESCRIPTIONS[key] ?? null) : null
+}
+
+const MODEL_TRAITS: Record<string, string> = {
+  'cli-default': 'auto',
+  router: 'roteador',
+  flagship: 'topo',
+  balanced: 'equilíbrio',
+  fast: 'rápido',
+  'long-context': '1M',
+  legacy: 'anterior',
+  thinking: 'raciocínio',
+  vision: 'imagens'
+}
+
+/** Rótulo curto de uma característica de modelo (chip da linha). */
+export function modelTraitLabel(trait: string): string {
+  return MODEL_TRAITS[trait] ?? trait
+}
+
+const MODEL_GROUPS: Record<string, string | null> = {
+  // Sem título: a linha "automático" abre a lista e não precisa de cabeçalho.
+  default: null,
+  recommended: 'Recomendados',
+  more: 'Mais opções',
+  legacy: 'Versões anteriores'
+}
+
+/** Cabeçalho de um grupo do seletor, ou `null` para um grupo sem título. */
+export function modelGroupLabel(group: string): string | null {
+  return group in MODEL_GROUPS ? MODEL_GROUPS[group] : group
+}
+
+const PROVIDERS: Record<string, string> = {
+  anthropic: 'API da Anthropic',
+  bedrock: 'Amazon Bedrock',
+  vertex: 'Google Vertex AI',
+  foundry: 'Microsoft Foundry',
+  gateway: 'Gateway próprio',
+  github: 'GitHub Copilot',
+  cognition: 'Cognition',
+  unknown: 'Provedor desconhecido'
+}
+
+/** Nome do provedor para o qual a CLI do agente está apontada. */
+export function providerLabel(id: string): string {
+  return PROVIDERS[id] ?? PROVIDERS.unknown
 }

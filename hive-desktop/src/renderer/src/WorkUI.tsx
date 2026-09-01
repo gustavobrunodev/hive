@@ -74,7 +74,7 @@ import { PANE_DRAG_MIME } from './ui/paneDnd'
 import { HiveLogo } from './ui/HiveLogo'
 import { ThemePicker } from './ui/ThemePicker'
 import type { Theme } from './ui/theme'
-import { ChevronDownIcon, FolderIcon, FolderOpenIcon, UserIcon } from './ui/icons'
+import { ChevronDownIcon, FolderIcon, FolderOpenIcon, RefreshIcon, UserIcon } from './ui/icons'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -575,6 +575,30 @@ export function WorkUI({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  // app-reload: "Recarregar janela", the VS Code affordance for when the
+  // renderer is wedged (a stuck stream, a panel that stopped repainting) and
+  // the honest fix is a fresh window rather than a restart of the whole app.
+  // Main owns the reload — see `app:reload` in main/index.ts.
+  const reloadWindow = useCallback(() => {
+    setChipMenuOpen(false)
+    void window.hive.app.reload()
+  }, [])
+
+  // Ctrl/Cmd+R, the same chord VS Code binds to `workbench.action.reloadWindow`.
+  // Nothing else in the app claims it, and in a packaged build Electron's own
+  // menu accelerator is gone (`optimizer.watchWindowShortcuts`), so without
+  // this the muscle memory does nothing at all.
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'r') {
+        event.preventDefault()
+        void window.hive.app.reload()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   // Ctrl/Cmd+Shift+G opens the Source Control view (VS Code parity, D-GIT-2).
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent): void {
@@ -957,6 +981,7 @@ export function WorkUI({
                   }
                   onOpenCommit={editor.openCommitDiff}
                   remote={gitRemote}
+                  onCheckout={() => setBranchPickerOpen(true)}
                 />
               }
               review={
@@ -1134,6 +1159,29 @@ export function WorkUI({
                       ))}
                     </>
                   )}
+                  {/* app-reload: window-scoped, so it sits under its own
+                      heading rather than reading as a fourth way to change
+                      workspace. This chip menu is the app's only title-bar
+                      menu — the same place VS Code keeps "Reload Window". */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>{t('workUI.windowSection')}</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onSelect={reloadWindow}
+                    /* Canonical key names for the a11y tree (the handler takes
+                       `metaKey` wherever it takes `ctrlKey`), while the visible
+                       hint below uses the platform's own notation. */
+                    aria-keyshortcuts={window.hive.platform === 'darwin' ? 'Meta+R' : 'Ctrl+R'}
+                  >
+                    <span className="wb-menu-item-icon" aria-hidden="true">
+                      <RefreshIcon size={15} />
+                    </span>
+                    <span className="wb-menu-item-text">
+                      <span className="wb-menu-item-title">{t('workUI.reloadWindow')}</span>
+                    </span>
+                    <span className="wb-menu-item-kbd" aria-hidden="true">
+                      {t('workUI.reloadWindowKey', window.hive.platform)}
+                    </span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               )}
             </DropdownMenu>

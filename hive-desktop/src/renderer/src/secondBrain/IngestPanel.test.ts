@@ -6,6 +6,7 @@ import { IngestPanel } from './IngestPanel'
 import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { createHiveWhisperMock, whisperModelFixture } from '../testSupport/hiveWhisperMock'
+import { installWhisperWorkerMock, type WhisperWorkerMock } from '../testSupport/whisperWorkerMock'
 import type { DictationE2EHarness } from '../dictation/e2eDictationSeam'
 import type { Tick } from '../dictation/segmenter'
 
@@ -21,18 +22,12 @@ vi.mock('./whisper/audio', async (importOriginal) => ({
   decodeToWhisperPcm
 }))
 
-// The transformers library is multi-megabyte WASM — stub the pipeline so the
-// panel's own wiring (model choice → transcript → shared field) is what's tested.
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn(async () => async () => ({ text: 'ata da reunião' })),
-  env: {
-    allowRemoteModels: true,
-    allowLocalModels: false,
-    useBrowserCache: true,
-    localModelPath: '',
-    backends: { onnx: { wasm: { wasmPaths: '' } } }
-  }
-}))
+// The engine runs in a module worker, which jsdom does not have — so the thread
+// is what gets faked (`installWhisperWorkerMock` in `beforeEach`), not the
+// library behind it. Stubbing `@huggingface/transformers` here instead, the way
+// this file used to, stopped working the moment the pipeline moved off the main
+// thread: the client's first `new Worker(...)` threw and the panel was blamed
+// for a transcript that never arrived.
 
 // The DS Sheet/Popover render through Radix; stand them in with plain DOM so the
 // sheet's body is assertable in jsdom (the Explorer/McpManager convention).
@@ -201,8 +196,10 @@ function tick(rms: number): Tick {
 
 describe('IngestPanel (T10)', () => {
   let stageRaw: ReturnType<typeof vi.fn>
+  let whisperWorker: WhisperWorkerMock
 
   beforeEach(() => {
+    whisperWorker = installWhisperWorkerMock({ transcript: 'ata da reunião' })
     stageRaw = vi.fn().mockResolvedValue({ relPath: 'second-brain/raw/ingest-x.md' })
     const whisper = createHiveWhisperMock()
     whisper.listModels.mockResolvedValue([
@@ -241,6 +238,7 @@ describe('IngestPanel (T10)', () => {
 
   afterEach(() => {
     cleanup()
+    whisperWorker.restore()
     vi.restoreAllMocks()
     delete (globalThis as { __hiveDictationE2E?: DictationE2EHarness }).__hiveDictationE2E
   })

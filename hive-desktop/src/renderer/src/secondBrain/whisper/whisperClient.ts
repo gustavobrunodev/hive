@@ -1,6 +1,6 @@
 import type { WhisperModelId, WhisperVariant } from './whisperIds'
 import type { WhisperWorkerRequest, WhisperWorkerResponse } from './whisperWorkerProtocol'
-import { transferOf } from './whisperWorkerProtocol'
+import { isMemoryFailure, transferOf } from './whisperWorkerProtocol'
 
 /**
  * The app's **one** transcription engine — a module singleton in front of the
@@ -46,6 +46,21 @@ export interface TranscribeOptions {
    * the first piece arrives ~1.8 s into a run, measured in the real app.
    */
   onPartial?: (text: string) => void
+}
+
+/**
+ * The engine ran out of memory.
+ *
+ * Its own type because the two surfaces that transcribe both have to say
+ * something different about it than about a bad file: retrying changes nothing
+ * until something *else* changes (a smaller model), and the raw
+ * "std::bad_alloc" is not a sentence anyone can act on.
+ */
+export class WhisperMemoryError extends Error {
+  constructor(readonly detail: string) {
+    super(detail)
+    this.name = 'WhisperMemoryError'
+  }
 }
 
 /** D-SB-6: the squad works in pt-BR, so Portuguese is the default. */
@@ -148,6 +163,16 @@ interface Pending {
 
 export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps()): WhisperClient {
   let worker: Worker | null = null
+  /**
+   * The warm in flight, if any, keyed by model.
+   *
+   * Sharing it is the point: pre-warm on hover, then a real phrase a second
+   * later, must be one build. Cleared when it settles so a failed warm can be
+   * retried by the next real request rather than poisoning the engine — and
+   * cleared by `recycle` too, since a build recorded here belongs to a worker
+   * that no longer exists.
+   */
+  let warming: { model: WhisperModelId; done: Promise<void> } | null = null
   let nextId = 1
   let phase: WhisperPhase = { status: 'idle' }
   const listeners = new Set<(phase: WhisperPhase) => void>()
@@ -156,6 +181,24 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
   const setPhase = (next: WhisperPhase): void => {
     phase = next
     for (const listener of listeners) listener(next)
+  }
+
+  /**
+   * Throws the worker away, failing whatever was still waiting on it.
+   *
+   * `warming` is cleared with it: the pipeline it recorded lived in the thread
+   * that just died, and leaving the record behind would make the next
+   * transcription skip the build it now needs.
+   */
+  const recycle = (reason: Error): void => {
+    const dying = worker
+    worker = null
+    warming = null
+    for (const [id, waiting] of pending) {
+      pending.delete(id)
+      waiting.reject(reason)
+    }
+    dying?.terminate()
   }
 
   const ensureWorker = (): Worker => {
@@ -179,11 +222,23 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
         return
       }
       pending.delete(message.id)
-      if (message.type === 'done') waiting.resolve(message.text)
-      else {
-        setPhase({ status: 'error', message: message.message })
-        waiting.reject(new Error(message.message))
+      if (message.type === 'done') {
+        waiting.resolve(message.text)
+        return
       }
+      setPhase({ status: 'error', message: message.message })
+      if (message.kind === 'memory') {
+        // The heap is gone and it does not come back: WebAssembly memory grows
+        // and never shrinks, so the next request in this worker fails exactly
+        // as this one did. Replacing the thread is the only thing that frees
+        // it — the next call spawns a fresh one and pays a session build,
+        // which is a far better outcome than a take that can no longer
+        // transcribe anything.
+        recycle(new WhisperMemoryError(message.message))
+        waiting.reject(new WhisperMemoryError(message.message))
+        return
+      }
+      waiting.reject(new Error(message.message))
     }
     spawned.onerror = (event: ErrorEvent) => {
       const message = event.message || 'worker failed'
@@ -197,10 +252,22 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
     return spawned
   }
 
-  const send = (request: WhisperWorkerRequest, onPartial?: (text: string) => void): Promise<string> =>
+  const send = (
+    request: WhisperWorkerRequest,
+    onPartial?: (text: string) => void
+  ): Promise<string> =>
     new Promise<string>((resolve, reject) => {
       pending.set(request.id, { resolve, reject, onPartial, text: '' })
-      ensureWorker().postMessage(request, transferOf(request))
+      try {
+        ensureWorker().postMessage(request, transferOf(request))
+      } catch (error) {
+        // A `postMessage` that throws leaves nobody to answer this id, so the
+        // entry has to go with it — otherwise the map grows an orphan per
+        // failure and `pending.size` (which gates the idle phase) never
+        // returns to zero.
+        pending.delete(request.id)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
     })
 
   /**
@@ -251,15 +318,6 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
     return { variant, device: webgpu ? 'webgpu' : 'wasm' }
   }
 
-  /**
-   * The warm in flight, if any, keyed by model.
-   *
-   * Sharing it is the point: pre-warm on hover, then a real phrase a second
-   * later, must be one build. Cleared when it settles so a failed warm can be
-   * retried by the next real request rather than poisoning the engine.
-   */
-  let warming: { model: WhisperModelId; done: Promise<void> } | null = null
-
   const warm = (model: WhisperModelId = DEFAULT_MODEL): Promise<void> => {
     if (warming !== null && warming.model === model) return warming.done
     const done = (async () => {
@@ -295,7 +353,14 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
           device,
           language: options.language ?? DEFAULT_LANGUAGE,
           baseHref: deps.baseHref(),
-          pcm
+          // A copy, because the trip **detaches** what it carries (see
+          // `transferOf`). Callers keep their audio for a reason — the queue
+          // retries failed segments with it, the live pass re-sends a growing
+          // buffer — and handing the original over turned the first failure of
+          // a take into "An ArrayBuffer is detached" for every attempt after
+          // it. 960 kB per 15 s segment: the copy is cheaper than the defect by
+          // any measure that matters.
+          pcm: pcm.slice()
         },
         options.onPartial
       )
@@ -306,6 +371,14 @@ export function createWhisperClient(deps: WhisperClientDeps = browserClientDeps(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setPhase({ status: 'error', message })
+      // A failure that never reached the worker's own handler — the library
+      // throwing on import, `onerror` firing — can still be the heap. Same
+      // rule, same recovery, so the caller sees one type either way.
+      if (!(error instanceof WhisperMemoryError) && isMemoryFailure(message)) {
+        const failure = new WhisperMemoryError(message)
+        recycle(failure)
+        throw failure
+      }
       throw error
     }
   }

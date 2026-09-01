@@ -258,6 +258,19 @@ body ::-webkit-scrollbar-corner {
   font-size: 0.75rem;
   color: var(--faint);
 }
+/* app-reload: the chord a menu row advertises, pushed to the trailing edge —
+   the desktop-menu convention. `--muted`, not `--faint`: somebody reads this
+   one (docs/visual-validation.md's recurring lesson — `--faint` is for icons
+   and inactive marks, not for text a user is meant to take a key from). */
+.wb-menu-item-kbd {
+  margin-left: auto;
+  padding-left: var(--s-3);
+  flex-shrink: 0;
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
 
 .wb-topbar-spacer {
   flex: 1;
@@ -1660,6 +1673,255 @@ body ::-webkit-scrollbar-corner {
 }
 
 /* ==========================================================================
+   Engine picker (model-picker) — one control for "quanta potência nesta
+   conversa": which model, and how hard it thinks.
+
+   It replaced two unlabelled `Select`s in the composer toolbar. The trigger
+   stays quieter than the agent pill next to it on purpose: the agent is the
+   identity of the conversation, the engine is a setting inside it, and two
+   accent-tinted pills side by side read as two competing headlines.
+   ========================================================================== */
+
+.wb-engine-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 7px 0 6px;
+  border-radius: var(--rounded-full);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.75rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart);
+}
+
+.wb-engine-btn:hover,
+.wb-engine-btn[data-state='open'] {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.wb-engine-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.wb-engine-glyph {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.wb-engine-name {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+/* The effort rides along on the trigger, so the second half of the decision
+   is legible without opening anything. Opaque tint + `--ink`: at 10px bold it
+   takes the 4.5:1 body floor, which the `*-ink on *-bg` pairs miss in light. */
+/* What "Automático" resolves to, in the mono face: it is an id the user can
+   check against their own config, not prose. */
+.wb-engine-resolved {
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--muted);
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-engine-effort-chip {
+  padding: 1px 5px;
+  border-radius: var(--rounded-sm);
+  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
+  color: var(--ink);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* ---- the panel's footer ---------------------------------------------- */
+
+.wb-engine-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.wb-engine-effort {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Title over the track, not beside it. Measured: sharing one row with the
+   heading left the six segments ~46px each and every label truncated to a
+   letter and an ellipsis ("A… B… M…"), which is a ladder nobody can read. */
+.wb-engine-effort-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The track claims the full panel width and divides it evenly, so the six
+   rungs are the same size whatever they are called. */
+.wb-engine-effort-head .hds-seg {
+  display: flex;
+  width: 100%;
+}
+
+.wb-engine-effort-head .hds-seg-item {
+  flex: 1 1 0;
+  justify-content: center;
+  padding: 5px 4px;
+}
+
+.wb-engine-effort-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-engine-effort-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+  /* Two lines' worth of room reserved: the hint changes with the selection,
+     and a footer that grows and shrinks under the pointer makes the segment
+     the user is aiming at move away from them. */
+  min-height: 2.1em;
+}
+
+.wb-engine-provenance {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.wb-engine-source {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Detected / configured / catalog, as a traffic signal for how much the list
+   can be trusted. Colour is the *secondary* channel — the sentence next to it
+   says the same thing in words. */
+.wb-engine-source-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: var(--rounded-full);
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.wb-engine-source[data-source='detected'] .wb-engine-source-dot {
+  background: var(--success);
+}
+.wb-engine-source[data-source='configured'] .wb-engine-source-dot {
+  background: var(--accent);
+}
+
+/* Wraps rather than truncates. This line is the picker's evidence — "Lido da
+   CLI nesta máquina · Amazon Bedrock (us-east-1)" cut to "…Amazon Bedro…"
+   withholds exactly the half that answers the question it was added for. */
+.wb-engine-source-text {
+  min-width: 0;
+}
+
+.wb-engine-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart);
+}
+.wb-engine-refresh:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-engine-refresh:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-engine-refresh:disabled {
+  cursor: default;
+  color: var(--faint);
+}
+
+.wb-engine-spin {
+  animation: wb-engine-spin 900ms linear infinite;
+}
+
+.wb-engine-note,
+.wb-engine-running {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* `--muted`, not `--faint`: measured on the sibling `.hds-picker-hint`, the
+   faint token lands at 2.78:1 in the light theme — this line names the model
+   that actually ran, which is the panel's whole evidence. */
+.wb-engine-running {
+  font-family: var(--ff-mono);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes wb-engine-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-engine-btn,
+  .wb-engine-refresh {
+    transition: none;
+  }
+  .wb-engine-spin {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
    New-session hero (empty chat: greeting + centered composer + intent pills)
    ========================================================================== */
 
@@ -2656,10 +2918,18 @@ body ::-webkit-scrollbar-corner {
   outline-offset: -2px;
 }
 
-/* Destructive confirm button (discard) — a clear danger affordance (G3). */
+/* Destructive confirm button (discard) — a clear danger affordance (G3).
+
+   The ink is `--danger-fill-ink`, NOT `--danger-ink`: the second is the tint's
+   ink (text on `--danger-bg`), and on the *filled* red it is the same red on
+   the same red — measured 1.31:1 (escuro), 1.04:1 (claro), 1.33:1 (hive), i.e.
+   "Descartar" was in the DOM and not on the screen. Same family of mistake the
+   attachment tray hit with `--accent-ink` on `--selected-bg` (M22). The new
+   token is the filled-surface half of the pair, per theme, and measures
+   5.04:1 / 6.29:1 / 4.95:1. */
 .wb-btn-danger {
   background: var(--danger);
-  color: var(--danger-ink, #fff);
+  color: var(--danger-fill-ink);
   border-color: var(--danger);
 }
 .wb-btn-danger:hover {
@@ -14769,6 +15039,25 @@ span.wb-change-card-open {
   background: var(--selected-bg);
   border-radius: 2px;
   animation: wb-dictation-fresh 0.6s var(--ease-quart) both;
+}
+
+/* The run dictation is still revising (VP-R2.9). It has to read as *not
+   settled yet* while someone is speaking, which rules out both of the obvious
+   choices: a background tint is what `.wb-composer-fresh` already means (text
+   that arrived), and a wavy underline is what every editor on earth means by
+   "this word is wrong".
+
+   A dashed underline is the remaining honest one — the convention for a
+   provisional or annotated run — and it can be drawn at all from here: the
+   backdrop is `color: transparent` under the real glyphs, so only what it
+   paints (backgrounds, borders, decorations with an explicit colour) is
+   visible. Hence `text-decoration-color`, without which the line would inherit
+   the transparent text and draw nothing. */
+.wb-composer-preview {
+  text-decoration: underline dashed;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 @keyframes wb-dictation-in {

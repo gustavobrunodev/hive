@@ -183,7 +183,10 @@ describe('preload: window.hive bridge', () => {
   // T14: AgentService namespace, never covered by a test.
   describe('hive.agent.*', () => {
     function getAgent(): {
-      capabilities: () => Promise<unknown>
+      capabilities: (
+        id?: string,
+        opts?: { workspace?: string; refresh?: boolean }
+      ) => Promise<unknown>
       start: (opts: unknown) => Promise<void>
       send: (text: string, opts?: { resume?: string | null; turnId?: string }) => Promise<void>
       runWorkflow: (
@@ -199,7 +202,17 @@ describe('preload: window.hive bridge', () => {
 
     it('agent.capabilities() invokes "agent:capabilities"', async () => {
       await getAgent().capabilities()
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities', undefined)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities', undefined, undefined)
+    })
+
+    // model-picker: detection is per workspace (a project's settings can point
+    // the CLI at another provider) and re-runnable on demand.
+    it('agent.capabilities(id, opts) forwards the workspace and the refresh flag', async () => {
+      await getAgent().capabilities('devin', { workspace: '/ws', refresh: true })
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('agent:capabilities', 'devin', {
+        workspace: '/ws',
+        refresh: true
+      })
     })
 
     it('agent.start(opts) invokes "agent:start" with opts', async () => {
@@ -621,6 +634,7 @@ describe('preload: window.hive bridge', () => {
       }
       app: {
         info: () => Promise<unknown>
+        reload: () => Promise<void>
         checkForUpdates: (explicit?: boolean) => Promise<void>
         downloadUpdate: () => Promise<void>
         installUpdate: () => Promise<void>
@@ -645,6 +659,9 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('profile:setUserName', 'Gustavo')
 
     await expect(hive.app.info()).resolves.toBe('invoked:app:info')
+    // app-reload: main owns the reload; the bridge only forwards.
+    await hive.app.reload()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('app:reload')
     // Zero-arg (explicit-by-default at the IPC layer) and the T14-widened
     // explicit `false` (the silent launch/periodic check) both forward
     // faithfully — `explicit` is just passed straight through as the second

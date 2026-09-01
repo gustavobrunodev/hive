@@ -1,6 +1,9 @@
+import { homedir } from 'os'
 import type { ProcessRunner } from './processRunner'
-import type { AgentAdapter, AgentCapabilities, SessionOpts } from './agentAdapter'
+import type { AgentAdapter, AgentAdapterDeps, AgentCapabilities, SessionOpts } from './agentAdapter'
 import { createCliAgentSession } from './cliAdapterCore'
+import { COPILOT_CATALOG, detectCopilotCapabilities } from './copilotModelCatalog'
+import { CLI_DEFAULT_ID } from './modelCatalog'
 
 /**
  * The GitHub Copilot CLI adapter (multi-agent). Drives the `copilot` binary
@@ -33,26 +36,48 @@ const COPILOT_COMMAND = 'copilot'
 
 function capabilities(): AgentCapabilities {
   return {
-    // BEST-GUESS: real Copilot CLI model slugs across its fronted providers.
     models: [
-      { id: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-      { id: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-      { id: 'gpt-5', label: 'GPT-5' },
-      { id: 'gpt-5-mini', label: 'GPT-5 mini' },
-      { id: 'o4-mini', label: 'o4-mini' }
+      {
+        id: CLI_DEFAULT_ID,
+        label: 'Automático',
+        descriptionKey: 'cliDefault',
+        traits: ['cli-default'],
+        group: 'default',
+        source: 'catalog'
+      },
+      ...COPILOT_CATALOG
     ],
-    // The Copilot CLI exposes no effort/reasoning-level flag.
+    // Verified against the installed CLI's own option list: no effort or
+    // reasoning-level flag exists.
     efforts: [],
-    supportsAttachments: true
+    supportsAttachments: true,
+    provider: { id: 'github', detail: null },
+    modelSource: 'catalog',
+    note: 'no-listing'
   }
 }
 
 /** Creates the GitHub Copilot CLI adapter (injected `ProcessRunner`, fully fake-testable). */
-export function createCopilotCliAdapter(processRunner: ProcessRunner): AgentAdapter {
+export function createCopilotCliAdapter(
+  processRunner: ProcessRunner,
+  deps?: AgentAdapterDeps
+): AgentAdapter {
   return {
     id: 'github-copilot',
     displayName: 'GitHub Copilot CLI',
     capabilities,
+    // Copilot publishes no model list, so detection here reads the one thing
+    // that *is* on disk — the model the user picked in the Copilot TUI — and
+    // the picker is told to say the rest is a known-models catalog.
+    detectCapabilities: () =>
+      Promise.resolve(
+        detectCopilotCapabilities({
+          env: deps?.host?.env ?? process.env,
+          home: deps?.host?.home ?? homedir(),
+          ...(deps?.host?.readJson ? { readJson: deps.host.readJson } : {})
+        })
+      ),
+    commandName: COPILOT_COMMAND,
     startSession: (opts: SessionOpts) =>
       createCliAgentSession(processRunner, opts, {
         command: COPILOT_COMMAND,

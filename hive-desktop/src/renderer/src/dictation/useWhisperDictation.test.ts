@@ -16,11 +16,12 @@ import type { ComposerDictationOptions } from './useComposerDictation'
  */
 
 const transcribe = vi.fn(async () => 'texto')
+const warm = vi.fn(async () => {})
 const phase = { status: 'idle' } as const
 
 vi.mock('../secondBrain/whisper/useWhisper', () => ({
   DEFAULT_LANGUAGE: 'portuguese',
-  useWhisper: () => ({ phase, transcribe })
+  useWhisper: () => ({ phase, transcribe, warm })
 }))
 
 let gateActive: boolean | undefined
@@ -38,14 +39,20 @@ vi.mock('../voice/useVoiceGate', () => ({
   }
 }))
 
-// Armed only under the E2E harness; here it must stay out of the way.
-vi.mock('./e2eDictationSeam', () => ({ e2eDictationEngine: () => null }))
+// Armed only under the E2E harness; here it stays out of the way unless a test
+// asks for it (the seam is a real branch of this hook, and the only one that
+// decides whether a take reaches Whisper at all).
+let seamEngine: unknown = null
+vi.mock('./e2eDictationSeam', () => ({ e2eDictationEngine: () => seamEngine }))
 
 let composerOptions: ComposerDictationOptions | null = null
+const composerPrewarm = vi.fn()
 vi.mock('./useComposerDictation', () => ({
   useComposerDictation: (options: ComposerDictationOptions) => {
     composerOptions = options
-    return { phase: options.engine.phase, active: false }
+    // `prewarm` is not optional in the double: `usePrewarm` calls it the moment
+    // the surface mounts (D-VP-6), so a stub without it fails at render.
+    return { phase: options.engine.phase, active: false, prewarm: composerPrewarm }
   }
 }))
 
@@ -65,9 +72,12 @@ function mount(active?: boolean): void {
 describe('useWhisperDictation', () => {
   beforeEach(() => {
     transcribe.mockClear()
+    warm.mockClear()
+    composerPrewarm.mockClear()
     composerOptions = null
     gateActive = undefined
     gateModel = 'small'
+    seamEngine = null
   })
   afterEach(() => cleanup())
 
@@ -90,6 +100,46 @@ describe('useWhisperDictation', () => {
       model: undefined,
       language: 'portuguese'
     })
+  })
+
+  it('warms with the chosen model too — a build for the wrong one warms nothing', async () => {
+    mount()
+    await composerOptions?.engine.warm()
+    expect(warm).toHaveBeenCalledWith('small')
+  })
+
+  it('pre-warms the moment the surface opens, which is the intent (D-VP-6)', () => {
+    mount()
+    expect(composerPrewarm).toHaveBeenCalled()
+  })
+
+  /**
+   * A real Whisper pass would add a model download and seconds of warm-up to
+   * every E2E run. When the harness is armed its stand-in **is** the engine —
+   * if the real one leaked through here, the E2E would be downloading weights.
+   */
+  it('hands the E2E stand-in straight through when the harness is armed', async () => {
+    const scripted = {
+      phase,
+      transcribe: vi.fn(async () => 'roteiro'),
+      warm: vi.fn(async () => {})
+    }
+    seamEngine = scripted
+    mount()
+
+    await composerOptions?.engine.transcribe(new Float32Array(4))
+    expect(scripted.transcribe).toHaveBeenCalled()
+    expect(transcribe).not.toHaveBeenCalled()
+  })
+
+  /**
+   * M26: the app ships no weights, so "no model" is what a fresh install has.
+   * Warming there would mean starting a download nobody agreed to.
+   */
+  it('warms nothing while no model is installed', () => {
+    gateModel = null
+    mount()
+    expect(composerPrewarm).not.toHaveBeenCalled()
   })
 
   it('passes the engine phase through, so the transport can show a download', () => {

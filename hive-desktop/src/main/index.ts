@@ -470,6 +470,60 @@ app.whenReady().then(() => {
     }
   )
 
+  // ── Uma janela que morre sem se despedir ─────────────────────────────────
+  // Every main -> renderer stream below is a per-sender subscription that the
+  // renderer tears down with an explicit `:stop`. A window that is *closed*
+  // never sends one: it simply stops existing, and whatever still holds its
+  // WebContents — an fs watcher's inotify handle, an agent's stdout, a
+  // download — goes on firing. `WebContents.send` then throws
+  // `TypeError: Object has been destroyed` from inside a native callback with
+  // no `try` above it, i.e. an uncaught exception in the main process, which
+  // Electron shows the user as a crash dialog *after* they closed the app
+  // (reported 2026-08-31, stack: FSWatcher.handleRawEvent -> WebContents.send).
+  //
+  // Two halves, and both are needed:
+  //   `sendTo`         — never touch a destroyed WebContents. No race to worry
+  //                      about: main is single-threaded, so nothing can destroy
+  //                      it between the check and the send.
+  //   `whenSenderGone` — run a subscription's own teardown when its window
+  //                      dies, so the watcher/stream stops firing at all rather
+  //                      than being merely muted. Keyed per stream, so a repeat
+  //                      start replaces its teardown instead of stacking a
+  //                      stale one on top.
+  const senderTeardowns = new Map<number, Map<string, () => void>>()
+
+  function sendTo(sender: Electron.WebContents, channel: string, ...args: unknown[]): void {
+    if (sender.isDestroyed()) return
+    sender.send(channel, ...args)
+  }
+
+  function whenSenderGone(
+    sender: Electron.WebContents,
+    stream: string,
+    teardown: () => void
+  ): void {
+    const id = sender.id // read now: reading `id` off a destroyed object throws
+    let perStream = senderTeardowns.get(id)
+    if (!perStream) {
+      const created = new Map<string, () => void>()
+      perStream = created
+      senderTeardowns.set(id, created)
+      sender.once('destroyed', () => {
+        senderTeardowns.delete(id)
+        for (const run of created.values()) {
+          // One teardown throwing must not strand the others — the window is
+          // already gone and there is nobody left to report the failure to.
+          try {
+            run()
+          } catch (err) {
+            console.error('[hive] teardown after window close failed', err)
+          }
+        }
+      })
+    }
+    perStream.set(stream, teardown)
+  }
+
   // Streaming IPC for watchWorkspace — the first of its kind in this
   // codebase (ongoing change events rather than one request/response), so
   // documented in more detail than the request/response handlers above.
@@ -485,17 +539,25 @@ app.whenReady().then(() => {
   // can't leak watchers.
   const activeWatchStops = new Map<number, () => void>()
 
+  function stopWatch(senderId: number): void {
+    activeWatchStops.get(senderId)?.()
+    activeWatchStops.delete(senderId)
+  }
+
   ipcMain.on('fs:watch:start', (event, root: string) => {
-    activeWatchStops.get(event.sender.id)?.()
+    const senderId = event.sender.id
+    stopWatch(senderId)
     const stop = fsService.watchWorkspace(root, (change: FsChangeEvent) => {
-      event.sender.send('fs:watch:event', change)
+      sendTo(event.sender, 'fs:watch:event', change)
     })
-    activeWatchStops.set(event.sender.id, stop)
+    activeWatchStops.set(senderId, stop)
+    // The watcher outlives its window otherwise: closing the app leaves an
+    // inotify handle firing into a destroyed WebContents (see `sendTo` above).
+    whenSenderGone(event.sender, 'fs:watch', () => stopWatch(senderId))
   })
 
   ipcMain.on('fs:watch:stop', (event) => {
-    activeWatchStops.get(event.sender.id)?.()
-    activeWatchStops.delete(event.sender.id)
+    stopWatch(event.sender.id)
   })
 
   // AgentService (T14): a single ClaudeCliAdapter (the MVP's sole
@@ -597,14 +659,16 @@ app.whenReady().then(() => {
   // each window has its own subscription.
   const gitChangedSenders = new Map<number, Electron.WebContents>()
   ipcMain.on('git:changed:start', (event) => {
-    gitChangedSenders.set(event.sender.id, event.sender)
+    const senderId = event.sender.id
+    gitChangedSenders.set(senderId, event.sender)
+    whenSenderGone(event.sender, 'git:changed', () => gitChangedSenders.delete(senderId))
   })
   ipcMain.on('git:changed:stop', (event) => {
     gitChangedSenders.delete(event.sender.id)
   })
   function notifyGitChanged(root: string): void {
     for (const sender of gitChangedSenders.values()) {
-      sender.send('git:changed', { root })
+      sendTo(sender, 'git:changed', { root })
     }
   }
 
@@ -784,7 +848,9 @@ app.whenReady().then(() => {
   // four surfaces re-render from one source (ACR-R2.5). Keyed by sender id.
   const reviewChangedSenders = new Map<number, Electron.WebContents>()
   ipcMain.on('review:changed:start', (event) => {
-    reviewChangedSenders.set(event.sender.id, event.sender)
+    const senderId = event.sender.id
+    reviewChangedSenders.set(senderId, event.sender)
+    whenSenderGone(event.sender, 'review:changed', () => reviewChangedSenders.delete(senderId))
   })
   ipcMain.on('review:changed:stop', (event) => {
     reviewChangedSenders.delete(event.sender.id)
@@ -793,7 +859,7 @@ app.whenReady().then(() => {
     checkpoint: checkpointService,
     onChanged: (workspace: string, snapshot: ReviewSnapshot) => {
       for (const sender of reviewChangedSenders.values()) {
-        sender.send('review:changed', { workspace, ...snapshot })
+        sendTo(sender, 'review:changed', { workspace, ...snapshot })
       }
     }
   })
@@ -818,6 +884,17 @@ app.whenReady().then(() => {
     })
     reviewWatchStops.set(workspace, stop)
   }
+
+  // These watchers are keyed by *workspace*, not by window, so no
+  // `whenSenderGone` covers them: they would go on firing (and re-running
+  // `git status` through the debounce) while the app is on its way out, long
+  // after the last renderer that cared about the answer stopped existing.
+  app.on('before-quit', () => {
+    for (const stop of reviewWatchStops.values()) stop()
+    reviewWatchStops.clear()
+    for (const timer of reviewDebounce.values()) clearTimeout(timer)
+    reviewDebounce.clear()
+  })
 
   // Rejects a review path that would escape the workspace root (defense in
   // depth — the paths come from our own diff output, but every handler is
@@ -961,8 +1038,17 @@ app.whenReady().then(() => {
     }
   )
 
-  ipcMain.handle('agent:capabilities', async (_event, agentId?: string) =>
-    agentService.capabilities(agentId)
+  ipcMain.handle(
+    'agent:capabilities',
+    async (_event, agentId?: string, opts?: { workspace?: string; refresh?: boolean }) =>
+      // model-picker: the workspace is part of the question — a project's own
+      // `.claude/settings.json` can point the CLI at a different provider, so
+      // the same agent legitimately answers differently per workspace.
+      agentService.capabilities(
+        agentId,
+        { ...(opts?.workspace ? { workspace: opts.workspace } : {}) },
+        opts?.refresh ?? false
+      )
   )
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
     agentService.startSession(opts)
@@ -1027,10 +1113,16 @@ app.whenReady().then(() => {
   //   'agent:event:stop'  (renderer -> main, fire-and-forget): unsubscribe.
   const activeAgentEventUnsubs = new Map<number, () => void>()
 
+  function stopAgentEvents(senderId: number): void {
+    activeAgentEventUnsubs.get(senderId)?.()
+    activeAgentEventUnsubs.delete(senderId)
+  }
+
   ipcMain.on('agent:event:start', (event) => {
-    activeAgentEventUnsubs.get(event.sender.id)?.()
+    const senderId = event.sender.id
+    activeAgentEventUnsubs.get(senderId)?.()
     const unsubscribe = agentService.onEvent((agentEvent: AgentEvent) => {
-      event.sender.send('agent:event', agentEvent)
+      sendTo(event.sender, 'agent:event', agentEvent)
     })
     // agent-approvals rides the same channel: an approval request is just
     // another event in the turn's stream as far as the renderer is concerned,
@@ -1038,17 +1130,20 @@ app.whenReady().then(() => {
     // calls Hive's MCP tool), which is the only reason it needs its own
     // subscription here.
     const unsubscribeApprovals = approvalService.onRequest((request) => {
-      event.sender.send('agent:event', request)
+      sendTo(event.sender, 'agent:event', request)
     })
-    activeAgentEventUnsubs.set(event.sender.id, () => {
+    activeAgentEventUnsubs.set(senderId, () => {
       unsubscribe()
       unsubscribeApprovals()
     })
+    // A turn can still be streaming when the user quits: the adapter's stdout
+    // keeps arriving until the child dies, and every chunk is a send into a
+    // window that is no longer there.
+    whenSenderGone(event.sender, 'agent:event', () => stopAgentEvents(senderId))
   })
 
   ipcMain.on('agent:event:stop', (event) => {
-    activeAgentEventUnsubs.get(event.sender.id)?.()
-    activeAgentEventUnsubs.delete(event.sender.id)
+    stopAgentEvents(event.sender.id)
   })
 
   // BmadService (T8/T9): reuses the same ProcessRunner as AgentService above
@@ -1076,11 +1171,16 @@ app.whenReady().then(() => {
     void (async () => {
       for await (const bmadEvent of bmadService.install(workspace, options)) {
         if (stopped) return
-        event.sender.send('bmad:install:event', bmadEvent)
+        sendTo(event.sender, 'bmad:install:event', bmadEvent)
       }
     })()
-    activeInstallStops.set(event.sender.id, () => {
+    const senderId = event.sender.id
+    activeInstallStops.set(senderId, () => {
       stopped = true
+    })
+    whenSenderGone(event.sender, 'bmad:install', () => {
+      activeInstallStops.get(senderId)?.()
+      activeInstallStops.delete(senderId)
     })
   })
 
@@ -1102,11 +1202,16 @@ app.whenReady().then(() => {
     void (async () => {
       for await (const bmadEvent of bmadService.update(workspace)) {
         if (stopped) return
-        event.sender.send('bmad:update:event', bmadEvent)
+        sendTo(event.sender, 'bmad:update:event', bmadEvent)
       }
     })()
-    activeUpdateStops.set(event.sender.id, () => {
+    const senderId = event.sender.id
+    activeUpdateStops.set(senderId, () => {
       stopped = true
+    })
+    whenSenderGone(event.sender, 'bmad:update', () => {
+      activeUpdateStops.get(senderId)?.()
+      activeUpdateStops.delete(senderId)
     })
   })
 
@@ -1289,16 +1394,21 @@ app.whenReady().then(() => {
     channel: string,
     stream: AsyncIterable<T>
   ): void => {
-    stops.get(event.sender.id)?.()
+    const senderId = event.sender.id
+    stops.get(senderId)?.()
     let stopped = false
     void (async () => {
       for await (const skillEvent of stream) {
         if (stopped) return
-        event.sender.send(channel, skillEvent)
+        sendTo(event.sender, channel, skillEvent)
       }
     })()
-    stops.set(event.sender.id, () => {
+    stops.set(senderId, () => {
       stopped = true
+    })
+    whenSenderGone(event.sender, channel, () => {
+      stops.get(senderId)?.()
+      stops.delete(senderId)
     })
   }
 
@@ -1628,18 +1738,23 @@ app.whenReady().then(() => {
     await shell.openPath(source.dir)
   })
 
+  function stopMcpLogWatch(senderId: number): void {
+    activeMcpLogStops.get(senderId)?.()
+    activeMcpLogStops.delete(senderId)
+  }
+
   ipcMain.on('mcpLogs:watch:start', (event, workspace: string) => {
-    activeMcpLogStops.get(event.sender.id)?.()
+    const senderId = event.sender.id
+    stopMcpLogWatch(senderId)
     const stop = mcpLogService.watch(workspace, (entries) => {
-      if (event.sender.isDestroyed()) return
-      event.sender.send('mcpLogs:watch:event', entries)
+      sendTo(event.sender, 'mcpLogs:watch:event', entries)
     })
-    activeMcpLogStops.set(event.sender.id, stop)
+    activeMcpLogStops.set(senderId, stop)
+    whenSenderGone(event.sender, 'mcpLogs:watch', () => stopMcpLogWatch(senderId))
   })
 
   ipcMain.on('mcpLogs:watch:stop', (event) => {
-    activeMcpLogStops.get(event.sender.id)?.()
-    activeMcpLogStops.delete(event.sender.id)
+    stopMcpLogWatch(event.sender.id)
   })
 
   // Profile IPC (agent-selection + role-personalization) — the app-wide agent
@@ -1679,14 +1794,17 @@ app.whenReady().then(() => {
   ipcMain.on('agents:install:start', (event, agentId: string) => {
     // A repeat start for the same agent (the user hitting "tentar de novo")
     // replaces the previous run rather than racing it.
-    cancelAgentInstalls(event.sender.id, agentId)
+    const senderId = event.sender.id
+    cancelAgentInstalls(senderId, agentId)
     const cancel = agentInstaller.install(agentId, (installEvent) => {
-      if (event.sender.isDestroyed()) return
-      event.sender.send('agents:install:event', agentId, installEvent)
+      sendTo(event.sender, 'agents:install:event', agentId, installEvent)
     })
-    const perSender = activeAgentInstalls.get(event.sender.id) ?? new Map<string, () => void>()
+    const perSender = activeAgentInstalls.get(senderId) ?? new Map<string, () => void>()
     perSender.set(agentId, cancel)
-    activeAgentInstalls.set(event.sender.id, perSender)
+    activeAgentInstalls.set(senderId, perSender)
+    // Closing the window kills the install rather than orphaning an `npm i -g`
+    // that keeps writing into a global prefix with nobody listening.
+    whenSenderGone(event.sender, 'agents:install', () => cancelAgentInstalls(senderId))
   })
 
   ipcMain.on('agents:install:stop', (event, agentId?: string) => {
@@ -1790,6 +1908,17 @@ app.whenReady().then(() => {
     supported: app.isPackaged
   })
 
+  // app-reload: the VS Code "Developer: Reload Window" affordance. Reloads the
+  // *sender's* window, not the focused one — a reload triggered from a window
+  // must never land on a different window just because focus moved while the
+  // IPC was in flight. `reloadIgnoringCache` rather than `reload`: the reason
+  // to reload by hand is almost always "the renderer is in a bad state or the
+  // bundle on disk changed", and a cached bundle answers neither.
+  ipcMain.handle('app:reload', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window) window.webContents.reloadIgnoringCache()
+  })
+
   ipcMain.handle('app:info', async (): Promise<AppInfo> => ({
     name: app.getName(),
     version: app.getVersion(),
@@ -1832,17 +1961,23 @@ app.whenReady().then(() => {
 
   const activeUpdateEventUnsubs = new Map<number, () => void>()
 
+  function stopUpdateEvents(senderId: number): void {
+    activeUpdateEventUnsubs.get(senderId)?.()
+    activeUpdateEventUnsubs.delete(senderId)
+  }
+
   ipcMain.on('update:event:start', (event) => {
-    activeUpdateEventUnsubs.get(event.sender.id)?.()
+    const senderId = event.sender.id
+    stopUpdateEvents(senderId)
     const unsubscribe = updateService.onEvent((updateEvent) => {
-      event.sender.send('update:event', updateEvent)
+      sendTo(event.sender, 'update:event', updateEvent)
     })
-    activeUpdateEventUnsubs.set(event.sender.id, unsubscribe)
+    activeUpdateEventUnsubs.set(senderId, unsubscribe)
+    whenSenderGone(event.sender, 'update:event', () => stopUpdateEvents(senderId))
   })
 
   ipcMain.on('update:event:stop', (event) => {
-    activeUpdateEventUnsubs.get(event.sender.id)?.()
-    activeUpdateEventUnsubs.delete(event.sender.id)
+    stopUpdateEvents(event.sender.id)
   })
 
   createWindow()

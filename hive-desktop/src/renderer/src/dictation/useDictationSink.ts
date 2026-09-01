@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { joinTranscript } from './transcriptJoin'
+import { t } from '../i18n'
+import { WhisperMemoryError } from '../secondBrain/whisper/whisperClient'
+import { createLivePass, type LivePass, type LivePassConfig } from './livePass'
+import { applyPreview, previewText, type PreviewRun } from './previewRun'
+import type { Draft } from './segmenter'
 import {
   createTranscriptionQueue,
   type QueueState,
@@ -33,12 +37,44 @@ export interface DictationSink {
   failure: string | null
   /** Hands a finished segment over. Does not interrupt capture (VP-R2.1). */
   enqueue: (index: number, pcm: Float32Array) => void
+  /**
+   * Offers the phrase still being spoken, so it can be transcribed live
+   * (VP-R2.9). Called on every tick; the pacing rules are `livePass`'s.
+   *
+   * Only ever runs while the queue is idle. A real segment is the transcript
+   * and a live pass is a guess about it — spending the one pipeline slot on the
+   * guess would delay the words it is guessing at.
+   */
+  offerDraft: (draft: Draft | null) => void
+  /**
+   * `[start, end)` of the provisional run in the field, or `null`.
+   *
+   * The composer paints it differently: text that is going to be revised has to
+   * look like it, or the user starts editing words that are about to be
+   * replaced under their hands.
+   */
+  previewRange: readonly [number, number] | null
   /** Re-runs the failed segments with the audio they captured (VP-R4.4). */
   retry: () => void
   /** Drops everything, in-flight results included (VP-R1.5). */
   clear: () => void
-  /** True while any work remains — the drain condition `finish` waits on. */
+  /**
+   * True while any work remains — the drain condition `finish` waits on.
+   *
+   * The live pass is deliberately **not** counted. It answers to nothing: no
+   * queue change follows it, so a take waiting on one would wait forever. And
+   * it has nothing left to say by then — `finish` flushes the open phrase into
+   * a real segment, which covers the same audio and writes the text that stays.
+   */
   busy: () => boolean
+  /**
+   * Drops the live pass in flight, keeping the provisional text it produced.
+   *
+   * Called when the take ends: the guess stays on screen until the segment's
+   * own pass replaces it, which is a far better last frame than a field that
+   * blanks and refills.
+   */
+  stopLive: () => void
   /**
    * The queue's pending count *right now*.
    *
@@ -72,13 +108,23 @@ export function useDictationSink(
    * instead means setting state during render-commit and cascading renders, and
    * the project's lint rules reject it outright.
    */
-  onChange?: (state: QueueState) => void
+  onChange?: (state: QueueState) => void,
+  /** How the live pass is paced (VP-R2.9). Threaded through from `DictationDeps`. */
+  livePassConfig?: LivePassConfig
 ): DictationSink {
   const [pending, setPending] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
   const [partial, setPartial] = useState('')
+  const [previewRange, setPreviewRange] = useState<readonly [number, number] | null>(null)
 
   const queueRef = useRef<TranscriptionQueue | null>(null)
+  const liveRef = useRef<LivePass | null>(null)
+  /** Where the provisional text currently sits in the field. */
+  const runRef = useRef<PreviewRun | null>(null)
+  /** The engine's running text for the segment already cut and in flight. */
+  const settledRef = useRef('')
+  /** The live pass's text for the phrase still being spoken. */
+  const openRef = useRef('')
 
   /**
    * The engine and the target are mirrored into refs because the queue outlives
@@ -94,38 +140,114 @@ export function useDictationSink(
     onChangeRef.current = onChange
   }, [engine, onChange, target])
 
+  /**
+   * Puts the provisional text into the field, or takes the final text's place.
+   *
+   * One function for both because they are the same edit: whatever is
+   * provisional right now comes out, and `text` goes in where it was. The only
+   * difference is whether a run is left behind for the next guess to replace —
+   * which is exactly what `commit` decides.
+   */
+  const writeInto = useCallback((text: string, commit: boolean): void => {
+    const applied = applyPreview(targetRef.current.read(), runRef.current, text, commit)
+    runRef.current = applied.run
+    setPreviewRange(applied.run?.range ?? null)
+    targetRef.current.write({ ...applied.write, preview: !commit })
+  }, [])
+
+  /** Re-renders the provisional run from its two sources (see `previewText`). */
+  const renderPreview = useCallback((): void => {
+    writeInto(previewText(settledRef.current, openRef.current), false)
+  }, [writeInto])
+
   const queue = useCallback((): TranscriptionQueue => {
     if (queueRef.current === null) {
       queueRef.current = createTranscriptionQueue({
-        transcribe: (pcm, onPartial) => engineRef.current.transcribe(pcm, { onPartial }),
+        transcribe: (pcm, onPartial) =>
+          engineRef.current.transcribe(pcm, { onPartial }).catch((error: unknown) => {
+            // The queue stores a failure as a *sentence the user reads*, so the
+            // translation happens here rather than in the transport. Only the
+            // memory case is rewritten: it is the one where "tente de novo" is
+            // actively bad advice, and where the engine's own words
+            // ("std::bad_alloc") say nothing anyone can act on.
+            throw error instanceof WhisperMemoryError
+              ? new Error(t('dictation.memoryFailed'))
+              : error
+          }),
         insert: (text) => {
-          const { value, selectionStart, selectionEnd } = targetRef.current.read()
-          targetRef.current.write(joinTranscript(value, selectionStart, selectionEnd, text))
+          // The guess this segment's audio produced is done being a guess.
+          // Cleared *before* the commit, so the write that lands the real text
+          // is not also re-rendering the partial it replaces.
+          settledRef.current = ''
+          writeInto(text, true)
         },
         onChange: (state) => {
           setPending(state.pending)
           setFailure(state.failure)
           setPartial(state.partial)
+          if (state.partial !== settledRef.current) {
+            settledRef.current = state.partial
+            renderPreview()
+          }
           onChangeRef.current?.(state)
         }
       })
     }
     return queueRef.current
-  }, [])
+  }, [renderPreview, writeInto])
+
+  /** Mirrored like the engine: the live pass outlives the render that built it. */
+  const livePassConfigRef = useRef(livePassConfig)
+  useEffect(() => {
+    livePassConfigRef.current = livePassConfig
+  }, [livePassConfig])
+
+  const live = useCallback((): LivePass => {
+    if (liveRef.current === null) {
+      liveRef.current = createLivePass({
+        transcribe: (pcm, onPartial) => engineRef.current.transcribe(pcm, { onPartial }),
+        onText: (text) => {
+          if (text === openRef.current) return
+          openRef.current = text
+          renderPreview()
+        },
+        config: livePassConfigRef.current
+      })
+    }
+    return liveRef.current
+  }, [renderPreview])
 
   return {
     pending,
     failure,
     partial,
+    previewRange,
     enqueue: useCallback((index, pcm) => queue().enqueue(index, pcm), [queue]),
+    offerDraft: useCallback(
+      (draft) => {
+        // The queue owns the pipeline while it has work: a live pass queued
+        // behind a real segment delays the very words it is previewing.
+        if (queueRef.current?.busy() === true) return
+        live().offer(draft)
+      },
+      [live]
+    ),
     retry: useCallback(() => queueRef.current?.retry(), []),
     clear: useCallback(() => {
       queueRef.current?.clear()
+      liveRef.current?.reset()
+      // Not `writeInto('')` — a discard rewinds the whole field from its own
+      // snapshot, and a take that is starting has nothing to take back.
+      runRef.current = null
+      settledRef.current = ''
+      openRef.current = ''
+      setPreviewRange(null)
       setPending(0)
       setFailure(null)
       setPartial('')
     }, []),
     busy: useCallback(() => queueRef.current?.busy() ?? false, []),
+    stopLive: useCallback(() => liveRef.current?.reset(), []),
     count: useCallback(() => queueRef.current?.state().pending ?? 0, []),
     prewarm: useCallback((blocked: boolean) => {
       if (blocked) return

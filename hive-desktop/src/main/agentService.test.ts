@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createAgentService } from './agentService'
 import type { AgentRegistry, AgentMeta } from './agentRegistry'
 import {
@@ -112,15 +112,65 @@ function flushMicrotasks(): Promise<void> {
 }
 
 describe('AgentService (multi-agent pool)', () => {
-  it('capabilities() passes through to the default adapter, and to a named one', () => {
+  it('capabilities() passes through to the default adapter, and to a named one', async () => {
     const a = createFakeAdapter('agent-a')
     const b = createFakeAdapter('agent-b')
     const service = createAgentService(
       createFakeRegistry({ 'agent-a': a.adapter, 'agent-b': b.adapter })
     )
 
-    expect(service.capabilities()).toEqual(FAKE_CAPABILITIES)
-    expect(service.capabilities('agent-b')).toEqual(FAKE_CAPABILITIES)
+    expect(await service.capabilities()).toEqual(FAKE_CAPABILITIES)
+    expect(await service.capabilities('agent-b')).toEqual(FAKE_CAPABILITIES)
+  })
+
+  // model-picker: an adapter that can measure the machine is asked to, and its
+  // answer — not the curated one — is what reaches the picker.
+  it("prefers an adapter's detected capabilities over its curated ones", async () => {
+    const { adapter } = createFakeAdapter()
+    const detected = { ...FAKE_CAPABILITIES, modelSource: 'detected' as const }
+    const detectCapabilities = vi.fn().mockResolvedValue(detected)
+    const service = createAgentService(
+      createFakeRegistry({ fake: { ...adapter, detectCapabilities } })
+    )
+
+    expect(await service.capabilities('fake', { workspace: '/ws' })).toEqual(detected)
+    expect(detectCapabilities).toHaveBeenCalledWith({ workspace: '/ws' })
+  })
+
+  // Detection touches disk and can spawn a process; the picker opens on every
+  // composer interaction. Re-measuring per open would be a process per click.
+  it('caches per agent+workspace, and re-measures only when asked to refresh', async () => {
+    const { adapter } = createFakeAdapter()
+    const detectCapabilities = vi.fn().mockResolvedValue(FAKE_CAPABILITIES)
+    const service = createAgentService(
+      createFakeRegistry({ fake: { ...adapter, detectCapabilities } })
+    )
+
+    await service.capabilities('fake', { workspace: '/ws' })
+    await service.capabilities('fake', { workspace: '/ws' })
+    expect(detectCapabilities).toHaveBeenCalledTimes(1)
+
+    // A different workspace is a different question: project-scoped settings
+    // can point the same CLI at another provider.
+    await service.capabilities('fake', { workspace: '/other' })
+    expect(detectCapabilities).toHaveBeenCalledTimes(2)
+
+    await service.capabilities('fake', { workspace: '/ws' }, true)
+    expect(detectCapabilities).toHaveBeenCalledTimes(3)
+  })
+
+  // A picker with no rows is strictly worse than one that admits it guessed.
+  it('falls back to the curated list when detection throws, and says so', async () => {
+    const { adapter } = createFakeAdapter()
+    const detectCapabilities = vi.fn().mockRejectedValue(new Error('devin exploded'))
+    const service = createAgentService(
+      createFakeRegistry({ fake: { ...adapter, detectCapabilities } })
+    )
+
+    expect(await service.capabilities('fake')).toEqual({
+      ...FAKE_CAPABILITIES,
+      note: 'probe-failed'
+    })
   })
 
   it('send() before any startSession lazily starts the default agent and forwards the turn', () => {

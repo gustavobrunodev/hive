@@ -4,6 +4,7 @@ import {
   chooseVariant,
   createWhisperClient,
   probeWebGpu,
+  WhisperMemoryError,
   type WhisperClient,
   type WhisperPhase
 } from './whisperClient'
@@ -242,14 +243,97 @@ describe('whisperClient', () => {
     expect(seen).toEqual(['Olá', 'Olá squad'])
   })
 
-  it('hands the PCM over rather than copying it', async () => {
+  // Still a transfer — but of a copy. The buffer that goes over the wire is
+  // detached by the trip, and the caller's is not the one to spend: the queue
+  // retries failed segments with the audio it kept, and the live pass re-sends
+  // a growing buffer. Handing the original over turned the first failure of a
+  // take into "An ArrayBuffer is detached" for every attempt after it.
+  it("transfers a copy, leaving the caller's buffer usable", async () => {
     const engine = client()
     const pcm = new Float32Array([0.1, 0.2])
     const running = engine.transcribe(pcm)
     await vi.waitFor(() => expect(worker.sent).toHaveLength(1))
-    expect(worker.transfers[0]).toEqual([pcm.buffer])
+
+    expect(worker.transfers[0]).toHaveLength(1)
+    expect(worker.transfers[0][0]).not.toBe(pcm.buffer)
+    expect(worker.sent[0]).toMatchObject({ type: 'transcribe' })
+    expect(pcm.length).toBe(2) // a detached Float32Array reads as length 0
     await settle()
     await running
+
+    // And the proof that matters: the same array can be sent again.
+    const again = engine.transcribe(pcm)
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2))
+    await settle(2)
+    await expect(again).resolves.toBe('olá squad')
+  })
+
+  // An exhausted WASM heap does not recover: onnxruntime's memory grows and is
+  // never given back, so every later run in that worker fails identically. The
+  // only fix is a new thread.
+  describe('an out-of-memory failure', () => {
+    const oom = 'failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc'
+
+    it('rejects as a WhisperMemoryError and terminates the worker', async () => {
+      const engine = client()
+      const running = engine.transcribe(new Float32Array([0.1]))
+      await vi.waitFor(() => expect(worker.sent).toHaveLength(1))
+      worker.reply({ type: 'error', id: worker.lastId(), message: oom, kind: 'memory' })
+
+      await expect(running).rejects.toBeInstanceOf(WhisperMemoryError)
+      expect(worker.terminated).toBe(1)
+    })
+
+    it('spawns a fresh worker for the next take rather than reusing the dead one', async () => {
+      const replacement = new FakeWorker()
+      let spawns = 0
+      const engine = createWhisperClient({
+        spawn: () => (spawns++ === 0 ? worker : replacement) as unknown as Worker,
+        hasWebGpu: async () => false,
+        baseHref: () => 'file:///app/index.html'
+      })
+
+      const failing = engine.transcribe(new Float32Array([0.1]))
+      await vi.waitFor(() => expect(worker.sent).toHaveLength(1))
+      worker.reply({ type: 'error', id: worker.lastId(), message: oom, kind: 'memory' })
+      await expect(failing).rejects.toBeInstanceOf(WhisperMemoryError)
+
+      const next = engine.transcribe(new Float32Array([0.2]))
+      await vi.waitFor(() => expect(replacement.sent).toHaveLength(1))
+      replacement.reply({ type: 'done', id: replacement.lastId(), text: 'recuperado' })
+      await expect(next).resolves.toBe('recuperado')
+      expect(spawns).toBe(2)
+    })
+
+    it('makes the next request rebuild the session, not trust a warm one that died with the thread', async () => {
+      const engine = client()
+      const warming = engine.warm()
+      await vi.waitFor(() => expect(worker.sent).toHaveLength(1))
+      worker.reply({ type: 'done', id: worker.lastId(), text: '' })
+      await warming
+
+      const failing = engine.transcribe(new Float32Array([0.1]))
+      await vi.waitFor(() => expect(worker.sent).toHaveLength(2))
+      worker.reply({ type: 'error', id: worker.lastId(), message: oom, kind: 'memory' })
+      await expect(failing).rejects.toBeInstanceOf(WhisperMemoryError)
+
+      // A `warm` after the recycle is a real build again, not a resolved record
+      // of one that happened in a thread that no longer exists.
+      const rewarm = engine.warm()
+      await vi.waitFor(() => expect(worker.sent.length).toBeGreaterThan(2))
+      worker.reply({ type: 'done', id: worker.lastId(), text: '' })
+      await rewarm
+    })
+
+    it('leaves an ordinary failure retryable in the same worker', async () => {
+      const engine = client()
+      const running = engine.transcribe(new Float32Array([0.1]))
+      await vi.waitFor(() => expect(worker.sent).toHaveLength(1))
+      worker.reply({ type: 'error', id: worker.lastId(), message: 'audio is silent' })
+
+      await expect(running).rejects.toThrow('audio is silent')
+      expect(worker.terminated).toBe(0)
+    })
   })
 
   it('spawns exactly one worker for the whole app', async () => {

@@ -52,7 +52,7 @@ export type WhisperWorkerRequest =
        * one directory too deep once the bundler emits it into `assets/`.
        */
       baseHref: string
-      /** 16 kHz mono PCM. Transferred, not copied — see `transferOf`. */
+      /** 16 kHz mono PCM — a copy the client made for the trip; see `transferOf`. */
       pcm: Float32Array
     }
 
@@ -68,7 +68,11 @@ export type WhisperWorkerResponse =
    */
   | { type: 'partial'; id: number; text: string }
   | { type: 'done'; id: number; text: string }
-  | { type: 'error'; id: number; message: string }
+  /**
+   * `kind: 'memory'` is not a nicer label for the same failure — it changes
+   * what the client does next. See `isMemoryFailure`.
+   */
+  | { type: 'error'; id: number; message: string; kind?: 'memory' }
   /** Posted once at module scope, so the client knows the worker is alive. */
   | { type: 'ready'; id: 0 }
 
@@ -88,10 +92,44 @@ export type WhisperWorkerPhase =
  *
  * A 15 s segment is 960 kB; structured-cloning it per segment is a copy the
  * take pays for at exactly the moment it is busiest. Transferring costs
- * nothing — and is safe here precisely because the queue **retains its own
- * copy for retries** (`transcriptionQueue`'s `Item.pcm`), so the buffer this
- * detaches is a slice made for the trip.
+ * nothing — **provided the buffer is one made for the trip**.
+ *
+ * That proviso used to be a comment claiming the queue kept its own copy. It
+ * did not: `transcriptionQueue` retains the very array it enqueued, which is
+ * the array that gets transferred, and after the trip that array is detached.
+ * Nothing noticed until something failed — and the retry that failure exists
+ * for posted the detached buffer straight back, turning one bad segment into
+ * "Failed to execute 'postMessage' on 'Worker': An ArrayBuffer is detached"
+ * for the rest of the take. The copy now happens in `whisperClient`, where
+ * every caller gets it, and this function is what consumes it.
  */
 export function transferOf(request: WhisperWorkerRequest): Transferable[] {
   return request.type === 'transcribe' ? [request.pcm.buffer as ArrayBuffer] : []
+}
+
+/**
+ * Is this failure the WASM heap running out, rather than something about the
+ * audio?
+ *
+ * It matters because the two need opposite responses. An ordinary error is
+ * retryable as-is; an exhausted heap is not — onnxruntime's allocator is inside
+ * a WebAssembly memory that only grows, so once a run has failed to allocate,
+ * every later run in that worker fails the same way. The only real fix is a new
+ * worker, which is what the client does when it sees this.
+ *
+ * The strings are the ones onnxruntime-web and V8 actually produce; the ORT one
+ * arrives wrapped ("failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE:
+ * std::bad_alloc"), so this matches on substrings rather than equality.
+ */
+export function isMemoryFailure(message: string): boolean {
+  const lowered = message.toLowerCase()
+  return (
+    lowered.includes('bad_alloc') ||
+    lowered.includes('out of memory') ||
+    // `\b` and not a substring: "room", "zoom" and "bloom" are not failures.
+    /\boom\b/.test(lowered) ||
+    lowered.includes('memory access out of bounds') ||
+    lowered.includes('array buffer allocation failed') ||
+    lowered.includes('failed to allocate')
+  )
 }

@@ -1047,3 +1047,67 @@ export function MinimizeIcon({ size, ...rest }: IconProps): React.JSX.Element {
     </svg>
   )
 }
+
+/* --- model-picker: tier glyphs ------------------------------------------
+   One glyph per *kind* of model, not per vendor. The question a model picker
+   has to answer at a glance is "how much horsepower is this row", and the
+   vendor is already carried by the group header — so the ladder (fast →
+   balanced → flagship) is drawn as a rising bar chart, and the two models
+   that aren't points on that ladder get their own shapes. */
+
+/** Fast tier — a bolt. Quick, cheap, less capable. */
+export function TierFastIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8.75 1.75 3.5 9h3.4l-1.15 5.25L12 6.75H8.4l.35-5Z" />
+    </svg>
+  )
+}
+
+/** Balanced tier — two bars: the everyday choice. */
+export function TierBalancedIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4.25 12.25v-4M8 12.25v-6.5M11.75 12.25v-2" />
+    </svg>
+  )
+}
+
+/** Flagship tier — three rising bars topped out. */
+export function TierFlagshipIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4.25 12.25v-3M8 12.25v-5.5M11.75 12.25v-8.5" />
+    </svg>
+  )
+}
+
+/** A router model — the vendor's own dispatcher picks per task (Devin's Adaptive). */
+export function TierRouterIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2 4.75h2.6l6.4 6.5h2.9M2 11.25h2.6l2.1-2.15M9.2 5.9l1.8-1.15h3" />
+      <path d="M11.9 2.9 13.9 4.75 11.9 6.6M11.9 9.4l2 1.85-2 1.85" />
+    </svg>
+  )
+}
+
+/** The "let the CLI decide" row — an automatic setting, not a model. */
+export function TierAutoIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.9 9.5 5.6 13.2 7 9.5 8.4 8 12.1 6.5 8.4 2.8 7l3.7-1.4L8 1.9Z" />
+      <path d="M12.4 11.1l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5.5-1.3Z" />
+    </svg>
+  )
+}
+
+/** A superseded version, kept because pinned conversations still resume on it. */
+export function TierLegacyIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.1 1.6" />
+    </svg>
+  )
+}

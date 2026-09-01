@@ -84,11 +84,35 @@ export type SegmenterEvent =
   /** Silence ran long enough to finalize on the user's behalf (VP-R4.2). */
   | { type: 'autostop' }
 
+/** The phrase still being spoken, as of right now. */
+export interface Draft {
+  /** Everything captured since the segment opened, pre-roll included. */
+  pcm: Float32Array
+  /** Its duration, so a caller can pace itself against real speech. */
+  ms: number
+  /**
+   * How many segments have already been cut. It changes the moment a phrase
+   * closes, which is how a caller tells "the same phrase, longer" from "a
+   * different phrase" without comparing audio.
+   */
+  index: number
+}
+
 export interface Segmenter {
   /** Feeds one tick and returns whatever it caused. */
   push(tick: Tick): SegmenterEvent[]
   /** Closes whatever is open — used by Concluir. */
   flush(): SegmenterEvent[]
+  /**
+   * The open phrase so far, or `null` when nothing is open.
+   *
+   * This is what makes dictation live rather than segmented: the transcriber
+   * can be handed the phrase *while it is still being spoken*, over and over,
+   * instead of waiting for the silence that ends it. Every call allocates a
+   * fresh buffer — the caller transfers what it is given, and the segmenter's
+   * own chunks have to survive to become the real segment.
+   */
+  draft(): Draft | null
   /** Current noise floor, exposed so the meter can be honest about the gate. */
   noiseFloor(): number
   /**
@@ -270,5 +294,16 @@ export function createSegmenter(config: SegmenterConfig = DEFAULT_SEGMENTER_CONF
     return [cut()]
   }
 
-  return { push, flush, noiseFloor, silentMs: () => silenceMs }
+  const draft = (): Draft | null => {
+    // `speechEndLength`, not `segmentLength`: the trailing silence a segment
+    // keeps as tail-pad material is not speech, and handing Whisper a second of
+    // room tone at the end of every pass is how a live transcript grows
+    // hallucinated words in the pauses.
+    if (!open || speechMs === 0 || speechEndLength === 0) return null
+    const keep = Math.min(segmentLength, speechEndLength + tailPadSamples)
+    const pcm = concat(segment, keep)
+    return { pcm, ms: pcm.length * msPerSample, index }
+  }
+
+  return { push, flush, noiseFloor, draft, silentMs: () => silenceMs }
 }

@@ -206,6 +206,13 @@ interface FsTreeNode {
 type TreeState =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; nodes: FsTreeNode[] }
 
+/**
+ * How long a burst of filesystem events is allowed to settle before the tree is
+ * re-walked. Matches the git store's own `REFRESH_DEBOUNCE_MS` — the two react
+ * to the same events and there is no reason for them to disagree.
+ */
+const TREE_REFRESH_DEBOUNCE_MS = 250
+
 type ViewerState =
   | { status: 'loading'; path: string }
   | { status: 'error'; path: string }
@@ -820,10 +827,18 @@ export function FileTree({
   // `load()` (a callback), not as a direct statement in the effect body, per
   // react-hooks/set-state-in-effect — calling setState synchronously at the
   // top of an effect can trigger cascading renders.
+  //
+  // A *re-fetch* keeps the tree it already has on screen. The spinner is for
+  // the first load of a workspace and nothing else: a refresh is triggered by
+  // any write under the root, and blanking a tree the user is pointing at —
+  // several times a second, while an agent or a git command writes — is the
+  // "flashes its spinner forever" defect, not a loading state. The rows are
+  // still there, still correct, and the swap when the walk returns is
+  // invisible; that is what a refresh should look like.
   useEffect(() => {
     let cancelled = false
     const load = async (): Promise<void> => {
-      setTreeState({ status: 'loading' })
+      setTreeState((current) => (current.status === 'ready' ? current : { status: 'loading' }))
       try {
         const nodes = await window.hive.listTree(workspace)
         if (!cancelled) setTreeState({ status: 'ready', nodes })
@@ -837,17 +852,39 @@ export function FileTree({
     }
   }, [workspace, refreshToken])
 
+  // The workspace changing is the one case that *must* drop the old rows: they
+  // belong to a different root, and showing them under the new one while the
+  // walk runs is a lie the spinner exists to avoid.
+  useEffect(() => {
+    const reset = (): void => setTreeState({ status: 'loading' })
+    reset()
+  }, [workspace])
+
   // Live updates (R5.3): a change anywhere under the workspace re-fetches
   // the tree so files created by an agent workflow (T19) show up without a
   // manual reload. Unsubscribes on unmount / workspace change — through the
   // shared multiplexer, since the sidebar unmounts this view whenever the user
   // switches to Source Control / Second Brain and the raw bridge call would
   // take *their* watchers down with it.
+  //
+  // Coalesced, because writes arrive in bursts and the walk they trigger is
+  // recursive over the whole workspace: `npm install`, a checkout, an agent
+  // rewriting a dozen files are each one useful refresh and dozens of events.
+  // One re-walk after the burst settles is the same answer for a fraction of
+  // the work.
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
     const unsubscribe = watchWorkspaceShared(workspace, () => {
-      setRefreshToken((current) => current + 1)
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        setRefreshToken((current) => current + 1)
+      }, TREE_REFRESH_DEBOUNCE_MS)
     })
-    return unsubscribe
+    return () => {
+      if (timer !== null) clearTimeout(timer)
+      unsubscribe()
+    }
   }, [workspace])
 
   const fileTypes = useMemo(() => {

@@ -11,7 +11,14 @@ import {
 } from 'fs'
 import { tmpdir } from 'os'
 import { basename, join } from 'path'
-import { ConflictError, createFsService, type FsChangeEvent, type FsService } from './fsService'
+import {
+  ConflictError,
+  createFsService,
+  isVcsInternalPath,
+  isVcsRefChange,
+  type FsChangeEvent,
+  type FsService
+} from './fsService'
 
 // Real temp directories (no mocking), same approach as configStore.test.ts /
 // workspaceService.test.ts — `fs` operations against a real temp dir are the
@@ -43,6 +50,23 @@ describe('FsService', () => {
   })
 
   describe('listTree()', () => {
+    // Not cosmetic: `.git` is the biggest and busiest directory a workspace
+    // has, the walk is eager and recursive, and the watcher re-fires it on
+    // every change underneath. Measured 2026-08-31 on this repo: 61 824 entries
+    // with `.git`, 56 369 without.
+    it('never descends into version-control internals', () => {
+      mkdirSync(join(root, '.git', 'objects', 'ab'), { recursive: true })
+      writeFileSync(join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+      writeFileSync(join(root, '.git', 'objects', 'ab', 'cdef'), 'x')
+      mkdirSync(join(root, '.specs'))
+      writeFileSync(join(root, '.specs', 'STATE.md'), '# state')
+
+      const tree = service.listTree(root)
+      expect(tree.map((node) => node.name)).not.toContain('.git')
+      // The user own dotfiles are still theirs to see.
+      expect(tree.map((node) => node.name)).toContain('.specs')
+    })
+
     it('returns the fixture tree structure, sorted, with nested directories expanded', () => {
       const tree = service.listTree(root)
 
@@ -187,6 +211,75 @@ describe('FsService', () => {
       await new Promise((resolve) => setTimeout(resolve, 300))
       expect(events.length).toBe(countAfterStop)
     }, 10000)
+
+    // The defect this closes: a workspace that gained a `.git` turned every
+    // git command into an fs event, and every fs event into a full re-walk of
+    // a tree that had just doubled in size — the Files tab flashing its
+    // spinner without end. `.git/index` in particular is rewritten by `git
+    // status` itself, so the refresh it triggered triggered the next one.
+    it('ignores writes to git plumbing (.git/index, objects, locks)', async () => {
+      const events: FsChangeEvent[] = []
+      mkdirSync(join(root, '.git', 'objects'), { recursive: true })
+      const stop = service.watchWorkspace(root, (event) => events.push(event))
+
+      try {
+        writeFileSync(join(root, '.git', 'index'), 'binary-ish')
+        writeFileSync(join(root, '.git', 'objects', 'ab12'), 'loose object')
+        writeFileSync(join(root, '.git', 'index.lock'), '')
+        // A real change afterwards proves the watcher is alive and that the
+        // silence above was the filter, not a dead subscription.
+        writeFileSync(join(root, 'real.txt'), 'a user file')
+
+        await waitFor(() => events.some((e) => e.path.includes('real.txt')), 5000)
+        expect(events.filter((e) => e.path.startsWith('.git/'))).toEqual([])
+      } finally {
+        stop()
+      }
+    }, 10000)
+
+    // The exception that has to survive the filter: a commit or a checkout made
+    // in a terminal is a real change, and refs is where it shows up.
+    it('still reports a ref update (a checkout or commit made outside the app)', async () => {
+      const events: FsChangeEvent[] = []
+      mkdirSync(join(root, '.git', 'refs', 'heads'), { recursive: true })
+      const stop = service.watchWorkspace(root, (event) => events.push(event))
+
+      try {
+        writeFileSync(join(root, '.git', 'refs', 'heads', 'main'), 'deadbeef\n')
+        await waitFor(() => events.some((e) => e.path.includes('refs/heads/main')), 5000)
+      } finally {
+        stop()
+      }
+    }, 10000)
+  })
+
+  describe('VCS-internal path rules', () => {
+    it('recognizes every VCS internals directory, at any depth', () => {
+      expect(isVcsInternalPath('.git/index')).toBe(true)
+      expect(isVcsInternalPath('sub/module/.git/HEAD')).toBe(true)
+      expect(isVcsInternalPath('.hg/store/data')).toBe(true)
+      expect(isVcsInternalPath('.svn/entries')).toBe(true)
+    })
+
+    it('leaves the user own dotfiles alone — this is not a hidden-file policy', () => {
+      expect(isVcsInternalPath('.specs/project/STATE.md')).toBe(false)
+      expect(isVcsInternalPath('.claude/skills/x.md')).toBe(false)
+      expect(isVcsInternalPath('.gitignore')).toBe(false)
+      // A directory that merely starts with the same letters is not it.
+      expect(isVcsInternalPath('.github/workflows/ci.yml')).toBe(false)
+    })
+
+    it('lets HEAD and refs through, and nothing else — locks included', () => {
+      expect(isVcsRefChange('.git/HEAD')).toBe(true)
+      expect(isVcsRefChange('.git/refs/heads/main')).toBe(true)
+      expect(isVcsRefChange('.git/index')).toBe(false)
+      expect(isVcsRefChange('.git/objects/ab/cdef')).toBe(false)
+      // A ref is written as `x.lock` and renamed into place; reporting the lock
+      // would announce every update twice, the first time for a file that is
+      // already gone.
+      expect(isVcsRefChange('.git/refs/heads/main.lock')).toBe(false)
+      expect(isVcsRefChange('docs/HEAD')).toBe(false)
+    })
   })
 
   describe('statFile()', () => {

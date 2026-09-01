@@ -73,8 +73,9 @@ describe('whisperEngineCore', () => {
   })
 
   const doneText = (): string | undefined =>
-    posted.find((message): message is Extract<WhisperWorkerResponse, { type: 'done' }> =>
-      message.type === 'done'
+    posted.find(
+      (message): message is Extract<WhisperWorkerResponse, { type: 'done' }> =>
+        message.type === 'done'
     )?.text
 
   it('transcribes and trims, reporting the result as `done`', async () => {
@@ -82,12 +83,76 @@ describe('whisperEngineCore', () => {
     expect(doneText()).toBe('olá squad')
   })
 
-  it('chunks long audio so a long recording cannot blow up memory', async () => {
-    await core().handle(request())
+  it('chunks audio longer than the 30 s window so a long recording cannot blow up memory', async () => {
+    // 40 s at 16 kHz — a recording, not a phrase.
+    await core().handle(request({ pcm: new Float32Array(40 * 16_000) }))
     expect(asr).toHaveBeenCalledWith(
       expect.any(Float32Array),
       expect.objectContaining({ chunk_length_s: 30, stride_length_s: 5, language: 'portuguese' })
     )
+  })
+
+  // The chunked path builds strided buffers and stitches overlapping windows
+  // back together. On a dictated phrase — which fits one window whole — all of
+  // that is surplus allocation on a WASM heap that only grows, and surplus
+  // allocation is what "std::bad_alloc" is made of.
+  it('does not chunk a phrase that already fits one window', async () => {
+    await core().handle(request({ pcm: new Float32Array(9 * 16_000) }))
+    const options = asr.mock.calls[0]?.[1] as Record<string, unknown>
+    expect(options.chunk_length_s).toBeUndefined()
+    expect(options.stride_length_s).toBeUndefined()
+    expect(options.language).toBe('portuguese')
+  })
+
+  it('disposes the outgoing pipeline before building the one that replaces it', async () => {
+    const dispose = vi.fn().mockResolvedValue(undefined)
+    Object.assign(asr, { dispose })
+    const engine = core()
+
+    await engine.handle(request())
+    expect(dispose).not.toHaveBeenCalled() // same key — the warm one is reused
+
+    await engine.handle(request({ model: 'small' }))
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(pipeline).toHaveBeenCalledTimes(2)
+  })
+
+  it('survives a pipeline that refuses to dispose', async () => {
+    Object.assign(asr, { dispose: vi.fn().mockRejectedValue(new Error('nope')) })
+    const engine = core()
+    await engine.handle(request())
+    await engine.handle(request({ model: 'small' }))
+    expect(doneText()).toBe('olá squad')
+  })
+
+  describe('an exhausted WASM heap', () => {
+    const oom = 'failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc'
+
+    const errors = (): Extract<WhisperWorkerResponse, { type: 'error' }>[] =>
+      posted.filter(
+        (m): m is Extract<WhisperWorkerResponse, { type: 'error' }> => m.type === 'error'
+      )
+
+    it('is reported as `kind: memory`, so the client knows to replace the thread', async () => {
+      asr.mockRejectedValue(new Error(oom))
+      await core().handle(request())
+      expect(errors()[0]?.kind).toBe('memory')
+    })
+
+    it('drops the poisoned pipeline, so the next attempt rebuilds rather than reusing it', async () => {
+      const engine = core()
+      asr.mockRejectedValueOnce(new Error(oom))
+      await engine.handle(request())
+      asr.mockResolvedValue({ text: 'de novo' })
+      await engine.handle(request())
+      expect(pipeline).toHaveBeenCalledTimes(2)
+    })
+
+    it('leaves an ordinary failure alone — that one is retryable as it is', async () => {
+      asr.mockRejectedValue(new Error('audio is silent'))
+      await core().handle(request())
+      expect(errors()[0]?.kind).toBeUndefined()
+    })
   })
 
   it('runs fp32 on WASM — the quantized decoder cannot build a session there', async () => {

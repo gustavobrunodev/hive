@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from '../../i18n'
 import { AudioDecodeError, decodeToWhisperPcm } from './audio'
+import { WhisperMemoryError } from './whisperClient'
 import type { WhisperEngine, WhisperModelId } from './useWhisper'
 
 /** What went wrong, in the user's language, plus the engine's own words. */
@@ -22,6 +23,12 @@ export function audioErrorMessage(error: unknown): AudioFailure {
     if (error.kind === 'empty') return { message: t('secondBrain.ingestAudioEmpty') }
     if (error.kind === 'silent') return { message: t('secondBrain.ingestAudioSilent') }
     return { message: t('secondBrain.ingestAudioUnsupported') }
+  }
+  // The one failure where "tente de novo" is bad advice: the WASM heap is gone
+  // and the next attempt hits the same ceiling. A smaller model is what changes
+  // the outcome, so that is what the sentence says.
+  if (error instanceof WhisperMemoryError) {
+    return { message: t('secondBrain.ingestMemoryFailed'), detail: error.detail }
   }
   return {
     message: t('secondBrain.ingestTranscribeFailed'),

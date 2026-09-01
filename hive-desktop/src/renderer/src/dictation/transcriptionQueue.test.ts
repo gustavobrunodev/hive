@@ -147,7 +147,7 @@ describe('createTranscriptionQueue', () => {
     queue.enqueue(0, pcm(1))
     await engine.resolve(0, 'um')
     expect(states.length).toBeGreaterThan(1)
-    expect(states[states.length - 1]).toEqual({ pending: 0, failure: null })
+    expect(states[states.length - 1]).toEqual({ pending: 0, failure: null, partial: '' })
   })
 
   it('keeps the queue running past a failure, and surfaces it (VP-R4.4)', async () => {
@@ -220,7 +220,7 @@ describe('createTranscriptionQueue', () => {
     queue.enqueue(1, pcm(2))
 
     queue.clear()
-    expect(queue.state()).toEqual({ pending: 0, failure: null })
+    expect(queue.state()).toEqual({ pending: 0, failure: null, partial: '' })
     expect(queue.busy()).toBe(false)
 
     // The in-flight transcription resolves *after* the discard. It must not

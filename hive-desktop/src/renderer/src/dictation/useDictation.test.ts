@@ -8,8 +8,10 @@ import {
   type DictationEngine,
   type DictationTarget
 } from './useDictation'
+import { DEFAULT_LIVE_PASS_CONFIG } from './livePass'
 import { createSegmenter, DEFAULT_SEGMENTER_CONFIG, type Tick } from './segmenter'
 import { CaptureFailure, type Capture } from './micCapture'
+import { WhisperMemoryError } from '../secondBrain/whisper/whisperClient'
 import type { WhisperPhase } from '../secondBrain/whisper/useWhisper'
 
 /**
@@ -90,11 +92,23 @@ function fakeEngine(text = '', phase: WhisperPhase = { status: 'idle' }): Dictat
   return { phase, transcribe: async () => text, warm: async () => {} }
 }
 
+/**
+ * Live passes off.
+ *
+ * The default is on, and most of what is asserted here is about the *queue* —
+ * ordering, cold-start buffering, one bad segment not ending a take. A live
+ * pass calls the same engine for a different reason, so leaving it on would
+ * make those tests count calls that are not theirs. The behaviour it turns off
+ * has its own block at the bottom of this file.
+ */
+const NO_LIVE_PASS = { minSpeechMs: Infinity, growthMs: Infinity, failureBudget: 0 }
+
 function fakeDeps(capture: FakeCapture, overrides: Partial<DictationDeps> = {}): DictationDeps {
   return {
     startCapture: async () => capture.capture,
     createSegmenter,
     config: { ...DEFAULT_SEGMENTER_CONFIG, sampleRate: RATE },
+    livePass: NO_LIVE_PASS,
     ...overrides
   } as DictationDeps
 }
@@ -126,6 +140,7 @@ describe('browserDictationDeps', () => {
     const deps = browserDictationDeps()
     expect(deps.createSegmenter).toBe(createSegmenter)
     expect(deps.config).toBe(DEFAULT_SEGMENTER_CONFIG)
+    expect(deps.livePass).toBe(DEFAULT_LIVE_PASS_CONFIG)
 
     // The real `startCapture`, reached through its own injectable seam — so the
     // wiring is exercised without a media stack.
@@ -756,5 +771,192 @@ describe('useDictation', () => {
       settle?.('olá squad')
     })
     expect(result.current.partial).toBe('')
+  })
+  /**
+   * The complaint, in one block: *"não deveria o usuário ter que terminar tudo
+   * para só depois transcrever"*. Segments are cut by silence or by the 9 s
+   * ceiling, so a speaker in full flow used to see nothing at all until one of
+   * those happened. Now the phrase is transcribed while it is still being
+   * spoken, and the result sits in the field as a provisional run.
+   */
+  describe('live transcription of the phrase being spoken (VP-R2.9)', () => {
+    const LIVE = { minSpeechMs: 900, growthMs: 1200, failureBudget: 2 }
+
+    it('writes into the field mid-phrase, long before any segment is cut', async () => {
+      const capture = fakeCapture()
+      const target = fakeTarget()
+      const engine: DictationEngine = {
+        phase: { status: 'idle' },
+        transcribe: async () => 'estou falando agora',
+        warm: async () => {}
+      }
+      const { result } = renderHook(() =>
+        useDictation(target, engine, fakeDeps(capture, { livePass: LIVE }))
+      )
+      await startTake(result, capture)
+
+      // One second of speech: below `minSpeechMs` (2 s) for a cut, and with no
+      // silence at all, so the segmenter has produced nothing.
+      await act(async () => {
+        capture.emitFor(1000, LOUD)
+      })
+
+      expect(target.current.value).toBe('Estou falando agora')
+      expect(result.current.previewRange).not.toBeNull()
+      expect(result.current.phase.status).toBe('listening')
+    })
+
+    it('replaces the guess with the segment own text, and stops marking it', async () => {
+      const capture = fakeCapture()
+      const target = fakeTarget()
+      let call = 0
+      const engine: DictationEngine = {
+        phase: { status: 'idle' },
+        transcribe: async () => (call++ === 0 ? 'estou falando' : 'Estou falando agora.'),
+        warm: async () => {}
+      }
+      const { result } = renderHook(() =>
+        useDictation(target, engine, fakeDeps(capture, { livePass: LIVE }))
+      )
+      await startTake(result, capture)
+
+      await act(async () => {
+        capture.emitFor(1000, LOUD)
+      })
+      expect(target.current.value).toBe('Estou falando')
+
+      // Speech continues past the 2 s minimum, then a pause closes the phrase.
+      await act(async () => {
+        capture.emitFor(1600, LOUD)
+        capture.emitFor(800, QUIET)
+      })
+
+      // No doubled words: the guess came out before the real text went in.
+      expect(target.current.value).toBe('Estou falando agora.')
+      expect(result.current.previewRange).toBeNull()
+    })
+
+    it('joins the guess to what was already typed, without eating it', async () => {
+      const capture = fakeCapture()
+      const target = fakeTarget('revisa o ')
+      const engine: DictationEngine = {
+        phase: { status: 'idle' },
+        transcribe: async () => 'arquivo',
+        warm: async () => {}
+      }
+      const { result } = renderHook(() =>
+        useDictation(target, engine, fakeDeps(capture, { livePass: LIVE }))
+      )
+      await startTake(result, capture)
+      await act(async () => {
+        capture.emitFor(1000, LOUD)
+      })
+      expect(target.current.value).toBe('revisa o arquivo')
+      expect(result.current.previewRange).toEqual([9, 16])
+    })
+
+    it('takes the guess back out when the take is discarded (VP-R1.5, D-VP-9)', async () => {
+      const capture = fakeCapture()
+      const target = fakeTarget('rascunho')
+      const engine: DictationEngine = {
+        phase: { status: 'idle' },
+        transcribe: async () => 'texto provisorio',
+        warm: async () => {}
+      }
+      const { result } = renderHook(() =>
+        useDictation(target, engine, fakeDeps(capture, { livePass: LIVE }))
+      )
+      await startTake(result, capture)
+      await act(async () => {
+        capture.emitFor(1000, LOUD)
+      })
+      expect(target.current.value).not.toBe('rascunho')
+
+      await act(async () => {
+        result.current.discard()
+      })
+      expect(target.current.value).toBe('rascunho')
+      expect(result.current.previewRange).toBeNull()
+    })
+
+    // The engine has one slot. A guess that delays the segment covering the
+    // same words has made the feature worse, not better.
+    it('never takes the pipeline while a real segment is being transcribed', async () => {
+      const capture = fakeCapture()
+      const target = fakeTarget()
+      const settlers: ((text: string) => void)[] = []
+      const engine: DictationEngine = {
+        phase: { status: 'idle' },
+        transcribe: () => new Promise<string>((resolve) => settlers.push(resolve)),
+        warm: async () => {}
+      }
+      const { result } = renderHook(() =>
+        useDictation(target, engine, fakeDeps(capture, { livePass: LIVE }))
+      )
+      await startTake(result, capture)
+
+      // A first phrase, cut and now in flight — one call, unanswered.
+      await act(async () => {
+        capture.emitFor(2500, LOUD)
+        capture.emitFor(800, QUIET)
+      })
+      const inFlight = settlers.length
+
+      // Someone keeps talking straight through it. No second call is made.
+      await act(async () => {
+        capture.emitFor(2000, LOUD)
+      })
+      expect(settlers).toHaveLength(inFlight)
+    })
+  })
+
+  /**
+   * The failure a real take actually hits, and the only one where "tente de
+   * novo" is bad advice: onnxruntime's WebAssembly memory grows and is never
+   * given back, so the next attempt meets the same ceiling. What changes the
+   * outcome is a smaller model, and that is what the user has to be told —
+   * "failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc" is
+   * not a sentence anyone can act on.
+   */
+  it('turns an out-of-memory failure into advice the user can act on', async () => {
+    const capture = fakeCapture()
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: async () => {
+        throw new WhisperMemoryError(
+          'failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc'
+        )
+      },
+      warm: async () => {}
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+
+    expect(result.current.failure).toBe(
+      'Faltou memória para rodar esse modelo. Escolha um modelo menor em Voz e transcrição.'
+    )
+  })
+
+  it('leaves every other failure in the engine own words', async () => {
+    const capture = fakeCapture()
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: async () => {
+        throw new Error('sessão falhou')
+      },
+      warm: async () => {}
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
+    await startTake(result, capture)
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+      capture.emitFor(800, QUIET)
+    })
+    expect(result.current.failure).toBe('sessão falhou')
   })
 })

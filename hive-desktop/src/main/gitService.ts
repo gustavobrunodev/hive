@@ -230,16 +230,28 @@ export function createGitService(deps: GitServiceDeps): GitService {
    * literal (never octal-escaped); `GIT_TERMINAL_PROMPT=0` makes any op that
    * would prompt for credentials fail fast instead of hanging, so the renderer
    * can show git's real error (D-GIT-1).
+   *
+   * `--no-optional-locks` is the one that is not about output. A plain `git
+   * status` **writes**: it refreshes the index's stat cache and saves it, which
+   * on a workspace under an fs watcher is a change event that comes back as
+   * another `status`. Measured here on 2026-08-31 — `.git/index`'s mtime bumps
+   * on the run after a `touch`, and stays put with this flag. Every op that
+   * genuinely needs a lock (commit, add, checkout) still takes it: what the
+   * flag drops is the *optional* one, which is exactly the one we never wanted.
    */
   async function git(args: string[], opts: { cwd: string }): Promise<string> {
-    const handle = processRunner.run('git', ['-c', 'core.quotepath=false', ...args], {
-      cwd: opts.cwd,
-      // GIT_TERMINAL_PROMPT=0 → fail fast instead of hanging on a credential
-      // prompt (D-GIT-1). GIT_EDITOR=true → merge --continue / any commit that
-      // would open an editor concludes non-interactively with the prepared
-      // message rather than hanging on a tty we don't have.
-      env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }
-    })
+    const handle = processRunner.run(
+      'git',
+      ['--no-optional-locks', '-c', 'core.quotepath=false', ...args],
+      {
+        cwd: opts.cwd,
+        // GIT_TERMINAL_PROMPT=0 → fail fast instead of hanging on a credential
+        // prompt (D-GIT-1). GIT_EDITOR=true → merge --continue / any commit that
+        // would open an editor concludes non-interactively with the prepared
+        // message rather than hanging on a tty we don't have.
+        env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }
+      }
+    )
     const { stdout, stderr, code } = await collect(handle)
     if (code !== 0) {
       throw new GitError(code, stderr, `git ${args.join(' ')}`)

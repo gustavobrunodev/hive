@@ -228,10 +228,18 @@ const hive = {
   // renderer -> main sends ('agent:event:start'/'agent:event:stop'), and a
   // subscribe-returning-unsubscribe shape.
   agent: {
-    // multi-agent: capabilities are per-agent (Devin exposes no model/effort,
-    // Copilot no effort). `agentId` omitted → the default agent's capabilities.
-    capabilities: (agentId?: string): Promise<AgentCapabilities> =>
-      ipcRenderer.invoke('agent:capabilities', agentId),
+    // multi-agent: capabilities are per-agent (Copilot has no effort ladder,
+    // Devin has models but no effort). `agentId` omitted → the default agent.
+    //
+    // model-picker: `opts.workspace` scopes detection (a project's settings can
+    // repoint the CLI at another provider) and `opts.refresh` re-reads the
+    // machine instead of answering from the main-process cache — what the
+    // picker's "re-detectar" control calls after the user changes a config
+    // outside the app.
+    capabilities: (
+      agentId?: string,
+      opts?: { workspace?: string; refresh?: boolean }
+    ): Promise<AgentCapabilities> => ipcRenderer.invoke('agent:capabilities', agentId, opts),
     // chat-attachments (R6.5/T16): native multi-file picker for the attach
     // button. Resolves to [] when the user cancels the dialog. `defaultPath`
     // opens the picker inside the active workspace.
@@ -471,6 +479,10 @@ const hive = {
   // the exact watchWorkspace/agent.onEvent channel pattern above.
   app: {
     info: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
+    // app-reload: main owns the reload so it hits the window rather than the
+    // document — `location.reload()` here would re-run the SPA inside the same
+    // renderer process and keep whatever state made a reload necessary.
+    reload: (): Promise<void> => ipcRenderer.invoke('app:reload'),
     // npm-distribution T14: `explicit` widened from zero-arg to optional —
     // the `update:check` IPC channel itself already accepted this param
     // (main/index.ts's handler always has, defaulting to `true` when

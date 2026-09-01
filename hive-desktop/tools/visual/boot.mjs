@@ -24,7 +24,247 @@ async (page) => {
 
     const noop = () => {}
     const unsub = () => noop
-    const ok = (v) => () => Promise.resolve(v)
+    /**
+     * model-picker: the three agents' capability answers, in the shape the main
+     * process now detects (see `src/main/claudeModelCatalog.ts`). Kept here so a
+     * visual pass can see the picker's real anatomy — groups, descriptions,
+     * resolved ids, provenance — without a machine that has all three CLIs.
+     */
+    const CAPABILITIES = {
+      'claude-cli': {
+        models: [
+          {
+            id: '',
+            label: 'Automático',
+            descriptionKey: 'cliDefault',
+            traits: ['cli-default'],
+            group: 'default',
+            source: 'configured',
+            resolvedId: 'opus',
+            contextWindow: 200000
+          },
+          {
+            id: 'opus',
+            label: 'Opus',
+            descriptionKey: 'claude.opus',
+            contextWindow: 200000,
+            traits: ['flagship', 'thinking'],
+            group: 'recommended',
+            source: 'catalog'
+          },
+          {
+            id: 'sonnet',
+            label: 'Sonnet',
+            descriptionKey: 'claude.sonnet',
+            contextWindow: 200000,
+            traits: ['balanced', 'thinking'],
+            group: 'recommended',
+            source: 'catalog'
+          },
+          {
+            id: 'haiku',
+            label: 'Haiku',
+            descriptionKey: 'claude.haiku',
+            contextWindow: 200000,
+            traits: ['fast'],
+            group: 'recommended',
+            source: 'catalog'
+          },
+          {
+            id: 'claude-fable-5[1m]',
+            label: 'Fable',
+            description: 'Fable 5 · Most capable for your hardest and longest-running tasks',
+            contextWindow: 1000000,
+            traits: ['flagship', 'long-context'],
+            group: 'recommended',
+            source: 'detected',
+            resolvedId: 'claude-fable-5[1m]'
+          },
+          {
+            id: 'sonnet[1m]',
+            label: 'Sonnet 1M',
+            descriptionKey: 'claude.sonnet1m',
+            contextWindow: 1000000,
+            traits: ['balanced', 'long-context'],
+            group: 'more',
+            source: 'catalog'
+          },
+          {
+            id: 'opusplan',
+            label: 'Opus Plan',
+            descriptionKey: 'claude.opusplan',
+            contextWindow: 200000,
+            traits: ['flagship'],
+            group: 'more',
+            source: 'catalog'
+          },
+          {
+            id: 'opus48',
+            label: 'Opus 4.8',
+            descriptionKey: 'claude.pinned',
+            contextWindow: 200000,
+            traits: ['legacy'],
+            group: 'legacy',
+            source: 'catalog'
+          },
+          {
+            id: 'haiku35',
+            label: 'Haiku 3.5',
+            descriptionKey: 'claude.pinned',
+            contextWindow: 200000,
+            traits: ['legacy'],
+            group: 'legacy',
+            source: 'catalog'
+          }
+        ],
+        efforts: [
+          { id: '', label: 'Automático', descriptionKey: 'effort.cliDefault', group: 'default' },
+          { id: 'low', label: 'Baixo', descriptionKey: 'effort.low' },
+          { id: 'medium', label: 'Médio', descriptionKey: 'effort.medium' },
+          { id: 'high', label: 'Alto', descriptionKey: 'effort.high' },
+          { id: 'xhigh', label: 'Extra', descriptionKey: 'effort.xhigh' },
+          { id: 'max', label: 'Máx', descriptionKey: 'effort.max' }
+        ],
+        supportsAttachments: true,
+        supportsResume: true,
+        provider: { id: 'anthropic', detail: null },
+        modelSource: 'detected',
+        defaults: { model: 'opus', effort: 'xhigh' }
+      },
+      'github-copilot': {
+        models: [
+          {
+            id: '',
+            label: 'Automático',
+            descriptionKey: 'cliDefault',
+            traits: ['cli-default'],
+            group: 'default',
+            source: 'configured',
+            resolvedId: 'gpt-5.1'
+          },
+          {
+            id: 'claude-sonnet-4.5',
+            label: 'Claude Sonnet 4.5',
+            descriptionKey: 'copilot.sonnet45',
+            vendor: 'Anthropic',
+            contextWindow: 200000,
+            traits: ['balanced', 'thinking'],
+            group: 'recommended',
+            source: 'catalog'
+          },
+          {
+            id: 'claude-opus-4.5',
+            label: 'Claude Opus 4.5',
+            descriptionKey: 'copilot.opus45',
+            vendor: 'Anthropic',
+            contextWindow: 200000,
+            traits: ['flagship', 'thinking'],
+            group: 'recommended',
+            source: 'catalog'
+          },
+          {
+            id: 'gpt-5.1',
+            label: 'GPT-5.1',
+            descriptionKey: 'copilot.gpt51',
+            vendor: 'OpenAI',
+            traits: ['flagship', 'thinking'],
+            group: 'recommended',
+            source: 'configured'
+          },
+          {
+            id: 'gpt-5-mini',
+            label: 'GPT-5 mini',
+            descriptionKey: 'copilot.gpt5mini',
+            vendor: 'OpenAI',
+            traits: ['fast'],
+            group: 'more',
+            source: 'catalog'
+          },
+          {
+            id: 'gemini-3-pro-preview',
+            label: 'Gemini 3 Pro',
+            descriptionKey: 'copilot.gemini3',
+            vendor: 'Google',
+            traits: ['flagship'],
+            group: 'more',
+            source: 'catalog'
+          }
+        ],
+        efforts: [],
+        supportsAttachments: false,
+        supportsResume: true,
+        provider: { id: 'github', detail: null },
+        modelSource: 'configured',
+        defaults: { model: 'gpt-5.1', effort: null },
+        note: 'no-listing'
+      },
+      devin: {
+        models: [
+          {
+            id: '',
+            label: 'Automático',
+            descriptionKey: 'cliDefault',
+            traits: ['cli-default'],
+            group: 'default',
+            source: 'configured',
+            resolvedId: 'swe-1-6-fast'
+          },
+          {
+            id: 'adaptive',
+            label: 'Adaptive',
+            descriptionKey: 'devin.adaptive',
+            vendor: 'Cognition',
+            traits: ['router'],
+            group: 'recommended',
+            source: 'detected'
+          },
+          {
+            id: 'swe-1-6-fast',
+            label: 'SWE 1.6 Fast',
+            description: 'Cognition\u2019s software-engineering model, tuned for speed',
+            vendor: 'Cognition',
+            traits: ['balanced'],
+            group: 'recommended',
+            source: 'detected'
+          },
+          {
+            id: 'opus',
+            label: 'Opus',
+            descriptionKey: 'devin.opus',
+            vendor: 'Anthropic',
+            traits: ['flagship', 'thinking'],
+            group: 'recommended',
+            source: 'detected'
+          },
+          {
+            id: 'gpt',
+            label: 'GPT',
+            descriptionKey: 'devin.gpt',
+            vendor: 'OpenAI',
+            traits: ['flagship'],
+            group: 'more',
+            source: 'detected'
+          },
+          {
+            id: 'gemini',
+            label: 'Gemini',
+            descriptionKey: 'devin.gemini',
+            vendor: 'Google',
+            traits: ['balanced'],
+            group: 'more',
+            source: 'detected'
+          }
+        ],
+        efforts: [],
+        supportsAttachments: true,
+        supportsResume: true,
+        provider: { id: 'cognition', detail: null },
+        modelSource: 'detected',
+        defaults: { model: 'swe-1-6-fast', effort: null }
+      }
+    }
+
+  const ok = (v) => () => Promise.resolve(v)
 
     // A workspace BMAD catalog big enough for the shortcut picker to look real
     // (groups, counts, scrolling) — mirrors `main/workflowCatalog.ts`'s shape.
@@ -503,34 +743,16 @@ async (page) => {
         // session-usage: the meter's denominator comes from the model list, so
         // the mock has to declare one or the context readout never appears.
         //
-        // Per-agent, because that is the real contract: Copilot exposes models
-        // but no effort, and a fixture that answers the same for every agent
-        // hides the whole point of a picker that reshapes the form under it.
-        capabilities: (agentId) =>
-          Promise.resolve(
-            agentId === 'github-copilot'
-              ? {
-                  models: [
-                    { id: 'gpt-5', label: 'GPT-5', contextWindow: 200000 },
-                    { id: 'claude-sonnet', label: 'Claude Sonnet', contextWindow: 200000 }
-                  ],
-                  efforts: [],
-                  supportsAttachments: false,
-                  supportsResume: true
-                }
-              : {
-                  models: [
-                    { id: 'opus', label: 'Opus', contextWindow: 200000 },
-                    { id: 'sonnet', label: 'Sonnet', contextWindow: 200000 }
-                  ],
-                  efforts: [
-                    { id: 'medium', label: 'Medium' },
-                    { id: 'high', label: 'High' }
-                  ],
-                  supportsAttachments: true,
-                  supportsResume: true
-                }
-          ),
+        // Per-agent, because that is the real contract, and the engine picker
+        // reshapes itself around it: Claude has the effort ladder and four
+        // groups of models; Copilot has many models across three vendors and
+        // NO effort; Devin has a router model at the top. A fixture that
+        // answered the same for every agent would hide the whole point.
+        //
+        // model-picker: shaped like what `detectClaudeCapabilities` &co really
+        // return — `descriptionKey`/`traits`/`group`/`source`/`resolvedId` and
+        // the provenance fields the panel's footer reads.
+        capabilities: (agentId) => Promise.resolve(CAPABILITIES[agentId] ?? CAPABILITIES['claude-cli']),
         chooseAttachments: ok([]),
         start: ok(undefined),
         send: ok(undefined),
@@ -704,13 +926,18 @@ async (page) => {
         // composer's agent pill reads "claude" instead of "Claude Code".
         // Two agents, because the pickers that offer a choice (the chat
         // switcher, the studio's builder picker) only appear when there is one.
+        // Three, not two: the engine picker takes a different shape for each
+        // (Claude has the effort ladder, Copilot groups by vendor with no
+        // effort, Devin leads with a router model), and a fixture with two
+        // agents can only ever show two of the three.
         agents: ok([
           { id: 'claude-cli', displayName: 'Claude Code', available: true },
-          { id: 'github-copilot', displayName: 'GitHub Copilot', available: true }
+          { id: 'github-copilot', displayName: 'GitHub Copilot', available: true },
+          { id: 'devin', displayName: 'Devin', available: true }
         ]),
         getAgent: ok('claude-cli'),
         setAgent: ok(undefined),
-        getAgents: ok(['claude-cli', 'github-copilot']),
+        getAgents: ok(['claude-cli', 'github-copilot', 'devin']),
         setAgents: ok(undefined),
         getRole: ok(globalThis.HIVE_ROLE ?? 'pm'),
         setRole: ok(undefined),

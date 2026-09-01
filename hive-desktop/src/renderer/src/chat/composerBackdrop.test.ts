@@ -87,7 +87,7 @@ describe('composerBackdrop', () => {
     expect(segments.every((segment) => segment.text !== '')).toBe(true)
 
     const empty = composerBackdrop('', FILES, null)
-    expect(empty).toEqual([{ text: '', mention: false, fresh: false }])
+    expect(empty).toEqual([{ text: '', mention: false, fresh: false, preview: false }])
   })
 
   // A transcription resolves asynchronously; the user may have edited or
@@ -106,5 +106,46 @@ describe('composerBackdrop', () => {
     const segments = composerBackdrop('sobre @naoexiste', FILES, [6, 16])
     expect(marked(segments, 'mention')).toBe('')
     expect(marked(segments, 'fresh')).toBe('@naoexiste')
+  })
+
+  // VP-R2.9 — the provisional run dictation is still revising. It is a separate
+  // flag, not a stronger `fresh`: one says text arrived, the other says it has
+  // not, and the composer paints them differently for that reason.
+  describe('the provisional run', () => {
+    it('marks the run the live pass is revising, alongside the mentions', () => {
+      const segments = composerBackdrop('veja @src/main.ts falando', FILES, null, [18, 25])
+      expect(segments).toEqual([
+        { text: 'veja ', mention: false, fresh: false, preview: false },
+        { text: '@src/main.ts', mention: true, fresh: false, preview: false },
+        { text: ' ', mention: false, fresh: false, preview: false },
+        { text: 'falando', mention: false, fresh: false, preview: true }
+      ])
+    })
+
+    it('cuts a mention token that a provisional run only partly covers', () => {
+      // The mark follows characters, never the token they happen to sit in.
+      const segments = composerBackdrop('@src/main.ts', FILES, null, [0, 4])
+      expect(segments).toEqual([
+        { text: '@src', mention: true, fresh: false, preview: true },
+        { text: '/main.ts', mention: true, fresh: false, preview: false }
+      ])
+    })
+
+    it('keeps the two marks independent when both are present', () => {
+      const segments = composerBackdrop('landed guess', FILES, [0, 6], [7, 12])
+      expect(segments).toEqual([
+        { text: 'landed', mention: false, fresh: true, preview: false },
+        { text: ' ', mention: false, fresh: false, preview: false },
+        { text: 'guess', mention: false, fresh: false, preview: true }
+      ])
+    })
+
+    it('still concatenates back to the value, with both marks in play', () => {
+      const value = 'veja @src/main.ts e depois fale mais'
+      const joined = composerBackdrop(value, FILES, [5, 17], [27, 36])
+        .map((segment) => segment.text)
+        .join('')
+      expect(joined).toBe(value)
+    })
   })
 })

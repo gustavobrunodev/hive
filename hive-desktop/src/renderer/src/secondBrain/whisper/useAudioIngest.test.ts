@@ -12,7 +12,12 @@ vi.mock('./audio', async (importOriginal) => ({
 }))
 
 function engine(transcribe = vi.fn().mockResolvedValue('transcrito')): WhisperEngine {
-  return { phase: { status: 'idle' }, transcribe, warm: vi.fn().mockResolvedValue(undefined), reset: vi.fn() }
+  return {
+    phase: { status: 'idle' },
+    transcribe,
+    warm: vi.fn().mockResolvedValue(undefined),
+    reset: vi.fn()
+  }
 }
 
 function setup(whisper = engine()): {
@@ -47,7 +52,12 @@ describe('useAudioIngest (T17)', () => {
     add([item('reuniao.wav')])
 
     await waitFor(() => expect(onTranscript).toHaveBeenCalledWith('transcrito', 'reuniao.wav'))
-    expect(whisper.transcribe).toHaveBeenCalledWith(pcm, { model: 'base' })
+    expect(whisper.transcribe).toHaveBeenCalledWith(pcm, {
+      model: 'base',
+      // The partial stream: a file takes seconds to transcribe, and the job row
+      // shows the words as they decode rather than a spinner that says nothing.
+      onPartial: expect.any(Function)
+    })
     await waitFor(() => expect(queue().jobs[0].status).toBe('done'))
   })
 

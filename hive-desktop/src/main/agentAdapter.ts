@@ -19,20 +19,126 @@ import type { ToolPatch } from './toolPatch'
 
 export type { PatchHunk, PatchLine, PatchOp, PatchSpan, ToolPatch } from './toolPatch'
 
-/** One curated model or effort-level option surfaced to the UI (C5). */
+/**
+ * How the app learned that a row belongs on the picker — the provenance the
+ * footer shows, and the reason this type exists at all.
+ *
+ * The complaint this feature answers was "os modelos do Claude parecem estar
+ * fixos": a curated list is *usually* right and silently wrong the moment the
+ * CLI is pointed at Bedrock, at a gateway, or at an account with different
+ * model access. A row that says where it came from can be checked; a row that
+ * doesn't asks the user to take our word for it.
+ *
+ *  - `detected`   — read off this machine (the CLI's own caches / a `models`
+ *                   subcommand). The strongest claim, and the only one that
+ *                   survives a provider swap.
+ *  - `configured` — named by the user's own settings or environment
+ *                   (`ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_*_MODEL`, a Devin
+ *                   config default). Also true of this machine, and it is what
+ *                   makes Bedrock ids show up as themselves.
+ *  - `catalog`    — the curated fallback for a CLI that publishes no list.
+ *                   Honest, but the picker says so rather than implying more.
+ */
+export type OptionSource = 'detected' | 'configured' | 'catalog'
+
+/**
+ * A closed vocabulary of things worth saying about a model on its row, as
+ * *codes* rather than sentences: the main process holds no UI strings (i18n
+ * lives in the renderer, per R1.6), so every trait here is mapped to pt-BR
+ * copy by `modelCopy.ts` on the other side of the IPC boundary.
+ */
+export type ModelTrait =
+  /** Omits the model flag entirely — the CLI answers with its own configured default. */
+  | 'cli-default'
+  /** The vendor's own router picks a model per task (Devin's Adaptive). */
+  | 'router'
+  /** The heaviest tier available here. */
+  | 'flagship'
+  /** The everyday tier: the one to reach for when unsure. */
+  | 'balanced'
+  /** Cheap and quick; less capable. */
+  | 'fast'
+  /** A 1M-token context variant. */
+  | 'long-context'
+  /** A superseded version, kept because sessions pinned to it still resume. */
+  | 'legacy'
+  /** Reasons about the task before answering (extended thinking). */
+  | 'thinking'
+  /** Reads images as well as text. */
+  | 'vision'
+
+/** Which bucket of the picker a row falls into (grouped in this order). */
+export type OptionGroup = 'default' | 'recommended' | 'more' | 'legacy'
+
+/** One model or effort-level option surfaced to the UI. */
 export interface AgentOption {
+  /**
+   * What travels to the CLI as `--model`/`--effort`. **The empty string is
+   * meaningful**: it is the "use the CLI's own default" row, and the adapter
+   * omits the flag for it rather than passing an empty value.
+   */
   id: string
   label: string
   /**
    * Context-window size in tokens, for models that have a published one
    * (session-usage). The UI needs a denominator to turn the `usage` event's
-   * raw token counts into "how full is this conversation" — and no CLI
-   * reports its own limit, so it is curated here alongside the model list,
-   * per C5. Omitted → the UI shows absolute token counts and no percentage,
-   * which is the honest degradation for an adapter that hasn't declared one.
+   * raw token counts into "how full is this conversation" — and most CLIs
+   * don't report their own limit up front, so it is curated here. Omitted →
+   * the UI shows absolute token counts and no percentage, which is the honest
+   * degradation for an adapter that hasn't declared one.
    */
   contextWindow?: number
+  /**
+   * A one-line explanation **as the machine phrased it** — a description read
+   * out of the CLI's own catalog (`~/.claude.json`'s model options, `devin
+   * models list`), or out of the user's `ANTHROPIC_*_DESCRIPTION` env. Passed
+   * through verbatim, in whatever language its source wrote it: inventing a
+   * translation for a string we detected would erase the evidence.
+   */
+  description?: string
+  /**
+   * An i18n key for curated copy (`chat.model.<key>`), used *instead of*
+   * `description` when present. This is how a catalog row gets pt-BR prose
+   * without the main process holding UI strings.
+   */
+  descriptionKey?: string
+  /** Who makes the model — the picker's group header for multi-vendor CLIs. */
+  vendor?: string
+  source?: OptionSource
+  traits?: ModelTrait[]
+  group?: OptionGroup
+  /**
+   * The concrete id this row resolves to when it isn't obvious — the Bedrock
+   * inference profile behind `sonnet`, the model an alias points at. Shown as
+   * the row's fine print, because on a third-party provider "Sonnet" alone is
+   * not enough to know what you are about to run.
+   */
+  resolvedId?: string
 }
+
+/**
+ * Which backend the agent's CLI is actually pointed at. Codes, not sentences,
+ * for the same i18n reason as `ModelTrait`; `detail` is machine-read evidence
+ * (a region, a host, a CLI version) and is shown verbatim.
+ */
+export interface AgentProvider {
+  id:
+    'anthropic' | 'bedrock' | 'vertex' | 'foundry' | 'gateway' | 'github' | 'cognition' | 'unknown'
+  /** Region / host / account hint read off the machine, or `null`. */
+  detail?: string | null
+}
+
+/**
+ * Why a capability probe fell short of a full answer, as a closed code the
+ * renderer maps to copy. Absent when detection went cleanly.
+ */
+export type CapabilityNote =
+  /** The CLI isn't installed here, so only the curated catalog is on offer. */
+  | 'cli-missing'
+  /** The CLI is here but its model listing failed (non-zero exit, bad JSON, timeout). */
+  | 'probe-failed'
+  /** The CLI publishes no machine-readable model list; the catalog is the best available. */
+  | 'no-listing'
 
 /**
  * What an adapter supports, so the UI can build model/effort pickers and
@@ -40,10 +146,10 @@ export interface AgentOption {
  * hardcoded in the UI (C5).
  *
  * multi-agent: `models` and/or `efforts` may be **empty**. Not every agent CLI
- * exposes a model choice (Devin is a fixed-model agent) or effort levels (the
- * GitHub Copilot CLI has none). The composer hides the corresponding picker
- * when its list is empty and simply omits `--model`/`--effort` on the turn, so
- * the adapter falls back to its CLI's own default.
+ * exposes effort levels (the GitHub Copilot CLI has none). The composer hides
+ * the corresponding control when its list is empty and simply omits
+ * `--model`/`--effort` on the turn, so the adapter falls back to its CLI's own
+ * default.
  */
 export interface AgentCapabilities {
   models: AgentOption[]
@@ -51,6 +157,26 @@ export interface AgentCapabilities {
   /** Whether turns may carry `AgentInput.attachments` (R6.5/T16). The UI
    *  gates the attach button + drag-and-drop on this. */
   supportsAttachments: boolean
+  /** Which backend this CLI is pointed at, when it could be determined. */
+  provider?: AgentProvider
+  /** The strongest provenance among `models` — what the picker's footer claims. */
+  modelSource?: OptionSource
+  /**
+   * What the CLI would do with no flags at all: the model/effort its own
+   * config selects. Shown as the fine print of the "default" row, so choosing
+   * it is an informed choice rather than a shrug. `null` when unknown.
+   */
+  defaults?: { model: string | null; effort: string | null }
+  /** Why detection fell back, when it did. */
+  note?: CapabilityNote
+  /** The CLI version the probe read back, for the footer's evidence line. */
+  cliVersion?: string | null
+}
+
+/** What a capability probe needs to know about where it is running. */
+export interface CapabilityContext {
+  /** The active workspace — project-scoped settings live under it. */
+  workspace?: string
 }
 
 /**
@@ -451,9 +577,25 @@ export interface PermissionPromptEndpoint {
   mcpConfig(turnId?: string): string | null
 }
 
+/**
+ * The machine facts a model-catalog probe reads (`detectCapabilities`).
+ * Injected as one bundle so a test can put the whole detection on a fake home
+ * directory — the alternative, reading `process` inside each catalog module,
+ * makes the Bedrock and Vertex paths untestable without a Bedrock account.
+ */
+export interface HostFacts {
+  env: NodeJS.ProcessEnv
+  home: string
+  platform: NodeJS.Platform
+  /** Injection seam for the JSON reads; defaults to the real filesystem. */
+  readJson?: <T>(path: string) => T | null
+}
+
 /** Optional collaborators handed to an adapter factory. Every field is opt-in. */
 export interface AgentAdapterDeps {
   permissionPrompt?: PermissionPromptEndpoint
+  /** Overrides the real `process`/`os` facts for `detectCapabilities`. Tests only. */
+  host?: HostFacts
   /**
    * agent-terminal (AT-R4): the shell the user chose, read fresh per turn (the
    * choice can change while a session is alive, and the next turn must honour
@@ -541,7 +683,23 @@ export interface ShellBinding {
 export interface AgentAdapter {
   id: string
   displayName: string
+  /**
+   * The curated answer: what this adapter can offer **without touching the
+   * machine**. Synchronous and always available, so anything that just needs
+   * a shape (a turn's flag validation, a test) gets one without I/O.
+   */
   capabilities(): AgentCapabilities
+  /**
+   * The measured answer: the same shape, after reading this machine — the
+   * CLI's own model caches, the user's settings/env, a `models` subcommand.
+   * Optional, because an adapter that has nothing to read is honestly
+   * described by `capabilities()` alone; callers fall back to it.
+   *
+   * Implementations must never reject: a probe that fails returns the curated
+   * list with a `note` saying why, because a picker with no rows is strictly
+   * worse than a picker that admits it is guessing.
+   */
+  detectCapabilities?(context: CapabilityContext): Promise<AgentCapabilities>
   startSession(opts: SessionOpts): AgentSession
   /**
    * agent-terminal: how this agent honours `shell`. Optional — an adapter

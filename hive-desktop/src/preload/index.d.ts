@@ -92,7 +92,11 @@ declare global {
       watchWorkspace(root: string, onChange: (event: FsChangeEvent) => void): () => void
       /** AgentService (T14) surface — see preload/index.ts for the full channel design. */
       agent: {
-        capabilities(agentId?: string): Promise<AgentCapabilities>
+        /** model-picker: `opts.workspace` scopes detection to a project's own settings; `opts.refresh` re-reads the machine instead of the cache. */
+        capabilities(
+          agentId?: string,
+          opts?: { workspace?: string; refresh?: boolean }
+        ): Promise<AgentCapabilities>
         /** chat-attachments (R6.5/T16): native multi-file picker; [] when canceled. `defaultPath` opens it inside the active workspace. */
         chooseAttachments(defaultPath?: string): Promise<AttachmentPick[]>
         start(opts: SessionOpts): Promise<void>
@@ -205,6 +209,8 @@ declare global {
       /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
       app: {
         info(): Promise<AppInfo>
+        /** app-reload: reloads this window from main (VS Code's "Reload Window"), cache ignored. */
+        reload(): Promise<void>
         /** `explicit` (T14): omit/`true` for a user-requested check (reports errors); `false` for the silent launch/periodic check (ND-R2.4 — failures produce nothing visible). */
         checkForUpdates(explicit?: boolean): Promise<void>
         downloadUpdate(): Promise<void>

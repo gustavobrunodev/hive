@@ -216,6 +216,52 @@ function joinRelative(base: string, name: string): string {
 }
 
 /**
+ * Version-control internals — the one thing that is *inside* a workspace and
+ * is never part of the user's file tree.
+ *
+ * Skipping them is not cosmetic, it is what makes the tree survive a repo.
+ * `.git` is both enormous (5 170 files in this repo's own, and a loose object
+ * per write) and the busiest directory on disk: every `git status` refreshes
+ * the index, every command takes and drops a lock. `listTree` walks eagerly and
+ * recursively, and the watcher below re-fires it on any change underneath —
+ * so a workspace that gained a `.git` turned every git command into a full
+ * re-walk of a tree that had just doubled in size. That is the "the Files tab
+ * flashes its spinner forever after `git init`" defect, measured on
+ * 2026-08-31: 61 824 entries with `.git`, 56 369 without.
+ *
+ * VS Code hides these the same way and for the same reason. The user's own
+ * dotfiles (`.specs`, `.claude`, `.env`) stay visible — this is a list of three
+ * machine directories, not a hidden-file policy.
+ */
+export const VCS_INTERNAL_DIRS: ReadonlySet<string> = new Set(['.git', '.hg', '.svn'])
+
+/**
+ * Is `relPath` (POSIX-style, workspace-relative) inside a VCS internals dir?
+ * Used by the watcher to drop the churn before it becomes a refresh.
+ */
+export function isVcsInternalPath(relPath: string): boolean {
+  return relPath.split('/').some((segment) => VCS_INTERNAL_DIRS.has(segment))
+}
+
+/**
+ * The two writes under `.git` that mean "someone moved this repo somewhere
+ * else": `HEAD` (a checkout) and anything under `refs/` (a commit, a fetch, a
+ * branch). They are the only VCS-internal events allowed through the watcher.
+ *
+ * `.lock` is excluded on purpose: git writes `refs/heads/x.lock` and renames it
+ * into place, so letting the lock through would report every ref update twice —
+ * once for a file that no longer exists by the time anything reads it.
+ */
+export function isVcsRefChange(relPath: string): boolean {
+  const segments = relPath.split('/')
+  const index = segments.findIndex((segment) => VCS_INTERNAL_DIRS.has(segment))
+  if (index === -1) return false
+  const inside = segments.slice(index + 1)
+  if (inside.length === 0 || inside.some((segment) => segment.endsWith('.lock'))) return false
+  return inside[0] === 'HEAD' || inside[0] === 'refs'
+}
+
+/**
  * Lists one directory's entries as `TreeNode`s, recursing into subdirectories.
  * `dirAbs` is a resolved, already-validated absolute path; `relBase` is its
  * POSIX-style path relative to the workspace root (`'.'` for the root itself).
@@ -231,6 +277,7 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
   const nodes: TreeNode[] = []
 
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (VCS_INTERNAL_DIRS.has(entry.name)) continue
     const entryAbs = join(dirAbs, entry.name)
     const entryRel = joinRelative(relBase, entry.name)
     let isDirectory = entry.isDirectory()
@@ -419,6 +466,17 @@ export function createFsService(deps?: FsServiceDeps): FsService {
     function handleRawEvent(eventType: string, filename: string | null): void {
       if (!filename) return // some platforms/events omit the filename — nothing usable to report
       const relPath = filename.split(sep).join('/')
+      // The workspace's own git plumbing is not a workspace change. Everything
+      // downstream of this callback treats an event as "the user's files
+      // moved": the explorer re-walks the tree, the git store re-runs `status`,
+      // the review service recomputes the pending set. Under `.git` none of
+      // that is true and all of it is self-inflicted — `git status` itself
+      // rewrites `.git/index` (verified 2026-08-31: mtime bumps on the run
+      // after a `touch`, and not at all with `--no-optional-locks`), so a
+      // refresh triggered by that write triggers the next one. Ref updates are
+      // the exception that has to survive: a commit or a checkout made in a
+      // terminal is a real change, and `HEAD`/`refs/` is where it shows up.
+      if (isVcsInternalPath(relPath) && !isVcsRefChange(relPath)) return
       const type: FsChangeEvent['type'] =
         eventType === 'change' ? 'change' : existsSync(join(rootAbs, filename)) ? 'add' : 'unlink'
       onChange({ type, path: relPath })

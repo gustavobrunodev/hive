@@ -35,6 +35,19 @@ function engineReturning(text: string): DictationEngine {
   return { phase: { status: 'idle' }, transcribe: async () => text, warm: async () => {} }
 }
 
+/**
+ * An engine whose answer changes between calls — a live pass guessing at an
+ * unfinished phrase, then the segment's own pass over the finished one.
+ */
+function engineSaying(...answers: string[]): DictationEngine {
+  let call = 0
+  return {
+    phase: { status: 'idle' },
+    transcribe: async () => answers[Math.min(call++, answers.length - 1)],
+    warm: async () => {}
+  }
+}
+
 /** Feeds `ms` of audio at one level, in 32 ms ticks. */
 function emit(ms: number, rms: number): void {
   for (let i = 0; i < Math.ceil(ms / 32); i += 1) {
@@ -256,5 +269,58 @@ describe('useComposerDictation', () => {
       expect(claimed.preventDefault).not.toHaveBeenCalled()
       expect(harness.result.current.active).toBe(true)
     })
+  })
+
+  /**
+   * VP-R2.9, and the defect the visual pass caught before any test did.
+   *
+   * A live pass writes provisional text, the phrase closes, and the segment's
+   * real text lands a microtask later — two writes inside one tick. The second
+   * one asked the field where the caret was, and the field answered from the
+   * DOM, which React had not updated yet. So the real text went in *after* the
+   * guess instead of over it and the composer read "revisa o arquivo de
+   * configuração. Arquivo de configuração." — the whole phrase, twice.
+   */
+  it('replaces the live guess with the segment text instead of appending it', async () => {
+    const harness = mount('revisa o ', engineSaying('arquivo', 'arquivo de configuração.'))
+    harness.element.setSelectionRange(9, 9)
+
+    await act(async () => {
+      harness.result.current.start()
+    })
+    // A second of speech: enough for a live pass, not enough to cut.
+    await act(async () => {
+      emit(100, 0.002)
+      emit(1200, 0.4)
+    })
+    expect(harness.value()).toBe('revisa o arquivo')
+    expect(harness.result.current.previewRange).toEqual([9, 16])
+
+    // …then the phrase ends and the real pass answers.
+    await act(async () => {
+      emit(2500, 0.4)
+      emit(800, 0.002)
+    })
+
+    expect(harness.value()).toBe('revisa o arquivo de configuração.')
+    expect(harness.result.current.previewRange).toBeNull()
+  })
+
+  it('rewinds the provisional text too when the take is discarded', async () => {
+    const harness = mount('rascunho ')
+    await act(async () => {
+      harness.result.current.start()
+    })
+    await act(async () => {
+      emit(100, 0.002)
+      emit(1200, 0.4)
+    })
+    expect(harness.value()).not.toBe('rascunho ')
+
+    await act(async () => {
+      harness.result.current.discard()
+    })
+    expect(harness.value()).toBe('rascunho ')
+    expect(harness.result.current.previewRange).toBeNull()
   })
 })

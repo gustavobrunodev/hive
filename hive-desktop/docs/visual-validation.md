@@ -57,6 +57,40 @@ do boot: `window.__setVault(v)`, `window.__fsChange(path)` e
 
 ### Sondas de contraste
 
+`tools/visual/engine-contrast.mjs` cobre o seletor de motor do composer
+(modelo + esforço) — 24 alvos, nos três temas **e** nas duas formas que o
+painel assume (Claude, com escada de esforço; Copilot, agrupado por fabricante
+e sem esforço). Ele guarda duas lições que custaram uma rodada cada:
+
+- **Force o tema inicial pelo menu, não confie no boot.** A primeira rodada
+  rodou logo depois de uma cena que tinha deixado o app no claro, mediu claro
+  três vezes e reportou a linha como "escuro". O probe agora seleciona
+  "Escuro" explicitamente antes da primeira medição.
+- **`getByRole('menuitemradio', { name: 'Escuro' })` casa com duas linhas** —
+  a descrição do tema Hive é "Escuro, nas cores da marca". Ancore o regex
+  (`^Escuro`) ou a chamada estoura com strict mode violation.
+- **Meça a linha escolhida E uma linha comum.** `document.querySelector('.hds-picker-desc')`
+  devolve a primeira do DOM, que é a da linha selecionada — sobre um tint
+  translúcido. As duas medem diferente, e foi a selecionada que reprovou
+  (4,34:1 no tema Hive).
+
+`tools/visual/live-dictation-pass.mjs` cobre o ditado ao vivo (M28). Ele arma o
+seam de E2E do ditado e empurra **ticks de áudio reais** no segmentador de
+produção, então tudo acima da captura é o app: segmentador, passe ao vivo, trecho
+provisório, fila, junção, backdrop. Duas lições que ele pagou:
+
+- **Ele achou um defeito que nenhum teste tinha:** o texto aparecia duas vezes.
+  Duas escritas no mesmo tick e a segunda lia o cursor do DOM, um commit atrás.
+  Um passe que só tira screenshot não veria — o probe **lê o valor do campo**
+  nos dois momentos, e é isso que o torna uma prova.
+- **Meça a decoração enquanto o trecho existe.** O backdrop é
+  `color: transparent`; uma regra sem `text-decoration-color` não desenha nada, e
+  `getComputedStyle` depois do commit final não tem mais elemento para medir.
+
+`tools/visual/explorer-refresh-pass.mjs` cobre o refresh da árvore (M28): faz a
+varredura pendurar e verifica que as linhas continuam na tela sem spinner, e que
+uma rajada de 20 escritas custa **uma** varredura.
+
 `tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
 toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
 (M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,
@@ -934,3 +968,43 @@ versão da CLI, um adaptador que não seja o da Claude — fazia o rodapé do
 compositor exibir **"NaN% de contexto"** pelo resto da sessão, com a folha de
 detalhe mostrando um detalhamento plausível ao lado. Guardas assimétricas dentro
 do mesmo arquivo são o cheiro; o `?? 0` que faltava era um.
+
+### O centro de um modal pode envelhecer (2026-08-31)
+
+[`tools/visual/four-fixes-2026-08-31.mjs`](../tools/visual/four-fixes-2026-08-31.mjs)
+cobre as quatro correções daquele dia — o comando **Recarregar janela**, o botão
+**Descartar** do git, o **checkout** no menu de estouro do controle de versão e o
+centro dos modais do Estúdio/MCP — nos três temas, num run só.
+
+A lição que vale além dela: **um centro feito de porcentagem envelhece.** O
+`DialogContent` do DS centrava com `top/left: 50%` + `translate(-50%, -50%)`, e
+uma porcentagem em `translate` resolve contra o **tamanho da própria caixa**. O
+Estúdio abre com 145px (só o cabeçalho e o spinner) e assenta em 592px quando a
+lista chega — medido, no navegador. A thread principal re-resolve a conta; um
+compositor que já tirou a foto do transform animado, não. O painel pinta ~metade
+do próprio crescimento abaixo do centro e o rodapé fica cortado pela borda da
+janela — **intermitente por construção**, porque depende de os dados chegarem
+antes ou depois de a animação de abertura ser commitada.
+
+Duas armadilhas de método aqui:
+
+1. **`getBoundingClientRect` mente sobre esse defeito.** Ele lê o layout da
+   thread principal, que está certo; quem está errado é o que foi pintado. Uma
+   sonda que só mede o retângulo devolve "centralizado" para um modal visivelmente
+   torto. O que a sonda deve provar é a propriedade, não a instância: **não pode
+   existir porcentagem no transform** de um elemento que muda de tamanho depois
+   de aparecer.
+2. **A cena precisa ter o crescimento.** Um fixture que resolve a lista na hora
+   nunca reproduz nada — o passe planta `studio.list`/`mcp.list` com atraso de
+   propósito, e mede nos dois momentos (carregando e carregado).
+
+A correção é centrar por **layout** (`inset: 0` + `margin: auto` +
+`height: fit-content`) e animar só `scale`: sem porcentagem, não há o que
+dessincronizar. `height: fit-content` é carga estrutural — com `top` e `bottom`
+em 0 e altura `auto`, o CSS resolve para a _altura_ e o diálogo ocuparia a
+janela inteira.
+
+**E o `AlertDialog` fecha com `Escape` só com o foco dentro dele.** Um passe que
+assume o contrário deixa o scrim de pé e todo clique seguinte pousa no overlay —
+o erro do Playwright ("`.hds-alert-dialog-overlay` intercepts pointer events")
+é o sintoma. Feche pelo botão real.

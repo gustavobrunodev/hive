@@ -268,4 +268,63 @@ describe('createSegmenter', () => {
       segmentsIn(pushAll(segmenter, ticksFor(DEFAULT_SEGMENTER_CONFIG.silenceHoldMs + 50), QUIET))
     ).toHaveLength(1)
   })
+
+  // VP-R2.9 — what makes dictation live rather than segmented: the phrase can
+  // be read while it is still being spoken.
+  describe('draft()', () => {
+    it('is null before anything is being said', () => {
+      const segmenter = segmenterInARoom()
+      expect(segmenter.draft()).toBeNull()
+      pushAll(segmenter, ticksFor(500), QUIET)
+      expect(segmenter.draft()).toBeNull()
+    })
+
+    it('grows with the phrase, and reports the phrase it belongs to', () => {
+      const segmenter = segmenterInARoom()
+      pushAll(segmenter, ticksFor(1000), LOUD)
+      const first = segmenter.draft()
+      expect(first).not.toBeNull()
+      expect(first?.ms).toBeGreaterThanOrEqual(1000)
+      expect(first?.index).toBe(0)
+
+      pushAll(segmenter, ticksFor(1000), LOUD)
+      expect(segmenter.draft()?.ms ?? 0).toBeGreaterThan(first?.ms ?? 0)
+    })
+
+    it('is null again once the phrase has been cut', () => {
+      const segmenter = segmenterInARoom()
+      pushAll(segmenter, ticksFor(2500), LOUD)
+      pushAll(segmenter, ticksFor(800), QUIET)
+      expect(segmenter.draft()).toBeNull()
+    })
+
+    it('counts the next phrase as a different one', () => {
+      const segmenter = segmenterInARoom()
+      pushAll(segmenter, ticksFor(2500), LOUD)
+      pushAll(segmenter, ticksFor(800), QUIET)
+      pushAll(segmenter, ticksFor(1000), LOUD)
+      expect(segmenter.draft()?.index).toBe(1)
+    })
+
+    /**
+     * The trailing silence a segment keeps as tail-pad material is not speech.
+     * Handing Whisper a second of room tone at the end of every pass is how a
+     * live transcript grows words nobody said, in the pauses.
+     */
+    it('stops at the last speech, not at the silence being held', () => {
+      const segmenter = segmenterInARoom()
+      pushAll(segmenter, ticksFor(1000), LOUD)
+      const speaking = segmenter.draft()?.ms ?? 0
+      // Under the silence hold, so the phrase is still open.
+      pushAll(segmenter, ticksFor(500), QUIET)
+      const pausing = segmenter.draft()?.ms ?? 0
+      expect(pausing - speaking).toBeLessThanOrEqual(DEFAULT_SEGMENTER_CONFIG.tailPadMs + TICK_MS)
+    })
+
+    it('hands out a fresh buffer each time — the caller transfers what it is given', () => {
+      const segmenter = segmenterInARoom()
+      pushAll(segmenter, ticksFor(1000), LOUD)
+      expect(segmenter.draft()?.pcm).not.toBe(segmenter.draft()?.pcm)
+    })
+  })
 })

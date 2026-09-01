@@ -21,11 +21,31 @@
   animation-duration: 100ms;
 }
 
+/* Centred by layout — `inset: 0` + `margin: auto` — and not by
+   `top/left: 50%` + `translate(-50%, -50%)`.
+
+   A percentage translate resolves against the box's *own* size, so a dialog
+   whose content arrives after it opens (every list this ships: skills, MCP
+   servers, branches) is centred against the height it had while empty. The
+   main thread re-resolves that on the next layout; a compositor that already
+   snapshotted the animated transform does not — so the panel paints roughly
+   half its own growth too low and its bottom is cut off by the window edge.
+   Intermittent by construction: it depends on whether the data lands before
+   or after the open animation is committed. Measured here: the Skill Studio
+   opens 145px tall (translate −72.5px) and settles at 592px (−296px) — a
+   223px error whenever the first value is the one that sticks.
+
+   `margin: auto` re-centres from layout on every frame, at any content size,
+   with no percentage left to go stale. `height: fit-content` is what keeps
+   `inset: 0` from stretching the panel: with `top` and `bottom` both 0 and an
+   auto height, CSS solves for the height instead and the dialog would fill the
+   viewport. The open/close keyframes animate `scale` only, for the same
+   reason — a transform with no percentage in it cannot desynchronise. */
 .hds-dialog-content {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  margin: auto;
+  height: fit-content;
   z-index: var(--z-modal);
   width: min(480px, calc(100vw - var(--s-6)));
   max-height: calc(100vh - var(--s-7));
@@ -87,22 +107,22 @@
 @keyframes hds-dialog-content-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes hds-dialog-content-out {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
+    transform: scale(0.96);
   }
 }
 

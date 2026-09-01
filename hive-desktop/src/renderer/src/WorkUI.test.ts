@@ -733,8 +733,12 @@ function createHiveMock(): Window['hive'] {
       cancelUpdate: vi.fn(async () => undefined),
       revealInstaller: vi.fn(async () => undefined),
       skipVersion: vi.fn(async () => undefined),
-      onUpdateEvent: vi.fn(() => () => {})
+      onUpdateEvent: vi.fn(() => () => {}),
+      // app-reload: the window reload behind Ctrl/Cmd+R and the chip menu.
+      reload: vi.fn(async () => undefined)
     },
+    // The reload row prints its chord the way the host OS writes it.
+    platform: 'linux',
     profile: {
       agents: vi.fn(async () => []),
       getAgent: vi.fn(async () => null),
@@ -1052,6 +1056,25 @@ describe('WorkUI — workspace chip menu (T7)', () => {
     await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
     expect(screen.getByText('Abrir pasta…')).toBeTruthy()
     expect(screen.queryByText('Recentes')).toBeNull()
+  })
+
+  it('offers "Recarregar janela" with its chord and reloads on select (app-reload)', async () => {
+    vi.mocked(window.hive.getRecentWorkspaces).mockResolvedValue([])
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /workspace ativo/i }))
+    await waitFor(() => expect(window.hive.getRecentWorkspaces).toHaveBeenCalled())
+
+    expect(screen.getByText('Ctrl+R')).toBeTruthy()
+    fireEvent.click(screen.getByText('Recarregar janela'))
+    expect(window.hive.app.reload).toHaveBeenCalled()
   })
 
   it('"Abrir pasta…" invokes window.hive.chooseWorkspace and reports a picked candidate', async () => {
@@ -2234,6 +2257,18 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'G', ctrlKey: true, shiftKey: true })
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
+  })
+
+  it('Ctrl+R reloads the window through main (app-reload)', () => {
+    renderWork()
+    fireEvent.keyDown(window, { key: 'r', ctrlKey: true })
+    expect(window.hive.app.reload).toHaveBeenCalled()
+  })
+
+  it('leaves Ctrl+Shift+R alone — only the bare chord is the reload', () => {
+    renderWork()
+    fireEvent.keyDown(window, { key: 'R', ctrlKey: true, shiftKey: true })
+    expect(window.hive.app.reload).not.toHaveBeenCalled()
   })
 
   it('restores the persisted Source Control view on mount', () => {

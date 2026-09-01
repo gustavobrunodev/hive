@@ -8,18 +8,7 @@ import {
   useState,
   type KeyboardEvent
 } from 'react'
-import {
-  Alert,
-  ChatMessage,
-  MessageList,
-  PromptInput,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Spinner
-} from '@hive/design-system'
+import { Alert, ChatMessage, MessageList, PromptInput, Spinner } from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import {
@@ -37,6 +26,8 @@ import { ScrollableRow } from '../ui/ScrollableRow'
 import { shortcutIcon } from '../ui/roleVisuals'
 import { FileTypeIcon } from '../ui/fileIcons'
 import type { RoleAction } from '../ui/ActionRail'
+import { EnginePicker } from './EnginePicker'
+import { pickInitial, type EngineCapabilities } from './engineOptions'
 import { IntentGrid } from './IntentGrid'
 import { SlashMenu, type SlashSkill } from './SlashMenu'
 import { FileMentionMenu } from './FileMentionMenu'
@@ -112,18 +103,13 @@ interface ChatMessageEntry {
   metrics?: TurnMetrics
 }
 
-interface AgentOption {
-  id: string
-  label: string
-  /** session-usage: the model's context window in tokens, when the adapter declares one. */
-  contextWindow?: number
-}
-
-interface AgentCapabilities {
-  models: AgentOption[]
-  efforts: AgentOption[]
-  supportsAttachments: boolean
-}
+/**
+ * model-picker: the capability shape is mirrored once, in `EnginePicker`, and
+ * imported from there — it is that component's contract now, and duplicating a
+ * dozen fields here would put two mirrors of one main-process type in the same
+ * folder.
+ */
+type AgentCapabilities = EngineCapabilities
 
 /** Structural mirror of `main/agentAdapter.ts`'s `WorkflowCommand`. */
 interface WorkflowCommand {
@@ -683,12 +669,14 @@ function syncStreamingUi(ctx: TurnEventCtx): void {
 function renderMentionBackdrop(
   value: string,
   fileSet: ReadonlySet<string>,
-  freshRange: readonly [number, number] | null
+  freshRange: readonly [number, number] | null,
+  previewRange: readonly [number, number] | null
 ): React.ReactNode {
-  return composerBackdrop(value, fileSet, freshRange).map((segment, index) => {
+  return composerBackdrop(value, fileSet, freshRange, previewRange).map((segment, index) => {
     const className = [
       segment.mention ? 'wb-mention-token' : null,
-      segment.fresh ? 'wb-composer-fresh' : null
+      segment.fresh ? 'wb-composer-fresh' : null,
+      segment.preview ? 'wb-composer-preview' : null
     ]
       .filter((name) => name !== null)
       .join(' ')
@@ -809,6 +797,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [capabilities, setCapabilities] = useState<AgentCapabilities | null>(null)
   const [model, setModel] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
+  // model-picker: a re-detection is in flight (the picker's "Redetectar").
+  const [detecting, setDetecting] = useState(false)
+  // agent id → the model/effort last chosen for it, so switching agent and
+  // back doesn't silently reset the engine.
+  const enginePrefs = useRef<Map<string, { model?: string; effort?: string }>>(new Map())
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
   // The on-screen turn's live timeline (prose + steps + permission cards, in
   // order). `null` when no turn is running in this conversation.
@@ -1014,16 +1007,52 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // composer hides that picker and the value stays `null` (omitted per turn).
   useEffect(() => {
     let cancelled = false
-    window.hive.agent.capabilities(activeAgent ?? undefined).then((caps) => {
+    // model-picker: detection is workspace-scoped, because a project's own
+    // `.claude/settings.json` can point the CLI at a different provider — the
+    // same agent honestly answers differently in two folders.
+    window.hive.agent.capabilities(activeAgent ?? undefined, { workspace }).then((caps) => {
       if (cancelled) return
       setCapabilities(caps)
-      setModel(caps.models[0]?.id ?? null)
-      setEffort(caps.efforts[0]?.id ?? null)
+      // Coming back to an agent restores what was picked for it, and a first
+      // visit lands on the CLI's own default (the `''` row) rather than on
+      // whatever happened to be first in the list — Hive overriding a model
+      // the user configured themselves is exactly the surprise this feature
+      // exists to end.
+      const remembered = enginePrefs.current.get(activeAgent ?? '')
+      setModel(pickInitial(caps.models, remembered?.model))
+      setEffort(pickInitial(caps.efforts, remembered?.effort))
     })
     return () => {
       cancelled = true
     }
-  }, [activeAgent])
+  }, [activeAgent, workspace])
+
+  // model-picker: "Redetectar" — re-reads settings/config/CLI listing instead
+  // of answering from the main-process cache. The moment a user changes a
+  // provider outside the app is exactly when a cached answer is worst.
+  const refreshCapabilities = useCallback(() => {
+    setDetecting(true)
+    void window.hive.agent
+      .capabilities(activeAgent ?? undefined, { workspace, refresh: true })
+      .then((caps) => {
+        setCapabilities(caps)
+        setModel((current) => pickInitial(caps.models, current ?? undefined))
+        setEffort((current) => pickInitial(caps.efforts, current ?? undefined))
+      })
+      .finally(() => setDetecting(false))
+  }, [activeAgent, workspace])
+
+  // Remember the engine per agent for as long as the pane lives. A ref, not
+  // state: nothing renders off it, and writing it must not re-run the effect
+  // that reads it.
+  const rememberEngine = useCallback(
+    (next: { model?: string; effort?: string }) => {
+      const key = activeAgent ?? ''
+      const current = enginePrefs.current.get(key) ?? {}
+      enginePrefs.current.set(key, { ...current, ...next })
+    },
+    [activeAgent]
+  )
 
   // Resolve every agent's display name for the switcher labels.
   useEffect(() => {
@@ -1201,8 +1230,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         resume,
         turnId,
         conversationId,
-        model: opts?.model ?? model ?? undefined,
-        effort: opts?.effort ?? effort ?? undefined
+        // model-picker: the "automatic" row's id is the empty string, and it
+        // means *omit the flag* — so it must not cross IPC as a value. `||`,
+        // not `??`, is what turns it back into the absence it stands for.
+        model: (opts?.model ?? model) || undefined,
+        effort: (opts?.effort ?? effort) || undefined
       })
     },
     [beginTurn, activeAgent, model, effort]
@@ -1237,8 +1269,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           resume,
           turnId,
           conversationId,
-          model: model ?? undefined,
-          effort: effort ?? undefined
+          model: model || undefined,
+          effort: effort || undefined
         })
         return
       }
@@ -1248,8 +1280,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         turnId,
         conversationId,
         attachments: message.contextFiles?.length ? message.contextFiles : undefined,
-        model: model ?? undefined,
-        effort: effort ?? undefined
+        model: model || undefined,
+        effort: effort || undefined
       })
     },
     [beginTurn, activeAgent, model, effort]
@@ -1820,34 +1852,28 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             onManage={onManageAgents}
           />
         )}
-        {capabilities.models.length > 0 && (
-          <Select value={model ?? undefined} onValueChange={setModel}>
-            <SelectTrigger className="wb-select-compact" aria-label={t('chat.modelLabel')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {capabilities.models.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {capabilities.efforts.length > 0 && (
-          <Select value={effort ?? undefined} onValueChange={setEffort}>
-            <SelectTrigger className="wb-select-compact" aria-label={t('chat.effortLabel')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {capabilities.efforts.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* model-picker: one control for the whole engine decision — model and
+            effort — that reshapes itself around what THIS agent supports (see
+            EnginePicker). The two anonymous Selects it replaced named neither
+            what they were choosing between nor why. */}
+        <EnginePicker
+          capabilities={capabilities}
+          model={model}
+          effort={effort}
+          onModelChange={(id) => {
+            setModel(id)
+            rememberEngine({ model: id })
+          }}
+          onEffortChange={(id) => {
+            setEffort(id)
+            rememberEngine({ effort: id })
+          }}
+          // The only proof of what actually ran: an alias resolves per machine,
+          // per provider and per CLI version, and this is the CLI's own answer.
+          runningModel={sessionUsage.context?.model ?? null}
+          onRefresh={refreshCapabilities}
+          refreshing={detecting}
+        />
         {/* chat-queue: the interrupt moves out of the primary button and into
             its own control, because the primary button now has a job that
             outranks it — committing what you just typed. Two controls, each
@@ -1875,8 +1901,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   }
 
   const highlightComposer = useCallback(
-    (value: string) => renderMentionBackdrop(value, mentions.fileSet, dictation.freshRange),
-    [mentions.fileSet, dictation.freshRange]
+    (value: string) =>
+      renderMentionBackdrop(value, mentions.fileSet, dictation.freshRange, dictation.previewRange),
+    [mentions.fileSet, dictation.freshRange, dictation.previewRange]
   )
 
   // chat-queue: while a turn runs the composer stays open and its primary

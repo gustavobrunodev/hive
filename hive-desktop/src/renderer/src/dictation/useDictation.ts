@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { DEFAULT_LIVE_PASS_CONFIG, type LivePassConfig } from './livePass'
 import { browserCaptureDeps, CaptureFailure, startCapture, type Capture } from './micCapture'
 import { useDictationSink } from './useDictationSink'
 import { e2eStartCapture } from './e2eDictationSeam'
@@ -6,6 +7,7 @@ import type { QueueState } from './transcriptionQueue'
 import {
   createSegmenter,
   DEFAULT_SEGMENTER_CONFIG,
+  type Segmenter,
   type SegmenterConfig,
   type SegmenterEvent
 } from './segmenter'
@@ -26,8 +28,15 @@ import type { WhisperPhase } from '../secondBrain/whisper/useWhisper'
 export interface DictationTarget {
   /** Current value + selection of the field. */
   read(): { value: string; selectionStart: number; selectionEnd: number }
-  /** Applies a join result; the field owns focus and caret restoration. */
-  write(next: { value: string; caret: number; range: [number, number] }): void
+  /**
+   * Applies a join result; the field owns focus and caret restoration.
+   *
+   * `preview` marks a write as provisional (VP-R2.9): the same text may be
+   * replaced by the next guess a second later. A field that decorates arrivals
+   * — the composer marks the run a segment just landed in — must not treat one
+   * as an arrival, or the mark strobes for as long as someone is speaking.
+   */
+  write(next: { value: string; caret: number; range: [number, number]; preview?: boolean }): void
 }
 
 /** The transcription engine, injected so the hook is testable without Whisper. */
@@ -38,7 +47,10 @@ export interface DictationEngine {
    * Transcribes 16 kHz mono PCM. Downloads and warms first if it must.
    * `onPartial` reports the running text as the engine decodes it.
    */
-  transcribe: (pcm: Float32Array, options?: { onPartial?: (text: string) => void }) => Promise<string>
+  transcribe: (
+    pcm: Float32Array,
+    options?: { onPartial?: (text: string) => void }
+  ) => Promise<string>
   /** Builds the session ahead of time. Idempotent, and shared app-wide. */
   warm: () => Promise<void>
 }
@@ -47,6 +59,14 @@ export interface DictationDeps {
   startCapture: typeof startCapture
   createSegmenter: typeof createSegmenter
   config: SegmenterConfig
+  /**
+   * How the live transcription of the open phrase is paced (VP-R2.9).
+   *
+   * Injected rather than fixed because it is the one knob that changes what the
+   * engine is asked to do *while someone is speaking*, and a test about queue
+   * ordering has no business also being a test about that.
+   */
+  livePass: LivePassConfig
 }
 
 export function browserDictationDeps(): DictationDeps {
@@ -57,7 +77,8 @@ export function browserDictationDeps(): DictationDeps {
   return {
     startCapture: scripted ?? ((deps = browserCaptureDeps(), rate) => startCapture(deps, rate)),
     createSegmenter,
-    config: DEFAULT_SEGMENTER_CONFIG
+    config: DEFAULT_SEGMENTER_CONFIG,
+    livePass: DEFAULT_LIVE_PASS_CONFIG
   }
 }
 
@@ -68,10 +89,10 @@ export interface Dictation {
   /**
    * The words of the phrase being transcribed right now, as they arrive.
    *
-   * The transport shows them; the field never does (see `QueueState.partial`).
-   * This is what closes the gap between finishing a phrase and seeing it: the
-   * first piece lands about a second and a half into a segment, where the whole
-   * segment takes several.
+   * The transport's copy of what the field is also showing provisionally
+   * (VP-R2.9). It stays because the two are not redundant: the transport line
+   * is a single line that scrolls with the speaker, and it keeps saying
+   * something during the moments the field's provisional run is empty.
    */
   partial: string
   /** True while dictation owns the composer — drives the accent ring. */
@@ -82,6 +103,11 @@ export interface Dictation {
   finish: () => void
   /** Drops everything and rewinds the field (VP-R1.5, D-VP-9). */
   discard: () => void
+  /**
+   * `[start, end)` of the provisional run in the field, or `null` (VP-R2.9).
+   * The field paints it as text that is still being revised.
+   */
+  previewRange: readonly [number, number] | null
   /**
    * The last unresolved segment failure. Carried alongside `phase` rather than
    * inside it: a failure mid-take must be visible *while capture continues*
@@ -160,7 +186,7 @@ export function useDictation(
   }, [])
 
   /** The text half: the queue and the writing (VP-R2.3–2.5, VP-R3, VP-R4.4). */
-  const sink = useDictationSink(engine, target, settle)
+  const sink = useDictationSink(engine, target, settle, deps.livePass)
 
   /** Everything the hook owns that has to stop. Safe to call repeatedly. */
   const release = useCallback(() => {
@@ -209,6 +235,10 @@ export function useDictation(
         if (event.type === 'segment') sink.enqueue(event.index, event.pcm)
       }
     }
+    // The flush above turned the open phrase into a real segment, so the live
+    // pass over it is now guessing at audio that is being transcribed properly.
+    // Its provisional text stays on screen until that lands.
+    sink.stopLive()
     release()
 
     // A take with nothing left to wait for ends here: no further queue change is
@@ -248,7 +278,7 @@ export function useDictation(
   }, [release, sink, target])
 
   const handleEvents = useCallback(
-    (events: SegmenterEvent[]) => {
+    (events: SegmenterEvent[], segmenter: Segmenter) => {
       for (const event of events) {
         if (event.type === 'segment') {
           // Handed off without interrupting capture — the user may keep talking
@@ -261,6 +291,12 @@ export function useDictation(
           return
         }
       }
+      // VP-R2.9 — the phrase still being spoken is offered on every tick, and
+      // the pacing rules in `livePass` decide whether that becomes a pass.
+      // Offered *after* the events above, so a tick that just closed a segment
+      // offers the phrase that is now open (i.e. nothing) rather than the one
+      // already on its way to the queue.
+      sink.offerDraft(segmenter.draft())
       publishPhase()
     },
     [finish, publishPhase, sink]
@@ -302,7 +338,7 @@ export function useDictation(
         const segmenter = deps.createSegmenter(deps.config)
         segmenterRef.current = segmenter
 
-        capture.onTick((tick) => handleEvents(segmenter.push(tick)))
+        capture.onTick((tick) => handleEvents(segmenter.push(tick), segmenter))
         capture.onLevels(setLevels)
 
         clockRef.current = setInterval(publishPhase, CLOCK_INTERVAL_MS)
@@ -334,6 +370,7 @@ export function useDictation(
     phase,
     levels,
     partial: sink.partial,
+    previewRange: sink.previewRange,
     active: phase.status !== 'idle',
     start,
     finish,

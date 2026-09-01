@@ -2,6 +2,7 @@ import type {
   AgentCapabilities,
   AgentEvent,
   AgentSession,
+  CapabilityContext,
   SessionOpts,
   TurnOpts,
   WorkflowCommand
@@ -26,8 +27,23 @@ import type { AgentRegistry } from './agentRegistry'
  * module only ever calls the `AgentAdapter` interface, staying agent-agnostic.
  */
 export interface AgentService {
-  /** The named agent's capabilities (models/efforts/attachments), or the default agent's when omitted. */
-  capabilities(agentId?: string): AgentCapabilities
+  /**
+   * The named agent's capabilities — models, efforts, attachments and the
+   * provenance of that model list — or the default agent's when omitted.
+   *
+   * Asynchronous because the honest answer needs the machine: the adapter's
+   * `detectCapabilities` reads settings/config files and, for Devin, asks the
+   * CLI for its own model list. The result is cached per agent **and per
+   * workspace** (project-scoped settings can repoint the CLI at a different
+   * provider), so opening the picker is instant after the first read; pass
+   * `refresh` for the "re-detectar" affordance, which is what a user reaches
+   * for the moment they change a setting outside the app.
+   */
+  capabilities(
+    agentId?: string,
+    context?: CapabilityContext,
+    refresh?: boolean
+  ): Promise<AgentCapabilities>
   /**
    * Ensures a live session exists for `opts.agentId` (defaulting to the
    * registry default) bound to the given workspace/model/effort, creating it
@@ -76,6 +92,11 @@ export function createAgentService(registry: AgentRegistry): AgentService {
   // The last workspace a session was started with, so a lazy
   // send-before-start can bind a new session to the right cwd.
   let currentWorkspace: string | null = null
+  // Detected capabilities, keyed by `agentId|workspace`. Detection touches
+  // disk (and, for Devin, spawns a process); the picker opens on every
+  // composer interaction, so re-measuring per open would be a process per
+  // click for an answer that changes when a config file does.
+  const capabilityCache = new Map<string, AgentCapabilities>()
 
   function resolveId(agentId?: string): string {
     return registry.resolve(agentId ?? null).id
@@ -118,7 +139,27 @@ export function createAgentService(registry: AgentRegistry): AgentService {
   }
 
   return {
-    capabilities: (agentId?: string) => registry.resolve(agentId ?? null).adapter.capabilities(),
+    async capabilities(
+      agentId?: string,
+      context: CapabilityContext = {},
+      refresh = false
+    ): Promise<AgentCapabilities> {
+      const { id, adapter } = registry.resolve(agentId ?? null)
+      const key = `${id}|${context.workspace ?? ''}`
+      const cached = capabilityCache.get(key)
+      if (cached && !refresh) return cached
+      // An adapter with nothing to measure is fully described by its curated
+      // answer; one that throws anyway must not take the composer down with
+      // it, so the curated answer is also the catch-all.
+      let resolved: AgentCapabilities
+      try {
+        resolved = (await adapter.detectCapabilities?.(context)) ?? adapter.capabilities()
+      } catch {
+        resolved = { ...adapter.capabilities(), note: 'probe-failed' }
+      }
+      capabilityCache.set(key, resolved)
+      return resolved
+    },
     startSession(opts: SessionOpts): AgentSession {
       currentWorkspace = opts.workspace
       return startSession(opts)

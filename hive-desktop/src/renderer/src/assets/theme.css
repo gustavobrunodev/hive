@@ -117,6 +117,10 @@
   /* Same reasoning as the graphite theme above — the tint lifts the banner
      background out from under the DS's shared danger value. */
   --danger-ink: var(--wb-danger-ink-on-dark);
+  /* Ink for text on the FILLED red (the destructive button), not on its tint —
+     restated here for the same reason as everything else in this block: `hive`
+     is not a `data-theme` the DS knows. Measured 4.95:1 on this fill. */
+  --danger-fill-ink: oklch(18% 0.05 25.3);
 
   --warning: oklch(76.7% 0.157 71.7);
   --warning-bg: oklch(76.7% 0.157 71.7 / 14%);

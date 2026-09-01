@@ -204,6 +204,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         info: vi
           .fn()
           .mockResolvedValue({ name: 'hive-desktop', version: '0.1.0', updatesSupported: false }),
+        reload: vi.fn().mockResolvedValue(undefined),
         checkForUpdates: vi.fn().mockResolvedValue(undefined),
         downloadUpdate: vi.fn().mockResolvedValue(undefined),
         installUpdate: vi.fn().mockResolvedValue(undefined),

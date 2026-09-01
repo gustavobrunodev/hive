@@ -146,6 +146,7 @@ function fakeVoice(
       phase,
       levels: [],
       partial: '',
+      previewRange: null,
       active: phase.status !== 'idle',
       start: vi.fn(),
       finish: vi.fn(),

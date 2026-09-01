@@ -116,6 +116,14 @@ export {
   ContextMenuLabel,
 } from "./components/ContextMenu/ContextMenu";
 export { Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from "./components/Command/Command";
+export { OptionPicker } from "./components/OptionPicker/OptionPicker";
+export type {
+  OptionPickerProps,
+  PickerOption,
+  PickerGroup,
+  OptionTag,
+  OptionTagTone,
+} from "./components/OptionPicker/OptionPicker";
 export { Breadcrumb, BreadcrumbItem } from "./components/Breadcrumb/Breadcrumb";
 export { Tree } from "./components/Tree/Tree";
 export { Avatar } from "./components/Avatar/Avatar";

@@ -81,7 +81,11 @@ export default defineConfig(
     // top-level `*.mjs` override in eslint-config-ts's eslint-typescript.js
     // only matches root-level files (e.g. electron.vite.config.mjs), not
     // nested ones, so this repeats it for the scripts/ directory.
-    files: ['scripts/**/*.mjs'],
+    //
+    // `tools/spikes/**` is the same category: throwaway measurement scripts
+    // (the ones the whisper worker's own header cites for its numbers), written
+    // in plain JS where a return-type annotation is not even syntax.
+    files: ['scripts/**/*.mjs', 'tools/spikes/**/*.mjs'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off'
     }

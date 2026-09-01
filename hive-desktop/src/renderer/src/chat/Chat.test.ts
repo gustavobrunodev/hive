@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createContext, createElement, createRef, useContext, type ReactNode } from 'react'
+import {
+  createContext,
+  createElement,
+  createRef,
+  useContext,
+  useState,
+  type ReactNode
+} from 'react'
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { Chat, type ChatHandle } from './Chat'
 import { workspaceRelative } from './toolActivity'
@@ -171,6 +178,82 @@ vi.mock('@hive/design-system', () => ({
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
   TypingIndicator: ({ label }: { label?: string }) =>
     createElement('span', { 'data-testid': 'typing-indicator' }, label),
+  // model-picker: the composer's engine control. The real one is a popover, so
+  // the mock is one too — the trigger alone until it is opened. A mock that
+  // rendered every row inline would put each model's label on screen twice
+  // (trigger + row), which is both untrue and ambiguous to query.
+  OptionPicker: ({
+    options,
+    value,
+    onChange,
+    children,
+    footer,
+    ariaLabel
+  }: {
+    options?: { id: string; label: string }[]
+    value?: string
+    onChange?: (id: string) => void
+    children?: ReactNode
+    footer?: ReactNode
+    ariaLabel?: string
+  }) => {
+    const [open, setOpen] = useState(false)
+    return createElement(
+      'div',
+      { 'data-testid': 'option-picker' },
+      createElement('div', { onClick: () => setOpen((current) => !current) }, children),
+      open &&
+        createElement(
+          'div',
+          { role: 'listbox', 'aria-label': ariaLabel },
+          ...(options ?? []).map((option) =>
+            createElement(
+              'button',
+              {
+                key: option.id,
+                type: 'button',
+                role: 'option',
+                'aria-selected': option.id === value,
+                onClick: () => {
+                  onChange?.(option.id)
+                  setOpen(false)
+                }
+              },
+              option.label
+            )
+          ),
+          footer
+        )
+    )
+  },
+  SegmentedControl: ({
+    options,
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    options?: { id: string; label: string }[]
+    value?: string
+    onChange?: (id: string) => void
+    ariaLabel?: string
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'aria-label': ariaLabel },
+      ...(options ?? []).map((option) =>
+        createElement(
+          'button',
+          {
+            key: option.id,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': option.id === value,
+            onClick: () => onChange?.(option.id)
+          },
+          option.label
+        )
+      )
+    ),
   Select: ({
     children,
     onValueChange
@@ -301,11 +384,25 @@ const INSTALLED_PREFERENCE = {
 const EMPTY_PREFERENCE = { ...INSTALLED_PREFERENCE, id: null, installed: [] }
 
 const whisper = vi.hoisted(
-  (): { text: string; calls: number; lastOptions: TranscribeOptions | null } => ({
+  (): {
+    text: string
+    calls: number
+    lastOptions: TranscribeOptions | null
+    warms: number
+    lastWarmModel: string | undefined
+  } => ({
     text: 'arquivo de configuração',
     calls: 0,
     /** The options of the last `transcribe` — the model is a real behaviour now. */
-    lastOptions: null
+    lastOptions: null,
+    /**
+     * Warming is its own engine call now, not a tenth of a second of fake
+     * silence pushed through `transcribe`. Counted separately for the same
+     * reason it was split: a pre-warm that costs an inference pass is the
+     * defect this replaced.
+     */
+    warms: 0,
+    lastWarmModel: undefined
   })
 )
 
@@ -324,6 +421,10 @@ vi.mock('../secondBrain/whisper/useWhisper', () => ({
       whisper.calls += 1
       whisper.lastOptions = options ?? null
       return whisper.text
+    },
+    warm: async (model?: string) => {
+      whisper.warms += 1
+      whisper.lastWarmModel = model
     },
     reset: () => undefined
   })
@@ -886,6 +987,46 @@ describe('Chat', () => {
         resume: null,
         turnId: expect.any(String)
       })
+    )
+  })
+
+  // model-picker: the engine control's "Automático" row is the *absence* of
+  // `--model`. It has to reach the turn as an omission, not as an empty string
+  // the CLI would reject — and it is now the default, so Hive stops overriding
+  // the model the user configured in their own CLI.
+  it('omits the model and effort flags on the automatic row', async () => {
+    renderChat({
+      capabilities: {
+        models: [
+          { id: '', label: 'Automático', group: 'default' },
+          { id: 'model-a', label: 'Modelo A' }
+        ],
+        efforts: [
+          { id: '', label: 'Automático', group: 'default' },
+          { id: 'low', label: 'Baixo' }
+        ],
+        supportsAttachments: true
+      }
+    })
+    await screen.findByText('Automático')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'oi' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    const opts = (window.hive.agent.send as ReturnType<typeof vi.fn>).mock.calls[0][1]
+    expect(opts.model).toBeUndefined()
+    expect(opts.effort).toBeUndefined()
+  })
+
+  // Detection is workspace-scoped: a project's own `.claude/settings.json` can
+  // point the same CLI at a different provider.
+  it('asks for capabilities scoped to the open workspace', async () => {
+    renderChat()
+    await screen.findByText('Modelo A')
+    expect(window.hive.agent.capabilities).toHaveBeenCalledWith(
+      'claude-cli',
+      expect.objectContaining({ workspace: '/ws' })
     )
   })
 
@@ -2462,6 +2603,9 @@ describe('Chat', () => {
     beforeEach(() => {
       capture.reset()
       whisper.calls = 0
+      whisper.warms = 0
+      whisper.lastOptions = null
+      whisper.lastWarmModel = undefined
     })
 
     /** Starts a take and speaks one phrase followed by a real pause. */
@@ -2602,31 +2746,37 @@ describe('Chat', () => {
         }
       })
       const mic = await screen.findByRole('button', { name: 'Ditar' })
-      whisper.calls = 0
-      whisper.lastOptions = null
 
+      // Both halves, because a session built for one model and a phrase
+      // transcribed with another is two bugs, and only the second one shows:
+      // the build is for the chosen model…
       fireEvent.pointerEnter(mic)
+      await waitFor(() => expect(whisper.lastWarmModel).toBe('small'))
+
+      // …and so is the phrase.
+      await speak()
       await waitFor(() => expect(whisper.lastOptions).not.toBeNull())
-      // Read once into a local: assigning `null` above narrows the field for
-      // the rest of the block, so a second `whisper.lastOptions?.x` types as
-      // `never` no matter what the engine actually recorded.
+      // Read once into a local: the field is nullable, so a second
+      // `whisper.lastOptions?.x` types as `never` after the assertion above.
       const options: TranscribeOptions = whisper.lastOptions ?? {}
       expect(options.model).toBe('small')
       expect(options.language).toBe('portuguese')
     })
 
-    it('warms the engine on intent, and not before (D-VP-6)', async () => {
+    it('warms the engine on intent, and never by transcribing (D-VP-6)', async () => {
       renderChat()
       const mic = await screen.findByRole('button', { name: 'Ditar' })
-      whisper.calls = 0
+      expect(whisper.warms).toBe(0)
 
       fireEvent.pointerEnter(mic)
-      await waitFor(() => {
-        expect(whisper.calls).toBe(1)
-      })
-      // Hovering again costs nothing.
-      fireEvent.pointerEnter(mic)
-      expect(whisper.calls).toBe(1)
+      await waitFor(() => expect(whisper.warms).toBeGreaterThan(0))
+
+      // And it is a real `warm`, not an inference over fake silence — the old
+      // trick both cost a pass and occupied the pipeline slot the first real
+      // phrase then queued behind. That a repeated warm is free is the
+      // *engine's* property, not this mock's, and is asserted where it lives
+      // (`whisperClient.test.ts`).
+      expect(whisper.calls).toBe(0)
     })
 
     it('explains a refused microphone and leaves the draft untouched (VP-R4.3)', async () => {

@@ -38,7 +38,9 @@ const { windowGeometry } = vi.hoisted(() => ({
 
 vi.mock('electron', () => {
   const BrowserWindowMock = vi.fn().mockImplementation(() => ({
-    webContents: { setWindowOpenHandler: vi.fn() },
+    // app-reload: `reloadIgnoringCache` is what `app:reload` calls on the
+    // sender's window.
+    webContents: { setWindowOpenHandler: vi.fn(), reloadIgnoringCache: vi.fn() },
     on: vi.fn(),
     once: vi.fn(),
     show: vi.fn(),
@@ -51,7 +53,18 @@ vi.mock('electron', () => {
     loadURL: vi.fn(),
     loadFile: vi.fn()
   }))
-  Object.assign(BrowserWindowMock, { getAllWindows: vi.fn(() => []) })
+  Object.assign(BrowserWindowMock, {
+    getAllWindows: vi.fn(() => []),
+    // app-reload: resolves a sender back to the window that owns it, the way
+    // the real static does — matched by identity against the instances this
+    // mock has handed out.
+    fromWebContents: vi.fn(
+      (sender: unknown) =>
+        BrowserWindowMock.mock.results
+          .map((result) => result.value as { webContents: unknown })
+          .find((window) => window.webContents === sender) ?? null
+    )
+  })
   return {
     app: {
       whenReady: vi.fn(() => Promise.resolve()),
@@ -374,6 +387,8 @@ const { fakeReviewService } = vi.hoisted(() => ({
     get: vi.fn(async () => ({ changes: [], turns: [] })),
     acceptFile: vi.fn(async () => ({ ok: true })),
     rejectFile: vi.fn(async () => ({ ok: true })),
+    acceptFiles: vi.fn(async () => ({ ok: true })),
+    rejectFiles: vi.fn(async () => ({ ok: true })),
     acceptHunk: vi.fn(async () => ({ ok: true })),
     rejectHunk: vi.fn(async () => ({ ok: true })),
     acceptAll: vi.fn(async () => ({ ok: true })),
@@ -413,6 +428,38 @@ vi.mock('./secondBrainService', () => ({
 vi.mock('./secondBrainVault', () => ({
   createSecondBrainVault: vi.fn(() => fakeSecondBrainVault)
 }))
+
+/**
+ * A stand-in for the renderer's WebContents.
+ *
+ * Models the two parts of the real object the streaming handlers depend on
+ * besides `send`: `isDestroyed()` and the one-shot `'destroyed'` event. `close()`
+ * plays what a user closing the window does — the renderer never gets to send
+ * its `:stop`, the object is destroyed, and anything still holding it must cope.
+ */
+interface FakeSender {
+  id: number
+  send: (...args: unknown[]) => void
+  isDestroyed: () => boolean
+  once: (name: string, listener: () => void) => void
+  /** Plays the user closing the window: destroyed, and no `:stop` was sent. */
+  close: () => void
+}
+
+function fakeSender(id: number, send: (...args: unknown[]) => void = vi.fn()): FakeSender {
+  let destroyed = false
+  const listeners = new Map<string, () => void>()
+  return {
+    id,
+    send,
+    isDestroyed: () => destroyed,
+    once: (name: string, listener: () => void) => listeners.set(name, listener),
+    close(): void {
+      destroyed = true
+      listeners.get('destroyed')?.()
+    }
+  }
+}
 
 function findHandler(channel: string): (...args: unknown[]) => unknown {
   const call = vi.mocked(ipcMain.handle).mock.calls.find(([ch]) => ch === channel)
@@ -768,7 +815,7 @@ describe('main process bootstrap', () => {
   // left uncovered by the original test file.
   it('a second bmad:install:start for the same sender tears down the first (optional-chaining branch)', () => {
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 201, send } }
+    const fakeEvent = { sender: fakeSender(201, send) }
     findOnHandler('bmad:install:start')(fakeEvent, '/ws-1')
     // Second start for the same sender exercises the `activeInstallStops.get(...)?.()`
     // branch where a previous entry actually exists.
@@ -778,7 +825,7 @@ describe('main process bootstrap', () => {
 
   it('bmad:update:start/stop stops relaying further events after stop, and a second start tears down the first', async () => {
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 202, send } }
+    const fakeEvent = { sender: fakeSender(202, send) }
 
     findOnHandler('bmad:update:start')(fakeEvent, '/ws-1')
     // Second start for the same sender exercises the optional-chaining branch.
@@ -797,7 +844,7 @@ describe('main process bootstrap', () => {
     expect(ipcMain.on).toHaveBeenCalledWith('fs:watch:stop', expect.any(Function))
 
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 42, send } }
+    const fakeEvent = { sender: fakeSender(42, send) }
 
     findOnHandler('fs:watch:start')(fakeEvent, '/ws')
     expect(fakeFsService.watchWorkspace).toHaveBeenCalledWith('/ws', expect.any(Function))
@@ -815,7 +862,7 @@ describe('main process bootstrap', () => {
 
   it('starting a new watch for the same sender tears down its previous watcher first (no leaked watchers)', () => {
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 7, send } }
+    const fakeEvent = { sender: fakeSender(7, send) }
 
     findOnHandler('fs:watch:start')(fakeEvent, '/ws-a')
     const firstStop = watchWorkspaceCalls[watchWorkspaceCalls.length - 1].stop
@@ -823,6 +870,100 @@ describe('main process bootstrap', () => {
     findOnHandler('fs:watch:start')(fakeEvent, '/ws-b')
 
     expect(firstStop).toHaveBeenCalledTimes(1)
+  })
+
+  // Closing the window is the one teardown the renderer cannot perform: it
+  // stops existing mid-subscription, so no `:stop` is ever sent. Whatever is
+  // still holding its WebContents keeps firing into a destroyed object, and
+  // `WebContents.send` throws `Object has been destroyed` from a native
+  // callback — an uncaught exception in the main process, which the user sees
+  // as a crash dialog *after* they quit the app. Reported 2026-08-31 with the
+  // fs watcher's stack (FSWatcher.handleRawEvent -> WebContents.send); every
+  // stream below shares the shape, so each is pinned here.
+  describe('a window closed without a stop (crash on quit)', () => {
+    it('closes the fs watcher and never sends into the destroyed sender', () => {
+      const send = vi.fn()
+      const sender = fakeSender(4801, send)
+
+      findOnHandler('fs:watch:start')({ sender }, '/ws')
+      const watch = watchWorkspaceCalls[watchWorkspaceCalls.length - 1]
+
+      sender.close() // the user closes the window; no fs:watch:stop is sent
+      expect(watch.stop).toHaveBeenCalledTimes(1)
+
+      // The inotify callback that was already in flight when the window died
+      // must not reach the dead WebContents (this is the reported crash).
+      send.mockClear()
+      expect(() => watch.onChange({ type: 'change', path: 'a.txt' })).not.toThrow()
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('unsubscribes the agent event stream, so a turn still streaming cannot send', () => {
+      const send = vi.fn()
+      const sender = fakeSender(4802, send)
+
+      findOnHandler('agent:event:start')({ sender })
+      const subscription = agentOnEventCalls[agentOnEventCalls.length - 1]
+
+      sender.close()
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+
+      send.mockClear()
+      expect(() => subscription.listener({ type: 'token', text: 'late' })).not.toThrow()
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('drops the closed window from the git:changed broadcast', async () => {
+      const send = vi.fn()
+      const sender = fakeSender(4803, send)
+      findOnHandler('git:changed:start')({ sender })
+
+      sender.close()
+      send.mockClear()
+      await findHandler('git:stage')({}, '/ws', ['a.txt'])
+      expect(fakeGitService.stage).toHaveBeenCalledWith('/ws', ['a.txt'])
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('cancels an agent CLI install rather than orphaning it', () => {
+      const sender = fakeSender(4804)
+      agentInstallCalls.length = 0
+
+      findOnHandler('agents:install:start')({ sender }, 'claude-cli')
+      sender.close()
+
+      expect(agentInstallCalls[0].cancel).toHaveBeenCalled()
+    })
+
+    it('a second start replaces the close teardown instead of stacking a stale one', () => {
+      const sender = fakeSender(4805)
+
+      findOnHandler('fs:watch:start')({ sender }, '/ws-a')
+      const first = watchWorkspaceCalls[watchWorkspaceCalls.length - 1]
+      findOnHandler('fs:watch:start')({ sender }, '/ws-b')
+      const second = watchWorkspaceCalls[watchWorkspaceCalls.length - 1]
+
+      // The replaced watcher was already stopped by the restart; closing the
+      // window must stop the live one exactly once, not re-run the old stop.
+      expect(first.stop).toHaveBeenCalledTimes(1)
+      sender.close()
+      expect(first.stop).toHaveBeenCalledTimes(1)
+      expect(second.stop).toHaveBeenCalledTimes(1)
+    })
+
+    it('stops the review watchers on before-quit (they are keyed by workspace, not by window)', async () => {
+      await findHandler('review:acceptFiles')({}, '/ws-quit', ['a.txt'])
+      const watch = watchWorkspaceCalls[watchWorkspaceCalls.length - 1]
+      expect(watch.root).toBe('/ws-quit')
+
+      const beforeQuit = vi
+        .mocked(app.on)
+        .mock.calls.find((call) => (call[0] as string) === 'before-quit')?.[1] as () => void
+      expect(beforeQuit).toBeInstanceOf(Function)
+      beforeQuit()
+
+      expect(watch.stop).toHaveBeenCalledTimes(1)
+    })
   })
 
   // T14: AgentService wiring — capabilities/start/send/runWorkflow route to
@@ -895,7 +1036,7 @@ describe('main process bootstrap', () => {
     expect(ipcMain.on).toHaveBeenCalledWith('agent:event:stop', expect.any(Function))
 
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 99, send } }
+    const fakeEvent = { sender: fakeSender(99, send) }
 
     findOnHandler('agent:event:start')(fakeEvent)
     expect(fakeAgentService.onEvent).toHaveBeenCalled()
@@ -914,7 +1055,7 @@ describe('main process bootstrap', () => {
   // handle. Both sides must be wired, or the turn blocks with nothing on screen.
   it('relays approval requests to the renderer and releases the blocked turn on agent:approve', async () => {
     const send = vi.fn()
-    findOnHandler('agent:event:start')({ sender: { id: 101, send } })
+    findOnHandler('agent:event:start')({ sender: fakeSender(101, send) })
 
     const request = {
       type: 'approval' as const,
@@ -936,7 +1077,7 @@ describe('main process bootstrap', () => {
     await findHandler('agent:interrupt')({}, 't-1')
     expect(fakeApprovalService.cancel).toHaveBeenCalledWith('t-1')
 
-    findOnHandler('agent:event:stop')({ sender: { id: 101, send } })
+    findOnHandler('agent:event:stop')({ sender: fakeSender(101, send) })
   })
 
   it('persists a standing "sempre permitir" rule, so the grant survives a restart', async () => {
@@ -1011,7 +1152,7 @@ describe('main process bootstrap', () => {
 
   it('starting a new agent event subscription for the same sender tears down its previous subscription first (no leaked subscriptions)', () => {
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 100, send } }
+    const fakeEvent = { sender: fakeSender(100, send) }
 
     findOnHandler('agent:event:start')(fakeEvent)
     const firstUnsubscribe = agentOnEventCalls[agentOnEventCalls.length - 1].unsubscribe
@@ -1031,7 +1172,7 @@ describe('main process bootstrap', () => {
     expect(ipcMain.on).toHaveBeenCalledWith('bmad:install:stop', expect.any(Function))
 
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 55, send } }
+    const fakeEvent = { sender: fakeSender(55, send) }
 
     findOnHandler('bmad:install:start')(fakeEvent, '/ws', { modules: ['bmm'] })
     expect(fakeBmadService.install).toHaveBeenCalledWith('/ws', { modules: ['bmm'] })
@@ -1067,7 +1208,7 @@ describe('main process bootstrap', () => {
     expect(ipcMain.on).toHaveBeenCalledWith('agents:install:stop', expect.any(Function))
 
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 71, send, isDestroyed: () => false } }
+    const fakeEvent = { sender: fakeSender(71, send) }
     agentInstallCalls.length = 0
 
     findOnHandler('agents:install:start')(fakeEvent, 'claude-cli')
@@ -1087,7 +1228,7 @@ describe('main process bootstrap', () => {
   })
 
   it('a repeat start for the same agent replaces the run in flight instead of racing it', () => {
-    const fakeEvent = { sender: { id: 72, send: vi.fn(), isDestroyed: () => false } }
+    const fakeEvent = { sender: fakeSender(72) }
     agentInstallCalls.length = 0
 
     findOnHandler('agents:install:start')(fakeEvent, 'github-copilot')
@@ -1098,7 +1239,7 @@ describe('main process bootstrap', () => {
   })
 
   it('a stop with no agent id cancels every install that sender started', () => {
-    const fakeEvent = { sender: { id: 73, send: vi.fn(), isDestroyed: () => false } }
+    const fakeEvent = { sender: fakeSender(73) }
     agentInstallCalls.length = 0
 
     findOnHandler('agents:install:start')(fakeEvent, 'claude-cli')
@@ -1117,7 +1258,7 @@ describe('main process bootstrap', () => {
     expect(ipcMain.on).toHaveBeenCalledWith('bmad:update:stop', expect.any(Function))
 
     const send = vi.fn()
-    const fakeEvent = { sender: { id: 56, send } }
+    const fakeEvent = { sender: fakeSender(56, send) }
 
     findOnHandler('bmad:update:start')(fakeEvent, '/ws')
     expect(fakeBmadService.update).toHaveBeenCalledWith('/ws')
@@ -1328,6 +1469,18 @@ describe('main process bootstrap', () => {
       await expect(findHandler('app:info')()).resolves.toMatchObject({ skippedVersion: '0.2.0' })
     })
 
+    it('app:reload reloads the sender window, cache ignored (app-reload)', async () => {
+      const mainWindowInstance = vi.mocked(BrowserWindow).mock.results[0].value as {
+        webContents: { reloadIgnoringCache: ReturnType<typeof vi.fn> }
+      }
+      await findHandler('app:reload')({ sender: mainWindowInstance.webContents })
+      expect(mainWindowInstance.webContents.reloadIgnoringCache).toHaveBeenCalled()
+    })
+
+    it('app:reload is a no-op when the sender has no window (app-reload)', async () => {
+      await expect(findHandler('app:reload')({ sender: {} })).resolves.toBeUndefined()
+    })
+
     it('registers the update handlers and event channels', () => {
       expect(ipcMain.handle).toHaveBeenCalledWith('update:check', expect.any(Function))
       expect(ipcMain.handle).toHaveBeenCalledWith('update:download', expect.any(Function))
@@ -1340,7 +1493,7 @@ describe('main process bootstrap', () => {
     })
 
     it('update:check is a safe no-op end-to-end while unsupported (app not packaged): no event ever streams back', async () => {
-      const sender = { id: 99, send: vi.fn() }
+      const sender = fakeSender(99)
       findOnHandler('update:event:start')({ sender })
       await findHandler('update:check')()
       expect(sender.send).not.toHaveBeenCalled()
@@ -1348,7 +1501,7 @@ describe('main process bootstrap', () => {
     })
 
     it('update:event:start is resubscribe-safe and update:event:stop is idempotent', () => {
-      const sender = { id: 42, send: vi.fn() }
+      const sender = fakeSender(42)
       findOnHandler('update:event:start')({ sender })
       // A second start replaces the first subscription instead of leaking it.
       findOnHandler('update:event:start')({ sender })
@@ -1654,7 +1807,7 @@ describe('main process bootstrap', () => {
 
     it('routes a mutation handler and fires git:changed to subscribed senders', async () => {
       const send = vi.fn()
-      const sender = { id: 42, send }
+      const sender = fakeSender(42, send)
       findOnHandler('git:changed:start')({ sender })
 
       await findHandler('git:stage')({}, '/ws', ['a.txt'])
@@ -1669,7 +1822,7 @@ describe('main process bootstrap', () => {
     })
 
     it('every git handler forwards to its matching service method', async () => {
-      const sender = { id: 7, send: vi.fn() }
+      const sender = fakeSender(7)
       findOnHandler('git:changed:start')({ sender })
       const cases: Array<[string, unknown[], keyof typeof fakeGitService]> = [
         ['git:detect', ['/ws'], 'detect'],
@@ -1914,7 +2067,7 @@ describe('main process bootstrap', () => {
 
     it('install:start streams SkillEvents to the sender, and install:stop halts forwarding', async () => {
       const send = vi.fn()
-      const event = { sender: { id: 4242, send } }
+      const event = { sender: fakeSender(4242, send) }
 
       findOnHandler('secondBrain:install:start')(event, '/ws')
       await new Promise((r) => setTimeout(r, 0))
@@ -2250,7 +2403,7 @@ describe('main process bootstrap', () => {
       vi.mocked(fakeAgentService.startSession).mockClear()
       vi.mocked(fakeAgentService.send).mockClear()
       const send = vi.fn()
-      const fakeEvent = { sender: { id: 991, send } }
+      const fakeEvent = { sender: fakeSender(991, send) }
 
       findOnHandler('designStudio:skill:start')(fakeEvent, {
         kind: 'generate',
@@ -2316,7 +2469,7 @@ describe('main process bootstrap', () => {
       const send = vi.fn()
 
       findOnHandler('designStudio:skill:start')(
-        { sender: { id: 993, send } },
+        { sender: fakeSender(993, send) },
         {
           kind: 'iterate',
           key,
@@ -2338,7 +2491,7 @@ describe('main process bootstrap', () => {
     it('stops forwarding a Skill turn when the sender asks it to', async () => {
       fakeFsService.readFile.mockReturnValue('## Tela — Login')
       const send = vi.fn()
-      const fakeEvent = { sender: { id: 992, send } }
+      const fakeEvent = { sender: fakeSender(992, send) }
 
       findOnHandler('designStudio:skill:start')(fakeEvent, {
         kind: 'generate',
@@ -2544,12 +2697,12 @@ describe('main process bootstrap', () => {
 
     it('update:start streams via the update channel', async () => {
       const send = vi.fn()
-      findOnHandler('secondBrain:update:start')({ sender: { id: 99, send } }, '/ws')
+      findOnHandler('secondBrain:update:start')({ sender: fakeSender(99, send) }, '/ws')
       await new Promise((r) => setTimeout(r, 0))
       expect(fakeSecondBrainService.update).toHaveBeenCalledWith('/ws')
       expect(send).toHaveBeenCalledWith('secondBrain:update:event', { type: 'done', ok: true })
       expect(() =>
-        findOnHandler('secondBrain:update:stop')({ sender: { id: 99, send } })
+        findOnHandler('secondBrain:update:stop')({ sender: fakeSender(99, send) })
       ).not.toThrow()
     })
   })

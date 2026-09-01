@@ -30,6 +30,13 @@ function make(): {
   return { runner, service, trashItem }
 }
 
+/**
+ * The flags `git()` puts in front of every command (`--no-optional-locks -c
+ * core.quotepath=false`). Sliced off so each assertion below reads as the
+ * command it is actually about.
+ */
+const GIT_PREFIX = ['--no-optional-locks', '-c', 'core.quotepath=false']
+
 describe('GitService — git() wrapper', () => {
   it('prefixes core.quotepath=false, sets GIT_TERMINAL_PROMPT=0 and runs in the workspace cwd', async () => {
     const { runner, service } = make()
@@ -37,7 +44,11 @@ describe('GitService — git() wrapper', () => {
     await service.status(WS)
 
     expect(runner.calls[0].command).toBe('git')
-    expect(runner.calls[0].args.slice(0, 2)).toEqual(['-c', 'core.quotepath=false'])
+    expect(runner.calls[0].args.slice(0, 3)).toEqual([
+      '--no-optional-locks',
+      '-c',
+      'core.quotepath=false'
+    ])
     expect(runner.calls[0].opts).toEqual({
       cwd: WS,
       env: { GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' }
@@ -71,6 +82,7 @@ describe('GitService.detect', () => {
       gitMissing: false
     })
     expect(runner.calls[0].args).toEqual([
+      '--no-optional-locks',
       '-c',
       'core.quotepath=false',
       'rev-parse',
@@ -99,7 +111,12 @@ describe('GitService.status', () => {
     runner.script({ code: 1 }) // rev-parse MERGE_HEAD → absent
     const status = await service.status(WS)
 
-    expect(runner.calls[0].args.slice(2)).toEqual(['status', '--porcelain=v2', '--branch', '-z'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'status',
+      '--porcelain=v2',
+      '--branch',
+      '-z'
+    ])
     expect(status.branch).toBe('main')
     expect(status.ahead).toBe(1)
     expect(status.changes[0]).toMatchObject({ path: 'new.txt', isUntracked: true })
@@ -111,7 +128,12 @@ describe('GitService.status', () => {
     stdout(runner, '# branch.head main\0')
     runner.script({ chunks: [{ stream: 'stdout', data: 'abc\n' }], code: 0 }) // rev-parse succeeds
     const status = await service.status(WS)
-    expect(runner.calls[1].args.slice(2)).toEqual(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
+    expect(runner.calls[1].args.slice(GIT_PREFIX.length)).toEqual([
+      'rev-parse',
+      '-q',
+      '--verify',
+      'MERGE_HEAD'
+    ])
     expect(status.mergeInProgress).toBe(true)
   })
 })
@@ -120,7 +142,7 @@ describe('GitService.init + serialization', () => {
   it('runs git init', async () => {
     const { runner, service } = make()
     await service.init(WS)
-    expect(runner.calls[0].args.slice(2)).toEqual(['init'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['init'])
   })
 
   it('serializes mutating ops per repo (the second waits for the first)', async () => {
@@ -146,13 +168,23 @@ describe('GitService.stage / unstage', () => {
   it('stages paths with add --', async () => {
     const { runner, service } = make()
     await service.stage(WS, ['a.txt', 'dir/b.md'])
-    expect(runner.calls[0].args.slice(2)).toEqual(['add', '--', 'a.txt', 'dir/b.md'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'add',
+      '--',
+      'a.txt',
+      'dir/b.md'
+    ])
   })
 
   it('unstages paths with restore --staged --', async () => {
     const { runner, service } = make()
     await service.unstage(WS, ['a.txt'])
-    expect(runner.calls[0].args.slice(2)).toEqual(['restore', '--staged', '--', 'a.txt'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'restore',
+      '--staged',
+      '--',
+      'a.txt'
+    ])
   })
 })
 
@@ -173,7 +205,13 @@ describe('GitService.discard', () => {
 
     expect(trashItem).not.toHaveBeenCalled()
     const restore = runner.calls.find((c) => c.args.includes('restore'))
-    expect(restore?.args.slice(2)).toEqual(['restore', '--staged', '--worktree', '--', 'a.txt'])
+    expect(restore?.args.slice(GIT_PREFIX.length)).toEqual([
+      'restore',
+      '--staged',
+      '--worktree',
+      '--',
+      'a.txt'
+    ])
   })
 })
 
@@ -185,7 +223,7 @@ describe('GitService.commit', () => {
     const result = await service.commit(WS, 'feat: do a thing')
 
     expect(result).toEqual({ hash: 'deadbeefcafe' })
-    const commitCall = runner.calls[0].args.slice(2)
+    const commitCall = runner.calls[0].args.slice(GIT_PREFIX.length)
     expect(commitCall[0]).toBe('commit')
     expect(commitCall[1]).toBe('-F')
     expect(commitCall).not.toContain('--amend')
@@ -198,8 +236,8 @@ describe('GitService.commit', () => {
     stdout(runner, 'abc123\n') // rev-parse
     await service.commit(WS, 'msg', { stageAll: true })
 
-    expect(runner.calls[0].args.slice(2)).toEqual(['add', '-A'])
-    expect(runner.calls[1].args[2]).toBe('commit')
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['add', '-A'])
+    expect(runner.calls[1].args[GIT_PREFIX.length]).toBe('commit')
   })
 
   it('passes --amend when amending', async () => {
@@ -217,7 +255,7 @@ describe('GitService branches', () => {
     stdout(runner, 'refs/heads/main\x1fabc\x1forigin/main\x1f[ahead 1]\x1f*\n')
     const result = await service.branches(WS)
 
-    expect(runner.calls[0].args.slice(2)).toEqual([
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
       'for-each-ref',
       '--format=%(refname)%1f%(objectname:short)%1f%(upstream:short)%1f%(upstream:track)%1f%(HEAD)',
       'refs/heads',
@@ -230,17 +268,22 @@ describe('GitService branches', () => {
   it('creates a branch with switch -c, optionally from a start point', async () => {
     const { runner, service } = make()
     await service.createBranch(WS, 'feat/x')
-    expect(runner.calls[0].args.slice(2)).toEqual(['switch', '-c', 'feat/x'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['switch', '-c', 'feat/x'])
 
     const b = make()
     await b.service.createBranch(WS, 'feat/y', 'main')
-    expect(b.runner.calls[0].args.slice(2)).toEqual(['switch', '-c', 'feat/y', 'main'])
+    expect(b.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'switch',
+      '-c',
+      'feat/y',
+      'main'
+    ])
   })
 
   it("checks out a ref and surfaces git's dirty refusal as a GitError", async () => {
     const { runner, service } = make()
     await service.checkout(WS, 'main')
-    expect(runner.calls[0].args.slice(2)).toEqual(['switch', 'main'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['switch', 'main'])
 
     const b = make()
     b.runner.script({ chunks: [{ stream: 'stderr', data: 'error: local changes' }], code: 1 })
@@ -250,15 +293,15 @@ describe('GitService branches', () => {
   it('renames and deletes branches (soft + force)', async () => {
     const { runner, service } = make()
     await service.renameBranch(WS, 'old', 'new')
-    expect(runner.calls[0].args.slice(2)).toEqual(['branch', '-m', 'old', 'new'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['branch', '-m', 'old', 'new'])
 
     const soft = make()
     await soft.service.deleteBranch(WS, 'gone')
-    expect(soft.runner.calls[0].args.slice(2)).toEqual(['branch', '-d', 'gone'])
+    expect(soft.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['branch', '-d', 'gone'])
 
     const force = make()
     await force.service.deleteBranch(WS, 'gone', true)
-    expect(force.runner.calls[0].args.slice(2)).toEqual(['branch', '-D', 'gone'])
+    expect(force.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['branch', '-D', 'gone'])
   })
 })
 
@@ -266,23 +309,28 @@ describe('GitService remotes', () => {
   it('fetches and pulls (--ff)', async () => {
     const f = make()
     await f.service.fetch(WS)
-    expect(f.runner.calls[0].args.slice(2)).toEqual(['fetch'])
+    expect(f.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['fetch'])
 
     const p = make()
     await p.service.pull(WS)
-    expect(p.runner.calls[0].args.slice(2)).toEqual(['pull', '--ff'])
+    expect(p.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['pull', '--ff'])
   })
 
   it('pushes plainly, and publishes with -u origin <current> when setUpstream', async () => {
     const plain = make()
     await plain.service.push(WS)
-    expect(plain.runner.calls[0].args.slice(2)).toEqual(['push'])
+    expect(plain.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['push'])
 
     const pub = make()
     stdout(pub.runner, 'feature/x\n') // rev-parse --abbrev-ref HEAD
     pub.runner.script({ code: 0 }) // push -u
     await pub.service.push(WS, { setUpstream: true })
-    expect(pub.runner.calls[1].args.slice(2)).toEqual(['push', '-u', 'origin', 'feature/x'])
+    expect(pub.runner.calls[1].args.slice(GIT_PREFIX.length)).toEqual([
+      'push',
+      '-u',
+      'origin',
+      'feature/x'
+    ])
   })
 
   it('syncs by pulling then pushing', async () => {
@@ -290,8 +338,8 @@ describe('GitService remotes', () => {
     runner.script({ code: 0 }) // pull
     runner.script({ code: 0 }) // push
     await service.sync(WS)
-    expect(runner.calls[0].args.slice(2)).toEqual(['pull', '--ff'])
-    expect(runner.calls[1].args.slice(2)).toEqual(['push'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['pull', '--ff'])
+    expect(runner.calls[1].args.slice(GIT_PREFIX.length)).toEqual(['push'])
   })
 
   it("propagates git's real stderr on an auth failure (D-GIT-1)", async () => {
@@ -312,7 +360,7 @@ describe('GitService log / diff / commitDiff', () => {
     stdout(runner, 'h1\x1fs1\x1fauth\x1f2026-01-01\x1fsubject one')
     const commits = await service.log(WS, { file: 'a.txt', skip: 10, limit: 25 })
 
-    expect(runner.calls[0].args.slice(2)).toEqual([
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
       'log',
       '--pretty=format:%H%x1f%h%x1f%an%x1f%aI%x1f%s',
       '-z',
@@ -329,13 +377,18 @@ describe('GitService log / diff / commitDiff', () => {
     const work = make()
     stdout(work.runner, '@@ -1 +1 @@\n-a\n+b')
     const d = await work.service.diff(WS, 'a.txt', 'working')
-    expect(work.runner.calls[0].args.slice(2)).toEqual(['diff', '--', 'a.txt'])
+    expect(work.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['diff', '--', 'a.txt'])
     expect(d.hunks).toHaveLength(1)
 
     const staged = make()
     stdout(staged.runner, '')
     await staged.service.diff(WS, 'a.txt', 'staged')
-    expect(staged.runner.calls[0].args.slice(2)).toEqual(['diff', '--staged', '--', 'a.txt'])
+    expect(staged.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'diff',
+      '--staged',
+      '--',
+      'a.txt'
+    ])
   })
 
   it('reports an over-cap diff as tooLarge without shipping it', async () => {
@@ -351,7 +404,7 @@ describe('GitService log / diff / commitDiff', () => {
     stdout(runner, '@@ -1,2 +1,3 @@\n a\n+b\n c') // show patch
     const result = await service.commitDiff(WS, 'abc123')
 
-    expect(runner.calls[0].args.slice(2)).toEqual([
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
       'show',
       'abc123',
       '--numstat',
@@ -366,7 +419,7 @@ describe('GitService log / diff / commitDiff', () => {
     const ok = make()
     stdout(ok.runner, 'line1\nline2\n')
     expect(await ok.service.fileAtHead(WS, 'a.txt')).toBe('line1\nline2\n')
-    expect(ok.runner.calls[0].args.slice(2)).toEqual(['show', 'HEAD:a.txt'])
+    expect(ok.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['show', 'HEAD:a.txt'])
 
     const missing = make()
     missing.runner.script({ chunks: [{ stream: 'stderr', data: 'fatal: path...' }], code: 128 })
@@ -392,14 +445,24 @@ describe('GitService conflicts + merge', () => {
     ours.runner.script({ code: 0 }) // checkout --ours
     ours.runner.script({ code: 0 }) // add
     await ours.service.resolveConflict(WS, 'c.txt', 'current')
-    expect(ours.runner.calls[0].args.slice(2)).toEqual(['checkout', '--ours', '--', 'c.txt'])
-    expect(ours.runner.calls[1].args.slice(2)).toEqual(['add', '--', 'c.txt'])
+    expect(ours.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'checkout',
+      '--ours',
+      '--',
+      'c.txt'
+    ])
+    expect(ours.runner.calls[1].args.slice(GIT_PREFIX.length)).toEqual(['add', '--', 'c.txt'])
 
     const theirs = make()
     theirs.runner.script({ code: 0 })
     theirs.runner.script({ code: 0 })
     await theirs.service.resolveConflict(WS, 'c.txt', 'incoming')
-    expect(theirs.runner.calls[0].args.slice(2)).toEqual(['checkout', '--theirs', '--', 'c.txt'])
+    expect(theirs.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'checkout',
+      '--theirs',
+      '--',
+      'c.txt'
+    ])
   })
 
   it('accepts both by stripping conflict markers, then stages', async () => {
@@ -414,17 +477,17 @@ describe('GitService conflicts + merge', () => {
     await service.resolveConflict(dir, 'c.txt', 'both')
 
     expect(readFileSync(join(dir, 'c.txt'), 'utf-8')).toBe(['a', 'ours', 'theirs', 'b'].join('\n'))
-    expect(runner.calls[0].args.slice(2)).toEqual(['add', '--', 'c.txt'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['add', '--', 'c.txt'])
   })
 
   it('continues and aborts a merge', async () => {
     const cont = make()
     await cont.service.mergeContinue(WS)
-    expect(cont.runner.calls[0].args.slice(2)).toEqual(['merge', '--continue'])
+    expect(cont.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['merge', '--continue'])
 
     const abort = make()
     await abort.service.mergeAbort(WS)
-    expect(abort.runner.calls[0].args.slice(2)).toEqual(['merge', '--abort'])
+    expect(abort.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['merge', '--abort'])
   })
 })
 
@@ -432,32 +495,50 @@ describe('GitService stash', () => {
   it('pushes a stash, optionally including untracked + a message', async () => {
     const plain = make()
     await plain.service.stash(WS)
-    expect(plain.runner.calls[0].args.slice(2)).toEqual(['stash', 'push'])
+    expect(plain.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['stash', 'push'])
 
     const full = make()
     await full.service.stash(WS, { untracked: true, message: 'wip' })
-    expect(full.runner.calls[0].args.slice(2)).toEqual(['stash', 'push', '-u', '-m', 'wip'])
+    expect(full.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'stash',
+      'push',
+      '-u',
+      '-m',
+      'wip'
+    ])
   })
 
   it('lists stashes', async () => {
     const { runner, service } = make()
     stdout(runner, 'stash@{0}\x1fWIP on main: abc msg')
     const list = await service.stashList(WS)
-    expect(runner.calls[0].args.slice(2)).toEqual(['stash', 'list', '--format=%gd%x1f%s'])
+    expect(runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'stash',
+      'list',
+      '--format=%gd%x1f%s'
+    ])
     expect(list[0]).toMatchObject({ index: 0, message: 'WIP on main: abc msg' })
   })
 
   it('applies / pops / drops a stash by index', async () => {
     const apply = make()
     await apply.service.stashApply(WS, 2)
-    expect(apply.runner.calls[0].args.slice(2)).toEqual(['stash', 'apply', 'stash@{2}'])
+    expect(apply.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'stash',
+      'apply',
+      'stash@{2}'
+    ])
 
     const pop = make()
     await pop.service.stashApply(WS, 0, true)
-    expect(pop.runner.calls[0].args.slice(2)).toEqual(['stash', 'pop', 'stash@{0}'])
+    expect(pop.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual(['stash', 'pop', 'stash@{0}'])
 
     const drop = make()
     await drop.service.stashDrop(WS, 1)
-    expect(drop.runner.calls[0].args.slice(2)).toEqual(['stash', 'drop', 'stash@{1}'])
+    expect(drop.runner.calls[0].args.slice(GIT_PREFIX.length)).toEqual([
+      'stash',
+      'drop',
+      'stash@{1}'
+    ])
   })
 })

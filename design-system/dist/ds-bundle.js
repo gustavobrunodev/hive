@@ -14087,8 +14087,159 @@ var CommandSeparator = forwardRef55(
 );
 CommandSeparator.displayName = "CommandSeparator";
 
-// src/components/Breadcrumb/Breadcrumb.tsx
+// src/components/OptionPicker/OptionPicker.tsx
+import { useEffect as useEffect35, useMemo as useMemo16, useRef as useRef41, useState as useState33 } from "react";
 import { jsx as jsx81, jsxs as jsxs47 } from "react/jsx-runtime";
+function OptionPicker({
+  options,
+  groups,
+  value,
+  onChange,
+  children,
+  ariaLabel,
+  searchable = "auto",
+  searchThreshold = 8,
+  searchPlaceholder,
+  emptyLabel = "Nada encontrado",
+  header,
+  footer,
+  open,
+  onOpenChange,
+  align = "start",
+  side = "top",
+  sideOffset = 8,
+  width = 340,
+  className
+}) {
+  const [internalOpen, setInternalOpen] = useState33(false);
+  const isOpen = open ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
+  const [query, setQuery] = useState33("");
+  const inputRef = useRef41(null);
+  const showSearch = searchable === true || searchable === "auto" && options.length >= searchThreshold;
+  const searchVisible = showSearch || query !== "";
+  useEffect35(() => {
+    if (!isOpen) setQuery("");
+  }, [isOpen]);
+  const ordered = useMemo16(() => orderByGroup(options, groups), [options, groups]);
+  return /* @__PURE__ */ jsxs47(Root24, { open: isOpen, onOpenChange: setOpen, children: [
+    /* @__PURE__ */ jsx81(Trigger, { asChild: true, children }),
+    /* @__PURE__ */ jsx81(Portal3, { children: /* @__PURE__ */ jsxs47(
+      Content22,
+      {
+        side,
+        align,
+        sideOffset,
+        collisionPadding: 12,
+        className: cx("hds-picker", className),
+        style: { width },
+        onOpenAutoFocus: (event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+        },
+        children: [
+          /* @__PURE__ */ jsxs47(_e, { className: "hds-picker-command", label: ariaLabel, loop: true, children: [
+            /* @__PURE__ */ jsxs47("div", { className: "hds-picker-search", "data-collapsed": !searchVisible || void 0, children: [
+              /* @__PURE__ */ jsxs47("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+                /* @__PURE__ */ jsx81("circle", { cx: "7", cy: "7", r: "4.75", stroke: "currentColor", strokeWidth: "1.5" }),
+                /* @__PURE__ */ jsx81("path", { d: "M10.75 10.75L14 14", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" })
+              ] }),
+              /* @__PURE__ */ jsx81(
+                _e.Input,
+                {
+                  ref: inputRef,
+                  value: query,
+                  onValueChange: setQuery,
+                  placeholder: searchPlaceholder,
+                  className: "hds-picker-input"
+                }
+              )
+            ] }),
+            header && /* @__PURE__ */ jsx81("div", { className: "hds-picker-header", children: header }),
+            /* @__PURE__ */ jsxs47(_e.List, { className: "hds-picker-list", label: ariaLabel, children: [
+              /* @__PURE__ */ jsx81(_e.Empty, { className: "hds-picker-empty", children: emptyLabel }),
+              ordered.map(({ group, items }) => /* @__PURE__ */ jsx81(
+                _e.Group,
+                {
+                  heading: group.label,
+                  className: "hds-picker-group",
+                  children: items.map((option) => /* @__PURE__ */ jsx81(
+                    Row,
+                    {
+                      option,
+                      selected: option.id === value,
+                      onSelect: () => {
+                        onChange(option.id);
+                        setOpen(false);
+                      }
+                    },
+                    option.id
+                  ))
+                },
+                group.id
+              ))
+            ] })
+          ] }),
+          footer && /* @__PURE__ */ jsx81("div", { className: "hds-picker-footer", children: footer })
+        ]
+      }
+    ) })
+  ] });
+}
+function Row({
+  option,
+  selected,
+  onSelect
+}) {
+  return /* @__PURE__ */ jsxs47(
+    _e.Item,
+    {
+      value: `${option.label} ${option.id} ${option.keywords ?? ""}`,
+      disabled: option.disabled,
+      onSelect,
+      className: "hds-picker-item",
+      "data-selected-option": selected || void 0,
+      children: [
+        option.icon && /* @__PURE__ */ jsx81("span", { className: "hds-picker-icon", "aria-hidden": "true", children: option.icon }),
+        /* @__PURE__ */ jsxs47("span", { className: "hds-picker-body", children: [
+          /* @__PURE__ */ jsxs47("span", { className: "hds-picker-title", children: [
+            /* @__PURE__ */ jsx81("span", { className: "hds-picker-label", children: option.label }),
+            option.tags?.map((tag) => /* @__PURE__ */ jsx81("span", { className: "hds-picker-tag", "data-tone": tag.tone ?? "neutral", children: tag.label }, tag.label))
+          ] }),
+          option.description && /* @__PURE__ */ jsx81("span", { className: "hds-picker-desc", children: option.description }),
+          option.hint && /* @__PURE__ */ jsx81("span", { className: "hds-picker-hint", children: option.hint })
+        ] }),
+        option.meta && /* @__PURE__ */ jsx81("span", { className: "hds-picker-meta", children: option.meta }),
+        /* @__PURE__ */ jsx81("span", { className: "hds-picker-check", "aria-hidden": "true", children: selected && /* @__PURE__ */ jsx81("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", children: /* @__PURE__ */ jsx81(
+          "path",
+          {
+            d: "M3.5 8.5l3 3 6-6.5",
+            stroke: "currentColor",
+            strokeWidth: "1.9",
+            strokeLinecap: "round",
+            strokeLinejoin: "round"
+          }
+        ) }) })
+      ]
+    }
+  );
+}
+function orderByGroup(options, groups) {
+  if (!groups || groups.length === 0) {
+    return [{ group: { id: "__all" }, items: options }];
+  }
+  const buckets = groups.map((group) => ({
+    group,
+    items: options.filter((option) => option.group === group.id)
+  }));
+  const known = new Set(groups.map((group) => group.id));
+  const rest = options.filter((option) => !option.group || !known.has(option.group));
+  if (rest.length > 0) buckets.push({ group: { id: "__rest" }, items: rest });
+  return buckets.filter((bucket) => bucket.items.length > 0);
+}
+
+// src/components/Breadcrumb/Breadcrumb.tsx
+import { jsx as jsx82, jsxs as jsxs48 } from "react/jsx-runtime";
 var ELLIPSIS = Symbol("hds-breadcrumb-ellipsis");
 function collapseItems(items, maxItems) {
   const first = items[0];
@@ -14109,34 +14260,34 @@ function BreadcrumbItem({
 }) {
   const classes = cx("hds-breadcrumb-segment", current && "is-current", className);
   if (current) {
-    return /* @__PURE__ */ jsx81("span", { className: classes, "aria-current": "page", ...rest, children });
+    return /* @__PURE__ */ jsx82("span", { className: classes, "aria-current": "page", ...rest, children });
   }
   if (href) {
-    return /* @__PURE__ */ jsx81("a", { className: classes, href, children });
+    return /* @__PURE__ */ jsx82("a", { className: classes, href, children });
   }
   if (onClick) {
-    return /* @__PURE__ */ jsx81("button", { type: "button", className: classes, onClick, children });
+    return /* @__PURE__ */ jsx82("button", { type: "button", className: classes, onClick, children });
   }
-  return /* @__PURE__ */ jsx81("span", { className: classes, ...rest, children });
+  return /* @__PURE__ */ jsx82("span", { className: classes, ...rest, children });
 }
 function Breadcrumb({ items, maxItems, className, ...rest }) {
   const entries = collapseItems(items, maxItems);
   const lastIndex = entries.length - 1;
-  return /* @__PURE__ */ jsx81("nav", { "aria-label": "Breadcrumb", className: cx("hds-breadcrumb", className), ...rest, children: /* @__PURE__ */ jsx81("ol", { className: "hds-breadcrumb-list", children: entries.map((entry, index2) => {
+  return /* @__PURE__ */ jsx82("nav", { "aria-label": "Breadcrumb", className: cx("hds-breadcrumb", className), ...rest, children: /* @__PURE__ */ jsx82("ol", { className: "hds-breadcrumb-list", children: entries.map((entry, index2) => {
     const isLast = index2 === lastIndex;
     if (entry === ELLIPSIS) {
-      return /* @__PURE__ */ jsx81("li", { className: "hds-breadcrumb-item", children: /* @__PURE__ */ jsx81("span", { className: "hds-breadcrumb-ellipsis", "aria-hidden": "true", children: "\u2026" }) }, "hds-breadcrumb-ellipsis");
+      return /* @__PURE__ */ jsx82("li", { className: "hds-breadcrumb-item", children: /* @__PURE__ */ jsx82("span", { className: "hds-breadcrumb-ellipsis", "aria-hidden": "true", children: "\u2026" }) }, "hds-breadcrumb-ellipsis");
     }
-    return /* @__PURE__ */ jsxs47("li", { className: "hds-breadcrumb-item", children: [
-      /* @__PURE__ */ jsx81(BreadcrumbItem, { href: entry.href, onClick: entry.onClick, current: isLast, children: entry.label }),
-      !isLast && /* @__PURE__ */ jsx81("span", { className: "hds-breadcrumb-separator", "aria-hidden": "true", children: "/" })
+    return /* @__PURE__ */ jsxs48("li", { className: "hds-breadcrumb-item", children: [
+      /* @__PURE__ */ jsx82(BreadcrumbItem, { href: entry.href, onClick: entry.onClick, current: isLast, children: entry.label }),
+      !isLast && /* @__PURE__ */ jsx82("span", { className: "hds-breadcrumb-separator", "aria-hidden": "true", children: "/" })
     ] }, index2);
   }) }) });
 }
 
 // src/components/Tree/Tree.tsx
-import { useCallback as useCallback24, useMemo as useMemo16, useRef as useRef41, useState as useState33 } from "react";
-import { Fragment as Fragment16, jsx as jsx82, jsxs as jsxs48 } from "react/jsx-runtime";
+import { useCallback as useCallback24, useMemo as useMemo17, useRef as useRef42, useState as useState34 } from "react";
+import { Fragment as Fragment16, jsx as jsx83, jsxs as jsxs49 } from "react/jsx-runtime";
 function flattenVisible(nodes, expandedIds, level = 0, parentId = null) {
   const out = [];
   for (const node of nodes) {
@@ -14149,8 +14300,8 @@ function flattenVisible(nodes, expandedIds, level = 0, parentId = null) {
   return out;
 }
 function defaultRenderLabel(node, state) {
-  return /* @__PURE__ */ jsxs48(Fragment16, { children: [
-    state.hasChildren && /* @__PURE__ */ jsx82(
+  return /* @__PURE__ */ jsxs49(Fragment16, { children: [
+    state.hasChildren && /* @__PURE__ */ jsx83(
       "svg",
       {
         className: "hds-tree-chevron",
@@ -14159,10 +14310,10 @@ function defaultRenderLabel(node, state) {
         viewBox: "0 0 16 16",
         fill: "none",
         "aria-hidden": "true",
-        children: /* @__PURE__ */ jsx82("path", { d: "M6 4l4 4-4 4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" })
+        children: /* @__PURE__ */ jsx83("path", { d: "M6 4l4 4-4 4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" })
       }
     ),
-    /* @__PURE__ */ jsx82("span", { className: "hds-tree-label-text", children: node.label })
+    /* @__PURE__ */ jsx83("span", { className: "hds-tree-label-text", children: node.label })
   ] });
 }
 function Tree({
@@ -14189,16 +14340,16 @@ function Tree({
     defaultValue: defaultExpandedIds,
     onChange: onExpandedIdsChange
   });
-  const expandedSet = useMemo16(() => new Set(expandedIds), [expandedIds]);
-  const selectedSet = useMemo16(() => new Set(selectedIds), [selectedIds]);
-  const flat = useMemo16(() => flattenVisible(nodes, expandedSet), [nodes, expandedSet]);
-  const enabledFlat = useMemo16(() => flat.filter((item) => !item.node.disabled), [flat]);
-  const [activeId, setActiveId] = useState33(() => enabledFlat[0]?.node.id ?? null);
-  const activeIdRef = useRef41(activeId);
+  const expandedSet = useMemo17(() => new Set(expandedIds), [expandedIds]);
+  const selectedSet = useMemo17(() => new Set(selectedIds), [selectedIds]);
+  const flat = useMemo17(() => flattenVisible(nodes, expandedSet), [nodes, expandedSet]);
+  const enabledFlat = useMemo17(() => flat.filter((item) => !item.node.disabled), [flat]);
+  const [activeId, setActiveId] = useState34(() => enabledFlat[0]?.node.id ?? null);
+  const activeIdRef = useRef42(activeId);
   activeIdRef.current = activeId;
-  const anchorIdRef = useRef41(null);
-  const itemRefs = useRef41(/* @__PURE__ */ new Map());
-  const typeAheadRef = useRef41({
+  const anchorIdRef = useRef42(null);
+  const itemRefs = useRef42(/* @__PURE__ */ new Map());
+  const typeAheadRef = useRef42({
     text: "",
     timeout: null
   });
@@ -14337,7 +14488,7 @@ function Tree({
     },
     [enabledFlat, expandedSet, expand, collapse, activate, focusItem, moveFocus]
   );
-  return /* @__PURE__ */ jsx82(
+  return /* @__PURE__ */ jsx83(
     "ul",
     {
       role: "tree",
@@ -14346,7 +14497,7 @@ function Tree({
       "aria-labelledby": ariaLabelledBy,
       "aria-multiselectable": selection === "multiple" ? "true" : void 0,
       onKeyDown: handleKeyDown,
-      children: nodes.map((node) => /* @__PURE__ */ jsx82(
+      children: nodes.map((node) => /* @__PURE__ */ jsx83(
         TreeItem,
         {
           node,
@@ -14381,7 +14532,7 @@ function TreeItem({
   const expanded = expandedSet.has(node.id);
   const selected = selectedSet.has(node.id);
   const isActive = activeId === node.id;
-  return /* @__PURE__ */ jsxs48(
+  return /* @__PURE__ */ jsxs49(
     "li",
     {
       ref: (el) => {
@@ -14417,7 +14568,7 @@ function TreeItem({
         if (!node.disabled) onFocus(node.id);
       },
       children: [
-        /* @__PURE__ */ jsx82("div", { className: "hds-tree-row", style: { paddingLeft: `calc(${level - 1} * var(--s-5))` }, children: hasChildren ? (
+        /* @__PURE__ */ jsx83("div", { className: "hds-tree-row", style: { paddingLeft: `calc(${level - 1} * var(--s-5))` }, children: hasChildren ? (
           // A `<span>`, not a `<button aria-hidden>`. The `li` already carries
           // `role="treeitem"` and the row's whole click behaviour, so the
           // wrapper never needed to be interactive — and `aria-hidden` on it
@@ -14427,7 +14578,7 @@ function TreeItem({
           // Hive's per-row actions menu — both a `<button>` nested inside a
           // `<button>` and a focusable node inside a hidden subtree.
           // Leaves already used a `<span>`; folders now match them.
-          /* @__PURE__ */ jsx82(
+          /* @__PURE__ */ jsx83(
             "span",
             {
               className: "hds-tree-toggle",
@@ -14442,8 +14593,8 @@ function TreeItem({
               children: renderLabel(node, { level, expanded, selected, hasChildren })
             }
           )
-        ) : /* @__PURE__ */ jsx82("span", { className: "hds-tree-toggle hds-tree-toggle-leaf", children: renderLabel(node, { level, expanded, selected, hasChildren }) }) }),
-        hasChildren && expanded && /* @__PURE__ */ jsx82("ul", { role: "group", children: node.children.map((child) => /* @__PURE__ */ jsx82(
+        ) : /* @__PURE__ */ jsx83("span", { className: "hds-tree-toggle hds-tree-toggle-leaf", children: renderLabel(node, { level, expanded, selected, hasChildren }) }) }),
+        hasChildren && expanded && /* @__PURE__ */ jsx83("ul", { role: "group", children: node.children.map((child) => /* @__PURE__ */ jsx83(
           TreeItem,
           {
             node: child,
@@ -14469,7 +14620,7 @@ import * as React59 from "react";
 
 // node_modules/@radix-ui/react-avatar/dist/index.mjs
 import * as React58 from "react";
-import { jsx as jsx83 } from "react/jsx-runtime";
+import { jsx as jsx84 } from "react/jsx-runtime";
 var AVATAR_NAME = "Avatar";
 var [createAvatarContext, createAvatarScope] = createContextScope(AVATAR_NAME);
 var STATIC_IMAGE_COUNT_STATE = [
@@ -14482,7 +14633,7 @@ var Avatar = React58.forwardRef(
     const { __scopeAvatar, ...avatarProps } = props;
     const [imageLoadingStatus, setImageLoadingStatus] = React58.useState("idle");
     const [imageCount, setImageCount] = useImageCount();
-    return /* @__PURE__ */ jsx83(
+    return /* @__PURE__ */ jsx84(
       AvatarProvider,
       {
         scope: __scopeAvatar,
@@ -14490,7 +14641,7 @@ var Avatar = React58.forwardRef(
         setImageLoadingStatus,
         imageCount,
         setImageCount,
-        children: /* @__PURE__ */ jsx83(Primitive.span, { ...avatarProps, ref: forwardedRef })
+        children: /* @__PURE__ */ jsx84(Primitive.span, { ...avatarProps, ref: forwardedRef })
       }
     );
   }
@@ -14519,7 +14670,7 @@ var AvatarImage = React58.forwardRef(
         handleLoadingStatusChange(imageLoadingStatus);
       }
     }, [imageLoadingStatus, handleLoadingStatusChange]);
-    return imageLoadingStatus === "loaded" ? /* @__PURE__ */ jsx83(Primitive.img, { ...imageProps, ref: forwardedRef, src }) : null;
+    return imageLoadingStatus === "loaded" ? /* @__PURE__ */ jsx84(Primitive.img, { ...imageProps, ref: forwardedRef, src }) : null;
   }
 );
 AvatarImage.displayName = IMAGE_NAME;
@@ -14535,7 +14686,7 @@ var AvatarFallback = React58.forwardRef(
         return () => window.clearTimeout(timerId);
       }
     }, [delayMs]);
-    return canRender && context.imageLoadingStatus !== "loaded" ? /* @__PURE__ */ jsx83(Primitive.span, { ...fallbackProps, ref: forwardedRef }) : null;
+    return canRender && context.imageLoadingStatus !== "loaded" ? /* @__PURE__ */ jsx84(Primitive.span, { ...fallbackProps, ref: forwardedRef }) : null;
   }
 );
 AvatarFallback.displayName = FALLBACK_NAME;
@@ -14604,7 +14755,7 @@ function useUpdateImageCount(setImageCount) {
 }
 
 // src/components/Avatar/Avatar.tsx
-import { jsx as jsx84, jsxs as jsxs49 } from "react/jsx-runtime";
+import { jsx as jsx85, jsxs as jsxs50 } from "react/jsx-runtime";
 var SIZE_SCALE2 = {
   sm: 24,
   md: 32,
@@ -14622,7 +14773,7 @@ function resolveSize2(size4) {
 var Avatar2 = React59.forwardRef(
   ({ src, alt, fallback, size: size4 = "md", status, delayMs = 200, className, style, ...rest }, ref) => {
     const px = resolveSize2(size4);
-    return /* @__PURE__ */ jsxs49(
+    return /* @__PURE__ */ jsxs50(
       Avatar,
       {
         ref,
@@ -14630,9 +14781,9 @@ var Avatar2 = React59.forwardRef(
         style: { width: px, height: px, ...style },
         ...rest,
         children: [
-          src && /* @__PURE__ */ jsx84(AvatarImage, { className: "hds-avatar-image", src, alt }),
-          /* @__PURE__ */ jsx84(AvatarFallback, { className: "hds-avatar-fallback", delayMs, children: fallback }),
-          status && /* @__PURE__ */ jsx84(
+          src && /* @__PURE__ */ jsx85(AvatarImage, { className: "hds-avatar-image", src, alt }),
+          /* @__PURE__ */ jsx85(AvatarFallback, { className: "hds-avatar-fallback", delayMs, children: fallback }),
+          status && /* @__PURE__ */ jsx85(
             "span",
             {
               className: cx("hds-avatar-status", `hds-avatar-status-${status}`),
@@ -14652,7 +14803,7 @@ import * as React61 from "react";
 
 // node_modules/@radix-ui/react-progress/dist/index.mjs
 import * as React60 from "react";
-import { jsx as jsx85 } from "react/jsx-runtime";
+import { jsx as jsx86 } from "react/jsx-runtime";
 var PROGRESS_NAME = "Progress";
 var DEFAULT_MAX = 100;
 var [createProgressContext, createProgressScope] = createContextScope(PROGRESS_NAME);
@@ -14675,7 +14826,7 @@ var Progress = React60.forwardRef(
     }
     const value = isValidValueNumber(valueProp, max2) ? valueProp : null;
     const valueLabel = isNumber(value) ? getValueLabel(value, max2) : void 0;
-    return /* @__PURE__ */ jsx85(ProgressProvider, { scope: __scopeProgress, value, max: max2, children: /* @__PURE__ */ jsx85(
+    return /* @__PURE__ */ jsx86(ProgressProvider, { scope: __scopeProgress, value, max: max2, children: /* @__PURE__ */ jsx86(
       Primitive.div,
       {
         "aria-valuemax": max2,
@@ -14698,7 +14849,7 @@ var ProgressIndicator = React60.forwardRef(
   (props, forwardedRef) => {
     const { __scopeProgress, ...indicatorProps } = props;
     const context = useProgressContext(INDICATOR_NAME5, __scopeProgress);
-    return /* @__PURE__ */ jsx85(
+    return /* @__PURE__ */ jsx86(
       Primitive.div,
       {
         "data-state": getProgressState(context.value, context.max),
@@ -14741,11 +14892,11 @@ var Root8 = Progress;
 var Indicator = ProgressIndicator;
 
 // src/components/Progress/Progress.tsx
-import { jsx as jsx86 } from "react/jsx-runtime";
+import { jsx as jsx87 } from "react/jsx-runtime";
 var Progress2 = React61.forwardRef(function Progress3({ className, value = 0, max: max2, style, ...rest }, ref) {
   const resolvedMax = typeof max2 === "number" && max2 > 0 ? max2 : 100;
   const indicatorStyle = typeof value === "number" ? { transform: `translateX(-${100 - value / resolvedMax * 100}%)` } : void 0;
-  return /* @__PURE__ */ jsx86(
+  return /* @__PURE__ */ jsx87(
     Root8,
     {
       ref,
@@ -14754,7 +14905,7 @@ var Progress2 = React61.forwardRef(function Progress3({ className, value = 0, ma
       max: max2,
       style,
       ...rest,
-      children: /* @__PURE__ */ jsx86(Indicator, { className: "hds-progress-indicator", style: indicatorStyle })
+      children: /* @__PURE__ */ jsx87(Indicator, { className: "hds-progress-indicator", style: indicatorStyle })
     }
   );
 });
@@ -14762,7 +14913,7 @@ Progress2.displayName = "Progress";
 
 // src/components/LevelMeter/LevelMeter.tsx
 import * as React62 from "react";
-import { jsx as jsx87 } from "react/jsx-runtime";
+import { jsx as jsx88 } from "react/jsx-runtime";
 var DEFAULT_BARS = 20;
 var DEFAULT_SILENCE_THRESHOLD = 0.02;
 var LevelMeter = React62.forwardRef(function LevelMeter2({
@@ -14777,7 +14928,7 @@ var LevelMeter = React62.forwardRef(function LevelMeter2({
   const padded = [...new Array(Math.max(0, bars - recent.length)).fill(0), ...recent];
   const current = padded[padded.length - 1] ?? 0;
   const silent = padded.every((level) => level <= silenceThreshold);
-  return /* @__PURE__ */ jsx87(
+  return /* @__PURE__ */ jsx88(
     "div",
     {
       ref,
@@ -14789,7 +14940,7 @@ var LevelMeter = React62.forwardRef(function LevelMeter2({
       "aria-valuemax": 1,
       "aria-valuenow": Number(current.toFixed(2)),
       ...rest,
-      children: padded.map((level, index2) => /* @__PURE__ */ jsx87(
+      children: padded.map((level, index2) => /* @__PURE__ */ jsx88(
         "span",
         {
           className: "hds-level-meter-bar",
@@ -14804,33 +14955,33 @@ LevelMeter.displayName = "LevelMeter";
 
 // src/components/Alert/Alert.tsx
 import { forwardRef as forwardRef61 } from "react";
-import { jsx as jsx88, jsxs as jsxs50 } from "react/jsx-runtime";
+import { jsx as jsx89, jsxs as jsxs51 } from "react/jsx-runtime";
 var Alert = forwardRef61(function Alert2({ variant = "info", icon, title, className, children, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs50("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx88("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsxs50("div", { className: "hds-alert-body", children: [
-      title && /* @__PURE__ */ jsx88("div", { className: "hds-alert-title", children: title }),
-      children && /* @__PURE__ */ jsx88("div", { className: "hds-alert-description", children })
+  return /* @__PURE__ */ jsxs51("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx89("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsxs51("div", { className: "hds-alert-body", children: [
+      title && /* @__PURE__ */ jsx89("div", { className: "hds-alert-title", children: title }),
+      children && /* @__PURE__ */ jsx89("div", { className: "hds-alert-description", children })
     ] })
   ] });
 });
 Alert.displayName = "Alert";
 
 // src/components/Empty/Empty.tsx
-import { jsx as jsx89, jsxs as jsxs51 } from "react/jsx-runtime";
+import { jsx as jsx90, jsxs as jsxs52 } from "react/jsx-runtime";
 function Empty({ icon, title, description, action, className, ...rest }) {
-  return /* @__PURE__ */ jsxs51("div", { className: cx("hds-empty", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx89("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsx89("div", { className: "hds-empty-title", children: title }),
-    description && /* @__PURE__ */ jsx89("div", { className: "hds-empty-description", children: description }),
-    action && /* @__PURE__ */ jsx89("div", { className: "hds-empty-action", children: action })
+  return /* @__PURE__ */ jsxs52("div", { className: cx("hds-empty", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx90("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsx90("div", { className: "hds-empty-title", children: title }),
+    description && /* @__PURE__ */ jsx90("div", { className: "hds-empty-description", children: description }),
+    action && /* @__PURE__ */ jsx90("div", { className: "hds-empty-action", children: action })
   ] });
 }
 
 // src/components/Kbd/Kbd.tsx
-import { jsx as jsx90 } from "react/jsx-runtime";
+import { jsx as jsx91 } from "react/jsx-runtime";
 function Kbd({ className, children, ...rest }) {
-  return /* @__PURE__ */ jsx90("kbd", { className: cx("hds-kbd", className), ...rest, children });
+  return /* @__PURE__ */ jsx91("kbd", { className: cx("hds-kbd", className), ...rest, children });
 }
 
 // src/components/Resizable/Resizable.tsx
@@ -16938,27 +17089,27 @@ function Qt({
 Qt.displayName = "Separator";
 
 // src/components/Resizable/Resizable.tsx
-import { jsx as jsx91, jsxs as jsxs52 } from "react/jsx-runtime";
+import { jsx as jsx92, jsxs as jsxs53 } from "react/jsx-runtime";
 var Resizable = forwardRef62(function Resizable2({ className, orientation = "horizontal", ...rest }, ref) {
-  return /* @__PURE__ */ jsx91(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
+  return /* @__PURE__ */ jsx92(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
 });
 Resizable.displayName = "Resizable";
 var ResizablePanel = forwardRef62(function ResizablePanel2({ className, ...rest }, ref) {
-  return /* @__PURE__ */ jsx91(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
+  return /* @__PURE__ */ jsx92(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
 });
 ResizablePanel.displayName = "ResizablePanel";
 var ResizableHandle = forwardRef62(function ResizableHandle2({ className, withGrip = false, ...rest }, ref) {
-  return /* @__PURE__ */ jsx91(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs52("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsx91("span", {}),
-    /* @__PURE__ */ jsx91("span", {}),
-    /* @__PURE__ */ jsx91("span", {})
+  return /* @__PURE__ */ jsx92(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs53("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx92("span", {}),
+    /* @__PURE__ */ jsx92("span", {}),
+    /* @__PURE__ */ jsx92("span", {})
   ] }) });
 });
 ResizableHandle.displayName = "ResizableHandle";
 
 // src/components/SegmentedControl/SegmentedControl.tsx
-import { useCallback as useCallback25, useEffect as useEffect36, useLayoutEffect as useLayoutEffect6, useRef as useRef43, useState as useState35 } from "react";
-import { jsx as jsx92, jsxs as jsxs53 } from "react/jsx-runtime";
+import { useCallback as useCallback25, useEffect as useEffect37, useLayoutEffect as useLayoutEffect6, useRef as useRef44, useState as useState36 } from "react";
+import { jsx as jsx93, jsxs as jsxs54 } from "react/jsx-runtime";
 function SegmentedControl({
   options,
   value,
@@ -16967,8 +17118,8 @@ function SegmentedControl({
   size: size4 = "sm",
   className
 }) {
-  const trackRef = useRef43(null);
-  const [thumb, setThumb] = useState35(null);
+  const trackRef = useRef44(null);
+  const [thumb, setThumb] = useState36(null);
   const measure = useCallback25(() => {
     const track = trackRef.current;
     if (!track) return;
@@ -16981,7 +17132,7 @@ function SegmentedControl({
     setThumb(width > 0 ? { x: active.offsetLeft, width } : null);
   }, []);
   useLayoutEffect6(measure, [measure, value, options]);
-  useEffect36(() => {
+  useEffect37(() => {
     const track = trackRef.current;
     if (!track || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -17007,7 +17158,7 @@ function SegmentedControl({
     event.preventDefault();
     onChange(target.id);
   };
-  return /* @__PURE__ */ jsxs53(
+  return /* @__PURE__ */ jsxs54(
     "div",
     {
       ref: trackRef,
@@ -17016,7 +17167,7 @@ function SegmentedControl({
       className: cx("hds-seg", `hds-seg-${size4}`, className),
       onKeyDown: handleKeyDown,
       children: [
-        thumb && /* @__PURE__ */ jsx92(
+        thumb && /* @__PURE__ */ jsx93(
           "span",
           {
             className: "hds-seg-thumb",
@@ -17026,7 +17177,7 @@ function SegmentedControl({
         ),
         options.map((option) => {
           const active = option.id === value;
-          return /* @__PURE__ */ jsxs53(
+          return /* @__PURE__ */ jsxs54(
             "button",
             {
               type: "button",
@@ -17038,8 +17189,8 @@ function SegmentedControl({
               className: "hds-seg-item",
               onClick: () => onChange(option.id),
               children: [
-                /* @__PURE__ */ jsx92("span", { className: "hds-seg-label", children: option.label }),
-                option.count !== void 0 && /* @__PURE__ */ jsx92("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
+                /* @__PURE__ */ jsx93("span", { className: "hds-seg-label", children: option.label }),
+                option.count !== void 0 && /* @__PURE__ */ jsx93("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
               ]
             },
             option.id
@@ -17052,15 +17203,15 @@ function SegmentedControl({
 
 // src/components/ChatMessage/ChatMessage.tsx
 import { forwardRef as forwardRef63 } from "react";
-import { jsx as jsx93, jsxs as jsxs54 } from "react/jsx-runtime";
+import { jsx as jsx94, jsxs as jsxs55 } from "react/jsx-runtime";
 var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs54("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
-    role !== "system" && avatar && /* @__PURE__ */ jsx93("div", { className: "hds-chat-message-avatar", children: avatar }),
-    /* @__PURE__ */ jsxs54("div", { className: "hds-chat-message-body", children: [
-      /* @__PURE__ */ jsx93("div", { className: "hds-chat-message-bubble", children }),
-      (timestamp || actions) && /* @__PURE__ */ jsxs54("div", { className: "hds-chat-message-meta", children: [
-        timestamp && /* @__PURE__ */ jsx93("span", { className: "hds-chat-message-timestamp", children: timestamp }),
-        actions && /* @__PURE__ */ jsx93("div", { className: "hds-chat-message-actions", children: actions })
+  return /* @__PURE__ */ jsxs55("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs55("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs55("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx94("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx94("div", { className: "hds-chat-message-actions", children: actions })
       ] })
     ] })
   ] });
@@ -17068,19 +17219,19 @@ var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, 
 ChatMessage.displayName = "ChatMessage";
 
 // src/components/TypingIndicator/TypingIndicator.tsx
-import { jsx as jsx94, jsxs as jsxs55 } from "react/jsx-runtime";
+import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
 function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
-  return /* @__PURE__ */ jsxs55("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
-    /* @__PURE__ */ jsx94("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx94("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx94("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx94(VisuallyHidden2, { children: label })
+  return /* @__PURE__ */ jsxs56("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx95("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx95(VisuallyHidden2, { children: label })
   ] });
 }
 
 // src/components/MessageList/MessageList.tsx
-import { useCallback as useCallback26, useEffect as useEffect37, useRef as useRef44, useState as useState36 } from "react";
-import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
+import { useCallback as useCallback26, useEffect as useEffect38, useRef as useRef45, useState as useState37 } from "react";
+import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
 function prefersReducedMotion3() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -17092,10 +17243,10 @@ function MessageList({
   className,
   ...rest
 }) {
-  const viewportRef = useRef44(null);
-  const contentRef = useRef44(null);
-  const [isPinned, setIsPinned] = useState36(true);
-  const isPinnedRef = useRef44(isPinned);
+  const viewportRef = useRef45(null);
+  const contentRef = useRef45(null);
+  const [isPinned, setIsPinned] = useState37(true);
+  const isPinnedRef = useRef45(isPinned);
   isPinnedRef.current = isPinned;
   const isNearBottom = useCallback26(() => {
     const viewport = viewportRef.current;
@@ -17118,13 +17269,13 @@ function MessageList({
   const handleScroll2 = useCallback26(() => {
     setIsPinned(isNearBottom());
   }, [isNearBottom]);
-  useEffect37(() => {
+  useEffect38(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     viewport.addEventListener("scroll", handleScroll2, { passive: true });
     return () => viewport.removeEventListener("scroll", handleScroll2);
   }, [handleScroll2]);
-  useEffect37(() => {
+  useEffect38(() => {
     const content = contentRef.current;
     if (!content || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
@@ -17133,12 +17284,12 @@ function MessageList({
     observer.observe(content);
     return () => observer.disconnect();
   }, [scrollToBottom]);
-  useEffect37(() => {
+  useEffect38(() => {
     scrollToBottom("instant");
   }, [scrollToBottom]);
-  return /* @__PURE__ */ jsxs56("div", { className: cx("hds-message-list", className), ...rest, children: [
-    /* @__PURE__ */ jsx95(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx95("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
-    !isPinned && /* @__PURE__ */ jsx95(
+  return /* @__PURE__ */ jsxs57("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx96(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx96("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx96(
       "button",
       {
         type: "button",
@@ -17155,7 +17306,7 @@ function MessageList({
 
 // src/components/Attachment/Attachment.tsx
 import { forwardRef as forwardRef64 } from "react";
-import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
+import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
 function splitAtTail(name) {
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 && name.length - dot <= 7 ? name.length - dot : 0;
@@ -17167,28 +17318,28 @@ var Attachment = forwardRef64(function Attachment2({ name, meta, icon, onRemove,
   const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
   const middle = truncate === "middle" && typeof name === "string";
   const [head, tail] = middle ? splitAtTail(name) : ["", ""];
-  return /* @__PURE__ */ jsxs57("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx96("span", { className: "hds-attachment-icon", children: icon }),
-    /* @__PURE__ */ jsxs57("span", { className: "hds-attachment-text", children: [
-      middle ? /* @__PURE__ */ jsxs57("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
-        /* @__PURE__ */ jsx96("span", { className: "hds-attachment-name-head", children: head }),
-        tail !== "" && /* @__PURE__ */ jsx96("span", { className: "hds-attachment-name-tail", children: tail })
-      ] }) : /* @__PURE__ */ jsx96("span", { className: "hds-attachment-name", children: name }),
-      meta && /* @__PURE__ */ jsx96("span", { className: "hds-attachment-meta", children: meta })
+  return /* @__PURE__ */ jsxs58("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs58("span", { className: "hds-attachment-text", children: [
+      middle ? /* @__PURE__ */ jsxs58("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
+        /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name-head", children: head }),
+        tail !== "" && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name-tail", children: tail })
+      ] }) : /* @__PURE__ */ jsx97("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx97("span", { className: "hds-attachment-meta", children: meta })
     ] }),
-    onRemove && /* @__PURE__ */ jsx96("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx96("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx96("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+    onRemove && /* @__PURE__ */ jsx97("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx97("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx97("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
   ] });
 });
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
-import { useLayoutEffect as useLayoutEffect7, useRef as useRef45 } from "react";
-import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
+import { useLayoutEffect as useLayoutEffect7, useRef as useRef46 } from "react";
+import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx97("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx97("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx98("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
 }
 function StopIcon() {
-  return /* @__PURE__ */ jsx97("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx97("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
+  return /* @__PURE__ */ jsx98("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -17219,8 +17370,8 @@ function PromptInput({
     defaultValue,
     onChange
   });
-  const backdropRef = useRef45(null);
-  const innerTextareaRef = useRef45(null);
+  const backdropRef = useRef46(null);
+  const innerTextareaRef = useRef46(null);
   const isEmpty = value.trim().length === 0;
   const stopMode = streaming && onStop !== void 0;
   const sendDisabled = disabled || streaming || isEmpty && !allowEmptySubmit;
@@ -17246,7 +17397,7 @@ function PromptInput({
   useLayoutEffect7(() => {
     if (highlight) syncBackdropScroll();
   });
-  const textarea = /* @__PURE__ */ jsx97(
+  const textarea = /* @__PURE__ */ jsx98(
     Textarea,
     {
       ref: setTextareaNode,
@@ -17264,7 +17415,7 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs58(
+  return /* @__PURE__ */ jsxs59(
     "div",
     {
       className: cx("hds-prompt-input", className),
@@ -17272,14 +17423,14 @@ function PromptInput({
       "data-highlighted": highlighted || void 0,
       ...rest,
       children: [
-        attachments && /* @__PURE__ */ jsx97("div", { className: "hds-prompt-input-attachments", children: attachments }),
-        highlight ? /* @__PURE__ */ jsxs58("div", { className: "hds-prompt-input-editor", children: [
-          /* @__PURE__ */ jsx97("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
+        attachments && /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight ? /* @__PURE__ */ jsxs59("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx98("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
           textarea
         ] }) : textarea,
-        /* @__PURE__ */ jsxs58("div", { className: "hds-prompt-input-toolbar", children: [
-          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx97("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx97("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
-          /* @__PURE__ */ jsxs58(
+        /* @__PURE__ */ jsxs59("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx98("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs59(
             "button",
             {
               type: "button",
@@ -17290,8 +17441,8 @@ function PromptInput({
               title: stopMode ? stopLabel : sendLabel,
               onClick: stopMode ? onStop : submit,
               children: [
-                sendIcon === void 0 ? /* @__PURE__ */ jsx97(SendIcon, {}) : /* @__PURE__ */ jsx97("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
-                /* @__PURE__ */ jsx97(StopIcon, {})
+                sendIcon === void 0 ? /* @__PURE__ */ jsx98(SendIcon, {}) : /* @__PURE__ */ jsx98("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
+                /* @__PURE__ */ jsx98(StopIcon, {})
               ]
             }
           )
@@ -17379,6 +17530,7 @@ export {
   ModeBlock,
   ModeSplit,
   Nav,
+  OptionPicker,
   Panel,
   PinChip,
   Pkg,

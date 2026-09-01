@@ -78,6 +78,17 @@ export function useComposerDictation({
       read: () => {
         const element = textareaRef.current
         const current = valueRef.current
+        // A write React has not committed yet has still happened, as far as
+        // dictation is concerned — and the element's `selectionStart` is a
+        // commit behind it. Reading the DOM there is what made a live pass and
+        // the segment that replaced it land in the wrong places: the commit
+        // that removed the provisional run had not reached the textarea when
+        // the real text asked where the caret was, so the real text went in
+        // after the guess instead of over it, and the phrase appeared twice.
+        const pending = pendingCaretRef.current
+        if (pending !== null) {
+          return { value: current, selectionStart: pending, selectionEnd: pending }
+        }
         // A field that is not focused has no meaningful selection; appending at
         // the end is the honest default.
         return {
@@ -86,9 +97,21 @@ export function useComposerDictation({
           selectionEnd: element?.selectionEnd ?? current.length
         }
       },
-      write: ({ value: next, caret, range }) => {
+      write: ({ value: next, caret, range, preview }) => {
+        // Mirrored **before** the setState, not by the effect below: two writes
+        // can land in one tick (the live pass clearing its guess, the segment
+        // writing the real text a microtask later), and the second one has to
+        // see what the first wrote. The effect keeps this in sync with edits
+        // that come from outside dictation; this keeps it in sync with itself.
+        valueRef.current = next
         setValue(next)
         pendingCaretRef.current = caret
+        // A provisional write is not an arrival (VP-R2.9): the mark is a
+        // 600 ms glance that says "this just landed", and a live pass rewrites
+        // the same run several times a second. Marking those would strobe for
+        // as long as someone is speaking, and would be lying besides — the run
+        // has not landed, it is still being guessed at.
+        if (preview === true) return
         // An empty range means nothing arrived (a discard's rewind, an empty
         // segment) — marking it would flash a zero-width highlight.
         setFreshRange(range[0] === range[1] ? null : range)

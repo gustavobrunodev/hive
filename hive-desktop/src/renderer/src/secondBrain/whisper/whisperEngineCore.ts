@@ -5,6 +5,7 @@ import {
   weightsLoaded,
   type TransformersEnv
 } from './whisperEnv'
+import { isMemoryFailure } from './whisperWorkerProtocol'
 import type { WhisperWorkerRequest, WhisperWorkerResponse } from './whisperWorkerProtocol'
 
 /**
@@ -24,7 +25,15 @@ import type { WhisperWorkerRequest, WhisperWorkerResponse } from './whisperWorke
 export type AsrPipeline = ((
   audio: Float32Array,
   options: Record<string, unknown>
-) => Promise<{ text?: string }>) & { tokenizer: unknown }
+) => Promise<{ text?: string }>) & {
+  tokenizer: unknown
+  /**
+   * Releases the ONNX sessions. Optional because a test double has none — but
+   * on the real pipeline it is the only way the weights ever leave the WASM
+   * heap, and that heap only ever grows.
+   */
+  dispose?: () => Promise<void>
+}
 
 export interface TransformersModule {
   pipeline: (task: string, repo: string, options: Record<string, unknown>) => Promise<AsrPipeline>
@@ -45,6 +54,35 @@ export interface WhisperEngineDeps {
 export interface WhisperEngineCore {
   /** Runs one request to completion. Never throws — failures are posted. */
   handle: (request: WhisperWorkerRequest) => Promise<void>
+}
+
+/**
+ * Whisper's own input window. Every model in the family sees exactly 30 s of
+ * mel frames per forward pass — shorter audio is padded up to it, which is why
+ * a 2 s phrase and a 9 s one cost nearly the same.
+ */
+export const WHISPER_WINDOW_S = 30
+
+/** Sample rate every request arrives at, fixed by `micCapture` and `audio.ts`. */
+const SAMPLE_RATE = 16_000
+
+/**
+ * Whether to ask for the chunked long-audio path, for audio of `samples`.
+ *
+ * Chunking is how a 40-minute recording transcribes in bounded memory, and it
+ * was being asked for unconditionally. On a dictated phrase that is not free:
+ * the chunked path builds its own strided buffers and runs the post-processing
+ * that stitches overlapping windows back together, all to produce exactly one
+ * window's worth of output. Under WASM — one thread, an fp32 model, and a heap
+ * that only grows — that surplus is the difference between a take that lasts
+ * and "failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc".
+ *
+ * Audio that genuinely exceeds the window still gets chunked, unchanged.
+ */
+export function chunkingFor(samples: number): Record<string, number> {
+  return samples > WHISPER_WINDOW_S * SAMPLE_RATE
+    ? { chunk_length_s: WHISPER_WINDOW_S, stride_length_s: 5 }
+    : {}
 }
 
 export function createWhisperEngineCore(deps: WhisperEngineDeps): WhisperEngineCore {
@@ -94,6 +132,20 @@ export function createWhisperEngineCore(deps: WhisperEngineDeps): WhisperEngineC
     const key = `${model}:${variant}:${device}`
     if (current !== null && current.key === key) return current.asr
 
+    // A switch replaces the pipeline, and the outgoing one has to be told to
+    // go: its ONNX sessions live in a WebAssembly memory that grows and never
+    // shrinks, so dropping the reference frees the JS handle and leaves ~1 GB
+    // of fp32 weights sitting in the heap the next session has to allocate out
+    // of. That is the arithmetic behind "std::bad_alloc" after a model change.
+    if (current !== null) {
+      const outgoing = current.asr
+      current = null
+      await outgoing.dispose?.().catch(() => {
+        // A pipeline that will not dispose is not a reason to refuse to build
+        // the next one — the heap is the thing at risk, and it is already lost.
+      })
+    }
+
     const { pipeline, env } = await library()
     deps.post({ type: 'phase', id, phase: { status: 'loading', pct: 0 } })
     const uninstall = installLoadMeter(env, (files) => {
@@ -135,10 +187,7 @@ export function createWhisperEngineCore(deps: WhisperEngineDeps): WhisperEngineC
     const result = await asr(pcm, {
       language,
       task: 'transcribe',
-      // Chunked long-audio inference: bounded memory on a long recording, and —
-      // now that partials are forwarded — a steady trickle of text out of one.
-      chunk_length_s: 30,
-      stride_length_s: 5,
+      ...chunkingFor(pcm.length),
       streamer
     })
     deps.post({ type: 'done', id, text: (result.text ?? '').trim() })
@@ -155,10 +204,19 @@ export function createWhisperEngineCore(deps: WhisperEngineDeps): WhisperEngineC
           await transcribe(request)
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const memory = isMemoryFailure(message)
+        // An exhausted heap is not a bad segment, it is a bad *worker*: ORT's
+        // allocator never gives memory back, so every later run fails the same
+        // way. Dropping the pipeline here is the half this side can do; the
+        // client reads `kind` and replaces the whole thread, which is the half
+        // that actually works.
+        if (memory) current = null
         deps.post({
           type: 'error',
           id: request.id,
-          message: error instanceof Error ? error.message : String(error)
+          message,
+          ...(memory ? { kind: 'memory' as const } : {})
         })
       } finally {
         deps.post({ type: 'phase', id: request.id, phase: { status: 'idle' } })

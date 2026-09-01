@@ -51,8 +51,14 @@ export function useWhisper(client: WhisperClient = whisperClient()): WhisperEngi
   // The engine outlives every component that watches it, so this is a
   // subscription to an external system — exactly where React wants a
   // `setState`, and why the phase is not derived during render.
+  //
+  // The initial read goes through a named callback rather than a bare
+  // `setPhase(...)` in the effect body (the repo's `load()`/`sync()` pattern):
+  // a setState called synchronously at the top of an effect cascades a render,
+  // which `react-hooks/set-state-in-effect` rejects outright.
   useEffect(() => {
-    setPhase(client.phase())
+    const sync = (): void => setPhase(client.phase())
+    sync()
     return client.subscribe(setPhase)
   }, [client])
 
