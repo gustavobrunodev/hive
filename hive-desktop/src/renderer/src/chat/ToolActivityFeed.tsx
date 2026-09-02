@@ -14,9 +14,11 @@ import {
   ToolsIcon
 } from '../ui/icons'
 import { PatchOpChip, PatchSnippet, PatchStat } from './PatchSnippet'
+import { ToolDetails } from './ToolDetails'
 import {
   activityElapsed,
   collapseActivities,
+  hasToolDetails,
   shortenDetail,
   toolKind,
   toolLabel,
@@ -167,6 +169,16 @@ function RowText({
       </span>
       {patch && <PatchOpChip patch={patch} />}
       {patch && <PatchStat adds={patch.adds} dels={patch.dels} />}
+      {/* agent-tool-details: the result's scale, on the closed row. It is the
+          same job the diffstat does for a patch — enough to judge a step
+          without opening it, and the difference between a command that
+          answered with four lines and one that answered with four hundred.
+          Only where there is no diffstat already saying "how much". */}
+      {!patch && activity.output !== undefined && activity.output.lines > 0 && (
+        <span className="wb-activity-lines" aria-hidden="true">
+          {t('details.lines', activity.output.lines)}
+        </span>
+      )}
     </>
   )
 }
@@ -207,9 +219,13 @@ export function ToolActivityFeed({
   onOpenFile
 }: ToolActivityFeedProps): React.JSX.Element | null {
   const [expanded, setExpanded] = useState(false)
-  // Patches open by default, so these track the *exceptions*: rows the user
-  // closed, and rows they grew past the line cap.
-  const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set())
+  // Disclosure state is stored as *deviations from the default*, not as
+  // absolute open/closed. The default differs by row — a patch opens itself, a
+  // command's output does not (see `opensByDefault`) — and a set of "these are
+  // open" would have to be seeded, then re-seeded every time a row settles and
+  // gains a result. A set of "the user changed their mind about these" needs
+  // neither, and it survives the feed collapsing and re-expanding.
+  const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set())
   const [grown, setGrown] = useState<ReadonlySet<string>>(() => new Set())
 
   if (activities.length === 0) return null
@@ -250,8 +266,8 @@ export function ToolActivityFeed({
             live={live && activity.id === lastRunningId}
             now={now}
             onOpenFile={onOpenFile}
-            open={!closed.has(activity.id)}
-            onToggleOpen={() => setClosed((set) => toggle(set, activity.id))}
+            open={opensByDefault(activity) !== flipped.has(activity.id)}
+            onToggleOpen={() => setFlipped((set) => toggle(set, activity.id))}
             full={grown.has(activity.id)}
             onToggleFull={() => setGrown((set) => toggle(set, activity.id))}
           />
@@ -259,6 +275,21 @@ export function ToolActivityFeed({
       </ol>
     </div>
   )
+}
+
+/**
+ * Whether a row arrives open.
+ *
+ * A **patch** does: a change nobody expanded is a change nobody reviewed, and
+ * the diff is the reason that row exists (agent-patch). **Everything else does
+ * not**: a turn makes dozens of calls, and a feed that unfolded every command's
+ * output would bury the reply that explains them under a wall of transcript —
+ * which is the log-dump this app exists to replace. The details are one click
+ * away, and the row already carries the two facts (duration, result size) that
+ * say whether that click is worth making.
+ */
+function opensByDefault(activity: ToolActivity): boolean {
+  return activity.patch !== undefined
 }
 
 interface ActivityRowProps {
@@ -272,6 +303,54 @@ interface ActivityRowProps {
   onToggleOpen: () => void
   full: boolean
   onToggleFull: () => void
+}
+
+/**
+ * The row's words — and, when there is a record behind them, the control that
+ * opens it.
+ *
+ * A step with arguments, a result or a diff becomes the disclosure for that
+ * record. A step with nothing behind it keeps the plain, unclickable status
+ * line it always was: a chevron that opens an empty drawer is worse than no
+ * chevron.
+ */
+function RowLabel({
+  openable,
+  open,
+  bodyId,
+  onToggle,
+  children
+}: {
+  openable: boolean
+  open: boolean
+  bodyId: string
+  onToggle: () => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  if (!openable) return <span className="wb-activity-text">{children}</span>
+  return (
+    <button
+      type="button"
+      className="wb-activity-text wb-activity-open"
+      aria-expanded={open}
+      // Only while the body is actually mounted: `aria-controls` pointing at an
+      // id that is not in the document is a dangling reference, and assistive
+      // tech that follows it lands nowhere. `aria-expanded` alone carries the
+      // closed state, which is the whole contract for a disclosure whose
+      // content is unmounted.
+      aria-controls={open ? bodyId : undefined}
+      title={open ? t('details.closeCta') : t('details.openCta')}
+      onClick={onToggle}
+    >
+      {children}
+      <ChevronRightIcon
+        size={11}
+        className="wb-activity-chevron"
+        data-open={open || undefined}
+        aria-hidden="true"
+      />
+    </button>
+  )
 }
 
 /**
@@ -296,6 +375,10 @@ function ActivityRow({
   const verb = rowVerb(activity, kind)
   const duration = stepDuration(activity, now)
   const patch = activity.patch
+  // agent-tool-details: any step with something behind it opens — not just the
+  // ones that changed a file. What the agent *ran* and what came back is the
+  // evidence, and until now the only tool that had any was the diff.
+  const openable = hasToolDetails(activity)
   const bodyId = `wb-patch-${activity.id}`
   // The narrated row carries the duration too — "reading for two minutes" is
   // exactly the state a screen-reader user most needs.
@@ -320,28 +403,13 @@ function ActivityRow({
     >
       <div className="wb-activity-head">
         <ActivityMark state={activity.state} kind={kind} />
-        {/* A step that changed a file has something to show, so its row becomes
-            the disclosure for it. Every other step keeps the plain,
-            unclickable status line it always was. */}
-        {patch ? (
-          <button
-            type="button"
-            className="wb-activity-text wb-activity-open"
-            aria-expanded={open}
-            aria-controls={bodyId}
-            onClick={onToggleOpen}
-          >
-            {text}
-            <ChevronRightIcon
-              size={11}
-              className="wb-activity-chevron"
-              data-open={open || undefined}
-              aria-hidden="true"
-            />
-          </button>
-        ) : (
-          <span className="wb-activity-text">{text}</span>
-        )}
+        {/* A step with a record behind it — its arguments, its result, its diff
+            — becomes the disclosure for that record. A step with nothing behind
+            it keeps the plain, unclickable status line it always was: a chevron
+            that opens an empty drawer is worse than no chevron. */}
+        <RowLabel openable={openable} open={open} bodyId={bodyId} onToggle={onToggleOpen}>
+          {text}
+        </RowLabel>
         {patch && onOpenFile && (
           <button
             type="button"
@@ -361,14 +429,21 @@ function ActivityRow({
         )}
         <span className="wb-visually-hidden">{statusAria(activity.state, label)}</span>
       </div>
-      {patch && open && (
-        <PatchSnippet
-          patch={patch}
-          id={bodyId}
-          failed={activity.state === 'failed'}
-          full={full}
-          onToggleFull={onToggleFull}
-        />
+      {/* `openable` already covers the patch case — a row with a diff always
+          has a record. */}
+      {open && openable && (
+        <div className="wb-activity-body" id={bodyId}>
+          {patch && (
+            <PatchSnippet
+              patch={patch}
+              id={`${bodyId}-diff`}
+              failed={activity.state === 'failed'}
+              full={full}
+              onToggleFull={onToggleFull}
+            />
+          )}
+          <ToolDetails activity={activity} id={`${bodyId}-io`} label={label} />
+        </div>
       )}
     </li>
   )

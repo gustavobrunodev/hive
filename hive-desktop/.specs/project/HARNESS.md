@@ -619,6 +619,16 @@ próxima rodada não o re-adicionar.
     aqui a regra é `moduleBoundaries.test.ts`, que roda no `verify`;
   - **HYG-08** continua `n/a` de verdade — não há MCP versionado.
 
+### 2026-09-02 — agent-tool-details: detalhes de qualquer ação do agente
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Gate de cobertura **100%** em `toolDetails.ts` | `vitest.config.ts` | Mesmo raciocínio de `toolPatch.ts`: todo modo de falha é silencioso. Um teto aplicado sem reportar ainda **renderiza**, como um resultado que parece inteiro; um argumento de destaque em desacordo com `toolDetailOf` renderiza como um painel que abre por algo que a linha nunca citou; uma forma de `tool_result` não prevista renderiza como painel vazio, que se lê como bug. Nada disso lança. |
+| — | Sonda de contraste do painel de detalhes — 16 alvos × 3 temas | `tools/visual/tool-details-contrast.mjs` | Cena própria (`tool-details.mjs`) porque o painel só existe aberto e só mostra o tom de falha quando a ferramenta falhou; o `boot.mjs` sozinho nunca chega lá. |
+| — | **Cor resolvida por `canvas`**, não por regex sobre `getComputedStyle` | `tools/visual/tool-details-contrast.mjs` | O Chromium serializa `oklch()` literal. A primeira rodada leu `oklch(0.7 0.17 25.3)` como RGB e reprovou o rótulo de erro em 1,15:1 — uma falha inexistente. Toda sonda nova deve nascer com o `parse` por canvas. |
+| — | Checagem de **hierarquia**, ao lado da de contraste | `tools/visual/tool-details-contrast.mjs` | Os 14 alvos passaram com folga num build em que rótulo, meta e corpo eram o mesmo cinza — `var(--ink-2)` não existe neste sistema e um `var()` insolúvel herda calado. Contraste não vê achatamento; a sonda agora afirma que rótulo ≠ meta. É a primeira rachadura no limite "P3 cobre contraste, não estética". |
+| — | Passe de teclado/ARIA do disclosure | `tools/visual/tool-details-a11y.mjs` | Achou `aria-controls` pendurado (o corpo é desmontado quando fechado). Também fixa que nome acessível se mede por `ariaSnapshot`, não por `textContent` — os dois discordam em filhos de flex. |
+
 ## 7. O que deliberadamente não existe
 
 Cada linha é uma decisão, não um backlog. Estão aqui para que a próxima rodada
@@ -645,4 +655,8 @@ distinguir ausência deliberada de esquecimento.
 - **Cobertura mede o que rodou, não o que foi asseverado.** O gate de 90% per-file
   é um piso, não um selo.
 - **P3 cobre contraste, não estética.** Hierarquia visual, copy e "duas
-  affordances fingindo ser uma" seguem exigindo olho humano.
+  affordances fingindo ser uma" seguem exigindo olho humano — com uma rachadura
+  aberta em 2026-09-02: `tool-details-contrast.mjs` afirma que dois papéis de
+  texto vizinhos são **cores diferentes**, o que pega a classe "token que não
+  existe, `var()` herda calado, painel inteiro vira um cinza só". É barato e
+  vale replicar; não é estética, é só a negação do achatamento.

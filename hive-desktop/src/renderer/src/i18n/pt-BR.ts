@@ -512,6 +512,72 @@ export const ptBR = {
     notApplied: 'A ferramenta falhou — esta alteração não foi aplicada.',
     openInEditor: (name: string) => `Abrir ${name} no editor`
   },
+  // agent-tool-details: what a step was called with, and what came back —
+  // the panel behind every activity row. Copy is terse and *names the two
+  // halves*, because "detalhes" alone leaves the reader guessing which of
+  // them they are about to open.
+  details: {
+    // The disclosure on the row. Says what opens, not just that something does.
+    openCta: 'Ver detalhes',
+    closeCta: 'Ocultar detalhes',
+    // The two sections. "Chamada" is what the agent asked the tool to do;
+    // "Resultado" is what the tool answered. Both are nouns: they label a
+    // thing on screen, not an action the user can take.
+    callLabel: 'Chamada',
+    resultLabel: 'Resultado',
+    // Friendly names for the arguments the CLI's own schema spells in English
+    // snake_case. Our users are PMs and analysts, not people who have read the
+    // tool schema — but the raw key stays as the row's tooltip, because it is
+    // what they would search for if they ever went looking.
+    param: {
+      command: 'Comando',
+      file_path: 'Arquivo',
+      path: 'Caminho',
+      pattern: 'Padrão',
+      glob: 'Filtro de arquivos',
+      url: 'Endereço',
+      query: 'Busca',
+      prompt: 'Instrução',
+      description: 'Descrição',
+      content: 'Conteúdo',
+      old_string: 'Trecho original',
+      new_string: 'Novo trecho',
+      offset: 'A partir da linha',
+      limit: 'Máximo de linhas',
+      timeout: 'Tempo limite',
+      replace_all: 'Substituir todas as ocorrências',
+      run_in_background: 'Em segundo plano',
+      subagent_type: 'Tipo de agente',
+      output_mode: 'Formato da saída',
+      head_limit: 'Máximo de resultados',
+      todos: 'Tarefas',
+      plan: 'Plano'
+    },
+    // A flag argument, in words. The CLI writes `true`/`false`; a person
+    // reading a transcript should not have to translate a boolean literal to
+    // find out whether the command ran in the background.
+    yes: 'Sim',
+    no: 'Não',
+    // The result's scale, said before it is read — the same job the diffstat
+    // does for a patch.
+    lines: (count: number) => (count === 1 ? '1 linha' : `${count} linhas`),
+    // The result is still on its way. Named as a state, not as an apology.
+    pending: 'Executando…',
+    // The tool came back with nothing at all. Distinct from "we captured
+    // nothing": this one is a fact about the tool, and saying it plainly is
+    // what stops the reader from assuming the panel is broken.
+    emptyResult: 'A ferramenta não retornou conteúdo.',
+    // The transport cap, said out loud — a result cut short must not look whole.
+    truncatedChars: (count: number) =>
+      count === 1 ? '1 caractere não exibido' : `${count} caracteres não exibidos`,
+    showMore: (count: number) =>
+      count === 1 ? 'Mostrar mais 1 linha' : `Mostrar mais ${count} linhas`,
+    showLess: 'Mostrar menos',
+    copyCta: 'Copiar',
+    copiedCta: 'Copiado',
+    // The panel, narrated: which step's details these are.
+    panelAria: (label: string) => `Detalhes de ${label}`
+  },
   // chat-timing: how long things took. Compact by construction — these render
   // inline, dozens per transcript, right next to the thing they measure, so
   // "1min 12s" and never "1 minuto e 12 segundos".
@@ -2565,6 +2631,20 @@ const shellNamesPtBR: Record<string, string> = {
 /** The shell's display name, or its binary name when this build doesn't know the id. */
 export function shellName(id: string): string {
   return shellNamesPtBR[id] ?? id
+}
+
+/**
+ * agent-tool-details: a tool argument's name, in the product's own words.
+ *
+ * The CLI's schema spells these in English snake_case (`file_path`,
+ * `replace_all`), which is right for a machine and wrong for the PM reading a
+ * transcript. Anything this build doesn't know — every MCP tool's own
+ * vocabulary — passes through unchanged, because inventing a translation for a
+ * field we've never seen would be worse than showing its real name.
+ */
+export function toolParamLabel(key: string): string {
+  const labels = ptBR.details.param as Record<string, string | undefined>
+  return labels[key] ?? key
 }
 
 /**

@@ -133,6 +133,38 @@ provisório, fila, junção, backdrop. Duas lições que ele pagou:
 varredura pendurar e verifica que as linhas continuam na tela sem spinner, e que
 uma rajada de 20 escritas custa **uma** varredura.
 
+`tools/visual/tool-details-contrast.mjs` + `tools/visual/tool-details-a11y.mjs`
+cobrem o painel de detalhes de uma ferramenta (agent-tool-details), montado pela
+cena `tools/visual/tool-details.mjs` — que deixa na tela, de uma vez, um comando
+que passou, um que falhou, uma busca cortada no teto, uma chamada MCP, uma
+ferramenta que não devolveu nada e um passo ainda rodando. São 16 alvos × 3 temas
+mais seis checagens de teclado/ARIA. Três lições que custaram uma rodada cada:
+
+- **Resolva cor por canvas, nunca por regex.** O Chromium serializa `oklch()`
+  literalmente: `getComputedStyle(...).color` do `--danger-ink` deste app
+  devolve a string `oklch(0.7 0.17 25.3)`, e um `/[\d.]+/g` sobre isso lê
+  `0.7, 0.17, 25.3` como um RGB — quase preto. A sonda reprovou o rótulo de erro
+  em **1,15:1 contra o próprio tint**, uma falha que não existia. `canvas` 2D
+  resolve qualquer cor CSS (`oklch`, `oklab`, `color-mix`) para bytes sRGB.
+- **Contraste não vê hierarquia — meça-a à parte.** Todos os 14 alvos passaram
+  com folga num build em que o rótulo da seção, a meta e o corpo da saída eram
+  **o mesmo cinza**: o CSS pedia `var(--ink-2)`, que este sistema não define, e
+  um `var()` insolúvel herda em silêncio. Um painel achatado é perfeitamente
+  legível. A sonda agora afirma que rótulo ≠ meta e que o corpo tem tinta cheia.
+  O vocabulário real é `--ink` / `--muted` / `--faint` — **não existe `--ink-2`**
+  (e ainda há seis usos herdados dele em `workbench.css`, todos herdando calados:
+  `.wb-mcpturn-chip`, `.wb-gitlog-stderr`, `.wb-mcplog-source-path`,
+  `.wb-dstudio-origin-text` e mais dois botões, linhas 13506/15966/16766/16836/
+  17417/17436).
+- **`textContent` não é o nome acessível.** Filhos de um flex saem colados
+  (`"Rodounpm run verify10 linhas"`) enquanto o cálculo de nome do Chromium
+  espaça certo e descarta o que é `aria-hidden`. Uma sonda que lê `textContent`
+  reporta um defeito inexistente — meça por `locator.ariaSnapshot()`.
+- **O scroller do chat não é `.wb-chat-scroll`.** É o
+  `.hds-scroll-area-viewport` do Radix dentro dele; `.wb-chat-scroll` tem
+  `scrollHeight === clientHeight` e uma sonda que rola por ele mede sempre a
+  mesma tela.
+
 `tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
 toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
 (M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,

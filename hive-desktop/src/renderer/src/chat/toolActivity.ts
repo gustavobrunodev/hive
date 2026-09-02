@@ -49,6 +49,25 @@ export interface ToolPatch {
   anchored: boolean
 }
 
+/**
+ * Structural mirrors of `main/toolDetails.ts` (agent-tool-details) — one
+ * argument of a tool call, and what the call answered. Same mirroring
+ * convention as `ToolPatch` above; see that module for the caps and why they
+ * are applied at the source.
+ */
+export interface ToolParam {
+  key: string
+  value: string
+  block?: boolean
+  truncated?: number
+}
+
+export interface ToolOutput {
+  text: string
+  lines: number
+  truncated?: number
+}
+
 export type ToolActivityState = 'running' | 'ok' | 'failed'
 
 export interface ToolActivity {
@@ -76,6 +95,19 @@ export interface ToolActivity {
    * the moment it was doing it.
    */
   patch?: ToolPatch
+  /**
+   * agent-tool-details: the whole call, as arguments. Arrives with the `start`
+   * half — the same half that carries `patch`, and for the same reason: it is
+   * what the step *is*, so it has to be on screen while the step is still
+   * running, not only in hindsight.
+   */
+  params?: ToolParam[]
+  /**
+   * agent-tool-details: what the call answered. Arrives with the `end` half,
+   * because it does not exist before then — a running row shows its call and
+   * says the result is still pending.
+   */
+  output?: ToolOutput
 }
 
 /** The `tool` event fields this reducer consumes (mirrors `main/agentAdapter.ts`'s `ToolEvent`). */
@@ -86,6 +118,8 @@ export interface ToolActivityEvent {
   phase?: 'start' | 'end'
   ok?: boolean
   patch?: ToolPatch
+  params?: ToolParam[]
+  output?: ToolOutput
 }
 
 /**
@@ -188,7 +222,15 @@ export function reduceToolActivity(
         : findLastRunning(current)
     if (index === -1) return current
     const next = [...current]
-    next[index] = { ...next[index], state, endedAt: now }
+    next[index] = {
+      ...next[index],
+      state,
+      endedAt: now,
+      // The result joins the row it belongs to. An `end` that carries none
+      // must not blank one already there — an adapter that re-settles a row
+      // (a repeat, a late duplicate) would otherwise erase the evidence.
+      output: event.output ?? next[index].output
+    }
     return next
   }
   // A `start` (or an adapter that reports no phase at all — treat it as one).
@@ -207,7 +249,11 @@ export function reduceToolActivity(
     // …but it does NOT restart the patch: an adapter that re-announces a step
     // without repeating its input would otherwise blank the snippet already on
     // screen, which reads as the change being withdrawn.
-    patch: event.patch ?? (existing === -1 ? undefined : current[existing].patch)
+    patch: event.patch ?? (existing === -1 ? undefined : current[existing].patch),
+    params: event.params ?? (existing === -1 ? undefined : current[existing].params),
+    // A `start` never carries a result, but a re-announced step must keep the
+    // one it already had rather than reverting to "still running".
+    output: existing === -1 ? undefined : current[existing].output
   }
   if (existing !== -1) {
     const next = [...current]
@@ -222,6 +268,19 @@ function findLastRunning(activities: ToolActivity[]): number {
     if (activities[index].state === 'running') return index
   }
   return -1
+}
+
+/**
+ * Whether a step has a record behind it (agent-tool-details): its arguments,
+ * its result, or the diff it applied. Rows without one stay plain status lines
+ * — a chevron that opens an empty drawer is worse than no chevron.
+ */
+export function hasToolDetails(activity: ToolActivity): boolean {
+  return (
+    activity.patch !== undefined ||
+    activity.output !== undefined ||
+    (activity.params !== undefined && activity.params.length > 0)
+  )
 }
 
 /**

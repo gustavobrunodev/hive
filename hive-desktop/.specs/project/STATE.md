@@ -3290,6 +3290,54 @@ Não em dev: `dist/linux-unpacked/hive` dirigido por Playwright, chamando
 
 ---
 
+## agent-tool-details — o que a ferramenta rodou e o que voltou (2026-09-02)
+
+Pedido do usuário: poder **expandir qualquer ação do agente e ver os detalhes**
+(o comando rodado, a saída), como Claude Code / Cursor / Copilot fazem.
+
+O feed de atividade já dizia *que* algo aconteceu — `Rodou npm run verify · 12s`
+— e nada mais: o comando era cortado na primeira linha e em 96 caracteres, e o
+**resultado nunca aparecia em lugar nenhum**. Um comando que passou e um que
+falhou desenhavam a mesma linha. A única ferramenta com algo por trás era a de
+edição, porque `toolPatch.ts` reconstrói o diff.
+
+- **A captura é do main, e o teto também.** `toolDetails.ts` transforma o
+  `tool_use.input` numa lista ordenada de argumentos e o `tool_result.content`
+  numa saída, com corte em 2 000 caracteres por argumento e 8 000 por resultado
+  — **reportado** (`truncated`), nunca escondido. O corte fica na origem porque
+  esses objetos atravessam o IPC e depois ficam em memória enquanto a conversa
+  estiver aberta; um `Read` de arquivo grande devolve centenas de kB e um turno
+  faz dezenas de chamadas.
+- **A linha vira a divulgação do próprio registro.** Vale para toda ferramenta,
+  não só para as que mexem em arquivo. Passo sem nada por trás continua sendo
+  uma linha de status sem chevron.
+- **Padrão de abertura difere por tipo.** Um patch abre sozinho (uma mudança que
+  ninguém expandiu é uma mudança que ninguém revisou); todo o resto abre fechado
+  — quarenta comandos abertos soterrariam a resposta que os explica, que é
+  justamente o "log-dump" que o `PRODUCT.md` lista como anti-referência. O
+  estado guardado é o **desvio do padrão**, não o aberto/fechado absoluto.
+- **Os nomes dos argumentos são traduzidos, o valor não.** `file_path` vira
+  "Arquivo" (`toolParamLabel`), com o nome original no `title` — nossos usuários
+  são PMs e analistas, não gente que leu o schema. Chave desconhecida (toda a
+  vocabulária de MCP) passa inteira. Booleano vira Sim/Não; qualquer outro valor
+  viaja literal, porque um valor reescrito deixa de bater com o que foi enviado.
+- **`OutputBlock` no design system.** Bloco de saída de máquina com teto que
+  cresce no lugar, cópia, nota de corte, tom de falha e esqueleto de espera —
+  três superfícies do app precisavam disso e nenhuma tinha. Não é o `CodeBlock`
+  (esse é para código autoral em prosa: sem teto, sem estado vazio, sem falha).
+- **Sem cartões aninhados.** A primeira versão embrulhava os blocos num painel
+  com borda; a moldura aparecia duas vezes e significava uma. O painel ficou sem
+  moldura, e o cabeçalho "Chamada" caiu junto — ele ficava 8px acima do rótulo
+  "Comando" do próprio bloco, duas patentes de título dizendo a mesma coisa.
+
+Passe visual fechado nos três temas (`tools/visual/tool-details*.mjs`): 16 alvos
+de contraste × 3 temas + 6 checagens de teclado/ARIA, todos verdes. Três defeitos
+reais saíram dele e estão em `docs/visual-validation.md` — a sonda cega a
+`oklch()`, o `var(--ink-2)` que não existe neste sistema (e que achatava o painel
+inteiro num cinza só) e o `aria-controls` pendurado numa linha fechada.
+
+---
+
 ## Preferences
 
 - Lightweight tasks (state updates, session handoff, small doc edits) work

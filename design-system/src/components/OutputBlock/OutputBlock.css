@@ -1,0 +1,248 @@
+/* OutputBlock — a framed block of machine output: a command's answer, a tool
+   result, a log excerpt.
+
+   Recessed rather than raised. This is not a card sitting on the page; it is a
+   window cut into it, showing text the app did not write. That is why the
+   frame is `--bg-2` (behind the surface) with a hairline, and why it carries
+   no shadow: a drop shadow would make output float above the thing that
+   produced it, which is backwards. */
+
+.hds-out {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.hds-out-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hds-out-label {
+  flex-shrink: 0;
+  font-family: var(--ff-body);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  /* `--ink`, not a second-tier ink: the label is what separates the call from
+     the result, and it has to out-rank the `--muted` meta beside it. (There is
+     no `--ink-2` in this system — a `var()` on a token that does not exist
+     silently inherits, which is how a whole panel ends up one flat grey.) */
+  color: var(--ink);
+}
+
+.hds-out-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ff-num);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.hds-out-danger .hds-out-label {
+  color: var(--danger-ink);
+}
+
+/* The copy control is pushed to the far end and stays quiet until reached —
+   but it is always rendered and always focusable. An affordance that only
+   exists on hover is one a keyboard user does not have. */
+.hds-out-copy {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--rounded-sm);
+  background: none;
+  font-family: var(--ff-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 160ms var(--ease-quart),
+    border-color 160ms var(--ease-quart),
+    background-color 160ms var(--ease-quart);
+}
+.hds-out-copy:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.hds-out-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  color: var(--ink);
+}
+.hds-out-copy:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* The confirmation is a state, not a flash: it holds for ~1.6s so a glance
+   away and back still catches it. */
+.hds-out-copy.is-copied {
+  color: var(--success-ink);
+  border-color: transparent;
+}
+
+.hds-out-body {
+  position: relative;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--bg-2);
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  /* The output IS the content of this component — it takes full ink. Anything
+     dimmer says "supporting detail" about the one thing the reader opened it
+     for. */
+  color: var(--ink);
+  /* Machine output has no meaningful line geometry to preserve, and a
+     horizontal scrollbar inside a vertical transcript is where text goes to be
+     missed. So it wraps — anywhere, since a 400-character path has no spaces. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  tab-size: 2;
+}
+.hds-out-body:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Clipped: the last visible line fades into the frame's own background, so
+   "there is more" is legible before the control below it is read. The mask is
+   the honest signal — the text does not simply stop mid-thought. */
+.hds-out-body[data-capped]::after {
+  content: "";
+  position: absolute;
+  inset: auto 1px 1px;
+  height: 28px;
+  border-radius: 0 0 var(--rounded-md) var(--rounded-md);
+  background: linear-gradient(to bottom, transparent, var(--bg-2));
+  pointer-events: none;
+}
+
+.hds-out-danger .hds-out-body {
+  border-color: color-mix(in oklab, var(--danger) 34%, var(--border));
+  background: var(--danger-bg);
+  color: var(--ink);
+}
+.hds-out-danger .hds-out-body[data-capped]::after {
+  background: linear-gradient(to bottom, transparent, var(--danger-bg));
+}
+
+/* The `$` in front of a command. Sits in the flow of the first line rather
+   than in a gutter, which is what a shell actually looks like, and is hidden
+   from assistive tech — it is punctuation, not content. */
+.hds-out-prompt {
+  color: var(--accent);
+  user-select: none;
+  margin-right: 6px;
+}
+
+.hds-out-empty {
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--rounded-md);
+  font-family: var(--ff-body);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.hds-out-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hds-out-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--ff-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: color 160ms var(--ease-quart), text-decoration-color 160ms var(--ease-quart);
+}
+.hds-out-more:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.hds-out-more:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+  color: var(--ink);
+}
+
+.hds-out-note {
+  font-family: var(--ff-body);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+/* Waiting for the result. Bars of the frame's own recessed colour with a
+   travelling highlight — the shape of the answer before the answer, which is
+   what a skeleton is for. Widths differ so it reads as text, not as a table. */
+.hds-out-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hds-out-skel-line {
+  height: 8px;
+  border-radius: var(--rounded-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    color-mix(in oklab, var(--border-strong) 60%, var(--surface-2)) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: hds-out-shimmer 1.4s var(--ease-quart) infinite;
+  animation-delay: calc(var(--i, 0) * 120ms);
+}
+.hds-out-skel-line:nth-child(1) {
+  width: 62%;
+}
+.hds-out-skel-line:nth-child(2) {
+  width: 88%;
+}
+.hds-out-skel-line:nth-child(3) {
+  width: 43%;
+}
+
+@keyframes hds-out-shimmer {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-out-skel-line {
+    animation: none;
+    background: var(--surface-2);
+  }
+  .hds-out-copy,
+  .hds-out-more {
+    transition: none;
+  }
+}

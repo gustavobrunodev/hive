@@ -9,6 +9,7 @@ import {
   shellName,
   shellSigil,
   shellSupportNote,
+  toolParamLabel,
   installStepLabelPtBR,
   provisionMessagesPtBR
 } from './pt-BR'
@@ -22,7 +23,8 @@ export {
   agentMeta,
   shellName,
   shellSigil,
-  shellSupportNote
+  shellSupportNote,
+  toolParamLabel
 }
 export type { RoleMeta, ProvisionStage } from './pt-BR'
 

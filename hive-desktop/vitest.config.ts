@@ -603,6 +603,23 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
+        // agent-tool-details: the call/result capture. Same reasoning as
+        // `toolPatch.ts` above — every failure mode is silent. A cap applied
+        // without reporting still *renders*, as a result that looks whole; a
+        // headline argument that disagrees with `toolDetailOf` still renders,
+        // as a panel leading with something the row never mentioned; a
+        // `tool_result` shape the reader didn't anticipate still renders, as an
+        // empty panel that reads like a bug. None of that throws, so a test is
+        // the only thing that can see it. Its component `ToolDetails.tsx`
+        // follows the ungated `ToolActivityFeed.tsx` precedent — covered by
+        // `ToolDetails.test`, but its render-callback arrows make a function
+        // gate noise rather than signal.
+        'src/main/toolDetails.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
         'src/renderer/src/mcpLogs/logConsole.ts': {
           statements: 100,
           branches: 100,

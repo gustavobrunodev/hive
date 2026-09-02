@@ -13882,6 +13882,118 @@ span.wb-change-card-open {
   color: var(--ink);
 }
 
+/* ===========================================================================
+   agent-tool-details — what a step was called with, and what it answered.
+
+   The row above stays exactly what it was; it just becomes the disclosure for
+   its own record. So this is not a card stacked on the reply — it is the
+   continuation of a line, recessed into the surface behind the transcript,
+   the same way the patch is. Two sections in causal order: the call, then the
+   result.
+   =========================================================================== */
+
+/* The result's size on the closed row — the same job the diffstat does for a
+   patch: enough to judge a step without opening it. Quiet, tabular, and parked
+   before the clock so a column of rows can be scanned down both numbers. */
+.wb-activity-lines {
+  flex-shrink: 0;
+  font-family: var(--ff-num);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* Everything a row discloses lives in one container, so the patch and the
+   call/result panel share one indent and one entrance instead of arriving as
+   two unrelated slabs. */
+.wb-activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+/* The patch used to carry its own vertical rhythm because it was the only
+   thing a row could disclose. Inside the shared container the gap owns that,
+   and keeping the margin would double the space above the panel below it. */
+.wb-activity-body .wb-patch {
+  margin: 0;
+}
+
+/* Deliberately frameless. Each block inside already carries its own recessed
+   frame, and wrapping those in a second bordered panel produces nested cards —
+   the affordance reads twice and means once. What groups these sections is the
+   rail and the indent they already sit on, which is the same thing that groups
+   the rows above them. */
+.wb-tdetail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* One entrance for the whole panel, following the disclosure that opened it.
+     No per-section stagger: two sections choreographed separately read as the
+     panel assembling itself, which is motion about the UI rather than about
+     the work. */
+  animation: wb-tdetail-in 0.2s var(--ease-quart) both;
+}
+
+.wb-tdetail-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.wb-tdetail-out {
+  min-width: 0;
+}
+
+/* The short arguments: a two-column list, not a table. The name column is
+   sized to content and capped, so a long label wraps instead of squeezing the
+   value it describes into a two-character gutter. */
+.wb-tdetail-rows {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 3px 14px;
+  margin: 0;
+  font-size: 0.74rem;
+}
+.wb-tdetail-row {
+  display: contents;
+}
+.wb-tdetail-row dt {
+  min-width: 0;
+  color: var(--muted);
+  /* The pt-BR name is what is read; the CLI's own field name is the tooltip,
+     and a dotted underline is the standing signal that one is there. */
+  text-decoration: underline dotted color-mix(in oklab, var(--muted) 45%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.wb-tdetail-row dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+
+@keyframes wb-tdetail-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-tdetail {
+    animation: none;
+  }
+}
+
 /* `novo` / `reescrito` — said only where "Editando" alone would mislead. */
 .wb-patch-op {
   flex-shrink: 0;

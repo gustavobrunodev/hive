@@ -1,5 +1,6 @@
 import { readFileSync, statSync } from 'fs'
 import type { ProcessHandle, ProcessRunner } from './processRunner'
+import { buildToolOutput, buildToolParams } from './toolDetails'
 import { buildToolPatch, MAX_SOURCE_BYTES } from './toolPatch'
 import {
   composeTurnPrompt,
@@ -104,6 +105,11 @@ interface StreamJsonLine {
       input?: Record<string, unknown>
       tool_use_id?: string
       is_error?: boolean
+      /**
+       * `tool_result` only: what the call answered. A string, or the same
+       * content-block list a message body uses (agent-tool-details).
+       */
+      content?: unknown
     }>
     /** Per-message token accounting — a live snapshot of context occupancy. */
     usage?: StreamJsonUsage
@@ -491,6 +497,9 @@ function emitToolEvents(
         FILE_EDIT_TOOLS.has(block.name) && typeof block.input?.file_path === 'string'
           ? block.input.file_path
           : undefined
+      // The change itself, diffed against the file as it stands right now —
+      // the CLI has not run the tool yet (agent-patch AP-C1).
+      const patch = buildToolPatch(block.name, block.input, readPatchSource)
       queue.push({
         type: 'tool',
         name: block.name,
@@ -498,9 +507,10 @@ function emitToolEvents(
         toolId: block.id,
         phase: 'start',
         filePath,
-        // The change itself, diffed against the file as it stands right now —
-        // the CLI has not run the tool yet (agent-patch AP-C1).
-        patch: buildToolPatch(block.name, block.input, readPatchSource),
+        patch,
+        // The whole call, not just its headline (agent-tool-details). The row
+        // shows one truncated line; this is what the user opens it to read.
+        params: buildToolParams(block.input, patch !== undefined),
         turnId
       })
     }
@@ -517,6 +527,9 @@ function emitToolEvents(
         toolId: block.tool_use_id,
         phase: 'end',
         ok: block.is_error !== true,
+        // What came back (agent-tool-details). On a failed call this *is* the
+        // error message, which is the one thing the row could never say.
+        output: buildToolOutput(block.content),
         turnId
       })
     }

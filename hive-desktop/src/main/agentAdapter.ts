@@ -15,9 +15,11 @@
  */
 
 import type { ShellInfo } from './shellCatalog'
+import type { ToolOutput, ToolParam } from './toolDetails'
 import type { ToolPatch } from './toolPatch'
 
 export type { PatchHunk, PatchLine, PatchOp, PatchSpan, ToolPatch } from './toolPatch'
+export type { ToolOutput, ToolParam } from './toolDetails'
 
 /**
  * How the app learned that a row belongs on the picker — the provenance the
@@ -378,6 +380,21 @@ export interface ToolEvent {
    * Absent when the tool changes no file, or changes nothing.
    */
   patch?: ToolPatch
+  /**
+   * `start` only: the call's whole argument list (agent-tool-details), so the
+   * transcript can show what was actually invoked rather than the first 96
+   * characters of its first line. Absent when the tool takes no arguments —
+   * or when its arguments are the file text a `patch` already renders.
+   */
+  params?: ToolParam[]
+  /**
+   * `end` only: what the call answered, capped at the source. This is the
+   * evidence half — for a failed step it carries the error, which is the one
+   * thing an activity row could never tell you. Absent when the adapter
+   * captured no result at all (as opposed to an empty one, which is a
+   * `ToolOutput` with empty text and says so).
+   */
+  output?: ToolOutput
   turnId?: string
 }
 

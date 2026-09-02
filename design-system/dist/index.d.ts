@@ -69,6 +69,8 @@ export { SegmentedControl } from "./components/SegmentedControl/SegmentedControl
 export type { SegmentedControlProps, SegmentedOption, SegmentedTone, } from "./components/SegmentedControl/SegmentedControl";
 export { RampSelect } from "./components/RampSelect/RampSelect";
 export type { RampSelectProps, RampStep } from "./components/RampSelect/RampSelect";
+export { OutputBlock } from "./components/OutputBlock/OutputBlock";
+export type { OutputBlockProps, OutputBlockTone } from "./components/OutputBlock/OutputBlock";
 export { ChatMessage } from "./components/ChatMessage/ChatMessage";
 export { TypingIndicator } from "./components/TypingIndicator/TypingIndicator";
 export { MessageList } from "./components/MessageList/MessageList";

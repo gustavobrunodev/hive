@@ -236,6 +236,9 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
         toolId: 'tu-1',
         phase: 'start',
         filePath: '/ws/src/a.txt',
+        // agent-tool-details: the call travels with the event, so the
+        // transcript can show what was invoked and not just that something was.
+        params: [{ key: 'file_path', value: '/ws/src/a.txt' }],
         turnId: undefined
       },
       {
@@ -245,6 +248,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
         toolId: 'tu-2',
         phase: 'start',
         filePath: undefined,
+        params: [{ key: 'command', value: 'npm test' }],
         turnId: undefined
       },
       { type: 'done', turnId: undefined }
@@ -282,7 +286,48 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
       toolId: 'tu-1',
       phase: 'end',
       ok: false,
+      // Nothing came back to read — distinct from a tool that answered with
+      // an empty string, which travels as a `ToolOutput` with empty text.
+      output: undefined,
       turnId: undefined
+    })
+  })
+
+  it('carries the result text back with the tool end (agent-tool-details)', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({
+      chunks: [
+        { stream: 'stdout', data: initLine() },
+        { stream: 'stdout', data: toolUseLine('Read', '/ws/src/a.txt', 'tu-1') },
+        {
+          stream: 'stdout',
+          data: jsonLine({
+            type: 'user',
+            session_id: 'cli-sess-1',
+            message: {
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: 'tu-1',
+                  content: [{ type: 'text', text: 'linha 1\nlinha 2' }]
+                }
+              ]
+            }
+          })
+        }
+      ],
+      code: 0
+    })
+    const adapter = createClaudeCliAdapter(fakeRunner)
+    const session = adapter.startSession({ workspace: '/ws' })
+
+    session.send({ text: 'read it' })
+    const events = await take(session.events, 4)
+
+    expect(events[2]).toMatchObject({
+      phase: 'end',
+      ok: true,
+      output: { text: 'linha 1\nlinha 2', lines: 2 }
     })
   })
 

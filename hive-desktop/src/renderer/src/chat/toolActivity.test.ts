@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   reduceToolActivity,
+  hasToolDetails,
   settleToolActivity,
   shortenDetail,
   toolKind,
@@ -173,5 +174,94 @@ describe('patch on an activity (agent-patch)', () => {
   it('leaves a non-editing step with no patch at all', () => {
     const [row] = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start' })
     expect(row.patch).toBeUndefined()
+  })
+})
+
+describe('call and result on an activity (agent-tool-details)', () => {
+  const params = [{ key: 'command', value: 'npm run verify', block: true }]
+  const output = { text: 'ok', lines: 1 }
+
+  it('carries the arguments from the `start` half', () => {
+    const [row] = reduceToolActivity([], {
+      name: 'Bash',
+      toolId: 'tu-1',
+      phase: 'start',
+      params
+    })
+    expect(row.params).toBe(params)
+    expect(row.output).toBeUndefined()
+  })
+
+  it('attaches the result when the `end` settles the row, keeping the arguments', () => {
+    const started = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start', params })
+    const [row] = reduceToolActivity(started, {
+      name: '',
+      toolId: 'tu-1',
+      phase: 'end',
+      ok: true,
+      output
+    })
+    expect(row.output).toBe(output)
+    expect(row.params).toBe(params)
+  })
+
+  it('carries the error text of a failed step — the one thing the row cannot say', () => {
+    const started = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start', params })
+    const [row] = reduceToolActivity(started, {
+      name: '',
+      toolId: 'tu-1',
+      phase: 'end',
+      ok: false,
+      output: { text: 'npm ERR! exit 1', lines: 1 }
+    })
+    expect(row.state).toBe('failed')
+    expect(row.output?.text).toBe('npm ERR! exit 1')
+  })
+
+  it('does not erase a result when a late `end` arrives carrying none', () => {
+    const started = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start', params })
+    const settled = reduceToolActivity(started, {
+      name: '',
+      toolId: 'tu-1',
+      phase: 'end',
+      ok: true,
+      output
+    })
+    const [row] = reduceToolActivity(settled, { name: '', toolId: 'tu-1', phase: 'end', ok: true })
+    expect(row.output).toBe(output)
+  })
+
+  it('keeps a re-announced step’s result instead of reverting it to still-running', () => {
+    const started = reduceToolActivity([], { name: 'Bash', toolId: 'tu-1', phase: 'start', params })
+    const settled = reduceToolActivity(started, {
+      name: '',
+      toolId: 'tu-1',
+      phase: 'end',
+      ok: true,
+      output
+    })
+    const [row] = reduceToolActivity(settled, { name: 'Bash', toolId: 'tu-1', phase: 'start' })
+    expect(row.params).toBe(params)
+    expect(row.output).toBe(output)
+  })
+})
+
+describe('hasToolDetails', () => {
+  const base = { id: 'a', name: 'Bash', state: 'ok' as const, seq: 0, startedAt: 0 }
+
+  it('is false for a step with nothing behind it', () => {
+    expect(hasToolDetails(base)).toBe(false)
+    expect(hasToolDetails({ ...base, params: [] })).toBe(false)
+  })
+
+  it('is true once the step has arguments, a result, or a diff', () => {
+    expect(hasToolDetails({ ...base, params: [{ key: 'command', value: 'ls' }] })).toBe(true)
+    expect(hasToolDetails({ ...base, output: { text: '', lines: 0 } })).toBe(true)
+    expect(
+      hasToolDetails({
+        ...base,
+        patch: { op: 'edit', path: '/a', adds: 1, dels: 0, anchored: true, hunks: [] }
+      })
+    ).toBe(true)
   })
 })

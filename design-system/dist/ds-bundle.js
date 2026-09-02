@@ -17341,17 +17341,90 @@ function AutoGlyph() {
   );
 }
 
+// src/components/OutputBlock/OutputBlock.tsx
+import { useId as useId5, useRef as useRef45, useState as useState38 } from "react";
+import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
+var SKELETON_LINES = 3;
+function OutputBlock({
+  text,
+  label,
+  meta,
+  tone = "neutral",
+  maxLines = 12,
+  moreLabel,
+  lessLabel,
+  prompt,
+  onCopy,
+  copyLabel = "Copiar",
+  copiedLabel = "Copiado",
+  note,
+  emptyLabel,
+  pending = false,
+  className,
+  ...rest
+}) {
+  const [grown, setGrown] = useState38(false);
+  const [copied, setCopied] = useState38(false);
+  const timeoutRef = useRef45(null);
+  const bodyId = useId5();
+  const lines = text === "" ? [] : text.split("\n");
+  const capped = maxLines > 0 && !grown && lines.length > maxLines;
+  const hidden = capped ? lines.length - maxLines : 0;
+  const shown = capped ? lines.slice(0, maxLines).join("\n") : text;
+  const canGrow = moreLabel !== void 0 && (capped || grown);
+  function handleCopy() {
+    onCopy?.(text);
+    setCopied(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setCopied(false), 1600);
+  }
+  return /* @__PURE__ */ jsxs56("div", { className: cx("hds-out", `hds-out-${tone}`, className), ...rest, children: [
+    (label !== void 0 || meta !== void 0 || onCopy !== void 0) && /* @__PURE__ */ jsxs56("div", { className: "hds-out-head", children: [
+      label !== void 0 && /* @__PURE__ */ jsx95("span", { className: "hds-out-label", children: label }),
+      meta !== void 0 && /* @__PURE__ */ jsx95("span", { className: "hds-out-meta", children: meta }),
+      onCopy !== void 0 && /* @__PURE__ */ jsx95(
+        "button",
+        {
+          type: "button",
+          className: cx("hds-out-copy", copied && "is-copied"),
+          onClick: handleCopy,
+          disabled: pending || text === "",
+          children: copied ? copiedLabel : copyLabel
+        }
+      )
+    ] }),
+    pending ? /* @__PURE__ */ jsx95("div", { className: "hds-out-body hds-out-skel", "aria-busy": "true", children: Array.from({ length: SKELETON_LINES }, (_, i) => /* @__PURE__ */ jsx95("span", { className: "hds-out-skel-line", style: { ["--i"]: String(i) } }, i)) }) : text === "" ? /* @__PURE__ */ jsx95("p", { className: "hds-out-empty", children: emptyLabel }) : /* @__PURE__ */ jsxs56("pre", { className: "hds-out-body", id: bodyId, "data-capped": capped || void 0, tabIndex: 0, children: [
+      prompt !== void 0 && /* @__PURE__ */ jsx95("span", { className: "hds-out-prompt", "aria-hidden": "true", children: prompt }),
+      /* @__PURE__ */ jsx95("code", { children: shown })
+    ] }),
+    (canGrow || note !== void 0) && /* @__PURE__ */ jsxs56("div", { className: "hds-out-foot", children: [
+      canGrow && /* @__PURE__ */ jsx95(
+        "button",
+        {
+          type: "button",
+          className: "hds-out-more",
+          "aria-expanded": grown,
+          "aria-controls": bodyId,
+          onClick: () => setGrown((value) => !value),
+          children: grown ? lessLabel : moreLabel(hidden)
+        }
+      ),
+      note !== void 0 && /* @__PURE__ */ jsx95("span", { className: "hds-out-note", children: note })
+    ] })
+  ] });
+}
+
 // src/components/ChatMessage/ChatMessage.tsx
 import { forwardRef as forwardRef63 } from "react";
-import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
+import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
 var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs56("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
-    role !== "system" && avatar && /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-avatar", children: avatar }),
-    /* @__PURE__ */ jsxs56("div", { className: "hds-chat-message-body", children: [
-      /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-bubble", children }),
-      (timestamp || actions) && /* @__PURE__ */ jsxs56("div", { className: "hds-chat-message-meta", children: [
-        timestamp && /* @__PURE__ */ jsx95("span", { className: "hds-chat-message-timestamp", children: timestamp }),
-        actions && /* @__PURE__ */ jsx95("div", { className: "hds-chat-message-actions", children: actions })
+  return /* @__PURE__ */ jsxs57("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx96("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs57("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx96("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs57("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx96("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx96("div", { className: "hds-chat-message-actions", children: actions })
       ] })
     ] })
   ] });
@@ -17359,19 +17432,19 @@ var ChatMessage = forwardRef63(function ChatMessage2({ role, avatar, timestamp, 
 ChatMessage.displayName = "ChatMessage";
 
 // src/components/TypingIndicator/TypingIndicator.tsx
-import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
+import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
 function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
-  return /* @__PURE__ */ jsxs57("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
-    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx96("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx96(VisuallyHidden2, { children: label })
+  return /* @__PURE__ */ jsxs58("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx97("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx97("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx97("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx97(VisuallyHidden2, { children: label })
   ] });
 }
 
 // src/components/MessageList/MessageList.tsx
-import { useCallback as useCallback26, useEffect as useEffect38, useRef as useRef45, useState as useState38 } from "react";
-import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
+import { useCallback as useCallback26, useEffect as useEffect38, useRef as useRef46, useState as useState39 } from "react";
+import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
 function prefersReducedMotion3() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -17383,10 +17456,10 @@ function MessageList({
   className,
   ...rest
 }) {
-  const viewportRef = useRef45(null);
-  const contentRef = useRef45(null);
-  const [isPinned, setIsPinned] = useState38(true);
-  const isPinnedRef = useRef45(isPinned);
+  const viewportRef = useRef46(null);
+  const contentRef = useRef46(null);
+  const [isPinned, setIsPinned] = useState39(true);
+  const isPinnedRef = useRef46(isPinned);
   isPinnedRef.current = isPinned;
   const isNearBottom = useCallback26(() => {
     const viewport = viewportRef.current;
@@ -17427,9 +17500,9 @@ function MessageList({
   useEffect38(() => {
     scrollToBottom("instant");
   }, [scrollToBottom]);
-  return /* @__PURE__ */ jsxs58("div", { className: cx("hds-message-list", className), ...rest, children: [
-    /* @__PURE__ */ jsx97(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx97("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
-    !isPinned && /* @__PURE__ */ jsx97(
+  return /* @__PURE__ */ jsxs59("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx98(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx98("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx98(
       "button",
       {
         type: "button",
@@ -17446,7 +17519,7 @@ function MessageList({
 
 // src/components/Attachment/Attachment.tsx
 import { forwardRef as forwardRef64 } from "react";
-import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
+import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
 function splitAtTail(name) {
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 && name.length - dot <= 7 ? name.length - dot : 0;
@@ -17458,28 +17531,28 @@ var Attachment = forwardRef64(function Attachment2({ name, meta, icon, onRemove,
   const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
   const middle = truncate === "middle" && typeof name === "string";
   const [head, tail] = middle ? splitAtTail(name) : ["", ""];
-  return /* @__PURE__ */ jsxs59("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-icon", children: icon }),
-    /* @__PURE__ */ jsxs59("span", { className: "hds-attachment-text", children: [
-      middle ? /* @__PURE__ */ jsxs59("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
-        /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name-head", children: head }),
-        tail !== "" && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name-tail", children: tail })
-      ] }) : /* @__PURE__ */ jsx98("span", { className: "hds-attachment-name", children: name }),
-      meta && /* @__PURE__ */ jsx98("span", { className: "hds-attachment-meta", children: meta })
+  return /* @__PURE__ */ jsxs60("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx99("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs60("span", { className: "hds-attachment-text", children: [
+      middle ? /* @__PURE__ */ jsxs60("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
+        /* @__PURE__ */ jsx99("span", { className: "hds-attachment-name-head", children: head }),
+        tail !== "" && /* @__PURE__ */ jsx99("span", { className: "hds-attachment-name-tail", children: tail })
+      ] }) : /* @__PURE__ */ jsx99("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx99("span", { className: "hds-attachment-meta", children: meta })
     ] }),
-    onRemove && /* @__PURE__ */ jsx98("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx98("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx98("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+    onRemove && /* @__PURE__ */ jsx99("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx99("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx99("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
   ] });
 });
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
-import { useLayoutEffect as useLayoutEffect7, useRef as useRef46 } from "react";
-import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
+import { useLayoutEffect as useLayoutEffect7, useRef as useRef47 } from "react";
+import { jsx as jsx100, jsxs as jsxs61 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx99("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx99("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx100("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx100("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
 }
 function StopIcon() {
-  return /* @__PURE__ */ jsx99("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx99("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
+  return /* @__PURE__ */ jsx100("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx100("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -17510,8 +17583,8 @@ function PromptInput({
     defaultValue,
     onChange
   });
-  const backdropRef = useRef46(null);
-  const innerTextareaRef = useRef46(null);
+  const backdropRef = useRef47(null);
+  const innerTextareaRef = useRef47(null);
   const isEmpty = value.trim().length === 0;
   const stopMode = streaming && onStop !== void 0;
   const sendDisabled = disabled || streaming || isEmpty && !allowEmptySubmit;
@@ -17537,7 +17610,7 @@ function PromptInput({
   useLayoutEffect7(() => {
     if (highlight) syncBackdropScroll();
   });
-  const textarea = /* @__PURE__ */ jsx99(
+  const textarea = /* @__PURE__ */ jsx100(
     Textarea,
     {
       ref: setTextareaNode,
@@ -17555,7 +17628,7 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs60(
+  return /* @__PURE__ */ jsxs61(
     "div",
     {
       className: cx("hds-prompt-input", className),
@@ -17563,14 +17636,14 @@ function PromptInput({
       "data-highlighted": highlighted || void 0,
       ...rest,
       children: [
-        attachments && /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-attachments", children: attachments }),
-        highlight ? /* @__PURE__ */ jsxs60("div", { className: "hds-prompt-input-editor", children: [
-          /* @__PURE__ */ jsx99("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
+        attachments && /* @__PURE__ */ jsx100("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight ? /* @__PURE__ */ jsxs61("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx100("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight(value) }),
           textarea
         ] }) : textarea,
-        /* @__PURE__ */ jsxs60("div", { className: "hds-prompt-input-toolbar", children: [
-          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx99("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
-          /* @__PURE__ */ jsxs60(
+        /* @__PURE__ */ jsxs61("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx100("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx100("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs61(
             "button",
             {
               type: "button",
@@ -17581,8 +17654,8 @@ function PromptInput({
               title: stopMode ? stopLabel : sendLabel,
               onClick: stopMode ? onStop : submit,
               children: [
-                sendIcon === void 0 ? /* @__PURE__ */ jsx99(SendIcon, {}) : /* @__PURE__ */ jsx99("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
-                /* @__PURE__ */ jsx99(StopIcon, {})
+                sendIcon === void 0 ? /* @__PURE__ */ jsx100(SendIcon, {}) : /* @__PURE__ */ jsx100("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
+                /* @__PURE__ */ jsx100(StopIcon, {})
               ]
             }
           )
@@ -17671,6 +17744,7 @@ export {
   ModeSplit,
   Nav,
   OptionPicker,
+  OutputBlock,
   Panel,
   PinChip,
   Pkg,
