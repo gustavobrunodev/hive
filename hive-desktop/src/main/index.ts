@@ -25,6 +25,7 @@ import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
 import { createGitService, GitError, type GitDiffSide } from './gitService'
+import { createGitCommandLog, type GitCommandEntry } from './gitCommandLog'
 import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
@@ -638,9 +639,15 @@ app.whenReady().then(() => {
   // same ProcessRunner as the agents (D-GIT engine), trashing untracked
   // discards via shell.trashItem (kept out of the Electron-free service, like
   // fsService). Exposed as window.hive.git.* (preload T12).
+  // git-logs: the command journal every `git` invocation writes to, and the
+  // console reads. Owned here (not by the service) so it outlives any window
+  // and so `GitService` stays a mechanism with no buffer of its own.
+  const gitCommandLog = createGitCommandLog()
+
   const gitService = createGitService({
     processRunner,
-    trashItem: (abs) => shell.trashItem(abs)
+    trashItem: (abs) => shell.trashItem(abs),
+    onCommand: (entry) => gitCommandLog.record(entry)
   })
 
   // git:changed stream — renderers subscribe (start/stop, the fs:watch
@@ -822,6 +829,25 @@ app.whenReady().then(() => {
     'git:stashDrop',
     gitMutation((ws, index: number) => gitService.stashDrop(ws, index))
   )
+
+  // git-logs: history is a plain read; new entries stream on the `git:changed`
+  // subscription pattern (start/stop keyed by sender), because the console is
+  // usually opened *after* the command that is being investigated has already
+  // run — history is what makes it useful, the stream is what keeps it live.
+  ipcMain.handle('git:logs:history', () => gitCommandLog.history())
+  ipcMain.handle('git:logs:clear', () => gitCommandLog.clear())
+  const gitLogSenders = new Map<number, Electron.WebContents>()
+  ipcMain.on('git:logs:start', (event) => {
+    const senderId = event.sender.id
+    gitLogSenders.set(senderId, event.sender)
+    whenSenderGone(event.sender, 'git:logs:entry', () => gitLogSenders.delete(senderId))
+  })
+  ipcMain.on('git:logs:stop', (event) => {
+    gitLogSenders.delete(event.sender.id)
+  })
+  gitCommandLog.subscribe((entry: GitCommandEntry) => {
+    for (const sender of gitLogSenders.values()) sendTo(sender, 'git:logs:entry', entry)
+  })
 
   // ── Agent Change Review (M11) ────────────────────────────────────────────
   // CheckpointService (shadow-git snapshot engine) + ReviewService (the single

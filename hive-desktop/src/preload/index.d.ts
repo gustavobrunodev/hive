@@ -54,6 +54,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
+import type { GitCommandEntry } from '../main/gitCommandLog'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
@@ -369,6 +370,19 @@ declare global {
         stashDrop(workspace: string, index: number): Promise<void>
         /** Subscribes to post-mutation change pings; returns an unsubscribe function. */
         onChanged(onChanged: (evt: { root: string }) => void): () => void
+        /**
+         * git-logs: the journal of every `git` the app ran — command, cwd,
+         * duration, exit code and stderr. The debugging instrument behind
+         * "Logs do Git" in the Source Control menu (VS Code's Git output
+         * channel, in this app's vocabulary).
+         */
+        logs: {
+          /** The bounded backlog, oldest first — the console opens onto this. */
+          history(): Promise<GitCommandEntry[]>
+          clear(): Promise<void>
+          /** Subscribes to entries recorded from now on; returns an unsubscribe function. */
+          onEntry(onEntry: (entry: GitCommandEntry) => void): () => void
+        }
       }
       /**
        * Agent Change Review (M11) surface — the single pending set + accept/

@@ -117,7 +117,16 @@ export function CommitBox(): React.JSX.Element {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* `indicator="trailing"`, not the default leading gutter. A
+                CheckboxItem reserves 20px on its left for the check, and the
+                plain item below it does not — so in a two-row menu the amend
+                row started a fifth of an inch to the right of its neighbour and
+                read as a rendering mistake. Moving the mark to the far edge is
+                what puts both labels on one left edge, and it costs nothing
+                here: there is a single checkable row, so there is no column of
+                marks for the eye to scan down. */}
             <DropdownMenuCheckboxItem
+              indicator="trailing"
               checked={amend}
               onCheckedChange={(next: boolean) => (next ? void enableAmend() : setAmend(false))}
             >

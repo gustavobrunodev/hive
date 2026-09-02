@@ -160,6 +160,30 @@ test.describe('git-management E2E (real repo + bare remote, real Electron)', () 
       await expect
         .poll(() => git(workspace, 'status', '--porcelain', '--', 'README.md').trim())
         .toBe('')
+
+      // --- git-logs: the command journal, end to end -----------------------
+      // Everything above ran real `git` through the main process. The console
+      // is the only surface that proves it: main recorded each invocation,
+      // the preload bridge carried the backlog across, and the dock rendered
+      // it. Asserting on the commands this very test caused is what makes the
+      // journal a record rather than a decoration — a mocked console can look
+      // identical and be reporting nothing.
+      await window.getByRole('button', { name: 'Mais ações' }).click()
+      await window.getByRole('menuitem', { name: /Ver logs do Git/ }).click()
+      const console_ = window.locator('.wb-gitlog')
+      await expect(console_).toBeVisible({ timeout: 15_000 })
+      await expect(console_.getByText('git push', { exact: true })).toBeVisible({
+        timeout: 15_000
+      })
+      // The `add` and the `commit` this spec drove, with their real cwd.
+      await expect(console_.locator('.wb-gitlog-cmd-text', { hasText: /^git add/ }).first())
+        .toBeVisible()
+      await expect(console_.locator('.wb-gitlog-cmd-text', { hasText: /^git commit/ }).first())
+        .toBeVisible()
+      await expect(console_.locator('.wb-gitlog-cwd').first()).toHaveText(workspace)
+      // Every row carries a real, non-empty duration — the timing is measured,
+      // not a placeholder.
+      await expect(console_.locator('.wb-gitlog-dur').first()).not.toBeEmpty()
     } finally {
       await app.close()
     }

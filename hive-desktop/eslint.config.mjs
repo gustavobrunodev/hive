@@ -26,6 +26,10 @@ export default defineConfig(
       'resources/design-studio-preview/**',
       'test-results',
       'playwright-report',
+      // The Playwright MCP's own output directory (screenshots, console logs,
+      // and the throwaway scene snippets a visual pass hands it by filename).
+      // Gitignored already; sibling of the two lines above.
+      '.playwright-mcp',
       // Visual-pass harness (docs/visual-validation.md): these are bare
       // function *expressions* handed to the Playwright MCP tool, not modules —
       // the app's TS/ESM rules don't apply to them.

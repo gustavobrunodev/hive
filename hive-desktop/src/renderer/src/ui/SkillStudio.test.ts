@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createElement, type ReactNode } from 'react'
+import { Children, cloneElement, createElement, isValidElement, type ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 /**
@@ -65,33 +65,126 @@ vi.mock('@hive/design-system', () => ({
       checked,
       onChange: () => onCheckedChange?.(!checked)
     }),
-  // The run-config selects: a native <select> stand-in (the trigger/value
-  // slots collapse to nothing, the content's items become <option>s).
-  Select: ({
+  /**
+   * The run-config is now the chat composer's own two controls, so the DS
+   * pieces they are built from need stand-ins here: `OptionPicker` (the model
+   * panel) and `RampSelect` (the effort ladder), plus the `DropdownMenu`
+   * family the agent pill uses.
+   *
+   * Both selection controls collapse to a native `<select>` on purpose. This
+   * file's contract is *what rides into the launch*, not how a popover opens —
+   * that belongs to `EnginePicker.open.test.ts`, which drives the real Radix
+   * popover, and to the design system's own suite. Keeping the stand-ins flat
+   * is also what keeps `getAllByRole('combobox')` a meaningful assertion.
+   */
+  OptionPicker: ({
+    options,
     value,
-    onValueChange,
-    disabled,
-    children
+    onChange,
+    ariaLabel,
+    children,
+    footer
   }: {
+    options?: { id: string; label: string }[]
     value?: string
-    onValueChange?: (value: string) => void
-    disabled?: boolean
+    onChange?: (id: string) => void
+    ariaLabel?: string
     children?: ReactNode
+    footer?: ReactNode
+  }) =>
+    createElement(
+      'div',
+      null,
+      children,
+      createElement(
+        'select',
+        {
+          'aria-label': ariaLabel,
+          value: value ?? '',
+          onChange: (e: { target: { value: string } }) => onChange?.(e.target.value)
+        },
+        (options ?? []).map((option) =>
+          createElement('option', { key: option.id, value: option.id }, option.label)
+        )
+      ),
+      footer
+    ),
+  RampSelect: ({
+    steps,
+    autoStep,
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    steps?: { id: string; label: string }[]
+    autoStep?: { id: string; label: string }
+    value?: string
+    onChange?: (id: string) => void
+    ariaLabel?: string
   }) =>
     createElement(
       'select',
       {
+        'aria-label': ariaLabel,
         value: value ?? '',
-        disabled,
-        onChange: (e: { target: { value: string } }) => onValueChange?.(e.target.value)
+        onChange: (e: { target: { value: string } }) => onChange?.(e.target.value)
+      },
+      [...(autoStep ? [autoStep] : []), ...(steps ?? [])].map((step) =>
+        createElement('option', { key: step.id, value: step.id }, step.label)
+      )
+    ),
+  DropdownMenu: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  // `asChild` on the real trigger clones its child; the stand-in just renders
+  // it, which is enough because nothing here asserts on the open state.
+  DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => children,
+  DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
+    createElement('div', null, children),
+  DropdownMenuSeparator: () => null,
+  DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
+    createElement('button', { type: 'button', onClick: onSelect }, children),
+  // Radix threads the group's value/handler down through context; the
+  // stand-in threads them as props so the items stay clickable radios.
+  DropdownMenuRadioGroup: ({
+    value,
+    onValueChange,
+    children
+  }: {
+    value?: string
+    onValueChange?: (value: string) => void
+    children?: ReactNode
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup' },
+      Children.map(children, (child) =>
+        isValidElement(child)
+          ? cloneElement(child as never, { groupValue: value, onPick: onValueChange })
+          : child
+      )
+    ),
+  DropdownMenuRadioItem: ({
+    value,
+    children,
+    groupValue,
+    onPick,
+    ...rest
+  }: {
+    value?: string
+    children?: ReactNode
+    groupValue?: string
+    onPick?: (value: string) => void
+  }) =>
+    createElement(
+      'button',
+      {
+        ...rest,
+        type: 'button',
+        role: 'radio',
+        'aria-checked': groupValue === value,
+        onClick: () => value !== undefined && onPick?.(value)
       },
       children
-    ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: ({ children }: { children?: ReactNode }) => children,
-  SelectItem: ({ value, children }: { value?: string; children?: ReactNode }) =>
-    createElement('option', { value }, children)
+    )
 }))
 
 import { SkillStudio, type CreatedSkill } from './SkillStudio'
@@ -394,8 +487,8 @@ describe('SkillStudio', () => {
       ),
       { target: { value: 'Aplicar o guia de estilo.' } }
     )
-    // Two run-config selects (model, effort) once capabilities land — pick the
-    // second model and confirm it overrides the default on launch.
+    // Two run-config selects (model panel, effort ramp) once capabilities land
+    // — pick the second model and confirm it overrides the default on launch.
     const selects = await waitFor(() => {
       const found = screen.getAllByRole('combobox')
       expect(found.length).toBe(2)
@@ -411,6 +504,24 @@ describe('SkillStudio', () => {
       model: 'sonnet',
       effort: 'high'
     })
+  })
+
+  /**
+   * The studio must show the composer's *actual* controls, not a second set
+   * that happens to collect the same two values. Asserting on their own
+   * accessible names is what would fail if someone reintroduced a local
+   * "Modelo"/"Esforço" pair here: those labels are `chat.engine.triggerAria`
+   * and `chat.agentSwitcherAria`, and nothing but the real components has them.
+   */
+  it("collects the run config through the chat composer's own controls", async () => {
+    mockHive({ created: [] })
+    renderStudio()
+    fireEvent.click(await screen.findByRole('button', { name: /Uma skill/ }))
+
+    expect(await screen.findByRole('button', { name: /^Motor da conversa/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Agente da conversa/ })).toBeTruthy()
+    // And the panel's own re-detect command came with them.
+    expect(screen.getByRole('button', { name: /Redetectar/ })).toBeTruthy()
   })
 
   /**

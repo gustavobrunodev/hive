@@ -108,6 +108,13 @@ body ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
+/* And nothing here may set `scrollbar-width`/`scrollbar-color`. In Chromium a
+   non-`auto` value on either opts that element out of the rules above and back
+   onto the raw platform scrollbar — so `scrollbar-width: thin`, written to make
+   a bar discreet, is what makes it look foreign. Two scrollers in the MCP
+   console had it, and the design system's OptionPicker list had it, which is
+   how the chat's model panel ended up with a light track down its dark edge. */
+
 /* ==========================================================================
    Shell — top bar + 3-zone body (rail | chat | viewer)
    ========================================================================== */
@@ -7938,9 +7945,18 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
 }
 
-/* Run configuration: model + effort, the studio's echo of the chat's run
-   controls. A quiet settings group — legend + a two-up grid of DS selects that
-   line up with the form's inputs above. */
+/* Run configuration: how the build will run — and it is now the composer's own
+   two controls (`AgentSwitcher` + `EnginePicker`), not a local restatement of
+   them. What lived here before was a grid of bordered DS `Select`s plus a row
+   of agent radio-cards: the same decision in a second vocabulary, and a poorer
+   one (a flat list of model ids, and an effort dropdown whose ordering was
+   carried entirely by the words). So this block styles a *row of controls*,
+   and the controls bring their own looks from `.wb-agent-pill` /
+   `.wb-engine-btn`.
+
+   `flex-wrap` because the panel is narrow: at the studio's width the two pills
+   fit side by side, and a long agent name simply drops the engine control onto
+   its own line rather than squeezing either. */
 .wb-studio-run {
   min-width: 0;
   margin: 0;
@@ -7954,81 +7970,14 @@ button.wb-agent-pill-btn:focus-visible {
   font-weight: 600;
   color: var(--ink);
 }
-.wb-studio-run-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--s-4);
-}
-.wb-studio-run-field {
-  min-width: 0;
-}
-/* Selects read as form fields here (bordered, full-width), matching the
-   name/idea inputs — not the composer's borderless compact variant. */
-.wb-studio-run-field .hds-select-trigger {
-  width: 100%;
-}
-.wb-studio-run[disabled] {
-  opacity: 0.65;
-}
-
-/* multi-agent (M26): who builds the skill — and, because the build *is* a
-   conversation, who the user goes on talking to afterwards.
-   Cards rather than a third `Select`, for two reasons: an agent has a face
-   here (the chat's switcher already gives each one a mark and an accent, and
-   the two surfaces must name the same thing the same way), and unlike model
-   and effort this choice *changes the form beneath it* — Copilot exposes no
-   effort, Devin neither lever — which a dropdown collapsing a field below
-   itself would make feel like a glitch. */
-.wb-studio-agents {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--s-2);
-  margin-bottom: var(--s-4);
-}
-.wb-studio-agent {
+.wb-studio-run-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--s-2);
   min-width: 0;
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-lg);
-  background: var(--surface);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.14s var(--ease-quart),
-    background 0.14s var(--ease-quart);
 }
-.wb-studio-agent:hover {
-  border-color: var(--border-strong);
-}
-.wb-studio-agent[aria-checked='true'] {
-  border-color: var(--agent-accent, var(--accent));
-  background: var(--selected-bg);
-}
-.wb-studio-agent:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-.wb-studio-agent-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  color: var(--muted);
-  transition: color 0.14s var(--ease-quart);
-}
-.wb-studio-agent[aria-checked='true'] .wb-studio-agent-mark {
-  color: var(--agent-accent, var(--accent));
-}
-.wb-studio-agent-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 /* An agent with no levers says so, rather than leaving an empty fieldset that
    reads as something failing to load. */
 .wb-studio-run-none {
@@ -12567,8 +12516,9 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-vbtn,
   .wb-vicon-btn,
   .wb-vdl-fill,
-  .wb-studio-agent,
-  .wb-studio-agent-mark {
+  .wb-gitlog-cmdbtn,
+  .wb-gitlog-iconbtn,
+  .wb-gitlog-caret {
     transition: none;
   }
   .wb-pnav-row:hover .wb-pnav-chevron,
@@ -15583,6 +15533,379 @@ span.wb-change-card-open {
        coloured side-stripes.
    ========================================================================= */
 
+/* ==========================================================================
+   git-logs — the git command console (bottom dock)
+   ==========================================================================
+
+   Deliberately the MCP console's chrome, class-for-class: the same grip, the
+   same toolbar height, the same empty-state voice. They are two instruments in
+   one slot, and a user who has learned one has learned the other. What differs
+   is the row, because the content differs — an MCP row is a sentence about an
+   event, a git row is a command line. */
+
+.wb-gitlog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  /* Above the work area, below the app's dialogs. */
+  z-index: 2;
+}
+.wb-gitlog[data-maximized] {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* 6px hit area over the dock's own 1px top border — the handle adds no chrome. */
+.wb-gitlog-grip {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 1;
+}
+.wb-gitlog-grip:hover::after,
+.wb-gitlog-grip:active::after {
+  content: '';
+  position: absolute;
+  inset: 2px 0 auto 0;
+  height: 2px;
+  background: var(--accent);
+}
+.wb-gitlog[data-maximized] .wb-gitlog-grip {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.wb-gitlog-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.wb-gitlog-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.wb-gitlog-title {
+  margin: 0;
+  font-family: var(--ff-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wb-gitlog-filters {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.wb-gitlog-search {
+  position: relative;
+  flex: 0 1 240px;
+  min-width: 120px;
+}
+.wb-gitlog-search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--faint);
+  pointer-events: none;
+}
+.wb-gitlog-search input {
+  padding-left: 28px;
+  height: 28px;
+  font-size: 0.78rem;
+}
+
+/* A labelled command (Copiar tudo / Limpar). Text, not another glyph: three
+   unlabelled icons in a row is a puzzle, and neither of these is guessable. */
+.wb-gitlog-cmdbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.14s var(--ease-quart),
+    border-color 0.14s var(--ease-quart),
+    color 0.14s var(--ease-quart);
+}
+.wb-gitlog-cmdbtn:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+.wb-gitlog-cmdbtn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.wb-gitlog-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.14s var(--ease-quart),
+    color 0.14s var(--ease-quart);
+}
+.wb-gitlog-iconbtn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-gitlog-iconbtn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------- body */
+
+.wb-gitlog-body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.wb-gitlog-stream {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--s-2) 0 var(--s-3);
+}
+
+/* ------------------------------------------------------------- one command */
+
+.wb-gitlog-row {
+  padding: 3px var(--s-3) 4px;
+  border-left: 2px solid transparent;
+}
+.wb-gitlog-row:hover {
+  background: var(--surface-2);
+}
+/* A failure tints the whole row and takes a left edge, so it is findable while
+   scrolling fast — the one thing someone opening this console is looking for. */
+.wb-gitlog-row[data-failed] {
+  border-left-color: var(--danger);
+  background: color-mix(in oklab, var(--danger) 7%, transparent);
+}
+.wb-gitlog-row[data-failed]:hover {
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
+}
+
+.wb-gitlog-line {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  column-gap: var(--s-2);
+}
+/* `--muted`, not `--faint`. Measured with tools/visual/git-console-contrast.mjs:
+   `--faint` reads 2.95:1 in the light theme — under the 4.5 body floor — and
+   the clock is read text, not decoration: it is how two commands get related
+   to each other in time. Same finding, same fix, as every other `--faint`
+   regression this repo has logged. */
+.wb-gitlog-time {
+  font-family: var(--ff-num);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+/* The command itself is machine text and gets the mono face; it is also the
+   only thing in the row anyone reads first, so it takes `--ink`. */
+.wb-gitlog-cmd {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.wb-gitlog-cmd-btn {
+  cursor: pointer;
+}
+.wb-gitlog-cmd-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
+}
+.wb-gitlog-cmd-text {
+  font-family: var(--ff-mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-gitlog-caret {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.14s var(--ease-quart);
+}
+.wb-gitlog-cmd-btn[aria-expanded='true'] .wb-gitlog-caret {
+  transform: rotate(90deg);
+}
+
+.wb-gitlog-dur {
+  font-family: var(--ff-num);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* Slow is a *warning*, not a failure: the row stays calm and the number is
+   what changes, because the number is the finding. */
+.wb-gitlog-row[data-slow] .wb-gitlog-dur {
+  color: var(--warning-ink);
+  font-weight: 600;
+}
+
+.wb-gitlog-outcome {
+  min-width: 62px;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.wb-gitlog-row[data-failed] .wb-gitlog-outcome {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+.wb-gitlog-cwd {
+  display: block;
+  /* Aligned with the command column, not with the time — it qualifies the
+     command, and hanging it under the clock would read as a second event. */
+  margin-left: calc(66px + var(--s-2));
+  font-family: var(--ff-mono);
+  font-size: 0.66rem;
+  line-height: 1.4;
+  /* `--muted` for the same measured reason as the clock above (2,95:1 light).
+     This line is the answer to "which directory did that command answer for?",
+     which is one of the two failures the console exists to catch — it cannot
+     be the least legible thing in the row. */
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The failed row's tint costs its secondary text about a point of contrast —
+   the directory measured 2,65:1 there in the light theme, below even the
+   untinted figure. The tint stays (it is what marks the row); the text it
+   carries is pulled toward `--ink` until it clears, the same correction the
+   design system's picker applies over its selected-row tint. */
+.wb-gitlog-row[data-failed] .wb-gitlog-cwd,
+.wb-gitlog-row[data-failed] .wb-gitlog-time {
+  color: color-mix(in oklab, var(--muted) 45%, var(--ink));
+}
+
+.wb-gitlog-stderr {
+  margin: 4px 0 6px calc(66px + var(--s-2));
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-sm);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+.wb-gitlog-stderr-cut {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--ff-body);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- states + tail */
+
+.wb-gitlog-state {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--s-5) var(--s-4);
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.wb-gitlog-state-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-gitlog-state-desc {
+  margin: 0;
+  max-width: 46ch;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.wb-gitlog-tail {
+  position: absolute;
+  right: var(--s-4);
+  bottom: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.7rem;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+}
+.wb-gitlog-tail:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
 .wb-mcplog {
   position: relative;
   display: flex;
@@ -15757,7 +16080,6 @@ span.wb-change-card-open {
   background-position: 74px 0;
   background-repeat: repeat-y;
   background-size: 1px 100%;
-  scrollbar-width: thin;
 }
 
 /* -------------------------------------------------------------- one event */
@@ -16308,7 +16630,6 @@ button.wb-mcplog-summary:focus-visible {
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
   overflow-x: auto;
-  scrollbar-width: thin;
 }
 .wb-mcplog-pill {
   display: inline-flex;

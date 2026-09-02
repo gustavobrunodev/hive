@@ -55,6 +55,63 @@ describe('GitService — git() wrapper', () => {
     })
   })
 
+  /**
+   * git-logs: `onCommand` is the console's only source, so what it reports has
+   * to be the truth about the invocation — including the failed one, which is
+   * the row a person opens the console to find.
+   */
+  it('reports every invocation to onCommand, failures included, without the fixed prefix', async () => {
+    const runner = createFakeProcessRunner()
+    const onCommand = vi.fn()
+    const service = createGitService({ processRunner: runner, trashItem: vi.fn(), onCommand })
+
+    stdout(runner, '')
+    await service.fetch(WS)
+    runner.script({
+      chunks: [{ stream: 'stderr', data: 'fatal: could not read Username' }],
+      code: 128
+    })
+    await service.push(WS).catch(() => undefined)
+
+    const [ok, failed] = onCommand.mock.calls.map((call) => call[0])
+    // The two flags `git()` adds to every call are not in the record: on every
+    // row they would be noise, and they push the actual command off the line.
+    expect(ok.args).toEqual(['fetch'])
+    expect(ok.cwd).toBe(WS)
+    expect(ok.code).toBe(0)
+    expect(ok.stderr).toBe('')
+    expect(typeof ok.durationMs).toBe('number')
+    expect(failed.args).toEqual(['push'])
+    expect(failed.code).toBe(128)
+    expect(failed.stderr).toBe('fatal: could not read Username')
+  })
+
+  /**
+   * The console shows what the app *ran*, not what the app was *asked* for —
+   * so a method that spends two commands reports two rows. `status` asking
+   * `rev-parse --verify MERGE_HEAD` is the case: the second command exits 1 on
+   * a healthy repo, and someone reading the console has to be able to see that
+   * this red row is a question's answer rather than a fault.
+   */
+  it('records the commands a single call spends internally, one row each', async () => {
+    const runner = createFakeProcessRunner()
+    const onCommand = vi.fn()
+    const service = createGitService({ processRunner: runner, trashItem: vi.fn(), onCommand })
+
+    stdout(runner, '\n')
+    runner.script({ chunks: [], code: 1 }) // no MERGE_HEAD — a healthy repo
+    await service.status(WS)
+
+    expect(onCommand.mock.calls.map((call) => call[0].args[0])).toEqual(['status', 'rev-parse'])
+    expect(onCommand.mock.calls[1][0].code).toBe(1)
+  })
+
+  it('is entirely optional — a service built without onCommand still runs', async () => {
+    const { runner, service } = make()
+    stdout(runner, '\n')
+    await expect(service.status(WS)).resolves.toBeDefined()
+  })
+
   it('throws a GitError carrying code, stderr and command on a non-zero exit', async () => {
     const { runner, service } = make()
     runner.script({

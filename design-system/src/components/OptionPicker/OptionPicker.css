@@ -114,7 +114,53 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--s-2);
-  scrollbar-width: thin;
+}
+
+/* The list is the one part of this panel that scrolls, and it was doing it
+   behind a raw platform scrollbar — a light track with a grey thumb pinned to
+   the right edge of a dark popover, which is exactly the mismatched-chrome
+   tell PRODUCT.md lists as an anti-reference.
+
+   The cause was `scrollbar-width: thin`, and it is worth naming because it
+   looks like the safe, standards-track way to ask for a discreet scrollbar:
+   in Chromium, setting `scrollbar-width` (or `scrollbar-color`) to anything
+   but `auto` makes the element take the standard scrollbar path and IGNORE
+   every `::-webkit-scrollbar-*` rule that would otherwise reach it. So the one
+   declaration meant to make the bar unobtrusive was also what opted this list
+   out of the host app's tokenized scrollbar. Recolour, never rebehave: same
+   geometry as the native bar, DS tokens for the thumb. */
+.hds-picker-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* The 2px transparent border + `padding-box` clip is what makes a 10px-wide
+   scrollbar draw a 6px thumb: the inset is padding, so the hit target stays
+   the full width and the thumb stays easy to grab. */
+.hds-picker-list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--rounded-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.hds-picker-list::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+  background-clip: padding-box;
+}
+
+.hds-picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Engines without the pseudo-elements (Firefox) get the standard properties —
+   the branch Chromium must never take, hence the `@supports` guard rather than
+   declaring both. */
+@supports not selector(::-webkit-scrollbar-thumb) {
+  .hds-picker-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
 }
 
 .hds-picker-empty {

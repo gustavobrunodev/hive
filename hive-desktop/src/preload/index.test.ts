@@ -1011,6 +1011,52 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.removeListener).toHaveBeenCalledWith('git:changed', listener)
       expect(ipcRenderer.send).toHaveBeenCalledWith('git:changed:stop')
     })
+
+    // git-logs: the command journal behind the "Logs do Git" console.
+    describe('logs', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function getLogs(): any {
+        return (getGit() as unknown as { logs: unknown }).logs
+      }
+
+      it('forwards history and clear to their channels', async () => {
+        await getLogs().history()
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith('git:logs:history')
+        await getLogs().clear()
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith('git:logs:clear')
+      })
+
+      /**
+       * NOT wrapped in `withTypedGit`: reading the journal is not a git call
+       * and cannot produce a `GitError`, so wrapping would only be able to
+       * mis-parse an unrelated failure into one.
+       */
+      it('passes a failure through untouched instead of dressing it as a GitError', async () => {
+        const original = new Error(`GIT:${JSON.stringify({ code: 1, stderr: 'x', command: 'y' })}`)
+        vi.mocked(ipcRenderer.invoke).mockRejectedValueOnce(original)
+        await expect(getLogs().history()).rejects.toBe(original)
+      })
+
+      it('onEntry registers a listener, starts the stream, and unsubscribe tears down', () => {
+        const cb = vi.fn()
+        const unsubscribe = getLogs().onEntry(cb)
+        expect(ipcRenderer.on).toHaveBeenCalledWith('git:logs:entry', expect.any(Function))
+        expect(ipcRenderer.send).toHaveBeenCalledWith('git:logs:start')
+
+        const listener = vi
+          .mocked(ipcRenderer.on)
+          .mock.calls.find(([ch]) => ch === 'git:logs:entry')?.[1] as (
+          event: unknown,
+          entry: { id: string }
+        ) => void
+        listener({}, { id: 'git#1' })
+        expect(cb).toHaveBeenCalledWith({ id: 'git#1' })
+
+        unsubscribe()
+        expect(ipcRenderer.removeListener).toHaveBeenCalledWith('git:logs:entry', listener)
+        expect(ipcRenderer.send).toHaveBeenCalledWith('git:logs:stop')
+      })
+    })
   })
 
   // Agent Change Review (M11, T7): the review bridge — plain invoke/response

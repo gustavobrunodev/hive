@@ -66,6 +66,30 @@ export interface GitServiceDeps {
   processRunner: ProcessRunner
   /** Moves an absolute path to the OS trash — injected (main/index.ts passes `shell.trashItem`) so this file stays Electron-free. Used by `discard` for untracked files (never `clean -f`, GIT-R3.3). */
   trashItem: (absolutePath: string) => Promise<void>
+  /**
+   * git-logs: called once per invocation, after it ends, with what it was and
+   * what it cost — the journal the "Logs do Git" console reads.
+   *
+   * Injected rather than owned here for the reason every other side effect in
+   * this file is: the service stays a mechanism over the git binary, testable
+   * without a buffer to drain. Optional, so every existing construction site
+   * and test keeps working unchanged and simply records nothing.
+   *
+   * It is called for **failures too** (before the `GitError` is thrown), which
+   * is the entire point: the console's job is to show the command that failed
+   * next to the ones around it.
+   */
+  onCommand?: (entry: GitCommandRecord) => void
+}
+
+/** What `onCommand` reports. Mirrors `gitCommandLog.ts`'s entry, minus the fields the store assigns. */
+export interface GitCommandRecord {
+  at: number
+  cwd: string
+  args: string[]
+  code: number | null
+  durationMs: number
+  stderr: string
 }
 
 export interface GitService {
@@ -240,6 +264,7 @@ export function createGitService(deps: GitServiceDeps): GitService {
    * flag drops is the *optional* one, which is exactly the one we never wanted.
    */
   async function git(args: string[], opts: { cwd: string }): Promise<string> {
+    const at = Date.now()
     const handle = processRunner.run(
       'git',
       ['--no-optional-locks', '-c', 'core.quotepath=false', ...args],
@@ -253,6 +278,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
       }
     )
     const { stdout, stderr, code } = await collect(handle)
+    // git-logs: recorded before the throw, and with `args` as *asked for* —
+    // without the two fixed flags above, which are on every row and tell the
+    // reader nothing about which command this was.
+    deps.onCommand?.({ at, cwd: opts.cwd, args, code, durationMs: Date.now() - at, stderr })
     if (code !== 0) {
       throw new GitError(code, stderr, `git ${args.join(' ')}`)
     }

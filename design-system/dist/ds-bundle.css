@@ -3726,7 +3726,29 @@ a:hover {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--s-2);
-  scrollbar-width: thin;
+}
+.hds-picker-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.hds-picker-list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--rounded-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.hds-picker-list::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+  background-clip: padding-box;
+}
+.hds-picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+@supports not selector(::-webkit-scrollbar-thumb) {
+  .hds-picker-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
 }
 .hds-picker-empty {
   padding: var(--s-5) var(--s-4);

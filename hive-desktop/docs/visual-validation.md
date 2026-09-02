@@ -48,6 +48,15 @@ Mantenha os formatos em sincronia com [`src/preload/index.d.ts`](../src/preload/
 [`src/renderer/src/testSupport/`](../src/renderer/src/testSupport/) em vez de
 escrever à mão.
 
+**O `boot.mjs` envelhece junto com a bridge, e a falha é muda.** O M29 trocou
+`window.hive.whisper` por `window.hive.asr`; o harness continuou com o namespace
+antigo, e o app passou a **não renderizar nada** — `createAsrClient` lê
+`hive.asr.onPhase` de um `undefined` e derruba a árvore inteira. Na tela isso é
+uma página em branco, sem mensagem: o único sinal está no `pageerror`, que o
+tool não mostra a menos que você o escute. Se o passe visual abrir em branco,
+**suspeite do mock antes do app** — compare o `window.hive` do harness com
+[`src/preload/index.d.ts`](../src/preload/index.d.ts), que é o contrato real.
+
 Esse mock já existe pronto em
 [`tools/visual/boot.mjs`](../tools/visual/boot.mjs) — o tool
 `browser_run_code_unsafe` do MCP roda o arquivo direto (`filename`), sem colar
@@ -86,12 +95,26 @@ uma rodada cada:
   translúcido. As duas medem diferente, e foi a selecionada que reprovou
   (4,34:1 no tema Hive).
 - **Nem todo pixel colorido é um indicador.** A barra vazia da rampa reprovou
-  em 1,46:1 contra o painel — mas ela é a *calha*, não o indicador, e subir seu
+  em 1,46:1 contra o painel — mas ela é a _calha_, não o indicador, e subir seu
   brilho até 3:1 achata justamente o vão cheio↔vazio que faz o controle dizer
   "quanto". Medido nos três temas: os dois números andam em direções opostas
   conforme a calha clareia. O alvo certo é o degrau **escolhido** contra a
   calha (3,29 escuro · 5,62 claro · 3,61 Hive), e cada degrau ainda é nomeado
   por um rótulo que passa dos 4,5:1 — nenhuma informação depende só das barras.
+
+`tools/visual/git-console-contrast.mjs` cobre o console de comandos do Git
+(git-logs): 16 alvos de texto e 2 de marca, nos três temas, **com a linha que
+falhou expandida** — o tint dessa linha fica sob o texto dela, e é justamente o
+que alguém que abre esse dock está procurando. Duas lições:
+
+- **`--faint` de novo.** Relógio e pasta mediram 2,95:1 no tema claro e 2,65:1
+  sobre o tint da linha vermelha. É a mesma lição do M14, e ela volta toda vez
+  que alguém trata `--faint` como "texto secundário" em vez de "decoração sobre
+  `--bg` escuro".
+- **Nem todo pixel colorido é um indicador, pela segunda vez.** A placa atrás do
+  ícone do dock reprovou em 1,22:1 e parecia um achado; é um contêiner ao lado
+  de um título de texto que diz a mesma coisa. O alvo saiu da lista com o porquê
+  escrito **dentro** da lista — sem isso a próxima rodada o re-adiciona.
 
 `tools/visual/live-dictation-pass.mjs` cobre o ditado ao vivo (M28). Ele arma o
 seam de E2E do ditado e empurra **ticks de áudio reais** no segmentador de

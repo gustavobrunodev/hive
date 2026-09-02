@@ -1,7 +1,16 @@
 import { vi, type Mock } from 'vitest'
 
-/** Each git bridge method as a vitest `Mock`, so tests can `.mockResolvedValue(...)` per method. */
-export type HiveGitMock = Record<keyof Window['hive']['git'], Mock>
+/**
+ * Each git bridge method as a vitest `Mock`, so tests can
+ * `.mockResolvedValue(...)` per method.
+ *
+ * `logs` is not a method but a namespace, so it is spelled out rather than
+ * folded into the `Record` — a `Mock` in its place type-checks as a function
+ * and then explodes at `git.logs.history()`.
+ */
+export type HiveGitMock = Record<Exclude<keyof Window['hive']['git'], 'logs'>, Mock> & {
+  logs: Record<keyof Window['hive']['git']['logs'], Mock>
+}
 
 /**
  * A fully-stubbed `window.hive.git` namespace (git-management M10) for tests
@@ -53,7 +62,14 @@ export function createHiveGitMock(): HiveGitMock {
     stashList: vi.fn().mockResolvedValue([]),
     stashApply: vi.fn().mockResolvedValue(undefined),
     stashDrop: vi.fn().mockResolvedValue(undefined),
-    onChanged: vi.fn().mockReturnValue(() => {})
+    onChanged: vi.fn().mockReturnValue(() => {}),
+    // git-logs: an empty journal with a live no-op subscription — the state a
+    // console mounted by an unrelated test should find.
+    logs: {
+      history: vi.fn().mockResolvedValue([]),
+      clear: vi.fn().mockResolvedValue(undefined),
+      onEntry: vi.fn().mockReturnValue(() => {})
+    }
   }
 }
 

@@ -29,8 +29,16 @@ interface AgentSwitcherProps {
    */
   locked: boolean
   onChange: (id: string) => void
-  /** Opens the profile sheet's agent section ("Gerenciar agentes…"). */
-  onManage: () => void
+  /**
+   * Opens the profile sheet's agent section ("Gerenciar agentes…").
+   *
+   * Optional, and the omission is a real case rather than convenience: the
+   * Skill Studio shows this same control from inside a Dialog, where the only
+   * way to reach the profile sheet is to close the studio — which would throw
+   * away the briefing being typed. A surface that cannot honour the command
+   * leaves it out instead of offering one that costs the user their draft.
+   */
+  onManage?: () => void
 }
 
 /**
@@ -107,19 +115,24 @@ export function AgentSwitcher({
             )
           })}
         </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        {/* The DS `DropdownMenuItem` wraps its children in one nowrap/ellipsis
-            label span, so icon + text handed to it as siblings collapse against
-            each other. Both go inside the same `wb-agent-menu-inner` row the
-            radio items use — one icon column, one gap rule, one alignment. */}
-        <DropdownMenuItem className="wb-agent-menu-manage" onSelect={onManage}>
-          <span className="wb-agent-menu-inner">
-            <span className="wb-agent-menu-mark" aria-hidden="true">
-              <GearIcon size={15} />
-            </span>
-            {t('chat.agentManageCta')}
-          </span>
-        </DropdownMenuItem>
+        {onManage && (
+          <>
+            <DropdownMenuSeparator />
+            {/* The DS `DropdownMenuItem` wraps its children in one
+                nowrap/ellipsis label span, so icon + text handed to it as
+                siblings collapse against each other. Both go inside the same
+                `wb-agent-menu-inner` row the radio items use — one icon
+                column, one gap rule, one alignment. */}
+            <DropdownMenuItem className="wb-agent-menu-manage" onSelect={onManage}>
+              <span className="wb-agent-menu-inner">
+                <span className="wb-agent-menu-mark" aria-hidden="true">
+                  <GearIcon size={15} />
+                </span>
+                {t('chat.agentManageCta')}
+              </span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

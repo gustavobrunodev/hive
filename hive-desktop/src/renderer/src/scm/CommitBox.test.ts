@@ -19,13 +19,19 @@ vi.mock('@hive/design-system', async (orig) => {
       createElement('div', { role: 'menu' }, children),
     DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
       createElement('button', { role: 'menuitem', onClick: onSelect }, children),
+    // `indicator` is surfaced as an attribute rather than dropped: it is what
+    // decides whether this row's label lines up with the plain item beside it
+    // (leading reserves a 20px gutter that the plain item does not have), and
+    // a mock that swallows the prop makes that regression invisible.
     DropdownMenuCheckboxItem: ({
       children,
       checked,
+      indicator,
       onCheckedChange
     }: {
       children?: ReactNode
       checked?: boolean
+      indicator?: string
       onCheckedChange?: (next: boolean) => void
     }) =>
       createElement(
@@ -33,6 +39,7 @@ vi.mock('@hive/design-system', async (orig) => {
         {
           role: 'menuitemcheckbox',
           'aria-checked': checked,
+          'data-indicator': indicator ?? 'leading',
           onClick: () => onCheckedChange?.(!checked)
         },
         children
@@ -115,6 +122,22 @@ describe('CommitBox', () => {
     fireEvent.change(input, { target: { value: 'quick' } })
     fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
     expect(s.commit).toHaveBeenCalledWith('quick', { amend: false, stageAll: false })
+  })
+
+  /**
+   * The amend row used to sit ~20px to the right of "Preparar tudo e
+   * commitar" beneath it, and read as a rendering mistake. The cause is in the
+   * DS: a `CheckboxItem` with the default leading indicator reserves a gutter
+   * that a plain `Item` does not, so a menu mixing the two has two left edges.
+   * Trailing puts the mark at the far edge instead — one left edge, and no
+   * column of checkmarks to scan since there is only one checkable row.
+   */
+  it('puts the amend checkmark at the trailing edge, so both menu rows share a left edge', () => {
+    renderBox(store({ status: status([chg('a.txt', '.', 'M')]) }))
+    const amend = screen.getByRole('menuitemcheckbox', {
+      name: 'Corrigir último commit (amend)'
+    })
+    expect(amend.getAttribute('data-indicator')).toBe('trailing')
   })
 
   it('amend pre-fills the last commit message and commits with --amend', async () => {

@@ -882,6 +882,57 @@ export const ptBR = {
   // worked, read from the CLI's own per-server log files. Vocabulary note: the
   // module says "atividade"/"eventos", never "log dump" — PRODUCT.md names
   // log-dump UIs as an anti-reference, and the copy holds that line.
+  /**
+   * git-logs: the git command console — every `git` the app ran, with its
+   * timing, its exit code and git's own stderr. The instrument for "it said it
+   * failed, but *what* failed".
+   */
+  gitLogs: {
+    title: 'Logs do Git',
+    subtitle: 'Todo comando git que o app executou nesta sessão.',
+    closeAria: 'Fechar os logs do Git',
+    expandAria: 'Expandir os logs para a área toda',
+    collapseAria: 'Restaurar a altura dos logs',
+    resizeAria: 'Redimensionar os logs do Git',
+    // Filters + search.
+    filterAria: 'Filtrar comandos',
+    filterAll: 'Tudo',
+    filterFailed: 'Falhas',
+    filterSlow: 'Lentos',
+    searchPlaceholder: 'Buscar em comandos, pastas e saída…',
+    searchAria: 'Buscar nos comandos',
+    // Row vocabulary.
+    outcomeOk: 'ok',
+    outcomeFailed: (code: number) => `saiu ${code}`,
+    // `null` is not "exited with no code": git never started. The distinct
+    // sentence is the whole reason the field is nullable.
+    outcomeNotRun: 'não executou',
+    durationMs: (ms: number) => `${ms} ms`,
+    durationSeconds: (seconds: string) => `${seconds} s`,
+    rowAria: (command: string, outcome: string, duration: string) =>
+      `${command} — ${outcome}, ${duration}`,
+    detailToggleAria: (command: string) => `Ver a saída de erro de ${command}`,
+    stderrTruncated: 'Saída cortada — o resto ficou no terminal do git.',
+    cwdAria: (dir: string) => `Executado em ${dir}`,
+    // Toolbar commands.
+    copyLabel: 'Copiar tudo',
+    copiedLabel: 'Copiado',
+    copyAria: 'Copiar todos os comandos visíveis como texto',
+    clearLabel: 'Limpar',
+    clearAria: 'Descartar os comandos registrados',
+    // States.
+    loading: 'Lendo o histórico de comandos…',
+    emptyTitle: 'Nenhum comando de git ainda',
+    emptyDescription:
+      'Assim que o app consultar ou alterar o repositório, cada comando aparece aqui com o tempo que levou e o que o git respondeu.',
+    nomatchTitle: 'Nada neste filtro',
+    nomatchDescription: 'Nenhum comando registrado corresponde ao filtro ou à busca.',
+    nomatchCta: 'Limpar filtros',
+    // The way back to the tail after scrolling up through history.
+    followCta: 'Ir para o fim',
+    followAria: 'Voltar para o comando mais recente'
+  },
+
   mcpLogs: {
     // Dock chrome.
     title: 'Console MCP',
@@ -1213,6 +1264,13 @@ export const ptBR = {
     pullAction: 'Receber (pull)',
     pushAction: 'Enviar (push)',
     syncAction: 'Sincronizar',
+    /**
+     * git-logs: the way into the command journal, worded like its neighbours
+     * (the Portuguese noun with git's own name in it). VS Code calls this
+     * "Show Git Output"; "Logs do Git" is what the same thing is called when
+     * the app has no Output panel to name.
+     */
+    logsAction: 'Ver logs do Git…',
     toastFetchOk: 'Busca concluída',
     toastPullOk: 'Atualizado com o remoto',
     toastPushOk: 'Enviado para o remoto',

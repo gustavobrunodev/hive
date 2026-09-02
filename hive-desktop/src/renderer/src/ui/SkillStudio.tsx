@@ -8,11 +8,6 @@ import {
   DialogTitle,
   Field,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Spinner,
   Switch,
   Textarea
@@ -27,8 +22,10 @@ import {
   type StudioCommand
 } from './studioPrompts'
 import type { RoleAction } from './ActionRail'
-import { agentVisual } from './agentVisuals'
-import type { SwitchableAgent } from './AgentSwitcher'
+import { AgentSwitcher, type SwitchableAgent } from './AgentSwitcher'
+import { EnginePicker } from '../chat/EnginePicker'
+import type { EngineCapabilities } from '../chat/engineOptions'
+import { pickInitial } from '../chat/engineOptions'
 import {
   ArrowLeftIcon,
   FileTextIcon,
@@ -56,12 +53,6 @@ export interface CreatedSkill {
 interface ShortcutPrefs {
   skills: string[]
   agents: string[]
-}
-
-/** One curated model/effort option — structural mirror of `main/agentAdapter.ts`'s `AgentOption`. */
-interface AgentOption {
-  id: string
-  label: string
 }
 
 /**
@@ -294,119 +285,73 @@ function EmptyState({
 }
 
 /**
- * The generation run-config the create form collects — the same two levers the
- * chat composer exposes (model + effort), so a build launched from the studio
- * runs exactly like one the user would drive by hand. Held at the dialog level
+ * The generation run-config the create form collects. Held at the dialog level
  * (not per-draft) so the choice survives switching between skill/agent, mirror
  * of how the chat keeps model/effort as session state.
  */
 interface RunConfig {
-  /** multi-agent: the enabled agents, with display names for the cards. */
+  /** multi-agent: the enabled agents, with display names for the pill. */
   agents: SwitchableAgent[]
   agent: string | null
   onAgentChange: (id: string) => void
-  models: AgentOption[]
-  efforts: AgentOption[]
+  /** The chosen agent's whole capability answer — what `EnginePicker` reshapes itself around. */
+  capabilities: EngineCapabilities | null
   model: string | null
   effort: string | null
   onModelChange: (id: string) => void
   onEffortChange: (id: string) => void
-  /** Capabilities still loading — the selects render disabled until they land. */
-  loading: boolean
+  /** Re-reads the machine instead of main's cache ("Redetectar", inside the panel). */
+  onRefresh: () => void
+  refreshing: boolean
 }
 
 /**
- * Model + effort pickers for the create form — the studio's echo of the chat
- * composer's run controls (DS `Select`, one vocabulary), so the user sets how
- * the build runs before handing off. Bordered full-width triggers here (not
- * the composer's borderless compact variant) so they read as form fields
- * alongside the name/idea inputs.
+ * How the build will run: **the chat composer's own two controls**, not
+ * lookalikes of them.
+ *
+ * They used to be a row of agent radio-cards and two bordered `Select`s
+ * labelled "Modelo" and "Esforço" — which meant the same decision was made
+ * through two different vocabularies depending on where you happened to be
+ * standing. The Selects were also strictly poorer: a flat list of ids with no
+ * tiers, no descriptions, no context windows, no provenance line, and an
+ * effort dropdown whose six words ("Baixo … Máx") put the ordering entirely in
+ * the reader's prior knowledge — everything `EnginePicker` and its `RampSelect`
+ * were built to fix. Importing the real controls is what keeps the studio from
+ * drifting the next time the composer learns something.
+ *
+ * `locked={false}`: a briefing has no started conversation to be tied to, so
+ * the agent is always changeable here.
  */
-function AgentChoice({ config }: { config: RunConfig }): React.JSX.Element | null {
-  if (config.agents.length < 2) return null
-  return (
-    <div className="wb-studio-agents" role="radiogroup" aria-label={t('studio.agentLabel')}>
-      {config.agents.map((agent) => {
-        const visual = agentVisual(agent.id)
-        const selected = agent.id === config.agent
-        return (
-          <button
-            key={agent.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            className="wb-studio-agent"
-            style={{ ['--agent-accent' as string]: `var(${visual.accentVar})` }}
-            onClick={() => config.onAgentChange(agent.id)}
-          >
-            <span className="wb-studio-agent-mark" aria-hidden="true">
-              <visual.icon size={16} />
-            </span>
-            <span className="wb-studio-agent-name">{agent.displayName}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-/** One capability select — rendered only when the chosen agent exposes it. */
-function RunSelect({
-  label,
-  description,
-  value,
-  options,
-  loading,
-  onChange
-}: {
-  label: string
-  description?: string
-  value: string | null
-  options: AgentOption[]
-  loading: boolean
-  onChange: (id: string) => void
-}): React.JSX.Element | null {
-  if (options.length === 0) return null
-  return (
-    <Field label={label} description={description} className="wb-studio-run-field">
-      <Select value={value ?? undefined} onValueChange={onChange} disabled={loading}>
-        <SelectTrigger aria-label={label}>
-          <SelectValue placeholder={t('studio.runConfigLoading')} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  )
-}
-
 function StudioRunConfig({ config }: { config: RunConfig }): React.JSX.Element {
-  const noLevers = !config.loading && config.models.length === 0 && config.efforts.length === 0
+  const noLevers =
+    config.capabilities !== null &&
+    config.capabilities.models.length === 0 &&
+    config.capabilities.efforts.length === 0
   return (
-    <fieldset className="wb-studio-run" disabled={config.loading}>
+    <fieldset className="wb-studio-run">
       <legend className="wb-studio-run-legend">{t('studio.runConfigLegend')}</legend>
-      <AgentChoice config={config} />
-      <div className="wb-studio-run-grid">
-        <RunSelect
-          label={t('studio.modelLabel')}
-          value={config.model}
-          options={config.models}
-          loading={config.loading}
-          onChange={config.onModelChange}
-        />
-        <RunSelect
-          label={t('studio.effortLabel')}
-          description={t('studio.effortHint')}
-          value={config.effort}
-          options={config.efforts}
-          loading={config.loading}
-          onChange={config.onEffortChange}
-        />
+      <div className="wb-studio-run-controls">
+        {config.agents.length > 1 && (
+          <AgentSwitcher
+            agents={config.agents}
+            value={config.agent}
+            locked={false}
+            onChange={config.onAgentChange}
+          />
+        )}
+        {config.capabilities === null ? (
+          <Spinner label={t('studio.runConfigLoading')} />
+        ) : (
+          <EnginePicker
+            capabilities={config.capabilities}
+            model={config.model}
+            effort={config.effort}
+            onModelChange={config.onModelChange}
+            onEffortChange={config.onEffortChange}
+            onRefresh={config.onRefresh}
+            refreshing={config.refreshing}
+          />
+        )}
       </div>
       {noLevers && <p className="wb-studio-run-none">{t('studio.runConfigNoLevers')}</p>}
     </fieldset>
@@ -636,17 +581,16 @@ function StudioDialog({
   const [draft, setDraft] = useState<Draft | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CreatedSkill | null>(null)
   const [deleteError, setDeleteError] = useState(false)
-  // Run-config: the same model/effort levers the chat exposes, driven by the
-  // active adapter's capabilities. Defaults to the first of each once loaded,
-  // and rides along with the "Criar" launch as a per-turn override.
-  const [capabilities, setCapabilities] = useState<{
-    models: AgentOption[]
-    efforts: AgentOption[]
-  } | null>(null)
+  // Run-config: the chat composer's own engine control, driven by the active
+  // adapter's whole capability answer (not a trimmed {models, efforts} pair —
+  // `EnginePicker` reads the provenance, the groups and the defaults too).
+  // Rides along with the "Criar" launch as a per-turn override.
+  const [capabilities, setCapabilities] = useState<EngineCapabilities | null>(null)
+  const [detecting, setDetecting] = useState(false)
   const [agentId, setAgentId] = useState<string | null>(defaultAgent)
   const [model, setModel] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
-  // id → displayName for the agent cards. Same source as the chat's switcher,
+  // id → displayName for the agent pill. Same source as the chat's switcher,
   // so the two surfaces name the same agent the same way.
   const [agentNames, setAgentNames] = useState<Record<string, string>>({})
 
@@ -673,13 +617,32 @@ function StudioDialog({
     clearWhileLoading()
     void window.hive.agent.capabilities(activeAgentId ?? undefined).then((caps) => {
       if (cancelled) return
-      setCapabilities({ models: caps.models, efforts: caps.efforts })
-      setModel(caps.models[0]?.id ?? null)
-      setEffort(caps.efforts[0]?.id ?? null)
+      setCapabilities(caps)
+      // `pickInitial`, not `[0]`: it lands on the CLI's own default row when
+      // the adapter offers one, which is the chat's rule. Taking the first
+      // entry meant the studio silently pinned `--model opus` on a machine
+      // whose owner had configured something else.
+      setModel(pickInitial(caps.models))
+      setEffort(pickInitial(caps.efforts))
     })
     return () => {
       cancelled = true
     }
+  }, [activeAgentId])
+
+  // "Redetectar" inside the engine panel — re-reads settings/config/CLI
+  // listing instead of answering from main's cache, the same command the chat
+  // composer offers, for the same reason (a provider changed outside the app).
+  const refreshCapabilities = useCallback(() => {
+    setDetecting(true)
+    void window.hive.agent
+      .capabilities(activeAgentId ?? undefined, { refresh: true })
+      .then((caps) => {
+        setCapabilities(caps)
+        setModel((current) => pickInitial(caps.models, current ?? undefined))
+        setEffort((current) => pickInitial(caps.efforts, current ?? undefined))
+      })
+      .finally(() => setDetecting(false))
   }, [activeAgentId])
 
   useEffect(() => {
@@ -879,13 +842,13 @@ function StudioDialog({
                   agents: agents.map((id) => ({ id, displayName: agentNames[id] ?? id })),
                   agent: activeAgentId,
                   onAgentChange: setAgentId,
-                  models: capabilities?.models ?? [],
-                  efforts: capabilities?.efforts ?? [],
+                  capabilities,
                   model,
                   effort,
                   onModelChange: setModel,
                   onEffortChange: setEffort,
-                  loading: capabilities === null
+                  onRefresh: refreshCapabilities,
+                  refreshing: detecting
                 }}
               />
             </>

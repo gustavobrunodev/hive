@@ -192,6 +192,31 @@ describe('SourceControlPanel', () => {
     expect(onCheckout).toHaveBeenCalled()
   })
 
+  /**
+   * git-logs: the way into the command console. It lives at the end of the
+   * overflow because it is the only entry that acts on the *app* rather than
+   * on the repository — you reach for it when one of the commands above did
+   * something you did not expect.
+   */
+  it('offers the git command console in the overflow and routes it', () => {
+    const onShowLogs = vi.fn()
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onShowLogs })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ver logs do Git…' }))
+    expect(onShowLogs).toHaveBeenCalled()
+  })
+
+  /**
+   * "Git não encontrado" is a claim about the machine, and the journal is
+   * where its evidence lives (a command that never spawned) — so the console
+   * has to be reachable from the state that has no overflow menu at all.
+   */
+  it('offers the console from the git-missing state, which has no menu to hold it', () => {
+    const onShowLogs = vi.fn()
+    renderPanel(store({ repo: { isRepo: false, gitMissing: true }, status: null }), { onShowLogs })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver logs do Git…' }))
+    expect(onShowLogs).toHaveBeenCalled()
+  })
+
   it('keeps the checkout command on a repo with no remote — checkout is local (GIT-R6)', () => {
     const onCheckout = vi.fn()
     renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }), { onCheckout })

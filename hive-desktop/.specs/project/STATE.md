@@ -289,6 +289,92 @@ Updated as work progresses. Load at start of every session.
   `UpdateCenter` (redesigned `AppSettingsSheet`). Explicitly **no modal**.
   (2026-07-21)
 
+- **D38 — Quatro melhorias de UI (2026-09-02).** Pedidos do usuário, sem
+  milestone própria. Decisões que não são óbvias no código:
+  (a) **A barra de rolagem do painel de modelos é consertada no design system**,
+  não no app: a regra global do `workbench.css` já recoloria toda barra, e o
+  `.hds-picker-list` se auto-excluía com `scrollbar-width: thin` (ver Lessons).
+  O DS ganha as regras `::-webkit-scrollbar-*` próprias para que o Storybook
+  mostre a mesma coisa que o app.
+  (b) **O Estúdio passa a usar os controles do composer, não cópias deles** —
+  `AgentSwitcher` + `EnginePicker`, com `onManage` opcional (um Dialog não pode
+  abrir a folha de perfil sem destruir o rascunho).
+  (c) **O item "amend" usa `indicator="trailing"`** para alinhar as duas linhas
+  do menu do commit à esquerda.
+  (d) **Os logs do Git são um dock, irmão do console MCP, mutuamente exclusivo
+  com ele** — dois docks empilhados não deixariam área de trabalho. O registro
+  vive em `main/gitCommandLog.ts` (buffer limitado, 500 entradas), alimentado
+  por um `onCommand` injetado no `GitService`, e é lido por
+  `git.logs.history()` + `git.logs.onEntry()`. Linhas estruturadas, não um
+  despejo de texto (PRODUCT.md), com "Copiar tudo" produzindo o texto plano que
+  vai para um issue.
+
+## Lessons (quatro melhorias de UI: barra de rolagem, controles do Estúdio, menu do commit, logs do Git — 2026-09-02)
+
+- **A declaração que desliga o tema da barra de rolagem.** O painel de modelos
+  do chat exibia a barra crua da plataforma — trilho claro na borda de um
+  popover escuro — enquanto todo o resto do app usa a barra recolorida por
+  `body ::-webkit-scrollbar`. A causa é uma linha que parece a coisa certa:
+  `scrollbar-width: thin` no `.hds-picker-list` do design system. No Chromium,
+  um valor não-`auto` em `scrollbar-width` (ou `scrollbar-color`) faz o elemento
+  entrar no caminho padrão e **ignorar todas** as regras `::-webkit-scrollbar-*`
+  que chegariam nele. A declaração escrita para deixar a barra discreta é
+  literalmente a que a deixou estrangeira. Três lugares tinham a linha (o DS e
+  dois scrollers do console MCP); os três voltaram para a barra tokenizada, e a
+  regra global do `workbench.css` agora proíbe a declaração pelo nome. Medido no
+  navegador: `CSS.supports('selector(::-webkit-scrollbar-thumb)')` é `true` no
+  Chromium, então o fallback do Firefox pode ficar atrás de um `@supports not`
+  sem risco de o Chromium cair nele.
+
+- **Dois vocabulários para a mesma decisão é uma escolha, e era a errada.** O
+  modal "Nova skill"/"Novo agente" coletava agente + modelo + esforço com
+  cartões de rádio e dois `Select` rotulados "Modelo" e "Esforço" — enquanto o
+  composer do chat já tinha o `AgentSwitcher` e o `EnginePicker`. Não era só
+  inconsistência visual: os `Select` eram estritamente mais pobres (lista chata
+  de ids, sem tiers, sem descrição, sem janela de contexto, sem procedência) e a
+  escada de esforço em seis palavras punha a ordenação inteira no conhecimento
+  prévio do leitor. Importar os controles reais apagou ~120 linhas de UI e de
+  CSS e é o que impede a deriva na próxima vez que o composer aprender algo.
+  A única diferença deliberada: `onManage` virou opcional, porque dentro de um
+  Dialog o "Gerenciar agentes…" só poderia ser honrado fechando o estúdio — e
+  jogando fora o briefing sendo digitado.
+
+- **O `space-between` do M20 tinha um irmão.** O `DropdownMenuCheckboxItem` do
+  DS reserva 20px à esquerda para a marca; o `DropdownMenuItem` ao lado não
+  reserva nada. Num menu que mistura os dois — o do botão de commit — as duas
+  linhas ganham duas margens esquerdas diferentes, e "Corrigir último commit
+  (amend)" lia como erro de renderização. `indicator="trailing"` põe a marca na
+  borda oposta e devolve uma única margem. Não é um defeito do DS desta vez: a
+  calha existe para alinhar rótulos **entre linhas marcáveis**; o custo aparece
+  só quando um menu mistura as duas famílias, e é o consumidor que sabe disso.
+
+- **O harness visual envelhece em silêncio, e a falha é uma página em branco.**
+  O `boot.mjs` ainda mockava `window.hive.whisper`, que o M29 substituiu por
+  `asr`. Resultado: `createAsrClient` lê `onPhase` de `undefined` e derruba a
+  árvore inteira do React — tela branca, zero mensagem visível, o único sinal no
+  `pageerror`. Um passe visual que abre em branco deve fazer o agente suspeitar
+  do mock antes do app. Registrado em `docs/visual-validation.md`; o mock
+  também ganhou o `git` de verdade (o antigo dizia `isRepo: false`, então
+  **nenhum** passe podia olhar o painel de Controle de versão — ele renderizava
+  o estado "inicializar repositório" e o defeito do alinhamento do menu era
+  literalmente inalcançável pela receita do repositório).
+
+- **O console de git é sobre a sequência, não sobre o erro.** O `GitService` já
+  mostra o stderr do comando que falhou (D-GIT-1). O que faltava é o que quase
+  toda pergunta difícil de git realmente é: *este* `push` falhou mas *aquele*
+  `fetch` funcionou; este `status` respondeu por um diretório que ninguém
+  esperava; o painel ficou quieto quatro segundos e nada deu erro. Por isso o
+  registro fica em **main** (a janela é assinante, pode não existir ainda e pode
+  ser trocada por um reload) e a assinatura é aberta **antes** da leitura do
+  histórico — um comando que termina entre as duas chamadas passa a chegar duas
+  vezes em vez de nenhuma, e a de-duplicação por id resolve o resto.
+
+- **Um dublê que engole a prop torna a regressão indetectável por construção.**
+  O mock do `DropdownMenuCheckboxItem` no teste do `CommitBox` descartava
+  `indicator` — exatamente a prop que decide o alinhamento que o usuário
+  reportou. Nenhum teste poderia ter pego o defeito enquanto o dublê fosse esse.
+  Agora ele expõe a prop como atributo, e há uma asserção sobre ela.
+
 ## Lessons (crash no processo principal ao fechar o app — 2026-08-31)
 
 - **A janela que morre sem se despedir.** O usuário reportou o diálogo "A

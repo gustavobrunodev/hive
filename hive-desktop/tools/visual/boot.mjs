@@ -404,6 +404,94 @@ async (page) => {
       for (const cb of agentListeners) cb(evt)
     }
 
+    // git-management: one of every row the change list groups — staged,
+    // modified, untracked, renamed and conflicted — so a pass sees the whole
+    // panel rather than the one group the fixture happened to fill.
+    const change = (path, index, worktree, over = {}) => ({
+      path,
+      index,
+      worktree,
+      isConflict: false,
+      isUntracked: false,
+      isIgnored: false,
+      ...over
+    })
+    state.gitStatus = {
+      branch: 'feat/parakeet-asr',
+      detached: false,
+      oid: 'a'.repeat(40),
+      upstream: 'origin/feat/parakeet-asr',
+      ahead: 2,
+      behind: 0,
+      mergeInProgress: false,
+      changes: [
+        change('src/main/gitService.ts', 'M', '.'),
+        change('src/renderer/src/scm/CommitBox.tsx', 'A', '.'),
+        change('src/renderer/src/assets/workbench.css', '.', 'M'),
+        change('docs/visual-validation.md', '.', 'M'),
+        change('notas.txt', '?', '?', { isUntracked: true })
+      ]
+    }
+    const GIT_LOG = [
+      {
+        hash: 'a'.repeat(40),
+        shortHash: '1fb6ba5',
+        author: 'gustavobgt',
+        date: '2026-09-01T18:04:00-03:00',
+        subject: 'fix(asr): o instalador não levava o motor'
+      },
+      {
+        hash: 'b'.repeat(40),
+        shortHash: '90c1b6e',
+        author: 'gustavobgt',
+        date: '2026-09-01T15:41:00-03:00',
+        subject: 'feat(asr): oferecer de volta o espaço dos modelos antigos'
+      }
+    ]
+
+    // git-logs: the command journal, in the shape main records it. Real
+    // commands with real timings, including the two states the console exists
+    // for — a failure with git's own stderr, and a call slow enough to explain
+    // a stall.
+    const gitLogListeners = []
+    let gitSeq = 0
+    const gitCmd = (over) => {
+      gitSeq += 1
+      return {
+        id: `git#${gitSeq}`,
+        at: Date.now() - (40 - gitSeq) * 1500,
+        cwd: '/ws',
+        args: ['status', '--porcelain=v2', '--branch', '-z'],
+        code: 0,
+        durationMs: 34,
+        stderr: '',
+        ...over
+      }
+    }
+    state.gitCommandLog = [
+      gitCmd({ args: ['rev-parse', '--is-inside-work-tree'], durationMs: 12 }),
+      gitCmd({ args: ['rev-parse', '--show-toplevel'], durationMs: 11 }),
+      gitCmd({}),
+      gitCmd({ args: ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], code: 1, durationMs: 9 }),
+      gitCmd({ args: ['add', '--', 'src/main/gitService.ts'], durationMs: 41 }),
+      gitCmd({}),
+      gitCmd({ args: ['fetch'], durationMs: 2840 }),
+      gitCmd({
+        args: ['push'],
+        code: 128,
+        durationMs: 1960,
+        stderr:
+          'fatal: could not read Username for \'https://github.com\': terminal prompts disabled'
+      }),
+      gitCmd({ args: ['log', '--max-count=50'], durationMs: 63 })
+    ]
+    /** Push one live command entry into the open console. */
+    window.__gitLog = (over) => {
+      const entry = gitCmd({ at: Date.now(), ...over })
+      state.gitCommandLog = [...state.gitCommandLog, entry]
+      for (const cb of gitLogListeners) cb(entry)
+    }
+
     // Agent Change Review: a fixture the pass can push a pending set into, so
     // the in-chat change card can be looked at without a real turn on disk.
     const reviewListeners = []
@@ -601,62 +689,35 @@ async (page) => {
     }
     state.shellSelected = state.shellView.selectedId ?? null
 
-    const HARDWARE = globalThis.HIVE_HARDWARE ?? {
-      recommendedId: 'small',
-      reason: 'discreteGpu',
-      gpu: true,
-      ramGB: 32,
-      cores: 12
-    }
-
     /**
-     * M26 — the app ships no weights, so the catalog fixture has to be able to
-     * describe BOTH shapes: a machine that has downloaded a few models, and the
-     * fresh install that has none. Drive the second with
-     * `globalThis.HIVE_NO_MODELS = true` before running this file.
+     * M29 — one model, so the fixture is one record instead of a catalog. The
+     * hardware facts survive because the voice panel still reports what the
+     * probe read (and what thread count it chose from it).
      */
-    // id, repo, params, fp32 total, q8 total, fp32 max FILE, q8 max FILE, vram,
-    // speed, multilingual. The per-file maxima are what decide whether a model
-    // can be loaded at all (see voice/modelFit), so a fixture without them
-    // renders a library that offers models the real app refuses.
-    const CATALOG_ROWS = [
-      ['tiny', 'Xenova/whisper-tiny', '39 M', 144, 39, 113, 29, 1, '~10x', true],
-      ['tiny.en', 'Xenova/whisper-tiny.en', '39 M', 144, 39, 113, 29, 1, '~10x', false],
-      ['base', 'Xenova/whisper-base', '74 M', 278, 73, 199, 51, 1, '~7x', true],
-      ['small', 'Xenova/whisper-small', '244 M', 923, 238, 587, 150, 2, '~4x', true],
-      ['medium', 'Xenova/whisper-medium', '769 M', 2916, 740, 1744, 441, 5, '~2x', true],
-      ['medium.en', 'Xenova/whisper-medium.en', '769 M', 4861, 740, 1945, 441, 5, '~2x', false],
-      ['large-v3-turbo', 'onnx-community/whisper-large-v3-turbo', '809 M', 3086, 1035, 2430, 615, 6, '~8x', true],
-      ['large-v3', 'onnx-community/whisper-large-v3-ONNX', '1.55 B', 5891, 1738, 3458, 1123, 10, '1x', true]
-    ]
-    const HAVE = globalThis.HIVE_NO_MODELS === true ? [] : ['tiny', 'base', 'small']
-    const DEFAULT_MODELS = CATALOG_ROWS.map(
-      ([id, repo, params, fp32, q8, fp32Max, q8Max, vram, speed, multi]) => ({
-        id,
-        repo,
-        params,
-        sizeMB: { fp32, q8 },
-        maxFileMB: { fp32: fp32Max, q8: q8Max },
-        approxVramGB: vram,
-        relativeSpeed: speed,
-        multilingual: multi,
-        downloaded: HAVE.includes(id),
-        downloadedVariant: HAVE.includes(id) ? 'fp32' : null
-      })
-    )
-    // Exposed so a scene can re-derive the catalog for the empty state without
-    // restating eight rows (the pass reads `__HIVE_ALL`/`__HIVE_HW`).
-    window.__HIVE_ALL = DEFAULT_MODELS
-    window.__HIVE_HW = HARDWARE
-    const INSTALLED = HAVE
-    const DEFAULT_PREF = {
-      id: HAVE.length > 0 ? 'small' : null,
-      auto: true,
-      installed: INSTALLED,
-      recommendation: HARDWARE
+    const FACTS = globalThis.HIVE_FACTS ?? { gpu: true, ramGB: 32, cores: 12 }
+    const PARAKEET = {
+      id: 'parakeet-tdt-0.6b-v3-int8',
+      repo: 'istupakov/parakeet-tdt-0.6b-v3-onnx',
+      params: '600 M',
+      sizeMB: 670,
+      languages: 25,
+      downloaded: globalThis.HIVE_NO_MODELS !== true
     }
+    const READINESS = {
+      installed: PARAKEET.downloaded,
+      model: PARAKEET,
+      runtime: { threads: 6, facts: FACTS }
+    }
+    // Exposed so a scene can re-derive readiness for the not-installed state.
+    window.__HIVE_ASR = READINESS
+
     const downloadSubs = []
     const settledSubs = []
+    const phaseSubs = []
+    /** Push one engine phase to every subscriber (M29). */
+    window.__asrPhase = (phase) => {
+      for (const fn of [...phaseSubs]) fn(phase)
+    }
     /** Push a downloads snapshot to every subscriber, as main's manager does. */
     window.__downloads = (list) => {
       for (const fn of [...downloadSubs]) fn(list)
@@ -1031,10 +1092,78 @@ async (page) => {
           return Promise.resolve(undefined)
         }
       },
+      // git-management: a real repo by default, because every Source Control
+      // surface (the change groups, the commit box, the history timeline) is
+      // invisible without one — the previous fixture said `isRepo: false`, so
+      // the whole view rendered its "initialize a repository" state and no
+      // pass could ever look at the panel it was meant to look at.
+      // `globalThis.HIVE_NO_REPO = true` gives that state back.
       git: {
-        detect: ok({ isRepo: false, gitMissing: false }),
-        status: ok({ branch: 'main', changes: [], staged: [], ahead: 0, behind: 0 }),
-        onChanged: unsub
+        detect: ok(
+          globalThis.HIVE_NO_REPO === true
+            ? { isRepo: false, root: null, gitMissing: false }
+            : { isRepo: true, root: '/ws', gitMissing: false }
+        ),
+        status: () => Promise.resolve(state.gitStatus),
+        stage: ok(undefined),
+        unstage: ok(undefined),
+        discard: ok(undefined),
+        commit: ok({ hash: 'a'.repeat(40) }),
+        branches: ok({
+          current: 'feat/parakeet-asr',
+          detached: false,
+          local: [
+            { name: 'main', current: false, upstream: 'origin/main', ahead: 0, behind: 0 },
+            {
+              name: 'feat/parakeet-asr',
+              current: true,
+              upstream: 'origin/feat/parakeet-asr',
+              ahead: 2,
+              behind: 0
+            }
+          ],
+          remote: [{ name: 'origin/main' }, { name: 'origin/feat/parakeet-asr' }]
+        }),
+        createBranch: ok(undefined),
+        checkout: ok(undefined),
+        renameBranch: ok(undefined),
+        deleteBranch: ok(undefined),
+        fetch: ok(undefined),
+        pull: ok(undefined),
+        push: ok(undefined),
+        sync: ok(undefined),
+        log: ok(GIT_LOG),
+        diff: ok({ path: 'src/index.ts', binary: false, hunks: [] }),
+        commitDiff: ok({ hash: 'a'.repeat(40), files: [] }),
+        // The amend prefill reads the last message off the log; a stub that
+        // returns nothing makes the amend checkbox look like it does nothing.
+        fileAtHead: ok(''),
+        conflicts: ok([]),
+        resolveConflict: ok(undefined),
+        mergeContinue: ok(undefined),
+        mergeAbort: ok(undefined),
+        stash: ok(undefined),
+        stashList: ok([]),
+        stashApply: ok(undefined),
+        stashDrop: ok(undefined),
+        onChanged: unsub,
+        // git-logs: the command journal the console reads. `history` is the
+        // backlog; `window.__gitLog(entry)` pushes a live one, which is the
+        // only way to see the console's arrival behaviour without a real repo.
+        logs: {
+          history: () => Promise.resolve(state.gitCommandLog),
+          clear: () => {
+            state.gitCommandLog = []
+            return Promise.resolve(undefined)
+          },
+          onEntry: (cb) => {
+            gitLogListeners.push(cb)
+            return () => {
+              const i = gitLogListeners.indexOf(cb)
+              if (i >= 0) gitLogListeners.splice(i, 1)
+            }
+          }
+        }
       },
       review: {
         get: () => Promise.resolve(state.review),
@@ -1076,27 +1205,41 @@ async (page) => {
         noteLint: ok(FRESH_HEALTH),
         snoozeHealth: ok(FRESH_HEALTH)
       },
-      // M26: nothing ships inside the app. The default fixture still has three
-      // models downloaded because that is the state most passes want to look
-      // at; `globalThis.HIVE_NO_MODELS = true` gives the fresh install.
-      whisper: {
-        listModels: () => Promise.resolve(globalThis.__HIVE_MODELS ?? DEFAULT_MODELS),
-        modelStatus: ok({ downloaded: true, variant: 'fp32' }),
-        deleteModel: ok(undefined),
-        recommend: ok(HARDWARE),
-        preference: () => Promise.resolve(globalThis.__HIVE_PREF ?? DEFAULT_PREF),
-        setPreferredModel: (id) =>
-          Promise.resolve(
-            id === null
-              ? { id: 'small', auto: true, installed: INSTALLED, recommendation: HARDWARE }
-              : { id, auto: false, installed: INSTALLED, recommendation: HARDWARE }
-          ),
-        // M26: downloads are owned by main and broadcast to every window. The
-        // harness plants the listener so a scene can drive a live transfer:
-        //   window.__downloads([{ id: 'medium', status: 'downloading', … }])
+      // M29: one model, downloaded by main and broadcast to every window.
+      // `globalThis.HIVE_NO_MODELS = true` gives the fresh install (nothing on
+      // disk), which is the state the voice gate exists for.
+      asr: {
+        readiness: () => Promise.resolve(globalThis.__HIVE_READINESS ?? READINESS),
+        deleteModel: () => Promise.resolve({ ...READINESS, installed: false }),
+        legacyModelBytes: ok(globalThis.HIVE_LEGACY_BYTES ?? 0),
+        removeLegacyModels: ok(0),
+        // Resolved, never rejected: every dictation surface calls `warm()` on
+        // hover, and a rejection there paints an engine error over a scene that
+        // was only ever meant to be looked at.
+        warm: ok(undefined),
+        transcribe: ok(''),
+        evict: ok(undefined),
+        // The phase stream. `window.__asrPhase({status:'ready'})` drives it —
+        // the client reads the CURRENT phase from these pushes, so a fixture
+        // that only registers the listener leaves every mic control `idle`.
+        onPhase: (fn) => {
+          phaseSubs.push(fn)
+          fn(globalThis.HIVE_ASR_PHASE ?? { status: 'ready' })
+          return () => phaseSubs.splice(phaseSubs.indexOf(fn), 1)
+        },
         downloads: () => Promise.resolve(globalThis.__HIVE_DOWNLOADS ?? []),
-        startDownload: (id, variant) =>
-          Promise.resolve({ id, variant, status: 'downloading', loaded: 0, total: 0, file: '', bytesPerSecond: 0, failure: null, startedAt: Date.now(), updatedAt: Date.now() }),
+        startDownload: () =>
+          Promise.resolve({
+            id: PARAKEET.id,
+            status: 'downloading',
+            loaded: 0,
+            total: PARAKEET.sizeMB * 1e6,
+            file: 'encoder.int8.onnx',
+            bytesPerSecond: 0,
+            failure: null,
+            startedAt: Date.now(),
+            updatedAt: Date.now()
+          }),
         cancelDownload: ok(undefined),
         dismissDownload: ok(undefined),
         // Every listener, not the last one. Main broadcasts to all live

@@ -22,7 +22,8 @@ import {
   MoreIcon,
   RefreshIcon,
   SourceControlIcon,
-  SyncIcon
+  SyncIcon,
+  TerminalIcon
 } from '../ui/icons'
 import { ChangeGroups, type RowSide } from './ChangeGroups'
 import { CommitBox } from './CommitBox'
@@ -63,6 +64,66 @@ function ScmEmpty({
   )
 }
 
+/**
+ * The header's overflow menu — checkout, the remote group, and the way into
+ * the git command console. Its own component purely so `ScmHeader` stays
+ * under the lint's complexity budget: three independently-optional groups is
+ * three branches, and the header already had its own.
+ */
+function ScmOverflowMenu({
+  onCheckout,
+  remote,
+  onShowLogs
+}: {
+  onCheckout?: () => void
+  remote?: GitRemote
+  onShowLogs?: () => void
+}): React.JSX.Element | null {
+  // The menu is not gated on `remote`: checkout is a local operation, and a
+  // repo without a remote still has branches to move between. Only the remote
+  // group below is conditional.
+  if (!onCheckout && !remote && !onShowLogs) return null
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label={t('git.moreActions')}>
+          <MoreIcon size={15} />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {onCheckout && (
+          <DropdownMenuItem onSelect={onCheckout}>
+            <BranchIcon size={14} /> {t('git.checkoutAction')}
+          </DropdownMenuItem>
+        )}
+        {onCheckout && remote && <DropdownMenuSeparator />}
+        {remote && (
+          <>
+            <DropdownMenuItem onSelect={remote.sync}>
+              <SyncIcon size={14} /> {t('git.syncAction')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={remote.fetch}>{t('git.fetchAction')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={remote.pull}>{t('git.pullAction')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={remote.push}>{t('git.pushAction')}</DropdownMenuItem>
+          </>
+        )}
+        {/* git-logs: last in the menu and behind its own rule, because it is
+            the only entry that acts on the *app* rather than on the
+            repository — you reach for it when one of the commands above did
+            something you did not expect. */}
+        {onShowLogs && (
+          <>
+            {(onCheckout || remote) && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={onShowLogs}>
+              <TerminalIcon size={14} /> {t('git.logsAction')}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 /** The panel header: the current branch chip, a refresh affordance, and the overflow menu — checkout + remote ops (GIT-R6/R7). */
 function ScmHeader({
   branch,
@@ -71,7 +132,8 @@ function ScmHeader({
   onCheckout,
   remote,
   showHistory,
-  onToggleHistory
+  onToggleHistory,
+  onShowLogs
 }: {
   branch: string | null
   detached: boolean
@@ -80,6 +142,7 @@ function ScmHeader({
   remote?: GitRemote
   showHistory: boolean
   onToggleHistory: () => void
+  onShowLogs?: () => void
 }): React.JSX.Element {
   const label = detached || !branch ? t('git.detachedHead') : branch
   return (
@@ -104,38 +167,7 @@ function ScmHeader({
         <IconButton label={t('git.refreshLabel')} onClick={onRefresh}>
           <RefreshIcon size={15} />
         </IconButton>
-        {/* The menu is no longer gated on `remote`: checkout is a local
-            operation, and a repo without a remote still has branches to move
-            between. Only the remote group below is conditional. */}
-        {(onCheckout || remote) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <IconButton label={t('git.moreActions')}>
-                <MoreIcon size={15} />
-              </IconButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onCheckout && (
-                <DropdownMenuItem onSelect={onCheckout}>
-                  <BranchIcon size={14} /> {t('git.checkoutAction')}
-                </DropdownMenuItem>
-              )}
-              {onCheckout && remote && <DropdownMenuSeparator />}
-              {remote && (
-                <>
-                  <DropdownMenuItem onSelect={remote.sync}>
-                    <SyncIcon size={14} /> {t('git.syncAction')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={remote.fetch}>
-                    {t('git.fetchAction')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={remote.pull}>{t('git.pullAction')}</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={remote.push}>{t('git.pushAction')}</DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <ScmOverflowMenu onCheckout={onCheckout} remote={remote} onShowLogs={onShowLogs} />
       </span>
     </div>
   )
@@ -155,6 +187,12 @@ export interface SourceControlPanelProps {
    * bar's branch pill; the panel only offers the command.
    */
   onCheckout?: () => void
+  /**
+   * git-logs: opens the command console (the dock lives in `WorkUI`, like the
+   * MCP one, because two docks stacked under the work area would leave nothing
+   * of it — only one can be open at a time and the parent is what knows that).
+   */
+  onShowLogs?: () => void
 }
 
 /** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
@@ -175,7 +213,8 @@ export function SourceControlPanel({
   onOpenDiff,
   onOpenCommit,
   remote,
-  onCheckout
+  onCheckout,
+  onShowLogs
 }: SourceControlPanelProps): React.JSX.Element {
   const git = useGit()
   // The changes queued behind the discard confirmation (GIT-R3.3); null = closed.
@@ -254,12 +293,22 @@ export function SourceControlPanel({
     [onOpenDiff, stage, unstage, requestDiscard, openFileHistory]
   )
 
+  // git-logs: the console is offered here too, and this is the state that most
+  // needs it — "o git não está instalado" is a claim about the machine, and
+  // the journal is where its evidence (a command that never spawned) is.
   if (git.repo.gitMissing) {
     return (
       <ScmEmpty
         icon={<AlertTriangleIcon size={22} />}
         title={t('git.gitMissingTitle')}
         description={t('git.gitMissingDescription')}
+        action={
+          onShowLogs && (
+            <Button className="wb-btn" onClick={onShowLogs}>
+              {t('git.logsAction')}
+            </Button>
+          )
+        }
       />
     )
   }
@@ -298,6 +347,7 @@ export function SourceControlPanel({
         remote={remote}
         showHistory={showHistory}
         onToggleHistory={toggleHistory}
+        onShowLogs={onShowLogs}
       />
       {showHistory ? (
         <div className="wb-scm-scroll">

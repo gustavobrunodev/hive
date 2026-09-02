@@ -33,6 +33,7 @@ import { HealthNudge } from './secondBrain/HealthNudge'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT } from './secondBrain/secondBrainPrompts'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
+import { GitLogConsole } from './scm/GitLogConsole'
 import { AgentReviewPanel } from './scm/AgentReviewPanel'
 import { ReviewDiffTab } from './scm/ReviewDiffTab'
 import { ReviewBar } from './ui/ReviewBar'
@@ -45,7 +46,7 @@ import { BranchPicker } from './scm/BranchPicker'
 import { useCheckoutGuard } from './scm/useCheckoutGuard'
 import { useGitRemote } from './scm/useGitRemote'
 import { StatusBar } from './ui/StatusBar'
-import { McpConsole } from './mcpLogs/McpConsole'
+import { McpConsole, type McpConsoleProps } from './mcpLogs/McpConsole'
 import { McpStatusCluster } from './mcpLogs/McpStatusCluster'
 import { isLive, useMcpLogs } from './mcpLogs/useMcpLogs'
 import { buildRoster } from './mcpLogs/mcpRoster'
@@ -303,6 +304,35 @@ function persistPaneOrder(order: PaneId[]): void {
 const NO_SERVERS: McpServerReport[] = []
 
 /**
+ * The bottom dock: whichever console is open, or nothing.
+ *
+ * The two are mutually exclusive because they share one slot — the question
+ * each answers ("what is this MCP server doing", "what did git actually run")
+ * is asked *while* looking at the work area, and two docks stacked would leave
+ * none of it to look at.
+ *
+ * A component of its own rather than a branch in `WorkUI`'s JSX: that file is
+ * already at the lint's complexity ceiling, and a nested render function there
+ * is worse than either — the React compiler refuses to memoize a component
+ * that defines one, which is a measured cost on this file specifically.
+ */
+function WorkDock({
+  gitLogOpen,
+  onCloseGitLog,
+  mcpOpen,
+  mcp
+}: {
+  gitLogOpen: boolean
+  onCloseGitLog: () => void
+  mcpOpen: boolean
+  mcp: McpConsoleProps
+}): React.JSX.Element | null {
+  if (gitLogOpen) return <GitLogConsole onClose={onCloseGitLog} />
+  if (!mcpOpen) return null
+  return <McpConsole {...mcp} />
+}
+
+/**
  * mcp-visibility: the handshake roster, but only when it belongs to the
  * workspace on screen. A stale tag reads as "no servers reported yet", which is
  * the truth for a workspace whose CLI has not run — never the previous
@@ -422,6 +452,20 @@ export function WorkUI({
   const [mcpOpen, setMcpOpen] = useState(false)
   // mcp-logs: the MCP console dock (Ctrl+Shift+M, or the status-bar cluster).
   const [mcpConsoleOpen, setMcpConsoleOpen] = useState(false)
+  // git-logs: the git command console, docked under the work area like the MCP
+  // one. Two docks at once would leave nothing of the work area, so opening
+  // either closes the other — the parent owns both flags for exactly that.
+  const [gitLogOpen, setGitLogOpen] = useState(false)
+  const openGitLog = useCallback(() => {
+    setMcpConsoleOpen(false)
+    setGitLogOpen(true)
+  }, [])
+  const closeGitLog = useCallback(() => setGitLogOpen(false), [])
+  const toggleMcpConsole = useCallback(() => {
+    setGitLogOpen(false)
+    setMcpConsoleOpen((current) => !current)
+  }, [])
+
   // The workspace's configured server names, so the console can flag the ones
   // logging here that aren't in this workspace's `.mcp.json` (user-scoped
   // servers the CLI also runs). Refreshed when the manager closes.
@@ -982,6 +1026,7 @@ export function WorkUI({
                   onOpenCommit={editor.openCommitDiff}
                   remote={gitRemote}
                   onCheckout={() => setBranchPickerOpen(true)}
+                  onShowLogs={openGitLog}
                 />
               }
               review={
@@ -1244,17 +1289,20 @@ export function WorkUI({
                 than opening as a dialog — the question it answers ("what is
                 this MCP server doing right now") is asked while a turn runs,
                 and a modal would cover the transcript being asked about. */}
-              {mcpConsoleOpen && (
-                <McpConsole
-                  workspace={workspace}
-                  store={mcpLogs}
-                  catalog={mcpCatalog}
-                  roster={mcpRoster}
-                  live={mcpLive}
-                  onClose={() => setMcpConsoleOpen(false)}
-                  onOpenManager={() => setMcpOpen(true)}
-                />
-              )}
+              <WorkDock
+                gitLogOpen={gitLogOpen}
+                onCloseGitLog={closeGitLog}
+                mcpOpen={mcpConsoleOpen}
+                mcp={{
+                  workspace,
+                  store: mcpLogs,
+                  catalog: mcpCatalog,
+                  roster: mcpRoster,
+                  live: mcpLive,
+                  onClose: () => setMcpConsoleOpen(false),
+                  onOpenManager: () => setMcpOpen(true)
+                }}
+              />
             </main>
           </div>
           {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
@@ -1337,7 +1385,7 @@ export function WorkUI({
                 roster={mcpRoster}
                 live={mcpLive}
                 open={mcpConsoleOpen}
-                onToggle={() => setMcpConsoleOpen((current) => !current)}
+                onToggle={toggleMcpConsole}
               />
             }
           />

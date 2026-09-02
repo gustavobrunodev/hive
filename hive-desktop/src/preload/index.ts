@@ -55,6 +55,7 @@ import type {
   GitStash,
   GitStatus
 } from '../main/gitService'
+import type { GitCommandEntry } from '../main/gitCommandLog'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
@@ -768,6 +769,22 @@ const hive = {
       return () => {
         ipcRenderer.removeListener('git:changed', listener)
         ipcRenderer.send('git:changed:stop')
+      }
+    },
+    // git-logs: the command journal. NOT wrapped in `withTypedGit` — reading
+    // the log is not a git call and cannot produce a `GitError`; wrapping it
+    // would only be able to mis-parse an unrelated failure into one.
+    logs: {
+      history: (): Promise<GitCommandEntry[]> => ipcRenderer.invoke('git:logs:history'),
+      clear: (): Promise<void> => ipcRenderer.invoke('git:logs:clear'),
+      onEntry: (onEntry: (entry: GitCommandEntry) => void): (() => void) => {
+        const listener = (_event: IpcRendererEvent, entry: GitCommandEntry): void => onEntry(entry)
+        ipcRenderer.on('git:logs:entry', listener)
+        ipcRenderer.send('git:logs:start')
+        return () => {
+          ipcRenderer.removeListener('git:logs:entry', listener)
+          ipcRenderer.send('git:logs:stop')
+        }
       }
     }
   },

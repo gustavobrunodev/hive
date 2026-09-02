@@ -563,6 +563,36 @@ para cima e para a esquerda em vez de expandir a partir da marca — e o print d
 um único frame não denuncia: parece um anel qualquer fora de lugar. A prova são
 três frames em fases diferentes da animação, não um.
 
+### 2026-09-02 — quatro melhorias de UI: um sensor visual novo, e a barra de rolagem que o padrão-web desligou
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | `tools/visual/git-console-contrast.mjs` — 16 alvos de texto + 2 de marca × 3 temas | `tools/visual/` | Regra do M16/M19/M20/M21 outra vez: superfície nova entra no sweep no mesmo commit. Achou **4 reprovações reais** (relógio e pasta em `--faint`: 2,95:1 no claro; e 2,65:1 sobre o tint da linha que falhou) e **uma reprovação falsa** que virou lição — ver abaixo. |
+| — | `indicator` exposto como atributo no dublê do `DropdownMenuCheckboxItem` | `src/renderer/src/scm/CommitBox.test.ts` | O mock engolia a prop, então o alinhamento do menu era invisível para o teste. Um dublê que descarta a prop que decide o layout torna a regressão indetectável por construção. |
+| — | Passo de git-logs no E2E de git-management | `e2e/git-management.spec.ts` | O console é a única superfície que prova a cadeia inteira (main grava → preload atravessa → dock renderiza). Ele afirma sobre os comandos que **o próprio spec causou** — um console mockado renderiza igual e não reporta nada. |
+| — | `.playwright-mcp` no `ignores` do ESLint | `eslint.config.mjs` | O diretório de saída do MCP do Playwright (screenshots, logs, e os trechos de cena que um passe visual entrega por nome de arquivo) já era gitignorado; faltava a linha irmã de `test-results`/`playwright-report`, e um snippet de cena reprovava o `verify`. |
+
+**A armadilha de CSS registrada aqui, e ela é do padrão web, não do projeto:**
+`scrollbar-width: thin` parece a forma moderna e segura de pedir uma barra
+discreta. No Chromium ela faz o elemento **ignorar todas** as regras
+`::-webkit-scrollbar-*` que chegariam nele — inclusive a regra global
+`body ::-webkit-scrollbar` que recolore a barra com os tokens do tema. Ou seja:
+a declaração escrita para deixar a barra discreta é exatamente a que fez o
+painel de modelos do chat exibir a barra crua da plataforma, com trilho claro,
+na borda de um popover escuro. Três lugares tinham a declaração (o
+`OptionPicker` do DS e dois scrollers do console MCP); os três voltaram para a
+barra tokenizada. O comentário na regra global do `workbench.css` agora proíbe
+a declaração pelo nome.
+
+**A lição de sonda desta rodada — "nem todo pixel colorido é um indicador",
+pela segunda vez.** A primeira rodada da sonda nova reprovou a `.wb-gitlog-mark`
+com 1,22:1 e parecia um achado. É a *placa* atrás do ícone do dock, ao lado de
+um título de texto que diz a mesma coisa: um contêiner, não um indicador —
+subir para 3:1 transformaria uma barra discreta num crachá. O repositório já
+tinha registrado esse erro uma vez (a calha vazia da rampa de esforço). O alvo
+saiu da lista **com o porquê escrito na lista**, que é a única forma de a
+próxima rodada não o re-adicionar.
+
 ## 6. Steering loop
 
 - **Observar:** toda lição do `STATE.md` que comece com "de novo" / "a lição do
