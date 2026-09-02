@@ -1,10 +1,5 @@
-import { toDownloadFailure, type WhisperModelStore } from './whisperModelStore'
-import type {
-  WhisperDownload,
-  WhisperDownloadFailure,
-  WhisperModelId,
-  WhisperVariant
-} from './whisperTypes'
+import { toDownloadFailure, type AsrModelStore } from './asrModelStore'
+import type { AsrDownload, AsrDownloadFailure, AsrModelId } from './asrTypes'
 
 /**
  * Weight given to the newest throughput sample when smoothing the rate.
@@ -20,45 +15,48 @@ const RATE_SMOOTHING = 0.25
 const RATE_SAMPLE_MS = 500
 
 /**
- * Background downloads of Whisper weights — **owned by main, not by a window.**
+ * Background download of the ASR model — **owned by main, not by a window.**
  *
  * The surface this replaces made the renderer the owner: `downloadModel` opened
  * an IPC subscription, and the preload's teardown sent `whisper:download:stop`.
- * Closing the sheet therefore stopped the download — a 2.8 GB transfer killed
- * by navigating away from the page that started it — and two models could not
- * download at once, because the stop channel carried no id and cancelled
- * whatever was registered for that sender.
+ * Closing the sheet therefore stopped the download — a multi-gigabyte transfer
+ * killed by navigating away from the page that started it.
  *
  * Here a download is a record with a lifetime of its own. Windows subscribe to
- * the snapshot and can come and go; the transfer keeps running, several at a
- * time, and reports its own ending to whoever is listening — including, when
- * nobody is, the operating system's notification centre.
+ * the snapshot and can come and go; the transfer keeps running and reports its
+ * own ending to whoever is listening — including, when nobody is, the operating
+ * system's notification centre.
+ *
+ * It stays keyed by model id even though M29 leaves exactly one model. The key
+ * is what makes "cancel this one" and "dismiss this one" addressable without
+ * the caller and the manager having to agree on a singleton, and it is what the
+ * existing lifecycle tests are written against.
  */
-export interface WhisperDownloadManager {
+export interface AsrDownloadManager {
   /** Every download worth showing: all in-flight ones, plus unacknowledged failures. */
-  list(): WhisperDownload[]
+  list(): AsrDownload[]
   /**
    * Starts (or resumes) a download. Idempotent while one is already running for
    * `id` — clicking "Baixar" twice must not spawn a second transfer into the
    * same directory.
    */
-  start(id: WhisperModelId, variant: WhisperVariant): WhisperDownload
+  start(id: AsrModelId): AsrDownload
   /** Aborts an in-flight download and throws away its partial bytes. */
-  cancel(id: WhisperModelId): void
+  cancel(id: AsrModelId): void
   /** Clears a settled record the user has seen. */
-  dismiss(id: WhisperModelId): void
+  dismiss(id: AsrModelId): void
   /** Snapshot subscription — fires on every change, with the whole list. */
-  subscribe(listener: (downloads: WhisperDownload[]) => void): () => void
+  subscribe(listener: (downloads: AsrDownload[]) => void): () => void
   /** One-shot subscription to endings, for notifications. Never fires for progress. */
-  onSettled(listener: (download: WhisperDownload) => void): () => void
+  onSettled(listener: (download: AsrDownload) => void): () => void
   /** Resolves when `id` stops downloading; `null` if it was never downloading. */
-  whenSettled(id: WhisperModelId): Promise<WhisperDownload | null>
+  whenSettled(id: AsrModelId): Promise<AsrDownload | null>
   /** Aborts everything — app shutdown, so a half-written temp dir is not left mid-rename. */
   stopAll(): void
 }
 
-export interface WhisperDownloadDeps {
-  store: Pick<WhisperModelStore, 'download' | 'discardPartial' | 'partialBytes'>
+export interface AsrDownloadDeps {
+  store: Pick<AsrModelStore, 'download' | 'discardPartial' | 'partialBytes'>
   /** Injected clock, so the rate/ETA maths is asserted without real time passing. */
   now?: () => number
 }
@@ -68,24 +66,24 @@ interface Live {
   controller: AbortController
   lastBytes: number
   lastAt: number
-  settled: Array<(download: WhisperDownload) => void>
+  settled: Array<(download: AsrDownload) => void>
 }
 
-export function createWhisperDownloadManager(deps: WhisperDownloadDeps): WhisperDownloadManager {
+export function createAsrDownloadManager(deps: AsrDownloadDeps): AsrDownloadManager {
   const now = deps.now ?? Date.now
-  const records = new Map<WhisperModelId, WhisperDownload>()
-  const live = new Map<WhisperModelId, Live>()
-  const snapshotListeners = new Set<(downloads: WhisperDownload[]) => void>()
-  const settledListeners = new Set<(download: WhisperDownload) => void>()
+  const records = new Map<AsrModelId, AsrDownload>()
+  const live = new Map<AsrModelId, Live>()
+  const snapshotListeners = new Set<(downloads: AsrDownload[]) => void>()
+  const settledListeners = new Set<(download: AsrDownload) => void>()
 
-  const list = (): WhisperDownload[] => [...records.values()]
+  const list = (): AsrDownload[] => [...records.values()]
 
   const emit = (): void => {
     const snapshot = list()
     for (const listener of snapshotListeners) listener(snapshot)
   }
 
-  const settle = (record: WhisperDownload): void => {
+  const settle = (record: AsrDownload): void => {
     const handle = live.get(record.id)
     live.delete(record.id)
     // A failure is the one ending that stays on the list: it is the only one
@@ -99,7 +97,7 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
     if (handle) for (const resolve of handle.settled) resolve(record)
   }
 
-  const patch = (id: WhisperModelId, changes: Partial<WhisperDownload>): WhisperDownload | null => {
+  const patch = (id: AsrModelId, changes: Partial<AsrDownload>): AsrDownload | null => {
     const current = records.get(id)
     if (!current) return null
     const next = { ...current, ...changes, updatedAt: now() }
@@ -115,7 +113,7 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
    * that is what the connection is doing now, not what it averaged over the
    * twenty minutes that included a sleep.
    */
-  const onProgress = (id: WhisperModelId, loaded: number, total: number, file: string): void => {
+  const onProgress = (id: AsrModelId, loaded: number, total: number, file: string): void => {
     const handle = live.get(id)
     const current = records.get(id)
     if (!handle || !current) return
@@ -135,19 +133,18 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
     emit()
   }
 
-  function start(id: WhisperModelId, variant: WhisperVariant): WhisperDownload {
+  function start(id: AsrModelId): AsrDownload {
     const running = records.get(id)
     if (running?.status === 'downloading') return running
 
     const controller = new AbortController()
     const startedAt = now()
-    const record: WhisperDownload = {
+    const record: AsrDownload = {
       id,
-      variant,
       status: 'downloading',
       // Resumed bytes count from the first frame: a bar that restarts at 0 %
       // on a resumed download says the opposite of what just happened.
-      loaded: deps.store.partialBytes(id),
+      loaded: deps.store.partialBytes(),
       total: 0,
       file: '',
       bytesPerSecond: 0,
@@ -161,8 +158,6 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
 
     void deps.store
       .download(
-        id,
-        variant,
         (event) => {
           if (event.type === 'progress') onProgress(id, event.loaded, event.total, event.file)
         },
@@ -178,7 +173,7 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
           if (cancelled) settle(cancelled)
           return
         }
-        const failure: WhisperDownloadFailure = toDownloadFailure(error)
+        const failure: AsrDownloadFailure = toDownloadFailure(error)
         const failed = patch(id, { status: 'error', failure, bytesPerSecond: 0 })
         if (failed) settle(failed)
       })
@@ -186,7 +181,7 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
     return record
   }
 
-  function cancel(id: WhisperModelId): void {
+  function cancel(id: AsrModelId): void {
     const handle = live.get(id)
     if (!handle) {
       // Nothing running: "cancel" on a settled row means "forget it".
@@ -197,28 +192,28 @@ export function createWhisperDownloadManager(deps: WhisperDownloadDeps): Whisper
     // The abort surfaces through the download's own rejection, but the partial
     // bytes are dropped here: a cancel is the one ending where keeping 2 GB of
     // resumable temp files would be storing something nobody asked for.
-    deps.store.discardPartial(id)
+    deps.store.discardPartial()
   }
 
-  function dismiss(id: WhisperModelId): void {
+  function dismiss(id: AsrModelId): void {
     if (!records.has(id)) return
     if (records.get(id)?.status === 'downloading') return
     records.delete(id)
     emit()
   }
 
-  function subscribe(listener: (downloads: WhisperDownload[]) => void): () => void {
+  function subscribe(listener: (downloads: AsrDownload[]) => void): () => void {
     snapshotListeners.add(listener)
     listener(list())
     return () => snapshotListeners.delete(listener)
   }
 
-  function onSettled(listener: (download: WhisperDownload) => void): () => void {
+  function onSettled(listener: (download: AsrDownload) => void): () => void {
     settledListeners.add(listener)
     return () => settledListeners.delete(listener)
   }
 
-  function whenSettled(id: WhisperModelId): Promise<WhisperDownload | null> {
+  function whenSettled(id: AsrModelId): Promise<AsrDownload | null> {
     const handle = live.get(id)
     if (!handle) return Promise.resolve(null)
     return new Promise((resolve) => handle.settled.push(resolve))
