@@ -84,6 +84,19 @@ export interface DictationSink {
    */
   count: () => number
   /**
+   * The queue's unresolved failure *right now*.
+   *
+   * Live for the same reason `count` is, and the reason is not symmetry. The
+   * autostop reaches `finish` through the capture callback registered when the
+   * microphone opened, so every value that closure read from React state is
+   * frozen at that moment — and `failure` is always `null` then, because
+   * nothing has been transcribed yet. A take that ended by itself after a
+   * failure therefore reported no failure at all: silence where an error and
+   * its retry belonged, while pressing Concluir on the identical take reported
+   * it properly. Measured against a packaged build on 2026-09-02.
+   */
+  failureNow: () => string | null
+  /**
    * Warms the engine in the background, on intent (D-VP-6).
    *
    * `blocked` used to mean "a take is live, don't take the pipeline slot",
@@ -249,6 +262,7 @@ export function useDictationSink(
     busy: useCallback(() => queueRef.current?.busy() ?? false, []),
     stopLive: useCallback(() => liveRef.current?.reset(), []),
     count: useCallback(() => queueRef.current?.state().pending ?? 0, []),
+    failureNow: useCallback(() => queueRef.current?.state().failure ?? null, []),
     prewarm: useCallback((blocked: boolean) => {
       if (blocked) return
       // Idempotence lives in the engine, which is process-wide: warming from

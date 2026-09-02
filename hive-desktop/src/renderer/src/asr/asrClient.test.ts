@@ -130,4 +130,34 @@ describe('engineErrorCopy', () => {
   it('answers an empty message with something rather than nothing', () => {
     expect(engineErrorCopy('   ')).toBeTruthy()
   })
+
+  it('names a broken install for what it is, in the words the addon uses', () => {
+    // Verbatim from a packaged Windows build on 2026-09-02 — the installer had
+    // been produced on Linux, so it carried no Windows binary. The user read
+    // this sentence, in English, with relative paths in it, and it told them to
+    // retry something that could never work.
+    const raw =
+      "Error invoking remote method 'asr:transcribe': AsrError: Could not find sherpa-onnx-node. " +
+      'Tried ../build/Release/sherpa-onnx.node ./node_modules/sherpa-onnx-win-x64/sherpa-onnx.node'
+    const copy = engineErrorCopy(raw)
+    expect(copy).toContain('Reinstale')
+    expect(copy).not.toContain('sherpa')
+    expect(copy).not.toContain('remote method')
+  })
+
+  it('covers the other way the addon fails to load', () => {
+    expect(engineErrorCopy("Cannot find module 'sherpa-onnx-node'")).toContain('Reinstale')
+    expect(engineErrorCopy('sherpa-onnx-node loaded no native binary from /x')).toContain(
+      'Reinstale'
+    )
+  })
+
+  it('strips the IPC wrapper from a failure it otherwise has no words for', () => {
+    // The channel that carried a failure is never the failure. Whatever falls
+    // through to the raw branch should read as the engine talking, not as
+    // Electron talking about the engine.
+    expect(engineErrorCopy("Error invoking remote method 'asr:transcribe': failed to run")).toBe(
+      'failed to run'
+    )
+  })
 })

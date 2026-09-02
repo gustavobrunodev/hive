@@ -60,7 +60,14 @@ test.describe('voice model gate E2E (real Electron)', () => {
         agents: ['claude'],
         role: 'dev',
         lastModel: null,
-        lastEffort: null
+        lastEffort: null,
+        // M29.1: startup now fetches the model by itself when none is
+        // installed, and this test's whole subject is what the gate offers when
+        // none is. Left on, the gate would meet a progress bar instead of the
+        // offer — a real state, but a different one. This is the app's own
+        // opt-out, so what is seeded here is exactly a user who pressed
+        // "Remover": no model, and nothing fetching it.
+        asrAutoDownload: false
       })
     )
     // Deliberately NO `asr-models/` directory — that absence is the subject.

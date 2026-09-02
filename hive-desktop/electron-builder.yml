@@ -6,26 +6,56 @@ appId: dev.gustavobruno.hive
 productName: Hive
 directories:
   buildResources: build
+# An allow-list, not a blocklist — measured 2026-09-02, and the reason is a
+# number: the blocklist that used to be here named seven things to leave out and
+# shipped everything else, producing a **2.7 GB app.asar**. Inside it were the
+# app's own `src/`, its `coverage/` HTML report, `.specs/`, `e2e/`, `.claude/`,
+# and — recursively — `dist/`, so each build packaged the previous build's
+# installer inside the next one.
+#
+# A blocklist has to be right about the whole future of the repo; every new
+# top-level directory ships until someone notices. Nothing here is read at
+# runtime except `out/` and `resources/` (`__dirname`-relative, see
+# `src/main/index.ts` and `previewProtocol.ts`), so those plus the manifest are
+# the whole list. Production `node_modules` are added by electron-builder from
+# the dependency graph and need no entry — that is also how the native ASR
+# binary gets in.
+#
+# **A platform's `files` replaces this list, it does not extend it** — measured
+# on 2026-09-02, when a `win:`/`linux:` block holding a single `!` exclusion
+# quietly reinstated `**/*` and shipped a 2.7 GB archive anyway. So each
+# platform below repeats these three entries. The repetition is deliberate and
+# `afterPack` is the backstop: it fails the build if a foreign binary survives.
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - 'out/**'
+  - 'resources/**'
+  - 'package.json'
 asarUnpack:
   - resources/**
   # The native ASR addon (M29). Both packages, and both are required: the
   # wrapper (`sherpa-onnx-node`) locates its binary by walking relative paths
   # from its own `__dirname` to the sibling platform package, and inside the
-  # archive that walk lands on a path Node cannot `dlopen`. It then resolves to
-  # `undefined` rather than throwing, so the first symptom would be
-  # "Cannot read properties of undefined" the moment someone tries to speak.
+  # archive that walk lands on a path Node cannot `dlopen`.
   # `src/main/asr/asrAddon.ts` points `require` at this unpacked tree.
   - node_modules/sherpa-onnx-node/**
   - node_modules/sherpa-onnx-*/**
+# The binary is per-platform and npm only installs the host's — see
+# `scripts/lib/asrBinary.mjs`. `beforePack` fetches the one this target needs;
+# `afterPack` refuses to hand over an app that does not contain it. The second
+# hook is the one that matters: a Windows installer carrying a Linux `.so`
+# shipped once, and nothing in the build had an opinion about it.
+beforePack: scripts/beforePack.mjs
+afterPack: scripts/afterPack.mjs
 win:
   executableName: Hive
+  # Every platform's package is in the dependency graph, so electron-builder
+  # includes whichever ones are on disk. Without this, a Windows installer
+  # carries ~32 MB of Linux `.so` files it can never load.
+  files:
+    - 'out/**'
+    - 'resources/**'
+    - 'package.json'
+    - '!node_modules/sherpa-onnx-{linux,darwin}-*/**'
 nsis:
   # Assisted, not one-click. A one-click installer is a progress bar and a
   # surprise: the app appears, installed somewhere the user never saw, with
@@ -62,6 +92,11 @@ nsis:
   # `userDataMigration.ts` exists precisely so that data survives.
   deleteAppDataOnUninstall: false
 mac:
+  files:
+    - 'out/**'
+    - 'resources/**'
+    - 'package.json'
+    - '!node_modules/sherpa-onnx-{linux,win}-*/**'
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -73,6 +108,11 @@ dmg:
   artifactName: ${productName}-${version}.${ext}
 linux:
   executableName: hive
+  files:
+    - 'out/**'
+    - 'resources/**'
+    - 'package.json'
+    - '!node_modules/sherpa-onnx-{darwin,win}-*/**'
   target:
     - AppImage
     - snap

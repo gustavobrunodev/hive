@@ -3116,6 +3116,94 @@ foi usar o token certo, não escurecer um valor à mão.
 
 ---
 
+## M29.1 — O instalador não levava o motor (2026-09-02)
+
+O usuário gerou um `.exe`, baixou o modelo e ditou. Não transcreveu nada, em
+silêncio; na segunda tentativa apareceu, em inglês, `Could not find
+sherpa-onnx-node. Tried ../build/Release/sherpa-onnx.node …`.
+
+Eram **três defeitos independentes** que se somaram, e nenhum deles era o motor.
+
+### 1. O binário nativo nunca esteve no instalador
+
+`sherpa-onnx-node` distribui o binário em seis pacotes por plataforma, cada um
+declarando `"os": ["win32"], "cpu": ["x64"]` e afins. O npm instala **só o do
+host**. O instalador foi gerado no WSL (Linux), então `node_modules` tinha
+apenas `sherpa-onnx-linux-x64` — e o `electron-builder --win` empacotou
+alegremente um app Windows cujo único binário nativo era um `.so` de Linux.
+
+Nada na build tinha opinião sobre isso. **Era essa a causa de ter ido para o ar.**
+
+- `scripts/lib/asrBinary.mjs` — `beforePack` busca o pacote da plataforma-alvo
+  (via `npm pack`, que não tem o portão de `os`/`cpu`; medido: `npm install
+  --os=win32` ainda recusa uma dependência direta com `EBADPLATFORM`), e
+  `afterPack` **lê a árvore empacotada** e falha a build se o binário não
+  estiver lá ou se sobrar o de outra plataforma.
+- Provado que o guarda dispara: removendo o `.node` da saída, `afterPack` acusa.
+- `win:`/`mac:`/`linux:` ganharam exclusões — sem elas o instalador Windows
+  levava ~32 MB de `.so` que nunca poderia carregar.
+
+### 2. A falha desaparecia quando a gravação terminava sozinha
+
+O sintoma "não aconteceu nada" não era o mesmo bug. `finish()` é alcançado por
+dois caminhos de idades diferentes: apertando **Concluir** é o closure do render
+atual; pelo **autostop** é o congelado dentro de `capture.onTick` quando o
+microfone abriu — e ali `sink.failure` é sempre `null`, porque nada foi
+transcrito ainda. A tomada terminava em `idle`: sem texto, sem erro, sem retry.
+
+`silenceHoldMs` (700 ms) fecha o segmento muito antes de `autoStopMs` (8 s), então
+na vida real a fila já falhou e drenou quando o autostop chega. Um teste que
+emite todo o silêncio num `act()` síncrono **não** reproduz — a rejeição ainda é
+uma microtask pendente e `finish` pega o ramo do dreno. Foi preciso separar em
+dois `await act`.
+
+Correção: `sink.failureNow()`, lido da fila, como `count()` já fazia. O próprio
+arquivo já documentava esse risco para `enginePhaseRef` — faltava um campo.
+
+### 3. A mensagem estava na língua errada, sobre a coisa errada
+
+`engineErrorCopy` não casava com "Could not find" (o padrão era `not found`), e
+o prefixo `Error invoking remote method '…': AsrError:` é encanamento do
+Electron. O usuário leu o mecanismo. Agora há um terceiro caso — instalação sem
+o motor — cuja próxima ação é reinstalar, não tentar de novo.
+
+### E um quarto, achado ao medir: **app.asar de 2,7 GB**
+
+A lista `files` era um blocklist de sete itens; tudo o mais ia junto — `src/`,
+`coverage/`, `.specs/`, `e2e/`, `.claude/` e, recursivamente, `dist/`, de modo
+que cada build embutia o instalador do build anterior. Virou allow-list
+(`out/`, `resources/`, `package.json` — o único que o runtime lê, via
+`__dirname`): **2,7 GB → 75 MB**.
+
+Armadilha medida junto: **`files` de plataforma substitui a lista comum, não a
+estende.** Um bloco `linux:` com uma única exclusão reintroduziu `**/*` e
+empacotou tudo de novo. Por isso as três plataformas repetem as três entradas.
+
+### Download automático do modelo na inicialização
+
+Pedido do usuário. `asrAutoDownload.ts` guarda a regra, e a condição que o
+pedido não menciona é a que importa: **"Remover" existe para devolver 671 MB**, e
+uma inicialização que rebaixa tudo na próxima abertura torna o botão uma
+mentira. Uma remoção grava `asrAutoDownload: false` no config; pedir o modelo de
+novo re-arma.
+
+### Validado no app empacotado de verdade
+
+Não em dev: `dist/linux-unpacked/hive` dirigido por Playwright, chamando
+`window.hive.asr.transcribe` — preload → IPC → `utilityProcess` →
+`app.asar.unpacked` → addon nativo → modelo real.
+
+- `"Ask not what your country can do for you…"` e
+  `"No preguntes qué puede hacer tu país por ti…"` (com acentos) — corretos.
+- Decode: **13,6× e 14,1× tempo real** (284 ms para 3,85 s; 378 ms para 5,33 s).
+- Sessão: **1,56 s com cache quente** — mas **7,8 s na primeira vez**, lendo os
+  671 MB do disco frio. Esse número não estava medido antes.
+- Perfil novo: janela em **674 ms** e o download começando sozinho; após
+  "Remover", a reabertura **não** rebaixa.
+- Guarda do fragmento (`MIN_DECODE_SAMPLES`) responde em 1 ms com `''`.
+
+---
+
 ## Preferences
 
 - Lightweight tasks (state updates, session handoff, small doc edits) work

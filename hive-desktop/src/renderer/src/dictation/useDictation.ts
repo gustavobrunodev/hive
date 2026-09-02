@@ -254,9 +254,16 @@ export function useDictation(
     // screen forever.
     const pending = sink.count()
     if (pending === 0 && !sink.busy()) {
+      // `failureNow()`, never `sink.failure`. Both ways into `finish` end here,
+      // and they are not the same age: pressed, this is the current render's
+      // closure; reached from the autostop it is the one frozen into
+      // `capture.onTick` when the microphone opened, where the failure state is
+      // forever `null`. That is the same staleness `enginePhaseRef` above
+      // guards against, and it cost a take its error message entirely.
+      const failure = sink.failureNow()
       setPhase(
-        sink.failure !== null
-          ? { status: 'error', kind: 'engine', message: sink.failure }
+        failure !== null
+          ? { status: 'error', kind: 'engine', message: failure }
           : { status: 'idle' }
       )
       return

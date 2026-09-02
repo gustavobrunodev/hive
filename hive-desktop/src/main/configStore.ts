@@ -108,6 +108,14 @@ export interface Config {
   // the bare id: an id that is no longer downloaded falls back
   // to automatic rather than failing to transcribe.
   whisperModel: string | null
+  // M29.1: may the app fetch the transcription model on its own at startup?
+  //
+  // `true` until the user presses "Remover" in Perfil › Voz e transcrição,
+  // which is the one action that means "I want this disk space back". Without
+  // this the next launch would simply download the 671 MB again, and the button
+  // would be a lie. Asking for the model again — the panel's own download, or
+  // the gate behind a microphone — sets it back to `true`.
+  asrAutoDownload: boolean
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -124,7 +132,8 @@ export const DEFAULT_CONFIG: Config = {
   skippedUpdateVersion: null,
   approvalRules: [],
   agentShell: null,
-  whisperModel: null
+  whisperModel: null,
+  asrAutoDownload: true
 }
 
 /**
@@ -220,6 +229,9 @@ export interface ConfigStore {
   /** second-brain: the pinned Whisper model id, or `null` for automatic. */
   getWhisperModel(): string | null
   setWhisperModel(id: string | null): void
+  /** M29.1: may startup fetch the ASR model by itself? See `Config`. */
+  getAsrAutoDownload(): boolean
+  setAsrAutoDownload(value: boolean): void
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -350,6 +362,13 @@ export function createConfigStore(baseDir: string): ConfigStore {
       const trimmed = id?.trim() ?? ''
       updateConfig({ whisperModel: trimmed === '' ? null : trimmed })
     },
+    getAsrAutoDownload: () => {
+      // Anything that is not an explicit `false` means yes — an install that
+      // predates this field, or a hand-edited config, should still get the
+      // model rather than sitting there unable to transcribe.
+      return readConfig().asrAutoDownload !== false
+    },
+    setAsrAutoDownload: (value: boolean) => updateConfig({ asrAutoDownload: value }),
     getRecentWorkspaces: () => readConfig().recentWorkspaces,
     pushRecentWorkspace: (path: string) => {
       const current = readConfig()

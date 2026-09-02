@@ -1183,6 +1183,38 @@ Whisper) e validar em uso real, com a voz do usuário.
 
 ---
 
+## M29.1 — O instalador não levava o motor ✅ Done (2026-09-02)
+
+O `.exe` transcrevia nada, em silêncio, e depois em inglês: `Could not find
+sherpa-onnx-node`. Três defeitos somados, nenhum no motor.
+
+**O binário nunca esteve lá.** Os pacotes de binário do `sherpa-onnx-node` são
+travados por `os`/`cpu`, então o npm num host Linux instala só o de Linux — e
+`electron-builder --win` empacotou um app Windows cujo único binário nativo era
+um `.so`. Nada na build reclamou. Agora `beforePack` busca o pacote do alvo e
+`afterPack` **lê a saída empacotada** e falha se ele não estiver lá.
+
+**A falha sumia no autostop.** `finish()` alcançado pelo callback de captura lê
+um `sink.failure` congelado em `null`, então a tomada terminava em `idle` — sem
+texto, sem erro, sem retry. Passou a ler da fila (`failureNow()`).
+
+**A mensagem era o mecanismo.** `engineErrorCopy` não casava com "Could not
+find", e mostrava até o prefixo de IPC do Electron. Agora há o caso "instalação
+sem o motor", cuja ação é reinstalar.
+
+**Achado ao medir: `app.asar` de 2,7 GB** — a lista `files` era blocklist e
+levava `src/`, `coverage/`, `.specs/` e o próprio `dist/` recursivamente. Virou
+allow-list: **75 MB**.
+
+**Novo:** o modelo passa a ser baixado sozinho na inicialização quando falta,
+sem bloquear a entrada (674 ms medidos até a janela) — e uma remoção explícita é
+respeitada, senão o botão "Remover" seria uma mentira.
+
+Validado no app **empacotado**, dirigido por Playwright: transcrição correta em
+duas línguas, **13,6–14,1× tempo real**.
+
+---
+
 ## Dependency Graph
 
 ```

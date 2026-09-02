@@ -502,12 +502,31 @@ function findOnHandler(channel: string): (...args: unknown[]) => unknown {
   return call[1] as (...args: unknown[]) => unknown
 }
 
+/**
+ * What startup did about the transcription model, captured before anything
+ * else can touch it (M29.1).
+ *
+ * Read in `beforeAll` and then **cancelled**, both deliberately. Read, because
+ * the auto-fetch happens exactly once, at boot, and by the time any `it` runs
+ * it is already history. Cancelled, because this profile genuinely has no
+ * model, so the transfer this asserts is a real one — leaving it running would
+ * have the unit suite pulling 671 MB from Hugging Face in the background for
+ * the rest of the file.
+ */
+let bootDownloads: { id: string; status: string }[] = []
+
 describe('main process bootstrap', () => {
   beforeAll(async () => {
     await import('./index')
     // Flush the `app.whenReady().then(...)` microtask chain that registers
     // the ipcMain handler and creates the window.
     await new Promise((resolve) => setTimeout(resolve, 0))
+
+    bootDownloads = (await findHandler('asr:downloads')({})) as typeof bootDownloads
+    for (const download of bootDownloads) {
+      await findHandler('asr:download:cancel')({}, download.id)
+      await findHandler('asr:download:dismiss')({}, download.id)
+    }
   })
 
   afterAll(() => {
@@ -2623,6 +2642,32 @@ describe('main process bootstrap', () => {
       // It answers with the readiness that resulted rather than `undefined` —
       // the caller must not have to guess what the delete left behind.
       expect(after.installed).toBe(false)
+    })
+
+    /**
+     * The startup fetch (M29.1).
+     *
+     * Asserted from the snapshot taken in `beforeAll`, because this happens
+     * once, at boot, before any test exists to watch it. What it proves is the
+     * wiring — that `index.ts` actually asks — since the *rule* it asks with is
+     * already pinned down in `asrAutoDownload.test.ts` without a network.
+     */
+    it('fetches the model by itself when a profile has none', () => {
+      expect(bootDownloads).toMatchObject([{ id: 'parakeet-tdt-0.6b-v3-int8' }])
+    })
+
+    it('records a removal so the next launch does not undo it', async () => {
+      // The interaction the feature request did not mention and the panel
+      // depends on: "Remover" exists to give 671 MB back, and a startup that
+      // re-fetches on the next launch makes the button pointless.
+      await findHandler('asr:deleteModel')({})
+      expect(createConfigStore(userDataDir).getAsrAutoDownload()).toBe(false)
+
+      // Asking for it again is the opposite intent, and re-arms the fetch.
+      await findHandler('asr:download:start')({})
+      expect(createConfigStore(userDataDir).getAsrAutoDownload()).toBe(true)
+      await findHandler('asr:download:cancel')({}, 'parakeet-tdt-0.6b-v3-int8')
+      await findHandler('asr:download:dismiss')({}, 'parakeet-tdt-0.6b-v3-int8')
     })
 
     /**

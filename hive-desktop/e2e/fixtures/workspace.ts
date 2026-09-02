@@ -119,6 +119,14 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
       // real file, so it carries the real schema.)
       shortcuts: { start: null, during: null },
       skippedUpdateVersion: null,
+      // M29.1: every spec gets a throwaway `userData`, so every launch looks
+      // like a fresh install — and a fresh install now fetches the 671 MB
+      // transcription model by itself. Left on, this suite would start a real
+      // Hugging Face transfer per spec, and `voice-model-gate.spec.ts` would
+      // meet a progress bar where it expects the offer to download. Seeded
+      // through the app's own opt-out rather than a test-only switch: it is
+      // exactly the state of a user who pressed "Remover".
+      asrAutoDownload: false,
       ...config
     }),
     'utf-8'

@@ -276,6 +276,54 @@ describe('useDictation', () => {
     expect(result.current.phase.status).toBe('idle')
   })
 
+  it('surfaces a segment failure when the take ends by itself, not only on Concluir', async () => {
+    // The asymmetry a user hit in the packaged app (2026-09-02): speaking and
+    // *waiting* for the automatic stop transcribed nothing and said nothing,
+    // while the very same failure reported itself when they pressed Concluir.
+    //
+    // `finish` runs down two paths with different ages. Pressed, it is the
+    // current render's closure; reached from the autostop it is the one frozen
+    // into `capture.onTick` when the microphone opened — the same freezing this
+    // file already mitigates for the engine phase, one field short.
+    const capture = fakeCapture()
+    const engine: DictationEngine = {
+      phase: { status: 'idle' },
+      transcribe: async () => {
+        throw new Error('Could not find sherpa-onnx-node')
+      },
+      warm: async () => {}
+    }
+    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
+    await startTake(result, capture)
+
+    await act(async () => {
+      capture.emitFor(2500, LOUD)
+    })
+    // Two waits, not one, and that is the whole point: `silenceHoldMs` (700 ms)
+    // closes the segment long before `autoStopMs` (8 s) ends the take, so in a
+    // real take the queue has failed and fully drained by the time the stop
+    // arrives. Emitting the silence in a single synchronous burst hides the bug
+    // — the rejection is still an unflushed microtask, so `pending` is 1 and
+    // `finish` takes its drain branch instead of the one that reads the stale
+    // failure.
+    await act(async () => {
+      capture.emitFor(DEFAULT_SEGMENTER_CONFIG.silenceHoldMs + 200, QUIET)
+    })
+    await act(async () => {
+      capture.emitFor(DEFAULT_SEGMENTER_CONFIG.autoStopMs, QUIET)
+    })
+
+    expect(capture.stopped).toBe(1)
+    // And the message is the one a person can act on, not the addon's: the two
+    // halves of what the user hit — a failure that went unreported, in words
+    // that would not have helped if it had been.
+    expect(result.current.phase).toMatchObject({
+      status: 'error',
+      kind: 'engine',
+      message: expect.stringContaining('Reinstale')
+    })
+  })
+
   it('shows the drain while the queue still has work, then settles (VP-R1.4)', async () => {
     const capture = fakeCapture()
     let settle: ((text: string) => void) | undefined

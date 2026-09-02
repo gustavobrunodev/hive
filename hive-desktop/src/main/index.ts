@@ -71,6 +71,7 @@ import type { ScreenDetectionResult } from './designStudio/screenDetection'
 import type { Command, OperationError } from './designStudio/types'
 import { createAsrModelStore } from './asr/asrModelStore'
 import { createAsrDownloadManager } from './asr/asrDownloads'
+import { autoDownloadOnStartup } from './asr/asrAutoDownload'
 import { asrDownloadNotification } from './osNotificationCopy'
 import { FALLBACK_THREADS, probeRuntime } from './asr/asrHardware'
 import { createAsrEngine } from './asr/asrProcess'
@@ -1516,6 +1517,10 @@ app.whenReady().then(() => {
   ipcMain.handle('asr:deleteModel', async () => {
     asrStore.remove()
     asrEngine.evict()
+    // Removing is the one action that means "give me the disk space back", so
+    // it also switches off the startup fetch below. Without this the next
+    // launch downloads the same 671 MB and the button accomplishes nothing.
+    configStore.setAsrAutoDownload(false)
     return readiness()
   })
 
@@ -1595,13 +1600,39 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('asr:downloads', async () => asrDownloads.list())
-  ipcMain.handle('asr:download:start', async () => asrDownloads.start(asrStore.info().id))
+  ipcMain.handle('asr:download:start', async () => {
+    // Asking for the model is the opposite intent to having removed it.
+    configStore.setAsrAutoDownload(true)
+    return asrDownloads.start(asrStore.info().id)
+  })
   ipcMain.handle('asr:download:cancel', async (_event, id: AsrModelId) => {
     asrDownloads.cancel(id)
   })
   ipcMain.handle('asr:download:dismiss', async (_event, id: AsrModelId) => {
     asrDownloads.dismiss(id)
   })
+  /**
+   * Fetch the transcription model at startup, if it is not already here.
+   *
+   * Deliberately *after* the window and every handler exist, and deliberately
+   * not awaited: this is 671 MB, and nothing about entering the app may wait on
+   * it. The transfer is the same one the voice panel starts, owned by
+   * `asrDownloads` rather than by any window, so it survives navigation, shows
+   * its progress wherever the user happens to look, and announces its own
+   * ending. The rules for whether to start at all are in `asrAutoDownload.ts`.
+   */
+  const autoDownload = autoDownloadOnStartup({
+    installed: () => asrStore.installed(),
+    downloading: () => asrDownloads.list().some((item) => item.status === 'downloading'),
+    allowed: () => configStore.getAsrAutoDownload(),
+    start: () => {
+      asrDownloads.start(asrStore.info().id)
+    }
+  })
+  if (autoDownload === 'started') {
+    console.info('[hive] no transcription model installed — fetching it in the background')
+  }
+
   app.on('before-quit', () => {
     asrDownloads.stopAll()
     asrEngine.dispose()

@@ -65,13 +65,27 @@ export function enginePhaseView(phase: AsrPhase): EnginePhaseView | null {
  * next step.
  *
  * That particular sentence cannot happen any more; the allocation it named was
- * the renderer's WASM heap. What is left are two causes, kept apart because
- * only two have a different next step: fetch the model you deleted, or try
- * again.
+ * the renderer's WASM heap. What is left are three causes, kept apart because
+ * each has a different next step: fetch the model you deleted, reinstall an app
+ * that shipped without its engine, or simply try again.
  */
 export function engineErrorCopy(message: string): string {
-  if (/no model installed|model files missing|no such file|not found/i.test(message)) {
+  // Electron wraps every rejected `ipcMain.handle` as "Error invoking remote
+  // method 'asr:transcribe': AsrError: …". That prefix is plumbing: it names
+  // the channel that carried the failure, never the failure. Stripped first so
+  // the patterns below match the engine's own words and the fallback shows
+  // them, rather than the transport's.
+  const plain = message
+    .replace(/^Error invoking remote method '[^']*':\s*/, '')
+    .replace(/^AsrError:\s*/, '')
+
+  if (/no model installed|model files missing|no such file|not found/i.test(plain)) {
     return t('asrError.missing')
   }
-  return message.trim() === '' ? t('asrError.generic') : message
+  // The native engine could not be loaded at all — a broken or incomplete
+  // install, not a bad take. Retrying cannot help, so the copy says what can.
+  if (/could not find sherpa|cannot find module|loaded no native binary|\.node\b/i.test(plain)) {
+    return t('asrError.engineBroken')
+  }
+  return plain.trim() === '' ? t('asrError.generic') : plain
 }

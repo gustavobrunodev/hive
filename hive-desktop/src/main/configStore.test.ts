@@ -73,7 +73,8 @@ describe('ConfigStore', () => {
       skippedUpdateVersion: null,
       approvalRules: [],
       agentShell: null,
-      whisperModel: null
+      whisperModel: null,
+      asrAutoDownload: true
     })
   })
 
@@ -98,7 +99,8 @@ describe('ConfigStore', () => {
       skippedUpdateVersion: null,
       approvalRules: [],
       agentShell: null,
-      whisperModel: null
+      whisperModel: null,
+      asrAutoDownload: true
     })
   })
 
@@ -127,7 +129,8 @@ describe('ConfigStore', () => {
       skippedUpdateVersion: null,
       approvalRules: [],
       agentShell: null,
-      whisperModel: null
+      whisperModel: null,
+      asrAutoDownload: true
     })
   })
 
@@ -451,5 +454,27 @@ describe('ConfigStore — skippedUpdateVersion (npm-distribution)', () => {
       role: 'dev',
       skippedUpdateVersion: '0.3.0'
     })
+  })
+
+  /**
+   * M29.1 — whether startup may fetch the 671 MB transcription model.
+   *
+   * The default has to be "yes" for a value that is simply *absent*, not just
+   * for a fresh file: every install that predates this field has a config
+   * without it, and reading that as "the user said no" would leave them unable
+   * to transcribe with nothing on screen explaining why.
+   */
+  it('defaults the ASR auto-download to on, including for a config written before it existed', () => {
+    writeFileSync(join(baseDir, 'config.json'), JSON.stringify({ role: 'pm' }))
+    expect(createConfigStore(baseDir).getAsrAutoDownload()).toBe(true)
+  })
+
+  it('round-trips an explicit opt-out, and only an explicit one turns it off', () => {
+    const store = createConfigStore(baseDir)
+    store.setAsrAutoDownload(false)
+    expect(createConfigStore(baseDir).getAsrAutoDownload()).toBe(false)
+
+    store.setAsrAutoDownload(true)
+    expect(createConfigStore(baseDir).getAsrAutoDownload()).toBe(true)
   })
 })

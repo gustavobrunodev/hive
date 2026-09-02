@@ -1711,6 +1711,14 @@ export const ptBR = {
     // Runtime does not do — and there is no smaller model to choose.
     missing:
       'Os arquivos do modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
+    // A user hit this on 2026-09-02 and read it in the engine's own words:
+    // "Could not find sherpa-onnx-node. Tried ../build/Release/sherpa-onnx.node
+    // …". The installer had been built on Linux, so it carried no Windows
+    // binary — nothing the user did, and nothing they could fix by retrying.
+    // Reinstalling genuinely is the fix, and it costs them no download: the
+    // model lives in userData, which the uninstaller leaves alone.
+    engineBroken:
+      'Esta instalação do Hive está sem o componente de transcrição. Reinstale o app para corrigir — o modelo já baixado é preservado.',
     generic: 'A transcrição falhou neste trecho.'
   },
   /**
