@@ -3782,7 +3782,9 @@ describe('Explorer (T12/T8)', () => {
       render(createElement(ExplorerHarness, { workspace: '/ws' }))
       await screen.findByText('a.txt')
 
-      fireEvent.contextMenu(screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement)
+      fireEvent.contextMenu(
+        screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
+      )
       const cut = await screen.findByRole('menuitem', { name: 'Recortar' })
       expect(cut.getAttribute('aria-keyshortcuts')).toBe('Meta+X')
     })

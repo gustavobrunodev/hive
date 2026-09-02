@@ -2603,9 +2603,9 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     renderWork()
     await screen.findByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
 
-    const settled = vi
-      .mocked(window.hive.asr.onDownloadSettled)
-      .mock.calls.at(-1)?.[0] as (download: unknown) => void
+    const settled = vi.mocked(window.hive.asr.onDownloadSettled).mock.calls.at(-1)?.[0] as (
+      download: unknown
+    ) => void
     act(() =>
       settled({
         id: 'parakeet-tdt-0.6b-v3-int8',

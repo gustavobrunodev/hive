@@ -1167,6 +1167,12 @@ describe('preload: window.hive bridge', () => {
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:readiness')
       await asr().deleteModel()
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:deleteModel')
+      // The pre-M29 Whisper store: measured and freed on request, never by a
+      // migration — gigabytes someone waited for are not ours to delete.
+      await asr().legacyModelBytes()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:legacyModels')
+      await asr().removeLegacyModels()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:removeLegacyModels')
       await asr().warm()
       expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:warm')
       await asr().evict()

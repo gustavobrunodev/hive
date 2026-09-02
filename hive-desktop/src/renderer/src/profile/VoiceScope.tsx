@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@hive/design-system'
 import { t } from '../i18n'
-import { CheckIcon } from '../ui/icons'
+import { CheckIcon, TrashIcon } from '../ui/icons'
 import { ModelPanel } from '../voice/ModelPanel'
-import { formatMegabytes } from '../voice/downloadCopy'
 import { useAsrDownloadEndings, useAsrDownloads } from '../voice/useAsrDownloads'
+import { useLegacyModels } from '../voice/useLegacyModels'
+import { formatBytes } from '../voice/downloadCopy'
 import type { AsrReadinessState } from '../voice/useAsrReadiness'
 
 interface VoiceScopeProps {
@@ -69,7 +70,7 @@ function DeleteConfirm({
       <DialogContent>
         <DialogTitle>{t('voice.deleteConfirmTitle')}</DialogTitle>
         <DialogDescription>
-          {t('voice.deleteConfirmText', formatMegabytes(sizeMB))}
+          {t('voice.deleteConfirmText', formatBytes(sizeMB * 1024 * 1024))}
         </DialogDescription>
         {/* `variant="ghost"` is not decoration: the DS Button defaults to
             primary, so two plain <Button>s render as two identical accent
@@ -99,6 +100,7 @@ function DeleteConfirm({
 export function VoiceScope({ readiness }: VoiceScopeProps): React.JSX.Element {
   const { readiness: resolved, remove, refresh } = readiness
   const downloads = useAsrDownloads()
+  const legacy = useLegacyModels()
   const [confirming, setConfirming] = useState(false)
   const [deleteFailed, setDeleteFailed] = useState(false)
 
@@ -161,6 +163,23 @@ export function VoiceScope({ readiness }: VoiceScopeProps): React.JSX.Element {
       )}
 
       <ModelPanel readiness={resolved} downloads={downloads} onDelete={() => setConfirming(true)} />
+
+      {/* Space an upgrading install is still paying for. Offered, never taken
+          on the user's behalf: it is a download they waited for, and a startup
+          migration that deletes it is a surprise with no undo. */}
+      {legacy.bytes !== null && legacy.bytes > 0 && (
+        <section className="wb-vlegacy" aria-label={t('voice.legacyTitle')}>
+          <p className="wb-vlegacy-text">{t('voice.legacyText', formatBytes(legacy.bytes))}</p>
+          <button
+            type="button"
+            className="wb-vbtn wb-vbtn-quiet"
+            onClick={() => void legacy.remove()}
+          >
+            <TrashIcon size={13} aria-hidden="true" />
+            {t('voice.legacyCta')}
+          </button>
+        </section>
+      )}
 
       <MachineFacts facts={resolved.runtime.facts} threads={resolved.runtime.threads} />
 

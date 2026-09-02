@@ -2616,7 +2616,7 @@ describe('Chat', () => {
       expect(screen.getByText('Gerenciar agentes…')).toBeTruthy()
     })
 
-  it('shows a quiet mic control in the toolbar, unpressed (VP-R1.1)', async () => {
+    it('shows a quiet mic control in the toolbar, unpressed (VP-R1.1)', async () => {
       renderChat()
       const mic = await screen.findByRole('button', { name: 'Ditar' })
       expect(mic.getAttribute('aria-pressed')).toBe('false')

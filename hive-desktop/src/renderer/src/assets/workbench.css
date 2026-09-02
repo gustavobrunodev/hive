@@ -12016,41 +12016,6 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.75rem;
   color: var(--muted);
 }
-
-/* --- What is transcribing right now -------------------------------------- */
-/* A statement, not a control. It sits above the chooser because a reader
-   arriving here almost always wants this answer first, and reading it off a
-   radio group means finding the checked dot and then working out whether the
-   automatic row above it is the one actually in force. */
-
-.wb-vinforce {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  padding: var(--s-3) var(--s-4);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-lg);
-  background: var(--selected-bg);
-}
-.wb-vinforce-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent-tint-ink);
-}
-/* The one live indicator on the surface. It breathes rather than blinks —
-   a two-second ease is a heartbeat, a half-second one is an alarm. */
-.wb-vinforce-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-  animation: wb-vpulse 2.4s var(--ease-quart) infinite;
-}
 @keyframes wb-vpulse {
   0%,
   100% {
@@ -12061,278 +12026,6 @@ button.wb-agent-pill-btn:focus-visible {
     opacity: 0.72;
     box-shadow: 0 0 0 4px oklch(65.9% 0.114 42.2 / 0%);
   }
-}
-.wb-vinforce-name {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-  margin: 0;
-  font-family: var(--ff-num);
-  font-size: 1.0625rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.wb-vinforce-mode {
-  font-family: var(--ff-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--muted);
-}
-.wb-vinforce-why {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--muted);
-  max-width: 58ch;
-}
-
-/* --- The library --------------------------------------------------------- */
-
-.wb-vlib {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-}
-.wb-vsection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-.wb-vsection-title {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: -0.005em;
-  color: var(--ink);
-}
-.wb-vsection-note {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--muted);
-  max-width: 62ch;
-}
-.wb-vsection-note-standalone {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-.wb-vsection-note-standalone svg {
-  flex: 0 0 auto;
-  color: var(--success-ink);
-}
-.wb-vlist {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-}
-.wb-vlist-plain {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* One row, in either list. The two shapes share every measurement on purpose:
-   a model that finishes downloading moves from the library to the chosen list,
-   and the move should read as the same object changing role. */
-.wb-vrow {
-  display: flex;
-  align-items: stretch;
-  gap: var(--s-1);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-lg);
-  background: var(--surface);
-  transition:
-    border-color 160ms var(--ease-quart),
-    background 160ms var(--ease-quart);
-}
-.wb-vrow:hover {
-  border-color: var(--border-strong);
-}
-.wb-vrow[data-in-force] {
-  border-color: var(--accent);
-  background: var(--selected-bg);
-}
-.wb-vrow-library {
-  flex-direction: column;
-  padding: var(--s-3);
-  gap: var(--s-2);
-}
-.wb-vrow-main {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  /* The radio gutter, kept as empty space so a model that finishes downloading
-     and moves up to "Seus modelos" does not shift sideways on the way. Same
-     16px disc + 12px gap the chosen rows spend on their control. */
-  padding-left: calc(16px + var(--s-3));
-}
-.wb-vrow-main .wb-vopt-body {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* The radio item is the row. Every geometric property of the DS's 20px disc is
-   re-declared rather than inherited: a rewrite that changes a component's axis
-   must ERASE the old rule, not stack on it (the lesson M17's agent-card install
-   block recorded). */
-.hds-radio-item.wb-vopt {
-  display: flex;
-  align-items: flex-start;
-  /* The DS's disc centres its single indicator; a row is not a disc. Left
-     unerased, this centred the whole row body inside whatever width was left
-     over — so "Automático" (no trash button, full width) sat 34px further
-     right than the rows under it, and neither lined up with the library
-     below. Measured, not guessed: dot at x=1073 / x=1039 / body at x=1009. */
-  justify-content: flex-start;
-  gap: var(--s-3);
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-  height: auto;
-  padding: var(--s-3);
-  border: none;
-  border-radius: var(--rounded-lg);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.hds-radio-item.wb-vopt:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-/* Radix's own Indicator only mounts while checked, so it is suppressed and the
-   ring below is drawn for every row — otherwise unselected rows have no control
-   at all and their text hangs off the left edge. */
-.wb-vopt .hds-radio-indicator {
-  display: none;
-}
-.wb-vopt-dot {
-  position: relative;
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--rounded-full);
-  transition:
-    border-color 160ms var(--ease-quart),
-    box-shadow 160ms var(--ease-quart);
-}
-.wb-vopt-dot::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-  transform: scale(0);
-  transition: transform 160ms var(--ease-expo);
-}
-.wb-vopt:hover .wb-vopt-dot {
-  border-color: var(--accent);
-}
-.wb-vopt[data-state='checked'] .wb-vopt-dot {
-  border-color: var(--accent);
-}
-.wb-vopt[data-state='checked'] .wb-vopt-dot::after {
-  transform: scale(1);
-}
-.wb-vopt-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.wb-vrow-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  min-width: 0;
-}
-.wb-vrow-head svg {
-  flex: 0 0 auto;
-  color: var(--accent);
-  transform: translateY(1px);
-}
-.wb-vrow-name {
-  font-family: var(--ff-num);
-  font-size: 0.875rem;
-  font-weight: 650;
-  letter-spacing: -0.005em;
-  color: var(--ink);
-}
-.wb-vrow-name[data-lg] {
-  font-size: 1.125rem;
-  letter-spacing: -0.015em;
-}
-.wb-vrow-tradeoff {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.wb-vbadge {
-  padding: 1px var(--s-2);
-  border-radius: var(--rounded-full);
-  background: var(--selected-bg);
-  font-size: 0.625rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  color: var(--accent-tint-ink);
-  white-space: nowrap;
-}
-.wb-vbadge-quiet {
-  background: var(--surface-3, var(--surface-2));
-  color: var(--muted);
-}
-.wb-vrow-facts {
-  font-family: var(--ff-num);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
-/* --- The two ratings ------------------------------------------------------ */
-/* A meter rather than a number: the question is comparative, and "is this one
-   better than the row above, and by how much" is read off two meters in a
-   glance and computed from "244 M" versus "769 M" not at all. */
-
-.wb-vmeters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--s-1) var(--s-4);
-  margin-top: 3px;
-}
-.wb-vmeter {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-.wb-vmeter-label {
-  font-size: 0.6875rem;
-  color: var(--muted);
-}
-.wb-vmeter-track {
-  display: inline-flex;
-  gap: 2px;
-}
-.wb-vmeter-step {
-  width: 12px;
-  height: 4px;
-  border-radius: 1px;
-  background: var(--border-strong);
-  transition: background 200ms var(--ease-quart);
-}
-/* The filled steps carry the reading, so they clear the 3:1 floor for
-   non-text carriers on their own; the empty ones are the *absence* of a
-   reading, not a second one. */
-.wb-vmeter-step[data-on] {
-  background: var(--ink);
-}
-.wb-vmeter[data-active] .wb-vmeter-step[data-on] {
-  background: var(--accent);
 }
 
 /* --- Buttons in this surface ---------------------------------------------- */
@@ -12377,6 +12070,87 @@ button.wb-agent-pill-btn:focus-visible {
   width: 100%;
   height: 36px;
   font-size: 0.8125rem;
+}
+/* The destructive action on the voice scope. Quiet by default and only
+   danger-coloured on hover: it sits on a screen someone opens to *read* the
+   state, so it must not be the loudest thing there — but once the pointer is
+   on it, what it does has to be unmistakable. */
+.wb-vbtn-quiet {
+  border-color: var(--border);
+  color: var(--muted);
+}
+.wb-vbtn-quiet:hover {
+  border-color: var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+/* ── The model, as one row (M29) ─────────────────────────────────────────
+   What replaced a ten-model library: a fact and an action. Same container
+   treatment as `.wb-vinforce`, which it stands in the place of. */
+.wb-vmodel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--selected-bg);
+}
+.wb-vmodel-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.wb-vmodel-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-vmodel-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  /* `--success-tint-ink`, which the design system defines for exactly this:
+     text on a *tinted* ground rather than on the surface. `--success-ink` is
+     measured against the plain surface and lands at 4.47:1 on this panel's
+     `--selected-bg` in the light theme — under AA, caught by the contrast
+     sweep. The app's own theme.css does not redefine it, so the fallback
+     chain keeps the dark/hive themes on the token they already used. */
+  color: var(--success-tint-ink, var(--success-ink, var(--success)));
+}
+.wb-vmodel-facts {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-vmodel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Space the pre-M29 Whisper store is still taking. Offered, never taken — so
+   it reads as an aside, not as a warning the user has to resolve. */
+.wb-vlegacy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--rounded-lg);
+}
+.wb-vlegacy-text {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 .wb-vbtn:focus-visible,
 .wb-vicon-btn:focus-visible,
@@ -12536,50 +12310,6 @@ button.wb-agent-pill-btn:focus-visible {
   background: transparent;
 }
 
-/* --- What this computer cannot run ---------------------------------------- */
-/* Replaces the download button rather than sitting beside it: a disabled
-   control with a caption still reads as "try again later", and this is an
-   answer, not a wait. Warning tint, not danger — nothing is broken; a model
-   simply does not fit here. */
-
-.wb-vfit {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-2);
-  width: 100%;
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--rounded-md);
-  background: var(--warning-bg);
-}
-.wb-vfit-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: var(--warning-ink);
-}
-.wb-vfit-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.wb-vfit-title {
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: var(--warning-ink);
-}
-.wb-vfit-text {
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--ink);
-  max-width: 56ch;
-}
-/* The row is present for reference, not for action — its meters and numbers
-   step back so the ladder still reads top-to-bottom. */
-.wb-vrow-library[data-blocked] .wb-vrow-main {
-  opacity: 0.72;
-}
-
 /* The one error this screen can produce on its own. */
 .wb-voice-error {
   margin: 0;
@@ -12590,76 +12320,8 @@ button.wb-agent-pill-btn:focus-visible {
   line-height: 1.5;
   color: var(--ink);
 }
-
-/* --- Nothing installed yet ------------------------------------------------- */
-/* The state a fresh install is in, and the one this screen exists to end. It
-   leads with the recommendation because a first-time reader has no basis for
-   choosing between ten model names, and the app already measured the machine. */
-
-.wb-vempty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-5) var(--s-4);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-lg);
-  background: var(--surface);
-  text-align: center;
-}
-.wb-vempty-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--rounded-full);
-  background: var(--selected-bg);
-  color: var(--accent-tint-ink);
-}
-.wb-vempty-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.wb-vempty-text {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.55;
-  color: var(--muted);
-  max-width: 46ch;
-  text-wrap: pretty;
-}
-.wb-vpick {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-2);
-  width: 100%;
+.wb-vgate .wb-vbtn-wide {
   margin-top: var(--s-2);
-  padding: var(--s-4);
-  border: 1px solid var(--accent);
-  border-radius: var(--rounded-lg);
-  background: var(--bg-2);
-  text-align: left;
-}
-.wb-vpick-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--accent-tint-ink);
-}
-.wb-vpick .wb-vbtn-wide {
-  margin-top: var(--s-2);
-}
-.wb-vpick .wb-vrow-head {
-  align-items: center;
 }
 
 /* --- The gate every recording surface passes through ----------------------- */
@@ -12702,85 +12364,6 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
   max-width: 44ch;
   text-wrap: pretty;
-}
-/* `minmax(0, 1fr)`, not `1fr`: a grid track's default `min-width: auto` refuses
-   to shrink below its content, so the third card grows past the dialog's edge
-   and is clipped — which is exactly what the first visual pass caught. */
-.wb-vgate-opts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-2);
-  width: 100%;
-  margin-top: var(--s-2);
-  transition: opacity 200ms var(--ease-quart);
-}
-/* While a download runs, the choice is settled — the cards stay legible as
-   context but stop inviting a click that would abandon the transfer. */
-.wb-vgate-opts[data-busy] {
-  opacity: 0.55;
-  pointer-events: none;
-}
-.wb-vgate-opt {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: var(--s-3);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-lg);
-  background: var(--surface);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 140ms var(--ease-quart),
-    background 140ms var(--ease-quart);
-}
-.wb-vgate-opt:hover {
-  border-color: var(--border-strong);
-}
-.wb-vgate-opt[aria-checked='true'] {
-  border-color: var(--accent);
-  background: var(--selected-bg);
-}
-.wb-vgate-opt:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-/* Stacked, not inline: the cards are ~130 px wide in a three-column grid, and
-   "small" + "Equilibrado" side by side either wraps mid-phrase or runs the two
-   together with no space at all — which is exactly what the first visual pass
-   caught ("smallEquilibrado"). */
-.wb-vgate-opt-head {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-/* Tighter than the sheet's rows: three cards side by side inside a 520 px
-   dialog leave ~150 px each, and the label + five steps has to fit inside that
-   with the card's own padding. */
-.wb-vgate-opt .wb-vmeters {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-.wb-vgate-opt .wb-vmeter {
-  gap: var(--s-1);
-}
-.wb-vgate-opt .wb-vmeter-step {
-  width: 8px;
-}
-.wb-vgate-why {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.wb-vgate-why svg {
-  color: var(--accent);
 }
 .wb-vgate .wb-vdl,
 .wb-vgate .wb-vfail {
@@ -12968,7 +12551,6 @@ button.wb-agent-pill-btn:focus-visible {
      travelling stripe, a card sliding in — stop entirely; the pulse's job is
      done by the label beside it, and the indeterminate bar still reads as "not
      a percentage" by having no fill position to read. */
-  .wb-vinforce-dot,
   .wb-vdl-track[data-indeterminate] .wb-vdl-fill,
   .wb-vnotice {
     animation: none;
@@ -12982,16 +12564,9 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-pnav-tour,
   .wb-profile-back,
   .wb-profile-back svg,
-  .wb-vrow,
   .wb-vbtn,
   .wb-vicon-btn,
-  .wb-vgate-opt,
-  .wb-vgate-opts,
   .wb-vdl-fill,
-  .wb-vmeter-step,
-  .hds-radio-item.wb-vopt,
-  .wb-vopt-dot,
-  .wb-vopt-dot::after,
   .wb-studio-agent,
   .wb-studio-agent-mark {
     transition: none;

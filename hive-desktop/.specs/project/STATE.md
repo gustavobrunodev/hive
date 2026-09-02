@@ -3085,6 +3085,26 @@ trocar o worker inteiro para recuperar memória.
   (`aria-keyshortcuts` = `Meta+X`, não `Ctrl+X`), que era comportamento real e
   não asserido.
 
+### Os modelos antigos, e por que não são apagados
+
+Uma instalação que atualiza fica com o store Whisper anterior em `userData` —
+frequentemente vários GB que ninguém mais lê. **Não há migração que apague.**
+O que está lá é um download que o usuário esperou vinte minutos, e removê-lo
+sozinho no primeiro boot depois de uma atualização não é migração, é surpresa
+sem desfazer. O painel de voz mede, diz o número e põe um botão ao lado.
+
+A medição ignora symlinks de propósito: liberar o store não devolveria o
+espaço do alvo, e prometer bytes que o usuário pode conferir e achar errados é
+pior do que não prometer.
+
+### Um defeito de contraste que só o passe visual pegou
+
+O selo "Baixado" usava `--success-ink`, que é medido contra a superfície comum.
+O painel do modelo tem fundo tingido (`--selected-bg`), e ali o par dá
+**4,47:1 — abaixo de AA**, no tema claro. O design system já tem o token para
+isso (`--success-tint-ink`, mais escuro justamente em tema claro); a correção
+foi usar o token certo, não escurecer um valor à mão.
+
 ### O que falta
 
 - **Fase 6 — reafinar o ritmo do ditado.** `minSpeechMs`, `growthMs` e o teto de

@@ -107,7 +107,11 @@ vi.mock('@hive/design-system', () => ({
           { role: 'dialog' },
           createElement(
             'button',
-            { type: 'button', 'data-testid': 'dialog-dismiss', onClick: () => onOpenChange?.(false) },
+            {
+              type: 'button',
+              'data-testid': 'dialog-dismiss',
+              onClick: () => onOpenChange?.(false)
+            },
             'dismiss'
           ),
           children
@@ -821,6 +825,28 @@ describe('ProfileSheet (P1-010)', () => {
       // Main answers with the readiness that resulted rather than the caller
       // guessing what it became.
       expect(await screen.findByText('Baixar · 671 MB')).toBeTruthy()
+    })
+
+    /**
+     * The old Whisper store, after M29 replaced the engine. Offered, never
+     * taken: gigabytes someone waited for are not ours to delete at startup.
+     */
+    it('offers the old models’ space back, with the measured figure', async () => {
+      vi.mocked(window.hive.asr.legacyModelBytes).mockResolvedValue(1_500_000_000)
+      openVoice()
+      expect(await screen.findByText(/ocupam 1,4 GB neste computador/)).toBeTruthy()
+
+      vi.mocked(window.hive.asr.removeLegacyModels).mockResolvedValue(0)
+      fireEvent.click(screen.getByText('Liberar o espaço'))
+      await waitFor(() => expect(window.hive.asr.removeLegacyModels).toHaveBeenCalledTimes(1))
+      // Gone from the screen as well as from disk.
+      await waitFor(() => expect(screen.queryByText('Liberar o espaço')).toBeNull())
+    })
+
+    it('says nothing about old models on an install that never had them', async () => {
+      openVoice()
+      await screen.findByText('Baixado')
+      expect(screen.queryByText('Liberar o espaço')).toBeNull()
     })
 
     it('says nothing while main is still answering', () => {

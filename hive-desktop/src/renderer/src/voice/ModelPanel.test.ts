@@ -108,8 +108,8 @@ describe('ModelPanel', () => {
         onDelete: vi.fn()
       })
     )
-    expect((screen.getByText('Baixar · 671 MB').closest('button') as HTMLButtonElement).disabled).toBe(
-      true
-    )
+    expect(
+      (screen.getByText('Baixar · 671 MB').closest('button') as HTMLButtonElement).disabled
+    ).toBe(true)
   })
 })

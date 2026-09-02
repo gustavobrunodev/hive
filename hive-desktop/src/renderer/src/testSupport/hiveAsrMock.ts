@@ -45,6 +45,9 @@ export function createHiveAsrMock(): HiveAsrMock {
   return {
     readiness: vi.fn().mockResolvedValue(asrReadinessFixture()),
     deleteModel: vi.fn().mockResolvedValue(asrReadinessFixture()),
+    // No pre-M29 Whisper store by default: a fresh install never had one.
+    legacyModelBytes: vi.fn().mockResolvedValue(0),
+    removeLegacyModels: vi.fn().mockResolvedValue(0),
     warm: vi.fn().mockResolvedValue(undefined),
     transcribe: vi.fn().mockResolvedValue(''),
     evict: vi.fn().mockResolvedValue(undefined),

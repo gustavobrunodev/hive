@@ -432,6 +432,14 @@ declare global {
         /** Whether the model is installed, plus what the hardware probe read. */
         readiness(): Promise<AsrReadiness>
         deleteModel(): Promise<AsrReadiness>
+        /**
+         * Bytes the pre-M29 Whisper store still occupies. Offered to the user
+         * as space they can free — never deleted by a migration, because
+         * several gigabytes someone waited for is not ours to remove at
+         * startup.
+         */
+        legacyModelBytes(): Promise<number>
+        removeLegacyModels(): Promise<number>
         /** Builds the session ahead of time — the first phrase must not be the one that waits. */
         warm(): Promise<void>
         /** Transcribes 16 kHz mono Float32 PCM. */

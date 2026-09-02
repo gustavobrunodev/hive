@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi, beforeAll } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import {
@@ -2597,6 +2597,25 @@ describe('main process bootstrap', () => {
       expect(readiness.model.sizeMB).toBeGreaterThan(0)
       // The probe's answer, which now decides a thread count rather than a model.
       expect(readiness.runtime.threads).toBeGreaterThanOrEqual(1)
+    })
+
+    /**
+     * The pre-M29 Whisper store. It is measured and freed **on request** — the
+     * app never deletes it at startup, because several gigabytes someone
+     * waited twenty minutes for is not a migration, it is a surprise with no
+     * undo.
+     */
+    it('measures the old Whisper store, and frees it only when asked', async () => {
+      const legacy = join(userDataDir, 'whisper-models', 'small')
+      mkdirSync(legacy, { recursive: true })
+      writeFileSync(join(legacy, 'encoder_model.onnx'), 'x'.repeat(4096))
+
+      expect(await findHandler('asr:legacyModels')({})).toBe(4096)
+      // Nothing was removed by measuring it.
+      expect(existsSync(legacy)).toBe(true)
+
+      expect(await findHandler('asr:removeLegacyModels')({})).toBe(0)
+      expect(existsSync(legacy)).toBe(false)
     })
 
     it('deleteModel is a safe no-op for a model that was never downloaded', async () => {

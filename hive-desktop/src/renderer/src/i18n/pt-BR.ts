@@ -1686,6 +1686,11 @@ export const ptBR = {
     deleteConfirmCta: 'Excluir',
     deleteFailed:
       'Não foi possível excluir o modelo agora. Feche o que estiver usando a voz e tente de novo.',
+    // Space the old Whisper store is still taking, after M29 replaced it.
+    legacyTitle: 'Modelos antigos',
+    legacyText: (size: string) =>
+      `Os modelos da versão anterior ainda ocupam ${size} neste computador. Nada mais os usa.`,
+    legacyCta: 'Liberar o espaço',
     // The endings, announced wherever the user is.
     noticeDoneTitle: 'O modelo de voz está pronto',
     noticeDoneText: 'O ditado e a ingestão de áudio já podem transcrever.',

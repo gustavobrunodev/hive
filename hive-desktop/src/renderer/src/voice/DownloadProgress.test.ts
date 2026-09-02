@@ -16,9 +16,7 @@ const MB = 1024 * 1024
 
 function progress(over: Partial<AsrDownload> = {}): ReturnType<typeof vi.fn> {
   const onCancel = vi.fn()
-  render(
-    createElement(DownloadProgress, { download: asrDownloadFixture(over), onCancel })
-  )
+  render(createElement(DownloadProgress, { download: asrDownloadFixture(over), onCancel }))
   return onCancel
 }
 

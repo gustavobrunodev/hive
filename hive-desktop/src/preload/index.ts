@@ -866,6 +866,10 @@ const hive = {
     /** Whether the model is installed, plus what the hardware probe read. */
     readiness: (): Promise<AsrReadiness> => ipcRenderer.invoke('asr:readiness'),
     deleteModel: (): Promise<AsrReadiness> => ipcRenderer.invoke('asr:deleteModel'),
+    /** Bytes the pre-M29 Whisper store still occupies, or `0` when it is gone. */
+    legacyModelBytes: (): Promise<number> => ipcRenderer.invoke('asr:legacyModels'),
+    /** Deletes that store, answering with what is left. */
+    removeLegacyModels: (): Promise<number> => ipcRenderer.invoke('asr:removeLegacyModels'),
     /** Builds the session ahead of time so the first phrase is not the one that waits. */
     warm: (): Promise<void> => ipcRenderer.invoke('asr:warm'),
     /** Transcribes 16 kHz mono Float32 PCM. */

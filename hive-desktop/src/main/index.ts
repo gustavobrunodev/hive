@@ -76,6 +76,7 @@ import { FALLBACK_THREADS, probeRuntime } from './asr/asrHardware'
 import { createAsrEngine } from './asr/asrProcess'
 import { sherpaModuleSpecifier } from './asr/asrAddon'
 import { ASR_MODELS_DIRNAME } from './asr/asrPaths'
+import { measureLegacyModels, removeLegacyModels } from './asr/legacyModels'
 import type { AsrDownload, AsrModelId, AsrReadiness, AsrRuntimeProfile } from './asr/asrTypes'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
@@ -1498,6 +1499,20 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('asr:readiness', async () => readiness())
+
+  /**
+   * The Whisper models an upgrading install still has (M29).
+   *
+   * Offered, never taken: what is on disk is a download the user waited for,
+   * often gigabytes of it, and a migration that deletes it at startup is a
+   * surprise with no undo. The voice panel shows the measured figure and a
+   * button.
+   */
+  ipcMain.handle('asr:legacyModels', async () => measureLegacyModels(app.getPath('userData')).bytes)
+  ipcMain.handle(
+    'asr:removeLegacyModels',
+    async () => removeLegacyModels(app.getPath('userData')).bytes
+  )
   ipcMain.handle('asr:deleteModel', async () => {
     asrStore.remove()
     asrEngine.evict()
