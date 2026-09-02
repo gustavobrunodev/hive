@@ -4,7 +4,7 @@ import { isActive, isCapturing, type DictationPhase } from './phase'
 const PHASES: DictationPhase[] = [
   { status: 'idle' },
   { status: 'listening', seconds: 1, silentMs: 0, pending: 0 },
-  { status: 'preparing', seconds: 1, silentMs: 0, pending: 0, engine: { status: 'warming' } },
+  { status: 'preparing', seconds: 1, silentMs: 0, pending: 0, engine: { status: 'loading' } },
   { status: 'finalizing', pending: 1 },
   { status: 'error', kind: 'denied' }
 ]

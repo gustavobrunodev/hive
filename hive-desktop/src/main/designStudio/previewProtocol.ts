@@ -4,7 +4,7 @@ import { join, sep } from 'path'
 /**
  * Design Studio (M18) — T3.1. The privileged scheme that serves the Preview.
  *
- * Modelled on `whisperProtocol.ts` almost line for line (design §2): a scheme
+ * Modelled on the (now removed) `whisperProtocol.ts` line for line (design §2): a scheme
  * declared privileged *before* `app.whenReady()`, a pure host-based resolver
  * with a path-escape guard, and headers computed by a pure function so the
  * contract is testable without Electron. Two things differ, and both are

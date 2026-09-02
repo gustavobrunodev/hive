@@ -1396,10 +1396,7 @@ export function WorkUI({
             {/* M26: a model download outlives every surface that could show it,
                 so its ending is announced here — app-wide, whatever is open. */}
             <VoiceDownloadNotices
-              onUseModel={(id) => void window.hive.whisper.setPreferredModel(id)}
-              onRetry={(download) =>
-                void window.hive.whisper.startDownload(download.id, download.variant)
-              }
+              onRetry={() => void window.hive.asr.startDownload()}
               onOpenSettings={() => openProfile('voice')}
             />
           </div>

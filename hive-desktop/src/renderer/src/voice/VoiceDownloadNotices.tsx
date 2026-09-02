@@ -1,23 +1,21 @@
 import { useCallback, useState } from 'react'
 import { t } from '../i18n'
 import { AlertTriangleIcon, CheckCircleIcon, CloseIcon } from '../ui/icons'
-import { failureCopy, isRetryable, type WhisperDownload } from './downloadCopy'
-import { useWhisperDownloadEndings } from './useWhisperDownloads'
+import { failureCopy, isRetryable, type AsrDownload } from './downloadCopy'
+import { useAsrDownloadEndings } from './useAsrDownloads'
 
 /** One ending, held long enough to be read. */
 interface Notice {
   key: number
-  download: WhisperDownload
+  download: AsrDownload
 }
 
 /** How long a success sits there before it retires itself. */
 const SUCCESS_MS = 9_000
 
 export interface VoiceDownloadNoticesProps {
-  /** Pins the finished model as the one to transcribe with. */
-  onUseModel: (id: WhisperDownload['id']) => void
   /** Re-starts a download that stopped, resuming from its partial bytes. */
-  onRetry: (download: WhisperDownload) => void
+  onRetry: () => void
   /** Opens Perfil › Voz e transcrição. */
   onOpenSettings: () => void
 }
@@ -26,8 +24,8 @@ export interface VoiceDownloadNoticesProps {
  * The answer to "and what if I'm not looking at the sheet?".
  *
  * A model download is the only job in this app that routinely outlives the
- * surface that started it: twenty-odd minutes for `medium`, during which the
- * user has certainly moved on. Before this, the ending had nowhere to go — the
+ * surface that started it: several minutes for 670 MB, during which the user
+ * has certainly moved on. Before this, the ending had nowhere to go — the
  * download's only observer was a hook inside a sheet that had been unmounted,
  * so a completed download was silent and a failed one was invisible.
  *
@@ -38,10 +36,14 @@ export interface VoiceDownloadNoticesProps {
  *
  * Success retires itself; a failure does not. "It finished" needs no decision,
  * and a card that lingers after good news is clutter. "It stopped, and your
- * 1.2 GB is still on disk" needs one, and dismissing it is that decision.
+ * 400 MB is still on disk" needs one, and dismissing it is that decision.
+ *
+ * The success card lost its action in M29. It used to offer "Usar <modelo>",
+ * which pinned the finished download as the one to transcribe with — an
+ * offer that only meant something while there were ten models to be pinned
+ * among. Now the news *is* the whole message.
  */
 export function VoiceDownloadNotices({
-  onUseModel,
   onRetry,
   onOpenSettings
 }: VoiceDownloadNoticesProps): React.JSX.Element | null {
@@ -51,7 +53,7 @@ export function VoiceDownloadNotices({
     setNotices((current) => current.filter((notice) => notice.key !== key))
   }, [])
 
-  useWhisperDownloadEndings(
+  useAsrDownloadEndings(
     useCallback(
       (download) => {
         // A cancel was the user's own doing, a second ago, by hand. Announcing
@@ -86,33 +88,20 @@ export function VoiceDownloadNotices({
             </span>
             <div className="wb-vnotice-body">
               <p className="wb-vnotice-title">
-                {ok
-                  ? t('voice.noticeDoneTitle', download.id)
-                  : t('voice.noticeFailTitle', download.id)}
+                {ok ? t('voice.noticeDoneTitle') : t('voice.noticeFailTitle')}
               </p>
               <p className="wb-vnotice-text">
                 {ok ? t('voice.noticeDoneText') : failureCopy(download.failure)}
               </p>
               <div className="wb-vnotice-actions">
-                {ok ? (
-                  <button
-                    type="button"
-                    className="wb-vbtn"
-                    onClick={() => {
-                      onUseModel(download.id)
-                      drop(key)
-                    }}
-                  >
-                    {t('voice.noticeUseCta', download.id)}
-                  </button>
-                ) : (
+                {!ok && (
                   <>
                     {isRetryable(download.failure) && (
                       <button
                         type="button"
                         className="wb-vbtn"
                         onClick={() => {
-                          onRetry(download)
+                          onRetry()
                           drop(key)
                         }}
                       >

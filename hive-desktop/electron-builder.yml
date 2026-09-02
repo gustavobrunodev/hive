@@ -15,6 +15,15 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  # The native ASR addon (M29). Both packages, and both are required: the
+  # wrapper (`sherpa-onnx-node`) locates its binary by walking relative paths
+  # from its own `__dirname` to the sibling platform package, and inside the
+  # archive that walk lands on a path Node cannot `dlopen`. It then resolves to
+  # `undefined` rather than throwing, so the first symptom would be
+  # "Cannot read properties of undefined" the moment someone tries to speak.
+  # `src/main/asr/asrAddon.ts` points `require` at this unpacked tree.
+  - node_modules/sherpa-onnx-node/**
+  - node_modules/sherpa-onnx-*/**
 win:
   executableName: Hive
 nsis:

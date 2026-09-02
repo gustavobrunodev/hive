@@ -39,13 +39,14 @@ describe('dictationView', () => {
         seconds: 3,
         silentMs: 0,
         pending: 2,
-        engine: { status: 'downloading', pct: 41, file: 'encoder.onnx' }
+        engine: { status: 'loading' }
       },
       THRESHOLDS
     )
     expect(view?.kind).toBe('preparing')
-    // Real progress, reusing M12's engine phase reporting.
-    expect(view?.status).toContain('41%')
+    // No percentage: building the ONNX session emits no progress at all, and a
+    // fake bar climbing to 100 and stopping is what broke trust before.
+    expect(view?.status).not.toContain('%')
     expect(view?.status).toContain('2 trechos na fila')
     expect(view?.hint).toBe(strings.dictation.preparingKeep)
     expect(view?.meter).toBe(true)
@@ -53,7 +54,7 @@ describe('dictationView', () => {
 
   it('omits a percentage the engine genuinely does not have', () => {
     const warming = dictationView(
-      { status: 'preparing', seconds: 3, silentMs: 0, pending: 0, engine: { status: 'warming' } },
+      { status: 'preparing', seconds: 3, silentMs: 0, pending: 0, engine: { status: 'loading' } },
       THRESHOLDS
     )
     expect(warming?.status).toBe(strings.dictation.preparing)
@@ -94,7 +95,7 @@ describe('dictationView', () => {
         seconds: 5,
         silentMs: 4000,
         pending: 1,
-        engine: { status: 'loading', pct: 10 }
+        engine: { status: 'loading' }
       },
       THRESHOLDS
     )
@@ -215,20 +216,23 @@ describe('the pt-BR dictation strings', () => {
 })
 
 /**
- * The engine's own words never reach the user. A real take ended with
+ * The engine's own words never reach the user. A real take once ended with
  * **"Array buffer allocation failed"** on screen — a sentence that names the
- * mechanism, hides the cause (the chosen model does not fit in this
- * renderer's memory) and offers no next step.
+ * mechanism, hides the cause and offers no next step.
+ *
+ * That exact sentence cannot happen any more: the allocation it named was the
+ * renderer's WASM heap, and inference left the renderer. The failure worth
+ * translating now is the one with a different next step from "try again".
  */
 describe("engine failures, in the user's language", () => {
-  it('turns the allocation failure into the model choice it is really about', () => {
+  it('turns a missing model into the download it is really about', () => {
     const view = dictationView({
       status: 'error',
       kind: 'engine',
-      message: 'Array buffer allocation failed'
+      message: 'model files missing: /models/encoder.int8.onnx'
     })
-    expect(view?.status).toContain('não cabe na memória')
-    expect(view?.status).not.toContain('Array buffer')
+    expect(view?.status).toContain('Baixe-o de novo')
+    expect(view?.status).not.toContain('encoder.int8.onnx')
     // The promise that makes the retry worth offering survives.
     expect(view?.hint).toBeTruthy()
     expect(view?.retry).toBe(true)

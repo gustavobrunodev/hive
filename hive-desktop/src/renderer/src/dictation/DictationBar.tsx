@@ -1,6 +1,6 @@
 import { LevelMeter } from '@hive/design-system'
 import { t } from '../i18n'
-import { formatElapsed } from '../secondBrain/whisper/recorderFormat'
+import { formatElapsed } from '../secondBrain/audio/recorderFormat'
 import { dictationView } from './dictationCopy'
 import { partialTail } from './partialText'
 import type { DictationPhase } from './phase'

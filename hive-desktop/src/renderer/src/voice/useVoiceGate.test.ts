@@ -2,25 +2,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { useVoiceGate } from './useVoiceGate'
-import { whisperDownloadFixture } from '../testSupport/hiveWhisperMock'
+import { asrDownloadFixture, asrReadinessFixture } from '../testSupport/hiveAsrMock'
 
-const HARDWARE = { recommendedId: 'small', reason: 'discreteGpu', gpu: true, ramGB: 32, cores: 12 }
-const NOTHING = { id: null, auto: true, installed: [], recommendation: HARDWARE }
-const INSTALLED = { id: 'small', auto: true, installed: ['small'], recommendation: HARDWARE }
+const NOTHING = asrReadinessFixture({ installed: false })
+const INSTALLED = asrReadinessFixture({ installed: true })
 
 describe('useVoiceGate', () => {
   let settledListeners: Array<(download: unknown) => void>
-  let preference: ReturnType<typeof vi.fn>
+  let readiness: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     settledListeners = []
-    preference = vi.fn(async () => NOTHING)
+    readiness = vi.fn(async () => NOTHING)
     window.hive = {
       ...window.hive,
-      whisper: {
-        ...window.hive?.whisper,
-        preference,
-        setPreferredModel: vi.fn(async () => NOTHING),
+      asr: {
+        ...window.hive?.asr,
+        readiness,
         onDownloadSettled: vi.fn((listener: (download: unknown) => void) => {
           settledListeners.push(listener)
           return () => {}
@@ -35,7 +33,7 @@ describe('useVoiceGate', () => {
   })
 
   it('runs the action straight away when a model is already installed', async () => {
-    preference.mockResolvedValue(INSTALLED)
+    readiness.mockResolvedValue(INSTALLED)
     const { result } = renderHook(() => useVoiceGate())
     await waitFor(() => expect(result.current.blocked).toBe(false))
 
@@ -68,40 +66,40 @@ describe('useVoiceGate', () => {
     const action = vi.fn()
     act(() => result.current.guard(action))
 
-    preference.mockResolvedValue(INSTALLED)
+    readiness.mockResolvedValue(INSTALLED)
     await act(async () => {
-      settledListeners[0](whisperDownloadFixture({ status: 'done' }))
+      settledListeners[0](asrDownloadFixture({ status: 'done' }))
     })
 
     await waitFor(() => expect(action).toHaveBeenCalled())
     expect(result.current.open).toBe(false)
   })
 
-  it('re-resolves the preference on any ending, wherever the download started', async () => {
+  it('re-resolves the readiness on any ending, wherever the download started', async () => {
     renderHook(() => useVoiceGate())
-    await waitFor(() => expect(preference).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(readiness).toHaveBeenCalledTimes(1))
 
     await act(async () => {
-      settledListeners[0](whisperDownloadFixture({ status: 'done' }))
+      settledListeners[0](asrDownloadFixture({ status: 'done' }))
     })
-    expect(preference.mock.calls.length).toBeGreaterThan(1)
+    expect(readiness.mock.calls.length).toBeGreaterThan(1)
   })
 
   it('ignores an ending that is not a completion', async () => {
     renderHook(() => useVoiceGate())
-    await waitFor(() => expect(preference).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(readiness).toHaveBeenCalledTimes(1))
 
     await act(async () => {
-      settledListeners[0](whisperDownloadFixture({ status: 'error' }))
+      settledListeners[0](asrDownloadFixture({ status: 'error' }))
     })
-    expect(preference).toHaveBeenCalledTimes(1)
+    expect(readiness).toHaveBeenCalledTimes(1)
   })
 
   /**
    * A microphone that opens by itself several minutes later, with no dialog on
    * screen to explain why, is worse than one more click — so closing the gate
    * forgets what it was remembering. The completion notice covers that case
-   * instead, and it offers the *model* rather than the recording.
+   * instead.
    */
   it('forgets the take when the gate is closed by hand', async () => {
     const { result } = renderHook(() => useVoiceGate())
@@ -110,9 +108,9 @@ describe('useVoiceGate', () => {
     act(() => result.current.guard(action))
     act(() => result.current.setOpen(false))
 
-    preference.mockResolvedValue(INSTALLED)
+    readiness.mockResolvedValue(INSTALLED)
     await act(async () => {
-      settledListeners[0](whisperDownloadFixture({ status: 'done' }))
+      settledListeners[0](asrDownloadFixture({ status: 'done' }))
     })
 
     await waitFor(() => expect(result.current.blocked).toBe(false))
@@ -122,6 +120,6 @@ describe('useVoiceGate', () => {
   it('asks main nothing at all while inactive', async () => {
     renderHook(() => useVoiceGate(false))
     await act(async () => {})
-    expect(preference).not.toHaveBeenCalled()
+    expect(readiness).not.toHaveBeenCalled()
   })
 })

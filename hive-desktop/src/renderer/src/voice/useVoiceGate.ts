@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWhisperPreference } from '../secondBrain/whisper/useWhisperPreference'
-import { useWhisperDownloadEndings } from './useWhisperDownloads'
-import type { ModelInfo } from './modelFacts'
-
-type WhisperModelId = ModelInfo['id']
+import { useAsrReadiness } from './useAsrReadiness'
+import { useAsrDownloadEndings } from './useAsrDownloads'
 
 export interface VoiceGate {
-  /** The model that would transcribe, or `null` when nothing is installed. */
-  model: WhisperModelId | null
-  /** True while no model exists — every microphone affordance routes through `guard`. */
+  /** True once the model is on disk and the microphone can honestly open. */
+  ready: boolean
+  /**
+   * The same fact, **un-collapsed**: `null` means main has not answered yet.
+   *
+   * `ready` deliberately folds "not asked" into `false`, which is right for
+   * gating — no take can start during the round trip either. It is wrong for
+   * anything that *says something*: a surface rendering "nenhum modelo baixado"
+   * from a pending answer flashes a warning and then retracts it, which is the
+   * defect this distinction exists to prevent.
+   */
+  installed: boolean | null
+  /** True while the model is missing — every microphone affordance routes through `guard`. */
   blocked: boolean
   /**
-   * Runs `action` now if a model exists; otherwise remembers it, opens the
-   * gate, and runs it the moment a model lands **while the gate is still open**.
+   * Runs `action` now if the model exists; otherwise remembers it, opens the
+   * gate, and runs it the moment the model lands **while the gate is still open**.
    */
   guard: (action: () => void) => void
   open: boolean
@@ -38,15 +45,16 @@ export interface VoiceGate {
  * recording.
  */
 export function useVoiceGate(active = true): VoiceGate {
-  const preference = useWhisperPreference(active)
-  const model = preference.preference?.id ?? null
+  const readiness = useAsrReadiness(active)
+  const installed = readiness.readiness?.installed ?? null
+  const ready = installed === true
   const [open, setOpen] = useState(false)
   const pending = useRef<(() => void) | null>(null)
-  const { refresh } = preference
+  const { refresh } = readiness
 
   // A model that lands anywhere — here, the settings sheet, another window —
-  // makes this surface usable, so the preference is re-resolved on any ending.
-  useWhisperDownloadEndings(
+  // makes this surface usable, so readiness is re-resolved on any ending.
+  useAsrDownloadEndings(
     useCallback(
       (download) => {
         if (download.status === 'done') refresh()
@@ -56,7 +64,7 @@ export function useVoiceGate(active = true): VoiceGate {
   )
 
   useEffect(() => {
-    if (!open || model === null) return
+    if (!open || !ready) return
     // Named-and-invoked (the repo's `load()` pattern) so the state write is not
     // a bare call in the effect body — `react-hooks/set-state-in-effect`.
     function proceed(): void {
@@ -66,18 +74,18 @@ export function useVoiceGate(active = true): VoiceGate {
       action?.()
     }
     proceed()
-  }, [open, model])
+  }, [open, ready])
 
   const guard = useCallback(
     (action: () => void) => {
-      if (model !== null) {
+      if (ready) {
         action()
         return
       }
       pending.current = action
       setOpen(true)
     },
-    [model]
+    [ready]
   )
 
   const changeOpen = useCallback((next: boolean) => {
@@ -85,5 +93,5 @@ export function useVoiceGate(active = true): VoiceGate {
     setOpen(next)
   }, [])
 
-  return { model, blocked: model === null, guard, open, setOpen: changeOpen }
+  return { ready, installed, blocked: !ready, guard, open, setOpen: changeOpen }
 }

@@ -22,16 +22,18 @@ interface Fake {
 function fake(options: { paths?: AsrModelPaths | null } = {}): Fake {
   const sent: unknown[] = []
   const phases: AsrEnginePhase[] = []
-  let onMessage: ((event: { data: AsrWorkerResponse }) => void) | null = null
+  let onMessage: ((message: AsrWorkerResponse) => void) | null = null
   let onExit: (() => void) | null = null
   let forks = 0
   let killed = 0
 
   const child: AsrChild = {
     postMessage: (message) => sent.push(message),
-    on: (event, listener) => {
-      if (event === 'message') onMessage = listener as unknown as typeof onMessage
-      else onExit = listener as unknown as typeof onExit
+    onMessage: (listener) => {
+      onMessage = listener
+    },
+    onExit: (listener) => {
+      onExit = listener
     },
     kill: () => {
       killed += 1
@@ -59,7 +61,7 @@ function fake(options: { paths?: AsrModelPaths | null } = {}): Fake {
     get killed() {
       return killed
     },
-    reply: (message) => onMessage?.({ data: message }),
+    reply: (message) => onMessage?.(message),
     exit: () => onExit?.()
   }
 }
@@ -100,7 +102,12 @@ describe('createAsrEngine', () => {
   it('reads the model paths per request, so a late download needs no restart', async () => {
     let paths: AsrModelPaths | null = null
     const engine = createAsrEngine({
-      fork: () => ({ postMessage: () => {}, on: () => {}, kill: () => {} }),
+      fork: () => ({
+        postMessage: () => {},
+        onMessage: () => {},
+        onExit: () => {},
+        kill: () => {}
+      }),
       specifier: () => 's',
       paths: () => paths,
       threads: () => 2
@@ -190,7 +197,8 @@ describe('createAsrEngine', () => {
         postMessage: vi.fn().mockImplementation((message: { type: string }) => {
           if (message.type === 'transcribe') throw new Error('channel closed')
         }),
-        on: () => {},
+        onMessage: () => {},
+        onExit: () => {},
         kill: () => {}
       }),
       specifier: () => 's',

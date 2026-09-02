@@ -358,30 +358,13 @@ vi.mock('../dictation/micCapture', async (importOriginal) => {
   }
 })
 
-import { createHiveWhisperMock } from '../testSupport/hiveWhisperMock'
+import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMock'
 
 /** The Whisper engine, faked so a transcript is deterministic and instant. */
 interface TranscribeOptions {
   model?: string
   language?: string
 }
-
-/** A machine with `base` downloaded — what every dictation test assumes. */
-const INSTALLED_PREFERENCE = {
-  id: 'base',
-  auto: true,
-  installed: ['base'],
-  recommendation: {
-    recommendedId: 'base',
-    reason: 'unknown',
-    gpu: false,
-    ramGB: 0,
-    cores: 0
-  }
-} as const
-
-/** A fresh install: nothing downloaded, so the microphone opens the gate. */
-const EMPTY_PREFERENCE = { ...INSTALLED_PREFERENCE, id: null, installed: [] }
 
 const whisper = vi.hoisted(
   (): {
@@ -406,25 +389,18 @@ const whisper = vi.hoisted(
   })
 )
 
-vi.mock('../secondBrain/whisper/useWhisper', () => ({
-  DEFAULT_LANGUAGE: 'portuguese',
-  // M26: the model gate reads the catalog, which probes for a WebGPU adapter to
-  // decide which precision a download would fetch. jsdom has none.
-  probeWebGpu: async () => false,
-  // voice-settings (M25): `useWhisperPreference` reads this as the pre-answer
-  // fallback, and it is imported through this same module — a mock that omits
-  // it throws on every Chat render, not just on a dictation test.
-  DEFAULT_MODEL: 'base',
-  useWhisper: () => ({
+// The engine is an IPC call now, so the hook is all there is to stand in for —
+// no worker, no library, no model id threaded through the call.
+vi.mock('../asr/useAsr', () => ({
+  useAsr: () => ({
     phase: { status: 'idle' },
     transcribe: async (_pcm: Float32Array, options?: TranscribeOptions) => {
       whisper.calls += 1
       whisper.lastOptions = options ?? null
       return whisper.text
     },
-    warm: async (model?: string) => {
+    warm: async () => {
       whisper.warms += 1
-      whisper.lastWarmModel = model
     },
     reset: () => undefined
   })
@@ -531,18 +507,8 @@ describe('Chat', () => {
       capabilities?: { models: unknown[]; efforts: unknown[]; supportsAttachments?: boolean }
       /** agent-approvals: the session-wide grant already armed in the main process. */
       sessionArmed?: boolean
-      /**
-       * voice-settings: the globally-chosen transcription model, as main
-       * resolves it. The composer's dictation runs with THIS, not with the
-       * engine's built-in default.
-       */
-      whisperPreference?: {
-        /** `null` is a real answer now: a machine with no model downloaded. */
-        id: string | null
-        auto: boolean
-        installed: readonly string[]
-        recommendation: Record<string, unknown>
-      }
+      /** Whether the transcription model is on disk. `false` opens the gate. */
+      asrInstalled?: boolean
     } = {}
   ): {
     emit: (event: AgentEventLike) => void
@@ -578,18 +544,15 @@ describe('Chat', () => {
     window.hive = {
       ...window.hive,
       listFiles: vi.fn().mockResolvedValue(options.workspaceFiles ?? []),
-      // voice-settings (M25): the composer resolves its dictation model from
-      // the same global preference the profile sheet writes, so the bridge has
-      // to answer here — without it every Chat render throws on mount.
-      //
-      // M26: the shared mock's default is the *fresh-install* state (no model
+      // The shared mock's default is the *fresh-install* state (no model
       // downloaded), where pressing the microphone opens the download gate
       // instead of a take. Dictation is only reachable with a model on disk, so
-      // that is the default here — and `whisperPreference: EMPTY_PREFERENCE`
-      // is how a test asks for the gate.
-      whisper: {
-        ...createHiveWhisperMock(),
-        preference: vi.fn().mockResolvedValue(options.whisperPreference ?? INSTALLED_PREFERENCE)
+      // that is the default here — and `asrInstalled: false` asks for the gate.
+      asr: {
+        ...createHiveAsrMock(),
+        readiness: vi
+          .fn()
+          .mockResolvedValue(asrReadinessFixture({ installed: options.asrInstalled ?? true }))
       },
       agent: {
         capabilities: vi.fn().mockResolvedValue(
@@ -2725,42 +2688,23 @@ describe('Chat', () => {
     })
 
     /**
-     * voice-settings (M25). This composer used to pass no `model` at all, so
-     * every dictation in the chat ran the engine's built-in default no matter
-     * what the user had chosen — the setting existed and the surface people
-     * dictate into most was simply not covered by it.
+     * voice-settings (M25) asserted that the composer dictated with the
+     * globally-chosen model rather than the engine's built-in default — this
+     * surface had quietly run a hardcoded `base` for a whole milestone while
+     * the setting existed elsewhere.
+     *
+     * M29 removes the parameter that made that drift possible: there is one
+     * model, main owns where its files are, and no surface passes an id. What
+     * is left worth asserting is that the composer asks for nothing but the
+     * audio.
      */
-    it('dictates with the globally chosen model, not the engine default', async () => {
-      renderChat({
-        whisperPreference: {
-          id: 'small',
-          auto: false,
-          installed: ['small'],
-          recommendation: {
-            recommendedId: 'small',
-            reason: 'discreteGpu',
-            gpu: true,
-            ramGB: 32,
-            cores: 12
-          }
-        }
-      })
-      const mic = await screen.findByRole('button', { name: 'Ditar' })
-
-      // Both halves, because a session built for one model and a phrase
-      // transcribed with another is two bugs, and only the second one shows:
-      // the build is for the chosen model…
-      fireEvent.pointerEnter(mic)
-      await waitFor(() => expect(whisper.lastWarmModel).toBe('small'))
-
-      // …and so is the phrase.
+    it('sends the engine the audio and nothing else to get wrong', async () => {
+      renderChat()
+      await screen.findByRole('button', { name: 'Ditar' })
       await speak()
       await waitFor(() => expect(whisper.lastOptions).not.toBeNull())
-      // Read once into a local: the field is nullable, so a second
-      // `whisper.lastOptions?.x` types as `never` after the assertion above.
-      const options: TranscribeOptions = whisper.lastOptions ?? {}
-      expect(options.model).toBe('small')
-      expect(options.language).toBe('portuguese')
+      // `onPartial` is the whole option surface now — no model, no language.
+      expect(Object.keys(whisper.lastOptions ?? {})).toEqual(['onPartial'])
     })
 
     it('warms the engine on intent, and never by transcribing (D-VP-6)', async () => {
@@ -2801,20 +2745,22 @@ describe('Chat', () => {
      */
     describe('with no model downloaded', () => {
       it('opens the download gate instead of the microphone', async () => {
-        renderChat({ whisperPreference: EMPTY_PREFERENCE })
+        renderChat({ asrInstalled: false })
         await screen.findByRole('button', { name: 'Ditar' })
 
         await act(async () => {
           fireEvent.click(screen.getByRole('button', { name: 'Ditar' }))
         })
 
-        expect(screen.getByRole('dialog').textContent).toContain('Escolha um modelo para gravar')
+        expect(screen.getByRole('dialog').textContent).toContain(
+          'Baixe o modelo de voz para gravar'
+        )
         // The microphone was never opened: no take, no capture, no draft change.
         expect(capture.state.started).toBe(0)
       })
 
       it('does not warm the engine on hover — that would be an unasked-for download', async () => {
-        renderChat({ whisperPreference: EMPTY_PREFERENCE })
+        renderChat({ asrInstalled: false })
         const mic = await screen.findByRole('button', { name: 'Ditar' })
 
         await act(async () => {

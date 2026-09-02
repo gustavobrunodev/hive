@@ -1560,13 +1560,9 @@ export const ptBR = {
     // What the local engine is doing. Each phase says whether it can be
     // measured — an honest indeterminate state is what replaced the old
     // "Preparando o modelo… 100%" that then sat still (SB-R4.2).
-    phaseDownloading: 'Baixando o modelo',
-    phaseDownloadingHint: 'Só na primeira vez — depois ele fica salvo no seu computador.',
-    phaseLoading: 'Carregando o modelo',
-    phaseWarming: 'Preparando o modelo',
-    phaseWarmingHint: 'Esta etapa não tem porcentagem. Na primeira vez pode levar alguns minutos.',
+    phaseLoading: 'Preparando o modelo',
+    phaseLoadingHint: 'Alguns segundos, só na primeira vez desta sessão.',
     phaseTranscribing: 'Transcrevendo o áudio',
-    phaseTranscribingHint: 'Tudo acontece no seu computador — nada é enviado para a internet.',
     // Per-audio status in the queue (one row per file, SB-R4.5).
     jobQueued: 'Na fila',
     jobDecoding: 'Lendo o áudio…',
@@ -1618,8 +1614,8 @@ export const ptBR = {
     ingestModelChangeAria: 'Alterar o modelo de transcrição no perfil',
     // M26: the app ships no weights, so this surface can be reached with
     // nothing installed — and the two audio sources above it cannot work.
-    ingestModelMissing: 'Nenhum modelo de transcrição baixado ainda.',
-    ingestModelGet: 'Baixar um modelo'
+    ingestModelMissing: 'Nenhum modelo de voz baixado ainda.',
+    ingestModelGet: 'Baixar o modelo'
   },
   /**
    * voice-settings (M25) — the transcription model, which is **one global
@@ -1634,45 +1630,27 @@ export const ptBR = {
       'Um modelo, os dois lugares em que o Hive escuta você: o ditado no chat e a ingestão de conhecimento.',
     offlineNote:
       'Tudo roda no seu computador. Nada de áudio sai daqui, e a transcrição funciona sem internet.',
-    // The hardware readout — what makes "Automático" a statement instead of a
-    // shrug. Three measured facts, then the verdict they produce.
+    // The hardware readout. It used to justify which of ten models was picked;
+    // it now justifies how hard the engine drives this CPU. The GPU row is
+    // gone: inference is native CPU, so a missing GPU no longer costs anything,
+    // and reporting a fact with no consequence is noise.
     machineTitle: 'Neste computador',
-    machineGpu: 'Placa de vídeo',
-    machineGpuYes: 'Dedicada',
-    machineGpuNo: 'Integrada',
     machineRam: 'Memória',
     machineRamValue: (gb: number) => `${gb} GB`,
     machineCores: 'Núcleos',
     machineCoresValue: (cores: number) => `${cores}`,
+    machineThreads: 'Núcleos em uso',
+    machineThreadsValue: (threads: number) => `${threads}`,
     machineUnknown: '—',
     machineMeasuring: 'Avaliando este computador…',
-    // What is transcribing right now — the first question, answered first.
-    inForceLabel: 'Em uso',
-    inForceAuto: 'escolhido pelo Hive',
-    inForcePinned: 'fixado por você',
-    // The chooser.
-    autoLabel: 'Automático',
-    autoMeta: (id: string) => `Escolhe pelo seu hardware · hoje seria ${id}`,
-    autoMetaEmpty: 'Escolhe pelo seu hardware assim que houver um modelo baixado',
-    recommendedBadge: 'Recomendado',
-    englishOnly: 'só inglês',
-    // The character of a model, derived from its own numbers (voice/modelFacts).
-    tradeoffFastest: 'O mais rápido',
-    tradeoffFast: 'Rápido',
-    tradeoffBalanced: 'Equilibrado',
-    tradeoffAccurate: 'O mais preciso',
-    tradeoffBalancedStrong: 'Preciso e rápido',
-    // The two readings that answer "qual eu quero?".
-    meterAccuracy: 'Precisão',
-    meterSpeed: 'Velocidade',
-    meterAria: (label: string, value: number) => `${label}: ${value} de 5`,
-    // The library.
-    installedTitle: 'Seus modelos',
-    libraryTitle: 'Biblioteca',
-    libraryNote:
-      'Modelos maiores transcrevem melhor e demoram mais. Você baixa uma vez e eles ficam disponíveis offline.',
-    catalogEmpty: 'Você já tem todos os modelos do catálogo.',
-    paramsSize: (params: string, size: string) => `${params} · ${size}`,
+    // The model, as one row.
+    modelSectionLabel: 'Modelo de voz',
+    modelName: 'Parakeet TDT v3',
+    modelInstalled: 'Baixado',
+    modelFacts: (params: string, languages: number, size: string) =>
+      `${params} de parâmetros · ${languages} idiomas · ${size}`,
+    modelDownloadCta: (size: string) => `Baixar · ${size}`,
+    modelDeleteCta: 'Excluir do computador',
     // Sizes and rates, em pt-BR (vírgula decimal).
     zeroBytes: '0 MB',
     megabytes: (mb: number) => `${mb} MB`,
@@ -1680,13 +1658,11 @@ export const ptBR = {
     rate: (mbps: string) => `${mbps} MB/s`,
     percent: (pct: number) => `${pct}%`,
     // Downloads.
-    download: 'Baixar',
-    downloadAria: (id: string) => `Baixar o modelo ${id}`,
     downloadStarting: 'Preparando o download…',
     downloadOf: (loaded: string, total: string) => `${loaded} de ${total}`,
-    downloadingAria: (id: string, pct: number) => `Baixando ${id}: ${pct}%`,
+    downloadingAria: (pct: number) => `Baixando o modelo de voz: ${pct}%`,
     downloadCancel: 'Cancelar',
-    downloadCancelAria: (id: string) => `Cancelar o download de ${id}`,
+    downloadCancelAria: 'Cancelar o download do modelo de voz',
     downloadRetry: 'Tentar de novo',
     downloadRetryShort: 'Tentar de novo',
     downloadResume: 'Continuar',
@@ -1696,54 +1672,26 @@ export const ptBR = {
     // Failures — one sentence per cause, each with a next step in it.
     failOffline: 'A conexão caiu no meio do download.',
     failServer: 'O servidor dos modelos não respondeu agora.',
-    failNotFound: 'Este modelo não está mais publicado onde o Hive o procura.',
-    failDisk: 'Não há espaço em disco suficiente para este modelo.',
-    failUnsupported: 'Este modelo não publica pesos na precisão que este computador usa.',
+    failNotFound: 'O modelo não está mais publicado onde o Hive o procura.',
+    failDisk: 'Não há espaço em disco suficiente para o modelo.',
+    failUnsupported: 'O repositório do modelo não está completo onde o Hive o procura.',
     failUnknown: 'O download parou por um motivo que o Hive não soube ler.',
     failResumeFrom: (loaded: string) => `Os ${loaded} já baixados continuam aqui.`,
-    dismissFailureAria: (id: string) => `Dispensar o aviso de falha de ${id}`,
+    dismissFailureAria: 'Dispensar o aviso de falha do download',
     // Deleting — a confirmation, because the undo is a download.
-    deleteAria: (id: string) => `Excluir o modelo ${id}`,
-    deleteTitle: 'Excluir do computador',
-    deleteConfirmTitle: (id: string) => `Excluir ${id}?`,
+    deleteConfirmTitle: 'Excluir o modelo de voz?',
     deleteConfirmText: (size: string) =>
-      `Os arquivos saem deste computador agora. Para usar este modelo de novo você vai baixar ${size} outra vez.`,
+      `Os arquivos saem deste computador agora. Para ditar de novo você vai baixar ${size} outra vez.`,
     deleteConfirmKeepCta: 'Manter',
     deleteConfirmCta: 'Excluir',
     deleteFailed:
-      'Não foi possível excluir este modelo agora. Feche o que estiver usando a voz e tente de novo.',
-    useAria: (id: string) => `Usar o modelo ${id}`,
-    // What this computer can and cannot run (voice/modelFit) — measured
-    // ceilings, not warnings invented to sound careful.
-    fitTooLargeTitle: 'Não roda neste computador',
-    fitTooLargeText: (size: string) =>
-      `Um dos arquivos deste modelo tem ${size} e o Hive não consegue carregar um arquivo tão grande sem placa de vídeo compatível.`,
-    fitTooHeavyTitle: 'Pesado demais para esta memória',
-    fitTooHeavyText: (need: string, ram: number) =>
-      `Carregar este modelo pede cerca de ${need} de memória de uma vez, e este computador tem ${ram} GB no total.`,
-    fitLearnMore: 'Escolha um modelo menor — a transcrição fica boa a partir do small.',
-    // The empty state — where a fresh install now starts.
-    emptyTitle: 'Nenhum modelo de voz ainda',
-    emptyText:
-      'O Hive transcreve no seu computador, sem enviar áudio para lugar nenhum. Para isso ele precisa de um modelo — escolha um e baixe uma única vez.',
-    emptyPickLabel: 'Recomendado para este computador',
-    emptyDownloadCta: (size: string) => `Baixar · ${size}`,
+      'Não foi possível excluir o modelo agora. Feche o que estiver usando a voz e tente de novo.',
     // The endings, announced wherever the user is.
-    noticeDoneTitle: (id: string) => `${id} está pronto`,
-    noticeDoneText: 'O ditado e a ingestão de áudio já podem usar este modelo.',
-    noticeUseCta: (id: string) => `Usar ${id}`,
-    noticeFailTitle: (id: string) => `O download de ${id} parou`,
+    noticeDoneTitle: 'O modelo de voz está pronto',
+    noticeDoneText: 'O ditado e a ingestão de áudio já podem transcrever.',
+    noticeFailTitle: 'O download do modelo de voz parou',
     noticeOpenSettings: 'Abrir Voz e transcrição',
-    noticeDismissAria: 'Dispensar este aviso',
-    // Why the probe recommended what it did.
-    reasonLowMemory: (ram: number) =>
-      `Com ${ram} GB de memória, um modelo leve é o que responde na hora.`,
-    reasonCpuOnly: (cores: number) =>
-      `Sem placa de vídeo dedicada e com ${cores} núcleos, um modelo leve é o que responde na hora.`,
-    reasonNoGpu: 'Sem placa de vídeo dedicada, os modelos maiores levariam minutos por trecho.',
-    reasonDiscreteGpu: (ram: number) =>
-      `Placa de vídeo dedicada e ${ram} GB de memória dão conta do modelo mais preciso.`,
-    reasonUnknown: 'Não foi possível avaliar este computador — ficando no padrão seguro.'
+    noticeDismissAria: 'Dispensar este aviso'
   },
   /**
    * What the transcription engine says when it fails — in the user's language.
@@ -1752,11 +1700,12 @@ export const ptBR = {
    * verbatim: a real take ended with "Array buffer allocation failed" on
    * screen, which names the mechanism and hides the fix.
    */
-  whisperError: {
-    memory:
-      'Este modelo não cabe na memória deste computador. Escolha um modelo menor em Perfil › Voz e transcrição.',
+  asrError: {
+    // The "escolha um modelo menor" advice is gone with the failure that
+    // produced it: it answered the WASM heap running out, which native ONNX
+    // Runtime does not do — and there is no smaller model to choose.
     missing:
-      'Os arquivos deste modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
+      'Os arquivos do modelo não estão mais no computador. Baixe-o de novo em Perfil › Voz e transcrição.',
     generic: 'A transcrição falhou neste trecho.'
   },
   /**
@@ -1765,17 +1714,15 @@ export const ptBR = {
    * the user asked for starts by itself when it lands.
    */
   voiceGate: {
-    title: 'Escolha um modelo para gravar',
+    // No longer "escolha um modelo": there is one, so the dialog states the
+    // cost and gets out of the way.
+    title: 'Baixe o modelo de voz para gravar',
     description:
       'A transcrição do Hive roda no seu computador — nenhum áudio sai daqui. Falta só baixar o modelo que vai ouvir você.',
-    chooseAria: 'Modelo de transcrição para baixar',
-    recommendedNote: 'É o que o Hive recomenda para este computador.',
+    settingsCta: 'Ver detalhes',
     downloadCta: (size: string) => `Baixar e gravar · ${size}`,
     onceOnly: 'Só uma vez — depois funciona offline.',
-    keepsGoing:
-      'Pode fechar — o download continua em segundo plano e o Hive avisa quando terminar.',
-    allModelsCta: 'Ver todos os modelos',
-    emptyCatalog: 'Nenhum modelo pôde ser oferecido aqui.'
+    keepsGoing: 'Pode fechar — o download continua em segundo plano e o Hive avisa quando terminar.'
   },
   actionRail: {
     ariaLabel: 'Ferramentas do workspace',
@@ -2058,10 +2005,11 @@ export const ptBR = {
     // One shape for both automatic values on the index (voice + terminal): the
     // row is ~15ch wide, and "Escolhe pelo seu hardware · small" truncated to
     // "Escolhe pelo se…" — which says nothing at all.
-    autoSummary: (name: string) => `Automático · ${name}`,
     // voice (M26): the app ships no weights any more, so "nothing yet" is a
     // real resting state for this row and says so instead of showing a dash.
+    autoSummary: (name: string) => `Automático · ${name}`,
     voiceNoneSummary: 'Nenhum modelo baixado',
+    voiceReadySummary: 'Pronto para transcrever',
     summaryUnset: '—',
     nameSectionLabel: 'Seu nome',
     nameFieldLabel: 'Como você quer ser chamado?',

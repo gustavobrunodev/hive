@@ -7,14 +7,14 @@ import {
   formatMegabytes,
   formatRate,
   isRetryable,
-  type WhisperDownload
+  type AsrDownload
 } from './downloadCopy'
-import { whisperDownloadFixture } from '../testSupport/hiveWhisperMock'
+import { asrDownloadFixture } from '../testSupport/hiveAsrMock'
 
 const MB = 1024 * 1024
 
-function download(over: Partial<WhisperDownload> = {}): WhisperDownload {
-  return whisperDownloadFixture(over)
+function download(over: Partial<AsrDownload> = {}): AsrDownload {
+  return asrDownloadFixture(over)
 }
 
 describe('downloadCopy', () => {

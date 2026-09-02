@@ -7,12 +7,10 @@ import {
   dialog,
   Notification,
   protocol,
-  net,
   screen,
   session,
-  webContents
+  utilityProcess
 } from 'electron'
-import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
 import { basename, join, sep } from 'path'
@@ -50,13 +48,6 @@ import { createSecondBrainService } from './secondBrainService'
 import { createSecondBrainVault } from './secondBrainVault'
 import { createSecondBrainHealthStore } from './secondBrainHealth'
 import {
-  resolveWhisperCandidates,
-  whisperFileHeaders,
-  WHISPER_MODELS_DIRNAME,
-  WHISPER_SCHEME,
-  WHISPER_SCHEME_PRIVILEGES
-} from './whisperProtocol'
-import {
   createStudioProtocolHandler,
   studioResourcesRoot,
   STUDIO_SCHEME,
@@ -78,17 +69,14 @@ import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
 import { detectScreens } from './designStudio/screenDetection'
 import type { ScreenDetectionResult } from './designStudio/screenDetection'
 import type { Command, OperationError } from './designStudio/types'
-import { createWhisperModelStore } from './whisperModelStore'
-import { createWhisperDownloadManager } from './whisperDownloads'
-import { whisperDownloadNotification } from './osNotificationCopy'
-import { pickAutoModel, recommendWhisperModel } from './whisperHardware'
-import type {
-  HardwareRecommendation,
-  WhisperDownload,
-  WhisperModelId,
-  WhisperPreference,
-  WhisperVariant
-} from './whisperTypes'
+import { createAsrModelStore } from './asr/asrModelStore'
+import { createAsrDownloadManager } from './asr/asrDownloads'
+import { asrDownloadNotification } from './osNotificationCopy'
+import { FALLBACK_THREADS, probeRuntime } from './asr/asrHardware'
+import { createAsrEngine } from './asr/asrProcess'
+import { sherpaModuleSpecifier } from './asr/asrAddon'
+import { ASR_MODELS_DIRNAME } from './asr/asrPaths'
+import type { AsrDownload, AsrModelId, AsrReadiness, AsrRuntimeProfile } from './asr/asrTypes'
 import { listWithDiscovery } from './workflowCatalog'
 import { listCatalogWithCreated, listCreatedSkills, listSkillsWithCreated } from './skillStudio'
 import { createMcpService, type McpServerConfig } from './mcpService'
@@ -183,16 +171,16 @@ function createWindow(): void {
   }
 }
 
-// Second Brain / Whisper (D-SB-1): the `hive-model:` scheme MUST be declared
-// privileged BEFORE `app.whenReady()` — Chromium reads the scheme registry
-// during startup, so a later call has no effect. The handler itself is wired
-// inside `whenReady` below, once `userData` is resolvable.
-// Design Studio (M18, T3.2): same rule for `hive-studio:` — the scheme that
-// serves the isolated Preview and carries its own CSP per response.
-protocol.registerSchemesAsPrivileged([
-  WHISPER_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme,
-  STUDIO_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme
-])
+// Design Studio (M18, T3.2): `hive-studio:` MUST be declared privileged BEFORE
+// `app.whenReady()` — Chromium reads the scheme registry during startup, so a
+// later call has no effect.
+//
+// `hive-model:` used to be declared here too. It existed for one reason: the
+// sandboxed renderer ran the transcription model itself and could not fetch
+// its own weights, so main had to serve them over a privileged scheme. With
+// inference in a utility process (M29) the renderer never sees a weight file,
+// and the safest scheme is the one that does not exist.
+protocol.registerSchemesAsPrivileged([STUDIO_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme])
 
 // The product is called Hive. Packaged, `electron-builder.yml`'s `productName`
 // already tells Electron that; in dev the name would fall out of package.json's
@@ -1231,44 +1219,11 @@ app.whenReady().then(() => {
   // in the git-versioned vault — see secondBrainHealth.ts for why).
   const secondBrainHealth = createSecondBrainHealthStore(app.getPath('userData'))
 
-  // Whisper model bytes → the sandboxed renderer (D-SB-1, design §4.3). The
-  // renderer sets `env.localModelPath = 'hive-model://models/'`, so every model
-  // file Transformers.js asks for arrives through here — no network from the
-  // renderer, ever. Unknown hosts and escaping paths are refused by
-  // `resolveWhisperCandidates` (see its tests).
-  //
-  // One root: the download store in `userData`. The app used to also carry a
-  // read-only copy of `tiny`/`base`/`small` inside its own `resources/`, which
-  // added ~1.3 GB to every installer to pre-answer a choice most users make
-  // once. Every model is a download now, so there is exactly one place a
-  // model's bytes can be — and exactly one place to delete them from.
-  const downloadedModelsDir = join(app.getPath('userData'), WHISPER_MODELS_DIRNAME)
-  const whisperRoots = { models: [downloadedModelsDir] }
-  protocol.handle(WHISPER_SCHEME, async (request) => {
-    // First candidate that exists on disk. `statSync` is doing double duty: it
-    // is the existence check *and* the size the response has to declare.
-    let file: string | null = null
-    let size = 0
-    for (const candidate of resolveWhisperCandidates(whisperRoots, request.url)) {
-      try {
-        size = statSync(candidate).size
-        file = candidate
-        break
-      } catch {
-        continue
-      }
-    }
-    if (file === null) return new Response(null, { status: 404 })
-    // `Content-Length` is re-attached deliberately — see `whisperFileHeaders`.
-    // Without it Transformers.js reads the 208 MB decoder by growing a buffer,
-    // which is the difference between a ~20 s model load and minutes of what
-    // looks to the user like a hang.
-    const response = await net.fetch(pathToFileURL(file).toString())
-    return new Response(response.body, {
-      status: response.status,
-      headers: whisperFileHeaders(file, size)
-    })
-  })
+  // Where the ASR model's bytes live: one directory in `userData`, written by
+  // main and read by the utility process. There is no scheme and no handler
+  // any more — the renderer is not in the path at all.
+  const downloadedModelsDir = join(app.getPath('userData'), ASR_MODELS_DIRNAME)
+
   // Design Studio (M18, T3.2): the isolated Preview. Everything it loads —
   // the session shell, the DS bundle, the in-frame receiver — comes from one
   // read-only root that shipped with the app, under one host so the response
@@ -1506,116 +1461,136 @@ app.whenReady().then(() => {
     secondBrainHealth.snooze(workspace)
   )
 
-  // Whisper model store (D-SB-4): the catalog + which models are on disk, and
-  // download/delete. Downloads stream byte progress on their own channel (the
+  // The ASR model store (M29): whether the model is on disk, plus download and
+  // delete. Downloads stream byte progress on their own channel (the
   // bmad/secondBrain streamed pattern); everything else is request/response.
-  const whisperStore = createWhisperModelStore(downloadedModelsDir)
+  const asrStore = createAsrModelStore(downloadedModelsDir)
 
-  ipcMain.handle('whisper:listModels', async () => whisperStore.list())
-  ipcMain.handle('whisper:modelStatus', async (_event, id: WhisperModelId) =>
-    whisperStore.status(id)
-  )
-  ipcMain.handle('whisper:deleteModel', async (_event, id: WhisperModelId) => {
-    whisperStore.remove(id)
-  })
-  // The hardware probe (SB-R7.1/7.3) — never blocks anything; `app.getGPUInfo`
-  // is the injected probe so whisperHardware stays Electron-free.
-  const probeHardware = (): Promise<HardwareRecommendation> =>
-    recommendWhisperModel({ gpuInfo: () => app.getGPUInfo('basic') })
-
-  ipcMain.handle('whisper:recommend', async () => probeHardware())
-
-  /**
-   * The model transcription actually runs with (SB-R7.4).
-   *
-   * Resolved in main rather than in the renderer so every surface that
-   * transcribes — the ingestion sheet, live dictation, anything wired later —
-   * gets the same answer without each of them re-deriving the rule.
-   *
-   * **It answers `null` when nothing is installed**, which is the state a fresh
-   * install is now in: the app ships no weights, so until the user downloads a
-   * model there is no model, and saying so is what lets the recording surfaces
-   * offer to fix that instead of failing halfway through a take. A pinned id
-   * only wins while it is still usable; a model the user downloaded and then
-   * deleted hands the decision back to the probe.
-   */
-  const resolveWhisperPreference = async (): Promise<WhisperPreference> => {
-    const recommendation = await probeHardware()
-    const installed = whisperStore
-      .list()
-      .filter((model) => model.downloaded)
-      .map((model) => model.id)
-    const pinned = configStore.getWhisperModel()
-    if (pinned !== null && installed.includes(pinned as WhisperModelId)) {
-      return { id: pinned as WhisperModelId, auto: false, recommendation, installed }
-    }
-    return {
-      id: pickAutoModel(recommendation.recommendedId, installed),
-      auto: true,
-      recommendation,
-      installed
-    }
+  // The hardware probe — never blocks anything, which is why it is not awaited
+  // here: `app.getGPUInfo` is a real round trip, and startup must not wait on a
+  // reading that only decides a thread count. The fallback profile is honest
+  // until the real one lands (`cores: 0` is "we have not measured"), and every
+  // reader takes it per call rather than capturing it.
+  //
+  // `app.getGPUInfo` is the injected probe so `asrHardware` stays Electron-free.
+  let runtimeProfile: AsrRuntimeProfile = {
+    threads: FALLBACK_THREADS,
+    facts: { gpu: false, ramGB: 0, cores: 0 }
   }
-
-  ipcMain.handle('whisper:preference', async () => resolveWhisperPreference())
-  ipcMain.handle('whisper:setPreferredModel', async (_event, id: WhisperModelId | null) => {
-    configStore.setWhisperModel(id)
-    return resolveWhisperPreference()
+  void probeRuntime({ gpuInfo: () => app.getGPUInfo('basic') }).then((profile) => {
+    runtimeProfile = profile
   })
 
   /**
-   * Model downloads (M26): owned here, not by whichever window started them.
+   * Can the app transcribe, and what did it measure?
+   *
+   * The descendant of `whisper:preference`, which answered "which of ten
+   * models, and who chose it" — a question with no remaining sides. What is
+   * left is the half that was always load-bearing: recording surfaces need to
+   * know whether there is anything to transcribe with, so that a fresh install
+   * can *offer the download* instead of opening a microphone that can only
+   * fail.
+   */
+  const readiness = (): AsrReadiness => ({
+    installed: asrStore.installed(),
+    model: asrStore.info(),
+    runtime: runtimeProfile
+  })
+
+  ipcMain.handle('asr:readiness', async () => readiness())
+  ipcMain.handle('asr:deleteModel', async () => {
+    asrStore.remove()
+    asrEngine.evict()
+    return readiness()
+  })
+
+  /**
+   * The transcription engine — one utility process for the whole app.
+   *
+   * `paths` and `threads` are read per request rather than captured, so a model
+   * that finishes downloading mid-session makes the very next phrase work with
+   * nothing restarted.
+   */
+  const asrEngine = createAsrEngine({
+    fork: () => {
+      const child = utilityProcess.fork(join(__dirname, 'asrWorker.js'), [], {
+        // The addon is ~1 GB resident once warm; it must never inherit a
+        // window's lifetime, and it must not keep the app alive on quit.
+        serviceName: 'hive-asr',
+        stdio: 'ignore'
+      })
+      return {
+        postMessage: (message) => child.postMessage(message),
+        onMessage: (listener) => child.on('message', listener),
+        onExit: (listener) => child.on('exit', listener),
+        kill: () => {
+          child.kill()
+        }
+      }
+    },
+    specifier: () => sherpaModuleSpecifier({ appPath: app.getAppPath(), packaged: app.isPackaged }),
+    paths: () => asrStore.paths(),
+    threads: () => runtimeProfile.threads
+  })
+
+  ipcMain.handle('asr:warm', async () => {
+    await asrEngine.warm()
+  })
+  ipcMain.handle('asr:transcribe', async (_event, pcm: Float32Array) => asrEngine.transcribe(pcm))
+  ipcMain.handle('asr:evict', async () => asrEngine.evict())
+
+  // The engine's phase is a fact about the app, not about a subscription, so
+  // it is broadcast to every live window rather than answered to a sender.
+  asrEngine.subscribe((phase) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      const contents = window.webContents
+      if (!contents.isDestroyed()) contents.send('asr:phase', phase)
+    }
+  })
+
+  /**
+   * Model downloads (M26, carried into M29): owned here, not by whichever
+   * window started them.
    *
    * The snapshot is broadcast to **every** live window rather than answered to
-   * the sender, because "is `medium` still downloading?" is a fact about the
-   * app, not about a subscription. That is also what makes closing the sheet
-   * harmless: nothing is torn down, the next window to open simply reads the
-   * same list.
+   * the sender, because "is the model still downloading?" is a fact about the
+   * app. That is also what makes closing the sheet harmless: nothing is torn
+   * down, and the next window to open simply reads the same list.
    */
-  const whisperDownloads = createWhisperDownloadManager({ store: whisperStore })
+  const asrDownloads = createAsrDownloadManager({ store: asrStore })
 
-  const broadcastDownloads = (downloads: WhisperDownload[]): void => {
-    for (const contents of webContents.getAllWebContents()) {
-      if (contents.isDestroyed()) continue
-      contents.send('whisper:downloads', downloads)
+  const broadcastDownloads = (downloads: AsrDownload[]): void => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      const contents = window.webContents
+      if (!contents.isDestroyed()) contents.send('asr:downloads', downloads)
     }
   }
-  whisperDownloads.subscribe(broadcastDownloads)
+  asrDownloads.subscribe(broadcastDownloads)
 
-  /**
-   * The ending, announced by the operating system when Hive is not on screen.
-   *
-   * A model download is the app's only job that can outlive the user's
-   * attention by twenty minutes, so it is the only one that has earned a
-   * system notification — and only when the window is not focused, since an
-   * in-app toast already covers the case where the user is looking at us.
-   */
-  whisperDownloads.onSettled((download) => {
-    // The ending is pushed on its own channel as well as through the snapshot:
-    // a completed download *leaves* the list, so a renderer diffing snapshots
-    // could not tell "finished" from "cancelled" from "the window just opened".
-    for (const contents of webContents.getAllWebContents()) {
-      if (!contents.isDestroyed()) contents.send('whisper:download:settled', download)
+  asrDownloads.onSettled((download) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      const contents = window.webContents
+      if (!contents.isDestroyed()) contents.send('asr:download:settled', download)
     }
-    if (download.status === 'cancelled') return
+    // Only when the app is not the thing being looked at: a toast about
+    // something the user is already watching finish is noise.
     const focused = BrowserWindow.getAllWindows().some((win) => win.isFocused())
     if (focused || !Notification.isSupported()) return
-    new Notification(whisperDownloadNotification(download)).show()
+    new Notification(asrDownloadNotification(download)).show()
   })
 
-  ipcMain.handle('whisper:downloads', async () => whisperDownloads.list())
-  ipcMain.handle(
-    'whisper:download:start',
-    async (_event, id: WhisperModelId, variant: WhisperVariant) =>
-      whisperDownloads.start(id, variant)
-  )
-  ipcMain.handle('whisper:download:cancel', async (_event, id: WhisperModelId) => {
-    whisperDownloads.cancel(id)
+  ipcMain.handle('asr:downloads', async () => asrDownloads.list())
+  ipcMain.handle('asr:download:start', async () => asrDownloads.start(asrStore.info().id))
+  ipcMain.handle('asr:download:cancel', async (_event, id: AsrModelId) => {
+    asrDownloads.cancel(id)
   })
-  ipcMain.handle('whisper:download:dismiss', async (_event, id: WhisperModelId) => {
-    whisperDownloads.dismiss(id)
+  ipcMain.handle('asr:download:dismiss', async (_event, id: AsrModelId) => {
+    asrDownloads.dismiss(id)
   })
-  app.on('before-quit', () => whisperDownloads.stopAll())
+  app.on('before-quit', () => {
+    asrDownloads.stopAll()
+    asrEngine.dispose()
+  })
 
   // ChatHistoryStore (session-history): request/response, same
   // synchronous-delegate-wrapped-in-async-handle shape as the workspace

@@ -10,8 +10,9 @@ import {
   ipcMain,
   shell,
   protocol,
-  net,
-  session
+  session,
+  utilityProcess,
+  webContents
 } from 'electron'
 import { ConflictError } from './fsService'
 import { createConfigStore } from './configStore'
@@ -35,6 +36,15 @@ const { windowGeometry } = vi.hoisted(() => ({
     isMaximized: true
   }
 }))
+
+/** The ASR utility process the electron mock hands back, and its two channels. */
+const asrChild = vi.hoisted(
+  (): {
+    current: { postMessage: ReturnType<typeof vi.fn>; kill: ReturnType<typeof vi.fn> } | null
+    onMessage: ((message: unknown) => void) | null
+    onExit: (() => void) | null
+  } => ({ current: null, onMessage: null, onExit: null })
+)
 
 vi.mock('electron', () => {
   const BrowserWindowMock = vi.fn().mockImplementation(() => ({
@@ -71,6 +81,9 @@ vi.mock('electron', () => {
       on: vi.fn(),
       quit: vi.fn(),
       getPath: vi.fn(() => userDataDir),
+      // M29: the ASR worker's `require` specifier is derived from this — see
+      // `asrAddon.ts` for why an asar makes that a real decision.
+      getAppPath: vi.fn(() => '/repo/hive-desktop'),
       setName: vi.fn(),
       getName: vi.fn(() => 'Hive'),
       getVersion: vi.fn(() => '0.1.0'),
@@ -91,15 +104,32 @@ vi.mock('electron', () => {
     // file-clipboard: main's own clipboard, which is what every in-app copy
     // now goes through — `navigator.clipboard` is refused in the renderer.
     clipboard: { writeText: vi.fn() },
-    // Second Brain / Whisper: the `hive-model:` scheme registration (pre-ready)
-    // + its request handler (in whenReady).
+    // The Design Studio Preview's scheme registration (pre-ready) + its
+    // request handler (in whenReady).
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
+    // M29: the ASR engine is a utility process. The fake records the child so a
+    // test can drive both directions of the channel — a blocking native call is
+    // exactly what must not run on any thread the UI shares.
+    utilityProcess: {
+      fork: vi.fn(() => {
+        const child = {
+          postMessage: vi.fn(),
+          on: vi.fn((event: string, listener: unknown) => {
+            if (event === 'message') asrChild.onMessage = listener as (m: unknown) => void
+            else asrChild.onExit = listener as () => void
+          }),
+          kill: vi.fn()
+        }
+        asrChild.current = child
+        return child
+      })
+    },
     // Second Brain recorder: the microphone permission handler.
     session: { defaultSession: { setPermissionRequestHandler: vi.fn() } },
     screen: { getDisplayMatching: vi.fn(() => ({ workArea: windowGeometry.workArea })) },
     net: { fetch: vi.fn(() => Promise.resolve(new Response('bytes'))) },
-    // Whisper downloads (M26): the snapshot is broadcast to every live window,
-    // so main reaches for `webContents` rather than answering one sender.
+    // Downloads (M26) and the engine phase (M29): both are facts about the app
+    // rather than answers to a sender, so main reaches for `webContents`.
     webContents: { getAllWebContents: vi.fn(() => []) },
     // The OS notification raised when a long download ends off-screen.
     Notification: Object.assign(
@@ -2084,23 +2114,15 @@ describe('main process bootstrap', () => {
       expect(() => findOnHandler('secondBrain:install:stop')(event)).not.toThrow()
     })
 
-    it('registers the hive-model: scheme as privileged, CORS-enabled and non-CSP-bypassing', () => {
+    it('registers hive-studio: as the app’s only privileged scheme', () => {
       // Chromium reads the scheme registry once during startup, so every
       // privileged scheme the app owns must arrive in this single call —
-      // asserted as the exact array, not a subset, because a scheme that
-      // silently stopped being registered still "contains" the other one.
+      // asserted as the exact array, not a subset, because that is what makes
+      // the *absence* of `hive-model:` assertable. It existed only because a
+      // sandboxed renderer ran the model and could not fetch its own weights;
+      // inference moved to a utility process (M29), and the safest scheme is
+      // the one that does not exist.
       expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
-        expect.objectContaining({
-          scheme: 'hive-model',
-          privileges: expect.objectContaining({
-            standard: true,
-            secure: true,
-            supportFetchAPI: true,
-            corsEnabled: true,
-            bypassCSP: false
-          })
-        }),
-        // design-studio T3.2 — the Preview's scheme, registered in the same call.
         expect.objectContaining({
           scheme: 'hive-studio',
           privileges: expect.objectContaining({
@@ -2114,47 +2136,10 @@ describe('main process bootstrap', () => {
       ])
     })
 
-    it('serves a model file from the userData store, and refuses an unknown host', async () => {
-      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
-      expect(call).toBeTruthy()
-      const handler = call![1] as (req: { url: string }) => Promise<Response> | Response
-
-      // A real file, because the handler now measures what it is about to
-      // serve (see below) and cannot answer for a path it can't stat.
-      const modelDir = join(userDataDir, 'whisper-models', 'Xenova', 'whisper-base')
-      mkdirSync(modelDir, { recursive: true })
-      writeFileSync(join(modelDir, 'config.json'), '{"model_type":"whisper"}')
-
-      await handler({ url: 'hive-model://models/Xenova/whisper-base/config.json' })
-      expect(net.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('whisper-models/Xenova/whisper-base/config.json')
-      )
-
-      vi.mocked(net.fetch).mockClear()
-      const denied = await handler({ url: 'hive-model://secrets/id_rsa' })
-      expect((denied as Response).status).toBe(404)
-      expect(net.fetch).not.toHaveBeenCalled()
-    })
-
-    /**
-     * The regression behind "a transcrição não funciona": `net.fetch(file://…)`
-     * answers without a `Content-Length`, and Transformers.js responds to a missing
-     * one by reading the body into a buffer it keeps reallocating. On the
-     * 208 MB fp32 decoder that turned a ~20 s model load into minutes of what
-     * looked like a hang. The handler now re-attaches the real size.
-     */
-    it('attaches the real Content-Length to a served model file', async () => {
-      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
-      const handler = call![1] as (req: { url: string }) => Promise<Response>
-
-      const modelDir = join(userDataDir, 'whisper-models', 'base', 'onnx')
-      mkdirSync(modelDir, { recursive: true })
-      const bytes = 'x'.repeat(4096)
-      writeFileSync(join(modelDir, 'encoder_model.onnx'), bytes)
-
-      const response = await handler({ url: 'hive-model://models/base/onnx/encoder_model.onnx' })
-      expect(response.headers.get('content-length')).toBe(String(bytes.length))
-      expect(response.headers.get('content-type')).toBe('application/octet-stream')
+    it('serves no model files at all — the renderer never sees a weight', () => {
+      expect(
+        vi.mocked(protocol.handle).mock.calls.some(([scheme]) => scheme === 'hive-model')
+      ).toBe(false)
     })
 
     /**
@@ -2535,16 +2520,6 @@ describe('main process bootstrap', () => {
       expect((await handler({ url: 'hive-studio://userdata/sessions.json' })).status).toBe(404)
     })
 
-    it('404s a resolvable path that is not on disk, instead of a fetch that fails later', async () => {
-      const call = vi.mocked(protocol.handle).mock.calls.find(([scheme]) => scheme === 'hive-model')
-      const handler = call![1] as (req: { url: string }) => Promise<Response>
-
-      vi.mocked(net.fetch).mockClear()
-      const missing = await handler({ url: 'hive-model://models/base/nope.json' })
-      expect(missing.status).toBe(404)
-      expect(net.fetch).not.toHaveBeenCalled()
-    })
-
     it('grants the microphone and clipboard *writes*, denying everything else (SB-R5.1)', () => {
       const handler = vi.mocked(session.defaultSession.setPermissionRequestHandler).mock
         .calls[0]?.[0] as (
@@ -2584,115 +2559,190 @@ describe('main process bootstrap', () => {
       })
     })
 
-    it('registers the whisper:* model-store handlers and the streamed download channels', () => {
+    it('registers the asr:* handlers, engine and downloads alike', () => {
+      // The engine crosses IPC now (M29): audio in, text out. `asr:transcribe`
+      // being here is the whole architectural change in one channel name.
       for (const ch of [
-        'whisper:listModels',
-        'whisper:modelStatus',
-        'whisper:deleteModel',
-        'whisper:recommend'
+        'asr:readiness',
+        'asr:deleteModel',
+        'asr:warm',
+        'asr:transcribe',
+        'asr:evict'
       ]) {
         expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
       }
-      // M26: downloads are request/response now, not a sender-scoped stream —
-      // that shape is exactly what let closing a sheet kill a 2.8 GB transfer.
+      // M26: downloads are request/response, not a sender-scoped stream — that
+      // shape is exactly what let closing a sheet kill a multi-gigabyte transfer.
       for (const ch of [
-        'whisper:downloads',
-        'whisper:download:start',
-        'whisper:download:cancel',
-        'whisper:download:dismiss'
+        'asr:downloads',
+        'asr:download:start',
+        'asr:download:cancel',
+        'asr:download:dismiss'
       ]) {
         expect(ipcMain.handle).toHaveBeenCalledWith(ch, expect.any(Function))
       }
-      expect(ipcMain.on).not.toHaveBeenCalledWith('whisper:download:stop', expect.any(Function))
+      expect(ipcMain.on).not.toHaveBeenCalledWith('asr:download:stop', expect.any(Function))
     })
 
-    it('listModels returns the catalog, with nothing downloaded on a fresh profile', async () => {
-      const models = (await findHandler('whisper:listModels')({})) as Array<{
-        id: string
-        downloaded: boolean
-        repo: string
-      }>
-      expect(models.length).toBeGreaterThan(0)
-      expect(models.map((m) => m.id)).toContain('base')
-
-      // The app ships no weights any more (M26), and `userData` is a fresh temp
-      // dir — so every row must read as absent. Anything else would mean the
-      // store is claiming a model whose bytes are nowhere on this machine.
-      expect(models.every((model) => !model.downloaded)).toBe(true)
-
-      expect(await findHandler('whisper:modelStatus')({}, 'base')).toEqual({
-        downloaded: false,
-        variant: null
-      })
-    })
-
-    /**
-     * SB-R7.4 — the probe stopped being advisory. This is the handler every
-     * transcribing surface reads, so what matters is that it resolves to a
-     * model that is actually usable rather than merely recommended.
-     */
-    it('preference resolves a model, and setPreferredModel pins/unpins it', async () => {
-      const first = (await findHandler('whisper:preference')({})) as {
-        id: string | null
-        auto: boolean
-        installed: string[]
-        recommendation: { recommendedId: string }
+    it('reports the model as absent on a fresh profile, with the facts to fix it', async () => {
+      const readiness = (await findHandler('asr:readiness')({})) as {
+        installed: boolean
+        model: { id: string; sizeMB: number }
+        runtime: { threads: number; facts: { cores: number } }
       }
-      expect(first.auto).toBe(true)
-      // Nothing is installed on a fresh profile, so the honest answer is `null`
-      // — the state every recording surface now has to offer to fix, instead of
-      // naming a model whose weights were never fetched.
-      expect(first.id).toBeNull()
-      expect(first.installed).toEqual([])
-      expect(['tiny', 'base', 'small']).toContain(first.recommendation.recommendedId)
-
-      // A model that is not on disk cannot be pinned — the pin is ignored and
-      // the probe keeps the decision, rather than transcription pointing at
-      // weights that were never fetched.
-      const pinnedMissing = (await findHandler('whisper:setPreferredModel')({}, 'large-v3')) as {
-        id: string | null
-        auto: boolean
-      }
-      expect(pinnedMissing.auto).toBe(true)
-      expect(pinnedMissing.id).not.toBe('large-v3')
-
-      const cleared = (await findHandler('whisper:setPreferredModel')({}, null)) as {
-        auto: boolean
-      }
-      expect(cleared.auto).toBe(true)
-    })
-
-    it('recommend returns an advisory model and never throws, even with no GPU probe', async () => {
-      const recommendation = (await findHandler('whisper:recommend')({})) as {
-        recommendedId: string
-        reason: string
-        gpu: boolean
-        ramGB: number
-      }
-      expect(recommendation.recommendedId).toBeTruthy()
-      expect(typeof recommendation.gpu).toBe('boolean')
-      expect(recommendation.ramGB).toBeGreaterThanOrEqual(0)
+      // The app ships no weights, and `userData` is a fresh temp dir — so the
+      // honest answer is "not installed". Anything else would mean claiming a
+      // model whose bytes are nowhere on this machine.
+      expect(readiness.installed).toBe(false)
+      expect(readiness.model.id).toBe('parakeet-tdt-0.6b-v3-int8')
+      expect(readiness.model.sizeMB).toBeGreaterThan(0)
+      // The probe's answer, which now decides a thread count rather than a model.
+      expect(readiness.runtime.threads).toBeGreaterThanOrEqual(1)
     })
 
     it('deleteModel is a safe no-op for a model that was never downloaded', async () => {
-      await expect(findHandler('whisper:deleteModel')({}, 'base')).resolves.toBeUndefined()
+      const after = (await findHandler('asr:deleteModel')({})) as { installed: boolean }
+      // It answers with the readiness that resulted rather than `undefined` —
+      // the caller must not have to guess what the delete left behind.
+      expect(after.installed).toBe(false)
+    })
+
+    /**
+     * Puts the model's bytes where the store looks for them.
+     *
+     * The engine refuses to fork without them — `paths()` answers `null` and
+     * the call rejects as `model`, which is the state a fresh install is in and
+     * the one the gate turns into an offer. Every test below is about what
+     * happens *after* that.
+     */
+    function installModel(): void {
+      const dir = join(userDataDir, 'asr-models', 'parakeet-tdt-0.6b-v3-int8')
+      mkdirSync(dir, { recursive: true })
+      for (const file of [
+        'encoder.int8.onnx',
+        'decoder.int8.onnx',
+        'joiner.int8.onnx',
+        'tokens.txt'
+      ]) {
+        writeFileSync(join(dir, file), 'x')
+      }
+      writeFileSync(join(dir, '.complete.json'), '{}')
+    }
+
+    it('refuses to fork at all while the model is missing', async () => {
+      await expect(findHandler('asr:transcribe')({}, new Float32Array(16_000))).rejects.toThrow(
+        /no model installed/
+      )
+      expect(asrChild.current).toBeNull()
+    })
+
+    /**
+     * The engine is a **process**, and these are the two halves of why.
+     *
+     * `sherpa-onnx-node`'s API is synchronous — `decode()` blocks its thread for
+     * the length of the phrase — so running it in main would freeze the window
+     * and running it in the renderer would freeze the UI, which is the failure
+     * the old worker existed to avoid. And a native addon that dies takes every
+     * in-flight phrase with it, so the recovery has to be a new process.
+     */
+    it('forks the engine lazily, and only once for the whole app', async () => {
+      installModel()
+      void findHandler('asr:warm')({}).catch(() => {})
+      await new Promise((r) => setTimeout(r, 0))
+      const first = asrChild.current
+      expect(first).not.toBeNull()
+
+      const forks = vi.mocked(utilityProcess.fork).mock.calls.length
+      void findHandler('asr:transcribe')({}, new Float32Array(16_000)).catch(() => {})
+      await new Promise((r) => setTimeout(r, 0))
+      // A user who never dictates never pays for the process; one who dictates
+      // twice does not pay twice for a 1.8 s session build.
+      expect(vi.mocked(utilityProcess.fork).mock.calls.length).toBe(forks)
+      expect(asrChild.current).toBe(first)
+    })
+
+    it('tells the worker which addon specifier to require, before anything else', async () => {
+      installModel()
+      void findHandler('asr:warm')({}).catch(() => {})
+      await new Promise((r) => setTimeout(r, 0))
+      expect(asrChild.current?.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'configure' })
+      )
+    })
+
+    it('carries a transcript back out to the caller', async () => {
+      installModel()
+      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000))
+      await new Promise((r) => setTimeout(r, 0))
+      // The LAST transcribe, not the first: the fake child is shared across
+      // this describe block, so earlier tests left their own messages on it.
+      const sent = asrChild.current?.postMessage.mock.calls
+        .map(([m]) => m as { type: string; id: number })
+        .filter((m) => m.type === 'transcribe')
+        .at(-1)
+      asrChild.onMessage?.({ type: 'done', id: sent?.id, text: 'olá mundo' })
+      await expect(pending).resolves.toBe('olá mundo')
+    })
+
+    it('fails everything in flight when the engine process dies', async () => {
+      installModel()
+      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000))
+      await new Promise((r) => setTimeout(r, 0))
+      asrChild.onExit?.()
+      await expect(pending).rejects.toThrow(/stopped/)
+    })
+
+    it('broadcasts the engine phase to every window, not to one sender', async () => {
+      installModel()
+      const send = vi.fn()
+      const windows = vi
+        .spyOn(BrowserWindow, 'getAllWindows')
+        .mockReturnValue([
+          { webContents: { isDestroyed: () => false, send }, isFocused: () => true }
+        ] as unknown as ReturnType<typeof BrowserWindow.getAllWindows>)
+      try {
+        void findHandler('asr:warm')({}).catch(() => {})
+        await new Promise((r) => setTimeout(r, 0))
+        asrChild.onMessage?.({ type: 'phase', phase: { status: 'loading' } })
+        // "Is the engine warm?" is a fact about the app, so every window hears it.
+        expect(send).toHaveBeenCalledWith('asr:phase', { status: 'loading' })
+      } finally {
+        // Restored by hand: the download manager's own broadcast reaches for
+        // the same function from a later test's timer, and a stub left in place
+        // fails it from outside any test body.
+        windows.mockRestore()
+      }
+    })
+
+    it('evict is a no-throw request to drop the ~1 GB of weights', async () => {
+      installModel()
+      void findHandler('asr:warm')({}).catch(() => {})
+      await new Promise((r) => setTimeout(r, 0))
+      await expect(findHandler('asr:evict')({})).resolves.toBeUndefined()
+      expect(asrChild.current?.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'evict' })
+      )
     })
 
     it('download:start registers a job that outlives the caller, and cancel clears it', async () => {
-      const started = (await findHandler('whisper:download:start')({}, 'base', 'fp32')) as {
+      const started = (await findHandler('asr:download:start')({})) as {
         id: string
         status: string
       }
-      expect(started).toMatchObject({ id: 'base', status: 'downloading' })
+      expect(started).toMatchObject({ id: 'parakeet-tdt-0.6b-v3-int8', status: 'downloading' })
       // The list is a fact about the app, readable by any window — including
       // one that opens after the download started.
-      expect(await findHandler('whisper:downloads')({})).toMatchObject([{ id: 'base' }])
+      expect(await findHandler('asr:downloads')({})).toMatchObject([
+        { id: 'parakeet-tdt-0.6b-v3-int8' }
+      ])
 
-      await findHandler('whisper:download:cancel')({}, 'base')
+      await findHandler('asr:download:cancel')({}, 'parakeet-tdt-0.6b-v3-int8')
       // The real transfer reaches the network and unwinds asynchronously; what
       // matters here is that cancelling is a call that returns, not a teardown
       // hidden in some renderer's unmount.
-      await expect(findHandler('whisper:download:dismiss')({}, 'base')).resolves.toBeUndefined()
+      await expect(
+        findHandler('asr:download:dismiss')({}, 'parakeet-tdt-0.6b-v3-int8')
+      ).resolves.toBeUndefined()
     })
 
     it('update:start streams via the update channel', async () => {

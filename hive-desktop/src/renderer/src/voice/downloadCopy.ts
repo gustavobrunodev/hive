@@ -1,8 +1,8 @@
 import { t } from '../i18n'
 
 /** The bridge's own shapes (the renderer never imports `src/main/*`). */
-export type WhisperDownload = Awaited<ReturnType<Window['hive']['whisper']['downloads']>>[number]
-export type WhisperDownloadFailure = NonNullable<WhisperDownload['failure']>
+export type AsrDownload = Awaited<ReturnType<Window['hive']['asr']['downloads']>>[number]
+export type AsrDownloadFailure = NonNullable<AsrDownload['failure']>
 
 const MB = 1024 * 1024
 const GB = 1024 * MB
@@ -39,7 +39,7 @@ export function formatRate(bytesPerSecond: number): string | null {
  * invites the reader to watch it, and it is wrong anyway: the number is derived
  * from a rate that moves. Under a minute it says so and stops counting.
  */
-export function formatEta(download: WhisperDownload): string | null {
+export function formatEta(download: AsrDownload): string | null {
   const { total, loaded, bytesPerSecond } = download
   if (total <= 0 || bytesPerSecond <= 0 || loaded >= total) return null
   const seconds = (total - loaded) / bytesPerSecond
@@ -50,7 +50,7 @@ export function formatEta(download: WhisperDownload): string | null {
 }
 
 /** 0–100, and `null` while the file index has not landed yet. */
-export function downloadPercent(download: WhisperDownload): number | null {
+export function downloadPercent(download: AsrDownload): number | null {
   if (download.total <= 0) return null
   return Math.min(100, Math.round((download.loaded / download.total) * 100))
 }
@@ -63,7 +63,7 @@ export function downloadPercent(download: WhisperDownload): number | null {
  * never published. The kind is carried across IPC precisely so this function
  * can exist.
  */
-export function failureCopy(failure: WhisperDownloadFailure | null): string {
+export function failureCopy(failure: AsrDownloadFailure | null): string {
   switch (failure?.kind) {
     case 'offline':
       return t('voice.failOffline')
@@ -87,6 +87,6 @@ export function failureCopy(failure: WhisperDownloadFailure | null): string {
  * offering a retry that is guaranteed to fail is worse than saying nothing:
  * it spends the reader's attention on the one action that cannot help.
  */
-export function isRetryable(failure: WhisperDownloadFailure | null): boolean {
+export function isRetryable(failure: AsrDownloadFailure | null): boolean {
   return failure?.kind !== 'notFound' && failure?.kind !== 'unsupported'
 }

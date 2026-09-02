@@ -1,5 +1,5 @@
 import { t } from '../i18n'
-import { enginePhaseView, engineErrorCopy } from '../secondBrain/whisper/enginePhase'
+import { engineErrorCopy } from '../asr/enginePhase'
 import { DEFAULT_SEGMENTER_CONFIG } from './segmenter'
 import type { DictationPhase } from './phase'
 
@@ -154,12 +154,12 @@ export function dictationView(
   }
 
   if (phase.status === 'preparing') {
-    const engine = enginePhaseView(phase.engine)
     return {
       kind: 'preparing',
-      // Reuses M12's engine phase reporting rather than inventing a second
-      // vocabulary for the same download (VP-R3.2).
-      status: `${t('dictation.preparing')}${engine?.pct !== null && engine?.pct !== undefined ? ` ${engine.pct}%` : ''}${queueSuffix(phase.pending)}`,
+      // No percentage. Building the ONNX session emits no progress at all, so
+      // the phase this reads carries none — a fake bar climbing to 100 and
+      // stopping is what broke trust before (VP-R3.2).
+      status: `${t('dictation.preparing')}${queueSuffix(phase.pending)}`,
       // The explicit promise: the user cannot see the buffer, so it is said.
       hint: t('dictation.preparingKeep'),
       pending: phase.pending,

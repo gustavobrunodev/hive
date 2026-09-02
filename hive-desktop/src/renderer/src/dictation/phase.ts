@@ -1,4 +1,4 @@
-import type { WhisperPhase } from '../secondBrain/whisper/useWhisper'
+import type { AsrPhase } from '../asr/asrClient'
 
 /**
  * The dictation state machine's vocabulary, in a types-only module.
@@ -31,7 +31,7 @@ export type DictationPhase =
       seconds: number
       silentMs: number
       pending: number
-      engine: WhisperPhase
+      engine: AsrPhase
     }
   /** Capture stopped, the queue is draining (VP-R1.4). */
   | { status: 'finalizing'; pending: number }

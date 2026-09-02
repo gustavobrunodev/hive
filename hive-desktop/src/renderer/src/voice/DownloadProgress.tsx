@@ -7,7 +7,7 @@ import {
   formatEta,
   formatRate,
   isRetryable,
-  type WhisperDownload
+  type AsrDownload
 } from './downloadCopy'
 
 /**
@@ -27,7 +27,7 @@ export function DownloadProgress({
   download,
   onCancel
 }: {
-  download: WhisperDownload
+  download: AsrDownload
   onCancel: () => void
 }): React.JSX.Element {
   const pct = downloadPercent(download)
@@ -50,7 +50,7 @@ export function DownloadProgress({
         aria-valuenow={pct ?? undefined}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={t('voice.downloadingAria', download.id, pct ?? 0)}
+        aria-label={t('voice.downloadingAria', pct ?? 0)}
         data-indeterminate={pct === null || undefined}
       >
         <span className="wb-vdl-fill" style={pct === null ? undefined : { width: `${pct}%` }} />
@@ -64,7 +64,7 @@ export function DownloadProgress({
           type="button"
           className="wb-vlink wb-vlink-quiet"
           onClick={onCancel}
-          aria-label={t('voice.downloadCancelAria', download.id)}
+          aria-label={t('voice.downloadCancelAria')}
         >
           {t('voice.downloadCancel')}
         </button>
@@ -90,7 +90,7 @@ export function DownloadFailure({
   onRetry,
   onDismiss
 }: {
-  download: WhisperDownload
+  download: AsrDownload
   onRetry: () => void
   onDismiss: () => void
 }): React.JSX.Element {
@@ -114,7 +114,7 @@ export function DownloadFailure({
         <button
           type="button"
           className="wb-vicon-btn"
-          aria-label={t('voice.dismissFailureAria', download.id)}
+          aria-label={t('voice.dismissFailureAria')}
           onClick={onDismiss}
         >
           <CloseIcon size={13} />

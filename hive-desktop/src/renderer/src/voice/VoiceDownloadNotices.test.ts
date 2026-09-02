@@ -3,32 +3,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { VoiceDownloadNotices } from './VoiceDownloadNotices'
-import { whisperDownloadFixture } from '../testSupport/hiveWhisperMock'
+import { asrDownloadFixture } from '../testSupport/hiveAsrMock'
 
 describe('VoiceDownloadNotices', () => {
   let settledListeners: Array<(download: unknown) => void>
 
   function renderNotices(): {
-    onUseModel: ReturnType<typeof vi.fn>
     onRetry: ReturnType<typeof vi.fn>
     onOpenSettings: ReturnType<typeof vi.fn>
   } {
-    const props = { onUseModel: vi.fn(), onRetry: vi.fn(), onOpenSettings: vi.fn() }
+    const props = { onRetry: vi.fn(), onOpenSettings: vi.fn() }
     render(createElement(VoiceDownloadNotices, props))
     return props
   }
 
   /** Pushes one ending from "main" through the settled channel. */
   function settle(over: Record<string, unknown>): void {
-    act(() => settledListeners[0](whisperDownloadFixture(over)))
+    act(() => settledListeners[0](asrDownloadFixture(over)))
   }
 
   beforeEach(() => {
     settledListeners = []
     window.hive = {
       ...window.hive,
-      whisper: {
-        ...window.hive?.whisper,
+      asr: {
+        ...window.hive?.asr,
         onDownloadSettled: vi.fn((listener: (download: unknown) => void) => {
           settledListeners.push(listener)
           return () => {}
@@ -48,13 +47,15 @@ describe('VoiceDownloadNotices', () => {
     expect(document.body.textContent).toBe('')
   })
 
-  it('announces a completion and offers the model it just fetched', () => {
-    const { onUseModel } = renderNotices()
-    settle({ id: 'medium', status: 'done' })
+  it('announces a completion, and asks nothing of the reader', () => {
+    renderNotices()
+    settle({ status: 'done' })
 
-    expect(screen.getByRole('status').textContent).toContain('medium está pronto')
-    fireEvent.click(screen.getByRole('button', { name: 'Usar medium' }))
-    expect(onUseModel).toHaveBeenCalledWith('medium')
+    expect(screen.getByRole('status').textContent).toContain('O modelo de voz está pronto')
+    // The success card used to offer "Usar <modelo>", which pinned the finished
+    // download as the one to transcribe with. With one model the news *is* the
+    // whole message, so there is no action to press.
+    expect(screen.queryAllByRole('button', { name: /^Usar/ })).toHaveLength(0)
   })
 
   /**
@@ -66,11 +67,14 @@ describe('VoiceDownloadNotices', () => {
     vi.useFakeTimers()
     renderNotices()
 
-    settle({ id: 'medium', status: 'done' })
+    settle({ status: 'done' })
     act(() => void vi.advanceTimersByTime(10_000))
     expect(document.body.textContent).toBe('')
 
-    settle({ id: 'medium', status: 'error', failure: { kind: 'offline', detail: 'x' } })
+    settle({
+      status: 'error',
+      failure: { kind: 'offline', detail: 'x' }
+    })
     act(() => void vi.advanceTimersByTime(60_000))
     expect(screen.getByRole('alert')).toBeTruthy()
   })
@@ -78,7 +82,6 @@ describe('VoiceDownloadNotices', () => {
   it('names the cause of a failure, and resumes from what already arrived', () => {
     const { onRetry } = renderNotices()
     settle({
-      id: 'medium',
       status: 'error',
       loaded: 512 * 1024 * 1024,
       failure: { kind: 'disk', detail: 'ENOSPC' }
@@ -86,7 +89,7 @@ describe('VoiceDownloadNotices', () => {
 
     expect(screen.getByRole('alert').textContent).toContain('espaço em disco')
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
-    expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ id: 'medium' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
   it('offers no retry for a failure that will answer the same way next time', () => {
@@ -103,10 +106,13 @@ describe('VoiceDownloadNotices', () => {
     expect(document.body.textContent).toBe('')
   })
 
-  it('replaces the previous notice for the same model rather than stacking', () => {
+  it('replaces the previous notice rather than stacking', () => {
     renderNotices()
-    settle({ id: 'medium', status: 'error', failure: { kind: 'offline', detail: 'x' } })
-    settle({ id: 'medium', status: 'done' })
+    settle({
+      status: 'error',
+      failure: { kind: 'offline', detail: 'x' }
+    })
+    settle({ status: 'done' })
     expect(screen.queryAllByRole('alert')).toHaveLength(0)
     expect(screen.getAllByRole('status')).toHaveLength(1)
   })

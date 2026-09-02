@@ -1,4 +1,4 @@
-import type { WhisperDownload } from './whisperTypes'
+import type { AsrDownload } from './asr/asrTypes'
 
 /**
  * The only user-facing copy in `src/main` — and a deliberate exception, kept
@@ -14,18 +14,22 @@ import type { WhisperDownload } from './whisperTypes'
  * So the strings live here, next to nothing else, rather than being scattered
  * through `index.ts` where the next one would join them unnoticed.
  */
-export function whisperDownloadNotification(download: WhisperDownload): {
+export function asrDownloadNotification(download: AsrDownload): {
   title: string
   body: string
 } {
+  // The model id no longer appears in the copy. It used to name which of ten
+  // models had finished, which was the useful half of the sentence; with one
+  // model it would only be `parakeet-tdt-0.6b-v3-int8` shown to someone who
+  // never chose it.
   if (download.status === 'done') {
     return {
       title: 'Modelo de voz pronto',
-      body: `${download.id} terminou de baixar e já pode transcrever.`
+      body: 'O download terminou. Já dá para ditar.'
     }
   }
   return {
     title: 'O download do modelo parou',
-    body: `${download.id} não terminou de baixar. Abra Voz e transcrição para continuar de onde parou.`
+    body: 'Abra Voz e transcrição para continuar de onde parou.'
   }
 }

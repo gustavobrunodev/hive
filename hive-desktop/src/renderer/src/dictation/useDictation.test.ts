@@ -11,8 +11,7 @@ import {
 import { DEFAULT_LIVE_PASS_CONFIG } from './livePass'
 import { createSegmenter, DEFAULT_SEGMENTER_CONFIG, type Tick } from './segmenter'
 import { CaptureFailure, type Capture } from './micCapture'
-import { WhisperMemoryError } from '../secondBrain/whisper/whisperClient'
-import type { WhisperPhase } from '../secondBrain/whisper/useWhisper'
+import type { AsrPhase } from '../asr/useAsr'
 
 /**
  * The hook, with a fake capture and a fake engine — no WebAudio, no model, no
@@ -88,7 +87,7 @@ function fakeCapture(): FakeCapture {
   return state
 }
 
-function fakeEngine(text = '', phase: WhisperPhase = { status: 'idle' }): DictationEngine {
+function fakeEngine(text = '', phase: AsrPhase = { status: 'idle' }): DictationEngine {
   return { phase, transcribe: async () => text, warm: async () => {} }
 }
 
@@ -162,11 +161,7 @@ describe('useDictation', () => {
     const capture = fakeCapture()
     const target = fakeTarget('revisa o ')
     const { result } = renderHook(() =>
-      useDictation(
-        target,
-        fakeEngine('', { status: 'downloading', pct: 3, file: 'x' }),
-        fakeDeps(capture)
-      )
+      useDictation(target, fakeEngine('', { status: 'loading' }), fakeDeps(capture))
     )
 
     expect(result.current.phase.status).toBe('idle')
@@ -184,7 +179,7 @@ describe('useDictation', () => {
 
   it('turns the engine’s own progress into the preparing phase (VP-R3.2)', async () => {
     const capture = fakeCapture()
-    const engine = fakeEngine('', { status: 'downloading', pct: 41, file: 'encoder.onnx' })
+    const engine = fakeEngine('', { status: 'loading' })
     const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
     await startTake(result, capture)
 
@@ -193,7 +188,7 @@ describe('useDictation', () => {
     })
     expect(result.current.phase).toMatchObject({
       status: 'preparing',
-      engine: { status: 'downloading', pct: 41 }
+      engine: { status: 'loading' }
     })
   })
 
@@ -202,7 +197,7 @@ describe('useDictation', () => {
   // warm-up always arrives after that.
   it('picks up an engine phase that changes after capture opened', async () => {
     const capture = fakeCapture()
-    let phase: WhisperPhase = { status: 'idle' }
+    let phase: AsrPhase = { status: 'idle' }
     const { result, rerender } = renderHook(() =>
       useDictation(
         fakeTarget(),
@@ -213,14 +208,14 @@ describe('useDictation', () => {
     await startTake(result, capture)
     expect(result.current.phase.status).toBe('listening')
 
-    phase = { status: 'warming' }
+    phase = { status: 'loading' }
     rerender()
     act(() => {
       vi.advanceTimersByTime(250)
     })
     expect(result.current.phase).toMatchObject({
       status: 'preparing',
-      engine: { status: 'warming' }
+      engine: { status: 'loading' }
     })
   })
 
@@ -547,7 +542,7 @@ describe('useDictation', () => {
     const target = fakeTarget()
     const settlers: ((text: string) => void)[] = []
     const engine: DictationEngine = {
-      phase: { status: 'warming' },
+      phase: { status: 'loading' },
       transcribe: () => new Promise<string>((resolve) => settlers.push(resolve)),
       warm: async () => {}
     }
@@ -908,38 +903,6 @@ describe('useDictation', () => {
       })
       expect(settlers).toHaveLength(inFlight)
     })
-  })
-
-  /**
-   * The failure a real take actually hits, and the only one where "tente de
-   * novo" is bad advice: onnxruntime's WebAssembly memory grows and is never
-   * given back, so the next attempt meets the same ceiling. What changes the
-   * outcome is a smaller model, and that is what the user has to be told —
-   * "failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc" is
-   * not a sentence anyone can act on.
-   */
-  it('turns an out-of-memory failure into advice the user can act on', async () => {
-    const capture = fakeCapture()
-    const engine: DictationEngine = {
-      phase: { status: 'idle' },
-      transcribe: async () => {
-        throw new WhisperMemoryError(
-          'failed to call OrtRun(). ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc'
-        )
-      },
-      warm: async () => {}
-    }
-    const { result } = renderHook(() => useDictation(fakeTarget(), engine, fakeDeps(capture)))
-    await startTake(result, capture)
-
-    await act(async () => {
-      capture.emitFor(2500, LOUD)
-      capture.emitFor(800, QUIET)
-    })
-
-    expect(result.current.failure).toBe(
-      'Faltou memória para rodar esse modelo. Escolha um modelo menor em Voz e transcrição.'
-    )
   })
 
   it('leaves every other failure in the engine own words', async () => {

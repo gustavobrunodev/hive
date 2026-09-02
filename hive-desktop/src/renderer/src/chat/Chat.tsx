@@ -39,7 +39,7 @@ import { useVoiceGate } from '../voice/useVoiceGate'
 import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
-import { DEFAULT_LANGUAGE, useWhisper } from '../secondBrain/whisper/useWhisper'
+import { useAsr } from '../asr/useAsr'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
 import { useAttachments } from './useAttachments'
 import { AttachmentTray } from './AttachmentTray'
@@ -865,44 +865,27 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     const timer = window.setTimeout(() => setRestoredDraft(null), 6000)
     return () => window.clearTimeout(timer)
   }, [restoredDraft])
-  // voice-prompt (M13): the composer gains dictation. The engine is M12's
-  // embedded Whisper, reused as-is and pinned to pt-BR (D-VP-4); everything
-  // else lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
-  //
-  // voice-settings (M25): the **model** comes from the same global preference
-  // the ingestion sheet resolves, rather than from `useWhisper`'s built-in
-  // default. This composer used to pass no `model` at all, so every dictation
-  // in the chat ran `DEFAULT_MODEL` no matter what the user had chosen — the
-  // setting existed and this surface, the one people dictate into most, was
-  // not covered by it. `DEFAULT_MODEL` now covers only the round trip before
-  // main answers, which no take can start inside.
+  // voice-prompt (M13): the composer gains dictation. Everything but the engine
+  // lives in `dictation/`, which knows nothing about Chat (VP-R5.1).
   //
   // M26: the model can be **absent** — the app ships none, so pressing the
   // microphone on a fresh install has no honest outcome. `useVoiceGate` owns
-  // that: it holds the live preference, answers `null` while nothing is
-  // installed, and remembers the take the user asked for across the download.
-  const { phase: whisperPhase, transcribe: whisperTranscribe, warm: whisperWarm } = useWhisper()
+  // that: it answers whether the model is installed and remembers the take the
+  // user asked for across the download.
+  //
+  // M29: what used to be threaded through here is gone. The composer had to
+  // pass a model id and a language on every call — it once passed neither,
+  // which is how chat dictation ran a hardcoded `base` for a whole milestone
+  // while the setting existed elsewhere. One model that detects its own
+  // language leaves nothing to thread, and nothing to drift.
+  const { phase: asrPhase, transcribe: asrTranscribe, warm: asrWarm } = useAsr()
   const voiceGate = useVoiceGate()
-  const dictationModel = voiceGate.model
   const dictationEngine = useMemo<DictationEngine>(
     () =>
-      // A real Whisper pass would add a 278 MB download and ~4 s to every E2E
-      // run; the seam returns null in every other context.
-      e2eDictationEngine() ?? {
-        phase: whisperPhase,
-        transcribe: (pcm, options) =>
-          whisperTranscribe(pcm, {
-            ...options,
-            // `?? undefined` rather than a default id: a take cannot start
-            // without a model (the gate sees to that), so this only covers the
-            // IPC round trip, where the engine's own default is the honest
-            // answer and inventing one here would hide the gap.
-            model: dictationModel ?? undefined,
-            language: DEFAULT_LANGUAGE
-          }),
-        warm: () => whisperWarm(dictationModel ?? undefined)
-      },
-    [whisperPhase, whisperTranscribe, whisperWarm, dictationModel]
+      // A real pass would add a 670 MB download and a session build to every
+      // E2E run; the seam returns null in every other context.
+      e2eDictationEngine() ?? { phase: asrPhase, transcribe: asrTranscribe, warm: asrWarm },
+    [asrPhase, asrTranscribe, asrWarm]
   )
   const dictation = useComposerDictation({
     value: composerValue,

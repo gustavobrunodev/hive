@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from './App'
 import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
-import { createHiveWhisperMock } from './testSupport/hiveWhisperMock'
+import { createHiveAsrMock } from './testSupport/hiveAsrMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 
 /**
@@ -331,7 +331,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
-      whisper: createHiveWhisperMock()
+      asr: createHiveAsrMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }

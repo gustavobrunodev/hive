@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { AskSecondBrain } from './AskSecondBrain'
 import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
-import type { WhisperDictation } from '../dictation/useWhisperDictation'
+import type { AsrDictation } from '../dictation/useAsrDictation'
 import type { DictationPhase } from '../dictation/phase'
 
 /**
@@ -121,17 +121,17 @@ vi.mock('../voice/VoiceModelGate', () => ({
 }))
 
 /**
- * Dictation is injected through `useWhisperDictation`, and the fake stands in
+ * Dictation is injected through `useAsrDictation`, and the fake stands in
  * for the whole of it: the microphone, Whisper, and the installed-model gate.
  * What is under test here is the *wiring* — that the field is the target, that
  * the transport replaces the hint while a take runs, that Esc and dismissal
  * stop the microphone, and that asking mid-take waits for the words.
  */
-let voice: WhisperDictation
+let voice: AsrDictation
 let dictationOptions: { value: string; active?: boolean } | null = null
 
-vi.mock('../dictation/useWhisperDictation', () => ({
-  useWhisperDictation: (options: { value: string; active?: boolean }) => {
+vi.mock('../dictation/useAsrDictation', () => ({
+  useAsrDictation: (options: { value: string; active?: boolean }) => {
     dictationOptions = options
     return voice
   }
@@ -139,8 +139,8 @@ vi.mock('../dictation/useWhisperDictation', () => ({
 
 function fakeVoice(
   phase: DictationPhase = { status: 'idle' },
-  gate: Partial<WhisperDictation['voiceGate']> = {}
-): WhisperDictation {
+  gate: Partial<AsrDictation['voiceGate']> = {}
+): AsrDictation {
   return {
     dictation: {
       phase,
@@ -158,7 +158,8 @@ function fakeVoice(
       handleKeyDown: vi.fn()
     },
     voiceGate: {
-      model: 'tiny',
+      ready: true,
+      installed: true,
       blocked: false,
       guard: (action: () => void) => action(),
       open: false,
@@ -384,7 +385,7 @@ describe('AskSecondBrain — ditado', () => {
 
   it('with no model installed the press opens the gate instead of the microphone', () => {
     const gateOpens = vi.fn()
-    voice = fakeVoice({ status: 'idle' }, { model: null, blocked: true, guard: gateOpens })
+    voice = fakeVoice({ status: 'idle' }, { ready: false, blocked: true, guard: gateOpens })
     renderAsk()
 
     const mic = screen.getByLabelText('Ditar')
@@ -496,7 +497,7 @@ describe('AskSecondBrain — ditado', () => {
   })
 
   it('offers the model gate without losing the question already typed', () => {
-    voice = fakeVoice({ status: 'idle' }, { model: null, blocked: true, open: true })
+    voice = fakeVoice({ status: 'idle' }, { ready: false, blocked: true, open: true })
     const { field } = renderAsk()
     fireEvent.change(field, { target: { value: 'Como funciona o gate?' } })
 

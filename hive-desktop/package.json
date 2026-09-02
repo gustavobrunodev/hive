@@ -1,7 +1,7 @@
 {
   "name": "@gustavobrunodev/hive-desktop",
   "version": "0.1.0",
-  "description": "Hive \u2014 Electron BMAD-orchestration app",
+  "description": "Hive — Electron BMAD-orchestration app",
   "main": "./out/main/index.js",
   "author": "Hive",
   "license": "UNLICENSED",
@@ -76,13 +76,13 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@hive/design-system": "file:../design-system",
-    "@huggingface/transformers": "^4.2.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^6.1.200",
     "react-markdown": "^9.1.0",
     "remark-gfm": "^4.0.1",
     "semver": "^7.8.5",
+    "sherpa-onnx-node": "^1.13.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

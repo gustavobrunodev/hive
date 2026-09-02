@@ -56,14 +56,8 @@ import type {
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
-import type {
-  HardwareRecommendation,
-  WhisperDownload,
-  WhisperModelId,
-  WhisperModelInfo,
-  WhisperPreference,
-  WhisperVariant
-} from '../main/whisperTypes'
+import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
+import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
 
 declare global {
   interface Window {
@@ -429,40 +423,36 @@ declare global {
         snoozeHealth(workspace: string): Promise<VaultHealth>
       }
       /**
-       * Whisper model store (SB-R4.2/R7.2). Transcription runs in the renderer;
-       * only model-file management crosses IPC (bytes reach the renderer over
-       * the `hive-model:` protocol, not here).
+       * Speech recognition (M29). Inference runs in a native utility process,
+       * so audio goes out over IPC and text comes back — the renderer never
+       * sees a weight file, and the `hive-model:` scheme that used to serve
+       * them no longer exists.
        */
-      whisper: {
-        /** The catalog, each entry flagged with whether it's downloaded. */
-        listModels(): Promise<WhisperModelInfo[]>
-        modelStatus(
-          id: WhisperModelId
-        ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }>
-        deleteModel(id: WhisperModelId): Promise<void>
-        /** SB-R7.1: best-model-for-this-machine probe; falls back to `base`. */
-        recommend(): Promise<HardwareRecommendation>
+      asr: {
+        /** Whether the model is installed, plus what the hardware probe read. */
+        readiness(): Promise<AsrReadiness>
+        deleteModel(): Promise<AsrReadiness>
+        /** Builds the session ahead of time — the first phrase must not be the one that waits. */
+        warm(): Promise<void>
+        /** Transcribes 16 kHz mono Float32 PCM. */
+        transcribe(pcm: Float32Array): Promise<string>
+        /** Drops the session and its ~1 GB of weights. */
+        evict(): Promise<void>
+        onPhase(onChange: (phase: AsrEnginePhase) => void): () => void
         /**
-         * SB-R7.4: the model transcription actually uses, resolved in main —
-         * the user's pin when it is still usable, the probe's answer otherwise,
-         * and `id: null` when nothing has been downloaded yet.
+         * M26 — the download is owned by **main**, not by the window that
+         * started it. `startDownload` registers (or resumes) the job and
+         * returns; the transfer keeps running whatever this window does next.
+         * `onDownloads` is a read-only view: unsubscribing stops watching,
+         * never downloading.
          */
-        preference(): Promise<WhisperPreference>
-        /** Pins a model, or returns to automatic with `null`. */
-        setPreferredModel(id: WhisperModelId | null): Promise<WhisperPreference>
-        /**
-         * M26 — downloads are owned by **main**, not by the window that started
-         * one. `startDownload` registers (or resumes) a job and returns; the
-         * transfer keeps running whatever this window does next. `onDownloads`
-         * is a read-only view: unsubscribing stops watching, never downloading.
-         */
-        downloads(): Promise<WhisperDownload[]>
-        startDownload(id: WhisperModelId, variant: WhisperVariant): Promise<WhisperDownload>
-        cancelDownload(id: WhisperModelId): Promise<void>
-        dismissDownload(id: WhisperModelId): Promise<void>
-        onDownloads(onSnapshot: (downloads: WhisperDownload[]) => void): () => void
+        downloads(): Promise<AsrDownload[]>
+        startDownload(): Promise<AsrDownload>
+        cancelDownload(id: AsrModelId): Promise<void>
+        dismissDownload(id: AsrModelId): Promise<void>
+        onDownloads(onSnapshot: (downloads: AsrDownload[]) => void): () => void
         /** Endings, on their own channel — a finished job leaves the snapshot. */
-        onDownloadSettled(onSettled: (download: WhisperDownload) => void): () => void
+        onDownloadSettled(onSettled: (download: AsrDownload) => void): () => void
       }
     }
   }

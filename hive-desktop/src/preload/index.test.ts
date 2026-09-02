@@ -1158,56 +1158,94 @@ describe('preload: window.hive bridge', () => {
 
   // Whisper model store (M12): invoke-based catalog/status/delete + a streamed
   // download.
-  describe('hive.whisper bridge', () => {
+  describe('hive.asr bridge', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const whisper = (): any => (exposedGlobals().get('hive') as any).whisper
+    const asr = (): any => (exposedGlobals().get('hive') as any).asr
 
-    it('routes listModels/modelStatus/deleteModel through the matching whisper:* channels', async () => {
-      await whisper().listModels()
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:listModels')
-      await whisper().modelStatus('base')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:modelStatus', 'base')
-      await whisper().deleteModel('base')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:deleteModel', 'base')
-      await whisper().recommend()
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:recommend')
-    })
-
-    it('starts, cancels and dismisses a download by id — never by subscription', async () => {
-      await whisper().startDownload('medium', 'fp32')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:start', 'medium', 'fp32')
-      await whisper().cancelDownload('medium')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:cancel', 'medium')
-      await whisper().dismissDownload('medium')
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:download:dismiss', 'medium')
-      await whisper().downloads()
-      expect(ipcRenderer.invoke).toHaveBeenCalledWith('whisper:downloads')
+    it('routes readiness/delete and the engine calls through the matching asr:* channels', async () => {
+      await asr().readiness()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:readiness')
+      await asr().deleteModel()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:deleteModel')
+      await asr().warm()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:warm')
+      await asr().evict()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:evict')
     })
 
     /**
-     * The bug this shape exists to make impossible: the previous bridge's
-     * teardown *stopped the download*, so closing the sheet killed a transfer
+     * The engine itself crosses the bridge now (M29). The PCM goes over as a
+     * `Float32Array`, which structured clone carries — and, unlike the
+     * `Worker.postMessage` transfer it replaces, does **not** detach the
+     * caller's buffer. That detachment is what turned the first failure of a
+     * take into a permanent second error in M28.
+     */
+    it('sends the audio itself, as a Float32Array', async () => {
+      const pcm = new Float32Array([0.1, 0.2, 0.3])
+      await asr().transcribe(pcm)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:transcribe', pcm)
+      expect(pcm.length).toBe(3)
+    })
+
+    it('relays the engine phase, and unsubscribing removes the listener', () => {
+      const onPhase = vi.fn()
+      const unsubscribe = asr().onPhase(onPhase)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('asr:phase', expect.any(Function))
+
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'asr:phase')?.[1] as (
+        event: unknown,
+        phase: unknown
+      ) => void
+      listener({}, { status: 'ready' })
+      expect(onPhase).toHaveBeenCalledWith({ status: 'ready' })
+
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('asr:phase', listener)
+    })
+
+    it('starts, cancels and dismisses a download — never by subscription', async () => {
+      await asr().startDownload()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:download:start')
+      await asr().cancelDownload('parakeet-tdt-0.6b-v3-int8')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        'asr:download:cancel',
+        'parakeet-tdt-0.6b-v3-int8'
+      )
+      await asr().dismissDownload('parakeet-tdt-0.6b-v3-int8')
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        'asr:download:dismiss',
+        'parakeet-tdt-0.6b-v3-int8'
+      )
+      await asr().downloads()
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith('asr:downloads')
+    })
+
+    /**
+     * The bug this shape exists to make impossible: the bridge before M26 tore
+     * the download down on teardown, so closing the sheet killed a transfer
      * that was minutes from finishing. Unsubscribing here must remove a
      * listener and send nothing at all.
      */
     it('onDownloads relays snapshots, and unsubscribing never stops a download', () => {
       const onSnapshot = vi.fn()
-      const unsubscribe = whisper().onDownloads(onSnapshot)
-      expect(ipcRenderer.on).toHaveBeenCalledWith('whisper:downloads', expect.any(Function))
+      const unsubscribe = asr().onDownloads(onSnapshot)
+      expect(ipcRenderer.on).toHaveBeenCalledWith('asr:downloads', expect.any(Function))
 
       const listener = vi
         .mocked(ipcRenderer.on)
-        .mock.calls.find(([ch]) => ch === 'whisper:downloads')?.[1] as (
+        .mock.calls.find(([ch]) => ch === 'asr:downloads')?.[1] as (
         event: unknown,
         snapshot: unknown
       ) => void
-      const snapshot = [{ id: 'medium', status: 'downloading', loaded: 10, total: 20 }]
+      const snapshot = [{ id: 'parakeet-tdt-0.6b-v3-int8', status: 'downloading' }]
       listener({}, snapshot)
       expect(onSnapshot).toHaveBeenCalledWith(snapshot)
 
       vi.mocked(ipcRenderer.send).mockClear()
       unsubscribe()
-      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('whisper:downloads', listener)
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('asr:downloads', listener)
       expect(ipcRenderer.send).not.toHaveBeenCalled()
     })
   })

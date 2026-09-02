@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button, Sheet, SheetContent, SheetDescription, SheetTitle } from '@hive/design-system'
 import { t } from '../i18n'
-import { MicIcon, PencilIcon, SparkleIcon, WaveformIcon } from '../ui/icons'
+import { MicIcon, PencilIcon, WaveformIcon } from '../ui/icons'
 import type { RoleAction } from '../ui/ActionRail'
 import { useComposerDictation } from '../dictation/useComposerDictation'
 import { usePrewarm } from '../dictation/usePrewarm'
@@ -12,15 +12,14 @@ import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { VaultGuard } from './VaultGuard'
 import { secondBrainIngest } from './secondBrainPrompts'
-import { AudioJobList } from './whisper/AudioJobList'
-import { AudioStage } from './whisper/AudioStage'
-import { EngineProgress } from './whisper/EngineProgress'
-import { LiveConsole } from './whisper/LiveConsole'
-import { TranscriptDocument } from './whisper/TranscriptDocument'
-import { useAudioIngest } from './whisper/useAudioIngest'
-import { enginePhaseView } from './whisper/enginePhase'
-import { useWhisperPreference } from './whisper/useWhisperPreference'
-import { DEFAULT_LANGUAGE, useWhisper } from './whisper/useWhisper'
+import { AudioJobList } from './audio/AudioJobList'
+import { AudioStage } from './audio/AudioStage'
+import { EngineProgress } from './audio/EngineProgress'
+import { LiveConsole } from './audio/LiveConsole'
+import { TranscriptDocument } from './audio/TranscriptDocument'
+import { useAudioIngest } from './audio/useAudioIngest'
+import { enginePhaseView } from '../asr/enginePhase'
+import { useAsr } from '../asr/useAsr'
 import { VoiceModelGate } from '../voice/VoiceModelGate'
 import { useVoiceGate, type VoiceGate } from '../voice/useVoiceGate'
 
@@ -187,48 +186,27 @@ function CaptureStage({
  * readout about a model that will not run is noise (SB-R4.4).
  */
 function ModelNote({
-  preference,
+  installed,
   onOpenVoiceSettings
 }: {
-  preference: ReturnType<typeof useWhisperPreference>['preference']
+  /** `null` until main answers — see below for why that is not `false`. */
+  installed: boolean | null
   onOpenVoiceSettings?: () => void
 }): React.JSX.Element | null {
-  // Nothing is claimed until main answers: a line that said `base` and then
-  // changed to `small` under the reader is worse than a line that arrives.
-  // Nothing is claimed until main answers: a line that said `base` and then
-  // changed to `small` under the reader is worse than a line that arrives.
-  if (preference === null) return null
-  // M26: no model is a real, common state now — and here it is a *warning*,
-  // not a readout, because the transcribe button below it is about to be
-  // pressed by someone who has no idea it cannot work yet.
-  if (preference.id === null) {
-    return (
-      <p className="wb-ingest-model" data-missing="true">
-        <span className="wb-ingest-model-text">{t('secondBrain.ingestModelMissing')}</span>
-        {onOpenVoiceSettings && (
-          <button type="button" className="wb-ingest-model-link" onClick={onOpenVoiceSettings}>
-            {t('secondBrain.ingestModelGet')}
-          </button>
-        )}
-      </p>
-    )
-  }
+  // Nothing is claimed until main answers. This used to be a readout naming
+  // which of ten models would run; with one model the only thing worth saying
+  // is the warning, and a readout that always said the same sentence would be
+  // furniture.
+  if (installed === null || installed) return null
+  // No model is a real, common state — and here it is a *warning*, not a
+  // readout, because the transcribe button below it is about to be pressed by
+  // someone who has no idea it cannot work yet.
   return (
-    <p className="wb-ingest-model">
-      {preference.auto && <SparkleIcon size={12} aria-hidden="true" />}
-      <span className="wb-ingest-model-text">
-        {preference.auto
-          ? t('secondBrain.ingestModelAuto', preference.id)
-          : t('secondBrain.ingestModelRunning', preference.id)}
-      </span>
+    <p className="wb-ingest-model" data-missing="true">
+      <span className="wb-ingest-model-text">{t('secondBrain.ingestModelMissing')}</span>
       {onOpenVoiceSettings && (
-        <button
-          type="button"
-          className="wb-ingest-model-link"
-          aria-label={t('secondBrain.ingestModelChangeAria')}
-          onClick={onOpenVoiceSettings}
-        >
-          {t('secondBrain.ingestModelChange')}
+        <button type="button" className="wb-ingest-model-link" onClick={onOpenVoiceSettings}>
+          {t('secondBrain.ingestModelGet')}
         </button>
       )}
     </p>
@@ -322,7 +300,7 @@ export function IngestPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const whisper = useWhisper()
+  const asr = useAsr()
 
   // The sheet is open whenever the FAB handed it a mode; opening re-syncs the
   // active tab to that mode (derived during render, no effect — the
@@ -335,17 +313,12 @@ export function IngestPanel({
   }
   if (mode === null && lastMode !== null) setLastMode(null)
 
-  // Which model transcription runs with, resolved in main from the hardware
-  // probe unless the user pinned one (SB-R7.4).
-  //
-  // M26: it can be **absent**, and both audio sources have to respect that —
-  // sending a file and pressing record are the same promise ("this becomes
-  // text"), and both used to keep that promise only because the app shipped
-  // weights. `useVoiceGate` holds the live preference and remembers what the
-  // user asked for across the download.
-  const { preference } = useWhisperPreference(open)
+  // M26: the model can be **absent**, and both audio sources have to respect
+  // that — sending a file and pressing record are the same promise ("this
+  // becomes text"), and both used to keep it only because the app shipped
+  // weights. `useVoiceGate` holds the live answer and remembers what the user
+  // asked for across the download.
   const voiceGate = useVoiceGate(open)
-  const model = voiceGate.model
 
   // Every finished transcript is appended under a heading naming its source.
   // Two voice memos and a meeting recording become one reviewable document,
@@ -359,30 +332,21 @@ export function IngestPanel({
 
   // One audio→transcript queue for the file stage (SB-R4.5): decode, transcribe,
   // append — one file at a time, each with its own visible state.
-  const queue = useAudioIngest(whisper, model, appendTranscript)
+  const queue = useAudioIngest(asr, appendTranscript)
 
   // Live dictation reuses M13's engine and hook wholesale (VP-R5.1): the hook
   // never imported from `chat/`, so pointing it at this field is wiring rather
   // than a second implementation of segmenting, queueing and joining.
-  // Depends on the engine's *stable* pieces, not on the object `useWhisper`
+  // Depends on the engine's *stable* pieces, not on the object `useAsr`
   // rebuilds every render — otherwise the memo recomputes on every keystroke in
   // the transcript, which is the one thing this surface does constantly.
-  const { phase: whisperPhase, transcribe: whisperTranscribe, warm: whisperWarm } = whisper
+  const { phase: asrPhase, transcribe: asrTranscribe, warm: asrWarm } = asr
   const dictationEngine = useMemo<DictationEngine>(
     () =>
-      // A real Whisper pass would add a model load to every E2E run; the seam
-      // returns null in every other context.
-      e2eDictationEngine() ?? {
-        phase: whisperPhase,
-        transcribe: (pcm, options) =>
-          whisperTranscribe(pcm, {
-            ...options,
-            model: model ?? undefined,
-            language: DEFAULT_LANGUAGE
-          }),
-        warm: () => whisperWarm(model ?? undefined)
-      },
-    [whisperPhase, whisperTranscribe, whisperWarm, model]
+      // A real pass would add a model load to every E2E run; the seam returns
+      // null in every other context.
+      e2eDictationEngine() ?? { phase: asrPhase, transcribe: asrTranscribe, warm: asrWarm },
+    [asrPhase, asrTranscribe, asrWarm]
   )
   const dictation = useComposerDictation({
     value: content,
@@ -394,11 +358,11 @@ export function IngestPanel({
   // Opening "Ditar ao vivo" is intent: the session starts building while the
   // user is still reaching for the microphone, instead of after the first
   // phrase is already waiting on it (see `usePrewarm`).
-  usePrewarm(open && activeMode === 'record' && model !== null, dictation.prewarm)
+  usePrewarm(open && activeMode === 'record' && voiceGate.ready, dictation.prewarm)
 
-  const engineBusy = whisper.phase.status !== 'idle' && whisper.phase.status !== 'error'
+  const engineBusy = asrPhase.status === 'loading' || asrPhase.status === 'transcribing'
   const working = engineBusy || queue.busy || dictation.active
-  const phaseView = enginePhaseView(whisper.phase)
+  const phaseView = enginePhaseView(asrPhase)
 
   const close = useCallback(() => {
     // A sheet dismissed mid-take must not leave the microphone open.
@@ -479,7 +443,10 @@ export function IngestPanel({
             </div>
 
             {activeMode !== 'text' && (
-              <ModelNote preference={preference} onOpenVoiceSettings={onOpenVoiceSettings} />
+              <ModelNote
+                installed={voiceGate.installed}
+                onOpenVoiceSettings={onOpenVoiceSettings}
+              />
             )}
 
             <Footer

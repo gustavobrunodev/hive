@@ -11,7 +11,7 @@ import { t } from '../i18n'
 import type { RoleAction } from '../ui/ActionRail'
 import { BrainIcon, HistoryIcon, MicIcon } from '../ui/icons'
 import { DictationBar } from '../dictation/DictationBar'
-import { useWhisperDictation, type WhisperDictation } from '../dictation/useWhisperDictation'
+import { useAsrDictation, type AsrDictation } from '../dictation/useAsrDictation'
 import type { ComposerDictation } from '../dictation/useComposerDictation'
 import { VoiceModelGate } from '../voice/VoiceModelGate'
 import { loadRecentQuestions, rememberQuestion } from './askHistory'
@@ -19,7 +19,7 @@ import { secondBrainQuery } from './secondBrainPrompts'
 import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { VaultGuard } from './VaultGuard'
-import { transcriptRuns } from './whisper/transcriptBackdrop'
+import { transcriptRuns } from './audio/transcriptBackdrop'
 
 /**
  * Question openers shown to someone facing an empty field (SB-R9.3). They
@@ -62,7 +62,7 @@ interface AskSecondBrainProps {
  * dictating a message are the same gesture, and a second dialect of it here
  * would be one more thing to learn for nothing.
  */
-function AskDictation({ voice }: { voice: WhisperDictation }): React.JSX.Element {
+function AskDictation({ voice }: { voice: AsrDictation }): React.JSX.Element {
   const { dictation, voiceGate } = voice
   if (dictation.active) {
     return (
@@ -259,10 +259,10 @@ export function AskSecondBrain({
   }, [question, store.workspace, onLaunch, onOpenChange])
 
   // A question can be spoken instead of typed, with the composer's own
-  // machinery: the field is the target, the engine is the embedded Whisper, and
+  // machinery: the field is the target, the engine is the app's own, and
   // the installed-model gate stands in front of both. `active: open` keeps a
   // closed dialog off the model preference's subscription.
-  const voice = useWhisperDictation({
+  const voice = useAsrDictation({
     value: question,
     setValue: setQuestion,
     textareaRef: fieldRef,

@@ -57,14 +57,8 @@ import type {
 } from '../main/gitService'
 import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
-import type {
-  HardwareRecommendation,
-  WhisperDownload,
-  WhisperModelId,
-  WhisperModelInfo,
-  WhisperPreference,
-  WhisperVariant
-} from '../main/whisperTypes'
+import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
+import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -858,49 +852,54 @@ const hive = {
       ipcRenderer.invoke('secondBrain:snoozeHealth', workspace)
   },
 
-  // Whisper model store (D-SB-4). Transcription itself is renderer-local (the
-  // model bytes cross via the `hive-model:` protocol, not IPC); only model-file
-  // management lives here — and, since M26, the downloads that fetch them,
-  // which are owned by main rather than by whichever window asked.
-  whisper: {
-    listModels: (): Promise<WhisperModelInfo[]> => ipcRenderer.invoke('whisper:listModels'),
-    modelStatus: (
-      id: WhisperModelId
-    ): Promise<{ downloaded: boolean; variant: WhisperVariant | null }> =>
-      ipcRenderer.invoke('whisper:modelStatus', id),
-    deleteModel: (id: WhisperModelId): Promise<void> =>
-      ipcRenderer.invoke('whisper:deleteModel', id),
-    recommend: (): Promise<HardwareRecommendation> => ipcRenderer.invoke('whisper:recommend'),
-    /** Which model transcription uses right now, and whether the app chose it. */
-    preference: (): Promise<WhisperPreference> => ipcRenderer.invoke('whisper:preference'),
-    /** Pins a model, or hands the choice back to the hardware probe with `null`. */
-    setPreferredModel: (id: WhisperModelId | null): Promise<WhisperPreference> =>
-      ipcRenderer.invoke('whisper:setPreferredModel', id),
+  /**
+   * Speech recognition (M29) — **the engine itself is now behind IPC**.
+   *
+   * Until M29 only model-file management crossed this bridge: transcription ran
+   * inside the renderer, and weights reached it over the `hive-model:` scheme.
+   * That arrangement is what made dictation slow — a `file://` renderer is not
+   * cross-origin isolated, so ONNX Runtime's WASM backend was pinned to one
+   * thread and the weights had to be fp32. Inference moved to a native utility
+   * process, so what crosses here now is audio in and text out.
+   */
+  asr: {
+    /** Whether the model is installed, plus what the hardware probe read. */
+    readiness: (): Promise<AsrReadiness> => ipcRenderer.invoke('asr:readiness'),
+    deleteModel: (): Promise<AsrReadiness> => ipcRenderer.invoke('asr:deleteModel'),
+    /** Builds the session ahead of time so the first phrase is not the one that waits. */
+    warm: (): Promise<void> => ipcRenderer.invoke('asr:warm'),
+    /** Transcribes 16 kHz mono Float32 PCM. */
+    transcribe: (pcm: Float32Array): Promise<string> => ipcRenderer.invoke('asr:transcribe', pcm),
+    /** Drops the session and its ~1 GB of weights. */
+    evict: (): Promise<void> => ipcRenderer.invoke('asr:evict'),
+    onPhase: (onChange: (phase: AsrEnginePhase) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, phase: AsrEnginePhase): void => onChange(phase)
+      ipcRenderer.on('asr:phase', listener)
+      return () => ipcRenderer.removeListener('asr:phase', listener)
+    },
+
     /**
-     * Model downloads (M26) — **request/response plus a broadcast**, never a
-     * subscription that owns the transfer.
+     * Model download (M26, carried into M29) — **request/response plus a
+     * broadcast**, never a subscription that owns the transfer.
      *
-     * The previous shape made the renderer the owner: `downloadModel` opened a
-     * listener and its teardown sent `whisper:download:stop`, so unmounting the
-     * sheet killed the download it had started. Here `startDownload` is a plain
-     * call that returns once the job is registered in main, and `onDownloads`
-     * is a read-only view of every job in flight. Unsubscribing stops watching;
-     * it never stops downloading. Cancelling is explicit, by id, which is also
-     * what lets two models download at once.
+     * The shape before M26 made the renderer the owner: `downloadModel` opened
+     * a listener and its teardown sent a stop, so unmounting the sheet killed
+     * the download it had started. Here `startDownload` is a plain call that
+     * returns once the job is registered in main, and `onDownloads` is a
+     * read-only view. Unsubscribing stops watching; it never stops downloading.
      */
-    downloads: (): Promise<WhisperDownload[]> => ipcRenderer.invoke('whisper:downloads'),
-    startDownload: (id: WhisperModelId, variant: WhisperVariant): Promise<WhisperDownload> =>
-      ipcRenderer.invoke('whisper:download:start', id, variant),
-    cancelDownload: (id: WhisperModelId): Promise<void> =>
-      ipcRenderer.invoke('whisper:download:cancel', id),
+    downloads: (): Promise<AsrDownload[]> => ipcRenderer.invoke('asr:downloads'),
+    startDownload: (): Promise<AsrDownload> => ipcRenderer.invoke('asr:download:start'),
+    cancelDownload: (id: AsrModelId): Promise<void> =>
+      ipcRenderer.invoke('asr:download:cancel', id),
     /** Clears a settled (failed) row the user has acknowledged. */
-    dismissDownload: (id: WhisperModelId): Promise<void> =>
-      ipcRenderer.invoke('whisper:download:dismiss', id),
-    onDownloads: (onSnapshot: (downloads: WhisperDownload[]) => void): (() => void) => {
-      const listener = (_event: IpcRendererEvent, downloads: WhisperDownload[]): void =>
+    dismissDownload: (id: AsrModelId): Promise<void> =>
+      ipcRenderer.invoke('asr:download:dismiss', id),
+    onDownloads: (onSnapshot: (downloads: AsrDownload[]) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, downloads: AsrDownload[]): void =>
         onSnapshot(downloads)
-      ipcRenderer.on('whisper:downloads', listener)
-      return () => ipcRenderer.removeListener('whisper:downloads', listener)
+      ipcRenderer.on('asr:downloads', listener)
+      return () => ipcRenderer.removeListener('asr:downloads', listener)
     },
     /**
      * Endings, on their own channel.
@@ -910,11 +909,11 @@ const hive = {
      * "this window just opened after it ended". The announcement has to be an
      * event, not a diff.
      */
-    onDownloadSettled: (onSettled: (download: WhisperDownload) => void): (() => void) => {
-      const listener = (_event: IpcRendererEvent, download: WhisperDownload): void =>
+    onDownloadSettled: (onSettled: (download: AsrDownload) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, download: AsrDownload): void =>
         onSettled(download)
-      ipcRenderer.on('whisper:download:settled', listener)
-      return () => ipcRenderer.removeListener('whisper:download:settled', listener)
+      ipcRenderer.on('asr:download:settled', listener)
+      return () => ipcRenderer.removeListener('asr:download:settled', listener)
     }
   }
 }

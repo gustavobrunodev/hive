@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { t } from '../i18n'
-import { WhisperMemoryError } from '../secondBrain/whisper/whisperClient'
+import { engineErrorCopy } from '../asr/enginePhase'
 import { createLivePass, type LivePass, type LivePassConfig } from './livePass'
 import { applyPreview, previewText, type PreviewRun } from './previewRun'
 import type { Draft } from './segmenter'
@@ -166,13 +165,14 @@ export function useDictationSink(
         transcribe: (pcm, onPartial) =>
           engineRef.current.transcribe(pcm, { onPartial }).catch((error: unknown) => {
             // The queue stores a failure as a *sentence the user reads*, so the
-            // translation happens here rather than in the transport. Only the
-            // memory case is rewritten: it is the one where "tente de novo" is
-            // actively bad advice, and where the engine's own words
-            // ("std::bad_alloc") say nothing anyone can act on.
-            throw error instanceof WhisperMemoryError
-              ? new Error(t('dictation.memoryFailed'))
-              : error
+            // translation happens here rather than in the transport.
+            //
+            // The case this used to special-case was the WASM heap running out,
+            // where "tente de novo" was actively bad advice because retrying
+            // could not work until something else changed. Native ONNX Runtime
+            // gives the memory back, so retrying is honest advice again and the
+            // remaining translation is the ordinary one.
+            throw new Error(engineErrorCopy(error instanceof Error ? error.message : String(error)))
           }),
         insert: (text) => {
           // The guess this segment's audio produced is done being a guess.

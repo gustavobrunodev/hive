@@ -91,11 +91,12 @@ describe('DictationBar', () => {
         seconds: 3,
         silentMs: 0,
         pending: 1,
-        engine: { status: 'downloading', pct: 41, file: 'encoder.onnx' }
+        engine: { status: 'loading' }
       }
     })
     const status = screen.getByRole('status')
-    expect(status.textContent).toContain('41%')
+    // The promise is the point, not a percentage: building the session emits no
+    // progress, and the audio being kept is what makes the wait bearable.
     expect(status.textContent).toContain(strings.dictation.preparingKeep)
     // Still capturing: the clock and the meter say the microphone is live.
     expect(screen.getByRole('timer').textContent).toContain('00:03')

@@ -12,7 +12,7 @@ import {
   type SegmenterEvent
 } from './segmenter'
 import type { DictationPhase } from './phase'
-import type { WhisperPhase } from '../secondBrain/whisper/useWhisper'
+import type { AsrPhase } from '../asr/asrClient'
 
 /**
  * Dictation as a hook: microphone in, text at the caret, in place (VP-R1).
@@ -41,8 +41,8 @@ export interface DictationTarget {
 
 /** The transcription engine, injected so the hook is testable without Whisper. */
 export interface DictationEngine {
-  /** The engine's own phase — real download/load progress (VP-R3.2). */
-  phase: WhisperPhase
+  /** The engine's own phase, so a take can show why it is waiting (VP-R3.2). */
+  phase: AsrPhase
   /**
    * Transcribes 16 kHz mono PCM. Downloads and warms first if it must.
    * `onPartial` reports the running text as the engine decodes it.
@@ -124,9 +124,17 @@ export interface Dictation {
 /** How often the transport's clock and silence countdown are refreshed. */
 const CLOCK_INTERVAL_MS = 250
 
-/** Is the engine doing setup work rather than transcribing? */
-function isPreparing(phase: WhisperPhase): boolean {
-  return phase.status === 'downloading' || phase.status === 'loading' || phase.status === 'warming'
+/**
+ * Is the engine doing setup work rather than transcribing?
+ *
+ * One status where there used to be three. `downloading` and `warming` were
+ * both real waits under the old engine — fetching weights the renderer had to
+ * hold, then building a session from them — and both are gone: the gate
+ * downloads before a take can start, and building the session is the single
+ * `loading` that sherpa does in one call.
+ */
+function isPreparing(phase: AsrPhase): boolean {
+  return phase.status === 'loading'
 }
 
 export function useDictation(

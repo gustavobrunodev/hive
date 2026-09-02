@@ -18,10 +18,20 @@ import type {
  * the process simply is not there any more).
  */
 
-/** The slice of Electron's `UtilityProcess` this needs, injected for tests. */
+/**
+ * The slice of Electron's `UtilityProcess` this needs, injected for tests.
+ *
+ * Two named subscriptions rather than one `on(event, …)`, because the two ends
+ * of this channel are **not symmetric** and a single signature hides it: in
+ * main, `child.on('message', …)` hands the listener the message itself; in the
+ * child, `process.parentPort.on('message', …)` hands it a `MessageEvent` whose
+ * `.data` is the message. Writing that asymmetry into the type is what stops
+ * the next reader from unwrapping a `.data` that was never there.
+ */
 export interface AsrChild {
   postMessage: (message: unknown) => void
-  on: (event: 'message' | 'exit', listener: (payload: never) => void) => void
+  onMessage: (listener: (message: AsrWorkerResponse) => void) => void
+  onExit: (listener: () => void) => void
   kill: () => void
 }
 
@@ -87,8 +97,7 @@ export function createAsrEngine(deps: AsrEngineDeps): AsrEngine {
   const spawn = (): AsrChild => {
     const next = deps.fork()
     next.postMessage({ type: 'configure', specifier: deps.specifier() })
-    next.on('message', ((event: { data: AsrWorkerResponse }) => {
-      const message = event.data
+    next.onMessage((message) => {
       if (message.type === 'phase') {
         setPhase(message.phase)
         return
@@ -98,13 +107,13 @@ export function createAsrEngine(deps: AsrEngineDeps): AsrEngine {
       pending.delete(message.id)
       if (message.type === 'done') entry.resolve(message.text)
       else entry.reject(new AsrError(message.message, message.kind))
-    }) as (payload: never) => void)
-    next.on('exit', (() => {
+    })
+    next.onExit(() => {
       child = null
       warming = null
       abortPending('the transcription process stopped')
       setPhase({ status: 'error', message: 'the transcription process stopped' })
-    }) as (payload: never) => void)
+    })
     return next
   }
 

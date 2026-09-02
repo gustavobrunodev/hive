@@ -14,7 +14,7 @@ import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testi
 import { FileTree, FileViewer } from './Explorer'
 import { createHiveGitMock, createHiveReviewMock } from '../testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from '../testSupport/hiveSecondBrainMock'
-import { createHiveWhisperMock } from '../testSupport/hiveWhisperMock'
+import { createHiveAsrMock } from '../testSupport/hiveAsrMock'
 import { createHiveMcpLogsMock } from '../testSupport/hiveMcpLogsMock'
 
 // jsdom lacks these observers, which the rich file viewers (image/pdf) use to
@@ -521,7 +521,7 @@ describe('Explorer (T12/T8)', () => {
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
-      whisper: createHiveWhisperMock()
+      asr: createHiveAsrMock()
     }
     window.hive = Object.assign(defaults, overrides)
     return { watchListeners }

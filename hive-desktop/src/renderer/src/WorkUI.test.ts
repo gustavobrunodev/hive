@@ -18,7 +18,7 @@ import { createHiveSecondBrainMock, FRESH_HEALTH } from './testSupport/hiveSecon
 import type { VaultHealth } from './secondBrain/useSecondBrain'
 import { makeStatus } from './testSupport/gitStoreMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
-import { createHiveWhisperMock } from './testSupport/hiveWhisperMock'
+import { createHiveAsrMock } from './testSupport/hiveAsrMock'
 import { HighlightedTextareaMock } from './testSupport/dsMocks'
 import type { McpLogEntry } from './mcpLogs/logConsole'
 
@@ -705,7 +705,7 @@ function createHiveMock(): Window['hive'] {
     // the preference probe on open. The shared mock, not a hand-rolled one:
     // this stub had already drifted from the real bridge (`installed` for a
     // field named `downloaded`), which is exactly what the helper prevents.
-    whisper: createHiveWhisperMock(),
+    asr: createHiveAsrMock(),
     // The (closed) MCP module loads the server list on open.
     mcp: {
       list: vi.fn(async () => []),
@@ -2536,6 +2536,54 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
    * hand-off has to land ON the voice scope, and it has to close the sheet it
    * came from: two sheets stacked trap focus twice.
    */
+  /**
+   * A model download outlives every surface that could show it, so its ending
+   * is announced app-wide — and both of the announcement's actions have to
+   * work from wherever the user actually is.
+   */
+  it('announces a download ending app-wide, and both its actions work from there', async () => {
+    withVault()
+    renderWork()
+    await screen.findByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+
+    const settled = vi
+      .mocked(window.hive.asr.onDownloadSettled)
+      .mock.calls.at(-1)?.[0] as (download: unknown) => void
+    act(() =>
+      settled({
+        id: 'parakeet-tdt-0.6b-v3-int8',
+        status: 'error',
+        loaded: 0,
+        total: 0,
+        file: '',
+        bytesPerSecond: 0,
+        failure: { kind: 'offline', detail: 'fetch failed' },
+        startedAt: 0,
+        updatedAt: 0
+      })
+    )
+
+    fireEvent.click(await screen.findByText('Tentar de novo'))
+    expect(window.hive.asr.startDownload).toHaveBeenCalledTimes(1)
+
+    act(() =>
+      settled({
+        id: 'parakeet-tdt-0.6b-v3-int8',
+        status: 'error',
+        loaded: 0,
+        total: 0,
+        file: '',
+        bytesPerSecond: 0,
+        failure: { kind: 'notFound', detail: 'HTTP 404' },
+        startedAt: 0,
+        updatedAt: 0
+      })
+    )
+    fireEvent.click(await screen.findByText('Abrir Voz e transcrição'))
+    // Lands on the scope itself, not on the index with the row still to find.
+    expect(await screen.findByRole('heading', { name: 'Voz e transcrição' })).toBeTruthy()
+  })
+
   it('the ingestion sheet hands the model choice off to the profile, on the right scope', async () => {
     withVault()
     renderWork()
@@ -2547,7 +2595,7 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     // M26: with nothing downloaded (the mock's default, and a fresh install's
     // real state) this line is a warning rather than a readout — but it lands
     // on the same scope, which is the handoff being asserted.
-    fireEvent.click(await screen.findByText('Baixar um modelo'))
+    fireEvent.click(await screen.findByText('Baixar o modelo'))
 
     // Landed on the scope itself, not on the index with the row still to find.
     // Landed on the scope itself, not on the index with the row still to find:

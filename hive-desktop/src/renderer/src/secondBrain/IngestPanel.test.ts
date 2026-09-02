@@ -5,8 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { IngestPanel } from './IngestPanel'
 import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
-import { createHiveWhisperMock, whisperModelFixture } from '../testSupport/hiveWhisperMock'
-import { installWhisperWorkerMock, type WhisperWorkerMock } from '../testSupport/whisperWorkerMock'
+import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMock'
 import type { DictationE2EHarness } from '../dictation/e2eDictationSeam'
 import type { Tick } from '../dictation/segmenter'
 
@@ -16,18 +15,15 @@ function setup(phase: BrainSetupPhase = 'idle'): BrainSetup {
 }
 
 // Real WebAudio doesn't exist in jsdom; the decode path has its own tests.
-const decodeToWhisperPcm = vi.hoisted(() => vi.fn())
-vi.mock('./whisper/audio', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./whisper/audio')>()),
-  decodeToWhisperPcm
+const decodeToAsrPcm = vi.hoisted(() => vi.fn())
+vi.mock('../asr/audio', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../asr/audio')>()),
+  decodeToAsrPcm
 }))
 
-// The engine runs in a module worker, which jsdom does not have — so the thread
-// is what gets faked (`installWhisperWorkerMock` in `beforeEach`), not the
-// library behind it. Stubbing `@huggingface/transformers` here instead, the way
-// this file used to, stopped working the moment the pipeline moved off the main
-// thread: the client's first `new Worker(...)` threw and the panel was blamed
-// for a transcript that never arrived.
+// The engine used to be a module worker jsdom does not have, so the *thread*
+// had to be faked. It is an IPC call now, so the bridge stub is the whole of
+// it — one of the quieter wins of moving inference into main.
 
 // The DS Sheet/Popover render through Radix; stand them in with plain DOM so the
 // sheet's body is assertable in jsdom (the Explorer/McpManager convention).
@@ -196,49 +192,22 @@ function tick(rms: number): Tick {
 
 describe('IngestPanel (T10)', () => {
   let stageRaw: ReturnType<typeof vi.fn>
-  let whisperWorker: WhisperWorkerMock
 
   beforeEach(() => {
-    whisperWorker = installWhisperWorkerMock({ transcript: 'ata da reunião' })
     stageRaw = vi.fn().mockResolvedValue({ relPath: 'second-brain/raw/ingest-x.md' })
-    const whisper = createHiveWhisperMock()
-    whisper.listModels.mockResolvedValue([
-      whisperModelFixture({ id: 'tiny', params: '39 M', sizeMB: { fp32: 144, q8: 39 } }),
-      whisperModelFixture({ id: 'base' }),
-      whisperModelFixture({
-        id: 'small',
-        params: '244 M',
-        sizeMB: { fp32: 923, q8: 238 },
-        downloaded: false,
-        downloadedVariant: null
-      })
-    ])
-    whisper.modelStatus.mockResolvedValue({ downloaded: true, variant: 'fp32' })
-    const recommendation = {
-      recommendedId: 'base',
-      reason: 'noGpu',
-      gpu: false,
-      ramGB: 16,
-      cores: 8
-    }
-    whisper.recommend.mockResolvedValue(recommendation)
-    whisper.preference.mockResolvedValue({ id: 'base', auto: true, recommendation })
-    whisper.setPreferredModel.mockImplementation(async (id: string | null) => ({
-      id: id ?? 'base',
-      auto: id === null,
-      recommendation
-    }))
+    const asr = createHiveAsrMock()
+    asr.readiness.mockResolvedValue(asrReadinessFixture({ installed: true }))
+    asr.transcribe.mockResolvedValue('ata da reunião')
 
     window.hive = {
       ...window.hive,
       secondBrain: { ...window.hive?.secondBrain, stageRaw },
-      whisper
+      asr
     } as unknown as typeof window.hive
   })
 
   afterEach(() => {
     cleanup()
-    whisperWorker.restore()
     vi.restoreAllMocks()
     delete (globalThis as { __hiveDictationE2E?: DictationE2EHarness }).__hiveDictationE2E
   })
@@ -368,7 +337,7 @@ describe('IngestPanel (T10)', () => {
       expect(screen.getByText('reuniao.wav')).toBeTruthy()
       expect(screen.getByText('Transcrever 1 áudio')).toBeTruthy()
       // Nothing has been decoded or transcribed: no pass was asked for.
-      expect(decodeToWhisperPcm).not.toHaveBeenCalled()
+      expect(decodeToAsrPcm).not.toHaveBeenCalled()
     })
 
     it('drops a staged file before the pass, and clears the whole batch', async () => {
@@ -392,7 +361,7 @@ describe('IngestPanel (T10)', () => {
     })
 
     it('transcribes on request, lands the text in the shared field, and ingests it (SB-R4.3/4.5)', async () => {
-      decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.1, 0.2]))
+      decodeToAsrPcm.mockResolvedValue(new Float32Array([0.1, 0.2]))
       const { onLaunch } = open('audioFile')
       stageFile()
 
@@ -416,12 +385,15 @@ describe('IngestPanel (T10)', () => {
       )
     })
 
-    it('uses the model the preference resolved to', async () => {
-      decodeToWhisperPcm.mockResolvedValue(new Float32Array([0.1]))
+    it('sends the decoded PCM to the engine', async () => {
+      const pcm = new Float32Array([0.1])
+      decodeToAsrPcm.mockResolvedValue(pcm)
       open('audioFile')
       stageFile('a.wav')
       fireEvent.click(await screen.findByText('Transcrever 1 áudio'))
-      await waitFor(() => expect(window.hive.whisper.modelStatus).toHaveBeenCalledWith('base'))
+      // Which model runs is no longer a question this surface can get wrong —
+      // there is one, and main owns where its files are.
+      await waitFor(() => expect(window.hive.asr.transcribe).toHaveBeenCalled())
     })
   })
 
@@ -546,54 +518,48 @@ describe('IngestPanel (T10)', () => {
     })
   })
 
-  /** SB-R7.4 — the model is chosen for the user, and the choice is theirs to take back. */
   /**
-   * voice-settings (M25): the chooser moved to Perfil › Voz e transcrição —
-   * one model, both surfaces that transcribe. What this sheet still owes the
-   * reader is which model is about to run, and a way to reach the setting.
+   * What the sheet owes the reader about the model.
+   *
+   * It used to be a readout naming which of ten models would run, plus a link
+   * to change it. With one model that sentence would say the same thing
+   * forever, so the readout is gone and only the **warning** is left — the
+   * state where pressing "Transcrever" cannot work.
    */
-  describe('which model is about to run', () => {
-    it('states the model on audio sources only, and says the app chose it', async () => {
-      open('text')
+  describe('the missing-model warning', () => {
+    it('says nothing at all once the model is installed', async () => {
+      open('audioFile')
+      await screen.findByRole('tab', { name: 'Enviar áudio' })
       expect(screen.queryByText(/Transcrevendo com/)).toBeNull()
-
-      fireEvent.click(screen.getByRole('tab', { name: 'Enviar áudio' }))
-      expect(
-        await screen.findByText('Transcrevendo com base, escolhido para este computador')
-      ).toBeTruthy()
+      expect(screen.queryByText(/Nenhum modelo/)).toBeNull()
     })
 
-    it('names a pinned model without claiming the app chose it', async () => {
-      vi.mocked(window.hive.whisper.preference).mockResolvedValue({
-        id: 'small',
-        auto: false,
-        installed: ['small'],
-        recommendation: { recommendedId: 'tiny', reason: 'noGpu', gpu: false, ramGB: 16, cores: 8 }
-      })
+    it('warns on audio sources when the model is missing', async () => {
+      vi.mocked(window.hive.asr.readiness).mockResolvedValue(
+        asrReadinessFixture({ installed: false })
+      )
       open('audioFile')
-      expect(await screen.findByText('Transcrevendo com small')).toBeTruthy()
-      expect(screen.queryByText(/escolhido para este computador/)).toBeNull()
+      // A warning rather than a readout: the transcribe button below it is
+      // about to be pressed by someone who has no idea it cannot work yet.
+      expect(await screen.findByText(/Nenhum modelo de voz/)).toBeTruthy()
     })
 
-    it('offers no control at all — the readout is a statement, not a picker', async () => {
+    it('says nothing while main is still answering', () => {
+      // A line that appears and then retracts under the reader is worse than a
+      // line that arrives — `null` is "not asked yet", not "none".
+      vi.mocked(window.hive.asr.readiness).mockReturnValue(new Promise(() => {}))
       open('audioFile')
-      await screen.findByText(/Transcrevendo com/)
-      expect(screen.queryByRole('radio')).toBeNull()
+      expect(screen.queryByText(/Nenhum modelo de voz/)).toBeNull()
     })
 
     it('sends the user to the profile, closing this sheet on the way', async () => {
+      vi.mocked(window.hive.asr.readiness).mockResolvedValue(
+        asrReadinessFixture({ installed: false })
+      )
       const onOpenVoiceSettings = vi.fn()
       open('audioFile', { onOpenVoiceSettings })
-      fireEvent.click(await screen.findByLabelText('Alterar o modelo de transcrição no perfil'))
+      fireEvent.click(await screen.findByText('Baixar o modelo'))
       expect(onOpenVoiceSettings).toHaveBeenCalledTimes(1)
-    })
-
-    it('says nothing while main is still resolving the preference', () => {
-      // A line that said `base` and then changed to `small` under the reader is
-      // worse than a line that arrives — `null` is "not asked yet", not "none".
-      vi.mocked(window.hive.whisper.preference).mockReturnValue(new Promise(() => {}))
-      open('audioFile')
-      expect(screen.queryByText(/Transcrevendo com/)).toBeNull()
     })
   })
 

@@ -5,13 +5,12 @@ import { ArrowLeftIcon } from '../ui/icons'
 import { AgentPicker, type AgentMeta } from '../ui/AgentPicker'
 import { ShellPicker, type ShellCatalogView } from '../ui/ShellPicker'
 import type { ShortcutScope } from '../ui/ShortcutCustomizer'
-import { useWhisperCatalog } from '../secondBrain/whisper/useWhisperCatalog'
-import { useWhisperPreference } from '../secondBrain/whisper/useWhisperPreference'
+import { useAsrReadiness } from '../voice/useAsrReadiness'
+import { voiceSummary } from '../voice/voiceSummary'
 import { AccountScope } from './AccountScope'
 import { ProfileNav } from './ProfileNav'
 import { ShortcutsScope } from './ShortcutsScope'
 import { VoiceScope } from './VoiceScope'
-import { preferenceSummary } from './voiceCopy'
 import { scopeMeta, type ProfileScope } from './scopes'
 
 interface ProfileSheetProps {
@@ -79,10 +78,9 @@ export function ProfileSheet({
   const [shellView, setShellView] = useState<ShellCatalogView | null>(null)
   const [shellScanning, setShellScanning] = useState(false)
 
-  // voice-settings: the model choice is global, so it is read whenever the
+  // voice-settings: transcription is global, so readiness is read whenever the
   // sheet is open (the index row states it) rather than only inside its detail.
-  const preference = useWhisperPreference(open)
-  const catalog = useWhisperCatalog(open)
+  const readiness = useAsrReadiness(open)
 
   useEffect(() => {
     if (!open) return
@@ -156,16 +154,15 @@ export function ProfileSheet({
   // the memo never holds.
   const shortcutTotal = shortcutCounts.start + shortcutCounts.during
   const enabledCount = agents.length
-  const resolvedPreference = preference.preference
   const summaries = useMemo(
     () => ({
       account: userName?.trim() || t('profile.summaryUnset'),
       agents: t('profile.agentsSummary', enabledCount),
       shortcuts: t('profile.shortcutsSummary', shortcutTotal),
-      voice: preferenceSummary(resolvedPreference),
+      voice: voiceSummary(readiness.readiness),
       shell: shellSummary(shellView)
     }),
-    [userName, enabledCount, shortcutTotal, resolvedPreference, shellView]
+    [userName, enabledCount, shortcutTotal, readiness.readiness, shellView]
   )
 
   const meta = scopeMeta(scope)
@@ -240,7 +237,7 @@ export function ProfileSheet({
               {scope === 'shortcuts' && (
                 <ShortcutsScope counts={shortcutCounts} onOpenShortcuts={onOpenShortcuts} />
               )}
-              {scope === 'voice' && <VoiceScope preference={preference} catalog={catalog} />}
+              {scope === 'voice' && <VoiceScope readiness={readiness} />}
               {scope === 'shell' && (
                 <div className="wb-profile-section">
                   <ShellPicker

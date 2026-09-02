@@ -4,54 +4,29 @@ import { createElement } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { VoiceModelGate } from './VoiceModelGate'
 import {
-  createHiveWhisperMock,
-  whisperDownloadFixture,
-  whisperModelFixture
-} from '../testSupport/hiveWhisperMock'
+  asrDownloadFixture,
+  asrReadinessFixture,
+  createHiveAsrMock
+} from '../testSupport/hiveAsrMock'
 
-const HARDWARE = {
-  recommendedId: 'base' as const,
-  reason: 'noGpu' as const,
-  gpu: false,
-  ramGB: 16,
-  cores: 8
-}
-
-const CATALOG = [
-  whisperModelFixture({
-    id: 'tiny',
-    params: '39 M',
-    relativeSpeed: '~10x',
-    sizeMB: { fp32: 144, q8: 39 },
-    downloaded: false,
-    downloadedVariant: null
-  }),
-  whisperModelFixture({
-    id: 'base',
-    downloaded: false,
-    downloadedVariant: null
-  }),
-  whisperModelFixture({
-    id: 'small',
-    params: '244 M',
-    relativeSpeed: '~4x',
-    sizeMB: { fp32: 923, q8: 238 },
-    downloaded: false,
-    downloadedVariant: null
-  }),
-  whisperModelFixture({
-    id: 'medium.en',
-    params: '769 M',
-    relativeSpeed: '~2x',
-    sizeMB: { fp32: 2916, q8: 740 },
-    multilingual: false,
-    downloaded: false,
-    downloadedVariant: null
-  })
-]
+/**
+ * The gate, with the choosing taken out.
+ *
+ * Most of what this file used to assert was about a chooser: that it offered
+ * the three lightest multilingual models, preselected the one the probe
+ * recommended, explained why, let the reader override it, and refused to render
+ * an empty picker. None of it survives M29, and none of it is a loss — the
+ * questions were forced by Whisper's trade between speed and accuracy, and one
+ * model that is both leaves nothing to ask.
+ *
+ * What survives is everything about the gate being a **way in**: that the
+ * download starts here, keeps running when this closes, reports its own
+ * failure, and hands the take back.
+ */
 
 describe('VoiceModelGate', () => {
   let pushDownloads: (list: unknown[]) => void
+  let settle: (download: unknown) => void
 
   function renderGate(open = true): {
     onOpenChange: ReturnType<typeof vi.fn>
@@ -64,19 +39,17 @@ describe('VoiceModelGate', () => {
 
   beforeEach(() => {
     pushDownloads = () => {}
+    settle = () => {}
     window.hive = {
       ...window.hive,
-      whisper: {
-        ...createHiveWhisperMock(),
-        listModels: vi.fn(async () => CATALOG),
-        preference: vi.fn(async () => ({
-          id: null,
-          auto: true,
-          installed: [],
-          recommendation: HARDWARE
-        })),
+      asr: {
+        ...createHiveAsrMock(),
         onDownloads: vi.fn((listener: (list: unknown[]) => void) => {
           pushDownloads = (list) => act(() => listener(list))
+          return () => {}
+        }),
+        onDownloadSettled: vi.fn((listener: (download: unknown) => void) => {
+          settle = (download) => act(() => listener(download))
           return () => {}
         })
       }
@@ -93,143 +66,104 @@ describe('VoiceModelGate', () => {
     expect(document.body.textContent).toBe('')
   })
 
-  it('states nothing until the catalog and the probe have both answered', () => {
-    vi.mocked(window.hive.whisper.listModels).mockReturnValue(new Promise(() => {}))
+  it('states nothing until main has answered', () => {
+    vi.mocked(window.hive.asr.readiness).mockReturnValue(new Promise(() => {}))
     renderGate()
+    // A size that appears and then changes under the reader is worse than one
+    // that arrives.
+    expect(screen.queryByText(/Baixar e gravar/)).toBeNull()
     expect(screen.getByText('Avaliando este computador…')).toBeTruthy()
-    expect(screen.queryByRole('radio')).toBeNull()
   })
 
-  /**
-   * Three, not ten: the choice at this moment is "how long am I willing to wait
-   * right now", and a reader with a microphone in hand is not shopping.
-   */
-  it('offers the three lightest multilingual models, and no English-only build', async () => {
+  it('names the cost before asking for it', async () => {
     renderGate()
-    const options = await screen.findAllByRole('radio')
-    expect(options).toHaveLength(3)
-    for (const id of ['tiny', 'base', 'small']) {
-      expect(options.some((option) => option.textContent?.startsWith(id))).toBe(true)
-    }
-    expect(screen.queryByText('medium.en')).toBeNull()
+    // 671 MB, through the pt-BR formatter's 1 GB switch.
+    expect(await screen.findByText('Baixar e gravar · 671 MB')).toBeTruthy()
   })
 
-  it('preselects the model this machine should run, and says why', async () => {
+  it('starts the download in main', async () => {
     renderGate()
-    const base = await screen.findByRole('radio', { name: /base/ })
-    expect(base.getAttribute('aria-checked')).toBe('true')
-    expect(screen.getByText('É o que o Hive recomenda para este computador.')).toBeTruthy()
+    fireEvent.click(await screen.findByText('Baixar e gravar · 671 MB'))
+    expect(window.hive.asr.startDownload).toHaveBeenCalledTimes(1)
   })
 
-  it('lets the reader override the recommendation, and drops the note when they do', async () => {
+  it('replaces the offer with real progress once bytes are moving', async () => {
     renderGate()
-    fireEvent.click(await screen.findByRole('radio', { name: /small/ }))
-
-    await waitFor(() =>
-      expect(screen.getByRole('radio', { name: /small/ }).getAttribute('aria-checked')).toBe('true')
-    )
-    expect(screen.queryByText('É o que o Hive recomenda para este computador.')).toBeNull()
-    expect(screen.getByRole('button', { name: /Baixar e gravar · 923 MB/ })).toBeTruthy()
-  })
-
-  it('starts the download in main, at the precision this device needs', async () => {
-    renderGate()
-    fireEvent.click(await screen.findByRole('button', { name: /Baixar e gravar/ }))
-    // fp32: this jsdom has no WebGPU adapter to ask.
-    expect(window.hive.whisper.startDownload).toHaveBeenCalledWith('base', 'fp32')
-  })
-
-  it('replaces the choice with real progress once bytes are moving', async () => {
-    renderGate()
-    await screen.findByRole('button', { name: /Baixar e gravar/ })
-    pushDownloads([whisperDownloadFixture({ id: 'base' })])
-
-    expect(screen.getByText('512 MB de 3,0 GB')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Baixar e gravar/ })).toBeNull()
-    // …and it says the wait is safe to walk away from.
+    await screen.findByText('Baixar e gravar · 671 MB')
+    pushDownloads([asrDownloadFixture()])
+    expect(screen.queryByText('Baixar e gravar · 671 MB')).toBeNull()
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+    // The promise that makes closing safe, stated while it matters.
     expect(screen.getByText(/o download continua em segundo plano/)).toBeTruthy()
   })
 
   it('cancels by id rather than by closing anything', async () => {
     renderGate()
-    await screen.findByRole('button', { name: /Baixar e gravar/ })
-    pushDownloads([whisperDownloadFixture({ id: 'base' })])
-
-    fireEvent.click(screen.getByLabelText('Cancelar o download de base'))
-    expect(window.hive.whisper.cancelDownload).toHaveBeenCalledWith('base')
+    await screen.findByText('Baixar e gravar · 671 MB')
+    pushDownloads([asrDownloadFixture()])
+    fireEvent.click(screen.getByText('Cancelar'))
+    expect(window.hive.asr.cancelDownload).toHaveBeenCalledWith('parakeet-tdt-0.6b-v3-int8')
   })
 
   it('names a failure and retries it in place', async () => {
     renderGate()
-    await screen.findByRole('button', { name: /Baixar e gravar/ })
+    await screen.findByText('Baixar e gravar · 671 MB')
     pushDownloads([
-      whisperDownloadFixture({
-        id: 'base',
+      asrDownloadFixture({
         status: 'error',
-        loaded: 0,
-        failure: { kind: 'server', detail: 'HTTP 503' }
+        loaded: 256 * 1024 * 1024,
+        failure: { kind: 'offline', detail: 'fetch failed' }
       })
     ])
-
-    expect(screen.getByRole('alert').textContent).toContain('servidor dos modelos')
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
-    expect(window.hive.whisper.startDownload).toHaveBeenCalledWith('base', 'fp32')
+    // The cause, not "o download falhou" — and the bytes already on disk, which
+    // are what make "Continuar" honest.
+    expect(screen.getByText('A conexão caiu no meio do download.')).toBeTruthy()
+    fireEvent.click(screen.getByText('Continuar'))
+    expect(window.hive.asr.startDownload).toHaveBeenCalledTimes(1)
   })
 
   it('dismisses a failure without retrying it', async () => {
     renderGate()
-    await screen.findByRole('button', { name: /Baixar e gravar/ })
+    await screen.findByText('Baixar e gravar · 671 MB')
     pushDownloads([
-      whisperDownloadFixture({
-        id: 'base',
-        status: 'error',
-        loaded: 0,
-        failure: { kind: 'offline', detail: 'fetch failed' }
-      })
+      asrDownloadFixture({ status: 'error', failure: { kind: 'disk', detail: 'no space' } })
     ])
-
-    fireEvent.click(screen.getByLabelText('Dispensar o aviso de falha de base'))
-    expect(window.hive.whisper.dismissDownload).toHaveBeenCalledWith('base')
-    expect(window.hive.whisper.startDownload).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText('Dispensar o aviso de falha do download'))
+    expect(window.hive.asr.dismissDownload).toHaveBeenCalledWith('parakeet-tdt-0.6b-v3-int8')
+    expect(window.hive.asr.startDownload).not.toHaveBeenCalled()
   })
 
-  it('offers a way out to the full library', async () => {
+  it('offers a way through to the settings', async () => {
     const { onOpenSettings } = renderGate()
-    fireEvent.click(await screen.findByRole('button', { name: 'Ver todos os modelos' }))
-    expect(onOpenSettings).toHaveBeenCalled()
+    fireEvent.click(await screen.findByText('Ver detalhes'))
+    expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
-  /**
-   * A download that lands does not re-resolve the preference on its own — main
-   * answers `whisper:preference` on request. Without this the gate would sit
-   * open on a machine that now has a model.
-   */
-  it('re-reads the catalog and the preference when a download completes', async () => {
-    // Typed off the bridge, not `unknown`: the mocked implementation has to be
-    // assignable to the real signature.
-    type Settled = Parameters<Window['hive']['whisper']['onDownloadSettled']>[0]
-    let settle: Settled = () => {}
-    vi.mocked(window.hive.whisper.onDownloadSettled).mockImplementation((listener) => {
-      settle = listener
-      return () => {}
-    })
+  it('re-reads readiness when a download completes', async () => {
     renderGate()
-    await screen.findByRole('button', { name: /Baixar e gravar/ })
-    const before = vi.mocked(window.hive.whisper.preference).mock.calls.length
+    await screen.findByText('Baixar e gravar · 671 MB')
+    expect(window.hive.asr.readiness).toHaveBeenCalledTimes(1)
 
-    await act(async () => settle(whisperDownloadFixture({ id: 'base', status: 'done' })))
-
-    await waitFor(() =>
-      expect(vi.mocked(window.hive.whisper.preference).mock.calls.length).toBeGreaterThan(before)
-    )
-    expect(window.hive.whisper.listModels).toHaveBeenCalledTimes(2)
+    settle({ id: 'parakeet-tdt-0.6b-v3-int8', status: 'done' })
+    // Main answers readiness on request, so the request has to be made — this
+    // is what lets `useVoiceGate` close the dialog and run the take.
+    await waitFor(() => expect(window.hive.asr.readiness).toHaveBeenCalledTimes(2))
   })
 
-  it('says so, instead of offering an empty chooser, when the catalog has nothing', async () => {
-    vi.mocked(window.hive.whisper.listModels).mockResolvedValue([])
-    const { onOpenSettings } = renderGate()
-    expect(await screen.findByText('Nenhum modelo pôde ser oferecido aqui.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver todos os modelos' }))
-    expect(onOpenSettings).toHaveBeenCalled()
+  it('ignores an ending that is not a completion', async () => {
+    renderGate()
+    await screen.findByText('Baixar e gravar · 671 MB')
+    settle({ id: 'parakeet-tdt-0.6b-v3-int8', status: 'cancelled' })
+    await act(async () => {})
+    expect(window.hive.asr.readiness).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the installed state without a download button', async () => {
+    vi.mocked(window.hive.asr.readiness).mockResolvedValue(asrReadinessFixture({ installed: true }))
+    renderGate()
+    // The gate is only opened when the model is missing, but readiness can land
+    // *after* it opens — the offer must not stay on screen once it is stale.
+    await screen.findByText(/Ver detalhes/)
+    expect(screen.queryByRole('progressbar')).toBeNull()
   })
 })
