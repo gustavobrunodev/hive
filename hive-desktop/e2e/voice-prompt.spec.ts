@@ -89,14 +89,23 @@ test.describe('voice-prompt E2E (real Electron)', () => {
     // M26: the app ships no weights, and every recording surface now passes
     // through the model gate — so a userData with no model installed answers
     // the microphone with a download dialog and this spec never sees a take.
-    // The marker alone is enough: `status()` reads only the marker, and the
-    // transcriber here is the seam, which never opens a weight file. Acquiring
-    // a model is `voice-model-gate.spec.ts`'s subject, not this one's.
-    const modelDir = path.join(userDataDir, 'whisper-models', 'base')
+    // The files have to be *there*, not just marked: `installed()` checks each
+    // one, precisely so a half-deleted model is never reported as ready. They
+    // stay empty — the transcriber here is the seam, which never opens a weight
+    // file. Acquiring a model is `voice-model-gate.spec.ts`'s subject.
+    const modelDir = path.join(userDataDir, 'asr-models', 'parakeet-tdt-0.6b-v3-int8')
     fs.mkdirSync(modelDir, { recursive: true })
+    for (const file of [
+      'encoder.int8.onnx',
+      'decoder.int8.onnx',
+      'joiner.int8.onnx',
+      'tokens.txt'
+    ]) {
+      fs.writeFileSync(path.join(modelDir, file), '')
+    }
     fs.writeFileSync(
-      path.join(modelDir, '.hive-complete.json'),
-      JSON.stringify({ variant: 'fp32', repo: 'Xenova/whisper-base' })
+      path.join(modelDir, '.complete.json'),
+      JSON.stringify({ repo: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8' })
     )
 
     const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')

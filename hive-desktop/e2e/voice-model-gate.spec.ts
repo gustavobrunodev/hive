@@ -63,7 +63,7 @@ test.describe('voice model gate E2E (real Electron)', () => {
         lastEffort: null
       })
     )
-    // Deliberately NO `whisper-models/` directory — that absence is the subject.
+    // Deliberately NO `asr-models/` directory — that absence is the subject.
 
     const appPath = path.join(__dirname, '..', 'out', 'main', 'index.js')
     const launchEnv = { ...process.env }
@@ -89,18 +89,21 @@ test.describe('voice model gate E2E (real Electron)', () => {
         .catch(() => {})
 
       // ── 1. Main says "no model", through the real bridge ─────────────────
-      const preference = await window.evaluate(() =>
+      const readiness = await window.evaluate(() =>
         (
-          globalThis as unknown as { hive: { whisper: { preference: () => Promise<unknown> } } }
-        ).hive.whisper.preference()
+          globalThis as unknown as { hive: { asr: { readiness: () => Promise<unknown> } } }
+        ).hive.asr.readiness()
       )
-      expect((preference as { id: string | null }).id).toBeNull()
-      // The probe still has an opinion — a recommendation is not an install,
-      // and conflating the two is what put a microphone on a machine that
-      // could not transcribe.
+      expect((readiness as { installed: boolean }).installed).toBe(false)
+      // The probe still has an opinion — it just decides a thread count now
+      // rather than a model, and reading nothing at all is not the same as
+      // reading a weak machine.
       expect(
-        (preference as { recommendation: { recommendedId: string } }).recommendation.recommendedId
-      ).toBeTruthy()
+        (readiness as { runtime: { threads: number } }).runtime.threads
+      ).toBeGreaterThanOrEqual(1)
+      // And the model it would fetch is named, with its cost, because that is
+      // what the gate has to put in front of someone.
+      expect((readiness as { model: { sizeMB: number } }).model.sizeMB).toBeGreaterThan(0)
 
       // ── 2. Count microphone opens, so "did it record?" is a fact ─────────
       await window.evaluate(() => {
@@ -124,9 +127,11 @@ test.describe('voice model gate E2E (real Electron)', () => {
 
       // ── 3. A way in, not a take ──────────────────────────────────────────
       await expect(window.locator('.wb-vgate')).toBeVisible({ timeout: 15_000 })
-      await expect(window.getByText('Escolha um modelo para gravar')).toBeVisible()
-      // The download it offers is a real one, sized for this machine.
-      await expect(window.locator('.wb-vgate .wb-vbtn-primary')).toBeVisible()
+      // No longer "escolha um modelo": there is one, so the dialog states the
+      // cost and gets out of the way (M29).
+      await expect(window.getByText('Baixe o modelo de voz para gravar')).toBeVisible()
+      // The download it offers is a real one, with its real size on the button.
+      await expect(window.locator('.wb-vgate .wb-vbtn-primary')).toContainText('671 MB')
 
       const opens = await window.evaluate(
         () => (window as unknown as { __mediaOpens: number }).__mediaOpens
@@ -137,10 +142,12 @@ test.describe('voice model gate E2E (real Electron)', () => {
       // modal, so Radix marks the rest of the page `aria-hidden`.)
       await expect(window.locator('.wb-dictation')).toHaveCount(0)
 
-      // ── 4. The full library is one link away, and it opens the sheet ─────
-      await window.getByRole('button', { name: 'Ver todos os modelos' }).click()
+      // ── 4. The settings are one link away, and the link opens the sheet ──
+      await window.getByRole('button', { name: 'Ver detalhes' }).click()
       await expect(window.getByText('Voz e transcrição')).toBeVisible({ timeout: 15_000 })
-      await expect(window.getByText('Nenhum modelo de voz ainda')).toBeVisible()
+      // The same statement the gate made, now with the model's own facts.
+      await expect(window.getByText('Parakeet TDT v3')).toBeVisible()
+      await expect(window.getByText(/600 M de parâmetros/)).toBeVisible()
     } finally {
       await app.close()
       fs.rmSync(tmpRoot, { recursive: true, force: true })

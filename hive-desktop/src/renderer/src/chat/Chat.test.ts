@@ -618,6 +618,7 @@ describe('Chat', () => {
       conversationActions?: RoleAction[]
       onMcpRoster?: (servers: { name: string; status: string; tools: string[] }[]) => void
       onOpenMcpConsole?: () => void
+      agents?: string[]
     } = {}
   ): ReturnType<typeof mockHive> {
     const hive = mockHive(extra)
@@ -2588,7 +2589,34 @@ describe('Chat', () => {
       return screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
     }
 
-    it('shows a quiet mic control in the toolbar, unpressed (VP-R1.1)', async () => {
+    /**
+     * The composer is wired into WorkUI, which supplies the routes out to the
+     * profile — but `dictation/` promises the field can be dropped anywhere
+     * (VP-R5.1), and a host that supplies none of that must not crash on the
+     * one path a fresh install takes.
+     */
+    it('survives a host that wired no way out to the profile', async () => {
+      // `renderChat` deliberately passes neither route — the defaults are what
+      // is under test.
+      renderChat({ asrInstalled: false })
+      const mic = await screen.findByRole('button', { name: 'Ditar' })
+      await act(async () => {
+        fireEvent.click(mic)
+      })
+      // The gate still opens, and its link out is inert rather than fatal.
+      fireEvent.click(screen.getByText('Ver detalhes'))
+      expect(screen.getByRole('dialog')).toBeTruthy()
+    })
+
+    it('survives a host that wired no way out to the agent list either', async () => {
+      // Two agents, so the switcher renders at all — it is hidden with one.
+      renderChat({}, { agents: ['claude-cli', 'copilot-cli'] })
+      fireEvent.click(await screen.findByText('Gerenciar agentes…'))
+      // Inert, not fatal: the switcher is still on screen and usable.
+      expect(screen.getByText('Gerenciar agentes…')).toBeTruthy()
+    })
+
+  it('shows a quiet mic control in the toolbar, unpressed (VP-R1.1)', async () => {
       renderChat()
       const mic = await screen.findByRole('button', { name: 'Ditar' })
       expect(mic.getAttribute('aria-pressed')).toBe('false')

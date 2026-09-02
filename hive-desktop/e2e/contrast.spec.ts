@@ -366,6 +366,29 @@ for (const theme of THEMES) {
 }
 
 /**
+ * Puts the ASR model where the store looks, so a scene about the **transport**
+ * is not answered by the download gate.
+ *
+ * The files are empty on purpose: `installed()` checks that each one exists,
+ * and the transcriber in these scenes is the E2E seam, which never opens a
+ * weight file. Without this the microphone opens `VoiceModelGate` instead of a
+ * take — which is what these two scenes were silently measuring, since the
+ * shared fixture has never seeded a model (the same trap M26.1 recorded when
+ * `voice-prompt.spec.ts` went red unnoticed).
+ */
+function seedAsrModel(userData: string): void {
+  const dir = path.join(userData, 'asr-models', 'parakeet-tdt-0.6b-v3-int8')
+  fs.mkdirSync(dir, { recursive: true })
+  for (const file of ['encoder.int8.onnx', 'decoder.int8.onnx', 'joiner.int8.onnx', 'tokens.txt']) {
+    fs.writeFileSync(path.join(dir, file), '')
+  }
+  fs.writeFileSync(
+    path.join(dir, '.complete.json'),
+    JSON.stringify({ repo: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8' })
+  )
+}
+
+/**
  * voice-prompt (VP-R6.3, VP-R7.4). The sweep above never sees the dictation
  * transport: it only exists while a take is live, and the work UI it samples is
  * idle. So the take is opened first, with the microphone and the transcriber
@@ -382,7 +405,11 @@ for (const theme of THEMES) {
   test(`@p0 @a11y the dictation transport meets WCAG AA in the ${theme} theme`, async ({
     hiveApp
   }) => {
-    const { window } = hiveApp
+    const { window, seeded } = hiveApp
+
+    // Before the reload: readiness is read per call, so the renderer picks this
+    // up on its next mount and the microphone opens a take rather than a gate.
+    seedAsrModel(seeded.userData)
 
     await window.addInitScript(() => {
       ;(window as unknown as { __hiveDictationE2E: unknown }).__hiveDictationE2E = {
@@ -657,33 +684,51 @@ for (const theme of THEMES) {
  * `Baixar` buttons reach the network on click, which a contrast assertion has
  * no business doing.
  */
+/**
+ * The voice scope, in both of its two states.
+ *
+ * Two states rather than a chooser and a catalog: M29 left one model, so the
+ * screen is either "not downloaded, here is what it costs" or "downloaded,
+ * here is how to remove it". Both are swept, because the second one carries the
+ * only destructive affordance on the screen and the first is what every new
+ * user sees. Nothing is clicked that would reach the network.
+ */
 for (const theme of THEMES) {
   test(`@p0 @a11y the transcription-model scope meets WCAG AA in the ${theme} theme`, async ({
     hiveApp
   }) => {
-    const { window } = hiveApp
+    const { window, seeded } = hiveApp
 
     await setTheme(window, theme)
     await freezeMotion(window)
 
-    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
-    await window.locator('button.wb-pnav-row[data-scope="voice"]').click()
-    await window.locator('.wb-mdl-list').waitFor({ state: 'visible' })
+    const openVoiceScope = async (): Promise<void> => {
+      await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+      await window.locator('button.wb-pnav-row[data-scope="voice"]').click()
+      await window.locator('.wb-vmodel').waitFor({ state: 'visible' })
+    }
 
-    const chooserSamples = await sampleTextContrast(window)
-    expect(chooserSamples.length).toBeGreaterThan(5)
+    await openVoiceScope()
+    const missingSamples = await sampleTextContrast(window)
+    expect(missingSamples.length).toBeGreaterThan(5)
     expect(
-      failuresIn(chooserSamples),
-      `contrast failures in ${theme}, model chooser:\n${failuresIn(chooserSamples).join('\n')}`
+      failuresIn(missingSamples),
+      `contrast failures in ${theme}, model not downloaded:\n${failuresIn(missingSamples).join('\n')}`
     ).toEqual([])
 
-    await window.locator('.wb-cat-toggle').click()
-    await window.locator('.wb-cat-rows').waitFor({ state: 'visible' })
+    // The installed state, with the delete affordance the other one lacks.
+    seedAsrModel(seeded.userData)
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+    await setTheme(window, theme)
+    await freezeMotion(window)
+    await openVoiceScope()
+    await window.getByText('Baixado').waitFor({ state: 'visible' })
 
-    const catalogSamples = await sampleTextContrast(window)
+    const installedSamples = await sampleTextContrast(window)
     expect(
-      failuresIn(catalogSamples),
-      `contrast failures in ${theme}, model catalog:\n${failuresIn(catalogSamples).join('\n')}`
+      failuresIn(installedSamples),
+      `contrast failures in ${theme}, model downloaded:\n${failuresIn(installedSamples).join('\n')}`
     ).toEqual([])
   })
 }

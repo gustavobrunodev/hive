@@ -11,8 +11,7 @@ import {
   shell,
   protocol,
   session,
-  utilityProcess,
-  webContents
+  utilityProcess
 } from 'electron'
 import { ConflictError } from './fsService'
 import { createConfigStore } from './configStore'
@@ -2647,13 +2646,15 @@ describe('main process bootstrap', () => {
      */
     it('forks the engine lazily, and only once for the whole app', async () => {
       installModel()
-      void findHandler('asr:warm')({}).catch(() => {})
+      void (findHandler('asr:warm')({}) as Promise<unknown>).catch(() => {})
       await new Promise((r) => setTimeout(r, 0))
       const first = asrChild.current
       expect(first).not.toBeNull()
 
       const forks = vi.mocked(utilityProcess.fork).mock.calls.length
-      void findHandler('asr:transcribe')({}, new Float32Array(16_000)).catch(() => {})
+      void (findHandler('asr:transcribe')({}, new Float32Array(16_000)) as Promise<unknown>).catch(
+        () => {}
+      )
       await new Promise((r) => setTimeout(r, 0))
       // A user who never dictates never pays for the process; one who dictates
       // twice does not pay twice for a 1.8 s session build.
@@ -2663,7 +2664,7 @@ describe('main process bootstrap', () => {
 
     it('tells the worker which addon specifier to require, before anything else', async () => {
       installModel()
-      void findHandler('asr:warm')({}).catch(() => {})
+      void (findHandler('asr:warm')({}) as Promise<unknown>).catch(() => {})
       await new Promise((r) => setTimeout(r, 0))
       expect(asrChild.current?.postMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'configure' })
@@ -2672,7 +2673,7 @@ describe('main process bootstrap', () => {
 
     it('carries a transcript back out to the caller', async () => {
       installModel()
-      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000))
+      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000)) as Promise<string>
       await new Promise((r) => setTimeout(r, 0))
       // The LAST transcribe, not the first: the fake child is shared across
       // this describe block, so earlier tests left their own messages on it.
@@ -2686,7 +2687,7 @@ describe('main process bootstrap', () => {
 
     it('fails everything in flight when the engine process dies', async () => {
       installModel()
-      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000))
+      const pending = findHandler('asr:transcribe')({}, new Float32Array(16_000)) as Promise<string>
       await new Promise((r) => setTimeout(r, 0))
       asrChild.onExit?.()
       await expect(pending).rejects.toThrow(/stopped/)
@@ -2701,7 +2702,7 @@ describe('main process bootstrap', () => {
           { webContents: { isDestroyed: () => false, send }, isFocused: () => true }
         ] as unknown as ReturnType<typeof BrowserWindow.getAllWindows>)
       try {
-        void findHandler('asr:warm')({}).catch(() => {})
+        void (findHandler('asr:warm')({}) as Promise<unknown>).catch(() => {})
         await new Promise((r) => setTimeout(r, 0))
         asrChild.onMessage?.({ type: 'phase', phase: { status: 'loading' } })
         // "Is the engine warm?" is a fact about the app, so every window hears it.
@@ -2716,7 +2717,7 @@ describe('main process bootstrap', () => {
 
     it('evict is a no-throw request to drop the ~1 GB of weights', async () => {
       installModel()
-      void findHandler('asr:warm')({}).catch(() => {})
+      void (findHandler('asr:warm')({}) as Promise<unknown>).catch(() => {})
       await new Promise((r) => setTimeout(r, 0))
       await expect(findHandler('asr:evict')({})).resolves.toBeUndefined()
       expect(asrChild.current?.postMessage).toHaveBeenCalledWith(

@@ -18,7 +18,18 @@ import type {
  * native `.node` binary.
  */
 
-/** The slice of `sherpa-onnx-node` this uses, injected so tests need no addon. */
+/**
+ * The slice of `sherpa-onnx-node` this uses, injected so tests need no addon.
+ *
+ * **Never reach for `sherpa.readWave`.** Measured under Electron 39 (ABI 140)
+ * on 2026-09-02: it throws `Error: External buffers are not allowed`, because
+ * Electron forbids the external `ArrayBuffer` that the addon hands back. The
+ * path below is unaffected and was verified end to end in the same runtime —
+ * a plain JS `Float32Array` into `acceptWaveform`, text out of `getResult` —
+ * which is exactly what the app does: the renderer decodes audio with WebAudio
+ * and the PCM crosses IPC. Anyone later adding "transcribe this file straight
+ * from main" has to decode it in JS too, not with `readWave`.
+ */
 export interface SherpaStream {
   acceptWaveform: (wave: { sampleRate: number; samples: Float32Array }) => void
 }

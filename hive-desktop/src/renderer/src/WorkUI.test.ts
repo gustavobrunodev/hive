@@ -564,12 +564,16 @@ function ChatStandIn(
     onCustomizeShortcuts,
     onSessionChange,
     onMcpRoster,
-    onOpenMcpConsole
+    onOpenMcpConsole,
+    onManageAgents,
+    onOpenVoiceSettings
   }: {
     onCustomizeShortcuts?: (scope: 'start' | 'during') => void
     onSessionChange?: (id: string | null) => void
     onMcpRoster?: (servers: { name: string; status: string; tools: string[] }[]) => void
     onOpenMcpConsole?: () => void
+    onManageAgents?: () => void
+    onOpenVoiceSettings?: () => void
   },
   ref: React.Ref<typeof chatHandle>
 ): ReactElement {
@@ -587,6 +591,19 @@ function ChatStandIn(
       'button',
       { type: 'button', onClick: () => onSessionChange?.('conversa-atual') },
       'simular conversa em andamento'
+    ),
+    // The two routes out of the composer into the profile. The voice one is
+    // what a fresh install reaches for: pressing the microphone with no model
+    // opens the gate, and the gate's way out is this.
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onManageAgents?.() },
+      'simular gerenciar agentes'
+    ),
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onOpenVoiceSettings?.() },
+      'simular abrir voz'
     ),
     // mcp-visibility: the roster reaches WorkUI through Chat (it rides the
     // agent event stream), so the stand-in is where a test injects one.
@@ -2536,6 +2553,46 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
    * hand-off has to land ON the voice scope, and it has to close the sheet it
    * came from: two sheets stacked trap focus twice.
    */
+  /**
+   * "Where do I get the model?" from the two places a take can start.
+   *
+   * Both routes exist because the app ships no weights: pressing the
+   * microphone on a fresh install opens the gate, and the gate's way out has
+   * to land on the scope itself rather than the settings index. The "Perguntar
+   * à base" route also has to close its own dialog on the way — leaving it
+   * open behind the profile sheet is two modals deep with no way back.
+   */
+  it('routes the composer to the voice settings, and to the agent list', async () => {
+    withVault()
+    renderWork()
+
+    fireEvent.click(await screen.findByText('simular abrir voz'))
+    // The scope itself, not the index with the row still to find.
+    expect(await screen.findByRole('heading', { name: 'Voz e transcrição' })).toBeTruthy()
+
+    fireEvent.click(screen.getByLabelText('Voltar para a lista de configurações'))
+    fireEvent.click(screen.getByText('simular gerenciar agentes'))
+    expect(await screen.findByRole('heading', { name: 'Agentes' })).toBeTruthy()
+  })
+
+  /**
+   * "Perguntar à base" has to close itself on the way to the settings: leaving
+   * it open behind the profile sheet is two modals deep with no way back.
+   */
+  it('closes "Perguntar à base" on its way to the voice settings', async () => {
+    withVault()
+    renderWork()
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Base de conhecimento — perguntar ou capturar' })
+    )
+    fireEvent.click(await screen.findByText('Perguntar à base'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ditar' }))
+    fireEvent.click(await screen.findByText('Ver detalhes'))
+
+    expect(await screen.findByRole('heading', { name: 'Voz e transcrição' })).toBeTruthy()
+  })
+
   /**
    * A model download outlives every surface that could show it, so its ending
    * is announced app-wide — and both of the announcement's actions have to

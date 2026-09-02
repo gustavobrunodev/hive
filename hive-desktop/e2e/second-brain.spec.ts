@@ -62,11 +62,12 @@ test.describe('second-brain E2E (real Electron)', () => {
     // workspace tree), which `useSecondBrain.test.ts` covers directly.
     fs.mkdirSync(path.join(workspace, 'second-brain', 'raw'), { recursive: true })
 
-    // A model file placed exactly where the store keeps them, to prove the
-    // protocol serves real bytes from userData (T11's contract).
-    const modelDir = path.join(userDataDir, 'whisper-models', 'base')
+    // A partial model in the store's own directory: bytes on disk with no
+    // completion marker, which the assertions below use to prove that a
+    // directory of bytes is not a finished model.
+    const modelDir = path.join(userDataDir, 'asr-models', 'parakeet-tdt-0.6b-v3-int8')
     fs.mkdirSync(modelDir, { recursive: true })
-    fs.writeFileSync(path.join(modelDir, 'config.json'), '{"model_type":"whisper"}')
+    fs.writeFileSync(path.join(modelDir, 'tokens.txt'), 'partial')
 
     fs.writeFileSync(
       path.join(userDataDir, 'config.json'),
@@ -199,42 +200,37 @@ test.describe('second-brain E2E (real Electron)', () => {
       ).toBeVisible({ timeout: 10_000 })
       await window.keyboard.press('Escape')
 
-      // ── 3. The hive-model: protocol under the production CSP (T11) ───────
-      const served = await window.evaluate(async () => {
-        const response = await fetch('hive-model://models/base/config.json')
-        return { ok: response.ok, body: (await response.text()).trim() }
+      // ── 3. The model store, through the real bridge (M29) ────────────────
+      //
+      // The `hive-model:` protocol this section used to exercise is gone. It
+      // existed only so a sandboxed renderer could read weights it could not
+      // fetch; inference moved to a native utility process, and the renderer
+      // never sees a weight file. Its absence is now the assertion.
+      const modelSchemeReachable = await window.evaluate(async () => {
+        try {
+          await fetch('hive-model://models/base/config.json')
+          return true
+        } catch {
+          return false
+        }
       })
-      expect(served).toEqual({ ok: true, body: '{"model_type":"whisper"}' })
+      expect(modelSchemeReachable).toBe(false)
 
-      // M26: the app ships NO weights. The installation carries no
-      // `resources/whisper-models/`, so the only place a model can come from is
-      // the user's own profile — which is what the two assertions below check
-      // from opposite sides.
+      // The app ships NO weights: the installation carries no bundled model
+      // directory, so the only place one can come from is the user's profile.
+      expect(fs.existsSync(path.join(__dirname, '..', 'resources', 'asr-models'))).toBe(false)
       expect(fs.existsSync(path.join(__dirname, '..', 'resources', 'whisper-models'))).toBe(false)
 
-      // `base` was seeded into userData above but carries no completion marker,
-      // so the store correctly refuses to call it downloaded — a directory of
-      // bytes is not a finished model.
-      const status = await window.evaluate(async () => window.hive.whisper.modelStatus('base'))
-      expect(status).toEqual({ downloaded: false, variant: null })
-
-      // And with nothing installed, the resolved preference says so rather than
-      // naming a model whose weights are nowhere on this machine (SB-R7.4).
-      const preference = await window.evaluate(async () => window.hive.whisper.preference())
-      expect(preference.auto).toBe(true)
-      expect(preference.id).toBeNull()
-      expect(preference.installed).toEqual([])
-
-      // An unknown store root is refused, not served.
-      const refused = await window.evaluate(async () => {
-        const response = await fetch('hive-model://secrets/id_rsa')
-        return response.status
-      })
-      expect(refused).toBe(404)
-
-      // The whisper catalog crosses IPC intact.
-      const models = await window.evaluate(async () => window.hive.whisper.listModels())
-      expect(models.some((m) => m.id === 'base')).toBe(true)
+      // Bytes were seeded into userData above but carry no completion marker,
+      // so the store correctly refuses to call the model installed — a
+      // directory of bytes is not a finished model.
+      const readiness = await window.evaluate(async () => window.hive.asr.readiness())
+      expect(readiness.installed).toBe(false)
+      // And it still names what it would fetch, with the cost, because that is
+      // what every recording surface needs in order to offer the download.
+      expect(readiness.model.id).toBe('parakeet-tdt-0.6b-v3-int8')
+      expect(readiness.model.sizeMB).toBeGreaterThan(0)
+      expect(readiness.runtime.threads).toBeGreaterThanOrEqual(1)
 
       expect(cspViolations).toEqual([])
     } finally {

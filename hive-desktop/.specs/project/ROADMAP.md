@@ -1146,6 +1146,43 @@ que deixa alguém gastar uma hora de download em algo que não pode funcionar n�
 
 ---
 
+## M29 — Parakeet substitui o Whisper: transcrição nativa ✅ Done (2026-09-02)
+
+Ditado lento, pesado e impreciso — e as três queixas com uma causa estrutural
+cada, todas sobre **onde** a inferência rodava, não sobre o Whisper.
+
+O pedido citava o [Handy](https://github.com/cjpais/Handy). Ele **não é
+embutível**: app Tauri standalone, sem API, que entrega texto colando no campo
+com foco do SO. O que se adota é o motor dele — NVIDIA **Parakeet TDT 0.6b v3**
+— via `sherpa-onnx-node`, com ONNX Runtime **nativo** num `utilityProcess`.
+
+**Por que trocar o motor e não afinar o antigo.** `whisperEnv.ts` fixava
+`numThreads = 1` porque um renderer `file://` não tem `SharedArrayBuffer`; os
+pesos tinham de ser fp32 porque o decoder q8 não cria sessão no
+onnxruntime-web; e o heap WASM só cresce, que foi o `std::bad_alloc` do M28.
+Nenhuma das três propriedades existe em ONNX Runtime nativo.
+
+**Medido** (spike, 8 núcleos): **12,6× tempo real**, **WER 9,55% em pt-BR**
+(FLEURS; 4 de 8 clipes em zero), **671 MB** de download — menor que o `small`
+(923 MB) que rodava antes, com 600 M de parâmetros contra 244 M. O ponto fraco
+medido são nomes próprios estrangeiros e jargão em inglês, não o português.
+
+**D-ASR-1 — uma escolha que ninguém deveria fazer não se apresenta melhor, se
+apaga.** O catálogo de dez modelos, a escada de recomendação, o calculador de
+aderência e os medidores existiam para ajudar alguém a resolver o trade do
+Whisper: rápido e errado, ou preciso e grande demais. Parakeet é os dois lados,
+então a tela perde o seletor inteiro e fica com um fato e uma ação.
+
+**D-ASR-2 — o esquema mais seguro é o que não existe.** `hive-model:` servia
+pesos a um renderer que não podia buscá-los. Com a inferência num processo
+nativo o renderer não vê um arquivo de peso, e o esquema sai — com a entrada
+`connect-src` do CSP junto.
+
+**Falta:** reafinar `segmenter`/`livePass` (calibrados para a janela de 30 s do
+Whisper) e validar em uso real, com a voz do usuário.
+
+---
+
 ## Dependency Graph
 
 ```

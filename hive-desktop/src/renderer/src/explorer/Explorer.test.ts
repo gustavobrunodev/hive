@@ -3769,6 +3769,24 @@ describe('Explorer (T12/T8)', () => {
       expect(cut.textContent).toContain('Ctrl+X')
     })
 
+    /**
+     * On macOS the announced binding is the Command key, not Control.
+     *
+     * `aria-keyshortcuts` has a fixed vocabulary — "Meta" is what names ⌘ — and
+     * it is the only thing that announces the binding at all, because the
+     * design system marks the visible hint `aria-hidden`. Announcing "Ctrl+X"
+     * to a macOS screen-reader user names a chord that does nothing there.
+     */
+    it('announces the Command key on macOS, not Control', async () => {
+      mockHive({ platform: 'darwin', listTree: vi.fn().mockResolvedValue(clipboardTree) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      fireEvent.contextMenu(screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement)
+      const cut = await screen.findByRole('menuitem', { name: 'Recortar' })
+      expect(cut.getAttribute('aria-keyshortcuts')).toBe('Meta+X')
+    })
+
     it('offers Colar on the empty area too — that is the workspace root', async () => {
       await renderClipboardTree()
 

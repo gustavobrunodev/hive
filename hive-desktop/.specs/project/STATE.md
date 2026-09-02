@@ -2953,6 +2953,149 @@ sem o espelho, o teste falha com a frase duplicada).
   icon comes from `resources/icon.png`, not a web favicon) — P3, cosmetic
   dev-console noise only.
 
+## M29 — Parakeet substitui o Whisper: transcrição nativa (2026-09-02)
+
+O pedido foi "substituir o Whisper pelo [Handy](https://github.com/cjpais/Handy)
+no ditado em tempo real, porque está lento, pesado e impreciso".
+
+**O Handy não é embutível.** É um app Tauri standalone sem API, servidor ou
+biblioteca; seus flags de CLI acionam a gravação por atalho global *dele*, e ele
+entrega texto **colando no campo com foco do SO**. Não há como escrever no
+estado do composer nem alimentar o texto provisório do `livePass`. O que se
+adota é o **motor** que o torna rápido: NVIDIA **Parakeet TDT 0.6b v3**. O Handy
+chega nele via `transcribe-rs`; nós chegamos nos mesmos pesos ONNX via
+`sherpa-onnx-node` (Apache-2.0, binários Node-API pré-compilados por
+plataforma).
+
+Decisão do usuário: inferência **nativa** (não WebGPU no renderer) e **remover o
+Whisper por completo**, inclusive para áudio gravado.
+
+### As três queixas tinham uma causa estrutural cada
+
+Nenhuma estava ao alcance de um ajuste, e todas são propriedades do lugar onde a
+inferência rodava, não do Whisper:
+
+- **Lento.** `whisperEnv.ts` fixava `numThreads = 1` porque um renderer
+  `file://` não é cross-origin isolated e portanto não tem `SharedArrayBuffer`.
+  Somado a isso, o Whisper vê **30 s de mel frames por forward pass**: uma frase
+  ditada de 2 s custava quase o mesmo que 30 s.
+- **Pesado.** Os pesos rodavam em **fp32** (o decoder q8 não cria sessão no
+  onnxruntime-web) dentro do heap WASM do renderer — "um heap que só cresce",
+  como dizia o comentário de `whisperEngineCore.ts`. O M28 gastou uma frente
+  inteira nisso (`std::bad_alloc` no `OrtRun`, troca de worker para devolver o
+  heap), e o M26 mediu o teto de 2 GiB por `ArrayBuffer`.
+- **Impreciso.** Só melhorava de verdade no `medium` (2,9 GB fp32), que não cabe
+  na máquina da maioria.
+
+ONNX Runtime nativo não tem nenhuma das três propriedades.
+
+### Medições, não estimativas
+
+Spike em 2026-09-01, 8 núcleos, `numThreads = 4`:
+
+- **12,6× tempo real** em pt-BR; a sessão custa **1,8 s** e **~1 GB residentes**
+  — os dois números que explicam o descarte por ociosidade em `asrEngineCore`.
+- **WER de 9,55%** em pt-BR (FLEURS, 8 clipes, 157 palavras), com **4 dos 8
+  clipes em WER zero**. Referência: o `small` que o app rodava fica na casa de
+  15–20% no mesmo benchmark.
+- **Ponto fraco medido:** os dois clipes ruins (30% e 33%) falham em **nomes
+  próprios estrangeiros e jargão** — "Lakkha Singh", "Robin Uthappa", "innings",
+  "bhajans" — não em português. É conteúdo da FLEURS traduzido da Wikipédia
+  inglesa. **Isso é relevante para este produto**: quem dita prompt de código
+  mistura termos técnicos em inglês, e essa é a hipótese que só uso real
+  confirma ou derruba.
+
+O download encolhe junto: **671 MB int8** (encoder 652 + decoder 11,8 + joiner
+6,4 + tokens), contra 923 MB do `small` fp32 e 2,9 GB do `medium`. 600 M de
+parâmetros — mais que o `medium` que ninguém conseguia rodar, menor que o
+`small` que todo mundo rodava.
+
+### O que foi deletado, e por quê isso é o trabalho
+
+- **O catálogo inteiro.** Dez modelos, a escada de recomendação
+  (`whisperHardware`), o calculador de aderência (`modelFit`), os medidores de
+  precisão/velocidade (`ModelMeter`), a `ModelLibrary` de 408 linhas e o
+  escolhedor de três cards do portão. Tudo existia para ajudar alguém a resolver
+  um trade que o app não resolvia. Parakeet é os dois lados; a melhor versão de
+  uma escolha que ninguém deveria fazer é a ausência dela.
+- **O esquema privilegiado `hive-model:`**, com a entrada `connect-src` do CSP.
+  Ele existia só porque um renderer sandboxed rodava o modelo e não podia buscar
+  os próprios pesos. O renderer não vê mais um arquivo de peso, e o esquema mais
+  seguro é o que não existe.
+- **O `pcm.slice()` do M28.** Ele guardava contra o buffer destacado pelo
+  `transfer` para o worker — a `transcriptionQueue` retém o mesmo array, então a
+  primeira falha de um take transformava "Tentar de novo" num segundo erro, para
+  sempre. IPC **clona**: o modo de falha sumiu, não foi contornado.
+- **O conselho "escolha um modelo menor"**, com a falha que o produzia.
+- `@huggingface/transformers`, o plugin `copyOrtAssets` e `tools/spikes/whisper*`.
+
+`whisperClient.ts` tinha 418 linhas; `asrClient.ts` tem ~100. A diferença é
+tudo o que o renderer fazia por ser o motor: sondar WebGPU, escolher precisão a
+partir disso, conferir bytes em disco, iniciar download, criar um `Worker`, e
+trocar o worker inteiro para recuperar memória.
+
+### Armadilhas medidas
+
+- **`sherpa-onnx-node` resolve seu `.node` por caminhos relativos e por
+  `process.env.PWD`.** Dentro do asar as duas estratégias falham e o pacote
+  resolve para `undefined` **em vez de lançar** — o primeiro sintoma seria
+  `Cannot read properties of undefined (reading 'OfflineRecognizer')` no momento
+  em que alguém tenta falar. Precisa das duas metades: `asarUnpack` de
+  `node_modules/sherpa-onnx*` **e** o `require` redirecionado
+  (`asrAddon.ts`).
+- **Os dois lados do canal do utilityProcess não são simétricos.** No main,
+  `child.on('message', …)` entrega a mensagem; no filho,
+  `process.parentPort.on('message', …)` entrega um `MessageEvent` cujo `.data`
+  é a mensagem. Escrevi a interface errada primeiro; `AsrChild` agora tem
+  `onMessage`/`onExit` nomeados justamente para que a assimetria esteja no tipo.
+- **O cliente não pode capturar a ponte na construção.** É um singleton de
+  módulo que sobrevive a qualquer `window.hive`; capturar acoplava-o ao que
+  existia no primeiro uso, e isso quebrou de verdade sob `vi.restoreAllMocks()`
+  — a ponte velha resolvia, retornava `undefined`, e o sintoma era
+  `Cannot read properties of undefined (reading 'catch')` de dentro do pre-warm.
+  Ler por chamada não custa nada e não tem ordem para errar.
+- **`remove()` assíncrono com `try/catch` síncrono.** Escrevi um catch que nunca
+  podia pegar a falha do delete; a cobertura expôs o ramo inalcançável. O hook
+  agora devolve a `Promise`, que é o que permite a tela dizer que falhou —
+  Windows recusa apagar um peso que o motor ainda tem aberto.
+- **`sherpa.readWave` é proibido no Electron.** Medido no runtime real
+  (Electron 39.8.10, ABI 140): lança `Error: External buffers are not allowed`,
+  porque o Electron veta o `ArrayBuffer` externo que o addon devolve. **O
+  caminho de produção não é afetado e foi verificado ponta a ponta no mesmo
+  runtime** — `Float32Array` comum entrando em `acceptWaveform`, texto saindo de
+  `getResult`, decode em 497 ms, RSS 1042 MB — porque o renderer decodifica com
+  WebAudio e o PCM cruza o IPC. A armadilha fica para quem depois quiser
+  "transcrever este arquivo direto do main": tem de decodificar em JS também.
+- **`onPartial` continua na assinatura e nunca é chamado.** Existia porque uma
+  passada do Whisper levava segundos; sherpa decodifica numa chamada bloqueante
+  e não tem o que transmitir. O que o substitui é a chamada ser rápida o
+  bastante para não precisar dele — e o `livePass` do M28, que reoferece a frase
+  aberta, continua sendo o mecanismo que faz o ditado parecer ao vivo.
+
+### Gates
+
+- **`verify` verde: 228 arquivos, 3976 testes**, typecheck limpo, lint **sem
+  erros** (36 avisos, contra 39 antes — todos herdados).
+- Addon nativo verificado no runtime do **Electron** (`node 22.22.1`,
+  `electron 39.8.10`, **ABI 140**), não só no Node do sistema. O build emite
+  `out/main/asrWorker.js` como segundo entry.
+- **Lacunas de cobertura pré-existentes, medidas, não introduzidas por este
+  milestone:** `Explorer.tsx` estava em 89,96% de ramos antes e depois (medido
+  no commit `47555b9`); fechada com um teste do anúncio de atalho no macOS
+  (`aria-keyshortcuts` = `Meta+X`, não `Ctrl+X`), que era comportamento real e
+  não asserido.
+
+### O que falta
+
+- **Fase 6 — reafinar o ritmo do ditado.** `minSpeechMs`, `growthMs` e o teto de
+  9 s por segmento foram calibrados em volta da janela de 30 s do Whisper, onde
+  uma passada era cara. A 12,6× tempo real eles estão folgados. Passo de
+  medição com o motor real na mão, não de chute.
+- **Validação em uso real** com a voz do usuário, especialmente a hipótese dos
+  termos técnicos em inglês acima.
+
+---
+
 ## Preferences
 
 - Lightweight tasks (state updates, session handoff, small doc edits) work
