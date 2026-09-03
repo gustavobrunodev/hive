@@ -107,13 +107,82 @@
   color: var(--muted);
 }
 
+/* The scrolling area, as its own box, so the two edge affordances can be
+   pinned to the *list's* top and bottom without anyone having to know how tall
+   the search row happens to be today. */
+.hds-picker-scroll {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .hds-picker-list {
   flex: 1;
   min-height: 0;
-  max-height: min(360px, 52vh);
+  max-height: min(440px, 52vh);
   overflow-y: auto;
+  /* Load-bearing, not cosmetic: `useScrollLockEscape` stops the wheel event
+     before a modal's scroll lock can cancel it, and this is what then keeps
+     the two ends of the list from chaining the scroll to the page behind the
+     modal — the exact thing that lock exists to prevent. */
   overscroll-behavior: contain;
-  padding: var(--s-2);
+  /* Horizontal padding here, vertical padding on cmdk's inner sizer: a pinned
+     group heading sticks to the scrollport's padding box, so vertical padding
+     on this element would leave an 8px strip above every pinned heading with
+     rows sliding through it. On the sizer the same space scrolls away, and the
+     heading pins flush. */
+  padding-inline: var(--s-2);
+}
+
+.hds-picker-list [cmdk-list-sizer] {
+  padding-block: var(--s-2);
+}
+
+/* --- edges -------------------------------------------------------------- */
+
+/* "There is more below." A list cut off by a hard rule against a filled footer
+   reads as a list that ended — with eighteen models and room for five, that is
+   thirteen rows the user has no reason to believe exist. Both edges are state,
+   not decoration: they are absent at the ends, so the panel never claims
+   content it does not have. */
+.hds-picker-scroll::before,
+.hds-picker-scroll::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  /* Clear of the scrollbar gutter, so the thumb is never seen through a haze.
+     The width is measured and written by the component; the fallback is the
+     bar's declared width, for the frame before the first measurement. */
+  right: var(--picker-gutter, 10px);
+  height: var(--s-6);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms var(--ease-quart);
+  z-index: 2;
+}
+
+/* The top edge is a shade rather than a fade: a fade here would wash out the
+   pinned group heading sitting directly under it. */
+.hds-picker-scroll::before {
+  top: 0;
+  height: var(--s-4);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--overlay) 45%, transparent),
+    transparent
+  );
+}
+
+.hds-picker-scroll::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--surface) 15%, transparent);
+}
+
+.hds-picker-scroll[data-above]::before,
+.hds-picker-scroll[data-below]::after {
+  opacity: 1;
 }
 
 /* The list is the one part of this panel that scrolls, and it was doing it
@@ -137,15 +206,22 @@
 /* The 2px transparent border + `padding-box` clip is what makes a 10px-wide
    scrollbar draw a 6px thumb: the inset is padding, so the hit target stays
    the full width and the thumb stays easy to grab. */
+/* `--border-strong` is a *hairline* token — 26% ink — and a 6px bar drawn in it
+   over `--surface` is not something a user finds: in the app's own screenshots
+   the thumb of a list with thirteen rows below the fold is indistinguishable
+   from the panel edge. This is the position indicator for a list that has one,
+   so it is drawn at a weight you can see and grab, in the same neutral ink the
+   rest of the panel's chrome uses. */
 .hds-picker-list::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: color-mix(in oklab, var(--ink) 32%, transparent);
   border-radius: var(--rounded-full);
   border: 2px solid transparent;
   background-clip: padding-box;
+  transition: background-color 120ms var(--ease-quart);
 }
 
 .hds-picker-list::-webkit-scrollbar-thumb:hover {
-  background-color: var(--faint);
+  background-color: color-mix(in oklab, var(--ink) 52%, transparent);
   background-clip: padding-box;
 }
 
@@ -159,7 +235,7 @@
 @supports not selector(::-webkit-scrollbar-thumb) {
   .hds-picker-list {
     scrollbar-width: thin;
-    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-color: color-mix(in oklab, var(--ink) 32%, transparent) transparent;
   }
 }
 
@@ -170,8 +246,18 @@
   color: var(--muted);
 }
 
+/* The heading pins while its own group is on screen, then hands over to the
+   next one. In a catalogue of eighteen rows across four tiers, the group is
+   the single most useful thing to know about the row under the cursor — and it
+   is the first thing the old list threw away, three rows into a scroll.
+   The gradient tail is what rows pass *under*, instead of being guillotined by
+   a hard edge one pixel below the label. */
 .hds-picker-group [cmdk-group-heading] {
-  padding: var(--s-3) var(--s-2) var(--s-1);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--s-3) var(--s-2) var(--s-2);
+  background: linear-gradient(to bottom, var(--surface) 62%, transparent);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -195,6 +281,10 @@
   border-radius: var(--rounded-sm);
   cursor: pointer;
   scroll-margin: var(--s-2);
+  /* Clears the pinned group heading (its two paddings plus its line box).
+     Without it, arrowing up into the first row of a group parks that row
+     underneath the heading that names it. */
+  scroll-margin-top: calc(var(--s-3) + var(--s-2) + 1rem);
   transition: background-color 120ms var(--ease-quart);
 }
 

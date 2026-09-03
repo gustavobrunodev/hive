@@ -90,8 +90,3 @@ export function computeGutter(baseline: string, draft: string): GutterMark[] {
   if (pendingDel > 0 && b.length > 0) marks[b.length - 1] = 'deleted'
   return marks
 }
-
-/** Whether any draft line carries a gutter mark (skip rendering the strip otherwise). */
-export function hasGutterMarks(marks: GutterMark[]): boolean {
-  return marks.some((mark) => mark !== null)
-}

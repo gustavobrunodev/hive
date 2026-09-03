@@ -67,7 +67,6 @@ import { UpdateNotice } from './ui/UpdateNotice'
 import { VoiceDownloadNotices } from './voice/VoiceDownloadNotices'
 import { useUpdateFlow } from './ui/useUpdateFlow'
 import { FileSearchDialog } from './ui/FileSearchDialog'
-import { DesignStudioViewer } from './designStudio/DesignStudioViewer'
 import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
 import { PaneHeader, PaneMoveMenu } from './ui/PaneHeader'
@@ -197,30 +196,9 @@ function persistWorkLayout(layout: WorkLayout): void {
   }
 }
 
-/**
- * design-studio (DS-R16): the three focus-mode decisions, at module scope so
- * their branches stay off `WorkUI`'s complexity budget.
- *
- * `groupKeyFor` is the load-bearing one: `defaultLayout` is read when the pane
- * group mounts, so restoring the captured split requires a fresh group — the
- * key change is what makes "exactly as it was" possible at all.
- */
-function panesForFocus(focusMode: boolean, order: PaneId[], hasTabs: boolean): PaneId[] {
-  if (focusMode) return ['viewer']
+/** The panes actually on screen: the viewer only exists while at least one tab is open. */
+function visiblePanesFor(order: PaneId[], hasTabs: boolean): PaneId[] {
   return order.filter((id) => id !== 'viewer' || hasTabs)
-}
-
-function groupKeyFor(focusMode: boolean): string {
-  return focusMode ? 'focus' : 'panes'
-}
-
-function layoutForGroup(
-  focusMode: boolean,
-  restore: WorkLayout | undefined,
-  fallback: WorkLayout | undefined
-): WorkLayout | undefined {
-  if (focusMode) return undefined
-  return restore ?? fallback
 }
 
 /** localStorage key for the persisted sidebar view (git-management D-GIT-2). */
@@ -415,15 +393,6 @@ export function WorkUI({
   // or ahead of App.tsx's onboarding gate chain (ND-R2.5).
   const updateFlow = useUpdateFlow()
   const [defaultLayout] = useState(loadWorkLayout)
-  // design-studio (DS-R16 / P3): Focus Mode collapses the rail and the chat and
-  // gives the whole window to the Studio's stage. Leaving it has to restore the
-  // *previous* distribution, not a default — so the live layout is captured on
-  // the way in and handed straight back to the group on the way out, rather
-  // than recomputed from `defaultSize`s that the user may have dragged away
-  // from months ago.
-  const [focusMode, setFocusMode] = useState(false)
-  const [restoreLayout, setRestoreLayout] = useState<WorkLayout | undefined>(undefined)
-  const liveLayout = useRef<WorkLayout | undefined>(defaultLayout)
   // customizable-layout: persisted left-to-right pane order + live drag state.
   const [paneOrder, setPaneOrder] = useState<PaneId[]>(loadPaneOrder)
   const [dragPane, setDragPane] = useState<PaneId | null>(null)
@@ -832,15 +801,9 @@ export function WorkUI({
 
   /** Panes actually on screen, in order — the viewer only exists while at least one tab is open. */
   const visiblePanes = useMemo(
-    () => panesForFocus(focusMode, paneOrder, editor.tabs.length > 0),
-    [paneOrder, editor.tabs.length, focusMode]
+    () => visiblePanesFor(paneOrder, editor.tabs.length > 0),
+    [paneOrder, editor.tabs.length]
   )
-
-  /** DS-R16: enter capturing the live split; leave handing that same split back. */
-  const requestFocusMode = useCallback((next: boolean) => {
-    if (next) setRestoreLayout(liveLayout.current)
-    setFocusMode(next)
-  }, [])
 
   const applyPaneOrder = useCallback((next: PaneId[]) => {
     setPaneOrder(next)
@@ -1013,7 +976,6 @@ export function WorkUI({
                   selectedPath={editor.activePath}
                   onOpenFile={editor.openFile}
                   decorations={git.decorations}
-                  onOpenDesignStudio={editor.openDesignStudio}
                 />
               }
               scm={
@@ -1116,18 +1078,6 @@ export function WorkUI({
                   <ConflictView path={tab.git.path} />
                 ) : tab.kind === 'review' && tab.git?.path ? (
                   <ReviewDiffTab path={tab.git.path} />
-                ) : /* `spec` is set on the design-studio tab and on no other,
-                       so it discriminates on its own — one branch here, and
-                       all the Studio's complexity inside its own module
-                       (design.md R-3). */
-                tab.spec ? (
-                  <DesignStudioViewer
-                    workspace={workspace}
-                    specPath={tab.spec.path}
-                    onOpenSpec={editor.openFile}
-                    focusMode={focusMode}
-                    onRequestFocusMode={requestFocusMode}
-                  />
                 ) : (
                   <FileViewer
                     ref={(handle) => editor.registerViewer(tab.path, handle)}
@@ -1272,14 +1222,10 @@ export function WorkUI({
                 `main` at all, so "skip to content" had nothing to skip to. */}
             <main className="wb-body">
               <Resizable
-                // Remounted when Focus Mode flips: `defaultLayout` is read at
-                // mount, so restoring the captured split needs a fresh group.
-                key={groupKeyFor(focusMode)}
                 orientation="horizontal"
                 style={{ flex: 1, minWidth: 0, minHeight: 0 }}
-                defaultLayout={layoutForGroup(focusMode, restoreLayout, defaultLayout)}
+                defaultLayout={defaultLayout}
                 onLayoutChanged={(layout: WorkLayout) => {
-                  liveLayout.current = layout
                   persistWorkLayout(layout)
                 }}
               >
@@ -1421,7 +1367,6 @@ export function WorkUI({
             onOpenChange={setSearchOpen}
             workspace={workspace}
             onOpenFile={editor.openFile}
-            onOpenDesignStudio={editor.openDesignStudio}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
           {/* One notification column, bottom-left, above the rail's gear. Both

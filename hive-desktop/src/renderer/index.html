@@ -16,10 +16,13 @@
       downloaded model files from userData — the renderer still never reaches
       the network. `blob:` (media-src/worker-src): recorder playback and ORT's
       worker. No remote origins.
+      `frame-src 'none'`: the app frames nothing by URL. The `hive-studio:`
+      entry that used to sit here went with the Design Studio; the HTML
+      preview's iframe is `srcdoc`, which this directive does not gate.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' hive-model:; worker-src 'self' blob:; frame-src hive-studio:"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' hive-model:; worker-src 'self' blob:; frame-src 'none'"
     />
   </head>
 

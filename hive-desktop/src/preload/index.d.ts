@@ -27,17 +27,6 @@ import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/con
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ShellCatalogView } from '../main/shellService'
-import type { ScreenDetectionResult } from '../main/designStudio/screenDetection'
-import type {
-  CapabilityViolation,
-  Command,
-  ComponentCatalog,
-  OperationError
-} from '../main/designStudio/types'
-import type { ScreenView } from '../main/designStudio/designStudioService'
-import type { StudioSkillEvent } from '../main/designStudio/skillDesignSystem'
-import type { StudioSkillRequest } from '../main/designStudio/studioSkillRuns'
-import type { ExportRequest, ExportRun } from '../main/designStudio/exportBundle'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
@@ -130,37 +119,6 @@ declare global {
       /** Skill studio (skill-studio): the workspace's user-created skills. */
       studio: {
         list(workspace: string): Promise<CreatedSkill[]>
-      }
-      /** Design Studio (design-studio): the isolated Preview's per-session URL, whose token is also the postMessage nonce (D-DS-4). */
-      designStudio: {
-        openPreview(): Promise<string>
-        closePreview(url: string): Promise<void>
-        /** The Telas a UX Spec names (DS-R1); an `OperationError` when it cannot be read. */
-        screens(
-          workspace: string,
-          relativePath: string
-        ): Promise<ScreenDetectionResult | OperationError>
-        /** The active DS catalog — the only source of truth for what exists (DS-R13). */
-        catalog(): Promise<ComponentCatalog>
-        /** One Tela as its log leaves it, creating an empty one on first ask. */
-        view(key: string, screenId: string, title: string): Promise<ScreenView>
-        /** Validates the batch, then pushes it as ONE undoable step; a rejected edit resolves to the violation. */
-        dispatch(
-          key: string,
-          screenId: string,
-          title: string,
-          commands: Command[],
-          groupId: string
-        ): Promise<ScreenView | CapabilityViolation>
-        undo(key: string, screenId: string, title: string): Promise<ScreenView>
-        redo(key: string, screenId: string, title: string): Promise<ScreenView>
-        /** Exports one or many Telas as self-contained Bundles (DS-R14/DS-R15); failure is isolated per Tela. */
-        export(requests: ExportRequest[]): Promise<ExportRun>
-        /** Runs the Skill for one Tela (DS-R2), streaming status → result/failed. Returns an unsubscribe-and-stop. */
-        runSkill(
-          request: StudioSkillRequest,
-          onEvent: (event: StudioSkillEvent) => void
-        ): () => void
       }
       /** MCP module (mcp): the workspace's Model Context Protocol servers — catalog, enabled state, and live connection probe. */
       mcp: {

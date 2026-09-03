@@ -157,6 +157,33 @@ describe("OptionPicker", () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  /**
+   * The regression that shipped: a wheel over this list inside a `Dialog` was
+   * cancelled by the dialog's scroll lock before the browser could act on it,
+   * and the panel simply did not scroll. The lock's handler lives on
+   * `document`, so what proves the fix at this level is that the event never
+   * gets there.
+   */
+  it("keeps a wheel over the list from reaching an ancestor scroll lock", async () => {
+    const user = userEvent.setup()
+    setup()
+    const list = await open(user)
+    const reachedDocument = vi.fn()
+    document.addEventListener("wheel", reachedDocument)
+    list.dispatchEvent(new WheelEvent("wheel", { deltaY: 120, bubbles: true, cancelable: true }))
+    document.removeEventListener("wheel", reachedDocument)
+    expect(reachedDocument).not.toHaveBeenCalled()
+  })
+
+  it("opens with the cursor on the current choice, not on the first row", async () => {
+    const user = userEvent.setup()
+    setup()
+    await open(user)
+    const chosen = screen.getByRole("option", { name: /Sonnet/ })
+    expect(chosen).toHaveAttribute("data-selected-option")
+    expect(chosen).toHaveAttribute("data-selected", "true")
+  })
+
   it("forgets the previous query when reopened", async () => {
     const user = userEvent.setup()
     setup({ searchable: true })

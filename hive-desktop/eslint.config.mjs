@@ -16,14 +16,6 @@ export default defineConfig(
       '.claude', // vendored agent skills — not our source
       '.scratch', // local scratch experiments — not our source
       'build',
-      // design-studio T2.2: the committed Design System bundle. Vendor output
-      // flattened by esbuild, in the same category as `out/` — an artifact the
-      // app serves, not app source (and 778 KB of minified code that linting
-      // has nothing useful to say about).
-      'resources/design-system-web-awesome/**',
-      // design-studio T3.4: the bundled in-frame Preview receiver. Same
-      // category — esbuild output the app serves, not app source.
-      'resources/design-studio-preview/**',
       'test-results',
       'playwright-report',
       // The Playwright MCP's own output directory (screenshots, console logs,

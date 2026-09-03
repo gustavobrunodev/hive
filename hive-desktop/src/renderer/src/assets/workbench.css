@@ -1253,6 +1253,7 @@ body ::-webkit-scrollbar-corner {
   padding: 0 var(--s-2) 0 var(--s-4);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  min-width: 0;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -1264,10 +1265,20 @@ body ::-webkit-scrollbar-corner {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 0.8125rem;
   font-weight: 650;
   color: var(--ink);
   white-space: nowrap;
+}
+
+/* The name is what yields when the row runs out of room. Everything else in
+   this header is a control: a truncated file name still identifies the file
+   (the tab above it carries the same name, and the tooltip the whole path),
+   while a clipped button is an action nobody can reach. */
+.wb-viewer-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Unsaved-changes indicator (T9) — a small filled dot next to the file name. */
@@ -1316,6 +1327,63 @@ body ::-webkit-scrollbar-corner {
   margin-left: auto;
 }
 
+/* ── The edit⇄preview switch ────────────────────────────────────────────── */
+
+/* It sits with the pane's own actions but reads as a choice rather than a
+   button: a hair of extra room on its right keeps the two-segment track from
+   touching the icon row it is not part of.
+   
+   Two forms, one of them always hidden. The pane is a size container, so the
+   swap is a question about the *pane*, not the window — which is the only way
+   to get it right in a layout the user splits and drags. The labelled switch
+   is the one that matters: it is how someone who does not know this pane has
+   a rendered view finds out. It gives way only when keeping it would push a
+   button off the end of the row, and the width at which that happens depends
+   on whether the file is unsaved, because that state puts "Descartar" and
+   "Salvar" in the same row. */
+.wb-viewer {
+  container-type: inline-size;
+}
+
+.wb-viewer-mode {
+  flex-shrink: 0;
+  margin-right: var(--s-1);
+}
+
+.wb-viewer-mode-compact {
+  display: none;
+}
+
+@container (max-width: 380px) {
+  .wb-viewer-mode {
+    display: none;
+  }
+  .wb-viewer-mode-compact {
+    display: inline-flex;
+  }
+}
+
+@container (max-width: 560px) {
+  .wb-viewer[data-dirty] .wb-viewer-mode {
+    display: none;
+  }
+  .wb-viewer[data-dirty] .wb-viewer-mode-compact {
+    display: inline-flex;
+  }
+}
+
+/* The last thing to go, and only in the tightest pane this app can produce (a
+   900px window, split three ways, on an unsaved file). Copying the whole file
+   is a convenience with a keyboard path of its own — click in, Ctrl+A, Ctrl+C
+   — while everything left in the row is either the only way to reach a state
+   (the mode toggle, Salvar) or the only way to leave one (Fechar). When the
+   row cannot hold them all, the convenience is what yields. */
+@container (max-width: 340px) {
+  .wb-viewer-copy {
+    display: none;
+  }
+}
+
 .wb-viewer-scroll {
   flex: 1;
   min-height: 0;
@@ -1341,36 +1409,6 @@ body ::-webkit-scrollbar-corner {
   display: flex;
 }
 
-/* Editable text surface (T9) — plain controlled textarea, promoted to a
-   VS Code-like full-pane surface: it fills the viewer block entirely and
-   scrolls itself, instead of sitting as a fixed-width card inside it. */
-.wb-editor-surface {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-  padding: var(--s-4) var(--s-5) var(--s-7);
-  font-family: 'Inter Tight', ui-monospace, monospace;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  color: var(--ink);
-  background: var(--bg);
-  border: 0;
-  border-radius: 0;
-  resize: none;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.wb-editor-surface::placeholder {
-  color: var(--faint);
-}
-/* Keyboard-visible focus only — a mouse click into the text shouldn't draw a
-   ring around the entire pane. */
-.wb-editor-surface:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
 /* Sandboxed `.html` preview iframe (T4) — borderless, fills the pane like
    the editor surface it toggles against. */
 .wb-html-preview {
@@ -1389,12 +1427,17 @@ body ::-webkit-scrollbar-corner {
    code surfaces, real table chrome.
    ========================================================================== */
 
-/* The rendered-document container inside the viewer pane: full pane width up
-   to a comfortable reading measure, centered — the README column. */
+/* The rendered-document container inside the viewer pane.
+
+   It used to cap itself at an 86ch reading measure and centre what was left,
+   which is the right call for a page and the wrong one here: this pane is
+   already a *column* the user sized themselves, sitting beside an editor that
+   fills it. Capping inside it meant widening the pane bought nothing but two
+   growing margins, and that toggling to preview visibly narrowed the document
+   you were just editing. The pane is the measure; the padding is what keeps
+   the text off the edge. */
 .wb-md-doc {
   width: 100%;
-  max-width: 86ch;
-  margin-inline: auto;
   padding: var(--s-5) var(--s-6) var(--s-8);
 }
 
@@ -2569,20 +2612,13 @@ body ::-webkit-scrollbar-corner {
     inset 0 0 0 4px var(--bg);
 }
 
-/* DS primary Button hardcodes its dark-theme ink/hover; retint per theme.
-   T7.6 found the other half of this: the retint only reached buttons that also
-   carry a `wb-btn*` class, so a bare `<Button>` kept the vendor's `#241019` —
-   which over the light theme's bordo `--accent` measures 2.03:1. The Studio's
-   own primaries are added by scope rather than by class, so a Button written
-   without app classes cannot fall through the gap again. */
+/* DS primary Button hardcodes its dark-theme ink/hover; retint per theme. */
 .wb-btn.hds-btn-primary,
-.wb-btn-lg.hds-btn-primary,
-.wb-dstudio .hds-btn-primary {
+.wb-btn-lg.hds-btn-primary {
   color: var(--accent-ink);
 }
 .wb-btn.hds-btn-primary:hover,
-.wb-btn-lg.hds-btn-primary:hover,
-.wb-dstudio .hds-btn-primary:hover {
+.wb-btn-lg.hds-btn-primary:hover {
   background: var(--accent-hover);
   color: var(--accent-ink);
 }
@@ -3427,34 +3463,16 @@ body ::-webkit-scrollbar-corner {
   word-break: break-word;
 }
 
-/* ── Editor change gutter (GIT-R11.2) ──────────────────────────────────── */
-/* When the gutter is active the surface stops wrapping so lines map 1:1 to
-   gutter rows (VS Code parity); the gutter's scroll is synced in JS. */
-.wb-editor-fill[data-gutter] .wb-editor-surface {
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow-x: auto;
-}
-.wb-editor-gutter {
-  flex-shrink: 0;
-  width: 10px;
-  padding-top: var(--s-4);
-  overflow: hidden;
-  background: var(--bg);
-}
-.wb-editor-gutter-mark {
-  display: block;
-  height: calc(0.9rem * 1.65);
-  box-sizing: border-box;
-}
-.wb-editor-gutter-mark[data-mark='add'] {
-  border-left: 3px solid var(--wb-git-added);
-}
-.wb-editor-gutter-mark[data-mark='modified'] {
-  border-left: 3px solid var(--wb-git-modified);
-}
-.wb-editor-gutter-mark[data-mark='deleted'] {
-  border-top: 3px solid var(--wb-git-deleted);
+/* ── Editor change marks (GIT-R11.2) ───────────────────────────────────── */
+/* Where the marks go, how tall they are and how they follow a line that
+   soft-wraps all belong to the design system's `CodeEditor`, which draws them
+   beside the line numbers. All that is left here is teaching it the
+   workbench's own status colours, so a change bar in the editor is the same
+   green as the same file's badge in the tree. */
+.wb-editor-fill {
+  --editor-mark-add: var(--wb-git-added);
+  --editor-mark-modified: var(--wb-git-modified);
+  --editor-mark-deleted: var(--wb-git-deleted);
 }
 
 /* ── Explorer git decorations (GIT-R11) ────────────────────────────────── */
@@ -17081,747 +17099,4 @@ button.wb-mcplog-summary:focus-visible {
     transform: none;
     transition: none;
   }
-}
-
-/* ── design-studio (M18): the Bancada ──────────────────────────────────────
-   The Studio's empty states. `Empty` already centres and sizes its own copy;
-   the only thing added here is the probe list, which has to read as an
-   enumeration ("we looked for these two things") rather than as prose. */
-
-.wb-dstudio-empty-probes {
-  margin: var(--s-2) 0;
-  padding-left: var(--s-4);
-  list-style: disc;
-  text-align: left;
-}
-
-.wb-dstudio-empty-probes li + li {
-  margin-top: var(--s-1);
-}
-
-/* The tab body itself. The Studio fills its tab and never scrolls as a whole —
-   each column owns its own overflow, so resizing a column never pushes the
-   stage out of view. */
-
-.wb-dstudio {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.wb-dstudio-columns {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-}
-
-.wb-dstudio-side {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border-inline: 1px solid var(--border);
-}
-
-.wb-dstudio-pane {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: auto;
-}
-
-.wb-dstudio-pane + .wb-dstudio-pane {
-  border-top: 1px solid var(--border);
-}
-
-.wb-dstudio-pane-title {
-  margin: 0;
-  padding: var(--s-2) var(--s-3);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.wb-dstudio-stage {
-  display: flex;
-  flex: 1;
-  /* Same reason as the bench below: the panel that holds it is a block. */
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-}
-
-.wb-dstudio-stage-skeleton {
-  width: 60%;
-  height: 60%;
-}
-
-/* The Skill working on the stage (T6.2, DS-R2). The skeleton is the shape of
-   what is coming; the line under it is the only thing that changes while the
-   turn runs, which is why it is a live region and not just text. */
-
-.wb-dstudio-skill-progress {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--s-3);
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-.wb-dstudio-skill-status {
-  margin: 0;
-  font-size: 13px;
-  color: var(--faint);
-}
-
-/* The toolbar (T4.4). One row, 44px, above the columns: the Tela, the device,
-   the history, the way out to Focus Mode. It never scrolls with the stage —
-   the preset has to stay readable while the Preview is being scrolled. */
-
-.wb-dstudio {
-  flex-direction: column;
-}
-
-.wb-dstudio-toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--s-2);
-  align-items: center;
-  height: 44px;
-  padding: 0 var(--s-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.wb-dstudio-screen-trigger {
-  min-width: 8rem;
-  max-width: 14rem;
-}
-
-.wb-dstudio-screen-count {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.wb-dstudio-viewport {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-}
-
-.wb-dstudio-viewport-custom {
-  display: flex;
-  gap: var(--s-1);
-  align-items: center;
-}
-
-.wb-dstudio-viewport-field {
-  width: 5rem;
-}
-
-.wb-dstudio-toolbar-end {
-  display: flex;
-  gap: var(--s-1);
-  align-items: center;
-  margin-left: auto;
-}
-
-.wb-dstudio-shortcut {
-  display: inline-flex;
-  gap: var(--s-1);
-  align-items: center;
-}
-
-/* The bench (T4.5, D-DS-9). Three stacked surface roles and a dot grid —
-   and not one `box-shadow`, which `DESIGN.md`'s Flat-Until-It-Floats rule
-   reserves for portalled surfaces. A guard test enforces that. */
-
-.wb-dstudio-bench {
-  position: relative;
-  display: flex;
-  flex: 1;
-  /* T7.5, found in the visual pass: the middle `ResizablePanel` is a *block*,
-     so `flex: 1` bought the bench nothing and it sized to its content — the
-     dot grid stopped a third of the way down the column and the palco read as
-     ending in mid-air. The bench is the floor; it has to be the whole floor. */
-  height: 100%;
-  align-items: flex-start;
-  justify-content: center;
-  min-width: 0;
-  min-height: 0;
-  padding: var(--s-5);
-  overflow: auto;
-  background: var(--bg-2);
-}
-
-.wb-dstudio-bench-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(var(--border) 1px, transparent 1px);
-  background-size: 24px 24px;
-  pointer-events: none;
-}
-
-.wb-dstudio-bench-content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  align-items: center;
-}
-
-.wb-dstudio-device {
-  padding: var(--s-2);
-  /* T7.5: the bezel was `--border-strong`, which is a 26%-alpha hairline and
-     measured 1.68–1.98:1 against the bench in the three themes. The three
-     surface layers (D-DS-9) carry the depth, but the *edge* is what says
-     "this is a device, and the Tela ends here" — an outline that faint leaves
-     the Preview bleeding into the bench. `--muted` is the lightest opaque ink
-     token that clears the 3:1 carrier floor in all three themes — `--faint`
-     was tried first and lands at 2.95:1 in the light one. */
-  border: 1px solid var(--muted);
-  border-radius: var(--rounded-lg);
-  background: var(--bg);
-}
-
-.wb-dstudio-screen {
-  overflow: hidden;
-  border-radius: var(--rounded-md);
-  background: var(--surface);
-}
-
-/* Under a forced palette the grid is texture the user did not ask for. */
-@media (forced-colors: active) {
-  .wb-dstudio-bench-grid {
-    display: none;
-  }
-}
-
-/* Honest scale (T4.6, D-DS-7). The transform is the ONLY animated property:
-   the frame's width changes in a single reflow so the media queries inside it
-   are right immediately, and only the apparent size travels. */
-
-.wb-dstudio-scale {
-  transform-origin: top left;
-  transition: transform 200ms var(--ease-quart);
-}
-
-.wb-dstudio-frame {
-  display: block;
-  border: 0;
-  background: var(--surface);
-}
-
-.wb-dstudio-readout {
-  margin: 0;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wb-dstudio-scale {
-    transition: none;
-  }
-}
-
-/* The Telas list (T4.7). Edited vs auto-generated is carried by the mark's
-   FILL and by a pencil — never by colour alone (DS-R18). */
-
-.wb-dstudio-screens {
-  margin: 0;
-  padding: 0 var(--s-1) var(--s-2);
-  list-style: none;
-}
-
-.wb-dstudio-screen-row {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  width: 100%;
-  padding: var(--s-1) var(--s-2);
-  border: 0;
-  border-radius: var(--rounded-sm);
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.wb-dstudio-screen-row:hover {
-  background: var(--surface-2);
-}
-
-.wb-dstudio-screen-row:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
-.wb-dstudio-screen-row[aria-current] {
-  background: var(--selected-bg);
-}
-
-.wb-dstudio-screen-mark {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid var(--faint);
-  border-radius: var(--rounded-full);
-}
-
-.wb-dstudio-screen-mark[data-edited] {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.wb-dstudio-screen-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* FIX-1: the Spec drifted on disk. A strip, not a dialog — the session is
-   still valid, so the notice sits in the layout instead of interrupting it.
-   Surfaces only, no box-shadow, per D-DS-9. */
-
-.wb-dstudio-origin {
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--s-2);
-  align-items: center;
-  padding: var(--s-2) var(--s-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-2);
-  font-size: var(--fs-sm);
-}
-
-.wb-dstudio-origin-text {
-  flex: 1;
-  min-width: 0;
-  /* Texto de apoio ao lado do link que é a ação da faixa — `--muted` é o papel
-     real, e era o que `var(--ink-2)` (inexistente) tentava nomear. */
-  color: var(--muted);
-}
-
-.wb-dstudio-origin-link {
-  border: 0;
-  background: none;
-  color: var(--accent-ink);
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-}
-
-.wb-dstudio-origin-dismiss {
-  display: flex;
-  align-items: center;
-  padding: var(--s-1);
-  border: 0;
-  border-radius: var(--r-1);
-  background: none;
-  /* Mesmo papel dos outros botões de ícone discretos do app. */
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.wb-dstudio-origin-link:focus-visible,
-.wb-dstudio-origin-dismiss:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.wb-dstudio-origin-dismiss:hover {
-  background: var(--surface);
-  color: var(--ink);
-}
-
-/* Degradation and drawers (T4.8, §3.8). The drawer is anchored, not modal:
-   its whole job is to inspect the Tela that is still on screen. */
-
-.wb-dstudio-body {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-}
-
-.wb-dstudio-drawer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  width: min(320px, 70%);
-  border-left: 1px solid var(--border-strong);
-  background: var(--bg);
-  animation: wb-dstudio-drawer-in 180ms var(--ease-quart);
-}
-
-.wb-dstudio-drawer-head {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  justify-content: space-between;
-  padding-right: var(--s-1);
-}
-
-.wb-dstudio-focus-hint {
-  max-width: 22rem;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-@keyframes wb-dstudio-drawer-in {
-  from {
-    transform: translateX(12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* §3.9: the drawer's slide becomes a crossfade, never a jump. */
-@keyframes wb-dstudio-drawer-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wb-dstudio-drawer {
-    animation-name: wb-dstudio-drawer-fade;
-  }
-}
-
-/* The Árvore de Componentes (T5.1). The DS `Tree` brings the ARIA pattern and
-   its own rows; what belongs here is only the pane's breathing room, so the
-   tree keeps looking like the rest of the app's trees rather than like a
-   second, slightly different one. */
-
-.wb-dstudio-tree {
-  padding: 0 var(--s-2) var(--s-2);
-}
-
-/* The Inspetor (T5.2). Props are grouped, and the tag of the selected
-   Component sits above them so the panel always answers "what am I editing?"
-   before it answers "with what?". */
-
-.wb-dstudio-inspector {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: 0 var(--s-3) var(--s-3);
-}
-
-.wb-dstudio-inspector-tag {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg);
-}
-
-.wb-dstudio-prop {
-  padding-block: var(--s-1);
-}
-
-/* Adding a Component (T5.5). The picker sits at the foot of the Árvore, where
-   the structure it changes is: an "add" affordance parked in a toolbar makes
-   the user look twice for where the new node went. A refusal renders right
-   under the choice that caused it (§6). */
-
-.wb-dstudio-add {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3) var(--s-3);
-}
-
-.wb-dstudio-add-target {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.wb-dstudio-add-error {
-  margin: 0;
-  font-size: 12px;
-  color: var(--danger-ink, var(--ink));
-}
-
-.wb-dstudio-add-actions {
-  display: flex;
-  gap: var(--s-2);
-  justify-content: flex-end;
-}
-
-/* Removing and moving (T5.6). The actions sit under the tree they change, and
-   a refused move explains itself in the same place — a drop that silently does
-   nothing is the one outcome DS-R17 does not allow. */
-
-.wb-dstudio-tree-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-}
-
-.wb-dstudio-tree-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-1);
-  padding: 0 var(--s-3) var(--s-2);
-}
-
-/* T7.5, found in the visual pass: at the DS's default button size the four
-   structural actions are ~200px wide each, so in a 290px column they stacked
-   one per row and took 160px of the 480px the Árvore had — pushing "Remover"
-   below the fold on a Tela with three nodes. They are secondary controls under
-   the thing they change, so they get a secondary size and fit two per row. */
-
-.wb-dstudio-tree-actions button {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 28px;
-  padding-block: var(--s-1);
-  padding-inline: var(--s-2);
-  font-size: 12px;
-}
-
-.wb-dstudio-tree-error {
-  margin: 0;
-  padding: 0 var(--s-3) var(--s-2);
-  font-size: 12px;
-  color: var(--danger-ink, var(--ink));
-}
-
-/* The Tela with no Components (T5.7). Two ways in, side by side: the primary
-   one generates, the quiet one adds by hand. */
-
-.wb-dstudio-empty-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  align-items: center;
-  justify-content: center;
-}
-
-/* The Chat de Iteração as a strip (T6.5, design.md §3.7). Collapsed it is one
-   row of composer at the bottom of the Bancada; expanded it takes about 40% of
-   the height for the transcript. It grows *downward into the stage's space*
-   rather than becoming a fourth column, because width is what the stage needs
-   and height is what it can spare. */
-
-.wb-dstudio-chat {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-  /* Only the height animates, 200ms — the composer never moves sideways, so
-     the row the user is typing in stays exactly where it was. */
-  max-height: 96px;
-  transition: max-height 200ms var(--ease-quart);
-}
-
-.wb-dstudio-chat[data-expanded] {
-  max-height: 40vh;
-}
-
-.wb-dstudio-chat-bar {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  min-height: 24px;
-}
-
-.wb-dstudio-chat-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.wb-dstudio-chat-context,
-.wb-dstudio-chat-working {
-  display: inline-flex;
-  gap: var(--s-1);
-  align-items: center;
-}
-
-.wb-dstudio-chat-working {
-  margin-inline-start: auto;
-}
-
-.wb-dstudio-chat-phase,
-.wb-dstudio-chat-turn-meta {
-  font-size: 12px;
-  /* Not `--faint`: it measured 3.29:1 in the light theme, the fourth module to
-     step on the same rail (M14 L-TI-1, M15, agent-patch). The rule that
-     settles it is about who reads the text, not about how important it is —
-     if someone reads it, it is `--muted` or darker. */
-  color: var(--muted);
-}
-
-/* The collapse toggle is always the last thing in the bar, whether or not the
-   context chip and the working indicator are there. */
-.wb-dstudio-chat-bar > :last-child {
-  margin-inline-start: auto;
-}
-
-.wb-dstudio-chat-transcript {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.wb-dstudio-chat-turn {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  margin-block-start: var(--s-1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wb-dstudio-chat {
-    transition: none;
-  }
-}
-
-.wb-dstudio-chat-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--s-1);
-  min-width: 0;
-}
-
-/* A failed turn, said where the request was made (T6.7, DS-R10 AC-6). Outside
-   the transcript, so a collapsed strip still shows it — a failure hidden behind
-   a disclosure is a failure the user learns about by wondering. */
-
-.wb-dstudio-chat-failure {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  margin: 0;
-  font-size: 12px;
-  color: var(--danger-ink, var(--ink));
-}
-
-/* The export picker and its report (T7.4, DS-R14/DS-R15). Which Telas is a
-   list of checkboxes rather than a multi-select: the count of Telas is small,
-   and a control the user has to open to see what is chosen is the wrong one
-   for a decision that produces files. The report replaces the list in place,
-   so "what happened" lands where "what do you want" was asked. */
-
-.wb-dstudio-export-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  max-height: 40vh;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.wb-dstudio-export-item {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-  padding: var(--s-1) 0;
-  font-size: 13px;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.wb-dstudio-export-report {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.wb-dstudio-export-count {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink);
-}
-
-/* A Tela that did not make it keeps its own reason next to its own name — a
-   batch can be partly good, and "1 falhou" without saying which is a report
-   that makes the user open the folder to find out. */
-
-.wb-dstudio-export-failures {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.wb-dstudio-export-failures > li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.wb-dstudio-export-failed-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.wb-dstudio-export-failed-reason {
-  font-size: 12px;
-  color: var(--danger-ink, var(--ink));
-}
-
-/* T7.5: the DS paints a selected Tree row as `--selected` on `--selected-bg` —
-   coral text over a coral tint, which measures 4.44:1 in the dark theme and
-   misses the 4.5:1 floor. Same finding as the `SegmentedControl` count (M15)
-   and the agent card's `PADRÃO` (M16), and the same fix: an **opaque** fill
-   carries the tone, `--ink` carries the text. Scoped to the Studio's tree,
-   because the design system package is not ours to edit. */
-
-.wb-dstudio-tree .hds-tree-item-selected > .hds-tree-row {
-  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
-  color: var(--ink);
-}
-
-/* T7.5: what stands in for the device when there is no Tela to render. It
-   sits on the bench at 100% — a state whose whole job is to teach cannot be
-   inside the thing that scales to 46%. */
-
-.wb-dstudio-bench-placeholder {
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
 }

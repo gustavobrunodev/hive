@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -24,16 +25,27 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  CodeEditor,
   Empty,
+  SegmentedControl,
   Spinner,
-  Tree
+  Tree,
+  type SegmentedOption
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { watchWorkspaceShared } from '../workspaceWatch'
 import { gitStatusColor, rollupChangedFolders, type GitDecoration } from '../scm/gitStatus'
-import { hasGutterMarks } from '../scm/gutter'
 import { useGutter } from '../scm/useGutter'
 import { Markdown } from '../ui/markdown'
+import {
+  collectAnchors,
+  lineAtOffset,
+  lineAtTop,
+  measureLineTops,
+  offsetOfLine,
+  offsetOfLineStart,
+  topForLine
+} from './scrollSync'
 import { HtmlPreview } from './HtmlPreview'
 import { DocumentViewer } from './DocumentViewer'
 import { richViewerKind } from './richViewer'
@@ -57,12 +69,11 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalFolderIcon,
-  EyeIcon,
   FolderIcon,
   FolderOpenIcon,
   FolderPlusIcon,
-  LayersIcon,
   MoreIcon,
+  EyeIcon,
   PencilIcon,
   PlusIcon,
   ScissorsIcon,
@@ -298,12 +309,6 @@ export interface FileTreeProps {
    * outside a git repo and in tests that don't drive git.
    */
   decorations?: Map<string, GitDecoration>
-  /**
-   * design-studio (DS-R1 AC-1): opens a Markdown file as a Design Studio tab.
-   * Offered from the row's context menu only for `.md` — the Studio reads a UX
-   * Spec, and offering it on a `.png` would be a menu item that always fails.
-   */
-  onOpenDesignStudio?: (path: string) => void
 }
 
 /** What the pointer was over when the tree's right-click context menu opened: a row, or the empty area (`null`). */
@@ -433,30 +438,6 @@ function GitTreeDecoration({
     >
       {deco.letter}
     </span>
-  )
-}
-
-/**
- * design-studio (DS-R1 AC-1): "Abrir no Design Studio", offered only where it
- * can succeed — a Markdown file, with a handler wired. Its own component so
- * the three guards stay off `FileTree`'s complexity budget.
- */
-function StudioContextAction({
-  target,
-  onOpen
-}: {
-  target: ContextTarget
-  onOpen?: (path: string) => void
-}): React.JSX.Element | null {
-  if (!onOpen || target.isDir || !isMarkdownPath(target.path)) return null
-  return (
-    <>
-      <ContextMenuItem onSelect={() => onOpen(target.path)}>
-        <LayersIcon size={14} />
-        {t('explorer.menuOpenDesignStudio')}
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-    </>
   )
 }
 
@@ -732,8 +713,7 @@ export function FileTree({
   workspace,
   selectedPath,
   onOpenFile,
-  decorations = EMPTY_DECORATIONS,
-  onOpenDesignStudio
+  decorations = EMPTY_DECORATIONS
 }: FileTreeProps): React.JSX.Element {
   // git-management (GIT-R11): folders showing a rollup dot when a descendant changed.
   const changedFolders = useMemo(() => rollupChangedFolders(decorations), [decorations])
@@ -2339,7 +2319,6 @@ export function FileTree({
         >
           {contextTarget ? (
             <>
-              <StudioContextAction target={contextTarget} onOpen={onOpenDesignStudio} />
               <FileActionItems
                 Item={ContextMenuItem}
                 Separator={ContextMenuSeparator}
@@ -2485,11 +2464,80 @@ function isDocViewPath(path: string): boolean {
   return richViewerKind(path) !== null || !isEditablePath(path)
 }
 
-/** Label + icon for the edit⇄preview mode toggle — a free function so `FileViewer` reads it in one call. */
-function modeToggleFor(mode: ViewerMode): { label: string; icon: React.JSX.Element } {
+/**
+ * The two ways to look at the same artifact, as one control.
+ *
+ * It used to be a single icon button that swapped its own glyph — which asks
+ * the reader to know both that the pane has two modes and which one the
+ * current glyph means. A two-segment switch shows the whole choice at once and
+ * says, in the product's own words, which half you are in; for a PM opening a
+ * PRD, that is the difference between finding the rendered document and never
+ * learning it exists.
+ */
+const MODE_OPTIONS: SegmentedOption[] = [
+  { id: 'edit', label: t('explorer.editLabel') },
+  { id: 'preview', label: t('explorer.viewLabel') }
+]
+
+/**
+ * The same choice, for a pane too narrow to spell it out.
+ *
+ * Both are always rendered and one is hidden by a container query on the pane
+ * (`.wb-viewer-mode` / `-compact` in workbench.css), which is why this is a
+ * glyph and not a shortened label: below that width the header is carrying
+ * "Descartar" and "Salvar" too, and a switch abbreviated to fit would be a
+ * third piece of text competing with the two that must stay legible.
+ */
+function compactModeToggle(mode: ViewerMode): { label: string; icon: React.JSX.Element } {
   return mode === 'edit'
     ? { label: t('explorer.viewLabel'), icon: <EyeIcon /> }
     : { label: t('explorer.editLabel'), icon: <PencilIcon /> }
+}
+
+/**
+ * Both forms of the switch. A component of its own rather than two blocks
+ * inline in the header, because the header is already the busiest branch in
+ * this file and every ternary here would be one more path through it.
+ */
+function ModeSwitch({
+  mode,
+  disabled,
+  onSelect
+}: {
+  mode: ViewerMode
+  disabled: boolean
+  onSelect: (next: string) => void
+}): React.JSX.Element {
+  // Inert until the file is actually here: switching to a preview of nothing
+  // renders an empty document and reads as a broken control.
+  const options = useMemo(() => MODE_OPTIONS.map((option) => ({ ...option, disabled })), [disabled])
+  const compact = compactModeToggle(mode)
+  const other = mode === 'edit' ? 'preview' : 'edit'
+  return (
+    <>
+      <SegmentedControl
+        className="wb-viewer-mode"
+        options={options}
+        value={mode}
+        onChange={onSelect}
+        ariaLabel={t('explorer.modeSwitchLabel')}
+      />
+      <IconButton
+        className="wb-viewer-mode-compact"
+        label={compact.label}
+        onClick={() => onSelect(other)}
+        disabled={disabled}
+        aria-pressed={mode === 'preview'}
+      >
+        {compact.icon}
+      </IconButton>
+    </>
+  )
+}
+
+/** "Copiar conteúdo", or the acknowledgement that replaces it for a moment after a copy. */
+function copyLabel(copied: boolean): string {
+  return copied ? t('explorer.copiedLabel') : t('explorer.copyLabel')
 }
 
 /** Shape of the confirm-before-discard prompt (FM-R2.1's unsaved-changes guard): either a pending file switch, or the pane's own close action. */
@@ -2559,7 +2607,6 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     draft,
     gutterEligible(Boolean(gitEnabled), editable, isDocView)
   )
-  const gutterRef = useRef<HTMLDivElement>(null)
   // `isDocView` files never enter edit mode (draft stays empty and equal to
   // content), so `dirty` is inherently false for them — no extra guard needed.
   const dirty = editable && viewerState.status === 'ready' && draft !== viewerState.content
@@ -2654,13 +2701,86 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // check here.
   const readyState = viewerState as Extract<ViewerState, { status: 'ready' }>
 
+  /**
+   * The source line to land on after the surface swaps, and the two scrollers
+   * that can be asked for it or told it. A ref and not state: nothing about
+   * this needs to re-render, and the restore has to happen in the same frame
+   * the new surface lays out in, before it can be seen at the wrong place.
+   */
+  const carriedLine = useRef<number | null>(null)
+  const editorRef = useRef<HTMLTextAreaElement | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
+
+  /** Which source line is at the top of whichever surface is showing now. */
+  const topLineOfCurrentMode = useCallback((): number | null => {
+    if (mode === 'edit') {
+      const field = editorRef.current
+      if (field === null) return null
+      const tops = measureLineTops(field, draft)
+      return tops === null ? null : lineAtOffset(tops, field.scrollTop)
+    }
+    const scroller = previewRef.current
+    if (scroller === null) return null
+    return lineAtTop(collectAnchors(scroller), scroller.scrollTop)
+  }, [mode, draft])
+
+  // The other half: put the carried line at the top of the surface that just
+  // arrived. `useLayoutEffect` so the jump happens before paint — a restore one
+  // frame late is a visible lurch from the top of the document.
+  useLayoutEffect(() => {
+    const line = carriedLine.current
+    carriedLine.current = null
+    if (line === null || viewerState.status !== 'ready') return
+    if (mode === 'edit') {
+      const field = editorRef.current
+      if (field === null) return
+      // The caret lands on the line you were reading, before the scroll is
+      // set: `setSelectionRange` scrolls the field to the caret itself, so
+      // doing it the other way round would undo the restore. Landing it there
+      // is what makes the carry *visible* — the editor's current-line wash
+      // marks the paragraph you left, and typing starts where you were
+      // looking instead of wherever the caret happened to be.
+      const at = offsetOfLineStart(draft, Math.round(line))
+      field.focus({ preventScroll: true })
+      field.setSelectionRange(at, at)
+      const tops = measureLineTops(field, draft)
+      if (tops !== null) field.scrollTop = offsetOfLine(tops, Math.round(line))
+      return
+    }
+    const scroller = previewRef.current
+    if (scroller === null) return
+    const top = topForLine(collectAnchors(scroller), line)
+    if (top !== null) scroller.scrollTop = top
+    // `draft` is read, never watched: it changes on every keystroke and this
+    // only ever runs for a mode change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, viewerState.status])
+
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(readyState.content).then(() => setCopied(true))
   }, [readyState])
 
-  const toggleMode = useCallback(() => {
-    setMode((current) => (current === 'edit' ? 'preview' : 'edit'))
-  }, [])
+  /**
+   * The toggle, plus the reader's place.
+   *
+   * Reading and editing the same artifact is one activity, not two: you read
+   * until something is wrong, fix it, and read on. A toggle that dumps you at
+   * the top of a forty-page PRD each way makes that loop cost a scroll hunt
+   * every time, which is enough friction to stop people from using preview at
+   * all. So the *source line* at the top of the surface you are leaving is
+   * captured here, and `scrollSync.ts` puts it back at the top of the one you
+   * are arriving at. See that module for why a line, and not a ratio.
+   */
+  const selectMode = useCallback(
+    (next: string) => {
+      setMode((current) => {
+        if (current === next) return current
+        carriedLine.current = topLineOfCurrentMode()
+        return next as ViewerMode
+      })
+    },
+    [topLineOfCurrentMode]
+  )
 
   const handleDiscard = useCallback(() => {
     setDraft(readyState.content)
@@ -2794,14 +2914,17 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // Preview is only *offered* for `.md`/`.html` (design.md §3) — other
   // editable text files are edit-only, no toggle at all.
   const previewable = isPreviewable(editable, displayedPath)
-  const modeToggle = modeToggleFor(mode)
+  const notReady = viewerState.status !== 'ready'
 
   return (
-    <div className="wb-viewer">
+    // `data-dirty` is read by the header's container queries, not by script:
+    // an unsaved file adds two more text buttons to the same row, so the width
+    // at which the labelled mode switch stops fitting depends on it.
+    <div className="wb-viewer" data-dirty={dirty || undefined}>
       <header className="wb-viewer-header" {...paneDragProps}>
         <FileTypeIcon path={displayedPath} />
         <span className="wb-viewer-name">
-          {fileName}
+          <span className="wb-viewer-name-text">{fileName}</span>
           {dirty && <span className="wb-dirty-dot" aria-label={t('explorer.dirtyLabel')} />}
         </span>
         {parentPath && <span className="wb-viewer-path">{parentPath}</span>}
@@ -2816,21 +2939,13 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
               </Button>
             </>
           )}
-          {previewable && (
-            <IconButton
-              label={modeToggle.label}
-              onClick={toggleMode}
-              disabled={viewerState.status !== 'ready'}
-              aria-pressed={mode === 'preview'}
-            >
-              {modeToggle.icon}
-            </IconButton>
-          )}
+          {previewable && <ModeSwitch mode={mode} disabled={notReady} onSelect={selectMode} />}
           {!isDocView && (
             <IconButton
-              label={copied ? t('explorer.copiedLabel') : t('explorer.copyLabel')}
+              className="wb-viewer-copy"
+              label={copyLabel(copied)}
               onClick={handleCopy}
-              disabled={viewerState.status !== 'ready'}
+              disabled={notReady}
             >
               {copied ? <CheckIcon /> : <CopyIcon />}
             </IconButton>
@@ -2913,29 +3028,25 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
 
     if (mode === 'edit') {
       // Full-bleed editing surface (no reading-measure cap, no inner card):
-      // the textarea IS the pane body, VS Code-style, so the whole block is
-      // writable regardless of pane width.
-      const showGutter = hasGutterMarks(gutterMarks)
+      // the field IS the pane body, VS Code-style, so the whole block is
+      // writable regardless of pane width — coloured by the file's own
+      // grammar, numbered down the left, with the caret's row washed and the
+      // git change marks (vs HEAD) beside the lines they belong to. All of
+      // that is the `CodeEditor`'s, including the alignment: it draws one
+      // block per source line, so a line that soft-wraps carries its number
+      // and its mark down with it. The pane no longer has to choose between
+      // showing the marks and wrapping prose, which is what used to leave a
+      // PRD running off the right edge of a narrow pane.
       return (
-        <div className="wb-editor-fill" data-gutter={showGutter || undefined}>
-          {showGutter && (
-            <div className="wb-editor-gutter" ref={gutterRef} aria-hidden="true">
-              {gutterMarks.map((mark, index) => (
-                <span key={index} className="wb-editor-gutter-mark" data-mark={mark ?? undefined} />
-              ))}
-            </div>
-          )}
-          <textarea
-            className="wb-editor-surface"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onScroll={(event) => {
-              if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop
-            }}
-            aria-label={t('explorer.editorAriaLabel')}
-            spellCheck={false}
-          />
-        </div>
+        <CodeEditor
+          className="wb-editor-fill"
+          ref={editorRef}
+          value={draft}
+          onChange={setDraft}
+          filename={displayedPath}
+          ariaLabel={t('explorer.editorAriaLabel')}
+          marks={gutterMarks}
+        />
       )
     }
 
@@ -2943,10 +3054,11 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     // rendered when `previewable` (md/html) — draft, not the last-saved
     // content, is the source of truth (UX-R1.4/R7.1).
     if (isMarkdownPath(viewerState.path)) {
-      // GitHub-README-style rendered document: a centered reading measure
-      // (`.wb-md-doc`) inside the scrolling pane, typeset by `.wb-md`.
+      // The rendered document, spanning the pane the same way the editor does
+      // — see `.wb-md-doc` in workbench.css for why the reading measure that
+      // used to cap it here was the wrong call for this particular column.
       return (
-        <div className="wb-viewer-scroll">
+        <div className="wb-viewer-scroll" ref={previewRef}>
           <div className="wb-md-doc wb-md" data-testid="markdown-viewer">
             <Markdown source={draft} />
           </div>

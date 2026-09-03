@@ -216,34 +216,6 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       workflows: { list: vi.fn().mockResolvedValue([]) },
       skills: { list: vi.fn().mockResolvedValue([]) },
       studio: { list: vi.fn().mockResolvedValue([]) },
-      designStudio: {
-        openPreview: vi.fn().mockResolvedValue('hive-studio://preview/x/index.html'),
-        closePreview: vi.fn().mockResolvedValue(undefined),
-        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] }),
-        catalog: vi.fn().mockResolvedValue({ dsId: 'ds', version: '0', components: [] }),
-        view: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        dispatch: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        undo: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        redo: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        export: vi.fn().mockResolvedValue({ canceled: true, outDir: null, outcomes: [] }),
-        runSkill: vi.fn().mockReturnValue(() => {})
-      },
       mcp: {
         list: vi.fn().mockResolvedValue([]),
         add: vi.fn().mockResolvedValue(undefined),

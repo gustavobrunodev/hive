@@ -1,0 +1,352 @@
+/* CodeEditor — a real `<textarea>` with a coloured mirror behind it.
+
+   The class prefix is `hds-editor`, not `hds-code`: `CodeBlock` already owns
+   that one, and its `.hds-code pre { white-space: pre-wrap }` reached straight
+   into this component's mirror and set it wrapping while the field beside it
+   was not. Two boxes that disagree about wrapping is the one failure this
+   technique cannot absorb — and it is silent, because both still look like
+   text.
+
+   EVERY metric that affects layout is declared once, as a custom property on
+   the wrapper, and consumed by both boxes. They are two elements the browser
+   lays out independently, and the illusion holds only while their font, size,
+   line-height, padding, wrapping and content width are identical. One
+   different pixel and the colour slides off the words it belongs to.
+   Change one, change both — or better, change the variable. */
+
+.hds-editor {
+  --editor-pad-y: var(--s-4);
+  --editor-pad-x: var(--s-5);
+  --editor-size: 0.875rem;
+  --editor-leading: 1.6;
+  /* One line box, stated the way the browser computes it. The number column
+     and the empty-line floor both need it, and restating it as a pixel value
+     is how marks walk off their lines the next time the type changes. */
+  --editor-row: calc(var(--editor-size) * var(--editor-leading));
+  /* Written from JS: how much width and height the field's own scrollbars
+     took. The mirror pads itself by the same amount so both boxes wrap at the
+     same column — the one difference this technique cannot survive, and the
+     one nobody notices until a file grows past a screenful. */
+  --editor-bar-w: 0px;
+  --editor-bar-h: 0px;
+  /* Written from JS: how far the field is scrolled sideways (0 whenever the
+     text wraps), and how many digits the largest line number has. */
+  --editor-scroll-x: 0px;
+  --editor-digits: 2;
+  /* Exactly as wide as the widest number it must hold, plus the gap that
+     keeps it off the text. `1ch` is a digit of the mono face, which is why
+     the wrapper carries that face even though it draws no text itself. */
+  --editor-gutter-w: calc(var(--editor-digits) * 1ch + var(--s-3));
+
+  /* Change-bar palette. Semantic defaults, so the component is complete on
+     its own; a caller with its own status colours overrides these three. */
+  --editor-mark-add: var(--success);
+  --editor-mark-modified: var(--warning);
+  --editor-mark-deleted: var(--danger);
+
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+  font-family: var(--ff-mono);
+  font-size: var(--editor-size);
+}
+
+/* --- the two stacked boxes ---------------------------------------------- */
+
+.hds-editor-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.hds-editor-mirror,
+.hds-editor-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border: 0;
+  padding: var(--editor-pad-y) var(--editor-pad-x) var(--s-7);
+  font-family: var(--ff-mono);
+  font-size: var(--editor-size);
+  line-height: var(--editor-leading);
+  letter-spacing: normal;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* The number column is padding on BOTH boxes, never content on one of them:
+   the field cannot hold a number, so the space has to come from somewhere
+   they can both agree on. */
+.hds-editor[data-numbered] .hds-editor-mirror,
+.hds-editor[data-numbered] .hds-editor-input {
+  padding-left: calc(var(--editor-pad-x) + var(--editor-gutter-w));
+}
+
+.hds-editor[data-wrap] .hds-editor-mirror,
+.hds-editor[data-wrap] .hds-editor-input {
+  white-space: pre-wrap;
+  /* `anywhere`, not `break-word`: a path or a minified line with no spaces
+     must wrap rather than force a horizontal scrollbar the mirror would then
+     have to chase. */
+  overflow-wrap: anywhere;
+}
+
+.hds-editor-mirror {
+  /* The mirror never scrolls itself — the field is the scroller, and the
+     mirror is moved to match. A second scroll container here would fight it. */
+  overflow: hidden;
+  padding-right: calc(var(--editor-pad-x) + var(--editor-bar-w));
+  padding-bottom: calc(var(--s-7) + var(--editor-bar-h));
+  color: var(--ink);
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.hds-editor-mirror code {
+  font: inherit;
+  /* `<code>` inherits the `<pre>`'s wrapping, but not on every engine unless
+     it is told to lay out as a block. */
+  display: block;
+  counter-reset: hds-line;
+}
+
+.hds-editor-input {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  background: transparent;
+  /* The glyphs the user types are invisible; the ones they read come from the
+     mirror underneath. The caret is put back explicitly, because a transparent
+     `color` takes it with it. */
+  color: transparent;
+  caret-color: var(--ink);
+  outline: none;
+  overflow: auto;
+  z-index: 2;
+}
+
+/* Opaque selection would hide the very glyphs it is selecting — they live in
+   the layer *below* this one. A wash lets them through while still reading as
+   a selection. */
+.hds-editor-input::selection {
+  background: color-mix(in oklab, var(--selection-bg) 32%, transparent);
+  color: transparent;
+}
+
+/* Keyboard-visible focus only: clicking into text should not draw a ring
+   around the whole pane. */
+.hds-editor-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.hds-editor-input::placeholder {
+  color: var(--faint);
+}
+
+/* --- one block per source line ------------------------------------------ */
+
+/* The block is what a number, a change bar and the wash are measured against,
+   which is the whole reason the mirror is built this way: a line that soft-
+   wraps into three rows is one block three rows tall, and everything beside
+   it follows without a single measurement. */
+.hds-editor-line {
+  display: block;
+  position: relative;
+  /* An empty line has no content and would collapse to nothing, putting every
+     line below it one row too high. */
+  min-height: var(--editor-row);
+}
+
+.hds-editor[data-numbered] .hds-editor-line::before {
+  counter-increment: hds-line;
+  content: counter(hds-line);
+  position: absolute;
+  top: 0;
+  /* Pinned: the numbers sit inside the mirror (so they travel with their own
+     line) but must not travel with a sideways scroll, so they are pushed back
+     by exactly what the mirror was scrolled by. */
+  left: calc(var(--editor-scroll-x) - var(--editor-gutter-w));
+  width: calc(var(--editor-gutter-w) - var(--s-3));
+  text-align: right;
+  /* Read text, not decoration: `--muted` clears the 4.5:1 floor in all three
+     themes, which `--faint` does not — that token is for marks on a dark
+     ground, and this repo has re-learned it twice. */
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Only where a long line can actually slide under them. In wrap mode nothing
+   scrolls sideways, and an opaque strip there would punch a hole in the
+   current-line wash for no reason at all. */
+.hds-editor:not([data-wrap]) .hds-editor-line::before {
+  background: var(--bg);
+}
+
+/* --- the change bars ----------------------------------------------------- */
+
+/* Between the numbers and the text, VS Code's position: near enough to the
+   line to belong to it, far enough not to crowd the first character. */
+.hds-editor-line[data-mark]::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--editor-scroll-x) - var(--s-2));
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.hds-editor-line[data-mark="add"]::after {
+  background: var(--editor-mark-add);
+}
+
+.hds-editor-line[data-mark="modified"]::after {
+  background: var(--editor-mark-modified);
+}
+
+/* A deletion is a boundary, not a line: it happened *above* this row, so it
+   reads as a mark on the seam rather than a bar down the side of a line that
+   is still there. */
+.hds-editor-line[data-mark="deleted"]::after {
+  bottom: auto;
+  width: var(--s-2);
+  height: 2px;
+  background: var(--editor-mark-deleted);
+}
+
+/* --- the current line ---------------------------------------------------- */
+
+/* A sibling of the mirror rather than a background on the line, so it can span
+   the number column too, and placed from the line's measured box, so it is as
+   tall as a line that wrapped. Behind the text: a wash over the glyphs would
+   cost contrast on the one row the reader is looking hardest at. */
+.hds-editor-wash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+}
+
+/* A marked row in a pane nobody is typing in is noise, not orientation. */
+.hds-editor:not([data-focused]) .hds-editor-wash {
+  display: none;
+}
+
+.hds-editor[data-focused] .hds-editor-line[data-current]::before {
+  color: var(--ink);
+}
+
+/* --- the palette --------------------------------------------------------- */
+
+/* Roles, not token types. Nine colours for every language, so that a reader
+   who has learned "green is a literal string" in YAML has learned it in
+   TypeScript too. All of them are read text and take the 4.5:1 body floor —
+   including comments and punctuation, the two that IDE themes habitually
+   dim below legibility. */
+.hds-editor-mirror [data-role="comment"] {
+  color: var(--code-comment);
+  font-style: italic;
+}
+
+.hds-editor-mirror [data-role="keyword"] {
+  color: var(--code-keyword);
+}
+
+.hds-editor-mirror [data-role="string"] {
+  color: var(--code-string);
+}
+
+.hds-editor-mirror [data-role="number"] {
+  color: var(--code-number);
+}
+
+.hds-editor-mirror [data-role="function"] {
+  color: var(--code-function);
+}
+
+.hds-editor-mirror [data-role="type"] {
+  color: var(--code-type);
+}
+
+.hds-editor-mirror [data-role="property"] {
+  color: var(--code-property);
+}
+
+.hds-editor-mirror [data-role="punctuation"] {
+  color: var(--code-punctuation);
+}
+
+/* Markdown is the one grammar whose source has real typography in it, and the
+   only one where the mirror can show it: a heading that looks like a heading
+   while you are editing it is the difference between reading a document and
+   reading its markup. Weight and slant only — never a size change, which would
+   move every glyph after it out from under the caret. */
+.hds-editor-mirror [data-role="heading"] {
+  color: var(--code-keyword);
+  font-weight: 700;
+}
+
+.hds-editor-mirror [data-role="strong"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.hds-editor-mirror [data-role="emphasis"] {
+  color: var(--ink);
+  font-style: italic;
+}
+
+.hds-editor-mirror [data-role="link"] {
+  color: var(--code-function);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- the field's own scrollbar ------------------------------------------ */
+
+/* Same recolour-never-rebehave rule the OptionPicker's list documents: keep
+   the platform bar's geometry, take its colours from the palette, and never
+   set `scrollbar-width`, which would opt the element out of these rules
+   entirely in Chromium. */
+.hds-editor-input::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.hds-editor-input::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--ink) 26%, transparent);
+  border-radius: var(--rounded-full);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 120ms var(--ease-quart);
+}
+
+.hds-editor-input::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--ink) 44%, transparent);
+  background-clip: padding-box;
+}
+
+.hds-editor-input::-webkit-scrollbar-track,
+.hds-editor-input::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar-thumb) {
+  .hds-editor-input {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--ink) 26%, transparent) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-editor-input::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}

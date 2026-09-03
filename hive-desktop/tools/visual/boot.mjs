@@ -14,12 +14,17 @@
 //   window.__fsChange(p)  — one workspace filesystem event
 //   window.__agentEvent(e)— one agent stream event
 //   window.__setReview(s) — push a pending Agent Change Review set
-//   window.__studioSkill(e)— one Design Studio Skill event, after a turn starts
 async (page) => {
   const theme = globalThis.HIVE_THEME || 'dark'
   await page.context().clearCookies()
   await page.addInitScript((theme) => {
     localStorage.setItem('hive.tourSeen', '1')
+    // The sidebar remembers which view it was left on, in the *browser
+    // profile* the MCP reuses across sessions — so a pass that opens the
+    // explorer would fail on a machine whose last run ended in Source
+    // Control, for reasons entirely outside the scene it is measuring.
+    // Pinned here so every pass starts from the same sidebar.
+    localStorage.setItem('hive.sidebarView', globalThis.HIVE_SIDEBAR ?? 'explorer')
     localStorage.setItem('hive-desktop-theme', theme)
 
     const noop = () => {}
@@ -312,64 +317,6 @@ async (page) => {
         custom: true
       }
     ]
-
-    // design-studio (M18): one Tela with a small tree, and a catalog with one
-    // prop of every `kind` — the Inspetor derives its controls from the kind,
-    // so a catalog with only enums would never show a Switch or an Input.
-    const STUDIO_DOC = {
-      screenId: 'login',
-      title: 'Login',
-      root: {
-        id: 'n1',
-        tag: 'wa-card',
-        props: { appearance: 'outlined' },
-        children: [
-          { id: 'n2', tag: 'wa-input', props: { label: 'E-mail' }, children: [] },
-          { id: 'n3', tag: 'wa-button', props: { variant: 'brand' }, children: [] }
-        ]
-      }
-    }
-    const STUDIO_CATALOG = {
-      dsId: 'web-awesome',
-      version: '3.11.0',
-      components: [
-        {
-          tag: 'wa-card',
-          slots: [''],
-          props: [
-            {
-              name: 'appearance',
-              kind: 'enum',
-              values: ['accent', 'filled', 'outlined', 'plain'],
-              group: 'appearance'
-            }
-          ]
-        },
-        {
-          tag: 'wa-button',
-          slots: ['', 'start', 'end'],
-          props: [
-            {
-              name: 'variant',
-              kind: 'enum',
-              values: ['neutral', 'brand', 'success', 'warning', 'danger'],
-              group: 'appearance'
-            },
-            { name: 'pill', kind: 'boolean', group: 'appearance' },
-            { name: 'disabled', kind: 'boolean', group: 'state' },
-            { name: 'name', kind: 'string', group: 'advanced' }
-          ]
-        },
-        {
-          tag: 'wa-input',
-          slots: ['', 'label', 'hint'],
-          props: [
-            { name: 'label', kind: 'string', group: 'content' },
-            { name: 'disabled', kind: 'boolean', group: 'state' }
-          ]
-        }
-      ]
-    }
 
     // Mutable fixture state the test drives from the console.
     const state = {
@@ -843,62 +790,6 @@ async (page) => {
       workflows: { list: ok([]) },
       skills: { list: ok([]) },
       studio: { list: ok([]) },
-      // design-studio (M18): enough of the Studio's bridge for the Bancada to
-      // render for real — two Telas so both "has Components" and "still empty"
-      // are reachable without a reload, and a catalog with one prop of every
-      // `kind` so the Inspetor shows a Select, a Switch and an Input.
-      // `window.__studioSkill(evt)` drives a Skill turn from the console.
-      designStudio: {
-        openPreview: ok('hive-studio://preview/' + '0'.repeat(64) + '/index.html'),
-        closePreview: ok(undefined),
-        screens: ok({
-          screens: [
-            { screenId: 'login', title: 'Login', probe: 'screenHeading' },
-            { screenId: 'cadastro', title: 'Cadastro', probe: 'screenHeading' }
-          ],
-          probed: ['screenHeading', 'iaTable']
-        }),
-        catalog: ok(STUDIO_CATALOG),
-        view: (_key, screenId, title) =>
-          Promise.resolve({
-            document: screenId === 'login' ? STUDIO_DOC : { screenId, title, root: null },
-            canUndo: screenId === 'login',
-            canRedo: false
-          }),
-        dispatch: (_key, screenId, title) =>
-          Promise.resolve({
-            document: screenId === 'login' ? STUDIO_DOC : { screenId, title, root: null },
-            canUndo: true,
-            canRedo: false
-          }),
-        undo: ok({ document: STUDIO_DOC, canUndo: false, canRedo: true }),
-        redo: ok({ document: STUDIO_DOC, canUndo: true, canRedo: false }),
-        // One Tela lands, one fails — the partly-good batch DS-R15 allows, and
-        // the only state in which the report has anything to say.
-        export: ok({
-          canceled: false,
-          outDir: '/ws/bundles',
-          outcomes: [
-            { screenId: 'login', title: 'Login', ok: true, file: '/ws/bundles/login.html' },
-            {
-              screenId: 'cadastro',
-              title: 'Cadastro',
-              ok: false,
-              error: {
-                kind: 'operation',
-                scope: 'export',
-                message: 'O Componente "wa-combobox" não existe no design system ativo.',
-                retryable: true
-              }
-            }
-          ]
-        }),
-        runSkill: (_request, onEvent) => {
-          window.__studioSkill = onEvent
-          onEvent({ type: 'status', phase: 'reading' })
-          return noop
-        }
-      },
       mcp: {
         // `pencil` is deliberately NOT in the catalog: it logs here but isn't
         // in this workspace's .mcp.json, which is the case the console flags.

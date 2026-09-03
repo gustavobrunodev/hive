@@ -1,5 +1,9 @@
 # Spec — `design-studio-fixes` (M18.1)
 
+> ⚠️ **Feature removida do aplicativo em 2026-09-02.** Nada do que este plano
+> descreve existe mais no código; os arquivos ficam só como registro histórico.
+> Ver `.specs/project/ROADMAP.md` (M18) e `.specs/project/STATE.md`.
+
 A M18 fechou com veredito PASS, 3361 testes verdes e um Verificador independente.
 Uma revisão adversarial posterior (2026-08-12) encontrou 20 achados que os testes
 verdes não cobriam — porque quase nenhum deles é um teste errado. São afirmações

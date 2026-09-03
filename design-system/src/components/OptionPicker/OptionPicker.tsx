@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Command as CommandPrimitive } from "cmdk"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
+import { useScrollLockEscape } from "../../hooks/useScrollLockEscape"
 import { cx } from "../../utils/cx"
 import "./OptionPicker.css"
 
@@ -134,6 +135,21 @@ export function OptionPicker({
   const setOpen = onOpenChange ?? setInternalOpen
   const [query, setQuery] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  // Nodes, not refs: this panel lives behind a `Portal`, which mounts its
+  // children one commit *later* than the state change that opened it, so an
+  // effect keyed on `isOpen` sees a ref that is still null and binds nothing.
+  // `useScrollLockEscape` documents that order in full; every effect below
+  // depends on the node itself for the same reason.
+  const [list, setList] = useState<HTMLDivElement | null>(null)
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null)
+  // cmdk's cursor (the row Enter would take), tracked so the panel can *open*
+  // on the current choice instead of on row one — see the effect below.
+  const [cursor, setCursor] = useState("")
+
+  // The wheel escape hatch. Without it this panel is dead to the mouse whenever
+  // a `Dialog` is holding it open, which is how the whole skill/agent creator
+  // uses it.
+  useScrollLockEscape(list)
 
   const showSearch =
     searchable === true || (searchable === "auto" && options.length >= searchThreshold)
@@ -147,6 +163,76 @@ export function OptionPicker({
   }, [isOpen])
 
   const ordered = useMemo(() => orderByGroup(options, groups), [options, groups])
+
+  /**
+   * Open **on the current choice**, not at the top of the catalogue.
+   *
+   * A picker of eighteen models shows five at a time. Opened at row one, a user
+   * whose model sits at row fourteen is shown a list with no check mark in it,
+   * and has to scroll to find out what they already had — the panel answers
+   * "what is there?" before it answers "what is set?", which is backwards for
+   * a control whose label is the answer.
+   *
+   * So: put cmdk's cursor on the chosen row (arrows then continue from where
+   * you are) and centre it in the viewport. The scroll is done by arithmetic on
+   * the list rather than `scrollIntoView`, because that method walks *every*
+   * scrollable ancestor — including the dialog behind the panel, which would
+   * lurch under it.
+   */
+  const current = options.find((option) => option.id === value)
+
+  useLayoutEffect(() => {
+    if (list === null) return
+    setCursor(current ? cmdkValue(current) : "")
+    const row = list.querySelector<HTMLElement>("[data-selected-option]")
+    if (row === null) return
+    const offset = row.getBoundingClientRect().top - list.getBoundingClientRect().top
+    list.scrollTop = Math.max(
+      0,
+      list.scrollTop + offset - (list.clientHeight - row.offsetHeight) / 2
+    )
+    // Deliberately keyed on the list appearing — i.e. on opening. Re-centring
+    // while the user scrolls or filters would yank the list out from under them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list])
+
+  /**
+   * Marks which way the list continues, so the CSS can say so.
+   *
+   * A list that is cut off by a footer with a hard edge does not read as cut
+   * off — it reads as finished, and the eleven rows below the fold may as well
+   * not exist. `data-below` earns the fade that tells the truth; `data-above`
+   * is what pins the group heading's rule once you have left the top.
+   *
+   * Written to the DOM instead of to state on purpose: this fires on every
+   * scroll frame, and a re-render per frame to move one attribute is the kind
+   * of cost that shows up as a list that stutters under the finger.
+   */
+  useEffect(() => {
+    if (list === null || scroller === null) return
+    const sync = (): void => {
+      const room = list.scrollHeight - list.clientHeight
+      scroller.toggleAttribute("data-above", list.scrollTop > 1)
+      scroller.toggleAttribute("data-below", room > 1 && list.scrollTop < room - 1)
+      // How much width the scrollbar actually took — 10px for a classic bar,
+      // 0 for an overlay one. Measured rather than assumed, so the edge fades
+      // stop exactly at the gutter on every platform instead of leaving a bare
+      // strip on the ones that draw no bar at all.
+      scroller.style.setProperty("--picker-gutter", `${list.offsetWidth - list.clientWidth}px`)
+    }
+    sync()
+    list.addEventListener("scroll", sync, { passive: true })
+    // The list resizes without scrolling whenever the filter narrows it — the
+    // moment a stale "there is more below" fade would otherwise linger.
+    const observer = new ResizeObserver(sync)
+    observer.observe(list)
+    const sizer = list.firstElementChild
+    if (sizer) observer.observe(sizer)
+    return () => {
+      list.removeEventListener("scroll", sync)
+      observer.disconnect()
+    }
+  }, [list, scroller])
 
   return (
     <PopoverPrimitive.Root open={isOpen} onOpenChange={setOpen}>
@@ -165,7 +251,13 @@ export function OptionPicker({
             inputRef.current?.focus()
           }}
         >
-          <CommandPrimitive className="hds-picker-command" label={ariaLabel} loop>
+          <CommandPrimitive
+            className="hds-picker-command"
+            label={ariaLabel}
+            loop
+            value={cursor}
+            onValueChange={setCursor}
+          >
             <div className="hds-picker-search" data-collapsed={!searchVisible || undefined}>
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <circle cx="7" cy="7" r="4.75" stroke="currentColor" strokeWidth="1.5" />
@@ -183,28 +275,34 @@ export function OptionPicker({
             {/* cmdk labels its listbox "Suggestions" unless told otherwise —
                 an English string in a pt-BR product, read aloud by every
                 screen reader that lands here. */}
-            <CommandPrimitive.List className="hds-picker-list" label={ariaLabel}>
-              <CommandPrimitive.Empty className="hds-picker-empty">{emptyLabel}</CommandPrimitive.Empty>
-              {ordered.map(({ group, items }) => (
-                <CommandPrimitive.Group
-                  key={group.id}
-                  heading={group.label}
-                  className="hds-picker-group"
-                >
-                  {items.map((option) => (
-                    <Row
-                      key={option.id}
-                      option={option}
-                      selected={option.id === value}
-                      onSelect={() => {
-                        onChange(option.id)
-                        setOpen(false)
-                      }}
-                    />
-                  ))}
-                </CommandPrimitive.Group>
-              ))}
-            </CommandPrimitive.List>
+            {/* The wrapper is what the edge affordances hang off: its two
+                pseudo-elements sit at the top and bottom of the *scrolling
+                area* rather than of the whole panel, which is the only way to
+                place them without hardcoding the search row's height. */}
+            <div className="hds-picker-scroll" ref={setScroller}>
+              <CommandPrimitive.List ref={setList} className="hds-picker-list" label={ariaLabel}>
+                <CommandPrimitive.Empty className="hds-picker-empty">{emptyLabel}</CommandPrimitive.Empty>
+                {ordered.map(({ group, items }) => (
+                  <CommandPrimitive.Group
+                    key={group.id}
+                    heading={group.label}
+                    className="hds-picker-group"
+                  >
+                    {items.map((option) => (
+                      <Row
+                        key={option.id}
+                        option={option}
+                        selected={option.id === value}
+                        onSelect={() => {
+                          onChange(option.id)
+                          setOpen(false)
+                        }}
+                      />
+                    ))}
+                  </CommandPrimitive.Group>
+                ))}
+              </CommandPrimitive.List>
+            </div>
           </CommandPrimitive>
           {footer && <div className="hds-picker-footer">{footer}</div>}
         </PopoverPrimitive.Content>
@@ -224,9 +322,7 @@ function Row({
 }) {
   return (
     <CommandPrimitive.Item
-      // cmdk filters on `value`; the label alone would hide a row whose id or
-      // vendor is what the user actually typed.
-      value={`${option.label} ${option.id} ${option.keywords ?? ""}`}
+      value={cmdkValue(option)}
       disabled={option.disabled}
       onSelect={onSelect}
       className="hds-picker-item"
@@ -265,6 +361,19 @@ function Row({
       </span>
     </CommandPrimitive.Item>
   )
+}
+
+/**
+ * The string cmdk knows a row by — its filter haystack *and* its cursor
+ * identity, which is why it lives in one place: the panel sets the cursor to
+ * the current choice on open, and a cursor computed even slightly differently
+ * from the row's own value silently matches nothing.
+ *
+ * The label alone would not do as a haystack: it would hide a row whose id or
+ * vendor is what the user actually typed.
+ */
+function cmdkValue(option: PickerOption): string {
+  return `${option.label} ${option.id} ${option.keywords ?? ""}`
 }
 
 /**

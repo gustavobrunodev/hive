@@ -103,8 +103,8 @@ vi.mock('electron', () => {
     // file-clipboard: main's own clipboard, which is what every in-app copy
     // now goes through — `navigator.clipboard` is refused in the renderer.
     clipboard: { writeText: vi.fn() },
-    // The Design Studio Preview's scheme registration (pre-ready) + its
-    // request handler (in whenReady).
+    // No scheme is registered and no protocol handled any more; the fakes stay
+    // so the assertions that this is so have something to read.
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
     // M29: the ASR engine is a utility process. The fake records the child so a
     // test can drive both directions of the channel — a blocking native call is
@@ -1493,6 +1493,31 @@ describe('main process bootstrap', () => {
         properties: ['openFile', 'multiSelections']
       })
     })
+
+    // The other half of the same handler: what a *completed* pick hands back.
+    // The renderer is sandboxed and cannot stat a host path, so this metadata
+    // is the only thing it will ever know about the file — and a path that
+    // vanished between the pick and the stat still has to come back listed,
+    // with a size of 0, rather than taking the whole batch down with it.
+    it('returns name + size for every picked file, and keeps one that vanished', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'hive-main-attachments-'))
+      const picked = join(dir, 'notas.md')
+      writeFileSync(picked, 'doze bytes', 'utf-8')
+      const gone = join(dir, 'sumiu.png')
+
+      vi.mocked(dialog.showOpenDialog).mockClear()
+      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
+        canceled: false,
+        filePaths: [picked, gone]
+      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
+
+      await expect(findHandler('chat:chooseAttachments')({}, dir)).resolves.toEqual([
+        { path: picked, name: 'notas.md', size: 10 },
+        { path: gone, name: 'sumiu.png', size: 0 }
+      ])
+
+      rmSync(dir, { recursive: true, force: true })
+    })
   })
 
   // App self-update (app-settings): version info + update-flow wiring.
@@ -2132,410 +2157,21 @@ describe('main process bootstrap', () => {
       expect(() => findOnHandler('secondBrain:install:stop')(event)).not.toThrow()
     })
 
-    it('registers hive-studio: as the app’s only privileged scheme', () => {
+    it('registers no privileged scheme at all', () => {
       // Chromium reads the scheme registry once during startup, so every
-      // privileged scheme the app owns must arrive in this single call —
-      // asserted as the exact array, not a subset, because that is what makes
-      // the *absence* of `hive-model:` assertable. It existed only because a
-      // sandboxed renderer ran the model and could not fetch its own weights;
-      // inference moved to a utility process (M29), and the safest scheme is
-      // the one that does not exist.
-      expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
-        expect.objectContaining({
-          scheme: 'hive-studio',
-          privileges: expect.objectContaining({
-            standard: true,
-            secure: true,
-            supportFetchAPI: true,
-            corsEnabled: true,
-            bypassCSP: false
-          })
-        })
-      ])
+      // privileged scheme the app owns would have to arrive in this single
+      // call. The app owns none: `hive-model:` existed only because a
+      // sandboxed renderer ran the model and could not fetch its own weights
+      // (inference moved to a utility process in M29), and `hive-studio:` went
+      // with the Design Studio. The safest scheme is the one that does not
+      // exist, so what is asserted is that the call never happens.
+      expect(protocol.registerSchemesAsPrivileged).not.toHaveBeenCalled()
     })
 
     it('serves no model files at all — the renderer never sees a weight', () => {
       expect(
         vi.mocked(protocol.handle).mock.calls.some(([scheme]) => scheme === 'hive-model')
       ).toBe(false)
-    })
-
-    /**
-     * design-studio T3.2. The wired handler, not the factory: this asserts the
-     * header the *app* emits, off a real `Response`, so a future refactor that
-     * registers the scheme without its CSP fails here.
-     */
-    it('serves the Preview scheme from resources/ with its own CSP on the response', async () => {
-      const call = vi
-        .mocked(protocol.handle)
-        .mock.calls.find(([scheme]) => scheme === 'hive-studio')
-      expect(call).toBeTruthy()
-      const handler = call![1] as (req: { url: string }) => Promise<Response>
-
-      const response = await handler({
-        url: 'hive-studio://preview/design-system-web-awesome/catalog.json'
-      })
-      expect(response.status).toBe(200)
-      const csp = response.headers.get('content-security-policy') ?? ''
-      expect(csp).toContain('connect-src data:')
-      expect(csp).not.toContain("connect-src 'none'")
-      expect(csp).toContain("script-src 'self'")
-      expect(csp).toContain("style-src 'self' 'unsafe-inline'")
-      expect(csp).toContain("img-src 'self' data:")
-    })
-
-    it('mints a live, unguessable Preview URL and retires it on close', async () => {
-      const open = findHandler('designStudio:openPreview')
-      const url = (await open({})) as string
-      expect(url).toMatch(/^hive-studio:\/\/preview\/[0-9a-f]{64}\/index\.html$/)
-
-      const studioHandler = vi
-        .mocked(protocol.handle)
-        .mock.calls.find(([scheme]) => scheme === 'hive-studio')![1] as (req: {
-        url: string
-      }) => Promise<Response>
-
-      expect((await studioHandler({ url })).status).toBe(200)
-
-      await findHandler('designStudio:closePreview')({}, url)
-      expect((await studioHandler({ url })).status).toBe(404)
-    })
-
-    // design-studio T4.2 / DS-R1 AC-2: the Telas are listed *before* anything
-    // is generated. The assertion that matters is not that three come back —
-    // it is that no agent was touched to produce them, because an agent call
-    // here would put a spinner in front of the first thing the Studio says.
-    it('lists every Tela of a Spec without invoking the agent (AC-2)', async () => {
-      fakeFsService.readFile.mockReturnValueOnce(
-        ['## Tela — Login', '## Tela — Cadastro', '## Tela — Sucesso'].join('\n')
-      )
-      vi.mocked(fakeAgentService.startSession).mockClear()
-      vi.mocked(fakeAgentService.send).mockClear()
-
-      const result = (await findHandler('designStudio:screens')({}, '/ws', 'docs/ux.md')) as {
-        screens: { title: string }[]
-      }
-
-      expect(fakeFsService.readFile).toHaveBeenCalledWith('/ws', 'docs/ux.md')
-      expect(result.screens.map((screen) => screen.title)).toEqual(['Login', 'Cadastro', 'Sucesso'])
-      expect(fakeAgentService.startSession).not.toHaveBeenCalled()
-      expect(fakeAgentService.send).not.toHaveBeenCalled()
-    })
-
-    it('reports an unreadable Spec as a retryable OperationError, not a rejection (AC-5)', async () => {
-      fakeFsService.readFile.mockImplementationOnce(() => {
-        throw new Error('ENOENT: no such file')
-      })
-
-      await expect(findHandler('designStudio:screens')({}, '/ws', 'gone.md')).resolves.toEqual({
-        kind: 'operation',
-        scope: 'io',
-        message: 'ENOENT: no such file',
-        retryable: true
-      })
-    })
-
-    it('reports a non-Error read failure with its own text rather than "[object Object]"', async () => {
-      fakeFsService.readFile.mockImplementationOnce(() => {
-        throw 'disco cheio'
-      })
-
-      await expect(findHandler('designStudio:screens')({}, '/ws', 'x.md')).resolves.toMatchObject({
-        message: 'disco cheio',
-        retryable: true
-      })
-    })
-
-    // design-studio T5.1: the document lives in main because `validate()` does.
-    // These assert the *document*, not just the reply shape — an edit that is
-    // refused has to leave the Tela alone (DS-R6 AC-4).
-    it('serves the active catalog, derived from the real CEM (DS-R13)', async () => {
-      const catalog = (await findHandler('designStudio:catalog')({})) as {
-        dsId: string
-        components: { tag: string; props: { name: string; values?: string[] }[] }[]
-      }
-
-      expect(catalog.dsId).toBe('web-awesome')
-      const variant = catalog.components
-        .find((component) => component.tag === 'wa-button')
-        ?.props.find((prop) => prop.name === 'variant')
-      expect(variant?.values).toEqual(['neutral', 'brand', 'success', 'warning', 'danger'])
-    })
-
-    it('opens a Tela empty and grows it one undoable step at a time', async () => {
-      const key = 'ipc-doc-1'
-      await expect(findHandler('designStudio:view')({}, key, 'login', 'Login')).resolves.toEqual({
-        document: { screenId: 'login', title: 'Login', root: null },
-        canUndo: false,
-        canRedo: false
-      })
-
-      const added = (await findHandler('designStudio:dispatch')(
-        {},
-        key,
-        'login',
-        'Login',
-        [
-          {
-            type: 'AddComponent',
-            parentId: null,
-            index: 0,
-            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
-          }
-        ],
-        'g1'
-      )) as { document: { root: { tag: string } | null }; canUndo: boolean }
-      expect(added.document.root?.tag).toBe('wa-button')
-      expect(added.canUndo).toBe(true)
-
-      const undone = (await findHandler('designStudio:undo')({}, key, 'login', 'Login')) as {
-        document: { root: unknown }
-        canRedo: boolean
-      }
-      expect(undone.document.root).toBeNull()
-      expect(undone.canRedo).toBe(true)
-
-      const redone = (await findHandler('designStudio:redo')({}, key, 'login', 'Login')) as {
-        document: { root: { tag: string } | null }
-      }
-      expect(redone.document.root?.tag).toBe('wa-button')
-    })
-
-    it('answers a value outside the catalog with a CapabilityViolation, document untouched', async () => {
-      const key = 'ipc-doc-2'
-      await findHandler('designStudio:dispatch')(
-        {},
-        key,
-        'login',
-        'Login',
-        [
-          {
-            type: 'AddComponent',
-            parentId: null,
-            index: 0,
-            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
-          }
-        ],
-        'g1'
-      )
-
-      const refused = (await findHandler('designStudio:dispatch')(
-        {},
-        key,
-        'login',
-        'Login',
-        [{ type: 'SetProp', componentId: 'n1', key: 'variant', value: 'roxo' }],
-        'g2'
-      )) as { kind: string; attemptedValue: unknown }
-      expect(refused.kind).toBe('capability')
-      expect(refused.attemptedValue).toBe('roxo')
-
-      const after = (await findHandler('designStudio:view')({}, key, 'login', 'Login')) as {
-        document: { root: { props: Record<string, unknown> } | null }
-      }
-      expect(after.document.root?.props).toEqual({})
-    })
-
-    /**
-     * design-studio T7.4 / DS-R14 AC-3. Exporting is a **read**: it goes
-     * through `view()`, so the log it replays is the log it leaves behind.
-     * Both negatives are asserted here rather than inferred from the code —
-     * the cursor does not move, and nothing about the Tela changes.
-     */
-    it('exports a Tela without moving the undo cursor or touching the Tela', async () => {
-      const key = 'ipc-export-1'
-      await findHandler('designStudio:dispatch')(
-        {},
-        key,
-        'login',
-        'Login',
-        [
-          {
-            type: 'AddComponent',
-            parentId: null,
-            index: 0,
-            node: { id: 'n1', tag: 'wa-button', props: { variant: 'brand' }, children: [] }
-          }
-        ],
-        'g1'
-      )
-      await findHandler('designStudio:undo')({}, key, 'login', 'Login')
-      const before = await findHandler('designStudio:view')({}, key, 'login', 'Login')
-
-      const outDir = mkdtempSync(join(tmpdir(), 'hive-export-ipc-'))
-      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
-        canceled: false,
-        filePaths: [outDir]
-      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
-
-      const run = (await findHandler('designStudio:export')({}, [
-        { key, screenId: 'login', title: 'Login' }
-      ])) as { canceled: boolean; outDir: string; outcomes: { ok: boolean; file?: string }[] }
-
-      expect(run).toMatchObject({ canceled: false, outDir })
-      expect(run.outcomes).toEqual([
-        { screenId: 'login', title: 'Login', ok: true, file: join(outDir, 'login.html') }
-      ])
-      // The Tela was at cursor 0 (undone) when the export ran, so the file it
-      // wrote is the *current* Tela, and the cursor is still where it was.
-      expect(await findHandler('designStudio:view')({}, key, 'login', 'Login')).toEqual(before)
-      rmSync(outDir, { recursive: true, force: true })
-    })
-
-    it('writes nothing when the folder picker is closed', async () => {
-      vi.mocked(dialog.showOpenDialog).mockResolvedValueOnce({
-        canceled: true,
-        filePaths: []
-      } as Awaited<ReturnType<typeof dialog.showOpenDialog>>)
-
-      await expect(
-        findHandler('designStudio:export')({}, [
-          { key: 'ipc-export-2', screenId: 'login', title: 'Login' }
-        ])
-      ).resolves.toEqual({ canceled: true, outDir: null, outcomes: [] })
-    })
-
-    /**
-     * design-studio T6.2 / DS-R2 + AD-9. The Skill's turn crosses IPC as a
-     * stream, and the agent is reached only through `AgentSession`/`AgentEvent`
-     * — the assertion that matters is that a *prompt carrying the catalog and
-     * the Spec* is what `agentService.send` receives, tagged with a turn id.
-     */
-    it('runs the Skill over the Spec and streams its turn to the sender', async () => {
-      fakeFsService.readFile.mockReturnValueOnce('## Tela — Login\nUm botão de entrar.')
-      vi.mocked(fakeAgentService.startSession).mockClear()
-      vi.mocked(fakeAgentService.send).mockClear()
-      const send = vi.fn()
-      const fakeEvent = { sender: fakeSender(991, send) }
-
-      findOnHandler('designStudio:skill:start')(fakeEvent, {
-        kind: 'generate',
-        workspace: '/ws',
-        specPath: 'docs/ux.md',
-        screenTitle: 'Login'
-      })
-      await vi.waitFor(() => expect(fakeAgentService.send).toHaveBeenCalled())
-
-      expect(fakeAgentService.startSession).toHaveBeenCalledWith({ workspace: '/ws' })
-      const [prompt, opts] = vi.mocked(fakeAgentService.send).mock.calls[0] as [
-        string,
-        { turnId: string }
-      ]
-      expect(prompt).toContain('Um botão de entrar.')
-      expect(prompt).toContain('wa-button')
-      expect(typeof opts.turnId).toBe('string')
-
-      // The stage is told the turn started before the agent says anything.
-      await vi.waitFor(() =>
-        expect(send).toHaveBeenCalledWith('designStudio:skill:event', {
-          type: 'status',
-          phase: 'reading'
-        })
-      )
-
-      // And the agent's own answer comes back as the parsed batch.
-      const listener = agentOnEventCalls.at(-1)!.listener
-      listener({ type: 'token', text: '{"commands": [], "message": "pronto"}', ...opts })
-      listener({ type: 'done', ...opts })
-      await vi.waitFor(() =>
-        expect(send).toHaveBeenCalledWith('designStudio:skill:event', {
-          type: 'result',
-          batch: { commands: [], message: 'pronto' }
-        })
-      )
-    })
-
-    /**
-     * design-studio T6.4 / DS-R10 AC-1. The iteration reads the Tela from the
-     * very log `dispatch` writes to, and the selected Component travels into
-     * the prompt — a selection the tab tracks but never sends is a context the
-     * Skill cannot act on.
-     */
-    it('iterates over the live Tela with the selected Component as context', async () => {
-      const key = '/ws docs/ux.md iterate'
-      await findHandler('designStudio:dispatch')(
-        {},
-        key,
-        'login',
-        'Login',
-        [
-          {
-            type: 'AddComponent',
-            parentId: null,
-            index: 0,
-            node: { id: 'n1', tag: 'wa-button', props: {}, children: [] }
-          }
-        ],
-        'manual-1'
-      )
-      vi.mocked(fakeAgentService.send).mockClear()
-      const send = vi.fn()
-
-      findOnHandler('designStudio:skill:start')(
-        { sender: fakeSender(993, send) },
-        {
-          kind: 'iterate',
-          key,
-          screenId: 'login',
-          title: 'Login',
-          message: 'deixe o botão discreto',
-          selectedComponentId: 'n1'
-        }
-      )
-      await vi.waitFor(() => expect(fakeAgentService.send).toHaveBeenCalled())
-
-      const prompt = vi.mocked(fakeAgentService.send).mock.calls[0][0] as string
-      expect(prompt).toContain('The user has <wa-button> (id "n1") selected.')
-      expect(prompt).toContain('deixe o botão discreto')
-      // The tree it iterates over is the one the log produced, not an empty one.
-      expect(prompt).toContain('"id":"n1"')
-    })
-
-    it('stops forwarding a Skill turn when the sender asks it to', async () => {
-      fakeFsService.readFile.mockReturnValue('## Tela — Login')
-      const send = vi.fn()
-      const fakeEvent = { sender: fakeSender(992, send) }
-
-      findOnHandler('designStudio:skill:start')(fakeEvent, {
-        kind: 'generate',
-        workspace: '/ws',
-        specPath: 'docs/ux.md',
-        screenTitle: 'Login'
-      })
-      // A second start for the same sender exercises the stop of the first.
-      findOnHandler('designStudio:skill:start')(fakeEvent, {
-        kind: 'generate',
-        workspace: '/ws',
-        specPath: 'docs/ux.md',
-        screenTitle: 'Cadastro'
-      })
-      await vi.waitFor(() => expect(send).toHaveBeenCalled())
-
-      send.mockClear()
-      findOnHandler('designStudio:skill:stop')(fakeEvent)
-      const listener = agentOnEventCalls.at(-1)!.listener
-      const turnId = (vi.mocked(fakeAgentService.send).mock.calls.at(-1)?.[1] as { turnId: string })
-        .turnId
-      listener({ type: 'token', text: '{"commands": []}', turnId })
-      listener({ type: 'done', turnId })
-      await new Promise((resolve) => setTimeout(resolve, 0))
-
-      expect(send).not.toHaveBeenCalled()
-    })
-
-    it('gives a different Preview URL to every open', async () => {
-      const open = findHandler('designStudio:openPreview')
-      const first = await open({})
-      const second = await open({})
-      expect(first).not.toBe(second)
-    })
-
-    it('refuses an unknown host on the Preview scheme', async () => {
-      const call = vi
-        .mocked(protocol.handle)
-        .mock.calls.find(([scheme]) => scheme === 'hive-studio')
-      const handler = call![1] as (req: { url: string }) => Promise<Response>
-      expect((await handler({ url: 'hive-studio://userdata/sessions.json' })).status).toBe(404)
     })
 
     it('grants the microphone and clipboard *writes*, denying everything else (SB-R5.1)', () => {

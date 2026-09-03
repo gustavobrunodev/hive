@@ -475,13 +475,7 @@ const fileViewerMock: { requestSave: ReturnType<typeof vi.fn> } = {
 }
 
 vi.mock('./explorer/Explorer', () => ({
-  FileTree: ({
-    onOpenFile,
-    onOpenDesignStudio
-  }: {
-    onOpenFile?: (path: string, opts?: { pin?: boolean }) => void
-    onOpenDesignStudio?: (path: string) => void
-  }) =>
+  FileTree: ({ onOpenFile }: { onOpenFile?: (path: string, opts?: { pin?: boolean }) => void }) =>
     createElement(
       'div',
       null,
@@ -507,15 +501,6 @@ vi.mock('./explorer/Explorer', () => ({
           onClick: () => onOpenFile?.('docs/pinned.md', { pin: true })
         },
         'open pinned'
-      ),
-      createElement(
-        'button',
-        {
-          type: 'button',
-          'data-testid': 'open-studio',
-          onClick: () => onOpenDesignStudio?.('docs/ux.md')
-        },
-        'open studio'
       )
     ),
   FileViewer: forwardRef(function FileViewer(
@@ -626,36 +611,6 @@ function ChatStandIn(
     )
   )
 }
-
-// design-studio (T4.8): the Studio's own surface is covered by its own suite;
-// here it is only the thing that *asks* for Focus Mode, so the stand-in exposes
-// the two requests and nothing else.
-vi.mock('./designStudio/DesignStudioViewer', () => ({
-  DesignStudioViewer: ({
-    specPath,
-    focusMode,
-    onRequestFocusMode
-  }: {
-    specPath: string
-    focusMode: boolean
-    onRequestFocusMode: (focus: boolean) => void
-  }) =>
-    createElement(
-      'div',
-      { 'data-testid': 'design-studio', 'data-focus': String(focusMode) },
-      `DesignStudio: ${specPath}`,
-      createElement(
-        'button',
-        { type: 'button', 'data-testid': 'enter-focus', onClick: () => onRequestFocusMode(true) },
-        'focus'
-      ),
-      createElement(
-        'button',
-        { type: 'button', 'data-testid': 'leave-focus', onClick: () => onRequestFocusMode(false) },
-        'unfocus'
-      )
-    )
-}))
 
 vi.mock('./chat/Chat', () => ({
   // The mock exposes the customize hook (shortcut-customization) so WorkUI's
@@ -2945,74 +2900,5 @@ describe('WorkUI — MCP manager ↔ console bridge (mcp-logs)', () => {
     renderWithServer(Promise.reject(new Error('sem .mcp.json')))
     fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
     expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
-  })
-})
-
-/**
- * design-studio T4.8 / DS-R16 + P3. Focus Mode is the *window's* state: the
- * Studio asks, the shell collapses the rail and the chat, and leaving restores
- * the distribution the user had — not a default. The DS `Resizable` stand-in
- * captures the `defaultLayout` the group is handed, which is exactly the
- * value that decides whether the restore is faithful or merely plausible.
- */
-describe('WorkUI — Focus Mode (design-studio DS-R16)', () => {
-  function renderWorkUI(): void {
-    render(
-      createElement(WorkUI, {
-        workspace: '/home/user/my-workspace',
-        theme: 'dark',
-        onSelectTheme: vi.fn()
-      })
-    )
-  }
-
-  function panelOrder(): string[] {
-    return Array.from(document.querySelectorAll('[data-testid^="panel-"]')).map((el) =>
-      (el.getAttribute('data-testid') ?? '').replace('panel-', '')
-    )
-  }
-
-  beforeEach(() => {
-    localStorage.clear()
-    resizableProps.defaultLayout = undefined
-  })
-
-  it('opens a Design Studio tab from the Explorer and keeps the file tab separate', () => {
-    renderWorkUI()
-    fireEvent.click(screen.getByTestId('file-tree'))
-    fireEvent.click(screen.getByTestId('open-studio'))
-
-    expect(screen.getByTestId('design-studio').textContent).toContain('docs/ux.md')
-    expect(screen.getByTestId('design-studio').getAttribute('data-focus')).toBe('false')
-  })
-
-  it('gives the whole window to the stage, then restores the exact previous split', () => {
-    renderWorkUI()
-    fireEvent.click(screen.getByTestId('open-studio'))
-    expect(panelOrder()).toEqual(['rail', 'chat', 'viewer'])
-
-    // The user drags the panes somewhere of their own.
-    fireEvent.click(screen.getByTestId('simulate-drag'))
-
-    fireEvent.click(screen.getByTestId('enter-focus'))
-    expect(panelOrder()).toEqual(['viewer'])
-    expect(screen.getByTestId('design-studio').getAttribute('data-focus')).toBe('true')
-
-    fireEvent.click(screen.getByTestId('leave-focus'))
-    expect(panelOrder()).toEqual(['rail', 'chat', 'viewer'])
-    // Not `defaultSize`s, and not the value on disk at mount: the split the
-    // user was actually looking at when they entered Focus Mode.
-    expect(resizableProps.defaultLayout).toEqual({ rail: 30, chat: 45, viewer: 25 })
-  })
-
-  it('restores a split the user made *inside* nothing — an untouched layout comes back untouched', () => {
-    localStorage.setItem('hive.workLayout', JSON.stringify({ rail: 18, chat: 50, viewer: 32 }))
-    renderWorkUI()
-    fireEvent.click(screen.getByTestId('open-studio'))
-
-    fireEvent.click(screen.getByTestId('enter-focus'))
-    fireEvent.click(screen.getByTestId('leave-focus'))
-
-    expect(resizableProps.defaultLayout).toEqual({ rail: 18, chat: 50, viewer: 32 })
   })
 })

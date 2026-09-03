@@ -674,7 +674,19 @@ by the visual probe instead (STATE.md **L-AO-7**).
 
 ---
 
-## M18 — Design Studio ✅ Done (2026-08-10)
+## M18 — Design Studio 🗑️ Removido do app (2026-09-02)
+
+> **A feature saiu inteira do aplicativo em 2026-09-02**, a pedido do produto.
+> Foram removidos `src/main/designStudio/`, `src/renderer/src/designStudio/`,
+> `src/preview/`, o esquema privilegiado `hive-studio:` e todos os handlers
+> `designStudio:*`, os dois artefatos em `resources/` (o bundle do Web Awesome
+> e o receiver do Preview), os scripts que os geravam, os quatro `e2e/
+> design-studio-*.spec.ts`, a varredura `tools/visual/design-studio.mjs` e o
+> Focus Mode do `WorkUI` (que existia só para o palco do Studio). As duas
+> portas de entrada — o item "Abrir no Design Studio" do Explorer e o grupo
+> da paleta Ctrl+P — também. O registro abaixo fica como história: o que a
+> execução mediu (L-DS-1..7) continua valendo para outros módulos.
+
 
 **Feature:** `design-studio` · branch `feat/voice-prompt` (continues M13–M17) ·
 **Contrato canônico:** `_bmad-output/specs/spec-design-studio/` (SPEC + AD-1..AD-11) ·

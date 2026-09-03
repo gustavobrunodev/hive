@@ -6,7 +6,6 @@ import {
   ipcMain,
   dialog,
   Notification,
-  protocol,
   screen,
   session,
   utilityProcess
@@ -48,28 +47,6 @@ import { createBmadService, type BmadInstallOptions } from './bmadService'
 import { createSecondBrainService } from './secondBrainService'
 import { createSecondBrainVault } from './secondBrainVault'
 import { createSecondBrainHealthStore } from './secondBrainHealth'
-import {
-  createStudioProtocolHandler,
-  studioResourcesRoot,
-  STUDIO_SCHEME,
-  STUDIO_SCHEME_PRIVILEGES
-} from './designStudio/previewProtocol'
-import { createPreviewSessions } from './designStudio/previewSessions'
-import { createDesignStudioService } from './designStudio/designStudioService'
-import { registerDesignSystem, resolveActiveAdapter } from './designStudio/dsAdapter/registry'
-import {
-  createWebAwesomeAdapter,
-  loadWebAwesomeAssets,
-  loadWebAwesomeCatalog,
-  WEB_AWESOME_DS_ID
-} from './designStudio/dsAdapter/webAwesomeAdapter'
-import { exportMany } from './designStudio/exportBundle'
-import type { ExportRequest, ExportRun } from './designStudio/exportBundle'
-import { createStudioSkillRuns } from './designStudio/studioSkillRuns'
-import type { StudioSkillRequest } from './designStudio/studioSkillRuns'
-import { detectScreens } from './designStudio/screenDetection'
-import type { ScreenDetectionResult } from './designStudio/screenDetection'
-import type { Command, OperationError } from './designStudio/types'
 import { createAsrModelStore } from './asr/asrModelStore'
 import { createAsrDownloadManager } from './asr/asrDownloads'
 import { autoDownloadOnStartup } from './asr/asrAutoDownload'
@@ -174,16 +151,12 @@ function createWindow(): void {
   }
 }
 
-// Design Studio (M18, T3.2): `hive-studio:` MUST be declared privileged BEFORE
-// `app.whenReady()` — Chromium reads the scheme registry during startup, so a
-// later call has no effect.
-//
-// `hive-model:` used to be declared here too. It existed for one reason: the
-// sandboxed renderer ran the transcription model itself and could not fetch
-// its own weights, so main had to serve them over a privileged scheme. With
-// inference in a utility process (M29) the renderer never sees a weight file,
-// and the safest scheme is the one that does not exist.
-protocol.registerSchemesAsPrivileged([STUDIO_SCHEME_PRIVILEGES as unknown as Electron.CustomScheme])
+// The app declares no privileged scheme. `hive-model:` used to be declared
+// here: it existed for one reason: the sandboxed renderer ran the
+// transcription model itself and could not fetch its own weights, so main had
+// to serve them over a privileged scheme. With inference in a utility process
+// (M29) the renderer never sees a weight file, and the safest scheme is the
+// one that does not exist.
 
 // The product is called Hive. Packaged, `electron-builder.yml`'s `productName`
 // already tells Electron that; in dev the name would fall out of package.json's
@@ -1252,125 +1225,11 @@ app.whenReady().then(() => {
   // any more — the renderer is not in the path at all.
   const downloadedModelsDir = join(app.getPath('userData'), ASR_MODELS_DIRNAME)
 
-  // Design Studio (M18, T3.2): the isolated Preview. Everything it loads —
-  // the session shell, the DS bundle, the in-frame receiver — comes from one
-  // read-only root that shipped with the app, under one host so the response
-  // CSP's `script-src 'self'` covers all of it. Packaged, `resources/` is
-  // unpacked next to the asar (`asarUnpack` in electron-builder.yml); in dev it
-  // is the repo's own `resources/`.
-  const studioRoots = { preview: studioResourcesRoot(__dirname) }
-  const studioSessions = createPreviewSessions()
-  protocol.handle(STUDIO_SCHEME, createStudioProtocolHandler(studioRoots, studioSessions.shellFor))
-
-  // The Preview's session lifecycle. A session's URL is live only between
-  // these two calls, so a token that leaked out of a closed tab resolves to a
-  // 404 rather than to a renderable frame.
-  ipcMain.handle('designStudio:openPreview', async () => studioSessions.url(studioSessions.open()))
-  ipcMain.handle('designStudio:closePreview', async (_event, url: string) => {
-    studioSessions.closeUrl(url)
-  })
-
-  // The Telas a UX Spec describes (DS-R1 AC-2/3/5). Nothing here talks to an
-  // agent: the list has to be on screen *before* any Preview is generated, so
-  // it is read straight off the markdown. An unreadable Spec comes back as an
-  // `OperationError` rather than a rejection, because the tab renders it as a
-  // retryable empty state instead of dying (DS-R17).
-  ipcMain.handle(
-    'designStudio:screens',
-    async (
-      _event,
-      workspace: string,
-      relativePath: string
-    ): Promise<ScreenDetectionResult | OperationError> => {
-      try {
-        return detectScreens(await fsService.readFile(workspace, relativePath))
-      } catch (err) {
-        return {
-          kind: 'operation',
-          scope: 'io',
-          message: err instanceof Error ? err.message : String(err),
-          retryable: true
-        }
-      }
-    }
-  )
-
-  // The document itself (T5.1). It lives here rather than in the tab because
-  // `validate()` — the one gate a Command passes before the reducer applies it
-  // (AD-2) — belongs to the DS adapter, which reads a catalog off `resources/`
-  // and therefore cannot exist in the renderer at all. The adapter is resolved
-  // lazily and exactly once (DS-R12 AC-6): the app boots long before anyone
-  // opens the Studio, and the catalog is not free to read.
-  registerDesignSystem(WEB_AWESOME_DS_ID, () =>
-    createWebAwesomeAdapter(loadWebAwesomeCatalog(studioRoots.preview), () =>
-      loadWebAwesomeAssets(studioRoots.preview)
-    )
-  )
-  const designStudioService = createDesignStudioService(() =>
-    resolveActiveAdapter(WEB_AWESOME_DS_ID)
-  )
-
-  ipcMain.handle('designStudio:catalog', async () => designStudioService.catalog())
-  ipcMain.handle(
-    'designStudio:view',
-    async (_event, key: string, screenId: string, title: string) =>
-      designStudioService.view(key, screenId, title)
-  )
-  // A `CapabilityViolation` comes back as a value, never as a rejection: the
-  // Inspector renders it inside the offending Field and keeps the old value
-  // (DS-R17, design §6), which a thrown error could not express.
-  ipcMain.handle(
-    'designStudio:dispatch',
-    async (
-      _event,
-      key: string,
-      screenId: string,
-      title: string,
-      commands: Command[],
-      groupId: string
-    ) => designStudioService.dispatch(key, screenId, title, commands, groupId)
-  )
-  ipcMain.handle(
-    'designStudio:undo',
-    async (_event, key: string, screenId: string, title: string) =>
-      designStudioService.undo(key, screenId, title)
-  )
-  ipcMain.handle(
-    'designStudio:redo',
-    async (_event, key: string, screenId: string, title: string) =>
-      designStudioService.redo(key, screenId, title)
-  )
-
-  // The Bundle (T7.4, DS-R14 AC-3 / DS-R15). Every Tela is read with `view()`,
-  // which replays the log and moves nothing: exporting is the one operation
-  // that must leave the edit state exactly where it found it, so it goes
-  // through the *reading* door and never through `dispatch`/`undo`/`redo`.
-  // Failure is isolated per Tela inside `exportMany`, so this handler never
-  // rejects — the report comes back whole, with the good and the bad in it.
-  ipcMain.handle(
-    'designStudio:export',
-    async (_event, requests: ExportRequest[]): Promise<ExportRun> => {
-      const picked = await dialog.showOpenDialog({
-        properties: ['openDirectory', 'createDirectory']
-      })
-      const outDir = picked.canceled ? undefined : picked.filePaths[0]
-      if (outDir === undefined) return { canceled: true, outDir: null, outcomes: [] }
-      const documents = requests.map(
-        (request) => designStudioService.view(request.key, request.screenId, request.title).document
-      )
-      return {
-        canceled: false,
-        outDir,
-        outcomes: exportMany(resolveActiveAdapter(WEB_AWESOME_DS_ID), documents, outDir)
-      }
-    }
-  )
-
   const activeSbInstallStops = new Map<number, () => void>()
   const activeSbUpdateStops = new Map<number, () => void>()
 
-  // Generic in the event type: the Design Studio's Skill (T6.2) streams its own
-  // three-event vocabulary down the very same one-stop-handle-per-sender path.
+  // Generic in the event type so any other stream can reuse the very same
+  // one-stop-handle-per-sender path.
   const runSbStream = <T>(
     event: Electron.IpcMainEvent,
     stops: Map<number, () => void>,
@@ -1394,42 +1253,6 @@ app.whenReady().then(() => {
       stops.delete(senderId)
     })
   }
-
-  // The Design Studio's Skill (T6.2, DS-R2). Streamed rather than
-  // request/response because the whole point is that the wait is *covered*: the
-  // stage paints a status the moment the run starts and follows the turn until
-  // it settles. The agent is reached only through `AgentSession`/`AgentEvent`
-  // (AD-9) — `agentService.send` with a turn id, and the unified event stream
-  // filtered by that id inside the Skill.
-  const activeStudioSkillStops = new Map<number, () => void>()
-  const studioSkillRuns = createStudioSkillRuns({
-    readSpec: async (workspace, specPath) => fsService.readFile(workspace, specPath),
-    catalog: () => designStudioService.catalog(),
-    documentFor: (key, screenId, title) => designStudioService.view(key, screenId, title).document,
-    workspace: () => workspaceService.getWorkspace() ?? '',
-    agentFor: (workspace) => ({
-      send: (prompt, turnId) => {
-        // Idempotent: an existing session for the default agent is reused, so
-        // the Studio never tears down a conversation that is mid-turn.
-        agentService.startSession({ workspace })
-        agentService.send(prompt, { turnId })
-      },
-      onEvent: (listener) => agentService.onEvent(listener)
-    })
-  })
-
-  ipcMain.on('designStudio:skill:start', (event, request: StudioSkillRequest) => {
-    runSbStream(
-      event,
-      activeStudioSkillStops,
-      'designStudio:skill:event',
-      studioSkillRuns.run(request)
-    )
-  })
-  ipcMain.on('designStudio:skill:stop', (event) => {
-    activeStudioSkillStops.get(event.sender.id)?.()
-    activeStudioSkillStops.delete(event.sender.id)
-  })
 
   ipcMain.on('secondBrain:install:start', (event, workspace: string) => {
     runSbStream(

@@ -187,8 +187,6 @@ export const ptBR = {
     pathCopiedFeedback: (count: number): string =>
       count > 1 ? `${count} caminhos copiados` : 'Caminho copiado',
     revealErrorMessage: 'Não foi possível abrir no gerenciador de arquivos do sistema.',
-    /** design-studio DS-R1 AC-1: the Explorer entry point, offered only on Markdown. */
-    menuOpenDesignStudio: 'Abrir no Design Studio',
     deleteDialogTitle: 'Mover para a Lixeira?',
     deleteDialogDescription: (name: string) =>
       `"${name}" será movido para a lixeira do sistema. Você pode recuperá-lo por lá.`,
@@ -214,6 +212,7 @@ export const ptBR = {
     // T9 — editor edit/save/dirty/STALE (FM-R2)
     editLabel: 'Editar',
     viewLabel: 'Visualizar',
+    modeSwitchLabel: 'Modo de exibição do arquivo',
     editorAriaLabel: 'Conteúdo do arquivo',
     dirtyLabel: 'Alterações não salvas',
     saveCta: 'Salvar',
@@ -1872,135 +1871,12 @@ export const ptBR = {
       count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`
   },
   // Workspace file search (Ctrl+P palette).
-  // design-studio (M18): the Bancada. Copy lives here like every other
-  // surface's — the Studio is app chrome, not agent output.
-  designStudio: {
-    emptyScreensTitle: 'Nenhuma Tela reconhecida nesta Spec',
-    emptyScreensDescription:
-      'A Spec foi lida inteira, mas nada nela nomeia uma Tela. Procuramos por:',
-    probeScreenHeading: 'Títulos de Tela — "## Tela — Login", "### Screen: Checkout"',
-    probeIaTable:
-      'A tabela de Arquitetura da Informação — a primeira coluna chamada Surface, Screen ou Tela',
-    emptyScreensHint: 'Acrescente uma dessas formas à Spec e abra o Design Studio de novo.',
-    emptyScreensAction: 'Abrir a Spec no editor',
-    specErrorTitle: 'Não foi possível ler a Spec',
-    specErrorRetry: 'Tentar de novo',
-    tabAria: (spec: string) => `Design Studio — ${spec}`,
-    loading: 'Lendo a Spec…',
-    screensPaneTitle: 'Telas',
-    treePaneTitle: 'Árvore',
-    inspectorPaneTitle: 'Inspetor',
-    stageAria: 'Palco',
-    previewFrameTitle: 'Preview da Tela',
-    resizeHandleLabel: 'Redimensionar colunas do Design Studio',
-    toolbarAria: 'Ações do Design Studio',
-    screenListAria: 'Telas desta Spec',
-    openTreeDrawer: 'Abrir a Árvore',
-    openInspectorDrawer: 'Abrir o Inspetor',
-    closeDrawer: 'Fechar',
-    focusModeNarrowHint: 'A janela está estreita — o Modo Foco devolve o palco inteiro.',
-    screenEdited: 'editada nesta sessão',
-    screenAuto: 'gerada automaticamente',
-    screenCount: (count: number) => (count === 1 ? '1 Tela' : `${count} Telas`),
-    screenPickerAria: 'Trocar de Tela',
-    viewportAria: 'Tamanho do dispositivo',
-    viewportMobile: 'Mobile',
-    viewportTablet: 'Tablet',
-    viewportDesktop: 'Desktop',
-    viewportCustom: 'Personalizado',
-    viewportWidthAria: 'Largura em pixels',
-    viewportHeightAria: 'Altura em pixels',
-    undo: 'Desfazer',
-    redo: 'Refazer',
-    focusModeEnter: 'Modo Foco',
-    focusModeExit: 'Sair do Modo Foco',
-    focusModeHint: 'O palco ocupa a janela inteira',
-    treeAria: 'Árvore de Componentes desta Tela',
-    // T5.5 (DS-R7 AC-1/AC-4): o que se escolhe ao adicionar — Componente e slot,
-    // ambos vindos do catálogo do Adaptador ativo, nunca de uma lista fixa.
-    treeAddLabel: 'Adicionar Componente',
-    treeAddTagLabel: 'Componente',
-    treeAddTagPlaceholder: 'Escolha um Componente',
-    treeAddSlotLabel: 'Slot',
-    treeAddSlotDefault: '(padrão)',
-    treeAddInto: (tag: string) => `Dentro de ${tag}`,
-    treeAddAsRoot: 'Como o primeiro Componente da Tela',
-    treeAddConfirm: 'Adicionar',
-    treeAddCancel: 'Cancelar',
-    // T5.6 (DS-R7 AC-2/AC-3/AC-5): mover é para dentro/para fora, porque é o
-    // único par de gestos que o teclado também alcança (DS-R18).
-    treeRemove: 'Remover',
-    treeMoveInside: 'Mover para dentro',
-    treeMoveInsideHint: 'Torna este Componente filho do Componente acima dele',
-    treeMoveOutside: 'Mover para fora',
-    treeMoveOutsideHint: 'Move este Componente para junto do Componente que o contém',
-    // FIX-1 (spec.md Edge Cases): a Spec mudou em disco. A sessão continua
-    // válida de propósito — a Spec é somente leitura e já foi consumida —, então
-    // isto avisa sem interromper e sem recarregar nada.
-    specOriginChanged: 'A Spec mudou em disco desde que esta aba foi aberta.',
-    specOriginOpen: 'Abrir a Spec',
-    specOriginDismiss: 'Dispensar o aviso',
-    // T5.7 (DS-R7, §3.10): a Tela sem Componentes ensina os dois caminhos —
-    // gerar com a Skill e adicionar à mão.
-    screenEmptyTitle: 'Esta Tela ainda não tem Componentes',
-    screenEmptyDescription:
-      'Gere uma primeira versão a partir da Spec ou escolha o primeiro Componente você mesmo.',
-    screenEmptyGenerate: 'Gerar com a Skill',
-    // T6.2 (DS-R2): toda espera assíncrona tem estado visível. As fases vêm do
-    // main como termos fechados; a frase é daqui, como toda copy.
-    skillPhaseReading: 'Lendo a Spec…',
-    skillPhaseChoosing: 'Escolhendo Componentes…',
-    skillPhaseComposing: 'Compondo a Tela…',
-    skillRunning: 'A Skill está compondo esta Tela',
-    skillErrorTitle: 'A Skill não conseguiu gerar a Tela',
-    skillViolationTitle: 'O Design System ativo não tem o que o pedido precisa',
-    skillRetry: 'Tentar de novo',
-    // T6.5 (DS-R10, §3.7): o Chat é uma faixa. O chip torna o contexto padrão
-    // — o Componente selecionado — visível em vez de mágico; o ✕ o solta.
-    chatAria: 'Chat de Iteração desta Tela',
-    chatTitle: 'Iteração',
-    chatContext: (tag: string) => `no contexto: ${tag}`,
-    chatReleaseContext: 'Soltar o contexto e falar da Tela inteira',
-    chatExpand: 'Abrir a conversa',
-    chatCollapse: 'Fechar a conversa',
-    chatPlaceholder: 'Escreva o que mudar…',
-    chatSend: 'Enviar pedido à Skill',
-    chatJumpToLatest: 'Ir para a mensagem mais recente',
-    // T6.6 (DS-R9 AC-5): o turno diz o que fez e oferece desfazê-lo inteiro.
-    chatTurnChanges: (count: number) => (count === 1 ? '1 mudança' : `${count} mudanças`),
-    chatUndoTurn: 'Desfazer este turno',
-    inspectorEmptyTitle: 'Nada selecionado',
-    inspectorEmptyDescription:
-      'Clique em qualquer elemento no palco para editar as propriedades dele.',
-    inspectorEmptyAction: 'Escolher na Árvore',
-    inspectorGroupAppearance: 'Aparência',
-    inspectorGroupState: 'Estado',
-    inspectorGroupContent: 'Conteúdo',
-    inspectorGroupAdvanced: 'Avançado',
-    // T7.4 (DS-R14/DS-R15): exportar é escolher **quais** Telas e para onde. O
-    // relatório fica no mesmo lugar porque um lote pode ser meio bom.
-    exportLabel: 'Exportar',
-    exportDialogTitle: 'Exportar Telas',
-    exportDialogDescription:
-      'Cada Tela vira um arquivo HTML autocontido — componentes vivos, CSS e ícones embutidos, sem depender de rede.',
-    exportListAria: 'Telas a exportar',
-    exportScreenAria: (title: string) => `Exportar a Tela ${title}`,
-    exportConfirm: 'Escolher a pasta e exportar',
-    exportAgain: 'Exportar de novo',
-    exportCancel: 'Cancelar',
-    exportClose: 'Fechar',
-    exportDone: (count: number, dir: string) =>
-      count === 1 ? `1 Tela exportada em ${dir}` : `${count} Telas exportadas em ${dir}`
-  },
   fileSearch: {
     dialogLabel: 'Buscar arquivos no workspace',
     placeholder: 'Buscar arquivos no workspace…',
     empty: 'Nenhum arquivo corresponde à busca.',
     hint: '↑ ↓ navega · Enter abre · Esc fecha',
-    openAria: (name: string) => `Abrir arquivo ${name}`,
-    /** design-studio DS-R1 AC-1: the palette's second way in — the workspace's Specs. */
-    designStudioGroup: 'Design Studio',
-    openDesignStudioAria: (name: string) => `Abrir ${name} no Design Studio`
+    openAria: (name: string) => `Abrir arquivo ${name}`
   },
   // npm-distribution T10 (ND-R6): the self-update flow's copy — `UpdateNotice`
   // (Tier 2, design.md §5 mock-up) and `UpdateCenter` (Tier 3, T13's

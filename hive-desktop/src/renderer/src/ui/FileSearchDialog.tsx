@@ -2,17 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   CommandDialog,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { FileTypeIcon } from './fileIcons'
-import { LayersIcon } from './icons'
-
-/** Keeps a Studio row's cmdk value unique against the file row for the same path. */
-const STUDIO_VALUE_SUFFIX = 'design studio'
 
 interface FileSearchDialogProps {
   open: boolean
@@ -21,17 +16,6 @@ interface FileSearchDialogProps {
   workspace: string
   /** Opens the picked file in the editor pane (workspace-relative path). */
   onOpenFile: (path: string) => void
-  /**
-   * design-studio (DS-R1 AC-1): the palette's second way into the Studio —
-   * a group listing the workspace's Markdown Specs. Omitted when absent, so
-   * the palette still works for callers that don't wire the Studio.
-   */
-  onOpenDesignStudio?: (path: string) => void
-}
-
-/** design-studio DS-R1: the Studio's input is a Markdown Spec. */
-function isMarkdownPath(path: string): boolean {
-  return path.toLowerCase().endsWith('.md')
 }
 
 /** Last path segment / everything before it — the row shows name over its folder. */
@@ -54,8 +38,7 @@ export function FileSearchDialog({
   open,
   onOpenChange,
   workspace,
-  onOpenFile,
-  onOpenDesignStudio
+  onOpenFile
 }: FileSearchDialogProps): React.JSX.Element {
   const [files, setFiles] = useState<string[]>([])
 
@@ -109,42 +92,6 @@ export function FileSearchDialog({
             </CommandItem>
           )
         })}
-        {/* design-studio (DS-R1 AC-1). A second group rather than a second
-            action on each row: the palette's rows are "open this file", and
-            the Studio is a different destination, not a different way to open
-            the same one. Values are suffixed so cmdk still sees one unique
-            value per item while a search for the filename matches both. */}
-        {onOpenDesignStudio && (
-          <CommandGroup heading={t('fileSearch.designStudioGroup')}>
-            {files.filter(isMarkdownPath).map((path) => {
-              const { name, dir } = splitPath(path)
-              return (
-                <CommandItem
-                  key={`studio:${path}`}
-                  value={`${path} ${STUDIO_VALUE_SUFFIX}`}
-                  onSelect={() => {
-                    onOpenDesignStudio(path)
-                    onOpenChange(false)
-                  }}
-                  aria-label={t('fileSearch.openDesignStudioAria', path)}
-                >
-                  <span className="wb-filesearch-icon" aria-hidden="true">
-                    <LayersIcon size={15} />
-                  </span>
-                  {/* The folder, exactly as the files group above renders it —
-                      not the whole path. Printing `path` here repeated the
-                      name the line already starts with, so a root-level Spec
-                      read "README.md   README.md" and a nested one repeated
-                      its folder *and* its name. */}
-                  <span className="wb-filesearch-text">
-                    <span className="wb-filesearch-name">{name}</span>
-                    {dir !== null && <span className="wb-filesearch-dir">{dir}</span>}
-                  </span>
-                </CommandItem>
-              )
-            })}
-          </CommandGroup>
-        )}
       </CommandList>
       <p className="wb-filesearch-hint" aria-hidden="true">
         {t('fileSearch.hint')}

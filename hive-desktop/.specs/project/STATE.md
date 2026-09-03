@@ -2604,6 +2604,16 @@ capture=…`), so every number is against actual signal, not silence.
   touched) — flagged here so a future session doesn't mistake a repeat of
   this specific flake for a real regression.
 
+- **design-studio (M18) — REMOVIDO DO APP em 2026-09-02.** A feature inteira
+  saiu do aplicativo a pedido do produto: módulos (`src/main/designStudio/`,
+  `src/renderer/src/designStudio/`, `src/preview/`), o esquema privilegiado
+  `hive-studio:` (o app agora **não declara nenhum esquema privilegiado**), os
+  handlers `designStudio:*` e a ponte `window.hive.designStudio`, os artefatos
+  em `resources/`, os scripts `build:ds-*`/`build:preview-receiver`, os specs
+  E2E, a varredura visual e o Focus Mode do `WorkUI`. `npm run verify` verde
+  depois da remoção (**3299 testes / 193 arquivos**). O registro abaixo fica
+  como história do que a execução original mediu.
+
 - **design-studio (M18) — COMPLETE (T1.1–T7.8), 2026-08-10.** 52 tasks, 7
   sequential phases, one atomic commit each, `npm run verify` green at **3346
   tests / 202 files** (from 2548 / 159 at M17), 0 lint errors. A UX Spec now
@@ -3344,6 +3354,52 @@ declaração, que é literalmente o que o navegador já fazia. Os outros quatro
 ganharam o papel que o nome tentava dizer: tinta cheia no stderr do console Git e
 no caminho de cache do console MCP (conteúdo diagnóstico, a razão de abrir aquelas
 telas), `--muted` no texto e no descarte da faixa de origem do Design Studio.
+
+---
+
+## Editor de arquivos — leitura e edição de artefatos (2026-09-03)
+
+Pedido do usuário: contraste de sintaxe como o das IDEs, a prévia de markdown
+ocupando a largura do painel, e a rolagem sobrevivendo à troca editar⇄visualizar.
+Mais um mandato aberto: "me surpreenda com uma interface bonita, moderna e
+intuitiva".
+
+- **O espelho passou a ser um bloco por linha-fonte.** É a decisão de que tudo
+  depende. Uma coluna paralela de células de altura fixa só está certa enquanto
+  nada quebra linha — e era por isso que a coluna de marcas do git *desligava a
+  quebra*, deixando uma PRD correndo para fora da direita de um painel estreito.
+  Com um bloco por linha, o navegador responde onde a linha está: número, barra
+  de mudança e o realce da linha atual se posicionam contra a caixa da própria
+  linha e ficam certos em qualquer largura, de graça. `highlightLines` corta os
+  runs coloridos nas quebras e `syntax.test.ts` cobra das quinze gramáticas que
+  juntar tudo de volta reproduza o arquivo.
+- **Números de linha são texto de leitura, não decoração.** `--muted` (6,5:1 /
+  5,5:1 / 6,7:1), nunca `--faint`. Pregados na esquerda durante a rolagem
+  horizontal por uma variável CSS escrita no `scroll` — eles vivem dentro do
+  espelho (é o que os mantém ao lado da própria linha) e são empurrados de volta
+  exatamente pelo que o espelho rolou.
+- **A linha do cursor é um irmão do espelho, não um fundo na linha.** Só assim
+  ela cobre também a coluna dos números; e é posicionada a partir da caixa
+  medida do bloco, que é o que a faz ter a altura de uma linha que quebrou em
+  três. Atualizada por `selectionchange` no documento — um cursor sem seleção
+  não dispara `select`, `input` nem nada no próprio campo. Nunca por estado do
+  React: reconstruir mil linhas a cada seta é um teclado que engasga.
+- **O alternador virou escolha visível.** Um ícone que troca o próprio desenho
+  pede que o leitor saiba que o painel tem dois modos *e* o que o desenho atual
+  significa. Para um PM abrindo uma PRD, isso é a diferença entre achar o
+  documento renderizado e nunca descobrir que ele existe. Duas formas, trocadas
+  por *container query* no painel (não na janela — a divisória é arrastável), e
+  a ordem em que a linha cede está escrita no CSS.
+- **O carry agora leva o cursor junto.** Voltando de visualizar, o cursor pousa
+  na linha que estava sendo lida — o realce marca o parágrafo e a digitação
+  começa ali. `setSelectionRange` rola o campo até o cursor, então ele vem
+  **antes** do `scrollTop`, senão desfaz a restauração.
+
+Verify verde (3 322 testes, 0 erros de lint, coberturas no piso). Passe visual
+nos três temas fechado: `tools/visual/editor-pass.mjs` (marcas, realce, carry
+exato nos dois sentidos, prévia na largura do painel) e
+`tools/visual/editor-contrast.mjs` (12 papéis + números + marcas + wash, mais as
+afirmações de geometria). Lições em `docs/visual-validation.md`.
 
 ---
 

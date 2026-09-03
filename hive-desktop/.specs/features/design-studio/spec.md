@@ -1,5 +1,9 @@
 # Spec — `design-studio` (M18)
 
+> ⚠️ **Feature removida do aplicativo em 2026-09-02.** Nada do que este plano
+> descreve existe mais no código; os arquivos ficam só como registro histórico.
+> Ver `.specs/project/ROADMAP.md` (M18) e `.specs/project/STATE.md`.
+
 Hoje uma Spec de UX (a saída do fluxo `bmad-ux`) só existe como texto. Para
 saber se a composição, a hierarquia e o fluxo de uma Tela fazem sentido, o
 usuário precisa investir horas de Figma **antes** de ter qualquer sinal. O

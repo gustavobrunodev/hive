@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeGutter, hasGutterMarks } from './gutter'
+import { computeGutter } from './gutter'
 
 describe('computeGutter', () => {
   it('marks every line of a brand-new file as added', () => {
@@ -31,12 +31,5 @@ describe('computeGutter', () => {
   it('caps huge files (all null)', () => {
     const huge = Array.from({ length: 5001 }, (_, i) => `line ${i}`).join('\n')
     expect(computeGutter('', huge).every((m) => m === null)).toBe(true)
-  })
-})
-
-describe('hasGutterMarks', () => {
-  it('is true only when some line carries a mark', () => {
-    expect(hasGutterMarks([null, null])).toBe(false)
-    expect(hasGutterMarks([null, 'add'])).toBe(true)
   })
 })

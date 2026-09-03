@@ -16,8 +16,7 @@ directories:
 # A blocklist has to be right about the whole future of the repo; every new
 # top-level directory ships until someone notices. Nothing here is read at
 # runtime except `out/` and `resources/` (`__dirname`-relative, see
-# `src/main/index.ts` and `previewProtocol.ts`), so those plus the manifest are
-# the whole list. Production `node_modules` are added by electron-builder from
+# `src/main/index.ts`), so those plus the manifest are the whole list. Production `node_modules` are added by electron-builder from
 # the dependency graph and need no entry — that is also how the native ASR
 # binary gets in.
 #

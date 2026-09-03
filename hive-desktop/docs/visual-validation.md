@@ -1087,3 +1087,91 @@ janela inteira.
 assume o contrário deixa o scrim de pé e todo clique seguinte pousa no overlay —
 o erro do Playwright ("`.hds-alert-dialog-overlay` intercepts pointer events")
 é o sintoma. Feche pelo botão real.
+
+## Sonda do editor de arquivos (M31)
+
+`tools/visual/editor-contrast.mjs` mede as doze cores da paleta de sintaxe —
+uma visita por gramática (`.ts`, `.yml`, `.tsx`, `.md`), porque **um papel que
+nenhuma amostra exercita é uma cor que ninguém mediu** — e, na mesma rodada,
+resolve as duas afirmações de geometria que o `CodeEditor` faz:
+
+- **espelho e campo têm a mesma altura.** O componente pinta um `<pre>` colorido
+  atrás de um `<textarea>` de letras transparentes; os dois só coincidem
+  enquanto concordarem sobre onde a linha quebra. `scrollHeight` igual é a
+  prova barata disso, e a desigualdade é o único sintoma que existe — as duas
+  camadas continuam parecendo texto quando estão desalinhadas.
+- **a prévia ocupa o painel.** Medida numa janela de 1920px, onde a antiga
+  trava de 86ch mordia; abaixo disso o defeito não aparece.
+
+`tools/visual/editor-pass.mjs` é o passe funcional ao lado dela: colorização,
+largura da prévia e a ida-e-volta da rolagem entre editar e visualizar.
+
+### Duas armadilhas que custaram uma rodada cada
+
+**1. `Portal` do Radix monta um commit depois.** Ele renderiza `null` na
+primeira passada e só monta os filhos depois de um layout effect. Um
+`useEffect` com dependência no `open` roda no commit em que o portal ainda não
+existe, lê `ref.current === null`, não registra nada — e **nunca mais roda**,
+porque o commit que finalmente cria o nó não muda nenhum estado que o efeito
+observe. Não é uma corrida que às vezes morde: é a única ordem em que essas
+duas coisas acontecem. A resposta é *callback ref* (o nó como estado), que
+entrega o elemento no instante em que ele existe. Foi o que segurou a correção
+do scroll do `OptionPicker` por uma rodada inteira: a sonda dizia "não rola" e
+o código parecia certo.
+
+**2. Prefixo de classe repetido atravessa componente.** O `CodeBlock` já era
+dono de `.hds-code`, e a regra `.hds-code pre { white-space: pre-wrap }` dele
+alcançou o espelho do editor novo e o pôs a quebrar linha enquanto o campo ao
+lado não quebrava. Nada acusa: as duas camadas continuam sendo texto. Antes de
+escolher um prefixo, `grep` nele.
+
+### O mock do `readFile` é o fixture
+
+O `boot.mjs` devolve `'# README\n'` para qualquer arquivo — suficiente para o
+explorer, inútil para o editor. Os dois passes acima sobrescrevem
+`window.hive.readFile` **depois de cada `reload()`** (a troca de tema recarrega
+a página e leva o override junto) com um documento por extensão.
+
+### O mock do `fileAtHead` também é o fixture — e o padrão dele mente
+
+`boot.mjs` responde `''` para `git.fileAtHead`, o que faz **toda** linha do
+arquivo virar uma inclusão: a coluna de marcas desenha uma barra verde contínua
+de cima a baixo. É uma renderização correta de um estado falso, e ela esconde
+exatamente o que as marcas existem para mostrar — as duas ou três linhas que
+você mexeu, no meio das que não mexeu. O `editor-pass.mjs` monta um HEAD com uma
+inclusão, uma modificação e uma remoção e é só assim que as três aparecem.
+
+### O alvo de rolagem precisa ser alcançável
+
+Uma sonda que rola a prévia até um bloco abaixo de `scrollHeight - clientHeight`
+não rola até lá: o navegador trava no fim, a sonda mede o topo que sobrou e
+reporta um carry "errado por duas seções". Foi o que aconteceu na primeira
+medição do carry visualizar→editar — o defeito era da sonda, não do produto.
+Escolha o alvo **entre os que cabem**, e o número volta exato.
+
+### O cabeçalho do painel é elástico e o painel é pequeno
+
+A janela padrão do app tem 900px e o visualizador fica com ~307px. Nessa
+largura o cabeçalho carrega ícone + nome + Descartar + Salvar + o alternador de
+modo + copiar + fechar, e **não cabe**. `scrollWidth > clientWidth` no
+`.wb-viewer-header` é a medida; ela precisa ser tirada nas duas larguras que
+importam (a folgada e a de 900px) **e com o arquivo sujo**, porque os dois
+botões de salvamento só existem nesse estado e são 170px dos 380 da linha.
+A composição responde com *container queries* no próprio painel (não na
+janela — o usuário arrasta a divisória), e a ordem em que as coisas cedem é uma
+decisão de produto escrita no CSS: primeiro o nome do arquivo (a aba acima
+repete), depois o alternador troca as duas palavras por um ícone, e por último
+o "Copiar conteúdo" some — é a única ação da linha que tem caminho de teclado
+próprio.
+
+### O que a sonda de contraste mede além das cores de sintaxe
+
+Números de linha (piso de 4,5:1, texto de leitura — `--faint` já reprovou duas
+vezes neste repositório e este é o mesmo erro), as três cores de marca (piso de
+3:1, porque nada mais na tela diz que a linha mudou) e o *wash* da linha atual,
+composto à mão sobre `--bg` porque é uma camada translúcida. Mais duas
+afirmações estruturais que só falham em silêncio: **um bloco por linha-fonte**
+(`blocks.length === value.split('\n').length` — errar isso desalinha toda a
+numeração abaixo do ponto) e **o número no topo do próprio bloco**
+(`::before { top: 0 }`), que é o que faz a numeração continuar certa quando uma
+linha quebra em três.

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createElement,
   createContext,
+  forwardRef,
   useContext,
   useState,
   isValidElement,
@@ -111,6 +112,85 @@ vi.mock('@hive/design-system', () => ({
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', { type: 'button', ...rest }, children),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
+  // The real one paints a syntax mirror behind a textarea; what this suite
+  // exercises is the *field* — value, label, change marks — so the double is
+  // the field plus one node per marked line, with the same contract
+  // (`onChange` takes the value, not an event) and nothing of the painting,
+  // which has its own tests in the design system. The marks keep the real
+  // component's shape — one element per source line, carrying `data-mark` —
+  // so a test can still assert which line got which mark.
+  //
+  // It forwards its ref to the textarea, exactly as the real one does. That is
+  // not a detail: the viewer's edit ⇄ preview scroll carry reaches the field
+  // *through* that ref, so a double that swallowed it would leave the whole
+  // carry dead in every test while looking perfectly healthy.
+  CodeEditor: forwardRef<
+    HTMLTextAreaElement,
+    {
+      value: string
+      onChange: (next: string) => void
+      ariaLabel: string
+      marks?: ReadonlyArray<string | null>
+      className?: string
+    }
+  >(function CodeEditorDouble({ value, onChange, ariaLabel, marks, className }, ref) {
+    return createElement(
+      'div',
+      { className: ['hds-editor', className].filter(Boolean).join(' ') },
+      createElement(
+        'div',
+        { className: 'hds-editor-mirror' },
+        value.split('\n').map((_line, index) =>
+          createElement('span', {
+            key: index,
+            className: 'hds-editor-line',
+            'data-mark': marks?.[index] ?? undefined
+          })
+        )
+      ),
+      createElement('textarea', {
+        ref,
+        value,
+        'aria-label': ariaLabel,
+        onChange: (event: { target: { value: string } }) => onChange(event.target.value)
+      })
+    )
+  }),
+  // A faithful double of the switch's ARIA contract (radiogroup of radios),
+  // not a pair of buttons: the tests below assert what a screen reader would
+  // hear, and a double that flattened it into buttons would let a regression
+  // in the real control's roles pass unnoticed.
+  SegmentedControl: ({
+    options,
+    value,
+    onChange,
+    ariaLabel,
+    className
+  }: {
+    options: Array<{ id: string; label: string; disabled?: boolean }>
+    value: string
+    onChange: (id: string) => void
+    ariaLabel: string
+    className?: string
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'aria-label': ariaLabel, className },
+      options.map((option) =>
+        createElement(
+          'button',
+          {
+            key: option.id,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': option.id === value,
+            disabled: option.disabled,
+            onClick: () => onChange(option.id)
+          },
+          option.label
+        )
+      )
+    ),
   Empty: ({ title, description }: { title?: ReactNode; description?: ReactNode }) =>
     createElement(
       'div',
@@ -412,34 +492,6 @@ describe('Explorer (T12/T8)', () => {
       workflows: { list: vi.fn().mockResolvedValue([]) },
       skills: { list: vi.fn().mockResolvedValue([]) },
       studio: { list: vi.fn().mockResolvedValue([]) },
-      designStudio: {
-        openPreview: vi.fn().mockResolvedValue('hive-studio://preview/x/index.html'),
-        closePreview: vi.fn().mockResolvedValue(undefined),
-        screens: vi.fn().mockResolvedValue({ screens: [], probed: [] }),
-        catalog: vi.fn().mockResolvedValue({ dsId: 'ds', version: '0', components: [] }),
-        view: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        dispatch: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        undo: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        redo: vi.fn().mockResolvedValue({
-          document: { screenId: '', title: '', root: null },
-          canUndo: false,
-          canRedo: false
-        }),
-        export: vi.fn().mockResolvedValue({ canceled: true, outDir: null, outcomes: [] }),
-        runSkill: vi.fn().mockReturnValue(() => {})
-      },
       mcp: {
         list: vi.fn().mockResolvedValue([]),
         add: vi.fn().mockResolvedValue(undefined),
@@ -560,7 +612,7 @@ describe('Explorer (T12/T8)', () => {
 
     const mdButton = await screen.findByText('prd.md')
     fireEvent.click(mdButton)
-    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Visualizar' }))
 
     const markdownViewer = await screen.findByTestId('markdown-viewer')
     expect(markdownViewer.querySelector('h1')?.textContent).toBe('Título')
@@ -2599,8 +2651,8 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(await screen.findByText('a.txt'))
     await screen.findByLabelText('Conteúdo do arquivo')
 
-    expect(screen.queryByRole('button', { name: 'Visualizar' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Visualizar' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Editar' })).toBeNull()
   })
 
   it('opening a .md file also lands in edit mode by default', async () => {
@@ -2623,11 +2675,77 @@ describe('Explorer (T12/T8)', () => {
     const textarea = await screen.findByLabelText('Conteúdo do arquivo')
     fireEvent.change(textarea, { target: { value: '# Edited draft' } })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Visualizar' }))
 
     const markdownViewer = await screen.findByTestId('markdown-viewer')
     expect(markdownViewer.querySelector('h1')?.textContent).toBe('Edited draft')
     expect(markdownViewer.textContent).not.toContain('Original')
+  })
+
+  /**
+   * The reader's place across the toggle (`scrollSync.ts`). jsdom lays nothing
+   * out, so what can be held here is the *wiring*, which is where this has
+   * actually broken: that the viewer reaches the field at all, that a carried
+   * line becomes a caret at the start of a real line rather than at a random
+   * character, and that coming back to edit puts the keyboard in the field.
+   * The pixel-accurate half is measured in a browser by
+   * `tools/visual/editor-pass.mjs`, which is the only place it can be.
+   */
+  it('coming back from preview lands the caret at the start of a line, in the focused field', async () => {
+    mockHive({
+      readFile: vi.fn().mockResolvedValue('# Título\n\nUm parágrafo.\n\n## Outra seção\n\nFim.')
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('prd.md'))
+    const textarea = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Visualizar' }))
+    await screen.findByTestId('markdown-viewer')
+    fireEvent.click(screen.getByRole('radio', { name: 'Editar' }))
+
+    const back = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+    expect(document.activeElement).toBe(back)
+    const at = back.selectionStart
+    expect(at === 0 || back.value[at - 1] === '\n').toBe(true)
+    expect(textarea.value).toBe(back.value)
+  })
+
+  /**
+   * `.html` previews are an iframe, not a rendered tree with `data-line`
+   * anchors on it, so there is no line to carry either way. The toggle has to
+   * stay a plain toggle there rather than throwing on the scroller it never
+   * gets — the same code path runs for both kinds of preview.
+   */
+  it('toggles an .html file both ways with no carry to do', async () => {
+    const htmlTree = [{ name: 'page.html', path: 'page.html', type: 'file' as const }]
+    mockHive({
+      listTree: vi.fn().mockResolvedValue(htmlTree),
+      readFile: vi.fn().mockResolvedValue('<p>olá</p>')
+    })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('page.html'))
+    await screen.findByLabelText('Conteúdo do arquivo')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Visualizar' }))
+    await screen.findByTestId('html-preview-pane')
+    fireEvent.click(screen.getByRole('radio', { name: 'Editar' }))
+
+    const back = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+    expect(back.value).toBe('<p>olá</p>')
+  })
+
+  it('re-picking the mode already showing carries nothing and changes nothing', async () => {
+    mockHive({ readFile: vi.fn().mockResolvedValue('# Título\n\nCorpo.') })
+
+    render(createElement(ExplorerHarness, { workspace: '/ws' }))
+    fireEvent.click(await screen.findByText('prd.md'))
+    await screen.findByLabelText('Conteúdo do arquivo')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Editar' }))
+    expect(screen.queryByTestId('markdown-viewer')).toBeNull()
+    await screen.findByLabelText('Conteúdo do arquivo')
   })
 
   it('toggling an .html file to preview renders HtmlPreview seeded with the current draft', async () => {
@@ -2643,7 +2761,7 @@ describe('Explorer (T12/T8)', () => {
     const textarea = await screen.findByLabelText('Conteúdo do arquivo')
     fireEvent.change(textarea, { target: { value: '<p>edited</p>' } })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Visualizar' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Visualizar' }))
 
     const preview = await screen.findByTestId('html-preview-pane')
     const iframe = preview.querySelector('iframe') as HTMLIFrameElement
@@ -2666,7 +2784,7 @@ describe('Explorer (T12/T8)', () => {
     // editor or the raw-bytes CodeBlock.
     await screen.findByAltText('logo.png')
     expect(screen.queryByTestId('code-viewer')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Editar' })).toBeNull()
     expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
   })
 
@@ -2709,7 +2827,7 @@ describe('Explorer (T12/T8)', () => {
     )
     await screen.findByLabelText('Conteúdo do arquivo')
     await waitFor(() =>
-      expect(document.querySelector('.wb-editor-gutter-mark[data-mark="modified"]')).not.toBeNull()
+      expect(document.querySelector('.hds-editor-line[data-mark="modified"]')).not.toBeNull()
     )
   })
 
@@ -2718,7 +2836,7 @@ describe('Explorer (T12/T8)', () => {
     render(createElement(FileViewer, { workspace: '/ws', path: 'a.txt', onClose: vi.fn() }))
     await screen.findByLabelText('Conteúdo do arquivo')
     await new Promise((r) => setTimeout(r, 160))
-    expect(document.querySelector('.wb-editor-gutter')).toBeNull()
+    expect(document.querySelector('.hds-editor-line[data-mark]')).toBeNull()
   })
 
   it('onDirtyChange(true) fires when the draft diverges from the saved content', async () => {
@@ -3262,7 +3380,7 @@ describe('Explorer (T12/T8)', () => {
     fireEvent.click(await screen.findByText('prd.md'))
     await screen.findByRole('status')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Visualizar' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Visualizar' }))
 
     expect(screen.queryByTestId('markdown-viewer')).toBeNull()
     expect(screen.queryByLabelText('Conteúdo do arquivo')).toBeNull()
@@ -3291,73 +3409,6 @@ describe('Explorer (T12/T8)', () => {
     unmount()
     resolveRead('late content')
     await new Promise((resolve) => setTimeout(resolve, 0))
-  })
-  /**
-   * design-studio (DS-R1 AC-1) — the Explorer is one of the two entry points
-   * into the Studio ("quem abre a aba é a superfície que já tem o arquivo em
-   * mãos", design.md §2). The action is Markdown-only, so the two tests that
-   * matter are: it is there on a `.md`, and it is NOT there on anything else.
-   */
-  describe('FileTree — "Abrir no Design Studio" (design-studio DS-R1)', () => {
-    beforeEach(() => {
-      mockHive()
-    })
-
-    function renderTree(onOpenDesignStudio?: (path: string) => void): void {
-      render(
-        createElement(FileTree, {
-          workspace: '/ws',
-          selectedPath: null,
-          onOpenFile: () => {},
-          onOpenDesignStudio
-        })
-      )
-    }
-
-    it('opens the Studio for the right-clicked Markdown file', async () => {
-      const onOpenDesignStudio = vi.fn()
-      renderTree(onOpenDesignStudio)
-      await screen.findByText('prd.md')
-
-      const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
-      fireEvent.contextMenu(row)
-      fireEvent.click(await screen.findByRole('menuitem', { name: /Abrir no Design Studio/ }))
-
-      expect(onOpenDesignStudio).toHaveBeenCalledWith('docs/prd.md')
-    })
-
-    it('does not offer the Studio on a non-Markdown file', async () => {
-      renderTree(vi.fn())
-      await screen.findByText('a.txt')
-
-      const row = screen.getByText('a.txt').closest('.wb-tree-row-content') as HTMLElement
-      fireEvent.contextMenu(row)
-
-      await screen.findByRole('menuitem', { name: /Excluir/ })
-      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
-    })
-
-    it('does not offer the Studio on a folder', async () => {
-      renderTree(vi.fn())
-      await screen.findByText('docs')
-
-      const row = screen.getByText('docs').closest('.wb-tree-row-content') as HTMLElement
-      fireEvent.contextMenu(row)
-
-      await screen.findByRole('menuitem', { name: /Excluir/ })
-      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
-    })
-
-    it('omits the action entirely when no handler is wired', async () => {
-      renderTree(undefined)
-      await screen.findByText('prd.md')
-
-      const row = screen.getByText('prd.md').closest('.wb-tree-row-content') as HTMLElement
-      fireEvent.contextMenu(row)
-
-      await screen.findByRole('menuitem', { name: /Excluir/ })
-      expect(screen.queryByRole('menuitem', { name: /Abrir no Design Studio/ })).toBeNull()
-    })
   })
 
   // file-clipboard: Ctrl+X / Ctrl+C / Ctrl+V and the rest of the file-manager

@@ -353,6 +353,62 @@
 }
 
 /* ==========================================================================
+   Syntax palette — the ink a `CodeEditor` writes source in.
+
+   Roles, not token types: nine colours that mean the same thing in every
+   grammar, so a reader who has learned "green is a literal string" in YAML
+   has learned it in TypeScript too. Hues are drawn from the families the rest
+   of the system already speaks — coral, verde, amber, info blue — so a
+   coloured file still reads as part of this product and not as a theme
+   someone imported.
+
+   All nine are read text and take the 4.5:1 body floor, comments and
+   punctuation included: dimming those two below legibility is the single most
+   common thing IDE themes get wrong, and the excuse ("they are less
+   important") is exactly backwards for a comment, which is the part written
+   for a human. Measured against the darkest ground of the three dark
+   registers with tools/visual/editor-contrast.mjs in the consuming app.
+
+   This block is the *dark* set, on bare `:root` so it also reaches the app's
+   graphite `dark` and bordo `hive` registers, neither of which the design
+   system knows by name. The light overrides follow it.
+   ========================================================================== */
+:root {
+  --code-comment: oklch(68% 0.014 30);
+  --code-keyword: oklch(74% 0.128 20);
+  --code-string: oklch(78% 0.126 163);
+  --code-number: oklch(82% 0.125 78);
+  --code-function: oklch(77% 0.108 248);
+  --code-type: oklch(80% 0.088 196);
+  --code-property: oklch(78% 0.088 300);
+  --code-punctuation: oklch(70% 0.010 30);
+}
+
+:root[data-theme="light"] {
+  --code-comment: oklch(50% 0.016 30);
+  --code-keyword: oklch(45% 0.170 18);
+  --code-string: oklch(45% 0.110 152);
+  --code-number: oklch(46% 0.105 62);
+  --code-function: oklch(47% 0.150 262);
+  --code-type: oklch(45% 0.088 208);
+  --code-property: oklch(45% 0.155 302);
+  --code-punctuation: oklch(47% 0.012 30);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --code-comment: oklch(50% 0.016 30);
+    --code-keyword: oklch(45% 0.170 18);
+    --code-string: oklch(45% 0.110 152);
+    --code-number: oklch(46% 0.105 62);
+    --code-function: oklch(47% 0.150 262);
+    --code-type: oklch(45% 0.088 208);
+    --code-property: oklch(45% 0.155 302);
+    --code-punctuation: oklch(47% 0.012 30);
+  }
+}
+
+/* ==========================================================================
    Layer 1 — z-index scale (theme-independent)
    Shared stacking order for portaled/overlay content (Radix Dropdown,
    Popover/Sheet/Dialog, Toast, Tooltip, ...). See design.md's
