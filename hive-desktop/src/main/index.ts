@@ -28,6 +28,7 @@ import { createGitCommandLog, type GitCommandEntry } from './gitCommandLog'
 import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
+import { reconcileAgents } from './agentAdoption'
 import { createShellService, type ShellService } from './shellService'
 import type { ShellInfo } from './shellCatalog'
 import { createAgentInstaller } from './agentInstaller'
@@ -1644,9 +1645,23 @@ app.whenReady().then(() => {
   // `refresh` re-probes instead of answering from the cache (agent-onboarding,
   // AO-R2): the picker's "procurar de novo" control, and the only way a CLI
   // installed while the app is open becomes usable without a restart.
-  ipcMain.handle('profile:agents', async (_event, refresh?: boolean) =>
-    agentRegistry.detect(refresh === true)
-  )
+  ipcMain.handle('profile:agents', async (_event, refresh?: boolean) => {
+    const detected = await agentRegistry.detect(refresh === true)
+    // An agent installed after onboarding is detected on every launch and
+    // offered on none, because the enabled set is written once and never
+    // revisited. `reconcileAgents` is the policy — including why "enable
+    // everything detected" would be the wrong repair. Done here rather than in
+    // a renderer so every surface that lists agents agrees, and so the write
+    // happens once per probe instead of once per screen that asks.
+    const decision = reconcileAgents({
+      detected,
+      enabled: configStore.getEnabledAgents(),
+      known: configStore.getKnownAgents()
+    })
+    if (decision.enabled) configStore.setEnabledAgents(decision.enabled)
+    if (decision.known) configStore.setKnownAgents(decision.known)
+    return detected
+  })
 
   // Installing an agent CLI from inside the app (AO-R3). Same start/event/stop
   // channel trio as bmad:install:* — one install at a time per renderer, keyed

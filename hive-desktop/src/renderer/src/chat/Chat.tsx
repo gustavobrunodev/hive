@@ -57,6 +57,7 @@ import {
   appendTurnApproval,
   appendTurnMcp,
   appendTurnText,
+  appendTurnThought,
   applyTurnTool,
   rosterSignature,
   settleTurnBlocks,
@@ -121,6 +122,7 @@ interface WorkflowCommand {
 /** Structural mirror of `main/agentAdapter.ts`'s `AgentEvent` (renderer files mirror main types instead of importing across the boundary). */
 type AgentEventIn =
   | { type: 'token'; text: string; turnId?: string }
+  | { type: 'thought'; text: string; turnId?: string }
   | {
       type: 'tool'
       name: string
@@ -567,21 +569,18 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
     case 'token':
       growTurn(ctx, event.turnId, (blocks) => appendTurnText(blocks, event.text))
       break
+    // Its own case, not folded into `token`: reasoning grows a different block
+    // and has a different lifetime — see `turnTimeline.ts`.
+    case 'thought':
+      growTurn(ctx, event.turnId, (blocks) => appendTurnThought(blocks, event.text))
+      break
     case 'done':
     case 'interrupted':
       settleTurn(ctx, event.type, event.turnId)
       break
-    case 'error': {
-      const turn = takeTurn(ctx.turns, event.turnId)
-      if (turn) closeMetrics(ctx, turn, 'error')
-      if (!turn || turn.visible) ctx.setErrorMessage(event.message)
-      syncStreamingUi(ctx)
-      ctx.notifyRunning()
-      // A failed turn holds the queue rather than draining it into a session
-      // that is already erroring — and, as above, only its own conversation's.
-      if (!turn || turn.visible) ctx.settleQueue('error')
+    case 'error':
+      failTurn(ctx, event.message, event.turnId)
       break
-    }
     case 'session':
       adoptCliSession(ctx, event.id, event.turnId)
       break
@@ -614,6 +613,25 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
       )
       break
   }
+}
+
+/**
+ * Settles a turn that failed, and decides how loudly.
+ *
+ * A background turn's error must not hijack the conversation on screen: only
+ * the visible turn (or a stray error belonging to no turn at all) raises the
+ * banner and drains the queue.
+ */
+function failTurn(ctx: TurnEventCtx, message: string, turnId: string | undefined): void {
+  const turn = takeTurn(ctx.turns, turnId)
+  if (turn) closeMetrics(ctx, turn, 'error')
+  const speaks = !turn || turn.visible
+  if (speaks) ctx.setErrorMessage(message)
+  syncStreamingUi(ctx)
+  ctx.notifyRunning()
+  // A failed turn holds the queue rather than draining it into a session that
+  // is already erroring — and, as above, only its own conversation's.
+  if (speaks) ctx.settleQueue('error')
 }
 
 /**

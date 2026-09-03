@@ -1,5 +1,6 @@
 import { ApprovalCard, type ApprovalAnswer } from './ApprovalCard'
 import { McpTurnNotice } from './McpTurnNotice'
+import { ReasoningBlock } from './ReasoningBlock'
 import { ToolActivityFeed } from './ToolActivityFeed'
 import { TurnMeter } from './TurnMeter'
 import { type TurnBlock } from './turnTimeline'
@@ -30,6 +31,28 @@ interface TurnTimelineProps {
   onOpenFile?: (path: string) => void
   /** mcp-visibility: opens the MCP console from the turn's handshake row. */
   onOpenMcpConsole?: () => void
+}
+
+/**
+ * One reasoning block.
+ *
+ * A thought only counts as live while it is the turn's trailing block *and*
+ * the turn is still running — a settled turn's last thought is history,
+ * whatever its own flag says.
+ */
+function renderThinking(
+  block: Extract<TurnBlock, { kind: 'thinking' }>,
+  trailing: boolean
+): React.JSX.Element {
+  const live = trailing && block.settled !== true
+  return (
+    <ReasoningBlock
+      key={block.id}
+      text={block.text}
+      settled={!live}
+      {...(block.ms !== undefined ? { ms: block.ms } : {})}
+    />
+  )
 }
 
 /**
@@ -78,6 +101,9 @@ export function TurnTimeline({
               onOpenFile={onOpenFile}
             />
           )
+        }
+        if (block.kind === 'thinking') {
+          return renderThinking(block, live && index === lastIndex)
         }
         if (block.kind === 'approval') {
           return <ApprovalCard key={block.id} request={block.request} onDecide={onApprovalDecide} />

@@ -67,6 +67,28 @@ export interface Config {
   // exactly the agent they had, now as their (single) enabled set.
   agent: string | null
   agents: string[] | null
+  // Every agent id this machine has ever *offered* the user — i.e. seen
+  // installed and detected at least once. Not the same list as `agents`, and
+  // that difference is the whole point.
+  //
+  // The defect: the enabled set is captured during first-run onboarding and
+  // never revisited. A CLI installed afterwards is detected perfectly well
+  // (`available: true`, version and all) and still never reaches the composer,
+  // because nothing ever adds it to `agents`. The reporter had exactly this —
+  // `devin --version` answering in their terminal, `"agents": ["claude-cli",
+  // "github-copilot"]` on disk, and no way to tell from the UI why Devin was
+  // absent.
+  //
+  // Auto-enabling everything detected would be the naive repair, and it would
+  // silently overrule a user who deliberately switched an agent *off*. This
+  // list is what separates the two cases: an id in here has been offered
+  // before, so its absence from `agents` is a choice and is respected; an id
+  // not in here is new, and gets adopted once.
+  //
+  // Migration: `null` on an older config means "we have no record" — seeded on
+  // first reconcile from whatever is enabled plus whatever is detected, so an
+  // existing install does not suddenly re-enable something it had turned off.
+  knownAgents: string[] | null
   role: string | null
   // How the app (and the agents) address the user — captured by the guided
   // BMAD install form, editable any time in the profile sheet. `null` until
@@ -126,6 +148,7 @@ export const DEFAULT_CONFIG: Config = {
   lastEffort: null,
   agent: null,
   agents: null,
+  knownAgents: null,
   role: null,
   userName: null,
   shortcuts: EMPTY_SHORTCUT_SETTINGS,
@@ -212,6 +235,9 @@ export interface ConfigStore {
   setAgent(id: string): void
   getEnabledAgents(): string[] | null
   setEnabledAgents(ids: string[]): void
+  /** Agent ids already offered to the user — see `Config.knownAgents`. */
+  getKnownAgents(): string[] | null
+  setKnownAgents(ids: string[]): void
   getRole(): string | null
   setRole(id: string): void
   getUserName(): string | null
@@ -305,6 +331,10 @@ export function createConfigStore(baseDir: string): ConfigStore {
     getAgent: () => readConfig().agent,
     setAgent: (id: string) => updateConfig({ agent: id }),
     getEnabledAgents: () => sanitizeAgentList(readConfig().agents),
+    getKnownAgents: () => sanitizeAgentList(readConfig().knownAgents),
+    setKnownAgents: (ids: string[]) => {
+      writeConfig({ ...readConfig(), knownAgents: sanitizeAgentList(ids) ?? [] })
+    },
     // Persists the enabled set (sanitized). Keeps the default `agent` coherent:
     // if the current default isn't in the new set, the first enabled agent
     // becomes the default (an empty set clears both fields to null).

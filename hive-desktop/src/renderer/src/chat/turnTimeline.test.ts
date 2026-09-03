@@ -5,6 +5,7 @@ import {
   appendTurnApproval,
   appendTurnMcp,
   appendTurnText,
+  appendTurnThought,
   applyTurnTool,
   hasPendingApproval,
   rosterSignature,
@@ -227,5 +228,69 @@ describe('rosterSignature', () => {
     expect(rosterSignature([{ name: 'a', status: 'connected', tools: ['x'] }])).toBe(
       rosterSignature([{ name: 'a', status: 'connected', tools: ['x', 'y'] }])
     )
+  })
+})
+
+describe('reasoning blocks (thought events)', () => {
+  it('merges consecutive thoughts into one block', () => {
+    let blocks = appendTurnThought([], 'Preciso ', 1000)
+    blocks = appendTurnThought(blocks, 'ler o arquivo.', 1200)
+
+    expect(blocks).toEqual([
+      // One block, and it keeps the moment the *first* thought arrived — that
+      // start is what the settled row's duration is measured from.
+      { kind: 'thinking', id: 'thinking-0', text: 'Preciso ler o arquivo.', startedAt: 1000 }
+    ])
+  })
+
+  it('records how long a stretch of reasoning lasted when it settles', () => {
+    const blocks = appendTurnText(appendTurnThought([], 'pensando', 1000), 'Pronto.', 4500)
+
+    expect(blocks[0]).toMatchObject({ kind: 'thinking', settled: true, ms: 3500 })
+  })
+
+  it('settles the reasoning block the moment the reply starts', () => {
+    // The whole collapse behaviour hangs off this: reasoning earns space while
+    // it is the only thing happening, and gives it back when the answer comes.
+    let blocks = appendTurnThought([], 'pensando…')
+    blocks = appendTurnText(blocks, 'A resposta é 42.')
+
+    expect(blocks[0]).toMatchObject({ kind: 'thinking', settled: true })
+    expect(blocks[1]).toMatchObject({ kind: 'text', text: 'A resposta é 42.' })
+  })
+
+  it('settles it when the agent reaches for a tool instead', () => {
+    let blocks = appendTurnThought([], 'vou ler o arquivo')
+    blocks = applyTurnTool(blocks, { name: 'Read', toolId: 't1', phase: 'start' })
+
+    expect(blocks[0]).toMatchObject({ kind: 'thinking', settled: true })
+    expect(blocks[1]).toMatchObject({ kind: 'tools' })
+  })
+
+  it('opens a second block for reasoning that resumes after prose', () => {
+    // Reopening the closed one would move earlier thinking below later text.
+    let blocks = appendTurnThought([], 'primeiro')
+    blocks = appendTurnText(blocks, 'Vou verificar.')
+    blocks = appendTurnThought(blocks, 'segundo')
+
+    expect(blocks.map((block) => block.kind)).toEqual(['thinking', 'text', 'thinking'])
+    expect(blocks[2]).toMatchObject({ kind: 'thinking', id: 'thinking-2', text: 'segundo' })
+    expect(blocks[2]).not.toHaveProperty('settled')
+  })
+
+  it('keeps reasoning out of the turn’s saved text', () => {
+    // `turnText` is what gets persisted. Reasoning is working-out, not the
+    // product, and must never be stored as the reply.
+    let blocks = appendTurnThought([], 'deliberando em voz alta')
+    blocks = appendTurnText(blocks, 'Resposta final.')
+
+    expect(turnText(blocks)).toBe('Resposta final.')
+  })
+
+  it('closes an open reasoning block when the turn is settled', () => {
+    // An interrupted turn must not leave the live block breathing forever.
+    const blocks = settleTurnBlocks(appendTurnThought([], 'pensando…'), 'failed')
+
+    expect(blocks[0]).toMatchObject({ kind: 'thinking', settled: true })
   })
 })

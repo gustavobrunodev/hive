@@ -119,6 +119,9 @@ export function turnPhase(blocks: TurnBlock[]): TurnPhase {
     return last.activities.some((activity) => activity.state === 'running') ? 'working' : 'thinking'
   }
   if (last.kind === 'text') return 'writing'
+  // An open reasoning block is the agent literally thinking — the one case
+  // where this label is a live report rather than a guess about a gap.
+  if (last.kind === 'thinking') return 'thinking'
   return 'thinking'
 }
 

@@ -38,7 +38,7 @@ describe('DevinCliAdapter', () => {
   it('always states workspace trust, because print mode cannot ask', async () => {
     const runner = createFakeProcessRunner()
     runner.script({ chunks: [{ stream: 'stdout', data: 'ok' }], code: 0 })
-    const adapter = createDevinCliAdapter(runner, { scratchDir: scratch() })
+    const adapter = createDevinCliAdapter(runner, { scratchDir: scratch(), acp: false })
     const session = adapter.startSession({ workspace: '/ws' })
 
     session.send({ text: 'faça isso', resume: 'hushed-leek' })
@@ -59,7 +59,7 @@ describe('DevinCliAdapter', () => {
   it('folds attachments into the prompt (parity with Claude)', async () => {
     const runner = createFakeProcessRunner()
     runner.script({ code: 0 })
-    const adapter = createDevinCliAdapter(runner, { scratchDir: scratch() })
+    const adapter = createDevinCliAdapter(runner, { scratchDir: scratch(), acp: false })
     const session = adapter.startSession({ workspace: '/ws' })
 
     session.send({ text: 'analisa', attachments: ['docs/prd.md'] })
@@ -99,7 +99,7 @@ describe('DevinCliAdapter', () => {
       const dir = scratch()
       const runner = createFakeProcessRunner()
       runner.script({ chunks: [{ stream: 'stdout', data: 'pronto\n' }], code: 0 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: dir })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: dir, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi', turnId: 'turn-1' })
@@ -122,7 +122,7 @@ describe('DevinCliAdapter', () => {
     it('says nothing when the export never appeared, and still settles the turn', async () => {
       const runner = createFakeProcessRunner()
       runner.script({ code: 0 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: scratch() })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: scratch(), acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi', turnId: 'turn-1' })
@@ -137,7 +137,7 @@ describe('DevinCliAdapter', () => {
         chunks: [{ stream: 'stdout', data: '{"session_id":"from-stdout","type":"system"}\n' }],
         code: 0
       })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: dir })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: dir, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi', turnId: 'turn-1' })
@@ -194,7 +194,7 @@ describe('DevinCliAdapter', () => {
       // A file where the directory should be: `mkdirSync` throws ENOTDIR.
       const blocked = join(scratch(), 'not-a-directory')
       writeFileSync(blocked, 'x')
-      const adapter = createDevinCliAdapter(runner, { scratchDir: blocked })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: blocked, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi' })
@@ -207,7 +207,7 @@ describe('DevinCliAdapter', () => {
       const dir = scratch()
       const runner = createFakeProcessRunner()
       runner.script({ code: 0, delayMs: 200 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: dir })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: dir, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi', turnId: 'turn-1' })
@@ -227,7 +227,7 @@ describe('DevinCliAdapter', () => {
       const dir = scratch()
       const runner = createFakeProcessRunner()
       runner.script({ code: 0 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: dir })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: dir, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi' })
@@ -239,7 +239,7 @@ describe('DevinCliAdapter', () => {
     it('reads the real machine when no host facts were injected', async () => {
       const runner = createFakeProcessRunner()
       runner.script({ chunks: [{ stream: 'stdout', data: '{"families":[]}' }], code: 0 })
-      const adapter = createDevinCliAdapter(runner)
+      const adapter = createDevinCliAdapter(runner, { acp: false })
 
       // No `deps`, no workspace: every fact comes off `process`/`os`, which is
       // exactly how the app builds it outside a test.
@@ -251,7 +251,7 @@ describe('DevinCliAdapter', () => {
     it('sends the model the user chose', async () => {
       const runner = createFakeProcessRunner()
       runner.script({ code: 0 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: scratch() })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: scratch(), acp: false })
       const session = adapter.startSession({ workspace: '/ws', model: 'claude-opus-5' })
 
       session.send({ text: 'oi', effort: 'claude-opus-5-max' })
@@ -263,7 +263,7 @@ describe('DevinCliAdapter', () => {
       const dir = scratch()
       const runner = createFakeProcessRunner()
       runner.script({ code: 0 })
-      const adapter = createDevinCliAdapter(runner, { scratchDir: dir })
+      const adapter = createDevinCliAdapter(runner, { scratchDir: dir, acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi' })
@@ -277,7 +277,7 @@ describe('DevinCliAdapter', () => {
     it('falls back to a temp directory when the app supplied none', async () => {
       const runner = createFakeProcessRunner()
       runner.script({ code: 0 })
-      const adapter = createDevinCliAdapter(runner)
+      const adapter = createDevinCliAdapter(runner, { acp: false })
       const session = adapter.startSession({ workspace: '/ws' })
 
       session.send({ text: 'oi' })

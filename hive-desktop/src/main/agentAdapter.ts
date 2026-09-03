@@ -348,6 +348,21 @@ export interface AgentInput {
  */
 export type AgentEvent =
   | { type: 'token'; text: string; turnId?: string }
+  /**
+   * The agent's own reasoning, streamed while it decides what to do.
+   *
+   * Separate from `token` because it is a different kind of speech and gets a
+   * different block: `token` is the reply, which is kept; a thought is
+   * working-out, which is shown while it is happening and collapsed after.
+   * Splicing the two into one stream — the obvious shortcut — would put the
+   * agent's deliberation into the saved transcript as if it were the answer.
+   *
+   * Devin (over ACP) is the first adapter to report these, and it is what
+   * closes "sempre aparece Iniciando": before the first reply token there
+   * were seconds of complete silence, and `turnPhase()` can only say
+   * `starting` while a turn has produced nothing at all.
+   */
+  | { type: 'thought'; text: string; turnId?: string }
   | ToolEvent
   | ApprovalEvent
   | { type: 'done'; turnId?: string }

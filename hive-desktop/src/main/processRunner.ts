@@ -1,7 +1,51 @@
 import { spawn } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import { statSync } from 'fs'
 import { cliEnv, resolveExecutable, spawnTarget } from './cliEnv'
 import { shellSpawnEnv, shellSpawnTarget, type ShellInfo } from './shellCatalog'
+
+/**
+ * Whether `dir` is a directory a process can actually be started in.
+ *
+ * This exists because of a failure mode that cost a whole round of debugging
+ * and reads, from every surface above, as a **completely different bug**.
+ *
+ * `spawn(cmd, args, { cwd })` resolves `cwd` *before* it resolves the binary.
+ * When the directory is gone, libuv reports `ENOENT` — and Node writes the
+ * message as `spawn devin ENOENT`, naming the **command**, not the directory
+ * that was actually missing. Measured on the reporter's machine: their
+ * configured workspace had been deleted, and from there every single spawn
+ * that carried it failed. What each caller concluded:
+ *
+ *   - `probeCommand` reads `{ code: null, signal: null }` as its ENOENT path
+ *     → "the CLI isn't installed" → the agent card goes grey on a machine
+ *     where `devin --version` answers instantly in any terminal.
+ *   - `runCapture` sees a non-zero exit → returns `null` → the model catalog
+ *     falls back to its seven hand-written rows with no effort ladders →
+ *     "os modelos não são todos listados".
+ *   - a turn fails in under a second with a message blaming the binary.
+ *
+ * One dead directory, three unrelated-looking symptoms, none of them
+ * mentioning the directory. So the guard is here, at the one place every
+ * spawn passes through, rather than in each caller: a `cwd` that isn't a
+ * usable directory is **dropped**, and the process starts in the app's own
+ * working directory instead of not starting at all.
+ *
+ * Dropping it is the right default for the read-only probes that make up most
+ * callers — `devin models list` and `claude --version` answer the same
+ * anywhere, and answering is strictly better than a spurious "not installed".
+ * A turn is the one case where the directory is load-bearing, and
+ * `cliAdapterCore` checks it up front so the user gets a message naming the
+ * workspace instead of silently working in the wrong one.
+ */
+export function isUsableCwd(dir: string | undefined): boolean {
+  if (dir === undefined || dir.trim() === '') return false
+  try {
+    return statSync(dir).isDirectory()
+  } catch {
+    return false
+  }
+}
 
 /**
  * Uniform spawn/stream/kill abstraction for CLI processes driven from the
@@ -28,6 +72,17 @@ export interface ProcessExitResult {
 export interface RunOptions {
   cwd?: string
   env?: Record<string, string>
+  /**
+   * Keep the child's stdin open as a writable pipe.
+   *
+   * Opt-in, and only one caller opts in: the ACP client, which speaks
+   * newline-delimited JSON-RPC *to* the agent over stdin for the whole life of
+   * the session. Everything else must keep the default (`'ignore'`), because a
+   * dangling stdin pipe makes the one-shot CLIs wait three seconds for input
+   * that never comes — the exact behaviour the `stdio` comment in `run`
+   * documents.
+   */
+  stdin?: 'pipe'
   /**
    * agent-terminal (AT-R3 / D-AT-1): run this command *inside* the user's
    * chosen shell instead of spawning it directly. Opt-in per call, and only
@@ -83,6 +138,14 @@ export interface ProcessHandle {
   readonly output: AsyncIterable<ProcessStreamChunk>
   readonly exitCode: Promise<ProcessExitResult>
   kill(signal?: NodeJS.Signals): void
+  /**
+   * Writes to the child's stdin. Present **only** when the call opted in with
+   * `stdin: 'pipe'`; every other spawn gets `/dev/null` on stdin and no
+   * `write` here, which is what keeps the one-shot CLIs from stalling three
+   * seconds waiting for input nobody will send (see the `stdio` comment in
+   * `run`). Returns `false` when the pipe is already gone.
+   */
+  write?(chunk: string): boolean
 }
 
 /**
@@ -233,6 +296,54 @@ function composeTarget(
   return spawnTarget(command, args, env.PATH, env)
 }
 
+/**
+ * The `cwd` and `stdio` half of the spawn options.
+ *
+ * stdin is closed (`'ignore'` → /dev/null) rather than left as an open,
+ * never-written pipe. Nothing this app spawns feeds stdin — the Claude CLI
+ * gets its prompt via `-p <text>` and BMAD install runs non-interactively
+ * (`--yes` + explicit flags, see bmadService.ts) — but a dangling stdin pipe
+ * makes `claude -p` stall for 3s waiting on input it will never get, printing
+ * "Warning: no stdin data received in 3s, proceeding without it." Handing it an
+ * immediate EOF lets it proceed at once and drops the warning. stdout/stderr
+ * stay piped so `output` still streams. The one exception is an explicit
+ * `stdin: 'pipe'`, which the ACP client uses to hold a JSON-RPC conversation
+ * with a long-lived agent. (If a future adapter needs *interactive* stdin, add
+ * a pty-backed ProcessRunner per the ProcessHandle doc — don't reopen this.)
+ *
+ * `cwd` is dropped when it is not a usable directory: libuv resolves it before
+ * the binary and reports the failure as an ENOENT naming the *command*, which
+ * every caller above reads as "the CLI is missing". See `isUsableCwd`.
+ */
+function spawnStdio(opts?: RunOptions): {
+  cwd: string | undefined
+  stdio: ['pipe' | 'ignore', 'pipe', 'pipe']
+} {
+  return {
+    cwd: isUsableCwd(opts?.cwd) ? opts?.cwd : undefined,
+    stdio: [opts?.stdin === 'pipe' ? 'pipe' : 'ignore', 'pipe', 'pipe']
+  }
+}
+
+/**
+ * The `write` half of a `stdin: 'pipe'` handle.
+ *
+ * Swallows a write to a pipe that has already gone: the agent exiting between
+ * the check and the write is an ordinary race, and the caller learns *why*
+ * from `exitCode` — the one place that knows. A throw here would only lose it.
+ */
+function stdinWriter(child: ChildProcess): (chunk: string) => boolean {
+  return (chunk: string): boolean => {
+    const stdin = child.stdin
+    if (!stdin || stdin.destroyed) return false
+    try {
+      return stdin.write(chunk)
+    } catch {
+      return false
+    }
+  }
+}
+
 export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner {
   function run(command: string, args: string[], opts?: RunOptions): ProcessHandle {
     const shell = opts?.shell === true ? (deps.shell?.() ?? null) : null
@@ -246,22 +357,10 @@ export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner
     // tree walk there is `taskkill`'s job anyway.
     const processGroup = opts?.processGroup === true && process.platform !== 'win32'
     const child = spawn(target.command, target.args, {
-      cwd: opts?.cwd,
+      ...spawnStdio(opts),
       env,
       detached: processGroup,
-      windowsVerbatimArguments: target.windowsVerbatimArguments,
-      // stdin is closed (`'ignore'` → /dev/null) rather than left as an open,
-      // never-written pipe. Nothing this app spawns feeds stdin — the Claude
-      // CLI gets its prompt via `-p <text>` and BMAD install runs
-      // non-interactively (`--yes` + explicit flags, see bmadService.ts) — but
-      // a dangling stdin pipe makes `claude -p` stall for 3s waiting on input
-      // it will never get, printing "Warning: no stdin data received in 3s,
-      // proceeding without it." Handing it an immediate EOF lets it proceed at
-      // once and drops the warning. stdout/stderr stay piped so `output` still
-      // streams. (If a future adapter needs interactive stdin, add a
-      // pty-backed ProcessRunner per the ProcessHandle doc — don't reopen this
-      // pipe.)
-      stdio: ['ignore', 'pipe', 'pipe']
+      windowsVerbatimArguments: target.windowsVerbatimArguments
     })
 
     const queue = createAsyncQueue<ProcessStreamChunk>()
@@ -298,7 +397,8 @@ export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner
       exitCode,
       kill(signal?: NodeJS.Signals): void {
         killTree(child, signal ?? 'SIGTERM', processGroup)
-      }
+      },
+      ...(opts?.stdin === 'pipe' ? { write: stdinWriter(child) } : {})
     }
   }
 

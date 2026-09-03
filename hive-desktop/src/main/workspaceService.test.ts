@@ -311,3 +311,51 @@ describe('WorkspaceService', () => {
     })
   })
 })
+
+describe('WorkspaceService — a workspace that disappeared after it was chosen', () => {
+  const fakeDialog = (result: { canceled: boolean; filePaths: string[] }): DialogLike => ({
+    showOpenDialog: vi.fn().mockResolvedValue(result)
+  })
+
+  it('answers null once the configured folder is gone', async () => {
+    // The path is validated when it is *picked* and never again. A folder
+    // deleted afterwards stayed configured, and the app kept handing it to
+    // every process it started — where a missing `cwd` makes `spawn` raise an
+    // ENOENT that names the **command**. That is how a deleted workspace made
+    // every agent CLI on the machine report itself as not installed.
+    const configStore = createConfigStore(mkdtempSync(join(tmpdir(), 'hive-ws-')))
+    const dialog = fakeDialog({ canceled: false, filePaths: ['/gone'] })
+    const present = createWorkspaceService(configStore, dialog, {
+      pathExists: () => true,
+      isDirectory: () => true
+    })
+    await present.chooseWorkspace()
+    expect(present.getWorkspace()).toBe('/gone')
+
+    // Same config, same path — the folder is simply no longer there.
+    const afterDeletion = createWorkspaceService(configStore, dialog, {
+      pathExists: () => false,
+      isDirectory: () => false
+    })
+
+    expect(afterDeletion.getWorkspace()).toBeNull()
+    // The path is *kept* on disk: the folder may be on a drive that is merely
+    // unmounted, and forgetting it would turn a reconnect into a re-setup.
+    expect(configStore.getConfig().workspacePath).toBe('/gone')
+  })
+
+  it('answers null when the configured path is now a file', () => {
+    const configStore = createConfigStore(mkdtempSync(join(tmpdir(), 'hive-ws-')))
+    configStore.setWorkspacePath('/was-a-folder')
+    const service = createWorkspaceService(
+      configStore,
+      fakeDialog({ canceled: true, filePaths: [] }),
+      {
+        pathExists: () => true,
+        isDirectory: () => false
+      }
+    )
+
+    expect(service.getWorkspace()).toBeNull()
+  })
+})

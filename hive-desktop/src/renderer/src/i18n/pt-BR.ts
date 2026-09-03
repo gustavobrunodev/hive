@@ -468,6 +468,18 @@ export const ptBR = {
   // present continuous narrates work in progress, and a settled row switches
   // to the past. The tense is a state channel that survives a screenshot, a
   // screen reader and a user who can't tell a spinner from a tick.
+  // The agent's own reasoning, streamed while it decides (`thought` events).
+  // Present participle while it runs, past tense once it settles — the same
+  // tense-is-the-state rule the activity rows follow, so a turn reads
+  // consistently whether the agent was thinking or doing.
+  reasoning: {
+    live: 'Raciocinando',
+    settled: (duration: string) => `Raciocinou por ${duration}`,
+    // Without a duration: a conversation reopened from disk has no metrics.
+    settledPlain: 'Raciocínio',
+    expand: 'Mostrar o raciocínio',
+    collapse: 'Ocultar o raciocínio'
+  },
   activity: {
     read: 'Lendo',
     edit: 'Editando',

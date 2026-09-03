@@ -118,8 +118,32 @@ export function createWorkspaceService(
     return opened.ok ? opened.path : null
   }
 
+  /**
+   * The active workspace, or `null` when it is no longer on disk.
+   *
+   * The path was validated when it was *chosen*, and never again — so a folder
+   * deleted, renamed or moved after the fact stayed configured forever, and
+   * the app carried on handing it to every process it started. That is not a
+   * quiet failure: `spawn(cmd, args, { cwd })` resolves `cwd` first, and the
+   * ENOENT it raises names the **command**, so a deleted workspace made every
+   * agent CLI on the machine report itself as not installed and every model
+   * listing fall back to its hardcoded rows. (Measured on the reporter's
+   * machine, whose configured workspace no longer existed.)
+   *
+   * Answering `null` puts the app back on the workspace picker, which is the
+   * one screen that can actually fix it. The config keeps the stale path — the
+   * folder may be on a drive that is merely unmounted, and forgetting it would
+   * turn a reconnect into a re-setup.
+   */
   function getWorkspace(): string | null {
-    return configStore.getConfig().workspacePath
+    const path = configStore.getConfig().workspacePath
+    if (path === null) return null
+    try {
+      return pathExists(path) && isDirectory(path) ? path : null
+    } catch {
+      // EACCES on the path itself: unusable now, for the same purposes.
+      return null
+    }
   }
 
   function isProvisioned(): boolean {

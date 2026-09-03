@@ -76,13 +76,22 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      window.hive.getWorkspace(),
-      window.hive.profile.getAgents(),
-      window.hive.profile.getAgent(),
-      window.hive.profile.getRole(),
-      window.hive.profile.getUserName()
-    ]).then(([path, loadedAgents, loadedDefault, loadedRole, loadedUserName]) => {
+    // Detection runs **before** the enabled set is read, not alongside it.
+    // Probing is what triggers the main process's adoption reconcile (an agent
+    // CLI installed since onboarding is otherwise detected forever and offered
+    // never — see `agentAdoption.ts`), so reading the config first would show
+    // this launch the pre-reconcile list and only pick the new agent up on the
+    // next one. A probe that fails is not fatal: the config read behind it is
+    // the real boot dependency.
+    void (async () => {
+      await window.hive.profile.agents().catch(() => [])
+      const [path, loadedAgents, loadedDefault, loadedRole, loadedUserName] = await Promise.all([
+        window.hive.getWorkspace(),
+        window.hive.profile.getAgents(),
+        window.hive.profile.getAgent(),
+        window.hive.profile.getRole(),
+        window.hive.profile.getUserName()
+      ])
       if (cancelled) return
       const enabled = loadedAgents ?? []
       setAgentsState(enabled)
@@ -90,7 +99,7 @@ function App(): React.JSX.Element {
       setRoleState(loadedRole)
       setUserNameState(loadedUserName)
       setOnboarding(path ? routeAfterWorkspace(path, enabled, loadedRole) : { status: 'picker' })
-    })
+    })()
     return () => {
       cancelled = true
     }

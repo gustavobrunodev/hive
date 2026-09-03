@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createDevinCliAdapter } from './devinCliAdapter'
+import { createDevinAcpSession } from './devinAcpSession'
 import { createProcessRunner } from './processRunner'
 import type { AgentEvent } from './agentAdapter'
 
@@ -92,3 +93,80 @@ describe.skipIf(!AVAILABLE)('DevinCliAdapter — against the real CLI', () => {
     }
   }, 120_000)
 })
+
+/**
+ * The ACP path against the real binary — the transport the app now ships.
+ *
+ * This is the test that would have caught the original report. Everything it
+ * asserts was measured by hand first (`devin 3000.6.14`, this machine):
+ * handshake 0.07s, first prompt 6.1s, **second prompt on the same session
+ * 1.7s** — against a full cold start on every single message before.
+ */
+describe.skipIf(!AVAILABLE)('DevinAcpSession — against the real CLI', () => {
+  it('keeps one session across two turns, streams reasoning, and remembers', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-devin-acp-'))
+    writeFileSync(join(dir, 'senha.txt'), 'abacaxi\n')
+
+    const session = createDevinAcpSession(createProcessRunner(), { workspace: dir })
+
+    const first = await turnOf(session, {
+      text: 'Leia senha.txt e responda só com a palavra que está lá.',
+      // Free on this account, so the suite costs nothing to run.
+      model: 'glm-5.2',
+      turnId: 'live-1'
+    })
+
+    expect(first[first.length - 1]).toMatchObject({ type: 'done' })
+    expect(textOf(first).toLowerCase()).toContain('abacaxi')
+
+    // The session id is announced, which is what a resumed conversation needs.
+    expect(first.some((event) => event.type === 'session')).toBe(true)
+    // Reasoning arrived *before* the reply — the silence that read as
+    // "Iniciando" for the whole turn is now filled.
+    expect(first.some((event) => event.type === 'thought')).toBe(true)
+    // It actually opened the file rather than guessing.
+    expect(first.some((event) => event.type === 'tool')).toBe(true)
+
+    const startedSecond = Date.now()
+    const second = await turnOf(session, {
+      text: 'Qual arquivo você acabou de ler? Responda só o nome.',
+      turnId: 'live-2'
+    })
+    const secondMs = Date.now() - startedSecond
+
+    expect(second[second.length - 1]).toMatchObject({ type: 'done' })
+    // Context survived without a `--resume` handshake, because the process
+    // never went away.
+    expect(textOf(second).toLowerCase()).toContain('senha.txt')
+    // The headline claim, asserted loosely enough not to be flaky on a slow
+    // network: a follow-up turn no longer pays a cold start. Measured at 1.7s;
+    // the old path could not answer at all in under ~3s.
+    expect(secondMs).toBeLessThan(30_000)
+
+    session.stop()
+  }, 180_000)
+})
+
+/** Runs one turn and returns its events. */
+async function turnOf(
+  session: ReturnType<typeof createDevinAcpSession>,
+  input: { text: string; model?: string; turnId: string }
+): Promise<AgentEvent[]> {
+  const events: AgentEvent[] = []
+  const iterator = session.events[Symbol.asyncIterator]()
+  session.send(input)
+  for (;;) {
+    const event = (await iterator.next()).value as AgentEvent
+    events.push(event)
+    if (event.type === 'done' || event.type === 'error' || event.type === 'interrupted') break
+  }
+  return events
+}
+
+/** The reply text a turn produced (tokens only — reasoning is not the reply). */
+function textOf(events: AgentEvent[]): string {
+  return events
+    .filter((event): event is Extract<AgentEvent, { type: 'token' }> => event.type === 'token')
+    .map((event) => event.text)
+    .join('')
+}

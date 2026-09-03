@@ -1,7 +1,11 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createFakeProcessRunner,
   createProcessRunner,
+  isUsableCwd,
   type ProcessStreamChunk
 } from './processRunner'
 import type { ShellInfo } from './shellCatalog'
@@ -326,5 +330,48 @@ describe('ProcessRunner — the chosen terminal (agent-terminal)', () => {
     const handle = runner.run('nao-existe-mesmo-hive', ['--version'], { shell: true })
     await collect(handle.output)
     await expect(handle.exitCode).resolves.toEqual({ code: null, signal: null })
+  })
+})
+
+describe('isUsableCwd — the guard that keeps a dead workspace from reading as a missing CLI', () => {
+  it('accepts a real directory', () => {
+    expect(isUsableCwd(tmpdir())).toBe(true)
+  })
+
+  it('rejects a path that is not there', () => {
+    // This is the case that broke everything: `spawn(cmd, args, { cwd })`
+    // resolves `cwd` before the binary, and reports the resulting ENOENT as
+    // `spawn devin ENOENT` — naming the command, not the directory. Every
+    // caller above then concluded the CLI was not installed.
+    expect(isUsableCwd(join(tmpdir(), 'hive-nao-existe-jamais'))).toBe(false)
+  })
+
+  it('rejects a file, which cannot be a working directory', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'hive-cwd-')), 'a.txt')
+    writeFileSync(file, 'x')
+    expect(isUsableCwd(file)).toBe(false)
+  })
+
+  it('rejects nothing and empty, so a session with no workspace does not spawn blind', () => {
+    expect(isUsableCwd(undefined)).toBe(false)
+    expect(isUsableCwd('   ')).toBe(false)
+  })
+})
+
+describe('createProcessRunner — a cwd that vanished', () => {
+  it('drops an unusable cwd instead of failing the spawn', async () => {
+    // A read-only probe (`--version`, `models list`) answers the same anywhere,
+    // so answering beats reporting the CLI missing. The turn path does not rely
+    // on this: `getWorkspace()` sends the app to the picker first.
+    const runner = createProcessRunner()
+    const handle = runner.run(process.execPath, ['-e', 'process.stdout.write("ok")'], {
+      cwd: join(tmpdir(), 'hive-nao-existe-jamais')
+    })
+    let out = ''
+    for await (const chunk of handle.output) out += chunk.data
+    const result = await handle.exitCode
+
+    expect(result.code).toBe(0)
+    expect(out).toBe('ok')
   })
 })

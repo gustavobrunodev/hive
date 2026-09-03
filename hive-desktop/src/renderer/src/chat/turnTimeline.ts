@@ -52,6 +52,28 @@ export interface McpServerReport {
 
 export type TurnBlock =
   | { kind: 'text'; id: string; text: string }
+  /**
+   * The agent's reasoning as it arrives (`thought` events).
+   *
+   * Its own block, not prose merged into the reply, because the two have
+   * different lifetimes: the reply is the turn's product and is kept; the
+   * reasoning is worth watching live and worth collapsing the moment the
+   * agent starts answering. `settled` is what flips it from "thinking out
+   * loud, expanded" to "a line you can open if you care".
+   *
+   * This is the block that answers "sempre aparece Iniciando" — before it,
+   * the seconds Devin spends deciding produced nothing on screen at all.
+   */
+  | {
+      kind: 'thinking'
+      id: string
+      text: string
+      settled?: boolean
+      /** `Date.now()` when the agent started this stretch of reasoning. */
+      startedAt?: number
+      /** How long it lasted, filled in when the block settles. */
+      ms?: number
+    }
   | { kind: 'tools'; id: string; activities: ToolActivity[] }
   | { kind: 'approval'; id: string; request: ApprovalRequest }
   /**
@@ -71,16 +93,74 @@ function blockId(kind: TurnBlock['kind'], index: number): string {
   return `${kind}-${index}`
 }
 
-/** Appends streamed text, merging into the trailing text block when there is one. */
-export function appendTurnText(blocks: TurnBlock[], text: string): TurnBlock[] {
+/**
+ * Appends streamed text, merging into the trailing text block when there is one.
+ *
+ * Reply text also **settles** any open reasoning block: the agent has stopped
+ * deliberating and started answering, which is precisely the moment the live
+ * thinking panel should fold itself away.
+ */
+export function appendTurnText(
+  blocks: TurnBlock[],
+  text: string,
+  now: number = Date.now()
+): TurnBlock[] {
+  if (text === '') return blocks
+  const settled = settleThinking(blocks, now)
+  const last = settled[settled.length - 1]
+  if (last?.kind === 'text') {
+    const next = [...settled]
+    next[next.length - 1] = { ...last, text: last.text + text }
+    return next
+  }
+  return [...settled, { kind: 'text', id: blockId('text', settled.length), text }]
+}
+
+/**
+ * Appends streamed reasoning, merging into the trailing thinking block.
+ *
+ * A thought that arrives *after* the agent already wrote prose (a second round
+ * of deliberation mid-turn) opens a new block rather than reopening the closed
+ * one — the transcript reads in order, and reopening would move earlier
+ * thinking below later text.
+ */
+export function appendTurnThought(
+  blocks: TurnBlock[],
+  text: string,
+  now: number = Date.now()
+): TurnBlock[] {
   if (text === '') return blocks
   const last = blocks[blocks.length - 1]
-  if (last?.kind === 'text') {
+  if (last?.kind === 'thinking' && !last.settled) {
     const next = [...blocks]
     next[next.length - 1] = { ...last, text: last.text + text }
     return next
   }
-  return [...blocks, { kind: 'text', id: blockId('text', blocks.length), text }]
+  return [
+    ...blocks,
+    { kind: 'thinking', id: blockId('thinking', blocks.length), text, startedAt: now }
+  ]
+}
+
+/**
+ * Closes an open reasoning block, if the trailing block is one, recording how
+ * long it ran.
+ *
+ * The duration is measured here rather than read off the turn's own metrics
+ * because a turn can reason more than once — the number that belongs on a
+ * collapsed row is how long *that* stretch took, not how long the whole turn
+ * has been going.
+ */
+export function settleThinking(blocks: TurnBlock[], now: number = Date.now()): TurnBlock[] {
+  const last = blocks[blocks.length - 1]
+  if (last?.kind !== 'thinking' || last.settled) return blocks
+  const next = [...blocks]
+  next[next.length - 1] = {
+    ...last,
+    settled: true,
+    ...(last.startedAt !== undefined ? { ms: Math.max(0, now - last.startedAt) } : {})
+  }
+  return next
 }
 
 /**
@@ -99,6 +179,9 @@ export function applyTurnTool(
   event: ToolActivityEvent,
   now: number = Date.now()
 ): TurnBlock[] {
+  // Reaching for a tool ends the deliberation that led to it, the same way
+  // writing the reply does.
+  if (event.phase !== 'end') blocks = settleThinking(blocks, now)
   const index = event.phase === 'end' ? findToolBlock(blocks, event) : trailingToolBlock(blocks)
   if (index === -1) {
     // An `end` with nothing to settle is dropped rather than inventing a
@@ -242,6 +325,16 @@ export function settleTurnBlocks(
     if (block.kind === 'approval' && block.request.answer == null) {
       changed = true
       return { ...block, request: { ...block.request, answer: 'deny' as const } }
+    }
+    // A turn that ended while the agent was still thinking (interrupted, or
+    // an error mid-reasoning) must not leave a block breathing forever.
+    if (block.kind === 'thinking' && !block.settled) {
+      changed = true
+      return {
+        ...block,
+        settled: true,
+        ...(block.startedAt !== undefined ? { ms: Math.max(0, now - block.startedAt) } : {})
+      }
     }
     return block
   })
