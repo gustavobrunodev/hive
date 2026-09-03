@@ -133,6 +133,38 @@ provisório, fila, junção, backdrop. Duas lições que ele pagou:
 varredura pendurar e verifica que as linhas continuam na tela sem spinner, e que
 uma rajada de 20 escritas custa **uma** varredura.
 
+`tools/visual/devin-round-contrast.mjs` cobre a rodada de 2026-09-03 — o chip de
+caminho de arquivo dentro da resposta do agente e a escada de raciocínio por
+modelo do Devin —, montada pela cena `tools/visual/devin-round.mjs`. São 15
+alvos × 3 temas, **em repouso e no hover**, mais quatro afirmações estruturais.
+Cinco lições, todas pagas nesta rodada:
+
+- **Contraste não vê tamanho.** O chip usava `0.85em` e os dois `0.85` se
+  compunham dentro de um `<code>`: o mesmo controle renderizava a 12,75px na
+  prosa e a **10,84px** num trecho de código, na mesma resposta. Todos os alvos
+  de contraste passavam. A sonda agora afirma **um só tamanho** (e a correção é
+  `rem`, não `em`).
+- **Nem toda diferença de fundo é uma placa.** A primeira versão só checava que
+  o fundo do chip ≠ o fundo da prosa. `--surface-2` contra `--bg` mede
+  **1,006:1 no tema claro** — a placa simplesmente não existe ali, e o chip
+  virava texto pelado com um glifo. O piso agora é medido (≥1,08:1) e o token é
+  `--surface-3` (1,33 · 1,10 · 1,25 nos três temas).
+- **A caixa não pode ser mais alta que a linha.** 25px contra uma
+  `line-height` de 24,75px afrouxa visivelmente um parágrafo com chips contra um
+  sem. A sonda mede `getBoundingClientRect().height ≤ line-height`.
+- **Placa dentro de placa.** Como agente escreve caminho em `código` na maioria
+  das vezes, o link ia _dentro_ do `<code>` — duas placas empilhadas. A correção
+  é estrutural (o `<code>` inteiro vira o link quando é só um caminho) e a sonda
+  afirma `code .wb-pathlink === 0`.
+- **Escolher um modelo FECHA o painel.** Uma sonda que tratava "abrir" e
+  "reabrir depois de escolher" como tentativas do mesmo laço ficava re-escolhendo
+  o modelo e nunca deixava o painel aberto — e reportava todos os alvos do picker
+  como _ausentes_, que se lê exatamente como "nada a corrigir". São dois passos,
+  não um retry.
+
+A cena também é o lugar onde se vê o que **não** vira link: um caminho que não
+existe no workspace e todo o conteúdo de um bloco cercado continuam texto puro.
+
 `tools/visual/tool-details-contrast.mjs` + `tools/visual/tool-details-a11y.mjs`
 cobrem o painel de detalhes de uma ferramenta (agent-tool-details), montado pela
 cena `tools/visual/tool-details.mjs` — que deixa na tela, de uma vez, um comando
@@ -1114,7 +1146,7 @@ primeira passada e só monta os filhos depois de um layout effect. Um
 existe, lê `ref.current === null`, não registra nada — e **nunca mais roda**,
 porque o commit que finalmente cria o nó não muda nenhum estado que o efeito
 observe. Não é uma corrida que às vezes morde: é a única ordem em que essas
-duas coisas acontecem. A resposta é *callback ref* (o nó como estado), que
+duas coisas acontecem. A resposta é _callback ref_ (o nó como estado), que
 entrega o elemento no instante em que ele existe. Foi o que segurou a correção
 do scroll do `OptionPicker` por uma rodada inteira: a sonda dizia "não rola" e
 o código parecia certo.
@@ -1157,7 +1189,7 @@ modo + copiar + fechar, e **não cabe**. `scrollWidth > clientWidth` no
 `.wb-viewer-header` é a medida; ela precisa ser tirada nas duas larguras que
 importam (a folgada e a de 900px) **e com o arquivo sujo**, porque os dois
 botões de salvamento só existem nesse estado e são 170px dos 380 da linha.
-A composição responde com *container queries* no próprio painel (não na
+A composição responde com _container queries_ no próprio painel (não na
 janela — o usuário arrasta a divisória), e a ordem em que as coisas cedem é uma
 decisão de produto escrita no CSS: primeiro o nome do arquivo (a aba acima
 repete), depois o alternador troca as duas palavras por um ícone, e por último
@@ -1168,7 +1200,7 @@ próprio.
 
 Números de linha (piso de 4,5:1, texto de leitura — `--faint` já reprovou duas
 vezes neste repositório e este é o mesmo erro), as três cores de marca (piso de
-3:1, porque nada mais na tela diz que a linha mudou) e o *wash* da linha atual,
+3:1, porque nada mais na tela diz que a linha mudou) e o _wash_ da linha atual,
 composto à mão sobre `--bg` porque é uma camada translúcida. Mais duas
 afirmações estruturais que só falham em silêncio: **um bloco por linha-fonte**
 (`blocks.length === value.split('\n').length` — errar isso desalinha toda a

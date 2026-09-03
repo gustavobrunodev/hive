@@ -27,6 +27,12 @@ export interface EngineOption {
   group?: string
   /** What an alias really resolves to, when that is knowable. */
   resolvedId?: string
+  /** Other names this same row answers to — matched by the search field, never shown. */
+  aliases?: string[]
+  /** The id of this same rung at priority capacity (same thinking, ~2× price). */
+  fastId?: string
+  /** This model's own effort ladder, when the agent's efforts are per model (Devin). */
+  efforts?: EngineOption[]
 }
 
 /** Structural mirror of `main/agentAdapter.ts`'s `AgentCapabilities`. */
@@ -60,6 +66,78 @@ export function pickInitial(options: EngineOption[], remembered?: string): strin
   }
   if (options.some((option) => option.id === '')) return ''
   return options[0]?.id ?? null
+}
+
+/**
+ * The effort ladder in force right now.
+ *
+ * Two agents, two shapes, one control. Claude's `--effort` is agent-wide, so
+ * its ladder lives on the capabilities. Devin has no effort flag at all: its
+ * reasoning levels are *variants of a model*, so each row carries its own
+ * ladder and the one that counts is the selected row's.
+ *
+ * A model with no ladder of its own falls back to the agent's, which is what
+ * keeps Claude (and Copilot, whose ladder is empty) working unchanged.
+ */
+export function effortsFor(capabilities: EngineCapabilities, model: string | null): EngineOption[] {
+  const selected = capabilities.models.find((option) => option.id === model)
+  return selected?.efforts ?? capabilities.efforts
+}
+
+/**
+ * The rung to land on after switching models, when the two models have
+ * different ladders.
+ *
+ * Someone reading at "Máximo" who switches from Opus to Sonnet meant to change
+ * the model, not to quietly drop back to the default thinking budget — so the
+ * *position on the ladder* is carried across by name, and only falls back to
+ * the delegated rung when the new model has nothing by that name. Ids can't be
+ * carried: `claude-opus-5-max` is not a thing Sonnet accepts.
+ */
+export function carryEffort(
+  previous: EngineOption[],
+  effort: string | null,
+  next: EngineOption[]
+): string | null {
+  if (previous === next) return pickInitial(next, effort ?? undefined)
+  const label = previous.find((option) => option.id === effort)?.label
+  const matched = label ? next.find((option) => option.label === label) : undefined
+  return matched?.id ?? pickInitial(next)
+}
+
+/**
+ * The priority-capacity axis, read off a ladder.
+ *
+ * Devin ships each reasoning level twice — `claude-opus-5-max` and
+ * `claude-opus-5-max-fast` — the second being the same budget served from a
+ * reserved pool at about double the price. That is a *second axis*, and the
+ * catalog folds each twin onto the rung it twins (`fastId`) rather than
+ * doubling the ladder, because thirteen columns in a ~48px-per-column ramp
+ * truncated "Máximo" and "Máximo · rápido" into "Máximo" and "Máxi…".
+ *
+ * `available` is what decides whether the switch is rendered at all; `on` reads
+ * the current value, which may be either half of a pair.
+ */
+export function fastCapacity(
+  efforts: EngineOption[],
+  effort: string | null
+): { available: boolean; on: boolean } {
+  const available = efforts.some((rung) => rung.fastId !== undefined)
+  return { available, on: available && efforts.some((rung) => rung.fastId === effort) }
+}
+
+/**
+ * The rung id to send for `rung`, at the capacity currently chosen — and the
+ * identity of a rung whichever half of the pair the value happens to be.
+ */
+export function atCapacity(rung: EngineOption | undefined, fast: boolean): string | null {
+  if (!rung) return null
+  return fast && rung.fastId !== undefined ? rung.fastId : rung.id
+}
+
+/** The base rung a value names, whether it is the rung itself or its fast twin. */
+export function baseRung(efforts: EngineOption[], effort: string | null): EngineOption | undefined {
+  return efforts.find((rung) => rung.id === effort || rung.fastId === effort)
 }
 
 /** Curated copy when the row carries a key; the machine's own words otherwise. */

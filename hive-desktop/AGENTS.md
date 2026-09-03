@@ -56,6 +56,12 @@ funções focadas.
 - **Só o turno do agente passa pelo shell escolhido** (`RunOptions.shell`, veja
   `shellCatalog.ts`). `git`, `npx bmad-method` e os probes continuam com spawn
   direto: cada um depende do stdout exato, e um banner de rc quebraria o parser.
+- **JSON nunca entra em argv.** No Windows o turno atravessa o shell do usuário
+  _e_ o shim `.cmd` do npm, e as duas camadas discordam sobre `\"` — qualquer
+  argumento com aspas **e** espaço é re-partido no meio. Foi o que matou toda
+  sessão do Claude com `Invalid MCP configuration: MCP config file not found`
+  (D39a). Configuração vai para um arquivo e o que viaja é o **caminho**;
+  `approvalService.ts` guarda o relato completo.
 - **Processos não se importam.** `main`, `preload` e `renderer` são bundles
   separados; o renderer fala com o main **só** pela bridge `window.hive` e deriva
   tipos dela (`Awaited<ReturnType<Window['hive'][…]>>`). Só o preload pode

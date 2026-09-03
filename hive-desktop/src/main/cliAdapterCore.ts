@@ -143,6 +143,28 @@ interface StreamJsonUsage {
   cache_creation_input_tokens?: number
 }
 
+/**
+ * Strips ANSI/VT control sequences from one line of a CLI's plain-text output.
+ *
+ * Not defensive programming: `devin` emits `\x1b[?2004l` (bracketed-paste off)
+ * on its way out, and a transcript is a place where an escape byte renders as
+ * garbage rather than as color. Covers CSI (`ESC [ … final`), OSC (`ESC ] …
+ * BEL|ST`) and the two-character escapes; anything it does not recognise is
+ * left alone, because dropping bytes we do not understand would be a second,
+ * quieter way to mangle a reply.
+ */
+export function stripAnsi(text: string): string {
+  return (
+    text
+      // eslint-disable-next-line no-control-regex -- stripping control bytes is the point
+      .replace(/\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\)/g, '')
+      // eslint-disable-next-line no-control-regex -- idem
+      .replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '')
+      // eslint-disable-next-line no-control-regex -- idem
+      .replace(/\u001B[@-Z\\-_]/g, '')
+  )
+}
+
 /** A number off the wire, coerced to a non-negative integer — an absent or malformed field is 0, never `NaN`. */
 function tokenCount(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0
@@ -419,8 +441,27 @@ export function toolDetailOf(input: Record<string, unknown> | undefined): string
  *    (it already streamed as deltas; re-emitting would duplicate every reply),
  *    but their `tool_use`/`tool_result` blocks become `tool` events and their
  *    `usage` blocks become `usage` events,
- *  - a non-JSON line → emitted verbatim as a `token` (defensive fallback so a
- *    CLI without stream-json degrades to plain output instead of vanishing).
+ *  - a non-JSON line → emitted as a `token` **with its newline put back**
+ *    (see below).
+ *
+ * ## Why the raw fallback re-adds the newline
+ *
+ * The defect this closes: a Devin reply arrived in the transcript as one
+ * unbroken run-on paragraph — headings, bullets and fenced code all welded
+ * onto the same line. Devin (and Copilot outside a Claude model) does not
+ * speak `stream-json`; it prints ordinary markdown, and this function was
+ * splitting that stdout on `\n`, **dropping the separator**, then dropping
+ * every blank line as "empty". Markdown is defined by exactly those two
+ * characters: no newline is no list, no blank line is no paragraph. Measured
+ * against the real `devin 3000.6.14`, whose `-p` output is clean UTF-8
+ * markdown with `\n` and blank lines throughout.
+ *
+ * So a stream that has never produced a JSON line is treated as prose and its
+ * line structure is preserved verbatim; the moment one JSON line parses, the
+ * stream is structured and blank lines go back to being noise between records.
+ * ANSI is stripped on that same path — a CLI that paints its output (Devin's
+ * bracketed-paste guard, `\x1b[?2004l`, is the one measured here) must not put
+ * escape bytes into the transcript.
  */
 function handleStdoutLine(
   line: string,
@@ -429,14 +470,19 @@ function handleStdoutLine(
   tracker: TurnTracker
 ): void {
   const trimmed = line.trim()
-  if (trimmed === '') return
+  if (trimmed === '') {
+    // A blank line is structure in prose and noise between JSON records.
+    if (!tracker.structured) queue.push({ type: 'token', text: '\n', turnId })
+    return
+  }
   let parsed: StreamJsonLine
   try {
     parsed = JSON.parse(trimmed) as StreamJsonLine
   } catch {
-    queue.push({ type: 'token', text: line, turnId })
+    queue.push({ type: 'token', text: `${stripAnsi(line)}\n`, turnId })
     return
   }
+  tracker.structured = true
   if (typeof parsed.session_id === 'string' && parsed.session_id !== tracker.lastId) {
     tracker.lastId = parsed.session_id
     queue.push({ type: 'session', id: parsed.session_id, turnId })
@@ -468,6 +514,13 @@ function handleStdoutLine(
 interface TurnTracker {
   lastId: string | null
   context: TurnUsage | null
+  /**
+   * Whether this stream has ever produced a parseable JSON line. It decides
+   * how the raw fallback treats blank lines — structure in prose, noise
+   * between records — and it is one-way: a structured stream that emits a
+   * stray non-JSON line (a warning banner) stays structured.
+   */
+  structured: boolean
 }
 
 /**
@@ -575,7 +628,7 @@ async function pipeTurn(
   errorLabel: string
 ): Promise<void> {
   const { handle, turnId } = run
-  const tracker: TurnTracker = { lastId: null, context: null }
+  const tracker: TurnTracker = { lastId: null, context: null, structured: false }
   let stdoutRest = ''
   let stderrTail = ''
   for await (const chunk of handle.output) {
@@ -592,7 +645,9 @@ async function pipeTurn(
     }
   }
   if (run.settled) return
-  handleStdoutLine(stdoutRest, queue, turnId, tracker)
+  // Only when there IS a trailing partial line: an empty tail through the raw
+  // path would append one phantom newline to every prose turn.
+  if (stdoutRest !== '') handleStdoutLine(stdoutRest, queue, turnId, tracker)
   const result = await handle.exitCode
   if (run.settled) return
   run.settled = true

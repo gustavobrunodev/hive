@@ -1,3 +1,6 @@
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   approvalDetailFor,
@@ -7,9 +10,16 @@ import {
 } from './approvalService'
 import type { ApprovalEvent } from './agentAdapter'
 
-/** The MCP endpoint + auth headers a spawned CLI child would be handed. */
+/**
+ * The MCP endpoint + auth headers a spawned CLI child would be handed.
+ *
+ * `mcpConfig` answers with a **path**, never inline JSON — the whole point of
+ * the fix it guards (a Windows shell splits an argument holding a quote and a
+ * space) — so every test reads the config back off disk, exactly like the CLI.
+ */
 function endpointOf(service: ApprovalService, turnId?: string): { url: string; headers: Headers } {
-  const config = JSON.parse(service.mcpConfig(turnId) as string) as {
+  const path = service.mcpConfig(turnId) as string
+  const config = JSON.parse(readFileSync(path, 'utf-8')) as {
     mcpServers: Record<string, { url: string; headers: Record<string, string> }>
   }
   const server = config.mcpServers.hive_approvals
@@ -80,11 +90,14 @@ describe('approvalDetailFor', () => {
 })
 
 describe('ApprovalService — the MCP permission-prompt endpoint', () => {
+  /** Every service in this file writes its per-turn configs here, not into the shared temp default. */
+  const CONFIG_DIR = mkdtempSync(join(tmpdir(), 'hive-approvals-test-'))
+
   async function withService(
     run: (service: ApprovalService) => Promise<void>,
     options: Parameters<typeof createApprovalService>[0] = {}
   ): Promise<void> {
-    const service = createApprovalService(options)
+    const service = createApprovalService({ configDir: CONFIG_DIR, ...options })
     await service.listen()
     try {
       await run(service)
@@ -94,7 +107,7 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
   }
 
   it('advertises no config until it is listening, then a loopback endpoint carrying the turn', async () => {
-    const service = createApprovalService()
+    const service = createApprovalService({ configDir: CONFIG_DIR })
     // Before `listen()` there is no port — adapters must omit the flags rather
     // than point the CLI at nothing.
     expect(service.mcpConfig('t-1')).toBeNull()
@@ -481,7 +494,7 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
   })
 
   it('close() is idempotent and denies whatever was still pending', async () => {
-    const service = createApprovalService()
+    const service = createApprovalService({ configDir: CONFIG_DIR })
     await service.listen()
     // A second listen() is a no-op rather than a second port.
     await service.listen()
@@ -493,6 +506,39 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
     expect(await verdictOf(await pending)).toMatchObject({ behavior: 'deny' })
     expect(service.mcpConfig()).toBeNull()
     await service.close()
+  })
+
+  it('hands the CLI a file path, never inline JSON — the Windows argv split', async () => {
+    await withService(async (service) => {
+      const path = service.mcpConfig('turn-4') as string
+      // The regression this guards: the config used to travel as an argument.
+      // An argument holding both a quote and a space is re-split between the
+      // Windows shell and the npm `.cmd` shim, and every session died with
+      // "Invalid MCP configuration: MCP config file not found".
+      expect(path.startsWith('{')).toBe(false)
+      expect(path).toContain(CONFIG_DIR)
+      const raw = readFileSync(path, 'utf-8')
+      expect(JSON.parse(raw)).toMatchObject({
+        mcpServers: { hive_approvals: { type: 'http' } }
+      })
+      // The one property a path must have that the JSON did not: no space and
+      // no quote anywhere in it, so no layer can split it.
+      expect(/["\s]/.test(path.replace(CONFIG_DIR, ''))).toBe(false)
+      // Two turns never share a file — concurrent turns each carry their own
+      // `X-Hive-Turn` header.
+      expect(service.mcpConfig('turn-5')).not.toBe(path)
+    })
+  })
+
+  it('deletes the config files it wrote when it closes', async () => {
+    const service = createApprovalService({ configDir: CONFIG_DIR })
+    await service.listen()
+    const path = service.mcpConfig('turn-9') as string
+    expect(existsSync(path)).toBe(true)
+    await service.close()
+    // The file carries this run's bearer token; leaving it on disk after the
+    // listener is gone is a token with no lock left on it.
+    expect(existsSync(path)).toBe(false)
   })
 
   it('ignores a verdict for a request that no longer exists', async () => {

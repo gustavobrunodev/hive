@@ -544,6 +544,10 @@ describe('Chat', () => {
     window.hive = {
       ...window.hive,
       listFiles: vi.fn().mockResolvedValue(options.workspaceFiles ?? []),
+      // chat-file-links: the transcript keeps its file oracle current off the
+      // workspace watcher, so the bridge has to answer here too. A no-op
+      // unsubscribe is enough — these tests drive the list through `listFiles`.
+      watchWorkspace: vi.fn().mockReturnValue(() => undefined),
       // The shared mock's default is the *fresh-install* state (no model
       // downloaded), where pressing the microphone opens the download gate
       // instead of a take. Dictation is only reachable with a model on disk, so

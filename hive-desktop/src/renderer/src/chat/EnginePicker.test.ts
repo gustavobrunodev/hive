@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { EnginePicker } from './EnginePicker'
-import { pickInitial, type EngineCapabilities } from './engineOptions'
+import { carryEffort, effortsFor, pickInitial, type EngineCapabilities } from './engineOptions'
 
 /**
  * The composer's engine control. Its job is to *reshape itself* around what
@@ -18,6 +18,21 @@ import { pickInitial, type EngineCapabilities } from './engineOptions'
  * the design system.
  */
 vi.mock('@hive/design-system', () => ({
+  Switch: ({
+    checked,
+    onCheckedChange,
+    'aria-label': ariaLabel
+  }: {
+    checked?: boolean
+    onCheckedChange?: (next: boolean) => void
+    'aria-label'?: string
+  }) =>
+    createElement('input', {
+      type: 'checkbox',
+      checked: checked === true,
+      'aria-label': ariaLabel,
+      onChange: () => onCheckedChange?.(checked !== true)
+    }),
   OptionPicker: ({
     options,
     groups,
@@ -34,6 +49,8 @@ vi.mock('@hive/design-system', () => ({
       meta?: string
       group?: string
       tags?: { label: string }[]
+      /** What the panel's search field matches on, beyond the label. */
+      keywords?: string
     }[]
     groups?: { id: string; label?: string }[]
     value?: string
@@ -62,6 +79,8 @@ vi.mock('@hive/design-system', () => ({
           option.description && createElement('p', null, option.description),
           option.hint && createElement('code', null, option.hint),
           option.meta && createElement('span', { 'data-meta': true }, option.meta),
+          option.keywords &&
+            createElement('i', { 'data-testid': `keywords-${option.id}` }, option.keywords),
           ...(option.tags ?? []).map((tag) => createElement('em', { key: tag.label }, tag.label)),
           option.id === value && createElement('span', null, '✓')
         )
@@ -105,7 +124,8 @@ vi.mock('@hive/design-system', () => ({
           step.label
         )
       ),
-      createElement('p', null, selected?.description ?? descriptionFallback ?? '')
+      createElement('p', null, selected?.description ?? descriptionFallback ?? ''),
+      createElement('i', { 'data-testid': 'ramp-value' }, value ?? '')
     )
   }
 }))
@@ -158,6 +178,52 @@ const CLAUDE: EngineCapabilities = {
   provider: { id: 'anthropic', detail: null },
   modelSource: 'configured',
   defaults: { model: 'opus', effort: 'xhigh' }
+}
+
+/**
+ * Devin: no agent-wide effort flag at all. Its reasoning levels are variants
+ * of a model, so each row carries its own ladder and the ladder in force is
+ * the selected row's. Shapes mirror the real `devin models list --format json`
+ * (see `main/devinModelCatalog.ts`).
+ */
+const DEVIN: EngineCapabilities = {
+  models: [
+    { id: '', label: 'Automático', descriptionKey: 'cliDefault', group: 'default' },
+    {
+      id: 'claude-opus-5',
+      label: 'Claude Opus 5',
+      vendor: 'Anthropic',
+      group: 'recommended',
+      contextWindow: 1_000_000,
+      efforts: [
+        { id: '', label: 'Automático', descriptionKey: 'effort.cliDefault', group: 'default' },
+        { id: 'claude-opus-5-low', label: 'Baixo' },
+        { id: 'claude-opus-5-max', label: 'Máximo', fastId: 'claude-opus-5-max-fast' }
+      ]
+    },
+    {
+      id: 'claude-sonnet-5',
+      label: 'Claude Sonnet 5',
+      vendor: 'Anthropic',
+      group: 'recommended',
+      efforts: [
+        { id: '', label: 'Automático', descriptionKey: 'effort.cliDefault', group: 'default' },
+        { id: 'claude-sonnet-5-medium', label: 'Médio' },
+        { id: 'claude-sonnet-5-max', label: 'Máximo' }
+      ]
+    },
+    {
+      id: 'adaptive',
+      label: 'Adaptive',
+      vendor: 'Cognition',
+      traits: ['router'],
+      group: 'recommended'
+    }
+  ],
+  efforts: [],
+  supportsAttachments: true,
+  provider: { id: 'cognition', detail: null },
+  modelSource: 'detected'
 }
 
 const COPILOT: EngineCapabilities = {
@@ -316,6 +382,117 @@ describe('EnginePicker', () => {
     expect(screen.getByText('Detectando…')).toBeTruthy()
   })
 
+  describe('an agent whose effort ladder is per model (Devin)', () => {
+    // The reported gap: "mapeamento de effort por modelo também não aparece".
+    // The agent declares no ladder of its own, so reading `capabilities.efforts`
+    // showed no control at all — for the one agent where the level matters most.
+    it('draws the ladder of the model that is selected', () => {
+      renderPicker(DEVIN, { model: 'claude-opus-5' })
+      expect(screen.getByRole('radio', { name: 'Máximo' })).toBeTruthy()
+      expect(screen.getByRole('radio', { name: 'Baixo' })).toBeTruthy()
+      expect(screen.queryByRole('radio', { name: 'Médio' })).toBeNull()
+    })
+
+    it('sends the rung id, which is a Devin model id', () => {
+      const { onEffortChange } = renderPicker(DEVIN, { model: 'claude-opus-5' })
+      fireEvent.click(screen.getByRole('radio', { name: 'Máximo' }))
+      expect(onEffortChange).toHaveBeenCalledWith('claude-opus-5-max')
+    })
+
+    // A router has one variant and nothing to climb; a ramp there would be a
+    // control that cannot be moved.
+    it('shows no ladder for a model that has none', () => {
+      renderPicker(DEVIN, { model: 'adaptive' })
+      expect(screen.queryByRole('radiogroup')).toBeNull()
+    })
+
+    // The panel used to render no effort section at all while "Automático" was
+    // selected — which is the state a first-time user IS in, and the state the
+    // bug report was looking at when it said the mapping "não aparece".
+    it('says where the reasoning control lives when the chosen model has none', () => {
+      renderPicker(DEVIN, { model: '' })
+      expect(screen.queryByRole('radiogroup')).toBeNull()
+      expect(
+        screen.getByText('O nível de raciocínio vem do modelo — escolha um acima para ajustá-lo.')
+      ).toBeTruthy()
+    })
+
+    it('stays silent for an agent where no model has a ladder', () => {
+      renderPicker(COPILOT)
+      expect(
+        screen.queryByText('O nível de raciocínio vem do modelo — escolha um acima para ajustá-lo.')
+      ).toBeNull()
+    })
+
+    // Every Devin row carries the `thinking` trait, so a "raciocínio" chip on
+    // all of them says nothing. The count says how far the ladder goes, from
+    // the list, before the ramp is ever looked at.
+    it('counts the rungs on the row instead of tagging every row "raciocínio"', () => {
+      renderPicker(DEVIN, { model: '' })
+      // Both Devin fixtures ship two rungs each.
+      expect(screen.getAllByText('2 níveis')).toHaveLength(2)
+      expect(screen.queryByText('raciocínio')).toBeNull()
+      // A router has no ladder, and keeps the tag that says what it is.
+      expect(screen.getByText('roteador')).toBeTruthy()
+    })
+
+    describe('priority capacity — the second axis', () => {
+      // Devin ships each level twice, the twin being the same thinking budget
+      // from a reserved pool at ~2x. As rungs they doubled a ramp that was
+      // already at its column budget and truncated its own labels.
+      it('is a switch, not a rung on the ladder', () => {
+        renderPicker(DEVIN, { model: 'claude-opus-5' })
+        expect(screen.queryByRole('radio', { name: /rápido/ })).toBeNull()
+        expect(
+          screen.getByRole('checkbox', { name: 'Usar capacidade prioritária neste nível' })
+        ).toBeTruthy()
+        expect(
+          screen.getByText('Mesma capacidade de raciocínio, menos fila — custa cerca do dobro.')
+        ).toBeTruthy()
+      })
+
+      it('sends the twin of the rung in force when it is turned on', () => {
+        const { onEffortChange } = renderPicker(DEVIN, {
+          model: 'claude-opus-5',
+          effort: 'claude-opus-5-max'
+        })
+        fireEvent.click(screen.getByRole('checkbox'))
+        expect(onEffortChange).toHaveBeenCalledWith('claude-opus-5-max-fast')
+      })
+
+      it('reads a twin back as its own rung, switched on', () => {
+        renderPicker(DEVIN, { model: 'claude-opus-5', effort: 'claude-opus-5-max-fast' })
+        expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
+        // The ramp still marks "Máximo" — the value is that rung, at the other
+        // capacity, not some eleventh step.
+        expect(screen.getByTestId('ramp-value').textContent).toBe('claude-opus-5-max')
+      })
+
+      it('keeps the capacity when the rung changes', () => {
+        const { onEffortChange } = renderPicker(DEVIN, {
+          model: 'claude-opus-5',
+          effort: 'claude-opus-5-max-fast'
+        })
+        fireEvent.click(screen.getByRole('radio', { name: 'Baixo' }))
+        // "Baixo" has no twin in this fixture, so it falls back to the rung.
+        expect(onEffortChange).toHaveBeenCalledWith('claude-opus-5-low')
+      })
+
+      it('is absent for a ladder with no twins at all', () => {
+        renderPicker(DEVIN, { model: 'claude-sonnet-5' })
+        expect(screen.queryByRole('checkbox')).toBeNull()
+      })
+    })
+
+    it('matches a model by an alias the user knows it by', () => {
+      renderPicker({
+        ...DEVIN,
+        models: [{ id: 'claude-opus-5', label: 'Claude Opus 5', aliases: ['opus'] }]
+      })
+      expect(screen.getByTestId('keywords-claude-opus-5').textContent).toContain('opus')
+    })
+  })
+
   // An agent with no model choice at all renders no control, rather than an
   // empty menu that opens onto nothing.
   it('renders nothing when the agent exposes no models', () => {
@@ -362,5 +539,44 @@ describe('pickInitial', () => {
 
   it('answers null for an empty list', () => {
     expect(pickInitial([])).toBeNull()
+  })
+})
+
+describe('effortsFor', () => {
+  it("prefers the selected model's own ladder", () => {
+    expect(effortsFor(DEVIN, 'claude-opus-5').map((rung) => rung.id)).toEqual([
+      '',
+      'claude-opus-5-low',
+      'claude-opus-5-max'
+    ])
+  })
+
+  it("falls back to the agent's ladder, which is what keeps Claude unchanged", () => {
+    expect(effortsFor(CLAUDE, 'sonnet')).toBe(CLAUDE.efforts)
+    expect(effortsFor(DEVIN, 'adaptive')).toBe(DEVIN.efforts)
+    expect(effortsFor(DEVIN, null)).toBe(DEVIN.efforts)
+  })
+})
+
+describe('carryEffort', () => {
+  const opus = effortsFor(DEVIN, 'claude-opus-5')
+  const sonnet = effortsFor(DEVIN, 'claude-sonnet-5')
+
+  // Someone reading at "Máximo" who switches model meant to change the model,
+  // not to quietly drop back to the default thinking budget.
+  it('carries the position on the ladder across models, by name', () => {
+    expect(carryEffort(opus, 'claude-opus-5-max', sonnet)).toBe('claude-sonnet-5-max')
+  })
+
+  it('falls back to the delegated rung when the new model has no such rung', () => {
+    expect(carryEffort(opus, 'claude-opus-5-low', sonnet)).toBe('')
+  })
+
+  it('keeps the current rung when the ladder did not change', () => {
+    expect(carryEffort(CLAUDE.efforts, 'high', CLAUDE.efforts)).toBe('high')
+  })
+
+  it('answers null for a model with no ladder at all', () => {
+    expect(carryEffort(opus, 'claude-opus-5-max', [])).toBeNull()
   })
 })

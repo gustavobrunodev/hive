@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Markdown } from './markdown'
+import { createPathOracle } from '../chat/filePaths'
 
 /**
  * Task T1 — Markdown renderer via react-markdown + remark-gfm (design.md §5,
@@ -86,5 +87,65 @@ describe('Markdown (T1)', () => {
 
     expect(window.hive.openExternal).toHaveBeenCalledWith('https://example.com')
     expect(event.defaultPrevented).toBe(true)
+  })
+
+  describe('file links in an agent reply (chat-file-links)', () => {
+    const files = createPathOracle('/ws', ['src/main/index.ts', 'docs/prd.md'])
+
+    /** Renders with linking wired, returning the spy a click lands on. */
+    function renderLinked(source: string): ReturnType<typeof vi.fn> {
+      const onOpenPath = vi.fn()
+      render(createElement(Markdown, { source, files, onOpenPath }))
+      return onOpenPath
+    }
+
+    it('makes a path in prose a control that opens the file', () => {
+      const onOpenPath = renderLinked('Criei src/main/index.ts com o serviço.')
+      const link = screen.getByRole('button', { name: /src\/main\/index\.ts/ })
+      link.click()
+      expect(onOpenPath).toHaveBeenCalledWith('src/main/index.ts', undefined)
+    })
+
+    // Inline code is where agents write paths most of the time; skipping it
+    // would leave the common case dead.
+    it('links a path written as inline code', () => {
+      const onOpenPath = renderLinked('Ajustei o `docs/prd.md` do workspace.')
+      screen.getByRole('button', { name: /docs\/prd\.md/ }).click()
+      expect(onOpenPath).toHaveBeenCalledWith('docs/prd.md', undefined)
+    })
+
+    it('carries the line the agent pointed at', () => {
+      const onOpenPath = renderLinked('Veja src/main/index.ts:42.')
+      screen.getByRole('button', { name: /src\/main\/index\.ts:42/ }).click()
+      expect(onOpenPath).toHaveBeenCalledWith('src/main/index.ts', 42)
+    })
+
+    // A fenced block is a listing. Turning half the tokens inside a diff into
+    // buttons is noise, not help.
+    it('leaves a fenced code block alone', () => {
+      renderLinked(['Antes:', '', '```', 'cat src/main/index.ts', '```'].join('\n'))
+      expect(screen.queryByRole('button')).toBeNull()
+    })
+
+    it('finds a path that markdown split across emphasis boundaries', () => {
+      // The reason this runs as a rehype pass and not over React children: by
+      // the time a component sees its children the text is already in pieces.
+      const onOpenPath = renderLinked('Está em **src/main/index.ts** agora.')
+      screen.getByRole('button', { name: /src\/main\/index\.ts/ }).click()
+      expect(onOpenPath).toHaveBeenCalledWith('src/main/index.ts', undefined)
+    })
+
+    it('leaves an external link an external link', () => {
+      renderLinked('Docs em [aqui](https://example.com).')
+      const link = screen.getByRole('link', { name: 'aqui' })
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      expect(window.hive.openExternal).toHaveBeenCalledWith('https://example.com')
+    })
+
+    it('renders paths as plain text when the host has no editor to open them in', () => {
+      render(createElement(Markdown, { source: 'Criei src/main/index.ts.' }))
+      expect(screen.queryByRole('button')).toBeNull()
+      expect(document.body.textContent).toContain('src/main/index.ts')
+    })
   })
 })

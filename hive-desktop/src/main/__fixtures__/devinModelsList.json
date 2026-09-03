@@ -1,0 +1,521 @@
+{
+  "families": [
+    {
+      "family_label": "Claude Opus 5",
+      "family_uid": "claude-opus-5",
+      "slug": "claude-opus-5",
+      "aliases": ["opus"],
+      "variants": [
+        {
+          "model_uid": "claude-opus-5-medium",
+          "label": "Claude Opus 5 Medium",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-low",
+          "label": "Claude Opus 5 Low",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-high",
+          "label": "Claude Opus 5 High",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-xhigh",
+          "label": "Claude Opus 5 XHigh",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-max",
+          "label": "Claude Opus 5 Max",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-low-fast",
+          "label": "Claude Opus 5 Low Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$10 / 1M Input · $1 / 1M Cached input · $50 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-medium-fast",
+          "label": "Claude Opus 5 Medium Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$10 / 1M Input · $1 / 1M Cached input · $50 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-high-fast",
+          "label": "Claude Opus 5 High Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$10 / 1M Input · $1 / 1M Cached input · $50 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-xhigh-fast",
+          "label": "Claude Opus 5 XHigh Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$10 / 1M Input · $1 / 1M Cached input · $50 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-5-max-fast",
+          "label": "Claude Opus 5 Max Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$10 / 1M Input · $1 / 1M Cached input · $50 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Sonnet 5",
+      "family_uid": "claude-sonnet-5",
+      "slug": "claude-sonnet-5",
+      "aliases": ["claude", "sonnet"],
+      "variants": [
+        {
+          "model_uid": "claude-sonnet-5-medium",
+          "label": "Claude Sonnet 5 Medium",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-sonnet-5-low",
+          "label": "Claude Sonnet 5 Low",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-sonnet-5-high",
+          "label": "Claude Sonnet 5 High",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-sonnet-5-xhigh",
+          "label": "Claude Sonnet 5 XHigh",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-sonnet-5-max",
+          "label": "Claude Sonnet 5 Max",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "GLM-5.2",
+      "family_uid": "glm-5.2",
+      "slug": "glm-5.2",
+      "aliases": [],
+      "variants": [
+        {
+          "model_uid": "glm-5-2",
+          "label": "GLM-5.2 High",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Free",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "glm-5-2-max",
+          "label": "GLM-5.2 Max",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Low cost",
+          "cost_summary": "$0.7 / 1M Input · $0.13 / 1M Cached input · $2.2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "glm-5-2-1m",
+          "label": "GLM-5.2 High 1M",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Low cost",
+          "cost_summary": "$0.7 / 1M Input · $0.13 / 1M Cached input · $2.2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "glm-5-2-max-1m",
+          "label": "GLM-5.2 Max 1M",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Low cost",
+          "cost_summary": "$0.7 / 1M Input · $0.13 / 1M Cached input · $2.2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "glm-5-2-none",
+          "label": "GLM-5.2 No Thinking",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Low cost",
+          "cost_summary": "$0.7 / 1M Input · $0.13 / 1M Cached input · $2.2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "glm-5-2-none-1m",
+          "label": "GLM-5.2 No Thinking 1M",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Low cost",
+          "cost_summary": "$0.7 / 1M Input · $0.13 / 1M Cached input · $2.2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-1.7",
+      "family_uid": "swe-1.7",
+      "slug": "swe-1.7",
+      "aliases": [],
+      "variants": [
+        {
+          "model_uid": "swe-1-7",
+          "label": "SWE-1.7 Max",
+          "max_context_tokens": 262000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Free",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "swe-1-7-medium",
+          "label": "SWE-1.7 Medium",
+          "max_context_tokens": 262000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Free",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "Adaptive",
+      "family_uid": "Adaptive",
+      "slug": "adaptive",
+      "aliases": [],
+      "variants": [
+        {
+          "model_uid": "adaptive",
+          "label": "Adaptive",
+          "description": "Automatically balances quality and cost",
+          "cost_summary": "$0.5 / 1M Input · $0.1 / 1M Cached input · $2 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.6 Terra",
+      "family_uid": "gpt-5.6-terra",
+      "slug": "gpt-5.6-terra",
+      "aliases": ["gpt"],
+      "variants": [
+        {
+          "model_uid": "gpt-5-6-terra-none",
+          "label": "GPT-5.6 Terra No Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-low",
+          "label": "GPT-5.6 Terra Low Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-medium",
+          "label": "GPT-5.6 Terra Medium Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-high",
+          "label": "GPT-5.6 Terra High Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-xhigh",
+          "label": "GPT-5.6 Terra XHigh Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-max",
+          "label": "GPT-5.6 Terra Max Thinking",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$2 / 1M Input · $0.2 / 1M Cached input · $12 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-none-priority",
+          "label": "GPT-5.6 Terra No Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-low-priority",
+          "label": "GPT-5.6 Terra Low Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-medium-priority",
+          "label": "GPT-5.6 Terra Medium Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-high-priority",
+          "label": "GPT-5.6 Terra High Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-xhigh-priority",
+          "label": "GPT-5.6 Terra XHigh Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "gpt-5-6-terra-max-priority",
+          "label": "GPT-5.6 Terra Max Thinking Fast",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$4 / 1M Input · $0.4 / 1M Cached input · $24 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 4.6",
+      "family_uid": "claude-opus-4.6",
+      "slug": "claude-opus-4.6",
+      "aliases": [],
+      "variants": [
+        {
+          "model_uid": "claude-opus-4-6",
+          "label": "Claude Opus 4.6",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-4-6-thinking",
+          "label": "Claude Opus 4.6 Thinking",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-4-6-1m",
+          "label": "Claude Opus 4.6 1M",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "claude-opus-4-6-thinking-1m",
+          "label": "Claude Opus 4.6 Thinking 1M",
+          "max_context_tokens": 1000000,
+          "max_output_tokens": 128000,
+          "cost_tier": "High cost",
+          "cost_summary": "$5 / 1M Input · $0.5 / 1M Cached input · $25 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Haiku 4.5",
+      "family_uid": "Claude Haiku 4.5",
+      "slug": "claude-haiku-4.5",
+      "aliases": ["haiku"],
+      "variants": [
+        {
+          "model_uid": "MODEL_PRIVATE_11",
+          "label": "Claude Haiku 4.5",
+          "max_context_tokens": 200000,
+          "max_output_tokens": 64000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$1 / 1M Input · $0.1 / 1M Cached input · $5 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.1",
+      "family_uid": "gpt-5.1",
+      "slug": "gpt-5.1",
+      "aliases": [],
+      "variants": [
+        {
+          "model_uid": "MODEL_PRIVATE_12",
+          "label": "GPT-5.1 No Thinking",
+          "max_context_tokens": 272000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$1.25 / 1M Input · $0.12 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_13",
+          "label": "GPT-5.1 Low Thinking",
+          "max_context_tokens": 272000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$1.25 / 1M Input · $0.12 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_14",
+          "label": "GPT-5.1 Medium Thinking",
+          "max_context_tokens": 272000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$1.25 / 1M Input · $0.12 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_15",
+          "label": "GPT-5.1 High Thinking",
+          "max_context_tokens": 272000,
+          "max_output_tokens": 128000,
+          "cost_tier": "Med cost",
+          "cost_summary": "$1.25 / 1M Input · $0.12 / 1M Cached input · $10 / 1M Output",
+          "is_new": false,
+          "is_beta": false
+        }
+      ]
+    }
+  ]
+}

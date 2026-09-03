@@ -1576,6 +1576,93 @@ body ::-webkit-scrollbar-corner {
   background: var(--surface);
 }
 
+/* ==========================================================================
+   File links in prose (chat-file-links)
+
+   A path the agent named, made openable — and the hard part is that a reply
+   names six of them. Six bordered boxes in three paragraphs is a page of
+   buttons with a sentence threaded through it, so this reads as *marked text*
+   at rest and becomes a control on approach:
+
+   - No border and a quiet plate at rest, so a paragraph still scans as a
+     paragraph. The colour-hued file glyph is the only other standing mark,
+     and it is the same `.wb-file-icon` the tree and the editor tabs use — a
+     `.ts` here is the blue mark it is over there, so recognition is borrowed
+     rather than invented.
+   - On hover the plate warms to the selection tint, the ink takes the accent
+     and an underline appears: "clickable" is discovered by pointing instead of
+     promised by a colour that would have to shout from rest.
+
+   Two things measured on the built page rather than assumed:
+
+   - **`rem`, not `em`.** At `0.85em` the same control rendered 12.75px in
+     prose and 10.84px inside a code span, because the two 0.85s compound.
+   - **The box must not be taller than the line.** At 25px against a 24.75px
+     line-height, a paragraph with chips visibly loosened against one without.
+     Padding is horizontal only, and the line-height is pinned.
+   - **`--surface-3`, not the `--surface-2` inline code uses.** Measured
+     against the page in all three themes: `--surface-2` is 1,185:1 in dark and
+     1,16:1 in Hive, but **1,006:1 in light** — no plate at all, so the light
+     theme's chips read as bare text with a glyph. `--surface-3` holds at
+     1,33 · 1,10 · 1,25. Being a shade more present than inline code is also
+     correct: this one is a control. */
+.wb-pathlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0 5px 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease-quart),
+    border-color 140ms var(--ease-quart),
+    text-decoration-color 140ms var(--ease-quart),
+    color 140ms var(--ease-quart);
+}
+.wb-pathlink:hover {
+  background: var(--selected-bg);
+  border-color: var(--accent);
+  color: var(--accent-tint-ink);
+  text-decoration-color: currentcolor;
+}
+.wb-pathlink:active {
+  background: var(--surface-3);
+}
+.wb-pathlink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+/* A pathological path truncates instead of pushing the column open; the full
+   path is on the control's `title`, so nothing is lost. */
+.wb-pathlink-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wb-pathlink .wb-file-icon {
+  /* The 12px glyph optically rides high against a 13px cap height. */
+  margin-top: -1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-pathlink {
+    transition: none;
+  }
+}
+
 /* GFM task lists (remark-gfm, T1/UX-R7.1) */
 .wb-md ul.contains-task-list {
   list-style: none;
@@ -1903,6 +1990,52 @@ body ::-webkit-scrollbar-corner {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The second axis under the ramp: same reasoning budget, priority capacity.
+   A switch rather than a rung, because it is not "more thinking" — it is
+   "less queue", and a ramp that mixed the two doubled its column count and
+   started truncating its own labels. Laid out as a row so the control reads
+   as one target with the whole `<label>` clickable. */
+.wb-engine-fast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: 2px;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.wb-engine-fast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-engine-fast-name {
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+/* `--muted`, not `--faint`: this line states the price, which is the whole
+   reason the switch is worth reading. `--faint` measured 2,95:1 in the light
+   theme the last two times it was used for secondary text. */
+.wb-engine-fast-hint {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* The stand-in for the ramp on an agent whose effort belongs to the model
+   (Devin) while a model with no ladder is selected. It takes the ramp's slot
+   and its vertical rhythm so the footer does not jump height when the user
+   picks a model that HAS one. `--muted`, not `--faint`: this is the sentence
+   that tells someone where a missing control went. */
+.wb-engine-effort-note {
+  margin: 0;
+  padding: 2px 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
   color: var(--muted);
 }
 

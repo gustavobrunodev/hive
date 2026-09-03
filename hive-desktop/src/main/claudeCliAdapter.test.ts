@@ -729,7 +729,10 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: 'q' })
     const events = await take(session.events, 2)
 
-    expect(events).toEqual([{ type: 'token', text: 'plain old text' }, { type: 'done' }])
+    // The newline is put back. A CLI that does not speak stream-json is
+    // printing prose, and prose IS its newlines: dropping them welded whole
+    // markdown replies into one run-on paragraph (the reported bug).
+    expect(events).toEqual([{ type: 'token', text: 'plain old text\n' }, { type: 'done' }])
   })
 
   it('a non-zero exit produces an error event carrying the stderr tail (stderr never becomes transcript tokens)', async () => {
@@ -1026,7 +1029,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
 
     session.send({ text: 'second' })
     const events = await take(session.events, 2)
-    expect(events).toEqual([{ type: 'token', text: 'ok' }, { type: 'done' }])
+    expect(events).toEqual([{ type: 'token', text: 'ok\n' }, { type: 'done' }])
   })
 })
 

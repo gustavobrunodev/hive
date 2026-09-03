@@ -45,12 +45,17 @@ import { CLI_DEFAULT_ID } from './modelCatalog'
  *     opaque-text behavior.
  *   - `-r, --resume [sessionId]` — resume a conversation by session id
  *     (works with --print).
- *   - `--permission-prompt-tool <mcp tool>` + `--mcp-config <json>` — the
+ *   - `--permission-prompt-tool <mcp tool>` + `--mcp-config <path>` — the
  *     supported way to answer permission prompts in print mode: the CLI calls
  *     the named MCP tool and blocks the turn on its verdict instead of
  *     silently refusing the call. Hive hosts that tool itself (see
  *     `approvalService.ts`), which is what turns "the agent needs permission"
- *     into a real interaction rather than a stalled turn.
+ *     into a real interaction rather than a stalled turn. The flag takes a
+ *     **file path**, never the inline JSON it also accepts: on Windows an
+ *     argument carrying both quotes and a space is re-split between the
+ *     shell and the npm `.cmd` shim, which failed every session with
+ *     "Invalid MCP configuration: MCP config file not found". The whole
+ *     account is in `approvalService.ts`'s header.
  */
 
 const CLAUDE_COMMAND = 'claude'
@@ -281,6 +286,8 @@ export function createClaudeCliAdapter(
           // agent-approvals: only wire the prompt tool once the bridge is
           // actually listening — a config pointing at no port would fail the
           // whole turn, which is strictly worse than today's behavior.
+          // A path on disk (see the header): a JSON blob here does not survive
+          // Windows' shell + `.cmd` argv layers.
           const mcpConfig = prompt?.mcpConfig(turnId) ?? null
           return [
             '-p',

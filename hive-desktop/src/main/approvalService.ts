@@ -1,5 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { ApprovalDecision, ApprovalEvent } from './agentAdapter'
 
 /**
@@ -36,9 +39,38 @@ import type { ApprovalDecision, ApprovalEvent } from './agentAdapter'
  * ## Trust boundary
  *
  * The listener binds to `127.0.0.1` only and requires a per-run bearer token
- * that never leaves this process except through the `--mcp-config` argv of the
- * CLI children it authorizes. Any other local process that finds the port gets
- * a 401 — it can't manufacture approvals on the user's behalf.
+ * that never leaves this process except through the `--mcp-config` file the
+ * CLI children it authorizes are pointed at. Any other local process that
+ * finds the port gets a 401 — it can't manufacture approvals on the user's
+ * behalf. The file is written under the app's own directory (`configDir`),
+ * one per turn, and swept on `listen()`/`close()`.
+ *
+ * ## Why the config is a FILE and never an inline JSON argument
+ *
+ * `--mcp-config` accepts either. Hive passed the JSON inline, and on Windows
+ * that broke every session with:
+ *
+ * ```
+ * Invalid MCP configuration: MCP config file not found:
+ *   C:\Users\…\{"mcpServers":{…,"Authorization":"Bearer
+ * ```
+ *
+ * Read it closely: the argument was **split at the space** inside
+ * `"Bearer <token>"`, so the CLI received two half-JSON fragments, failed to
+ * `JSON.parse` either, fell back to treating each as a path, and `path.resolve`
+ * turned `http://127.0.0.1:…/mcp` into `http:\127.0.0.1:…\mcp` on the way to
+ * the error message.
+ *
+ * The split is not the CLI's fault and not fixable by quoting harder. On
+ * Windows the agent's turn runs inside the user's shell, and the CLI on `PATH`
+ * is an npm `.cmd` shim — so an argument reaches it through PowerShell (or Git
+ * Bash/MSYS) **and then through `cmd.exe`**. Those two layers do not agree on
+ * quoting: `\"` is a literal quote to a C runtime and a quote-state toggle to
+ * `cmd`, so any argument holding both a quote and a space is re-split. A JSON
+ * object with a `Bearer <token>` header is exactly that argument.
+ *
+ * A path has no quotes, so it survives every one of those layers. That is the
+ * whole reason this writes a file: **never put JSON in argv.**
  */
 
 /** The MCP server name inside `--mcp-config`; the prompt tool is `mcp__<server>__<tool>`. */
@@ -95,6 +127,14 @@ export interface ApprovalServiceOptions {
   onGranted?: (grant: GrantedRule) => void
   /** Overridable for tests; see `DEFAULT_TIMEOUT_MS`. */
   timeoutMs?: number
+  /**
+   * Where the per-turn `--mcp-config` files are written. The app passes its
+   * `userData/mcp`; the default is a temp subdirectory so a service built
+   * without Electron (tests, probes) still works. Directory creation and the
+   * sweep are best-effort — a machine that cannot write here loses the
+   * approval prompt, never the turn.
+   */
+  configDir?: string
 }
 
 /** The call a standing grant was recorded from. */
@@ -111,9 +151,15 @@ export interface ApprovalService {
   /** The `--permission-prompt-tool` value: `mcp__hive_approvals__approve`. */
   readonly promptToolName: string
   /**
-   * The `--mcp-config` JSON for one turn. Includes the live port, the bearer
-   * token, and `turnId` as a header so an approval raised by this child routes
-   * back to the conversation that started it. `null` until `listen()` resolves.
+   * The **path** of a freshly written `--mcp-config` file for one turn. The
+   * config inside carries the live port, the bearer token, and `turnId` as a
+   * header so an approval raised by this child routes back to the conversation
+   * that started it.
+   *
+   * `null` until `listen()` resolves — and also `null` when the file cannot be
+   * written, which degrades a turn to "no approval prompt" instead of failing
+   * it. Never inline JSON: see the module header for the Windows argv split
+   * that cost every session on that platform.
    */
   mcpConfig(turnId?: string): string | null
   /** Binds the loopback listener. Resolves once the port is known. */
@@ -185,9 +231,46 @@ interface Pending {
 const METHOD_NOT_FOUND = -32601
 const INVALID_REQUEST = -32600
 
+/** Filename prefix of the per-turn config files, and the key the sweep matches on. */
+const CONFIG_PREFIX = 'hive-approvals-'
+
+/**
+ * How long a written config file may linger before the next `listen()` sweeps
+ * it. Generous: the CLI reads the file at startup and never again, so anything
+ * older than an hour belongs to a run that is long gone.
+ */
+const CONFIG_TTL_MS = 60 * 60 * 1000
+
 export function createApprovalService(options: ApprovalServiceOptions = {}): ApprovalService {
   const token = randomUUID()
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const configDir = options.configDir ?? join(tmpdir(), 'hive-approvals')
+  /** Every config file this run wrote, so `close()` takes its own litter with it. */
+  const writtenConfigs = new Set<string>()
+
+  /**
+   * Deletes config files older than `CONFIG_TTL_MS`. Runs once per `listen()`:
+   * a crash mid-turn leaves a file behind, and a directory that only ever grows
+   * is a slow leak of bearer tokens onto disk.
+   */
+  function sweepConfigs(): void {
+    try {
+      const now = Date.now()
+      for (const name of readdirSync(configDir)) {
+        if (!name.startsWith(CONFIG_PREFIX)) continue
+        const path = join(configDir, name)
+        try {
+          const age = now - Number(name.slice(CONFIG_PREFIX.length).split('-')[0])
+          if (Number.isFinite(age) && age < CONFIG_TTL_MS) continue
+          rmSync(path, { force: true })
+        } catch {
+          // A file we cannot stat or delete is not worth failing a startup over.
+        }
+      }
+    } catch {
+      // No directory yet (first run) — nothing to sweep.
+    }
+  }
   const listeners = new Set<(request: ApprovalEvent) => void>()
   const pending = new Map<string, Pending>()
   const allowRules = new Set<ApprovalRule>(options.rules ?? [])
@@ -415,7 +498,7 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
 
     mcpConfig(turnId?: string): string | null {
       if (port === null) return null
-      return JSON.stringify({
+      const config = JSON.stringify({
         mcpServers: {
           [SERVER_NAME]: {
             type: 'http',
@@ -427,10 +510,27 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
           }
         }
       })
+      // The timestamp leads the name so `sweepConfigs` can age a file out
+      // without stat-ing it; `randomUUID` keeps two concurrent turns (and two
+      // windows) from writing the same path.
+      const path = join(configDir, `${CONFIG_PREFIX}${Date.now()}-${randomUUID()}.json`)
+      try {
+        mkdirSync(configDir, { recursive: true })
+        // 0600: the file holds this run's bearer token. On Windows the mode is
+        // advisory, which is why the token is also single-use per app run.
+        writeFileSync(path, config, { encoding: 'utf-8', mode: 0o600 })
+      } catch {
+        // Unwritable directory: the turn runs without a permission prompt
+        // (edits still auto-accept), which beats failing it outright.
+        return null
+      }
+      writtenConfigs.add(path)
+      return path
     },
 
     listen(): Promise<void> {
       if (server) return Promise.resolve()
+      sweepConfigs()
       return new Promise((resolve, reject) => {
         const created = createServer((req, res) => {
           void handle(req, res).catch(() => send(res, 500, { error: 'internal' }))
@@ -480,6 +580,14 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
 
     close(): Promise<void> {
       this.cancel()
+      for (const path of writtenConfigs) {
+        try {
+          rmSync(path, { force: true })
+        } catch {
+          // Already gone, or a locked file on Windows — the sweep gets it next run.
+        }
+      }
+      writtenConfigs.clear()
       const active = server
       server = null
       port = null

@@ -665,6 +665,38 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // The Devin round (2026-09-03). Four modules whose defects were all of
+        // the same kind — silent, and only visible on a real machine:
+        //
+        //  - `devinModelCatalog.ts` parsed a shape the CLI does not answer
+        //    with, so 44 model families collapsed to a stale 7-row constant
+        //    and no reasoning ladder existed at all;
+        //  - `devinCliAdapter.ts` never learned a session id, so every message
+        //    opened a new Devin session (the "Iniciando" that never ended);
+        //  - `cliAdapterCore.ts` dropped the newlines out of any CLI that
+        //    speaks prose, welding whole markdown replies into one line;
+        //  - `filePaths.ts` decides which text in a reply becomes a clickable
+        //    link, and both of its failure modes are user-visible.
+        'src/main/devinModelCatalog.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/devinCliAdapter.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/cliAdapterCore.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/chat/filePaths.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/engineOptions.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

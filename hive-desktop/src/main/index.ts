@@ -569,6 +569,10 @@ app.whenReady().then(() => {
   // runs, so a read-only workspace costs the file, never the grant.
   const turnAgents = new Map<string, string>() // turnId -> the agent that ran it
   const approvalService = createApprovalService({
+    // The per-turn `--mcp-config` file lives under the app's own data
+    // directory, never in argv (see `approvalService.ts` for the Windows
+    // argv split that made inline JSON unusable).
+    configDir: join(app.getPath('userData'), 'mcp'),
     rules: configStore.getApprovalRules(),
     onRulesChanged: (rules) => configStore.setApprovalRules(rules),
     onGranted: (grant) => {
@@ -597,7 +601,11 @@ app.whenReady().then(() => {
     // rides along because an adapter that cannot honour the pick has to pin a
     // real, installed shell instead of leaving the CLI to decide.
     shell: currentShell,
-    shells: detectedShells
+    shells: detectedShells,
+    // Per-turn throwaway files (the Devin `--export` that carries its session
+    // id back). Under `userData` rather than the OS temp dir so a hardened
+    // machine that wipes `/tmp` mid-session doesn't cost the conversation.
+    scratchDir: join(app.getPath('userData'), 'agent-scratch')
   })
   const shells = createShellService(configStore, agentRegistry)
   shellService = shells

@@ -309,6 +309,81 @@ Updated as work progresses. Load at start of every session.
   despejo de texto (PRODUCT.md), com "Copiar tudo" produzindo o texto plano que
   vai para um issue.
 
+- **D39 — Devin de verdade + links de arquivo no chat (2026-09-03).** Seis
+  itens relatados pelo usuário, sem milestone própria. As decisões que o código
+  não explica sozinho:
+  (a) **O `--mcp-config` do Claude vira um ARQUIVO, nunca JSON no argv.** O
+  relato ("não consigo usar o Claude em outra máquina") era literal: no Windows
+  toda sessão morria com `Invalid MCP configuration: MCP config file not
+  found: C:\…\{"mcpServers":…"Bearer`. O argumento foi **partido no espaço**
+  de `"Bearer <token>"` — no Windows o turno passa pelo shell do usuário *e*
+  pelo shim `.cmd` do npm, e as duas camadas discordam sobre `\"`, então
+  qualquer argumento com aspas **e** espaço é re-partido. Um caminho não tem
+  aspas. Regra geral: **JSON não entra em argv.**
+  (b) **A escada de raciocínio do Devin é uma propriedade do MODELO**, não do
+  agente: `devin models list --format json` responde `{"families":[…]}` com
+  `variants` que *são* os níveis (`claude-opus-5-low` … `-max`), e a CLI tem um
+  flag só (`--model`). O catálogo desmonta esse eixo em dois — família = linha
+  do picker, variante = degrau da rampa — e `AgentOption.efforts` passa a poder
+  viver na linha. O parser antigo procurava `models`/`data`/`items`/`results`,
+  não achava nada, e o picker caía num catálogo de 7 linhas escrito há meses:
+  a máquina oferece **44 famílias**.
+  (c) **Os gêmeos `-fast`/`-priority` NÃO são degraus.** São o mesmo orçamento
+  de raciocínio em capacidade reservada, ao dobro do preço — um segundo eixo.
+  Na mesma rampa, `gpt-5.6-terra` virava treze colunas de ~48px e truncava
+  "Máximo" e "Máximo · rápido" em "Máximo" e "Máxi…". Cada gêmeo é dobrado no
+  degrau que ele espelha (`AgentOption.fastId`) e a UI desenha um `Switch`.
+  (d) **`--respect-workspace-trust false` é obrigatório.** O prompt de confiança
+  do Devin é só interativo e a própria CLI diz que o modo print falha numa pasta
+  não confiada. O seletor de workspace do Hive **é** a decisão de confiança.
+  (e) **A memória de sessão do Devin vem do `--export`.** É o único lugar em que
+  a CLI diz o `session_id` no modo print. Sem ele nenhum `session` era emitido,
+  nenhum `--resume` voltava, e cada mensagem abria uma sessão nova — o
+  "Iniciando" que nunca terminava era literalmente verdade.
+  (f) **Um caminho vira link só quando o arquivo existe.** O oráculo é a lista
+  viva de arquivos do workspace (`useWorkspaceFiles`, alimentada pelo watcher —
+  o arquivo que o agente acabou de criar é justamente o que se quer clicar).
+  Adivinhar tem os dois piores desfechos possíveis: um link que não abre nada, e
+  um link em cima de `v1.2.3`. Nome sem barra resolve só quando é único.
+  (g) **Os ícones do Devin e do Copilot são as marcas dos fabricantes**, não
+  evocações delas: Copilot é o `copilot-16` do Octicons (MIT, GitHub), Devin é
+  reconstruído do ícone do app da Cognition — três hexágonos de raio 90 a 120°
+  com três círculos de raio 42 mordidos nos encontros (0,5% de pixels
+  divergentes contra o bitmap de 512px). Um seletor de agentes cujas linhas são
+  abstrações de logos obriga a traduzir antes de reconhecer.
+
+## Lessons (Devin de verdade + links de arquivo — 2026-09-03)
+
+- **Um parser escrito contra uma forma que ninguém olhou.** `devin models list
+  --format json` responde `{"families":[…]}`; o código procurava quatro chaves,
+  nenhuma delas essa, e caía no fallback **sem nota de erro visível ao
+  usuário** — a lista parecia só estar desatualizada. A correção veio com uma
+  captura real como fixture (`__fixtures__/devinModelsList.json`), e é ela que
+  cobre os formatos que ninguém inventaria: `MODEL_PRIVATE_12` sem nível no id,
+  `swe-1-7` cujo único lugar que diz "Max" é o rótulo, e gêmeos `1M`.
+- **Prosa É as suas quebras de linha.** O motor compartilhado de CLI partia o
+  stdout em `\n`, **descartava o separador** e ainda pulava linha em branco por
+  ser "vazia". Para o Claude (stream-json) isso é invisível; para o Devin, que
+  imprime markdown puro, soldava a resposta inteira numa linha só — o
+  "texto todo bagunçado inline" do relato. A regra agora é: enquanto nenhuma
+  linha JSON tiver sido parseada, a linha é prosa e sua estrutura é preservada
+  (mais `stripAnsi`, porque o `devin` emite `\x1b[?2004l` ao sair).
+- **Aspas + espaço = argumento partido no Windows.** Ver D39(a). O sintoma não
+  se parece nada com a causa: a mensagem de erro fala de arquivo não encontrado
+  e mostra `http:\127.0.0.1:…\mcp` — as barras invertidas são o `path.resolve`
+  do próprio CLI depois que ele desistiu de fazer `JSON.parse`.
+- **`em` se compõe; `rem` não.** O chip de caminho tinha `font-size: 0.85em` e
+  dentro de um `<code>` (que também tem 0.85em) renderizava a 10,84px contra os
+  12,75px da prosa — o mesmo controle, dois tamanhos, na mesma resposta. Nenhum
+  alvo de contraste reprovou. Sonda de contraste não vê tamanho.
+- **`--surface-2` não é uma placa no tema claro.** Mede **1,006:1** contra
+  `--bg`. Uma sonda que só afirmava "os dois fundos são diferentes" passava; a
+  placa não existia. Pisos de diferença de superfície precisam ser numéricos.
+- **A afordância pode morar no hover — desde que a sonda vá lá.** O chip é
+  deliberadamente calado em repouso (sem borda) porque uma resposta nomeia seis
+  arquivos e seis caixas com borda viram uma página de botões. Isso põe o
+  controle inteiro no hover, então a sonda mede o hover também.
+
 ## Lessons (quatro melhorias de UI: barra de rolagem, controles do Estúdio, menu do commit, logs do Git — 2026-09-02)
 
 - **A declaração que desliga o tema da barra de rolagem.** O painel de modelos

@@ -116,6 +116,45 @@ export interface AgentOption {
    * not enough to know what you are about to run.
    */
   resolvedId?: string
+  /**
+   * Other names this same option answers to — Devin's `opus`, `swe`, `codex`
+   * short names, which "always resolve to the latest version in that family".
+   * They are not shown (the row already has a label); they are what the
+   * picker's search field matches, so someone who knows the model by the only
+   * name they ever type finds it.
+   */
+  aliases?: string[]
+  /**
+   * The id of this same option at **priority capacity** — the CLI's `-fast` /
+   * `-priority` twin: identical reasoning budget, served from a reserved pool,
+   * at roughly double the price.
+   *
+   * It is a second axis, not a rung, and modelling it as one is what made the
+   * control unreadable: Devin's `gpt-5.6-terra` ships six levels × two speeds,
+   * and thirteen columns in a ~48px-per-column ramp truncated "Máximo" and
+   * "Máximo · rápido" into "Máximo" and "Máxi…" — two adjacent steps that look
+   * like the same thing, one of them looking broken. So the ladder carries the
+   * levels and this carries the speed, and the UI renders them as two
+   * controls.
+   */
+  fastId?: string
+  /**
+   * **This model's own effort ladder**, when the CLI's effort levels are a
+   * property of the model rather than of the agent.
+   *
+   * Claude has one ladder for everything (`--effort low…max`), so it declares
+   * `AgentCapabilities.efforts` and leaves this empty. Devin does not: its
+   * `--model` flag takes a *variant*, and the variants of a family **are** its
+   * reasoning levels — `claude-opus-5` ships low/medium/high/xhigh/max (plus
+   * `-fast` twins) while `swe-1.7` ships two rungs and `adaptive` ships none.
+   * A single global ladder cannot describe that; the user's report ("mapeamento
+   * de effort por modelo também não aparece") is exactly this shape missing.
+   *
+   * When present it **replaces** the global ladder for as long as this model is
+   * selected, and each rung's `id` is what the adapter sends — for Devin, the
+   * full variant id, because the CLI has one flag for both axes.
+   */
+  efforts?: AgentOption[]
 }
 
 /**
@@ -155,6 +194,12 @@ export type CapabilityNote =
  */
 export interface AgentCapabilities {
   models: AgentOption[]
+  /**
+   * The agent-wide effort ladder. A model carrying its own `efforts` overrides
+   * this while it is selected (see `AgentOption.efforts`); an agent whose
+   * effort is *always* per-model — Devin — leaves this empty and lets every row
+   * speak for itself.
+   */
   efforts: AgentOption[]
   /** Whether turns may carry `AgentInput.attachments` (R6.5/T16). The UI
    *  gates the attach button + drag-and-drop on this. */
@@ -628,6 +673,14 @@ export interface AgentAdapterDeps {
    * binding degrades to the launch alone.
    */
   shells?: () => ShellInfo[]
+  /**
+   * A directory the adapter may write throwaway per-turn files into — the
+   * Devin adapter's `--export` scratch, which is how that CLI's session id
+   * reaches Hive at all (see `devinCliAdapter.ts`). The app passes a folder
+   * under its own `userData`; absent falls back to the OS temp directory, so
+   * an adapter built without one (tests, probes) still works.
+   */
+  scratchDir?: string
 }
 
 /**

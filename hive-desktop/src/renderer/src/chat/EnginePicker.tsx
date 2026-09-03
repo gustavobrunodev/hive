@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react'
-import { OptionPicker, RampSelect } from '@hive/design-system'
+import { OptionPicker, RampSelect, Switch } from '@hive/design-system'
 import type { PickerOption, RampStep } from '@hive/design-system'
 import { t } from '../i18n'
 import { modelTraitLabel } from '../i18n/pt-BR'
@@ -14,8 +14,12 @@ import {
   TierRouterIcon
 } from '../ui/icons'
 import {
+  atCapacity,
+  baseRung,
   describeOption,
   distinctVendors,
+  effortsFor,
+  fastCapacity,
   formatTokens,
   groupOf,
   groupsFor,
@@ -74,9 +78,15 @@ export function EnginePicker({
   onRefresh,
   refreshing
 }: EnginePickerProps): React.JSX.Element | null {
-  const { models, efforts } = capabilities
+  const { models } = capabilities
   const current = models.find((option) => option.id === model) ?? models[0] ?? null
-  const currentEffort = efforts.find((option) => option.id === effort) ?? null
+  // Not `capabilities.efforts`: on Devin the ladder belongs to the *selected
+  // model* (its variants ARE its reasoning levels), so the control has to be
+  // re-read whenever the row above it changes. See `effortsFor`.
+  const efforts = effortsFor(capabilities, current?.id ?? null)
+  // The value may be either half of a rung/fast-twin pair, so the ramp's
+  // selection is the *base* rung and the capacity is read alongside it.
+  const currentEffort = baseRung(efforts, effort) ?? null
   const byVendor = distinctVendors(models).length > 1
 
   const options = useMemo(
@@ -100,7 +110,9 @@ export function EnginePicker({
       footer={
         <EngineFooter
           capabilities={capabilities}
+          efforts={efforts}
           currentEffort={currentEffort}
+          effortValue={effort}
           onEffortChange={onEffortChange}
           runningModel={runningModel ?? null}
           onRefresh={onRefresh}
@@ -211,22 +223,36 @@ function EffortSpark({
  */
 function EngineFooter({
   capabilities,
+  efforts,
   currentEffort,
+  effortValue,
   onEffortChange,
   runningModel,
   onRefresh,
   refreshing
 }: {
   capabilities: EngineCapabilities
+  /** The ladder in force — the selected model's own, or the agent's. */
+  efforts: EngineOption[]
   currentEffort: EngineOption | null
+  /** The raw chosen id, which may be a rung's fast twin. */
+  effortValue: string | null
   onEffortChange: (id: string) => void
   runningModel: string | null
   onRefresh: () => void
   refreshing: boolean
 }): React.JSX.Element {
+  const capacity = fastCapacity(efforts, effortValue)
   return (
     <div className="wb-engine-foot">
-      {capabilities.efforts.length > 0 && (
+      {efforts.length === 0 && capabilities.models.some((option) => option.efforts) && (
+        // The ladder belongs to a model, and the chosen row has none — the
+        // delegated "Automático", or a router. Saying where the control lives
+        // beats the panel that simply had no effort section at all, which is
+        // what the bug report was looking at.
+        <p className="wb-engine-effort-note">{t('chat.engine.effortPerModel')}</p>
+      )}
+      {efforts.length > 0 && (
         <div className="wb-engine-effort">
           <span className="wb-engine-effort-title">{t('chat.engine.effortHeading')}</span>
           {/* A `RampSelect`, not a segmented track: effort is a *ladder*, and
@@ -237,13 +263,39 @@ function EngineFooter({
               the selection, because the rung names say nothing about what
               actually changes — time and cost — which is the real choice. */}
           <RampSelect
-            steps={effortRungs(capabilities.efforts)}
-            autoStep={autoRung(capabilities.efforts)}
+            steps={effortRungs(efforts)}
+            autoStep={autoRung(efforts)}
             value={currentEffort?.id ?? ''}
-            onChange={onEffortChange}
+            onChange={(id) =>
+              onEffortChange(
+                atCapacity(
+                  efforts.find((rung) => rung.id === id),
+                  capacity.on
+                ) ?? id
+              )
+            }
             ariaLabel={t('chat.engine.effortAria')}
             descriptionFallback={t('chat.engine.effortAria')}
           />
+          {/* The second axis, and deliberately NOT a rung on the ramp above:
+              a fast twin is the same thinking budget served from a reserved
+              pool, so folding it into the climb doubled a control that was
+              already at its column budget. */}
+          {capacity.available && (
+            <label className="wb-engine-fast">
+              <Switch
+                checked={capacity.on}
+                onCheckedChange={(checked) =>
+                  onEffortChange(atCapacity(currentEffort ?? undefined, checked === true) ?? '')
+                }
+                aria-label={t('chat.engine.fastAria')}
+              />
+              <span className="wb-engine-fast-text">
+                <span className="wb-engine-fast-name">{t('chat.engine.fastLabel')}</span>
+                <span className="wb-engine-fast-hint">{t('chat.engine.fastHint')}</span>
+              </span>
+            </label>
+          )}
         </div>
       )}
       <div className="wb-engine-provenance">
@@ -300,14 +352,30 @@ function autoRung(efforts: EngineOption[]): RampStep | undefined {
 /** One capability row → one picker row, with its copy and glyph resolved. */
 function toPickerOption(option: EngineOption, byVendor: boolean): PickerOption {
   const description = describeOption(option)
-  const tags = (option.traits ?? [])
-    // Only the traits nothing else on the row already carries earn a chip.
-    // "topo"/"equilíbrio"/"rápido" are what the tier glyph says; `long-context`
-    // is what the meta column ("1M") and the label ("Sonnet 1M") both say. A
-    // chip repeating either spends the row's scarcest space on nothing.
-    .filter((trait) => trait === 'router' || trait === 'thinking')
+  // The row's own reasoning ladder, counted. It replaces the generic
+  // "raciocínio" chip wherever the number is known: same width, and it answers
+  // "does this model even have levels, and how many" from the list, before the
+  // ramp below is ever looked at.
+  const rungs = (option.efforts ?? []).filter((rung) => rung.id !== '').length
+  const tags = (
+    rungs > 1
+      ? [
+          ...(option.traits ?? [])
+            .filter((trait) => trait === 'router')
+            .map((trait) => modelTraitLabel(trait)),
+          t('chat.engine.effortRungs', rungs)
+        ]
+      : (option.traits ?? [])
+          // Only the traits nothing else on the row already carries earn a chip.
+          // "topo"/"equilíbrio"/"rápido" are what the tier glyph says;
+          // `long-context` is what the meta column ("1M") and the label
+          // ("Sonnet 1M") both say. A chip repeating either spends the row's
+          // scarcest space on nothing.
+          .filter((trait) => trait === 'router' || trait === 'thinking')
+          .map((trait) => modelTraitLabel(trait))
+  )
     .slice(0, 2)
-    .map((trait) => ({ label: modelTraitLabel(trait), tone: 'accent' as const }))
+    .map((label) => ({ label, tone: 'accent' as const }))
   return {
     id: option.id,
     label: option.label,
@@ -321,7 +389,9 @@ function toPickerOption(option: EngineOption, byVendor: boolean): PickerOption {
     ...(tags.length > 0 ? { tags } : {}),
     icon: tierIcon(option.traits, 13),
     group: groupOf(option, byVendor),
-    keywords: [option.vendor, option.resolvedId, option.source].filter(Boolean).join(' ')
+    keywords: [option.vendor, option.resolvedId, option.source, ...(option.aliases ?? [])]
+      .filter(Boolean)
+      .join(' ')
   }
 }
 

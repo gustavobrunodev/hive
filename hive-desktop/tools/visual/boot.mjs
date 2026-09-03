@@ -203,6 +203,11 @@ async (page) => {
         defaults: { model: 'gpt-5.1', effort: null },
         note: 'no-listing'
       },
+      // Devin, in the shape `devinModelCatalog` really detects: models are
+      // model *families*, and each family carries its own reasoning ladder
+      // (its variants). There is no agent-wide `efforts` — that is the whole
+      // point, and a fixture that flattened it would hide the control the
+      // picker now grows per row.
       devin: {
         models: [
           {
@@ -212,7 +217,144 @@ async (page) => {
             traits: ['cli-default'],
             group: 'default',
             source: 'configured',
-            resolvedId: 'swe-1-6-fast'
+            resolvedId: 'adaptive'
+          },
+          {
+            id: 'claude-opus-5',
+            label: 'Claude Opus 5',
+            vendor: 'Anthropic',
+            contextWindow: 1000000,
+            aliases: ['opus'],
+            traits: ['flagship', 'thinking', 'long-context'],
+            group: 'recommended',
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              {
+                id: 'claude-opus-5-low',
+                label: 'Baixo',
+                description: '$5 / 1M Input · $0,5 / 1M Cached input · $25 / 1M Output'
+              },
+              {
+                id: 'claude-opus-5-medium',
+                label: 'Médio',
+                description: '$5 / 1M Input · $0,5 / 1M Cached input · $25 / 1M Output'
+              },
+              {
+                id: 'claude-opus-5-high',
+                label: 'Alto',
+                description: '$5 / 1M Input · $0,5 / 1M Cached input · $25 / 1M Output',
+                fastId: 'claude-opus-5-high-fast'
+              },
+              {
+                id: 'claude-opus-5-xhigh',
+                label: 'Extra',
+                description: '$5 / 1M Input · $0,5 / 1M Cached input · $25 / 1M Output',
+                fastId: 'claude-opus-5-xhigh-fast'
+              },
+              {
+                id: 'claude-opus-5-max',
+                label: 'Máximo',
+                description: '$5 / 1M Input · $0,5 / 1M Cached input · $25 / 1M Output',
+                fastId: 'claude-opus-5-max-fast'
+              }
+            ]
+          },
+          {
+            id: 'claude-sonnet-5',
+            label: 'Claude Sonnet 5',
+            vendor: 'Anthropic',
+            contextWindow: 1000000,
+            aliases: ['sonnet'],
+            traits: ['balanced', 'thinking', 'long-context'],
+            group: 'recommended',
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              { id: 'claude-sonnet-5-low', label: 'Baixo', description: 'Med cost' },
+              { id: 'claude-sonnet-5-medium', label: 'Médio', description: 'Med cost' },
+              { id: 'claude-sonnet-5-high', label: 'Alto', description: 'Med cost' },
+              { id: 'claude-sonnet-5-max', label: 'Máximo', description: 'Med cost' }
+            ]
+          },
+          {
+            id: 'gpt-5.6-terra',
+            label: 'GPT-5.6 Terra',
+            vendor: 'OpenAI',
+            contextWindow: 1000000,
+            aliases: ['gpt'],
+            traits: ['flagship', 'thinking', 'long-context'],
+            group: 'recommended',
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              { id: 'gpt-5-6-terra-none', label: 'Sem raciocínio', description: 'Med cost' },
+              { id: 'gpt-5-6-terra-low', label: 'Baixo', description: 'Med cost' },
+              { id: 'gpt-5-6-terra-medium', label: 'Médio', description: 'Med cost' },
+              { id: 'gpt-5-6-terra-high', label: 'Alto', description: 'Med cost' },
+              { id: 'gpt-5-6-terra-max', label: 'Máximo', description: 'Med cost' }
+            ]
+          },
+          {
+            id: 'gemini-3.8-flash',
+            label: 'Gemini 3.8 Flash',
+            vendor: 'Google',
+            contextWindow: 1048576,
+            aliases: ['gemini'],
+            traits: ['balanced', 'thinking', 'long-context'],
+            group: 'recommended',
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              { id: 'gemini-3-8-flash-low', label: 'Baixo', description: 'Med cost' },
+              { id: 'gemini-3-8-flash-medium', label: 'Médio', description: 'Med cost' },
+              { id: 'gemini-3-8-flash-high', label: 'Alto', description: 'Med cost' }
+            ]
+          },
+          {
+            id: 'swe-1.7-lightning',
+            label: 'SWE-1.7 Lightning',
+            vendor: 'Cognition',
+            contextWindow: 202752,
+            aliases: ['swe'],
+            traits: ['balanced', 'thinking'],
+            group: 'recommended',
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              { id: 'swe-1-7-lightning-medium', label: 'Médio', description: 'Med cost' },
+              { id: 'swe-1-7-lightning', label: 'Máximo', description: 'Med cost' }
+            ]
           },
           {
             id: 'adaptive',
@@ -224,40 +366,25 @@ async (page) => {
             source: 'detected'
           },
           {
-            id: 'swe-1-6-fast',
-            label: 'SWE 1.6 Fast',
-            description: 'Cognition\u2019s software-engineering model, tuned for speed',
-            vendor: 'Cognition',
-            traits: ['balanced'],
+            id: 'glm-5.3',
+            label: 'GLM-5.3',
+            vendor: 'Z.ai',
+            contextWindow: 1048576,
+            traits: ['fast', 'thinking', 'long-context'],
             group: 'recommended',
-            source: 'detected'
-          },
-          {
-            id: 'opus',
-            label: 'Opus',
-            descriptionKey: 'devin.opus',
-            vendor: 'Anthropic',
-            traits: ['flagship', 'thinking'],
-            group: 'recommended',
-            source: 'detected'
-          },
-          {
-            id: 'gpt',
-            label: 'GPT',
-            descriptionKey: 'devin.gpt',
-            vendor: 'OpenAI',
-            traits: ['flagship'],
-            group: 'more',
-            source: 'detected'
-          },
-          {
-            id: 'gemini',
-            label: 'Gemini',
-            descriptionKey: 'devin.gemini',
-            vendor: 'Google',
-            traits: ['balanced'],
-            group: 'more',
-            source: 'detected'
+            source: 'detected',
+            efforts: [
+              {
+                id: '',
+                label: 'Automático',
+                descriptionKey: 'effort.cliDefault',
+                traits: ['cli-default'],
+                group: 'default'
+              },
+              { id: 'glm-5-3-low', label: 'Baixo', description: 'Low cost' },
+              { id: 'glm-5-3-high', label: 'Alto', description: 'Low cost' },
+              { id: 'glm-5-3-max', label: 'Máximo', description: 'Low cost' }
+            ]
           }
         ],
         efforts: [],
@@ -265,7 +392,7 @@ async (page) => {
         supportsResume: true,
         provider: { id: 'cognition', detail: null },
         modelSource: 'detected',
-        defaults: { model: 'swe-1-6-fast', effort: null }
+        defaults: { model: 'adaptive', effort: null }
       }
     }
 
@@ -738,7 +865,20 @@ async (page) => {
         { name: 'logo.svg', path: 'logo.svg', type: 'file' },
         { name: 'notas.txt', path: 'notas.txt', type: 'file' }
       ]),
-      listFiles: ok(['README.md', 'docs/ux-spec.md']),
+      // chat-file-links: the oracle that decides which paths in a reply are
+      // openable. Wide enough that a scene can name real ones AND a path that
+      // is deliberately not here, so a pass can see both outcomes side by side.
+      listFiles: ok([
+        'README.md',
+        'docs/ux-spec.md',
+        'docs/prd.md',
+        'package.json',
+        'src/main/agentService.ts',
+        'src/main/devinCliAdapter.ts',
+        'src/renderer/src/chat/Chat.tsx',
+        'src/renderer/src/assets/workbench.css',
+        'logo.svg'
+      ]),
       readFile: ok('# README\n'),
       watchWorkspace: (root, onChange) => {
         state.watchers.push(onChange)

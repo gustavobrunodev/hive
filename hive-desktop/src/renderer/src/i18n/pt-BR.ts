@@ -350,6 +350,22 @@ export const ptBR = {
       searchPlaceholder: 'Buscar modelo…',
       empty: 'Nenhum modelo com esse nome',
       effortHeading: 'Esforço de raciocínio',
+      // No Devin o esforço é uma propriedade do MODELO — cada família traz as
+      // próprias variantes de raciocínio. Com "Automático" escolhido não há
+      // escada nenhuma para mostrar, e o painel calado é exatamente o defeito
+      // relatado ("mapeamento de effort por modelo não aparece"). Esta linha
+      // ocupa o lugar da rampa e diz onde o controle está.
+      effortPerModel: 'O nível de raciocínio vem do modelo — escolha um acima para ajustá-lo.',
+      // O selo da linha do modelo: quantos degraus aquela família oferece.
+      // Substitui a etiqueta genérica "raciocínio" quando o número é sabido —
+      // é a mesma largura dizendo muito mais.
+      effortRungs: (count: number) => `${count} níveis`,
+      // O segundo eixo do Devin: mesma capacidade de raciocínio, servida de um
+      // pool reservado, por perto do dobro do preço. É um interruptor e não um
+      // degrau da rampa porque não é "mais raciocínio", é "menos fila".
+      fastLabel: 'Capacidade prioritária',
+      fastHint: 'Mesma capacidade de raciocínio, menos fila — custa cerca do dobro.',
+      fastAria: 'Usar capacidade prioritária neste nível',
       // O degrau delegado, dentro de uma coluna de ~48px da rampa e do chip do
       // gatilho. "Automático" por extenso trunca para "Automáti…", que se lê
       // como falha de renderização e não como escolha.

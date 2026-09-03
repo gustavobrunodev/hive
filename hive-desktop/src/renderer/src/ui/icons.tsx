@@ -747,41 +747,59 @@ export function AlertTriangleIcon({ size, ...rest }: IconProps): React.JSX.Eleme
 }
 
 /**
- * Agent brand marks (multi-agent) — distinctive per-agent glyphs for the
- * onboarding picker, profile, composer switcher and history badges. Abstract
- * evocations (a radial spark, a pilot ring, an orbiting node), NOT reproductions
- * of the vendors' trademarks; they share the app's geometric family so three
- * agents read as one system with three identities.
+ * Agent brand marks (multi-agent) — the glyph each agent is known by, in the
+ * onboarding picker, the profile, the composer switcher and the history badges.
+ *
+ * Devin's and Copilot's are the vendors' **own marks**, not evocations of them:
+ * an agent picker whose rows are abstractions of logos makes the user translate
+ * before they can recognise, and the whole job of this glyph is to be
+ * recognised. Where they came from, and under what terms:
+ *
+ *  - **Copilot** — GitHub's own `copilot-16` from Octicons (MIT), used
+ *    verbatim. Two subpaths: the visor/face, and the two eyes.
+ *  - **Devin** — reconstructed from Cognition's shipped app icon
+ *    (`app.devin.ai/assets/pwa/pwa-icon-512.png`), traced and then rebuilt from
+ *    the geometry the trace revealed rather than left as a polygon: three
+ *    regular pointy-top hexagons (circumradius 90 in the source's units) whose
+ *    centres sit 120 apart at 120° intervals, with three circles of radius 42
+ *    bitten out where they meet — each tangent to the two hexagon edges it
+ *    lands between. Rebuilt that way the path is 250 bytes and exact at any
+ *    size; the reconstruction was verified against the source bitmap at 512px
+ *    (0.5% differing pixels, all of them the antialiased boundary band).
+ *
+ * Both are **filled** (`fill="currentColor"`, no stroke), unlike the rest of
+ * this file's stroked set — a brand mark carries its own weight, and re-drawing
+ * one as a 1.5px outline is exactly the "evocation" that stopped it being
+ * recognisable. They still take their colour from the text role they sit in.
  */
 
-/** Claude — a radial burst/spark (Anthropic's mark reads as a starburst). */
+/** Claude — Anthropic's radial burst. */
 export function AgentClaudeIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
-    <svg {...base(size)} {...rest}>
-      <path d="M8 1.5v13M3.4 3.4l9.2 9.2M1.5 8h13M3.4 12.6l9.2-9.2" />
+    <svg {...base(size)} {...rest} strokeWidth={1.9}>
+      <path d="M8 1.9v12.2M3.4 3.4l9.2 9.2M1.9 8h12.2M3.4 12.6l9.2-9.2" />
     </svg>
   )
 }
 
-/** GitHub Copilot — a pilot ring with goggle eyes (friendly co-pilot). */
+/**
+ * GitHub Copilot — Octicons `copilot-16`, verbatim (MIT, © GitHub Inc.).
+ * The viewBox is already 16×16, so no transform is involved.
+ */
 export function AgentCopilotIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
-    <svg {...base(size)} {...rest}>
-      <path d="M2.5 9.2c0-2.5 2.2-4 5.5-4s5.5 1.5 5.5 4c0 2-1.4 3.3-3 3.3-1 0-1.7-.5-2.5-.5s-1.5.5-2.5.5c-1.6 0-3-1.3-3-3.3Z" />
-      <path d="M8 5.2 7.2 2.6M8 5.2l1-2.6" />
-      <circle cx="5.6" cy="9.2" r="1.05" fill="currentColor" stroke="none" />
-      <circle cx="10.4" cy="9.2" r="1.05" fill="currentColor" stroke="none" />
+    <svg {...base(size)} {...rest} fill="currentColor" stroke="none">
+      <path d="M7.998 15.035c-4.562 0-7.873-2.914-7.998-3.749V9.338c.085-.628.677-1.686 1.588-2.065.013-.07.024-.143.036-.218.029-.183.06-.384.126-.612-.201-.508-.254-1.084-.254-1.656 0-.87.128-1.769.693-2.484.579-.733 1.494-1.124 2.724-1.261 1.206-.134 2.262.034 2.944.765.05.053.096.108.139.165.044-.057.094-.112.143-.165.682-.731 1.738-.899 2.944-.765 1.23.137 2.145.528 2.724 1.261.566.715.693 1.614.693 2.484 0 .572-.053 1.148-.254 1.656.066.228.098.429.126.612.012.076.024.148.037.218.924.385 1.522 1.471 1.591 2.095v1.872c0 .766-3.351 3.795-8.002 3.795Zm0-1.485c2.28 0 4.584-1.11 5.002-1.433V7.862l-.023-.116c-.49.21-1.075.291-1.727.291-1.146 0-2.059-.327-2.71-.991A3.222 3.222 0 0 1 8 6.303a3.24 3.24 0 0 1-.544.743c-.65.664-1.563.991-2.71.991-.652 0-1.236-.081-1.727-.291l-.023.116v4.255c.419.323 2.722 1.433 5.002 1.433ZM6.762 2.83c-.193-.206-.637-.413-1.682-.297-1.019.113-1.479.404-1.713.7-.247.312-.369.789-.369 1.554 0 .793.129 1.171.308 1.371.162.181.519.379 1.442.379.853 0 1.339-.235 1.638-.54.315-.322.527-.827.617-1.553.117-.935-.037-1.395-.241-1.614Zm4.155-.297c-1.044-.116-1.488.091-1.681.297-.204.219-.359.679-.242 1.614.091.726.303 1.231.618 1.553.299.305.784.54 1.638.54.922 0 1.28-.198 1.442-.379.179-.2.308-.578.308-1.371 0-.765-.123-1.242-.37-1.554-.233-.296-.693-.587-1.713-.7Z" />
+      <path d="M6.25 9.037a.75.75 0 0 1 .75.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 .75-.75Zm4.25.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 1.5 0Z" />
     </svg>
   )
 }
 
-/** Devin — an orbiting node (autonomous agent circling a task). */
+/** Devin — Cognition's interlocking-hexagon mark (see the note above for how this path was derived). */
 export function AgentDevinIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
-    <svg {...base(size)} {...rest}>
-      <circle cx="8" cy="8" r="2.4" />
-      <ellipse cx="8" cy="8" rx="6" ry="2.6" transform="rotate(32 8 8)" />
-      <circle cx="12.7" cy="5.7" r="1.05" fill="currentColor" stroke="none" />
+    <svg {...base(size)} {...rest} fill="currentColor" stroke="none">
+      <path d="M4.98 1.5L7.6 3.01L7.6 4.52A1.41 1.41 0 0 0 9.71 5.74L11.02 4.98L13.63 6.49L13.63 9.51L11.02 11.02L9.71 10.26A1.41 1.41 0 0 0 7.6 11.48L7.6 12.99L4.98 14.5L2.37 12.99L2.37 9.98L4.98 8.47L6.29 9.22A1.41 1.41 0 1 0 6.29 6.78L4.98 7.53L2.37 6.02L2.37 3.01Z" />
     </svg>
   )
 }

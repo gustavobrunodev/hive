@@ -27,7 +27,8 @@ import { shortcutIcon } from '../ui/roleVisuals'
 import { FileTypeIcon } from '../ui/fileIcons'
 import type { RoleAction } from '../ui/ActionRail'
 import { EnginePicker } from './EnginePicker'
-import { pickInitial, type EngineCapabilities } from './engineOptions'
+import { carryEffort, effortsFor, pickInitial, type EngineCapabilities } from './engineOptions'
+import { useWorkspaceFiles } from './useWorkspaceFiles'
 import { IntentGrid } from './IntentGrid'
 import { SlashMenu, type SlashSkill } from './SlashMenu'
 import { FileMentionMenu } from './FileMentionMenu'
@@ -795,6 +796,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   ref
 ) {
   const [capabilities, setCapabilities] = useState<AgentCapabilities | null>(null)
+  // chat-file-links: the live oracle that decides which paths in a reply are
+  // real files (and so become links). Live because the file the agent just
+  // created is exactly the one the user wants to click.
+  const workspaceFiles = useWorkspaceFiles(workspace)
   const [model, setModel] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
   // model-picker: a re-detection is in flight (the picker's "Redetectar").
@@ -1002,8 +1007,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // the user configured themselves is exactly the surprise this feature
       // exists to end.
       const remembered = enginePrefs.current.get(activeAgent ?? '')
-      setModel(pickInitial(caps.models, remembered?.model))
-      setEffort(pickInitial(caps.efforts, remembered?.effort))
+      const restored = pickInitial(caps.models, remembered?.model)
+      setModel(restored)
+      // The ladder is the selected model's own on an agent whose efforts are
+      // per model (Devin), so it can only be resolved once the model is.
+      setEffort(pickInitial(effortsFor(caps, restored), remembered?.effort))
     })
     return () => {
       cancelled = true
@@ -1019,8 +1027,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       .capabilities(activeAgent ?? undefined, { workspace, refresh: true })
       .then((caps) => {
         setCapabilities(caps)
-        setModel((current) => pickInitial(caps.models, current ?? undefined))
-        setEffort((current) => pickInitial(caps.efforts, current ?? undefined))
+        setModel((current) => {
+          const next = pickInitial(caps.models, current ?? undefined)
+          setEffort((rung) => pickInitial(effortsFor(caps, next), rung ?? undefined))
+          return next
+        })
       })
       .finally(() => setDetecting(false))
   }, [activeAgent, workspace])
@@ -1427,6 +1438,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [onOpenFile, workspace]
   )
 
+  /**
+   * chat-file-links: opens a file the *reply text* named. Already
+   * workspace-relative (the oracle resolved it), so unlike `openEditedFile`
+   * there is nothing left to translate — and `undefined` when the host has no
+   * editor, which is what makes the paths render as plain text again instead
+   * of as buttons that do nothing.
+   */
+  const openNamedFile = useMemo(
+    () => (onOpenFile === undefined ? undefined : (path: string): void => onOpenFile(path)),
+    [onOpenFile]
+  )
+
   // agent-approvals: releases the CLI child parked on this request. The card
   // keeps its answered state in place — in the transcript, where it was asked
   // — so the record of what was authorized survives the decision.
@@ -1757,7 +1780,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   function assistantBody(text: string): React.JSX.Element {
     return (
       <div className="wb-chat-md wb-md">
-        <Markdown source={text} />
+        {/* Every workspace file the reply names is a link that opens it
+            (chat-file-links). `workspaceFiles` is what makes that safe: only
+            paths that really exist become links. */}
+        <Markdown source={text} files={workspaceFiles} onOpenPath={openNamedFile} />
       </div>
     )
   }
@@ -1845,7 +1871,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           effort={effort}
           onModelChange={(id) => {
             setModel(id)
-            rememberEngine({ model: id })
+            // Changing the model can change the ladder under it (Devin's rungs
+            // are that model's own variants). Carrying the *position* by name
+            // keeps someone who reads at "Máximo" reading at "Máximo".
+            const carried = carryEffort(
+              effortsFor(capabilities, model),
+              effort,
+              effortsFor(capabilities, id)
+            )
+            setEffort(carried)
+            rememberEngine({ model: id, ...(carried === null ? {} : { effort: carried }) })
           }}
           onEffortChange={(id) => {
             setEffort(id)
