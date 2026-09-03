@@ -151,11 +151,16 @@ mais seis checagens de teclado/ARIA. Três lições que custaram uma rodada cada
   **o mesmo cinza**: o CSS pedia `var(--ink-2)`, que este sistema não define, e
   um `var()` insolúvel herda em silêncio. Um painel achatado é perfeitamente
   legível. A sonda agora afirma que rótulo ≠ meta e que o corpo tem tinta cheia.
-  O vocabulário real é `--ink` / `--muted` / `--faint` — **não existe `--ink-2`**
-  (e ainda há seis usos herdados dele em `workbench.css`, todos herdando calados:
-  `.wb-mcpturn-chip`, `.wb-gitlog-stderr`, `.wb-mcplog-source-path`,
-  `.wb-dstudio-origin-text` e mais dois botões, linhas 13506/15966/16766/16836/
-  17417/17436).
+  O vocabulário real é `--ink` / `--muted` / `--faint` — **não existe `--ink-2`**.
+  Havia mais seis usos herdados dele em `workbench.css`, todos herdando calados;
+  corrigidos na mesma rodada e medidos nos três temas (12 pares, todos verdes).
+  Dois deles eram **código morto** — `.wb-mcpturn-chip` e `.wb-mcplog-pill` são
+  contêineres cujos filhos de texto já definem a própria cor —, e a correção ali
+  foi **remover** a declaração: um `var()` insolúvel numa propriedade herdada
+  computa para o valor herdado, que é exatamente o que a ausência da declaração
+  faz. Os outros quatro (`.wb-gitlog-stderr`, `.wb-mcplog-source-path`,
+  `.wb-dstudio-origin-text`, `.wb-dstudio-origin-dismiss`) ganharam o papel que
+  o nome tentava dizer.
 - **`textContent` não é o nome acessível.** Filhos de um flex saem colados
   (`"Rodounpm run verify10 linhas"`) enquanto o cálculo de nome do Chromium
   espaça certo e descarta o que é `aria-hidden`. Uma sonda que lê `textContent`

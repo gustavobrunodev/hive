@@ -13503,7 +13503,11 @@ span.wb-change-card-open {
   padding: 1px 7px;
   border-radius: var(--rounded-full);
   background: var(--surface);
-  color: var(--ink-2);
+  /* Sem `color` de propósito: os dois filhos de texto (`-name`, `-count`)
+     definem a sua, então uma cor aqui nunca pinta nada. Havia um
+     `var(--ink-2)` — token que este sistema não tem —, e um `var()` insolúvel
+     numa propriedade herdada computa para o valor herdado: removê-lo é
+     literalmente o que o navegador já fazia, menos a afirmação falsa. */
   font-size: 0.7rem;
 }
 .wb-mcpturn-chip[data-status='connected'] {
@@ -15952,7 +15956,10 @@ span.wb-change-card-open {
   padding: var(--s-2) var(--s-3);
   border-radius: var(--rounded-sm);
   background: var(--bg);
-  color: var(--ink-2);
+  /* Tinta cheia: este bloco é a mensagem de erro do comando que falhou — a
+     razão de alguém abrir este dock. Pedia `--ink-2`, que não existe, e herdava
+     a cor da linha. */
+  color: var(--ink);
   font-family: var(--ff-mono);
   font-size: 0.72rem;
   line-height: 1.5;
@@ -16752,7 +16759,8 @@ button.wb-mcplog-summary:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--rounded-full);
   background: var(--surface);
-  color: var(--ink-2);
+  /* Sem `color`: `-name`, `-state` e `-count` definem a sua. Mesmo
+     `var(--ink-2)` inexistente do `.wb-mcpturn-chip` — ver a nota lá. */
   font-size: 0.72rem;
   cursor: pointer;
   transition:
@@ -16822,7 +16830,10 @@ button.wb-mcplog-summary:focus-visible {
   padding: 2px 6px;
   border-radius: var(--rounded-sm);
   background: var(--surface-2);
-  color: var(--ink-2);
+  /* Tinta cheia: o comentário acima diz que a cauda deste caminho é a metade
+     diagnóstica, e havia um `var(--ink-2)` inexistente enfraquecendo
+     justamente o que o estado vazio existe para mostrar. */
+  color: var(--ink);
   font-family: var(--ff-mono);
   font-size: 0.7rem;
   overflow-wrap: anywhere;
@@ -17403,7 +17414,9 @@ button.wb-mcplog-summary:focus-visible {
 .wb-dstudio-origin-text {
   flex: 1;
   min-width: 0;
-  color: var(--ink-2);
+  /* Texto de apoio ao lado do link que é a ação da faixa — `--muted` é o papel
+     real, e era o que `var(--ink-2)` (inexistente) tentava nomear. */
+  color: var(--muted);
 }
 
 .wb-dstudio-origin-link {
@@ -17422,7 +17435,8 @@ button.wb-mcplog-summary:focus-visible {
   border: 0;
   border-radius: var(--r-1);
   background: none;
-  color: var(--ink-2);
+  /* Mesmo papel dos outros botões de ícone discretos do app. */
+  color: var(--muted);
   cursor: pointer;
 }
 

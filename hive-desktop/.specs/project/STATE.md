@@ -3336,6 +3336,15 @@ reais saíram dele e estão em `docs/visual-validation.md` — a sonda cega a
 `oklch()`, o `var(--ink-2)` que não existe neste sistema (e que achatava o painel
 inteiro num cinza só) e o `aria-controls` pendurado numa linha fechada.
 
+O `--ink-2` tinha **mais seis usos herdados** em `workbench.css`, todos herdando
+calados; corrigidos em seguida e medidos nos três temas (12 pares, todos verdes).
+Dois eram código morto — `.wb-mcpturn-chip` e `.wb-mcplog-pill` são contêineres
+cujos filhos já definem a própria cor — e ali a correção foi **remover** a
+declaração, que é literalmente o que o navegador já fazia. Os outros quatro
+ganharam o papel que o nome tentava dizer: tinta cheia no stderr do console Git e
+no caminho de cache do console MCP (conteúdo diagnóstico, a razão de abrir aquelas
+telas), `--muted` no texto e no descarte da faixa de origem do Design Studio.
+
 ---
 
 ## Preferences
