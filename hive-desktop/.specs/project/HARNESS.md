@@ -629,7 +629,52 @@ próxima rodada não o re-adicionar.
 | — | Checagem de **hierarquia**, ao lado da de contraste | `tools/visual/tool-details-contrast.mjs` | Os 14 alvos passaram com folga num build em que rótulo, meta e corpo eram o mesmo cinza — `var(--ink-2)` não existe neste sistema e um `var()` insolúvel herda calado. Contraste não vê achatamento; a sonda agora afirma que rótulo ≠ meta. É a primeira rachadura no limite "P3 cobre contraste, não estética". |
 | — | Passe de teclado/ARIA do disclosure | `tools/visual/tool-details-a11y.mjs` | Achou `aria-controls` pendurado (o corpo é desmontado quando fechado). Também fixa que nome acessível se mede por `ariaSnapshot`, não por `textContent` — os dois discordam em filhos de flex. |
 
+### 2026-09-04 — csv-editor + explorador: três sensores novos, e um screenshot que mente
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Sonda de contraste da planilha e da árvore — 15 alvos × 3 temas + 9 afirmações estruturais | `tools/visual/csv-contrast.mjs` | Nasceu com o `parse` por canvas (regra de 2026-09-02) e com a composição de alfa. Achou **três reprovações reais**: a tinta do acento sobre o próprio tint (`--selected` sobre `--selected-bg`) a 4,02:1 no escuro e 4,18:1 no Hive, na pílula do cabeçalho e no número da linha atual — corrigidas com `--accent-tint-ink`, o token que existe exatamente para esse par. |
+| — | Afirmação de **opacidade** no que é `position: sticky` | `tools/visual/csv-contrast.mjs` | O cabeçalho da coluna sob o cursor era pintado só com `--selected-bg` (16% de alfa): as linhas rolavam **por dentro** do nome da coluna. A regra geral: um elemento grudado é uma superfície opaca, e um tint nele é uma CAMADA (`background-image` sobre `background-color`), nunca a substituição dela. Contraste não pega isso — a sonda mede o alfa direto. |
+| — | Passe funcional da grade real | `tools/visual/csv-pass.mjs` | Os testes unitários usam um duble do `DataGrid` (um campo por célula), então nada neles toca o teclado de planilha, a mira, a única parada de tabulação, nem o caminho tabela → rascunho → `saveFile`. Este passe dirige a grade de verdade e afirma que o arquivo salvo **mantém as aspas** que já estavam nele. |
+| — | Cena com planilha irregular | `tools/visual/csv-explorer.mjs` | Campo com vírgula dentro de aspas, coluna numérica, coluna de datas (que não pode ser lida como número) e célula vazia. Uma fixture regular deixaria passar exatamente os erros que um editor de CSV comete. |
+
+Três armadilhas de sonda pagas nesta rodada, todas em `docs/visual-validation.md`:
+**o screenshot de página inteira pode congelar o retângulo de um painel** (provado
+pintando o fundo de verde-limão à força — a cor não aparece na captura, mas
+aparece no recorte); **a container query esconde o interruptor rotulado assim que
+o arquivo fica sujo** (a sonda tem que aceitar as duas formas do controle); e **a
+caixa de uma linha de pasta contém as linhas filhas**, então clicar no centro
+dela pousa no filho.
+
+### 2026-09-05 — engine-pins + run-config: um runner de cena sem o MCP
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | Gate de cobertura 90/90/90/90 em `enginePins.ts` e `useRunConfig.ts` | `vitest.config.ts` | São a *ordem* em que todo controle de motor abre (escolha da sessão → pin → padrão da CLI) e o estado que quatro superfícies compartilham. Um erro aqui não lança: manda a CLI rodar num modelo que o usuário não escolheu, ou ignora calado o padrão que ele fixou. |
+| — | Passe funcional + contraste do run-config e do pin — 20 afirmações × 3 temas | `tools/visual/run-config-pass.mjs` | O pin é uma decisão que atravessa IPC, um store de módulo e quatro telas; e o painel do motor agora abre **dentro de uma `Sheet`**, portalizado para fora dela — nada disso é visível para um teste com o `OptionPicker` dublado. A sonda fixa uma linha pelo painel real, troca de agente e confere que a releitura pousa no modelo fixado. |
+| — | Runner de cena independente do MCP | `tools/visual/run-scene.mjs` | O navegador do MCP é um perfil só: outra sessão do Claude o tranca (`Browser is already in use`) e o tool não expõe `--isolated`. Sem isto, o passe visual — que é parte do trabalho, não formalidade — fica refém de quem abriu o navegador primeiro. Roda os **mesmos** arquivos de cena, então não há um segundo dialeto de sonda para manter. |
+
 ## 7. O que deliberadamente não existe
+
+### 2026-09-05 — context-compaction: dois sensores ao vivo e uma cena nova
+
+**Controles novos**
+
+| Controle | O que mede | Por que ele existe |
+| --- | --- | --- |
+| `src/main/claudeLive.e2e.test.ts` (novo) | Que `/compact` pelo **adapter do Hive** contra o `claude` real ainda devolve `compact_boundary`, com `pre > post`, e que o handle de `--resume` **sobrevive** à compactação. | A feature inteira aposta em dirigir a compactação nativa da CLI em vez de reinventar uma. "A CLI aceita `/compact` em `-p`" é um fato sobre um binário que sai no calendário dele; o parse está coberto por unidade contra um payload capturado, e este é o lado que prova que o payload ainda chega. Custa dois turnos de `haiku`. |
+| `devinLive.e2e.test.ts` › "compacts its own context when asked" | Que `/compact` como prompt ACP compacta de verdade no `devin` real e devolve `cognition.ai/compaction` com resumo — e que o `trigger` continua `manual` depois de o turno já ter terminado. | Pegou um defeito que o servidor ACP falso não pegava: contra o CLI real, `session/prompt` resolve `end_turn` **antes** de a compactação começar, e o estado do turno era resetado antes da notificação chegar. É a classe "ordenação assíncrona que só o processo de verdade tem". |
+| `tools/visual/compaction-pass.mjs` (novo) | 20 afirmações funcionais (completar em vez de disparar, o token só para comando que existe, a costura ocupando a coluna com a marca centrada, o resumo abrindo, o medidor não dizendo "0%") + 13 alvos de contraste, em dois momentos. | Passe visual da rodada, nos três temas. Achou um defeito real de produto (`--faint` a 3,1–3,7:1 na dica de argumento) e quatro defeitos de sonda, todos registrados em `docs/visual-validation.md`. |
+
+**Globs de cobertura acrescentados** (§5b): `chat/slashCommands.ts` e
+`chat/compaction.ts`, a 90% per-file — são regras (o que um `/` significa, e
+quando o Hive gasta um turno sem ninguém pedir), não renderização.
+
+**Um hábito corrigido.** A sonda de contraste desta cena nasceu compondo o
+fundo **de cima para baixo** a partir de `document.body` e reportou 1,13:1 para
+tinta comum no tema claro — nove falsos negativos. O bloco correto já existia
+em `csv-contrast.mjs` (sobe até o primeiro fundo opaco, `html` incluído). Toda
+sonda nova deve **copiar aquele bloco**, não reescrevê-lo.
 
 Cada linha é uma decisão, não um backlog. Estão aqui para que a próxima rodada
 — humana ou agente — não as re-proponha como ideia nova, e para que dê para

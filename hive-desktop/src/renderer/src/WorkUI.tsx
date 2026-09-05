@@ -15,7 +15,7 @@ import { t } from './i18n'
 import { FileTree, FileViewer } from './explorer/Explorer'
 import { Chat, type ChatHandle } from './chat/Chat'
 import { SessionHistory } from './chat/SessionHistory'
-import { EditorTabs } from './ui/EditorTabs'
+import { EditorTabs, type EditorTabActions } from './ui/EditorTabs'
 import { useEditorTabs } from './ui/useEditorTabs'
 import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
@@ -58,9 +58,12 @@ import { GitOpToast } from './ui/GitOpToast'
 import type { RowSide } from './scm/ChangeGroups'
 import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './profile/ProfileSheet'
+import { AwsLoginBeacon } from './aws/AwsLoginBeacon'
+import { useAwsSession } from './aws/useAwsSession'
 import type { ProfileScope } from './profile/scopes'
 import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
+import type { RunLaunchOpts } from './chat/useRunConfig'
 import { McpManager } from './ui/McpManager'
 import { UpdateCenter } from './ui/UpdateCenter'
 import { UpdateNotice } from './ui/UpdateNotice'
@@ -75,6 +78,7 @@ import { HiveLogo } from './ui/HiveLogo'
 import { ThemePicker } from './ui/ThemePicker'
 import type { Theme } from './ui/theme'
 import { ChevronDownIcon, FolderIcon, FolderOpenIcon, RefreshIcon, UserIcon } from './ui/icons'
+import { copyText } from './ui/clipboard'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -148,6 +152,13 @@ function buildPanels(
 }
 
 /** Last path segment of an absolute workspace path (both separators, so a Windows path renders its folder name too). */
+/** What the unsaved-changes guard calls a tab: the file's own name, not the synthetic diff key. */
+function tabLabel(tabPath: string): string {
+  const withoutMarker = tabPath.replace(/^⟨[a-z]+⟩/, '').split('?')[0] ?? tabPath
+  const slash = withoutMarker.lastIndexOf('/')
+  return slash === -1 ? withoutMarker : withoutMarker.slice(slash + 1)
+}
+
 function workspaceName(workspace: string): string {
   const segments = workspace.split(/[/\\]/).filter(Boolean)
   return segments[segments.length - 1] ?? workspace
@@ -378,6 +389,65 @@ export function WorkUI({
       // persistence is a nicety, not a hard requirement
     }
   }, [])
+  // The file the tree has been asked to point at. `nonce` and not just a path,
+  // so revealing the same file twice in a row is two requests (see
+  // `FileTreeProps.revealRequest`).
+  const [revealRequest, setRevealRequest] = useState<{ path: string; nonce: number } | null>(null)
+
+  /**
+   * Open a file AND show where it lives — what every IDE does when a file
+   * arrives from somewhere other than the tree.
+   *
+   * The sidebar is a single slot in this app, so "reveal" also means bringing
+   * the Explorer back if the user was in Source Control: the request would
+   * otherwise land on a tree nobody can see. Deliberately scoped to the
+   * Ctrl+P palette, where the user has just gone looking for a file by name
+   * and "where is it?" is the next question — not to every open, which would
+   * yank the sidebar away from someone reading a diff.
+   */
+  const openAndReveal = useCallback(
+    (path: string) => {
+      editor.openFile(path)
+      setActiveView('explorer')
+      setRevealRequest((current) => ({ path, nonce: (current?.nonce ?? 0) + 1 }))
+    },
+    [editor, setActiveView]
+  )
+
+  /**
+   * The editor tab menu's actions (VS Code parity).
+   *
+   * The close family is the tab model's own; the bottom group is the same
+   * three things the file tree's row menu offers for a path, wired to the same
+   * bridge calls — one vocabulary, whether you right-click a row or the tab it
+   * opened into.
+   */
+  const tabActions = useMemo<EditorTabActions>(
+    () => ({
+      closeOthers: editor.closeOtherTabs,
+      closeToTheRight: editor.closeTabsToTheRight,
+      closeSaved: editor.closeSavedTabs,
+      closeAll: editor.closeAllTabs,
+      keepOpen: editor.pinTab,
+      copyPath: (filePath, kind) => {
+        const resolved =
+          kind === 'relative'
+            ? Promise.resolve(filePath)
+            : window.hive.fs.absolutePath(workspace, filePath)
+        void Promise.resolve(resolved)
+          .then((text) => copyText(text))
+          .catch(() => {})
+      },
+      revealInTree: (filePath) => {
+        setActiveView('explorer')
+        setRevealRequest((current) => ({ path: filePath, nonce: (current?.nonce ?? 0) + 1 }))
+      },
+      revealInOs: (filePath) => {
+        void Promise.resolve(window.hive.fs.revealPath(workspace, filePath, false)).catch(() => {})
+      }
+    }),
+    [editor, workspace, setActiveView]
+  )
 
   // Branch checkout (GIT-R6.3): dirty editor drafts park behind the same
   // three-way guard the workspace switch uses (logic in useCheckoutGuard).
@@ -412,6 +482,13 @@ export function WorkUI({
   // voice-settings: a deep link into one scope of the profile sheet (the
   // ingestion sheet's "Alterar" points at `voice`). `null` opens the index.
   const [profileScope, setProfileScope] = useState<ProfileScope | null>(null)
+  // aws-bedrock: the app-level subscription. The beacon has to be able to
+  // appear with no AWS surface open at all, so the subscription lives here
+  // rather than inside the panel that usually shows it.
+  const aws = useAwsSession(true, workspace)
+  // Which profile detail is open *right now* — not the one that was deep-linked
+  // to. The beacon steps aside only for the scope that draws the same login.
+  const [openProfileScope, setOpenProfileScope] = useState<ProfileScope | null>(null)
   // shortcut-customization: the "Personalizar atalhos" picker dialog — `null`
   // while closed, otherwise the scope it opened on.
   const [shortcutsScope, setShortcutsScope] = useState<ShortcutScope | null>(null)
@@ -480,11 +557,14 @@ export function WorkUI({
   // what happened and offers the way back, so "in the background" never means
   // "gone".
   const launchBrainAction = useCallback(
-    (action: RoleAction) => {
+    (action: RoleAction, opts?: RunLaunchOpts) => {
       if (action.key === SECOND_BRAIN_INGEST.key) noteIngest()
       else if (action.key === SECOND_BRAIN_LINT.key) noteLint()
       const backgrounded = activeSessionId
-      chatRef.current?.launchCreation(action)
+      // The agent/model the capture surface picked travels with the launch —
+      // the conversation that opens *is* the one the user configured, badge,
+      // lock and all (`launchCreation` adopts `agentId` as its agent).
+      chatRef.current?.launchCreation(action, opts)
       // Nothing to announce when the pane held no stored conversation: the
       // "new conversation" was an empty one, and a toast for that is noise.
       if (backgrounded !== null) setBrainToast({ key: action.key, resumeId: backgrounded })
@@ -976,6 +1056,7 @@ export function WorkUI({
                   selectedPath={editor.activePath}
                   onOpenFile={editor.openFile}
                   decorations={git.decorations}
+                  revealRequest={revealRequest ?? undefined}
                 />
               }
               scm={
@@ -1000,6 +1081,7 @@ export function WorkUI({
                   onLaunch={launchBrainAction}
                   onAsk={openAsk}
                   onOpenFile={editor.openFile}
+                  selectedPath={editor.activePath}
                   setup={brainSetup}
                   onIngest={() => openIngest('text')}
                 />
@@ -1043,6 +1125,8 @@ export function WorkUI({
             onOpenFile={editor.openFile}
             onMcpRoster={(servers) => setMcpReported({ workspace, servers })}
             onOpenMcpConsole={() => setMcpConsoleOpen(true)}
+            onOpenAwsPanel={() => openProfile('aws')}
+            onAwsReconnect={() => aws.connect()}
           />
         </div>
       </ResizablePanel>
@@ -1062,35 +1146,39 @@ export function WorkUI({
               onSelect={editor.selectTab}
               onPin={editor.pinTab}
               onClose={editor.requestCloseTab}
+              actions={tabActions}
               dragProps={dragHandlePropsFor('viewer')}
               trailing={paneMoveMenuFor('viewer', t('workUI.paneEditor'))}
             />
-            {/* Every tab's body stays mounted (drafts survive switching);
-                only the active one is visible. Diff tabs render a DiffView
-                (git-management §6.5); file tabs the FileViewer. */}
-            {editor.tabs.map((tab) => (
-              <div key={tab.path} className="wb-tab-body" hidden={tab.path !== editor.activePath}>
-                {tab.kind === 'diff' && tab.git?.path ? (
-                  <DiffTab path={tab.git.path} side={tab.git.side ?? 'working'} />
-                ) : tab.kind === 'commit' && tab.git?.hash ? (
-                  <CommitDiffTab hash={tab.git.hash} />
-                ) : tab.kind === 'conflict' && tab.git?.path ? (
-                  <ConflictView path={tab.git.path} />
-                ) : tab.kind === 'review' && tab.git?.path ? (
-                  <ReviewDiffTab path={tab.git.path} />
-                ) : (
-                  <FileViewer
-                    ref={(handle) => editor.registerViewer(tab.path, handle)}
-                    workspace={workspace}
-                    path={tab.path}
-                    active={tab.path === editor.activePath}
-                    onClose={() => editor.removeTab(tab.path)}
-                    onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
-                    gitEnabled={git.repo.isRepo}
-                  />
-                )}
-              </div>
-            ))}
+            {/* Every tab's body stays mounted and stays the same size (drafts
+                — and scroll positions — survive switching); only the active
+                one is visible. Diff tabs render a DiffView (git-management
+                §6.5); file tabs the FileViewer. */}
+            <div className="wb-tab-bodies">
+              {editor.tabs.map((tab) => (
+                <div key={tab.path} className="wb-tab-body" hidden={tab.path !== editor.activePath}>
+                  {tab.kind === 'diff' && tab.git?.path ? (
+                    <DiffTab path={tab.git.path} side={tab.git.side ?? 'working'} />
+                  ) : tab.kind === 'commit' && tab.git?.hash ? (
+                    <CommitDiffTab hash={tab.git.hash} />
+                  ) : tab.kind === 'conflict' && tab.git?.path ? (
+                    <ConflictView path={tab.git.path} />
+                  ) : tab.kind === 'review' && tab.git?.path ? (
+                    <ReviewDiffTab path={tab.git.path} />
+                  ) : (
+                    <FileViewer
+                      ref={(handle) => editor.registerViewer(tab.path, handle)}
+                      workspace={workspace}
+                      path={tab.path}
+                      active={tab.path === editor.activePath}
+                      onClose={() => editor.removeTab(tab.path)}
+                      onDirtyChange={(dirty) => editor.handleDirtyChange(tab.path, dirty)}
+                      gitEnabled={git.repo.isRepo}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </ResizablePanel>
       )
@@ -1275,6 +1363,8 @@ export function WorkUI({
             onOpenChange={setAskOpen}
             store={secondBrain}
             onLaunch={launchBrainAction}
+            agents={agents}
+            defaultAgent={defaultAgent}
             setup={brainSetup}
             onOpenVoiceSettings={() => {
               setAskOpen(false)
@@ -1286,6 +1376,8 @@ export function WorkUI({
             onClose={() => setIngestMode(null)}
             store={secondBrain}
             onLaunch={launchBrainAction}
+            agents={agents}
+            defaultAgent={defaultAgent}
             setup={brainSetup}
             onOpenVoiceSettings={() => {
               setIngestMode(null)
@@ -1358,6 +1450,8 @@ export function WorkUI({
           />
           <UnsavedGuardDialog
             open={editor.pendingClose !== null}
+            fileName={editor.pendingClose === null ? undefined : tabLabel(editor.pendingClose)}
+            remaining={editor.pendingCloseRemaining}
             onCancel={editor.cancelPendingClose}
             onDiscard={editor.discardPendingClose}
             onSave={editor.savePendingClose}
@@ -1366,7 +1460,7 @@ export function WorkUI({
             open={searchOpen}
             onOpenChange={setSearchOpen}
             workspace={workspace}
-            onOpenFile={editor.openFile}
+            onOpenFile={openAndReveal}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
           {/* One notification column, bottom-left, above the rail's gear. Both
@@ -1443,6 +1537,21 @@ export function WorkUI({
             onDefaultAgentChange={onDefaultAgentChange}
             onUserNameChange={onUserNameChange}
             onReplayTour={replayTour}
+            onScopeChange={setOpenProfileScope}
+          />
+          {/* aws-bedrock: the live sign-in, above the work and outside every
+              panel — a login can be triggered by a background turn while the
+              user is reading a file, and it has to be findable from wherever
+              they are. Suppressed while the AWS panel is open, which draws the
+              same flow inline: two copies of one login, twenty pixels apart,
+              is the duplication that makes a user wonder which is real. */}
+          <AwsLoginBeacon
+            state={aws.login}
+            suppressed={openProfileScope === 'aws'}
+            onOpenUrl={(url) => void window.hive.openExternal(url)}
+            onCopyUrl={(text) => void window.hive.clipboard.writeText(text)}
+            onCancel={aws.cancel}
+            onRetry={() => aws.connect()}
           />
           <GuidedTour open={tour.open} userName={userName} onClose={tour.close} />
         </div>

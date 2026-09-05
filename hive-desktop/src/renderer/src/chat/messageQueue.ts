@@ -43,6 +43,14 @@ export interface QueuedMessage {
   contextFiles?: string[]
   /** Display names for the bubble's attachment chips. */
   attachmentNames?: string[]
+  /**
+   * context-compaction: this send is a `/compact`, not a message. It rides the
+   * queue like everything else — a compaction is a turn, and two turns of one
+   * conversation in flight at once is the same collision the queue exists to
+   * prevent — but it produces a seam instead of a bubble, so the pane has to be
+   * told which one it is *before* it opens the turn.
+   */
+  compaction?: boolean
 }
 
 export interface MessageQueue {

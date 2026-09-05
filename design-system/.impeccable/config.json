@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "0.6875rem",
+        "createdAt": "2026-09-04T13:55:42.881Z",
+        "reason": "existing step in this design system: 9 prior uses across OptionPicker, Toast, StepFlow, RampSelect, Field, DropdownMenu, ContextMenu, CommandLine — no DESIGN.md ramp exists to compare against"
+      }
+    ]
+  }
+}

@@ -42,6 +42,23 @@ export type ShortcutSettings = Record<ShortcutScope, ShortcutPrefs | null>
 export const EMPTY_SHORTCUT_SETTINGS: ShortcutSettings = { start: null, during: null }
 
 /**
+ * engine-pins: the model (and rung) an agent should **start on**, chosen by
+ * the user and kept.
+ *
+ * `model` is the raw option id, and `''` is a real value there — the "let the
+ * CLI decide" row, which is a legitimate thing to pin once an effort is pinned
+ * alongside it. `effort` is `null` for an agent that has no ladder (Copilot)
+ * or for a pin made on the delegated rung.
+ */
+export interface EnginePin {
+  model: string
+  effort: string | null
+}
+
+/** Every agent's pinned engine, keyed by agent id. An absent key = no pin. */
+export type EnginePins = Record<string, EnginePin>
+
+/**
  * Persisted app configuration (R2.2, R3.5). No secrets — agent CLIs manage
  * their own auth. See design.md §6 "Data & Persistence".
  */
@@ -138,6 +155,40 @@ export interface Config {
   // would be a lie. Asking for the model again — the panel's own download, or
   // the gate behind a microphone — sets it back to `true`.
   asrAutoDownload: boolean
+  // aws-bedrock: the AWS profile the user pinned for Claude-on-Bedrock, or
+  // `null` for "whatever this machine's configuration says" (the detected
+  // answer — a Claude settings file's `AWS_PROFILE`, an `awsAuthRefresh`
+  // command, the environment, then `default`). Stored as the bare profile
+  // name, like `agentShell` stores an id: a profile that is later removed from
+  // `~/.aws/config` falls back to detection instead of pinning the app to
+  // something that no longer exists.
+  awsProfile: string | null
+  // engine-pins: per agent, the model+effort every new conversation (and every
+  // launch surface — ingestion, "Perguntar à base", the studio) starts on.
+  //
+  // Until this existed the choice survived only as long as the chat pane did:
+  // a ref keyed by agent id, thrown away on reload, so a user whose work is
+  // always on one model re-picked it every single session. Keyed by agent
+  // because model ids are not portable — Claude's `opus` means nothing to
+  // Copilot — and stored as bare ids like `agentShell` and `whisperModel`: a
+  // model that disappears from the catalogue falls back to the CLI's own
+  // default instead of pinning the app to something that no longer runs.
+  enginePins: EnginePins
+  // context-compaction: may Hive compact the context by itself when the window
+  // gets tight?
+  //
+  // Only ever consulted for an agent whose own auto-compaction Hive has
+  // measured as *absent* on the transport it drives (see
+  // `AgentCapabilities.compaction`) — today that is Claude in print mode.
+  // An agent that minds its own ceiling is never touched, whatever this says,
+  // because compacting on top of the agent's own compaction spends a turn to
+  // reclaim what was already reclaimed.
+  //
+  // `true` by default: the alternative is a conversation that silently starts
+  // forgetting its own requirements, which is the failure this whole feature
+  // exists to prevent. The one surface that can turn it off is the context
+  // meter, which is also the only place the consequence is visible.
+  autoCompact: boolean
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -156,7 +207,10 @@ export const DEFAULT_CONFIG: Config = {
   approvalRules: [],
   agentShell: null,
   whisperModel: null,
-  asrAutoDownload: true
+  asrAutoDownload: true,
+  awsProfile: null,
+  enginePins: {},
+  autoCompact: true
 }
 
 /**
@@ -171,6 +225,36 @@ export function sanitizeAgentList(value: unknown): string[] | null {
     ...new Set(value.filter((item): item is string => typeof item === 'string' && item !== ''))
   ]
   return cleaned.length > 0 ? cleaned : null
+}
+
+/**
+ * Normalizes a raw (possibly hand-edited / older-schema) `enginePins` value:
+ * anything that is not an object of `{ model: string, effort?: string|null }`
+ * under a non-empty agent id is dropped, entry by entry. Same defensive rule
+ * the shortcut prefs follow — a hand-edited config.json can cost a user their
+ * pins, but it can never put a non-string into a CLI's `--model` flag.
+ */
+export function sanitizeEnginePins(value: unknown): EnginePins {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return {}
+  const pins: EnginePins = {}
+  for (const [agentId, raw] of Object.entries(value as Record<string, unknown>)) {
+    const pin = agentId === '' ? null : sanitizeEnginePin(raw)
+    if (pin !== null) pins[agentId] = pin
+  }
+  return pins
+}
+
+/**
+ * One pin, normalized — or `null` when the value cannot be one. Exported for
+ * the IPC boundary, which sanitizes renderer input with exactly this rule
+ * before the store re-applies it on the way to disk.
+ */
+export function sanitizeEnginePin(value: unknown): EnginePin | null {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null
+  const { model, effort } = value as { model?: unknown; effort?: unknown }
+  // `''` is kept on purpose (the delegated row); a non-string is not.
+  if (typeof model !== 'string') return null
+  return { model, effort: typeof effort === 'string' ? effort : null }
 }
 
 /**
@@ -258,6 +342,16 @@ export interface ConfigStore {
   /** M29.1: may startup fetch the ASR model by itself? See `Config`. */
   getAsrAutoDownload(): boolean
   setAsrAutoDownload(value: boolean): void
+  /** aws-bedrock: the pinned AWS profile, or `null` to let detection decide. */
+  getAwsProfile(): string | null
+  setAwsProfile(name: string | null): void
+  /** context-compaction: may Hive compact on its own when the window gets tight? */
+  getAutoCompact(): boolean
+  setAutoCompact(value: boolean): void
+  /** engine-pins: every agent's pinned engine (sanitized). */
+  getEnginePins(): EnginePins
+  /** Pins one agent's engine; `null` removes that agent's pin. Returns the new set. */
+  setEnginePin(agentId: string, pin: EnginePin | null): EnginePins
   getRecentWorkspaces(): string[]
   pushRecentWorkspace(path: string): void
   removeRecentWorkspace(path: string): void
@@ -383,6 +477,34 @@ export function createConfigStore(baseDir: string): ConfigStore {
     setAgentShell: (id: string | null) => {
       const trimmed = id?.trim() ?? ''
       updateConfig({ agentShell: trimmed === '' ? null : trimmed })
+    },
+    getAwsProfile: () => {
+      const value = readConfig().awsProfile
+      return typeof value === 'string' && value.trim() !== '' ? value : null
+    },
+    setAwsProfile: (name: string | null) => {
+      const trimmed = name?.trim() ?? ''
+      updateConfig({ awsProfile: trimmed === '' ? null : trimmed })
+    },
+    // Anything other than an explicit `false` reads as on: a config written
+    // before this setting existed has no opinion, and the safe reading of no
+    // opinion is the default the feature ships with.
+    getAutoCompact: () => readConfig().autoCompact !== false,
+    setAutoCompact: (value: boolean) => updateConfig({ autoCompact: value === true }),
+    // engine-pins: sanitized on read AND on write, so a hand-edited config can
+    // never hand an agent a `--model` flag that isn't a string. A write
+    // re-reads first, so two surfaces pinning different agents in the same
+    // session can't clobber each other.
+    getEnginePins: () => sanitizeEnginePins(readConfig().enginePins),
+    setEnginePin: (agentId: string, pin: EnginePin | null) => {
+      const current = readConfig()
+      const pins = sanitizeEnginePins(current.enginePins)
+      if (agentId.trim() === '') return pins
+      if (pin === null) delete pins[agentId]
+      else pins[agentId] = { model: pin.model, effort: pin.effort ?? null }
+      const sanitized = sanitizeEnginePins(pins)
+      writeConfig({ ...current, enginePins: sanitized })
+      return sanitized
     },
     getWhisperModel: () => {
       const value = readConfig().whisperModel

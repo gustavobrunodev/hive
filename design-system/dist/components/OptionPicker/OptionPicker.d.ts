@@ -59,6 +59,31 @@ export interface OptionPickerProps {
     searchPlaceholder?: string;
     /** Shown when the filter matches nothing. */
     emptyLabel?: string;
+    /**
+     * The row the consumer treats as **its default** — the one a fresh visit
+     * lands on. Supplying it (together with `onPinChange`) turns on the pin
+     * affordance: a toggle on every row, and the mark that says which row is
+     * already the default.
+     *
+     * `null` is a real value ("nothing pinned"), and `undefined` means this
+     * picker has no notion of a default at all — no pin control is rendered.
+     */
+    pinnedId?: string | null;
+    /**
+     * Toggles the pin. Receives the row's id when a row is pinned, and `null`
+     * when the pinned row is unpinned. Required for the affordance to appear.
+     */
+    onPinChange?: (id: string | null) => void;
+    /**
+     * Heading for the hoisted pinned row. When given, the pinned row is lifted
+     * out of its group into a section of its own at the top of the list — a
+     * default you cannot find is not one you can trust. Omit to leave the row
+     * where the catalogue put it.
+     */
+    pinGroupLabel?: string;
+    /** Accessible name for a row's pin toggle, per state. */
+    pinHint?: (label: string) => string;
+    unpinHint?: (label: string) => string;
     /** Pinned above the list (a status line, a warning). */
     header?: ReactNode;
     /** Pinned below the list — the slot for a secondary control or provenance line. */
@@ -98,4 +123,4 @@ export interface OptionPickerProps {
  * picker looks like a menu and still answers type-ahead, and nobody types into
  * a field they can't see for longer than one keystroke.
  */
-export declare function OptionPicker({ options, groups, value, onChange, children, ariaLabel, searchable, searchThreshold, searchPlaceholder, emptyLabel, header, footer, open, onOpenChange, align, side, sideOffset, width, className, }: OptionPickerProps): import("react").JSX.Element;
+export declare function OptionPicker({ options, groups, value, onChange, children, ariaLabel, searchable, searchThreshold, searchPlaceholder, emptyLabel, pinnedId, onPinChange, pinGroupLabel, pinHint, unpinHint, header, footer, open, onOpenChange, align, side, sideOffset, width, className, }: OptionPickerProps): import("react").JSX.Element;

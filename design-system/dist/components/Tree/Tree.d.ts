@@ -4,13 +4,27 @@ export interface TreeNode {
     id: string;
     label: ReactNode;
     children?: TreeNode[];
+    /**
+     * Marks the node as a container even while `children` is empty or absent.
+     *
+     * "Has children right now" and "is a branch" are different questions, and
+     * answering the second with the first is why an empty folder used to render
+     * as a leaf: no chevron, no `aria-expanded`, and a click that did nothing at
+     * all. Every file manager disagrees — an empty folder still opens, and the
+     * arrow still turns — and so does any tree that loads its children lazily,
+     * where nothing is known about them until the row is opened.
+     */
+    expandable?: boolean;
     disabled?: boolean;
 }
 export interface TreeRenderState {
     level: number;
     expanded: boolean;
     selected: boolean;
+    /** Literal truth: this node has at least one child to show. */
     hasChildren: boolean;
+    /** Whether the row behaves as a container — `hasChildren`, or `node.expandable`. */
+    expandable: boolean;
 }
 export interface TreeProps {
     /** The hierarchy to render. */

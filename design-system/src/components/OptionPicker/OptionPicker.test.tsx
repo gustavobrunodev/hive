@@ -184,6 +184,71 @@ describe("OptionPicker", () => {
     expect(chosen).toHaveAttribute("data-selected", "true")
   })
 
+  describe("pinning", () => {
+    /** The picker with a default row the consumer can move (see `pinnedId`). */
+    function setupPinned(props: Partial<React.ComponentProps<typeof OptionPicker>> = {}) {
+      const onPinChange = vi.fn()
+      setup({ pinnedId: null, onPinChange, pinGroupLabel: "Fixado", ...props })
+      return onPinChange
+    }
+
+    it("renders no pin control until the consumer enables one", async () => {
+      const user = userEvent.setup()
+      setup()
+      await open(user)
+      expect(screen.queryByRole("button", { name: /Fixar/ })).not.toBeInTheDocument()
+    })
+
+    it("pins the row that was asked for, without choosing it", async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const onPinChange = setupPinned({ onChange })
+      await open(user)
+      await user.click(screen.getByRole("button", { name: "Fixar Opus como padrão" }))
+      expect(onPinChange).toHaveBeenCalledWith("opus")
+      // The whole point of a separate control: "keep this for later" is not
+      // "use this now", so the panel neither selects the row nor closes.
+      expect(onChange).not.toHaveBeenCalled()
+      expect(screen.getByRole("listbox", { name: "Escolher modelo" })).toBeInTheDocument()
+    })
+
+    it("unpins the row that already holds the pin", async () => {
+      const user = userEvent.setup()
+      const onPinChange = setupPinned({ pinnedId: "opus" })
+      await open(user)
+      await user.click(screen.getByRole("button", { name: "Remover Opus como padrão" }))
+      expect(onPinChange).toHaveBeenCalledWith(null)
+    })
+
+    it("hoists the pinned row into its own section, exactly once", async () => {
+      const user = userEvent.setup()
+      setupPinned({ pinnedId: "opus" })
+      const list = await open(user)
+      expect(within(list).getByText("Fixado")).toBeInTheDocument()
+      expect(within(list).getAllByText("Opus")).toHaveLength(1)
+      const rows = within(list).getAllByRole("option")
+      expect(rows[0]).toHaveTextContent("Opus")
+    })
+
+    it("leaves the pinned row in place when no section was named", async () => {
+      const user = userEvent.setup()
+      setupPinned({ pinnedId: "opus", pinGroupLabel: undefined })
+      const list = await open(user)
+      expect(within(list).queryByText("Fixado")).not.toBeInTheDocument()
+      expect(within(list).getAllByRole("option")[0]).toHaveTextContent("Automático")
+    })
+
+    it("toggles the pin on the cursor row with Alt+P", async () => {
+      const user = userEvent.setup()
+      const onPinChange = setupPinned()
+      await open(user)
+      // The panel opens on the current value (Sonnet), which is what Alt+P
+      // acts on — the keyboard path to a control that is not a tab stop.
+      await user.keyboard("{Alt>}p{/Alt}")
+      expect(onPinChange).toHaveBeenCalledWith("sonnet")
+    })
+  })
+
   it("forgets the previous query when reopened", async () => {
     const user = userEvent.setup()
     setup({ searchable: true })

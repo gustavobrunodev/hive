@@ -1,5 +1,5 @@
 import { join } from 'path'
-import type { AgentCapabilities, AgentOption } from './agentAdapter'
+import type { AgentCapabilities, AgentOption, CompactionSupport } from './agentAdapter'
 import {
   CLI_DEFAULT_ID,
   asRecord,
@@ -8,6 +8,16 @@ import {
   readJsonFile,
   strongestSource
 } from './modelCatalog'
+
+/**
+ * Context compaction: **unmeasured, and therefore declared absent**. The
+ * Copilot CLI could not be run on the machine this was written on (its platform
+ * package is missing: "no platform package found"), and guessing costs
+ * asymmetrically — claiming `command: true` would send `/compact` as an
+ * ordinary prompt and have the agent answer a question about a command it may
+ * not have. Absence merely hides an affordance.
+ */
+export const COPILOT_COMPACTION: CompactionSupport = { command: false, automatic: false }
 
 /**
  * The GitHub Copilot CLI's models.
@@ -160,6 +170,7 @@ export function detectCopilotCapabilities(deps: CopilotCatalogDeps): AgentCapabi
     provider: { id: 'github', detail: null },
     modelSource: strongestSource(models),
     defaults: { model: configured, effort: null },
+    compaction: COPILOT_COMPACTION,
     note: 'no-listing'
   }
 }

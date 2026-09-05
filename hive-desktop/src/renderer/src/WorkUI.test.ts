@@ -19,6 +19,7 @@ import type { VaultHealth } from './secondBrain/useSecondBrain'
 import { makeStatus } from './testSupport/gitStoreMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 import { createHiveAsrMock } from './testSupport/hiveAsrMock'
+import { createHiveAwsMock } from './testSupport/hiveAwsMock'
 import { HighlightedTextareaMock } from './testSupport/dsMocks'
 import type { McpLogEntry } from './mcpLogs/logConsole'
 
@@ -448,6 +449,23 @@ vi.mock('@hive/design-system', () => ({
   Progress: (props: Record<string, unknown>) =>
     createElement('div', { role: 'progressbar', 'aria-label': props['aria-label'] as string }),
   Spinner: ({ label }: { label?: string }) => createElement('span', null, label),
+  // aws-bedrock: the login beacon's step rail. A stand-in that keeps the two
+  // things the tests read — the list role and each step's label — and nothing
+  // of the real component's CSS-driven state drawing.
+  StepFlow: ({
+    steps,
+    label
+  }: {
+    steps: Array<{ id: string; label: ReactNode; status: string }>
+    label: string
+  }) =>
+    createElement(
+      'ol',
+      { 'aria-label': label },
+      steps.map((step) =>
+        createElement('li', { key: step.id, 'data-status': step.status }, step.label)
+      )
+    ),
   // UpdateNotice (npm-distribution T11/T14): mounted unconditionally by
   // WorkUI now, so it needs a stand-in regardless of whether any test here
   // ever drives it into a visible state. `Toast` mirrors Radix's own
@@ -475,10 +493,24 @@ const fileViewerMock: { requestSave: ReturnType<typeof vi.fn> } = {
 }
 
 vi.mock('./explorer/Explorer', () => ({
-  FileTree: ({ onOpenFile }: { onOpenFile?: (path: string, opts?: { pin?: boolean }) => void }) =>
+  FileTree: ({
+    onOpenFile,
+    revealRequest
+  }: {
+    onOpenFile?: (path: string, opts?: { pin?: boolean }) => void
+    revealRequest?: { path: string; nonce: number }
+  }) =>
     createElement(
       'div',
       null,
+      // What the tree was asked to point at, published so a test can read it:
+      // the reveal itself (expand, select, scroll) belongs to `FileTree` and is
+      // covered in `Explorer.test.ts`; what WorkUI owns is WHO asks for it.
+      createElement(
+        'span',
+        { 'data-testid': 'reveal-request' },
+        revealRequest ? `${revealRequest.path}#${revealRequest.nonce}` : ''
+      ),
       createElement(
         'button',
         { type: 'button', 'data-testid': 'file-tree', onClick: () => onOpenFile?.('README.md') },
@@ -551,7 +583,9 @@ function ChatStandIn(
     onMcpRoster,
     onOpenMcpConsole,
     onManageAgents,
-    onOpenVoiceSettings
+    onOpenVoiceSettings,
+    onOpenAwsPanel,
+    onAwsReconnect
   }: {
     onCustomizeShortcuts?: (scope: 'start' | 'during') => void
     onSessionChange?: (id: string | null) => void
@@ -559,6 +593,8 @@ function ChatStandIn(
     onOpenMcpConsole?: () => void
     onManageAgents?: () => void
     onOpenVoiceSettings?: () => void
+    onOpenAwsPanel?: () => void
+    onAwsReconnect?: () => void
   },
   ref: React.Ref<typeof chatHandle>
 ): ReactElement {
@@ -584,6 +620,18 @@ function ChatStandIn(
       'button',
       { type: 'button', onClick: () => onManageAgents?.() },
       'simular gerenciar agentes'
+    ),
+    // aws-bedrock: the two routes out of a failed turn — into the panel, and
+    // straight into a login.
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onOpenAwsPanel?.() },
+      'simular abrir conexão aws'
+    ),
+    createElement(
+      'button',
+      { type: 'button', onClick: () => onAwsReconnect?.() },
+      'simular reconectar aws'
     ),
     createElement(
       'button',
@@ -678,6 +726,12 @@ function createHiveMock(): Window['hive'] {
     // this stub had already drifted from the real bridge (`installed` for a
     // field named `downloaded`), which is exactly what the helper prevents.
     asr: createHiveAsrMock(),
+    aws: createHiveAwsMock(),
+    // aws-bedrock: the beacon opens the verification URL through main and
+    // copies it through main's clipboard — this window's `navigator.clipboard`
+    // permission is denied, which is why neither goes through the DOM.
+    openExternal: vi.fn(async () => undefined),
+    clipboard: { writeText: vi.fn(async () => undefined) },
     // The (closed) MCP module loads the server list on open.
     mcp: {
       list: vi.fn(async () => []),
@@ -756,6 +810,12 @@ function createHiveMock(): Window['hive'] {
     // Second Brain (M12): WorkUI mounts useSecondBrain (getVault + getHealth)
     // on mount, and the panel's wiki browser reads the vault's tree.
     secondBrain: createHiveSecondBrainMock(),
+    // The tab context menu's bottom group: the absolute path (only main knows
+    // the root and the host separator) and the hand-off to the file manager.
+    fs: {
+      absolutePath: vi.fn(async (root: string, rel: string) => `${root}/${rel}`),
+      revealPath: vi.fn(async () => undefined)
+    },
     listTree: vi.fn(async () => [])
   } as unknown as Window['hive']
 }
@@ -1810,6 +1870,27 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     expect(screen.queryByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeNull()
   })
 
+  it('picking a file in the search also points the tree at it, from any sidebar view', async () => {
+    vi.mocked(window.hive.listFiles).mockResolvedValue(['docs/prd.md'])
+    // Starting in Source Control: a reveal that left the sidebar where it was
+    // would send the tree a request nobody can see.
+    localStorage.setItem('hive.sidebarView', 'scm')
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir arquivo docs/prd.md' }))
+
+    const request = await screen.findByTestId('reveal-request')
+    expect(request.textContent).toBe('docs/prd.md#1')
+  })
+
   it('Ctrl+P opens the file search from anywhere in the work UI', async () => {
     render(
       createElement(WorkUI, {
@@ -2111,6 +2192,79 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
     expect(readmeBody.hasAttribute('hidden')).toBe(false)
   })
 
+  /**
+   * The tab menu's bottom group (VS Code parity): the same three things the
+   * file tree's row menu offers for a path, wired to the same bridge calls.
+   */
+  describe('the tab context menu', () => {
+    /** The workspace every `renderWorkUI` in this file mounts on. */
+    const WORKSPACE = '/home/user/my-workspace'
+
+    /** Opens README.md, then the menu on its tab. */
+    function openTabMenu(): void {
+      renderWorkUI()
+      fireEvent.click(screen.getByTestId('file-tree'))
+      fireEvent.contextMenu(screen.getAllByRole('tab')[0] as HTMLElement)
+    }
+
+    it('copies the workspace-relative path without a round trip to main', async () => {
+      openTabMenu()
+
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar caminho relativo' }))
+
+      // Straight to the clipboard: the tree is already keyed by this exact
+      // string, so there is nothing to ask main for.
+      await waitFor(() => expect(window.hive.clipboard.writeText).toHaveBeenCalledWith('README.md'))
+      expect(window.hive.fs.absolutePath).not.toHaveBeenCalled()
+    })
+
+    it('asks main for the absolute path — only main knows the root and the separator', async () => {
+      openTabMenu()
+
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar caminho' }))
+
+      await waitFor(() =>
+        expect(window.hive.fs.absolutePath).toHaveBeenCalledWith(WORKSPACE, 'README.md')
+      )
+      await waitFor(() =>
+        expect(window.hive.clipboard.writeText).toHaveBeenCalledWith(`${WORKSPACE}/README.md`)
+      )
+    })
+
+    it('points the tree at the file, bringing the Explorer back if it is not showing', () => {
+      renderWorkUI()
+      fireEvent.click(screen.getByTestId('file-tree'))
+      fireEvent.click(screen.getByLabelText('Controle de versão'))
+      expect(activeSidebarView()).toBe('scm')
+
+      fireEvent.contextMenu(screen.getAllByRole('tab')[0] as HTMLElement)
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Revelar no explorador' }))
+
+      expect(activeSidebarView()).toBe('explorer')
+      expect(screen.getByTestId('reveal-request').textContent).toBe('README.md#1')
+    })
+
+    it('hands the file to the host file manager', async () => {
+      openTabMenu()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Abrir no gerenciador de arquivos' }))
+      await waitFor(() =>
+        expect(window.hive.fs.revealPath).toHaveBeenCalledWith(WORKSPACE, 'README.md', false)
+      )
+    })
+
+    it('closes every other tab through the same guard the × uses', () => {
+      renderWorkUI()
+      fireEvent.click(screen.getByTestId('file-tree'))
+      fireEvent.click(screen.getByTestId('open-pinned'))
+      expect(screen.getAllByRole('tab')).toHaveLength(2)
+
+      fireEvent.contextMenu(screen.getAllByRole('tab')[1] as HTMLElement)
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Fechar as outras' }))
+
+      expect(screen.getAllByRole('tab')).toHaveLength(1)
+    })
+  })
+
   it('closing a clean tab from the strip closes immediately (no guard dialog)', () => {
     renderWorkUI()
 
@@ -2191,6 +2345,15 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
   })
 })
 
+/**
+ * Which sidebar view is showing. The others stay mounted as hidden layers
+ * (that is what preserves their state), so "is it visible?" is a question
+ * about the active layer, not about presence in the DOM.
+ */
+function activeSidebarView(): string | null {
+  return document.querySelector('.wb-sidebar-layer[data-active]')?.getAttribute('data-view') ?? null
+}
+
 describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
   function renderWork(): void {
     render(
@@ -2214,13 +2377,17 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     fireEvent.click(screen.getByLabelText('Controle de versão'))
 
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
-    expect(screen.queryByTestId('file-tree')).toBeNull()
+    expect(activeSidebarView()).toBe('scm')
     expect(screen.getByText('Controle de versão')).toBeTruthy()
     expect(localStorage.getItem('hive.sidebarView')).toBe('scm')
 
-    // Switching back to Explorer restores the tree.
-    fireEvent.click(screen.getByLabelText('Explorador'))
+    // The tree is not thrown away by leaving it — it is the inactive layer,
+    // still holding its expansion, selection and scroll (SidebarHost).
     expect(screen.getByTestId('file-tree')).toBeTruthy()
+
+    // Switching back to Explorer shows it again.
+    fireEvent.click(screen.getByLabelText('Explorador'))
+    expect(activeSidebarView()).toBe('explorer')
     expect(localStorage.getItem('hive.sidebarView')).toBe('explorer')
   })
 
@@ -2626,7 +2793,7 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
 
     expect(await screen.findByText('Perguntar à base')).toBeTruthy()
-    expect(screen.queryByTestId('file-tree')).toBeNull()
+    expect(activeSidebarView()).toBe('brain')
   })
 
   it('Ctrl+Shift+K opens the ask surface from anywhere, without touching the sidebar', async () => {
@@ -2653,7 +2820,12 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     expect(chatHandle.launchCreation).toHaveBeenCalledWith(
       expect.objectContaining({
         command: expect.objectContaining({ prompt: '/second-brain-ingest' })
-      })
+      }),
+      // The panel's own button carries no run-config (it is not a capture
+      // surface); the launch therefore passes none, and the conversation
+      // starts on the app default — the second argument exists for the sheet
+      // and the ask dialog, which do have one.
+      undefined
     )
     // Never the append-to-the-current-conversation path.
     expect(chatHandle.launchAction).not.toHaveBeenCalled()
@@ -2900,5 +3072,95 @@ describe('WorkUI — MCP manager ↔ console bridge (mcp-logs)', () => {
     renderWithServer(Promise.reject(new Error('sem .mcp.json')))
     fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
     expect(await screen.findByRole('region', { name: 'Console MCP' })).toBeTruthy()
+  })
+})
+
+/**
+ * aws-bedrock: the live sign-in beacon, from the app shell.
+ *
+ * It lives here rather than beside the panel because that is the whole claim:
+ * the login is findable from anywhere in the app, including with no AWS
+ * surface open at all — a background turn can trigger one while the user is
+ * reading a file three panels away.
+ */
+describe('WorkUI — AWS login beacon (aws-bedrock)', () => {
+  type LoginState = Parameters<Parameters<Window['hive']['aws']['onState']>[0]>[0]
+
+  /** Renders the shell and hands back the emitter for the live login stream. */
+  function renderWithAws(): {
+    hive: Window['hive']
+    emit: (state: Partial<LoginState>) => void
+  } {
+    const hive = createHiveMock()
+    const listeners: Array<(state: LoginState) => void> = []
+    vi.mocked(hive.aws.onState).mockImplementation((listener) => {
+      listeners.push(listener)
+      return () => {}
+    })
+    vi.stubGlobal('hive', hive)
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+    return {
+      hive,
+      emit: (state) =>
+        act(() => {
+          for (const listener of listeners) {
+            listener({
+              phase: 'browser',
+              profile: 'acme-dev',
+              url: 'https://oidc.example/authorize',
+              code: null,
+              message: null,
+              startedAt: Date.now(),
+              expiresAt: null,
+              ...state
+            } as LoginState)
+          }
+        })
+    }
+  }
+
+  it('stays out of the way while nothing is happening', async () => {
+    const { hive } = renderWithAws()
+    await waitFor(() => expect(hive.aws.status).toHaveBeenCalled())
+    expect(screen.queryByRole('status', { name: 'Entrada na AWS em andamento' })).toBeNull()
+  })
+
+  it('appears mid-login with no AWS surface open, and hands its actions to the bridge', async () => {
+    const { hive, emit } = renderWithAws()
+    emit({})
+    const beacon = await screen.findByRole('status', { name: 'Entrada na AWS em andamento' })
+    expect(beacon).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir de novo/ }))
+    expect(hive.openExternal).toHaveBeenCalledWith('https://oidc.example/authorize')
+
+    fireEvent.click(screen.getByRole('button', { name: /Copiar link/ }))
+    expect(hive.clipboard.writeText).toHaveBeenCalledWith('https://oidc.example/authorize')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(hive.aws.cancel).toHaveBeenCalled()
+  })
+
+  it('takes the chat straight into a login, and into the panel, from a failed turn', async () => {
+    const { hive } = renderWithAws()
+    await waitFor(() => expect(hive.aws.status).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'simular reconectar aws' }))
+    expect(hive.aws.login).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'simular abrir conexão aws' }))
+    expect(await screen.findByText('Conexão AWS')).toBeTruthy()
+  })
+
+  it('retries a failed login from the beacon', async () => {
+    const { hive, emit } = renderWithAws()
+    emit({ phase: 'failed', message: 'Error loading SSO Token' })
+    await screen.findByText('Não deu para entrar')
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(hive.aws.login).toHaveBeenCalled()
   })
 })

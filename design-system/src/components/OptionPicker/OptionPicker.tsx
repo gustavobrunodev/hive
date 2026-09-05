@@ -69,6 +69,31 @@ export interface OptionPickerProps {
   searchPlaceholder?: string
   /** Shown when the filter matches nothing. */
   emptyLabel?: string
+  /**
+   * The row the consumer treats as **its default** — the one a fresh visit
+   * lands on. Supplying it (together with `onPinChange`) turns on the pin
+   * affordance: a toggle on every row, and the mark that says which row is
+   * already the default.
+   *
+   * `null` is a real value ("nothing pinned"), and `undefined` means this
+   * picker has no notion of a default at all — no pin control is rendered.
+   */
+  pinnedId?: string | null
+  /**
+   * Toggles the pin. Receives the row's id when a row is pinned, and `null`
+   * when the pinned row is unpinned. Required for the affordance to appear.
+   */
+  onPinChange?: (id: string | null) => void
+  /**
+   * Heading for the hoisted pinned row. When given, the pinned row is lifted
+   * out of its group into a section of its own at the top of the list — a
+   * default you cannot find is not one you can trust. Omit to leave the row
+   * where the catalogue put it.
+   */
+  pinGroupLabel?: string
+  /** Accessible name for a row's pin toggle, per state. */
+  pinHint?: (label: string) => string
+  unpinHint?: (label: string) => string
   /** Pinned above the list (a status line, a warning). */
   header?: ReactNode
   /** Pinned below the list — the slot for a secondary control or provenance line. */
@@ -120,6 +145,11 @@ export function OptionPicker({
   searchThreshold = 8,
   searchPlaceholder,
   emptyLabel = "Nada encontrado",
+  pinnedId,
+  onPinChange,
+  pinGroupLabel,
+  pinHint = (label) => `Fixar ${label} como padrão`,
+  unpinHint = (label) => `Remover ${label} como padrão`,
   header,
   footer,
   open,
@@ -162,7 +192,13 @@ export function OptionPicker({
     if (!isOpen) setQuery("")
   }, [isOpen])
 
-  const ordered = useMemo(() => orderByGroup(options, groups), [options, groups])
+  // The pinned row is hoisted into a section of its own (when the consumer
+  // named one), so "which model do I start on?" is answered by the first thing
+  // in the list instead of by hunting for a mark somewhere in eighteen rows.
+  const ordered = useMemo(
+    () => orderByGroup(options, groups, pinnedId ?? null, pinGroupLabel),
+    [options, groups, pinnedId, pinGroupLabel]
+  )
 
   /**
    * Open **on the current choice**, not at the top of the catalogue.
@@ -257,6 +293,19 @@ export function OptionPicker({
             loop
             value={cursor}
             onValueChange={setCursor}
+            // The keyboard's way to the pin. The row's own toggle is a mouse
+            // target (cmdk owns the panel's focus, so eighteen tab stops
+            // inside the list would take the arrow keys away from the list);
+            // this, and the consumer's footer control, are what keep the pin
+            // reachable without one. Alt is the modifier because a bare letter
+            // belongs to the filter field.
+            onKeyDown={(event) => {
+              if (!onPinChange || !event.altKey || event.key.toLowerCase() !== "p") return
+              const row = options.find((option) => cmdkValue(option) === cursor)
+              if (!row || row.disabled) return
+              event.preventDefault()
+              onPinChange(row.id === pinnedId ? null : row.id)
+            }}
           >
             <div className="hds-picker-search" data-collapsed={!searchVisible || undefined}>
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -297,6 +346,15 @@ export function OptionPicker({
                           onChange(option.id)
                           setOpen(false)
                         }}
+                        {...(onPinChange
+                          ? {
+                              pinned: option.id === pinnedId,
+                              onPin: () =>
+                                onPinChange(option.id === pinnedId ? null : option.id),
+                              pinHint,
+                              unpinHint
+                            }
+                          : {})}
                       />
                     ))}
                   </CommandPrimitive.Group>
@@ -315,10 +373,19 @@ function Row({
   option,
   selected,
   onSelect,
+  pinned,
+  onPin,
+  pinHint,
+  unpinHint,
 }: {
   option: PickerOption
   selected: boolean
   onSelect: () => void
+  /** Present only when the consumer enabled pinning (see `onPinChange`). */
+  pinned?: boolean
+  onPin?: () => void
+  pinHint?: (label: string) => string
+  unpinHint?: (label: string) => string
 }) {
   return (
     <CommandPrimitive.Item
@@ -346,6 +413,15 @@ function Row({
         {option.hint && <span className="hds-picker-hint">{option.hint}</span>}
       </span>
       {option.meta && <span className="hds-picker-meta">{option.meta}</span>}
+      {onPin && (
+        <PinToggle
+          pinned={pinned === true}
+          label={
+            (pinned === true ? unpinHint : pinHint)?.(option.label) ?? option.label
+          }
+          onPin={onPin}
+        />
+      )}
       <span className="hds-picker-check" aria-hidden="true">
         {selected && (
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -360,6 +436,65 @@ function Row({
         )}
       </span>
     </CommandPrimitive.Item>
+  )
+}
+
+/**
+ * The row's pin: "start here next time".
+ *
+ * It is a button inside a listbox row, which is two things at once, so both
+ * are handled explicitly:
+ *
+ *  - **The click must not choose the row.** cmdk selects on click, and a pin
+ *    that also switched the selection would make "keep this for later" and
+ *    "use this now" the same gesture. Every pointer event is stopped here.
+ *  - **It is not a tab stop.** The panel's keyboard model belongs to cmdk's
+ *    input; eighteen buttons in the list would take the arrow keys away from
+ *    the list itself. The keyboard reaches the pin through Alt+P on the row
+ *    under the cursor (see the Command's `onKeyDown`), which is why the button
+ *    still carries a full accessible name.
+ *
+ * Invisible until the row is hovered or under the cursor — and always visible
+ * once pinned, because then it is no longer a control, it is the mark.
+ */
+function PinToggle({
+  pinned,
+  label,
+  onPin,
+}: {
+  pinned: boolean
+  label: string
+  onPin: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="hds-picker-pin"
+      data-pinned={pinned || undefined}
+      aria-pressed={pinned}
+      aria-label={label}
+      title={label}
+      tabIndex={-1}
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        onPin()
+      }}
+    >
+      {/* A pushpin seen head-on — head, shaft, point. Filled when it holds. */}
+      <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          d="M5.5 1.75h5l-.75 3.85 2.6 2.6c.33.33.1.9-.36.9H3.98c-.46 0-.69-.57-.36-.9l2.6-2.6L5.5 1.75Z"
+          fill={pinned ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path d="M8 9.1v5.15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    </button>
   )
 }
 
@@ -384,17 +519,31 @@ function cmdkValue(option: PickerOption): string {
  */
 function orderByGroup(
   options: PickerOption[],
-  groups: PickerGroup[] | undefined
+  groups: PickerGroup[] | undefined,
+  pinnedId?: string | null,
+  pinGroupLabel?: string
 ): { group: PickerGroup; items: PickerOption[] }[] {
+  // The pinned row is lifted out first, so it cannot also appear inside its
+  // own tier — one row, in the one place the user was promised it would be.
+  const pinned =
+    pinGroupLabel !== undefined && pinnedId != null
+      ? options.find((option) => option.id === pinnedId)
+      : undefined
+  const rest = pinned ? options.filter((option) => option !== pinned) : options
+  const head = pinned
+    ? [{ group: { id: "__pinned", label: pinGroupLabel }, items: [pinned] }]
+    : []
   if (!groups || groups.length === 0) {
-    return [{ group: { id: "__all" }, items: options }]
+    return [...head, { group: { id: "__all" }, items: rest }].filter(
+      (bucket) => bucket.items.length > 0
+    )
   }
   const buckets = groups.map((group) => ({
     group,
-    items: options.filter((option) => option.group === group.id),
+    items: rest.filter((option) => option.group === group.id),
   }))
   const known = new Set(groups.map((group) => group.id))
-  const rest = options.filter((option) => !option.group || !known.has(option.group))
-  if (rest.length > 0) buckets.push({ group: { id: "__rest" }, items: rest })
-  return buckets.filter((bucket) => bucket.items.length > 0)
+  const ungrouped = rest.filter((option) => !option.group || !known.has(option.group))
+  if (ungrouped.length > 0) buckets.push({ group: { id: "__rest" }, items: ungrouped })
+  return [...head, ...buckets].filter((bucket) => bucket.items.length > 0)
 }

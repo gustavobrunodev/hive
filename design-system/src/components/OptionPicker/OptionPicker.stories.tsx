@@ -147,3 +147,29 @@ export const Searchable: Story = {
     )
   },
 }
+
+/**
+ * A picker with a **default**: the pinned row is the one a fresh visit lands
+ * on, so it is hoisted into its own section and keeps its mark on screen.
+ * Hover any row for its pin, or press Alt+P on the row under the cursor.
+ */
+export const Pinnable: Story = {
+  render: function Render() {
+    const [model, setModel] = useState("sonnet")
+    const [pinned, setPinned] = useState<string | null>("opus")
+    return (
+      <OptionPicker
+        options={MODELS}
+        groups={GROUPS}
+        value={model}
+        onChange={setModel}
+        pinnedId={pinned}
+        onPinChange={setPinned}
+        pinGroupLabel="Fixado"
+        ariaLabel="Escolher modelo"
+      >
+        <Button variant="ghost">{MODELS.find((o) => o.id === model)?.label}</Button>
+      </OptionPicker>
+    )
+  },
+}

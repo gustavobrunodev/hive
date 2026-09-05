@@ -1,10 +1,11 @@
 import { forwardRef, useMemo } from 'react'
 import { OptionPicker, RampSelect, Switch } from '@hive/design-system'
-import type { PickerOption, RampStep } from '@hive/design-system'
+import type { OptionPickerProps, PickerOption, RampStep } from '@hive/design-system'
 import { t } from '../i18n'
 import { modelTraitLabel } from '../i18n/pt-BR'
 import {
   ChevronDownIcon,
+  PinIcon,
   RefreshIcon,
   TierAutoIcon,
   TierBalancedIcon,
@@ -13,9 +14,11 @@ import {
   TierLegacyIcon,
   TierRouterIcon
 } from '../ui/icons'
+import type { EnginePin } from './enginePins'
 import {
   atCapacity,
   baseRung,
+  carryEffort,
   describeOption,
   distinctVendors,
   effortsFor,
@@ -46,6 +49,20 @@ interface EnginePickerProps {
   /** Re-reads the machine (settings, config, CLI listing) instead of the cache. */
   onRefresh: () => void
   refreshing: boolean
+  /**
+   * engine-pins: this agent's **default** engine, and the way to move it.
+   *
+   * Omitted on a surface with no agent to pin against, in which case no pin
+   * affordance is rendered at all — a pin that cannot say *whose* default it
+   * is would be a setting with no scope.
+   */
+  pin?: {
+    /** The pinned model id (`''` is a value: the delegated row). */
+    model: string | null
+    /** Names the agent in the pin's copy — "padrão do Claude Code". */
+    agentName?: string
+    onChange: (pin: EnginePin | null) => void
+  }
 }
 
 /**
@@ -76,7 +93,8 @@ export function EnginePicker({
   onEffortChange,
   runningModel,
   onRefresh,
-  refreshing
+  refreshing,
+  pin
 }: EnginePickerProps): React.JSX.Element | null {
   const { models } = capabilities
   const current = models.find((option) => option.id === model) ?? models[0] ?? null
@@ -97,6 +115,11 @@ export function EnginePicker({
 
   if (models.length === 0) return null
 
+  // engine-pins: the whole pin wiring — the picker's props, the footer's row
+  // and the trigger's mark — resolved outside this function, which is at its
+  // branch budget (`complexity`) and is the wrong place for a decision tree.
+  const pinning = pinBinding({ pin, capabilities, current, efforts, effort })
+
   return (
     <OptionPicker
       options={options}
@@ -107,6 +130,7 @@ export function EnginePicker({
       searchPlaceholder={t('chat.engine.searchPlaceholder')}
       emptyLabel={t('chat.engine.empty')}
       width={400}
+      {...pinning.picker}
       footer={
         <EngineFooter
           capabilities={capabilities}
@@ -117,12 +141,96 @@ export function EnginePicker({
           runningModel={runningModel ?? null}
           onRefresh={onRefresh}
           refreshing={refreshing}
+          {...pinning.footer}
         />
       }
     >
-      <EngineTrigger model={current} effort={currentEffort} efforts={efforts} />
+      <EngineTrigger
+        model={current}
+        effort={currentEffort}
+        efforts={efforts}
+        pinned={pinning.footer.pin?.isCurrent === true}
+      />
     </OptionPicker>
   )
+}
+
+/**
+ * The pin half of `OptionPicker`'s props — typed, not `Record<string, unknown>`,
+ * so a rename in the design system fails here instead of silently dropping the
+ * affordance.
+ */
+type PinPickerProps = Pick<
+  OptionPickerProps,
+  'pinnedId' | 'onPinChange' | 'pinGroupLabel' | 'pinHint' | 'unpinHint'
+>
+
+/** The footer's pin block, as the props `EngineFooter` takes (empty = no pin). */
+interface FooterPin {
+  pin?: {
+    pinned: EngineOption | null
+    isCurrent: boolean
+    agentName?: string
+    onToggle: () => void
+  }
+}
+
+/**
+ * engine-pins: everything the pin needs, resolved once.
+ *
+ * Pinning a row pins **both halves** of the decision, because both are what
+ * the next conversation will start on. The rung travels the way an agent
+ * switch already carries it — by name (`carryEffort`) — so pinning Sonnet
+ * while reading at "Máximo" pins Sonnet's own "Máximo", and not an id Sonnet
+ * would reject.
+ *
+ * It lives outside the component because it *is* a decision tree, and the
+ * component it belongs to is already at the lint's branch ceiling — the sensor
+ * that has caught every sprawl in this file so far.
+ */
+function pinBinding({
+  pin,
+  capabilities,
+  current,
+  efforts,
+  effort
+}: {
+  pin: EnginePickerProps['pin']
+  capabilities: EngineCapabilities
+  current: EngineOption | null
+  efforts: EngineOption[]
+  effort: string | null
+}): { picker: PinPickerProps; footer: FooterPin } {
+  if (pin === undefined) return { picker: {}, footer: {} }
+  const move = (id: string | null): void => {
+    if (id === null) {
+      pin.onChange(null)
+      return
+    }
+    const rung =
+      id === current?.id ? effort : carryEffort(efforts, effort, effortsFor(capabilities, id))
+    pin.onChange({ model: id, effort: rung })
+  }
+  const isCurrent = pin.model !== null && pin.model === current?.id
+  return {
+    picker: {
+      pinnedId: pin.model,
+      onPinChange: move,
+      pinGroupLabel: t('chat.engine.pinnedGroup'),
+      pinHint: (label: string) => t('chat.engine.pinRowAria', label),
+      unpinHint: (label: string) => t('chat.engine.unpinRowAria', label)
+    },
+    footer: {
+      pin: {
+        pinned: capabilities.models.find((option) => option.id === pin.model) ?? null,
+        isCurrent,
+        ...(pin.agentName === undefined ? {} : { agentName: pin.agentName }),
+        // Toggling from the footer acts on the row on screen: pin what is
+        // chosen, or release the pin when it is already there.
+        onToggle: () => move(isCurrent ? null : (current?.id ?? null))
+      }
+    }
+  }
 }
 
 /**
@@ -147,8 +255,10 @@ const EngineTrigger = forwardRef<
     effort: EngineOption | null
     /** The whole effort ladder, so the trigger can show *where on it* we are. */
     efforts: EngineOption[]
+    /** engine-pins: this model is the agent's pinned default. */
+    pinned?: boolean
   }
->(function EngineTrigger({ model, effort, efforts, ...rest }, ref): React.JSX.Element {
+>(function EngineTrigger({ model, effort, efforts, pinned, ...rest }, ref): React.JSX.Element {
   const label = model?.label ?? t('chat.modelLabel')
   // "Automático" alone does not say what will run. When the CLI's own default
   // is known, the trigger names it — that is the whole reason to trust the
@@ -166,6 +276,16 @@ const EngineTrigger = forwardRef<
         {tierIcon(model?.traits, 14)}
       </span>
       <span className="wb-engine-name">{label}</span>
+      {/* The pin, on the closed control: without it the whole setting is
+          invisible until someone opens the panel, and "why did it start on
+          Opus?" has no answer on screen. Decorative here — the panel's own
+          control is what states and changes it — so it is hidden from the
+          accessibility tree rather than repeating the footer's sentence. */}
+      {pinned && (
+        <span className="wb-engine-pinned" aria-hidden="true" title={t('chat.engine.pinnedTitle')}>
+          <PinIcon size={11} />
+        </span>
+      )}
       {resolved && <span className="wb-engine-resolved">{resolved}</span>}
       {/* The second half of the decision, always — including on "Automático".
           Hiding it there was the state a first-time user is *in*, so the one
@@ -229,7 +349,8 @@ function EngineFooter({
   onEffortChange,
   runningModel,
   onRefresh,
-  refreshing
+  refreshing,
+  pin
 }: {
   capabilities: EngineCapabilities
   /** The ladder in force — the selected model's own, or the agent's. */
@@ -241,6 +362,14 @@ function EngineFooter({
   runningModel: string | null
   onRefresh: () => void
   refreshing: boolean
+  /** engine-pins, resolved: which row holds the pin and what to do about it. */
+  pin?: {
+    pinned: EngineOption | null
+    /** Whether the pin sits on the row currently chosen. */
+    isCurrent: boolean
+    agentName?: string
+    onToggle: () => void
+  }
 }): React.JSX.Element {
   const capacity = fastCapacity(efforts, effortValue)
   return (
@@ -298,6 +427,7 @@ function EngineFooter({
           )}
         </div>
       )}
+      {pin && <EnginePinRow {...pin} />}
       <div className="wb-engine-provenance">
         <span className="wb-engine-source" data-source={capabilities.modelSource ?? 'catalog'}>
           <span className="wb-engine-source-dot" aria-hidden="true" />
@@ -317,6 +447,54 @@ function EngineFooter({
       {capabilities.note && <p className="wb-engine-note">{noteLine(capabilities.note)}</p>}
       {runningModel && (
         <p className="wb-engine-running">{t('chat.engine.running', runningModel)}</p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The pin, said in words (engine-pins).
+ *
+ * The rows carry a pin each, which is the fast gesture; this is the part that
+ * makes the *setting* legible — it names the agent the default belongs to,
+ * says which model holds it when that is not the row on screen, and is the
+ * keyboard's way in, since the row toggles are pointer targets inside a
+ * listbox cmdk owns (see `OptionPicker`'s `PinToggle`).
+ */
+function EnginePinRow({
+  pinned,
+  isCurrent,
+  agentName,
+  onToggle
+}: {
+  pinned: EngineOption | null
+  isCurrent: boolean
+  agentName?: string
+  onToggle: () => void
+}): React.JSX.Element {
+  return (
+    <div className="wb-engine-pinrow">
+      <button
+        type="button"
+        className="wb-engine-pin-btn"
+        data-on={isCurrent || undefined}
+        aria-pressed={isCurrent}
+        onClick={onToggle}
+        title={isCurrent ? t('chat.engine.unpinHint') : t('chat.engine.pinHint')}
+      >
+        <PinIcon size={12} />
+        {isCurrent
+          ? agentName === undefined
+            ? t('chat.engine.pinnedOn')
+            : t('chat.engine.pinnedOnAgent', agentName)
+          : agentName === undefined
+            ? t('chat.engine.pinCta')
+            : t('chat.engine.pinCtaAgent', agentName)}
+      </button>
+      {/* Only when the pin is somewhere else: otherwise the button above
+          already says everything, and a line repeating it is furniture. */}
+      {pinned !== null && !isCurrent && (
+        <span className="wb-engine-pin-now">{t('chat.engine.pinnedElsewhere', pinned.label)}</span>
       )}
     </div>
   )

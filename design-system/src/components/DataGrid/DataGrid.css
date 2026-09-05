@@ -1,0 +1,258 @@
+/* DataGrid — tabular data you can walk and edit.
+
+   A real `<table>`, not a CSS grid of divs: column widths that follow their
+   content, a header that can be `position: sticky`, and a row gutter that can
+   be sticky in the other axis are all things the table layout algorithm
+   already does. `role="grid"` is what turns it from a document table into an
+   interactive one; the roving tabindex lives in the component. */
+
+.hds-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.hds-grid-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* The header and the gutter are sticky against THIS box, so it has to be
+     the scroller — a scrolling ancestor further up would leave both behind. */
+  position: relative;
+}
+
+.hds-grid-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  /* Columns size to their content and the scroller takes the overflow,
+     rather than every column squeezing to fit a narrow pane. */
+  min-width: max-content;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+/* --- header -------------------------------------------------------------- */
+
+.hds-grid-colhead,
+.hds-grid-corner {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Opaque: rows scroll UNDER this, and a translucent header would show them
+     through the column names. */
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hds-grid-corner {
+  z-index: 3;
+  left: 0;
+  width: 1px;
+  border-right: 1px solid var(--border);
+}
+
+.hds-grid-colhead {
+  padding: var(--s-2) var(--s-3);
+  color: var(--ink);
+  max-width: 34ch;
+}
+
+.hds-grid-colhead-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.hds-grid-colhead-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-grid-colhead-hint {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+/* A numeric column is right-aligned all the way up: a header sitting over the
+   left edge of a column of digits that ends on the right reads as a different
+   column. */
+.hds-grid-colhead[data-numeric] .hds-grid-colhead-body {
+  align-items: flex-end;
+}
+
+/* The column the cursor is in, named where the name is. In a grid wider than
+   the pane this is the only place that can answer "which column is this?"
+
+   The tint is a LAYER over the opaque surface, not a replacement for it:
+   `--selected-bg` is 16% alpha, and a sticky header painted only in it lets
+   every row scroll visibly through the column name. Same for the row gutter
+   below, which the columns scroll under sideways.
+
+   `--accent-tint-ink`, not `--selected`: the accent's own ink measures 4.02:1
+   over this tint in the dark theme and 4.18:1 in Hive. That token exists for
+   exactly this pair. */
+.hds-grid-colhead[data-current] {
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--selected-bg), var(--selected-bg));
+  color: var(--accent-tint-ink);
+}
+
+/* Six hues, cycled: for data whose columns are told apart only by position,
+   the colour is the column's name. The ramp is the editor's own syntax ink
+   (`--code-*`), in the order the CSV mirror assigns it, so the same column is
+   the same colour in the table and in the raw text behind it — and every one
+   of them is already measured against the 4.5:1 body floor in all themes. */
+.hds-grid-colhead[data-hue] .hds-grid-colhead-label {
+  color: var(--hds-grid-hue);
+}
+
+.hds-grid-colhead[data-hue]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--hds-grid-hue);
+  opacity: 0.55;
+}
+
+.hds-grid-colhead[data-hue="0"] {
+  --hds-grid-hue: var(--code-function);
+}
+.hds-grid-colhead[data-hue="1"] {
+  --hds-grid-hue: var(--code-string);
+}
+.hds-grid-colhead[data-hue="2"] {
+  --hds-grid-hue: var(--code-number);
+}
+.hds-grid-colhead[data-hue="3"] {
+  --hds-grid-hue: var(--code-property);
+}
+.hds-grid-colhead[data-hue="4"] {
+  --hds-grid-hue: var(--code-type);
+}
+.hds-grid-colhead[data-hue="5"] {
+  --hds-grid-hue: var(--code-keyword);
+}
+
+.hds-grid-colhead[data-current][data-hue]::after {
+  opacity: 1;
+}
+
+/* --- row gutter ---------------------------------------------------------- */
+
+.hds-grid-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s-2);
+  text-align: right;
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  /* Read text, not decoration — `--muted` clears 4.5:1 in all three themes
+     where `--faint` does not. */
+  color: var(--muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.hds-grid-rowhead[data-current] {
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--selected-bg), var(--selected-bg));
+  color: var(--accent-tint-ink);
+  font-weight: 600;
+}
+
+/* --- cells --------------------------------------------------------------- */
+
+.hds-grid-cell {
+  position: relative;
+  padding: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  max-width: 42ch;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: cell;
+  outline: none;
+}
+
+.hds-grid-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hds-grid-cell[data-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* An empty cell still has to be a target — without a floor it collapses to
+   nothing and the row below it slides sideways. */
+.hds-grid-cell[data-empty] .hds-grid-value::after {
+  content: "";
+  display: inline-block;
+  min-width: 4ch;
+}
+
+.hds-grid-row:hover .hds-grid-cell {
+  background: var(--surface-2);
+}
+
+/* The cursor: a ring inside the cell, so the row's own rhythm is untouched
+   and nothing shifts by a pixel when it moves. */
+.hds-grid-cell[data-active] {
+  background: var(--selected-bg);
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.hds-grid-cell[data-editing] {
+  background: var(--bg);
+  padding: 0;
+}
+
+.hds-grid-input {
+  display: block;
+  width: 100%;
+  min-width: 12ch;
+  margin: 0;
+  border: 0;
+  padding: var(--s-1) calc(var(--s-3) - 1px);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+/* --- empty + footer ------------------------------------------------------ */
+
+.hds-grid-empty {
+  padding: var(--s-6) var(--s-4);
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-grid-cell,
+  .hds-grid-colhead,
+  .hds-grid-rowhead {
+    transition: none;
+  }
+}

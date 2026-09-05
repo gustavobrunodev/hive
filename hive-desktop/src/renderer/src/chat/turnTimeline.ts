@@ -83,6 +83,17 @@ export type TurnBlock =
    * there is what made "está subindo o servidor MCP?" unanswerable.
    */
   | { kind: 'mcp'; id: string; servers: McpServerReport[] }
+  /**
+   * aws-bedrock: the turn stopped to renew a cloud session before it could
+   * run.
+   *
+   * At most one per turn, and it **flips in place** rather than appending a
+   * second row: "waiting" and "cleared" are two readings of one event, and a
+   * transcript that stacked both would read as two separate interruptions. It
+   * is also never removed once the session clears — a forty-second gap with no
+   * explanation left behind is unreadable the next day.
+   */
+  | { kind: 'auth'; id: string; provider: 'aws'; phase: 'waiting' | 'cleared' }
 
 /**
  * Blocks are append-only, so position is identity: the block created as the
@@ -286,6 +297,23 @@ export function appendTurnMcp(blocks: TurnBlock[], servers: McpServerReport[]): 
   if (index === -1) return [...blocks, { kind: 'mcp', id: blockId('mcp', blocks.length), servers }]
   const next = [...blocks]
   next[index] = { kind: 'mcp', id: blocks[index].id, servers }
+  return next
+}
+
+/**
+ * Records (or updates) the turn's cloud-session notice. One per turn: the
+ * second event of a login is the same login landing, so it replaces rather
+ * than stacks — see the block's own doc.
+ */
+export function appendTurnAuth(blocks: TurnBlock[], phase: 'waiting' | 'cleared'): TurnBlock[] {
+  const index = blocks.findIndex((block) => block.kind === 'auth')
+  if (index === -1) {
+    return [...blocks, { kind: 'auth', id: blockId('auth', blocks.length), provider: 'aws', phase }]
+  }
+  const existing = blocks[index]
+  if (existing.kind === 'auth' && existing.phase === phase) return blocks
+  const next = [...blocks]
+  next[index] = { kind: 'auth', id: existing.id, provider: 'aws', phase }
   return next
 }
 

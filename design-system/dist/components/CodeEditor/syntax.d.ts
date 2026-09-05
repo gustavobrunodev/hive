@@ -15,7 +15,7 @@ import "prismjs/components/prism-ini";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-diff";
 /** A grammar this editor can colour. `null` means "show it as plain text". */
-export type CodeLanguage = "markdown" | "markup" | "css" | "javascript" | "jsx" | "typescript" | "tsx" | "json" | "yaml" | "bash" | "python" | "toml" | "ini" | "sql" | "diff";
+export type CodeLanguage = "markdown" | "markup" | "css" | "javascript" | "jsx" | "typescript" | "tsx" | "json" | "yaml" | "bash" | "python" | "toml" | "ini" | "sql" | "diff" | "csv";
 /**
  * The grammar for a path, or `null` when we have none — in which case the
  * editor shows the file in plain ink rather than guessing. Guessing is the
@@ -55,6 +55,37 @@ export type CodeRole = "comment" | "keyword" | "string" | "number" | "function" 
  */
 export declare const HIGHLIGHT_CEILING = 400000;
 /**
+ * The ink each column gets, in order, cycling after six.
+ *
+ * Delimited data has no keywords to colour and no strings to tell from
+ * numbers — its ambiguity is entirely positional: which field am I looking
+ * at, and does this row have the same number of them as the header. So the
+ * colour stops meaning "this is a literal" and starts meaning "this is column
+ * three", which is the question the reader actually has. The six are the
+ * hue-carrying roles of the shared palette (blue, green, amber, violet, cyan,
+ * red), so a CSV inherits the same measured contrast every other file gets,
+ * in every theme, for free.
+ *
+ * `DataGrid.css` paints its column headers from the same six, in this order:
+ * a column is one colour whether you are looking at the table or at the raw
+ * text behind it.
+ */
+export declare const CSV_COLUMN_ROLES: readonly CodeRole[];
+/** The delimiters we recognise, in the order a tie is broken. */
+declare const CSV_DELIMITERS: readonly [",", ";", "\t", "|"];
+export type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
+/**
+ * Which character separates the fields of `source`.
+ *
+ * Counted outside quotes, over the first few lines rather than only the
+ * first: a header of one word per column is exactly the line that fails to
+ * distinguish `;` from `,`, and prose fields full of commas inside quotes are
+ * exactly what a naive count gets wrong. Exported because whoever *parses*
+ * the file has to reach the same answer the colouring did — two disagreeing
+ * delimiters is a mirror that paints columns the table does not have.
+ */
+export declare function detectDelimiter(source: string): CsvDelimiter;
+/**
  * Source → coloured runs. Falls back to a single uncoloured run whenever there
  * is no grammar, no language, or simply too much text.
  */
@@ -75,3 +106,4 @@ export declare function highlight(source: string, language: CodeLanguage | null)
  * exactly. `syntax.test.ts` holds all fifteen grammars to it.
  */
 export declare function highlightLines(source: string, language: CodeLanguage | null): CodeRun[][];
+export {};

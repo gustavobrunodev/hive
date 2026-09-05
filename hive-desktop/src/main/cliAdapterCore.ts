@@ -5,8 +5,10 @@ import { buildToolPatch, MAX_SOURCE_BYTES } from './toolPatch'
 import {
   composeTurnPrompt,
   createAgentEventQueue,
+  type AgentEvent,
   type AgentInput,
   type AgentSession,
+  type CompactEvent,
   type McpServerReport,
   type McpServerStatus,
   type SessionOpts,
@@ -67,6 +69,67 @@ export interface CliAdapterConfig {
    * means this CLI has no way to be told and the choice is the launch alone.
    */
   buildEnv?(): Record<string, string> | undefined
+  /**
+   * aws-bedrock: a gate the turn must pass **before** its process is spawned.
+   *
+   * Exists because one CLI (Claude, pointed at Amazon Bedrock) has a
+   * precondition that lives outside itself: a cached AWS SSO session that
+   * expires roughly daily. The CLI's own repair for that shells out to
+   * `aws sso login`, which needs a terminal a desktop app cannot give it — so
+   * it fails, and the turn dies with the repair's error rather than the
+   * problem's.
+   *
+   * Doing it here, rather than at each of the four call sites that can start a
+   * turn, is what makes it total: the composer, the queue, a workflow command
+   * and a background turn all arrive through `spawnTurn`.
+   *
+   * The contract is deliberately narrow. It resolves `{ ok: true }` — usually
+   * instantly, from a file read — and the turn proceeds exactly as before. It
+   * resolves `{ ok: false }` and the turn ends as an error with that message,
+   * having spawned nothing. `emit` lets it narrate into the turn's own event
+   * stream while it works, which is what turns "the app hung for forty seconds"
+   * into a visible, cancellable login.
+   */
+  preflight?(context: {
+    turnId: string | undefined
+    emit: (event: AgentEvent) => void
+  }): Promise<{ ok: true } | { ok: false; message: string }>
+  /**
+   * Whether a failed turn should be retried **once, without its `--resume`
+   * handle**, given the CLI's own error text.
+   *
+   * The one case it is for: `No conversation found with session ID: …`. A
+   * session id Hive stored is only as alive as the CLI's transcript store, and
+   * a turn that died before the CLI ever wrote that conversation leaves a
+   * handle that fails every subsequent turn — the conversation is bricked, and
+   * the message the user sees names a UUID they have no way to connect to
+   * anything. Retrying without it costs one spawn and silently restores the
+   * conversation; the CLI reports a fresh session id, which is adopted the
+   * usual way.
+   *
+   * Only ever consulted for a turn that produced **no output at all**, so a
+   * retry can never duplicate text already streamed into the transcript.
+   */
+  retryWithoutResume?(detail: string): boolean
+  /**
+   * Rewrites a failed turn's message when the CLI's own text names a cause the
+   * app can explain better.
+   *
+   * The reported failure is the case for it, verbatim:
+   *
+   * ```
+   * claude exited with code 1: Warning: MCP server blocked by enterprise
+   * policy: hive_approvals Error running awsAuthRefresh (in settings or
+   * ~/.claude.json): No conversation found with session ID: 8d2c3ac9-…
+   * ```
+   *
+   * Three unrelated facts in one sentence, none of which is the true one — the
+   * AWS session expired. Returning a short **code** (never a translated
+   * sentence: main holds no copy) lets the chat draw a card with the repair on
+   * it. `null` keeps the CLI's own words, which stay the right answer for
+   * everything the app cannot improve on.
+   */
+  describeFailure?(detail: string): string | null
 }
 
 /**
@@ -113,6 +176,18 @@ interface StreamJsonLine {
     }>
     /** Per-message token accounting — a live snapshot of context occupancy. */
     usage?: StreamJsonUsage
+  }
+  /**
+   * `system`/`compact_boundary` only: what the CLI's own compaction did
+   * (context-compaction). Measured on `claude 2.1.x`, print mode, by running
+   * `claude -p "/compact" --resume <id>`: the line arrives *after* the fact,
+   * the session id is unchanged, and the counts are the CLI's own.
+   */
+  compact_metadata?: {
+    trigger?: string
+    pre_tokens?: number
+    post_tokens?: number
+    duration_ms?: number
   }
   /** `result` only: the turn's totals, plus the CLI's own timings and cost. */
   usage?: StreamJsonUsage
@@ -431,6 +506,37 @@ export function toolDetailOf(input: Record<string, unknown> | undefined): string
 }
 
 /**
+ * A `system`/`compact_boundary` line → a `compact` event, or `null`.
+ *
+ * Only `end` is ever emitted here, and that is not an omission: in print mode
+ * the CLI reports the boundary once the compaction has already happened, so
+ * there is no moment at which a `start` would be true. A surface that waited
+ * for one would wait forever — which is why the contract says a `start` may
+ * never come.
+ *
+ * `trigger` is passed through rather than assumed. `manual` is what a
+ * `/compact` turn produces; the CLI uses the same line for its own threshold,
+ * and treating that as manual would put "você compactou" under something the
+ * user never did.
+ */
+function readCompactBoundary(
+  parsed: StreamJsonLine,
+  turnId: string | undefined
+): CompactEvent | null {
+  if (parsed.type !== 'system' || parsed.subtype !== 'compact_boundary') return null
+  const meta = parsed.compact_metadata ?? {}
+  return {
+    type: 'compact',
+    phase: 'end',
+    trigger: meta.trigger === 'auto' ? 'auto' : 'manual',
+    ...(typeof meta.pre_tokens === 'number' ? { preTokens: meta.pre_tokens } : {}),
+    ...(typeof meta.post_tokens === 'number' ? { postTokens: meta.post_tokens } : {}),
+    ...(typeof meta.duration_ms === 'number' ? { durationMs: meta.duration_ms } : {}),
+    turnId
+  }
+}
+
+/**
  * Routes one stdout line into the session's event queue, tagging every event
  * with the turn's `turnId` (background-turns: concurrent turns share one queue,
  * so identity on the event is what keeps their streams apart).
@@ -500,6 +606,8 @@ function handleStdoutLine(
   // answered, while the turn is still starting rather than in hindsight.
   const roster = readMcpRoster(parsed)
   if (roster !== null) queue.push({ type: 'mcp', servers: roster, turnId })
+  const compaction = readCompactBoundary(parsed, turnId)
+  if (compaction !== null) queue.push(compaction)
   emitToolEvents(parsed, queue, turnId)
   emitUsageEvents(parsed, queue, turnId, tracker)
 }
@@ -600,7 +708,12 @@ function emitToolEvents(
  * appended to a transcript the UI has already closed.
  */
 interface TurnRun {
-  handle: ProcessHandle
+  /**
+   * `null` until the process exists. A turn can now be interrupted *before*
+   * it spawns — it may be sitting in `preflight`, waiting on a browser login —
+   * and Stop has to work there too.
+   */
+  handle: ProcessHandle | null
   turnId: string | undefined
   /** The user asked for this — its terminal event is `interrupted`, never `error`. */
   interrupted: boolean
@@ -624,10 +737,14 @@ interface TurnRun {
  */
 async function pipeTurn(
   run: TurnRun,
+  handle: ProcessHandle,
   queue: ReturnType<typeof createAgentEventQueue>,
-  errorLabel: string
-): Promise<void> {
-  const { handle, turnId } = run
+  errorLabel: string,
+  shouldRetry?: (detail: string) => boolean,
+  describeFailure?: (detail: string) => string | null
+): Promise<TurnOutcome> {
+  const { turnId } = run
+  let produced = false
   const tracker: TurnTracker = { lastId: null, context: null, structured: false }
   let stdoutRest = ''
   let stderrTail = ''
@@ -638,38 +755,90 @@ async function pipeTurn(
       continue
     }
     stdoutRest += chunk.data
+    produced = true
     const lines = stdoutRest.split('\n')
     stdoutRest = lines.pop() ?? ''
     for (const line of lines) {
       handleStdoutLine(line, queue, turnId, tracker)
     }
   }
-  if (run.settled) return
+  if (run.settled) return 'settled'
   // Only when there IS a trailing partial line: an empty tail through the raw
   // path would append one phantom newline to every prose turn.
   if (stdoutRest !== '') handleStdoutLine(stdoutRest, queue, turnId, tracker)
   const result = await handle.exitCode
-  if (run.settled) return
-  run.settled = true
+  if (run.settled) return 'settled'
+  return settleAttempt(run, queue, {
+    result,
+    errorLabel,
+    detail: stderrTail.trim(),
+    produced,
+    ...(shouldRetry ? { shouldRetry } : {}),
+    ...(describeFailure ? { describeFailure } : {})
+  })
+}
+
+/**
+ * Turns one finished attempt into exactly one terminal event — or into a
+ * request to try again.
+ *
+ * Split out of `pipeTurn` because it is the whole decision: five outcomes
+ * (stopped by the user, clean exit, killed by a signal, recoverable failure,
+ * real failure) that the streaming loop above has no business being
+ * interleaved with.
+ */
+function settleAttempt(
+  run: TurnRun,
+  queue: ReturnType<typeof createAgentEventQueue>,
+  attempt: {
+    result: { code: number | null; signal: NodeJS.Signals | null }
+    errorLabel: string
+    detail: string
+    /** Whether this attempt streamed anything — a retry may never duplicate text. */
+    produced: boolean
+    shouldRetry?: (detail: string) => boolean
+    describeFailure?: (detail: string) => string | null
+  }
+): TurnOutcome {
+  const { turnId } = run
+  const { result, errorLabel, detail, produced } = attempt
   if (run.interrupted) {
+    run.settled = true
     queue.push({ type: 'interrupted', turnId })
-  } else if (result.code === 0) {
+    return 'settled'
+  }
+  if (result.code === 0) {
+    run.settled = true
     queue.push({ type: 'done', turnId })
-  } else if (result.signal) {
+    return 'settled'
+  }
+  if (result.signal) {
+    run.settled = true
     queue.push({
       type: 'error',
       message: `${errorLabel} was terminated by signal ${result.signal}`,
       turnId
     })
-  } else {
-    const detail = stderrTail.trim()
-    queue.push({
-      type: 'error',
-      message: `${errorLabel} exited with code ${result.code}${detail ? `: ${detail}` : ''}`,
-      turnId
-    })
+    return 'settled'
   }
+  // The recoverable failure (a dead `--resume` handle) leaves the turn
+  // **unsettled** on purpose: the caller re-spawns into the same run, and a
+  // terminal event pushed here would have closed a turn that is about to
+  // produce a real answer.
+  if (!produced && attempt.shouldRetry?.(detail)) return 'retry'
+  run.settled = true
+  queue.push({
+    type: 'error',
+    message:
+      attempt.describeFailure?.(detail) ??
+      `${errorLabel} exited with code ${result.code}${detail ? `: ${detail}` : ''}`,
+    turnId
+  })
+  return 'settled'
 }
+
+/** What one attempt at a turn ended as. `retry` is the only non-terminal one. */
+type TurnOutcome = 'settled' | 'retry'
 
 /**
  * How long a turn gets to honour SIGTERM before it is taken out with SIGKILL.
@@ -697,6 +866,88 @@ export function createCliAgentSession(
   const activeRuns = new Map<string, TurnRun>()
   let anonymousTurnCounter = 0
 
+  /** Spawns one attempt of a turn. Separate from `driveTurn` because a
+   *  recoverable failure re-enters it with a different `resume`. */
+  function spawnAttempt(
+    prompt: string,
+    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
+  ): ProcessHandle {
+    return processRunner.run(config.command, config.buildArgs(prompt, turn), {
+      cwd: opts.workspace,
+      env: config.buildEnv?.(),
+      // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
+      // inside the user's chosen terminal. With nothing chosen the runner
+      // spawns exactly as it always did.
+      shell: true,
+      // …which is precisely why the turn also needs its own process group.
+      // POSIX gets away with `exec` (the shell becomes the CLI), but Windows
+      // has no exec: there the turn is cmd.exe → claude.cmd → node, and a
+      // kill aimed at the shell left the agent running. See
+      // RunOptions.processGroup for the full account.
+      processGroup: true
+    })
+  }
+
+  /**
+   * One turn, from gate to terminal event.
+   *
+   * Three things happen here that used to be a single `processRunner.run`, and
+   * each one exists because of a real failure:
+   *
+   *  1. **The gate runs first** (`config.preflight`), so a Bedrock turn whose
+   *     AWS session died overnight logs the user back in instead of spawning a
+   *     CLI that will fail in two seconds with somebody else's error message.
+   *  2. **Interruption is checked around every await.** The turn can now be
+   *     stopped while it has no process at all — during that login — and Stop
+   *     must settle it rather than spawn into a cancelled request.
+   *  3. **One recoverable retry** (`config.retryWithoutResume`), for a
+   *     `--resume` handle the CLI no longer recognises.
+   */
+  async function driveTurn(
+    run: TurnRun,
+    handleKey: string,
+    prompt: string,
+    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
+  ): Promise<void> {
+    try {
+      if (config.preflight) {
+        const verdict = await config.preflight({
+          turnId: turn.turnId,
+          emit: (event) => queue.push(event)
+        })
+        // Stop pressed while the gate was open: `interruptRun` already pushed
+        // the terminal event, so this only has to not spawn.
+        if (run.settled || run.interrupted) return
+        if (!verdict.ok) {
+          run.settled = true
+          queue.push({ type: 'error', message: verdict.message, turnId: turn.turnId })
+          return
+        }
+      }
+      let resume = turn.resume ?? null
+      // At most two attempts, and the second only ever drops `--resume`.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (run.settled || run.interrupted) return
+        const handle = spawnAttempt(prompt, { ...turn, resume })
+        run.handle = handle
+        const outcome = await pipeTurn(
+          run,
+          handle,
+          queue,
+          config.errorLabel,
+          // Only the first attempt may ask for a retry, and only when there
+          // was a handle to blame in the first place.
+          attempt === 0 && resume ? config.retryWithoutResume : undefined,
+          config.describeFailure
+        )
+        if (outcome === 'settled') return
+        resume = null
+      }
+    } finally {
+      if (activeRuns.get(handleKey) === run) activeRuns.delete(handleKey)
+    }
+  }
+
   function spawnTurn(prompt: string, turnOpts: TurnOpts | undefined): void {
     const model = turnOpts?.model ?? opts.model
     const effort = turnOpts?.effort ?? opts.effort
@@ -704,29 +955,9 @@ export function createCliAgentSession(
     const turnId = turnOpts?.turnId
     anonymousTurnCounter += 1
     const handleKey = turnId ?? `anon-${anonymousTurnCounter}`
-    const handle = processRunner.run(
-      config.command,
-      config.buildArgs(prompt, { model, effort, resume, turnId }),
-      {
-        cwd: opts.workspace,
-        env: config.buildEnv?.(),
-        // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
-        // inside the user's chosen terminal. With nothing chosen the runner
-        // spawns exactly as it always did.
-        shell: true,
-        // …which is precisely why the turn also needs its own process group.
-        // POSIX gets away with `exec` (the shell becomes the CLI), but Windows
-        // has no exec: there the turn is cmd.exe → claude.cmd → node, and a
-        // kill aimed at the shell left the agent running. See
-        // RunOptions.processGroup for the full account.
-        processGroup: true
-      }
-    )
-    const run: TurnRun = { handle, turnId, interrupted: false, settled: false }
+    const run: TurnRun = { handle: null, turnId, interrupted: false, settled: false }
     activeRuns.set(handleKey, run)
-    void pipeTurn(run, queue, config.errorLabel).then(() => {
-      if (activeRuns.get(handleKey) === run) activeRuns.delete(handleKey)
-    })
+    void driveTurn(run, handleKey, prompt, { model, effort, resume, turnId })
   }
 
   /**
@@ -750,10 +981,15 @@ export function createCliAgentSession(
       run.settled = true
       queue.push({ type: 'interrupted', turnId: run.turnId })
     }
-    run.handle.kill()
-    const escalation = setTimeout(() => run.handle.kill('SIGKILL'), KILL_ESCALATION_MS)
+    // No process yet — the turn is in its preflight gate (an AWS login, say).
+    // Settling it above is the whole job; `driveTurn` sees `interrupted` and
+    // never spawns.
+    const handle = run.handle
+    if (!handle) return
+    handle.kill()
+    const escalation = setTimeout(() => handle.kill('SIGKILL'), KILL_ESCALATION_MS)
     escalation.unref?.()
-    void run.handle.exitCode.then(() => clearTimeout(escalation))
+    void handle.exitCode.then(() => clearTimeout(escalation))
   }
 
   return {

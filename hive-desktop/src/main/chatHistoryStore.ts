@@ -34,7 +34,15 @@ import { createHash, randomUUID } from 'crypto'
 /** One persisted chat turn. `at` is epoch ms. */
 export interface StoredChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  /**
+   * `compaction` is not a turn — it is the seam where the agent's context was
+   * replaced by a summary of itself (context-compaction), stored in the
+   * transcript because a conversation that was compacted and a conversation
+   * that wasn't are different conversations, and only the transcript can still
+   * say which one this is after a reload. Its `text` is the summary the agent
+   * handed over, or `''` when it handed over none.
+   */
+  role: 'user' | 'assistant' | 'compaction'
   text: string
   at: number
   /**
@@ -45,6 +53,29 @@ export interface StoredChatMessage {
    * Absent on assistant messages and on files written before this field.
    */
   attachments?: string[]
+  /**
+   * `compaction` rows only: what the agent reported about the compaction. The
+   * counts are optional because the two agents report different amounts —
+   * Claude's boundary carries them, Devin's notification does not — and a
+   * fabricated number would be indistinguishable from a measured one.
+   */
+  compaction?: StoredCompaction
+}
+
+/** What a `compaction` row knows about itself. */
+export interface StoredCompaction {
+  /** Who asked: a `/compact`, or the agent's own ceiling. */
+  trigger: 'manual' | 'auto'
+  /** Window occupancy before / after, in tokens, when reported. */
+  preTokens?: number
+  postTokens?: number
+  durationMs?: number
+  /**
+   * `preTokens` is the app's own last reading rather than the agent's figure —
+   * Devin reports none. Stored so a reopened transcript can still mark it as an
+   * estimate instead of quietly promoting it to a measurement.
+   */
+  estimated?: boolean
 }
 
 /** A full persisted conversation. `title` auto-derives from the first user message and is user-renameable afterwards. */
@@ -96,7 +127,12 @@ export interface ChatHistoryStore {
   appendMessage(
     workspace: string,
     id: string,
-    message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+    message: {
+      role: 'user' | 'assistant' | 'compaction'
+      text: string
+      attachments?: string[]
+      compaction?: StoredCompaction
+    }
   ): ChatSessionMeta | null
   /** Sets a user-chosen title (overrides the auto-title from then on). Same `null` contract as `appendMessage`. */
   rename(workspace: string, id: string, title: string): ChatSessionMeta | null
@@ -170,8 +206,14 @@ export function deriveSessionTitle(text: string): string {
   return `${cut.slice(0, lastSpace > TITLE_MAX_CHARS / 2 ? lastSpace : TITLE_MAX_CHARS).trimEnd()}…`
 }
 
+/**
+ * A conversation's preview is the last thing *said* in it. A compaction seam is
+ * bookkeeping, not speech: ending on one would show the history list a summary
+ * of the conversation where the conversation's own last line belongs.
+ */
 function previewOf(messages: StoredChatMessage[]): string {
-  const last = messages[messages.length - 1]
+  const spoken = messages.filter((message) => message.role !== 'compaction')
+  const last = spoken[spoken.length - 1]
   if (!last) return ''
   const line = singleLine(last.text)
   return line.length <= PREVIEW_MAX_CHARS ? line : `${line.slice(0, PREVIEW_MAX_CHARS).trimEnd()}…`
@@ -183,7 +225,8 @@ function metaOf(session: StoredChatSession): ChatSessionMeta {
     title: session.title,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
-    messageCount: session.messages.length,
+    // Turns, not rows: a compaction seam is not a message anybody sent.
+    messageCount: session.messages.filter((message) => message.role !== 'compaction').length,
     agent: session.agent,
     preview: previewOf(session.messages)
   }
@@ -285,7 +328,12 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
   function appendMessage(
     workspace: string,
     id: string,
-    message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+    message: {
+      role: 'user' | 'assistant' | 'compaction'
+      text: string
+      attachments?: string[]
+      compaction?: StoredCompaction
+    }
   ): ChatSessionMeta | null {
     const session = get(workspace, id)
     if (!session) return null
@@ -297,7 +345,8 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
       at: now,
       ...(message.attachments && message.attachments.length > 0
         ? { attachments: message.attachments }
-        : {})
+        : {}),
+      ...(message.compaction ? { compaction: message.compaction } : {})
     })
     session.updatedAt = now
     if (session.title === '' && message.role === 'user') {

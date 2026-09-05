@@ -1,0 +1,68 @@
+.hds-gauge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.hds-gauge-svg {
+  position: absolute;
+  inset: 0;
+  /* Twelve o'clock, clockwise — the only direction a countdown reads. */
+  transform: rotate(-90deg);
+}
+
+.hds-gauge-track {
+  stroke: var(--surface-3);
+}
+
+.hds-gauge-arc {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.32s var(--ease-quart), stroke 0.32s var(--ease-quart);
+}
+
+.hds-gauge[data-tone="success"] .hds-gauge-arc {
+  stroke: var(--success);
+}
+
+.hds-gauge[data-tone="warning"] .hds-gauge-arc {
+  stroke: var(--warning);
+}
+
+.hds-gauge[data-tone="danger"] .hds-gauge-arc {
+  stroke: var(--danger);
+}
+
+.hds-gauge[data-tone="neutral"] .hds-gauge-arc {
+  stroke: var(--border-strong);
+}
+
+.hds-gauge-face {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  text-align: center;
+  padding: 0 14%;
+}
+
+.hds-gauge-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.hds-gauge-caption {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-gauge-arc {
+    transition-duration: 0.01ms;
+  }
+}

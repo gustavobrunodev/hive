@@ -28,9 +28,30 @@ import { FileTypeIcon } from '../ui/fileIcons'
 import type { RoleAction } from '../ui/ActionRail'
 import { EnginePicker } from './EnginePicker'
 import { carryEffort, effortsFor, pickInitial, type EngineCapabilities } from './engineOptions'
+import { initialEngine, useEnginePins } from './enginePins'
 import { useWorkspaceFiles } from './useWorkspaceFiles'
 import { IntentGrid } from './IntentGrid'
-import { SlashMenu, type SlashSkill } from './SlashMenu'
+import { SlashMenu } from './SlashMenu'
+import { CompactSeam } from './CompactSeam'
+import {
+  applyCompaction,
+  compactPrompt,
+  compactionRecord,
+  shouldAutoCompact,
+  NO_COMPACTION,
+  type CompactionRecord,
+  type CompactionSupport
+} from './compaction'
+import {
+  completeCommand,
+  filterSlashCommands,
+  knownCommandToken,
+  resolveComposerIntent,
+  slashCatalog,
+  slashQueryOf,
+  type SlashCommand,
+  type SlashSkill
+} from './slashCommands'
 import { FileMentionMenu } from './FileMentionMenu'
 import { extractMentions, mentionSegments } from './composerMentions'
 import { composerBackdrop } from './composerBackdrop'
@@ -42,6 +63,7 @@ import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { useAsr } from '../asr/useAsr'
 import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
+import { createSkillOracle } from './commandMentions'
 import { useAttachments } from './useAttachments'
 import { AttachmentTray } from './AttachmentTray'
 import { parkDraft, takeDraft, type DraftStore } from './composerDraft'
@@ -55,6 +77,7 @@ import {
   answerAllPendingApprovals,
   answerTurnApproval,
   appendTurnApproval,
+  appendTurnAuth,
   appendTurnMcp,
   appendTurnText,
   appendTurnThought,
@@ -73,6 +96,7 @@ import { ContextMeter } from './ContextMeter'
 import { QueuedMessages } from './QueuedMessages'
 import { useMessageQueue } from './useMessageQueue'
 import { useTicker } from './useTicker'
+import { awsTurnError } from '../aws/awsSession'
 import type { QueuedMessage } from './messageQueue'
 import { countSteps, type TurnMetrics, type TurnUsage } from './turnTiming'
 import {
@@ -85,7 +109,13 @@ import {
 
 interface ChatMessageEntry {
   id: string
-  role: 'user' | 'assistant'
+  /**
+   * `compaction` is not a turn: it is the seam where the agent's context was
+   * replaced by a summary of itself (context-compaction). It sits in the same
+   * list as the messages because it happened *between* two of them and its
+   * position is the only thing that says which ones the agent still remembers.
+   */
+  role: 'user' | 'assistant' | 'compaction'
   text: string
   /** Display names of files attached to this (user) turn — rendered as chips in the bubble. */
   attachments?: string[]
@@ -103,6 +133,8 @@ interface ChatMessageEntry {
    * reason as `blocks`.
    */
   metrics?: TurnMetrics
+  /** `compaction` rows only: what the agent reported about it. */
+  compaction?: CompactionRecord
 }
 
 /**
@@ -148,6 +180,18 @@ type AgentEventIn =
   | { type: 'session'; id: string; turnId?: string }
   | { type: 'usage'; usage: TurnUsage; final?: boolean; turnId?: string }
   | { type: 'mcp'; servers: McpServerReport[]; turnId?: string }
+  /** aws-bedrock: the turn paused to renew (or just renewed) the AWS session. */
+  | { type: 'auth'; provider: 'aws'; phase: 'waiting' | 'cleared'; turnId?: string }
+  | {
+      type: 'compact'
+      turnId?: string
+      phase: 'start' | 'end'
+      trigger: 'manual' | 'auto'
+      preTokens?: number
+      postTokens?: number
+      durationMs?: number
+      summary?: string
+    }
 
 /** Imperative handle so the work UI (action rail + session-history header controls, outside this subtree) can drive the chat. */
 export interface ChatHandle {
@@ -213,6 +257,16 @@ interface ChatProps {
   onMcpRoster?: (servers: McpServerReport[]) => void
   /** mcp-visibility: opens the MCP console, from the turn's handshake row. */
   onOpenMcpConsole?: () => void
+  /** aws-bedrock: opens Perfil › Conexão AWS, from the turn's session row. */
+  onOpenAwsPanel?: () => void
+  /**
+   * aws-bedrock: starts an AWS sign-in straight from the failed turn.
+   *
+   * The direct repair, and the reason the error banner is not a link to
+   * settings: the user's intent after "a sessão expirou" is to fix it, and a
+   * detour through a settings panel to press a second button is a detour.
+   */
+  onAwsReconnect?: () => void
   /**
    * agent-patch: opens a file the agent edited, by workspace-relative path —
    * the editor's own `openFile`. Lets a path named in the transcript be a way
@@ -246,16 +300,16 @@ function customizeHandler(
   return onCustomizeShortcuts && (() => onCustomizeShortcuts(scope))
 }
 
+/** An agent's display name, falling back to its bare id and then to nothing. */
+function agentDisplayName(names: Record<string, string>, id: string | null): string {
+  if (id === null) return ''
+  return names[id] ?? id
+}
+
 let messageIdCounter = 0
 function nextMessageId(): string {
   messageIdCounter += 1
   return `msg-${messageIdCounter}`
-}
-
-/** Matches `/` followed by zero+ non-space chars to end-of-value: the slash-menu open condition (a leading `/`, no space yet). */
-function slashQueryOf(value: string): string | null {
-  const match = /^\/(\S*)$/.exec(value)
-  return match ? match[1] : null
 }
 
 interface ComposerMenuKeyCtx {
@@ -366,6 +420,13 @@ interface ActiveTurn {
   visible: boolean
   session: Promise<string | null>
   hiveId: string | null
+  /**
+   * A turn that exists to compact the context rather than to answer anything
+   * (context-compaction). It produces no bubble: whatever the agent prints
+   * while compacting is its own progress chatter, and the seam is what the
+   * transcript shows instead.
+   */
+  compaction?: boolean
 }
 
 interface TurnEventCtx {
@@ -390,6 +451,17 @@ interface TurnEventCtx {
   appendMessage: (entry: ChatMessageEntry) => void
   /** Updates the live conversation's CLI session id (conversation memory) — only called for a *visible* turn's `session` event. */
   setCliSession: (id: string) => void
+  /** context-compaction: the agent compacted (or started compacting) its context. */
+  onCompact: (event: Extract<AgentEventIn, { type: 'compact' }>) => void
+  /**
+   * A compaction *turn* reached its terminal event, however it ended.
+   *
+   * Separate from `onCompact` because the two do not always both happen: a
+   * compaction that fails, or one the user stops, never reports a boundary, and
+   * the pending seam would spin forever waiting for one. This is the signal
+   * that stops it either way.
+   */
+  onCompactTurnEnd: () => void
   /** Recomputes the "conversations with a running turn" set (the history panel's "Em andamento" indicator). */
   notifyRunning: () => void
   /** mcp-visibility: hands the turn's MCP roster to the work UI (status bar + console). */
@@ -446,12 +518,23 @@ function settleTurn(
   const turn = takeTurn(ctx.turns, turnId)
   if (!turn) return
   const text = turnText(turn.blocks)
-  persistAssistantText(ctx, turn, text)
+  if (!turn.compaction) persistAssistantText(ctx, turn, text)
   // A turn that ends leaves nothing spinning and nothing answerable — an
   // interrupt settles its in-flight steps as failed, a clean finish as done,
   // and either way a permission nobody answered is recorded as refused.
   const blocks = settleTurnBlocks(turn.blocks, terminal === 'done' ? 'ok' : 'failed')
   const metrics = closeMetrics(ctx, turn, terminal)
+  // A compaction turn leaves no bubble. Everything it printed is the CLI
+  // narrating its own housekeeping ("Compacting context…"), and the seam is
+  // what the transcript shows instead — a message here would file the agent's
+  // bookkeeping under things it said.
+  if (turn.compaction) {
+    ctx.onCompactTurnEnd()
+    syncStreamingUi(ctx)
+    ctx.notifyRunning()
+    if (turn.visible) ctx.settleQueue(terminal)
+    return
+  }
   if (turn.visible && (terminal === 'done' || text.length > 0 || blocks.length > 0)) {
     ctx.appendMessage({
       id: nextMessageId(),
@@ -590,6 +673,19 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
     case 'mcp':
       handleMcpEvent(ctx, event.servers, event.turnId)
       break
+    // aws-bedrock: the app's own annotation of why this turn is waiting. It
+    // grows the turn like any other block, so a background turn keeps it and
+    // shows it when the user comes back to that conversation.
+    case 'auth':
+      growTurn(ctx, event.turnId, (blocks) => appendTurnAuth(blocks, event.phase))
+      break
+    // context-compaction: not part of any turn's timeline — it is a thing that
+    // happened to the whole conversation, and it arrives on turns nobody asked
+    // for it on (Devin compacts by itself mid-answer). It goes straight to the
+    // pane, which owns the seam and the meter.
+    case 'compact':
+      ctx.onCompact(event)
+      break
     case 'tool':
       // The feed belongs to the turn's timeline, so a background turn keeps
       // accumulating steps and shows its full history — in order — when the
@@ -625,6 +721,7 @@ function handleAgentEvent(event: AgentEventIn, ctx: TurnEventCtx): void {
 function failTurn(ctx: TurnEventCtx, message: string, turnId: string | undefined): void {
   const turn = takeTurn(ctx.turns, turnId)
   if (turn) closeMetrics(ctx, turn, 'error')
+  if (turn?.compaction) ctx.onCompactTurnEnd()
   const speaks = !turn || turn.visible
   if (speaks) ctx.setErrorMessage(message)
   syncStreamingUi(ctx)
@@ -680,37 +777,70 @@ function syncStreamingUi(ctx: TurnEventCtx): void {
 }
 
 /**
- * Backdrop renderer for the composer's `@` mention pills (chat-attachments):
- * valid `@path` tokens get a tinted pill behind the textarea's own glyphs
- * (see PromptInput's `highlight` contract). Module scope — pure function of
- * its inputs.
+ * Backdrop renderer for the composer's tokens (see PromptInput's `highlight`
+ * contract — the layer is a transparent mirror under the real glyphs, so only
+ * the pills paint).
+ *
+ * Two kinds ride it, and they look different on purpose. A `@path` says *this
+ * names a file that exists*; a leading `/command` says *this line is an
+ * invocation* — different claims, so a shared pill would have flattened them
+ * into "something is special about these characters". Both are gated on an
+ * oracle: a typo dresses up as neither.
+ *
+ * Module scope — pure function of its inputs.
  */
 function renderMentionBackdrop(
   value: string,
   fileSet: ReadonlySet<string>,
   freshRange: readonly [number, number] | null,
-  previewRange: readonly [number, number] | null
+  previewRange: readonly [number, number] | null,
+  commandRange: readonly [number, number] | null
 ): React.ReactNode {
-  return composerBackdrop(value, fileSet, freshRange, previewRange).map((segment, index) => {
-    const className = [
-      segment.mention ? 'wb-mention-token' : null,
-      segment.fresh ? 'wb-composer-fresh' : null,
-      segment.preview ? 'wb-composer-preview' : null
-    ]
-      .filter((name) => name !== null)
-      .join(' ')
-    // A mention still renders as <mark>; the freshly-landed run is a plain
-    // span, because it is a transient glance and not a semantic token.
-    return segment.mention ? (
-      <mark key={index} className={className}>
-        {segment.text}
-      </mark>
-    ) : (
-      <span key={index} className={className === '' ? undefined : className}>
-        {segment.text}
-      </span>
-    )
-  })
+  return composerBackdrop(value, fileSet, freshRange, previewRange, commandRange).map(
+    (segment, index) => {
+      const className = [
+        segment.mention ? 'wb-mention-token' : null,
+        segment.command ? 'wb-command-chip' : null,
+        segment.fresh ? 'wb-composer-fresh' : null,
+        segment.preview ? 'wb-composer-preview' : null
+      ]
+        .filter((name) => name !== null)
+        .join(' ')
+      // Mentions and commands render as <mark> — they are semantic tokens; the
+      // freshly-landed dictation run is a plain span, because it is a transient
+      // glance and not a token at all.
+      return segment.mention || segment.command ? (
+        <mark key={index} className={className}>
+          {segment.text}
+        </mark>
+      ) : (
+        <span key={index} className={className === '' ? undefined : className}>
+          {segment.text}
+        </span>
+      )
+    }
+  )
+}
+
+/**
+ * The two diagnoses the slash menu keeps apart: "this workspace has no skills
+ * installed" sends the user to provision it, "nothing matched" sends them to
+ * retype. Collapsing them would send someone to fix a workspace that is fine.
+ */
+function skillsMissingLabel(skillCount: number): string {
+  return skillCount === 0 ? t('chat.slashEmpty') : t('chat.slashNoMatch')
+}
+
+/**
+ * Why the skills half of the menu is missing, or `null` when it isn't.
+ *
+ * Needed because the built-in commands mean a bare `/` is never an empty menu
+ * again — the empty state that used to carry these diagnoses can no longer be
+ * reached from a workspace with no skills.
+ */
+function slashNote(commands: readonly SlashCommand[], skillCount: number): string | null {
+  if (commands.some((command) => command.kind === 'skill')) return null
+  return skillsMissingLabel(skillCount)
 }
 
 /** `aria-activedescendant` target for an open composer menu, or `undefined`. */
@@ -809,7 +939,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onCustomizeShortcuts,
     onOpenFile,
     onMcpRoster,
-    onOpenMcpConsole
+    onOpenMcpConsole,
+    onOpenAwsPanel,
+    onAwsReconnect
   },
   ref
 ) {
@@ -862,11 +994,68 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // id → displayName for every registered agent, for the switcher labels.
   const [agentNames, setAgentNames] = useState<Record<string, string>>({})
   const [skills, setSkills] = useState<SlashSkill[]>([])
+  /**
+   * context-compaction: a compaction is under way in this conversation.
+   *
+   * Set the moment Hive sends `/compact` — not when the agent acknowledges —
+   * because Claude never announces a start (its boundary line arrives after the
+   * fact), and a seam that only appeared once the work was already done would
+   * leave the eight seconds in between looking like nothing happened.
+   */
+  const [compacting, setCompacting] = useState(false)
+  /**
+   * Whether Hive may compact on its own when the window gets tight. The app
+   * setting; whether it is ever *acted on* depends on the agent
+   * (`shouldAutoCompact`), which is what keeps Hive out of Devin's way.
+   */
+  const [autoCompact, setAutoCompact] = useState(true)
+  useEffect(() => {
+    let alive = true
+    void window.hive.agent.autoCompact().then((enabled) => {
+      if (alive) setAutoCompact(enabled)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  // Read by the compaction handler and by the 80% threshold, both of which
+  // live behind refs (the event subscription must not re-bind on every token
+  // report). Mirrors the *view*, not the raw state: the window a fraction is
+  // measured against is composed at read time, so the raw record has no
+  // denominator and a threshold reading it would never fire.
+  const sessionUsageRef = useRef<SessionUsage>(sessionUsage)
+  const handleCompactRef = useRef<(event: Extract<AgentEventIn, { type: 'compact' }>) => void>(
+    () => {}
+  )
+  const handleCompactTurnEndRef = useRef<() => void>(() => {})
+  /**
+   * context-compaction: what the conversation's agent actually does about a
+   * full window, as its adapter *measured* on the transport it drives.
+   *
+   * Everything downstream reads this rather than the agent's name — whether
+   * `/compact` appears in the menu, whether a typed one runs, whether Hive's
+   * own threshold ever fires, and what the meter offers. That indirection is
+   * the feature: Devin manages its own ceiling and Claude-in-print-mode does
+   * not, and neither fact belongs hardcoded in a component.
+   */
+  const compactionSupport: CompactionSupport = useMemo(
+    () => capabilities?.compaction ?? NO_COMPACTION,
+    [capabilities]
+  )
+  /** The agent's own name, for copy that has to say *which* agent is meant. */
+  const agentLabel = agentDisplayName(agentNames, activeAgent)
+  // chat-command-mentions: the same catalog that backs the slash menu, as the
+  // oracle `Markdown` uses to decide which `/name` an agent writes is real —
+  // and the one `resolveComposerIntent` asks before treating a typed `/name`
+  // as an invocation rather than as prose.
+  const skillOracle = useMemo(() => createSkillOracle(skills), [skills])
   const [composerValue, setComposerValue] = useState('')
   const [slashDismissed, setSlashDismissed] = useState(false)
   const [slashHighlight, setSlashHighlight] = useState(0)
   // chat-attachments: pending files for the next message + `@` mention state.
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  /** Where the caret must land after a slash completion re-renders the value. */
+  const pendingCaretRef = useRef<number | null>(null)
   const attachments = useAttachments(capabilities?.supportsAttachments ?? false, workspace)
   const mentions = useMentions(workspace, composerValue, setComposerValue, composerTextareaRef)
   // A draft belongs to its conversation, not to this pane (`composerDraft.ts`):
@@ -986,6 +1175,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     return withContextWindow(sessionUsage, window)
   }, [sessionUsage, capabilities, model])
 
+  useEffect(() => {
+    sessionUsageRef.current = sessionUsageView
+  }, [sessionUsageView])
+
   const recordUsage = useCallback(
     (usage: TurnUsage, opts: { final: boolean; runtimeMs: number; turnId?: string }) => {
       setSessionUsage((current) => applyUsage(current, usage, opts))
@@ -1006,11 +1199,31 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   )
   const settleQueue = queue.settle
 
+  // engine-pins: this agent's pinned default — the model+rung a fresh
+  // conversation starts on, kept on disk instead of only for as long as this
+  // pane lives.
+  const enginePins = useEnginePins(activeAgent)
+  // Read inside the capabilities effect without making the effect re-run when
+  // the pin *changes*: pinning a row must not also select it (that separation
+  // is the whole point of the pin control). Declared before that effect on
+  // purpose — effects fire in declaration order within a commit, so by the
+  // time the pin store reports `ready` this holds the pin it just read.
+  const pinRef = useRef(enginePins.pin)
+  useEffect(() => {
+    pinRef.current = enginePins.pin
+  })
+  const pinsReady = enginePins.ready
+
   // multi-agent: capabilities reflect THIS conversation's agent. Model/effort
   // reset to the new agent's defaults on a switch — model ids aren't portable
   // across agents (Claude's `opus` means nothing to Copilot), and an agent may
   // expose no model and/or no effort at all (Devin/Copilot), in which case the
   // composer hides that picker and the value stays `null` (omitted per turn).
+  //
+  // `pinsReady` is a dependency because the pinned default is read once per
+  // window and can land after this pane mounted: without re-picking at that
+  // moment, a first paint would settle on the CLI default and the pin would
+  // look ignored.
   useEffect(() => {
     let cancelled = false
     // model-picker: detection is workspace-scoped, because a project's own
@@ -1024,17 +1237,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // whatever happened to be first in the list — Hive overriding a model
       // the user configured themselves is exactly the surprise this feature
       // exists to end.
+      // …and the pinned default sits between the two: what this pane already
+      // knew beats it (that is this session's own pick), and it beats the
+      // CLI's default. `initialEngine` holds that order for every surface.
       const remembered = enginePrefs.current.get(activeAgent ?? '')
-      const restored = pickInitial(caps.models, remembered?.model)
-      setModel(restored)
+      const start = initialEngine(caps, pinRef.current, remembered)
+      setModel(start.model)
       // The ladder is the selected model's own on an agent whose efforts are
       // per model (Devin), so it can only be resolved once the model is.
-      setEffort(pickInitial(effortsFor(caps, restored), remembered?.effort))
+      setEffort(start.effort)
     })
     return () => {
       cancelled = true
     }
-  }, [activeAgent, workspace])
+  }, [activeAgent, workspace, pinsReady])
 
   // model-picker: "Redetectar" — re-reads settings/config/CLI listing instead
   // of answering from the main-process cache. The moment a user changes a
@@ -1121,6 +1337,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setCliSession: (id) => {
         cliSessionRef.current = id
       },
+      onCompact: (event) => handleCompactRef.current(event),
+      onCompactTurnEnd: () => handleCompactTurnEndRef.current(),
       notifyRunning: refreshRunning,
       publishRoster: (servers) => onMcpRosterRef.current?.(servers),
       rosterIsNews: (servers) => {
@@ -1174,16 +1392,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // `attachmentNames` (chat-attachments) are the display names the bubble's
   // chips render — the sent *paths* travel separately with the agent call.
   const beginTurn = useCallback(
-    (label: string, attachmentNames?: string[]): string => {
+    (label: string, attachmentNames?: string[], opts?: { compaction?: boolean }): string => {
       setErrorMessage(null)
       // The conversation this turn is being asked from. `null` on a pane that
       // hasn't persisted anything yet — the id is minted below, and the turn's
       // review mark is attributed as soon as it lands.
       const askedFrom = sessionIdRef.current
-      setMessages((current) => [
-        ...current,
-        { id: nextMessageId(), role: 'user', text: label, attachments: attachmentNames }
-      ])
+      // context-compaction: a compaction is housekeeping, not a message. It
+      // gets no bubble and is never written into the transcript as something
+      // the user said — the seam its boundary produces is the whole record.
+      const silent = opts?.compaction === true
+      if (!silent) {
+        setMessages((current) => [
+          ...current,
+          { id: nextMessageId(), role: 'user', text: label, attachments: attachmentNames }
+        ])
+      }
       const turn: ActiveTurn = {
         id: nextTurnId(),
         blocks: [],
@@ -1192,8 +1416,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         // reporting its own.
         metrics: { startedAt: Date.now(), steps: 0 },
         visible: true,
-        session: persistUserMessage(label, attachmentNames),
-        hiveId: sessionIdRef.current
+        session: silent
+          ? Promise.resolve(sessionIdRef.current)
+          : persistUserMessage(label, attachmentNames),
+        hiveId: sessionIdRef.current,
+        ...(silent ? { compaction: true } : {})
       }
       turnsRef.current.push(turn)
       setTurnOwners((current) => new Map(current).set(turn.id, askedFrom))
@@ -1274,7 +1501,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // Read before `beginTurn`: this is the conversation the user is sending
       // from, and it's what scopes the turn's change card (ACR-R2.2).
       const conversationId = sessionIdRef.current ?? undefined
-      const turnId = beginTurn(message.text, message.attachmentNames)
+      const turnId = beginTurn(message.text, message.attachmentNames, {
+        compaction: message.compaction
+      })
+      // context-compaction: the seam goes up the moment the turn does. Claude
+      // reports its boundary only after the fact, so waiting for the agent
+      // would leave the compaction's several seconds looking like a stall.
+      if (message.compaction) setCompacting(true)
       if (message.workflow) {
         window.hive.agent.runWorkflow(message.workflow, {
           agentId: activeAgent ?? undefined,
@@ -1303,6 +1536,70 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     dispatchQueuedRef.current = sendNow
   }, [sendNow])
 
+  /**
+   * A compaction landed (or started) — from a `/compact` this pane sent, or
+   * from the agent deciding on its own mid-answer.
+   *
+   * Everything here is about the *conversation*, not about a turn: the seam
+   * goes into the transcript at the point it happened, the meter's reading is
+   * replaced (what the window holds now is the agent's business, and the last
+   * snapshot describes a conversation that no longer exists), and the seam is
+   * persisted so a reopened transcript still knows it was compacted. What is
+   * NOT touched is the resume handle — both CLIs compact in place and keep
+   * their session id, which is exactly why driving their own command beats
+   * anything Hive could have done from outside.
+   */
+  const handleCompact = useCallback(
+    (event: Extract<AgentEventIn, { type: 'compact' }>) => {
+      if (event.phase === 'start') {
+        setCompacting(true)
+        return
+      }
+      setCompacting(false)
+      const record = compactionRecord(event, sessionUsageRef.current)
+      setSessionUsage((current) => applyCompaction(current, record))
+      setMessages((current) => [
+        ...current,
+        { id: nextMessageId(), role: 'compaction', text: record.summary, compaction: record }
+      ])
+      const id = sessionIdRef.current
+      if (id === null) return
+      void window.hive.chatHistory
+        .append(workspace, id, {
+          role: 'compaction',
+          text: record.summary,
+          compaction: {
+            trigger: record.trigger,
+            ...(record.preTokens === null ? {} : { preTokens: record.preTokens }),
+            ...(record.postTokens === null ? {} : { postTokens: record.postTokens }),
+            ...(record.durationMs === null ? {} : { durationMs: record.durationMs }),
+            ...(record.measured ? {} : { estimated: true })
+          }
+        })
+        .catch(() => null)
+    },
+    [workspace]
+  )
+  useEffect(() => {
+    handleCompactRef.current = handleCompact
+  }, [handleCompact])
+
+  /**
+   * The compaction turn ended. If a boundary already arrived, `compacting` is
+   * false and this is a no-op; if none ever did — a failure, a stop, an agent
+   * that answered `/compact` with prose — this is what stops the pending seam
+   * from spinning forever on a compaction that is not coming.
+   */
+  useEffect(() => {
+    handleCompactTurnEndRef.current = () => setCompacting(false)
+  }, [])
+
+  /** The 80% threshold is an app setting, so it outlives the pane. */
+  const changeAutoCompact = useCallback((enabled: boolean) => {
+    setAutoCompact(enabled)
+    void window.hive.agent.setAutoCompact(enabled)
+  }, [])
+
   // chat-queue: a send committed while this conversation already has a turn
   // running joins the queue instead of racing it. Two turns of the same
   // conversation in flight at once would interleave two replies into one
@@ -1322,10 +1619,41 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [isStreaming, queue, sendNow]
   )
 
+  /**
+   * Asks the agent to compact its own context (context-compaction).
+   *
+   * Rides the queue like any other send, because it *is* a turn: two turns of
+   * one conversation in flight at once is the exact collision the queue exists
+   * to prevent, and a compaction racing an answer would fork the CLI session's
+   * memory. `instructions` are passed through — both CLIs read what follows
+   * `/compact` as what to keep.
+   */
+  const runCompaction = useCallback(
+    (instructions?: string) => {
+      if (!compactionSupport.command) {
+        setErrorMessage(t('compaction.unsupported', agentLabel))
+        return
+      }
+      submitOrQueue({ text: compactPrompt(instructions), compaction: true })
+    },
+    [compactionSupport.command, agentLabel, submitOrQueue]
+  )
+
   const handleSubmit = useCallback(
     (value: string) => {
       const pending = attachments.items
       if (value.trim() === '' && pending.length === 0) return
+      const intent = resolveComposerIntent(value, skillOracle)
+      // A built-in is the app's own act, not something to forward as prose.
+      // Clearing first is deliberate: `runCompaction` may refuse (an agent
+      // without the command), and the composer must not be left holding a line
+      // the error already explains.
+      if (intent.kind === 'builtin') {
+        setComposerValue('')
+        setRestoredDraft(null)
+        runCompaction(intent.args)
+        return
+      }
       // Context files for the agent: externally attached files travel as
       // absolute paths, workspace chips and `@` references as
       // workspace-relative paths (the session's cwd is the workspace) — all
@@ -1337,9 +1665,41 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setComposerValue('')
       attachments.clear()
       setRestoredDraft(null)
-      submitOrQueue({ text: value, contextFiles, attachmentNames: names })
+      // A typed `/bmad-prd …` is the invocation it looks like — the same turn
+      // the menu used to fire, except the arguments now come along, which is
+      // the whole reason picking a row stopped sending.
+      const message =
+        intent.kind === 'skill'
+          ? {
+              text: value,
+              workflow: { key: intent.key, prompt: value },
+              contextFiles,
+              attachmentNames: names
+            }
+          : { text: value, contextFiles, attachmentNames: names }
+      // context-compaction: the window is about to overflow and this agent does
+      // not watch its own ceiling. Compact first, then park what the user wrote
+      // behind it — and park it *explicitly*, not through `submitOrQueue`:
+      // `isStreaming` is read off state that the compaction's own `beginTurn`
+      // has not committed yet inside this handler, so the queue check would
+      // still say "nothing running" and race the two turns into one session.
+      if (shouldAutoCompact(sessionUsageRef.current, compactionSupport, autoCompact)) {
+        runCompaction()
+        queue.add(message)
+        return
+      }
+      submitOrQueue(message)
     },
-    [attachments, mentions.fileSet, submitOrQueue]
+    [
+      attachments,
+      mentions.fileSet,
+      submitOrQueue,
+      queue,
+      skillOracle,
+      runCompaction,
+      compactionSupport,
+      autoCompact
+    ]
   )
 
   /**
@@ -1616,7 +1976,23 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           id: message.id,
           role: message.role,
           text: message.text,
-          attachments: message.attachments
+          attachments: message.attachments,
+          // context-compaction: a restored seam keeps the agent's own figures
+          // and, crucially, whether the "before" was ever one of them —
+          // promoting the pane's old estimate to a measurement on reload would
+          // be a lie the transcript tells about itself.
+          ...(message.role === 'compaction'
+            ? {
+                compaction: {
+                  trigger: message.compaction?.trigger ?? 'manual',
+                  preTokens: message.compaction?.preTokens ?? null,
+                  postTokens: message.compaction?.postTokens ?? null,
+                  measured: message.compaction?.estimated !== true,
+                  durationMs: message.compaction?.durationMs ?? null,
+                  summary: message.text
+                }
+              }
+            : {})
         }))
       )
       setErrorMessage(null)
@@ -1701,14 +2077,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   // --- Slash menu -----------------------------------------------------------
   const slashQuery = slashQueryOf(composerValue)
-  const filteredSkills = useMemo(() => {
-    if (slashQuery === null) return []
-    const needle = slashQuery.toLowerCase()
-    if (needle.length === 0) return skills
-    // Filter on the command name only — it's the only thing the menu shows,
-    // so what matches is always visible (no ghost matches via descriptions).
-    return skills.filter((skill) => skill.key.toLowerCase().includes(needle))
-  }, [slashQuery, skills])
+  const commandCatalog = useMemo(
+    // An agent that cannot compact is not offered the row: a command that
+    // answers with an error is worse than one that isn't there.
+    () => slashCatalog(skills, { compaction: compactionSupport.command }),
+    [skills, compactionSupport.command]
+  )
+  const filteredCommands = useMemo(
+    () => filterSlashCommands(commandCatalog, slashQuery),
+    [commandCatalog, slashQuery]
+  )
   const slashOpen = slashQuery !== null && !slashDismissed
 
   const handleComposerChange = useCallback(
@@ -1724,22 +2102,50 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [mentions.onValueEdited]
   )
 
-  const selectSlashSkill = useCallback(
-    (skill: SlashSkill) => {
-      // Picking a row sends the slash command itself — menu, shortcut and
-      // typed command all converge on the same `/bmad-*` invocation. It goes
-      // through the queue like any other composer send: launching a second
-      // workflow into a conversation that is already running one is the same
-      // collision a typed follow-up would cause.
-      submitOrQueue({
-        text: `/${skill.key}`,
-        workflow: { key: skill.key, prompt: `/${skill.key}` }
-      })
-      setComposerValue('')
-      setSlashDismissed(true)
+  // Sends a skill by key alone — menu row, keyboard shortcut, typed command
+  // and a mention clicked inside an earlier reply (chat-command-mentions) all
+  // converge on the same `/bmad-*` invocation. Goes through the queue like any
+  // other composer send: launching a second workflow into a conversation that
+  // is already running one is the same collision a typed follow-up would cause.
+  const runSkillByKey = useCallback(
+    (key: string) => {
+      submitOrQueue({ text: `/${key}`, workflow: { key, prompt: `/${key}` } })
     },
     [submitOrQueue]
   )
+
+  /**
+   * Picking a row **completes** the command; it does not run it.
+   *
+   * This is the change the whole menu was rebuilt around. Launching on select
+   * made `/bmad-prd Eu quero criar uma PRD` unreachable from the menu — there
+   * was no line left to type it on. Now the token lands in the composer with
+   * the caret after it, the menu closes, and Enter is a second, deliberate
+   * press. Dismissing rather than merely re-filtering matters: the completed
+   * value still starts with `/`, so an un-dismissed menu would immediately
+   * reopen over the sentence the user is about to write.
+   */
+  const completeSlashCommand = useCallback((command: SlashCommand) => {
+    const next = completeCommand(composerValueRef.current, command.key)
+    setComposerValue(next.value)
+    setSlashDismissed(true)
+    setSlashHighlight(0)
+    pendingCaretRef.current = next.caret
+  }, [])
+
+  // Applies the post-completion caret once the new value has rendered — the
+  // same two-step the `@` mention insertion uses, and for the same reason: the
+  // textarea's selection can only be set on the DOM node that already holds
+  // the new text.
+  useEffect(() => {
+    const target = pendingCaretRef.current
+    if (target === null) return
+    pendingCaretRef.current = null
+    const node = composerTextareaRef.current
+    if (!node) return
+    node.focus()
+    node.setSelectionRange(target, target)
+  }, [composerValue])
 
   // Capture-phase so these fire before the textarea's own Enter-to-submit.
   // The `/` and `@` menus are mutually exclusive by their trigger rules; the
@@ -1748,11 +2154,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     (event: KeyboardEvent<HTMLDivElement>) => {
       handleComposerMenuKey(event, {
         open: slashOpen,
-        count: filteredSkills.length,
+        count: filteredCommands.length,
         highlight: slashHighlight,
         setHighlight: setSlashHighlight,
         dismiss: () => setSlashDismissed(true),
-        select: (index) => selectSlashSkill(filteredSkills[index])
+        select: (index) => completeSlashCommand(filteredCommands[index])
       })
       if (event.defaultPrevented) return
       handleComposerMenuKey(event, {
@@ -1779,9 +2185,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     },
     [
       slashOpen,
-      filteredSkills,
+      filteredCommands,
       slashHighlight,
-      selectSlashSkill,
+      completeSlashCommand,
       mentions,
       dictation,
       isStreaming,
@@ -1799,9 +2205,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     return (
       <div className="wb-chat-md wb-md">
         {/* Every workspace file the reply names is a link that opens it
-            (chat-file-links). `workspaceFiles` is what makes that safe: only
-            paths that really exist become links. */}
-        <Markdown source={text} files={workspaceFiles} onOpenPath={openNamedFile} />
+            (chat-file-links), and every skill it mentions is a button that
+            runs it (chat-command-mentions). Both hang off an oracle — only
+            paths that really exist and skills that are really installed
+            become controls. */}
+        <Markdown
+          source={text}
+          files={workspaceFiles}
+          onOpenPath={openNamedFile}
+          skills={skillOracle}
+          onRunCommand={runSkillByKey}
+        />
       </div>
     )
   }
@@ -1909,6 +2323,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           runningModel={sessionUsage.context?.model ?? null}
           onRefresh={refreshCapabilities}
           refreshing={detecting}
+          // engine-pins: only where there is an agent to pin *to* — the pin is
+          // a per-agent default, and one with no scope would be a setting the
+          // user cannot reason about.
+          {...(activeAgent
+            ? {
+                pin: {
+                  model: enginePins.pin?.model ?? null,
+                  agentName: agentNames[activeAgent] ?? activeAgent,
+                  onChange: enginePins.setPin
+                }
+              }
+            : {})}
         />
         {/* chat-queue: the interrupt moves out of the primary button and into
             its own control, because the primary button now has a job that
@@ -1937,9 +2363,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   }
 
   const highlightComposer = useCallback(
-    (value: string) =>
-      renderMentionBackdrop(value, mentions.fileSet, dictation.freshRange, dictation.previewRange),
-    [mentions.fileSet, dictation.freshRange, dictation.previewRange]
+    (value: string) => {
+      // The pill is only drawn for a command that really exists — same
+      // discipline as the `@` pill, and the reason a mistyped `/bmda-prd`
+      // stays plain text instead of promising a skill that isn't there.
+      const token = knownCommandToken(value, skillOracle)
+      return renderMentionBackdrop(
+        value,
+        mentions.fileSet,
+        dictation.freshRange,
+        dictation.previewRange,
+        token === null ? null : [token.start, token.end]
+      )
+    },
+    [mentions.fileSet, dictation.freshRange, dictation.previewRange, skillOracle]
   )
 
   // chat-queue: while a turn runs the composer stays open and its primary
@@ -1971,6 +2408,100 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     />
   )
 
+  /**
+   * The failed-turn banner.
+   *
+   * aws-bedrock: a turn that died because the AWS session did gets its own
+   * reading and its own repair — the alternative was the reported bug, where
+   * the banner quoted `Error running awsAuthRefresh (in settings or
+   * ~/.claude.json)` and left the user to work out that it meant "log in
+   * again". Everything else keeps the CLI's own words, which for a real error
+   * are more useful than anything the app could paraphrase.
+   */
+  function renderTurnError(message: string): React.JSX.Element {
+    const aws = awsTurnError(message)
+    if (!aws) {
+      return (
+        <Alert variant="danger" role="alert" className="wb-composer-error">
+          {t('chat.errorMessage', message)}
+        </Alert>
+      )
+    }
+    return (
+      <Alert variant="danger" role="alert" className="wb-composer-error wb-composer-error-aws">
+        <span className="wb-composer-error-text">{aws.text}</span>
+        {aws.canReconnect && (onAwsReconnect ?? onOpenAwsPanel) && (
+          <button
+            type="button"
+            className="wb-composer-error-cta"
+            onClick={onAwsReconnect ?? onOpenAwsPanel}
+          >
+            {onAwsReconnect ? t('aws.connectCta') : t('aws.openPanelCta')}
+          </button>
+        )}
+      </Alert>
+    )
+  }
+
+  /**
+   * The compaction now under way, if any. Claude reports its boundary only
+   * after the fact, so without a seam standing here the several seconds it
+   * takes would read as a stalled turn.
+   */
+  function renderPendingSeam(): React.JSX.Element | null {
+    return compacting ? <CompactSeam record={null} pending /> : null
+  }
+
+  // One transcript row. Nested for the same complexity-budget reason as
+  // `renderToolbar` and `renderComposer`.
+  function renderMessage(message: ChatMessageEntry): React.JSX.Element {
+    // context-compaction: the seam is NOT a `ChatMessage`. Nobody said it — it
+    // is a thing that happened to the conversation — and a bubble's anatomy
+    // (avatar column, side, max-width) would file it under speech.
+    if (message.role === 'compaction') {
+      return (
+        <CompactSeam
+          key={message.id}
+          record={message.compaction ?? null}
+          renderSummary={assistantBody}
+        />
+      )
+    }
+    return (
+      <ChatMessage
+        key={message.id}
+        role={message.role}
+        className={
+          message.role === 'user' && splitCommandMessage(message.text) !== null
+            ? 'wb-msg-command'
+            : undefined
+        }
+        avatar={message.role === 'assistant' ? assistantAvatar : undefined}
+      >
+        {message.role === 'assistant' ? assistantMessageBody(message) : userBody(message)}
+      </ChatMessage>
+    )
+  }
+
+  // A finished turn replays its own timeline. A conversation restored from disk
+  // has no blocks (they aren't persisted), so it falls back to the prose it
+  // does have.
+  function assistantMessageBody(message: ChatMessageEntry): React.ReactNode {
+    if (message.blocks === undefined) return message.text !== '' && assistantBody(message.text)
+    return (
+      <TurnTimeline
+        blocks={message.blocks}
+        live={false}
+        metrics={message.metrics}
+        renderText={assistantBody}
+        onApprovalDecide={handleApprovalDecision}
+        onOpenFile={openEditedFile}
+        onOpenMcpConsole={onOpenMcpConsole}
+        onOpenAwsPanel={onOpenAwsPanel}
+      />
+    )
+  }
+
   // Nested so the menus'/attachments' conditionals stay off the Chat
   // component's complexity budget (same pattern as `renderToolbar`).
   function renderComposer(): React.JSX.Element {
@@ -1985,11 +2516,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         onMouseUpCapture={mentions.syncCaret}
         {...attachments.dragHandlers}
       >
-        {errorMessage && (
-          <Alert variant="danger" role="alert" className="wb-composer-error">
-            {t('chat.errorMessage', errorMessage)}
-          </Alert>
-        )}
+        {errorMessage && renderTurnError(errorMessage)}
         {/* agent-approvals (session grant): while the agent is not asking, the
             composer says so. A blanket permission with no standing surface is
             one the user grants for a task and keeps for the day — and it rides
@@ -2012,11 +2539,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         )}
         {slashOpen && (
           <SlashMenu
-            items={filteredSkills}
+            items={filteredCommands}
+            query={slashQuery ?? ''}
             highlightIndex={slashHighlight}
             onHighlight={setSlashHighlight}
-            onSelect={selectSlashSkill}
-            emptyLabel={skills.length === 0 ? t('chat.slashEmpty') : t('chat.slashNoMatch')}
+            onSelect={completeSlashCommand}
+            emptyLabel={skillsMissingLabel(skills.length)}
+            note={slashNote(filteredCommands, skills.length)}
             listboxId={SLASH_LISTBOX_ID}
           />
         )}
@@ -2056,7 +2585,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             slashOpen ? SLASH_LISTBOX_ID : mentionOpen ? MENTION_LISTBOX_ID : undefined
           }
           aria-activedescendant={
-            activeOptionId(slashOpen, filteredSkills.length, slashHighlight, SLASH_LISTBOX_ID) ??
+            activeOptionId(slashOpen, filteredCommands.length, slashHighlight, SLASH_LISTBOX_ID) ??
             activeOptionId(
               mentionOpen,
               mentions.items.length,
@@ -2203,39 +2732,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       <div className="wb-chat-scroll">
         <MessageList jumpToLatestLabel={t('chat.jumpToLatestLabel')}>
           <div className="wb-chat-col wb-chat-messages">
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                role={message.role}
-                className={
-                  message.role === 'user' && splitCommandMessage(message.text) !== null
-                    ? 'wb-msg-command'
-                    : undefined
-                }
-                avatar={message.role === 'assistant' ? assistantAvatar : undefined}
-              >
-                {message.role === 'assistant' ? (
-                  // A finished turn replays its own timeline. A conversation
-                  // restored from disk has no blocks (they aren't persisted),
-                  // so it falls back to the prose it does have.
-                  message.blocks !== undefined ? (
-                    <TurnTimeline
-                      blocks={message.blocks}
-                      live={false}
-                      metrics={message.metrics}
-                      renderText={assistantBody}
-                      onApprovalDecide={handleApprovalDecision}
-                      onOpenFile={openEditedFile}
-                      onOpenMcpConsole={onOpenMcpConsole}
-                    />
-                  ) : (
-                    message.text !== '' && assistantBody(message.text)
-                  )
-                ) : (
-                  userBody(message)
-                )}
-              </ChatMessage>
-            ))}
+            {messages.map(renderMessage)}
+            {renderPendingSeam()}
             {streamingBlocks !== null && (
               <ChatMessage role="assistant" avatar={assistantAvatar}>
                 {/* The live turn, in the order it is happening: what it says,
@@ -2251,6 +2749,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   onApprovalDecide={handleApprovalDecision}
                   onOpenFile={openEditedFile}
                   onOpenMcpConsole={onOpenMcpConsole}
+                  onOpenAwsPanel={onOpenAwsPanel}
                 />
               </ChatMessage>
             )}
@@ -2275,7 +2774,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             read once and never again; the meter is the half of it that keeps
             being worth a glance. */}
         <div className="wb-composer-footer">
-          <ContextMeter usage={sessionUsageView} onNewConversation={newConversation} />
+          <ContextMeter
+            usage={sessionUsageView}
+            onNewConversation={newConversation}
+            onCompact={runCompaction}
+            compaction={compactionSupport}
+            compacting={compacting}
+            agentName={agentLabel}
+            autoCompact={autoCompact}
+            onAutoCompactChange={changeAutoCompact}
+          />
           <p className="wb-composer-hint">{t('chat.composerHint')}</p>
         </div>
       </div>

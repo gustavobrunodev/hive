@@ -3,20 +3,13 @@ import { Empty } from '@hive/design-system'
 import { t } from '../../i18n'
 import { DocError, DocLoading, DocToolbar } from './docViewerShared'
 import { useAsyncDocument } from './docViewerCore'
-
-/** Spreadsheet column label for a zero-based index (0→A, 25→Z, 26→AA). */
-function columnLabel(index: number): string {
-  let label = ''
-  let n = index
-  do {
-    label = String.fromCharCode(65 + (n % 26)) + label
-    n = Math.floor(n / 26) - 1
-  } while (n >= 0)
-  return label
-}
+// One naming of the columns for every grid in the app: the `.xlsx` reader here
+// and the `.csv` editor next door must say "column C" about the same column.
+import { columnLabel } from '../csv'
 
 /**
- * Spreadsheet viewer (`.xlsx`/`.xls`/`.ods`/`.csv`/`.tsv`). SheetJS parses the
+ * Spreadsheet viewer for the binary workbooks (`.xlsx`/`.xls`/`.ods`) —
+ * `.csv`/`.tsv` are text and open in the editor's own table mode. SheetJS parses the
  * workbook in main into per-sheet string grids; here each sheet renders as a
  * real grid with the spreadsheet gutters users expect — A/B/C column headers,
  * 1/2/3 row numbers, a sticky frozen header/first-column — plus Excel-style

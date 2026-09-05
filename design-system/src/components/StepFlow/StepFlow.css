@@ -1,0 +1,246 @@
+.hds-stepflow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.hds-stepflow-step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+/* The node column also draws the wire, so the wire is always centred on the
+   node whatever the label wraps to. */
+.hds-stepflow-rail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  align-self: stretch;
+}
+
+.hds-stepflow-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--rounded-full);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--bg);
+  flex: none;
+}
+
+.hds-stepflow-glyph {
+  width: 12px;
+  height: 12px;
+}
+
+/* --- vertical (default) ------------------------------------------------- */
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-step {
+  padding-bottom: 14px;
+}
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-step:last-child {
+  padding-bottom: 0;
+}
+
+/* The wire runs from the top of the row to the node, and from the node down.
+   Drawn as two pseudo-elements so a half-lit flow can light only the top
+   half — which is what makes "you are here" legible without reading a word. */
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-rail::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--border);
+}
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-rail::before {
+  top: 0;
+  height: calc(50% - 10px);
+}
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-rail::after {
+  top: calc(50% + 10px);
+  bottom: 0;
+}
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-step:first-child .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-step:last-child .hds-stepflow-rail::after {
+  content: none;
+}
+
+.hds-stepflow[data-orientation="vertical"] .hds-stepflow-step[data-lit] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="vertical"]
+  .hds-stepflow-step[data-status="done"]
+  .hds-stepflow-rail::after {
+  background: var(--accent);
+}
+
+/* --- horizontal --------------------------------------------------------- */
+
+.hds-stepflow[data-orientation="horizontal"] {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-step {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  text-align: center;
+}
+
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-rail {
+  width: 100%;
+  height: 16px;
+}
+
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-rail::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--border);
+}
+
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-rail::before {
+  left: 0;
+  width: calc(50% - 10px);
+}
+
+.hds-stepflow[data-orientation="horizontal"] .hds-stepflow-rail::after {
+  right: 0;
+  width: calc(50% - 10px);
+}
+
+.hds-stepflow[data-orientation="horizontal"]
+  .hds-stepflow-step:first-child
+  .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="horizontal"]
+  .hds-stepflow-step:last-child
+  .hds-stepflow-rail::after {
+  content: none;
+}
+
+.hds-stepflow[data-orientation="horizontal"]
+  .hds-stepflow-step[data-lit]
+  .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation="horizontal"]
+  .hds-stepflow-step[data-status="done"]
+  .hds-stepflow-rail::after {
+  background: var(--accent);
+}
+
+/* --- states ------------------------------------------------------------- */
+
+.hds-stepflow-step[data-status="done"] .hds-stepflow-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.hds-stepflow-step[data-status="failed"] .hds-stepflow-node {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger-fill-ink);
+}
+
+/* Active: a filled core inside a ring, with the ring breathing. The core is
+   what separates "this step is next" from "this step is happening" — a state
+   the pending dot cannot express on its own. */
+.hds-stepflow-step[data-status="active"] .hds-stepflow-node {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+.hds-stepflow-step[data-status="active"] .hds-stepflow-node::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  animation: hds-stepflow-pulse 1.6s var(--ease-quart) infinite;
+}
+
+@keyframes hds-stepflow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.7);
+  }
+}
+
+.hds-stepflow-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.hds-stepflow-label {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.hds-stepflow-step[data-status="active"] .hds-stepflow-label,
+.hds-stepflow-step[data-status="failed"] .hds-stepflow-label {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.hds-stepflow-step[data-status="done"] .hds-stepflow-label {
+  color: var(--muted);
+}
+
+/* Spoken only: the state is drawn for sighted readers and said for the rest. */
+.hds-stepflow-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* `--muted`, never `--faint`: a hint under a step is real text a user has to
+   read, and `--faint` is decoration over `--bg` — it measures under 4.5:1 in
+   the light theme. */
+.hds-stepflow-hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.hds-stepflow-step[data-status="active"] .hds-stepflow-hint {
+  color: var(--ink);
+}
+
+.hds-stepflow-step[data-status="failed"] .hds-stepflow-hint {
+  color: var(--danger-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-stepflow-step[data-status="active"] .hds-stepflow-node::after {
+    animation: none;
+  }
+}

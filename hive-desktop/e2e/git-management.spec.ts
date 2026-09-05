@@ -176,10 +176,12 @@ test.describe('git-management E2E (real repo + bare remote, real Electron)', () 
         timeout: 15_000
       })
       // The `add` and the `commit` this spec drove, with their real cwd.
-      await expect(console_.locator('.wb-gitlog-cmd-text', { hasText: /^git add/ }).first())
-        .toBeVisible()
-      await expect(console_.locator('.wb-gitlog-cmd-text', { hasText: /^git commit/ }).first())
-        .toBeVisible()
+      await expect(
+        console_.locator('.wb-gitlog-cmd-text', { hasText: /^git add/ }).first()
+      ).toBeVisible()
+      await expect(
+        console_.locator('.wb-gitlog-cmd-text', { hasText: /^git commit/ }).first()
+      ).toBeVisible()
       await expect(console_.locator('.wb-gitlog-cwd').first()).toHaveText(workspace)
       // Every row carries a real, non-empty duration — the timing is measured,
       // not a placeholder.

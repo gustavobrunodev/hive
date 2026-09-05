@@ -203,6 +203,15 @@ const LOG_FORMAT = '%H%x1f%h%x1f%an%x1f%aI%x1f%s'
 /** Cap (bytes) beyond which a diff is reported as `tooLarge` rather than parsed/shipped (GIT-R4 perf). */
 const DIFF_CAP_BYTES = 2_000_000
 
+/**
+ * Cap on status entries parsed/shipped per refresh. With
+ * `--untracked-files=all` a worktree that never got a `.gitignore` can report
+ * six figures of untracked files; past this many the list stops being a list
+ * anyone reads, so we stop parsing, flag `truncated`, and let the panel say so
+ * (VS Code draws the same line at the same order of magnitude).
+ */
+const STATUS_ENTRY_LIMIT = 10_000
+
 /** Collects a finished process's full stdout/stderr and exit code. */
 async function collect(handle: {
   output: AsyncIterable<ProcessStreamChunk>
@@ -263,7 +272,10 @@ export function createGitService(deps: GitServiceDeps): GitService {
    * genuinely needs a lock (commit, add, checkout) still takes it: what the
    * flag drops is the *optional* one, which is exactly the one we never wanted.
    */
-  async function git(args: string[], opts: { cwd: string }): Promise<string> {
+  async function git(
+    args: string[],
+    opts: { cwd: string; okCodes?: readonly number[] }
+  ): Promise<string> {
     const at = Date.now()
     const handle = processRunner.run(
       'git',
@@ -282,7 +294,11 @@ export function createGitService(deps: GitServiceDeps): GitService {
     // without the two fixed flags above, which are on every row and tell the
     // reader nothing about which command this was.
     deps.onCommand?.({ at, cwd: opts.cwd, args, code, durationMs: Date.now() - at, stderr })
-    if (code !== 0) {
+    // `okCodes` is for the handful of git commands whose *success* is a
+    // non-zero exit — `diff --no-index` exits 1 precisely when it found a
+    // difference, which is the whole point of running it.
+    const ok = code === 0 || (code !== null && (opts.okCodes?.includes(code) ?? false))
+    if (!ok) {
       throw new GitError(code, stderr, `git ${args.join(' ')}`)
     }
     return stdout
@@ -309,8 +325,17 @@ export function createGitService(deps: GitServiceDeps): GitService {
   }
 
   async function status(workspace: string): Promise<GitStatus> {
-    const out = await git(['status', '--porcelain=v2', '--branch', '-z'], { cwd: workspace })
-    const parsed = parseStatusV2(out)
+    // `--untracked-files=all` is not optional: without it git *collapses* an
+    // untracked directory into a single `? dir/` record (its `normal` default),
+    // so a folder an agent just filled with ten files showed up as one
+    // undiffable, undecoratable row named after the folder. VS Code passes the
+    // same flag for the same reason. The cost is that a pathological worktree
+    // (a huge untracked tree, e.g. `node_modules` with no `.gitignore`) now
+    // reports every file — hence the entry cap below.
+    const out = await git(['status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all'], {
+      cwd: workspace
+    })
+    const parsed = parseStatusV2(out, { limit: STATUS_ENTRY_LIMIT })
     // MERGE_HEAD present ⇒ a merge is mid-flight (needs continue/abort, GIT-R9.3).
     // `rev-parse --verify` exits non-zero when the ref is absent → GitError → false.
     try {
@@ -460,12 +485,40 @@ export function createGitService(deps: GitServiceDeps): GitService {
     return parseLog(out)
   }
 
+  /**
+   * The "whole file is an addition" diff for an **untracked** file. Plain `git
+   * diff` shows nothing for one (it isn't in the index), which since
+   * `--untracked-files=all` would mean every file an agent just created opens
+   * as a blank diff. `--no-index` against `/dev/null` is git's own idiom for
+   * this — it exits **1** whenever the two sides differ, which here is always,
+   * hence `okCodes` — and it reports binary files correctly too. `/dev/null`
+   * is special-cased inside git itself, so it is portable to Windows.
+   * Returns `null` when `path` is not in fact untracked.
+   */
+  async function untrackedDiff(workspace: string, path: string): Promise<GitDiff | null> {
+    const st = await git(['status', '--porcelain=v2', '-z', '--', path], { cwd: workspace })
+    const entry = parseStatusV2(st).changes.find((change) => change.path === path)
+    if (!entry?.isUntracked) return null
+    const out = await git(['diff', '--no-index', '--', '/dev/null', path], {
+      cwd: workspace,
+      okCodes: [1]
+    })
+    if (out.length > DIFF_CAP_BYTES) return parseDiff('', { tooLarge: true })
+    return parseDiff(out)
+  }
+
   async function diff(workspace: string, path: string, side: GitDiffSide): Promise<GitDiff> {
     const args = ['diff']
     if (side === 'staged') args.push('--staged')
     args.push('--', path)
     const out = await git(args, { cwd: workspace })
     if (out.length > DIFF_CAP_BYTES) return parseDiff('', { tooLarge: true })
+    // An empty working-side diff is either "nothing changed" or "git has no
+    // before-image to diff against" — only the second is worth a second call.
+    if (out === '' && side === 'working') {
+      const untracked = await untrackedDiff(workspace, path).catch(() => null)
+      if (untracked) return untracked
+    }
     return parseDiff(out)
   }
 

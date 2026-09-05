@@ -7,6 +7,8 @@ import { useComposerDictation } from '../dictation/useComposerDictation'
 import { usePrewarm } from '../dictation/usePrewarm'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
+import { RunConfigBar } from '../ui/RunConfigBar'
+import { useRunConfig, type RunLaunchOpts } from '../chat/useRunConfig'
 import type { IngestMode } from './SecondBrainFab'
 import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
@@ -30,8 +32,16 @@ interface IngestPanelProps {
   onClose: () => void
   /** Vault status for the active workspace (drives the no-vault guard, SB-R3.3). */
   store: SecondBrainStore
-  /** Launches a slash command through the chat (D-SB-5). */
-  onLaunch: (action: RoleAction) => void
+  /**
+   * Launches a slash command through the chat (D-SB-5), on the agent/model the
+   * run-config picked — the session this sheet starts is the user's, not
+   * whatever the app default happens to be.
+   */
+  onLaunch: (action: RoleAction, opts?: RunLaunchOpts) => void
+  /** multi-agent: enabled agent ids, in display order — the pool to document with. */
+  agents?: string[]
+  /** The app default, where the run-config starts. */
+  defaultAgent?: string | null
   /** The vault-setup flow — drives the no-vault guard's two states (SB-R3.3). */
   setup: BrainSetup
   /**
@@ -68,6 +78,15 @@ function blockHint(block: IngestBlock, mode: IngestMode): string {
   return mode === 'audioFile'
     ? t('secondBrain.ingestBlockedEmptyAudio')
     : t('secondBrain.ingestBlockedEmptyLive')
+}
+
+/**
+ * Why **Ingerir** cannot run yet, from the two facts that decide it. A function
+ * rather than a ternary in the component, which is at its branch budget.
+ */
+function ingestBlock(working: boolean, content: string): IngestBlock {
+  if (working) return 'working'
+  return content.trim() === '' ? 'empty' : null
 }
 
 /** Which document captions the active source calls for. */
@@ -293,7 +312,9 @@ export function IngestPanel({
   store,
   onLaunch,
   setup,
-  onOpenVoiceSettings
+  onOpenVoiceSettings,
+  agents = [],
+  defaultAgent = null
 }: IngestPanelProps): React.JSX.Element {
   const [activeMode, setActiveMode] = useState<IngestMode>('text')
   const [content, setContent] = useState('')
@@ -312,6 +333,13 @@ export function IngestPanel({
     setActiveMode(mode)
   }
   if (mode === null && lastMode !== null) setLastMode(null)
+
+  // Which agent — and on which model and effort — is about to read this
+  // document and file it into the wiki. The sheet used to launch onto whatever
+  // the app default was, so a squad running Copilot in chat still had its wiki
+  // written by Claude, with nothing on screen saying so. `active: open` keeps
+  // a closed sheet from probing the CLI behind the screen in front of it.
+  const runConfig = useRunConfig({ agents, defaultAgent, workspace: store.workspace, active: open })
 
   // M26: the model can be **absent**, and both audio sources have to respect
   // that — sending a file and pressing record are the same promise ("this
@@ -372,7 +400,7 @@ export function IngestPanel({
     onClose()
   }, [dictation, onClose])
 
-  const block: IngestBlock = working ? 'working' : content.trim() === '' ? 'empty' : null
+  const block = ingestBlock(working, content)
 
   const ingest = useCallback(() => {
     if (content.trim() === '') return
@@ -383,7 +411,9 @@ export function IngestPanel({
       .then(({ relPath }) => {
         // The staged path AND the text ride on the launch: the path pins the
         // skill to this file, the text makes the turn legible in the chat.
-        onLaunch(secondBrainIngest(relPath, content))
+        // The run-config rides too — the session that opens is the one the
+        // user configured right above the button they pressed.
+        onLaunch(secondBrainIngest(relPath, content), runConfig.launchOpts)
         store.refresh()
         setBusy(false)
         close()
@@ -392,7 +422,7 @@ export function IngestPanel({
         setBusy(false)
         setError(t('secondBrain.ingestError'))
       })
-  }, [content, store, onLaunch, close])
+  }, [content, store, onLaunch, close, runConfig.launchOpts])
 
   return (
     <Sheet open={open} onOpenChange={(next: boolean) => !next && close()}>
@@ -448,6 +478,10 @@ export function IngestPanel({
                 onOpenVoiceSettings={onOpenVoiceSettings}
               />
             )}
+
+            {/* Above the send bar, because it qualifies the button below it:
+                this is who receives the document, not how it was captured. */}
+            <RunConfigBar config={runConfig} legend={t('runConfig.ingestLegend')} />
 
             <Footer
               block={block}

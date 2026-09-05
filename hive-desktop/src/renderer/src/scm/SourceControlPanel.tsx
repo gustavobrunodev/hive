@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
+  Alert,
   Button,
   ContextMenu,
   ContextMenuContent,
@@ -31,7 +32,13 @@ import { HistoryPanel } from './HistoryPanel'
 import { StashPanel } from './StashPanel'
 import type { GitRemote } from './useGitRemote'
 import { DiscardDialog, GroupActions, RowActions } from './ScmActions'
-import { changeCount, groupChanges, type GitFileChange, type GitGroups } from './gitStatus'
+import {
+  changeCount,
+  groupChanges,
+  type GitFileChange,
+  type GitGroups,
+  type GitStatus
+} from './gitStatus'
 import { useGit } from './useGit'
 import { copyText } from '../ui/clipboard'
 
@@ -193,6 +200,32 @@ export interface SourceControlPanelProps {
    * of it — only one can be open at a time and the parent is what knows that).
    */
   onShowLogs?: () => void
+}
+
+/**
+ * Shown when `status` hit its entry cap: the change list is a prefix, not the
+ * repo. Said out loud, with the way out (a `.gitignore`), because a silently
+ * clipped list is a lie about what "Alterações" contains. Its own component so
+ * the panel stays inside the lint's complexity budget.
+ */
+function TruncatedNotice({
+  status,
+  count
+}: {
+  status: GitStatus | null
+  count: number
+}): React.JSX.Element | null {
+  if (!status?.truncated) return null
+  return (
+    <Alert
+      className="wb-scm-notice"
+      variant="warning"
+      icon={<AlertTriangleIcon size={16} />}
+      title={t('git.truncatedTitle', count)}
+    >
+      {t('git.truncatedDescription')}
+    </Alert>
+  )
 }
 
 /** The paths behind a side's group, for the group-level stage/unstage/discard-all actions. */
@@ -377,6 +410,7 @@ export function SourceControlPanel({
             </div>
           )}
           <CommitBox />
+          <TruncatedNotice status={git.status} count={count} />
           {count === 0 ? (
             <ScmEmpty
               icon={<CheckCircleIcon size={22} />}

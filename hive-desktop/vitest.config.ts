@@ -692,7 +692,120 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // context-compaction: the two pure modules the feature turns on. The
+        // first decides what a leading `/` means (and therefore what a send
+        // does); the second decides when Hive compacts on its own, which is a
+        // turn spent without the user asking — both are rules, not rendering.
+        'src/renderer/src/chat/slashCommands.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/compaction.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/commandMentions.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         'src/renderer/src/chat/engineOptions.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // aws-bedrock: every file this feature added or changed. The main-side
+        // ones are pure over injected deps (config text, JSON, a process
+        // runner), so the expired-session path is fully covered on a machine
+        // that has never seen an AWS account.
+        'src/main/awsConfig.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/awsSsoCache.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/awsBedrock.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/awsDiagnose.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/main/awsAuthService.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/renderer/src/aws/awsSession.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/aws/awsSummary.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/aws/useAwsSession.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/aws/AwsLoginFlow.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/aws/AwsLoginBeacon.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/AwsTurnNotice.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/profile/AwsScope.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/profile/scopes.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/profile/scopeVisuals.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/turnTimeline.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/claudeModelCatalog.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // engine-pins + the shared run-config: the logic files this round
+        // added. `RunConfigBar.tsx` and `EnginePicker.tsx` are presentational
+        // shells over them and follow the ungated `SkillStudio` precedent —
+        // their behavior is exercised by the surfaces' own suites.
+        'src/renderer/src/chat/enginePins.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/chat/useRunConfig.ts': {
           statements: 90,
           branches: 90,
           functions: 90,

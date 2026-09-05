@@ -218,6 +218,53 @@ export interface AgentCapabilities {
   note?: CapabilityNote
   /** The CLI version the probe read back, for the footer's evidence line. */
   cliVersion?: string | null
+  /**
+   * How this agent handles a context window that is filling up
+   * (context-compaction). Absent means "nothing measured" and is read as
+   * `{ command: false, automatic: false }` — the honest default for a CLI
+   * whose behaviour nobody has verified.
+   */
+  compaction?: CompactionSupport
+}
+
+/**
+ * The command that asks an agent to compact its own context — the name Claude
+ * Code and Devin both already answer to, which is the whole reason Hive uses
+ * theirs instead of inventing one.
+ */
+export const COMPACT_COMMAND = 'compact'
+
+/**
+ * Is this turn's text a `/compact` invocation?
+ *
+ * Anchored to the start and to a single line: a message that merely *mentions*
+ * `/compact` in its prose is a message, not a compaction. Trailing text is
+ * allowed and meaningful — both CLIs read it as focus instructions ("/compact
+ * foque nas decisões de arquitetura").
+ */
+export function isCompactTurn(text: string): boolean {
+  return new RegExp(`^/${COMPACT_COMMAND}(?:\\s|$)`).test(text.trim())
+}
+
+/**
+ * What an agent does about its own context window — measured on the transport
+ * Hive actually drives it through, which is the only claim worth making.
+ *
+ * Both flags are about the *same* transport, and they are independent: an
+ * agent can accept `/compact` and never fire on its own (Claude in print
+ * mode), do both (Devin over ACP), or neither.
+ *
+ * The split matters because it decides who is responsible for a full window.
+ * When `automatic` is true the agent already watches its own ceiling and Hive
+ * must stay out of the way — a second compaction on top of the agent's own
+ * would spend a turn to reclaim what was already reclaimed. When it is false
+ * and `command` is true, nobody is watching unless Hive does.
+ */
+export interface CompactionSupport {
+  /** A `/compact` turn compacts this agent's context, on this transport. */
+  command: boolean
+  /** It compacts on its own as the window fills, on this transport. */
+  automatic: boolean
 }
 
 /** What a capability probe needs to know about where it is running. */
@@ -369,8 +416,71 @@ export type AgentEvent =
   | { type: 'error'; message: string; turnId?: string }
   | { type: 'interrupted'; turnId?: string }
   | { type: 'session'; id: string; turnId?: string }
+  /**
+   * aws-bedrock: the turn had to stop and re-establish a cloud session before
+   * it could run.
+   *
+   * Its own event rather than a `thought` or a `token` because it is neither
+   * the agent speaking nor the agent thinking — it is the *app* saying why the
+   * answer has not started yet, and the transcript should show that as an
+   * annotation the turn owns, not as content the agent produced. The full
+   * interaction (the browser, the code, the countdown) lives in the app's own
+   * login surface; this is the line inside the conversation that connects the
+   * two.
+   */
+  | { type: 'auth'; provider: 'aws'; phase: 'waiting' | 'cleared'; turnId?: string }
+  | CompactEvent
   | UsageEvent
   | McpEvent
+
+/**
+ * The agent's context window was compacted — its history replaced by a summary
+ * of itself so the conversation can keep going (context-compaction).
+ *
+ * ## Why this is an event and not something Hive performs
+ *
+ * Both CLIs Hive can measure already do this themselves, and they do it better
+ * than an app could from the outside: they own the transcript, so they can drop
+ * the middle of it and keep the resume handle alive. What was missing was never
+ * the mechanism — it was that compaction happened *invisibly*. Devin compacts
+ * on its own mid-session and Hive's context meter simply fell off a cliff with
+ * no explanation on screen. This event is that explanation.
+ *
+ * So the same variant carries both cases, and `trigger` is the whole
+ * difference: `manual` is a compaction somebody asked for (the composer's
+ * `/compact`, or Hive's own threshold), `auto` is the agent deciding for
+ * itself. A surface that renders one renders both.
+ *
+ * ## Why the numbers are optional
+ *
+ * They are the agent's, not ours, and the two agents report different amounts.
+ * Claude's `compact_boundary` carries `pre_tokens`/`post_tokens`/`duration_ms`;
+ * Devin's `cognition.ai/compaction` carries a prose summary and no counts at
+ * all. A consumer fills what it can from its own reading rather than being
+ * handed a fabricated number — an invented "before" would be indistinguishable
+ * from a measured one.
+ */
+export interface CompactEvent {
+  type: 'compact'
+  turnId?: string
+  /**
+   * `start` when the agent announced it is compacting, `end` when it finished.
+   * An adapter that only learns about it afterwards (Claude reports the
+   * boundary after the fact) emits `end` alone — a surface must never wait for
+   * a `start` that is not coming.
+   */
+  phase: 'start' | 'end'
+  /** Who asked: a `/compact` turn, or the agent's own ceiling. */
+  trigger: 'manual' | 'auto'
+  /** Window occupancy before the compaction, in tokens, when the agent reports it. */
+  preTokens?: number
+  /** …and after. */
+  postTokens?: number
+  /** How long the compaction itself took, when reported. */
+  durationMs?: number
+  /** The agent's own account of what it kept, when it hands one over. */
+  summary?: string
+}
 
 /**
  * How the CLI reports one MCP server's state at the top of a turn. `connected`
@@ -696,6 +806,37 @@ export interface AgentAdapterDeps {
    * an adapter built without one (tests, probes) still works.
    */
   scratchDir?: string
+  /**
+   * aws-bedrock: the AWS session gate, for the one adapter that can need one
+   * (Claude pointed at Amazon Bedrock). Absent — every test, every probe, and
+   * every machine not on Bedrock — and the adapter spawns exactly as it did
+   * before this feature: the gate is what *adds* a login, never what requires
+   * one.
+   */
+  awsAuth?: AwsSessionGate
+  /** aws-bedrock: the profile the user pinned in Hive, read fresh per turn. */
+  preferredAwsProfile?: () => string | null
+}
+
+/**
+ * The slice of `AwsAuthService` an adapter is allowed to see (aws-bedrock).
+ *
+ * Narrow on purpose: an adapter may *wait for* a session and may ask how a
+ * login is going, but it has no business starting one for its own reasons or
+ * reading which profiles exist. Keeping it to this shape is also what lets
+ * `agentAdapter.ts` stay free of a dependency on the AWS modules.
+ */
+export interface AwsSessionGate {
+  /**
+   * `onBlocked` fires exactly when the session was *not* already good and a
+   * login is about to start — the one moment the turn has something to say.
+   * A ready session never calls it, which is what keeps the ordinary turn
+   * silent.
+   */
+  ensureReady(
+    workspace?: string,
+    onBlocked?: () => void
+  ): Promise<{ ok: true; refreshed: boolean } | { ok: false; reason: string; message: string }>
 }
 
 /**

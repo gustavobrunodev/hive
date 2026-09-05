@@ -3478,7 +3478,207 @@ afirmações de geometria). Lições em `docs/visual-validation.md`.
 
 ---
 
+## Editor de planilhas, pasta vazia e "revelar" (2026-09-04)
+
+Pedido do usuário: abrir um arquivo pela busca (Ctrl+P) tem que mostrá-lo também
+no gerenciador de arquivos; uma pasta vazia tem que responder ao clique com a
+mesma animação das outras; e `.csv` precisa de um editor de verdade. Mais o
+mandato de sempre: "me surpreenda com uma interface bonita, moderna e intuitiva".
+
+- **"Tem filhos" e "é um contêiner" são perguntas diferentes.** É a causa-raiz da
+  pasta vazia, e ela estava no design system: o `Tree` derivava tudo de
+  `children.length > 0`, então uma pasta vazia virava **folha** — sem seta, sem
+  `aria-expanded`, e com um clique que não fazia nada. `TreeNode.expandable` é a
+  correção, e ela vale para qualquer árvore com carga preguiçosa. A animação que
+  o usuário pediu já existia (a seta gira por `aria-expanded`); o que faltava era
+  a árvore admitir que aquilo era uma pasta.
+- **Uma pasta vazia que abre para o nada ainda parece um clique perdido.** Por
+  isso a linha "Pasta vazia" — legenda, não item: sem ícone, em itálico, em
+  `--muted`, `disabled` na árvore (não recebe foco, não entra no Ctrl+A). É a
+  única prova, *na lista*, de que o clique valeu.
+- **Revelar é uma requisição, não um caminho.** `revealRequest: { path, nonce }`:
+  uma prop que só carrega o caminho não consegue revelar o mesmo arquivo duas
+  vezes (abrir, fechar a pasta na mão, abrir de novo) porque o valor não muda e
+  o efeito não redispara. Expandir é aditivo — revelar mostra onde algo está, não
+  dobra o resto do workspace para conseguir. E como a barra lateral é um slot só,
+  revelar também traz o Explorador de volta; ligado **apenas** ao Ctrl+P, onde a
+  pessoa acabou de procurar um arquivo pelo nome, e não a todo `openFile`, que
+  arrancaria a barra de quem está lendo um diff.
+- **A tabela do `.csv` edita o MESMO rascunho que o texto.** É a decisão que faz
+  o resto ser de graça: ponto sujo, Ctrl+S, Descartar, a guarda de não-salvo e a
+  detecção de escrita concorrente (STALE) continuam funcionando sem saber que
+  existe uma tabela. Uma célula editada é uma edição de texto — parse, troca um
+  campo, serializa.
+- **O que torna isso seguro é a fidelidade do round-trip.** `csv.ts` guarda o
+  delimitador, o fim de linha, a quebra final, o BOM **e quais campos estavam
+  entre aspas**. Sem essa última parte, abrir a planilha e corrigir uma célula
+  reescreve a citação do arquivo inteiro, e o diff de uma palavra vira o
+  documento inteiro. Uma linha intocada volta byte a byte; só a célula editada
+  perde a dica e passa a ser citada por necessidade.
+- **A cor da coluna é a mesma na tabela e no texto.** O `.csv` não tem palavras-
+  chave para colorir — a ambiguidade dele é posicional ("que campo é este?"), e é
+  isso que a cor passa a responder, nos dois modos, pela mesma rampa de seis
+  papéis (`CSV_COLUMN_ROLES`). É o efeito "rainbow CSV" das IDEs, herdando de
+  graça o contraste já medido de `--code-*` nos três temas.
+- **`DataGrid` no design system.** Grade de dados que se anda com as setas, com
+  mira (célula + cabeçalho da coluna + número da linha), cabeçalho e calha
+  grudados, edição por Enter/F2/digitar e uma só parada de tabulação. Três
+  superfícies precisavam disso e cada uma tinha derivado um pedaço.
+- **Tab anda célula a célula, menos nas duas pontas.** É a saída de teclado que o
+  padrão ARIA de grid pede, sem abrir mão do gesto com que entrada de dados é
+  feita de verdade.
+
+Verify verde (3 776 testes, lint limpo, coberturas no piso; DS com 861 testes).
+Passe visual fechado nos três temas: `tools/visual/csv-contrast.mjs` (15 alvos ×
+3 temas + 9 afirmações estruturais) e `tools/visual/csv-pass.mjs` (funcional, na
+grade real). Três defeitos reais saíram da sonda — a tinta do acento sobre o
+próprio tint em dois lugares e o cabeçalho grudado translúcido — e cinco lições
+de sonda estão em `docs/visual-validation.md`, incluindo a mais cara: **o
+screenshot de página inteira pode congelar o retângulo de um painel**, e só a
+medição e o recorte dizem a verdade.
+
+---
+
+## Padrão de motor fixado + run-config nas folhas que abrem sessão (2026-09-05)
+
+Pedido do usuário: um botão nomeado para concluir a fala no ditado ao vivo da
+folha de conhecimento; escolher agente e modelo/esforço **antes** de documentar
+e antes de perguntar à base; e poder fixar modelos que voltem como padrão de
+cada agente. Mais o mandato de sempre: "me surpreenda com uma interface bonita,
+moderna e intuitiva".
+
+- **Um pin é um padrão, e um padrão precisa de escopo.** Ele é por agente, não
+  global: ids de modelo não são portáveis (o `opus` do Claude não significa nada
+  para o Copilot), então uma superfície sem agente definido não mostra
+  affordance de pin nenhuma — um ajuste que não sabe dizer *de quem* é o padrão
+  não é ajuste, é enfeite.
+- **A ordem em que um controle abre é a decisão inteira**, e ela vive num lugar
+  só (`initialEngine`): o que a sessão já escolheu vence o pin (o pin diz onde
+  um controle *novo* abre, nunca arranca uma escolha em curso), o pin vence o
+  padrão da CLI, e um id fixado que sumiu do catálogo cai para o padrão da CLI
+  em vez de virar uma flag que a CLI recusa.
+- **Fixar não é escolher.** O botão da linha fixa sem selecionar nem fechar o
+  painel — são duas intenções diferentes ("guarda isto para depois" × "usa isto
+  agora"). Isso só é verdade porque o `PinToggle` para todos os eventos de
+  ponteiro: o `cmdk` seleciona no clique, e sem isso as duas colapsariam numa
+  gesto só. Nenhum dos dois dubles enxerga isso — a prova está em
+  `EnginePicker.open.test.ts`, sobre o popover real.
+- **O pin não é uma parada de tabulação.** O teclado do painel pertence ao input
+  do `cmdk`; dezoito botões na lista tomariam as setas da própria lista. O
+  caminho de teclado é `Alt+P` na linha sob o cursor **e** o botão do rodapé,
+  que é também o que torna o ajuste descobrível — um ícone que só aparece no
+  hover ensina a ninguém.
+- **A linha fixada sobe para uma seção própria ("Seu padrão").** Um padrão que
+  não se acha não é um padrão em que se confia; e o gatilho fechado ganha a
+  marca, porque senão o ajuste é invisível até alguém abrir o painel e "por que
+  começou no Opus?" não tem resposta na tela.
+- **Quatro superfícies faziam a mesma decisão e duas faziam calada.** A folha de
+  ingestão e o "Perguntar à base" lançavam no agente padrão do app — uma squad
+  que conversa no Copilot tinha todo o wiki escrito pelo Claude sem nada na tela
+  dizendo isso. Agora as duas mostram os **mesmos dois controles do composer**
+  (`RunConfigBar` sobre `useRunConfig`), e o Estúdio de skills passou a consumir
+  o mesmo hook em vez da cópia que ele mantinha.
+- **"Concluir" voltou ao console do ditado, e a decisão anterior estava errada.**
+  Ela dizia que o botão redondo já concluía e um segundo controle seria duas
+  formas de dizer a mesma coisa. Mas o redondo é desenhado como um **quadrado de
+  parar**, que promete encerrar a gravação — não guardá-la; e a única coisa que
+  alguém ditando precisa saber antes de apertar qualquer coisa é que as palavras
+  sobrevivem. O chat diz "Concluir" por extenso desde a VP-R4.5; agora as duas
+  superfícies nomeiam o mesmo gesto do mesmo jeito.
+- **O navegador do MCP é um perfil só.** Outra sessão do Claude o tranca
+  (`Browser is already in use`) e o tool não expõe `--isolated`. `run-scene.mjs`
+  sobe um Chromium próprio e roda **os mesmos arquivos de cena** — o passe visual
+  deixou de depender de quem abriu o navegador primeiro.
+
+Verify verde (3 875 testes, lint sem erros, coberturas no piso; DS com 867).
+Passe fechado nos três temas com `tools/visual/run-config-pass.mjs`: 20
+afirmações funcionais (fixar sem selecionar, a releitura de agente pousando no
+pin, o painel abrindo dentro da `Sheet` sem perder o foco, o Concluir guardando
+a fala) e 6 alvos de contraste, todos acima do piso. As três armadilhas de sonda
+desta rodada — `hasText` sendo substring e case-insensitive, `innerText`
+devolvendo o texto já em caixa alta e o filtro fuzzy do `cmdk` — estão em
+`docs/visual-validation.md`.
+
+---
+
 ## Preferences
 
 - Lightweight tasks (state updates, session handoff, small doc edits) work
   well with faster/cheaper models — noted per the skill's own guidance.
+
+---
+
+## `/compact`, o menu que completa e o token de skill (2026-09-05)
+
+Pedido do usuário: um `/compact` que compacte o contexto de qualquer sessão
+(Devin, Claude…); que escolher uma skill no menu de `/` **autocomplete** em vez
+de disparar; e que uma skill escrita por extenso no composer tenha estilo
+próprio, como o `@` de arquivo já tem. Mais o mandato de sempre: "me surpreenda
+com uma interface bonita, moderna e intuitiva".
+
+- **Medir as CLIs matou o desenho inicial, e essa foi a melhor coisa da
+  rodada.** O plano era o Hive *fazer* a compactação: pedir um resumo, largar o
+  handle de `--resume`, semear uma sessão nova. As duas CLIs já fazem isso, e
+  fazem melhor do que um app consegue de fora — elas são donas do transcript,
+  então descartam o meio dele **mantendo o session id vivo**. Medido:
+  `claude -p "/compact" --resume <id>` devolve
+  `{"subtype":"compact_boundary","compact_metadata":{"trigger":"manual",
+  "pre_tokens":22678,"post_tokens":757,"duration_ms":8400}}` com o mesmo
+  `session_id`; a sessão ACP do `devin 3000.6.14` lista `compact` no próprio
+  `available_commands_update`.
+- **O que faltava nunca foi o mecanismo — era a compactação acontecer
+  invisível.** O Devin compacta sozinho no meio da sessão (`AsyncFileCompactor`,
+  `compaction_epoch` no banco dele) e o medidor de contexto do Hive
+  simplesmente despencava sem nada na tela explicando. O `CompactEvent` carrega
+  as duas origens no mesmo tipo, e `trigger` é a diferença inteira: a costura
+  desenha a compactação pedida **e** a que o agente fez por conta.
+- **`automatic` é uma flag separada de `command` porque a assimetria é real e
+  medida.** A auto-compactação do Claude vive no laço interativo e **não roda**
+  no `-p` que o Hive dirige: um turno resumido com
+  `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1` (teto de ~2k) sobre 22 577 tokens não
+  compactou nada. Nesse transporte ninguém está olhando o teto a não ser o
+  Hive. No do Devin alguém já está, e uma segunda compactação gastaria um turno
+  para recuperar o que já foi recuperado. `shouldAutoCompact` lê a declaração
+  do adapter, nunca o nome do agente.
+- **Uma compactação sobrevive ao turno que a pediu.** Contra o Devin real,
+  `session/prompt` resolve `end_turn` *antes* de a compactação começar — o
+  reset de estado que o turno fazia no `finally` rodava primeiro e a
+  notificação seguinte reportava o pedido do usuário como automático. Cada
+  turno declara o próprio estado de compactação na entrada; o próximo turno é o
+  primeiro momento seguro para esquecer.
+- **A costura não é uma mensagem.** Ninguém disse aquilo — aconteceu *com* a
+  conversa —, então é uma régua atravessando a coluna com uma marca em cima,
+  não um balão. E as mensagens acima **ficam**: só a memória do agente foi
+  compactada; o transcript é o registro do trabalho.
+- **O número é o ponto, e ele tem que dizer de onde veio.** O Claude reporta
+  os dois lados; o Devin reporta um resumo em prosa e nenhuma conta. Quando não
+  há número do agente, a leitura que o painel já tinha entra no lugar — com
+  `≈` na frente, porque um valor inferido não pode se passar por um medido.
+- **Escolher no menu passou a completar, e isso destravou o caso que as pessoas
+  realmente querem.** Disparar no Enter tornava `/bmad-prd Eu quero criar uma
+  PRD` inalcançável pelo menu: ele nunca devolvia a linha. Agora o token entra
+  no composer com o cursor depois dele — e o comando enviado carrega os
+  argumentos, que o menu antigo jogava fora.
+- **Duas afirmações diferentes, duas cores diferentes.** `@arquivo` diz "isto
+  nomeia um arquivo que existe"; `/comando` diz "esta linha *é* uma invocação".
+  Na mesma tinta virariam "um texto qualquer com aparência especial". O `--info`
+  já estava medido nos três temas.
+- **Os dois diagnósticos do menu vazio precisaram de um lugar novo.** Com os
+  built-ins, um `/` sozinho nunca mais é um menu vazio — e "este workspace não
+  tem skills" mandava provisionar enquanto "nada casou" manda redigitar. Viraram
+  uma nota sob a seção de skills.
+- **`--faint` reprovou o piso de contraste pela terceira vez neste app**
+  (3,43:1 escuro / 3,12:1 claro / 3,66:1 hive na dica de argumento). Passou a
+  `--muted`, que passa de 5:1 em todos e continua sendo o mais quieto da linha.
+- **O medidor não pode dizer "0%".** 757 tokens de 200k arredondam para zero, e
+  é exatamente o estado que uma compactação deixa; um agente que não reporta o
+  "depois" deixa a ocupação genuinamente desconhecida. Agora são `<1%` e `—`.
+
+Verify verde (3 939 testes, lint sem erros, coberturas no piso). E2E do
+Electron real verde (77). Passe fechado nos três temas com
+`tools/visual/compaction-pass.mjs` — 20 afirmações funcionais e 13 alvos de
+contraste — e **as duas integrações validadas contra as CLIs de verdade**:
+`devinLive.e2e.test.ts` (o `/compact` sobre ACP, com resumo) e
+`claudeLive.e2e.test.ts` (o `compact_boundary`, e o handle de resume
+sobrevivendo). As quatro lições de sonda desta rodada estão em
+`docs/visual-validation.md`.

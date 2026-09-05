@@ -209,6 +209,10 @@ export const ptBR = {
     importDropToRoot: (name: string) => `para ${name}`,
     importDropHint: 'Os arquivos serão copiados para o workspace',
 
+    // A linha que uma pasta vazia mostra ao abrir — a única prova, na lista,
+    // de que o clique valeu (a seta e o desenho da pasta são a outra).
+    folderEmptyRow: 'Pasta vazia',
+
     // T9 — editor edit/save/dirty/STALE (FM-R2)
     editLabel: 'Editar',
     viewLabel: 'Visualizar',
@@ -228,12 +232,63 @@ export const ptBR = {
     unsavedGuardConfirmCta: 'Descartar alterações',
     unsavedGuardSaveCta: 'Salvar',
 
+    // Editor de planilhas (.csv/.tsv) — a tabela e o texto cru são dois modos
+    // do MESMO rascunho, então a copy fala de "tabela" e "texto", nunca de
+    // "editar" e "visualizar": as duas metades editam.
+    tableLabel: 'Tabela',
+    textLabel: 'Texto',
+    csv: {
+      gridLabel: (name: string) => `Planilha ${name}`,
+      shape: (rows: number, columns: number) =>
+        `${rows} ${rows === 1 ? 'linha' : 'linhas'} × ${columns} ${columns === 1 ? 'coluna' : 'colunas'}`,
+      delimiterComma: 'separado por vírgula',
+      delimiterSemicolon: 'separado por ponto e vírgula',
+      delimiterTab: 'separado por tabulação',
+      delimiterPipe: 'separado por barra vertical',
+      headerToggle: 'Cabeçalho',
+      addRow: 'Inserir linha abaixo',
+      addColumn: 'Inserir coluna à direita',
+      addRowFooter: 'Nova linha',
+      moreLabel: 'Mais ações da tabela',
+      insertRowAbove: 'Inserir linha acima',
+      deleteRow: (row: number) => `Excluir a linha ${row}`,
+      insertColumnBefore: 'Inserir coluna à esquerda',
+      deleteColumn: (name: string) => `Excluir a coluna ${name}`,
+      renameColumn: 'Nome da coluna',
+      renameColumnNamed: (name: string) => `Renomear a coluna ${name}`,
+      unnamedColumn: 'sem nome',
+      emptyTitle: 'Planilha vazia',
+      emptyDescription: 'Use "Nova linha" abaixo para começar a preencher.',
+      tooLargeTitle: 'Planilha grande demais para a tabela',
+      tooLargeDescription: (rows: number) =>
+        `Este arquivo tem ${rows.toLocaleString('pt-BR')} linhas. A tabela fica lenta acima de 5.000 — o texto abre na hora e edita o mesmo arquivo.`,
+      tooLargeCta: 'Abrir como texto'
+    },
+
     // T4 — HTML live preview (UX-R8)
     htmlPreviewLabel: 'Pré-visualização do HTML',
 
     // Multi-tab editor pane (VS Code-style preview/pin tabs)
     tabsLabel: 'Arquivos abertos',
     closeTabLabel: (name: string) => `Fechar ${name}`,
+
+    /**
+     * O menu de contexto da aba, na ordem e com o vocabulário do VS Code — é
+     * a mesma memória muscular que o resto do explorer honra. "Manter aberta"
+     * é o "Keep Open" de lá: fixa uma aba de pré-visualização (título em
+     * itálico) para que o próximo clique não a substitua.
+     */
+    tabMenuClose: 'Fechar',
+    tabMenuCloseOthers: 'Fechar as outras',
+    tabMenuCloseToTheRight: 'Fechar as da direita',
+    tabMenuCloseSaved: 'Fechar as salvas',
+    tabMenuCloseAll: 'Fechar todas',
+    tabMenuKeepOpen: 'Manter aberta',
+    tabMenuRevealInTree: 'Revelar no explorador',
+    /** O guarda de não-salvos nomeia o arquivo: um fechamento em lote pergunta uma vez por arquivo. */
+    unsavedGuardFile: (name: string) => `Arquivo: ${name}`,
+    unsavedGuardRemaining: (n: number) =>
+      n === 1 ? 'Mais 1 arquivo depois deste' : `Mais ${n} arquivos depois deste`,
 
     // Rich file viewer — docx / pptx / planilhas / pdf / imagens.
     viewer: {
@@ -387,6 +442,20 @@ export const ptBR = {
       noteNoListing: 'Esta CLI não publica a lista de modelos; estes são os conhecidos.',
       // O modelo que o turno realmente reportou (evento `usage`). Chega depois
       // da primeira resposta, e é a única confirmação de verdade do que rodou.
+      // engine-pins: o padrão do agente. "Fixar" e não "salvar" porque o que
+      // se está fazendo é prender uma escolha no lugar dela — a próxima
+      // conversa (e toda folha que abre uma sessão) começa aqui.
+      pinnedGroup: 'Seu padrão',
+      pinRowAria: (model: string) => `Fixar ${model} como padrão deste agente`,
+      unpinRowAria: (model: string) => `Deixar de usar ${model} como padrão`,
+      pinCta: 'Fixar como padrão',
+      pinCtaAgent: (agent: string) => `Fixar como padrão do ${agent}`,
+      pinnedOn: 'Fixado como padrão',
+      pinnedOnAgent: (agent: string) => `Padrão do ${agent}`,
+      pinnedElsewhere: (model: string) => `Hoje começa em ${model}`,
+      pinHint: 'Toda conversa nova com este agente começa neste modelo e neste esforço',
+      unpinHint: 'Voltar a começar pelo padrão da CLI',
+      pinnedTitle: 'Seu padrão para este agente',
       running: (model: string) => `Rodando em ${model}`,
       // O alias não é o modelo: dizer no que ele resolveu é o que impede
       // "Sonnet" de significar coisas diferentes em duas máquinas.
@@ -426,11 +495,22 @@ export const ptBR = {
       `Esta conversa está no agente ${agent}. Para usar outro, comece uma nova conversa.`,
     agentLockedHint: 'A conversa já começou neste agente',
     agentManageCta: 'Gerenciar agentes…',
-    // chat-controls CC-R2: slash-command (skills) menu.
-    slashMenuLabel: 'Comandos do workspace',
-    slashMenuHint: '↑ ↓ navega · Enter executa · Esc fecha',
+    // chat-controls CC-R2 / chat-slash-commands: the `/` command menu.
+    slashMenuLabel: 'Comandos',
+    // "completa", not "executa". The menu stopped launching turns — picking a
+    // row now writes the command into the composer and hands the line back —
+    // and a footer still promising the old behaviour would mislead exactly
+    // once per user, which is once too often.
+    slashHintMove: 'navegar',
+    slashHintComplete: 'completar',
+    slashSectionBuiltin: 'Do Hive',
+    slashSectionSkills: 'Skills do workspace',
     slashEmpty: 'Nenhum comando disponível neste workspace.',
     slashNoMatch: 'Nenhum comando encontrado.',
+    // chat-command-mentions: a skill the agent mentions mid-reply becomes a
+    // button (`ui/markdown.tsx`); the title says what a click does, since the
+    // visible label is just the bare command name.
+    runCommandTitle: (command: string) => `Executar /${command}`,
     // chat-attachments (R6.5/T16): file attachments + `@` workspace references.
     attachLabel: 'Anexar arquivos',
     attachTitle: 'Anexar arquivos como contexto',
@@ -657,6 +737,11 @@ export const ptBR = {
     meterPercent: (percent: number) => `${percent}%`,
     underOnePercent: '<1%',
     meterAria: (summary: string) => `Janela de contexto: ${summary} em uso. Ver detalhes.`,
+    // Right after a compaction whose agent reported no post-count, the
+    // occupancy is genuinely unknown until the next turn says. "0%" would be a
+    // lie about a window that certainly holds the summary it was just given.
+    unread: '—',
+    unreadAria: 'Janela de contexto: ainda sem leitura depois da compactação. Ver detalhes.',
     detailTitle: 'Contexto da sessão',
     ofWindow: (total: string) => `de ${total}`,
     barAria: (used: string, total: string) =>
@@ -676,7 +761,44 @@ export const ptBR = {
     totalCost: 'Custo',
     tightAdvice:
       'A janela está quase cheia. Daqui pra frente o agente pode perder o começo da conversa.',
-    tightCta: 'Começar uma conversa nova'
+    tightCta: 'Começar uma conversa nova',
+    // context-compaction, in the one place the consequence is visible. The
+    // meter is where someone notices the window filling up, so it is where the
+    // remedy belongs — and where the choice of who applies it is made.
+    compactCta: 'Compactar contexto',
+    compactBusy: 'Compactando…',
+    compactHint:
+      'O agente resume a conversa e continua dela — o histórico aqui na tela fica inteiro.',
+    compactUnsupported: 'Este agente não expõe compactação de contexto.',
+    autoCompactLabel: 'Compactar sozinho aos 80%',
+    autoCompactHint: (agent: string) =>
+      `O ${agent} não compacta sozinho no modo que o Hive usa. Com isto ligado, o Hive compacta antes do turno que passaria do limite.`,
+    autoCompactManaged: (agent: string) => `O ${agent} já compacta o próprio contexto sozinho.`,
+    compactionsLabel: 'Compactações',
+    reclaimedLabel: 'Liberado por compactação'
+  },
+  // context-compaction: the seam in the transcript, and the command that asks
+  // for it. Deliberately says what happened to the *agent's memory*, never
+  // "mensagens apagadas" — nothing on screen is removed.
+  compaction: {
+    commandLabel: 'Compactar contexto',
+    commandDescription: 'Resume a conversa e libera a janela do agente',
+    commandArgHint: 'o que preservar',
+    seamTitle: 'Contexto compactado',
+    seamPending: 'Compactando contexto…',
+    summaryTitle: 'O que o agente guardou',
+    triggerManual: 'a pedido',
+    triggerAuto: 'automático',
+    // The pane's own last reading standing in for a figure the agent never
+    // reported — marked, so it never passes for a measured one.
+    approx: (tokens: string) => `≈${tokens}`,
+    postUnknown: '?',
+    deltaAria: (before: string, after: string) => `De ${before} para ${after} tokens`,
+    deltaOpenAria: (before: string) => `De ${before} tokens para um valor ainda não informado`,
+    // Errors name the problem and the recovery, per the app's copy rule.
+    failed: 'A compactação não foi concluída. O contexto continua como estava — tente de novo.',
+    unsupported: (agent: string) =>
+      `O ${agent} não expõe compactação de contexto. Para liberar a janela, comece uma conversa nova.`
   },
   // agent-approvals: the agent asked to run something it isn't pre-authorized
   // for. Copy is deliberately concrete about *what* is being asked — a vague
@@ -783,6 +905,15 @@ export const ptBR = {
   },
   // skill-studio: the "Estúdio de skills" — create skills/agents with the
   // BMAD builders, generate/run evals, pin creations as shortcuts.
+  // Como uma sessão vai rodar — agente, modelo e esforço. As chaves são
+  // globais (e não de `studio.`) porque o controle é o mesmo em quatro
+  // superfícies: composer, Estúdio, folha de ingestão e "Perguntar à base".
+  runConfig: {
+    loading: 'Carregando…',
+    noLevers: 'Este agente não expõe modelo nem esforço — ele decide sozinho.',
+    ingestLegend: 'Quem vai documentar',
+    askLegend: 'Quem vai responder'
+  },
   studio: {
     openLabel: 'Estúdio de skills',
     title: 'Estúdio de skills',
@@ -1245,6 +1376,12 @@ export const ptBR = {
     groupStaged: 'Alterações prontas',
     groupChanges: 'Alterações',
     moreChanges: (count: number) => `e mais ${count}…`,
+    // Shown when the status hit the entry cap: the list is a prefix, and the
+    // fix is almost always a `.gitignore` the workspace never got.
+    truncatedTitle: (count: number) =>
+      `Mostrando as primeiras ${count.toLocaleString('pt-BR')} alterações`,
+    truncatedDescription:
+      'Este repositório tem alterações demais para listar. Adicione um .gitignore para deixar de fora o que não deve ser versionado.',
     // Row (GIT-R2): the status glyph's accessible meaning per kind.
     statusModified: 'Modificado',
     statusAdded: 'Adicionado',
@@ -1632,11 +1769,10 @@ export const ptBR = {
     healthSnooze: 'Depois',
     healthSnoozed: 'Lembrete adiado — a base segue precisando de revisão',
     healthNudgeDismiss: 'Dispensar lembrete',
-    // Wiki browser (SB-R2.3, T8).
-    wikiTitle: 'Wiki',
-    indexTitle: 'Índice',
-    wikiEmpty: 'O wiki ainda não tem páginas. Ingira algum conhecimento para começar.',
-    openFileAria: (path: string) => `Abrir ${path}`,
+    // Os arquivos da base (SB-R2.3): a MESMA árvore da aba "Arquivos",
+    // enraizada na pasta do cofre. O rótulo fala da pasta inteira (wiki/ e
+    // raw/), não só do wiki — a árvore mostra as duas.
+    wikiTitle: 'Arquivos da base',
     // Botão flutuante da base + seu menu (SB-R3.1, SB-R3.5, SB-R9.1):
     // perguntar à base no topo, formas de capturar logo abaixo.
     // Distinto da entrada da activity bar ("Bases de conhecimento"): dois
@@ -2031,6 +2167,10 @@ export const ptBR = {
     scopeShortcutsHint: 'Os fluxos do BMAD que ficam à mão antes e durante a conversa.',
     scopeVoiceLabel: 'Voz e transcrição',
     scopeVoiceHint: 'O modelo que transcreve sua voz — no chat e na ingestão de conhecimento.',
+    // aws-bedrock: the index row's summary when the machine talks straight to
+    // the Anthropic API — the row exists so it can be found, and says so
+    // rather than implying a connection nobody configured.
+    awsInactiveSummary: 'Sem Bedrock',
     scopeShellLabel: 'Terminal',
     scopeShellHint: 'Onde os agentes executam os comandos no seu computador.',
     // Live summaries on the index rows: the list states the setup instead of
@@ -2091,6 +2231,113 @@ export const ptBR = {
   },
   // agent-terminal (M20): the terminal picker. Names are product names
   // (`shellName`), so what lives here is the surrounding copy only.
+  // aws-bedrock: a conexão com a AWS por trás do Claude no Amazon Bedrock.
+  //
+  // Vocabulário: "sessão" (não "token"), "conta" (não "account id"), "entrar"
+  // (não "autenticar"). Quem usa Bedrock num time sabe o que é um perfil, mas
+  // a pessoa que abre esta tela está tentando **voltar a conversar** — a copy
+  // fala do efeito, e o detalhe técnico fica ao lado, verificável.
+  aws: {
+    scopeLabel: 'Conexão AWS',
+    scopeHint: 'A sessão que autoriza o Claude a rodar no Amazon Bedrock desta conta.',
+    title: 'Conexão AWS',
+    // O sujeito é a sessão, não o token: é o que expira e o que o usuário renova.
+    stateReady: 'Sessão ativa',
+    stateExpiring: 'Sessão quase no fim',
+    stateExpired: 'Sessão expirada',
+    stateAbsent: 'Sem sessão nesta máquina',
+    stateUnmanaged: 'Credenciais fixas',
+    stateNotConfigured: 'Perfil não encontrado',
+    stateReadyHint: 'O Claude já pode responder — nada a fazer.',
+    stateExpiringHint: 'Dá para continuar. Renovamos sozinhos quando ela acabar.',
+    stateExpiredHint: 'A próxima mensagem abre o navegador para você entrar de novo.',
+    stateAbsentHint: 'Entre uma vez e o Hive cuida das renovações a partir daí.',
+    stateUnmanagedHint: (kind: string) =>
+      `Este perfil usa ${kind} — não há sessão para renovar, e o Hive não mexe nele.`,
+    stateNotConfiguredHint: (profile: string) =>
+      `O perfil "${profile}" não está no ~/.aws/config desta máquina. Escolha outro abaixo ou rode "aws configure sso".`,
+    kindStatic: 'chaves de acesso fixas',
+    kindProcess: 'um credential_process',
+    kindAssumeRole: 'assume-role',
+    kindUnknown: 'uma configuração que o Hive não reconhece',
+    // O anel: quanto sobra do dia de trabalho, não que fração de um número.
+    ringLabel: 'Tempo restante da sessão AWS',
+    ringCaption: 'restantes',
+    remainingNone: 'expirada',
+    remainingHours: (hours: number) => (hours === 1 ? '1 h' : `${hours} h`),
+    remainingMinutes: (minutes: number) => `${minutes} min`,
+    remainingSeconds: (seconds: number) => `${seconds} s`,
+    expiresAt: (clock: string) => `expira às ${clock}`,
+    profileLabel: 'Perfil',
+    accountLabel: 'Conta',
+    regionLabel: 'Região',
+    roleLabel: 'Papel',
+    sourceClaudeSettings: 'definido no settings.json do Claude',
+    sourceAuthRefresh: 'lido do comando awsAuthRefresh',
+    sourceHive: 'escolhido aqui no Hive',
+    sourceEnvironment: 'herdado do ambiente',
+    sourceDefault: 'perfil padrão da AWS',
+    connectCta: 'Entrar na AWS',
+    openPanelCta: 'Abrir conexão AWS',
+    reconnectCta: 'Renovar sessão',
+    switchTitle: 'Perfis desta máquina',
+    switchHint: 'Trocar de perfil vale para as próximas conversas.',
+    profileSignedIn: 'com sessão',
+    profileSignedOut: 'sem sessão',
+    profileUse: 'Usar',
+    profileInUse: 'Em uso',
+    profileAutoLabel: 'Detectar automaticamente',
+    profileAutoHint: 'Segue o que a configuração do Claude e do AWS CLI disserem.',
+    noCliTitle: 'AWS CLI não encontrada',
+    noCliHint:
+      'O Hive precisa do comando "aws" para renovar a sessão. Instale a AWS CLI v2 e abra o Hive de novo.',
+    noCliCta: 'Como instalar a AWS CLI',
+    inactiveTitle: 'Claude não está usando o Bedrock',
+    inactiveHint:
+      'Esta máquina fala direto com a Anthropic. Se o seu time usa Bedrock, ligue CLAUDE_CODE_USE_BEDROCK no settings.json do Claude.',
+    // --- o login ao vivo ---
+    loginTitle: 'Entrando na AWS',
+    loginProfile: (profile: string) => `Perfil ${profile}`,
+    stepRequest: 'Preparando a solicitação',
+    stepRequestHint: 'Falando com o AWS CLI desta máquina',
+    stepAuthorize: 'Autorize no navegador',
+    stepAuthorizeHint: 'Abrimos a página de login da sua conta',
+    stepConnected: 'Sessão renovada',
+    stepConnectedHint: 'A conversa continua sozinha',
+    stepFailedHint: 'Ninguém confirmou o acesso',
+    openAgainCta: 'Abrir de novo',
+    copyUrlCta: 'Copiar link',
+    copiedLabel: 'Copiado',
+    codeLabel: 'Código de verificação',
+    codeHint: 'Confira que a página mostra este mesmo código antes de confirmar.',
+    urlLabel: 'Endereço de verificação',
+    cancelCta: 'Cancelar',
+    retryCta: 'Tentar de novo',
+    elapsed: (seconds: number) =>
+      seconds < 60 ? `${seconds}s esperando` : `${Math.floor(seconds / 60)} min esperando`,
+    successTitle: 'Conectado',
+    successHint: (remaining: string) => `Sessão válida por mais ${remaining}.`,
+    failedTitle: 'Não deu para entrar',
+    canceledTitle: 'Entrada cancelada',
+    detailsShow: 'Ver detalhes',
+    detailsHide: 'Ocultar detalhes',
+    // --- a linha dentro da conversa ---
+    turnWaiting: 'Renovando a conexão com a AWS…',
+    turnWaitingHint: 'Confirme no navegador para a resposta continuar.',
+    turnCleared: 'Conexão com a AWS renovada',
+    // --- o erro de turno, quando a origem é a AWS ---
+    // O botão ao lado faz a ação; a frase só precisa dizer o que aconteceu.
+    turnErrorExpired: 'A sessão AWS expirou e a entrada não foi concluída.',
+    turnErrorNoCli:
+      'O comando "aws" não foi encontrado. Instale a AWS CLI v2 para o Hive renovar a sessão sozinho.',
+    turnErrorCanceled: 'Entrada na AWS cancelada — a mensagem não foi enviada.',
+    turnErrorFailed: 'Não foi possível renovar a sessão AWS.',
+    chipReady: (remaining: string) => `AWS · ${remaining}`,
+    chipExpired: 'AWS · sessão expirada',
+    chipExpiredShort: 'sessão expirada',
+    chipAria: (profile: string, state: string) => `Conexão AWS, perfil ${profile}: ${state}`,
+    beaconAria: 'Entrada na AWS em andamento'
+  },
   shell: {
     groupLabel: 'Terminal usado pelos agentes',
     autoLabel: 'Automático',

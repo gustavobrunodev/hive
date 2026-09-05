@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode
 } from 'react'
-import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { Chat, type ChatHandle } from './Chat'
 import { workspaceRelative } from './toolActivity'
 import type { RoleAction } from '../ui/ActionRail'
@@ -72,6 +72,19 @@ vi.mock('@hive/design-system', () => ({
     ),
   ChatMessage: ({ role, children }: { role: string; children?: ReactNode }) =>
     createElement('div', { 'data-role': role }, children),
+  // context-compaction: the auto-compact toggle in the context sheet.
+  Switch: ({
+    checked,
+    onCheckedChange
+  }: {
+    checked?: boolean
+    onCheckedChange?: (next: boolean) => void
+  }) =>
+    createElement('button', {
+      role: 'switch',
+      'aria-checked': checked === true,
+      onClick: () => onCheckedChange?.(checked !== true)
+    }),
   MessageList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   Attachment: ({
     name,
@@ -423,8 +436,19 @@ describe('Chat', () => {
     name?: string
     detail?: string
     toolId?: string
-    phase?: 'start' | 'end'
+    // `start`/`end` are the tool call's two halves; `waiting`/`cleared` are the
+    // AWS session gate's (aws-bedrock). One field, two event types — the same
+    // shape the real `AgentEvent` union has.
+    phase?: 'start' | 'end' | 'waiting' | 'cleared'
     ok?: boolean
+    // aws-bedrock `auth` fields.
+    provider?: 'aws'
+    // context-compaction `compact` fields (`phase` above is shared).
+    trigger?: 'manual' | 'auto'
+    preTokens?: number
+    postTokens?: number
+    durationMs?: number
+    summary?: string
     // agent-approvals `approval` fields.
     requestId?: string
     tool?: string
@@ -504,9 +528,16 @@ describe('Chat', () => {
        * because Devin and Copilot advertise NEITHER, and the composer's
        * "hide the picker, leave the value null" path only exists for them.
        */
-      capabilities?: { models: unknown[]; efforts: unknown[]; supportsAttachments?: boolean }
+      capabilities?: {
+        models: unknown[]
+        efforts: unknown[]
+        supportsAttachments?: boolean
+        compaction?: { command: boolean; automatic: boolean }
+      }
       /** agent-approvals: the session-wide grant already armed in the main process. */
       sessionArmed?: boolean
+      /** context-compaction: the app setting for "compact by yourself at 80%". */
+      autoCompact?: boolean
       /** Whether the transcription model is on disk. `false` opens the gate. */
       asrInstalled?: boolean
     } = {}
@@ -568,7 +599,11 @@ describe('Chat', () => {
               { id: 'model-b', label: 'Modelo B', contextWindow: 200_000 }
             ],
             efforts: [{ id: 'low', label: 'Baixo' }],
-            supportsAttachments: true
+            supportsAttachments: true,
+            // context-compaction: the default fixture is a Claude-shaped agent
+            // — it takes `/compact` and does not compact by itself, which is
+            // the only combination where Hive's own threshold can ever fire.
+            compaction: { command: true, automatic: false }
           }
         ),
         chooseAttachments: vi.fn().mockResolvedValue(options.pickedAttachments ?? []),
@@ -584,6 +619,8 @@ describe('Chat', () => {
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
         approvalSession: vi.fn().mockResolvedValue(options.sessionArmed ?? false),
+        autoCompact: vi.fn().mockResolvedValue(options.autoCompact ?? true),
+        setAutoCompact: vi.fn().mockResolvedValue(undefined),
         setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn((onEvent: (event: AgentEventLike) => void) => {
           capturedOnEvent = onEvent
@@ -622,6 +659,8 @@ describe('Chat', () => {
       conversationActions?: RoleAction[]
       onMcpRoster?: (servers: { name: string; status: string; tools: string[] }[]) => void
       onOpenMcpConsole?: () => void
+      onOpenAwsPanel?: () => void
+      onAwsReconnect?: () => void
       agents?: string[]
     } = {}
   ): ReturnType<typeof mockHive> {
@@ -929,7 +968,7 @@ describe('Chat', () => {
     )
     // Fresh conversation: the builder command is on screen, the prior one is gone.
     expect(await screen.findByText('/bmad-workflow-builder')).toBeTruthy()
-    expect(screen.queryByText('/bmad-prd')).toBeNull()
+    expect(screen.queryByRole('option', { name: /^\/bmad-prd/ })).toBeNull()
   })
 
   it('starts the conversation agent session bound to the workspace', async () => {
@@ -1127,33 +1166,55 @@ describe('Chat', () => {
 
     const input = screen.getByPlaceholderText('Escreva uma mensagem…')
     fireEvent.change(input, { target: { value: '/' } })
-    expect(await screen.findByText('/bmad-prd')).toBeTruthy()
-    expect(screen.getByText('/bmad-ux')).toBeTruthy()
-    // Compact rows: the command only — no title/description pair.
-    expect(screen.queryByText('Create PRD')).toBeNull()
-    expect(screen.queryByText('PRD workflow')).toBeNull()
+    expect(await screen.findByRole('option', { name: /^\/bmad-prd/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /^\/bmad-ux/ })).toBeTruthy()
+    // Rows carry their description again — thirty bare `/bmad-*` keys is a
+    // list you can only use if you already know it.
+    expect(screen.getByText('PRD workflow')).toBeTruthy()
 
     fireEvent.change(input, { target: { value: '/ux' } })
-    await waitFor(() => expect(screen.queryByText('/bmad-prd')).toBeNull())
-    expect(screen.getByText('/bmad-ux')).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('option', { name: /^\/bmad-prd/ })).toBeNull())
+    expect(screen.getByRole('option', { name: /^\/bmad-ux/ })).toBeTruthy()
   })
 
-  it('selecting a slash skill launches it as a workflow and clears the composer', async () => {
+  // The behaviour change this whole menu was rebuilt around. Picking used to
+  // launch, which made `/bmad-prd <o que eu quero>` unreachable from the menu:
+  // there was no line left to type on.
+  it('picking a slash row completes the command instead of launching it', async () => {
     renderChat({ skills: [{ key: 'bmad-ux', label: 'Create UX', description: 'UX spec' }] })
     await screen.findByText('Modelo A')
     const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
     fireEvent.change(input, { target: { value: '/ux' } })
 
-    const option = await screen.findByText('/bmad-ux')
-    fireEvent.mouseDown(option)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /^\/bmad-ux/ }))
 
+    // The composer now holds the command, ready for what follows it…
+    await waitFor(() => expect(input.value).toBe('/bmad-ux '))
+    // …and nothing was sent.
+    expect(window.hive.agent.runWorkflow).not.toHaveBeenCalled()
+    // The menu closed rather than reopening over the sentence about to be typed.
+    await waitFor(() => expect(screen.queryByText('UX spec')).toBeNull())
+  })
+
+  it('a completed command sends as a workflow, carrying what was typed after it', async () => {
+    renderChat({ skills: [{ key: 'bmad-ux', label: 'Create UX', description: 'UX spec' }] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '/ux' } })
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /^\/bmad-ux/ }))
+    await waitFor(() => expect(input.value).toBe('/bmad-ux '))
+
+    fireEvent.change(input, { target: { value: '/bmad-ux Eu quero uma tela de login' } })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    // The arguments travel — the old menu sent a bare `/bmad-ux` and dropped them.
     expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
-      { key: 'bmad-ux', prompt: '/bmad-ux' },
+      { key: 'bmad-ux', prompt: '/bmad-ux Eu quero uma tela de login' },
       expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
     )
   })
 
-  it('keyboard-navigates the slash menu (ArrowDown + Enter selects)', async () => {
+  it('keyboard-navigates the slash menu (ArrowDown + Enter completes)', async () => {
     renderChat({
       skills: [
         { key: 'bmad-prd', label: 'Create PRD', description: '' },
@@ -1161,25 +1222,27 @@ describe('Chat', () => {
       ]
     })
     await screen.findByText('Modelo A')
-    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
-    fireEvent.change(input, { target: { value: '/' } })
-    await screen.findByText('/bmad-prd')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '/bmad' } })
+    await screen.findByRole('option', { name: /^\/bmad-prd/ })
 
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
-      { key: 'bmad-ux', prompt: '/bmad-ux' },
-      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
-    )
+    await waitFor(() => expect(input.value).toBe('/bmad-ux '))
+    expect(window.hive.agent.runWorkflow).not.toHaveBeenCalled()
   })
 
-  it('shows a teaching empty state when no skills are installed', async () => {
+  // The built-ins mean a bare `/` is never an empty menu again, so the two
+  // diagnoses this app keeps apart had to survive somewhere else: "no skills
+  // installed" sends you to provision the workspace, "no match" to retype.
+  it('says the workspace has no skills even though built-in commands still list', async () => {
     renderChat({ skills: [] })
     await screen.findByText('Modelo A')
     const input = screen.getByPlaceholderText('Escreva uma mensagem…')
     fireEvent.change(input, { target: { value: '/' } })
-    expect(await screen.findByText('Nenhum comando disponível neste workspace.')).toBeTruthy()
+    expect(await screen.findByRole('option', { name: /^\/compact/ })).toBeTruthy()
+    expect(screen.getByText('Nenhum comando disponível neste workspace.')).toBeTruthy()
   })
 
   // P2-002: the two empty states are different diagnoses and must not collapse
@@ -1675,17 +1738,16 @@ describe('Chat', () => {
       ]
     })
     await screen.findByText('Modelo A')
-    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
-    fireEvent.change(input, { target: { value: '/' } })
-    await screen.findByText('/bmad-prd')
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…') as HTMLInputElement
+    // `/bmad` rather than a bare `/`: the built-in commands lead the list now,
+    // and this test is about the wrap, not about where the skills start.
+    fireEvent.change(input, { target: { value: '/bmad' } })
+    await screen.findByRole('option', { name: /^\/bmad-prd/ })
 
     fireEvent.keyDown(input, { key: 'ArrowUp' }) // wraps from 0 to last (index 1)
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
-      { key: 'bmad-ux', prompt: '/bmad-ux' },
-      expect.objectContaining({ agentId: 'claude-cli', resume: null, turnId: expect.any(String) })
-    )
+    await waitFor(() => expect(input.value).toBe('/bmad-ux '))
   })
 
   it('closes the slash menu on Escape', async () => {
@@ -3132,6 +3194,271 @@ describe('Chat', () => {
     })
   })
 
+  /**
+   * context-compaction: the `/compact` command, the seam it leaves, and the
+   * one place Hive compacts on its own.
+   *
+   * The shape of all of this came out of measuring the two CLIs rather than
+   * designing around them: both already compact, both keep their session id
+   * doing it, and only Claude-in-print-mode has nobody watching its ceiling.
+   */
+  describe('context compaction', () => {
+    /** Types `text` into the composer and presses the send control. */
+    function sendText(text: string): void {
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: text }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+    }
+
+    /** A `usage` report placing the window at `tokens` of the fixture's 200k. */
+    function usageEvent(tokens: number): AgentEventLike {
+      return {
+        type: 'usage',
+        final: true,
+        usage: {
+          inputTokens: tokens,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          outputTokens: 10,
+          model: 'claude-opus-5'
+        }
+      }
+    }
+
+    it('forwards /compact to the agent as the command it already answers to', async () => {
+      renderChat()
+      await screen.findByText('Modelo A')
+
+      sendText('/compact')
+
+      expect(window.hive.agent.send).toHaveBeenCalledWith(
+        '/compact',
+        expect.objectContaining({ agentId: 'claude-cli', turnId: expect.any(String) })
+      )
+    })
+
+    it('passes focus instructions through — both CLIs read them as what to keep', async () => {
+      renderChat()
+      await screen.findByText('Modelo A')
+
+      sendText('/compact foque nas decisões de arquitetura')
+
+      expect(window.hive.agent.send).toHaveBeenCalledWith(
+        '/compact foque nas decisões de arquitetura',
+        expect.anything()
+      )
+    })
+
+    // A compaction is housekeeping, not a message. A bubble reading "/compact"
+    // would file the app's own bookkeeping under things the user said.
+    it('leaves no user bubble behind', async () => {
+      const { chatHistory } = renderChat()
+      await screen.findByText('Modelo A')
+
+      sendText('/compact')
+
+      await waitFor(() => expect(window.hive.agent.send).toHaveBeenCalled())
+      expect(screen.queryByText('/compact')).toBeNull()
+      expect(chatHistory.append).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ role: 'user' })
+      )
+    })
+
+    // Claude reports its boundary only after the fact — eight seconds on the
+    // measured run. Without a seam standing there it reads as a stalled turn.
+    it('shows the compaction while it is happening', async () => {
+      renderChat()
+      await screen.findByText('Modelo A')
+
+      sendText('/compact')
+
+      expect(await screen.findByText('Compactando contexto…')).toBeTruthy()
+    })
+
+    it('draws the seam with the agent’s own before/after numbers', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('/compact')
+
+      act(() =>
+        emit({
+          type: 'compact',
+          phase: 'end',
+          trigger: 'manual',
+          preTokens: 22_678,
+          postTokens: 757,
+          durationMs: 8400
+        })
+      )
+
+      expect(await screen.findByText('Contexto compactado')).toBeTruthy()
+      expect(screen.getByText('22,7 mil')).toBeTruthy()
+      expect(screen.getByText('757')).toBeTruthy()
+      expect(screen.queryByText('Compactando contexto…')).toBeNull()
+    })
+
+    // The case Hive was blind to before this feature: Devin compacts by itself
+    // mid-session and the meter simply fell off a cliff with no explanation.
+    it('draws a seam for a compaction nobody asked for', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('oi')
+
+      act(() => emit({ type: 'compact', phase: 'end', trigger: 'auto' }))
+
+      expect(await screen.findByText('Contexto compactado')).toBeTruthy()
+      expect(screen.getByText('automático')).toBeTruthy()
+    })
+
+    // Devin reports a summary and no counts. The pane's own last reading
+    // stands in — marked, so it never passes for a figure the agent measured.
+    it('falls back to its own reading, marked as an estimate', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('oi')
+      act(() => emit(usageEvent(23_062)))
+      act(() => emit({ type: 'done' }))
+
+      act(() => emit({ type: 'compact', phase: 'end', trigger: 'auto' }))
+
+      expect(await screen.findByText('≈23,1 mil')).toBeTruthy()
+    })
+
+    it('records the seam so a reopened transcript still knows it was compacted', async () => {
+      const { emit, chatHistory } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('oi')
+      await waitFor(() => expect(chatHistory.create).toHaveBeenCalled())
+
+      act(() =>
+        emit({ type: 'compact', phase: 'end', trigger: 'manual', preTokens: 900, postTokens: 100 })
+      )
+
+      await waitFor(() =>
+        expect(chatHistory.append).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.anything(),
+          expect.objectContaining({
+            role: 'compaction',
+            compaction: expect.objectContaining({ trigger: 'manual', preTokens: 900 })
+          })
+        )
+      )
+    })
+
+    // A compaction that fails never reports a boundary. The pending seam has to
+    // stop on the turn's own terminal event, or it spins forever.
+    it('stops the pending seam when the compaction turn fails', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('/compact')
+      await screen.findByText('Compactando contexto…')
+
+      act(() => emit({ type: 'error', message: 'falhou' }))
+
+      await waitFor(() => expect(screen.queryByText('Compactando contexto…')).toBeNull())
+    })
+
+    // The measured asymmetry: Claude's own auto-compaction does not run in the
+    // print mode Hive drives, so on that transport nobody is minding the
+    // ceiling unless Hive is.
+    it('compacts on its own past 80%, and the message rides the queue behind it', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('primeira')
+      act(() => emit(usageEvent(170_000)))
+      act(() => emit({ type: 'done' }))
+      ;(window.hive.agent.send as ReturnType<typeof vi.fn>).mockClear()
+
+      sendText('continue o trabalho')
+
+      // The compaction went first…
+      expect(window.hive.agent.send).toHaveBeenCalledWith('/compact', expect.anything())
+      // …and the message did not race it.
+      expect(window.hive.agent.send).not.toHaveBeenCalledWith(
+        'continue o trabalho',
+        expect.anything()
+      )
+      // It goes out by itself once the compaction settles.
+      act(() => emit({ type: 'compact', phase: 'end', trigger: 'auto', postTokens: 900 }))
+      act(() => emit({ type: 'done' }))
+      await waitFor(() =>
+        expect(window.hive.agent.send).toHaveBeenCalledWith(
+          'continue o trabalho',
+          expect.anything()
+        )
+      )
+    })
+
+    it('stays out of the way of an agent that compacts itself', async () => {
+      const { emit } = renderChat({
+        capabilities: {
+          models: [{ id: 'model-a', label: 'Modelo A', contextWindow: 200_000 }],
+          efforts: [],
+          supportsAttachments: true,
+          compaction: { command: true, automatic: true }
+        }
+      })
+      await screen.findByText('Modelo A')
+      sendText('primeira')
+      act(() => emit(usageEvent(170_000)))
+      act(() => emit({ type: 'done' }))
+      ;(window.hive.agent.send as ReturnType<typeof vi.fn>).mockClear()
+
+      sendText('continue o trabalho')
+
+      expect(window.hive.agent.send).not.toHaveBeenCalledWith('/compact', expect.anything())
+    })
+
+    it('honours the setting being off', async () => {
+      const { emit } = renderChat({ autoCompact: false })
+      await screen.findByText('Modelo A')
+      sendText('primeira')
+      act(() => emit(usageEvent(170_000)))
+      act(() => emit({ type: 'done' }))
+      ;(window.hive.agent.send as ReturnType<typeof vi.fn>).mockClear()
+
+      sendText('continue o trabalho')
+
+      expect(window.hive.agent.send).not.toHaveBeenCalledWith('/compact', expect.anything())
+    })
+
+    // An agent whose compaction was never measured is not offered a command it
+    // may answer as a question — the error names the problem and the way out.
+    it('refuses the command for an agent that has none, and says why', async () => {
+      renderChat({
+        capabilities: {
+          models: [{ id: 'model-a', label: 'Modelo A', contextWindow: 200_000 }],
+          efforts: [],
+          supportsAttachments: true,
+          compaction: { command: false, automatic: false }
+        }
+      })
+      await screen.findByText('Modelo A')
+
+      sendText('/compact')
+
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(window.hive.agent.send).not.toHaveBeenCalledWith('/compact', expect.anything())
+    })
+
+    it('offers compaction from the context meter, where the window is read', async () => {
+      const { emit } = renderChat()
+      await screen.findByText('Modelo A')
+      sendText('oi')
+      act(() => emit(usageEvent(60_000)))
+      act(() => emit({ type: 'done' }))
+
+      fireEvent.click(await screen.findByText('de contexto'))
+      fireEvent.click(await screen.findByText('Compactar contexto'))
+
+      expect(window.hive.agent.send).toHaveBeenCalledWith('/compact', expect.anything())
+    })
+  })
+
   describe('the context window meter', () => {
     async function reportUsage(over: Record<string, number> = {}): Promise<void> {
       const { emit } = renderChat()
@@ -3224,6 +3551,65 @@ describe('Chat', () => {
       // A fresh conversation knows nothing about the window until its own
       // first turn reports one, so the meter goes with it.
       expect(screen.queryByText('de contexto')).toBeNull()
+    })
+  })
+  // aws-bedrock: the turn that waited for a cloud session, and the one that
+  // died because it never got one.
+  describe('conexão AWS', () => {
+    it('records the pause in the turn, then settles it into a record of what happened', async () => {
+      const { emit } = renderChat()
+      act(() => emit({ type: 'auth', provider: 'aws', phase: 'waiting' }))
+      expect(await screen.findByText('Renovando a conexão com a AWS…')).toBeTruthy()
+      act(() => emit({ type: 'auth', provider: 'aws', phase: 'cleared' }))
+      expect(await screen.findByText('Conexão com a AWS renovada')).toBeTruthy()
+      // One row, not two: the second event is the same interruption ending.
+      expect(document.querySelectorAll('.wb-awsturn')).toHaveLength(1)
+    })
+
+    it('opens the AWS panel from the turn row when the host offers one', async () => {
+      const onOpenAwsPanel = vi.fn()
+      const { emit } = renderChat({}, { onOpenAwsPanel })
+      act(() => emit({ type: 'auth', provider: 'aws', phase: 'waiting' }))
+      fireEvent.click(await screen.findByRole('button', { name: /Renovando a conexão com a AWS/ }))
+      expect(onOpenAwsPanel).toHaveBeenCalled()
+    })
+
+    it('reads an AWS failure as itself, and offers the repair rather than the CLI text', async () => {
+      // The reported bug: the banner quoted `Error running awsAuthRefresh (in
+      // settings or ~/.claude.json)` and left the user to work out that it
+      // meant "log in again".
+      const onAwsReconnect = vi.fn()
+      const { emit } = renderChat({}, { onAwsReconnect })
+      act(() => emit({ type: 'error', message: 'aws-auth:sso-expired' }))
+      const banner = await screen.findByRole('alert')
+      expect(banner.textContent).toContain('A sessão AWS expirou')
+      expect(banner.textContent).not.toContain('Não foi possível concluir a resposta')
+      fireEvent.click(screen.getByRole('button', { name: 'Entrar na AWS' }))
+      expect(onAwsReconnect).toHaveBeenCalled()
+    })
+
+    it('falls back to opening the panel when the host cannot start a login', async () => {
+      const onOpenAwsPanel = vi.fn()
+      const { emit } = renderChat({}, { onOpenAwsPanel })
+      act(() => emit({ type: 'error', message: 'aws-auth:sso-expired' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Abrir conexão AWS' }))
+      expect(onOpenAwsPanel).toHaveBeenCalled()
+    })
+
+    it('offers no repair for a missing AWS CLI — that one is an install', async () => {
+      const { emit } = renderChat({}, { onAwsReconnect: vi.fn() })
+      act(() => emit({ type: 'error', message: 'aws-auth:no-cli' }))
+      const banner = await screen.findByRole('alert')
+      expect(banner.textContent).toContain('Instale a AWS CLI v2')
+      expect(within(banner).queryByRole('button')).toBeNull()
+    })
+
+    it('keeps the CLI’s own words for an ordinary failure', async () => {
+      const { emit } = renderChat()
+      act(() => emit({ type: 'error', message: 'claude exited with code 1: boom' }))
+      const banner = await screen.findByRole('alert')
+      expect(banner.textContent).toContain('Não foi possível concluir a resposta')
+      expect(banner.textContent).toContain('boom')
     })
   })
 })

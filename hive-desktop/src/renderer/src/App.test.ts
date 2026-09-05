@@ -6,6 +6,7 @@ import App from './App'
 import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
 import { createHiveAsrMock } from './testSupport/hiveAsrMock'
+import { createHiveAwsMock } from './testSupport/hiveAwsMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 
 /**
@@ -187,6 +188,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         capabilities: vi
           .fn()
           .mockResolvedValue({ models: [], efforts: [], supportsAttachments: false }),
+        pins: vi.fn().mockResolvedValue({}),
+        pin: vi.fn().mockResolvedValue({}),
         chooseAttachments: vi.fn().mockResolvedValue([]),
         start: vi.fn().mockResolvedValue(undefined),
         send: vi.fn().mockResolvedValue(undefined),
@@ -195,6 +198,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
         approvalSession: vi.fn().mockResolvedValue(false),
+        autoCompact: vi.fn().mockResolvedValue(true),
+        setAutoCompact: vi.fn().mockResolvedValue(undefined),
         setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
@@ -303,7 +308,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
-      asr: createHiveAsrMock()
+      asr: createHiveAsrMock(),
+      aws: createHiveAwsMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }

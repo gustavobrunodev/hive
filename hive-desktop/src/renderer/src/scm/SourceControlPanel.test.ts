@@ -134,6 +134,37 @@ describe('SourceControlPanel', () => {
     expect(screen.getByText('a.txt')).toBeTruthy()
   })
 
+  it('lists each file of a new untracked folder, showing name and folder separately', () => {
+    renderPanel(
+      store({
+        status: status([
+          chg('_bmad-output/planning-artifacts/prds/prd-x/prd.md', '?', '?', {
+            isUntracked: true
+          }),
+          chg('.playwright-mcp/page.png', '?', '?', { isUntracked: true })
+        ])
+      })
+    )
+    expect(screen.getByText('prd.md')).toBeTruthy()
+    expect(screen.getByText('page.png')).toBeTruthy()
+    // The folder is split head/tail so it clips in the middle — read it whole.
+    expect(document.querySelector('.wb-scm-path-dir')?.textContent).toBe(
+      '_bmad-output/planning-artifacts/prds/prd-x'
+    )
+    // The count is of files, not of the two folders they live in.
+    expect(screen.getByText('2')).toBeTruthy()
+  })
+
+  it('says so when the change list was capped, and stays quiet otherwise', () => {
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')], { truncated: true }) }))
+    expect(screen.getByText(/Mostrando as primeiras 1 alterações/)).toBeTruthy()
+    expect(screen.getByText(/Adicione um \.gitignore/)).toBeTruthy()
+
+    cleanup()
+    renderPanel(store({ status: status([chg('a.txt', '.', 'M')]) }))
+    expect(screen.queryByText(/Mostrando as primeiras/)).toBeNull()
+  })
+
   it('refresh button calls the store refresh', () => {
     const s = store({ status: status([chg('a.txt', '.', 'M')]) })
     renderPanel(s)

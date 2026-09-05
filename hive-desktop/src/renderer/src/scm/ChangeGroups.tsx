@@ -49,6 +49,23 @@ function dirName(path: string): string {
   return i === -1 ? '' : path.slice(0, i)
 }
 
+/**
+ * The folder shown beside a file name, split so it clips in the **middle**
+ * rather than at the end.
+ *
+ * A change list full of agent output is a list of deep paths — four files in
+ * `_bmad-output/planning-artifacts/prds/prd-teste-hive-2026-09-03` were all
+ * rendering as `_bmad-outp…`, `_bmad-o…`, `_bmad…`: the same useless prefix,
+ * three different truncations, no way to tell which folder any row was in. The
+ * deepest segment is the one that distinguishes files, so it is never the part
+ * that gets dropped — the head absorbs the squeeze (`_bmad-output/pl…/prd-teste-…`)
+ * and only clips itself once the leaf no longer fits.
+ */
+function splitDir(dir: string): { head: string; tail: string } {
+  const i = dir.lastIndexOf('/')
+  return i === -1 ? { head: '', tail: dir } : { head: dir.slice(0, i + 1), tail: dir.slice(i + 1) }
+}
+
 /** Which group a row belongs to — drives the staged-vs-unstaged badge fill. */
 type RowSide = 'conflict' | 'staged' | 'unstaged'
 
@@ -65,7 +82,7 @@ function ChangeRow({ change, side, onOpenDiff, actions }: ChangeRowProps): React
   const kind = statusKind(change)
   const letter = statusLetter(change)
   const name = baseName(change.path)
-  const dir = dirName(change.path)
+  const dir = splitDir(dirName(change.path))
   const meaning = kindMeaning(kind)
   const title =
     change.origPath !== undefined
@@ -92,7 +109,12 @@ function ChangeRow({ change, side, onOpenDiff, actions }: ChangeRowProps): React
         </span>
         <span className="wb-scm-path">
           <span className="wb-scm-path-name">{name}</span>
-          {dir && <span className="wb-scm-path-dir">{dir}</span>}
+          {dir.tail && (
+            <span className="wb-scm-path-dir">
+              {dir.head && <span className="wb-scm-path-dir-head">{dir.head}</span>}
+              <span className="wb-scm-path-dir-tail">{dir.tail}</span>
+            </span>
+          )}
         </span>
       </button>
       {actions && <span className="wb-scm-row-actions">{actions}</span>}

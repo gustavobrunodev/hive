@@ -428,4 +428,60 @@ describe("Tree", () => {
       expect(getItem("README.md")).toHaveAttribute("aria-selected", "false")
     })
   })
+
+  describe("an empty container (`expandable`)", () => {
+    const withEmpty: TreeNode[] = [
+      { id: "empty", label: "empty-folder", expandable: true, children: [] },
+      { id: "leaf", label: "notes.txt" },
+    ]
+
+    it("renders the chevron and aria-expanded even with no children", () => {
+      render(<Tree nodes={withEmpty} aria-label="Files" />)
+      expect(getItem("empty-folder")).toHaveAttribute("aria-expanded", "false")
+      expect(getItem("notes.txt")).not.toHaveAttribute("aria-expanded")
+    })
+
+    it("opens and closes on click, owning no group while empty", async () => {
+      const user = userEvent.setup()
+      render(<Tree nodes={withEmpty} aria-label="Files" />)
+
+      await user.click(screen.getByText("empty-folder"))
+      expect(getItem("empty-folder")).toHaveAttribute("aria-expanded", "true")
+      expect(screen.queryByRole("group")).not.toBeInTheDocument()
+
+      await user.click(screen.getByText("empty-folder"))
+      expect(getItem("empty-folder")).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("ArrowRight/ArrowLeft open and close it from the keyboard", async () => {
+      const user = userEvent.setup()
+      render(<Tree nodes={withEmpty} aria-label="Files" />)
+      getItem("empty-folder").focus()
+
+      await user.keyboard("{ArrowRight}")
+      expect(getItem("empty-folder")).toHaveAttribute("aria-expanded", "true")
+      // A second ArrowRight would step into the first child; there is none,
+      // so focus stays put rather than jumping to the next sibling.
+      await user.keyboard("{ArrowRight}")
+      expect(getItem("empty-folder")).toHaveFocus()
+
+      await user.keyboard("{ArrowLeft}")
+      expect(getItem("empty-folder")).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("tells renderLabel it is a container while reporting no children", () => {
+      const seen: Array<{ hasChildren: boolean; expandable: boolean }> = []
+      render(
+        <Tree
+          nodes={withEmpty}
+          aria-label="Files"
+          renderLabel={(node, state) => {
+            if (node.id === "empty") seen.push({ hasChildren: state.hasChildren, expandable: state.expandable })
+            return <span>{node.label}</span>
+          }}
+        />
+      )
+      expect(seen[0]).toEqual({ hasChildren: false, expandable: true })
+    })
+  })
 })

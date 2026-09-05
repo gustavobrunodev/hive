@@ -11,11 +11,21 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
-import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from '@testing-library/react'
 import { FileTree, FileViewer } from './Explorer'
 import { createHiveGitMock, createHiveReviewMock } from '../testSupport/hiveGitMock'
 import { createHiveSecondBrainMock } from '../testSupport/hiveSecondBrainMock'
 import { createHiveAsrMock } from '../testSupport/hiveAsrMock'
+import { createHiveAwsMock } from '../testSupport/hiveAwsMock'
 import { createHiveMcpLogsMock } from '../testSupport/hiveMcpLogsMock'
 
 // jsdom lacks these observers, which the rich file viewers (image/pdf) use to
@@ -80,6 +90,8 @@ interface MockTreeNode {
   id: string
   label: ReactNode
   children?: MockTreeNode[]
+  expandable?: boolean
+  disabled?: boolean
 }
 
 interface MockTreeRenderState {
@@ -87,6 +99,7 @@ interface MockTreeRenderState {
   expanded: boolean
   selected: boolean
   hasChildren: boolean
+  expandable: boolean
 }
 
 function flattenTreeNodes(nodes: MockTreeNode[]): MockTreeNode[] {
@@ -102,13 +115,23 @@ const ContextMenuMockCtx = createContext<{ open: boolean; setOpen: (open: boolea
   setOpen: () => {}
 })
 
-/** Last expansion props the mocked `Tree` was rendered with — see the mock. */
+/** Last props the mocked `Tree` was rendered with — see the mock. */
 const treeProps: {
   expandedIds?: string[]
   onExpandedIdsChange?: (ids: string[]) => void
+  /** The node tree the app handed the DS — where `expandable` and the synthetic rows show up. */
+  nodes?: MockTreeNode[]
 } = {}
 
-vi.mock('@hive/design-system', () => ({
+// The doubles replace the DS's *components*; `detectDelimiter` is not one —
+// it is the pure function `csv.ts` parses with, and the one the editor's own
+// CSV mirror colours by. Re-implementing it here would let the two disagree
+// silently, which is the exact defect (a table with different columns than the
+// text behind it) it exists to prevent. So the real one is pulled in.
+vi.mock('@hive/design-system', async () => ({
+  detectDelimiter: (
+    await vi.importActual<typeof import('@hive/design-system')>('@hive/design-system')
+  ).detectDelimiter,
   Button: ({ children, ...rest }: { children?: ReactNode }) =>
     createElement('button', { type: 'button', ...rest }, children),
   Spinner: ({ label }: { label?: string }) => createElement('span', { role: 'status' }, label),
@@ -221,6 +244,7 @@ vi.mock('@hive/design-system', () => ({
     // and what this app controls is exactly these two values.
     treeProps.expandedIds = expandedIds
     treeProps.onExpandedIdsChange = onExpandedIdsChange
+    treeProps.nodes = nodes
     return createElement(
       'div',
       { role: 'tree' },
@@ -231,7 +255,8 @@ vi.mock('@hive/design-system', () => ({
           level: 1,
           expanded: true,
           selected,
-          hasChildren
+          hasChildren,
+          expandable: node.expandable === true || hasChildren
         }
         const content = renderLabel ? renderLabel(node, state) : node.label
         return createElement(
@@ -273,6 +298,74 @@ vi.mock('@hive/design-system', () => ({
       })
     )
   },
+  // The real grid is a `<table role="grid">` with a roving tabindex and an
+  // editor that only exists while a cell is being edited — all of it covered
+  // by the design system's own suite. What the app owns is the wiring: which
+  // rows and columns it hands over, and what it does with a committed cell. So
+  // the double is one always-open field per cell, with the same callbacks.
+  DataGrid: ({
+    columns,
+    rows,
+    ariaLabel,
+    cursor,
+    onCursorChange,
+    onCellChange,
+    empty,
+    footer
+  }: {
+    columns: Array<{ id: string; label: ReactNode; hint?: ReactNode; numeric?: boolean }>
+    rows: ReadonlyArray<ReadonlyArray<string>>
+    ariaLabel: string
+    cursor?: { row: number; column: number }
+    onCursorChange?: (next: { row: number; column: number }) => void
+    onCellChange?: (row: number, column: number, value: string) => void
+    empty?: ReactNode
+    footer?: ReactNode
+  }) =>
+    createElement(
+      'div',
+      { role: 'grid', 'aria-label': ariaLabel },
+      createElement(
+        'div',
+        { role: 'row' },
+        columns.map((column, index) =>
+          createElement(
+            'span',
+            {
+              key: column.id,
+              role: 'columnheader',
+              'data-numeric': column.numeric || undefined,
+              onClick: () => onCursorChange?.({ row: cursor?.row ?? 0, column: index })
+            },
+            column.label,
+            column.hint
+          )
+        )
+      ),
+      rows.length === 0
+        ? empty
+        : rows.map((row, rowIndex) =>
+            createElement(
+              'div',
+              { key: rowIndex, role: 'row' },
+              columns.map((column, columnIndex) =>
+                createElement('input', {
+                  key: column.id,
+                  'aria-label': `cel ${rowIndex},${columnIndex}`,
+                  value: row[columnIndex] ?? '',
+                  // The real grid moves its cursor when a cell takes focus,
+                  // which a click does. `fireEvent.focus` dispatches a
+                  // non-bubbling `focus` that React (17+, which listens on
+                  // `focusin`) never sees — so the double answers the click.
+                  onClick: () => onCursorChange?.({ row: rowIndex, column: columnIndex }),
+                  onChange: (event: { target: { value: string } }) =>
+                    onCellChange?.(rowIndex, columnIndex, event.target.value)
+                })
+              )
+            )
+          ),
+      footer
+    ),
   CodeBlock: ({ children }: { children?: ReactNode }) =>
     createElement('pre', { 'data-testid': 'code-viewer' }, children),
   // Honours `onOpenChange` (via an explicit dismiss affordance) rather than
@@ -463,6 +556,8 @@ describe('Explorer (T12/T8)', () => {
         capabilities: vi
           .fn()
           .mockResolvedValue({ models: [], efforts: [], supportsAttachments: false }),
+        pins: vi.fn().mockResolvedValue({}),
+        pin: vi.fn().mockResolvedValue({}),
         chooseAttachments: vi.fn().mockResolvedValue([]),
         start: vi.fn().mockResolvedValue(undefined),
         send: vi.fn().mockResolvedValue(undefined),
@@ -471,6 +566,8 @@ describe('Explorer (T12/T8)', () => {
         interrupt: vi.fn().mockResolvedValue(undefined),
         respondApproval: vi.fn().mockResolvedValue(undefined),
         approvalSession: vi.fn().mockResolvedValue(false),
+        autoCompact: vi.fn().mockResolvedValue(true),
+        setAutoCompact: vi.fn().mockResolvedValue(undefined),
         setApprovalSession: vi.fn().mockResolvedValue(undefined),
         onEvent: vi.fn().mockReturnValue(() => {})
       },
@@ -573,7 +670,8 @@ describe('Explorer (T12/T8)', () => {
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
-      asr: createHiveAsrMock()
+      asr: createHiveAsrMock(),
+      aws: createHiveAwsMock()
     }
     window.hive = Object.assign(defaults, overrides)
     return { watchListeners }
@@ -589,7 +687,8 @@ describe('Explorer (T12/T8)', () => {
     expect(await screen.findByText('a.txt')).toBeTruthy()
     expect(await screen.findByText('docs')).toBeTruthy()
     expect(await screen.findByText('prd.md')).toBeTruthy()
-    expect(window.hive.listTree).toHaveBeenCalledWith('/ws')
+    // The second argument is the tree's root — `undefined` is the workspace itself.
+    expect(window.hive.listTree).toHaveBeenCalledWith('/ws', undefined)
   })
 
   it('clicking a tree file calls readFile() and shows its content in the viewer', async () => {
@@ -2683,6 +2782,92 @@ describe('Explorer (T12/T8)', () => {
   })
 
   /**
+   * The defect this closes: edit, press Visualizar, come back, press Ctrl+Z —
+   * and nothing happens, because the field the browser kept the undo stack on
+   * was unmounted by the toggle. The history now lives beside the draft
+   * (`editHistory.ts`), so the round trip costs it nothing.
+   */
+  describe('undo survives the surface swapping under it', () => {
+    it('Ctrl+Z takes back an edit made before a trip through Visualizar', async () => {
+      mockHive({ readFile: vi.fn().mockResolvedValue('# Original') })
+
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(await screen.findByText('prd.md'))
+      const field = await screen.findByLabelText('Conteúdo do arquivo')
+      fireEvent.change(field, { target: { value: '# Edited draft' } })
+
+      fireEvent.click(await screen.findByRole('radio', { name: 'Visualizar' }))
+      await screen.findByTestId('markdown-viewer')
+      fireEvent.click(screen.getByRole('radio', { name: 'Editar' }))
+
+      const back = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+      fireEvent.keyDown(back, { key: 'z', ctrlKey: true })
+      expect(back.value).toBe('# Original')
+      // …and the file is clean again, which is the whole point of taking it back.
+      expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    })
+
+    it('Ctrl+Shift+Z puts it back', async () => {
+      mockHive({ readFile: vi.fn().mockResolvedValue('one') })
+
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(await screen.findByText('a.txt'))
+      const field = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+      fireEvent.change(field, { target: { value: 'one two' } })
+
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+      expect(field.value).toBe('one')
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true, shiftKey: true })
+      expect(field.value).toBe('one two')
+    })
+
+    it('undoes a Descartar — the one destructive button in the pane', async () => {
+      mockHive({ readFile: vi.fn().mockResolvedValue('saved text') })
+
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(await screen.findByText('a.txt'))
+      const field = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+      fireEvent.change(field, { target: { value: 'a long afternoon of edits' } })
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Descartar' }))
+      expect(field.value).toBe('saved text')
+
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+      expect(field.value).toBe('a long afternoon of edits')
+    })
+
+    it('leaves every other chord alone', async () => {
+      mockHive({ readFile: vi.fn().mockResolvedValue('original') })
+
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(await screen.findByText('a.txt'))
+      const field = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+      fireEvent.change(field, { target: { value: 'edited' } })
+
+      // Not an undo: a different letter, and Ctrl+Alt+Z (AltGr on several
+      // layouts types a character — hijacking it would eat the keystroke).
+      fireEvent.keyDown(field, { key: 'b', ctrlKey: true })
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true, altKey: true })
+      fireEvent.keyDown(field, { key: 'z' })
+      expect(field.value).toBe('edited')
+    })
+
+    it('stops at the file as it was loaded — there is nothing before that', async () => {
+      mockHive({ readFile: vi.fn().mockResolvedValue('original') })
+
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(await screen.findByText('a.txt'))
+      const field = (await screen.findByLabelText('Conteúdo do arquivo')) as HTMLTextAreaElement
+      fireEvent.change(field, { target: { value: 'edited' } })
+
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+      fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+      expect(field.value).toBe('original')
+    })
+  })
+
+  /**
    * The reader's place across the toggle (`scrollSync.ts`). jsdom lays nothing
    * out, so what can be held here is the *wiring*, which is where this has
    * actually broken: that the viewer reaches the field at all, that a carried
@@ -3859,6 +4044,282 @@ describe('Explorer (T12/T8)', () => {
           undefined
         )
       )
+    })
+  })
+
+  // --- Pasta vazia: abrir tem que ser visível --------------------------------
+
+  describe('an empty folder still opens', () => {
+    const treeWithEmpty = [
+      { name: 'a.txt', path: 'a.txt', type: 'file' as const },
+      { name: 'vazia', path: 'vazia', type: 'directory' as const, children: [] }
+    ]
+
+    it('marks every directory as a container, children or not', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(treeWithEmpty) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+
+      const empty = treeProps.nodes?.find((node) => node.id === 'vazia')
+      // Without this the DS reads "no children" as "leaf": no chevron, no
+      // `aria-expanded`, and a click with nothing to show for it.
+      expect(empty?.expandable).toBe(true)
+      expect(treeProps.nodes?.find((node) => node.id === 'a.txt')?.expandable).toBe(false)
+    })
+
+    it('shows one quiet row when it is opened, and nothing while it is closed', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(treeWithEmpty) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+      expect(screen.queryByText('Pasta vazia')).toBeNull()
+
+      act(() => treeProps.onExpandedIdsChange?.(['vazia']))
+
+      // The list below the folder is the one place a click can be seen to have
+      // landed, and an empty folder leaves it unchanged.
+      expect(await screen.findByText('Pasta vazia')).toBeTruthy()
+    })
+
+    it('does not caption a folder that is being typed into', async () => {
+      mockHive({ listTree: vi.fn().mockResolvedValue(treeWithEmpty) })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      await screen.findByText('a.txt')
+      act(() => treeProps.onExpandedIdsChange?.(['vazia']))
+      await screen.findByText('Pasta vazia')
+
+      fireEvent.click(screen.getByText('vazia').closest('[role="treeitem"]') as HTMLElement)
+      fireEvent.click(screen.getByRole('button', { name: 'Novo arquivo' }))
+
+      await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+      expect(screen.queryByText('Pasta vazia')).toBeNull()
+    })
+  })
+
+  // --- Uma árvore enraizada numa subpasta (a base de conhecimento) -----------
+
+  /**
+   * The knowledge base browses its vault with this same tree, rooted at the
+   * vault folder (SB-R2.3). Everything the explorer can do has to keep
+   * working inside that subtree — creating, pasting and revealing all speak
+   * workspace-relative paths, so "the root" is the one thing that moves.
+   */
+  describe('rooted at a subfolder', () => {
+    const vaultTree = [
+      { name: 'wiki', path: 'kb/wiki', type: 'directory' as const, children: [] },
+      { name: 'notas.md', path: 'kb/notas.md', type: 'file' as const }
+    ]
+
+    function renderVaultTree(props: Partial<Parameters<typeof FileTree>[0]> = {}): void {
+      mockHive({ listTree: vi.fn().mockResolvedValue(vaultTree) })
+      render(
+        createElement(FileTree, {
+          workspace: '/ws',
+          rootPath: 'kb',
+          selectedPath: null,
+          onOpenFile: () => {},
+          ...props
+        })
+      )
+    }
+
+    it('walks the subtree, not the workspace', async () => {
+      renderVaultTree()
+      await screen.findByText('notas.md')
+      expect(window.hive.listTree).toHaveBeenCalledWith('/ws', 'kb')
+    })
+
+    it('prints its section label so an embedded tree is not an unlabelled toolbar', async () => {
+      renderVaultTree({ title: 'Arquivos da base' })
+      expect(await screen.findByRole('heading', { name: 'Arquivos da base' })).toBeTruthy()
+    })
+
+    it('opens the folders it was seeded with, once', async () => {
+      renderVaultTree({ initialExpandedPaths: ['kb/wiki'] })
+      await screen.findByText('notas.md')
+      await waitFor(() => expect(treeProps.expandedIds).toEqual(['kb/wiki']))
+
+      // Closing it by hand sticks — the seed is a starting point, not a policy.
+      act(() => treeProps.onExpandedIdsChange?.([]))
+      await waitFor(() => expect(treeProps.expandedIds).toEqual([]))
+    })
+
+    it('creates into the subtree root when the empty area is the target', async () => {
+      renderVaultTree()
+      await screen.findByText('notas.md')
+
+      const body = document.querySelector('.wb-tree-body') as HTMLElement
+      fireEvent.contextMenu(body)
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Novo arquivo' }))
+      const input = await screen.findByPlaceholderText('Nome do arquivo ou pasta')
+      fireEvent.change(input, { target: { value: 'nova.md' } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+
+      // `kb/nova.md`, not `nova.md` at the workspace root.
+      await waitFor(() =>
+        expect(window.hive.fs.createFile).toHaveBeenCalledWith('/ws', 'kb/nova.md', undefined)
+      )
+    })
+  })
+
+  // --- Revelar um arquivo aberto de fora da árvore ---------------------------
+
+  describe('revealing a file the tree did not open', () => {
+    function RevealHarness({ request }: { request?: { path: string; nonce: number } }): ReactNode {
+      return createElement(FileTree, {
+        workspace: '/ws',
+        selectedPath: null,
+        onOpenFile: () => {},
+        revealRequest: request
+      })
+    }
+
+    it('opens every folder above it, selects it and marks the row', async () => {
+      mockHive()
+      const { rerender } = render(createElement(RevealHarness, {}))
+      await screen.findByText('a.txt')
+      expect(treeProps.expandedIds).toEqual([])
+
+      rerender(createElement(RevealHarness, { request: { path: 'docs/prd.md', nonce: 1 } }))
+
+      await waitFor(() => expect(treeProps.expandedIds).toEqual(['docs']))
+      const row = screen.getByText('prd.md').closest('[role="treeitem"]') as HTMLElement
+      expect(row.getAttribute('aria-selected')).toBe('true')
+      // Scrolling a list to a row does not say WHICH row — in a folder of
+      // near-identical names that is the whole question.
+      expect(row.querySelector('[data-tree-revealed]')).toBeTruthy()
+    })
+
+    it('leaves the folders the user already had open alone', async () => {
+      mockHive({
+        listTree: vi.fn().mockResolvedValue([
+          ...fixtureTree,
+          {
+            name: 'src',
+            path: 'src',
+            type: 'directory' as const,
+            children: [{ name: 'main.ts', path: 'src/main.ts', type: 'file' as const }]
+          }
+        ])
+      })
+      const { rerender } = render(createElement(RevealHarness, {}))
+      await screen.findByText('a.txt')
+      act(() => treeProps.onExpandedIdsChange?.(['src']))
+
+      rerender(createElement(RevealHarness, { request: { path: 'docs/prd.md', nonce: 1 } }))
+
+      // A reveal shows where something is; it does not fold away the rest of
+      // the workspace to do it.
+      await waitFor(() => expect(treeProps.expandedIds).toEqual(['src', 'docs']))
+    })
+
+    it('answers the same file twice — the nonce is what makes it a new request', async () => {
+      mockHive()
+      const { rerender } = render(createElement(RevealHarness, {}))
+      await screen.findByText('a.txt')
+
+      rerender(createElement(RevealHarness, { request: { path: 'docs/prd.md', nonce: 1 } }))
+      await waitFor(() => expect(treeProps.expandedIds).toEqual(['docs']))
+      act(() => treeProps.onExpandedIdsChange?.([]))
+
+      rerender(createElement(RevealHarness, { request: { path: 'docs/prd.md', nonce: 2 } }))
+      await waitFor(() => expect(treeProps.expandedIds).toEqual(['docs']))
+    })
+  })
+
+  // --- .csv abre na tabela ---------------------------------------------------
+
+  describe('a .csv opens in the table', () => {
+    const csvTree = [{ name: 'vendas.csv', path: 'vendas.csv', type: 'file' as const }]
+    const csvText = 'produto,total\ncaneta,12\nlivro,40\n'
+
+    async function openCsv(): Promise<void> {
+      mockHive({
+        listTree: vi.fn().mockResolvedValue(csvTree),
+        readFile: vi.fn().mockResolvedValue(csvText)
+      })
+      render(createElement(ExplorerHarness, { workspace: '/ws' }))
+      fireEvent.click(
+        (await screen.findByText('vendas.csv')).closest('[role="treeitem"]') as HTMLElement
+      )
+      await screen.findByRole('grid')
+    }
+
+    it('lands in the table, with the file’s own header as the column names', async () => {
+      await openCsv()
+      const grid = screen.getByRole('grid', { name: 'Planilha vendas.csv' })
+      expect(within(grid).getByRole('columnheader', { name: /produto/ })).toBeTruthy()
+      // The header row is the header, not the first record.
+      expect(screen.getByText('2 linhas × 2 colunas')).toBeTruthy()
+    })
+
+    it('offers Tabela/Texto — not Editar/Visualizar, because both halves edit', async () => {
+      await openCsv()
+      const modes = screen.getByRole('radiogroup', { name: 'Modo de exibição do arquivo' })
+      expect(
+        within(modes).getByRole('radio', { name: 'Tabela' }).getAttribute('aria-checked')
+      ).toBe('true')
+      expect(within(modes).getByRole('radio', { name: 'Texto' })).toBeTruthy()
+
+      fireEvent.click(within(modes).getByRole('radio', { name: 'Texto' }))
+      expect((screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement).value).toBe(
+        csvText
+      )
+    })
+
+    it('an edited cell makes the pane dirty and saves as delimited text', async () => {
+      await openCsv()
+      fireEvent.change(screen.getByLabelText('cel 0,1'), { target: { value: '13' } })
+
+      const save = await screen.findByRole('button', { name: 'Salvar' })
+      fireEvent.click(save)
+
+      await waitFor(() =>
+        expect(window.hive.fs.saveFile).toHaveBeenCalledWith(
+          '/ws',
+          'vendas.csv',
+          'produto,total\ncaneta,13\nlivro,40\n',
+          expect.anything()
+        )
+      )
+    })
+
+    it('leaves a cell input to its own native undo', async () => {
+      await openCsv()
+      const cell = screen.getByLabelText('cel 0,1')
+
+      // Inside one cell, the browser's own per-field undo is the more precise
+      // answer than the document-wide history — the pane must not swallow the
+      // key on its way there.
+      const event = createEvent.keyDown(cell, { key: 'z', ctrlKey: true })
+      fireEvent(cell, event)
+      expect(event.defaultPrevented).toBe(false)
+    })
+
+    it('undoes a cell edit through the document’s own history when the grid has focus', async () => {
+      await openCsv()
+      fireEvent.change(screen.getByLabelText('cel 0,1'), { target: { value: '13' } })
+      await screen.findByRole('button', { name: 'Salvar' })
+
+      // Not in a cell: the pane's history answers, and the whole table goes
+      // back to the file as it was read.
+      fireEvent.keyDown(document.querySelector('.wb-viewer') as HTMLElement, {
+        key: 'z',
+        ctrlKey: true
+      })
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull())
+    })
+
+    it('carries the reader’s record across the table⇄text switch', async () => {
+      await openCsv()
+      // Sitting on the last record (row 1 of the body = line 2 of the file).
+      fireEvent.click(screen.getByLabelText('cel 1,0'))
+
+      const modes = screen.getByRole('radiogroup', { name: 'Modo de exibição do arquivo' })
+      fireEvent.click(within(modes).getByRole('radio', { name: 'Texto' }))
+
+      const field = screen.getByLabelText('Conteúdo do arquivo') as HTMLTextAreaElement
+      // The caret lands on the line that record starts on, not at the top.
+      expect(field.value.slice(0, field.selectionStart)).toBe('produto,total\ncaneta,12\n')
     })
   })
 })

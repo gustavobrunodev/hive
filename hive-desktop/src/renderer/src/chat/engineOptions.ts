@@ -45,6 +45,13 @@ export interface EngineCapabilities {
   defaults?: { model: string | null; effort: string | null }
   note?: 'cli-missing' | 'probe-failed' | 'no-listing'
   cliVersion?: string | null
+  /**
+   * context-compaction: what this agent does about a filling context window,
+   * as its adapter *measured* on the transport Hive drives. Optional because a
+   * capability payload written before this field simply doesn't say — and the
+   * safe reading of silence is `NO_COMPACTION` (see `chat/compaction.ts`).
+   */
+  compaction?: { command: boolean; automatic: boolean }
 }
 
 /**

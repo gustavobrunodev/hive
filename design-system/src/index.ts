@@ -21,7 +21,8 @@ export { SteppedList, SteppedListItem } from "./components/SteppedList/SteppedLi
 export { CodeBlock, Cor, Cmt } from "./components/CodeBlock/CodeBlock";
 export { CodeEditor } from "./components/CodeEditor/CodeEditor";
 export type { CodeEditorProps, CodeChangeMark } from "./components/CodeEditor/CodeEditor";
-export type { CodeLanguage } from "./components/CodeEditor/syntax";
+export type { CodeLanguage, CsvDelimiter } from "./components/CodeEditor/syntax";
+export { detectDelimiter } from "./components/CodeEditor/syntax";
 
 export { Flow, SpineLabel, Steps, Step, Substeps, Sub } from "./components/Timeline/Timeline";
 export { DotsBackground } from "./components/DotsBackground/DotsBackground";
@@ -131,6 +132,10 @@ export { Breadcrumb, BreadcrumbItem } from "./components/Breadcrumb/Breadcrumb";
 export { Tree } from "./components/Tree/Tree";
 export { Avatar } from "./components/Avatar/Avatar";
 export { Progress } from "./components/Progress/Progress";
+export { Gauge } from "./components/Gauge/Gauge";
+export type { GaugeProps } from "./components/Gauge/Gauge";
+export { StepFlow } from "./components/StepFlow/StepFlow";
+export type { StepFlowProps, StepFlowStep, StepStatus } from "./components/StepFlow/StepFlow";
 export { LevelMeter } from "./components/LevelMeter/LevelMeter";
 export type { LevelMeterProps } from "./components/LevelMeter/LevelMeter";
 export { Alert } from "./components/Alert/Alert";
@@ -146,6 +151,8 @@ export type {
 export { RampSelect } from "./components/RampSelect/RampSelect";
 export type { RampSelectProps, RampStep } from "./components/RampSelect/RampSelect";
 export { OutputBlock } from "./components/OutputBlock/OutputBlock";
+export { DataGrid } from "./components/DataGrid/DataGrid";
+export type { DataGridProps, DataGridColumn, DataGridCursor } from "./components/DataGrid/DataGrid";
 export type { OutputBlockProps, OutputBlockTone } from "./components/OutputBlock/OutputBlock";
 
 // Phase 3 — generic AI-chat primitives

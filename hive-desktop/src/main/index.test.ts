@@ -1685,6 +1685,74 @@ describe('main process bootstrap', () => {
     })
   })
 
+  // aws-bedrock: the AWS session channels. The turn gate is not here on
+  // purpose — it lives in the adapter, so a login can start with no window
+  // listening and still finish correctly.
+  describe('aws:* (aws-bedrock)', () => {
+    it('registers every channel, including the live-state pair', () => {
+      for (const channel of [
+        'aws:status',
+        'aws:loginState',
+        'aws:login',
+        'aws:cancel',
+        'aws:getProfile',
+        'aws:setProfile'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+      for (const channel of ['aws:state:start', 'aws:state:stop']) {
+        expect(ipcMain.on).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+    })
+
+    it('answers status from this machine without spawning anything', async () => {
+      const status = (await findHandler('aws:status')({}, '/ws')) as {
+        active: boolean
+        profile: string
+        profiles: unknown[]
+      }
+      // On a machine with no Bedrock configured (CI, and most laptops) the
+      // honest answer is "inactive" — and every surface must stay silent then.
+      expect(typeof status.active).toBe('boolean')
+      expect(typeof status.profile).toBe('string')
+      expect(Array.isArray(status.profiles)).toBe(true)
+    })
+
+    it('starts idle and stays idle until something happens', async () => {
+      await expect(findHandler('aws:loginState')({})).resolves.toMatchObject({ phase: 'idle' })
+    })
+
+    it('round-trips the pinned profile, with null meaning "detect"', async () => {
+      await findHandler('aws:setProfile')({}, 'acme-dev')
+      await expect(findHandler('aws:getProfile')({})).resolves.toBe('acme-dev')
+      await findHandler('aws:setProfile')({}, null)
+      await expect(findHandler('aws:getProfile')({})).resolves.toBeNull()
+    })
+
+    it('cancelling with nothing in flight is a no-op, not an error across IPC', async () => {
+      await expect(findHandler('aws:cancel')({})).resolves.toBeUndefined()
+    })
+
+    it('subscribes one window to the live login and tears down on stop', () => {
+      const send = vi.fn()
+      const sender = fakeSender(9101, send)
+      findOnHandler('aws:state:start')({ sender })
+      // The current state arrives at once: a window that subscribes mid-login
+      // must not sit blank until the next phase change.
+      expect(send).toHaveBeenCalledWith('aws:state', expect.objectContaining({ phase: 'idle' }))
+      findOnHandler('aws:state:stop')({ sender })
+      // No throw, and a second stop is harmless — the same contract every
+      // other streaming channel here has.
+      expect(() => findOnHandler('aws:state:stop')({ sender })).not.toThrow()
+    })
+
+    it('drops the subscription when the window closes without stopping', () => {
+      const sender = fakeSender(9102)
+      findOnHandler('aws:state:start')({ sender })
+      expect(() => sender.close()).not.toThrow()
+    })
+  })
+
   // agent-terminal: the terminal picker's two channels.
   describe('shell:* (agent-terminal)', () => {
     it('registers both handlers', () => {

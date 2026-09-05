@@ -123,7 +123,7 @@ describe('GitService — git() wrapper', () => {
     expect(err).toBeInstanceOf(GitError)
     expect(err.code).toBe(128)
     expect(err.stderr).toBe('fatal: not a git repository')
-    expect(err.command).toBe('git status --porcelain=v2 --branch -z')
+    expect(err.command).toBe('git status --porcelain=v2 --branch -z --untracked-files=all')
   })
 })
 
@@ -172,12 +172,49 @@ describe('GitService.status', () => {
       'status',
       '--porcelain=v2',
       '--branch',
-      '-z'
+      '-z',
+      '--untracked-files=all'
     ])
     expect(status.branch).toBe('main')
     expect(status.ahead).toBe(1)
     expect(status.changes[0]).toMatchObject({ path: 'new.txt', isUntracked: true })
     expect(status.mergeInProgress).toBe(false)
+  })
+
+  /**
+   * The reported bug: files an agent wrote inside a new folder showed up as the
+   * folder. `--untracked-files=all` is the whole fix, and it is a *flag*, so the
+   * guard that matters is on the argv (asserted above) plus this: given git's
+   * per-file output, the change list is per file.
+   */
+  it('lists each file of a new untracked folder, never the folder itself', async () => {
+    const { runner, service } = make()
+    stdout(
+      runner,
+      '# branch.head main\0' +
+        '? _bmad-output/planning-artifacts/prds/prd-x/prd.md\0' +
+        '? .playwright-mcp/page.png\0'
+    )
+    runner.script({ code: 1 }) // no MERGE_HEAD
+    const status = await service.status(WS)
+
+    expect(status.changes.map((c) => c.path)).toEqual([
+      '_bmad-output/planning-artifacts/prds/prd-x/prd.md',
+      '.playwright-mcp/page.png'
+    ])
+    expect(status.truncated).toBeUndefined()
+  })
+
+  it('caps a runaway status and flags it, rather than shipping every entry', async () => {
+    const { runner, service } = make()
+    const entries = Array.from({ length: 10_001 }, (_, i) => `? f${i}.txt\0`).join('')
+    stdout(runner, `# branch.head main\0${entries}`)
+    runner.script({ code: 1 })
+    const status = await service.status(WS)
+
+    expect(status.changes).toHaveLength(10_000)
+    expect(status.truncated).toBe(true)
+    expect(status.branch).toBe('main')
   })
 
   it('flags mergeInProgress when MERGE_HEAD exists', async () => {
@@ -446,6 +483,50 @@ describe('GitService log / diff / commitDiff', () => {
       '--',
       'a.txt'
     ])
+  })
+
+  /**
+   * An untracked file has no before-image, so `git diff` prints nothing for it
+   * — which, now that every new file is listed, would mean every one of them
+   * opens blank. The `--no-index` fallback renders it as an all-additions diff
+   * (what VS Code shows), and its exit code 1 is success, not failure.
+   */
+  it('renders an untracked file as an all-additions diff via --no-index', async () => {
+    const { runner, service } = make()
+    stdout(runner, '') // plain `git diff` — empty for an untracked file
+    stdout(runner, '? new.md\0') // status classification: untracked
+    runner.script({
+      chunks: [
+        {
+          stream: 'stdout',
+          data: 'diff --git a/new.md b/new.md\nnew file mode 100644\n--- /dev/null\n+++ b/new.md\n@@ -0,0 +1,2 @@\n+linha 1\n+linha 2\n'
+        }
+      ],
+      code: 1 // `--no-index` exits 1 whenever the sides differ — always, here
+    })
+
+    const d = await service.diff(WS, 'new.md', 'working')
+
+    expect(runner.calls[2].args.slice(GIT_PREFIX.length)).toEqual([
+      'diff',
+      '--no-index',
+      '--',
+      '/dev/null',
+      'new.md'
+    ])
+    expect(d.hunks).toHaveLength(1)
+    expect(d.hunks[0].lines.map((l) => l.text)).toEqual(['linha 1', 'linha 2'])
+    expect(d.hunks[0].lines.every((l) => l.type === 'add')).toBe(true)
+  })
+
+  it('does not reach for --no-index when the empty diff is a tracked, unchanged file', async () => {
+    const { runner, service } = make()
+    stdout(runner, '') // plain `git diff` — empty because nothing changed
+    stdout(runner, '1 M. N... 100644 100644 100644 aaa bbb tracked.md\0') // staged only
+    const d = await service.diff(WS, 'tracked.md', 'working')
+
+    expect(d.hunks).toEqual([])
+    expect(runner.calls).toHaveLength(2) // no third call
   })
 
   it('reports an over-cap diff as tooLarge without shipping it', async () => {

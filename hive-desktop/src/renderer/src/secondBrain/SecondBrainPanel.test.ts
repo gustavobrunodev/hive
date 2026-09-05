@@ -12,6 +12,22 @@ vi.mock('@hive/design-system', () => ({
     createElement('button', rest, children)
 }))
 
+/**
+ * The vault's files are browsed with the Explorer's own `FileTree` (SB-R2.3).
+ * It is covered by `explorer/Explorer.test.ts`; here it stands in as a stub
+ * that records the props the panel hands it — which root it browses and what
+ * it calls that section — so this suite keeps testing the *panel*.
+ */
+vi.mock('../explorer/Explorer', () => ({
+  FileTree: (props: { rootPath?: string; title?: string; initialExpandedPaths?: string[] }) =>
+    createElement('div', {
+      'data-testid': 'vault-tree',
+      'data-root': props.rootPath,
+      'data-title': props.title,
+      'data-expanded': props.initialExpandedPaths?.join(',')
+    })
+}))
+
 beforeEach(() => {
   window.hive = {
     ...window.hive,
@@ -172,7 +188,7 @@ describe('SecondBrainPanel (T7)', () => {
     expect(prompts).toEqual(['/second-brain-ingest', '/second-brain-lint'])
   })
 
-  it('opens the wiki index in the editor, at the vault-relative path (SB-R2.3)', () => {
+  it('browses the vault with the Explorer tree, rooted at the vault folder (SB-R2.3)', () => {
     const onOpenFile = vi.fn()
     render(
       createElement(SecondBrainPanel, {
@@ -185,10 +201,13 @@ describe('SecondBrainPanel (T7)', () => {
       })
     )
 
-    fireEvent.click(screen.getByText('Índice'))
-    expect(onOpenFile).toHaveBeenCalledWith('kb/wiki/index.md')
-    // The wiki tree browses the vault's wiki/ dir, workspace-relative.
-    expect(window.hive.listTree).toHaveBeenCalledWith('/ws', 'kb/wiki')
+    const tree = screen.getByTestId('vault-tree')
+    // The whole vault, not just wiki/ — `raw/` is part of the base, and the
+    // pending-ingestion chip in the header points at it.
+    expect(tree.getAttribute('data-root')).toBe('kb')
+    expect(tree.getAttribute('data-title')).toBe('Arquivos da base')
+    // ...with the wiki open on arrival, so `index.md` is one click away.
+    expect(tree.getAttribute('data-expanded')).toBe('kb/wiki')
   })
 
   it('falls back to the panel title when the vault has no name', () => {

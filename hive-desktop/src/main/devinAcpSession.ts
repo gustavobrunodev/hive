@@ -4,6 +4,7 @@ import { isUsableCwd, type ProcessRunner } from './processRunner'
 import {
   composeTurnPrompt,
   createAgentEventQueue,
+  isCompactTurn,
   type AgentAdapterDeps,
   type AgentInput,
   type AgentSession,
@@ -183,6 +184,30 @@ export function createDevinAcpSession(
   /** Tool ids seen this turn, so an `end` is only emitted for a `start` we sent. */
   const openTools = new Set<string>()
 
+  /**
+   * Where this session is in a compaction (context-compaction), which is what
+   * lets the CLI's own progress chatter be kept out of the transcript.
+   *
+   * Measured against the real `devin 3000.6.14`: a compaction emits, in order,
+   * a display-flagged chunk "Compacting context…", the
+   * `cognition.ai/compaction` notification `started`, then `completed` (with
+   * the summary), then one last display-flagged chunk "Context compacted".
+   * Those two chunks are the CLI narrating itself — Hive draws the seam
+   * instead — so `settling` exists purely to swallow the trailing one. Matching
+   * on the English sentences would break on the next release; matching on the
+   * *window* the agent itself declares does not.
+   */
+  let compactionPhase: 'idle' | 'running' | 'settling' = 'idle'
+  /**
+   * Whether the compaction now in flight is one somebody asked for.
+   *
+   * Devin's notification never says. This session does know, because it saw the
+   * prompt: a `/compact` turn sets this, and anything else that compacts is the
+   * agent minding its own ceiling. Getting it wrong would put "você compactou"
+   * under something the user never did.
+   */
+  let compactionTrigger: 'manual' | 'auto' = 'auto'
+
   /** The tool name a call is drawn under: ACP's `kind`, else the agent's title. */
   function toolName(update: SessionUpdate): string {
     return TOOL_NAMES[update.kind ?? ''] ?? update.title ?? 'Tool'
@@ -243,7 +268,9 @@ export function createDevinAcpSession(
   const UPDATE_HANDLERS: Record<string, (u: SessionUpdate, turnId?: string) => void> = {
     agent_message_chunk: (update, turnId) => {
       const text = chunkText(update)
-      if (text) queue.push({ type: 'token', text, turnId })
+      if (text === null) return
+      if (isCompactionChatter(update)) return
+      queue.push({ type: 'token', text, turnId })
     },
     // The answer to "sempre aparece Iniciando": Devin thinks for seconds
     // before it writes anything, and this is the only signal that exists
@@ -259,6 +286,52 @@ export function createDevinAcpSession(
       const usage = toUsage(undefined, update._meta)
       if (usage) queue.push({ type: 'usage', usage, turnId })
     }
+  }
+
+  /**
+   * Is this chunk the CLI narrating its own compaction rather than the agent
+   * talking? True only inside the window the agent itself declared, and only
+   * for chunks it flagged as display chrome — so ordinary prose that happens to
+   * arrive mid-compaction still reaches the transcript.
+   */
+  function isCompactionChatter(update: SessionUpdate): boolean {
+    if (compactionPhase === 'idle') return false
+    if (update._meta?.['cognition.ai/displayMessage'] !== true) return false
+    if (compactionPhase === 'settling') compactionPhase = 'idle'
+    return true
+  }
+
+  /**
+   * `cognition.ai/compaction` → the seam the transcript draws.
+   *
+   * The counts Claude reports have no equivalent here — Devin hands over a
+   * prose summary and nothing else — so the event carries what exists and the
+   * renderer fills the "before" from its own last reading. Inventing a number
+   * would be indistinguishable from a measured one.
+   */
+  function routeCompaction(params: unknown): void {
+    const status = asText(asRecord(params)?.status)
+    if (status === 'started') {
+      compactionPhase = 'running'
+      queue.push({
+        type: 'compact',
+        phase: 'start',
+        trigger: compactionTrigger,
+        turnId: activeTurnId
+      })
+      return
+    }
+    if (status !== 'completed') return
+    compactionPhase = 'settling'
+    const summary = asText(asRecord(params)?.summary)
+    queue.push({
+      type: 'compact',
+      phase: 'end',
+      trigger: compactionTrigger,
+      ...(summary ? { summary } : {}),
+      turnId: activeTurnId
+    })
+    compactionTrigger = 'auto'
   }
 
   function routeUpdate(params: unknown): void {
@@ -279,6 +352,10 @@ export function createDevinAcpSession(
     client = acp
 
     acp.onNotify('session/update', routeUpdate)
+    // Cognition's own extension channel, and the only signal that a context was
+    // compacted — including the compactions Devin performs on its own, which is
+    // the case Hive was blind to.
+    acp.onNotify('_cognition.ai/compaction', routeCompaction)
 
     // The agent reads and writes through us because we said it could; see the
     // module header for why silence here is worse than refusing.
@@ -391,6 +468,31 @@ export function createDevinAcpSession(
   /** Sends the prompt and settles the turn on whatever comes back. */
   async function prompt(text: string, turnOpts: TurnOpts | undefined): Promise<void> {
     const turnId = turnOpts?.turnId
+    // Each turn declares its own compaction state (context-compaction), and
+    // this is the only place that can. Three things follow:
+    //
+    //  - the compaction notification carries no trigger, so a turn that *asked*
+    //    for one is the only evidence that it was asked for;
+    //  - the CLI's first progress chunk ("Compacting context…") arrives
+    //    *before* it announces `started`, so a window opened only on that
+    //    notification would let the first line of chatter through. Opening it
+    //    here is what makes an asked-for compaction fully silent. An
+    //    agent-initiated one still leaks that first line — unchanged from
+    //    before this feature, and the seam lands right after it;
+    //  - clearing here rather than when the turn ends is not tidiness, it is
+    //    correctness. Measured against the real CLI: `session/prompt` resolves
+    //    `end_turn` **before** the compaction even starts, so a reset in the
+    //    turn's `finally` ran first and the `completed` notification that
+    //    followed reported the compaction as the agent's own. A compaction
+    //    outlives the turn that asked for it; the next turn is the first moment
+    //    it is safe to forget.
+    if (isCompactTurn(text)) {
+      compactionTrigger = 'manual'
+      compactionPhase = 'running'
+    } else {
+      compactionTrigger = 'auto'
+      compactionPhase = 'idle'
+    }
     await connect(turnOpts?.resume)
     const acp = client
     if (!acp || !acpSessionId) throw new Error('Não foi possível abrir a sessão do Devin.')

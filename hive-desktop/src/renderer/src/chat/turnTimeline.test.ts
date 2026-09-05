@@ -25,7 +25,9 @@ function shapeOf(blocks: TurnBlock[]): string[] {
         ? `approval(${block.request.tool})`
         : block.kind === 'mcp'
           ? `mcp(${block.servers.map((server) => `${server.name}:${server.status}`).join(',')})`
-          : `text(${block.text})`
+          : block.kind === 'auth'
+            ? `auth(${block.phase})`
+            : `text(${block.text})`
   )
 }
 

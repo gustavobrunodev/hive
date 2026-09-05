@@ -121,6 +121,45 @@ describe('EnginePicker over the real OptionPicker', () => {
   // first-time user is in — where the effort chip used to render nothing at
   // all, so the one person who most needed to learn the setting exists was the
   // one person shown no sign of it.
+  /**
+   * The seam the stubs cannot see, again: the row's pin is a `<button>` inside
+   * a cmdk item, and cmdk *selects on click*. Without the pointer events being
+   * stopped, pinning a row would also choose it and shut the panel — "keep
+   * this for later" and "use this now" collapsed into one gesture.
+   */
+  it('pins a row from the open panel without choosing it or closing', async () => {
+    const onChange = vi.fn()
+    const { onModelChange } = renderPicker({
+      pin: { model: null, agentName: 'Claude Code', onChange }
+    })
+    fireEvent.click(trigger())
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Fixar Sonnet como padrão deste agente' })
+    )
+
+    expect(onChange).toHaveBeenCalledWith({ model: 'sonnet', effort: '' })
+    expect(onModelChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('listbox', { name: 'Escolher modelo' })).toBeTruthy()
+  })
+
+  /** The keyboard's way to a control that is deliberately not a tab stop. */
+  it('toggles the pin on the row under the cursor with Alt+P', async () => {
+    const onChange = vi.fn()
+    renderPicker({ model: 'sonnet', pin: { model: null, onChange } })
+    fireEvent.click(trigger())
+    const list = await screen.findByRole('listbox', { name: 'Escolher modelo' })
+
+    fireEvent.keyDown(list, { key: 'p', altKey: true })
+
+    expect(onChange).toHaveBeenCalledWith({ model: 'sonnet', effort: '' })
+  })
+
+  it('marks the closed trigger when the model in use is the pinned default', () => {
+    renderPicker({ model: 'sonnet', pin: { model: 'sonnet', onChange: vi.fn() } })
+    expect(trigger().querySelector('.wb-engine-pinned')).toBeTruthy()
+  })
+
   it('names the effort on the closed trigger even when it is delegated', () => {
     renderPicker({ effort: '' })
     expect(trigger().querySelector('.wb-engine-effort-chip')?.textContent).toContain('Auto')

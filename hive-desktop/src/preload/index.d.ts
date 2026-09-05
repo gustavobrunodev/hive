@@ -23,13 +23,19 @@ import type { CreatedSkill } from '../main/skillStudio'
 import type { McpProbeResult, McpServer, McpServerConfig } from '../main/mcpService'
 import type { McpLogLocation, McpLogQuery, McpLogSource } from '../main/mcpLogService'
 import type { McpLogEntry } from '../main/mcpLogParse'
-import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
+import type {
+  EnginePin,
+  EnginePins,
+  ShortcutPrefs,
+  ShortcutScope,
+  ShortcutSettings
+} from '../main/configStore'
 import type { OpenResult } from '../main/workspaceService'
 import type { AgentMeta } from '../main/agentRegistry'
 import type { ShellCatalogView } from '../main/shellService'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
-import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
+import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -48,6 +54,7 @@ import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
 import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
+import type { AwsAuthStatus, AwsLoginState, AwsPreflightResult } from '../main/awsAuthService'
 
 declare global {
   interface Window {
@@ -81,6 +88,10 @@ declare global {
           agentId?: string,
           opts?: { workspace?: string; refresh?: boolean }
         ): Promise<AgentCapabilities>
+        /** engine-pins: every agent's pinned model+effort — what a new conversation starts on. */
+        pins(): Promise<EnginePins>
+        /** Pins one agent's engine (`null` removes it); answers with the new set. */
+        pin(agentId: string, pin: EnginePin | null): Promise<EnginePins>
         /** chat-attachments (R6.5/T16): native multi-file picker; [] when canceled. `defaultPath` opens it inside the active workspace. */
         chooseAttachments(defaultPath?: string): Promise<AttachmentPick[]>
         start(opts: SessionOpts): Promise<void>
@@ -97,6 +108,9 @@ declare global {
         approvalSession(): Promise<boolean>
         /** agent-approvals: arms (`true`) or revokes (`false`) the session-wide grant. */
         setApprovalSession(enabled: boolean): Promise<void>
+        /** context-compaction: may Hive compact the context on its own when the window gets tight? */
+        autoCompact(): Promise<boolean>
+        setAutoCompact(enabled: boolean): Promise<void>
         /** Subscribes to the active session's events; returns an unsubscribe function. */
         onEvent(onEvent: (evt: AgentEvent) => void): () => void
       }
@@ -152,7 +166,12 @@ declare global {
         append(
           workspace: string,
           id: string,
-          message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+          message: {
+            role: 'user' | 'assistant' | 'compaction'
+            text: string
+            attachments?: string[]
+            compaction?: StoredCompaction
+          }
         ): Promise<ChatSessionMeta | null>
         rename(workspace: string, id: string, title: string): Promise<ChatSessionMeta | null>
         setCliSession(workspace: string, id: string, cliSessionId: string): Promise<void>
@@ -199,6 +218,22 @@ declare global {
        * the persisted choice + each enabled agent's caveat code; `select(null)`
        * restores automatic (`cmd` on Windows, `$SHELL` in POSIX).
        */
+      /**
+       * aws-bedrock: the AWS session behind Claude-on-Bedrock. `status` reads
+       * this machine's own files (no spawn, no network); `login` runs
+       * `aws sso login`, opens the browser and resolves when it lands;
+       * `onState` streams the phases the login dialog draws.
+       */
+      aws: {
+        status(workspace?: string): Promise<AwsAuthStatus>
+        loginState(): Promise<AwsLoginState>
+        login(profile?: string | null, workspace?: string): Promise<AwsPreflightResult>
+        cancel(): Promise<void>
+        /** The profile pinned in Hive, or `null` when detection decides. */
+        getProfile(): Promise<string | null>
+        setProfile(name: string | null): Promise<void>
+        onState(onState: (state: AwsLoginState) => void): () => void
+      }
       shell: {
         list(refresh?: boolean): Promise<ShellCatalogView>
         select(id: string | null): Promise<void>

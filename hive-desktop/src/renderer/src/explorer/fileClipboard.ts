@@ -57,19 +57,21 @@ export function nextCopyName(name: string, taken: ReadonlySet<string>): string {
  * "Novo arquivo" already follows: a selected *folder* is the destination, a
  * selected *file* means its folder, and anything else (nothing selected, a
  * mixed multi-selection) falls back to the directory the Explorer already
- * considers active. `''` is the workspace root.
+ * considers active. `rootPath` is the tree's own root (`''` — the default —
+ * for a workspace-rooted tree).
  */
 export function pasteDestination(
   selectedIds: readonly string[],
   fileTypes: ReadonlyMap<string, 'file' | 'directory'>,
-  activeDirPath: string
+  activeDirPath: string,
+  rootPath = ''
 ): string {
   if (selectedIds.length === 1) {
     const only = selectedIds[0]
     if (only !== undefined && fileTypes.has(only)) {
       if (fileTypes.get(only) === 'directory') return only
       const slash = only.lastIndexOf('/')
-      return slash === -1 ? '' : only.slice(0, slash)
+      return slash === -1 ? rootPath : only.slice(0, slash)
     }
   }
   return activeDirPath

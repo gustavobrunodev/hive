@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+  CSV_COLUMN_ROLES,
   HIGHLIGHT_CEILING,
+  detectDelimiter,
   highlight,
   highlightLines,
   languageFor,
@@ -23,6 +25,7 @@ const SAMPLES: Record<CodeLanguage, string> = {
   ini: "; nota\n[a]\nb = texto\n",
   sql: "-- nota\nSELECT a, b FROM t WHERE c = 'x';\n",
   diff: "@@ -1 +1 @@\n-antes\n+depois\n",
+  csv: 'nome,papel,nota\n"Curie, Marie",física,10\nAda,engenheira,9\n',
 }
 
 describe("languageFor", () => {
@@ -115,5 +118,45 @@ describe("highlightLines", () => {
     // sits on after you press Enter at the end.
     expect(highlightLines("a\n", null)).toHaveLength(2)
     expect(highlightLines("", null)).toEqual([[]])
+  })
+})
+
+describe("delimited data (csv)", () => {
+  it("colours by column, not by syntax, cycling after six", () => {
+    const runs = highlight("a,b,c,d,e,f,g\n", "csv")
+    const fields = runs.filter((run) => run.text !== ",")
+    expect(fields.slice(0, 6).map((run) => run.role)).toEqual([...CSV_COLUMN_ROLES])
+    // The seventh column starts the ramp over.
+    expect(fields[6]?.role).toBe(CSV_COLUMN_ROLES[0])
+  })
+
+  it("restarts the ramp on every row, and keeps the delimiters as punctuation", () => {
+    const runs = highlight("a,b\nc,d\n", "csv")
+    expect(runs.filter((run) => run.text === ",").every((run) => run.role === "punctuation")).toBe(true)
+    const firstOfEachRow = runs.filter((run) => run.text === "a" || run.text === "c")
+    expect(firstOfEachRow.map((run) => run.role)).toEqual([CSV_COLUMN_ROLES[0], CSV_COLUMN_ROLES[0]])
+  })
+
+  it("does not count a delimiter inside quotes as a column break", () => {
+    const runs = highlight('"Curie, Marie",física\n', "csv")
+    expect(runs[0]).toEqual({ text: '"Curie, Marie"', role: CSV_COLUMN_ROLES[0] })
+    expect(runs[1]).toEqual({ text: ",", role: "punctuation" })
+    expect(runs[2]).toEqual({ text: "física", role: CSV_COLUMN_ROLES[1] })
+  })
+
+  it("detects the delimiter over several lines, ignoring quoted text", () => {
+    expect(detectDelimiter("a,b\nc,d\n")).toBe(",")
+    expect(detectDelimiter("a;b;c\n1;2;3\n")).toBe(";")
+    expect(detectDelimiter("a\tb\n1\t2\n")).toBe("\t")
+    expect(detectDelimiter("a|b\n1|2\n")).toBe("|")
+    // A header of one word per column decides nothing; the rows do.
+    expect(detectDelimiter('nome\n"a, b";x\n"c, d";y\n')).toBe(";")
+    // Nothing recognisable is a single-column file, not a guess.
+    expect(detectDelimiter("uma coluna só\noutra linha\n")).toBe(",")
+  })
+
+  it("reads .csv and .tsv off the name", () => {
+    expect(languageFor("data/vendas.csv")).toBe("csv")
+    expect(languageFor("data/vendas.TSV")).toBe("csv")
   })
 })

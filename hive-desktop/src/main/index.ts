@@ -19,7 +19,7 @@ import packageJson from '../../package.json'
 import { APP_ID, APP_NAME } from './appIdentity'
 import { createConfigStore } from './configStore'
 import { migrateUserData } from './userDataMigration'
-import { createChatHistoryStore } from './chatHistoryStore'
+import { createChatHistoryStore, type StoredCompaction } from './chatHistoryStore'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
@@ -28,6 +28,7 @@ import { createGitCommandLog, type GitCommandEntry } from './gitCommandLog'
 import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
+import { createAwsAuthService, type AwsLoginState } from './awsAuthService'
 import { reconcileAgents } from './agentAdoption'
 import { createShellService, type ShellService } from './shellService'
 import type { ShellInfo } from './shellCatalog'
@@ -64,7 +65,7 @@ import { createMcpService, type McpServerConfig } from './mcpService'
 import { mcpProbe } from './mcpProbe'
 import { createMcpLogService, type McpLogQuery } from './mcpLogService'
 import { resolveAllShortcuts, resolveRoleActions } from './roleCatalog'
-import { isShortcutScope, sanitizeShortcutPrefs } from './configStore'
+import { isShortcutScope, sanitizeEnginePin, sanitizeShortcutPrefs } from './configStore'
 import {
   createRegistryClient,
   createDownloader,
@@ -595,8 +596,25 @@ app.whenReady().then(() => {
   // the approval UX, never the turn.
   void approvalService.listen().catch(() => {})
 
+  // aws-bedrock: the AWS session gate. It holds the **unwrapped** runner — an
+  // E2E launch redirects *agent* CLIs to a stand-in binary, and `aws` is not
+  // one of them — and it opens the browser through Electron's shell, which is
+  // the whole reason `aws sso login --no-browser` can be driven from a window.
+  const awsAuth = createAwsAuthService({
+    processRunner,
+    // Bound rather than wrapped: an arrow here would be one more function on
+    // the boot path that no test can reach without a real browser.
+    openExternal: shell.openExternal.bind(shell),
+    preferredProfile: configStore.getAwsProfile
+  })
+
   const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner), {
     permissionPrompt: approvalService,
+    // aws-bedrock: only the Claude adapter reads these, and only when its CLI
+    // is pointed at Bedrock. Everywhere else they cost one file read that
+    // answers "not applicable".
+    awsAuth,
+    preferredAwsProfile: configStore.getAwsProfile,
     // agent-terminal (AT-R4): the adapters translate this into their own CLI's
     // environment (`CLAUDE_CODE_SHELL` and friends), read per turn. `shells`
     // rides along because an adapter that cannot honour the pick has to pin a
@@ -1048,6 +1066,28 @@ app.whenReady().then(() => {
         opts?.refresh ?? false
       )
   )
+  // engine-pins: the model+effort each agent starts on, persisted. Read on
+  // every surface that opens an engine control (the composer, the ingestion
+  // sheet, "Perguntar à base", the studio) and written by the pin itself.
+  ipcMain.handle('agent:pins', async () => configStore.getEnginePins())
+  // Renderer input crosses the boundary sanitized — `null` removes the pin,
+  // and the store re-applies the same rule on the way to disk.
+  ipcMain.handle('agent:pin', async (_event, agentId: unknown, pin: unknown) => {
+    if (typeof agentId !== 'string') return configStore.getEnginePins()
+    if (pin === null) return configStore.setEnginePin(agentId, null)
+    const sanitized = sanitizeEnginePin(pin)
+    return sanitized === null
+      ? configStore.getEnginePins()
+      : configStore.setEnginePin(agentId, sanitized)
+  })
+  // context-compaction: whether Hive itself compacts when the window gets
+  // tight. Only ever acted on for an agent that does not do it already — the
+  // renderer holds that rule, because it is the side that knows which agent a
+  // conversation is running on.
+  ipcMain.handle('agent:autoCompact', async () => configStore.getAutoCompact())
+  ipcMain.handle('agent:autoCompact:set', async (_event, enabled: unknown) => {
+    configStore.setAutoCompact(enabled === true)
+  })
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
     agentService.startSession(opts)
   })
@@ -1072,6 +1112,54 @@ app.whenReady().then(() => {
   ipcMain.handle('agent:stop', async () => {
     agentService.stop()
   })
+  // aws-bedrock: the AWS session surface.
+  //
+  //   'aws:status'   — what the panel and the chip draw (files only, no spawn).
+  //   'aws:login'    — an explicit "Reconectar", optionally on another profile.
+  //   'aws:cancel'   — stops the in-flight login.
+  //   'aws:profile'  — reads/writes the pinned profile.
+  //   'aws:state:*'  — the live login stream, same start/stop shape as the
+  //                    agent-event channel above (one subscription per window).
+  //
+  // A turn never comes through here: the gate lives in the adapter, so a
+  // login can start with no window listening and still finish correctly.
+  ipcMain.handle('aws:status', async (_event, workspace?: string) => awsAuth.status(workspace))
+  ipcMain.handle('aws:loginState', async () => awsAuth.loginState())
+  ipcMain.handle('aws:login', async (_event, profile?: string | null, workspace?: string) =>
+    awsAuth.login(profile ?? null, workspace)
+  )
+  ipcMain.handle('aws:cancel', async () => {
+    awsAuth.cancel()
+  })
+  ipcMain.handle('aws:getProfile', async () => configStore.getAwsProfile())
+  ipcMain.handle('aws:setProfile', async (_event, name: string | null) => {
+    configStore.setAwsProfile(name)
+  })
+
+  const awsStateUnsubs = new Map<number, () => void>()
+  ipcMain.on('aws:state:start', (event) => {
+    const senderId = event.sender.id
+    awsStateUnsubs.get(senderId)?.()
+    awsStateUnsubs.set(
+      senderId,
+      awsAuth.onState((state: AwsLoginState) => sendTo(event.sender, 'aws:state', state))
+    )
+    // The current state, immediately: a window that subscribes *during* a
+    // login (a reload, a second window) would otherwise show nothing until the
+    // next phase change — and the phase it is waiting on may be the user
+    // finishing in the browser, which can take a minute.
+    sendTo(event.sender, 'aws:state', awsAuth.loginState())
+    event.sender.once('destroyed', () => {
+      awsStateUnsubs.get(senderId)?.()
+      awsStateUnsubs.delete(senderId)
+    })
+  })
+  ipcMain.on('aws:state:stop', (event) => {
+    const senderId = event.sender.id
+    awsStateUnsubs.get(senderId)?.()
+    awsStateUnsubs.delete(senderId)
+  })
+
   // chat-controls CC-R1 via session-history: the Stop button interrupts one
   // in-flight turn — background-turns keep streaming — and the session stays
   // alive (see AgentService.interrupt's doc for why this must not be
@@ -1517,7 +1605,12 @@ app.whenReady().then(() => {
       _event,
       workspace: string,
       id: string,
-      message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+      message: {
+        role: 'user' | 'assistant' | 'compaction'
+        text: string
+        attachments?: string[]
+        compaction?: StoredCompaction
+      }
     ) => chatHistoryStore.appendMessage(workspace, id, message)
   )
   ipcMain.handle(

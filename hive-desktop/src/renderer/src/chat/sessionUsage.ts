@@ -74,6 +74,19 @@ export interface SessionUsage {
   runtimeMs: number
   /** Sum of the CLI's own reported API time, in ms; `null` when it reported none. */
   apiMs: number | null
+  /**
+   * How many times this conversation's context has been compacted
+   * (context-compaction) — by the user, by Hive's threshold, or by the agent
+   * itself.
+   *
+   * It lives on the usage record rather than beside it because it is the one
+   * fact that makes the rest of the record readable: a session showing 4k of
+   * context after three hours of work has either barely started or been
+   * compacted, and the totals below cannot tell those apart.
+   */
+  compactions: number
+  /** Tokens those compactions freed, in total — the size of what was let go. */
+  reclaimedTokens: number
 }
 
 export const EMPTY_SESSION_USAGE: SessionUsage = {
@@ -85,7 +98,9 @@ export const EMPTY_SESSION_USAGE: SessionUsage = {
   costUsd: null,
   turns: 0,
   runtimeMs: 0,
-  apiMs: null
+  apiMs: null,
+  compactions: 0,
+  reclaimedTokens: 0
 }
 
 /**

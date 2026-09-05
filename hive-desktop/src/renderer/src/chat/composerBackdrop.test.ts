@@ -87,7 +87,9 @@ describe('composerBackdrop', () => {
     expect(segments.every((segment) => segment.text !== '')).toBe(true)
 
     const empty = composerBackdrop('', FILES, null)
-    expect(empty).toEqual([{ text: '', mention: false, fresh: false, preview: false }])
+    expect(empty).toEqual([
+      { text: '', mention: false, command: false, fresh: false, preview: false }
+    ])
   })
 
   // A transcription resolves asynchronously; the user may have edited or
@@ -115,10 +117,10 @@ describe('composerBackdrop', () => {
     it('marks the run the live pass is revising, alongside the mentions', () => {
       const segments = composerBackdrop('veja @src/main.ts falando', FILES, null, [18, 25])
       expect(segments).toEqual([
-        { text: 'veja ', mention: false, fresh: false, preview: false },
-        { text: '@src/main.ts', mention: true, fresh: false, preview: false },
-        { text: ' ', mention: false, fresh: false, preview: false },
-        { text: 'falando', mention: false, fresh: false, preview: true }
+        { text: 'veja ', mention: false, command: false, fresh: false, preview: false },
+        { text: '@src/main.ts', mention: true, command: false, fresh: false, preview: false },
+        { text: ' ', mention: false, command: false, fresh: false, preview: false },
+        { text: 'falando', mention: false, command: false, fresh: false, preview: true }
       ])
     })
 
@@ -126,17 +128,17 @@ describe('composerBackdrop', () => {
       // The mark follows characters, never the token they happen to sit in.
       const segments = composerBackdrop('@src/main.ts', FILES, null, [0, 4])
       expect(segments).toEqual([
-        { text: '@src', mention: true, fresh: false, preview: true },
-        { text: '/main.ts', mention: true, fresh: false, preview: false }
+        { text: '@src', mention: true, command: false, fresh: false, preview: true },
+        { text: '/main.ts', mention: true, command: false, fresh: false, preview: false }
       ])
     })
 
     it('keeps the two marks independent when both are present', () => {
       const segments = composerBackdrop('landed guess', FILES, [0, 6], [7, 12])
       expect(segments).toEqual([
-        { text: 'landed', mention: false, fresh: true, preview: false },
-        { text: ' ', mention: false, fresh: false, preview: false },
-        { text: 'guess', mention: false, fresh: false, preview: true }
+        { text: 'landed', mention: false, command: false, fresh: true, preview: false },
+        { text: ' ', mention: false, command: false, fresh: false, preview: false },
+        { text: 'guess', mention: false, command: false, fresh: false, preview: true }
       ])
     })
 

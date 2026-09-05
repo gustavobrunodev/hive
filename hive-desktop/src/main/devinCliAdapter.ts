@@ -14,7 +14,7 @@ import type {
 } from './agentAdapter'
 import { createCliAgentSession } from './cliAdapterCore'
 import { createDevinAcpSession } from './devinAcpSession'
-import { DEVIN_CATALOG, detectDevinCapabilities } from './devinModelCatalog'
+import { DEVIN_CATALOG, DEVIN_COMPACTION, detectDevinCapabilities } from './devinModelCatalog'
 import { CLI_DEFAULT_ID } from './modelCatalog'
 
 /**
@@ -103,7 +103,8 @@ function capabilities(): AgentCapabilities {
     efforts: [],
     supportsAttachments: true,
     provider: { id: 'cognition', detail: null },
-    modelSource: 'catalog'
+    modelSource: 'catalog',
+    compaction: DEVIN_COMPACTION
   }
 }
 

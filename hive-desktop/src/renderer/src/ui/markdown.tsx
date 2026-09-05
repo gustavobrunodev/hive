@@ -3,8 +3,11 @@ import type { MouseEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { t } from '../i18n'
+import { resolveCommand, splitCommandMentions, type SkillOracle } from '../chat/commandMentions'
 import { resolvePath, splitFilePaths, type PathOracle } from '../chat/filePaths'
 import { FileTypeIcon } from './fileIcons'
+import { SlashIcon } from './icons'
 
 /**
  * `.md` file preview (task T1, design.md §5 "Markdown renderer" — UX-R7) and
@@ -31,6 +34,14 @@ export interface MarkdownProps {
    */
   files?: PathOracle
   onOpenPath?: (path: string, line?: number) => void
+  /**
+   * Turns a `/skill-name` a reply mentions into a button that runs it
+   * (`chat/commandMentions.ts`). Both required together, same reasoning as
+   * `files`/`onOpenPath`: the oracle says which names are real skills, the
+   * callback launches one exactly like picking it from the slash menu.
+   */
+  skills?: SkillOracle
+  onRunCommand?: (key: string) => void
 }
 
 /**
@@ -213,25 +224,135 @@ function FileLink({
   )
 }
 
+// ---------------------------------------------------------------------------
+// Command mentions (agent replies)
+// ---------------------------------------------------------------------------
+
 /**
- * Anchors, in one place. Two kinds arrive here and they behave nothing alike:
- * the ones `rehypeFilePaths` planted (a path in this workspace → open the
- * editor) and the ones the author wrote (a URL → hand it to the OS).
+ * A rehype pass that replaces every real skill mention in the rendered text
+ * with an anchor the app owns. Structurally the mirror of `rehypeFilePaths`
+ * (same opaque set, same whole-code-span special case) — see that function's
+ * comment for why the tree needs a rehype pass rather than a React-side one,
+ * and why a fenced block is skipped whole.
+ */
+function rehypeCommandMentions(oracle: SkillOracle) {
+  return (tree: HastNode): void => {
+    walk(tree)
+    function walk(node: HastNode): void {
+      const children = node.children
+      if (!children || children.length === 0) return
+      if (node.type === 'element' && OPAQUE.has(node.tagName ?? '')) return
+      const next: HastNode[] = []
+      let changed = false
+      for (const child of children) {
+        const whole = wholeCodeCommand(child, oracle)
+        if (whole !== null) {
+          changed = true
+          next.push(whole)
+          continue
+        }
+        if (child.type !== 'text' || typeof child.value !== 'string') {
+          walk(child)
+          next.push(child)
+          continue
+        }
+        const segments = splitCommandMentions(child.value, oracle)
+        if (segments.length === 1 && segments[0].kind === 'text') {
+          next.push(child)
+          continue
+        }
+        changed = true
+        for (const segment of segments) {
+          next.push(
+            segment.kind === 'text'
+              ? { type: 'text', value: segment.text }
+              : commandAnchor(segment.key)
+          )
+        }
+      }
+      if (changed) node.children = next
+    }
+  }
+}
+
+/**
+ * An inline `<code>` whose entire content is one skill name → the button that
+ * replaces it. `null` for anything else, including a code span that merely
+ * *contains* a mention, which keeps its plate and is split inside.
+ */
+function wholeCodeCommand(node: HastNode, oracle: SkillOracle): HastNode | null {
+  if (node.type !== 'element' || node.tagName !== 'code') return null
+  const only = node.children?.length === 1 ? node.children[0] : null
+  if (!only || only.type !== 'text' || typeof only.value !== 'string') return null
+  const key = resolveCommand(only.value.trim(), oracle)
+  return key === null ? null : commandAnchor(key)
+}
+
+/**
+ * The anchor node the `a` component turns into a `CommandChip`. Always
+ * labelled `/key` — the canonical spelling — regardless of how the agent
+ * wrote it (a bare code span may have dropped the slash).
+ */
+function commandAnchor(key: string): HastNode {
+  return {
+    type: 'element',
+    tagName: 'a',
+    properties: {
+      // Not `href`, same reasoning as `pathAnchor`: this launches a skill in
+      // the app rather than navigating anywhere.
+      dataHiveCommand: key
+    },
+    children: [{ type: 'text', value: `/${key}` }]
+  }
+}
+
+/** One recognized skill mention, as a control that runs it. */
+function CommandChip({
+  commandKey,
+  label,
+  onRun
+}: {
+  commandKey: string
+  label: string
+  onRun: (key: string) => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="wb-cmdlink"
+      onClick={() => onRun(commandKey)}
+      title={t('chat.runCommandTitle', commandKey)}
+    >
+      <SlashIcon size={12} aria-hidden="true" />
+      <span className="wb-cmdlink-text">{label}</span>
+    </button>
+  )
+}
+
+/**
+ * Anchors, in one place. Three kinds arrive here and they behave nothing
+ * alike: the ones `rehypeFilePaths` planted (a path in this workspace → open
+ * the editor), the ones `rehypeCommandMentions` planted (a skill this
+ * workspace has → run it), and the ones the author wrote (a URL → hand it to
+ * the OS).
  */
 interface AnchorProps {
   href?: string
   children?: React.ReactNode
   'data-hive-path'?: string
   'data-hive-line'?: string
+  'data-hive-command'?: string
 }
 
 function anchorFor(
-  onOpenPath: ((path: string, line?: number) => void) | undefined
+  onOpenPath: ((path: string, line?: number) => void) | undefined,
+  onRunCommand: ((key: string) => void) | undefined
 ): (props: AnchorProps) => React.JSX.Element {
   return function MarkdownAnchor(props: AnchorProps): React.JSX.Element {
     const { href, children } = props
     const path = props['data-hive-path']
     const line = props['data-hive-line']
+    const command = props['data-hive-command']
     if (path !== undefined && onOpenPath !== undefined) {
       return (
         <FileLink
@@ -239,6 +360,15 @@ function anchorFor(
           {...(line === undefined ? {} : { line: Number(line) })}
           label={typeof children === 'string' ? children : path}
           onOpen={onOpenPath}
+        />
+      )
+    }
+    if (command !== undefined && onRunCommand !== undefined) {
+      return (
+        <CommandChip
+          commandKey={command}
+          label={typeof children === 'string' ? children : `/${command}`}
+          onRun={onRunCommand}
         />
       )
     }
@@ -250,18 +380,27 @@ function anchorFor(
   }
 }
 
-export function Markdown({ source, files, onOpenPath }: MarkdownProps): React.JSX.Element {
-  const linking = files !== undefined && onOpenPath !== undefined
+export function Markdown({
+  source,
+  files,
+  onOpenPath,
+  skills,
+  onRunCommand
+}: MarkdownProps): React.JSX.Element {
+  const linkingFiles = files !== undefined && onOpenPath !== undefined
+  const linkingCommands = skills !== undefined && onRunCommand !== undefined
 
   const components = useMemo<Components>(
-    () => ({ ...BLOCK_COMPONENTS, a: anchorFor(onOpenPath) }),
-    [onOpenPath]
+    () => ({ ...BLOCK_COMPONENTS, a: anchorFor(onOpenPath, onRunCommand) }),
+    [onOpenPath, onRunCommand]
   )
 
-  const rehypePlugins = useMemo(
-    () => (linking && files ? [() => rehypeFilePaths(files)] : []),
-    [linking, files]
-  )
+  const rehypePlugins = useMemo(() => {
+    const plugins: Array<() => (tree: HastNode) => void> = []
+    if (linkingFiles && files) plugins.push(() => rehypeFilePaths(files))
+    if (linkingCommands && skills) plugins.push(() => rehypeCommandMentions(skills))
+    return plugins
+  }, [linkingFiles, files, linkingCommands, skills])
 
   return (
     <div className="hds-markdown">

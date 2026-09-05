@@ -75,7 +75,10 @@ describe('ConfigStore', () => {
       approvalRules: [],
       agentShell: null,
       whisperModel: null,
-      asrAutoDownload: true
+      asrAutoDownload: true,
+      awsProfile: null,
+      enginePins: {},
+      autoCompact: true
     })
   })
 
@@ -102,7 +105,10 @@ describe('ConfigStore', () => {
       approvalRules: [],
       agentShell: null,
       whisperModel: null,
-      asrAutoDownload: true
+      asrAutoDownload: true,
+      awsProfile: null,
+      enginePins: {},
+      autoCompact: true
     })
   })
 
@@ -133,7 +139,10 @@ describe('ConfigStore', () => {
       approvalRules: [],
       agentShell: null,
       whisperModel: null,
-      asrAutoDownload: true
+      asrAutoDownload: true,
+      awsProfile: null,
+      enginePins: {},
+      autoCompact: true
     })
   })
 
@@ -479,5 +488,99 @@ describe('ConfigStore — skippedUpdateVersion (npm-distribution)', () => {
 
     store.setAsrAutoDownload(true)
     expect(createConfigStore(baseDir).getAsrAutoDownload()).toBe(true)
+  })
+})
+
+/**
+ * engine-pins — the model an agent starts on, kept across restarts.
+ *
+ * The pin is what makes "always use Opus on Claude" a setting instead of a
+ * habit, so the properties that matter are: it survives a fresh store (i.e.
+ * it is on disk), it is per agent, and a garbage entry costs the user that
+ * one pin rather than handing a CLI a `--model` flag that isn't a string.
+ */
+describe('ConfigStore — enginePins (engine-pins)', () => {
+  let baseDir: string
+
+  beforeEach(() => {
+    baseDir = mkdtempSync(join(tmpdir(), 'hive-config-pins-'))
+  })
+
+  afterEach(() => {
+    rmSync(baseDir, { recursive: true, force: true })
+  })
+
+  it('starts with no pins at all', () => {
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({})
+  })
+
+  it("round-trips one agent's pin through a fresh store", () => {
+    const store = createConfigStore(baseDir)
+    store.setEnginePin('claude-cli', { model: 'opus', effort: 'high' })
+
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({
+      'claude-cli': { model: 'opus', effort: 'high' }
+    })
+  })
+
+  it("keeps every agent's pin apart, and re-reads before writing", () => {
+    const store = createConfigStore(baseDir)
+    store.setEnginePin('claude-cli', { model: 'opus', effort: 'high' })
+    // A second surface, pinning a different agent — the first pin survives.
+    createConfigStore(baseDir).setEnginePin('github-copilot', { model: 'gpt-5', effort: null })
+
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({
+      'claude-cli': { model: 'opus', effort: 'high' },
+      'github-copilot': { model: 'gpt-5', effort: null }
+    })
+  })
+
+  it('pins the delegated row, which is a real choice and not an empty one', () => {
+    const store = createConfigStore(baseDir)
+    store.setEnginePin('claude-cli', { model: '', effort: 'low' })
+
+    expect(store.getEnginePins()['claude-cli']).toEqual({ model: '', effort: 'low' })
+  })
+
+  it("removes one agent's pin with null, leaving the others alone", () => {
+    const store = createConfigStore(baseDir)
+    store.setEnginePin('claude-cli', { model: 'opus', effort: 'high' })
+    store.setEnginePin('devin', { model: 'adaptive', effort: null })
+
+    expect(store.setEnginePin('claude-cli', null)).toEqual({
+      devin: { model: 'adaptive', effort: null }
+    })
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({
+      devin: { model: 'adaptive', effort: null }
+    })
+  })
+
+  it('drops hand-edited garbage entry by entry instead of losing the file', () => {
+    writeFileSync(
+      join(baseDir, 'config.json'),
+      JSON.stringify({
+        role: 'pm',
+        enginePins: {
+          'claude-cli': { model: 'opus', effort: 'high' },
+          'github-copilot': { model: 42 },
+          devin: 'adaptive',
+          '': { model: 'opus', effort: null },
+          broken: { model: 'sonnet', effort: 7 }
+        }
+      })
+    )
+
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({
+      'claude-cli': { model: 'opus', effort: 'high' },
+      // An unreadable effort is dropped to "the agent decides", not to a 7.
+      broken: { model: 'sonnet', effort: null }
+    })
+    expect(createConfigStore(baseDir).getRole()).toBe('pm')
+  })
+
+  it('refuses to pin under an empty agent id', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.setEnginePin('  ', { model: 'opus', effort: null })).toEqual({})
+    expect(createConfigStore(baseDir).getEnginePins()).toEqual({})
   })
 })

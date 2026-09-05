@@ -1,5 +1,11 @@
 import { join } from 'path'
-import type { AgentCapabilities, AgentOption, CapabilityNote, ModelTrait } from './agentAdapter'
+import type {
+  AgentCapabilities,
+  AgentOption,
+  CapabilityNote,
+  CompactionSupport,
+  ModelTrait
+} from './agentAdapter'
 import type { ProcessRunner } from './processRunner'
 import {
   CLI_DEFAULT_ID,
@@ -10,6 +16,25 @@ import {
   runCapture,
   strongestSource
 } from './modelCatalog'
+
+/**
+ * What Devin does about a full context window, measured on the real
+ * `devin 3000.6.14` over the ACP transport its adapter defaults to
+ * (context-compaction):
+ *
+ *  - the session's `available_commands_update` lists `compact` (and `context`)
+ *    alongside `ask`/`plan`, and prompting `/compact` really compacts —
+ *    `cognition.ai/compaction` reports `started`, then `completed` with a prose
+ *    summary.
+ *  - it also compacts **on its own**: the binary carries an `AsyncFileCompactor`
+ *    that "spawned background compaction at node …", a `compaction_epoch`
+ *    column in its session database, and `CompactionStarted`/`Compacted`
+ *    events.
+ *
+ * The second half is why Hive must not add a threshold of its own here — it
+ * would spend a turn reclaiming what Devin had already reclaimed.
+ */
+export const DEVIN_COMPACTION: CompactionSupport = { command: true, automatic: true }
 
 /**
  * Devin's models — and, in the same breath, its **reasoning ladder**, which is
@@ -178,6 +203,7 @@ export async function detectDevinCapabilities(deps: DevinCatalogDeps): Promise<A
     provider: { id: 'cognition', detail: null },
     modelSource: strongestSource(withDefault),
     defaults: { model: configured ?? DEVIN_STOCK_DEFAULT, effort: null },
+    compaction: DEVIN_COMPACTION,
     ...(note ? { note } : {})
   }
 }

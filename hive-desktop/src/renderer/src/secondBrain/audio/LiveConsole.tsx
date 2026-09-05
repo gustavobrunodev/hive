@@ -105,24 +105,38 @@ function Signal({ seconds, levels }: { seconds: number; levels: number[] }): Rea
 }
 
 /**
- * Discard, plus a retry whose meaning follows the failure: a refused or missing
+ * Discard, a retry whose meaning follows the failure (a refused or missing
  * microphone asks for the device again, anything else re-runs the segments
- * whose audio is still held (VP-R4.3 vs VP-R4.4).
+ * whose audio is still held — VP-R4.3 vs VP-R4.4), and **Concluir**.
  *
- * There is deliberately **no** "Concluir" here. The round control is the finish
- * control while a take is live, and a second button doing the same thing under
- * the same name is two ways to say one thing.
+ * That last one used to be deliberately absent: the round control finishes a
+ * take, and a second button doing the same job looked like two ways to say one
+ * thing. It was the wrong read of what the round control *says*. It is drawn
+ * as a stop square, which promises to end a recording, not to keep it — and
+ * the one thing a person dictating needs to know before they press anything is
+ * that their words survive. The chat's own transport has said "Concluir" in
+ * words since VP-R4.5; this is the same take, ended the same way, and the two
+ * surfaces now name the gesture identically.
+ *
+ * It stays a ghost button beside Descartar: the round control is still the
+ * primary, and two filled buttons in one row is the "strangeness without
+ * purpose" the product register warns about.
  */
 function Actions({
   view,
+  live,
   failure,
   onDiscard,
+  onFinish,
   onRetry,
   retryLabel
 }: {
   view: DictationView
+  /** Is the microphone open right now? Only then is there a take to conclude. */
+  live: boolean
   failure: string | null
   onDiscard: () => void
+  onFinish: () => void
   onRetry: () => void
   retryLabel: string
 }): React.JSX.Element {
@@ -136,6 +150,11 @@ function Actions({
       <button type="button" className="wb-live-action" onClick={onDiscard}>
         {t('dictation.discard')}
       </button>
+      {live && (
+        <button type="button" className="wb-live-action" data-emphasis="primary" onClick={onFinish}>
+          {t('dictation.finish')}
+        </button>
+      )}
     </div>
   )
 }
@@ -155,7 +174,9 @@ function Actions({
  * - **One primary control.** A big circular button that starts and stops, the
  *   affordance every voice recorder on every platform already taught. Descartar
  *   and Concluir are ghost buttons beside it; two filled buttons in one row is
- *   the "strangeness without purpose" the product register warns about.
+ *   the "strangeness without purpose" the product register warns about. The
+ *   round button is still the fast gesture — Concluir is the one that says, in
+ *   words, that ending the take *keeps* it.
  * - **The ring is real data.** It is driven by the current input level, so an
  *   open microphone that is hearing nothing looks different from one that is —
  *   the failure a counting timer cannot show, and the reason the silence copy
@@ -209,8 +230,10 @@ export function LiveConsole({
       {view !== null && (
         <Actions
           view={view}
+          live={live}
           failure={failure}
           onDiscard={onDiscard}
+          onFinish={onFinish}
           onRetry={micFailed ? onStart : onRetry}
           retryLabel={retryLabel}
         />

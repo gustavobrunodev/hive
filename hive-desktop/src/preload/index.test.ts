@@ -463,6 +463,66 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('shell:select', null)
   })
 
+  // aws-bedrock: the AWS session bridge.
+  it('hive.aws.* invokes the AWS channels, and passes a blank profile as null', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      aws: {
+        status: (workspace?: string) => Promise<unknown>
+        loginState: () => Promise<unknown>
+        login: (profile?: string | null, workspace?: string) => Promise<unknown>
+        cancel: () => Promise<unknown>
+        getProfile: () => Promise<unknown>
+        setProfile: (name: string | null) => Promise<unknown>
+      }
+    }
+
+    await expect(hive.aws.status('/ws')).resolves.toBe('invoked:aws:status')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:status', '/ws')
+
+    await hive.aws.loginState()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:loginState')
+
+    // No profile named means "the detected one" — it has to cross as an
+    // explicit null, not as an omitted argument main would read differently.
+    await hive.aws.login()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:login', null, undefined)
+
+    await hive.aws.login('acme-dev', '/ws')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:login', 'acme-dev', '/ws')
+
+    await hive.aws.cancel()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:cancel')
+
+    await hive.aws.getProfile()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:getProfile')
+
+    await hive.aws.setProfile(null)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:setProfile', null)
+  })
+
+  it('hive.aws.onState subscribes to the live login and unsubscribes cleanly', () => {
+    const hive = exposedGlobals().get('hive') as {
+      aws: { onState: (cb: (state: unknown) => void) => () => void }
+    }
+    const onState = vi.fn()
+    const unsubscribe = hive.aws.onState(onState)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('aws:state', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('aws:state:start')
+
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'aws:state')?.[1] as (
+      event: unknown,
+      state: unknown
+    ) => void
+    listener({}, { phase: 'browser' })
+    expect(onState).toHaveBeenCalledWith({ phase: 'browser' })
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('aws:state', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('aws:state:stop')
+  })
+
   // Profile namespace (agent-selection + role-personalization).
   it('hive.profile.* invokes the matching profile IPC channels', async () => {
     const hive = exposedGlobals().get('hive') as {

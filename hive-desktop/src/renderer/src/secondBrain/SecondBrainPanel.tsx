@@ -12,10 +12,10 @@ import {
   PlusIcon,
   RefreshIcon
 } from '../ui/icons'
+import { FileTree } from '../explorer/Explorer'
 import type { BrainSetup } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import { VaultHealthCard } from './VaultHealthCard'
-import { WikiTree } from './WikiTree'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT } from './secondBrainPrompts'
 
 interface SecondBrainPanelProps {
@@ -25,12 +25,14 @@ interface SecondBrainPanelProps {
   onLaunch: (action: RoleAction) => void
   /** Opens the ask surface (SB-R9.1) — the panel's primary action. */
   onAsk: () => void
-  /** Opens a vault file in the editor (SB-R2.3, wired by the T8 wiki browser). */
-  onOpenFile: (path: string) => void
+  /** Opens a vault file in the editor (SB-R2.3) — the same tab machinery the Explorer opens into. */
+  onOpenFile: (path: string, opts?: { pin?: boolean }) => void
   /** The vault-setup flow: launch it, re-probe for it, acknowledge it. */
   setup: BrainSetup
   /** Opens the capture sheet — the hand-off after a base is created. */
   onIngest: () => void
+  /** The file the editor currently has open — kept highlighted in the vault tree, like the Explorer's. */
+  selectedPath?: string | null
 }
 
 /** One secondary launcher: icon + label, launches its slash command. */
@@ -188,7 +190,8 @@ export function SecondBrainPanel({
   onAsk,
   onOpenFile,
   setup,
-  onIngest
+  onIngest,
+  selectedPath
 }: SecondBrainPanelProps): React.JSX.Element {
   if (!store.hasVault) {
     return (
@@ -228,63 +231,61 @@ export function SecondBrainPanel({
         />
       )}
 
-      <section className="wb-brain-actions" aria-label={t('secondBrain.actionsTitle')}>
-        {/* SB-R9.1: asking is the base's reason to exist — it gets the weight,
-            the accent, and the keyboard shortcut printed right on it. */}
-        <button type="button" className="wb-brain-ask-cta" data-tour="brain-ask" onClick={onAsk}>
-          <span className="wb-brain-ask-cta-icon" aria-hidden="true">
-            <BrainIcon size={16} />
-          </span>
-          <span className="wb-brain-ask-cta-text">
-            <span className="wb-brain-ask-cta-label">{t('secondBrain.ask')}</span>
-            <span className="wb-brain-ask-cta-hint">{t('secondBrain.askHint')}</span>
-          </span>
-          <kbd className="wb-brain-ask-cta-kbd">{t('secondBrain.askShortcut')}</kbd>
-        </button>
+      <div className="wb-brain-top">
+        <section className="wb-brain-actions" aria-label={t('secondBrain.actionsTitle')}>
+          {/* SB-R9.1: asking is the base's reason to exist — it gets the weight,
+              the accent, and the keyboard shortcut printed right on it. */}
+          <button type="button" className="wb-brain-ask-cta" data-tour="brain-ask" onClick={onAsk}>
+            <span className="wb-brain-ask-cta-icon" aria-hidden="true">
+              <BrainIcon size={16} />
+            </span>
+            <span className="wb-brain-ask-cta-text">
+              <span className="wb-brain-ask-cta-label">{t('secondBrain.ask')}</span>
+              <span className="wb-brain-ask-cta-hint">{t('secondBrain.askHint')}</span>
+            </span>
+            <kbd className="wb-brain-ask-cta-kbd">{t('secondBrain.askShortcut')}</kbd>
+          </button>
 
-        <div className="wb-brain-action-pair">
-          <ActionButton
-            label={t('secondBrain.ingest')}
-            hint={t('secondBrain.ingestHint')}
-            icon={<PlusIcon size={14} />}
-            onClick={() => onLaunch(SECOND_BRAIN_INGEST)}
-          />
-          <ActionButton
-            label={t('secondBrain.lint')}
-            hint={t('secondBrain.lintHint')}
-            icon={<GaugeIcon size={14} />}
-            onClick={() => onLaunch(SECOND_BRAIN_LINT)}
-          />
-        </div>
-      </section>
+          <div className="wb-brain-action-pair">
+            <ActionButton
+              label={t('secondBrain.ingest')}
+              hint={t('secondBrain.ingestHint')}
+              icon={<PlusIcon size={14} />}
+              onClick={() => onLaunch(SECOND_BRAIN_INGEST)}
+            />
+            <ActionButton
+              label={t('secondBrain.lint')}
+              hint={t('secondBrain.lintHint')}
+              icon={<GaugeIcon size={14} />}
+              onClick={() => onLaunch(SECOND_BRAIN_LINT)}
+            />
+          </div>
+        </section>
 
-      {/* SB-R10: the documented lint cadence, tracked and shown rather than
-          left to memory. Its CTA launches the same `/second-brain-lint`. */}
-      <VaultHealthCard
-        health={store.health}
-        onLint={() => onLaunch(SECOND_BRAIN_LINT)}
-        onSnooze={store.snoozeHealth}
-      />
+        {/* SB-R10: the documented lint cadence, tracked and shown rather than
+            left to memory. Its CTA launches the same `/second-brain-lint`. */}
+        <VaultHealthCard
+          health={store.health}
+          onLint={() => onLaunch(SECOND_BRAIN_LINT)}
+          onSnooze={store.snoozeHealth}
+        />
+      </div>
 
-      {/* SB-R2.3: the vault's structure — the wiki index and the wiki/ tree.
-          Both open in the existing editor/viewer on click (Markdown gets M7's
-          real preview). Paths are workspace-relative, like every fs bridge call. */}
-      <section className="wb-brain-wiki" aria-label={t('secondBrain.wikiTitle')}>
-        <h3 className="wb-brain-section-title">{t('secondBrain.wikiTitle')}</h3>
-        <button
-          type="button"
-          className="wb-brain-wiki-row wb-brain-wiki-index"
-          onClick={() => onOpenFile(`${vaultRel}/wiki/index.md`)}
-          aria-label={t('secondBrain.openFileAria', `${vaultRel}/wiki/index.md`)}
-        >
-          <FileTextIcon size={14} className="wb-brain-wiki-icon" />
-          <span className="wb-brain-wiki-name">{t('secondBrain.indexTitle')}</span>
-        </button>
-        <WikiTree
+      {/* SB-R2.3: the vault's own files, browsed with the *same* explorer the
+          "Arquivos" view uses — rooted at the vault folder instead of the
+          workspace. A knowledge base is a folder of documents; giving it a
+          second, poorer file list (no icons, no rename, no context menu, no
+          drag) taught two different sets of file-manager behaviours for one
+          product. `wiki/` opens on arrival so the base's front door — its
+          index — is one click away instead of behind a closed folder. */}
+      <section className="wb-brain-files" aria-label={t('secondBrain.wikiTitle')}>
+        <FileTree
           workspace={store.workspace}
-          rootRelPath={`${vaultRel}/wiki`}
+          rootPath={vaultRel}
+          title={t('secondBrain.wikiTitle')}
+          initialExpandedPaths={[`${vaultRel}/wiki`]}
+          selectedPath={selectedPath ?? null}
           onOpenFile={onOpenFile}
-          omitRootFile="index.md"
         />
       </section>
     </div>

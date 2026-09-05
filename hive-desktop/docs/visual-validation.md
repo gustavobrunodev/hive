@@ -202,6 +202,103 @@ mais seis checagens de teclado/ARIA. Três lições que custaram uma rodada cada
   `scrollHeight === clientHeight` e uma sonda que rola por ele mede sempre a
   mesma tela.
 
+`tools/visual/aws-contrast.mjs` cobre a conexão AWS (aws-bedrock): 90 alvos —
+o painel em repouso e o login ao vivo — nos três temas, dirigidos pelo próprio
+probe através de `window.__aws` (plantado pelo `boot.mjs`). A cena solta é
+`tools/visual/aws-scene.mjs`, que só abre Perfil › Conexão AWS e deixa o resto
+para o console. Quatro lições, todas pagas nesta rodada:
+
+- **A superfície flutuante e o painel desenhavam o MESMO login.** O farol
+  (`AwsLoginBeacon`) se calava quando `profileScope === 'aws'` — só que esse é o
+  escopo com que a folha foi _aberta por link_, não o que está aberto agora.
+  Quem abria o perfil pelo avatar e caminhava até a Conexão AWS via o login
+  duas vezes, a vinte pixels de distância. A folha passou a publicar o escopo
+  aberto (`onScopeChange`); a lição geral é que **um host não sabe onde o
+  usuário está dentro de um drill-down a menos que ele conte**.
+- **`direction: rtl` num endereço mostra a metade errada.** A URL de verificação
+  truncava pelo começo e sobrava `…%2Foauth%2Fcallback&state=…` — exatamente a
+  parte que não diz nada. O que o usuário precisa reconhecer é o host
+  (`oidc.us-east-1.amazonaws.com`), então o truncamento voltou a ser pelo fim.
+- **O anel dizia "expirada restantes".** A legenda do `Gauge` era fixa; com a
+  sessão vencida o par vira uma não-frase. A legenda some quando não há o que
+  contar — e o mesmo vale para o perfil de chave fixa, que troca o anel por um
+  escudo em vez de desenhar uma medição de zero.
+- **Fixture cumulativo mede a cena anterior.** `window.__aws.status(patch)` faz
+  _merge_; uma cena que só voltava `state: 'ready'` herdava o `expiresAt` vencido
+  da cena anterior, e o painel dizia "Sessão ativa" com o anel em "expirada". O
+  probe pegou como legenda `missing` — que se lê como "nada a corrigir" se
+  ninguém olhar. Toda cena agora reafirma os campos que a anterior mexeu, e
+  `scene()` empurra um `phase: 'canceled'` para forçar a releitura (o status é
+  **polled** a cada minuto; trocar o fixture não muda a tela sozinho).
+
+`tools/visual/csv-contrast.mjs` + `tools/visual/csv-pass.mjs` cobrem o editor de
+planilhas (`.csv`/`.tsv`), a pasta vazia que abre e o "revelar" do Ctrl+P,
+montados pela cena `tools/visual/csv-explorer.mjs`. São 15 alvos × 3 temas, 9
+afirmações estruturais e um passe funcional que dirige a **grade real** (os
+testes usam um duble). Quatro lições, todas pagas nesta rodada:
+
+- **O screenshot de página inteira pode CONGELAR o retângulo de um painel.**
+  Depois de trocar para o tema claro, a área do editor continuou saindo escura
+  na captura — enquanto `getComputedStyle` dizia `rgb(245,240,240)`, o recorte
+  (`clip`) do mesmo elemento saía claro, e o modo Texto no mesmo painel saía
+  claro. A prova definitiva: pintar `.wb-csv` de **verde-limão** por script não
+  muda um pixel da captura de página inteira. A região sobrevive até a remontagem
+  da subárvore e a um resize. Regra: quando uma região parecer errada, **meça e
+  recorte antes de tratar como defeito de CSS** — aqui o olho e o screenshot
+  erraram juntos, e só a medição estava certa.
+- **Um elemento `sticky` tem que ser opaco, e um tint nele é uma camada.** O
+  cabeçalho da coluna sob o cursor usava só `--selected-bg` (16% de alfa) e as
+  linhas rolavam por dentro do nome da coluna. `background-image:
+linear-gradient(tint, tint)` sobre `background-color: var(--surface)` resolve;
+  a sonda afirma o alfa, porque contraste não vê isso.
+- **`--selected` sobre `--selected-bg` não é um par legível.** 4,02:1 no escuro e
+  4,18:1 no Hive (passa no claro, que é o que esconde o defeito). O token para
+  texto sobre o tint do acento é `--accent-tint-ink`.
+- **A container query some com o controle no meio do passe.** Abaixo de 560px e
+  com o arquivo sujo, o interruptor rotulado (`radio`) dá lugar ao ícone
+  (`button`) — e o `getByRole('radio')` da sonda passa a estourar timeout
+  exatamente depois da primeira edição. Uma sonda de painel tem que aceitar as
+  duas formas do mesmo controle.
+- **A caixa de uma linha de pasta contém as linhas filhas.** Clicar no centro de
+  um `[role="treeitem"]` de pasta expandida pousa no arquivo de dentro: a
+  primeira versão da sonda "fechou" a pasta abrindo um arquivo e mediu um
+  revelar que nunca tinha escondido nada. Para recolher, use o controle da barra
+  ("Recolher todas as pastas").
+
+`tools/visual/file-manager-pass.mjs` cobre a rodada do gerenciador de arquivos
+(2026-09-04): o menu de contexto da aba, a base de conhecimento navegada com a
+árvore do próprio Explorer, as camadas da barra lateral que guardam o estado e o
+undo que sobrevive ao Editar⇄Visualizar. São 9 alvos de contraste × 3 temas mais
+6 afirmações funcionais (ordem das linhas, linhas do cofre, estado preservado +
+alcance por teclado, undo/redo, o guarda que nomeia o arquivo e a hierarquia dos
+três botões). Três lições, todas pagas nesta rodada:
+
+- **`getImageData`, nunca regex — nem depois de passar pelo canvas.** O
+  Chromium serializa o resultado de um `color-mix()` como
+  `color(srgb 0,756 0,71 0,71)` — componentes em 0–1, não em 0–255 — e o
+  `fillStyle` do canvas devolve exatamente essa string. A sonda puxava os
+  números com `match(/[\d.]+/g)`, lia 0,756 como "quase preto", media todos os
+  alvos contra uma placa quase preta e reportava **1,00:1 em texto perfeitamente
+  legível**. Pintar 1px e ler o pixel de volta é a única leitura que sempre sai
+  em bytes sRGB. É a mesma lição do M-tool-details, uma camada mais fundo.
+- **Composição de alpha é em espaço PREMULTIPLICADO.** Somar canais direto
+  (`acc.r + camada.r * (1 - acc.a)`) faz um tint de 10% de accent sobre uma
+  barra quase preta sair **mais claro que os dois**, e a sonda reprova a copy da
+  própria barra a 1,34:1 no tema escuro enquanto o claro passa folgado. Um
+  resultado que só falha em UM tema é sinal de erro de conta, não de CSS.
+- **Redefinir uma classe que já existe ganha metade da briga.** Um
+  `.wb-btn-danger.hds-btn-ghost` novo pegou a cor do texto, mas o
+  `.wb-btn-danger` original — mais adiante no arquivo — manteve o
+  `background: var(--danger)`: vermelho sobre vermelho, 1,31:1, exatamente o
+  número que o comentário daquele bloco já registrava de uma rodada anterior.
+  Antes de inventar um tratamento, procure o que o app já mediu.
+
+A cena também é onde se vê que as camadas escondidas continuam **fora do alcance
+do teclado**: o passe foca todos os controles da view inativa e afirma que
+nenhum recebe foco (`visibility: hidden` tira da ordem de tabulação e da árvore
+de acessibilidade — `display: none` também tiraria, mas junto levaria o scroll,
+que é metade do estado que essa mudança existe para guardar).
+
 `tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
 toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
 (M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,
@@ -1207,3 +1304,153 @@ afirmações estruturais que só falham em silêncio: **um bloco por linha-fonte
 numeração abaixo do ponto) e **o número no topo do próprio bloco**
 (`::before { top: 0 }`), que é o que faz a numeração continuar certa quando uma
 linha quebra em três.
+
+## Um token translúcido lido no canvas mede ~1:1 (2026-09-04)
+
+A lição já registrada aqui é "resolva cor por canvas, nunca por regex". Ela está
+certa e é insuficiente: uma sonda que faz
+
+```js
+ctx.clearRect(0, 0, 1, 1)
+ctx.fillStyle = css
+ctx.fillRect(0, 0, 1, 1)
+```
+
+compõe a cor **sobre preto transparente**. Para uma tinta como `--warning-bg`,
+que é translúcida, o byte que volta é quase preto — e o contraste contra uma
+tinta escura sai **1,03:1** nos três temas. O aviso da lista capada do Controle
+de versão foi reprovado assim numa rodada em que a captura da mesma tela mostra
+o texto perfeitamente legível. Os números reais eram 6,74 · 5,11 · 7,21.
+
+A correção é pintar uma base opaca primeiro e empilhar as camadas na ordem em
+que o navegador pinta — do fundo do `body` até o elemento —, e medir a tinta
+como mais uma camada sobre essa pilha:
+
+```js
+const stack = (layers) => {
+  ctx.clearRect(0, 0, 1, 1)
+  for (const css of layers) {
+    ctx.fillStyle = css
+    ctx.fillRect(0, 0, 1, 1)
+  }
+  const d = ctx.getImageData(0, 0, 1, 1).data
+  return [d[0], d[1], d[2]]
+}
+const bg = stack(bgLayers(el)) // '#fff' + cada ancestral
+const fg = stack([...bgLayers(el), getComputedStyle(el).color])
+```
+
+**Quando a sonda e a captura discordam, a captura ganha.** Um contraste de
+1,0x não é "quase invisível": é "medi a mesma cor duas vezes".
+
+### Medir dentro do Electron de verdade, quando o defeito é do processo main
+
+O harness com `window.hive` mockado não serve para um bug cujo lugar é o argv
+que o main passa para o `git`. Nesse caso a fixture `e2e/fixtures/workspace.ts`
+já dá tudo: workspace semeado, `HIVE_E2E=1` (as duas comportas de provisionamento
+resolvem sem rede), tour dispensado. Um `test` descartável que abre o app,
+tira as três capturas e roda a sonda por `window.evaluate` custa ~7s — e mede o
+app inteiro, não uma dublagem dele.
+
+**Não use `getByRole('button', { name: 'Atualizar' })` durante uma tempestade de
+escritas.** Uma cena que criou 10 050 arquivos para exercitar o teto da lista
+deixou o watcher do workspace ocupado e o clique estourou 30s de timeout. Semeie
+o estado **antes** do launch, ou espere pelo elemento que o próprio refresh
+produz.
+
+### As cores de git são matiz de reconhecimento, não texto
+
+O glifo `U`/`M` da linha mede 3,90–4,12:1 no tema claro e isso **não** é defeito:
+`--wb-git-*` aponta para a rampa `--wb-ic-*`, cujo piso declarado é 3:1 de UI, e
+o nome do arquivo ao lado é quem carrega o contraste de texto — mais o
+`aria-label` da linha, que diz o estado por extenso ("Não rastreado"). O alvo de
+4,5:1 na mesma linha é a **pasta**, que desde 2026-09-04 identifica o arquivo
+(`prd.md` daqui × `prd.md` dali) e por isso saiu de `--faint` para `--muted`:
+6,98 · 4,90 · 7,08.
+
+## Quando o MCP do Playwright está travado por outra sessão (2026-09-05)
+
+O navegador do MCP é **um perfil só**
+(`~/.cache/ms-playwright-mcp/mcp-chrome-…`). Uma segunda sessão do Claude que já
+o abriu tranca todas as outras com `Browser is already in use for …, use
+--isolated` — e o tool não expõe `--isolated`. Matar o Chromium da outra sessão
+não é opção.
+
+`tools/visual/run-scene.mjs` é a saída: sobe um Chromium próprio (o mesmo
+binário, headless) e **executa os mesmos arquivos de cena**, que são expressões
+`async (page) => {…}` e por isso são `eval`adas, não importadas.
+
+```bash
+npx electron-vite build && python3 -m http.server 8123 -d out/renderer
+HIVE_THEME=light node tools/visual/run-scene.mjs tools/visual/<cena>.mjs
+```
+
+Ele roda `boot.mjs` primeiro (sempre) e repassa `HIVE_THEME`/`HIVE_SIDEBAR`/
+`HIVE_AUDIO_DIR` do ambiente para o `globalThis` que as cenas leem. Toda sonda
+existente roda sem alteração; o que se perde é a inspeção manual do navegador
+aberto, então continue usando o MCP quando ele estiver livre.
+
+## Sonda do run-config + pin de modelo (2026-09-05)
+
+`tools/visual/run-config-pass.mjs` cobre a rodada inteira num arquivo: fixar um
+modelo pelo painel do composer, o padrão sendo aplicado numa releitura de
+agente, o run-config na folha de ingestão e no "Perguntar à base", o **Concluir**
+do ditado ao vivo (com ticks de áudio reais) e seis alvos de contraste. Três
+lições, cada uma custou uma rodada:
+
+- **`hasText` é substring _e_ case-insensitive.** `locator('.hds-picker-item',
+{ hasText: 'Opus' })` casou com a linha **Automático**, porque ela mostra
+  `→ opus` como dica do id resolvido. A sonda então fixou a linha errada e
+  reportou seis defeitos de produto que não existiam. Filtre pelo elemento do
+  rótulo (`filter({ has: locator('.hds-picker-label', { hasText: /^Opus$/ }) })`),
+  nunca pelo texto da linha inteira.
+- **`innerText` devolve o que está pintado.** O cabeçalho do grupo tem
+  `text-transform: uppercase`, então a comparação com `'Seu padrão'` falha —
+  compare sem caixa (`/^seu padrão$/i`).
+- **O filtro do cmdk é fuzzy.** Digitar `son` no painel deixa `Sonnet`,
+  `Sonnet 1M` **e** `Opus Plan` ("Opus no modo plano, **S**onnet n**o** resto…"):
+  uma asserção de "sobrou exatamente 1 linha" reprova um comportamento correto.
+  O que vale afirmar ali é que a digitação **chegou** ao painel (o campo tem o
+  texto e a lista encolheu) — que é o risco real de um popover portalizado para
+  fora de uma `Sheet`, cujo focus trap poderia puxar o foco de volta.
+- **Uma asserção que estoura derruba o relatório inteiro.** A sonda lê tudo com
+  um helper de timeout curto que devolve `⌀` no lugar de lançar, e imprime cada
+  linha na hora: um passe existe para trazer o quadro completo, não a primeira
+  falha.
+
+## Sonda da compactação de contexto (2026-09-05)
+
+`tools/visual/compaction-pass.mjs` cobre a rodada inteira num arquivo: o menu
+de `/` que **completa** em vez de disparar, o token de comando no composer (e o
+`@` ao lado dele, para provar que são duas cores diferentes), a costura de
+compactação com os números reais, o resumo que abre debaixo dela, o medidor
+depois da compactação e treze alvos de contraste em dois momentos. Quatro
+lições de sonda, cada uma custou uma rodada:
+
+- **A sonda de contraste tem que subir, não descer — e a primeira versão desta
+  descia.** Ela semeava o fundo com `document.body` e compunha as camadas de
+  cima para baixo; no tema claro isso mediu tudo contra preto e reportou
+  **1,13:1 para tinta comum** — nove falsos negativos de uma vez. A busca certa
+  é a de `csv-contrast.mjs`: subir de `el` para `parentElement` até o primeiro
+  fundo **opaco**, `html` incluído, porque é lá que um tema pinta. Copie aquele
+  bloco; não reescreva.
+- **`innerText` não enxerga pseudo-elemento.** Os colchetes da dica de
+  argumento (`[o que preservar]`) são `::before`/`::after`, então a asserção que
+  procurava `[` no texto da linha reprovava uma UI correta. Quem responde é o
+  sistema de estilo: `getComputedStyle(node, '::before').content`.
+- **Comparar largura com a _border box_ de um contêiner reprova um filho que
+  ocupa a caixa inteira.** A costura mede 712px numa coluna de 760px com 24px
+  de padding de cada lado — ou seja, é exatamente edge to edge. A conta certa
+  desconta `paddingLeft`/`paddingRight` antes de comparar.
+- **Duas superfícies que não abrem juntas se medem em duas fases.** Fechar a
+  folha de contexto para chegar ao menu tira os alvos dela da página, e um
+  `evaluate` só reportou `⌀` para metade da lista. O helper de medição virou
+  uma função que recebe os alvos e roda duas vezes, com um relatório só no fim.
+
+E uma lição que **não** é de sonda, e que só um teste ao vivo pegaria: contra o
+`devin` real, `session/prompt` resolve `end_turn` **antes** de a compactação
+começar. Um reset de estado no `finally` do turno rodava primeiro, e a
+notificação `completed` que vinha depois reportava a compactação pedida pelo
+usuário como sendo do próprio agente. O servidor ACP falso emitia tudo dentro
+do handler do prompt e por isso passava. `devinLive.e2e.test.ts` é onde isso
+fica preso.

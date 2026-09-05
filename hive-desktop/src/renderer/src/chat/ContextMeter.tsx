@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Popover, PopoverContent, PopoverTrigger } from '@hive/design-system'
+import { Popover, PopoverContent, PopoverTrigger, Switch } from '@hive/design-system'
 import { t } from '../i18n'
+import { CompactIcon } from '../ui/icons'
+import type { CompactionSupport } from './compaction'
 import {
   contextFraction,
   contextIsTight,
@@ -14,8 +16,19 @@ import { formatCost, formatDuration, formatTokens } from './turnTiming'
 
 interface ContextMeterProps {
   usage: SessionUsage
-  /** Opens a fresh conversation — the one real remedy when the window fills up. */
+  /** Opens a fresh conversation — the blunt remedy, and the only one for an agent that can't compact. */
   onNewConversation: () => void
+  /** context-compaction: asks the agent to compact its own context, now. */
+  onCompact: () => void
+  /** Whether the agent takes `/compact`, and whether it already does it itself. */
+  compaction: CompactionSupport
+  /** True while a compaction is in flight — the CTA says so instead of firing twice. */
+  compacting: boolean
+  /** The agent's display name, for copy that has to say *which* agent is meant. */
+  agentName: string
+  /** Hive's own 80% threshold: on, and the setter behind the sheet's switch. */
+  autoCompact: boolean
+  onAutoCompactChange: (enabled: boolean) => void
 }
 
 /**
@@ -48,16 +61,29 @@ interface ContextMeterProps {
  */
 export function ContextMeter({
   usage,
-  onNewConversation
+  onNewConversation,
+  onCompact,
+  compaction,
+  compacting,
+  agentName,
+  autoCompact,
+  onAutoCompactChange
 }: ContextMeterProps): React.JSX.Element | null {
   const [open, setOpen] = useState(false)
   const used = contextTokens(usage.context)
-  if (used === 0) return null
+  // Nothing measured yet — except right after a compaction, when "nothing
+  // measured" is itself the news and the sheet is where its receipt lives.
+  if (used === 0 && usage.compactions === 0) return null
 
   const fraction = contextFraction(usage)
   const tight = contextIsTight(usage)
-  const percent = fraction === null ? null : Math.round(fraction * 100)
-  const summary = percent === null ? formatTokens(used) : t('usage.meterPercent', percent)
+  // A share that rounds to zero is not zero, and saying "0%" over a window that
+  // really holds something is the one reading a meter must never give. Both
+  // states below became easy to hit with context-compaction: 757 tokens of 200k
+  // is what a compaction leaves behind, and an agent that reports no post-count
+  // leaves the occupancy genuinely unknown until the next turn says.
+  const unread = used === 0
+  const summary = unread ? t('usage.unread') : meterSummary(fraction, used)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,14 +92,14 @@ export function ContextMeter({
           type="button"
           className="wb-ctx-meter"
           data-tight={tight || undefined}
-          aria-label={t('usage.meterAria', summary)}
+          aria-label={unread ? t('usage.unreadAria') : t('usage.meterAria', summary)}
         >
           {/* No icon beside the bar: the bar already *is* the gauge glyph, and
               a second gauge-shaped mark next to it reads as a smudge at 12px. */}
           <span className="wb-ctx-meter-bar" aria-hidden="true">
             <span
               className="wb-ctx-meter-fill"
-              style={{ width: `${Math.min(100, (fraction ?? 1) * 100)}%` }}
+              style={{ width: unread ? '0%' : `${Math.min(100, (fraction ?? 1) * 100)}%` }}
             />
           </span>
           <span className="wb-ctx-meter-value">{summary}</span>
@@ -83,9 +109,18 @@ export function ContextMeter({
       <PopoverContent className="wb-ctx-sheet" align="start" side="top" sideOffset={10}>
         <ContextDetail
           usage={usage}
+          compaction={compaction}
+          compacting={compacting}
+          agentName={agentName}
+          autoCompact={autoCompact}
+          onAutoCompactChange={onAutoCompactChange}
           onNewConversation={() => {
             setOpen(false)
             onNewConversation()
+          }}
+          onCompact={() => {
+            setOpen(false)
+            onCompact()
           }}
         />
       </PopoverContent>
@@ -93,13 +128,32 @@ export function ContextMeter({
   )
 }
 
+/** The trigger's headline: a percentage, `<1%` for a non-zero sliver, or the raw count. */
+function meterSummary(fraction: number | null, used: number): string {
+  if (fraction === null) return formatTokens(used)
+  const percent = Math.round(fraction * 100)
+  return percent === 0 && used > 0 ? t('usage.underOnePercent') : t('usage.meterPercent', percent)
+}
+
 /** The sheet: what is in the window, then what the session has spent. */
 function ContextDetail({
   usage,
-  onNewConversation
+  compaction,
+  compacting,
+  agentName,
+  autoCompact,
+  onAutoCompactChange,
+  onNewConversation,
+  onCompact
 }: {
   usage: SessionUsage
+  compaction: CompactionSupport
+  compacting: boolean
+  agentName: string
+  autoCompact: boolean
+  onAutoCompactChange: (enabled: boolean) => void
   onNewConversation: () => void
+  onCompact: () => void
 }): React.JSX.Element {
   const used = contextTokens(usage.context)
   const fraction = contextFraction(usage)
@@ -193,15 +247,125 @@ function ContextDetail({
             <dd>{formatCost(usage.costUsd)}</dd>
           </div>
         )}
+        {/* context-compaction: without this row the totals above are unreadable
+            after a compaction — 4k of context under an hour of spend looks
+            like a session that barely started. */}
+        {usage.compactions > 0 && (
+          <>
+            <div className="wb-ctx-total">
+              <dt>{t('usage.compactionsLabel')}</dt>
+              <dd>{usage.compactions}</dd>
+            </div>
+            {usage.reclaimedTokens > 0 && (
+              <div className="wb-ctx-total">
+                <dt>{t('usage.reclaimedLabel')}</dt>
+                <dd>{formatTokens(usage.reclaimedTokens)}</dd>
+              </div>
+            )}
+          </>
+        )}
       </dl>
 
-      {tight && (
-        <div className="wb-ctx-advice">
-          <p>{t('usage.tightAdvice')}</p>
-          <button type="button" className="wb-ctx-advice-cta" onClick={onNewConversation}>
-            {t('usage.tightCta')}
+      <ContextAdvice
+        tight={tight}
+        compaction={compaction}
+        compacting={compacting}
+        onCompact={onCompact}
+        onNewConversation={onNewConversation}
+      />
+      <AutoCompactSetting
+        compaction={compaction}
+        agentName={agentName}
+        autoCompact={autoCompact}
+        onAutoCompactChange={onAutoCompactChange}
+      />
+    </div>
+  )
+}
+
+/**
+ * The remedy, and who applies it.
+ *
+ * Compaction leads when the agent has it, because it *keeps* the
+ * conversation — a fresh one throws the work away to save the window, which is
+ * the blunt version of the same fix and belongs below it. The block is present
+ * whenever compaction exists, not only when the window is tight: someone who
+ * knows a long stretch of tool output just landed should be able to act before
+ * the bar turns.
+ */
+function ContextAdvice({
+  tight,
+  compaction,
+  compacting,
+  onCompact,
+  onNewConversation
+}: {
+  tight: boolean
+  compaction: CompactionSupport
+  compacting: boolean
+  onCompact: () => void
+  onNewConversation: () => void
+}): React.JSX.Element | null {
+  if (!tight && !compaction.command) return null
+  return (
+    <div className="wb-ctx-advice" data-tight={tight || undefined}>
+      {tight && <p>{t('usage.tightAdvice')}</p>}
+      {compaction.command && (
+        <>
+          <button
+            type="button"
+            className="wb-ctx-compact-cta"
+            onClick={onCompact}
+            disabled={compacting}
+          >
+            <CompactIcon size={14} />
+            {compacting ? t('usage.compactBusy') : t('usage.compactCta')}
           </button>
-        </div>
+          <p className="wb-ctx-advice-note">{t('usage.compactHint')}</p>
+        </>
+      )}
+      {tight && (
+        <button type="button" className="wb-ctx-advice-cta" onClick={onNewConversation}>
+          {t('usage.tightCta')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Hive's own 80% threshold, in the one surface where its consequence is
+ * visible.
+ *
+ * Shown only for an agent that needs it. For one that already compacts itself
+ * — Devin — the honest UI is a sentence saying so, not a switch that would do
+ * nothing: a control whose state changes no behaviour is worse than no control,
+ * because it invites the user to believe they configured something.
+ */
+function AutoCompactSetting({
+  compaction,
+  agentName,
+  autoCompact,
+  onAutoCompactChange
+}: {
+  compaction: CompactionSupport
+  agentName: string
+  autoCompact: boolean
+  onAutoCompactChange: (enabled: boolean) => void
+}): React.JSX.Element | null {
+  if (!compaction.command) return null
+  return (
+    <div className="wb-ctx-auto">
+      {compaction.automatic ? (
+        <p className="wb-ctx-auto-managed">{t('usage.autoCompactManaged', agentName)}</p>
+      ) : (
+        <>
+          <label className="wb-ctx-auto-row">
+            <span className="wb-ctx-auto-label">{t('usage.autoCompactLabel')}</span>
+            <Switch checked={autoCompact} onCheckedChange={onAutoCompactChange} />
+          </label>
+          <p className="wb-ctx-auto-hint">{t('usage.autoCompactHint', agentName)}</p>
+        </>
       )}
     </div>
   )

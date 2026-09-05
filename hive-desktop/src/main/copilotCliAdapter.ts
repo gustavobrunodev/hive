@@ -2,7 +2,11 @@ import { homedir } from 'os'
 import type { ProcessRunner } from './processRunner'
 import type { AgentAdapter, AgentAdapterDeps, AgentCapabilities, SessionOpts } from './agentAdapter'
 import { createCliAgentSession } from './cliAdapterCore'
-import { COPILOT_CATALOG, detectCopilotCapabilities } from './copilotModelCatalog'
+import {
+  COPILOT_CATALOG,
+  COPILOT_COMPACTION,
+  detectCopilotCapabilities
+} from './copilotModelCatalog'
 import { CLI_DEFAULT_ID } from './modelCatalog'
 
 /**
@@ -53,7 +57,8 @@ function capabilities(): AgentCapabilities {
     supportsAttachments: true,
     provider: { id: 'github', detail: null },
     modelSource: 'catalog',
-    note: 'no-listing'
+    note: 'no-listing',
+    compaction: COPILOT_COMPACTION
   }
 }
 

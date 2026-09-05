@@ -22,12 +22,12 @@ const KIND_BY_EXT: Record<string, RichViewerKind> = {
   // documents
   pdf: 'pdf',
   docx: 'docx',
-  // spreadsheets (SheetJS reads them all)
+  // Binary spreadsheets (SheetJS reads them all). `.csv`/`.tsv` are NOT here:
+  // they are text this app can edit, and they open in the editor pane's own
+  // table mode (`CsvEditor`) instead of a read-only render.
   xlsx: 'sheet',
   xls: 'sheet',
   ods: 'sheet',
-  csv: 'sheet',
-  tsv: 'sheet',
   // presentations
   pptx: 'pptx'
 }

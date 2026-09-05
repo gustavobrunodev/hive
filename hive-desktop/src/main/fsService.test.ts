@@ -70,8 +70,9 @@ describe('FsService', () => {
     it('returns the fixture tree structure, sorted, with nested directories expanded', () => {
       const tree = service.listTree(root)
 
+      // Folders before files at every level (VS Code's default order — see
+      // `fileOrder.ts`), which is why `docs/` precedes `a.txt` here.
       expect(tree).toEqual([
-        { name: 'a.txt', path: 'a.txt', type: 'file' },
         {
           name: 'docs',
           path: 'docs',
@@ -85,7 +86,30 @@ describe('FsService', () => {
             },
             { name: 'prd.md', path: 'docs/prd.md', type: 'file' }
           ]
-        }
+        },
+        { name: 'a.txt', path: 'a.txt', type: 'file' }
+      ])
+    })
+
+    it('orders every directory ahead of every file, then each group naturally', () => {
+      mkdirSync(join(root, 'src'))
+      mkdirSync(join(root, 'assets'))
+      writeFileSync(join(root, 'AGENTS.md'), '#')
+      writeFileSync(join(root, 'README.md'), '#')
+      writeFileSync(join(root, 'item10.txt'), 'x')
+      writeFileSync(join(root, 'item2.txt'), 'x')
+
+      expect(service.listTree(root).map((node) => node.name)).toEqual([
+        'assets',
+        'docs',
+        'src',
+        // `AGENTS.md` sorts by `agents` (case is a tertiary difference), and
+        // `item2` before `item10` because the collator counts.
+        'a.txt',
+        'AGENTS.md',
+        'item2.txt',
+        'item10.txt',
+        'README.md'
       ])
     })
 

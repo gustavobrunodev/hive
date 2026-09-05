@@ -5,6 +5,7 @@ import { cleanup, render, screen, fireEvent, waitFor, act } from '@testing-libra
 import { ProfileSheet } from './ProfileSheet'
 import type { AgentMeta } from '../ui/AgentPicker'
 import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMock'
+import { awsReadyFixture, createHiveAwsMock } from '../testSupport/hiveAwsMock'
 
 /**
  * P1-010 (RP-R6 / AG-R3.2) — the profile sheet is where a *settled* user
@@ -17,6 +18,37 @@ import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMo
 vi.mock('@hive/design-system', () => ({
   Sheet: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
     open ? createElement('div', null, children) : null,
+  // aws-bedrock: the session ring and the login rail. Stand-ins that keep what
+  // the tests read — the meter's name and spoken value, each step's label —
+  // and none of the real components' SVG/CSS state drawing.
+  Gauge: ({
+    label,
+    valueText,
+    children
+  }: {
+    label: string
+    valueText?: string
+    children?: ReactNode
+  }) =>
+    createElement(
+      'div',
+      { role: 'meter', 'aria-label': label, 'aria-valuetext': valueText },
+      children
+    ),
+  StepFlow: ({
+    steps,
+    label
+  }: {
+    steps: Array<{ id: string; label: ReactNode; status: string }>
+    label: string
+  }) =>
+    createElement(
+      'ol',
+      { 'aria-label': label },
+      steps.map((step) =>
+        createElement('li', { key: step.id, 'data-status': step.status }, step.label)
+      )
+    ),
   SheetContent: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   SheetTitle: ({ children }: { children?: ReactNode }) => createElement('h2', null, children),
   SheetDescription: ({ children }: { children?: ReactNode }) => createElement('p', null, children),
@@ -298,6 +330,7 @@ beforeEach(() => {
     // voice-settings (M25): the index row states whether transcription is
     // ready, so the bridge answers for every render of this sheet — not only
     // inside the detail.
+    aws: createHiveAwsMock(awsReadyFixture()),
     asr: {
       ...createHiveAsrMock(),
       readiness: vi.fn(async () => INSTALLED),
@@ -941,5 +974,38 @@ describe('ProfileSheet (P1-010)', () => {
     resolveAgents(AGENT_METAS)
 
     await waitFor(() => expect(document.body.textContent).toBe(''))
+  })
+
+  // aws-bedrock: the index row states the session, and the detail draws the
+  // panel — including the two actions the panel cannot perform itself
+  // (opening a browser, writing the clipboard), which both go through main.
+  describe('Conexão AWS', () => {
+    it('states the session on the index without opening anything', async () => {
+      renderSheet()
+      expect(await screen.findByText('acme-dev · 6 h')).toBeTruthy()
+    })
+
+    it('opens the panel from the index row', async () => {
+      renderSheet()
+      fireEvent.click(await screen.findByRole('button', { name: /Conexão AWS/ }))
+      expect(await screen.findByText('Sessão ativa')).toBeTruthy()
+    })
+
+    it('routes the verification URL through main, not through the DOM', async () => {
+      vi.mocked(window.hive.aws.loginState).mockResolvedValue({
+        phase: 'browser',
+        profile: 'acme-dev',
+        url: 'https://oidc.example/authorize',
+        code: null,
+        message: null,
+        startedAt: Date.now(),
+        expiresAt: null
+      })
+      renderSheet({ initialScope: 'aws' })
+      fireEvent.click(await screen.findByRole('button', { name: /Abrir de novo/ }))
+      expect(window.hive.openExternal).toHaveBeenCalledWith('https://oidc.example/authorize')
+      fireEvent.click(screen.getByRole('button', { name: /Copiar link/ }))
+      expect(window.hive.clipboard.writeText).toHaveBeenCalledWith('https://oidc.example/authorize')
+    })
   })
 })

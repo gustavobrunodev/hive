@@ -22,10 +22,8 @@ import {
   type StudioCommand
 } from './studioPrompts'
 import type { RoleAction } from './ActionRail'
-import { AgentSwitcher, type SwitchableAgent } from './AgentSwitcher'
-import { EnginePicker } from '../chat/EnginePicker'
-import type { EngineCapabilities } from '../chat/engineOptions'
-import { pickInitial } from '../chat/engineOptions'
+import { RunConfigBar } from './RunConfigBar'
+import { useRunConfig, type RunConfig } from '../chat/useRunConfig'
 import {
   ArrowLeftIcon,
   FileTextIcon,
@@ -284,80 +282,6 @@ function EmptyState({
   )
 }
 
-/**
- * The generation run-config the create form collects. Held at the dialog level
- * (not per-draft) so the choice survives switching between skill/agent, mirror
- * of how the chat keeps model/effort as session state.
- */
-interface RunConfig {
-  /** multi-agent: the enabled agents, with display names for the pill. */
-  agents: SwitchableAgent[]
-  agent: string | null
-  onAgentChange: (id: string) => void
-  /** The chosen agent's whole capability answer — what `EnginePicker` reshapes itself around. */
-  capabilities: EngineCapabilities | null
-  model: string | null
-  effort: string | null
-  onModelChange: (id: string) => void
-  onEffortChange: (id: string) => void
-  /** Re-reads the machine instead of main's cache ("Redetectar", inside the panel). */
-  onRefresh: () => void
-  refreshing: boolean
-}
-
-/**
- * How the build will run: **the chat composer's own two controls**, not
- * lookalikes of them.
- *
- * They used to be a row of agent radio-cards and two bordered `Select`s
- * labelled "Modelo" and "Esforço" — which meant the same decision was made
- * through two different vocabularies depending on where you happened to be
- * standing. The Selects were also strictly poorer: a flat list of ids with no
- * tiers, no descriptions, no context windows, no provenance line, and an
- * effort dropdown whose six words ("Baixo … Máx") put the ordering entirely in
- * the reader's prior knowledge — everything `EnginePicker` and its `RampSelect`
- * were built to fix. Importing the real controls is what keeps the studio from
- * drifting the next time the composer learns something.
- *
- * `locked={false}`: a briefing has no started conversation to be tied to, so
- * the agent is always changeable here.
- */
-function StudioRunConfig({ config }: { config: RunConfig }): React.JSX.Element {
-  const noLevers =
-    config.capabilities !== null &&
-    config.capabilities.models.length === 0 &&
-    config.capabilities.efforts.length === 0
-  return (
-    <fieldset className="wb-studio-run">
-      <legend className="wb-studio-run-legend">{t('studio.runConfigLegend')}</legend>
-      <div className="wb-studio-run-controls">
-        {config.agents.length > 1 && (
-          <AgentSwitcher
-            agents={config.agents}
-            value={config.agent}
-            locked={false}
-            onChange={config.onAgentChange}
-          />
-        )}
-        {config.capabilities === null ? (
-          <Spinner label={t('studio.runConfigLoading')} />
-        ) : (
-          <EnginePicker
-            capabilities={config.capabilities}
-            model={config.model}
-            effort={config.effort}
-            onModelChange={config.onModelChange}
-            onEffortChange={config.onEffortChange}
-            onRefresh={config.onRefresh}
-            refreshing={config.refreshing}
-          />
-        )}
-      </div>
-      {noLevers && <p className="wb-studio-run-none">{t('studio.runConfigNoLevers')}</p>}
-    </fieldset>
-  )
-}
-
 /** The create view: a short briefing form; the BMAD builder does the actual building in chat. */
 function CreateForm({
   draft,
@@ -448,7 +372,7 @@ function CreateForm({
           <span className="wb-studio-evals-opt-hint">{t('studio.withEvalsHint')}</span>
         </span>
       </label>
-      <StudioRunConfig config={runConfig} />
+      <RunConfigBar config={runConfig} legend={t('studio.runConfigLegend')} />
       <footer className="wb-studio-create-foot">
         <p className="wb-studio-handoff">
           {t('studio.handoffHint')}
@@ -581,80 +505,13 @@ function StudioDialog({
   const [draft, setDraft] = useState<Draft | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CreatedSkill | null>(null)
   const [deleteError, setDeleteError] = useState(false)
-  // Run-config: the chat composer's own engine control, driven by the active
-  // adapter's whole capability answer (not a trimmed {models, efforts} pair —
-  // `EnginePicker` reads the provenance, the groups and the defaults too).
-  // Rides along with the "Criar" launch as a per-turn override.
-  const [capabilities, setCapabilities] = useState<EngineCapabilities | null>(null)
-  const [detecting, setDetecting] = useState(false)
-  const [agentId, setAgentId] = useState<string | null>(defaultAgent)
-  const [model, setModel] = useState<string | null>(null)
-  const [effort, setEffort] = useState<string | null>(null)
-  // id → displayName for the agent pill. Same source as the chat's switcher,
-  // so the two surfaces name the same agent the same way.
-  const [agentNames, setAgentNames] = useState<Record<string, string>>({})
-
-  const activeAgentId = agentId ?? defaultAgent ?? agents[0] ?? null
-
-  /**
-   * Capabilities follow the **chosen** agent, and the selection resets with it.
-   *
-   * Model ids are not portable across agents — Claude's `opus` means nothing to
-   * Copilot — and an agent may expose no effort at all, so carrying the
-   * previous pick across a switch would send the CLI a flag it cannot parse.
-   * The same rule the chat composer already follows on an agent switch.
-   */
-  useEffect(() => {
-    let cancelled = false
-    // Named-and-invoked (the repo's `load()` pattern) so the reset is not a
-    // bare synchronous `setState` in the effect body — react-hooks'
-    // set-state-in-effect rule. The reset itself matters: the selects have to
-    // go back to "Carregando…" while the new agent's capabilities are in
-    // flight, or they show the previous agent's model ids as if they applied.
-    function clearWhileLoading(): void {
-      setCapabilities(null)
-    }
-    clearWhileLoading()
-    void window.hive.agent.capabilities(activeAgentId ?? undefined).then((caps) => {
-      if (cancelled) return
-      setCapabilities(caps)
-      // `pickInitial`, not `[0]`: it lands on the CLI's own default row when
-      // the adapter offers one, which is the chat's rule. Taking the first
-      // entry meant the studio silently pinned `--model opus` on a machine
-      // whose owner had configured something else.
-      setModel(pickInitial(caps.models))
-      setEffort(pickInitial(caps.efforts))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [activeAgentId])
-
-  // "Redetectar" inside the engine panel — re-reads settings/config/CLI
-  // listing instead of answering from main's cache, the same command the chat
-  // composer offers, for the same reason (a provider changed outside the app).
-  const refreshCapabilities = useCallback(() => {
-    setDetecting(true)
-    void window.hive.agent
-      .capabilities(activeAgentId ?? undefined, { refresh: true })
-      .then((caps) => {
-        setCapabilities(caps)
-        setModel((current) => pickInitial(caps.models, current ?? undefined))
-        setEffort((current) => pickInitial(caps.efforts, current ?? undefined))
-      })
-      .finally(() => setDetecting(false))
-  }, [activeAgentId])
-
-  useEffect(() => {
-    let cancelled = false
-    void window.hive.profile.agents().then((list) => {
-      if (cancelled) return
-      setAgentNames(Object.fromEntries(list.map((meta) => [meta.id, meta.displayName])))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  // Run-config: the agent/model/effort this build will run on — the chat
+  // composer's own controls, through the hook every launcher shares
+  // (`useRunConfig`). It rides along with the "Criar" launch as a per-turn
+  // override, and it is the only place in this dialog that knows about
+  // capabilities at all. `active: open` keeps a closed studio from probing
+  // the CLI behind the screen the user is actually looking at.
+  const runConfig = useRunConfig({ agents, defaultAgent, active: open })
 
   useEffect(() => {
     let cancelled = false
@@ -712,13 +569,11 @@ function StudioDialog({
     (final: Draft) => {
       onLaunch(commandAction(buildCreationCommand(final)), {
         newConversation: true,
-        agentId: activeAgentId ?? undefined,
-        model: model ?? undefined,
-        effort: effort ?? undefined
+        ...runConfig.launchOpts
       })
       onOpenChange(false)
     },
-    [onLaunch, onOpenChange, activeAgentId, model, effort]
+    [onLaunch, onOpenChange, runConfig.launchOpts]
   )
 
   const handleTogglePin = useCallback(
@@ -838,18 +693,7 @@ function StudioDialog({
                 onBack={() => setDraft(null)}
                 onCreate={handleCreate}
                 hasRunningConversation={hasRunningConversation}
-                runConfig={{
-                  agents: agents.map((id) => ({ id, displayName: agentNames[id] ?? id })),
-                  agent: activeAgentId,
-                  onAgentChange: setAgentId,
-                  capabilities,
-                  model,
-                  effort,
-                  onModelChange: setModel,
-                  onEffortChange: setEffort,
-                  onRefresh: refreshCapabilities,
-                  refreshing: detecting
-                }}
+                runConfig={runConfig}
               />
             </>
           )}

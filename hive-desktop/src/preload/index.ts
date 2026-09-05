@@ -29,8 +29,14 @@ import type { AgentMeta } from '../main/agentRegistry'
 import type { ShellCatalogView } from '../main/shellService'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
-import type { ShortcutPrefs, ShortcutScope, ShortcutSettings } from '../main/configStore'
-import type { ChatSessionMeta, StoredChatSession } from '../main/chatHistoryStore'
+import type {
+  EnginePin,
+  EnginePins,
+  ShortcutPrefs,
+  ShortcutScope,
+  ShortcutSettings
+} from '../main/configStore'
+import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -49,6 +55,7 @@ import type { ReviewResult, ReviewSnapshot } from '../main/reviewTypes'
 import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTypes'
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
 import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
+import type { AwsAuthStatus, AwsLoginState, AwsPreflightResult } from '../main/awsAuthService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -224,6 +231,13 @@ const hive = {
       agentId?: string,
       opts?: { workspace?: string; refresh?: boolean }
     ): Promise<AgentCapabilities> => ipcRenderer.invoke('agent:capabilities', agentId, opts),
+    // engine-pins: the model+effort each agent starts on. `pins()` reads the
+    // whole set (one round trip serves every surface that opens an engine
+    // control); `pin(agentId, null)` removes one. Both answer with the new set,
+    // so a caller never has to re-read to know what it now holds.
+    pins: (): Promise<EnginePins> => ipcRenderer.invoke('agent:pins'),
+    pin: (agentId: string, pin: EnginePin | null): Promise<EnginePins> =>
+      ipcRenderer.invoke('agent:pin', agentId, pin),
     // chat-attachments (R6.5/T16): native multi-file picker for the attach
     // button. Resolves to [] when the user cancels the dialog. `defaultPath`
     // opens the picker inside the active workspace.
@@ -259,6 +273,13 @@ const hive = {
     approvalSession: (): Promise<boolean> => ipcRenderer.invoke('agent:approvalSession'),
     setApprovalSession: (enabled: boolean): Promise<void> =>
       ipcRenderer.invoke('agent:approvalSession:set', enabled),
+    // context-compaction: the app-side setting for "compact by yourself when
+    // the window gets tight". Whether it is *acted on* depends on the agent —
+    // one that already compacts on its own is never touched (see
+    // `AgentCapabilities.compaction`).
+    autoCompact: (): Promise<boolean> => ipcRenderer.invoke('agent:autoCompact'),
+    setAutoCompact: (enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('agent:autoCompact:set', enabled),
     onEvent: (onEvent: (evt: AgentEvent) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, evt: AgentEvent): void => onEvent(evt)
       ipcRenderer.on('agent:event', listener)
@@ -386,7 +407,12 @@ const hive = {
     append: (
       workspace: string,
       id: string,
-      message: { role: 'user' | 'assistant'; text: string; attachments?: string[] }
+      message: {
+        role: 'user' | 'assistant' | 'compaction'
+        text: string
+        attachments?: string[]
+        compaction?: StoredCompaction
+      }
     ): Promise<ChatSessionMeta | null> =>
       ipcRenderer.invoke('chatHistory:append', workspace, id, message),
     rename: (workspace: string, id: string, title: string): Promise<ChatSessionMeta | null> =>
@@ -470,6 +496,32 @@ const hive = {
       ipcRenderer.invoke('profile:setUserName', name),
     roleActions: (role: string | null, scope?: ShortcutScope): Promise<ResolvedRoleAction[]> =>
       ipcRenderer.invoke('profile:roleActions', role, scope)
+  },
+
+  // aws-bedrock: the AWS session behind Claude-on-Bedrock. `status` is a pure
+  // read of this machine (config files + the SSO token cache) and is cheap
+  // enough to poll; `login` runs `aws sso login` and opens the browser, and
+  // resolves only when the CLI comes back. `onState` is the live phase stream
+  // that drives the login dialog — same start/stop channel shape as
+  // `agent.onEvent`, so a window that opens mid-login still sees it.
+  aws: {
+    status: (workspace?: string): Promise<AwsAuthStatus> =>
+      ipcRenderer.invoke('aws:status', workspace),
+    loginState: (): Promise<AwsLoginState> => ipcRenderer.invoke('aws:loginState'),
+    login: (profile?: string | null, workspace?: string): Promise<AwsPreflightResult> =>
+      ipcRenderer.invoke('aws:login', profile ?? null, workspace),
+    cancel: (): Promise<void> => ipcRenderer.invoke('aws:cancel'),
+    getProfile: (): Promise<string | null> => ipcRenderer.invoke('aws:getProfile'),
+    setProfile: (name: string | null): Promise<void> => ipcRenderer.invoke('aws:setProfile', name),
+    onState: (onState: (state: AwsLoginState) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, state: AwsLoginState): void => onState(state)
+      ipcRenderer.on('aws:state', listener)
+      ipcRenderer.send('aws:state:start')
+      return () => {
+        ipcRenderer.removeListener('aws:state', listener)
+        ipcRenderer.send('aws:state:stop')
+      }
+    }
   },
 
   // The terminal agent turns run inside (agent-terminal). `list` returns the

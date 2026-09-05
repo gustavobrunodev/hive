@@ -7,6 +7,9 @@ import { ShellPicker, type ShellCatalogView } from '../ui/ShellPicker'
 import type { ShortcutScope } from '../ui/ShortcutCustomizer'
 import { useAsrReadiness } from '../voice/useAsrReadiness'
 import { voiceSummary } from '../voice/voiceSummary'
+import { AwsScope } from './AwsScope'
+import { awsSummary } from '../aws/awsSummary'
+import { useAwsSession } from '../aws/useAwsSession'
 import { AccountScope } from './AccountScope'
 import { ProfileNav } from './ProfileNav'
 import { ShortcutsScope } from './ShortcutsScope'
@@ -35,6 +38,16 @@ interface ProfileSheetProps {
   onUserNameChange: (name: string) => void
   /** Replays the guided tour (closes the sheet first). */
   onReplayTour?: () => void
+  /**
+   * aws-bedrock: which detail is open right now.
+   *
+   * The host needs it because one of its own surfaces — the floating AWS login
+   * beacon — has to step aside while this sheet is drawing the same login.
+   * Without it the host only knows the scope it *deep-linked* to, so a user who
+   * opened the sheet from the avatar and then walked to Conexão AWS got the
+   * login twice, twenty pixels apart. Measured, not theorised.
+   */
+  onScopeChange?: (scope: ProfileScope | null) => void
 }
 
 /**
@@ -65,7 +78,8 @@ export function ProfileSheet({
   onAgentsChange = () => {},
   onDefaultAgentChange = () => {},
   onUserNameChange,
-  onReplayTour
+  onReplayTour,
+  onScopeChange
 }: ProfileSheetProps): React.JSX.Element {
   const [scope, setScope] = useState<ProfileScope | null>(initialScope)
   // Detected agent metadata (availability + install hints) — re-probed each
@@ -81,6 +95,10 @@ export function ProfileSheet({
   // voice-settings: transcription is global, so readiness is read whenever the
   // sheet is open (the index row states it) rather than only inside its detail.
   const readiness = useAsrReadiness(open)
+  // aws-bedrock: read whenever the sheet is open, for the same reason — the
+  // index row states how much session is left, which is the fact a user opens
+  // this sheet to check.
+  const aws = useAwsSession(open)
 
   useEffect(() => {
     if (!open) return
@@ -159,14 +177,88 @@ export function ProfileSheet({
       account: userName?.trim() || t('profile.summaryUnset'),
       agents: t('profile.agentsSummary', enabledCount),
       shortcuts: t('profile.shortcutsSummary', shortcutTotal),
+      aws: awsSummary(aws.status),
       voice: voiceSummary(readiness.readiness),
       shell: shellSummary(shellView)
     }),
-    [userName, enabledCount, shortcutTotal, readiness.readiness, shellView]
+    [userName, enabledCount, shortcutTotal, aws.status, readiness.readiness, shellView]
   )
+
+  // Published upward on every change, including the reset on open — the host's
+  // copy must never outlive the sheet's own.
+  useEffect(() => {
+    onScopeChange?.(open ? scope : null)
+  }, [open, scope, onScopeChange])
 
   const meta = scopeMeta(scope)
   const back = useCallback(() => setScope(null), [])
+
+  /**
+   * The open detail.
+   *
+   * A nested function rather than six conditionals inside the JSX: the sheet's
+   * body is a layout (back, title, hint, detail) and the choice of detail is a
+   * switch. Keeping them apart is also what keeps this component under the
+   * repo's complexity budget as scopes are added.
+   */
+  function renderScope(): React.JSX.Element | null {
+    if (scope === 'account') {
+      return <AccountScope role={role} userName={userName} onUserNameChange={onUserNameChange} />
+    }
+    if (scope === 'agents') {
+      return (
+        <div className="wb-profile-section">
+          <AgentPicker
+            agents={agentMetas}
+            enabled={agents}
+            defaultAgent={defaultAgent}
+            onToggle={handleToggleAgent}
+            onSetDefault={onDefaultAgentChange}
+            onInstall={(url) => void window.hive.openExternal(url)}
+            startInstall={(id, onEvent) => window.hive.profile.installAgent(id, onEvent)}
+            onInstalled={handleAgentInstalled}
+            onRefresh={handleRescanAgents}
+            refreshing={rescanning}
+          />
+          {agents.length === 0 && (
+            <p className="wb-profile-agent-warning" role="alert">
+              {t('profile.agentEmptyWarning')}
+            </p>
+          )}
+        </div>
+      )
+    }
+    if (scope === 'shortcuts') {
+      return <ShortcutsScope counts={shortcutCounts} onOpenShortcuts={onOpenShortcuts} />
+    }
+    if (scope === 'aws') {
+      return (
+        <AwsScope
+          session={aws}
+          onOpenUrl={(url) => void window.hive.openExternal(url)}
+          // file-clipboard: through main, never `navigator.clipboard` — this
+          // window's permission for it is denied.
+          onCopyUrl={(text) => void window.hive.clipboard.writeText(text)}
+        />
+      )
+    }
+    if (scope === 'voice') return <VoiceScope readiness={readiness} />
+    if (scope === 'shell') {
+      return (
+        <div className="wb-profile-section">
+          <ShellPicker
+            view={shellView}
+            onSelect={handleSelectShell}
+            onRefresh={handleRescanShells}
+            refreshing={shellScanning}
+            onCopy={(text) => void window.hive.clipboard.writeText(text)}
+            onOpenUrl={(url) => void window.hive.openExternal(url)}
+          />
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -210,49 +302,7 @@ export function ProfileSheet({
             <SheetDescription>{meta.hint}</SheetDescription>
 
             <div className="wb-profile-detail" key={scope}>
-              {scope === 'account' && (
-                <AccountScope role={role} userName={userName} onUserNameChange={onUserNameChange} />
-              )}
-              {scope === 'agents' && (
-                <div className="wb-profile-section">
-                  <AgentPicker
-                    agents={agentMetas}
-                    enabled={agents}
-                    defaultAgent={defaultAgent}
-                    onToggle={handleToggleAgent}
-                    onSetDefault={onDefaultAgentChange}
-                    onInstall={(url) => void window.hive.openExternal(url)}
-                    startInstall={(id, onEvent) => window.hive.profile.installAgent(id, onEvent)}
-                    onInstalled={handleAgentInstalled}
-                    onRefresh={handleRescanAgents}
-                    refreshing={rescanning}
-                  />
-                  {agents.length === 0 && (
-                    <p className="wb-profile-agent-warning" role="alert">
-                      {t('profile.agentEmptyWarning')}
-                    </p>
-                  )}
-                </div>
-              )}
-              {scope === 'shortcuts' && (
-                <ShortcutsScope counts={shortcutCounts} onOpenShortcuts={onOpenShortcuts} />
-              )}
-              {scope === 'voice' && <VoiceScope readiness={readiness} />}
-              {scope === 'shell' && (
-                <div className="wb-profile-section">
-                  <ShellPicker
-                    view={shellView}
-                    onSelect={handleSelectShell}
-                    onRefresh={handleRescanShells}
-                    refreshing={shellScanning}
-                    // file-clipboard: through the main process, never
-                    // `navigator.clipboard` — this window's permission for it
-                    // is denied.
-                    onCopy={(text) => void window.hive.clipboard.writeText(text)}
-                    onOpenUrl={(url) => void window.hive.openExternal(url)}
-                  />
-                </div>
-              )}
+              {renderScope()}
             </div>
           </>
         )}

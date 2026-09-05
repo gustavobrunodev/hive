@@ -39,6 +39,8 @@ export type CodeLanguage =
   | "ini"
   | "sql"
   | "diff"
+  /* Not a Prism grammar: delimited data is coloured by COLUMN, below. */
+  | "csv"
 
 const BY_EXTENSION: Record<string, CodeLanguage> = {
   md: "markdown",
@@ -77,6 +79,8 @@ const BY_EXTENSION: Record<string, CodeLanguage> = {
   sql: "sql",
   diff: "diff",
   patch: "diff",
+  csv: "csv",
+  tsv: "csv",
 }
 
 /**
@@ -233,14 +237,119 @@ function roleOf(type: string, alias: string | string[] | undefined): CodeRole | 
 export const HIGHLIGHT_CEILING = 400_000
 
 /**
+ * The ink each column gets, in order, cycling after six.
+ *
+ * Delimited data has no keywords to colour and no strings to tell from
+ * numbers — its ambiguity is entirely positional: which field am I looking
+ * at, and does this row have the same number of them as the header. So the
+ * colour stops meaning "this is a literal" and starts meaning "this is column
+ * three", which is the question the reader actually has. The six are the
+ * hue-carrying roles of the shared palette (blue, green, amber, violet, cyan,
+ * red), so a CSV inherits the same measured contrast every other file gets,
+ * in every theme, for free.
+ *
+ * `DataGrid.css` paints its column headers from the same six, in this order:
+ * a column is one colour whether you are looking at the table or at the raw
+ * text behind it.
+ */
+export const CSV_COLUMN_ROLES: readonly CodeRole[] = [
+  "function",
+  "string",
+  "number",
+  "property",
+  "type",
+  "keyword",
+]
+
+/** The delimiters we recognise, in the order a tie is broken. */
+const CSV_DELIMITERS = [",", ";", "\t", "|"] as const
+
+export type CsvDelimiter = (typeof CSV_DELIMITERS)[number]
+
+/**
+ * Which character separates the fields of `source`.
+ *
+ * Counted outside quotes, over the first few lines rather than only the
+ * first: a header of one word per column is exactly the line that fails to
+ * distinguish `;` from `,`, and prose fields full of commas inside quotes are
+ * exactly what a naive count gets wrong. Exported because whoever *parses*
+ * the file has to reach the same answer the colouring did — two disagreeing
+ * delimiters is a mirror that paints columns the table does not have.
+ */
+export function detectDelimiter(source: string): CsvDelimiter {
+  const counts = new Map<CsvDelimiter, number>(CSV_DELIMITERS.map((d) => [d, 0]))
+  let quoted = false
+  let lines = 0
+  for (let at = 0; at < source.length && lines < 5; at++) {
+    const char = source[at] as string
+    if (char === '"') {
+      quoted = !quoted
+      continue
+    }
+    if (quoted) continue
+    if (char === "\n") {
+      lines++
+      continue
+    }
+    const delimiter = CSV_DELIMITERS.find((candidate) => candidate === char)
+    if (delimiter) counts.set(delimiter, (counts.get(delimiter) as number) + 1)
+  }
+  let best: CsvDelimiter = ","
+  for (const candidate of CSV_DELIMITERS) {
+    if ((counts.get(candidate) as number) > (counts.get(best) as number)) best = candidate
+  }
+  return best
+}
+
+/**
+ * Delimited text → runs coloured by column.
+ *
+ * A scanner rather than a grammar, because the thing being recognised is
+ * position, not syntax: fields take their column's ink, the delimiters
+ * themselves stay punctuation so the structure is visible without competing
+ * with the data, and a quoted field keeps its quotes (they are part of what
+ * is on disk, and hiding them would break the mirror's contract).
+ */
+function highlightDelimited(source: string): CodeRun[] {
+  const delimiter = detectDelimiter(source)
+  const runs: CodeRun[] = []
+  let column = 0
+  let quoted = false
+  let start = 0
+  const flush = (end: number, role: CodeRole | null): void => {
+    if (end > start) push(runs, source.slice(start, end), role)
+    start = end
+  }
+  for (let at = 0; at < source.length; at++) {
+    const char = source[at] as string
+    if (char === '"') {
+      quoted = !quoted
+      continue
+    }
+    if (quoted) continue
+    if (char === delimiter) {
+      flush(at, CSV_COLUMN_ROLES[column % CSV_COLUMN_ROLES.length] as CodeRole)
+      flush(at + 1, "punctuation")
+      column++
+    } else if (char === "\n") {
+      flush(at, CSV_COLUMN_ROLES[column % CSV_COLUMN_ROLES.length] as CodeRole)
+      flush(at + 1, null)
+      column = 0
+    }
+  }
+  flush(source.length, CSV_COLUMN_ROLES[column % CSV_COLUMN_ROLES.length] as CodeRole)
+  return runs
+}
+
+/**
  * Source → coloured runs. Falls back to a single uncoloured run whenever there
  * is no grammar, no language, or simply too much text.
  */
 export function highlight(source: string, language: CodeLanguage | null): CodeRun[] {
+  if (source.length > HIGHLIGHT_CEILING) return [{ text: source, role: null }]
+  if (language === "csv") return highlightDelimited(source)
   const grammar = language === null ? undefined : Prism.languages[language]
-  if (!grammar || source.length > HIGHLIGHT_CEILING) {
-    return [{ text: source, role: null }]
-  }
+  if (!grammar) return [{ text: source, role: null }]
   const runs: CodeRun[] = []
   collect(Prism.tokenize(source, grammar), null, runs)
   return runs

@@ -8,6 +8,7 @@ import type { SecondBrainStore } from './useSecondBrain'
 import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMock'
 import type { DictationE2EHarness } from '../dictation/e2eDictationSeam'
 import type { Tick } from '../dictation/segmenter'
+import { installRunConfigMock } from '../testSupport/hiveRunConfigMock'
 
 /** A stand-in for the vault-setup flow — the panel only reads its phase and calls back. */
 function setup(phase: BrainSetupPhase = 'idle'): BrainSetup {
@@ -36,12 +37,14 @@ vi.mock('../asr/audio', async (importOriginal) => ({
 // factory is the documented shape and works in both.
 vi.mock('@hive/design-system', async () => {
   const { createContext, createElement, useContext } = await import('react')
-  const { HighlightedTextareaMock } = await import('../testSupport/dsMocks')
+  const { HighlightedTextareaMock, runConfigDsMocks } = await import('../testSupport/dsMocks')
 
   /** Radix's radio state, reimplemented in three lines so the mock stays honest. */
   const RadioCtx = createContext<{ value?: string; onValueChange?: (next: string) => void }>({})
 
   return {
+    // The run-config the sheet now carries: agent switcher + engine picker.
+    ...runConfigDsMocks(),
     // Exposes Radix's dismiss path (overlay click / Escape) as a real button so
     // the sheet's own `onOpenChange` wiring is exercised, not just mocked away.
     Sheet: ({
@@ -168,6 +171,10 @@ function open(
       onClose,
       onLaunch,
       store,
+      // The pool the run-config offers: an ingestion runs on an agent, and
+      // which one is now stated on the sheet rather than inherited silently.
+      agents: ['claude-cli', 'copilot-cli'],
+      defaultAgent: 'claude-cli',
       setup: overrides.setup ?? setup(),
       onOpenVoiceSettings: overrides.onOpenVoiceSettings
     })
@@ -204,6 +211,8 @@ describe('IngestPanel (T10)', () => {
       secondBrain: { ...window.hive?.secondBrain, stageRaw },
       asr
     } as unknown as typeof window.hive
+    // The sheet's run-config reads capabilities and the persisted pins.
+    installRunConfigMock()
   })
 
   afterEach(() => {
@@ -259,11 +268,38 @@ describe('IngestPanel (T10)', () => {
           command: expect.objectContaining({
             prompt: '/second-brain-ingest second-brain/raw/ingest-x.md\n\ndecisão da squad'
           })
-        })
+        }),
+        // …on the agent (and model) the run-config above the button chose.
+        expect.objectContaining({ agentId: 'claude-cli' })
       )
     )
     expect(store.refresh).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  /**
+   * Who receives the document. The sheet used to launch onto whatever the app
+   * default happened to be — a squad running Copilot in chat still had its
+   * wiki written by Claude, with nothing on screen saying so.
+   */
+  it('names who will document, and carries a changed model into the launch', async () => {
+    const { onLaunch } = open('text')
+    await screen.findByText('Quem vai documentar')
+    expect(screen.getAllByText('Claude Code').length).toBeGreaterThan(0)
+
+    // The engine control is the composer's own — open it and pick a model.
+    fireEvent.click(screen.getByText(/Automático/))
+    fireEvent.click(await screen.findByRole('option', { name: 'Opus' }))
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'decisão da squad' } })
+    fireEvent.click(screen.getByText('Ingerir'))
+
+    await waitFor(() =>
+      expect(onLaunch).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ agentId: 'claude-cli', model: 'opus' })
+      )
+    )
   })
 
   it('surfaces a staging failure without closing, keeping the text recoverable', async () => {
@@ -381,7 +417,8 @@ describe('IngestPanel (T10)', () => {
           command: expect.objectContaining({
             prompt: '/second-brain-ingest second-brain/raw/ingest-x.md\n\nata da reunião (revisada)'
           })
-        })
+        }),
+        expect.objectContaining({ agentId: 'claude-cli' })
       )
     })
 
@@ -462,6 +499,35 @@ describe('IngestPanel (T10)', () => {
         expect(stageRaw).toHaveBeenCalledWith('/ws', 'Primeira frase e a segunda')
       )
       expect(onLaunch).toHaveBeenCalled()
+    })
+
+    /**
+     * The round control is drawn as a stop square, which promises to *end* a
+     * recording — not to keep it. The named button is what says the words are
+     * kept, and it is the same one the chat's transport has always had.
+     */
+    it('offers a named Concluir beside the round control, and it keeps the take', async () => {
+      const harness = armHarness('a decisão foi manter')
+      open('record')
+
+      fireEvent.click(screen.getByText('Começar a ditar'))
+      await waitFor(() => expect(harness.ticks?.length).toBeGreaterThan(0))
+      await speakOnePhrase(harness)
+      await waitFor(() =>
+        expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+          'A decisão foi manter'
+        )
+      )
+
+      // Only while a take is live: with the microphone closed there is nothing
+      // to conclude, and a button that does nothing is worse than no button.
+      fireEvent.click(screen.getByText('Concluir'))
+
+      await waitFor(() => expect(screen.getByText('Começar a ditar')).toBeTruthy())
+      expect(screen.queryByText('Concluir')).toBeNull()
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+        'A decisão foi manter'
+      )
     })
 
     it('Descartar rewinds the document to what it was before the take (VP-R1.5)', async () => {

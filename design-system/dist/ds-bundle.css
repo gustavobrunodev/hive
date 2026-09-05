@@ -4184,6 +4184,48 @@ a:hover {
 .hds-picker-item[data-selected-option] .hds-picker-hint {
   color: color-mix(in oklab, var(--muted) 50%, var(--ink));
 }
+.hds-picker-item:has(.hds-picker-pin) {
+  grid-template-columns: auto 1fr auto auto auto;
+}
+.hds-picker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms var(--ease-quart),
+    color 120ms var(--ease-quart),
+    background-color 120ms var(--ease-quart);
+}
+.hds-picker-item:hover .hds-picker-pin,
+.hds-picker-item[data-selected=true] .hds-picker-pin,
+.hds-picker-pin:focus-visible {
+  opacity: 1;
+}
+.hds-picker-pin:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.hds-picker-pin:hover {
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  color: var(--ink);
+}
+.hds-picker-pin[data-pinned] {
+  opacity: 1;
+  color: var(--accent);
+}
+.hds-picker-pin[data-pinned]:hover {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
 .hds-picker-check {
   display: flex;
   align-items: center;
@@ -4221,7 +4263,8 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .hds-picker,
   .hds-picker-search,
-  .hds-picker-item {
+  .hds-picker-item,
+  .hds-picker-pin {
     animation-duration: 0.01ms;
     transition-duration: 0.01ms;
   }
@@ -4463,6 +4506,250 @@ button.hds-breadcrumb-segment:hover {
     width: 100%;
     transform: none;
     opacity: 0.5;
+  }
+}
+
+/* src/components/Gauge/Gauge.css */
+.hds-gauge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.hds-gauge-svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.hds-gauge-track {
+  stroke: var(--surface-3);
+}
+.hds-gauge-arc {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.32s var(--ease-quart), stroke 0.32s var(--ease-quart);
+}
+.hds-gauge[data-tone=success] .hds-gauge-arc {
+  stroke: var(--success);
+}
+.hds-gauge[data-tone=warning] .hds-gauge-arc {
+  stroke: var(--warning);
+}
+.hds-gauge[data-tone=danger] .hds-gauge-arc {
+  stroke: var(--danger);
+}
+.hds-gauge[data-tone=neutral] .hds-gauge-arc {
+  stroke: var(--border-strong);
+}
+.hds-gauge-face {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  text-align: center;
+  padding: 0 14%;
+}
+.hds-gauge-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.hds-gauge-caption {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-gauge-arc {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* src/components/StepFlow/StepFlow.css */
+.hds-stepflow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.hds-stepflow-step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.hds-stepflow-rail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  align-self: stretch;
+}
+.hds-stepflow-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--rounded-full);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--bg);
+  flex: none;
+}
+.hds-stepflow-glyph {
+  width: 12px;
+  height: 12px;
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step {
+  padding-bottom: 14px;
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step:last-child {
+  padding-bottom: 0;
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-rail::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--border);
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-rail::before {
+  top: 0;
+  height: calc(50% - 10px);
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-rail::after {
+  top: calc(50% + 10px);
+  bottom: 0;
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step:first-child .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step:last-child .hds-stepflow-rail::after {
+  content: none;
+}
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step[data-lit] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=vertical] .hds-stepflow-step[data-status=done] .hds-stepflow-rail::after {
+  background: var(--accent);
+}
+.hds-stepflow[data-orientation=horizontal] {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-step {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  text-align: center;
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-rail {
+  width: 100%;
+  height: 16px;
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-rail::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--border);
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-rail::before {
+  left: 0;
+  width: calc(50% - 10px);
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-rail::after {
+  right: 0;
+  width: calc(50% - 10px);
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-step:first-child .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-step:last-child .hds-stepflow-rail::after {
+  content: none;
+}
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-step[data-lit] .hds-stepflow-rail::before,
+.hds-stepflow[data-orientation=horizontal] .hds-stepflow-step[data-status=done] .hds-stepflow-rail::after {
+  background: var(--accent);
+}
+.hds-stepflow-step[data-status=done] .hds-stepflow-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.hds-stepflow-step[data-status=failed] .hds-stepflow-node {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger-fill-ink);
+}
+.hds-stepflow-step[data-status=active] .hds-stepflow-node {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+.hds-stepflow-step[data-status=active] .hds-stepflow-node::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  animation: hds-stepflow-pulse 1.6s var(--ease-quart) infinite;
+}
+@keyframes hds-stepflow-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.7);
+  }
+}
+.hds-stepflow-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 1px;
+}
+.hds-stepflow-label {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.hds-stepflow-step[data-status=active] .hds-stepflow-label,
+.hds-stepflow-step[data-status=failed] .hds-stepflow-label {
+  color: var(--ink);
+  font-weight: 500;
+}
+.hds-stepflow-step[data-status=done] .hds-stepflow-label {
+  color: var(--muted);
+}
+.hds-stepflow-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+.hds-stepflow-hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.hds-stepflow-step[data-status=active] .hds-stepflow-hint {
+  color: var(--ink);
+}
+.hds-stepflow-step[data-status=failed] .hds-stepflow-hint {
+  color: var(--danger-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-stepflow-step[data-status=active] .hds-stepflow-node::after {
+    animation: none;
   }
 }
 
@@ -5132,6 +5419,193 @@ button.hds-breadcrumb-segment:hover {
   }
   .hds-out-copy,
   .hds-out-more {
+    transition: none;
+  }
+}
+
+/* src/components/DataGrid/DataGrid.css */
+.hds-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+}
+.hds-grid-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.hds-grid-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max-content;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.hds-grid-colhead,
+.hds-grid-corner {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hds-grid-corner {
+  z-index: 3;
+  left: 0;
+  width: 1px;
+  border-right: 1px solid var(--border);
+}
+.hds-grid-colhead {
+  padding: var(--s-2) var(--s-3);
+  color: var(--ink);
+  max-width: 34ch;
+}
+.hds-grid-colhead-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hds-grid-colhead-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hds-grid-colhead-hint {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+.hds-grid-colhead[data-numeric] .hds-grid-colhead-body {
+  align-items: flex-end;
+}
+.hds-grid-colhead[data-current] {
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--selected-bg), var(--selected-bg));
+  color: var(--accent-tint-ink);
+}
+.hds-grid-colhead[data-hue] .hds-grid-colhead-label {
+  color: var(--hds-grid-hue);
+}
+.hds-grid-colhead[data-hue]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--hds-grid-hue);
+  opacity: 0.55;
+}
+.hds-grid-colhead[data-hue="0"] {
+  --hds-grid-hue: var(--code-function);
+}
+.hds-grid-colhead[data-hue="1"] {
+  --hds-grid-hue: var(--code-string);
+}
+.hds-grid-colhead[data-hue="2"] {
+  --hds-grid-hue: var(--code-number);
+}
+.hds-grid-colhead[data-hue="3"] {
+  --hds-grid-hue: var(--code-property);
+}
+.hds-grid-colhead[data-hue="4"] {
+  --hds-grid-hue: var(--code-type);
+}
+.hds-grid-colhead[data-hue="5"] {
+  --hds-grid-hue: var(--code-keyword);
+}
+.hds-grid-colhead[data-current][data-hue]::after {
+  opacity: 1;
+}
+.hds-grid-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s-2);
+  text-align: right;
+  font-family: var(--ff-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  user-select: none;
+  white-space: nowrap;
+}
+.hds-grid-rowhead[data-current] {
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--selected-bg), var(--selected-bg));
+  color: var(--accent-tint-ink);
+  font-weight: 600;
+}
+.hds-grid-cell {
+  position: relative;
+  padding: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  max-width: 42ch;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: cell;
+  outline: none;
+}
+.hds-grid-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hds-grid-cell[data-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hds-grid-cell[data-empty] .hds-grid-value::after {
+  content: "";
+  display: inline-block;
+  min-width: 4ch;
+}
+.hds-grid-row:hover .hds-grid-cell {
+  background: var(--surface-2);
+}
+.hds-grid-cell[data-active] {
+  background: var(--selected-bg);
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.hds-grid-cell[data-editing] {
+  background: var(--bg);
+  padding: 0;
+}
+.hds-grid-input {
+  display: block;
+  width: 100%;
+  min-width: 12ch;
+  margin: 0;
+  border: 0;
+  padding: var(--s-1) calc(var(--s-3) - 1px);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+.hds-grid-empty {
+  padding: var(--s-6) var(--s-4);
+  color: var(--muted);
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-grid-cell,
+  .hds-grid-colhead,
+  .hds-grid-rowhead {
     transition: none;
   }
 }

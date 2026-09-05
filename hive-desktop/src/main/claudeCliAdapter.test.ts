@@ -1338,3 +1338,112 @@ describe('ClaudeCliAdapter — the chosen terminal', () => {
     expect(runner.calls[0].opts?.env).toBeUndefined()
   })
 })
+
+/**
+ * aws-bedrock: the Claude adapter's half of the AWS gate.
+ *
+ * The engine's own gate behaviour is covered in `cliAdapterGate.test.ts`;
+ * what is Claude-specific is *what it does with one* — that a turn waits for
+ * the session, that it says so in the transcript only when something actually
+ * happened, and that a dead `--resume` handle is retried away.
+ */
+describe('AWS session gate', () => {
+  /** A gate that answers however the test wants, and records how it was asked. */
+  function gate(
+    result: { ok: true; refreshed: boolean } | { ok: false; reason: string; message: string }
+  ): {
+    calls: Array<{ workspace?: string; blocked: boolean }>
+    ensureReady: (workspace?: string, onBlocked?: () => void) => Promise<typeof result>
+  } {
+    const calls: Array<{ workspace?: string; blocked: boolean }> = []
+    return {
+      calls,
+      ensureReady: (workspace?: string, onBlocked?: () => void) => {
+        const blocked = !result.ok || result.refreshed
+        if (blocked) onBlocked?.()
+        calls.push({ workspace, blocked })
+        return Promise.resolve(result)
+      }
+    }
+  }
+
+  it('runs the turn with no annotation at all when the session was already good', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: 'oi' }], code: 0 })
+    const awsAuth = gate({ ok: true, refreshed: false })
+    const adapter = createClaudeCliAdapter(runner, { awsAuth })
+    const session = adapter.startSession({ workspace: '/ws' })
+    session.send({ text: 'oi' })
+    const events = await take(session.events, 2)
+    expect(events.map((event) => event.type)).toEqual(['token', 'done'])
+    expect(awsAuth.calls[0].workspace).toBe('/ws')
+  })
+
+  it('annotates the turn when it had to stop and log in', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: 'oi' }], code: 0 })
+    const adapter = createClaudeCliAdapter(runner, { awsAuth: gate({ ok: true, refreshed: true }) })
+    const session = adapter.startSession({ workspace: '/ws' })
+    session.send({ text: 'oi', turnId: 't1' })
+    const events = await take(session.events, 4)
+    expect(events[0]).toEqual({ type: 'auth', provider: 'aws', phase: 'waiting', turnId: 't1' })
+    expect(events[1]).toEqual({ type: 'auth', provider: 'aws', phase: 'cleared', turnId: 't1' })
+    expect(events[3].type).toBe('done')
+  })
+
+  it('fails the turn with a code the chat can draw a repair for, and spawns nothing', async () => {
+    const runner = createFakeProcessRunner()
+    const adapter = createClaudeCliAdapter(runner, {
+      awsAuth: gate({ ok: false, reason: 'canceled', message: 'canceled' })
+    })
+    const session = adapter.startSession({ workspace: '/ws' })
+    session.send({ text: 'oi', turnId: 't1' })
+    const [waiting, error] = await take(session.events, 2)
+    expect(waiting).toEqual({ type: 'auth', provider: 'aws', phase: 'waiting', turnId: 't1' })
+    expect(error).toEqual({ type: 'error', message: 'aws-auth:canceled', turnId: 't1' })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('behaves exactly as before on a machine with no gate wired at all', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: 'oi' }], code: 0 })
+    const session = createClaudeCliAdapter(runner).startSession({ workspace: '/ws' })
+    session.send({ text: 'oi' })
+    const events = await take(session.events, 2)
+    expect(events.map((event) => event.type)).toEqual(['token', 'done'])
+  })
+
+  it('translates an expired-session failure into its own code instead of quoting awsAuthRefresh', async () => {
+    // The reported message, verbatim. What the user saw was the failure of the
+    // *repair*; what they get now is a code the chat turns into "entre de novo".
+    const runner = createFakeProcessRunner()
+    runner.script({
+      chunks: [
+        {
+          stream: 'stderr',
+          data: 'Error running awsAuthRefresh (in settings or ~/.claude.json)'
+        }
+      ],
+      code: 1
+    })
+    const session = createClaudeCliAdapter(runner).startSession({ workspace: '/ws' })
+    session.send({ text: 'oi' })
+    const [event] = await take(session.events, 1)
+    expect(event).toEqual({ type: 'error', message: 'aws-auth:sso-expired' })
+  })
+
+  it('retries once without a --resume handle the CLI no longer recognises', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({
+      chunks: [{ stream: 'stderr', data: 'No conversation found with session ID: 8d2c3ac9' }],
+      code: 1
+    })
+    runner.script({ chunks: [{ stream: 'stdout', data: 'resposta' }], code: 0 })
+    const session = createClaudeCliAdapter(runner).startSession({ workspace: '/ws' })
+    session.send({ text: 'oi', resume: 'dead-id' })
+    const events = await take(session.events, 2)
+    expect(runner.calls[0].args).toContain('--resume')
+    expect(runner.calls[1].args).not.toContain('--resume')
+    expect(events.map((event) => event.type)).toEqual(['token', 'done'])
+  })
+})

@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -93,6 +93,89 @@ describe('parseStatusV2', () => {
     const status = parseStatusV2('')
     expect(status.changes).toEqual([])
     expect(status.branch).toBeNull()
+  })
+
+  it('keeps every file of an untracked directory as its own entry', () => {
+    // The `--untracked-files=all` shape: one record per file, never the
+    // enclosing folder. Regression guard for the collapsed `? dir/` bug.
+    const output =
+      '# branch.head main\0' +
+      '? _bmad-output/planning-artifacts/prds/prd-x/prd.md\0' +
+      '? _bmad-output/planning-artifacts/prds/prd-x/epics.md\0' +
+      '? .playwright-mcp/page.png\0'
+    const status = parseStatusV2(output)
+
+    expect(status.changes.map((c) => c.path)).toEqual([
+      '_bmad-output/planning-artifacts/prds/prd-x/prd.md',
+      '_bmad-output/planning-artifacts/prds/prd-x/epics.md',
+      '.playwright-mcp/page.png'
+    ])
+    expect(status.changes.every((c) => c.isUntracked)).toBe(true)
+    // No entry is a directory (no trailing slash) — the old bug's signature.
+    expect(status.changes.some((c) => c.path.endsWith('/'))).toBe(false)
+    expect(status.truncated).toBeUndefined()
+  })
+
+  it('stops at the entry limit and flags truncated, keeping the branch headers', () => {
+    const entries = Array.from({ length: 5 }, (_, i) => `? f${i}.txt\0`).join('')
+    const status = parseStatusV2(`# branch.head main\0# branch.ab +1 -0\0${entries}`, { limit: 3 })
+
+    expect(status.changes).toHaveLength(3)
+    expect(status.truncated).toBe(true)
+    expect(status.branch).toBe('main')
+    expect(status.ahead).toBe(1)
+  })
+
+  it('does not flag truncated when the entry count exactly fills the limit', () => {
+    const status = parseStatusV2('? a.txt\0? b.txt\0', { limit: 2 })
+    expect(status.changes).toHaveLength(2)
+    expect(status.truncated).toBeUndefined()
+  })
+})
+
+describe('parseStatusV2 — against the real `git status` output', () => {
+  // The bug this guards is not in the parser at all: it is which flags the
+  // service asks git for. Only real git can prove that `--untracked-files=all`
+  // is what turns one `? dir/` record into one record per file, so this test
+  // runs the actual binary over a temp repo shaped like the reported case.
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'hive-status-'))
+    execFileSync('git', ['init', '-q'], { cwd: dir })
+    mkdirSync(join(dir, '_bmad-output/planning-artifacts/prds/prd-x'), { recursive: true })
+    writeFileSync(join(dir, '_bmad-output/planning-artifacts/prds/prd-x/prd.md'), '# prd\n')
+    writeFileSync(join(dir, '_bmad-output/planning-artifacts/prds/prd-x/epics.md'), '# epics\n')
+    mkdirSync(join(dir, '.playwright-mcp'))
+    writeFileSync(join(dir, '.playwright-mcp/page.png'), 'x')
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function status(...extraArgs: string[]): string {
+    return execFileSync('git', ['status', '--porcelain=v2', '--branch', '-z', ...extraArgs], {
+      cwd: dir,
+      encoding: 'utf-8'
+    })
+  }
+
+  it("collapses untracked directories without the flag — the bug's root cause", () => {
+    const paths = parseStatusV2(status())
+      .changes.map((c) => c.path)
+      .sort()
+    expect(paths).toEqual(['.playwright-mcp/', '_bmad-output/'])
+  })
+
+  it('lists every file inside them with `--untracked-files=all`', () => {
+    const paths = parseStatusV2(status('--untracked-files=all'))
+      .changes.map((c) => c.path)
+      .sort()
+    expect(paths).toEqual([
+      '.playwright-mcp/page.png',
+      '_bmad-output/planning-artifacts/prds/prd-x/epics.md',
+      '_bmad-output/planning-artifacts/prds/prd-x/prd.md'
+    ])
   })
 })
 

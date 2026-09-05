@@ -136,3 +136,84 @@ describe('stripAnsi', () => {
     expect(stripAnsi('R$ 10 — 50% é muito')).toBe('R$ 10 — 50% é muito')
   })
 })
+
+/**
+ * context-compaction: the CLI compacted its own context, and the app has to
+ * hear about it.
+ *
+ * Every line below is verbatim from a real `claude 2.1.x` run in the print
+ * mode this engine drives — `claude -p "/compact" --resume <id>` — which is
+ * also how the whole feature's shape was decided: the CLI keeps the session
+ * id, reports the boundary *after* the fact, and states the trigger itself.
+ */
+describe('compaction boundaries', () => {
+  /** Runs one turn against scripted stdout and returns every compact event it produced. */
+  async function compactEventsFor(
+    stdout: string
+  ): Promise<Array<Extract<AgentEvent, { type: 'compact' }>>> {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: stdout }], code: 0 })
+    const session = createCliAgentSession(
+      runner,
+      { workspace: '/ws' },
+      { command: 'fake', errorLabel: 'fake', buildArgs: (prompt) => ['-p', prompt] }
+    )
+    session.send({ text: '/compact', turnId: 'turn-1' })
+    const out: Array<Extract<AgentEvent, { type: 'compact' }>> = []
+    const iterator = session.events[Symbol.asyncIterator]()
+    for (;;) {
+      const next = (await iterator.next()).value as AgentEvent
+      if (next.type === 'compact') out.push(next)
+      if (next.type === 'done' || next.type === 'error') break
+    }
+    return out
+  }
+
+  const BOUNDARY = JSON.stringify({
+    type: 'system',
+    subtype: 'compact_boundary',
+    session_id: 'ee7299b3-8d3a-46fd-bc48-ed0bb9b546dc',
+    compact_metadata: {
+      trigger: 'manual',
+      pre_tokens: 22678,
+      post_tokens: 757,
+      cumulative_dropped_tokens: 21921,
+      duration_ms: 8400
+    }
+  })
+
+  it('turns the CLI’s boundary line into the seam’s numbers', async () => {
+    const [event] = await compactEventsFor(`${BOUNDARY}\n`)
+    expect(event).toEqual({
+      type: 'compact',
+      phase: 'end',
+      trigger: 'manual',
+      preTokens: 22678,
+      postTokens: 757,
+      durationMs: 8400,
+      turnId: 'turn-1'
+    })
+  })
+
+  // The trigger is passed through, never assumed: the CLI uses the same line
+  // for its own threshold, and reading that as manual would put "você
+  // compactou" under something the user never did.
+  it('keeps the CLI’s own trigger', async () => {
+    const auto = BOUNDARY.replace('"trigger":"manual"', '"trigger":"auto"')
+    const [event] = await compactEventsFor(`${auto}\n`)
+    expect(event.trigger).toBe('auto')
+  })
+
+  // The counts belong to the agent. A boundary without them still says a
+  // compaction happened — the seam fills the "before" from its own reading.
+  it('reports a boundary that carries no metadata at all', async () => {
+    const bare = JSON.stringify({ type: 'system', subtype: 'compact_boundary' })
+    const [event] = await compactEventsFor(`${bare}\n`)
+    expect(event).toEqual({ type: 'compact', phase: 'end', trigger: 'manual', turnId: 'turn-1' })
+  })
+
+  it('leaves every other system line alone', async () => {
+    const init = JSON.stringify({ type: 'system', subtype: 'init', session_id: 'abc' })
+    expect(await compactEventsFor(`${init}\n`)).toEqual([])
+  })
+})

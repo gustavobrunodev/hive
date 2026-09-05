@@ -7,7 +7,8 @@
  * import them from one place.
  *
  * All formats are chosen for parseability, never scraped from human output:
- * `status --porcelain=v2 --branch -z`, `log --pretty=format:'…' -z`,
+ * `status --porcelain=v2 --branch -z --untracked-files=all`,
+ * `log --pretty=format:'…' -z`,
  * `for-each-ref --format='…%1f…'`, `stash list --format`, `diff --numstat -z`,
  * and unified `diff`. The `\x1f` (unit separator) and `\0` (NUL) delimiters
  * can't occur inside paths/subjects, so splitting on them is safe where a
@@ -52,6 +53,8 @@ export interface GitStatus {
   changes: GitFileChange[]
   /** A merge is in progress (MERGE_HEAD present) — set by the service, not the porcelain parser (GIT-R9.3). */
   mergeInProgress?: boolean
+  /** Parsing stopped at the entry cap — `changes` is a prefix of the real list (see `parseStatusV2`'s `limit`). */
+  truncated?: boolean
 }
 
 /** One commit record from `log --pretty=format:'%H%x1f%h%x1f%an%x1f%aI%x1f%s' -z`. */
@@ -167,14 +170,22 @@ function applyBranchHeader(rest: string, status: GitStatus): void {
 }
 
 /**
- * Parses `git status --porcelain=v2 --branch -z`. Records are NUL-separated;
- * a rename (`2`) record is immediately followed by its original path as the
- * next NUL field, so the loop consumes two fields for it. Path fields can
- * contain spaces, so paths are taken as everything after the fixed leading
- * space-delimited tokens (8 for `1`, 9 for `2`, 10 for `u`) rather than by a
- * naive last-token split.
+ * Parses `git status --porcelain=v2 --branch -z --untracked-files=all`. Records
+ * are NUL-separated; a rename (`2`) record is immediately followed by its
+ * original path as the next NUL field, so the loop consumes two fields for it.
+ * Path fields can contain spaces, so paths are taken as everything after the
+ * fixed leading space-delimited tokens (8 for `1`, 9 for `2`, 10 for `u`)
+ * rather than by a naive last-token split.
+ *
+ * Untracked entries are per **file** — the caller must pass
+ * `--untracked-files=all`, otherwise git collapses a whole untracked directory
+ * into one `? dir/` record and the change list shows the folder instead of the
+ * files inside it. `opts.limit` caps how many entries are kept (branch headers
+ * always survive, since porcelain v2 prints them first); hitting it sets
+ * `truncated` so the UI can say the list is a prefix rather than silently
+ * lying about the repo's size.
  */
-export function parseStatusV2(output: string): GitStatus {
+export function parseStatusV2(output: string, opts?: { limit?: number }): GitStatus {
   const fields = output.split('\0')
   const status: GitStatus = {
     branch: null,
@@ -186,6 +197,8 @@ export function parseStatusV2(output: string): GitStatus {
     changes: []
   }
 
+  const limit = opts?.limit ?? Infinity
+
   for (let i = 0; i < fields.length; i++) {
     const line = fields[i]
     if (line === '') continue
@@ -193,6 +206,11 @@ export function parseStatusV2(output: string): GitStatus {
     if (line.startsWith('# ')) {
       applyBranchHeader(line.slice(2), status)
       continue
+    }
+
+    if (status.changes.length >= limit) {
+      status.truncated = true
+      break
     }
 
     const type = line[0]

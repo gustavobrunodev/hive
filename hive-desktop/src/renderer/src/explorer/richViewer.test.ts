@@ -30,10 +30,15 @@ describe('richViewer', () => {
     it('maps documents, spreadsheets and presentations to their viewers', () => {
       expect(richViewerKind('a.pdf')).toBe('pdf')
       expect(richViewerKind('a.docx')).toBe('docx')
-      for (const ext of ['xlsx', 'xls', 'ods', 'csv', 'tsv']) {
+      for (const ext of ['xlsx', 'xls', 'ods']) {
         expect(richViewerKind(`a.${ext}`)).toBe('sheet')
       }
       expect(richViewerKind('a.pptx')).toBe('pptx')
+    })
+
+    it('leaves delimited text to the editor — a .csv is edited here, not rendered', () => {
+      expect(richViewerKind('dados.csv')).toBeNull()
+      expect(richViewerKind('dados.tsv')).toBeNull()
     })
 
     it('is case-insensitive', () => {

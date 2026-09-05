@@ -1,4 +1,11 @@
-import { HiveCellIcon, MicIcon, SparkleIcon, TerminalIcon, UserIcon } from '../ui/icons'
+import {
+  CloudKeyIcon,
+  HiveCellIcon,
+  MicIcon,
+  SparkleIcon,
+  TerminalIcon,
+  UserIcon
+} from '../ui/icons'
 import type { ProfileScope } from './scopes'
 
 type IconComponent = typeof UserIcon
@@ -15,6 +22,7 @@ const SCOPE_ICONS: Record<ProfileScope, IconComponent> = {
   account: UserIcon,
   agents: SparkleIcon,
   shortcuts: HiveCellIcon,
+  aws: CloudKeyIcon,
   voice: MicIcon,
   shell: TerminalIcon
 }

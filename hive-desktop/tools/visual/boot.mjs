@@ -37,6 +37,10 @@ async (page) => {
      */
     const CAPABILITIES = {
       'claude-cli': {
+        // context-compaction: what this agent's adapter measured (see its
+        // catalog module). Claude takes `/compact` but does not self-compact in
+        // print mode; Devin does both; Copilot is unmeasured.
+        compaction: { command: true, automatic: false },
         models: [
           {
             id: '',
@@ -137,6 +141,10 @@ async (page) => {
         defaults: { model: 'opus', effort: 'xhigh' }
       },
       'github-copilot': {
+        // context-compaction: what this agent's adapter measured (see its
+        // catalog module). Claude takes `/compact` but does not self-compact in
+        // print mode; Devin does both; Copilot is unmeasured.
+        compaction: { command: false, automatic: false },
         models: [
           {
             id: '',
@@ -473,10 +481,119 @@ async (page) => {
       snoozedUntil: null
     }
 
+    /**
+     * The workspace, in the order `listDir` really returns it: folders before
+     * files, each group naturally compared (`src/main/fileOrder.ts`). One of
+     * each config family so the icon set is visible, and a `second-brain/`
+     * vault with real pages — the knowledge base browses it with the very same
+     * `FileTree`.
+     */
+    const WORKSPACE_TREE = [
+      {
+        name: '_bmad',
+        path: '_bmad',
+        type: 'directory',
+        children: [
+          {
+            name: '_config',
+            path: '_bmad/_config',
+            type: 'directory',
+            children: [
+              { name: 'manifest.yaml', path: '_bmad/_config/manifest.yaml', type: 'file' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'docs',
+        path: 'docs',
+        type: 'directory',
+        children: [
+          { name: 'architecture.md', path: 'docs/architecture.md', type: 'file' },
+          { name: 'epics.md', path: 'docs/epics.md', type: 'file' },
+          { name: 'prd.md', path: 'docs/prd.md', type: 'file' },
+          { name: 'ux-spec.md', path: 'docs/ux-spec.md', type: 'file' }
+        ]
+      },
+      {
+        name: 'second-brain',
+        path: 'second-brain',
+        type: 'directory',
+        children: [
+          {
+            name: 'raw',
+            path: 'second-brain/raw',
+            type: 'directory',
+            children: [
+              { name: 'reuniao-2026-09-01.md', path: 'second-brain/raw/reuniao-2026-09-01.md', type: 'file' }
+            ]
+          },
+          {
+            name: 'wiki',
+            path: 'second-brain/wiki',
+            type: 'directory',
+            children: [
+              {
+                name: 'decisoes',
+                path: 'second-brain/wiki/decisoes',
+                type: 'directory',
+                children: [
+                  { name: 'adr-1.md', path: 'second-brain/wiki/decisoes/adr-1.md', type: 'file' },
+                  { name: 'adr-2.md', path: 'second-brain/wiki/decisoes/adr-2.md', type: 'file' },
+                  { name: 'adr-10.md', path: 'second-brain/wiki/decisoes/adr-10.md', type: 'file' }
+                ]
+              },
+              { name: 'glossario.md', path: 'second-brain/wiki/glossario.md', type: 'file' },
+              { name: 'index.md', path: 'second-brain/wiki/index.md', type: 'file' },
+              { name: 'onboarding.md', path: 'second-brain/wiki/onboarding.md', type: 'file' }
+            ]
+          },
+          { name: 'README.md', path: 'second-brain/README.md', type: 'file' }
+        ]
+      },
+      {
+        name: 'src',
+        path: 'src',
+        type: 'directory',
+        children: [
+          { name: 'app.tsx', path: 'src/app.tsx', type: 'file' },
+          { name: 'index.ts', path: 'src/index.ts', type: 'file' }
+        ]
+      },
+      { name: '.env', path: '.env', type: 'file' },
+      { name: 'deploy.sh', path: 'deploy.sh', type: 'file' },
+      { name: 'docker-compose.yaml', path: 'docker-compose.yaml', type: 'file' },
+      { name: 'electron-builder.yml', path: 'electron-builder.yml', type: 'file' },
+      { name: 'logo.svg', path: 'logo.svg', type: 'file' },
+      { name: 'notas.txt', path: 'notas.txt', type: 'file' },
+      { name: 'package.json', path: 'package.json', type: 'file' },
+      { name: 'README.md', path: 'README.md', type: 'file' }
+    ]
+
+    /** `listTree`'s answer for a workspace-relative directory (undefined = the root). */
+    const subtreeAt = (rel) => {
+      if (!rel) return WORKSPACE_TREE
+      let nodes = WORKSPACE_TREE
+      for (const segment of rel.split('/')) {
+        const next = nodes.find((node) => node.name === segment)
+        if (!next) return []
+        nodes = next.children ?? []
+      }
+      return nodes
+    }
+
     const agentListeners = []
     window.__agentEvent = (evt) => {
       for (const cb of agentListeners) cb(evt)
     }
+
+    /**
+     * engine-pins: the per-agent default `agent.pins`/`agent.pin` hold for this
+     * session. In memory, so pinning inside a scene is real — the trigger's
+     * mark, the hoisted "Seu padrão" section and the footer's button all read
+     * it back — without a config.json anywhere.
+     */
+    const enginePins = {}
 
     // git-management: one of every row the change list groups — staged,
     // modified, untracked, renamed and conflicted — so a pass sees the whole
@@ -788,6 +905,55 @@ async (page) => {
     const downloadSubs = []
     const settledSubs = []
     const phaseSubs = []
+    const awsSubs = []
+
+    // aws-bedrock: a real-shaped Bedrock machine with a live session. The
+    // numbers are the ones a Identity Center account actually produces —
+    // twelve-digit account, an `sso_session`-backed profile, an eight-hour
+    // token — because a fixture that rounds those off hides exactly the
+    // layout problems this scene exists to find.
+    const AWS_STATUS = {
+      active: true,
+      profile: 'fitame-dev',
+      profileSource: 'claude-settings',
+      region: 'us-east-1',
+      accountId: '060795902845',
+      roleName: 'AdministratorAccess',
+      startUrl: 'https://fitame.awsapps.com/start',
+      authKind: 'sso',
+      state: 'ready',
+      expiresAt: new Date(Date.now() + 6.2 * 3600e3).toISOString(),
+      expiresInMs: 6.2 * 3600e3,
+      cliAvailable: true,
+      authRefreshCommand: 'aws sso login --profile fitame-dev',
+      profiles: [
+        {
+          name: 'fitame-dev',
+          accountId: '060795902845',
+          roleName: 'AdministratorAccess',
+          region: 'us-east-1',
+          authKind: 'sso',
+          signedIn: true
+        },
+        {
+          name: 'fitame-prod',
+          accountId: '241533149506',
+          roleName: 'ReadOnly',
+          region: 'sa-east-1',
+          authKind: 'sso',
+          signedIn: false
+        }
+      ]
+    }
+    const AWS_IDLE_LOGIN = {
+      phase: 'idle',
+      profile: null,
+      url: null,
+      code: null,
+      message: null,
+      startedAt: null,
+      expiresAt: null
+    }
     /** Push one engine phase to every subscriber (M29). */
     window.__asrPhase = (phase) => {
       for (const fn of [...phaseSubs]) fn(phase)
@@ -817,54 +983,15 @@ async (page) => {
       // component's behavior. Nested and deep enough to exercise the tree's
       // real surfaces: expand/collapse, Ctrl/Shift multi-select over the
       // visible-flat order, and the row/empty-area context menus.
-      listTree: ok([
-        {
-          name: '_bmad',
-          path: '_bmad',
-          type: 'directory',
-          children: [
-            {
-              name: '_config',
-              path: '_bmad/_config',
-              type: 'directory',
-              children: [
-                { name: 'manifest.yaml', path: '_bmad/_config/manifest.yaml', type: 'file' }
-              ]
-            }
-          ]
-        },
-        {
-          name: 'docs',
-          path: 'docs',
-          type: 'directory',
-          children: [
-            { name: 'prd.md', path: 'docs/prd.md', type: 'file' },
-            { name: 'architecture.md', path: 'docs/architecture.md', type: 'file' },
-            { name: 'ux-spec.md', path: 'docs/ux-spec.md', type: 'file' },
-            { name: 'epics.md', path: 'docs/epics.md', type: 'file' }
-          ]
-        },
-        { name: 'second-brain', path: 'second-brain', type: 'directory', children: [] },
-        {
-          name: 'src',
-          path: 'src',
-          type: 'directory',
-          children: [
-            { name: 'index.ts', path: 'src/index.ts', type: 'file' },
-            { name: 'app.tsx', path: 'src/app.tsx', type: 'file' }
-          ]
-        },
-        { name: 'README.md', path: 'README.md', type: 'file' },
-        { name: 'package.json', path: 'package.json', type: 'file' },
-        // Config kinds get their own glyph (`ui/fileIcons.tsx`) — the fixture
-        // carries one of each family so a visual pass can actually see it.
-        { name: 'electron-builder.yml', path: 'electron-builder.yml', type: 'file' },
-        { name: 'docker-compose.yaml', path: 'docker-compose.yaml', type: 'file' },
-        { name: '.env', path: '.env', type: 'file' },
-        { name: 'deploy.sh', path: 'deploy.sh', type: 'file' },
-        { name: 'logo.svg', path: 'logo.svg', type: 'file' },
-        { name: 'notas.txt', path: 'notas.txt', type: 'file' }
-      ]),
+      // The tree comes back in the order the real `listDir` produces it
+      // (`src/main/fileOrder.ts`): every folder first, then every file, each
+      // group compared naturally. Authoring the fixture in any other order
+      // would make a pass see an ordering the app never ships.
+      //
+      // `listTree(root, rel)` browses a *subtree* when `rel` is given — the
+      // knowledge base points this same explorer at its vault folder — so the
+      // mock resolves the path instead of always answering with the root.
+      listTree: (_root, rel) => Promise.resolve(subtreeAt(rel)),
       // chat-file-links: the oracle that decides which paths in a reply are
       // openable. Wide enough that a scene can name real ones AND a path that
       // is deliberately not here, so a pass can see both outcomes side by side.
@@ -879,7 +1006,31 @@ async (page) => {
         'src/renderer/src/assets/workbench.css',
         'logo.svg'
       ]),
-      readFile: ok('# README\n'),
+      // Enough prose for the editor to be an editor: several lines, headings,
+      // and a document long enough that "where was I?" is a real question when
+      // the surface swaps between Editar and Visualizar.
+      readFile: (_root, rel) =>
+        Promise.resolve(
+          rel && rel.endsWith('.md')
+            ? [
+                `# ${rel.split('/').pop()?.replace(/\.md$/, '') ?? 'Documento'}`,
+                '',
+                'Este documento é o rascunho que a squad revisa em conjunto.',
+                '',
+                '## Contexto',
+                '',
+                'O time precisa de um lugar único para as decisões — hoje elas',
+                'moram em três canais diferentes e ninguém sabe qual vale.',
+                '',
+                '## Decisão',
+                '',
+                '1. Uma base por workspace.',
+                '2. Toda ingestão passa por revisão.',
+                '3. O índice é a porta de entrada.',
+                ''
+              ].join('\n')
+            : '# README\n'
+        ),
       watchWorkspace: (root, onChange) => {
         state.watchers.push(onChange)
         return () => {
@@ -901,6 +1052,15 @@ async (page) => {
         // return — `descriptionKey`/`traits`/`group`/`source`/`resolvedId` and
         // the provenance fields the panel's footer reads.
         capabilities: (agentId) => Promise.resolve(CAPABILITIES[agentId] ?? CAPABILITIES['claude-cli']),
+        // engine-pins: the model+effort each agent starts on. Held in memory so
+        // pinning inside a scene is real — the trigger's mark, the hoisted
+        // "Seu padrão" section and the footer's button all read it back.
+        pins: () => Promise.resolve({ ...enginePins }),
+        pin: (agentId, pin) => {
+          if (pin === null) delete enginePins[agentId]
+          else enginePins[agentId] = pin
+          return Promise.resolve({ ...enginePins })
+        },
         chooseAttachments: ok([]),
         start: ok(undefined),
         send: ok(undefined),
@@ -914,6 +1074,11 @@ async (page) => {
         // the composer strip exist for.
         approvalSession: ok(location.search.includes('allowall=1')),
         setApprovalSession: ok(undefined),
+        // context-compaction: `Chat` reads this at mount too. `?nocompact=1`
+        // boots with Hive's own 80% threshold already off — the state the
+        // context sheet's switch exists for.
+        autoCompact: ok(!location.search.includes('nocompact=1')),
+        setAutoCompact: ok(undefined),
         onEvent: (cb) => {
           agentListeners.push(cb)
           return () => {}
@@ -928,7 +1093,17 @@ async (page) => {
         return noop
       },
       workflows: { list: ok([]) },
-      skills: { list: ok([]) },
+      // chat-slash-commands: a real slice of a provisioned workspace's BMAD
+      // catalog, so the menu's two sections and its descriptions are exercised.
+      skills: {
+        list: ok([
+          { key: 'bmad-prd', label: 'Criar PRD', description: 'Requisitos do produto, do problema ao escopo' },
+          { key: 'bmad-ux', label: 'Criar UX', description: 'Padrões de interação e especificação de interface' },
+          { key: 'bmad-architecture', label: 'Arquitetura', description: 'A espinha técnica que mantém tudo consistente' },
+          { key: 'bmad-create-story', label: 'Criar story', description: 'A próxima história, com todo o contexto' },
+          { key: 'bmad-code-review', label: 'Revisar código', description: 'Revisão adversarial em camadas paralelas' }
+        ])
+      },
       studio: { list: ok([]) },
       mcp: {
         // `pencil` is deliberately NOT in the catalog: it logs here but isn't
@@ -1286,6 +1461,37 @@ async (page) => {
           settledSubs.push(fn)
           return () => settledSubs.splice(settledSubs.indexOf(fn), 1)
         }
+      },
+      // aws-bedrock: the AWS session behind Claude-on-Bedrock. The default is
+      // a live session on a real-shaped profile, so every surface renders its
+      // ordinary state; drive the rest from the console:
+      //
+      //   window.__aws.status({ state: 'expired', expiresInMs: -1 })
+      //   window.__aws.login({ phase: 'browser', url: '…', code: 'VFRM-JRXW' })
+      //   window.__aws.login({ phase: 'success' })
+      aws: {
+        status: () => Promise.resolve(globalThis.__HIVE_AWS ?? AWS_STATUS),
+        loginState: () => Promise.resolve(globalThis.__HIVE_AWS_LOGIN ?? AWS_IDLE_LOGIN),
+        login: ok({ ok: true, refreshed: true }),
+        cancel: ok(undefined),
+        getProfile: ok(null),
+        setProfile: ok(undefined),
+        onState: (fn) => {
+          awsSubs.push(fn)
+          return () => awsSubs.splice(awsSubs.indexOf(fn), 1)
+        }
+      }
+    }
+
+    window.__aws = {
+      /** Replaces the machine's answer and re-reads it on the next poll. */
+      status: (patch) => {
+        globalThis.__HIVE_AWS = { ...(globalThis.__HIVE_AWS ?? AWS_STATUS), ...patch }
+      },
+      /** Pushes one live login phase to every subscriber. */
+      login: (patch) => {
+        globalThis.__HIVE_AWS_LOGIN = { ...AWS_IDLE_LOGIN, ...patch }
+        for (const fn of awsSubs) fn(globalThis.__HIVE_AWS_LOGIN)
       }
     }
   }, theme)

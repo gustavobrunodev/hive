@@ -8,6 +8,17 @@ export interface TreeNode {
   id: string
   label: ReactNode
   children?: TreeNode[]
+  /**
+   * Marks the node as a container even while `children` is empty or absent.
+   *
+   * "Has children right now" and "is a branch" are different questions, and
+   * answering the second with the first is why an empty folder used to render
+   * as a leaf: no chevron, no `aria-expanded`, and a click that did nothing at
+   * all. Every file manager disagrees — an empty folder still opens, and the
+   * arrow still turns — and so does any tree that loads its children lazily,
+   * where nothing is known about them until the row is opened.
+   */
+  expandable?: boolean
   disabled?: boolean
 }
 
@@ -15,7 +26,10 @@ export interface TreeRenderState {
   level: number
   expanded: boolean
   selected: boolean
+  /** Literal truth: this node has at least one child to show. */
   hasChildren: boolean
+  /** Whether the row behaves as a container — `hasChildren`, or `node.expandable`. */
+  expandable: boolean
 }
 
 export interface TreeProps {
@@ -48,7 +62,8 @@ interface FlatItem {
   node: TreeNode
   level: number
   parentId: string | null
-  hasChildren: boolean
+  /** Branch-ness, not child count — see `TreeNode.expandable`. */
+  expandable: boolean
 }
 
 /** Modifier state derived from the triggering click/keyboard event. */
@@ -59,6 +74,16 @@ export interface ActivateMods {
   range: boolean
 }
 
+/** Whether a node has children to render right now. */
+function hasChildrenOf(node: TreeNode): boolean {
+  return Boolean(node.children && node.children.length > 0)
+}
+
+/** Whether a node is a container: it has children, or it declares itself one. */
+function isBranch(node: TreeNode): boolean {
+  return node.expandable === true || hasChildrenOf(node)
+}
+
 function flattenVisible(
   nodes: TreeNode[],
   expandedIds: ReadonlySet<string>,
@@ -67,9 +92,8 @@ function flattenVisible(
 ): FlatItem[] {
   const out: FlatItem[] = []
   for (const node of nodes) {
-    const hasChildren = Boolean(node.children && node.children.length > 0)
-    out.push({ node, level, parentId, hasChildren })
-    if (hasChildren && expandedIds.has(node.id)) {
+    out.push({ node, level, parentId, expandable: isBranch(node) })
+    if (hasChildrenOf(node) && expandedIds.has(node.id)) {
       out.push(...flattenVisible(node.children as TreeNode[], expandedIds, level + 1, node.id))
     }
   }
@@ -79,7 +103,7 @@ function flattenVisible(
 function defaultRenderLabel(node: TreeNode, state: TreeRenderState): ReactNode {
   return (
     <>
-      {state.hasChildren && (
+      {state.expandable && (
         <svg
           className="hds-tree-chevron"
           width="12"
@@ -237,9 +261,9 @@ export function Tree({
         }
         case "ArrowRight": {
           event.preventDefault()
-          if (current.hasChildren && !expandedSet.has(current.node.id)) {
+          if (current.expandable && !expandedSet.has(current.node.id)) {
             expand(current.node.id)
-          } else if (current.hasChildren) {
+          } else if (current.expandable) {
             const next = enabledFlat[currentIndex + 1]
             if (next && next.parentId === current.node.id) focusItem(next.node.id)
           }
@@ -247,7 +271,7 @@ export function Tree({
         }
         case "ArrowLeft": {
           event.preventDefault()
-          if (current.hasChildren && expandedSet.has(current.node.id)) {
+          if (current.expandable && expandedSet.has(current.node.id)) {
             collapse(current.node.id)
           } else if (current.parentId) {
             focusItem(current.parentId)
@@ -353,7 +377,8 @@ function TreeItem({
   onToggleExpand,
   onActivate,
 }: TreeItemProps) {
-  const hasChildren = Boolean(node.children && node.children.length > 0)
+  const hasChildren = hasChildrenOf(node)
+  const expandable = isBranch(node)
   const expanded = expandedSet.has(node.id)
   const selected = selectedSet.has(node.id)
   const isActive = activeId === node.id
@@ -367,7 +392,7 @@ function TreeItem({
       role="treeitem"
       id={`hds-tree-item-${node.id}`}
       aria-selected={node.disabled ? undefined : selected}
-      aria-expanded={hasChildren ? expanded : undefined}
+      aria-expanded={expandable ? expanded : undefined}
       aria-disabled={node.disabled ? "true" : undefined}
       aria-level={level}
       tabIndex={node.disabled ? undefined : isActive ? 0 : -1}
@@ -398,7 +423,7 @@ function TreeItem({
       }}
     >
       <div className="hds-tree-row" style={{ paddingLeft: `calc(${level - 1} * var(--s-5))` }}>
-        {hasChildren ? (
+        {expandable ? (
           // A `<span>`, not a `<button aria-hidden>`. The `li` already carries
           // `role="treeitem"` and the row's whole click behaviour, so the
           // wrapper never needed to be interactive — and `aria-hidden` on it
@@ -428,14 +453,17 @@ function TreeItem({
               if (!mods.toggle && !mods.range) onToggleExpand(node.id)
             }}
           >
-            {renderLabel(node, { level, expanded, selected, hasChildren })}
+            {renderLabel(node, { level, expanded, selected, hasChildren, expandable })}
           </span>
         ) : (
           <span className="hds-tree-toggle hds-tree-toggle-leaf">
-            {renderLabel(node, { level, expanded, selected, hasChildren })}
+            {renderLabel(node, { level, expanded, selected, hasChildren, expandable })}
           </span>
         )}
       </div>
+      {/* An expanded branch with nothing in it owns no group: an empty
+          `role="group"` announces a list that isn't there. The chevron and
+          `aria-expanded` still turn, which is the part that was missing. */}
       {hasChildren && expanded && (
         <ul role="group">
           {(node.children as TreeNode[]).map((child) => (

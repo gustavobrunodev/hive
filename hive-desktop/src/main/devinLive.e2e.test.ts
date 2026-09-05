@@ -145,7 +145,72 @@ describe.skipIf(!AVAILABLE)('DevinAcpSession — against the real CLI', () => {
 
     session.stop()
   }, 180_000)
+
+  /**
+   * context-compaction, against the real thing.
+   *
+   * This is the claim the whole feature rests on, and the one that cannot be
+   * faked: that `/compact` sent as an ordinary prompt over ACP really compacts
+   * this CLI's context, and that what comes back is a
+   * `cognition.ai/compaction` notification carrying a summary — which is what
+   * Hive draws its seam from. The `available_commands_update` this session
+   * publishes lists `compact` alongside `ask` and `plan`; this proves the
+   * command behind that listing does what the listing implies.
+   */
+  it('compacts its own context when asked, and says so', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-devin-compact-'))
+    const session = createDevinAcpSession(createProcessRunner(), { workspace: dir })
+
+    // Something to compact. Free model, so the suite still costs nothing.
+    await turnOf(session, { text: 'Responda apenas: um', model: 'glm-5.2', turnId: 'pre-1' })
+
+    const events = await turnOf(session, { text: '/compact', turnId: 'compact-1' })
+    const compactions = events.filter((event) => event.type === 'compact')
+
+    // The notification arrives asynchronously — the prompt itself returns
+    // `end_turn` before the compaction starts, which is exactly why the pane
+    // settles its seam on this event and not on the turn.
+    const settled = await waitForCompaction(session, compactions)
+
+    expect(settled.some((event) => event.phase === 'start')).toBe(true)
+    const end = settled.find((event) => event.phase === 'end')
+    expect(end).toBeDefined()
+    // Asked for, not the agent's own ceiling.
+    expect(end?.trigger).toBe('manual')
+    // Devin hands over prose rather than counts; the seam's numbers come from
+    // the pane's own reading, and this is the half the CLI does supply.
+    expect((end?.summary ?? '').length).toBeGreaterThan(0)
+    // The CLI's progress chatter is the app's to draw, not the agent's to say.
+    expect(textOf(events)).not.toContain('Compacting context')
+
+    session.stop()
+  }, 300_000)
 })
+
+/**
+ * Waits for the compaction pair to arrive on the session's stream, starting
+ * from whatever the turn already collected. Devin reports the compaction
+ * *after* the prompt resolves, so a test that stopped at `done` would see only
+ * half of it — or none.
+ */
+async function waitForCompaction(
+  session: ReturnType<typeof createDevinAcpSession>,
+  seen: AgentEvent[]
+): Promise<Array<Extract<AgentEvent, { type: 'compact' }>>> {
+  const found = seen.filter(
+    (event): event is Extract<AgentEvent, { type: 'compact' }> => event.type === 'compact'
+  )
+  if (found.some((event) => event.phase === 'end')) return found
+  const iterator = session.events[Symbol.asyncIterator]()
+  const deadline = Date.now() + 240_000
+  while (Date.now() < deadline) {
+    const event = (await iterator.next()).value as AgentEvent
+    if (event.type !== 'compact') continue
+    found.push(event)
+    if (event.phase === 'end') return found
+  }
+  return found
+}
 
 /** Runs one turn and returns its events. */
 async function turnOf(

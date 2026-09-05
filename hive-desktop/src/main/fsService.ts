@@ -13,6 +13,7 @@ import {
   type FSWatcher
 } from 'fs'
 import { isAbsolute, join, relative, resolve, sep } from 'path'
+import { compareEntries, compareFileNames } from './fileOrder'
 import {
   readBinaryAt,
   readDocxAt,
@@ -276,7 +277,7 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
   const entries = readdirSync(dirAbs, { withFileTypes: true })
   const nodes: TreeNode[] = []
 
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const entry of entries) {
     if (VCS_INTERNAL_DIRS.has(entry.name)) continue
     const entryAbs = join(dirAbs, entry.name)
     const entryRel = joinRelative(relBase, entry.name)
@@ -309,6 +310,16 @@ function listDir(rootAbs: string, dirAbs: string, relBase: string): TreeNode[] {
       nodes.push({ name: entry.name, path: entryRel, type: 'file' })
     }
   }
+
+  // Ordered after the walk, not before it: whether an entry is a directory is
+  // only known once symlinks have been resolved above, and folders-first is
+  // the first half of the rule (see `fileOrder.ts`).
+  nodes.sort((a, b) =>
+    compareEntries(
+      { name: a.name, directory: a.type === 'directory' },
+      { name: b.name, directory: b.type === 'directory' }
+    )
+  )
 
   return nodes
 }
@@ -350,7 +361,7 @@ function walkFiles(dirAbs: string, relBase: string, sink: string[]): void {
   } catch {
     return
   }
-  entries.sort((a, b) => a.name.localeCompare(b.name))
+  entries.sort((a, b) => compareFileNames(a.name, b.name))
   const subdirs: Array<{ abs: string; rel: string }> = []
   for (const entry of entries) {
     if (entry.isSymbolicLink()) continue

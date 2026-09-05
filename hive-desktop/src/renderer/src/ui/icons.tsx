@@ -32,11 +32,20 @@ export function FolderIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * The open folder. The front flap carries a class of its own so a surface that
+ * swaps this glyph in — the file tree, on expand — can animate the lid
+ * swinging up from where the closed one had it (`.wb-folder-flap` in
+ * workbench.css). Everywhere else it is an ordinary static icon.
+ */
 export function FolderOpenIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
       <path d="M1.75 3.75c0-.55.45-1 1-1h3.1l1.4 1.5h4.5c.55 0 1 .45 1 1v1.25" />
-      <path d="M1.75 12.25 3.3 7.1c.13-.42.52-.72.96-.72h8.9c.67 0 1.15.65.96 1.29l-1.1 3.86c-.12.43-.51.72-.96.72H1.75Z" />
+      <path
+        className="wb-folder-flap"
+        d="M1.75 12.25 3.3 7.1c.13-.42.52-.72.96-.72h8.9c.67 0 1.15.65.96 1.29l-1.1 3.86c-.12.43-.51.72-.96.72H1.75Z"
+      />
     </svg>
   )
 }
@@ -135,6 +144,78 @@ export function CloseIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * "Fechar as outras": this one stays, everything on both sides goes.
+ *
+ * The close family in the tab menu is five entries deep and the only thing
+ * that differs between them is *scope* — so the glyphs have to draw scope, and
+ * at 14px that rules out anything finer than a bar and an arrow. Here: the bar
+ * is the tab you kept, and both arrows point away from it. The first drawing
+ * of this set tried little tab rectangles with ×s struck through them; at the
+ * size it actually ships they all collapsed into the same grey smudge, which
+ * is the whole reason this note exists.
+ */
+export function CloseOthersIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 2.5v11" />
+      <path d="M5.5 8h-4M3.75 5.75 1.5 8l2.25 2.25" />
+      <path d="M10.5 8h4M12.25 5.75 14.5 8l-2.25 2.25" />
+    </svg>
+  )
+}
+
+/** "Fechar as da direita": this one stays, everything past it goes that way. */
+export function CloseRightIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3.25 2.5v11" />
+      <path d="M5.75 8h8.25M11.5 5.5 14 8l-2.5 2.5" />
+    </svg>
+  )
+}
+
+/**
+ * "Fechar todas": the whole frame goes — a × inside the box, against the bare
+ * × of "Fechar". One is this tab; the other is everything the strip holds.
+ */
+export function CloseAllIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.5" />
+      <path d="m5.75 5.75 4.5 4.5M10.25 5.75l-4.5 4.5" />
+    </svg>
+  )
+}
+
+/**
+ * "Manter aberta": a preview tab pinned down so the next click does not
+ * replace it. A pushpin seen head-on — the head, the shaft, the point.
+ */
+export function PinIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M5.5 1.75h5l-.75 3.85 2.6 2.6c.33.33.1.9-.36.9H3.98c-.46 0-.69-.57-.36-.9l2.6-2.6L5.5 1.75Z" />
+      <path d="M8 9.1v5.15" />
+    </svg>
+  )
+}
+
+/**
+ * "Revelar no explorador": point the file tree at this file. Concentric
+ * rings around a filled centre — the universal "here it is", and readable at
+ * 14px in a way an arrow-into-a-tree never is.
+ */
+export function TargetIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="5.75" />
+      <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M8 .75v2M8 13.25v2M.75 8h2M13.25 8h2" />
+    </svg>
+  )
+}
+
 /** Hexagon cell — the hive mark used as the agent's chat avatar. */
 export function HiveCellIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
@@ -158,6 +239,52 @@ export function FolderPlusIcon({ size, ...rest }: IconProps): React.JSX.Element 
     <svg {...base(size)} {...rest}>
       <path d="M1.75 3.75c0-.55.45-1 1-1h3.1l1.4 1.5h5c.55 0 1 .45 1 1v7c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-8.5Z" />
       <path d="M8 7v3.5M6.25 8.75h3.5" />
+    </svg>
+  )
+}
+
+/**
+ * The `.csv` table mode. A framed grid with its first row set apart — the
+ * header — because the thing that distinguishes this mode from the raw text
+ * beside it is precisely that the file has columns with names.
+ */
+export function TableIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="2.25" y="2.75" width="11.5" height="10.5" rx="1" />
+      <path d="M2.25 6.25h11.5M6.5 6.25v7" />
+    </svg>
+  )
+}
+
+/**
+ * "Insert a row" / "insert a column".
+ *
+ * Two full bands (the table you have), a third that stops short (the one
+ * arriving) and a plus finishing it. The first drawing was two full bands and
+ * a plus underneath, which at 16px reads as a filter — a stack of lines
+ * narrowing to a point is that icon, whatever was meant. The unfinished third
+ * band is what makes it a table growing instead.
+ *
+ * The pair is the same drawing rotated: bands lie down for a row and stand up
+ * for a column, and the plus is always at the far end of the new one.
+ */
+export function RowPlusIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.5 3.5h11M2.5 6.75h11" />
+      <path d="M2.5 11.5h4" />
+      <path d="M11 9.75v3.5M9.25 11.5h3.5" />
+    </svg>
+  )
+}
+
+export function ColumnPlusIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3.5 2.5v11M6.75 2.5v11" />
+      <path d="M11.5 2.5v4" />
+      <path d="M11.5 9.25v3.5M9.75 11h3.5" />
     </svg>
   )
 }
@@ -533,6 +660,21 @@ export function SlashIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * Compact — two chevrons pressing inward on a standing line: "squeeze this
+ * down to that". Deliberately a *horizontal* squeeze so it never reads as
+ * `CollapseAllIcon`, which folds vertically and already means "close the tree".
+ */
+export function CompactIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 2.5v11" />
+      <path d="M2.25 5.5 4.75 8l-2.5 2.5" />
+      <path d="M13.75 5.5 11.25 8l2.5 2.5" />
+    </svg>
+  )
+}
+
 /** Grip — six-dot drag handle (movable pane headers). */
 export function PaperclipIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
@@ -684,6 +826,33 @@ export function PlugIcon({ size, ...rest }: IconProps): React.JSX.Element {
       <path d="M5.5 1.75v3M10.5 1.75v3" />
       <path d="M3.75 4.75h8.5v2.5a4.25 4.25 0 0 1-8.5 0z" />
       <path d="M8 11.5v2.75" />
+    </svg>
+  )
+}
+
+/**
+ * Cloud with a key — the AWS session behind Claude-on-Bedrock (aws-bedrock).
+ *
+ * A plain cloud would read as "storage" or "sync"; the key is what says this
+ * row is about *being allowed in*, which is the only thing this surface is
+ * ever about.
+ */
+export function CloudKeyIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4.6 11.5A2.85 2.85 0 0 1 4.9 5.85a3.6 3.6 0 0 1 6.85-.6 2.7 2.7 0 0 1 .6 5.32" />
+      <circle cx="6.9" cy="11.9" r="1.85" />
+      <path d="M8.6 11.35h4.65M12.15 11.35v1.6M13.25 11.35v1.25" />
+    </svg>
+  )
+}
+
+/** A shield with a check — a credential that is currently good. */
+export function ShieldCheckIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.9 13 3.6v4.2c0 3-2.1 5.3-5 6.3-2.9-1-5-3.3-5-6.3V3.6L8 1.9Z" />
+      <path d="M5.9 7.9 7.4 9.4l3-3.1" />
     </svg>
   )
 }

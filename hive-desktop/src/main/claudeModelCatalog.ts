@@ -1,5 +1,11 @@
 import { join } from 'path'
-import type { AgentCapabilities, AgentOption, AgentProvider, CapabilityNote } from './agentAdapter'
+import type {
+  AgentCapabilities,
+  AgentOption,
+  AgentProvider,
+  CapabilityNote,
+  CompactionSupport
+} from './agentAdapter'
 import {
   CLI_DEFAULT_ID,
   asRecord,
@@ -8,6 +14,28 @@ import {
   readJsonFile,
   strongestSource
 } from './modelCatalog'
+
+/**
+ * What Claude Code does about a full context window, on the transport this
+ * adapter drives (context-compaction). Both halves are **measured on
+ * `claude 2.1.x` in print mode**, not read off `--help`, which describes the
+ * interactive session Hive never opens:
+ *
+ *  - `claude -p "/compact" --resume <id>` really compacts. It answers with
+ *    `{"type":"system","subtype":"compact_boundary","compact_metadata":
+ *    {"trigger":"manual","pre_tokens":22678,"post_tokens":757,…}}` and **keeps
+ *    the same session id**, so a conversation's resume handle survives its own
+ *    compaction.
+ *  - Its auto-compaction did *not* fire here. A resumed `-p` turn run with
+ *    `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=1` — a ceiling of ~2k — over a
+ *    22 577-token context compacted nothing. `--autocompact` is real, but it
+ *    belongs to the interactive loop: `-p` runs one turn and exits, so no
+ *    session sits there watching itself fill up.
+ *
+ * That asymmetry is why `automatic` is a separate flag. On this transport
+ * nobody is minding the ceiling unless Hive does.
+ */
+export const CLAUDE_COMPACTION: CompactionSupport = { command: true, automatic: false }
 
 /**
  * What the `claude` CLI can actually run **on this machine** — the fix for
@@ -186,10 +214,21 @@ export interface ClaudeCatalogDeps {
 }
 
 /** The merged view of the settings chain that detection actually consumes. */
-interface ClaudeSettings {
+export interface ClaudeSettings {
   model: string | null
   effortLevel: string | null
   env: Record<string, string>
+  /**
+   * `awsAuthRefresh` — the command the CLI shells out to when its AWS
+   * credentials need renewing. Exported (rather than read only here) because
+   * it is the single most reliable statement of *which AWS profile this
+   * project uses*: a team that writes `aws sso login --profile acme` into
+   * settings has named the profile for us. It is also the thing that fails
+   * inside Hive, since it wants a terminal — see `awsBedrock.ts`.
+   */
+  awsAuthRefresh: string | null
+  /** `awsCredentialExport` — the non-interactive sibling of the above. */
+  awsCredentialExport: string | null
 }
 
 /**
@@ -235,6 +274,7 @@ export function detectClaudeCapabilities(deps: ClaudeCatalogDeps): AgentCapabili
     provider,
     modelSource: strongestSource(withDefault),
     defaults: { model: settings.model, effort: settings.effortLevel },
+    compaction: CLAUDE_COMPACTION,
     ...(note ? { note } : {})
   }
 }
@@ -286,9 +326,9 @@ function demoteToMore(options: AgentOption[]): AgentOption[] {
  * one layer the user cannot override, which is exactly why an admin-pinned
  * model has to be the one the picker shows as the default.
  */
-function readSettingsChain(
+export function readSettingsChain(
   deps: ClaudeCatalogDeps,
-  readJson: <T>(path: string) => T | null
+  readJson: <T>(path: string) => T | null = readJsonFile
 ): ClaudeSettings {
   const files = [
     join(deps.home, '.claude', 'settings.json'),
@@ -300,12 +340,20 @@ function readSettingsChain(
       : []),
     policySettingsPath(deps.platform)
   ]
-  const merged: ClaudeSettings = { model: null, effortLevel: null, env: {} }
+  const merged: ClaudeSettings = {
+    model: null,
+    effortLevel: null,
+    env: {},
+    awsAuthRefresh: null,
+    awsCredentialExport: null
+  }
   for (const file of files) {
     const raw = readJson<Record<string, unknown>>(file)
     if (!raw) continue
     merged.model = asText(raw.model) ?? merged.model
     merged.effortLevel = asText(raw.effortLevel) ?? merged.effortLevel
+    merged.awsAuthRefresh = asText(raw.awsAuthRefresh) ?? merged.awsAuthRefresh
+    merged.awsCredentialExport = asText(raw.awsCredentialExport) ?? merged.awsCredentialExport
     const envBlock = asRecord(raw.env)
     if (envBlock) {
       for (const [key, value] of Object.entries(envBlock)) {

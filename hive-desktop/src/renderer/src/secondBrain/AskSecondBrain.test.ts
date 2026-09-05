@@ -7,6 +7,7 @@ import type { BrainSetup, BrainSetupPhase } from './useBrainSetup'
 import type { SecondBrainStore } from './useSecondBrain'
 import type { AsrDictation } from '../dictation/useAsrDictation'
 import type { DictationPhase } from '../dictation/phase'
+import { installRunConfigMock } from '../testSupport/hiveRunConfigMock'
 
 /**
  * "Perguntar à base" (SB-R9) — the ask surface.
@@ -18,100 +19,113 @@ import type { DictationPhase } from '../dictation/phase'
  * arriving in the chat, recents persist per workspace, and a missing vault
  * offers setup instead of a broken query.
  */
-vi.mock('@hive/design-system', () => ({
-  // The stand-in keeps Radix's *contract* where the component depends on it:
-  // the root's dismissal callback and Content's Escape hook are how a take is
-  // stopped when the surface goes away, so both are reachable from a test.
-  Dialog: ({
-    open,
-    children,
-    onOpenChange
-  }: {
-    open?: boolean
-    children?: ReactNode
-    onOpenChange?: (open: boolean) => void
-  }) =>
-    open
-      ? createElement(
-          'div',
-          { role: 'dialog' },
-          createElement(
-            'button',
-            { type: 'button', onClick: () => onOpenChange?.(false) },
-            'fechar-dialogo'
-          ),
-          children
-        )
-      : null,
-  DialogContent: ({
-    children,
-    onOpenAutoFocus,
-    onEscapeKeyDown,
-    ...rest
-  }: {
-    children?: ReactNode
-    onOpenAutoFocus?: unknown
-    onEscapeKeyDown?: (event: { preventDefault: () => void }) => void
-  }) =>
-    createElement(
-      'div',
-      {
-        ...rest,
-        'data-autofocus': onOpenAutoFocus === undefined ? undefined : 'true',
-        onKeyDown: (event: React.KeyboardEvent) => {
-          if (event.key === 'Escape') onEscapeKeyDown?.(event.nativeEvent)
-        }
-      },
-      children
-    ),
-  LevelMeter: ({ label }: { label?: string }) =>
-    createElement('div', { role: 'meter', 'aria-label': label }),
-  DialogTitle: ({ children, ...rest }: { children?: ReactNode }) =>
-    createElement('h2', rest, children),
-  DialogDescription: ({ children, ...rest }: { children?: ReactNode }) =>
-    createElement('p', rest, children),
-  Button: ({ children, cut, ...rest }: { children?: ReactNode; cut?: boolean }) =>
-    createElement('button', { ...rest, 'data-cut': cut === true ? 'true' : undefined }, children),
-  // forwardRef like the real one — the caret-placement path depends on the ref
-  // reaching the DOM node, so a plain function stand-in would hide a real bug.
-  HighlightedTextarea: forwardRef<
-    HTMLTextAreaElement,
-    {
-      value: string
-      onSubmit?: () => void
-      onKeyDown?: (event: React.KeyboardEvent) => void
-      minRows?: number
-      maxRows?: number
-      active?: boolean
-      highlight?: (value: string) => ReactNode
-    }
-  >(function HighlightedTextarea(
-    { onSubmit, onKeyDown, minRows, maxRows, active, highlight, value, ...rest },
-    ref
-  ) {
-    return createElement(
-      'div',
-      { className: 'hl', 'data-active': active === true ? 'true' : undefined },
-      // The mirror, aria-hidden like the real one: the fresh-run mark is a
-      // class on one of these nodes, which is what the dictation test reads.
-      createElement('div', { 'aria-hidden': 'true', 'data-backdrop': 'true' }, highlight?.(value)),
-      createElement('textarea', {
-        ...rest,
-        value,
-        ref,
-        rows: minRows,
-        'data-max-rows': maxRows,
-        onKeyDown: (event: React.KeyboardEvent) => {
-          onKeyDown?.(event)
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault()
-            onSubmit?.()
+// An **async factory** with its import inside, not a factory closing over a
+// module-scope binding: `vi.mock` is hoisted above every import, and reading
+// one from in here throws the moment coverage instrumentation reorders the
+// module init (the IngestPanel suite records the same rule).
+vi.mock('@hive/design-system', async () => {
+  const { runConfigDsMocks } = await import('../testSupport/dsMocks')
+  return {
+    // The run-config controls the dialog now carries (agent + engine pickers).
+    ...runConfigDsMocks(),
+    // The stand-in keeps Radix's *contract* where the component depends on it:
+    // the root's dismissal callback and Content's Escape hook are how a take is
+    // stopped when the surface goes away, so both are reachable from a test.
+    Dialog: ({
+      open,
+      children,
+      onOpenChange
+    }: {
+      open?: boolean
+      children?: ReactNode
+      onOpenChange?: (open: boolean) => void
+    }) =>
+      open
+        ? createElement(
+            'div',
+            { role: 'dialog' },
+            createElement(
+              'button',
+              { type: 'button', onClick: () => onOpenChange?.(false) },
+              'fechar-dialogo'
+            ),
+            children
+          )
+        : null,
+    DialogContent: ({
+      children,
+      onOpenAutoFocus,
+      onEscapeKeyDown,
+      ...rest
+    }: {
+      children?: ReactNode
+      onOpenAutoFocus?: unknown
+      onEscapeKeyDown?: (event: { preventDefault: () => void }) => void
+    }) =>
+      createElement(
+        'div',
+        {
+          ...rest,
+          'data-autofocus': onOpenAutoFocus === undefined ? undefined : 'true',
+          onKeyDown: (event: React.KeyboardEvent) => {
+            if (event.key === 'Escape') onEscapeKeyDown?.(event.nativeEvent)
           }
-        }
-      })
-    )
-  })
-}))
+        },
+        children
+      ),
+    LevelMeter: ({ label }: { label?: string }) =>
+      createElement('div', { role: 'meter', 'aria-label': label }),
+    DialogTitle: ({ children, ...rest }: { children?: ReactNode }) =>
+      createElement('h2', rest, children),
+    DialogDescription: ({ children, ...rest }: { children?: ReactNode }) =>
+      createElement('p', rest, children),
+    Button: ({ children, cut, ...rest }: { children?: ReactNode; cut?: boolean }) =>
+      createElement('button', { ...rest, 'data-cut': cut === true ? 'true' : undefined }, children),
+    // forwardRef like the real one — the caret-placement path depends on the ref
+    // reaching the DOM node, so a plain function stand-in would hide a real bug.
+    HighlightedTextarea: forwardRef<
+      HTMLTextAreaElement,
+      {
+        value: string
+        onSubmit?: () => void
+        onKeyDown?: (event: React.KeyboardEvent) => void
+        minRows?: number
+        maxRows?: number
+        active?: boolean
+        highlight?: (value: string) => ReactNode
+      }
+    >(function HighlightedTextarea(
+      { onSubmit, onKeyDown, minRows, maxRows, active, highlight, value, ...rest },
+      ref
+    ) {
+      return createElement(
+        'div',
+        { className: 'hl', 'data-active': active === true ? 'true' : undefined },
+        // The mirror, aria-hidden like the real one: the fresh-run mark is a
+        // class on one of these nodes, which is what the dictation test reads.
+        createElement(
+          'div',
+          { 'aria-hidden': 'true', 'data-backdrop': 'true' },
+          highlight?.(value)
+        ),
+        createElement('textarea', {
+          ...rest,
+          value,
+          ref,
+          rows: minRows,
+          'data-max-rows': maxRows,
+          onKeyDown: (event: React.KeyboardEvent) => {
+            onKeyDown?.(event)
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault()
+              onSubmit?.()
+            }
+          }
+        })
+      )
+    })
+  }
+})
 
 // The gate is M26's own surface with its own suite; here it only has to be
 // something that renders, so the ask dialog can be asserted on its own terms.
@@ -209,6 +223,10 @@ function renderAsk(
       onOpenChange,
       store: store(overrides),
       onLaunch,
+      // The pool the footer's run-config offers — an ask runs on an agent, and
+      // which one is now the user's choice rather than an accident.
+      agents: ['claude-cli', 'copilot-cli'],
+      defaultAgent: 'claude-cli',
       setup: brainSetup
     })
   const { rerender } = render(element())
@@ -224,6 +242,8 @@ function renderAsk(
 describe('AskSecondBrain (SB-R9)', () => {
   beforeEach(() => {
     localStorage.clear()
+    // The footer's run-config talks to the bridge (capabilities + pins).
+    installRunConfigMock()
     voice = fakeVoice()
     dictationOptions = null
   })
@@ -255,9 +275,33 @@ describe('AskSecondBrain (SB-R9)', () => {
           key: 'second-brain-query',
           prompt: '/second-brain-query Como versionamos os specs?'
         }
-      })
+      }),
+      // …and the run-config rides along: the session that opens is the agent
+      // and model chosen in the footer, not the app default by accident.
+      expect.objectContaining({ agentId: 'claude-cli' })
     )
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  /**
+   * Who answers. A synthesis over the whole wiki is exactly the question where
+   * the model matters — and reading the transcript afterwards to find out
+   * which agent wrote it is too late.
+   */
+  it('names who will answer, and carries a changed model into the launch', async () => {
+    const { onLaunch, field } = renderAsk()
+    await screen.findByText('Quem vai responder')
+
+    fireEvent.click(screen.getByText(/Automático/))
+    fireEvent.click(await screen.findByRole('option', { name: 'Opus' }))
+
+    fireEvent.change(field, { target: { value: 'O que decidimos sobre versionamento?' } })
+    fireEvent.click(screen.getByText('Perguntar'))
+
+    expect(onLaunch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ agentId: 'claude-cli', model: 'opus' })
+    )
   })
 
   it('asks on Enter, the way the composer does', () => {
@@ -363,6 +407,8 @@ describe('AskSecondBrain (SB-R9)', () => {
 describe('AskSecondBrain — ditado', () => {
   beforeEach(() => {
     localStorage.clear()
+    // The footer's run-config talks to the bridge (capabilities + pins).
+    installRunConfigMock()
     voice = fakeVoice()
     dictationOptions = null
   })

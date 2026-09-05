@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "1.125rem",
+        "createdAt": "2026-09-04T08:49:14.854Z",
+        "reason": "DESIGN.md documents this as the Title step (600, 1.125rem / 18px)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "0.75rem",
+        "createdAt": "2026-09-04T08:49:14.886Z",
+        "reason": "shipped ramp step: 20+ existing DS components (Avatar, Attachment, Command, DropdownMenu) already set 0.75rem; DESIGN.md's list is incomplete, not the CSS"
+      }
+    ]
+  }
+}

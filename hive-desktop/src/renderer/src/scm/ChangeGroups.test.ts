@@ -31,6 +31,39 @@ afterEach(() => {
 })
 
 describe('ChangeGroups', () => {
+  it('splits a deep folder so the leaf is the part that survives the squeeze', () => {
+    // Head + tail are separate spans precisely so CSS can drop the head first.
+    // A row whose folder is one segment has a tail and no head.
+    render(
+      createElement(ChangeGroups, {
+        groups: groups({
+          unstaged: [
+            chg('_bmad-output/planning-artifacts/prds/prd-x/prd.md', '?', '?', {
+              isUntracked: true
+            }),
+            chg('.playwright-mcp/page.png', '?', '?', { isUntracked: true })
+          ]
+        })
+      })
+    )
+    const [deep, shallow] = Array.from(document.querySelectorAll('.wb-scm-path-dir'))
+
+    expect(deep.querySelector('.wb-scm-path-dir-head')?.textContent).toBe(
+      '_bmad-output/planning-artifacts/prds/'
+    )
+    expect(deep.querySelector('.wb-scm-path-dir-tail')?.textContent).toBe('prd-x')
+    expect(deep.textContent).toBe('_bmad-output/planning-artifacts/prds/prd-x')
+
+    expect(shallow.querySelector('.wb-scm-path-dir-head')).toBeNull()
+    expect(shallow.querySelector('.wb-scm-path-dir-tail')?.textContent).toBe('.playwright-mcp')
+  })
+
+  it('shows no folder at all for a root-level file', () => {
+    render(createElement(ChangeGroups, { groups: groups({ unstaged: [chg('a.txt', '.', 'M')] }) }))
+    expect(document.querySelector('.wb-scm-path-dir')).toBeNull()
+    expect(screen.getByText('a.txt')).toBeTruthy()
+  })
+
   it('renders each non-empty group with a title, count and rows', () => {
     render(
       createElement(ChangeGroups, {

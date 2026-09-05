@@ -698,6 +698,21 @@ body ::-webkit-scrollbar-corner {
   flex-shrink: 0;
 }
 
+/* An embedded tree (the knowledge base) has no pane header of its own, so its
+   toolbar carries the section name and the actions move to the far edge —
+   the same left-title/right-actions split a VS Code sidebar section makes. */
+.wb-tree-toolbar-title {
+  margin: 0 auto 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "Recolher todas as pastas" sits at the opposite end from the create
    actions, because it acts on the whole tree rather than on wherever the
    cursor is — the same split VS Code's explorer title bar makes. */
@@ -1035,6 +1050,35 @@ body ::-webkit-scrollbar-corner {
   border-color: var(--danger-ink, #e5484d);
 }
 
+/* The unsaved-changes guard names the file it is asking about — a bulk close
+   asks once per file, and the editor behind the dialog is not necessarily the
+   one at stake. A quiet plate, not a second paragraph: the question is above
+   it, and this is the subject line under it. */
+.wb-guard-subject {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  margin: var(--s-3) 0 0;
+  padding: 7px 10px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+}
+
+.wb-guard-file {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wb-guard-remaining {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 /* Generic dialog action row (delete-confirm / conflict dialogs) */
 .wb-dialog-actions {
   display: flex;
@@ -1215,15 +1259,27 @@ body ::-webkit-scrollbar-corner {
   padding-right: var(--s-1);
 }
 
-/* One body slot per open tab; only the active one is displayed. */
-.wb-tab-body {
+/* One body slot per open tab, all stacked on the same box, only the active one
+   visible. Same reasoning as the sidebar layers: `display: none` on a hidden
+   tab resets its editor's scroll to the top, so switching to a sibling tab and
+   back would lose your place in a long document. The `hidden` attribute stays
+   on the element (it is what the app sets), but its UA `display: none` is
+   overridden here in favour of `visibility`. */
+.wb-tab-bodies {
+  position: relative;
   flex: 1;
+  min-height: 0;
+}
+.wb-tab-body {
+  position: absolute;
+  inset: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .wb-tab-body[hidden] {
-  display: none;
+  display: flex;
+  visibility: hidden;
 }
 .wb-tab-body > .wb-viewer {
   flex: 1;
@@ -1663,6 +1719,69 @@ body ::-webkit-scrollbar-corner {
   }
 }
 
+/* A skill an agent *mentions* mid-reply (chat-command-mentions) — "invoque
+   /bmad-party-mode se quiser…". Same inline geometry as `.wb-pathlink`
+   (sized to the line it sits in, not the pill), but colored like the static
+   `.wb-command-token` a sent invocation renders as: a command should read as
+   a command wherever it shows up, in prose or as its own token. The accent
+   stays on the border, not the label, for the reason `.wb-command-token`
+   documents — coral text on `--surface-2` clears AA in light/Hive but not
+   dark (measured), so `--ink` carries the text and the border carries the
+   "this is a command" signal at the 3:1 floor a UI component needs. */
+.wb-cmdlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 1px 9px 1px 7px;
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, var(--border-strong));
+  border-radius: var(--rounded-full);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease-quart),
+    border-color 140ms var(--ease-quart),
+    color 140ms var(--ease-quart);
+}
+.wb-cmdlink svg {
+  flex: none;
+  color: var(--accent);
+}
+/* Same hover formula as `.wb-pathlink`, already measured there: `--accent`
+   on `--selected-bg` clears the 3:1 UI-component floor, and
+   `--accent-tint-ink` on the same ground clears 4.5:1, in every theme. */
+.wb-cmdlink:hover {
+  background: var(--selected-bg);
+  border-color: var(--accent);
+  color: var(--accent-tint-ink);
+}
+.wb-cmdlink:active {
+  background: var(--surface-2);
+}
+.wb-cmdlink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-cmdlink-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-cmdlink {
+    transition: none;
+  }
+}
+
 /* GFM task lists (remark-gfm, T1/UX-R7.1) */
 .wb-md ul.contains-task-list {
   list-style: none;
@@ -2039,6 +2158,80 @@ body ::-webkit-scrollbar-corner {
   color: var(--muted);
 }
 
+/* engine-pins — the default this agent starts on.
+   A full-width row above the provenance line, because it is a *setting* and
+   not a status: it changes what the next conversation does, and the rows'
+   own pins are pointer targets that a keyboard never reaches. */
+.wb-engine-pinrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.wb-engine-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.16s var(--ease-quart),
+    border-color 0.16s var(--ease-quart),
+    color 0.16s var(--ease-quart);
+}
+.wb-engine-pin-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-engine-pin-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+/* Pinned: the accent every "this is your current choice" mark in the app
+   uses, as a tint under full ink — the same treatment the selected picker row
+   gets, so the two read as one statement seen twice. */
+.wb-engine-pin-btn[data-on] {
+  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  color: var(--ink);
+}
+.wb-engine-pin-btn[data-on]:hover {
+  background: color-mix(in oklab, var(--accent) 26%, var(--surface));
+}
+.wb-engine-pin-btn[data-on] svg {
+  color: var(--accent);
+}
+
+/* Where the pin actually sits, when it is not on the row being read. */
+.wb-engine-pin-now {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* The pin on the closed control: small, accent, and never in the way of the
+   model's own name. */
+.wb-engine-pinned {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
 .wb-engine-provenance {
   display: flex;
   align-items: flex-start;
@@ -2147,7 +2340,8 @@ body ::-webkit-scrollbar-corner {
   .wb-engine-btn,
   .wb-engine-btn > svg:last-child,
   .wb-engine-spark i,
-  .wb-engine-refresh {
+  .wb-engine-refresh,
+  .wb-engine-pin-btn {
     transition: none;
   }
   .wb-engine-spin {
@@ -2925,16 +3119,37 @@ body ::-webkit-scrollbar-corner {
 }
 
 /* git-management (D-GIT-2): the swappable rail body host — fills the pane
-   below the header so the active view (tree or SCM panel) scrolls inside it. */
+   below the header so the active view (tree or SCM panel) scrolls inside it.
+   Also the stack the view layers are positioned against. */
 .wb-sidebar-host {
   /* The containing block for the explorer's copy confirmation (`.wb-tree-flash`),
-     which overlays the toolbar row rather than displacing the tree. */
+     which overlays the toolbar row rather than displacing the tree — and for
+     the view layers below. */
   position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+/* One layer per visited view, all the same size, only one visible.
+   Every layer is absolutely positioned — including the active one — so a view
+   that goes quiet keeps exactly the box it had, which is what keeps its
+   scroller where the user left it. `visibility: hidden` (not `display: none`,
+   which would throw that box away) also takes the layer out of the tab order
+   and out of the accessibility tree. */
+.wb-sidebar-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  visibility: hidden;
+}
+
+.wb-sidebar-layer[data-active] {
+  visibility: visible;
 }
 
 /* ── Source Control view (git-management §5.2/§7) ──────────────────────────
@@ -3091,14 +3306,40 @@ body ::-webkit-scrollbar-corner {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 0;
-  max-width: 60%;
+  /* The name is the row's identity, so it takes what it needs first — but not
+     the whole width, or a long generated filename would erase the folder and
+     leave two identically-named rows indistinguishable. */
+  max-width: 68%;
 }
+/* `--muted`, not `--faint`: once untracked folders list their files, the folder
+   is what tells `prd.md` here from `prd.md` there. It stopped being decoration,
+   so it has to meet text contrast (measured in all three themes). */
 .wb-scm-path-dir {
-  color: var(--faint);
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  /* Pushed to the trailing edge so the leaf folder lands in the same column on
+     every row: rows in one folder then read as one folder, instead of six
+     different truncations of the same string. */
+  margin-left: auto;
+  color: var(--muted);
   font-size: 0.75rem;
+  white-space: nowrap;
+}
+/* Middle ellipsis (see `splitDir`): the head absorbs the squeeze, the deepest
+   folder survives. The head's shrink factor is what makes it go first; the tail
+   still clips once even it cannot fit. */
+.wb-scm-path-dir-head {
+  flex: 0 999 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.wb-scm-path-dir-tail {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wb-scm-row-actions {
   display: inline-flex;
@@ -3116,6 +3357,25 @@ body ::-webkit-scrollbar-corner {
   padding: var(--s-1) var(--s-3);
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+/* The "list is capped" notice. The DS `Alert` sized for the rail: it lives in
+   a 260–360px pane next to the merge banner, so it borrows that banner's
+   inset and drops to the panel's own type scale rather than the DS default. */
+.wb-scm-notice {
+  margin: var(--s-2) var(--s-3) 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  gap: var(--s-2);
+}
+.wb-scm-notice .hds-alert-icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+.wb-scm-notice .hds-alert-title {
+  font-size: 0.8125rem;
 }
 
 /* Compact row / group action buttons (stage/unstage/discard). Quiet until the
@@ -4843,7 +5103,11 @@ button.wb-agent-pill-btn:focus-visible {
   right: 0;
   bottom: calc(100% + var(--s-2));
   z-index: var(--z-dropdown);
-  max-height: 280px;
+  /* Taller than the 280px the one-line palette needed: rows carry a
+     description again (see `SlashMenu.tsx` on why), and at 280 only three of
+     them fitted — a menu that opens on a bare `/` and shows three of thirty
+     answers "which one do I want" with a scrollbar. */
+  max-height: 372px;
   display: flex;
   flex-direction: column;
   overflow-y: hidden;
@@ -4927,35 +5191,126 @@ button.wb-agent-pill-btn:focus-visible {
   white-space: nowrap;
 }
 
-/* Command-palette rows: one line, just the command — what you pick is what
-   gets sent. Tighter than the two-line mention rows sharing this anatomy. */
-.wb-slash-item-cmd {
-  align-items: center;
-  padding-block: 6px;
-}
-.wb-slash-item-cmd .wb-slash-item-icon {
-  margin-top: 0;
+/* A group heading inside the listbox — "Do Hive" over the app's own commands,
+   "Skills do workspace" over BMAD's. `--muted` for the same measured reason as
+   the menu head above: `--faint` at this size misses the 4.5:1 floor in two of
+   the three themes. */
+.wb-slash-section {
+  padding: var(--s-3) var(--s-3) var(--s-1);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
-.wb-slash-item-cmd[data-active] .wb-slash-item-icon {
-  color: var(--accent);
+.wb-slash-section:first-child {
+  padding-top: var(--s-2);
 }
+
+/* The command, in the numeric face so `/bmad-prd` and `/bmad-prfaq` line up
+   glyph for glyph down the list — which is what makes a scan of thirty keys
+   possible at all. Not a monospace costume: `--ff-num` is the same family the
+   body uses, at its tabular figures. */
 .wb-slash-cmd {
-  font-family: 'Inter Tight', ui-monospace, monospace;
+  font-family: var(--ff-num);
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: 0.005em;
   color: var(--ink);
+  white-space: nowrap;
+}
+/* The matched run, from the same `matchRanges` the file menu paints with:
+   a row that shows why it matched is a row whose ranking can be trusted. */
+.wb-slash-match {
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.wb-slash-item[data-active] .wb-slash-match {
+  color: var(--accent);
+}
+
+/* What may follow the command, bracketed so it never reads as part of the name.
+   `--muted`, not `--faint`: measured on the real menu, `--faint` here is
+   3.43:1 dark / 3.12:1 light / 3.66:1 hive — under the 4.5:1 floor this 12px
+   text owes, in all three. It is the third time this token has failed that
+   floor in this app; `--muted` clears 5:1 everywhere and still reads as the
+   quietest thing on the row. */
+.wb-slash-arg {
+  min-width: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wb-slash-arg::before {
+  content: '[';
+}
+.wb-slash-arg::after {
+  content: ']';
+}
+
+.wb-slash-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-slash-note .wb-slash-section {
+  padding: 0;
+}
+
+.wb-slash-item-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+/* The keyboard grammar, as keys rather than as a sentence. Reads at a glance
+   and — since the footer is the only place that says picking *completes*
+   rather than runs — it has to be read. */
 .wb-slash-menu-foot {
   margin-top: var(--s-1);
-  padding: var(--s-2) var(--s-3) var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.6875rem;
   color: var(--muted);
   border-top: 1px solid var(--border);
+}
+.wb-slash-foot-keys {
+  display: inline-flex;
+  gap: 3px;
+}
+.wb-slash-foot-sep {
+  width: 1px;
+  height: 10px;
+  margin-inline: 2px;
+  background: var(--border-strong);
+}
+.wb-slash-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--ff-num);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* ==========================================================================
@@ -5186,6 +5541,26 @@ button.wb-agent-pill-btn:focus-visible {
   background: color-mix(in oklab, var(--accent) 30%, transparent);
   border-radius: var(--rounded-sm);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* `/command` chip in the composer backdrop — a *different* claim from the `@`
+   pill beside it, so a deliberately different colour.
+   `@src/app.tsx` says "this names a file that exists"; `/bmad-prd` says "this
+   line is an invocation". Drawn in the same accent they would read as one kind
+   of special-looking text, which is exactly the confusion the token exists to
+   remove. `--info` is the app's own secondary hue, already measured in all
+   three themes, so this needs no new colour.
+
+   Same mechanics as the mention pill: transparent glyphs (the textarea owns
+   them), and the ring is the same fill spread outward, so nothing
+   double-darkens where they meet. `clone` keeps a wrapped token whole. */
+.wb-command-chip {
+  color: transparent;
+  background: color-mix(in oklab, var(--info) 26%, transparent);
+  border-radius: var(--rounded-sm);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--info) 26%, transparent);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -8108,20 +8483,43 @@ button.wb-agent-pill-btn:focus-visible {
    `flex-wrap` because the panel is narrow: at the studio's width the two pills
    fit side by side, and a long agent name simply drops the engine control onto
    its own line rather than squeezing either. */
-.wb-studio-run {
+/* How a session will run — the agent, the model and the effort — wherever one
+   is about to start (`RunConfigBar`). One block of rules for the studio, the
+   ingestion sheet and "Perguntar à base", because the whole point of the
+   shared component is that the three cannot drift. */
+.wb-runconfig {
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
 }
-.wb-studio-run-legend {
+
+/* The launcher shape: a row that joins a footer already on screen. The label
+   leads the controls instead of standing over them — in a compact dialog a
+   stacked legend costs a line for four words. */
+.wb-runconfig[data-variant='inline'] {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.wb-runconfig-legend {
   padding: 0;
-  margin-bottom: var(--s-3);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ink);
 }
-.wb-studio-run-controls {
+
+/* Beside the controls it is a caption, not a heading: same size as the pills
+   it labels would fight them, so it steps back to the secondary ink. */
+.wb-runconfig[data-variant='inline'] .wb-runconfig-legend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.wb-runconfig-controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -8129,9 +8527,9 @@ button.wb-agent-pill-btn:focus-visible {
   min-width: 0;
 }
 
-/* An agent with no levers says so, rather than leaving an empty fieldset that
+/* An agent with no levers says so, rather than leaving an empty row that
    reads as something failing to load. */
-.wb-studio-run-none {
+.wb-runconfig-none {
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.5;
@@ -10529,10 +10927,13 @@ button.wb-agent-pill-btn:focus-visible {
    dark. Size + weight still carry the hierarchy. */
 .wb-brain-ask-cta-hint {
   font-size: 11px;
+  line-height: 1.35;
   color: color-mix(in srgb, var(--muted) 55%, var(--ink));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Wraps to a second line rather than truncating. At the rail's default width
+     this sentence does not fit on one line, and "Busca e sintetiza a pa…" is a
+     promise cut off exactly where it starts being a promise. Two lines cost
+     11px; the ellipsis cost the sentence. */
+  overflow-wrap: break-word;
 }
 
 /* Shared key-cap treatment (panel CTA + FAB menu). */
@@ -11135,6 +11536,20 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.75rem;
   line-height: 1.5;
   color: var(--danger);
+}
+
+/* Who receives the document, directly above the button that sends it. It sits
+   inside the same rule as the action bar — one separator, one closing zone —
+   so the sheet reads as capture above, dispatch below. */
+.wb-brain-ingest .wb-runconfig {
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+
+/* …and the action bar under it drops its own rule, which would otherwise draw
+   a second line 40px below the first. */
+.wb-brain-ingest .wb-runconfig + .wb-brain-ingest-actions {
+  border-top: 0;
 }
 
 /* Action bar: the reason a send is blocked sits on the same line as the
@@ -12861,15 +13276,26 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
-/* Wiki browser (SB-R2.3) — index + lazily-expanding wiki/ tree. */
-.wb-brain-wiki {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+/* The launcher block above the vault's files: it keeps its natural height
+   while there is room, and gives that room back (scrolling itself) before it
+   is allowed to squeeze the file tree out of a short rail. */
+.wb-brain-top {
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* The vault's files (SB-R2.3) — the Explorer's own tree, rooted at the vault
+   folder. It owns the leftover height and scrolls inside itself, exactly like
+   the "Arquivos" view: same rows, same icons, same context menu, same
+   keyboard. The floor keeps a few rows visible even when the launchers above
+   are at their tallest. */
+.wb-brain-files {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 45%;
+  min-height: 132px;
   border-top: 1px solid var(--border);
-  padding-bottom: var(--s-2);
 }
 
 .wb-brain-section-title {
@@ -12882,70 +13308,7 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
 }
 
-.wb-brain-wiki-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.wb-brain-wiki-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  width: 100%;
-  padding: 3px var(--s-2) 3px var(--s-3);
-  font-size: 13px;
-  color: var(--ink);
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-}
-
-.wb-brain-wiki-row:hover {
-  background: var(--surface-2, var(--surface));
-}
-
-.wb-brain-wiki-row:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus);
-}
-
-.wb-brain-wiki-icon {
-  flex: 0 0 auto;
-  color: var(--muted);
-}
-
-.wb-brain-wiki-chevron {
-  flex: 0 0 auto;
-  color: var(--muted);
-  transform: rotate(-90deg);
-  transition: transform 160ms ease;
-}
-
-.wb-brain-wiki-chevron[data-expanded] {
-  transform: rotate(0deg);
-}
-
-.wb-brain-wiki-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-brain-wiki-index .wb-brain-wiki-name {
-  font-weight: 600;
-}
-
-.wb-brain-wiki-empty {
-  margin: 0;
-  padding: var(--s-2) var(--s-3);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .wb-brain-wiki-chevron,
   .wb-brain-action {
     transition: none;
   }
@@ -13138,6 +13501,14 @@ button.wb-agent-pill-btn:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The ask dialog's run-config: a quiet line between the question and the send
+   row, with the two pills carrying the weight. No rule of its own — the send
+   row below already draws one, and two hairlines 32px apart chop a compact
+   dialog into slices. */
+.wb-brain-ask-dialog .wb-runconfig {
+  padding-top: var(--s-2);
 }
 
 .wb-brain-ask-foot {
@@ -17408,4 +17779,1081 @@ button.wb-mcplog-summary:focus-visible {
   .wb-reasoning-hint {
     transition: none;
   }
+}
+
+/* ===========================================================================
+   aws-bedrock — a conexão AWS por trás do Claude no Amazon Bedrock
+   ===========================================================================
+
+   Três superfícies, uma só linguagem:
+
+     .wb-aws-beacon  — o login ao vivo, flutuando acima do trabalho
+     .wb-aws-scope   — o painel de estado em Perfil › Conexão AWS
+     .wb-awsturn     — a linha dentro da conversa que explica a pausa
+
+   O anel (`Gauge`) e a trilha de passos (`StepFlow`) vêm do design system;
+   aqui só existe o que é desta feature. Nenhuma cor literal: tudo em token,
+   porque os três temas têm que resolver de graça. */
+
+/* --- o farol: o login ao vivo, de qualquer lugar do app -------------------
+   Não é modal de propósito (ver AwsLoginBeacon.tsx): o usuário acabou de
+   mandar uma mensagem e o que ele mais precisa é continuar trabalhando
+   enquanto o navegador faz a parte dele. Ancorado no topo-centro, acima do
+   trabalho e abaixo de diálogo/toast — um login não interrompe uma escolha
+   que o usuário já estava fazendo. */
+.wb-aws-beacon {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-sticky);
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  animation: wb-aws-beacon-in 0.24s var(--ease-quart);
+}
+@keyframes wb-aws-beacon-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* --- o cartão do login (compartilhado pelo farol e pelo painel) ---------- */
+.wb-aws-flow {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 13px;
+}
+.wb-aws-scope .wb-aws-flow {
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+}
+.wb-aws-flow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* A placa do glifo é o único lugar com cor cheia no cartão: ela diz "algo
+   está acontecendo aqui" antes de qualquer palavra ser lida. */
+.wb-aws-flow-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+}
+.wb-aws-flow-mark[data-phase='success'] {
+  background: var(--success-bg);
+  color: var(--success-tint-ink);
+}
+.wb-aws-flow-mark[data-phase='failed'],
+.wb-aws-flow-mark[data-phase='canceled'] {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+.wb-aws-flow-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-aws-flow-profile {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Empurrado para a direita e discreto: onze segundos e quatro minutos pedem
+   reações diferentes, e sem ele os dois estados são idênticos na tela. */
+.wb-aws-flow-elapsed {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wb-aws-flow-steps {
+  margin: 0;
+}
+.wb-aws-flow-success {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+
+/* O código de verificação (fluxo device-code). Grande, espaçado e monoespaçado
+   porque a única coisa que se faz com ele é COMPARAR caractere a caractere com
+   o que a página do navegador mostra. */
+.wb-aws-code {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: var(--surface-3);
+}
+.wb-aws-code-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.wb-aws-code-value {
+  font-family: var(--ff-mono);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+.wb-aws-code-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* O endereço: uma linha, truncada, mas presente — um navegador que abriu no
+   perfil errado (ou não abriu) é a falha mais comum deste fluxo, e um beco sem
+   saída ali é imperdoável. */
+.wb-aws-flow-url {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.wb-aws-flow-url-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.wb-aws-flow-url-value {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 6px 8px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.wb-aws-flow-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wb-aws-flow-actions .wb-btn-sm.hds-btn {
+  gap: 6px;
+}
+/* Cancelar sai da linha dos dois botões que fazem o fluxo andar: é a saída,
+   não uma terceira ação equivalente. */
+.wb-aws-flow-cancel {
+  margin-left: auto;
+}
+.wb-aws-flow-detail {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* --- o painel de estado (Perfil › Conexão AWS) --------------------------- */
+.wb-aws-scope {
+  display: grid;
+  gap: 16px;
+}
+.wb-aws-skeleton {
+  height: 120px;
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+}
+
+/* O cartão de estado: anel à esquerda, frase e ação empilhadas à direita.
+   O anel vem primeiro porque a leitura que decide o dia — quanto sobra de
+   sessão — tem que chegar antes de qualquer palavra.
+   A ação NÃO fica na mesma linha da frase: medido no painel real (440px), a
+   frase espremia em três linhas entre o anel e o botão. Empilhada, ela usa a
+   largura toda e o botão alinha com o texto que o justifica. */
+.wb-aws-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+}
+.wb-aws-card-cta.hds-btn {
+  grid-column: 2;
+  justify-self: start;
+}
+.wb-aws-card[data-tone='warn'] {
+  border-color: color-mix(in oklab, var(--warning) 38%, var(--border));
+}
+.wb-aws-card[data-tone='bad'] {
+  border-color: color-mix(in oklab, var(--danger) 38%, var(--border));
+}
+.wb-aws-card-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  grid-column: 2;
+}
+.wb-aws-card-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-aws-card-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-aws-card-expiry {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Sem contagem regressiva: perfis de chave fixa não drenam nada, e um anel em
+   zero ali seria uma mentira em forma de medição. */
+.wb-aws-dial-static {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  flex: none;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.wb-aws-dial-static[data-state='not-configured'] {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+
+.wb-aws-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+.wb-aws-fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.wb-aws-fact dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.wb-aws-fact dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.wb-aws-source {
+  margin: -8px 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.wb-aws-nocli {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--warning) 38%, var(--border));
+  border-radius: var(--rounded-md);
+  background: var(--warning-bg);
+}
+.wb-aws-nocli-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-aws-nocli-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* A lista de perfis. Cada linha diz se já tem sessão — é o que transforma
+   trocar de perfil numa decisão em vez de num palpite. */
+.wb-aws-profiles {
+  display: grid;
+  gap: 4px;
+}
+.wb-aws-profiles-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-aws-profiles-hint {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-aws-profile-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wb-aws-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface-2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s var(--ease-quart),
+    background 0.16s var(--ease-quart);
+}
+.wb-aws-profile:hover {
+  border-color: var(--border-strong);
+}
+.wb-aws-profile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-aws-profile[data-selected] {
+  border-color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-aws-profile-check {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  flex: none;
+  color: var(--accent-tint-ink);
+}
+.wb-aws-profile-body {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.wb-aws-profile-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-aws-profile-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.wb-aws-profile-session {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.wb-aws-profile-session[data-signed-in] {
+  background: var(--success-bg);
+  color: var(--success-tint-ink);
+}
+
+/* O estado vazio: a máquina fala direto com a Anthropic. A linha existe para
+   ser encontrada por quem vai migrar, e não afirma nada que não seja verdade. */
+.wb-aws-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px 20px;
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-lg);
+}
+.wb-aws-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.wb-aws-empty-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-aws-empty-hint {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* --- a linha dentro da conversa -----------------------------------------
+   Mesma métrica do aviso de MCP (.wb-mcpturn): as duas são anotações do app
+   dentro de um turno, e duas alturas diferentes para o mesmo papel leem como
+   dois componentes. */
+.wb-awsturn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in oklab, var(--accent) 34%, var(--border));
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  font-size: 0.74rem;
+  text-align: left;
+}
+.wb-awsturn[data-phase='cleared'] {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.wb-awsturn-button {
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease-quart);
+}
+.wb-awsturn-button:hover {
+  border-color: var(--border-strong);
+}
+.wb-awsturn-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-awsturn-mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-tint-ink);
+}
+.wb-awsturn[data-phase='cleared'] .wb-awsturn-mark {
+  color: var(--success-tint-ink);
+}
+.wb-awsturn-head {
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-awsturn-hint {
+  color: var(--muted);
+}
+
+/* --- o banner de erro do turno, quando a causa é a AWS ------------------- */
+.wb-composer-error-aws {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wb-composer-error-text {
+  flex: 1;
+  min-width: 0;
+}
+.wb-composer-error-cta {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wb-composer-error-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-aws-beacon {
+    animation: none;
+  }
+  .wb-aws-profile,
+  .wb-awsturn-button {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Editor de planilhas (.csv/.tsv) — a tabela
+
+   O painel inteiro é o editor: barra de forma + ações em cima, grade do DS
+   embaixo. A grade traz a própria moldura (cabeçalho grudado, calha de
+   números, mira da célula); aqui fica só o que é do arquivo — quantas linhas,
+   qual separador — e as ações que mexem na estrutura.
+   ========================================================================== */
+
+.wb-csv {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+.wb-csv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 38px;
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.wb-csv-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.wb-csv-shape {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wb-csv-delimiter {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-csv-dot {
+  color: var(--faint);
+}
+
+.wb-csv-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* O interruptor do cabeçalho: um estado, não um comando. Por isso ele mostra
+   que está ligado (aria-pressed + tinta de seleção) em vez de virar um botão
+   que diz "desligar cabeçalho" — o rótulo nomeia a coisa, o desenho diz se
+   ela está valendo. */
+.wb-csv-toggle {
+  height: 24px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-csv-toggle:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-csv-toggle[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--selected-bg);
+  /* Não `--selected`: a tinta do acento sobre o próprio tint mede 4,02:1 no
+     tema escuro e 4,18:1 no Hive. `--accent-tint-ink` é o token que existe
+     para esse par exato. */
+  color: var(--accent-tint-ink);
+  font-weight: 600;
+}
+.wb-csv-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wb-csv-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Renomear a coluna acontece DENTRO do cabeçalho, no lugar do nome — um
+   diálogo para trocar uma palavra tira a coluna de vista justamente enquanto
+   se decide como chamá-la. */
+.wb-csv-rename {
+  width: 100%;
+  min-width: 8ch;
+  margin: -2px 0;
+  border: 0;
+  border-bottom: 2px solid var(--focus);
+  padding: 1px 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+/* A última linha da grade é um convite, não um botão numa barra: é onde a
+   mão já está quando acaba de preencher a última linha. */
+.wb-csv-addrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-4);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-csv-addrow:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-csv-addrow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-csv-toggle,
+  .wb-csv-addrow {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Abrir uma pasta — a resposta ao clique
+
+   Três coisas acontecem juntas e é isso que faz o gesto ter peso: a seta gira
+   (regra do DS, `aria-expanded`), a tampa da pasta levanta, e a lista que
+   apareceu entra deslizando um fio. Uma pasta VAZIA continua fazendo as duas
+   primeiras — é justamente o caso em que a terceira não tem o que mostrar, e
+   por isso a linha "Pasta vazia" existe.
+   ========================================================================== */
+
+@keyframes wb-folder-open {
+  from {
+    transform: rotate(-16deg) translateY(0.5px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* A dobradiça fica no canto inferior esquerdo do desenho, que é onde a tampa
+   encosta na traseira da pasta — girar pelo centro faz a peça deslizar para
+   fora da moldura em vez de abrir. */
+.wb-tree-icon .wb-folder-flap {
+  transform-box: fill-box;
+  transform-origin: 8% 92%;
+  animation: wb-folder-open 190ms var(--ease-quart) both;
+}
+
+@keyframes wb-tree-group-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wb-rail-scroll [role='group'] {
+  animation: wb-tree-group-in 160ms var(--ease-quart) both;
+}
+
+/* A linha de pasta vazia: uma legenda, não um item. Sem ícone (não há arquivo
+   nenhum ali), em itálico para não ser confundida com um nome de arquivo, e em
+   `--muted` porque é texto de leitura — `--faint` não passa de 4,5:1 em nenhum
+   dos três temas. */
+.wb-tree-empty-row {
+  cursor: default;
+}
+.wb-tree-empty-row .hds-tree-label-text {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   Revelar um arquivo vindo de fora da árvore (Ctrl+P)
+
+   A rolagem leva a linha até a tela, mas não diz QUAL delas é — num diretório
+   de nomes parecidos essa é a pergunta inteira. O pulso responde: a linha
+   pisca uma vez na cor de seleção e apaga. Ele NÃO substitui a seleção (essa
+   fica), só chama atenção para onde ela pousou.
+   ========================================================================== */
+
+@keyframes wb-tree-reveal {
+  0% {
+    background: var(--selected-bg);
+    box-shadow: inset 0 0 0 2px var(--focus);
+  }
+  60% {
+    background: var(--selected-bg);
+    box-shadow: inset 0 0 0 2px var(--focus);
+  }
+  100% {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px transparent;
+  }
+}
+
+.wb-tree-row-content[data-tree-revealed] {
+  border-radius: var(--rounded-sm);
+  animation: wb-tree-reveal 1200ms var(--ease-quart) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-tree-icon .wb-folder-flap,
+  .wb-rail-scroll [role='group'] {
+    animation: none;
+  }
+  /* O pulso continua existindo — ele é informação, não enfeite —, mas sem
+     percurso: acende e apaga. */
+  .wb-tree-row-content[data-tree-revealed] {
+    animation: wb-tree-reveal 1200ms steps(1, end) both;
+  }
+}
+
+/* ==========================================================================
+   Context compaction (context-compaction): the seam in the transcript where
+   the agent's memory of everything above was replaced by a summary of itself.
+
+   Drawn as a rule with a mark sitting on it — the date-divider anatomy — and
+   not as a bubble, because nobody said this: it happened *to* the
+   conversation. The whole column is used, so the seam reads as a boundary the
+   transcript crosses rather than as another entry in it.
+   ========================================================================== */
+.wb-compact-seam {
+  display: grid;
+  grid-template-columns: minmax(var(--s-4), 1fr) auto minmax(var(--s-4), 1fr);
+  align-items: center;
+  gap: var(--s-3);
+  margin-block: var(--s-4);
+  /* The one authored moment in this feature: the rule draws outward from the
+     centre as the numbers land. Everything else here is static. */
+  animation: wb-compact-in 0.28s var(--ease-quart) both;
+}
+@keyframes wb-compact-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-compact-seam {
+    animation: none;
+  }
+}
+
+/* A hairline that fades toward the mark, so the rule reads as *joining* the
+   two halves of the conversation instead of cutting them apart. */
+.wb-compact-rule {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-strong));
+}
+.wb-compact-rule:last-of-type {
+  background: linear-gradient(to left, transparent, var(--border-strong));
+}
+
+.wb-compact-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in oklab, var(--info) 34%, var(--border-strong));
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-quart),
+    background 0.15s var(--ease-quart);
+}
+.wb-compact-mark[data-static] {
+  cursor: default;
+}
+.wb-compact-mark:hover:not([data-static]) {
+  background: var(--surface-2);
+  border-color: color-mix(in oklab, var(--info) 55%, var(--border-strong));
+}
+.wb-compact-mark:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The glyph carries the hue; the label stays `--ink`. Coloured label text at
+   12px is the contrast trap this app has already paid for twice — an icon is a
+   UI component (3:1 floor), a label is body text (4.5:1). */
+.wb-compact-icon {
+  display: inline-flex;
+  color: var(--info);
+}
+.wb-compact-title {
+  color: var(--ink);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* The number is the point of the whole seam, so it gets the numeric face and
+   the strongest weight on the line. */
+.wb-compact-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-inline: 8px;
+  border-inline: 1px solid var(--border);
+  font-family: var(--ff-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wb-compact-from {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+.wb-compact-arrow {
+  color: var(--faint);
+}
+.wb-compact-to {
+  color: var(--ink);
+  font-weight: 700;
+}
+.wb-compact-meta {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wb-compact-caret {
+  display: inline-flex;
+  color: var(--muted);
+  transition: transform 0.18s var(--ease-quart);
+}
+.wb-compact-seam[data-open] .wb-compact-caret {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-compact-mark,
+  .wb-compact-caret {
+    transition: none;
+  }
+}
+
+/* Compacting, in progress: the mark holds a running state rather than
+   appearing only once the work is done — Claude reports its boundary after the
+   fact, and eight silent seconds read as a stall. The pulse is on the border,
+   not on the text, so nothing under it becomes hard to read while it runs. */
+.wb-compact-seam[data-pending] .wb-compact-mark {
+  animation: wb-compact-pulse 1.6s var(--ease-quart) infinite;
+}
+@keyframes wb-compact-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in oklab, var(--info) 30%, var(--border-strong));
+  }
+  50% {
+    border-color: color-mix(in oklab, var(--info) 80%, var(--border-strong));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-compact-seam[data-pending] .wb-compact-mark {
+    animation: none;
+    border-color: color-mix(in oklab, var(--info) 55%, var(--border-strong));
+  }
+}
+
+/* What the agent kept. Spans the seam's full width and scrolls on its own —
+   a compaction summary is legitimately a page long, and letting it push the
+   transcript would make opening it something you regret. */
+.wb-compact-summary {
+  grid-column: 1 / -1;
+  margin-top: var(--s-2);
+  padding: var(--s-4);
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+}
+.wb-compact-summary-title {
+  margin: 0 0 var(--s-2);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.wb-compact-summary-body {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* The summary is a *note about* the conversation, not a document in it, so its
+   own headings step down to the panel's scale. Left at the transcript's
+   Markdown sizes they out-shout the seam that opened them — measured on a real
+   Devin summary, whose `## Objetivo` rendered larger than anything the agent
+   had actually said above it. */
+.wb-compact-summary-body :is(h1, h2, h3, h4) {
+  margin: var(--s-3) 0 var(--s-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: none;
+  padding: 0;
+}
+.wb-compact-summary-body > :first-child {
+  margin-top: 0;
+}
+.wb-compact-summary-body :is(p, ul, ol) {
+  margin: 0 0 var(--s-2);
+}
+.wb-compact-summary-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Compaction inside the context sheet: the remedy, next to the reading that
+   made you want one. */
+.wb-ctx-compact-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  justify-content: center;
+  padding: 7px var(--s-3);
+  border: 1px solid color-mix(in oklab, var(--info) 40%, var(--border-strong));
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-ctx-compact-cta svg {
+  color: var(--info);
+}
+.wb-ctx-compact-cta:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in oklab, var(--info) 65%, var(--border-strong));
+}
+.wb-ctx-compact-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-ctx-compact-cta:disabled {
+  cursor: default;
+  color: var(--muted);
+}
+.wb-ctx-compact-cta:disabled svg {
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-ctx-compact-cta {
+    transition: none;
+  }
+}
+.wb-ctx-advice-note {
+  margin: var(--s-2) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Hive's own 80% threshold — shown only for an agent that needs it. */
+.wb-ctx-auto {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+.wb-ctx-auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+.wb-ctx-auto-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-ctx-auto-hint,
+.wb-ctx-auto-managed {
+  margin: var(--s-1) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-ctx-auto-managed {
+  margin: 0;
 }

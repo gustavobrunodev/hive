@@ -14,6 +14,8 @@ import { DictationBar } from '../dictation/DictationBar'
 import { useAsrDictation, type AsrDictation } from '../dictation/useAsrDictation'
 import type { ComposerDictation } from '../dictation/useComposerDictation'
 import { VoiceModelGate } from '../voice/VoiceModelGate'
+import { RunConfigBar } from '../ui/RunConfigBar'
+import { useRunConfig, type RunLaunchOpts } from '../chat/useRunConfig'
 import { loadRecentQuestions, rememberQuestion } from './askHistory'
 import { secondBrainQuery } from './secondBrainPrompts'
 import type { BrainSetup } from './useBrainSetup'
@@ -45,8 +47,15 @@ interface AskSecondBrainProps {
   onOpenChange: (open: boolean) => void
   /** Vault status for the active workspace (drives the no-vault guard + the pending caveat). */
   store: SecondBrainStore
-  /** Launches a slash command through the chat (D-SB-5) — where the answer lands. */
-  onLaunch: (action: RoleAction) => void
+  /**
+   * Launches a slash command through the chat (D-SB-5) — where the answer
+   * lands — on the agent/model chosen in the footer's run-config.
+   */
+  onLaunch: (action: RoleAction, opts?: RunLaunchOpts) => void
+  /** multi-agent: enabled agent ids, in display order — who can answer. */
+  agents?: string[]
+  /** The app default, where the run-config starts. */
+  defaultAgent?: string | null
   /** The vault-setup flow — drives the no-vault guard's two states. */
   setup: BrainSetup
   /** Opens Perfil › Voz e transcrição, for the model gate's way out (M26). */
@@ -214,7 +223,9 @@ export function AskSecondBrain({
   store,
   onLaunch,
   setup,
-  onOpenVoiceSettings
+  onOpenVoiceSettings,
+  agents = [],
+  defaultAgent = null
 }: AskSecondBrainProps): React.JSX.Element {
   const [question, setQuestion] = useState('')
   const [recents, setRecents] = useState<string[]>([])
@@ -249,14 +260,24 @@ export function AskSecondBrain({
     setQuestion(text)
   }, [])
 
+  // Who answers, on which model and at what effort. A synthesis over the whole
+  // wiki is exactly the question where the choice matters — and where reading
+  // the transcript afterwards to find out which agent wrote it is too late.
+  const runConfig = useRunConfig({
+    agents,
+    defaultAgent,
+    workspace: store.workspace,
+    active: open
+  })
+
   const ask = useCallback(() => {
     const asked = question.trim()
     if (asked === '') return
-    onLaunch(secondBrainQuery(asked))
+    onLaunch(secondBrainQuery(asked), runConfig.launchOpts)
     setRecents(rememberQuestion(store.workspace, asked))
     setQuestion('')
     onOpenChange(false)
-  }, [question, store.workspace, onLaunch, onOpenChange])
+  }, [question, store.workspace, onLaunch, onOpenChange, runConfig.launchOpts])
 
   // A question can be spoken instead of typed, with the composer's own
   // machinery: the field is the target, the engine is the app's own, and
@@ -377,6 +398,12 @@ export function AskSecondBrain({
             ) : (
               empty && <AskStarters onPick={fill} />
             )}
+
+            {/* The run-config sits on its own line above the send row rather
+                than inside it: while a take is live the transport takes that
+                row over entirely (the composer's rule), and a control that
+                disappears mid-question would look like it had been lost. */}
+            <RunConfigBar config={runConfig} legend={t('runConfig.askLegend')} variant="inline" />
 
             <footer className="wb-brain-ask-foot">
               <AskDictation voice={voice} />

@@ -1,4 +1,5 @@
 import { ApprovalCard, type ApprovalAnswer } from './ApprovalCard'
+import { AwsTurnNotice } from './AwsTurnNotice'
 import { McpTurnNotice } from './McpTurnNotice'
 import { ReasoningBlock } from './ReasoningBlock'
 import { ToolActivityFeed } from './ToolActivityFeed'
@@ -31,6 +32,8 @@ interface TurnTimelineProps {
   onOpenFile?: (path: string) => void
   /** mcp-visibility: opens the MCP console from the turn's handshake row. */
   onOpenMcpConsole?: () => void
+  /** aws-bedrock: opens Perfil › Conexão AWS from the turn's session row. */
+  onOpenAwsPanel?: () => void
 }
 
 /**
@@ -84,7 +87,8 @@ export function TurnTimeline({
   renderText,
   onApprovalDecide,
   onOpenFile,
-  onOpenMcpConsole
+  onOpenMcpConsole,
+  onOpenAwsPanel
 }: TurnTimelineProps): React.JSX.Element {
   const lastIndex = blocks.length - 1
 
@@ -107,6 +111,15 @@ export function TurnTimeline({
         }
         if (block.kind === 'approval') {
           return <ApprovalCard key={block.id} request={block.request} onDecide={onApprovalDecide} />
+        }
+        if (block.kind === 'auth') {
+          return (
+            <AwsTurnNotice
+              key={block.id}
+              phase={block.phase}
+              {...(onOpenAwsPanel ? { onOpenPanel: onOpenAwsPanel } : {})}
+            />
+          )
         }
         if (block.kind === 'mcp') {
           return (

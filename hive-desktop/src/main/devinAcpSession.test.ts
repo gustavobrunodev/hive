@@ -338,3 +338,171 @@ describe('DevinAcpSession — ACP updates → Hive events', () => {
     expect(events).toEqual([{ type: 'error', message: 'sem credencial', turnId: 't1' }])
   })
 })
+
+/**
+ * context-compaction, over the transport Devin is actually driven through.
+ *
+ * The sequence below is verbatim from a live `devin acp` session
+ * (3000.6.14): a display-flagged chunk "Compacting context…", the
+ * `cognition.ai/compaction` notification `started`, then `completed` with a
+ * prose summary, then a last display-flagged "Context compacted". The session
+ * also advertises `compact` in its own `available_commands_update`, which is
+ * why Hive forwards the command instead of inventing a compaction of its own.
+ */
+describe('DevinAcpSession — context compaction', () => {
+  /** A server that runs the real compaction sequence during the prompt. */
+  function compactingDevin(summary = 'Resumo da conversa.'): AcpTestServer {
+    return createAcpTestServer((method, params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 'slash-ocarina' }
+      if (method === 'session/prompt') {
+        self.emitUpdate({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'Compacting context…' },
+          _meta: { 'cognition.ai/displayMessage': true }
+        })
+        self.emit({
+          jsonrpc: '2.0',
+          method: '_cognition.ai/compaction',
+          params: { status: 'started', sessionId: 'slash-ocarina' }
+        })
+        self.emit({
+          jsonrpc: '2.0',
+          method: '_cognition.ai/compaction',
+          params: { status: 'completed', summary, sessionId: 'slash-ocarina' }
+        })
+        self.emitUpdate({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'Context compacted' },
+          _meta: { 'cognition.ai/displayMessage': true }
+        })
+        void params
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+  }
+
+  it('reports the compaction, with the summary the agent handed over', async () => {
+    const server = compactingDevin()
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+    session.send({ text: '/compact', turnId: 't1' })
+
+    const events = await drain(session.events)
+    const compactions = events.filter((event) => event.type === 'compact')
+    expect(compactions).toEqual([
+      { type: 'compact', phase: 'start', trigger: 'manual', turnId: 't1' },
+      {
+        type: 'compact',
+        phase: 'end',
+        trigger: 'manual',
+        summary: 'Resumo da conversa.',
+        turnId: 't1'
+      }
+    ])
+  })
+
+  // The seam is what the transcript shows. The CLI's own progress chatter
+  // ("Compacting context…" / "Context compacted") is it narrating itself, and
+  // it must not land in the reply as if the agent had said it.
+  it('keeps the CLI’s progress chatter out of the transcript', async () => {
+    const server = compactingDevin()
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+    session.send({ text: '/compact', turnId: 't1' })
+
+    const text = (await drain(session.events))
+      .filter((event): event is Extract<AgentEvent, { type: 'token' }> => event.type === 'token')
+      .map((event) => event.text)
+      .join('')
+    expect(text).toBe('')
+  })
+
+  // The ordering the real CLI has and a synchronous fake does not: the prompt
+  // resolves `end_turn` *before* the compaction starts. A session that forgot
+  // it had asked when the turn ended reported the user's own `/compact` as the
+  // agent's — which is exactly what the live test caught.
+  it('still knows it asked when the compaction outlives the turn', async () => {
+    let notify: () => void = () => {}
+    const server = createAcpTestServer((method, _params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 'slash-ocarina' }
+      if (method === 'session/prompt') {
+        notify = () => {
+          self.emit({
+            jsonrpc: '2.0',
+            method: '_cognition.ai/compaction',
+            params: { status: 'completed', summary: 'depois do turno', sessionId: 'slash-ocarina' }
+          })
+        }
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+    session.send({ text: '/compact', turnId: 't1' })
+
+    // Drain the turn to its terminal event, then let the notification land.
+    const iterator = session.events[Symbol.asyncIterator]()
+    for (;;) {
+      const event = (await iterator.next()).value as AgentEvent
+      if (event.type === 'done' || event.type === 'error') break
+    }
+    notify()
+    const compaction = (await iterator.next()).value as AgentEvent
+    expect(compaction).toMatchObject({ type: 'compact', phase: 'end', trigger: 'manual' })
+  })
+
+  // The notification never says who asked. This session does — it saw the
+  // prompt — and getting it wrong would put "você compactou" under a
+  // compaction Devin performed entirely on its own.
+  it('marks a compaction nobody asked for as the agent’s own', async () => {
+    const server = createAcpTestServer((method, _params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 'slash-ocarina' }
+      if (method === 'session/prompt') {
+        self.emit({
+          jsonrpc: '2.0',
+          method: '_cognition.ai/compaction',
+          params: { status: 'completed', summary: 'auto', sessionId: 'slash-ocarina' }
+        })
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+    session.send({ text: 'continue o trabalho', turnId: 't1' })
+
+    const compaction = (await drain(session.events)).find((event) => event.type === 'compact')
+    expect(compaction).toMatchObject({ trigger: 'auto', phase: 'end' })
+  })
+
+  // Suppression is scoped to the window the agent itself declared: prose that
+  // merely arrives while a compaction runs is still the agent talking.
+  it('lets ordinary prose through during a compaction', async () => {
+    const server = createAcpTestServer((method, _params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 'slash-ocarina' }
+      if (method === 'session/prompt') {
+        self.emit({
+          jsonrpc: '2.0',
+          method: '_cognition.ai/compaction',
+          params: { status: 'started', sessionId: 'slash-ocarina' }
+        })
+        self.emitUpdate({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'resposta de verdade' }
+        })
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+    session.send({ text: 'oi', turnId: 't1' })
+
+    const text = (await drain(session.events))
+      .filter((event): event is Extract<AgentEvent, { type: 'token' }> => event.type === 'token')
+      .map((event) => event.text)
+      .join('')
+    expect(text).toBe('resposta de verdade')
+  })
+})

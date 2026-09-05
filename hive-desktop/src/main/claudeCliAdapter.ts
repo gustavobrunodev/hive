@@ -13,11 +13,14 @@ import type { ShellInfo } from './shellCatalog'
 import { createCliAgentSession } from './cliAdapterCore'
 import {
   CLAUDE_ALIAS_CATALOG,
+  CLAUDE_COMPACTION,
   CLAUDE_EFFORTS,
   CLAUDE_PINNED_CATALOG,
   detectClaudeCapabilities
 } from './claudeModelCatalog'
 import { CLI_DEFAULT_ID } from './modelCatalog'
+import { bedrockTurnEnv, detectBedrockSetup } from './awsBedrock'
+import { diagnoseClaudeFailure } from './awsDiagnose'
 
 /**
  * The Claude Code adapter (T13, C1): drives the real `claude` CLI via the
@@ -109,7 +112,8 @@ function capabilities(): AgentCapabilities {
     // prompt — the CLI reads the files itself via its Read tool.
     supportsAttachments: true,
     provider: { id: 'anthropic', detail: null },
-    modelSource: 'catalog'
+    modelSource: 'catalog',
+    compaction: CLAUDE_COMPACTION
   }
 }
 
@@ -272,15 +276,80 @@ export function createClaudeCliAdapter(
       createCliAgentSession(processRunner, opts, {
         command: CLAUDE_COMMAND,
         errorLabel: 'claude',
+        // aws-bedrock: the gate. On a machine that isn't on Bedrock this is
+        // one file read that answers "no" and the turn spawns as it always
+        // did; on one that is, it is the difference between a working turn and
+        // `Error running awsAuthRefresh`.
+        ...(deps?.awsAuth
+          ? {
+              preflight: async (context) => {
+                const auth = deps.awsAuth
+                if (!auth) return { ok: true as const }
+                let blocked = false
+                const result = await auth.ensureReady(opts.workspace, () => {
+                  blocked = true
+                  context.emit({
+                    type: 'auth',
+                    provider: 'aws',
+                    phase: 'waiting',
+                    turnId: context.turnId
+                  })
+                })
+                if (result.ok) {
+                  // Only narrate when something actually happened: a turn that
+                  // sailed through a valid session must look exactly like a
+                  // turn on a machine with no AWS at all.
+                  if (blocked) {
+                    context.emit({
+                      type: 'auth',
+                      provider: 'aws',
+                      phase: 'cleared',
+                      turnId: context.turnId
+                    })
+                  }
+                  return { ok: true as const }
+                }
+                return { ok: false as const, message: `aws-auth:${result.reason}` }
+              }
+            }
+          : {}),
+        // The dead `--resume` handle from the reported failure. Diagnosed
+        // rather than string-matched here so the one place that reads CLI
+        // errors stays `awsDiagnose.ts`.
+        retryWithoutResume: (detail) => diagnoseClaudeFailure(detail).retryWithoutResume,
+        // A cause the app can explain, reduced to a code the chat draws a
+        // repair card for. Only the AWS ones: everything else the CLI says is
+        // better than anything Hive could invent about it.
+        describeFailure: (detail) => {
+          const { cause } = diagnoseClaudeFailure(detail)
+          if (cause === 'sso-expired') return 'aws-auth:sso-expired'
+          if (cause === 'no-credentials') return 'aws-auth:no-credentials'
+          return null
+        },
         // agent-terminal: re-read per turn, so switching terminals in the
         // profile sheet reaches the very next message.
         buildEnv: () => {
           const shell = deps?.shell?.() ?? null
-          if (!shell) return undefined
-          return claudeShellBinding(shell, {
-            available: deps?.shells?.() ?? [shell],
-            platform: process.platform
-          }).env
+          const shellEnv = shell
+            ? claudeShellBinding(shell, {
+                available: deps?.shells?.() ?? [shell],
+                platform: process.platform
+              }).env
+            : undefined
+          // aws-bedrock: `AWS_PROFILE`, and only when Hive knows a profile the
+          // spawned process wouldn't have found for itself — the desktop-launch
+          // case, where the shell rc that exports it was never read. See
+          // `bedrockTurnEnv`.
+          const awsEnv = deps?.awsAuth
+            ? bedrockTurnEnv(
+                detectBedrockSetup({
+                  ...(opts.workspace ? { workspace: opts.workspace } : {}),
+                  preferredProfile: deps.preferredAwsProfile?.() ?? null
+                })
+              )
+            : undefined
+          if (!shellEnv && !awsEnv) return undefined
+          return { ...shellEnv, ...awsEnv }
         },
         buildArgs: (turnPrompt, { model, effort, resume, turnId }) => {
           // agent-approvals: only wire the prompt tool once the bridge is

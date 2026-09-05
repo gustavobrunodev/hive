@@ -48,6 +48,7 @@ import {
 } from './scrollSync'
 import { HtmlPreview } from './HtmlPreview'
 import { DocumentViewer } from './DocumentViewer'
+import { CsvEditor } from './CsvEditor'
 import { richViewerKind } from './richViewer'
 import { IconButton } from '../ui/IconButton'
 import { isPaneDrag } from '../ui/paneDnd'
@@ -61,6 +62,7 @@ import {
   pasteDestination,
   type FileClipboard
 } from './fileClipboard'
+import { EditHistory, type EditSnapshot } from './editHistory'
 import {
   CheckIcon,
   ClipboardIcon,
@@ -74,7 +76,9 @@ import {
   FolderPlusIcon,
   MoreIcon,
   EyeIcon,
+  FileCodeIcon,
   PencilIcon,
+  TableIcon,
   PlusIcon,
   ScissorsIcon,
   TrashIcon
@@ -197,8 +201,39 @@ function ariaKeyshortcuts(chord: string, platform: string): string {
   return platform === 'darwin' ? chord.replace('Ctrl', 'Meta') : chord
 }
 
+/** `listTree`'s root argument: `undefined` browses the workspace itself, a relative dir browses that subtree. */
+function listRootArg(rootPath: string): string | undefined {
+  return rootPath === '' ? undefined : rootPath
+}
+
+/** The seed folders as one comparable string — a stable dependency for a prop callers pass as an array literal. */
+function joinSeeds(paths: readonly string[] | undefined): string {
+  return paths === undefined ? '' : paths.join('\u0000')
+}
+
+/** The tree's initial selection: whatever the viewer already has open, if anything. */
+function initialSelection(selectedPath: string | null): string[] {
+  return selectedPath === null ? [] : [selectedPath]
+}
+
+/** The toolbar's leading micro-label — only an embedded tree passes one (the explorer has a pane header). */
+function TreeToolbarTitle({ title }: { title?: string }): React.JSX.Element | null {
+  return title === undefined ? null : <h3 className="wb-tree-toolbar-title">{title}</h3>
+}
+
 /** A synthetic tree-row id for the currently-open "new item" inline input (never a real workspace path). */
 const CREATE_ROW_ID = '\u0001__creating__'
+
+/**
+ * Prefix of the synthetic row an expanded, empty folder shows.
+ *
+ * A folder that opens onto nothing is the one case where the tree can do
+ * everything right — turn the arrow, open the glyph — and still read as a
+ * click that did not register, because the list below it is unchanged. One
+ * quiet line says which of the two it was. The folder's own path is appended
+ * so several open empty folders each get their own row id.
+ */
+const EMPTY_ROW_ID = '\u0001__empty__:'
 
 /**
  * Structural mirror of `main/fsService.ts`'s `TreeNode` (design.md §2). Kept
@@ -233,6 +268,10 @@ interface DsTreeNodeShape {
   id: string
   label: ReactNode
   children?: DsTreeNodeShape[]
+  /** A directory is a container even while it is empty (DS `TreeNode.expandable`). */
+  expandable?: boolean
+  /** The empty-folder row: visible, never focusable, never selectable. */
+  disabled?: boolean
 }
 
 function isMarkdownPath(path: string): boolean {
@@ -244,14 +283,31 @@ function isHtmlPath(path: string): boolean {
   return path.toLowerCase().endsWith('.html')
 }
 
+/** Delimited data (`.csv`/`.tsv`) — the files that get the table editor. */
+function isCsvPath(path: string): boolean {
+  const lower = path.toLowerCase()
+  return lower.endsWith('.csv') || lower.endsWith('.tsv')
+}
+
 /** Preview is only ever *offered* for these kinds (design.md §3) — factored out so `FileViewer`'s own branching stays low. */
 function isPreviewableKind(path: string): boolean {
   return isMarkdownPath(path) || isHtmlPath(path)
 }
 
-/** `editable && isPreviewableKind(path)`, factored out (same reason as `isPreviewableKind`: keeps `FileViewer`'s own cyclomatic complexity down). */
-function isPreviewable(editable: boolean, path: string): boolean {
-  return editable && isPreviewableKind(path)
+/**
+ * The other way to look at this file, beside the raw text — or `null` for the
+ * files that only have one.
+ *
+ * Two kinds of second mode, and the difference matters to the copy: markdown
+ * and HTML get a *rendering* (you read it, you do not type in it), delimited
+ * data gets a *table* (you edit it, cell by cell). That is why the switch says
+ * Editar/Visualizar for one and Tabela/Texto for the other — calling the table
+ * "Visualizar" would say it is read-only, and it is not.
+ */
+function secondModeFor(editable: boolean, path: string): Exclude<ViewerMode, 'edit'> | null {
+  if (!editable) return null
+  if (isCsvPath(path)) return 'table'
+  return isPreviewableKind(path) ? 'preview' : null
 }
 
 /** Flattens the tree into a `path -> type` lookup so selecting a tree row can tell files from directories. */
@@ -282,18 +338,84 @@ function collectVisiblePaths(
   }
 }
 
-/** Maps `FsTreeNode`s onto the shape the DS `Tree` component expects (`id`/`label`/`children`). */
+/**
+ * Maps `FsTreeNode`s onto the shape the DS `Tree` component expects
+ * (`id`/`label`/`children`).
+ *
+ * `expandable` is what tells the tree that an empty directory is still a
+ * directory: without it the DS reads "no children" as "leaf", and an empty
+ * folder loses its chevron, its `aria-expanded`, and any response to a click
+ * at all.
+ */
 function toDsNodes(nodes: FsTreeNode[]): DsTreeNodeShape[] {
   return nodes.map((node) => ({
     id: node.path,
     label: node.name,
+    expandable: node.type === 'directory',
     children: node.type === 'directory' ? toDsNodes(node.children ?? []) : undefined
   }))
+}
+
+/**
+ * Gives every expanded, empty directory the one row that says so.
+ *
+ * Skips the folder that is currently holding the "new item" input — it is
+ * about to stop being empty, and "Pasta vazia" sitting under the field you are
+ * typing a filename into is a caption that contradicts itself.
+ */
+function withEmptyFolderRows(
+  nodes: DsTreeNodeShape[],
+  expanded: ReadonlySet<string>,
+  creatingIn: string | null
+): DsTreeNodeShape[] {
+  return nodes.map((node) => {
+    if (!node.children) return node
+    if (node.children.length > 0) {
+      return { ...node, children: withEmptyFolderRows(node.children, expanded, creatingIn) }
+    }
+    if (!expanded.has(node.id) || node.id === creatingIn) return node
+    return {
+      ...node,
+      children: [{ id: EMPTY_ROW_ID + node.id, label: '', disabled: true }]
+    }
+  })
 }
 
 export interface FileTreeProps {
   /** Absolute path to the workspace root to browse (design.md §4 "File explorer", R5.1–R5.3). */
   workspace: string
+  /**
+   * The workspace-relative directory the tree is rooted at — `''` (the
+   * default) is the workspace itself.
+   *
+   * Everything else about the tree is unchanged when this is set: rows are
+   * still keyed by workspace-relative paths (the fs bridge speaks nothing
+   * else), so create/rename/move/paste/reveal all keep working inside the
+   * subtree without a second code path. It is what lets the knowledge base
+   * show its vault through *this* explorer instead of a second, poorer one —
+   * one set of file-manager behaviours in the product, not two (PRODUCT.md,
+   * "OS-grade file management").
+   */
+  rootPath?: string
+  /**
+   * A micro-label printed at the left of the tree's toolbar row.
+   *
+   * The explorer proper does not pass one — its pane header already says
+   * "Explorador" — but a tree embedded *inside* another view (the knowledge
+   * base) has no header of its own, and an unlabelled toolbar floating over a
+   * list of files is a row of controls with no subject.
+   */
+  title?: string
+  /**
+   * Folders to open the first time this root's walk lands.
+   *
+   * Not a controlled prop: it seeds the tree once per root and then gets out
+   * of the way, so a folder the user closes stays closed. It exists for
+   * embedded trees whose root is a container the user did not choose (the
+   * vault's `wiki/`), where landing on a single collapsed folder would hide
+   * the entire point of the panel.
+   */
+  initialExpandedPaths?: readonly string[]
   /** Path of the file currently open in the viewer — kept highlighted in the tree. */
   selectedPath: string | null
   /**
@@ -309,6 +431,18 @@ export interface FileTreeProps {
    * outside a git repo and in tests that don't drive git.
    */
   decorations?: Map<string, GitDecoration>
+  /**
+   * "Show me where this file lives": open every folder above `path`, select
+   * it, and scroll it into view.
+   *
+   * A file opened from anywhere but the tree — the Ctrl+P palette, a link in
+   * an agent's answer — appears in the editor with no clue as to where it came
+   * from, and the tree keeps showing wherever the user was last. Every IDE
+   * answers this the same way, and `nonce` is what lets the same file be
+   * revealed twice in a row (opening it, closing the folder by hand, opening
+   * it again): a prop that never changes value cannot re-fire an effect.
+   */
+  revealRequest?: { path: string; nonce: number }
 }
 
 /** What the pointer was over when the tree's right-click context menu opened: a row, or the empty area (`null`). */
@@ -384,19 +518,59 @@ function TreeCaretGlyph(): React.JSX.Element {
   )
 }
 
-/** Recursively injects a synthetic node as the last child of `parentPath` ('' = append at the top level). */
+/**
+ * The single row an expanded, empty folder shows.
+ *
+ * A caption, not an item: no icon (there is no file to stand for), italic so
+ * it is never read as a filename, and `--muted` because it is text someone has
+ * to read — `--faint` is decoration and clears 4.5:1 in none of the themes.
+ */
+function EmptyFolderRow(): React.JSX.Element {
+  return (
+    <span className="wb-tree-row-content wb-tree-empty-row">
+      <span className="wb-tree-caret" aria-hidden="true" />
+      <span className="hds-tree-label-text">{t('explorer.folderEmptyRow')}</span>
+    </span>
+  )
+}
+
+/**
+ * The three states a row can be painted in that are not about the file itself:
+ * it is the folder a drag is hovering, it is staged for a cut, or a reveal has
+ * just pointed at it.
+ *
+ * Together and not one by one, because they are read together — and because
+ * the row renderer they came out of was already at the branching ceiling the
+ * lint rule allows.
+ */
+function rowStateProps(
+  path: string,
+  state: { dragOverPath: string | null; cutPaths: ReadonlySet<string>; revealedPath: string | null }
+): { className: string; 'data-tree-cut'?: true; 'data-tree-revealed'?: true } {
+  return {
+    className:
+      state.dragOverPath === path
+        ? 'wb-tree-row-content wb-tree-row-dropover'
+        : 'wb-tree-row-content',
+    'data-tree-cut': state.cutPaths.has(path) || undefined,
+    'data-tree-revealed': state.revealedPath === path || undefined
+  }
+}
+
+/** Recursively injects a synthetic node as the last child of `parentPath` (`rootPath` = append at the top level). */
 function injectNode(
   nodes: DsTreeNodeShape[],
   parentPath: string,
-  node: DsTreeNodeShape
+  node: DsTreeNodeShape,
+  rootPath: string
 ): DsTreeNodeShape[] {
-  if (parentPath === '') return [...nodes, node]
+  if (parentPath === rootPath) return [...nodes, node]
   return nodes.map((existing) => {
     if (existing.id === parentPath) {
       return { ...existing, children: [...(existing.children ?? []), node] }
     }
     if (existing.children) {
-      return { ...existing, children: injectNode(existing.children, parentPath, node) }
+      return { ...existing, children: injectNode(existing.children, parentPath, node, rootPath) }
     }
     return existing
   })
@@ -627,10 +801,11 @@ function ClipboardTray({
  */
 function ImportDropzone({
   dragOverPath,
-  workspace
+  rootName
 }: {
   dragOverPath: string | null
-  workspace: string
+  /** The tree's root folder name — where a drop that misses every row lands. */
+  rootName: string
 }): React.JSX.Element {
   return (
     <div className="wb-rail-dropzone" aria-hidden="true">
@@ -642,7 +817,7 @@ function ImportDropzone({
         <span className="wb-rail-dropzone-dest">
           {dragOverPath
             ? t('explorer.importDropToFolder', basename(dragOverPath))
-            : t('explorer.importDropToRoot', basename(workspace) || workspace)}
+            : t('explorer.importDropToRoot', rootName)}
         </span>
         <span className="wb-rail-dropzone-hint">{t('explorer.importDropHint')}</span>
       </div>
@@ -670,7 +845,7 @@ function DeleteDialog({
             : t('explorer.deleteDialogDescription', basename(targets[0] ?? ''))}
         </DialogDescription>
         <div className="wb-dialog-actions">
-          <Button className="wb-btn" onClick={onCancel}>
+          <Button variant="ghost" className="wb-btn" onClick={onCancel}>
             {t('explorer.deleteCancelCta')}
           </Button>
           <Button className="wb-btn hds-btn-primary" onClick={onConfirm}>
@@ -692,10 +867,10 @@ function ConflictDialog({ conflict }: { conflict: ConflictState }): React.JSX.El
           {t('explorer.conflictDialogDescription', conflict.itemLabel)}
         </DialogDescription>
         <div className="wb-dialog-actions">
-          <Button className="wb-btn" onClick={conflict.onCancel}>
+          <Button variant="ghost" className="wb-btn" onClick={conflict.onCancel}>
             {t('explorer.conflictCancelCta')}
           </Button>
-          <Button className="wb-btn" onClick={conflict.onRename}>
+          <Button variant="ghost" className="wb-btn" onClick={conflict.onRename}>
             {t('explorer.conflictRenameCta')}
           </Button>
           {conflict.supportsOverwrite && (
@@ -711,24 +886,28 @@ function ConflictDialog({ conflict }: { conflict: ConflictState }): React.JSX.El
 
 export function FileTree({
   workspace,
+  rootPath = '',
+  title,
+  initialExpandedPaths,
   selectedPath,
   onOpenFile,
-  decorations = EMPTY_DECORATIONS
+  decorations = EMPTY_DECORATIONS,
+  revealRequest
 }: FileTreeProps): React.JSX.Element {
   // git-management (GIT-R11): folders showing a rollup dot when a descendant changed.
   const changedFolders = useMemo(() => rollupChangedFolders(decorations), [decorations])
   const [treeState, setTreeState] = useState<TreeState>({ status: 'loading' })
   const [refreshToken, setRefreshToken] = useState(0)
   // Which directory a bare "New file"/"New folder" toolbar action targets —
-  // the last directory row the user clicked, or '' (root) until then.
-  const [activeDirPath, setActiveDirPath] = useState('')
+  // the last directory row the user clicked, or the tree's own root until then.
+  const [activeDirPath, setActiveDirPath] = useState(rootPath)
   const [expandedIds, setExpandedIds] = useState<string[]>([])
   // T8: the tree's own multi-select set (Ctrl toggles membership, Shift
   // selects a range — both handled inside the DS `Tree` itself, design.md
   // §2). Seeded from `selectedPath` so the file already open in the viewer
   // stays highlighted; reconciled below whenever the tree refreshes so a
   // deleted path never lingers in the set.
-  const [selectedIds, setSelectedIds] = useState<string[]>(selectedPath ? [selectedPath] : [])
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => initialSelection(selectedPath))
   // Set synchronously (capture phase, ahead of the DS Tree's own bubble-phase
   // `onClick` → `onActivate` → `onSelectedIdsChange` chain) so
   // `handleSelectedIdsChange` below can tell *how* the resulting selection
@@ -766,6 +945,12 @@ export function FileTree({
   // as text on Ctrl+C, so a copy is pasteable into a terminal or a prompt.
   const [clipboard, setClipboard] = useState<FileClipboard | null>(null)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
+  // The row a reveal is currently pointing at, from the moment the request
+  // arrives until the highlight has had its moment. Also what marks the row:
+  // scrolling a list to a row does not say WHICH row, and in a tree of
+  // near-identical names that is the whole question.
+  const [revealedPath, setRevealedPath] = useState<string | null>(null)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
   // The message itself rather than a boolean: the OS-parity actions
   // (explorer-os-actions) fail for a reason of their own — the host has no
   // file manager to hand the path to — and "tente novamente" is the wrong
@@ -802,6 +987,32 @@ export function FileTree({
   // of firing a second create/rename. Reset when the input session closes.
   const committedRef = useRef(false)
 
+  /**
+   * Opens `initialExpandedPaths` the first time a root's rows arrive.
+   *
+   * Guarded by the root it was seeded for, not by a boolean: the refresh
+   * effect below re-runs on every write under the workspace, and re-opening a
+   * folder the user just closed on each of those would be a tree that fights
+   * back. Additive, so it never closes anything.
+   */
+  const seededRootRef = useRef<string | null>(null)
+  // The seeds as one string, so a caller can pass an array literal without
+  // handing this component a new identity on every render — which, in the
+  // load effect's dependency list, would be a re-walk of the workspace per
+  // render rather than per change.
+  const seedKey = joinSeeds(initialExpandedPaths)
+  const seedExpansion = useCallback(() => {
+    const key = `${workspace}\u0000${rootPath}`
+    if (seededRootRef.current === key) return
+    seededRootRef.current = key
+    if (seedKey === '') return
+    const seeds = seedKey.split('\u0000')
+    setExpandedIds((current) => {
+      const missing = seeds.filter((seed) => !current.includes(seed))
+      return missing.length === 0 ? current : [...current, ...missing]
+    })
+  }, [workspace, rootPath, seedKey])
+
   // Initial load + re-fetch whenever `refreshToken` bumps (from the watcher
   // below) or the workspace changes. The loading-state reset lives inside
   // `load()` (a callback), not as a direct statement in the effect body, per
@@ -820,8 +1031,10 @@ export function FileTree({
     const load = async (): Promise<void> => {
       setTreeState((current) => (current.status === 'ready' ? current : { status: 'loading' }))
       try {
-        const nodes = await window.hive.listTree(workspace)
-        if (!cancelled) setTreeState({ status: 'ready', nodes })
+        const nodes = await window.hive.listTree(workspace, listRootArg(rootPath))
+        if (cancelled) return
+        setTreeState({ status: 'ready', nodes })
+        seedExpansion()
       } catch {
         if (!cancelled) setTreeState({ status: 'error' })
       }
@@ -830,7 +1043,7 @@ export function FileTree({
     return () => {
       cancelled = true
     }
-  }, [workspace, refreshToken])
+  }, [workspace, rootPath, refreshToken, seedExpansion])
 
   // The workspace changing is the one case that *must* drop the old rows: they
   // belong to a different root, and showing them under the new one while the
@@ -838,7 +1051,7 @@ export function FileTree({
   useEffect(() => {
     const reset = (): void => setTreeState({ status: 'loading' })
     reset()
-  }, [workspace])
+  }, [workspace, rootPath])
 
   // Live updates (R5.3): a change anywhere under the workspace re-fetches
   // the tree so files created by an agent workflow (T19) show up without a
@@ -878,11 +1091,12 @@ export function FileTree({
     [treeState]
   )
 
-  /** The workspace's own leaf name — what the tray calls the root destination. */
-  const workspaceName = useMemo(() => {
+  /** The root's own leaf name — what the tray and the drop overlay call the root destination. */
+  const rootName = useMemo(() => {
+    if (rootPath) return basename(rootPath)
     const parts = workspace.split(/[\\/]/).filter(Boolean)
     return parts[parts.length - 1] ?? workspace
-  }, [workspace])
+  }, [workspace, rootPath])
 
   /** The on-screen row order — Ctrl+A's scope. */
   const visiblePaths = useMemo(() => {
@@ -952,10 +1166,63 @@ export function FileTree({
     }
   }, [])
 
-  const ensureExpanded = useCallback((dirPath: string) => {
-    if (dirPath === '') return
-    setExpandedIds((current) => (current.includes(dirPath) ? current : [...current, dirPath]))
-  }, [])
+  const ensureExpanded = useCallback(
+    (dirPath: string) => {
+      if (dirPath === rootPath) return
+      setExpandedIds((current) => (current.includes(dirPath) ? current : [...current, dirPath]))
+    },
+    [rootPath]
+  )
+
+  /**
+   * Answering a reveal request: open the whole chain of folders above the file
+   * and put the selection on it.
+   *
+   * Expanding is additive on purpose — a reveal shows you where something is,
+   * it does not fold away everything else you had open to do it.
+   */
+  useEffect(() => {
+    if (!revealRequest) return
+    const apply = (): void => {
+      const { path } = revealRequest
+      const segments = path.split('/')
+      const ancestors = segments
+        .slice(0, -1)
+        .map((_, index) => segments.slice(0, index + 1).join('/'))
+      setExpandedIds((current) => {
+        const missing = ancestors.filter((ancestor) => !current.includes(ancestor))
+        return missing.length === 0 ? current : [...current, ...missing]
+      })
+      setSelectedIds([path])
+      setActiveDirPath(ancestors[ancestors.length - 1] ?? rootPath)
+      setRevealedPath(path)
+    }
+    apply()
+  }, [revealRequest, rootPath])
+
+  /**
+   * The other half: bring the row on screen once it exists.
+   *
+   * Keyed on what makes rows appear — the walk landing, the folders opening —
+   * and not only on the request, because the row usually does NOT exist yet
+   * when the request lands: its folders were closed a render ago, and the tree
+   * may still be loading after a switch back from Source Control. Re-running
+   * as the rows arrive is what makes the reveal work on the very first paint
+   * of a freshly-mounted tree.
+   */
+  useEffect(() => {
+    if (revealedPath === null) return
+    const rows = scrollerRef.current?.querySelectorAll('[data-tree-path]') ?? []
+    const row = Array.from(rows).find(
+      (candidate) => candidate instanceof HTMLElement && candidate.dataset.treePath === revealedPath
+    )
+    if (!(row instanceof HTMLElement)) return
+    row.scrollIntoView?.({ block: 'nearest' })
+    // Long enough to be seen, short enough that it is gone before it becomes
+    // a second selection colour on screen.
+    const timer = setTimeout(() => setRevealedPath(null), 1200)
+    return () => clearTimeout(timer)
+  }, [revealedPath, treeState, expandedIds])
 
   const reportError = useCallback((err: unknown) => {
     console.error('[explorer] file operation failed', err)
@@ -1475,8 +1742,8 @@ export function FileTree({
 
   /** Where a paste lands right now — a selected folder, a selected file's folder, or the active dir. */
   const pasteDest = useMemo(
-    () => pasteDestination(selectedIds, fileTypes, activeDirPath),
-    [selectedIds, fileTypes, activeDirPath]
+    () => pasteDestination(selectedIds, fileTypes, activeDirPath, rootPath),
+    [selectedIds, fileTypes, activeDirPath, rootPath]
   )
 
   const clearClipboard = useCallback(() => setClipboard(null), [])
@@ -1620,15 +1887,15 @@ export function FileTree({
       clearImportDrag()
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
-        importFiles(Array.from(files), '')
+        importFiles(Array.from(files), rootPath)
         dragSourcesRef.current = null
         return
       }
       const sources = dragSourcesRef.current
       dragSourcesRef.current = null
-      if (sources) moveInternal(sources, '')
+      if (sources) moveInternal(sources, rootPath)
     },
-    [importFiles, moveInternal, clearImportDrag]
+    [importFiles, moveInternal, clearImportDrag, rootPath]
   )
 
   // --- Panel-wide OS-import overlay (FM-R5) ---------------------------------
@@ -1932,12 +2199,19 @@ export function FileTree({
   }, [])
 
   const displayNodes = useMemo(() => {
-    if (!pendingInput) return dsNodes
-    return injectNode(dsNodes, pendingInput.parentPath, {
-      id: CREATE_ROW_ID,
-      label: ''
-    })
-  }, [dsNodes, pendingInput])
+    const withEmpties = withEmptyFolderRows(
+      dsNodes,
+      new Set(expandedIds),
+      pendingInput?.parentPath ?? null
+    )
+    if (!pendingInput) return withEmpties
+    return injectNode(
+      withEmpties,
+      pendingInput.parentPath,
+      { id: CREATE_ROW_ID, label: '' },
+      rootPath
+    )
+  }, [dsNodes, expandedIds, pendingInput, rootPath])
 
   // The inline "type a name" row for a create (renderRow's CREATE_ROW_ID
   // branch) — its own callback so renderRow stays a thin dispatcher.
@@ -2068,17 +2342,12 @@ export function FileTree({
 
       return (
         <span
-          className={
-            dragOverPath === node.id
-              ? 'wb-tree-row-content wb-tree-row-dropover'
-              : 'wb-tree-row-content'
-          }
+          /* `className` plus the two state flags — a row staged for a cut dims
+             the way it does in every file manager (the only on-screen trace of
+             a pending Ctrl+X), and a revealed row pulses once. */
+          {...rowStateProps(node.id, { dragOverPath, cutPaths, revealedPath })}
           data-tree-path={node.id}
           data-tree-dir={isDir || undefined}
-          /* A row staged for a cut dims, the way it does in every file
-             manager — the only on-screen trace of a pending Ctrl+X, and the
-             reason the clipboard tray below spells the rest out. */
-          data-tree-cut={cutPaths.has(node.id) || undefined}
           draggable
           onDragStart={(event) => handleRowDragStart(event, node.id)}
           onDragOver={(event) => handleRowDragOver(event, node.id, isDir)}
@@ -2161,7 +2430,8 @@ export function FileTree({
       decorations,
       changedFolders,
       clipboard,
-      cutPaths
+      cutPaths,
+      revealedPath
     ]
   )
 
@@ -2171,6 +2441,7 @@ export function FileTree({
       state: { expanded: boolean; hasChildren: boolean }
     ): React.JSX.Element => {
       if (node.id === CREATE_ROW_ID && pendingInput) return renderCreateRow(pendingInput)
+      if (node.id.startsWith(EMPTY_ROW_ID)) return <EmptyFolderRow />
       if (renaming && node.id === renaming.path) return renderRenameRow(node, state)
       return renderNodeRow(node, state)
     },
@@ -2211,6 +2482,7 @@ export function FileTree({
     return (
       <div
         className="wb-rail-scroll"
+        ref={scrollerRef}
         onDragOver={handleRootDragOver}
         onDrop={handleRootDrop}
         onClickCapture={handleTreeClickCapture}
@@ -2232,6 +2504,7 @@ export function FileTree({
   return (
     <>
       <div className="wb-tree-toolbar">
+        <TreeToolbarTitle title={title} />
         <IconButton
           label={t('explorer.newFileLabel')}
           onClick={() => startCreate(activeDirPath, 'file')}
@@ -2268,7 +2541,7 @@ export function FileTree({
       {clipboard && (
         <ClipboardTray
           clipboard={clipboard}
-          destinationLabel={basename(pasteDest) || workspaceName}
+          destinationLabel={basename(pasteDest) || rootName}
           onPaste={() => pasteInto(pasteDest)}
           onClear={clearClipboard}
         />
@@ -2308,7 +2581,7 @@ export function FileTree({
             onDrop={handleBodyDrop}
           >
             {treeBody}
-            {importActive && <ImportDropzone dragOverPath={dragOverPath} workspace={workspace} />}
+            {importActive && <ImportDropzone dragOverPath={dragOverPath} rootName={rootName} />}
           </div>
         </ContextMenuTrigger>
         {/* Same close-auto-focus guard as the row kebab menu: the inline
@@ -2330,11 +2603,11 @@ export function FileTree({
             </>
           ) : (
             <>
-              <ContextMenuItem onSelect={() => startCreate('', 'file')}>
+              <ContextMenuItem onSelect={() => startCreate(rootPath, 'file')}>
                 <PlusIcon size={14} />
                 {t('explorer.menuNewFile')}
               </ContextMenuItem>
-              <ContextMenuItem onSelect={() => startCreate('', 'directory')}>
+              <ContextMenuItem onSelect={() => startCreate(rootPath, 'directory')}>
                 <FolderPlusIcon size={14} />
                 {t('explorer.menuNewFolder')}
               </ContextMenuItem>
@@ -2345,7 +2618,7 @@ export function FileTree({
                 disabled={!clipboard}
                 aria-keyshortcuts={ariaKeyshortcuts('Ctrl+V', window.hive.platform)}
                 shortcut={t('explorer.keyPaste', window.hive.platform)}
-                onSelect={() => pasteInto('')}
+                onSelect={() => pasteInto(rootPath)}
               >
                 <ClipboardIcon size={14} />
                 {t('explorer.menuPaste')}
@@ -2354,11 +2627,11 @@ export function FileTree({
               {/* The empty area IS the workspace root, so the same two actions
                   are offered for it — right-clicking below the last row is how
                   a file manager gets at the folder you are already looking at. */}
-              <ContextMenuItem onSelect={() => copyPaths('', 'absolute')}>
+              <ContextMenuItem onSelect={() => copyPaths(rootPath, 'absolute')}>
                 <CopyIcon size={14} />
                 {t('explorer.menuCopyPath')}
               </ContextMenuItem>
-              <ContextMenuItem onSelect={() => revealInOs('', true)}>
+              <ContextMenuItem onSelect={() => revealInOs(rootPath, true)}>
                 <ExternalFolderIcon size={14} />
                 {t('explorer.menuRevealWorkspaceInOs', window.hive.platform)}
               </ContextMenuItem>
@@ -2474,10 +2747,18 @@ function isDocViewPath(path: string): boolean {
  * PRD, that is the difference between finding the rendered document and never
  * learning it exists.
  */
-const MODE_OPTIONS: SegmentedOption[] = [
-  { id: 'edit', label: t('explorer.editLabel') },
-  { id: 'preview', label: t('explorer.viewLabel') }
-]
+const MODE_OPTIONS: Record<'preview' | 'table', SegmentedOption[]> = {
+  preview: [
+    { id: 'edit', label: t('explorer.editLabel') },
+    { id: 'preview', label: t('explorer.viewLabel') }
+  ],
+  // Table first, because it is where a `.csv` opens: the order of a switch is
+  // read as the order of the modes, and the default belongs on the left.
+  table: [
+    { id: 'table', label: t('explorer.tableLabel') },
+    { id: 'edit', label: t('explorer.textLabel') }
+  ]
+}
 
 /**
  * The same choice, for a pane too narrow to spell it out.
@@ -2488,7 +2769,15 @@ const MODE_OPTIONS: SegmentedOption[] = [
  * "Descartar" and "Salvar" too, and a switch abbreviated to fit would be a
  * third piece of text competing with the two that must stay legible.
  */
-function compactModeToggle(mode: ViewerMode): { label: string; icon: React.JSX.Element } {
+function compactModeToggle(
+  mode: ViewerMode,
+  second: 'preview' | 'table'
+): { label: string; icon: React.JSX.Element } {
+  if (second === 'table') {
+    return mode === 'table'
+      ? { label: t('explorer.textLabel'), icon: <FileCodeIcon /> }
+      : { label: t('explorer.tableLabel'), icon: <TableIcon /> }
+  }
   return mode === 'edit'
     ? { label: t('explorer.viewLabel'), icon: <EyeIcon /> }
     : { label: t('explorer.editLabel'), icon: <PencilIcon /> }
@@ -2501,18 +2790,23 @@ function compactModeToggle(mode: ViewerMode): { label: string; icon: React.JSX.E
  */
 function ModeSwitch({
   mode,
+  second,
   disabled,
   onSelect
 }: {
   mode: ViewerMode
+  second: 'preview' | 'table'
   disabled: boolean
   onSelect: (next: string) => void
 }): React.JSX.Element {
   // Inert until the file is actually here: switching to a preview of nothing
   // renders an empty document and reads as a broken control.
-  const options = useMemo(() => MODE_OPTIONS.map((option) => ({ ...option, disabled })), [disabled])
-  const compact = compactModeToggle(mode)
-  const other = mode === 'edit' ? 'preview' : 'edit'
+  const options = useMemo(
+    () => MODE_OPTIONS[second].map((option) => ({ ...option, disabled })),
+    [second, disabled]
+  )
+  const compact = compactModeToggle(mode, second)
+  const other = mode === 'edit' ? second : 'edit'
   return (
     <>
       <SegmentedControl
@@ -2527,7 +2821,7 @@ function ModeSwitch({
         label={compact.label}
         onClick={() => onSelect(other)}
         disabled={disabled}
-        aria-pressed={mode === 'preview'}
+        aria-pressed={mode !== 'edit'}
       >
         {compact.icon}
       </IconButton>
@@ -2551,7 +2845,7 @@ type PendingDiscard = { target: string } | { target: 'close' }
  * live `draft`, not the last-loaded/saved content, so it reflects unsaved
  * edits.
  */
-type ViewerMode = 'edit' | 'preview'
+type ViewerMode = 'edit' | 'preview' | 'table'
 
 /**
  * File viewer pane (task T12's viewer half; task T9 promotes it to an
@@ -2592,6 +2886,14 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // remounts `HtmlPreview`'s iframe so its internal script state resets
   // instead of surviving under a stale `srcDoc` (T4/T5 wiring).
   const [reloadKey, setReloadKey] = useState(0)
+  /**
+   * The document's own undo stack (see `editHistory.ts` for why it is not the
+   * textarea's). A ref, because nothing about it needs to re-render: it is
+   * read and written by handlers, never painted.
+   */
+  const historyRef = useRef<EditHistory>(new EditHistory(''))
+  /** A caret an undo/redo asked for, applied once the restored text is on screen. */
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
 
   const editable = isEditablePath(displayedPath)
   // A file that gets a rich visual viewer (image/pdf/docx/sheet/pptx), or any
@@ -2623,7 +2925,9 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     let cancelled = false
     const load = async (): Promise<void> => {
       setViewerState({ status: 'loading', path: displayedPath })
-      setMode('edit')
+      // A `.csv` opens in the table. Reading one as raw text is the thing this
+      // mode exists to stop being the default; the text is one click away.
+      setMode(isCsvPath(displayedPath) ? 'table' : 'edit')
       setStaleOpen(false)
       setActionError(false)
       // Rich/binary files: `DocumentViewer` fetches its own bytes (base64 /
@@ -2634,6 +2938,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
         if (!cancelled) {
           setViewerState({ status: 'ready', path: displayedPath, content: '', baseline: null })
           setDraft('')
+          historyRef.current.reset('')
           setReloadKey((current) => current + 1)
         }
         return
@@ -2649,6 +2954,10 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
         if (cancelled) return
         setViewerState({ status: 'ready', path: displayedPath, content, baseline })
         setDraft(content)
+        // A different file (or the same one re-read from disk) is a different
+        // document: whatever the old buffer's undo stack held no longer
+        // describes what is on screen.
+        historyRef.current.reset(content)
         setReloadKey((current) => current + 1)
       } catch {
         if (!cancelled) setViewerState({ status: 'error', path: displayedPath })
@@ -2710,9 +3019,16 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   const carriedLine = useRef<number | null>(null)
   const editorRef = useRef<HTMLTextAreaElement | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * The table's own answer to the same question: the source line of the record
+   * the cell cursor is on. The grid is not a scroller of lines, so it reports
+   * where it is instead of being measured.
+   */
+  const csvLine = useRef<number | null>(null)
 
   /** Which source line is at the top of whichever surface is showing now. */
   const topLineOfCurrentMode = useCallback((): number | null => {
+    if (mode === 'table') return csvLine.current
     if (mode === 'edit') {
       const field = editorRef.current
       if (field === null) return null
@@ -2728,6 +3044,9 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // arrived. `useLayoutEffect` so the jump happens before paint — a restore one
   // frame late is a visible lurch from the top of the document.
   useLayoutEffect(() => {
+    // The table takes its carry as a prop (`initialLine`) and places its own
+    // cursor — there is no scroller here to set — so it is left alone.
+    if (mode === 'table') return
     const line = carriedLine.current
     carriedLine.current = null
     if (line === null || viewerState.status !== 'ready') return
@@ -2782,8 +3101,94 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
     [topLineOfCurrentMode]
   )
 
+  /**
+   * Every edit to the draft, from either surface, goes through here — the text
+   * *and* the caret, so an undo puts you back where you were typing and not at
+   * the top of the file. The caret is read off the field at the moment of the
+   * change; the table has no caret to read, and its own cursor is restored by
+   * the grid itself.
+   */
+  const commitDraft = useCallback((next: string) => {
+    setDraft(next)
+    const field = editorRef.current
+    historyRef.current.record({
+      value: next,
+      selectionStart: field?.selectionStart ?? next.length,
+      selectionEnd: field?.selectionEnd ?? next.length
+    })
+  }, [])
+
+  /** Puts a snapshot back on screen: the text now, the caret on the next paint. */
+  const applySnapshot = useCallback((snapshot: EditSnapshot | null) => {
+    if (snapshot === null) return
+    setDraft(snapshot.value)
+    pendingSelectionRef.current = {
+      start: snapshot.selectionStart,
+      end: snapshot.selectionEnd
+    }
+  }, [])
+
+  /**
+   * The caret half of an undo, once React has painted the restored text.
+   *
+   * `useLayoutEffect` and not an effect: `setSelectionRange` on a field that
+   * still holds the *old* string would land the caret at the wrong offset, and
+   * a frame of the caret in the wrong place is exactly the flicker that makes
+   * an undo feel like a reload.
+   */
+  useLayoutEffect(() => {
+    const selection = pendingSelectionRef.current
+    if (selection === null) return
+    pendingSelectionRef.current = null
+    const field = editorRef.current
+    if (field === null) return
+    field.focus({ preventScroll: true })
+    field.setSelectionRange(selection.start, selection.end)
+  }, [draft])
+
+  /**
+   * Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (plus Windows' Ctrl+Y), on the pane rather
+   * than on the field.
+   *
+   * On the pane because the field is not always there: the point of this
+   * history is that it survives the surface swapping under it, and a listener
+   * that lives on the textarea would go with it. Capture phase so the field
+   * never gets to run its own (now-empty) undo first.
+   *
+   * A field that is *not* our editor — a cell input in the table — keeps its
+   * own native undo: inside a single cell that is the more precise answer, and
+   * the change it makes flows back into the draft as an ordinary edit.
+   */
+  const handleHistoryKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const target = event.target
+      const inForeignField =
+        target instanceof HTMLElement &&
+        target !== editorRef.current &&
+        (target.tagName === 'INPUT' || target.isContentEditable)
+      if (inForeignField) return
+      const key = event.key.toLowerCase()
+      const redoing = key === 'y' || (key === 'z' && event.shiftKey)
+      if (key !== 'z' && key !== 'y') return
+      event.preventDefault()
+      applySnapshot(redoing ? historyRef.current.redo() : historyRef.current.undo())
+    },
+    [applySnapshot]
+  )
+
+  /**
+   * "Descartar" is an edit like any other — it replaces the whole buffer with
+   * what is on disk — so it goes on the stack and can itself be undone. A
+   * discard you cannot take back is the one destructive button in this pane.
+   */
   const handleDiscard = useCallback(() => {
     setDraft(readyState.content)
+    historyRef.current.record({
+      value: readyState.content,
+      selectionStart: 0,
+      selectionEnd: 0
+    })
   }, [readyState])
 
   // Returns whether the save actually landed — callers that need to chain a
@@ -2858,6 +3263,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
       ([content, baseline]) => {
         setViewerState({ status: 'ready', path: displayedPath, content, baseline })
         setDraft(content)
+        historyRef.current.reset(content)
         setReloadKey((current) => current + 1)
       },
       () => setActionError(true)
@@ -2911,16 +3317,20 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
   // no state change beyond closing the prompt itself.
   const cancelDiscard = useCallback(() => setPendingDiscard(null), [])
 
-  // Preview is only *offered* for `.md`/`.html` (design.md §3) — other
-  // editable text files are edit-only, no toggle at all.
-  const previewable = isPreviewable(editable, displayedPath)
+  // The switch only exists for files that have a second mode: `.md`/`.html`
+  // (a rendering) and `.csv`/`.tsv` (a table). Everything else is edit-only.
+  const secondMode = secondModeFor(editable, displayedPath)
   const notReady = viewerState.status !== 'ready'
 
   return (
     // `data-dirty` is read by the header's container queries, not by script:
     // an unsaved file adds two more text buttons to the same row, so the width
     // at which the labelled mode switch stops fitting depends on it.
-    <div className="wb-viewer" data-dirty={dirty || undefined}>
+    <div
+      className="wb-viewer"
+      data-dirty={dirty || undefined}
+      onKeyDownCapture={handleHistoryKeyDown}
+    >
       <header className="wb-viewer-header" {...paneDragProps}>
         <FileTypeIcon path={displayedPath} />
         <span className="wb-viewer-name">
@@ -2931,7 +3341,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
         <div className="wb-viewer-actions">
           {dirty && (
             <>
-              <Button className="wb-btn" onClick={handleDiscard} disabled={saving}>
+              <Button variant="ghost" className="wb-btn" onClick={handleDiscard} disabled={saving}>
                 {t('explorer.discardCta')}
               </Button>
               <Button className="wb-btn hds-btn-primary" onClick={handleSave} disabled={saving}>
@@ -2939,7 +3349,9 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
               </Button>
             </>
           )}
-          {previewable && <ModeSwitch mode={mode} disabled={notReady} onSelect={selectMode} />}
+          {secondMode && (
+            <ModeSwitch mode={mode} second={secondMode} disabled={notReady} onSelect={selectMode} />
+          )}
           {!isDocView && (
             <IconButton
               className="wb-viewer-copy"
@@ -2964,7 +3376,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
             <DialogTitle>{t('explorer.staleDialogTitle')}</DialogTitle>
             <DialogDescription>{t('explorer.staleDialogDescription')}</DialogDescription>
             <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={handleReload}>
+              <Button variant="ghost" className="wb-btn" onClick={handleReload}>
                 {t('explorer.staleReloadCta')}
               </Button>
               <Button className="wb-btn hds-btn-primary" onClick={handleOverwrite}>
@@ -2980,10 +3392,14 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
             <DialogTitle>{t('explorer.unsavedGuardTitle')}</DialogTitle>
             <DialogDescription>{t('explorer.unsavedGuardDescription')}</DialogDescription>
             <div className="wb-dialog-actions">
-              <Button className="wb-btn" onClick={cancelDiscard} disabled={saving}>
+              <Button variant="ghost" className="wb-btn" onClick={cancelDiscard} disabled={saving}>
                 {t('explorer.unsavedGuardCancelCta')}
               </Button>
-              <Button className="wb-btn" onClick={handleDiscardChoice} disabled={saving}>
+              <Button
+                className="wb-btn wb-btn-danger"
+                onClick={handleDiscardChoice}
+                disabled={saving}
+              >
                 {t('explorer.unsavedGuardConfirmCta')}
               </Button>
               <Button
@@ -3026,6 +3442,24 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
       return <DocumentViewer workspace={workspace} path={displayedPath} />
     }
 
+    // The table half of a `.csv` — an editor, not a preview: it writes into
+    // the same `draft` the raw text does, so the dirty dot, Ctrl+S, Discard
+    // and the STALE guard above all keep working without knowing about it.
+    if (mode === 'table') {
+      return (
+        <CsvEditor
+          value={draft}
+          onChange={commitDraft}
+          fileName={fileName}
+          onOpenText={() => selectMode('edit')}
+          initialLine={carriedLine.current}
+          onLineChange={(line) => {
+            csvLine.current = line
+          }}
+        />
+      )
+    }
+
     if (mode === 'edit') {
       // Full-bleed editing surface (no reading-measure cap, no inner card):
       // the field IS the pane body, VS Code-style, so the whole block is
@@ -3042,7 +3476,7 @@ export const FileViewer = forwardRef<FileViewerHandle, FileViewerProps>(function
           className="wb-editor-fill"
           ref={editorRef}
           value={draft}
-          onChange={setDraft}
+          onChange={commitDraft}
           filename={displayedPath}
           ariaLabel={t('explorer.editorAriaLabel')}
           marks={gutterMarks}

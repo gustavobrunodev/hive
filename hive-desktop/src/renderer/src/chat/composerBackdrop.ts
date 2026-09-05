@@ -2,8 +2,8 @@ import { mentionSegments } from './composerMentions'
 
 /**
  * The composer's highlight backdrop, composed from everything that wants to
- * paint under the text: `@` file mentions, and the run a dictated segment just
- * landed (VP-R2.3).
+ * paint under the text: `@` file mentions, the leading `/command` when it names
+ * something real, and the run a dictated segment just landed (VP-R2.3).
  *
  * It lives in `chat/` rather than in `dictation/` on purpose. The dictation
  * module may not import from `chat/` (VP-R5.1) — that boundary is what keeps
@@ -24,6 +24,17 @@ export interface BackdropSegment {
   mention: boolean
   /** Part of the run a dictated segment just inserted. */
   fresh: boolean
+  /**
+   * The leading `/command` token, when it names a real skill or built-in
+   * (chat-slash-commands).
+   *
+   * Its own flag rather than a second kind of `mention` because the two are
+   * different claims about the line — "this names a file that exists" against
+   * "this line *is* an invocation" — and they are drawn differently for that
+   * reason. Sharing one flag would have made them share a pill, which is
+   * exactly the confusion the token exists to remove.
+   */
+  command: boolean
   /**
    * Part of the provisional run dictation is still revising (VP-R2.9).
    *
@@ -49,9 +60,14 @@ export function composerBackdrop(
   value: string,
   knownFiles: ReadonlySet<string>,
   freshRange: readonly [number, number] | null,
-  previewRange: readonly [number, number] | null = null
+  previewRange: readonly [number, number] | null = null,
+  commandRange: readonly [number, number] | null = null
 ): BackdropSegment[] {
-  const marks = [clampRange(freshRange, value.length), clampRange(previewRange, value.length)]
+  const marks = [
+    clampRange(freshRange, value.length),
+    clampRange(previewRange, value.length),
+    clampRange(commandRange, value.length)
+  ]
   const segments: BackdropSegment[] = []
   let offset = 0
 
@@ -79,7 +95,8 @@ export function composerBackdrop(
         value.slice(from, to),
         segment.mention,
         covers(marks[0], from, to),
-        covers(marks[1], from, to)
+        covers(marks[1], from, to),
+        covers(marks[2], from, to)
       )
     }
   }
@@ -87,7 +104,7 @@ export function composerBackdrop(
   // An empty composer still needs one run: the backdrop element must exist to
   // stay aligned with the textarea's own empty first line.
   if (segments.length === 0) {
-    segments.push({ text: '', mention: false, fresh: false, preview: false })
+    segments.push({ text: '', mention: false, command: false, fresh: false, preview: false })
   }
   return segments
 }
@@ -102,9 +119,10 @@ function push(
   text: string,
   mention: boolean,
   fresh: boolean,
-  preview: boolean
+  preview: boolean,
+  command: boolean
 ): void {
-  if (text !== '') segments.push({ text, mention, fresh, preview })
+  if (text !== '') segments.push({ text, mention, command, fresh, preview })
 }
 
 /** A usable `[start, end)` inside `value`, or `null` if it marks nothing. */

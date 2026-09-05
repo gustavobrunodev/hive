@@ -39,7 +39,12 @@ vi.mock('@hive/design-system', () => ({
     value,
     onChange,
     children,
-    footer
+    footer,
+    pinnedId,
+    onPinChange,
+    pinHint,
+    unpinHint,
+    pinGroupLabel
   }: {
     options?: {
       id: string
@@ -57,11 +62,18 @@ vi.mock('@hive/design-system', () => ({
     onChange?: (id: string) => void
     children?: ReactNode
     footer?: ReactNode
+    /** engine-pins: the row treated as this agent's default, and its toggle. */
+    pinnedId?: string | null
+    onPinChange?: (id: string | null) => void
+    pinHint?: (label: string) => string
+    unpinHint?: (label: string) => string
+    pinGroupLabel?: string
   }) =>
     createElement(
       'div',
       null,
       children,
+      createElement('i', { 'data-testid': 'pin-group' }, pinGroupLabel ?? ''),
       createElement(
         'div',
         { 'data-testid': 'groups' },
@@ -82,7 +94,18 @@ vi.mock('@hive/design-system', () => ({
           option.keywords &&
             createElement('i', { 'data-testid': `keywords-${option.id}` }, option.keywords),
           ...(option.tags ?? []).map((tag) => createElement('em', { key: tag.label }, tag.label)),
-          option.id === value && createElement('span', null, '✓')
+          option.id === value && createElement('span', null, '✓'),
+          onPinChange &&
+            createElement(
+              'button',
+              {
+                type: 'button',
+                'aria-pressed': option.id === pinnedId,
+                'aria-label': (option.id === pinnedId ? unpinHint : pinHint)?.(option.label),
+                onClick: () => onPinChange(option.id === pinnedId ? null : option.id)
+              },
+              'pin'
+            )
         )
       ),
       footer
@@ -555,6 +578,70 @@ describe('effortsFor', () => {
     expect(effortsFor(CLAUDE, 'sonnet')).toBe(CLAUDE.efforts)
     expect(effortsFor(DEVIN, 'adaptive')).toBe(DEVIN.efforts)
     expect(effortsFor(DEVIN, null)).toBe(DEVIN.efforts)
+  })
+})
+
+/**
+ * engine-pins, from the control's side: what a pin *means* here is "start
+ * every new conversation with this agent on this row, at this rung".
+ */
+describe('EnginePicker — o padrão fixado', () => {
+  function renderWithPin(
+    pinned: string | null,
+    props: Partial<React.ComponentProps<typeof EnginePicker>> = {}
+  ): ReturnType<typeof vi.fn> {
+    const onChange = vi.fn()
+    renderPicker(CLAUDE, {
+      pin: { model: pinned, agentName: 'Claude Code', onChange },
+      ...props
+    })
+    return onChange
+  }
+
+  it('shows no pin affordance at all on a surface with no agent to pin to', () => {
+    renderPicker(CLAUDE)
+    expect(screen.queryByText(/Fixar como padrão/)).toBeNull()
+    expect(screen.getByTestId('pin-group').textContent).toBe('')
+  })
+
+  it('pins the chosen row with the rung in force', () => {
+    const onChange = renderWithPin(null, { model: 'sonnet', effort: 'high' })
+
+    fireEvent.click(screen.getByText('Fixar como padrão do Claude Code'))
+
+    // Both halves: a default that only remembered the model would still open
+    // someone who reads at "Alto" on the CLI's own budget.
+    expect(onChange).toHaveBeenCalledWith({ model: 'sonnet', effort: 'high' })
+  })
+
+  it('releases the pin when the row already holds it', () => {
+    const onChange = renderWithPin('sonnet', { model: 'sonnet', effort: 'high' })
+
+    fireEvent.click(screen.getByText('Padrão do Claude Code'))
+
+    expect(onChange).toHaveBeenCalledWith(null)
+  })
+
+  it('pins a row that is not the one in use, carrying the rung by name', () => {
+    // Pinning is not choosing: the row's own toggle sets the default for next
+    // time without switching the conversation onto it now.
+    const onChange = renderWithPin(null, { model: 'sonnet', effort: 'high' })
+
+    fireEvent.click(screen.getByLabelText('Fixar Opus 4.1 como padrão deste agente'))
+
+    expect(onChange).toHaveBeenCalledWith({ model: 'opus41', effort: 'high' })
+  })
+
+  it('says where the pin actually is when it is somewhere else', () => {
+    renderWithPin('opus41', { model: 'sonnet', effort: 'high' })
+
+    expect(screen.getByText('Hoje começa em Opus 4.1')).toBeTruthy()
+    expect(screen.getByText('Fixar como padrão do Claude Code')).toBeTruthy()
+  })
+
+  it('hoists the pinned row into a section of its own', () => {
+    renderWithPin('sonnet')
+    expect(screen.getByTestId('pin-group').textContent).toBe('Seu padrão')
   })
 })
 

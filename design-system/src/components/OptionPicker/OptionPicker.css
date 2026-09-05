@@ -428,6 +428,69 @@
   color: color-mix(in oklab, var(--muted) 50%, var(--ink));
 }
 
+/* --- pin ---------------------------------------------------------------- */
+
+/* The pin adds a fifth track, and only on the pickers that have one: an empty
+   auto track still costs its gap, so every other picker would gain a 12px
+   strip on the right for a control it never renders. */
+.hds-picker-item:has(.hds-picker-pin) {
+  grid-template-columns: auto 1fr auto auto auto;
+}
+
+.hds-picker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  /* Quiet until asked for: a mark on every row would compete with the check
+     that says which row is *chosen*. Hidden by opacity rather than display so
+     the row's geometry never shifts under the pointer on hover. */
+  opacity: 0;
+  transition:
+    opacity 120ms var(--ease-quart),
+    color 120ms var(--ease-quart),
+    background-color 120ms var(--ease-quart);
+}
+
+.hds-picker-item:hover .hds-picker-pin,
+.hds-picker-item[data-selected="true"] .hds-picker-pin,
+.hds-picker-pin:focus-visible {
+  opacity: 1;
+}
+
+/* It is not a tab stop (the panel's keys belong to cmdk's input), but it is
+   still reachable — a screen reader's own navigation, or a browser's
+   caret/spatial mode — and a control with no visible focus is a control that
+   cannot be operated by sight from there. */
+.hds-picker-pin:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hds-picker-pin:hover {
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  color: var(--ink);
+}
+
+/* Pinned is no longer a control, it is the statement — always visible, in the
+   accent that every "this is your current choice" mark in the system uses. */
+.hds-picker-pin[data-pinned] {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.hds-picker-pin[data-pinned]:hover {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
 .hds-picker-check {
   display: flex;
   align-items: center;
@@ -471,7 +534,8 @@
 @media (prefers-reduced-motion: reduce) {
   .hds-picker,
   .hds-picker-search,
-  .hds-picker-item {
+  .hds-picker-item,
+  .hds-picker-pin {
     animation-duration: 0.01ms;
     transition-duration: 0.01ms;
   }
