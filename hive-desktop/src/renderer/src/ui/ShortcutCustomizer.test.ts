@@ -145,18 +145,25 @@ const CATALOG = [
   }
 ]
 
+// `as const` on `kind`: the bridge's own type narrows it to the two-value
+// union, and a test that re-mocks `roleActions` directly (rather than through
+// `mockHive`'s cast) is checked against it.
 const PM_DEFAULTS = [
-  { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
+  { key: 'prd', kind: 'workflow' as const, command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
   {
     key: 'persona-pm',
-    kind: 'persona',
+    kind: 'persona' as const,
     command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' }
   }
 ]
 
 /** The PM's in-conversation default — the only one in the catalog. */
 const PM_DURING_DEFAULTS = [
-  { key: 'party-mode', kind: 'workflow', command: { key: 'bmad-spec', prompt: '/bmad-spec' } }
+  {
+    key: 'party-mode',
+    kind: 'workflow' as const,
+    command: { key: 'bmad-spec', prompt: '/bmad-spec' }
+  }
 ]
 
 type Prefs = { skills: string[]; agents: string[] } | null
@@ -322,11 +329,30 @@ describe('ShortcutCustomizer', () => {
     vi.mocked(window.hive.shortcuts.catalog).mockResolvedValue([])
     renderCustomizer()
 
-    expect(
-      await screen.findByText(
-        'Nenhuma skill do BMAD foi encontrada neste workspace. Instale ou atualize o BMAD para personalizar os atalhos.'
-      )
-    ).toBeTruthy()
+    expect(await screen.findByText(/Nenhuma skill do BMAD foi encontrada/)).toBeTruthy()
+  })
+
+  /**
+   * The case that made "remove a role default" impossible rather than merely
+   * awkward: a workspace BMAD was never installed into. There is no catalog, so
+   * the list below has nothing to offer — and the shortcuts on screen still
+   * have to be removable. The set at the top is the only control there is, and
+   * it has to keep drawing keys it cannot look up.
+   */
+  it('still draws — and removes — the set when the workspace has no catalog', async () => {
+    mockHive()
+    vi.mocked(window.hive.shortcuts.catalog).mockResolvedValue([])
+    const { onChanged } = renderCustomizer()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover atalho: Criar um PRD' }))
+
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('start', {
+        skills: [],
+        agents: ['bmad-agent-pm']
+      })
+    )
+    await waitFor(() => expect(onChanged).toHaveBeenCalled())
   })
 })
 
@@ -404,17 +430,109 @@ describe('ShortcutCustomizer — scopes', () => {
     expect(screen.queryByRole('button', { name: 'Restaurar padrão' })).toBeNull()
   })
 
-  it('previews the selection where it will land, and teaches an empty set', async () => {
+  it('draws the selection where it will land, and teaches an empty set', async () => {
     mockHive({ settings: { start: { skills: [], agents: [] }, during: null } })
     renderCustomizer()
 
-    // Empty start set → the hero preview says what that means.
+    // Empty start set → the hero stage says what that means.
     expect(await screen.findByText(/a tela inicial fica só com o campo de mensagem/)).toBeTruthy()
+    // Nothing to empty, so no bulk action either.
+    expect(screen.queryByRole('button', { name: 'Remover todos' })).toBeNull()
 
-    // The during set has its default, so the preview draws it as a chip.
+    // The during set has its default, so the stage draws it as a chip.
     fireEvent.click(screen.getByRole('radio', { name: 'Durante a conversa 1' }))
-    const preview = screen.getByLabelText('Prévia dos atalhos: Durante a conversa')
-    expect(preview.textContent).toContain('Criar uma spec')
+    const stage = screen.getByLabelText('Atalhos de Durante a conversa')
+    expect(stage.textContent).toContain('Criar uma spec')
+  })
+
+  /**
+   * The gesture this round exists for. Removing is not a search problem — you
+   * are looking at the thing you want gone — so it lives on the chip, not sixty
+   * rows down the catalog. Both scopes, because the report named both.
+   */
+  it('removes one shortcut from the visible scope by clicking its chip', async () => {
+    mockHive()
+    const { onChanged } = renderCustomizer()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover atalho: Criar um PRD' }))
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('start', {
+        skills: [],
+        agents: ['bmad-agent-pm']
+      })
+    )
+    expect(onChanged).toHaveBeenCalled()
+    // The scope is the user's now, and reversible.
+    expect(screen.getByText('Personalizado')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Restaurar padrão' })).toBeTruthy()
+  })
+
+  /**
+   * The stage draws the surface, so it has to resolve the surface's way — and
+   * `main/roleCatalog.ts` does NOT validate role defaults against the catalog.
+   * A workspace with a partial BMAD install renders defaults it cannot look up;
+   * a stage that dropped them showed fewer chips than the hero it was drawing,
+   * and the missing ones had no way out at all. Caught by e2e/shortcut-removal,
+   * where the seeded catalog really is partial.
+   */
+  it('draws a role default the catalog does not have, and lets it go', async () => {
+    mockHive()
+    // A default this workspace has no catalog row for — the partial-install case.
+    vi.mocked(window.hive.profile.roleActions).mockImplementation(async (_role, scope) =>
+      scope === 'during'
+        ? []
+        : [
+            {
+              key: 'dev-story',
+              kind: 'workflow' as const,
+              command: { key: 'bmad-dev-story', prompt: '/bmad-dev-story' }
+            },
+            ...PM_DEFAULTS
+          ]
+    )
+    renderCustomizer()
+
+    // Labelled by the renderer's own pt-BR map, which knows the key even
+    // though this workspace's catalog does not have a row for it.
+    const orphan = await screen.findByRole('button', {
+      name: 'Remover atalho: Implementar uma história'
+    })
+    fireEvent.click(orphan)
+
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('start', {
+        skills: ['bmad-prd'],
+        agents: ['bmad-agent-pm']
+      })
+    )
+  })
+
+  it('removes an in-conversation default from the other scope, and only that scope', async () => {
+    mockHive()
+    renderCustomizer()
+    await screen.findByRole('button', { name: 'Remover atalho: Criar um PRD' })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Durante a conversa 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remover atalho: Criar uma spec' }))
+
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('during', { skills: [], agents: [] })
+    )
+    // `start` was never rewritten by any of it.
+    expect(window.hive.shortcuts.set).not.toHaveBeenCalledWith('start', expect.anything())
+  })
+
+  it('empties the visible scope in one gesture, leaving the other alone', async () => {
+    mockHive()
+    renderCustomizer()
+    await screen.findByRole('button', { name: 'Remover atalho: Criar um PRD' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover todos' }))
+    await waitFor(() =>
+      expect(window.hive.shortcuts.set).toHaveBeenCalledWith('start', { skills: [], agents: [] })
+    )
+    expect(await screen.findByText(/a tela inicial fica só com o campo de mensagem/)).toBeTruthy()
+    expect(window.hive.shortcuts.set).not.toHaveBeenCalledWith('during', expect.anything())
   })
 })
 

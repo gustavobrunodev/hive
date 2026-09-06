@@ -4143,6 +4143,25 @@ describe('Explorer (T12/T8)', () => {
       await waitFor(() => expect(treeProps.expandedIds).toEqual([]))
     })
 
+    /**
+     * workspace-session: the counterpart to the seed — what the tree reports
+     * back, so the next launch can put the same folders back.
+     */
+    it('reports its open folders upward, but not before the walk lands', async () => {
+      const onExpandedPathsChange = vi.fn()
+      renderVaultTree({ initialExpandedPaths: ['kb/wiki'], onExpandedPathsChange })
+
+      // The empty set a mounting tree starts from is a state it has not
+      // reached yet; reporting it would erase what the next launch restores.
+      expect(onExpandedPathsChange).not.toHaveBeenCalledWith([])
+
+      await screen.findByText('notas.md')
+      await waitFor(() => expect(onExpandedPathsChange).toHaveBeenCalledWith(['kb/wiki']))
+
+      act(() => treeProps.onExpandedIdsChange?.([]))
+      await waitFor(() => expect(onExpandedPathsChange).toHaveBeenLastCalledWith([]))
+    })
+
     it('creates into the subtree root when the empty area is the target', async () => {
       renderVaultTree()
       await screen.findByText('notas.md')

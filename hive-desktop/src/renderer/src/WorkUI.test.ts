@@ -29,7 +29,7 @@ import type { McpLogEntry } from './mcpLogs/logConsole'
  *
  * `WorkUI` wraps its whole body in one DS `Resizable` group (rail/chat/
  * viewer panels keyed by stable `id`s) and persists the group's layout to
- * `localStorage['hive.workLayout']` via `onLayoutChanged`, restoring it on
+ * the workspace's session record via `onLayoutChanged`, restoring it on
  * mount via `defaultLayout`. This suite proves that persistence contract in
  * isolation from the real `react-resizable-panels` drag mechanics (covered
  * by the DS's own `Resizable.test.tsx` and by the Playwright MCP pass in
@@ -143,18 +143,32 @@ vi.mock('@hive/design-system', () => ({
   },
   DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
     createElement('div', { role: 'menu' }, children),
+  // `disabled` is honoured the way Radix honours it — the item renders, stays
+  // findable, and does not fire. Without this the mock made every disabled
+  // menu item live, and a test asserting "this move is unavailable" would
+  // have passed against a menu that happily performed it.
   DropdownMenuItem: ({
     children,
     onSelect,
-    title
+    title,
+    disabled
   }: {
     children?: ReactNode
     onSelect?: () => void
     title?: string
+    disabled?: boolean
   }) =>
     createElement(
       'button',
-      { type: 'button', role: 'menuitem', title, onClick: () => onSelect?.() },
+      {
+        type: 'button',
+        role: 'menuitem',
+        title,
+        disabled,
+        onClick: () => {
+          if (!disabled) onSelect?.()
+        }
+      },
       children
     ),
   DropdownMenuLabel: ({ children }: { children?: ReactNode }) =>
@@ -495,14 +509,35 @@ const fileViewerMock: { requestSave: ReturnType<typeof vi.fn> } = {
 vi.mock('./explorer/Explorer', () => ({
   FileTree: ({
     onOpenFile,
-    revealRequest
+    revealRequest,
+    initialExpandedPaths,
+    onExpandedPathsChange
   }: {
     onOpenFile?: (path: string, opts?: { pin?: boolean }) => void
     revealRequest?: { path: string; nonce: number }
+    // workspace-session: the folders the tree is seeded with, and the channel
+    // it reports its own back through. The tree's expansion machinery itself
+    // is `Explorer.test.ts`'s; what WorkUI owns is the seed and the record.
+    initialExpandedPaths?: readonly string[]
+    onExpandedPathsChange?: (paths: string[]) => void
   }) =>
     createElement(
       'div',
       null,
+      createElement(
+        'span',
+        { 'data-testid': 'tree-seed' },
+        (initialExpandedPaths ?? []).join(',')
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'expand-folder',
+          onClick: () => onExpandedPathsChange?.(['docs', 'docs/stories'])
+        },
+        'expand'
+      ),
       // What the tree was asked to point at, published so a test can read it:
       // the reveal itself (expand, select, scroll) belongs to `FileTree` and is
       // covered in `Explorer.test.ts`; what WorkUI owns is WHO asks for it.
@@ -668,7 +703,22 @@ vi.mock('./chat/Chat', () => ({
   Chat: forwardRef(ChatStandIn)
 }))
 
-const STORAGE_KEY = 'hive.workLayout'
+/** workspace-session: the one per-workspace record (layout, tabs, chat session, sidebar). */
+const STORAGE_KEY = 'hive.workspaceSession'
+/** Pre-workspaceSession key, still read once as a migration seed. */
+const LEGACY_LAYOUT_KEY = 'hive.workLayout'
+const WS = '/home/user/my-workspace'
+
+/** Writes this workspace's stored session (the shape `workspaceSession.ts` reads). */
+function seedSession(patch: Record<string, unknown>): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ [WS]: { savedAt: 1, ...patch } }))
+}
+
+/** Reads it back. */
+function storedSession(): Record<string, unknown> {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  return raw ? ((JSON.parse(raw) as Record<string, Record<string, unknown>>)[WS] ?? {}) : {}
+}
 
 /** Minimal `Storage`-shaped mock with spy-wrapped `getItem`/`setItem` (per-test isolated, unlike jsdom's shared real localStorage). */
 function createLocalStorageMock(): Storage {
@@ -814,7 +864,9 @@ function createHiveMock(): Window['hive'] {
     // the root and the host separator) and the hand-off to the file manager.
     fs: {
       absolutePath: vi.fn(async (root: string, rel: string) => `${root}/${rel}`),
-      revealPath: vi.fn(async () => undefined)
+      revealPath: vi.fn(async () => undefined),
+      // workspace-session: every restored tab is checked against disk first.
+      exists: vi.fn(async () => true)
     },
     listTree: vi.fn(async () => [])
   } as unknown as Window['hive']
@@ -855,7 +907,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
   })
 
   it('restores a previously-persisted layout via defaultLayout on mount', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ rail: 18, chat: 57, viewer: 25 }))
+    seedSession({ layout: { rail: 18, chat: 57, viewer: 25 }, sidebarOpen: true })
     vi.mocked(localStorage.getItem).mockClear()
 
     render(
@@ -868,6 +920,40 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
 
     expect(localStorage.getItem).toHaveBeenCalledWith(STORAGE_KEY)
     expect(resizableProps.defaultLayout).toEqual({ rail: 18, chat: 57, viewer: 25 })
+  })
+
+  // workspace-session: a hidden sidebar mounts at zero rather than opening
+  // wide and snapping shut a frame later.
+  it('mounts the rail at zero when the sidebar was left hidden, keeping the other widths', () => {
+    seedSession({ layout: { rail: 18, chat: 57, viewer: 25 }, sidebarOpen: false })
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+
+    expect(resizableProps.defaultLayout).toEqual({ rail: 0, chat: 57, viewer: 25 })
+  })
+
+  // An existing install keeps the width it dragged, without ever being asked
+  // to migrate — but not an open sidebar: "first launch shows only the chat"
+  // is a rule about a workspace with no session, and the old global key says
+  // nothing about this workspace.
+  it('seeds the layout from the pre-workspaceSession key, still closed', () => {
+    localStorage.setItem(LEGACY_LAYOUT_KEY, JSON.stringify({ rail: 26, chat: 74 }))
+
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+
+    expect(resizableProps.defaultLayout).toEqual({ rail: 0, chat: 74 })
   })
 
   it('ignores a corrupt persisted value instead of crashing', () => {
@@ -886,7 +972,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
   })
 
   it('ignores a persisted value whose shape is not a panel-id -> number map', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ rail: 'wide' }))
+    seedSession({ layout: { rail: 'wide' } })
 
     render(
       createElement(WorkUI, {
@@ -899,7 +985,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
     expect(resizableProps.defaultLayout).toBeUndefined()
   })
 
-  it('persists the group layout to localStorage on onLayoutChanged', () => {
+  it('persists the group layout on onLayoutChanged, coalesced', async () => {
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
@@ -910,9 +996,9 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
 
     fireEvent.click(screen.getByTestId('simulate-drag'))
 
-    expect(localStorage.setItem).toHaveBeenCalledWith(
-      STORAGE_KEY,
-      JSON.stringify({ rail: 30, chat: 45, viewer: 25 })
+    // Written after the sash stops moving, not per frame.
+    await waitFor(() =>
+      expect(storedSession().layout).toEqual({ rail: 30, chat: 45, viewer: 25 })
     )
   })
 
@@ -1874,7 +1960,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     vi.mocked(window.hive.listFiles).mockResolvedValue(['docs/prd.md'])
     // Starting in Source Control: a reveal that left the sidebar where it was
     // would send the tree a request nobody can see.
-    localStorage.setItem('hive.sidebarView', 'scm')
+    seedSession({ sidebarView: 'scm', sidebarOpen: true })
 
     render(
       createElement(WorkUI, {
@@ -1915,6 +2001,9 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   const PANE_ORDER_KEY = 'hive.paneOrder'
 
   function renderWorkUI(): void {
+    // The sidebar is hidden on a workspace with no session (workspace-session),
+    // and moving a pane you cannot see is not what this suite is about.
+    seedSession({ sidebarOpen: true })
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
@@ -1970,6 +2059,26 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
       PANE_ORDER_KEY,
       JSON.stringify(['chat', 'rail', 'viewer'])
     )
+  })
+
+  // workspace-session: the collapsed rail is still *rendered* (its tree keeps
+  // its state), but it is not a pane anyone can move next to.
+  it('offers no move past a hidden sidebar — the chat is already leftmost', () => {
+    localStorage.removeItem(STORAGE_KEY)
+    render(
+      createElement(WorkUI, {
+        workspace: '/home/user/my-workspace',
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover o painel Conversa' }))
+    const moveLeft = screen.getByRole('menuitem', { name: 'Mover para a esquerda' })
+    expect((moveLeft as HTMLButtonElement).disabled).toBe(true)
+
+    // And the rail is still rendered behind it — collapsed, not unmounted.
+    expect(screen.getByTestId('panel-rail')).toBeTruthy()
   })
 
   it('moving the leftmost pane further left is a no-op', () => {
@@ -2379,7 +2488,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
     expect(activeSidebarView()).toBe('scm')
     expect(screen.getByText('Controle de versão')).toBeTruthy()
-    expect(localStorage.getItem('hive.sidebarView')).toBe('scm')
+    expect(storedSession().sidebarView).toBe('scm')
 
     // The tree is not thrown away by leaving it — it is the inactive layer,
     // still holding its expansion, selection and scroll (SidebarHost).
@@ -2388,7 +2497,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
     // Switching back to Explorer shows it again.
     fireEvent.click(screen.getByLabelText('Explorador'))
     expect(activeSidebarView()).toBe('explorer')
-    expect(localStorage.getItem('hive.sidebarView')).toBe('explorer')
+    expect(storedSession().sidebarView).toBe('explorer')
   })
 
   it('Ctrl+Shift+G opens the Source Control view', () => {
@@ -2411,7 +2520,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
   })
 
   it('restores the persisted Source Control view on mount', () => {
-    localStorage.setItem('hive.sidebarView', 'scm')
+    seedSession({ sidebarView: 'scm', sidebarOpen: true })
     renderWork()
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
     expect(screen.queryByTestId('file-tree')).toBeNull()
@@ -3162,5 +3271,219 @@ describe('WorkUI — AWS login beacon (aws-bedrock)', () => {
     await screen.findByText('Não deu para entrar')
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(hive.aws.login).toHaveBeenCalled()
+  })
+})
+
+/**
+ * workspace-session — the workbench reopens where it was left, and the sidebar
+ * is something you can put away.
+ *
+ * The DS `Resizable` is mocked here (panels are plain divs), so the panel's
+ * own collapse is `react-resizable-panels`' business and not asserted; what
+ * this covers is everything WorkUI decides — what is on screen, what is
+ * written down, and what is put back.
+ */
+describe('WorkUI — hideable sidebar (workspace-session)', () => {
+  function renderWork(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: WS,
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+  }
+
+  /**
+   * The rail entry for a view, whichever name it is currently wearing.
+   *
+   * Scoped to the activity bar: the pane header names the view too, so an
+   * unscoped query matches the label and the button that opened it.
+   */
+  function railEntry(name: string): HTMLElement {
+    const rail = document.querySelector('.wb-actionrail') as HTMLElement
+    return within(rail).getByLabelText(new RegExp(`^(Ocultar )?${name}`))
+  }
+
+  it('opens a first-launch workspace on the chat alone', () => {
+    renderWork()
+    // The panel is rendered (collapsed, so the tree inside keeps its state)…
+    expect(screen.getByTestId('panel-rail')).toBeTruthy()
+    expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
+    // …and the rail says so: nothing pressed, the Explorer resting.
+    expect(railEntry('Explorador').getAttribute('aria-pressed')).toBe('false')
+    expect(railEntry('Explorador').hasAttribute('data-resting')).toBe(true)
+  })
+
+  it('clicking the resting view opens the sidebar; clicking it again puts it away', () => {
+    renderWork()
+    fireEvent.click(railEntry('Explorador'))
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(railEntry('Explorador').getAttribute('aria-expanded')).toBe('true')
+    expect(storedSession().sidebarOpen).toBe(true)
+
+    fireEvent.click(railEntry('Explorador'))
+    expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
+    expect(storedSession().sidebarOpen).toBe(false)
+  })
+
+  it('switching to another view opens the sidebar rather than toggling it', () => {
+    seedSession({ sidebarOpen: false, sidebarView: 'explorer' })
+    renderWork()
+
+    fireEvent.click(railEntry('Controle de versão'))
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(activeSidebarView()).toBe('scm')
+    expect(storedSession()).toMatchObject({ sidebarOpen: true, sidebarView: 'scm' })
+  })
+
+  it('remembers which view was hidden — a reopen goes back to it, not to the Explorer', () => {
+    renderWork()
+    fireEvent.click(railEntry('Controle de versão'))
+    fireEvent.click(railEntry('Controle de versão'))
+    expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
+    expect(railEntry('Controle de versão').hasAttribute('data-resting')).toBe(true)
+
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(activeSidebarView()).toBe('scm')
+  })
+
+  it('Ctrl+B toggles the sidebar and writes the state down', () => {
+    renderWork()
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(storedSession().sidebarOpen).toBe(true)
+
+    fireEvent.keyDown(window, { key: 'B', metaKey: true })
+    expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
+    expect(storedSession().sidebarOpen).toBe(false)
+  })
+
+  it('leaves Ctrl+Shift+B alone — that chord belongs to the knowledge base', () => {
+    renderWork()
+    fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
+    expect(activeSidebarView()).toBe('brain')
+  })
+
+  it('Ctrl+Shift+E brings the Explorer forward from a hidden sidebar', () => {
+    seedSession({ sidebarOpen: false, sidebarView: 'scm' })
+    renderWork()
+    fireEvent.keyDown(window, { key: 'E', ctrlKey: true, shiftKey: true })
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(activeSidebarView()).toBe('explorer')
+  })
+
+  // Every programmatic caller means "put this in front of me". A view selected
+  // behind a hidden panel is a command that ran and changed nothing.
+  it('the status bar and the review bar open the sidebar, never just select behind it', () => {
+    renderWork()
+    fireEvent.keyDown(window, { key: 'G', ctrlKey: true, shiftKey: true })
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(activeSidebarView()).toBe('scm')
+  })
+
+  it('a reveal from the Ctrl+P palette opens the sidebar it is revealing into', async () => {
+    vi.mocked(window.hive.listFiles).mockResolvedValue(['docs/prd.md'])
+    renderWork()
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir arquivo docs/prd.md' }))
+
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect((await screen.findByTestId('reveal-request')).textContent).toBe('docs/prd.md#1')
+  })
+})
+
+describe('WorkUI — restoring a workspace (workspace-session)', () => {
+  function renderWork(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: WS,
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+  }
+
+  it('puts the open files back, in order, with the active one in front', async () => {
+    seedSession({
+      tabs: [
+        { path: 'docs/prd.md', pinned: true },
+        { path: 'README.md', pinned: false }
+      ],
+      activeTab: 'README.md'
+    })
+    renderWork()
+
+    expect(await screen.findByText('FileViewer: README.md')).toBeTruthy()
+    const tabs = Array.from(document.querySelectorAll('.wb-tab-name')).map((el) => el.textContent)
+    expect(tabs).toEqual(['prd.md', 'README.md'])
+  })
+
+  it('drops tabs whose file is gone, and never asks about it', async () => {
+    vi.mocked(window.hive.fs.exists).mockImplementation(
+      async (_root: string, rel: string) => rel !== 'docs/gone.md'
+    )
+    seedSession({
+      tabs: [
+        { path: 'docs/gone.md', pinned: true },
+        { path: 'README.md', pinned: false }
+      ],
+      activeTab: 'docs/gone.md'
+    })
+    renderWork()
+
+    expect(await screen.findByText('FileViewer: README.md')).toBeTruthy()
+    expect(screen.queryByText('FileViewer: docs/gone.md')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('leaves the viewer closed when every restored file is gone', async () => {
+    vi.mocked(window.hive.fs.exists).mockResolvedValue(false)
+    seedSession({ tabs: [{ path: 'docs/gone.md', pinned: true }], activeTab: 'docs/gone.md' })
+    renderWork()
+
+    await waitFor(() => expect(window.hive.fs.exists).toHaveBeenCalled())
+    expect(screen.queryByTestId('panel-viewer')).toBeNull()
+  })
+
+  it('records the strip as it changes, file tabs only', async () => {
+    renderWork()
+    fireEvent.click(screen.getByTestId('open-pinned'))
+
+    await waitFor(() =>
+      expect(storedSession().tabs).toEqual([{ path: 'docs/pinned.md', pinned: true }])
+    )
+    expect(storedSession().activeTab).toBe('docs/pinned.md')
+  })
+
+  it('reopens the conversation that was on screen', async () => {
+    seedSession({ chatSessionId: 's7' })
+    renderWork()
+    await waitFor(() => expect(chatHandle.openSession).toHaveBeenCalledWith('s7'))
+  })
+
+  it('does not overwrite the stored conversation with the empty one Chat reports on mount', () => {
+    seedSession({ chatSessionId: 's7' })
+    chatHandle.openSession.mockReturnValue(new Promise(() => {}))
+    renderWork()
+    expect(storedSession().chatSessionId).toBe('s7')
+  })
+
+  it('records the conversation once the restore has landed', async () => {
+    renderWork()
+    fireEvent.click(screen.getByText('simular conversa em andamento'))
+    await waitFor(() => expect(storedSession().chatSessionId).toBe('conversa-atual'))
+  })
+
+  it('seeds the tree with the folders that were open, and records the ones that change', async () => {
+    seedSession({ expanded: ['docs'], sidebarOpen: true })
+    renderWork()
+
+    expect(screen.getByTestId('tree-seed').textContent).toBe('docs')
+
+    fireEvent.click(screen.getByTestId('expand-folder'))
+    await waitFor(() => expect(storedSession().expanded).toEqual(['docs', 'docs/stories']))
   })
 })

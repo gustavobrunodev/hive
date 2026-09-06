@@ -185,13 +185,20 @@ export function resolveRoleActions(
 
 /**
  * Resolves one scope's shortcut set (shortcut-customization): that scope's
- * custom selection when one exists, its role defaults otherwise. Custom keys
- * are validated against the workspace catalog — prefs are global but
- * workspaces differ, so a skill not installed here is silently skipped rather
- * than rendered as a dead shortcut. An *empty* catalog (no BMAD metadata at
- * all) means the prefs can't be validated → role defaults, same as `null`
- * prefs. An empty *result* from real prefs is respected: deselecting
- * everything is a legitimate "I want a clean surface" choice.
+ * custom selection when one exists, its role defaults otherwise.
+ *
+ * Custom keys are validated against the workspace catalog — prefs are global
+ * but workspaces differ, so a skill not installed here is skipped rather than
+ * rendered as a dead shortcut. An empty *result* from real prefs is respected:
+ * deselecting everything is a legitimate "I want a clean surface" choice.
+ *
+ * **An empty catalog is not a veto.** It used to be: with no BMAD metadata to
+ * validate against, the resolver fell all the way back to the role defaults —
+ * which meant that in a workspace BMAD was never installed into, removing a
+ * default shortcut silently put it straight back, every time, with nothing on
+ * screen to explain why. "No catalog" is an absence of *evidence about* the
+ * selection, not evidence against it, so the selection is honoured as written.
+ * Nothing is invented: a key the user never picked still never appears.
  */
 export function resolveShortcuts(
   role: string | null | undefined,
@@ -200,22 +207,25 @@ export function resolveShortcuts(
   scope: ShortcutScope = 'start'
 ): ResolvedRoleAction[] {
   const prefs = settings?.[scope] ?? null
-  if (!prefs || catalog.length === 0) return resolveRoleActions(role, scope)
+  if (!prefs) return resolveRoleActions(role, scope)
 
   const byKey = new Map(catalog.map((skill) => [skill.key, skill]))
+  const unverifiable = catalog.length === 0
   const pick = (keys: string[], kind: 'workflow' | 'persona'): ResolvedRoleAction[] =>
     keys.flatMap((key) => {
       const skill = byKey.get(key)
-      if (!skill) return []
+      if (!skill && !unverifiable) return []
       return [
         {
           key,
           kind,
-          label: skill.label,
+          // Only from the catalog: with none, the renderer's own pt-BR map by
+          // key is the label, exactly as it is for a role default.
+          ...(skill ? { label: skill.label } : {}),
           // The shortcut IS the slash command, same contract as role actions.
           command: { key, prompt: `/${key}` },
           // Carried only when true, so role-default shapes stay unchanged.
-          ...(skill.custom ? { custom: true } : {})
+          ...(skill?.custom ? { custom: true } : {})
         }
       ]
     })

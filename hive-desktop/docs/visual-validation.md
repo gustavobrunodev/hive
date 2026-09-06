@@ -643,6 +643,77 @@ voltar um nível antes de fechar. Um teste E2E que fechava a folha com um
 navegação interna: procure por `keyboard.press('Escape')` nos specs no mesmo
 commit.
 
+[`tools/visual/shortcut-removal-pass.mjs`](../tools/visual/shortcut-removal-pass.mjs) e
+[`tools/visual/chat-round-contrast.mjs`](../tools/visual/chat-round-contrast.mjs) cobrem a
+rodada de 2026-09-05 — atalhos do papel removíveis, o facho de trabalho no
+compositor e a mensagem com comando de volta à bolha normal. O primeiro é
+funcional (12 afirmações, e roda **duas vezes**: com catálogo e com
+`HIVE_NO_BMAD=1`); o segundo mede 9 alvos × 3 temas mais 5 afirmações
+estruturais. Cinco lições, todas pagas nesta rodada:
+
+- **Um palco que espelha um resolvedor tem que espelhar TODAS as regras dele.**
+  O palco do seletor validava os atalhos contra o catálogo do workspace; o
+  `main/roleCatalog.ts` **não valida os padrões do papel** — devolve-os
+  intactos. Num workspace com BMAD parcial isso dá um palco com três chips a
+  menos que o herói que ele diz desenhar, e os três que faltam sem nenhuma saída.
+  Nenhuma sonda mockada podia pegar: toda fixture tinha catálogo completo. Quem
+  pegou foi o `e2e/shortcut-removal.spec.ts`, contra disco de verdade.
+- **A fixture de E2E inventava `canonicalId`.** O `skill-manifest.csv` semeado
+  usava ids com módulo (`bmm/prd,bmad-prd,…`) e o arquivo real repete o nome nas
+  duas primeiras colunas (`"bmad-prd","bmad-prd",…`). Como
+  `listWorkspaceCatalog` chaveia por `canonicalId || name`, **todas** as chaves
+  do workspace semeado eram nomes que o resto do app nunca menciona: nada
+  resolvia, e qualquer spec que dependesse de um atalho sobreviver à validação
+  estava medindo um workspace que nenhum usuário tem. Regra geral: uma fixture
+  de arquivo de terceiro se confere contra o arquivo real, não contra o que a
+  gente acha que ele parece.
+- **Gradiente cônico não leva uma luz em volta de uma caixa larga.** Setores
+  angulares mapeiam para pedaços de perímetro muito diferentes: num compositor
+  (≈4:1) a cabeça se espalha por quase toda a aresta de cima e atravessa as
+  laterais em dois frames — lê-se como um gradiente que pisca, não como algo que
+  anda. O que anda em velocidade constante é um traço SVG tracejado sobre um
+  contorno normalizado por `pathLength`; medido: `pathLength="100"` +
+  `stroke-dasharray: 50 50` desenha exatamente metade do contorno, em qualquer
+  proporção de caixa (`x`/`y`/`width`/`height`/`rx` de um `<rect>` aceitam CSS,
+  inclusive `calc()`, então a geometria acompanha uma caixa de tamanho
+  desconhecido).
+- **Nem todo pixel colorido é um indicador, pela terceira vez.** A borda do
+  compositor em trabalho mediu 2,61–2,73:1 e parecia reprovação de piso 3:1. A
+  borda **em repouso** do mesmo app mede 1,70–1,98:1 (`--border-strong`): é
+  aresta de contêiner, não indicador. Quem indica é o facho (6,7:1), mais o botão
+  que vira Parar e a linha de status do turno. A afirmação certa é *em trabalho >
+  em repouso*, e o motivo mora **dentro** da lista de alvos — sem isso a próxima
+  rodada re-adiciona o 3:1 e "conserta" clareando uma borda de 1px acima de todas
+  as outras do app.
+- **Fixture que resolve `undefined` não distingue edição viva de edição morta.**
+  O `shortcuts.set` do `boot.mjs` era `ok(undefined)` e o `actions` devolvia uma
+  lista congelada: o herói atrás do diálogo nunca se mexia, e uma sonda de
+  remoção passaria igual com o botão desligado. Agora o fixture guarda estado e
+  resolve pelas mesmas regras do `roleCatalog.ts` — **e o corolário é imediato:
+  uma sonda que EDITA estado tem que devolvê-lo.** O `shortcuts-pass.mjs`
+  desmarcava o único padrão do escopo `during` para fotografar o estado vazio e
+  seguia adiante; com o fixture honesto, a faixa que ele mede dois passos depois
+  passou a vir vazia e o alvo saiu como `MISSING` — que se lê como "nada a
+  corrigir". Ele agora clica "Restaurar padrão" antes de sair do diálogo.
+
+**Staleness pré-existente nessa mesma sonda, para não ser confundida com a
+rodada:** os cinco alvos `profile .wb-profile-*` do `shortcuts-pass.mjs` saem
+`MISSING` desde o M25 — as classes existem, mas a folha de perfil virou
+**drill-down** e elas ficaram um nível para dentro. O sweep de E2E já foi
+corrigido para navegar até o escopo (`e2e/contrast.spec.ts`); esta sonda ainda
+mede o índice.
+
+**E uma armadilha do próprio harness, medida:** os `globalThis.HIVE_*` lidos
+**dentro** do init script do `boot.mjs` nunca chegam à página — a lição já
+registrada acima ("cada chamada do `run_code_unsafe` roda num contexto próprio")
+vale também para o corpo do init script, onde `globalThis` é o `window` da
+página. Hoje isso atinge `HIVE_SHELLS`, `HIVE_FACTS`, `HIVE_NO_MODELS`,
+`HIVE_ROLE`, `HIVE_NO_REPO`, `HIVE_LEGACY_BYTES` e `HIVE_ASR_PHASE`: todos leem
+`undefined` e caem no default, em silêncio. Só `theme`, `sidebarView`,
+`sidebarOpen` e `noBmad` funcionam, porque viajam como **argumento** do
+`addInitScript`. Quem for usar um desses botões: passe-o como argumento primeiro,
+e confira lendo o valor de volta da página — não do Node.
+
 ## O que este passe não cobre
 
 Contraste é objetivo e agora é computacional. Hierarquia visual, densidade,
@@ -1454,3 +1525,90 @@ notificação `completed` que vinha depois reportava a compactação pedida pelo
 usuário como sendo do próprio agente. O servidor ACP falso emitia tudo dentro
 do handler do prompt e por isso passava. `devinLive.e2e.test.ts` é onde isso
 fica preso.
+
+## Sonda da lateral ocultável + restauração de sessão (2026-09-05)
+
+`tools/visual/sidebar-session-pass.mjs` cobre a rodada funcional inteira num
+arquivo — a primeira execução só com o chat, o clique que abre e o mesmo
+clique que guarda, o Ctrl+B voltando para a view que estava escondida, a
+árvore sobrevivendo ao ciclo e uma releitura do app com abas, pastas e
+conversa restauradas (26 afirmações). `tools/visual/sidebar-contrast.mjs`
+mede os dois estados novos da rail nos três temas.
+
+- **O init script do boot roda em TODA navegação, e é isso que permite trocar o
+  estado inicial.** Uma cena que quer outra sessão registra o **próprio**
+  `addInitScript` depois do `boot.mjs`: eles rodam na ordem de registro, e o
+  último a escrever a chave ganha. Sem isso não há como provar uma restauração,
+  porque o `reload()` reexecuta o harness por cima do que a cena plantou.
+- **`globalThis.HIVE_*` dentro de um init script é sempre `undefined`.** O corpo
+  do script roda **na página**, não no Node — `HIVE_SIDEBAR` significava
+  "explorer" desde o dia em que foi escrito e ninguém percebeu porque o default
+  era o que quase toda cena queria. Agora os knobs viajam como **argumento**
+  (`addInitScript(fn, { theme, sidebarView, sidebarOpen })`).
+- **Um fixture que sempre diz "sim" não consegue mostrar o caso que ele existe
+  para mostrar.** `fs.exists` do boot devolvia `true` para qualquer caminho, e a
+  restauração descarta justamente a aba cujo arquivo sumiu entre execuções. Ele
+  passou a responder a partir da `WORKSPACE_TREE` — a mesma árvore que o
+  `listTree` serve —, então `docs/apagado.md` é de verdade um arquivo apagado.
+- **As duas marcas da rail nunca estão na tela juntas.** "View no ar" e "view em
+  repouso" são estados opostos da mesma entrada; medir as duas num `evaluate` só
+  reporta `ausente` para metade da lista. Cada tema mede em duas fases (aberta,
+  Ctrl+B, fechada) e o relatório junta as duas — a mesma lição da folha de
+  contexto em `compaction-pass.mjs`.
+- **Pseudo-elemento não aparece em `style`.** As barras (acento e repouso) são
+  `::before`; quem responde é `getComputedStyle(el, '::before').backgroundColor`.
+- **`--border-strong` não é uma marca, é uma borda.** A barra da view em repouso
+  mediu **1,95:1 (escuro) · 1,68:1 (claro) · 1,88:1 (hive)** — abaixo até do piso
+  de 3:1 de componente de interface, ou seja, um marcador que ninguém acha.
+  Passou a `--muted` (6,98 · 4,90 · 7,08), e a diferença para a barra de acento
+  é carregada por **matiz e altura**, não por brilho.
+
+### Duas armadilhas que não são de sonda, e que só o navegador pegou
+
+- **Mudar a FORMA dos filhos do grupo faz o `react-resizable-panels`
+  renormalizar tudo.** A primeira versão removia a alça ao lado da lateral
+  oculta. O `expand()` funcionava — o log mostrava `asPercentage: 29.3` e depois
+  `22` —, e no frame seguinte chegavam dois `onResize 0`: a inserção da alça
+  mudava os filhos do `Group` e ele reescrevia o layout, jogando o painel recém
+  aberto de volta para zero. A alça agora **fica sempre no DOM** e sai do layout
+  por CSS (`[data-offscreen] { display: none }`).
+- **Os frames de um toggle não são um gesto.** O painel reporta a largura a cada
+  frame do deslize, e todo frame de um *fechamento* está acima do limiar até o
+  último. Lidos como gesto, cada um deles diz "o usuário acabou de abrir a
+  lateral" e desfaz o fechamento em curso. `WorkUI` marca `toggling` enquanto o
+  próprio deslize corre; só o `onResize` fora dessa janela conta como a mão na
+  alça (que é o que dá o arrastar-para-fechar do VS Code de graça).
+
+## O menu "Adicionar contexto" do composer
+
+`tools/visual/add-context.mjs` é a cena (o `+` em repouso, o menu aberto, a
+linha destacada e o desfecho de cada uma das duas linhas);
+`tools/visual/add-context-contrast.mjs` mede 17 alvos × 3 temas com a linha da
+dica `@` **destacada**, e `tools/visual/add-context-a11y.mjs` faz o passe de
+teclado. Quatro lições, todas pagas nesta rodada:
+
+- **Um `Kbd` dentro de uma linha de menu some quando a linha acende.** O
+  `Kbd` do DS se pinta de `--surface-2` — exatamente a cor que a linha assume no
+  `[data-highlighted]`. Na única linha a que a dica pertence, a tecla media
+  **1,00:1 contra o próprio fundo** e sobrava como texto com um fio em volta.
+  O papel certo para uma tecla é o afundado (`--bg-2`): 1,27 · 1,11 · 1,22
+  destacada e 1,39 · 1,26 · 1,55 em repouso. Corrigido no DS, não no app — a
+  colisão é do componente que acende a linha.
+- **Um menu `modal` some com o app inteiro para a sonda — e para o leitor de
+  tela.** O `DropdownMenu` do Radix é modal por padrão: com ele aberto, todo o
+  resto da página vira `aria-hidden`, e `getByRole('button', …)` sobre o próprio
+  gatilho estoura timeout. Num menu ancorado num campo de texto isso esconde
+  justamente o composer de que a escolha trata (além de travar o scroll pelo
+  `react-remove-scroll`, o mesmo ponto que o seletor de motor já pagou).
+  `modal={false}`.
+- **Fechar não é escolher, e o foco vai para lugares opostos.** Escolher uma
+  linha manda o foco ao campo (o usuário pegou o contexto para continuar
+  escrevendo); `Esc` tem que devolver ao gatilho, como qualquer menu — um cancel
+  que muda o cursor de lugar perde quem estava navegando a barra por Tab. Um
+  `onCloseAutoFocus` que sempre desviava o foco passava em todo screenshot; só
+  o passe de teclado viu.
+- **Um `@` não cabe dentro de uma pasta a 16px.** O ícone da primeira linha
+  tentava desenhar a sigla dentro do glifo de pasta: sobram ~7px para uma
+  espiral que precisa de 12, e sai um borrão. A sigla ficou na tecla, onde é
+  tipografia de verdade; o ícone passou a desenhar o **conteúdo** (pasta com uma
+  lista), e o par que precisa ser lido num relance é pasta × monitor.

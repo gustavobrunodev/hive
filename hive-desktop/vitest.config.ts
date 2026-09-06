@@ -180,6 +180,14 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // workspace-session: the per-workspace UI state the workbench reopens
+        // into (files, conversation, folders, sidebar, pane widths).
+        'src/renderer/src/ui/workspaceSession.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         // npm-distribution T12: the rail's ambient update dot — this file's
         // first dedicated test file (previously only exercised indirectly
         // through WorkUI.test.ts).

@@ -33,6 +33,23 @@ export type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenu
   /** Tints the item as a destructive action (e.g. delete). */
   variant?: "default" | "danger"
   /**
+   * Leading visual, rendered into a reserved tile that tints with the row's
+   * own highlight. `aria-hidden`: an icon beside a label it duplicates is
+   * noise to a screen reader, and every icon here has a label beside it.
+   */
+  icon?: ReactNode
+  /**
+   * A second line under the label, for a menu whose items are *choices*
+   * rather than plain commands — two ways to do the same thing, where the
+   * title alone cannot say which is which ("do workspace" vs "do computador").
+   *
+   * Unlike `shortcut`, this is NOT hidden from the accessible name: it is the
+   * item's own content, and the distinction it carries is exactly what a
+   * screen-reader user needs to pick the right row. Pass `textValue` when the
+   * extra words would spoil Radix's type-ahead.
+   */
+  description?: ReactNode
+  /**
    * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
    * visual reminder of a binding, not part of what the item *is*, and folding
    * it into the accessible name turns "Recortar" into "Recortar Ctrl+X" for
@@ -44,14 +61,36 @@ export type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenu
 }
 
 export const DropdownMenuItem = forwardRef<ElementRef<typeof DropdownMenuPrimitive.Item>, DropdownMenuItemProps>(
-  function DropdownMenuItem({ className, variant = "default", shortcut, children, ...rest }, ref) {
+  function DropdownMenuItem({ className, variant = "default", icon, description, shortcut, children, ...rest }, ref) {
+    // A described row is a taller object with its own rhythm: the label stacks,
+    // the icon aligns to the title rather than to the block's centre, and the
+    // shortcut has to stop pretending it belongs on the second line. One flag
+    // switches all of that, so a plain item keeps the single-line metrics it
+    // has always had.
+    const stacked = description !== undefined && description !== null && description !== false
     return (
       <DropdownMenuPrimitive.Item
         ref={ref}
-        className={cx("hds-dropdown-menu-item", variant === "danger" && "hds-dropdown-menu-item-danger", className)}
+        className={cx(
+          "hds-dropdown-menu-item",
+          stacked && "hds-dropdown-menu-item-stacked",
+          variant === "danger" && "hds-dropdown-menu-item-danger",
+          className,
+        )}
         {...rest}
       >
-        <span className="hds-dropdown-menu-item-label">{children}</span>
+        {icon && <span className="hds-dropdown-menu-item-icon" aria-hidden="true">{icon}</span>}
+        {/* A plain item keeps the flat label it always had — the row IS the
+            label, and consumers that pass their own icon inline rely on its
+            spacing. Only a described item gains the wrapper. */}
+        {stacked ? (
+          <span className="hds-dropdown-menu-item-label">
+            <span className="hds-dropdown-menu-item-title">{children}</span>
+            <span className="hds-dropdown-menu-item-desc">{description}</span>
+          </span>
+        ) : (
+          <span className="hds-dropdown-menu-item-label">{children}</span>
+        )}
         {shortcut && <span className="hds-dropdown-menu-shortcut" aria-hidden="true">{shortcut}</span>}
       </DropdownMenuPrimitive.Item>
     )

@@ -16,15 +16,48 @@
 //   window.__setReview(s) — push a pending Agent Change Review set
 async (page) => {
   const theme = globalThis.HIVE_THEME || 'dark'
+  const sidebarView = globalThis.HIVE_SIDEBAR || 'explorer'
+  // `HIVE_SIDEBAR_OPEN=0` asks for the first-run state (chat alone).
+  const sidebarOpen = globalThis.HIVE_SIDEBAR_OPEN !== '0'
+  // `HIVE_NO_BMAD=1` boots a workspace BMAD was never installed into — no
+  // skill catalog at all. It is the case where the shortcut picker has nothing
+  // to offer and the shortcuts on screen still have to be removable, so it
+  // needs to be reachable from a pass. Travels as an ARGUMENT, like the knobs
+  // above: `globalThis.HIVE_*` is simply undefined inside an init script.
+  const noBmad = globalThis.HIVE_NO_BMAD === '1' || globalThis.HIVE_NO_BMAD === true
   await page.context().clearCookies()
-  await page.addInitScript((theme) => {
+  // The knobs travel as an ARGUMENT, not as closure state. An init script's
+  // body runs in the page, where `globalThis.HIVE_*` is simply undefined —
+  // `HIVE_SIDEBAR` had silently meant "explorer" since the day it was added,
+  // and nothing said so because the default is what most passes wanted.
+  await page.addInitScript(({ theme, sidebarView, sidebarOpen, noBmad }) => {
     localStorage.setItem('hive.tourSeen', '1')
     // The sidebar remembers which view it was left on, in the *browser
     // profile* the MCP reuses across sessions — so a pass that opens the
     // explorer would fail on a machine whose last run ended in Source
     // Control, for reasons entirely outside the scene it is measuring.
     // Pinned here so every pass starts from the same sidebar.
-    localStorage.setItem('hive.sidebarView', globalThis.HIVE_SIDEBAR ?? 'explorer')
+    localStorage.setItem('hive.sidebarView', sidebarView)
+    // workspace-session: the sidebar is a hideable panel now, and a workspace
+    // with no stored session opens on the chat alone. Every pass that predates
+    // that expects a file tree on screen, so the harness seeds the record with
+    // an open sidebar — `HIVE_SIDEBAR_OPEN=0` is how a scene asks for the
+    // first-run state instead.
+    localStorage.setItem(
+      'hive.workspaceSession',
+      JSON.stringify({
+        '/ws': {
+          savedAt: Date.now(),
+          tabs: [],
+          activeTab: null,
+          expanded: [],
+          chatSessionId: null,
+          sidebarView,
+          sidebarOpen,
+          layout: null
+        }
+      })
+    )
     localStorage.setItem('hive-desktop-theme', theme)
 
     const noop = () => {}
@@ -456,9 +489,49 @@ async (page) => {
     // Mutable fixture state the test drives from the console.
     const state = {
       vault: { path: null, name: null, rawPending: 0 },
-      watchers: []
+      watchers: [],
+      // shortcut-customization: the persisted per-scope selection. `null` on a
+      // scope means "never customized" — the role defaults answer for it.
+      shortcuts: { start: null, during: null }
     }
     window.__hiveState = state
+
+    /** The role's defaults for a scope, in `command.key` terms (what the picker seeds from). */
+    const ROLE_DEFAULTS = {
+      start: {
+        skills: ['bmad-prd', 'bmad-brainstorming', 'bmad-ux'],
+        agents: ['bmad-agent-pm']
+      },
+      during: { skills: ['bmad-party-mode'], agents: [] }
+    }
+
+    /**
+     * The renderer-visible shortcut set for one scope, resolved exactly the way
+     * `main/roleCatalog.ts` resolves it — including the rule that decides this
+     * round: with no catalog to validate against, the user's selection stands
+     * as written instead of falling back to the role defaults.
+     */
+    function resolveShortcutSet(scope) {
+      const catalog = noBmad ? [] : SHORTCUT_CATALOG
+      const byKey = new Map(catalog.map((skill) => [skill.key, skill]))
+      const prefs = state.shortcuts[scope]
+      const pick = (keys, kind) =>
+        keys.flatMap((key) => {
+          const skill = byKey.get(key)
+          if (!skill && catalog.length > 0 && prefs !== null) return []
+          return [
+            {
+              key,
+              kind,
+              ...(skill ? { label: skill.label } : {}),
+              command: { key, prompt: `/${key}` },
+              ...(skill && skill.custom ? { custom: true } : {})
+            }
+          ]
+        })
+      const selection = prefs ?? ROLE_DEFAULTS[scope]
+      return [...pick(selection.skills, 'workflow'), ...pick(selection.agents, 'persona')]
+    }
     window.__fsChange = (path) => {
       for (const cb of state.watchers) cb({ type: 'add', path: path || 'second-brain/wiki/index.md' })
     }
@@ -569,6 +642,25 @@ async (page) => {
       { name: 'package.json', path: 'package.json', type: 'file' },
       { name: 'README.md', path: 'README.md', type: 'file' }
     ]
+
+    /**
+     * workspace-session: does this workspace-relative path exist in the
+     * fixture? The restore checks every remembered tab against disk before
+     * reopening it, and an `exists` that always says yes is a fixture that
+     * cannot show the case it exists for — a file deleted between launches.
+     */
+    const existsAt = (rel) => {
+      if (!rel) return true
+      let nodes = WORKSPACE_TREE
+      const segments = rel.split('/')
+      for (const [index, segment] of segments.entries()) {
+        const next = nodes.find((node) => node.name === segment)
+        if (!next) return false
+        if (index === segments.length - 1) return true
+        nodes = next.children ?? []
+      }
+      return true
+    }
 
     /** `listTree`'s answer for a workspace-relative directory (undefined = the root). */
     const subtreeAt = (rel) => {
@@ -967,7 +1059,20 @@ async (page) => {
       for (const fn of [...settledSubs]) fn(record)
     }
 
+    /**
+     * Stored conversations. Read from `hive.__seedChat` **lazily**, inside the
+     * calls — a scene's own init script runs *after* this one, so anything it
+     * plants is only visible once the app starts asking.
+     */
     const sessions = []
+    const allSessions = () => {
+      try {
+        const seeded = JSON.parse(localStorage.getItem('hive.__seedChat') ?? '[]')
+        return [...sessions, ...seeded]
+      } catch {
+        return sessions
+      }
+    }
     window.hive = {
       ping: ok('pong'),
       chooseWorkspace: ok('/ws'),
@@ -1141,7 +1246,7 @@ async (page) => {
         // pass reads a fixture gap as a defect.
         list: () =>
           Promise.resolve(
-            sessions.map((s) => ({
+            allSessions().map((s) => ({
               id: s.id,
               title: s.title,
               updatedAt: s.updatedAt,
@@ -1151,7 +1256,7 @@ async (page) => {
               preview: s.messages[s.messages.length - 1]?.text ?? ''
             }))
           ),
-        get: (_ws, id) => Promise.resolve(sessions.find((s) => s.id === id) || null),
+        get: (_ws, id) => Promise.resolve(allSessions().find((s) => s.id === id) || null),
         create: (_ws, agent) => {
           const s = {
             id: `s${sessions.length + 1}`,
@@ -1212,30 +1317,22 @@ async (page) => {
         setUserName: ok(undefined),
         // shortcut-scopes: role *defaults* per scope, which is what the
         // customizer pre-checks when nothing is stored yet.
+        // Derived from the same ROLE_DEFAULTS the resolver falls back to: a
+        // fixture where the picker seeds from one list and the hero renders
+        // another shows a phantom difference the app does not have.
         roleActions: (role, scope) =>
-          Promise.resolve(
-            scope === 'during'
-              ? [
-                  {
-                    key: 'party-mode',
-                    kind: 'workflow',
-                    command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' }
-                  }
-                ]
-              : [
-                  { key: 'prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
-                  {
-                    key: 'brainstorm',
-                    kind: 'workflow',
-                    command: { key: 'bmad-brainstorming', prompt: '/bmad-brainstorming' }
-                  },
-                  {
-                    key: 'persona-pm',
-                    kind: 'persona',
-                    command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' }
-                  }
-                ]
-          ),
+          Promise.resolve([
+            ...ROLE_DEFAULTS[scope === 'during' ? 'during' : 'start'].skills.map((key) => ({
+              key,
+              kind: 'workflow',
+              command: { key, prompt: `/${key}` }
+            })),
+            ...ROLE_DEFAULTS[scope === 'during' ? 'during' : 'start'].agents.map((key) => ({
+              key,
+              kind: 'persona',
+              command: { key, prompt: `/${key}` }
+            }))
+          ]),
       },
       // agent-terminal: the terminal picker's bridge (catalog in `state`).
       shell: {
@@ -1248,23 +1345,29 @@ async (page) => {
           return Promise.resolve(undefined)
         }
       },
+      // Stateful, and it has to be: `set` used to resolve `undefined` and
+      // `actions` used to answer with a frozen list, so the hero behind the
+      // dialog never moved and a pass could not tell a wired edit from a dead
+      // one. This mirrors `main/roleCatalog.ts`'s own rules — null prefs mean
+      // the role defaults, a real selection is honoured as written (an EMPTY
+      // one included), and a key the catalog does not have is dropped only
+      // while there IS a catalog to check against.
+      // `HIVE_NO_BMAD=1` empties that catalog, which is the
+      // workspace where removing a role default used to be impossible.
       shortcuts: {
-        catalog: ok(SHORTCUT_CATALOG),
-        get: ok({ start: null, during: null }),
-        set: ok(undefined),
-        // Both scopes, the shape `WorkUI` now consumes: the hero's set and the
+        catalog: () => Promise.resolve(noBmad ? [] : SHORTCUT_CATALOG),
+        get: () => Promise.resolve({ ...state.shortcuts }),
+        set: (scope, prefs) => {
+          state.shortcuts[scope] = prefs === null ? null : { ...prefs }
+          return Promise.resolve(undefined)
+        },
+        // Both scopes, the shape `WorkUI` consumes: the hero's set and the
         // (deliberately short) in-conversation one.
-        actions: ok({
-          start: [
-            { key: 'bmad-prd', kind: 'workflow', label: 'PRD', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
-            { key: 'bmad-brainstorming', kind: 'workflow', label: 'Brainstorm', command: { key: 'bmad-brainstorming', prompt: '/bmad-brainstorming' } },
-            { key: 'bmad-ux', kind: 'workflow', label: 'UX', command: { key: 'bmad-ux', prompt: '/bmad-ux' } },
-            { key: 'bmad-agent-pm', kind: 'persona', label: 'John', command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' } }
-          ],
-          during: [
-            { key: 'party-mode', kind: 'workflow', command: { key: 'bmad-party-mode', prompt: '/bmad-party-mode' } }
-          ]
-        })
+        actions: () =>
+          Promise.resolve({
+            start: resolveShortcutSet('start'),
+            during: resolveShortcutSet('during')
+          })
       },
       fs: {
         statFile: ok({ mtimeMs: 1, size: 1 }),
@@ -1278,7 +1381,7 @@ async (page) => {
         move: ok(undefined),
         copyEntry: ok(undefined),
         importEntry: ok(undefined),
-        exists: ok(true),
+        exists: (_root, rel) => Promise.resolve(existsAt(rel)),
         trash: ok(undefined),
         pathForFile: () => '/ws/file',
         // explorer-os-actions. Recorded rather than no-op'd: a probe that
@@ -1494,7 +1597,7 @@ async (page) => {
         for (const fn of awsSubs) fn(globalThis.__HIVE_AWS_LOGIN)
       }
     }
-  }, theme)
+  }, { theme, sidebarView, sidebarOpen, noBmad })
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('http://localhost:8123/index.html')

@@ -8,6 +8,7 @@ import {
   matchRanges,
   mentionQueryAt,
   mentionSegments,
+  openMentionAt,
   rankMentionFiles
 } from './composerMentions'
 
@@ -231,5 +232,51 @@ describe('formatFileSize', () => {
     expect(formatFileSize(2355)).toBe('2,3 KB')
     expect(formatFileSize(1_258_291)).toBe('1,2 MB')
     expect(formatFileSize(150 * 1024)).toBe('150 KB')
+  })
+})
+
+/**
+ * add-context: what the "Arquivos do workspace" row does to the composer. The
+ * contract that matters is that whatever it writes, `mentionQueryAt` accepts —
+ * a sigil that opens no menu is a button that does nothing visible.
+ */
+describe('openMentionAt', () => {
+  it('types the sigil into an empty composer', () => {
+    expect(openMentionAt('', 0)).toEqual({ value: '@', caret: 1 })
+  })
+
+  it('adds the separating space when the caret sits against a word', () => {
+    expect(openMentionAt('resuma', 6)).toEqual({ value: 'resuma @', caret: 8 })
+  })
+
+  it('adds no second space when the caret already follows one', () => {
+    expect(openMentionAt('resuma ', 7)).toEqual({ value: 'resuma @', caret: 8 })
+    expect(openMentionAt('resuma\n', 7)).toEqual({ value: 'resuma\n@', caret: 8 })
+  })
+
+  it('inserts at the caret and leaves the rest of the line alone', () => {
+    expect(openMentionAt('leia e resuma', 6)).toEqual({ value: 'leia e @ resuma', caret: 8 })
+  })
+
+  it('clamps a caret outside the value instead of tearing it', () => {
+    expect(openMentionAt('oi', 99)).toEqual({ value: 'oi @', caret: 4 })
+    expect(openMentionAt('oi', -3)).toEqual({ value: '@oi', caret: 1 })
+  })
+
+  // The invariant the button rests on: every insertion opens a real token.
+  it('always writes a sigil the token detector accepts', () => {
+    for (const [value, caret] of [
+      ['', 0],
+      ['resuma', 6],
+      ['resuma ', 7],
+      ['leia e resuma', 6],
+      ['@docs/prd.md ', 13]
+    ] as Array<[string, number]>) {
+      const next = openMentionAt(value, caret)
+      expect(mentionQueryAt(next.value, next.caret), `${value}@${caret}`).toEqual({
+        start: next.caret - 1,
+        query: ''
+      })
+    }
   })
 })

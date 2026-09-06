@@ -22,7 +22,14 @@ import { chromium } from 'playwright'
 
 // Scenes read `globalThis.HIVE_THEME` (and friends) the way they do under the
 // MCP; here they come from the environment so one command can sweep a theme.
-for (const key of ['HIVE_THEME', 'HIVE_SIDEBAR', 'HIVE_AUDIO_DIR', 'HIVE_WANT_LIGHT']) {
+for (const key of [
+  'HIVE_THEME',
+  'HIVE_SIDEBAR',
+  'HIVE_SIDEBAR_OPEN',
+  'HIVE_AUDIO_DIR',
+  'HIVE_WANT_LIGHT',
+  'HIVE_NO_BMAD'
+]) {
   if (process.env[key] !== undefined) globalThis[key] = process.env[key]
 }
 

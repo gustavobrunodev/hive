@@ -3682,3 +3682,160 @@ contraste — e **as duas integrações validadas contra as CLIs de verdade**:
 `claudeLive.e2e.test.ts` (o `compact_boundary`, e o handle de resume
 sobrevivendo). As quatro lições de sonda desta rodada estão em
 `docs/visual-validation.md`.
+
+---
+
+## A lateral que se guarda e o workspace que volta como estava (2026-09-05)
+
+Pedido do usuário: que o app reabra **exatamente** no estado em que foi
+fechado (arquivos abertos, conversa, pastas expandidas); que dê para ficar só
+com o chat, com o mesmo botão que abre uma aba fechando-a de novo, como no VS
+Code; e que a primeira execução venha com "Arquivos" fechado. Mais o mandato
+de sempre: "me surpreenda com uma interface bonita, moderna e intuitiva".
+
+- **Recolher não pode custar nada, e é isso que decidiu a arquitetura.** A
+  saída óbvia era tirar o painel da lista de panes renderizados — o viewer já
+  faz exatamente isso. Mas desmontar a árvore a cada Ctrl+B fecha toda pasta,
+  volta o scroll ao topo e dispara uma varredura do workspace com spinner: é o
+  "jank de app Electron" que o PRODUCT.md lista como anti-referência. O painel
+  virou `collapsible` do `react-resizable-panels`, colapsado a zero e escondido
+  com `visibility: hidden` — a mesma decisão que o `SidebarHost` já tinha
+  tomado um nível abaixo, pelo mesmo motivo.
+- **Mudar a FORMA dos filhos do grupo renormaliza o layout inteiro, e isso
+  custou a rodada.** A primeira versão não renderizava a alça ao lado da
+  lateral oculta. O `expand()` funcionava (`asPercentage: 29.3`, depois `22`) e
+  no frame seguinte chegavam dois `onResize 0`: inserir a alça mudava os filhos
+  do `Group`, que reescrevia o layout e jogava o painel recém-aberto de volta
+  para zero. A alça fica sempre no DOM e sai do layout por CSS.
+- **Os frames de um toggle não são um gesto.** O painel reporta a largura a
+  cada frame do deslize, e todo frame de um *fechamento* está acima do limiar
+  até o último — lidos como gesto, cada um diz "o usuário abriu a lateral" e
+  desfaz o fechamento em curso. Um `toggling` marcado enquanto o deslize corre
+  separa as duas coisas; fora dessa janela, um `onResize` que cruza o limiar é
+  a mão na alça, e é o que dá o arrastar-para-fechar do VS Code de graça.
+- **"Selecionada" e "no ar" deixaram de ser o mesmo fato.** Com a lateral
+  guardada, quatro ícones cinzas idênticos não respondem "qual volta no
+  Ctrl+B". A entrada selecionada ganhou um estado de **repouso** (tinta
+  levantada de `--muted` para `--ink` + uma barra curta e neutra), e a entrada
+  no ar passou a **nomear o que o clique faz** ("Ocultar Arquivos") — um toggle
+  cujo nome nunca muda não ensina a ninguém que é um toggle.
+- **`--border-strong` não é uma marca, é uma borda.** A barra de repouso mediu
+  1,95 · 1,68 · 1,88:1 nos três temas — abaixo até do piso de 3:1 de componente
+  de interface. Passou a `--muted` (6,98 · 4,90 · 7,08); a diferença para a
+  barra de acento é matiz e altura, nunca brilho.
+- **Restaurar aba de diff, de commit ou de revisão seria restaurar uma mentira.**
+  Essas abas são janelas para um estado que quase certamente já mudou até a
+  próxima abertura — o working tree virou commit, a revisão foi aceita, o merge
+  acabou. Só abas de **arquivo** voltam, e cada caminho é conferido em disco
+  antes: o que sumiu entre execuções é descartado calado, porque não há nada a
+  decidir. (`fs.exists` do harness visual devolvia `true` para tudo e não
+  conseguia mostrar esse caso; agora responde a partir da árvore do fixture.)
+- **A primeira execução esconde uma superfície, nunca uma capacidade.** Uma
+  árvore de arquivos sobre um workspace do qual você ainda não perguntou nada é
+  um paredão de nomes sem nada a dizer. A parada "Os artefatos moram aqui" do
+  tour passou a apontar o **botão** da rail e a ensinar o gesto — era ali que o
+  tour ia quebrar, ancorado numa árvore de largura zero.
+- **Estado de workspace é por workspace.** `hive.workLayout` e
+  `hive.sidebarView` eram globais; viraram um registro só
+  (`hive.workspaceSession`), com as chaves antigas lidas uma vez como semente
+  de migração — mas nunca a lateral aberta, porque "a primeira execução mostra
+  só o chat" é uma regra sobre um workspace sem sessão, e a chave global não
+  diz nada sobre *este* workspace.
+- **Dois `margin-left: auto` irmãos DIVIDEM o espaço livre.** As ações
+  primárias do cabeçalho de painel ("Nova conversa", histórico) estavam
+  paradas no meio do cabeçalho desde sempre — invisível num painel estreito e
+  inconfundível assim que o chat passou a poder ocupar a janela inteira.
+
+Verify verde (3 986 testes, lint sem erros; as duas coberturas fora do piso são
+as mesmas de antes da rodada — `preload/index.ts` 89,61% e `configStore.ts`
+89,13%, medidas com o trabalho revertido). Passe fechado com
+`tools/visual/sidebar-session-pass.mjs` (26 afirmações funcionais) e
+`tools/visual/sidebar-contrast.mjs` (11 alvos × 3 temas, todos acima do piso),
+mais `e2e/workspace-session.spec.ts` no Electron real — que fecha o app, reabre
+e confere abas, pastas e lateral. As lições de sonda estão em
+`docs/visual-validation.md`.
+
+## Atalhos removíveis, o facho do turno e a mensagem que voltou a ser mensagem (2026-09-05)
+
+Pedido do usuário: poder **remover** os atalhos padrão do papel na configuração
+de atalhos, nos dois momentos (início e durante a conversa); uma animação de
+carregamento nas bordas do chat enquanto o agente trabalha na sessão corrente,
+como a do Copilot no VS Code; e que `/skill + texto` pare de virar um objeto
+próprio no transcript — mensagem normal, com skill/comando/arquivo destacados
+**dentro** dela. Mais o mandato de sempre: "me surpreenda com uma interface
+bonita, moderna e intuitiva".
+
+- **Adicionar e remover são gestos diferentes e não cabem no mesmo lugar.**
+  Adicionar é problema de busca (sessenta skills, a maioria desconhecida) e
+  pertence à lista. Remover não é: você já está olhando para o que quer tirar.
+  O seletor roteava os dois pela lista, então tirar um padrão do papel virava
+  caça à linha certa — e num workspace sem BMAD, onde a lista não renderiza
+  nada, era **impossível**. O palco de prévia virou o editor do próprio
+  conjunto: o chip é um botão, o ícone da frente vira ✕ no hover/foco, e há um
+  "Remover todos" por escopo. O ✕ não fica permanente porque seis botões de
+  excluir enfileirados param de parecer o conjunto que o palco existe para
+  mostrar.
+- **Catálogo vazio não é um veto.** `resolveShortcuts` caía nos padrões do papel
+  sempre que o catálogo estava vazio, inclusive com preferências gravadas — ou
+  seja, no workspace sem BMAD todo atalho removido voltava na leitura seguinte,
+  sem nada na tela explicando. "Sem catálogo" é ausência de evidência **sobre** a
+  seleção, não evidência contra ela: a seleção passa a valer como escrita, e nada
+  é inventado (uma chave que o usuário nunca escolheu continua não aparecendo).
+- **Um palco que espelha um resolvedor tem que espelhar TODAS as regras dele —
+  e só o E2E real pegou.** O `roleCatalog.ts` **não** valida os padrões do papel
+  contra o catálogo; valida só uma seleção de verdade. A primeira versão do
+  palco validava sempre, e num workspace com BMAD parcial isso o deixou com três
+  chips a menos que o herói que ele diz desenhar, com os três faltantes sem saída
+  nenhuma. Toda fixture mockada tinha catálogo completo, então nenhuma sonda
+  podia ver; quem viu foi `e2e/shortcut-removal.spec.ts`, contra `config.json` de
+  verdade — e ele fecha o ciclo inteiro: remove, fecha o app, reabre e confere.
+- **A fixture de E2E inventava `canonicalId`.** O `skill-manifest.csv` semeado
+  usava `bmm/prd,bmad-prd,…`; o arquivo real repete o nome (`"bmad-prd","bmad-prd",…`).
+  Como o catálogo é chaveado por `canonicalId || name`, **nenhuma** chave do
+  workspace semeado batia com o que o resto do app menciona: qualquer spec que
+  dependesse de um atalho sobreviver à validação vinha medindo um workspace que
+  nenhum usuário tem. Mesma lição no `second-brain.spec.ts`, por outro caminho:
+  ele semeava só o marcador `second-brain/SKILL.md` e não as quatro skills que o
+  pacote instala de verdade — e são elas que formam o oráculo que decide se
+  `/second-brain-query …` lê como invocação ou como prosa.
+- **Gradiente cônico não leva uma luz em volta de uma caixa larga.** Setores
+  angulares viram pedaços de perímetro muito desiguais: num compositor (≈4:1) a
+  cabeça se espalha pela aresta de cima e cruza as laterais em dois frames — lê
+  como um gradiente que pisca. O `ActivityBorder` do design system desenha um
+  traço SVG tracejado sobre um contorno normalizado por `pathLength`, em três
+  faixas que compartilham a borda de ataque e recuam progressivamente: uma
+  cometa com rastro, velocidade constante, cantos inclusive. Só a cometa é
+  desenhada — a borda em repouso continua sendo a do hospedeiro, que apenas
+  esquenta para um tint de acento enquanto o turno corre (senão o quadro pisca
+  entre "borda" e "luz" a cada passagem).
+- **Nem todo pixel colorido é um indicador, pela terceira vez.** Essa borda
+  esquentada mede 2,61–2,73:1 e parecia reprovar o piso de 3:1. A borda em
+  repouso do mesmo app mede 1,70–1,98:1: é aresta de contêiner. Quem indica é a
+  cometa (6,7:1), o botão que vira Parar e a linha de status. A sonda afirma *em
+  trabalho > em repouso*, com o porquê escrito dentro da lista de alvos.
+- **Uma mensagem enviada é uma mensagem.** O `/comando + texto` saía da bolha e
+  virava um objeto de duas partes; o resultado era uma linha com anatomia
+  diferente de todas as outras do transcript e — pior — o **nome do comando**
+  truncado (`/bmad-…`), porque dividia uma linha com argumentos livres para
+  crescer. Agora só a *marcação* muda: `MessageToken` (novo, no design system)
+  marca o comando que rodou e cada `@caminho` que existe mesmo, com a mesma
+  segmentação que o backdrop do compositor já pintava enquanto se digitava — o
+  envio virou promoção puramente visual, e os dois não têm como discordar. Sobre
+  o preenchimento de acento a marca é uma lavada **branca** (o tint colorido é o
+  que media 4,23:1); o recorte de mensagens longas sobreviveu, agora valendo para
+  qualquer mensagem longa e não só para as que começam com comando.
+- **`globalThis.HIVE_*` também não chega no corpo do init script.** Os sete
+  botões lidos lá dentro (`HIVE_SHELLS`, `HIVE_FACTS`, `HIVE_NO_MODELS`,
+  `HIVE_ROLE`, `HIVE_NO_REPO`, `HIVE_LEGACY_BYTES`, `HIVE_ASR_PHASE`) leem
+  `undefined` e caem no default, em silêncio — medido, não deduzido. Deixados
+  como estão de propósito: mexer neles muda o que as sondas existentes medem, e
+  isso é uma rodada própria. O botão novo (`HIVE_NO_BMAD`) viaja como argumento,
+  que é o único jeito que funciona.
+
+Verify verde (3 997 testes, lint sem erros; as duas coberturas fora do piso são
+as mesmas de sempre — `preload/index.ts` 89,61% e `configStore.ts` 89,13%). Passe
+fechado com `tools/visual/shortcut-removal-pass.mjs` (12 afirmações funcionais,
+rodado com catálogo e com `HIVE_NO_BMAD=1`) e `tools/visual/chat-round-contrast.mjs`
+(9 alvos × 3 temas + 5 afirmações estruturais, zero falhas e zero amostras não
+medidas), mais `e2e/shortcut-removal.spec.ts` no Electron real. As lições de
+sonda estão em `docs/visual-validation.md`.

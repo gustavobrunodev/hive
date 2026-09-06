@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
+import { openSidebar } from './fixtures/sidebar'
 
 // Voice Prompt (M13) E2E, VP-R7.3 — Playwright driving the real built Electron
 // app. Same boot recipe as second-brain.spec.ts (STATE.md T2/T11 lessons:
@@ -22,7 +23,10 @@ import os from 'node:os'
 // segmenter deciding where a phrase ends, the real serial queue, the real join
 // and caret restoration, the real PromptInput overlay, and the real teardown.
 async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
+  // The **activity bar**, not the file rail: a workspace with no stored session
+  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
+  // zero here — `openSidebar` at the end is what brings it back.
+  const rail = window.locator('.wb-actionrail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   for (let step = 0; step < 2; step++) {
     await Promise.race([
@@ -36,6 +40,7 @@ async function waitForWorkUI(window: Page): Promise<void> {
     }
   }
   await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await openSidebar(window)
 }
 
 /** Feeds the segmenter `ms` of audio at one level, through the stand-in. */
@@ -165,7 +170,7 @@ test.describe('voice-prompt E2E (real Electron)', () => {
       await expect(window.locator('.hds-prompt-input')).toHaveAttribute('data-highlighted', 'true')
       // The transport replaced the toolbar cluster rather than joining it.
       await expect(window.getByRole('button', { name: 'Concluir' })).toBeVisible()
-      await expect(window.getByRole('button', { name: 'Anexar arquivo' })).toHaveCount(0)
+      await expect(window.getByRole('button', { name: 'Adicionar contexto' })).toHaveCount(0)
       // No layout shift: the frame is where it was (D-VP-7, VP-R1.2).
       const frameAfter = await window.locator('.hds-prompt-input').boundingBox()
       expect(frameAfter?.width).toBeCloseTo(frameBefore?.width ?? 0, 0)

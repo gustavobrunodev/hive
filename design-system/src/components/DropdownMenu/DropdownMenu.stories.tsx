@@ -123,3 +123,53 @@ export const WithCheckboxesAndRadios: Story = {
     )
   },
 }
+
+/**
+ * `icon` + `description` turn commands into *choices*: two routes to the same
+ * outcome, told apart by their source rather than by their verb. The tile
+ * takes the row's highlight, so arrowing through reads as movement.
+ */
+export const DescribedChoices: Story = {
+  render: () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost">Add context</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuLabel>Add context</DropdownMenuLabel>
+        <DropdownMenuItem
+          icon={
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M1.5 4.2c0-.7.6-1.2 1.2-1.2h3l1.4 1.6h6.2c.7 0 1.2.5 1.2 1.2v6.4c0 .7-.5 1.2-1.2 1.2H2.7c-.6 0-1.2-.5-1.2-1.2V4.2Z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+            </svg>
+          }
+          description="Reference a project file inline"
+          shortcut="@"
+        >
+          Workspace files
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          icon={
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2 3.5h12v7H2zM5.5 13.5h5M8 10.5V13"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          }
+          description="Attach files from outside the project"
+        >
+          Computer files…
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+}

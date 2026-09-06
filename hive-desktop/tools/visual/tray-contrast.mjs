@@ -31,7 +31,8 @@ async (page) => {
         ])
     })
     if ((await page.locator('.wb-composer-chip').count()) === 0) {
-      await page.getByRole('button', { name: 'Anexar arquivos' }).click()
+      await page.getByRole('button', { name: 'Adicionar contexto' }).click()
+      await page.getByRole('menuitem', { name: /Arquivos do computador/ }).click()
       await page.getByPlaceholder('Escreva uma mensagem…').fill('compara com a especificação')
     }
     await page.waitForTimeout(300)

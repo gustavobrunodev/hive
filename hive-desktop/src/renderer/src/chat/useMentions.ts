@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { insertMention, mentionQueryAt, rankMentionFiles } from './composerMentions'
+import { insertMention, mentionQueryAt, openMentionAt, rankMentionFiles } from './composerMentions'
 
 export interface MentionsApi {
   /** Every workspace file path, as a set — the validity oracle for `@` tokens. */
@@ -17,6 +17,12 @@ export interface MentionsApi {
   dismiss: () => void
   /** Inserts `items[index]` over the open token and restores focus/caret. */
   select: (index: number) => void
+  /**
+   * Types an `@` at the caret and opens the menu — the button route to the
+   * picker, for a user who never learns the sigil. Same end state as pressing
+   * the key, so there is one mention flow and not two.
+   */
+  trigger: () => void
   /** Re-reads the caret from the textarea (wire to keyup/click/change). */
   syncCaret: () => void
   /** Any edit re-arms the menu and resets the highlight (same contract as the slash menu). */
@@ -104,6 +110,19 @@ export function useMentions(
     [matches.items, mention, value, caret, setValue]
   )
 
+  const trigger = useCallback(() => {
+    const node = textareaRef.current
+    const at = node ? (node.selectionStart ?? node.value.length) : value.length
+    const next = openMentionAt(value, at)
+    // The same three moves a keystroke makes: the caret lands after the sigil
+    // (the effect below applies it), a menu the user had dismissed is re-armed,
+    // and the highlight goes back to the top of the list.
+    pendingCaretRef.current = next.caret
+    setDismissed(false)
+    setHighlightState(0)
+    setValue(next.value)
+  }, [value, setValue, textareaRef])
+
   // Apply the post-insertion caret once the new value has rendered.
   useEffect(() => {
     const target = pendingCaretRef.current
@@ -127,6 +146,7 @@ export function useMentions(
     setHighlight,
     dismiss,
     select,
+    trigger,
     syncCaret,
     onValueEdited
   }

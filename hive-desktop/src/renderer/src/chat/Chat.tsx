@@ -8,7 +8,15 @@ import {
   useState,
   type KeyboardEvent
 } from 'react'
-import { Alert, ChatMessage, MessageList, PromptInput, Spinner } from '@hive/design-system'
+import {
+  ActivityBorder,
+  Alert,
+  ChatMessage,
+  MessageList,
+  MessageToken,
+  PromptInput,
+  Spinner
+} from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import {
@@ -16,7 +24,6 @@ import {
   MicIcon,
   PaperclipIcon,
   QueueIcon,
-  SlashIcon,
   SlidersIcon,
   StopIcon,
   UnlockIcon
@@ -53,7 +60,7 @@ import {
   type SlashSkill
 } from './slashCommands'
 import { FileMentionMenu } from './FileMentionMenu'
-import { extractMentions, mentionSegments } from './composerMentions'
+import { extractMentions } from './composerMentions'
 import { composerBackdrop } from './composerBackdrop'
 import { DictationBar } from '../dictation/DictationBar'
 import { VoiceModelGate } from '../voice/VoiceModelGate'
@@ -62,9 +69,10 @@ import { useComposerDictation } from '../dictation/useComposerDictation'
 import type { DictationEngine } from '../dictation/useDictation'
 import { e2eDictationEngine } from '../dictation/e2eDictationSeam'
 import { useAsr } from '../asr/useAsr'
-import { isLongBody, splitCommandMessage, type CommandMessage } from './commandMessage'
-import { createSkillOracle } from './commandMentions'
+import { isLongMessage, userMessageSegments, type UserSegment } from './commandMessage'
+import { createSkillOracle, type SkillOracle } from './commandMentions'
 import { useAttachments } from './useAttachments'
+import { AddContextMenu } from './AddContextMenu'
 import { AttachmentTray } from './AttachmentTray'
 import { parkDraft, takeDraft, type DraftStore } from './composerDraft'
 import { useMentions } from './useMentions'
@@ -854,60 +862,72 @@ function activeOptionId(
 }
 
 /**
- * A sent invocation: the command token, whatever rode on its line, and the
- * material the user actually wrote underneath.
+ * One run of a sent message, drawn as what it claims to be.
  *
- * The two halves get deliberately different weight (see `.wb-invocation` in
- * workbench.css) because a launched turn is two things at once — a skill being
- * run and a message being sent — and a single flat run of text hides which is
- * which. Everything sent is still shown verbatim; a long body just collapses.
+ * A `command` is the skill this turn launched; a `file` is a workspace path
+ * that really exists. Both are `MessageToken`s, which is what keeps them
+ * legible on the bubble's accent fill — a coloured tint there puts the
+ * bubble's own ink on a darkened accent and drops the pair under AA, while a
+ * wash of the fill lifts it. Prose is a bare run, so the sentence keeps its
+ * own line breaks and its own wrapping.
  */
-function CommandInvocation({ invocation }: { invocation: CommandMessage }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false)
-  const collapsible = isLongBody(invocation.body)
-  return (
-    <span className="wb-invocation">
-      {/* One unbroken text run, `/` included: the token has to select, copy
-          and read aloud as the exact command that was invoked. */}
-      <span className="wb-command-token">
-        <SlashIcon size={13} aria-hidden="true" />
-        <span className="wb-command-token-name">/{invocation.command}</span>
-        {invocation.args !== '' && <span className="wb-command-token-args">{invocation.args}</span>}
-      </span>
-      {invocation.body !== '' && (
-        <span className="wb-invocation-body">
-          <span
-            className="wb-invocation-text"
-            data-clamped={collapsible && !expanded ? '' : undefined}
-          >
-            {invocation.body}
-          </span>
-          {collapsible && (
-            <button
-              type="button"
-              className="wb-invocation-more"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((current) => !current)}
-            >
-              {expanded ? t('chat.invocationLess') : t('chat.invocationMore')}
-            </button>
-          )}
-        </span>
-      )}
-    </span>
-  )
+function UserSegmentRun({ segment }: { segment: UserSegment }): React.JSX.Element {
+  if (segment.kind === 'command') {
+    return (
+      <MessageToken kind="command" title={segment.text}>
+        {segment.text}
+      </MessageToken>
+    )
+  }
+  if (segment.kind === 'file') return <MessageToken kind="file">{segment.text}</MessageToken>
+  return <>{segment.text}</>
 }
 
-/** A sent user message's text with its valid `@file` references styled as inline pills. */
-function renderUserText(text: string, fileSet: ReadonlySet<string>): React.ReactNode {
-  return mentionSegments(text, fileSet).map((segment, index) =>
-    segment.mention ? (
-      <span key={index} className="wb-user-mention">
-        {segment.text}
+/**
+ * A sent user message: an ordinary bubble, with the runs that name something
+ * real marked inside it.
+ *
+ * A message that starts with a slash command used to leave the bubble
+ * altogether and render as a two-part "invocation" object. It read as a
+ * different kind of thing from every other message in the transcript, and the
+ * command name — sharing one line with arguments free to grow — was what got
+ * ellipsised (`/bmad-…`). Now the shape never changes: only the marking does,
+ * and it is the same marking the composer painted while the message was still
+ * being typed (see `commandMessage.ts`).
+ *
+ * Long messages still collapse: a dictated ten-minute transcript is a
+ * legitimate message, and unclamped it buries the conversation it started.
+ */
+function UserMessageText({
+  text,
+  fileSet,
+  oracle
+}: {
+  text: string
+  fileSet: ReadonlySet<string>
+  oracle: SkillOracle
+}): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  const collapsible = isLongMessage(text)
+  const segments = userMessageSegments(text, fileSet, oracle)
+  return (
+    <>
+      <span className="wb-user-text" data-clamped={collapsible && !expanded ? '' : undefined}>
+        {segments.map((segment, index) => (
+          <UserSegmentRun key={index} segment={segment} />
+        ))}
       </span>
-    ) : (
-      <span key={index}>{segment.text}</span>
-    )
+      {collapsible && (
+        <button
+          type="button"
+          className="wb-user-more"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? t('chat.invocationLess') : t('chat.invocationMore')}
+        </button>
+      )}
+    </>
   )
 }
 
@@ -2220,21 +2240,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     )
   }
 
-  // User bubble: text with `@file` references as inline pills, plus one chip
+  // User bubble: one bubble for every message the user sends, with the runs
+  // that name a real command or a real file marked inside it, plus one chip
   // per attached file (chat-attachments). Nested for the same
   // complexity-budget reason as `renderToolbar`.
   function userBody(message: ChatMessageEntry): React.JSX.Element {
     const hasAttachments = message.attachments !== undefined && message.attachments.length > 0
-    // A message that STARTS with a command is not prose in a bubble — it's an
-    // invocation, and possibly an invocation carrying material. It gets its own
-    // compact token (see `.wb-msg-command`) rather than a tinted chip nested
-    // inside the accent bubble, which put dark ink on a darkened accent at
-    // 4.2:1 — under the WCAG AA floor.
-    const invocation = hasAttachments ? null : splitCommandMessage(message.text)
-    if (invocation !== null) return <CommandInvocation invocation={invocation} />
     return (
       <>
-        {message.text !== '' && renderUserText(message.text, mentions.fileSet)}
+        {message.text !== '' && (
+          <UserMessageText text={message.text} fileSet={mentions.fileSet} oracle={skillOracle} />
+        )}
         {hasAttachments && (
           <span className="wb-bubble-attachments">
             {message.attachments?.map((name, index) => (
@@ -2273,17 +2289,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         >
           <MicIcon size={15} />
         </button>
-        {capabilities.supportsAttachments && (
-          <button
-            type="button"
-            className="wb-attach-btn"
-            aria-label={t('chat.attachLabel')}
-            title={t('chat.attachTitle')}
-            onClick={() => void attachments.pick()}
-          >
-            <PaperclipIcon size={15} />
-          </button>
-        )}
+        {/* add-context: one `+` for both ways to hand the agent a file. The
+            paperclip it replaced was the button for the *expensive* route
+            (copy a path off the disk) while the cheap one — an `@` reference
+            into the workspace the agent is already standing in — had no
+            affordance at all and shipped as folklore. */}
+        <AddContextMenu
+          canUpload={capabilities.supportsAttachments}
+          onMention={mentions.trigger}
+          onUpload={() => void attachments.pick()}
+          onCloseFocus={() => composerTextareaRef.current?.focus()}
+        />
         {enabledAgents.length > 0 && (
           <AgentSwitcher
             agents={enabledAgents}
@@ -2471,11 +2487,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       <ChatMessage
         key={message.id}
         role={message.role}
-        className={
-          message.role === 'user' && splitCommandMessage(message.text) !== null
-            ? 'wb-msg-command'
-            : undefined
-        }
         avatar={message.role === 'assistant' ? assistantAvatar : undefined}
       >
         {message.role === 'assistant' ? assistantMessageBody(message) : userBody(message)}
@@ -2563,57 +2574,74 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             listboxId={MENTION_LISTBOX_ID}
           />
         )}
-        {/* Docked to the composer's top edge: what is waiting to be sent sits
-            between the box it came out of and the transcript it is going to. */}
-        <QueuedMessages
-          queue={queue.queue}
-          onRemove={queue.remove}
-          onClear={queue.clear}
-          onResume={queue.resume}
-        />
-        <PromptInput
-          value={composerValue}
-          onChange={handleComposerChange}
-          onSubmit={handleComposerSubmit}
-          placeholder={sendAffordance.placeholder}
-          // chat-queue: the composer never takes the stop role now (that moved
-          // to its own toolbar control), so the primary button always commits
-          // what is typed — it only changes what it promises to do with it.
-          sendLabel={sendAffordance.label}
-          sendIcon={sendAffordance.icon}
-          aria-controls={
-            slashOpen ? SLASH_LISTBOX_ID : mentionOpen ? MENTION_LISTBOX_ID : undefined
-          }
-          aria-activedescendant={
-            activeOptionId(slashOpen, filteredCommands.length, slashHighlight, SLASH_LISTBOX_ID) ??
-            activeOptionId(
-              mentionOpen,
-              mentions.items.length,
-              mentions.highlight,
-              MENTION_LISTBOX_ID
-            )
-          }
-          attachments={attachmentTray}
-          allowEmptySubmit={attachments.items.length > 0}
-          highlight={highlightComposer}
-          textareaRef={composerTextareaRef}
-          toolbar={renderToolbar()}
-          highlighted={dictation.active}
-          toolbarOverlay={
-            dictation.active ? (
-              <DictationBar
-                phase={dictation.phase}
-                levels={dictation.levels}
-                failure={dictation.failure}
-                partial={dictation.partial}
-                onFinish={dictation.finish}
-                onDiscard={dictation.discard}
-                onRetry={dictation.retry}
-                onRequestMic={dictation.start}
-              />
-            ) : undefined
-          }
-        />
+        {/* The travelling light rides the composer's OWN edge — the one edge
+            already on screen — so "this conversation is busy" costs no new box
+            and moves nothing. It wraps the queue strip as well as the field
+            because those two are drawn as a single object (one outline, one
+            hairline seam between them); lighting only the lower half would cut
+            the outline in two at exactly the moment there is most to read.
+
+            Scoped to THIS conversation's turn: a turn still running in another
+            thread keeps its own marker in the history list, and a ring that lit
+            for it would stop saying anything about the thread on screen. */}
+        <ActivityBorder active={isStreaming} radius="var(--rounded-lg)" thickness="2px">
+          {/* Docked to the composer's top edge: what is waiting to be sent sits
+              between the box it came out of and the transcript it is going to. */}
+          <QueuedMessages
+            queue={queue.queue}
+            onRemove={queue.remove}
+            onClear={queue.clear}
+            onResume={queue.resume}
+          />
+          <PromptInput
+            value={composerValue}
+            onChange={handleComposerChange}
+            onSubmit={handleComposerSubmit}
+            placeholder={sendAffordance.placeholder}
+            // chat-queue: the composer never takes the stop role now (that moved
+            // to its own toolbar control), so the primary button always commits
+            // what is typed — it only changes what it promises to do with it.
+            sendLabel={sendAffordance.label}
+            sendIcon={sendAffordance.icon}
+            aria-controls={
+              slashOpen ? SLASH_LISTBOX_ID : mentionOpen ? MENTION_LISTBOX_ID : undefined
+            }
+            aria-activedescendant={
+              activeOptionId(
+                slashOpen,
+                filteredCommands.length,
+                slashHighlight,
+                SLASH_LISTBOX_ID
+              ) ??
+              activeOptionId(
+                mentionOpen,
+                mentions.items.length,
+                mentions.highlight,
+                MENTION_LISTBOX_ID
+              )
+            }
+            attachments={attachmentTray}
+            allowEmptySubmit={attachments.items.length > 0}
+            highlight={highlightComposer}
+            textareaRef={composerTextareaRef}
+            toolbar={renderToolbar()}
+            highlighted={dictation.active}
+            toolbarOverlay={
+              dictation.active ? (
+                <DictationBar
+                  phase={dictation.phase}
+                  levels={dictation.levels}
+                  failure={dictation.failure}
+                  partial={dictation.partial}
+                  onFinish={dictation.finish}
+                  onDiscard={dictation.discard}
+                  onRetry={dictation.retry}
+                  onRequestMic={dictation.start}
+                />
+              ) : undefined
+            }
+          />
+        </ActivityBorder>
         {attachments.dragActive && (
           <div className="wb-composer-dropzone">
             <PaperclipIcon size={18} />

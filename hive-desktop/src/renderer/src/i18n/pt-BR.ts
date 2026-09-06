@@ -512,8 +512,22 @@ export const ptBR = {
     // visible label is just the bare command name.
     runCommandTitle: (command: string) => `Executar /${command}`,
     // chat-attachments (R6.5/T16): file attachments + `@` workspace references.
-    attachLabel: 'Anexar arquivos',
-    attachTitle: 'Anexar arquivos como contexto',
+    // add-context: the `+` that replaced the paperclip. The trigger is named
+    // for the *outcome* ("adicionar contexto"), not for the mechanism — a user
+    // reaching for it wants the agent to know about a file, and doesn't yet
+    // care whether that file lives in the project or on their disk.
+    addContextLabel: 'Adicionar contexto',
+    addContextTitle: 'Adicionar contexto à conversa',
+    addContextMenuLabel: 'Adicionar contexto',
+    // The two rows differ by SOURCE, because that is the actual decision. A
+    // pair of verbs would make the reader translate them back into sources
+    // before they could choose.
+    addContextMention: 'Arquivos do workspace',
+    addContextMentionDesc: 'Cite um arquivo do projeto na mensagem',
+    // The ellipsis is load-bearing: this row opens an OS dialog, the other
+    // does not.
+    addContextUpload: 'Arquivos do computador…',
+    addContextUploadDesc: 'Anexe arquivos de fora do projeto',
     attachmentRemoveAria: (name: string) => `Remover anexo ${name}`,
     dropHint: 'Solte para anexar como contexto',
     // The staged-files tray. Its summary is the fact a user checks before
@@ -866,9 +880,14 @@ export const ptBR = {
     // The live preview above the catalog: the selection, drawn the way the
     // real surface draws it, so the difference between the two sets is
     // visible instead of explained.
-    previewAria: (scope: string) => `Prévia dos atalhos: ${scope}`,
+    previewAria: (scope: string) => `Atalhos de ${scope}`,
     previewEmptyStart: 'Sem atalhos aqui — a tela inicial fica só com o campo de mensagem.',
     previewEmptyDuring: 'Sem atalhos aqui — a barra acima do campo de mensagem some.',
+    // The chips ARE the way out: naming the action (and not the shortcut alone)
+    // is what tells someone the set on screen is editable, defaults included.
+    removeAria: (label: string) => `Remover atalho: ${label}`,
+    removeTitle: 'Remover deste momento',
+    clearScopeCta: 'Remover todos',
     searchPlaceholder: 'Buscar skills e agentes…',
     searchAria: 'Buscar skills e agentes do workspace',
     agentsGroupLabel: 'Agentes',
@@ -888,8 +907,12 @@ export const ptBR = {
     restoreDefaultsCta: 'Restaurar padrão',
     doneCta: 'Concluído',
     noMatch: 'Nada encontrado com esse nome.',
+    // Reworded when the set above it became editable in a workspace with no
+    // BMAD: the sentence used to be a dead end ("nothing you can do here"),
+    // and the one thing that always works — taking a shortcut off — was
+    // exactly what it seemed to deny.
     emptyCatalog:
-      'Nenhuma skill do BMAD foi encontrada neste workspace. Instale ou atualize o BMAD para personalizar os atalhos.',
+      'Nenhuma skill do BMAD foi encontrada neste workspace. Você ainda pode remover os atalhos acima; para adicionar outros, instale ou atualize o BMAD.',
     toggleAria: (label: string) => `Alternar atalho: ${label}`,
     // First customization starts from the role defaults already ON — the
     // sheet explains that editing detaches the selection from the role.
@@ -2030,6 +2053,9 @@ export const ptBR = {
     appSettingsLabel: 'Configurações do aplicativo',
     // git-management (M10): the activity-bar view entries + change badge.
     explorerView: 'Explorador',
+    // workspace-session: the entry on screen names what the click does now —
+    // an activity-bar icon that never changes its name never says it can hide.
+    hideView: (name: string) => `Ocultar ${name}`,
     scmView: 'Controle de versão',
     scmChangeCount: (count: number) =>
       count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`
@@ -2395,8 +2421,11 @@ export const ptBR = {
     railBody:
       'A busca do workspace localiza qualquer arquivo em segundos — clique aqui ou pressione Ctrl+P de qualquer lugar.',
     filesTitle: 'Os artefatos moram aqui',
+    // workspace-session: the app now opens on the chat alone, so this stop
+    // anchors the rail button instead of a tree that isn't on screen — and
+    // teaches the gesture, which is the part that changed.
     filesBody:
-      'PRDs, histórias e documentos gerados pelos agentes aparecem nesta árvore — clique para ler e editar.',
+      'PRDs, histórias e documentos gerados pelos agentes ficam aqui. Este botão abre o painel de arquivos — e o fecha de novo, quando você quiser só a conversa. Ctrl+B faz o mesmo pelo teclado.',
     profileTitle: 'Deixe com a sua cara',
     profileBody:
       'Seu avatar, no canto superior direito, abre o perfil: nome, papel e agente. Você também pode rever este tour por lá.'

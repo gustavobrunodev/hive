@@ -82,6 +82,95 @@
   white-space: nowrap;
 }
 
+/* ---- Described items ------------------------------------------------------
+   A menu whose rows are *choices* rather than commands — two routes to the
+   same outcome, told apart by their source, not their verb. The second line is
+   what makes the choice answerable without trying one; the tile is what makes
+   the two rows scannable at a glance instead of read word by word. */
+.hds-dropdown-menu-item-stacked {
+  /* The icon and the shortcut align to the TITLE, not to the two-line block:
+     centring them against the whole row drops both below the word they belong
+     to and the eye reads a staircase. */
+  align-items: flex-start;
+  padding: var(--s-2) var(--s-3);
+}
+
+.hds-dropdown-menu-item-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-md);
+  /* The nested surface, not the hover one: an icon tile painted `--surface-2`
+     would dissolve into the row the moment that row is highlighted. */
+  background: var(--surface-3);
+  color: var(--muted);
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+
+/* The highlight travels *into* the tile. Keyboard and pointer land on the same
+   state, so arrowing through the menu reads as movement rather than as a
+   changing background. */
+.hds-dropdown-menu-item[data-highlighted] .hds-dropdown-menu-item-icon {
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+}
+
+.hds-dropdown-menu-item-danger[data-highlighted] .hds-dropdown-menu-item-icon {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+.hds-dropdown-menu-item[data-disabled] .hds-dropdown-menu-item-icon {
+  color: var(--faint);
+}
+
+.hds-dropdown-menu-item-stacked .hds-dropdown-menu-item-label {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  /* Two lines need to wrap; the single-line ellipsis contract does not apply. */
+  overflow: visible;
+  white-space: normal;
+  padding-top: 1px;
+}
+
+.hds-dropdown-menu-item-title {
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.hds-dropdown-menu-item-desc {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* The description follows the row's own tone rather than staying gray on a
+   danger item — a muted grey second line under red text reads as disabled. */
+.hds-dropdown-menu-item-danger .hds-dropdown-menu-item-desc {
+  color: var(--danger-ink);
+  opacity: 0.8;
+}
+
+.hds-dropdown-menu-item-stacked .hds-dropdown-menu-shortcut {
+  margin-top: 3px;
+}
+
+/* A key cap inside a menu row. `Kbd` paints itself `--surface-2`, which is
+   exactly the colour a row takes when highlighted — so on the one row the hint
+   belongs to, the cap dissolves into its own background and survives only as a
+   hairline around text. The sunken role separates it in both states (measured
+   1,39 · 1,26 · 1,55 at rest and 1,27 · 1,11 · 1,22 highlighted, across the
+   three app themes) and is also what a key cap is: recessed, not raised. */
+.hds-dropdown-menu-item .hds-kbd {
+  background: var(--bg-2);
+}
+
 .hds-dropdown-menu-shortcut {
   flex-shrink: 0;
   font-family: var(--ff-num);
@@ -154,5 +243,9 @@
 @media (prefers-reduced-motion: reduce) {
   .hds-dropdown-menu-content {
     animation-duration: 0.01ms;
+  }
+
+  .hds-dropdown-menu-item-icon {
+    transition: none;
   }
 }

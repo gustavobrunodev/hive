@@ -3,6 +3,7 @@ import { launchSeededApp } from './fixtures/workspace'
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
+import { openSidebar } from './fixtures/sidebar'
 
 // T9 (workspace-switching, M8) — E2E + visual validation, WS-R8.3/WS-R8.4.
 // Extends the file-management/explorer-editor-ux E2E harness conventions
@@ -186,7 +187,10 @@ async function openChipMenu(window: Page): Promise<void> {
  * self-contained.
  */
 async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
+  // The **activity bar**, not the file rail: a workspace with no stored session
+  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
+  // zero here — `openSidebar` at the end is what brings it back.
+  const rail = window.locator('.wb-actionrail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
 
   // The provisioning gate has TWO steps (BMAD, then second-brain / M12), each
@@ -206,4 +210,5 @@ async function waitForWorkUI(window: Page): Promise<void> {
   }
 
   await rail.waitFor({ state: 'visible', timeout: 30_000 })
+  await openSidebar(window)
 }

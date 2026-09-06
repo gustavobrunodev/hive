@@ -189,3 +189,52 @@ describe('useEditorTabs — the close family', () => {
     expect(paths(result)).toEqual(['a.txt', 'b.txt', 'c.txt'])
   })
 })
+
+/**
+ * workspace-session — putting a previously-open strip back. File tabs only,
+ * and never over a strip the user has already put something in.
+ */
+describe('useEditorTabs — restoreTabs (workspace-session)', () => {
+  it('restores the strip in order, keeping each tab pinned as it was', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() =>
+      result.current.restoreTabs(
+        [
+          { path: 'docs/prd.md', pinned: true },
+          { path: 'README.md', pinned: false }
+        ],
+        'README.md'
+      )
+    )
+
+    expect(result.current.tabs.map((tab) => tab.path)).toEqual(['docs/prd.md', 'README.md'])
+    expect(result.current.tabs.map((tab) => tab.pinned)).toEqual([true, false])
+    expect(result.current.tabs.every((tab) => tab.kind === 'file')).toBe(true)
+    expect(result.current.activePath).toBe('README.md')
+  })
+
+  it('falls back to the first tab when the remembered active one did not survive', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.restoreTabs([{ path: 'README.md', pinned: false }], 'docs/gone.md'))
+    expect(result.current.activePath).toBe('README.md')
+  })
+
+  it('does nothing with an empty restore', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.restoreTabs([], null))
+    expect(result.current.tabs).toEqual([])
+    expect(result.current.activePath).toBeNull()
+  })
+
+  // The restore needs a round trip to disk to drop tabs whose files are gone,
+  // and someone who clicked a tree row inside that window has already said
+  // what they want on screen.
+  it('yields to a user who opened something first', () => {
+    const { result } = renderHook(() => useEditorTabs())
+    act(() => result.current.openFile('notes.md'))
+    act(() => result.current.restoreTabs([{ path: 'docs/prd.md', pinned: true }], 'docs/prd.md'))
+
+    expect(result.current.tabs.map((tab) => tab.path)).toEqual(['notes.md'])
+    expect(result.current.activePath).toBe('notes.md')
+  })
+})

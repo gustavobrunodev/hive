@@ -6,7 +6,7 @@
  * away turns the ask surface into a place with memory instead of a blank field.
  *
  * `localStorage`, like every other renderer-local nicety in this app
- * (`hive.workLayout`, the sidebar view): losing it costs a convenience, never
+ * (the pane layout, the sidebar view): losing it costs a convenience, never
  * data, so every access is best-effort and never throws.
  */
 

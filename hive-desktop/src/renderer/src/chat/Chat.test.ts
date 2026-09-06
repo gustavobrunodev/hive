@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  cloneElement,
   createContext,
   createElement,
   createRef,
+  isValidElement,
   useContext,
   useState,
+  type ReactElement,
   type ReactNode
 } from 'react'
 import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
@@ -35,6 +38,9 @@ function omitButtonProps(props: Record<string, unknown>): Record<string, unknown
 }
 
 const SelectContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
+const DropdownContext = createContext<{ open: boolean; setOpen: (next: boolean) => void } | null>(
+  null
+)
 const DropdownRadioContext = createContext<{ onValueChange?: (value: string) => void } | null>(null)
 // session-usage: the context sheet is a DS Popover. The stand-in keeps the
 // real open/closed contract (content mounts only while open) so a test can
@@ -44,13 +50,80 @@ const PopoverContext = createContext<{
   onOpenChange?: (open: boolean) => void
 } | null>(null)
 
+/** Drops `ActivityBorder`'s presentation knobs so the stub's `div` gets only real DOM props. */
+function omitRingStyleProps(props: Record<string, unknown>): Record<string, unknown> {
+  const { radius, thickness, duration, ...rest } = props
+  void radius
+  void thickness
+  void duration
+  return rest
+}
+
 vi.mock('@hive/design-system', () => ({
-  DropdownMenu: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
-  DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => children,
-  DropdownMenuContent: ({ children }: { children?: ReactNode }) =>
+  // Stubbed WITH its open/closed contract, like the Popover above: a menu whose
+  // content is always in the DOM lets a trigger that never opens pass, and
+  // makes two panels that are never on screen together collide in a query.
+  DropdownMenu: ({
+    children,
+    open,
+    onOpenChange
+  }: {
+    children?: ReactNode
+    open?: boolean
+    onOpenChange?: (next: boolean) => void
+  }) => {
+    const [uncontrolled, setUncontrolled] = useState(false)
+    const isOpen = open ?? uncontrolled
+    const setOpen = (next: boolean): void => {
+      setUncontrolled(next)
+      onOpenChange?.(next)
+    }
+    return createElement(
+      DropdownContext.Provider,
+      { value: { open: isOpen, setOpen } },
+      createElement('div', null, children)
+    )
+  },
+  // `asChild` clones the caller's element with the open handler — the exact
+  // Radix contract a custom trigger breaks by dropping the props it is given.
+  DropdownMenuTrigger: ({ children, asChild }: { children?: ReactNode; asChild?: boolean }) => {
+    const ctx = useContext(DropdownContext)
+    const toggle = (): void => ctx?.setOpen(!(ctx?.open ?? false))
+    return asChild === true && isValidElement(children)
+      ? cloneElement(children as ReactElement<{ onClick?: () => void }>, { onClick: toggle })
+      : createElement('button', { onClick: toggle }, children)
+  },
+  DropdownMenuContent: ({ children }: { children?: ReactNode }) => {
+    const ctx = useContext(DropdownContext)
+    return ctx !== null && !ctx.open ? null : createElement('div', null, children)
+  },
+  // add-context: the stand-in keeps the described row's second line in the DOM,
+  // because the two rows of that menu are told apart by their descriptions.
+  DropdownMenuItem: ({
+    children,
+    description,
+    onSelect
+  }: {
+    children?: ReactNode
+    description?: ReactNode
+    onSelect?: () => void
+  }) => {
+    const menu = useContext(DropdownContext)
+    return createElement(
+      'button',
+      {
+        onClick: () => {
+          onSelect?.()
+          menu?.setOpen(false)
+        }
+      },
+      children,
+      description === undefined ? null : createElement('span', null, description)
+    )
+  },
+  DropdownMenuLabel: ({ children }: { children?: ReactNode }) =>
     createElement('div', null, children),
-  DropdownMenuItem: ({ children, onSelect }: { children?: ReactNode; onSelect?: () => void }) =>
-    createElement('button', { onClick: onSelect }, children),
+  Kbd: ({ children }: { children?: ReactNode }) => createElement('kbd', null, children),
   DropdownMenuSeparator: () => null,
   DropdownMenuRadioGroup: ({
     children,
@@ -86,6 +159,45 @@ vi.mock('@hive/design-system', () => ({
       onClick: () => onCheckedChange?.(checked !== true)
     }),
   MessageList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
+  // The composer's "a turn is running here" ring. Stubbed with its state
+  // attribute intact: the whole point of the wrapper is that `data-active`
+  // tracks THIS conversation's turn, and a stub that dropped it would let a
+  // ring wired to the wrong signal pass.
+  ActivityBorder: ({
+    active,
+    children,
+    ...rest
+  }: {
+    active?: boolean
+    children?: ReactNode
+    radius?: string
+    thickness?: string
+    duration?: string
+  }) =>
+    createElement(
+      'div',
+      {
+        // The presentation knobs (radius/thickness/duration) are dropped on
+        // purpose: they would land on the DOM node as unknown attributes and
+        // React would warn on every render.
+        'data-testid': 'activity-border',
+        'data-active': active === true || undefined,
+        ...omitRingStyleProps(rest)
+      },
+      children
+    ),
+  // A marked run inside a sent message. `data-kind` is the claim being made
+  // (command / file), so the stub keeps it.
+  MessageToken: ({
+    kind,
+    icon,
+    children,
+    ...rest
+  }: {
+    kind: string
+    icon?: ReactNode
+    children?: ReactNode
+  }) => createElement('mark', { ...rest, 'data-kind': kind }, icon, children),
   Attachment: ({
     name,
     meta,
@@ -418,6 +530,17 @@ vi.mock('../asr/useAsr', () => ({
     reset: () => undefined
   })
 }))
+
+/**
+ * add-context: reach the OS picker the way a user now does — through the `+`,
+ * then the row that names the computer as the source. The old paperclip was
+ * one click; this is two, and the tests take the same two so a menu that
+ * stopped offering the row cannot pass by being clicked directly.
+ */
+async function openUploadFromAddContext(): Promise<void> {
+  fireEvent.click(screen.getByLabelText('Adicionar contexto'))
+  fireEvent.click(await screen.findByRole('button', { name: /Arquivos do computador/ }))
+}
 
 describe('Chat', () => {
   afterEach(() => {
@@ -863,12 +986,16 @@ describe('Chat', () => {
 
   /**
    * A launched skill can carry the material it was launched with — the
-   * ingestion sheet sends the staged path *and* the text. The transcript has
-   * to show both, and has to make it obvious which half is the command: a
-   * bare `/second-brain-ingest` with the user's notes nowhere on screen was
-   * the reported defect.
+   * ingestion sheet sends the staged path *and* the text.
+   *
+   * The transcript has to show both, and has to make it obvious which part is
+   * the command. It used to do that by promoting the whole message out of the
+   * bubble into a two-part "invocation" object; what it actually produced was
+   * a row shaped unlike every other row in the transcript, with the command
+   * NAME ellipsised (`/bmad-…`) because it shared one line with arguments free
+   * to grow. Now the message is a message and only the command run is marked.
    */
-  describe('an invocation that carries material', () => {
+  describe('a launched skill that carries material', () => {
     const ingest = (body: string): RoleAction => ({
       key: 'second-brain-ingest',
       kind: 'workflow',
@@ -879,7 +1006,12 @@ describe('Chat', () => {
     })
 
     async function launch(body: string): Promise<void> {
-      mockHive()
+      mockHive({
+        // The oracle decides what gets marked, so the workspace has to really
+        // have this skill — a fixture with an empty catalog would prove only
+        // that unknown commands stay prose.
+        skills: [{ key: 'second-brain-ingest', label: 'Ingestão', description: '' }]
+      })
       const ref = createRef<ChatHandle>()
       render(
         createElement(Chat, {
@@ -894,36 +1026,65 @@ describe('Chat', () => {
       ref.current?.launchAction(ingest(body))
     }
 
-    it('shows the command, its argument and the text as three distinct things', async () => {
+    it('marks the command and keeps everything else as prose in one bubble', async () => {
       await launch('A squad decidiu migrar o billing.')
 
-      expect(await screen.findByText('/second-brain-ingest')).toBeTruthy()
-      expect(screen.getByText('second-brain/raw/ingest-x.md')).toBeTruthy()
-      expect(screen.getByText('A squad decidiu migrar o billing.')).toBeTruthy()
+      const token = await screen.findByText('/second-brain-ingest')
+      expect(token.tagName).toBe('MARK')
+      expect(token.getAttribute('data-kind')).toBe('command')
+
+      // Same bubble, not a detached token above a detached body.
+      const bubble = token.closest('[data-role="user"]')
+      expect(bubble?.textContent).toContain('second-brain/raw/ingest-x.md')
+      expect(bubble?.textContent).toContain('A squad decidiu migrar o billing.')
     })
 
-    it('leaves a short body fully expanded', async () => {
+    it('leaves the message in the same bubble every other message gets', async () => {
+      await launch('Uma nota curta.')
+      await screen.findByText('/second-brain-ingest')
+      // The class that used to strip the bubble for this one kind of message.
+      expect(document.querySelector('.wb-msg-command')).toBeNull()
+    })
+
+    it('leaves a short message fully expanded', async () => {
       await launch('Uma nota curta.')
       await screen.findByText('/second-brain-ingest')
       expect(screen.queryByText('Mostrar tudo')).toBeNull()
     })
 
-    it('collapses a transcript-sized body behind a toggle, and expands it back', async () => {
+    it('collapses a transcript-sized message behind a toggle, and expands it back', async () => {
       const long = 'Detalhe da reunião. '.repeat(60)
       await launch(long)
 
       const more = await screen.findByText('Mostrar tudo')
-      const text = document.querySelector('.wb-invocation-text')
-      expect(text?.hasAttribute('data-clamped')).toBe(true)
+      expect(document.querySelector('.wb-user-text')?.hasAttribute('data-clamped')).toBe(true)
 
       fireEvent.click(more)
-      expect(document.querySelector('.wb-invocation-text')?.hasAttribute('data-clamped')).toBe(
-        false
-      )
+      expect(document.querySelector('.wb-user-text')?.hasAttribute('data-clamped')).toBe(false)
       expect(screen.getByText('Mostrar menos')).toBeTruthy()
 
       fireEvent.click(screen.getByText('Mostrar menos'))
-      expect(document.querySelector('.wb-invocation-text')?.hasAttribute('data-clamped')).toBe(true)
+      expect(document.querySelector('.wb-user-text')?.hasAttribute('data-clamped')).toBe(true)
+    })
+
+    it('leaves a command this workspace does not have as plain prose', async () => {
+      // Same message, empty catalog: nothing dresses up as an installed skill.
+      mockHive({ skills: [] })
+      const ref = createRef<ChatHandle>()
+      render(
+        createElement(Chat, {
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          ref
+        })
+      )
+      await screen.findByText('Criar um PRD')
+      ref.current?.launchAction(ingest('nota'))
+
+      await screen.findByText(/second-brain\/raw\/ingest-x\.md/)
+      expect(document.querySelector('mark[data-kind="command"]')).toBeNull()
     })
   })
 
@@ -1312,6 +1473,39 @@ describe('Chat', () => {
     expect(screen.getByRole('option', { name: 'docs/prd.md' })).toBeTruthy()
   })
 
+  /**
+   * add-context: the menu's whole promise is that the button route and the
+   * keystroke route land in the same place. If the row ever stopped opening
+   * the picker, the `@` hint printed on it would be teaching a lie.
+   */
+  it('the "Arquivos do workspace" row types the @ and opens the same picker the key does', async () => {
+    renderChat({ workspaceFiles: ['docs/prd.md'] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText<HTMLTextAreaElement>('Escreva uma mensagem…')
+
+    fireEvent.click(screen.getByLabelText('Adicionar contexto'))
+    fireEvent.click(await screen.findByRole('button', { name: /Arquivos do workspace/ }))
+
+    await waitFor(() => expect(input.value).toBe('@'))
+    expect(await screen.findByRole('option', { name: 'docs/prd.md' })).toBeTruthy()
+  })
+
+  // Mid-sentence, the sigil needs a space in front of it or it opens nothing —
+  // `mentionQueryAt` only accepts an `@` at a word boundary. The button has to
+  // supply that space, because the user pressed a button, not a key.
+  it('separates the @ from the word the caret was sitting against', async () => {
+    renderChat({ workspaceFiles: ['docs/prd.md'] })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText<HTMLTextAreaElement>('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: 'resuma' } })
+
+    fireEvent.click(screen.getByLabelText('Adicionar contexto'))
+    fireEvent.click(await screen.findByRole('button', { name: /Arquivos do workspace/ }))
+
+    await waitFor(() => expect(input.value).toBe('resuma @'))
+    expect(await screen.findByRole('option', { name: 'docs/prd.md' })).toBeTruthy()
+  })
+
   // The row explains itself: the characters the query matched are marked, so
   // a fuzzy hit doesn't look arbitrary. Asserted on the rendered <b> runs
   // because that mark is the whole point of the feature.
@@ -1380,6 +1574,46 @@ describe('Chat', () => {
     expect(window.hive.agent.send).not.toHaveBeenCalled()
   })
 
+  // The sent bubble marks exactly what the composer's backdrop marked while the
+  // message was still being typed — same oracles, same segmentation.
+  it('marks a valid @referência inside the sent bubble, and leaves an invalid one as prose', async () => {
+    renderChat({ workspaceFiles: ['docs/prd.md'] })
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'compara @docs/prd.md com @docs/inventado.md' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    const token = await screen.findByText('@docs/prd.md')
+    expect(token.tagName).toBe('MARK')
+    expect(token.getAttribute('data-kind')).toBe('file')
+    expect(document.querySelectorAll('mark[data-kind="file"]')).toHaveLength(1)
+    expect(token.closest('[data-role="user"]')?.textContent).toContain('@docs/inventado.md')
+  })
+
+  // The travelling ring is the "this conversation is busy" signal, so it has to
+  // track THIS conversation's turn and nothing else.
+  it('lights the composer ring only while a turn is streaming here', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    const ring = screen.getByTestId('activity-border')
+    expect(ring.hasAttribute('data-active')).toBe(false)
+
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'e agora?' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+    emit({ type: 'token', text: 'pensando' })
+    await waitFor(() =>
+      expect(screen.getByTestId('activity-border').hasAttribute('data-active')).toBe(true)
+    )
+
+    emit({ type: 'done' })
+    await waitFor(() =>
+      expect(screen.getByTestId('activity-border').hasAttribute('data-active')).toBe(false)
+    )
+  })
+
   it('sending a message with a valid @referência passes it to agent.send as attachments', async () => {
     renderChat({ workspaceFiles: ['docs/prd.md'] })
     await screen.findByText('Modelo A')
@@ -1406,7 +1640,7 @@ describe('Chat', () => {
     })
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     expect(await screen.findByText('relatorio.pdf')).toBeTruthy()
     expect(screen.getByText('2,0 KB')).toBeTruthy()
 
@@ -1442,7 +1676,7 @@ describe('Chat', () => {
     })
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     await screen.findByText('relatorio.pdf')
     fireEvent.click(screen.getByLabelText('Remover anexo relatorio.pdf'))
     await waitFor(() => expect(screen.queryByText('relatorio.pdf')).toBeNull())
@@ -1482,7 +1716,7 @@ describe('Chat', () => {
     )
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     await screen.findByText('contrato-sigiloso.pdf')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'rascunho privado' }
@@ -1515,7 +1749,7 @@ describe('Chat', () => {
     )
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     await screen.findByText('notas.txt')
 
     await act(async () => {
@@ -1572,7 +1806,7 @@ describe('Chat', () => {
     })
 
     // …then leave an unsent draft in it.
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     await screen.findByText('relatorio.pdf')
     fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
       target: { value: 'continuar amanhã' }
@@ -1608,7 +1842,7 @@ describe('Chat', () => {
     })
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     expect(await screen.findByText('2 arquivos · 4,0 KB')).toBeTruthy()
 
     fireEvent.click(screen.getByText('Limpar'))
@@ -1709,7 +1943,7 @@ describe('Chat', () => {
     })
     await screen.findByText('Modelo A')
 
-    fireEvent.click(screen.getByLabelText('Anexar arquivos'))
+    await openUploadFromAddContext()
     await screen.findByText('dados.csv')
     fireEvent.click(screen.getByText('Enviar'))
 
@@ -2677,8 +2911,13 @@ describe('Chat', () => {
     it('survives a host that wired no way out to the agent list either', async () => {
       // Two agents, so the switcher renders at all — it is hidden with one.
       renderChat({}, { agents: ['claude-cli', 'copilot-cli'] })
+      const pill = await screen.findByLabelText(/Agente da conversa/)
+      fireEvent.click(pill)
       fireEvent.click(await screen.findByText('Gerenciar agentes…'))
-      // Inert, not fatal: the switcher is still on screen and usable.
+      // Inert, not fatal: the row closed the menu like any other, and the
+      // switcher is still on screen and still opens.
+      expect(screen.getByLabelText(/Agente da conversa/)).toBeTruthy()
+      fireEvent.click(pill)
       expect(screen.getByText('Gerenciar agentes…')).toBeTruthy()
     })
 

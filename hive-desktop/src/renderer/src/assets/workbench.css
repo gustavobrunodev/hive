@@ -11,6 +11,10 @@
 :root {
   --wb-topbar-h: 46px;
   --wb-pane-header-h: 40px;
+  /* Sidebar collapse/expand — the low end of the 150–250ms band (PRODUCT.md
+     §5): chrome moving out of the way, not content arriving. Kept in sync with
+     `SIDEBAR_ANIMATION_MS` in WorkUI.tsx, which is what stops the class. */
+  --wb-sidebar-anim: 180ms;
   /* multi-agent: per-agent accent hues, mapped onto the themeable icon palette
      below (both themes resolve for free). Distinct hue per agent so three
      agents read as three identities: Claude = coral (the app accent), Copilot
@@ -436,7 +440,7 @@ body ::-webkit-scrollbar-corner {
    Movable panes (customizable-layout) — every workbench zone (rail / chat /
    viewer) renders inside a `.wb-pane` wrapper that doubles as the drag
    drop-target; the pane's header is the drag source. Order persists in
-   `hive.paneOrder`, widths in `hive.workLayout`.
+   `hive.paneOrder`, widths in the workspace's `hive.workspaceSession`.
    ========================================================================== */
 
 .wb-pane {
@@ -475,6 +479,51 @@ body ::-webkit-scrollbar-corner {
 }
 .wb-pane[data-drop='after']::after {
   right: 0;
+}
+
+/* ==========================================================================
+   Hideable sidebar (workspace-session) — the rail panel collapses to zero
+   width instead of unmounting, so the tree inside keeps its expansion, its
+   selection and its scroll across a Ctrl+B.
+   ========================================================================== */
+
+/* `visibility: hidden`, not `display: none`: destroying the layout box is what
+   resets a scroller to the top, which is half the state this exists to keep.
+   It still takes the panel out of the tab order, the a11y tree and hit
+   testing. The second selector is not redundant — `.wb-sidebar-layer[data-active]`
+   sets `visibility: visible`, and a descendant's `visible` beats an ancestor's
+   `hidden`, so the active view would otherwise stay reachable inside a panel
+   nobody can see. */
+.wb-pane[data-collapsed],
+.wb-pane[data-collapsed] .wb-sidebar-layer[data-active] {
+  visibility: hidden;
+}
+/* The sash beside a hidden sidebar: still in the group (removing it makes
+   `react-resizable-panels` re-normalise every panel), but out of the layout,
+   out of the tab order and out of the accessibility tree. */
+.hds-resizable-handle[data-offscreen] {
+  display: none;
+}
+
+/* Nothing to scroll while it is away — a collapsed panel that keeps a
+   scrollbar is a 9px sliver of chrome at the window's edge. */
+.wb-body[data-sidebar='closed'] .wb-rail {
+  overflow: hidden;
+}
+
+/* The slide, and ONLY while a toggle is in flight (`wb-panes-animating`).
+   A permanent transition here would put every sash 180ms behind the pointer,
+   which is the difference between dragging a boundary and watching one catch
+   up. The class is applied to the group, so the panels are its direct
+   `[data-panel]` children — `.hds-resizable-panel` is the nested div inside
+   them, not the flex item whose `flex-grow` is animating. */
+.wb-panes-animating > [data-panel] {
+  transition: flex-grow var(--wb-sidebar-anim) var(--ease-quart);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-panes-animating > [data-panel] {
+    transition: none;
+  }
 }
 
 /* ==========================================================================
@@ -549,6 +598,14 @@ body ::-webkit-scrollbar-corner {
   align-items: center;
   gap: 2px;
   margin-left: auto;
+}
+/* Two `margin-left: auto` siblings SPLIT the free space between them, which
+   parked the primary actions in the middle of the header — invisible in a
+   narrow pane and unmistakable once the chat can own the whole window. Only
+   the first one claims the space; the quiet actions block sits flush against
+   it, at the pane's trailing edge, where a toolbar belongs. */
+.wb-pane-header-primary + .wb-pane-header-actions {
+  margin-left: 0;
 }
 .wb-history-trigger.wb-icon-btn {
   width: 24px;
@@ -1721,13 +1778,16 @@ body ::-webkit-scrollbar-corner {
 
 /* A skill an agent *mentions* mid-reply (chat-command-mentions) — "invoque
    /bmad-party-mode se quiser…". Same inline geometry as `.wb-pathlink`
-   (sized to the line it sits in, not the pill), but colored like the static
-   `.wb-command-token` a sent invocation renders as: a command should read as
-   a command wherever it shows up, in prose or as its own token. The accent
-   stays on the border, not the label, for the reason `.wb-command-token`
-   documents — coral text on `--surface-2` clears AA in light/Hive but not
-   dark (measured), so `--ink` carries the text and the border carries the
-   "this is a command" signal at the 3:1 floor a UI component needs. */
+   (sized to the line it sits in, not the pill), and the same colouring the
+   design system's `MessageToken` gives a command on a neutral ground: a
+   command should read as a command wherever it shows up — in the agent's
+   prose, or marked inside the message the user sent. This one is a *button*
+   on top of that, which is the whole difference between the two.
+
+   The accent stays on the outline, not the label: coral text on `--surface-2`
+   clears AA in light/Hive but not dark (measured), so `--ink` carries the text
+   and the outline carries the "this is a command" signal at the 3:1 floor a UI
+   component needs. */
 .wb-cmdlink {
   display: inline-flex;
   align-items: center;
@@ -1886,6 +1946,34 @@ body ::-webkit-scrollbar-corner {
 }
 .wb-composer .hds-prompt-input:focus-within {
   border-color: var(--focus);
+}
+
+/* --- The composer while a turn is running -------------------------------
+   The travelling ring (DS `ActivityBorder`) rides the composer's own edge, so
+   the "this conversation is busy" state costs no new box and no layout. Two
+   details keep it from reading as a decoration:
+
+   1. The static border underneath warms to a quiet accent tint the moment the
+      turn starts. Without it the frame flickers between "border" and "light"
+      as the head passes, because the head is only lit for a third of the lap.
+   2. The ring wraps the queue strip too. Queue and field are drawn as one
+      object — one outline, one hairline seam between them — so a light that
+      only lapped the lower half would cut that outline in two at the very
+      moment there is most on screen to read.
+
+   The state itself is scoped to THIS conversation's turn (`isStreaming`), not
+   to any turn anywhere: background turns keep their own marker in the history
+   list, and a ring that lit for them would stop saying anything about the
+   thread on screen.
+
+   `:not([data-highlighted])` because dictation can run while a turn does — you
+   can speak the next message into the queue — and the composer taken over by
+   the microphone owns its own full-accent frame. Without the guard this rule
+   (0-3-0) simply outranks the DS's `[data-highlighted]` (0-2-0) and quietly
+   dims the louder of the two states. */
+.wb-composer-wrap .hds-activity-border[data-active] .hds-prompt-input:not([data-highlighted]),
+.wb-composer-wrap .hds-activity-border[data-active] .wb-queue {
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--border-strong));
 }
 
 .wb-composer-error {
@@ -3077,7 +3165,7 @@ body ::-webkit-scrollbar-corner {
 
 /* ==========================================================================
    Action rail (role-personalization RP-R5) — a fixed chrome column on the far
-   left, OUTSIDE the resizable body group so it never disturbs `hive.workLayout`.
+   left, OUTSIDE the resizable body group so it never disturbs the pane layout.
    Quiet by default (icon-only, --muted), accent only on hover/active/persona.
    ========================================================================== */
 
@@ -4397,7 +4485,7 @@ body ::-webkit-scrollbar-corner {
 .wb-rail-view[data-active] {
   color: var(--ink);
 }
-/* The VS Code left accent bar marking the active view. */
+/* The VS Code left accent bar marking the view that is on screen. */
 .wb-rail-view[data-active]::before {
   content: '';
   position: absolute;
@@ -4407,6 +4495,29 @@ body ::-webkit-scrollbar-corner {
   width: 2px;
   border-radius: var(--rounded-full);
   background: var(--accent);
+}
+
+/* Selected, but the sidebar is hidden (workspace-session): the view Ctrl+B
+   brings back. Same slot, deliberately weaker — a shorter bar and the icon
+   lifted out of `--muted`. Four identical grey icons and no answer to "which
+   one reopens" is the state this replaces; a second *accent* bar would have
+   been a lie about what is on screen, so the difference is carried by hue and
+   length, not by dimming: `--border-strong` measured 1.68–1.95:1 across the
+   three themes, which is a mark nobody can find. `--muted` is the quietest
+   ink in the ramp that a person can still see (4.9–7.08:1 measured), and a
+   grey half-height tick can never be mistaken for the full-height coral one. */
+.wb-rail-view[data-resting] {
+  color: var(--ink);
+}
+.wb-rail-view[data-resting]::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: var(--rounded-full);
+  background: var(--muted);
 }
 @media (prefers-reduced-motion: reduce) {
   .wb-rail-view {
@@ -5345,6 +5456,32 @@ button.wb-agent-pill-btn:focus-visible {
   outline-offset: 1px;
 }
 
+/* ---- Add context -----------------------------------------------------------
+   The `+` that replaced the paperclip. It is both the way in and the way out,
+   so the glyph carries that: 45° of rotation turns the same two strokes into
+   an `×` while the menu is open, which is the one state change worth animating
+   on a 28px control. */
+.wb-add-context-btn svg {
+  transition: transform 0.18s var(--ease-quart);
+}
+
+.wb-add-context-btn[data-state='open'] {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.wb-add-context-btn[data-state='open'] svg {
+  transform: rotate(45deg);
+}
+
+/* Wide enough for the second lines to sit on one row each — a description that
+   wraps to two makes the pair of rows different heights, and the menu stops
+   reading as a choice between equals. */
+.wb-add-context-menu {
+  min-width: 296px;
+  padding: var(--s-1) var(--s-1) var(--s-2);
+}
+
 /* ---- The staged-files tray -------------------------------------------------
    Attachments are a *draft*, and a draft belongs to the conversation it was
    written for (`chat/composerDraft.ts`). The tray is where that becomes
@@ -5698,93 +5835,28 @@ button.wb-agent-pill-btn:focus-visible {
   }
 }
 
-/* A sent slash command (`/bmad-prd`) is an *invocation*, not prose: it drops
-   the accent bubble entirely for a quiet command token on the panel surface.
-   Two reasons, one of them measurable — a tinted chip nested inside the accent
-   bubble put `--accent-ink` on a darkened accent at 4.23:1, under the 4.5:1 AA
-   floor for its 15px/600 text; on the neutral surface the same ink clears
-   11:1 in both themes. The other is that a chip inside a bubble was two
-   containers doing one container's job. */
-.wb-msg-command .hds-chat-message-bubble {
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-}
-.wb-command-token {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  max-width: 100%;
-  padding: 5px 12px;
-  border-radius: var(--rounded-full);
-  background: var(--surface-2);
-  /* The accent lives on the edge, not in the label: coral text on this
-     surface measures 4.48:1 in dark — under the AA floor — while `--ink`
-     clears 10:1 in both themes. A border is a UI component (3:1 floor), so
-     the accent still reads as "this is an invocation" without costing
-     legibility. */
-  border: 1px solid color-mix(in oklab, var(--accent) 32%, var(--border-strong));
-  color: var(--ink);
-  font-family: var(--ff-num);
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-}
-.wb-command-token svg {
-  flex: none;
-  color: var(--accent);
-}
+/* A sent user message is a message — including one that opens with a slash
+   command. It used to leave the bubble entirely for a two-part "invocation"
+   object, and three things were wrong with that: the transcript's rhythm broke
+   on every shortcut, nobody could tell which half they had written, and the
+   command name lost the width fight with its own arguments and rendered as
+   `/bmad-…`. What changes now is only the *marking* inside the bubble, and the
+   token treatment lives in the design system (`MessageToken`), where it reads
+   its ground from the bubble it sits in — a white wash on the accent fill
+   (~6.8:1 dark / ~6:1 light against the bubble's own ink), the neutral plate
+   everywhere else. A coloured tint here is the thing that measured 4.23:1.
 
-.wb-command-token-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Whatever rode on the command's own line — a staged path, a question. Quieter
-   than the command and in the numeric face, so it reads as an argument rather
-   than as part of the name. */
-.wb-command-token-args {
-  min-width: 0;
-  font-weight: 500;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-/* An invocation that carries material is two things at once, so it is drawn as
-   two: a neutral outlined token for what was *run*, and the ordinary accent
-   bubble for what was *said*. The pair is deliberately differentiated by more
-   than intensity — fill vs. outline, accent vs. neutral — because "which part
-   is the command" has to survive at a glance and in both themes. Each half
-   clears AA on its own ground: `--ink` on `--surface-2` measures >10:1, and
-   the body keeps the DS's own `--accent-ink`-on-`--accent` pairing. */
-.wb-invocation {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  max-width: 100%;
-}
-
-.wb-invocation-body {
-  max-width: 100%;
-  padding: var(--s-3) var(--s-4);
-  border-radius: var(--rounded-lg);
-  border-bottom-right-radius: var(--rounded-sm);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  text-align: left;
-}
-
-.wb-invocation-text {
+   The clamp is the one behaviour that survived the old invocation object: a
+   dictated ten-minute transcript is a legitimate message, and unclamped it
+   buries the conversation it started. It applies to every long user message
+   now, not only to one that happened to start with a command. */
+.wb-user-text {
   display: block;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.wb-invocation-text[data-clamped] {
+.wb-user-text[data-clamped] {
   display: -webkit-box;
   -webkit-line-clamp: 7;
   line-clamp: 7;
@@ -5792,7 +5864,8 @@ button.wb-agent-pill-btn:focus-visible {
   overflow: hidden;
 }
 
-.wb-invocation-more {
+.wb-user-more {
+  display: block;
   margin-top: var(--s-2);
   padding: 0;
   font: inherit;
@@ -5806,26 +5879,13 @@ button.wb-agent-pill-btn:focus-visible {
   cursor: pointer;
 }
 
-.wb-invocation-more:focus-visible {
+.wb-user-more:focus-visible {
   outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* Sent user bubble: `#file` references as quiet inline pills on the accent
-   surface, attachments as one chip row under the text. The tint is a *white*
-   wash, not the ink-black one it started as: black darkened the accent under
-   the bubble's own ink (4.2:1 in dark), while lightening it lifts the same
-   pair to ~6.8:1 dark / ~6:1 light. Same quiet chip, legible in both themes. */
-.wb-user-mention {
-  background: oklch(100% 0 0 / 16%);
-  border-radius: var(--rounded-sm);
-  padding: 1px 4px;
-  font-weight: 600;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
+/* Attachments ride under the text as one chip row. */
 .wb-bubble-attachments {
   display: flex;
   flex-wrap: wrap;
@@ -5843,7 +5903,7 @@ button.wb-agent-pill-btn:focus-visible {
   padding: 3px 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  /* Same white wash as `.wb-user-mention`, for the same contrast reason. */
+  /* Same white wash as the message tokens, for the same contrast reason. */
   background: oklch(100% 0 0 / 16%);
   border-radius: var(--rounded-md);
 }
@@ -7610,6 +7670,7 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-shortcut-chip svg,
   .wb-appset-btn,
   .wb-attach-btn,
+  .wb-add-context-btn svg,
   .wb-attach-clear,
   .wb-composer-chip,
   .wb-hero-recent,
@@ -7733,20 +7794,56 @@ button.wb-agent-pill-btn:focus-visible {
   flex: 1 1 0;
   justify-content: center;
 }
-/* --- Live preview (shortcut-scopes) -------------------------------------
+/* --- The live set (shortcut-scopes) -------------------------------------
    A miniature of the surface the active set lands on, drawn with the real
-   chips' own classes over a stand-in composer. Two independent shortcut sets
-   is one concept more than a picker usually carries; a picture of each
-   placement settles "which list does this belong in?" without a paragraph.
-   Inert by construction — `pointer-events: none` on the stage, so nothing in
-   here can be hovered, focused or mistaken for a control. */
+   chips' own classes over a stand-in composer — and, since this round, the
+   editor for that set rather than a picture of it.
+
+   Two independent shortcut sets is one concept more than a picker usually
+   carries; a picture of each placement settles "which list does this belong
+   in?" without a paragraph. What the picture could not settle was "how do I
+   take one OFF": that answer lived sixty rows down the catalog, and in a
+   workspace with no BMAD — where the catalog renders nothing — it did not
+   exist at all. The chips are buttons now. Only the composer stand-in stays
+   inert, because it is a landmark, not a control. */
 .wb-sc-preview {
   padding: 0 var(--s-5) var(--s-3);
 }
 .wb-sc-preview-caption {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
   margin: 0 0 var(--s-2);
   font-size: 0.75rem;
   color: var(--muted);
+}
+/* The bulk gesture, parked at the end of the line that says what this scope
+   is — a text button, because emptying a set is the rarer of the two and must
+   not out-weigh the chips it acts on. */
+.wb-sc-clear {
+  margin-left: auto;
+  padding: 0;
+  font: inherit;
+  font-weight: 650;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition:
+    color 0.15s var(--ease-quart),
+    text-decoration-color 0.15s var(--ease-quart);
+}
+.wb-sc-clear:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.wb-sc-clear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-sm);
 }
 .wb-sc-stage {
   display: flex;
@@ -7757,7 +7854,6 @@ button.wb-agent-pill-btn:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--rounded-lg);
   background: var(--bg-2);
-  pointer-events: none;
 }
 /* The hero centers its pills over a centered composer; the strip is a single
    left-aligned row docked on top of it. Same two elements, two placements —
@@ -7782,9 +7878,60 @@ button.wb-agent-pill-btn:focus-visible {
      tail says "there is more" without faking a scrollbar in a still frame. */
   mask-image: linear-gradient(to right, #000 82%, transparent 100%);
 }
-.wb-sc-stage .wb-pill,
-.wb-sc-stage .wb-shortcut-chip {
-  cursor: default;
+/* --- A chip of the live set --------------------------------------------
+   The real surface's own chip, wearing a second job: the whole thing is the
+   remove target. The leading icon cross-fades to an ✕ on hover or focus rather
+   than a permanent ✕ riding every chip — six delete buttons in a row is a row
+   that shouts about deleting, and it would stop the stage from looking like
+   the surface it stands for.
+
+   The two glyphs are stacked in one grid cell, so the swap costs no width and
+   nothing under the pointer moves. */
+.wb-sc-stage .wb-sc-chip {
+  cursor: pointer;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+.wb-sc-stage .wb-pill.wb-sc-chip {
+  font-size: 0.8125rem;
+}
+.wb-sc-stage .wb-shortcut-chip.wb-sc-chip {
+  font-size: 0.75rem;
+}
+.wb-sc-chip:hover,
+.wb-sc-chip:focus-visible {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: var(--selected-bg);
+}
+.wb-sc-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-sc-chip-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+.wb-sc-chip-mark > * {
+  grid-area: 1 / 1;
+  display: flex;
+  transition: opacity 0.14s var(--ease-quart);
+}
+.wb-sc-chip-x {
+  opacity: 0;
+  /* The one place the accent earns being a *colour* here: it is the glyph
+     that says what the click will do, on a chip whose label did not change. */
+  color: var(--accent);
+}
+.wb-sc-chip:hover .wb-sc-chip-icon,
+.wb-sc-chip:focus-visible .wb-sc-chip-icon {
+  opacity: 0;
+}
+.wb-sc-chip:hover .wb-sc-chip-x,
+.wb-sc-chip:focus-visible .wb-sc-chip-x {
+  opacity: 1;
 }
 .wb-sc-stage-more {
   font-size: 0.75rem;
@@ -8021,7 +8168,9 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-pill-customize svg,
   .wb-sc-icon,
   .wb-sc-check,
-  .wb-sc-check svg {
+  .wb-sc-check svg,
+  .wb-sc-clear,
+  .wb-sc-chip-mark > * {
     transition: none;
   }
 }
@@ -11164,7 +11313,7 @@ button.wb-agent-pill-btn:focus-visible {
 
 /* Floating ingestion button (SB-R3.1, SB-R3.5) — quiet accent disc, fixed to
    the work surface's bottom-right, OUTSIDE the resizable body so it never
-   disturbs `hive.workLayout`. Offset above the 24px status bar so it never
+   disturbs the pane layout. Offset above the 24px status bar so it never
    covers the composer; z-index sits below the modal/toast tiers. */
 .wb-brain-fab-root {
   position: fixed;

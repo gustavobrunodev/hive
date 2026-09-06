@@ -1,0 +1,116 @@
+.hds-activity-border {
+  --hds-activity-radius: var(--rounded-lg);
+  --hds-activity-thickness: 1.5px;
+  --hds-activity-duration: 2.6s;
+  position: relative;
+  border-radius: var(--hds-activity-radius);
+}
+
+/* Nothing paints until there is work: an idle wrapper is a plain `div`, so it
+   can stay mounted around a composer that is idle most of its life. */
+.hds-activity-border-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.24s var(--ease-quart);
+}
+
+.hds-activity-border[data-active] .hds-activity-border-ring {
+  opacity: 1;
+}
+
+/* Geometry in CSS, not attributes: the outline has to follow a box whose size
+   the component never learns, and inset by half the stroke so the ring lands
+   exactly on the border box instead of straddling its edge. */
+.hds-activity-border-ring rect {
+  x: calc(var(--hds-activity-thickness) / 2);
+  y: calc(var(--hds-activity-thickness) / 2);
+  width: calc(100% - var(--hds-activity-thickness));
+  height: calc(100% - var(--hds-activity-thickness));
+  /* Concentric with the host's own corner: the outline sits half a stroke
+     inside the box, so its radius has to come in by the same half. */
+  rx: calc(var(--hds-activity-radius) - var(--hds-activity-thickness) / 2);
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: var(--hds-activity-thickness);
+  stroke-linecap: round;
+}
+
+/* The three lanes share a leading edge and reach further back, so together they
+   are one comet with a wake. Each starts shifted by exactly its extra length
+   and travels 100 units — one full lap — per cycle, which is what makes the
+   loop seamless instead of jumping at the wrap. */
+.hds-activity-border-ring rect[data-lane="head"] {
+  stroke-dasharray: 7 93;
+  /* A hotter tip: the eye reads the brightest point as the thing that moves. */
+  stroke: color-mix(in oklab, var(--accent) 82%, white);
+}
+.hds-activity-border-ring rect[data-lane="mid"] {
+  stroke-dasharray: 17 83;
+  opacity: 0.55;
+}
+.hds-activity-border-ring rect[data-lane="tail"] {
+  stroke-dasharray: 32 68;
+  opacity: 0.2;
+}
+
+.hds-activity-border[data-active] .hds-activity-border-ring rect {
+  animation-duration: var(--hds-activity-duration);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane="head"] {
+  animation-name: hds-activity-head;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane="mid"] {
+  animation-name: hds-activity-mid;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane="tail"] {
+  animation-name: hds-activity-tail;
+}
+
+@keyframes hds-activity-head {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes hds-activity-mid {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: -90;
+  }
+}
+@keyframes hds-activity-tail {
+  from {
+    stroke-dashoffset: 25;
+  }
+  to {
+    stroke-dashoffset: -75;
+  }
+}
+
+/* Reduced motion keeps the *state*, drops the travel: a steady accent edge,
+   which is still a change nobody had to be watching the moment it started. */
+@media (prefers-reduced-motion: reduce) {
+  .hds-activity-border-ring {
+    transition: none;
+  }
+  .hds-activity-border[data-active] .hds-activity-border-ring rect {
+    animation: none;
+    stroke-dasharray: none;
+    stroke: var(--accent);
+    opacity: 0.6;
+  }
+  .hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane="mid"],
+  .hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane="tail"] {
+    display: none;
+  }
+}

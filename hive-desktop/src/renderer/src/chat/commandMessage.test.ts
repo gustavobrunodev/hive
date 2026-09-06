@@ -1,82 +1,111 @@
 import { describe, expect, it } from 'vitest'
-import { isLongBody, LONG_BODY_CHARS, splitCommandMessage } from './commandMessage'
+import { isLongMessage, LONG_MESSAGE_CHARS, userMessageSegments } from './commandMessage'
+import { createSkillOracle } from './commandMentions'
 
-describe('splitCommandMessage', () => {
-  it('reads a bare invocation as command only', () => {
-    expect(splitCommandMessage('/bmad-prd')).toEqual({
-      command: 'bmad-prd',
-      args: '',
-      body: ''
-    })
+const oracle = createSkillOracle([
+  { key: 'bmad-prd' },
+  { key: 'second-brain-ingest' },
+  { key: 'plugin:skill-2' }
+])
+const files = new Set(['docs/escopo.md', 'src/main/index.ts'])
+
+/** The whole point of the module: the runs put the message back together. */
+function rejoin(text: string): string {
+  return userMessageSegments(text, files, oracle)
+    .map((segment) => segment.text)
+    .join('')
+}
+
+describe('userMessageSegments', () => {
+  it('marks the leading command and leaves the rest as prose', () => {
+    expect(userMessageSegments('/bmad-prd revisar o escopo', files, oracle)).toEqual([
+      { kind: 'command', text: '/bmad-prd' },
+      { kind: 'text', text: ' revisar o escopo' }
+    ])
   })
 
-  it('separates arguments that ride on the command line', () => {
-    expect(splitCommandMessage('/second-brain-query como fazemos deploy?')).toEqual({
-      command: 'second-brain-query',
-      args: 'como fazemos deploy?',
-      body: ''
-    })
+  it('reads a bare invocation as one command run', () => {
+    expect(userMessageSegments('/bmad-prd', files, oracle)).toEqual([
+      { kind: 'command', text: '/bmad-prd' }
+    ])
   })
 
-  it('separates material sent under the command — the ingestion shape', () => {
-    const text = '/second-brain-ingest second-brain/raw/ingest-x.md\n\nA squad decidiu migrar.'
-    expect(splitCommandMessage(text)).toEqual({
-      command: 'second-brain-ingest',
-      args: 'second-brain/raw/ingest-x.md',
-      body: 'A squad decidiu migrar.'
-    })
+  it('marks file references alongside the command', () => {
+    expect(userMessageSegments('/bmad-prd a partir de @docs/escopo.md', files, oracle)).toEqual([
+      { kind: 'command', text: '/bmad-prd' },
+      { kind: 'text', text: ' a partir de ' },
+      { kind: 'file', text: '@docs/escopo.md' }
+    ])
   })
 
-  it('keeps the body intact, blank lines and all', () => {
-    const body = 'Primeiro parágrafo.\n\nSegundo parágrafo.\n- um item'
-    const result = splitCommandMessage(`/x arq.md\n\n${body}`)
-    expect(result?.body).toBe(body)
+  it('marks file references in a message with no command at all', () => {
+    expect(userMessageSegments('veja @src/main/index.ts', files, oracle)).toEqual([
+      { kind: 'text', text: 'veja ' },
+      { kind: 'file', text: '@src/main/index.ts' }
+    ])
   })
 
-  it('accepts a body that follows a single newline', () => {
-    expect(splitCommandMessage('/x\nlogo abaixo')?.body).toBe('logo abaixo')
+  it('keeps material sent under the command — the ingestion shape — as prose', () => {
+    const text = '/second-brain-ingest\n\nA squad decidiu migrar.'
+    expect(userMessageSegments(text, files, oracle)).toEqual([
+      { kind: 'command', text: '/second-brain-ingest' },
+      { kind: 'text', text: '\n\nA squad decidiu migrar.' }
+    ])
   })
 
-  it('treats ordinary prose as prose', () => {
-    expect(splitCommandMessage('como faço deploy?')).toBeNull()
-    expect(splitCommandMessage('')).toBeNull()
+  it('returns ordinary prose as a single run', () => {
+    expect(userMessageSegments('como faço deploy?', files, oracle)).toEqual([
+      { kind: 'text', text: 'como faço deploy?' }
+    ])
+  })
+
+  it('leaves a command the workspace does not have as plain prose', () => {
+    expect(userMessageSegments('/bmda-prd revisar', files, oracle)).toEqual([
+      { kind: 'text', text: '/bmda-prd revisar' }
+    ])
+  })
+
+  it('leaves an @reference to a file that does not exist as plain prose', () => {
+    expect(userMessageSegments('veja @docs/inventado.md', files, oracle)).toEqual([
+      { kind: 'text', text: 'veja @docs/inventado.md' }
+    ])
   })
 
   it('does not mistake a slash inside prose for an invocation', () => {
-    expect(splitCommandMessage('veja src/main/index.ts')).toBeNull()
-    expect(splitCommandMessage('a resposta é 3/4')).toBeNull()
-  })
-
-  it('requires the slash to open the message', () => {
-    expect(splitCommandMessage(' /bmad-prd')).toBeNull()
-    expect(splitCommandMessage('rode /bmad-prd')).toBeNull()
-  })
-
-  it('rejects a lone slash and a slash starting with punctuation', () => {
-    expect(splitCommandMessage('/')).toBeNull()
-    expect(splitCommandMessage('/-nope')).toBeNull()
+    expect(userMessageSegments('a resposta é 3/4', files, oracle)).toEqual([
+      { kind: 'text', text: 'a resposta é 3/4' }
+    ])
+    expect(userMessageSegments('rode /bmad-prd depois', files, oracle)).toEqual([
+      { kind: 'text', text: 'rode /bmad-prd depois' }
+    ])
   })
 
   it('accepts the name shapes real skills use — digits, colons, dashes', () => {
-    expect(splitCommandMessage('/plugin:skill-2')?.command).toBe('plugin:skill-2')
+    expect(userMessageSegments('/plugin:skill-2 vai', files, oracle)[0]).toEqual({
+      kind: 'command',
+      text: '/plugin:skill-2'
+    })
   })
 
-  it('tolerates a trailing carriage return from a pasted prompt', () => {
-    expect(splitCommandMessage('/bmad-prd\r\nassunto')).toEqual({
-      command: 'bmad-prd',
-      args: '',
-      body: 'assunto'
-    })
+  it('puts the message back together character for character', () => {
+    const samples = [
+      '',
+      '/bmad-prd',
+      '/bmad-prd revisar @docs/escopo.md e @src/main/index.ts',
+      'texto @docs/escopo.md com acento — ção',
+      '/second-brain-ingest\r\nassunto'
+    ]
+    for (const sample of samples) expect(rejoin(sample)).toBe(sample)
   })
 })
 
-describe('isLongBody', () => {
-  it('leaves a short body expanded', () => {
-    expect(isLongBody('uma nota curta')).toBe(false)
-    expect(isLongBody('x'.repeat(LONG_BODY_CHARS))).toBe(false)
+describe('isLongMessage', () => {
+  it('leaves a short message expanded', () => {
+    expect(isLongMessage('uma nota curta')).toBe(false)
+    expect(isLongMessage('x'.repeat(LONG_MESSAGE_CHARS))).toBe(false)
   })
 
-  it('collapses a transcript-sized body', () => {
-    expect(isLongBody('x'.repeat(LONG_BODY_CHARS + 1))).toBe(true)
+  it('collapses a transcript-sized message', () => {
+    expect(isLongMessage('x'.repeat(LONG_MESSAGE_CHARS + 1))).toBe(true)
   })
 })

@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { openSidebar } from './sidebar'
 
 // QA infrastructure for the E2E layer (test-design-qa.md, "Infraestrutura de
 // QA"). Two problems this file exists to solve, both recorded as risks:
@@ -77,23 +78,53 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
   // shortcut-scopes: a small but real BMAD skill catalog, so surfaces that
   // read it ("Personalizar atalhos") render rows instead of their empty state.
   // Headers are the ones captured from a real install (see workflowCatalog.ts).
+  //
+  // `canonicalId` REPEATS `name`, because that is what a real
+  // `skill-manifest.csv` contains — every row of the live file is
+  // `"bmad-prd","bmad-prd",…`. This fixture used to invent module-scoped ids
+  // (`bmm/prd`), and `listWorkspaceCatalog` keys the catalog off
+  // `canonicalId || name`: every key in the seeded workspace was therefore a
+  // name nothing else in the app ever refers to, so *nothing* resolved and any
+  // spec that depended on a shortcut surviving catalog validation was testing a
+  // workspace no user will ever have. The `dev` role's own defaults are in the
+  // list for the same reason — that is the role the seed selects.
   fs.writeFileSync(
     path.join(manifestDir, 'skill-manifest.csv'),
     [
       'canonicalId,name,description,module,path',
-      'bmm/prd,bmad-prd,Create or update a PRD,bmm,.claude/skills/bmad-prd',
-      'core/party,bmad-party-mode,Orchestrate a group discussion,core,.claude/skills/bmad-party-mode',
-      'bmm/ux,bmad-ux,Plan UX patterns,bmm,.claude/skills/bmad-ux',
-      'bmm/pm,bmad-agent-pm,Product manager persona. Use when the user asks to talk to John,bmm,.claude/skills/bmad-agent-pm',
-      'bmm/dev,bmad-agent-dev,Senior engineer persona. Use when the user asks to talk to Amelia,bmm,.claude/skills/bmad-agent-dev'
+      'bmad-prd,bmad-prd,Create or update a PRD,bmm,.claude/skills/bmad-prd',
+      'bmad-party-mode,bmad-party-mode,Orchestrate a group discussion,core,.claude/skills/bmad-party-mode',
+      'bmad-ux,bmad-ux,Plan UX patterns,bmm,.claude/skills/bmad-ux',
+      'bmad-dev-story,bmad-dev-story,Execute story implementation,bmm,.claude/skills/bmad-dev-story',
+      'bmad-code-review,bmad-code-review,Review code changes adversarially,bmm,.claude/skills/bmad-code-review',
+      'bmad-agent-pm,bmad-agent-pm,Product manager persona. Use when the user asks to talk to John,bmm,.claude/skills/bmad-agent-pm',
+      'bmad-agent-dev,bmad-agent-dev,Senior engineer persona. Use when the user asks to talk to Amelia,bmm,.claude/skills/bmad-agent-dev'
     ].join('\n') + '\n',
     'utf-8'
   )
 
   if (secondBrain) {
-    const skillDir = path.join(workspace, '.claude', 'skills', 'second-brain')
-    fs.mkdirSync(skillDir, { recursive: true })
-    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '# test fixture\n', 'utf-8')
+    // All FOUR skills the real pack installs, not just the `second-brain`
+    // marker `SecondBrainService.detect()` probes. The others are what the
+    // workspace skill catalog is built from, and the catalog is the oracle
+    // that decides whether `/second-brain-query …` renders as an invocation
+    // or as prose in the transcript — a fixture with only the marker proves
+    // the wrong half of that. Frontmatter, because `listCreatedSkills` reads
+    // `name`/`description` out of it.
+    for (const key of [
+      'second-brain',
+      'second-brain-ingest',
+      'second-brain-lint',
+      'second-brain-query'
+    ]) {
+      const skillDir = path.join(workspace, '.claude', 'skills', key)
+      fs.mkdirSync(skillDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(skillDir, 'SKILL.md'),
+        `---\nname: ${key}\ndescription: Test fixture for ${key}.\n---\n\n# test fixture\n`,
+        'utf-8'
+      )
+    }
   }
 
   // Everything onboarding routes on, seeded to a completed first run. The
@@ -205,16 +236,26 @@ export async function launchSeededApp(
 }
 
 /**
- * Waits for the work UI (the action rail) to be on screen.
+ * Waits for the work UI to be on screen, **with the sidebar open**.
  *
- * With the seam armed this is a straight wait — no "continuar mesmo assim"
- * escape hatch, on purpose. That click is what made the four red specs look
- * like they were testing the happy path when they were actually testing the
- * error path; if the gate is reached here at all, the seam did not hold and
- * the test SHOULD fail rather than paper over it.
+ * With the seam armed the wait itself is a straight one — no "continuar mesmo
+ * assim" escape hatch, on purpose. That click is what made the four red specs
+ * look like they were testing the happy path when they were actually testing
+ * the error path; if the gate is reached here at all, the seam did not hold
+ * and the test SHOULD fail rather than paper over it.
+ *
+ * The sidebar is opened here because a workspace with no stored session opens
+ * on the chat alone (workspace-session), and every spec written before that
+ * describes an app whose file rail is on screen. Doing it in the one helper
+ * they all already call keeps those specs describing the app they were written
+ * about; `workspace-session.spec.ts` covers the first-run state itself and
+ * deliberately does not come through here.
  */
+export { openSidebar }
+
 export async function waitForWorkUI(window: Page, timeout = 45_000): Promise<void> {
-  await window.locator('.wb-rail').waitFor({ state: 'visible', timeout })
+  await window.locator('.wb-actionrail').waitFor({ state: 'visible', timeout })
+  await openSidebar(window)
 }
 
 /** Removes a seeded tree. Safe to call twice. */

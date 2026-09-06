@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
+import { openSidebar } from './fixtures/sidebar'
 
 // The model gate (M26), E2E — the real built Electron app with an **empty**
 // userData, which since M26 is what a fresh install genuinely is: the app ships
@@ -24,7 +25,10 @@ import os from 'node:os'
 //      to prevent — so `getUserMedia` being untouched is the assertion, not
 //      the dialog's presence.
 async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
+  // The **activity bar**, not the file rail: a workspace with no stored session
+  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
+  // zero here — `openSidebar` at the end is what brings it back.
+  const rail = window.locator('.wb-actionrail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   for (let step = 0; step < 2; step++) {
     await Promise.race([
@@ -38,6 +42,7 @@ async function waitForWorkUI(window: Page): Promise<void> {
     }
   }
   await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await openSidebar(window)
 }
 
 test.describe('voice model gate E2E (real Electron)', () => {

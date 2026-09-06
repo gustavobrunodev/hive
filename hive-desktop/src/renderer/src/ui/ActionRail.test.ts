@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ActionRail } from './ActionRail'
+import { ActionRail, SIDEBAR_REGION_ID } from './ActionRail'
 
 /**
  * `ActionRail` — the persistent left tool rail. Task T12 (npm-distribution,
@@ -35,10 +35,13 @@ afterEach(() => {
 })
 
 describe('ActionRail — view switcher (git-management GIT-R13)', () => {
-  it('renders Explorer + Source Control view entries with the active one pressed', () => {
+  it('renders Explorer + Source Control view entries with the showing one pressed', () => {
     render(createElement(ActionRail, { ...baseProps(), activeView: 'scm' }))
     expect(screen.getByLabelText('Explorador').getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByLabelText('Controle de versão').getAttribute('aria-pressed')).toBe('true')
+    // The entry on screen names what a click does now — it hides the panel.
+    expect(screen.getByLabelText('Ocultar Controle de versão').getAttribute('aria-pressed')).toBe(
+      'true'
+    )
   })
 
   it('selecting a view calls onSelectView with its id', () => {
@@ -46,7 +49,8 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
     render(createElement(ActionRail, props))
     fireEvent.click(screen.getByLabelText('Controle de versão'))
     expect(props.onSelectView).toHaveBeenCalledWith('scm')
-    fireEvent.click(screen.getByLabelText('Explorador'))
+    // `activeView` is 'explorer' here, so its entry is the one on screen.
+    fireEvent.click(screen.getByLabelText('Ocultar Explorador'))
     expect(props.onSelectView).toHaveBeenCalledWith('explorer')
   })
 
@@ -66,7 +70,7 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
   it('renders the Revisão entry, selects it, and shows its pending badge', () => {
     const props = baseProps()
     const { rerender } = render(createElement(ActionRail, { ...props, activeView: 'review' }))
-    const entry = screen.getByLabelText('Revisão do agente')
+    const entry = screen.getByLabelText('Ocultar Revisão do agente')
     expect(entry.getAttribute('aria-pressed')).toBe('true')
 
     fireEvent.click(entry)
@@ -86,7 +90,7 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
   it('renders the Second Brain entry, selects it, and shows its raw-pending badge with Ctrl+Shift+B', () => {
     const props = baseProps()
     const { rerender } = render(createElement(ActionRail, { ...props, activeView: 'brain' }))
-    const entry = screen.getByLabelText('Bases de conhecimento')
+    const entry = screen.getByLabelText('Ocultar Bases de conhecimento')
     expect(entry.getAttribute('aria-pressed')).toBe('true')
     expect(entry.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+B')
 
@@ -94,10 +98,10 @@ describe('ActionRail — view switcher (git-management GIT-R13)', () => {
     expect(props.onSelectView).toHaveBeenCalledWith('brain')
 
     // No badge at zero; appears with an accessible count once > 0.
-    expect(screen.getByLabelText('Bases de conhecimento').textContent).toBe('')
-    rerender(createElement(ActionRail, { ...props, rawPendingCount: 2 }))
+    expect(screen.getByLabelText('Ocultar Bases de conhecimento').textContent).toBe('')
+    rerender(createElement(ActionRail, { ...props, activeView: 'brain', rawPendingCount: 2 }))
     expect(screen.getByLabelText(/2 itens para ingerir/)).toBeTruthy()
-    rerender(createElement(ActionRail, { ...props, rawPendingCount: 1 }))
+    rerender(createElement(ActionRail, { ...props, activeView: 'brain', rawPendingCount: 1 }))
     expect(screen.getByLabelText(/1 item para ingerir/)).toBeTruthy()
   })
 
@@ -158,5 +162,57 @@ describe('ActionRail — ambient update dot (T12, ND-R5.5)', () => {
     render(createElement(ActionRail, props))
     fireEvent.click(screen.getByLabelText('Configurações do aplicativo — Atualização disponível'))
     expect(props.onOpenAppSettings).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * workspace-session — the sidebar the rail drives can be hidden, so "selected"
+ * and "on screen" stopped being one fact. These cover the second one.
+ */
+describe('ActionRail — hideable sidebar (workspace-session)', () => {
+  it('with the sidebar hidden, nothing reads as showing and the selected view rests', () => {
+    render(createElement(ActionRail, { ...baseProps(), activeView: 'scm', sidebarOpen: false }))
+    const entry = screen.getByLabelText('Controle de versão')
+    // Not pressed, not expanded: nothing is on screen to be pressed about.
+    expect(entry.getAttribute('aria-pressed')).toBe('false')
+    expect(entry.getAttribute('aria-expanded')).toBe('false')
+    expect(entry.hasAttribute('data-active')).toBe(false)
+    // ...but it is still the view a reopen lands on, and says so.
+    expect(entry.hasAttribute('data-resting')).toBe(true)
+    expect(screen.getByLabelText('Explorador').hasAttribute('data-resting')).toBe(false)
+  })
+
+  it('names the panel it controls, so the state is a promise about something', () => {
+    render(createElement(ActionRail, baseProps()))
+    const entry = screen.getByLabelText('Ocultar Explorador')
+    expect(entry.getAttribute('aria-expanded')).toBe('true')
+    expect(entry.getAttribute('aria-controls')).toBe(SIDEBAR_REGION_ID)
+  })
+
+  it('reports the click either way — the workbench owns the open/closed decision', () => {
+    const props = { ...baseProps(), sidebarOpen: false }
+    render(createElement(ActionRail, props))
+    fireEvent.click(screen.getByLabelText('Explorador'))
+    expect(props.onSelectView).toHaveBeenCalledWith('explorer')
+  })
+
+  it('keeps the badge count in the accessible name while the panel is hidden', () => {
+    render(
+      createElement(ActionRail, {
+        ...baseProps(),
+        activeView: 'scm',
+        sidebarOpen: false,
+        changeCount: 4
+      })
+    )
+    expect(screen.getByLabelText('Controle de versão — 4 alterações pendentes')).toBeTruthy()
+  })
+
+  it('anchors the tour at the Explorer entry — the button that opens the panel', () => {
+    const { container } = render(createElement(ActionRail, { ...baseProps(), sidebarOpen: false }))
+    const anchor = container.querySelector('[data-tour="files"]')
+    expect(anchor).not.toBeNull()
+    expect(anchor?.getAttribute('aria-label')).toBe('Explorador')
+    expect(anchor?.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+E')
   })
 })

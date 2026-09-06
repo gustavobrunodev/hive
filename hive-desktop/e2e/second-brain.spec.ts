@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
+import { openSidebar } from './fixtures/sidebar'
 
 // Second Brain (M12) E2E, SB-R8.3 — Playwright driving the real built Electron
 // app. Same boot recipe as agent-change-review.spec.ts (STATE.md T2/T11
@@ -22,7 +23,10 @@ import os from 'node:os'
 //      under the production CSP (SB-R4.1's foundation), with escapes refused.
 
 async function waitForWorkUI(window: Page): Promise<void> {
-  const rail = window.locator('.wb-rail')
+  // The **activity bar**, not the file rail: a workspace with no stored session
+  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
+  // zero here — `openSidebar` at the end is what brings it back.
+  const rail = window.locator('.wb-actionrail')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   // The provisioning gate has TWO steps (BMAD, then second-brain), each
   // shelling out to a real network-backed CLI, and each offering "Continuar
@@ -40,6 +44,7 @@ async function waitForWorkUI(window: Page): Promise<void> {
     }
   }
   await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await openSidebar(window)
 }
 
 test.describe('second-brain E2E (real Electron)', () => {
@@ -61,6 +66,26 @@ test.describe('second-brain E2E (real Electron)', () => {
     // created mid-session is now picked up on its own (the store watches the
     // workspace tree), which `useSecondBrain.test.ts` covers directly.
     fs.mkdirSync(path.join(workspace, 'second-brain', 'raw'), { recursive: true })
+
+    // The four skills the pack really installs. They are what the workspace
+    // skill catalog is built from, and that catalog is the oracle deciding
+    // whether `/second-brain-query …` reads as an invocation in the transcript
+    // or as ordinary prose — a workspace with a vault but no skills answers the
+    // wrong question.
+    for (const key of [
+      'second-brain',
+      'second-brain-ingest',
+      'second-brain-lint',
+      'second-brain-query'
+    ]) {
+      const skillDir = path.join(workspace, '.claude', 'skills', key)
+      fs.mkdirSync(skillDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(skillDir, 'SKILL.md'),
+        `---\nname: ${key}\ndescription: Test fixture for ${key}.\n---\n\n# test fixture\n`,
+        'utf-8'
+      )
+    }
 
     // A partial model in the store's own directory: bytes on disk with no
     // completion marker, which the assertions below use to prove that a
@@ -182,16 +207,20 @@ test.describe('second-brain E2E (real Electron)', () => {
       await question.fill('Onde vive o vault?')
       await window.getByRole('button', { name: 'Perguntar', exact: true }).click()
       // The dialog closes and the chat carries the turn as the user would have
-      // typed it — `/second-brain-query <pergunta>`. The transcript renders the
-      // command name and its args as SIBLING spans (`CommandInvocation`), and
-      // the space between them is flex `gap`, not text — so neither the joined
-      // string nor the token's textContent ever matches. Assert each span.
+      // typed it — `/second-brain-query <pergunta>` — in an ordinary user
+      // bubble, with only the command run marked. It used to be promoted out
+      // of the bubble into a two-part object whose halves were siblings
+      // separated by flex `gap` rather than by text, so the message never read
+      // back as the sentence that was sent; now it does, which is what this
+      // asserts.
       await expect(question).toBeHidden({ timeout: 10_000 })
-      const command = window.locator('.wb-command-token').last()
-      await expect(command.locator('.wb-command-token-name')).toHaveText('/second-brain-query', {
+      const bubble = window.locator('.hds-chat-message-user').last()
+      await expect(bubble).toContainText('/second-brain-query Onde vive o vault?', {
         timeout: 20_000
       })
-      await expect(command.locator('.wb-command-token-args')).toHaveText('Onde vive o vault?')
+      // The workspace really has this skill (the fixture installs the pack), so
+      // the leading run is marked as the invocation it is.
+      await expect(bubble.locator('mark[data-kind="command"]')).toHaveText('/second-brain-query')
       // Reopening offers the question back (SB-R9.4). Target the recent-question
       // control by role: the same text is also on screen in the transcript.
       await window.keyboard.press('Control+Shift+K')

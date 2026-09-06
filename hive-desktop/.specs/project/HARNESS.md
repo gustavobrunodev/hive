@@ -44,10 +44,10 @@ recusas que impedem a próxima rodada de re-propor o que já foi decidido.
 | `tsc --noEmit` (node + web) | feedback | comput. | manut. | in-session | sim | sim | `strict: true` nos **dois** projetos |
 | ESLint 9 flat + bloco anti-sprawl | feedback | comput. | manut. | in-session | sim (errors) | parcial | `no-explicit-any` **error**, `complexity: 15` **error**, `max-lines-per-function: 150` **warn**, react-hooks/react-refresh |
 | Prettier | feedforward | comput. | manut. | manual | não | n/a | estilo — **ignore list não cobre `.claude/`, `.specs/`, `.scratch/`** |
-| Vitest (202 arquivos, 3346 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
+| Vitest (221 arquivos, 3997 testes) | feedback | comput. | comportamento | in-session | sim | sim | regressão; `*.e2e.test.ts` excluídos do suite rápido |
 | Coverage v8 per-file 90% | feedback | comput. | manut. | in-session | **só em `test:coverage`** | sim | ~37 globs **curados à mão** (≈200 linhas de config) |
 | `noInlineStrings.test.ts` | feedback | comput. | arch. fitness | in-session | sim | sim | zero literais de UI fora do `t()` — **o padrão de sensor caseiro a replicar** |
-| Playwright E2E (7 specs, Electron real) | feedback | comput. | comportamento | manual | não | sim | fluxos reais contra disco/git de verdade |
+| Playwright E2E (23 specs, Electron real) | feedback | comput. | comportamento | manual | não | sim | fluxos reais contra disco/git de verdade |
 | `AGENTS.md` | feedforward | inferencial | cross | in-session | — | — | ambiente/Node, comandos, 4 convenções, fronteiras |
 | `.specs/` + skill `tlc-spec-driven` | feedforward | inferencial | cross | in-session | — | — | SDD: PROJECT/ROADMAP/STATE + spec/design/tasks por feature |
 | `.claude/skills/` (tlc-spec-driven, impeccable, harness-builder) | feedforward | inferencial | cross | in-session | — | — | playbooks de planejamento, UI e harness |
@@ -654,6 +654,25 @@ dela pousa no filho.
 | — | Passe funcional + contraste do run-config e do pin — 20 afirmações × 3 temas | `tools/visual/run-config-pass.mjs` | O pin é uma decisão que atravessa IPC, um store de módulo e quatro telas; e o painel do motor agora abre **dentro de uma `Sheet`**, portalizado para fora dela — nada disso é visível para um teste com o `OptionPicker` dublado. A sonda fixa uma linha pelo painel real, troca de agente e confere que a releitura pousa no modelo fixado. |
 | — | Runner de cena independente do MCP | `tools/visual/run-scene.mjs` | O navegador do MCP é um perfil só: outra sessão do Claude o tranca (`Browser is already in use`) e o tool não expõe `--isolated`. Sem isto, o passe visual — que é parte do trabalho, não formalidade — fica refém de quem abriu o navegador primeiro. Roda os **mesmos** arquivos de cena, então não há um segundo dialeto de sonda para manter. |
 
+### 2026-09-05 — atalhos removíveis, facho do turno, mensagem com comando
+
+| # | Controle | Onde | Por que |
+| --- | --- | --- | --- |
+| — | E2E de remover um atalho padrão e reabrir o app | `e2e/shortcut-removal.spec.ts` | A seleção é preferência **global gravada em disco**, e o defeito original era um resolvedor que lia esse arquivo, decidia que não dava para validar e devolvia os padrões do papel. Só um segundo `launch` sobre o mesmo `userData` prova que a remoção sobrevive. Ele também foi quem achou o palco divergindo do herói — nenhuma fixture mockada podia, porque todas tinham catálogo completo. |
+| — | Passe funcional de remoção — 12 afirmações, duas vezes | `tools/visual/shortcut-removal-pass.mjs` | Roda com catálogo **e** com `HIVE_NO_BMAD=1`, que é o workspace onde a lista do seletor não renderiza nada e o conjunto na tela é a única saída. Lê o **herói** depois de cada edição: o que importa é o atalho sair da superfície, não do diálogo. |
+| — | Sonda de contraste + estrutura da rodada — 9 alvos × 3 temas + 5 afirmações | `tools/visual/chat-round-contrast.mjs` | Regra do M16/M19/M20/M21: superfície nova entra no sweep no mesmo commit. As afirmações estruturais são as que contraste não vê e que eram o defeito relatado — o **nome do comando não truncado**, a caixa do token cabendo na linha, um só tamanho de token, e a mensagem com comando mantendo a bolha das outras. |
+| ⚠ | Fixture de `skill-manifest.csv` conferida contra o arquivo real | `e2e/fixtures/workspace.ts` | O `canonicalId` semeado era inventado (`bmm/prd`) onde o arquivo real repete o nome, e o catálogo é chaveado por `canonicalId || name`: **nenhuma** chave do workspace semeado batia com o resto do app. Toda spec que dependia de um atalho sobreviver à validação media um workspace que ninguém tem. |
+| ⚠ | Fixture de atalhos com estado no harness visual | `tools/visual/boot.mjs` | `shortcuts.set` resolvia `undefined` e `actions` devolvia lista congelada — uma sonda de remoção passaria igual com o botão desligado. Agora guarda estado e resolve pelas mesmas regras do `roleCatalog.ts`. |
+
+**Não implementado, com motivo:** os sete `globalThis.HIVE_*` lidos **dentro** do
+init script do `boot.mjs` (`HIVE_SHELLS`, `HIVE_FACTS`, `HIVE_NO_MODELS`,
+`HIVE_ROLE`, `HIVE_NO_REPO`, `HIVE_LEGACY_BYTES`, `HIVE_ASR_PHASE`) nunca chegam
+à página — medido, não deduzido: todos leem `undefined` e caem no default, em
+silêncio. Consertá-los **muda o que as sondas existentes medem**, então é uma
+rodada própria com revalidação de cada passe que os usa, não um efeito colateral
+desta. Registrado em `docs/visual-validation.md`; o botão novo desta rodada
+(`HIVE_NO_BMAD`) viaja como argumento, que é o único jeito que funciona.
+
 ## 7. O que deliberadamente não existe
 
 ### 2026-09-05 — context-compaction: dois sensores ao vivo e uma cena nova
@@ -688,6 +707,16 @@ distinguir ausência deliberada de esquecimento.
 | Review inferencial no fluxo (célula vazia em Feedback × Inferencial) | Custo por PR real, e as falhas recorrentes deste repo foram todas capturáveis por controle computacional. | Aparecer classe de falha que só semântica pega |
 | Automatizar os globs de cobertura (derivar do diff) | Os ~35 globs curados à mão são dívida conhecida, mas o gate já está vermelho em 14 pontos — automatizar a curadoria antes de limpar o vermelho só esconde o problema. | O gate de §5b ficar verde |
 | Gate de cobertura e de E2E no CI | Ambos nascem vermelhos (14 arquivos / 4 specs, todos herdados). Um gate permanentemente vermelho ensina todo mundo a ignorá-lo. | Cada um ficar limpo — aí tira o `continue-on-error` |
+
+### Controles novos — lateral ocultável + sessão de workspace (2026-09-05)
+
+| # | Controle | Onde | O que ele pegou / por que existe |
+| --- | --- | --- | --- |
+| — | Gate de cobertura per-file do `workspaceSession.ts` | `vitest.config.ts` | O módulo que decide o que volta a aparecer quando o app abre. 100% em statements/branches/functions/lines, incluindo os caminhos corruptos e a tolerância a storage que lança. |
+| — | Passe funcional da lateral + restauração — 26 afirmações | `tools/visual/sidebar-session-pass.mjs` | Nada disso é visível para um teste com o `Resizable` dublado: o colapso é do `react-resizable-panels`, e foi ele que reprovou a primeira implementação (mudar a forma dos filhos do grupo renormaliza o layout — ver STATE.md). |
+| — | Sonda de contraste dos dois estados da rail — 11 alvos × 3 temas | `tools/visual/sidebar-contrast.mjs` | Regra do M16/M19/M20/M21: superfície nova entra no sweep no mesmo commit. Achou a barra de "view em repouso" a **1,68–1,95:1** — um marcador abaixo até do piso de 3:1 de componente de interface. |
+| — | E2E de fechar-e-reabrir o app real | `e2e/workspace-session.spec.ts` | É a única prova da promessa inteira: o `localStorage` do renderer vive no `userData`, então só um segundo `launch` sobre o mesmo perfil mostra abas, pastas e lateral voltando. |
+| ⚠ | `waitForWorkUI` **abre a lateral** | `e2e/fixtures/workspace.ts` | Mudança de contrato do helper: um workspace sem sessão abre só com o chat, e toda spec anterior descreve um app com a árvore na tela. A spec de primeira execução deliberadamente **não** passa por ele. |
 
 **Limites honestos** — o que *nenhum* controle daqui cobre:
 

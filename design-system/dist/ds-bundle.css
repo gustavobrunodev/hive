@@ -2937,6 +2937,60 @@ a:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.hds-dropdown-menu-item-stacked {
+  align-items: flex-start;
+  padding: var(--s-2) var(--s-3);
+}
+.hds-dropdown-menu-item-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded-md);
+  background: var(--surface-3);
+  color: var(--muted);
+  transition: background-color 0.15s var(--ease-quart), color 0.15s var(--ease-quart);
+}
+.hds-dropdown-menu-item[data-highlighted] .hds-dropdown-menu-item-icon {
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+}
+.hds-dropdown-menu-item-danger[data-highlighted] .hds-dropdown-menu-item-icon {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+.hds-dropdown-menu-item[data-disabled] .hds-dropdown-menu-item-icon {
+  color: var(--faint);
+}
+.hds-dropdown-menu-item-stacked .hds-dropdown-menu-item-label {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  overflow: visible;
+  white-space: normal;
+  padding-top: 1px;
+}
+.hds-dropdown-menu-item-title {
+  font-weight: 500;
+  line-height: 1.25;
+}
+.hds-dropdown-menu-item-desc {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.hds-dropdown-menu-item-danger .hds-dropdown-menu-item-desc {
+  color: var(--danger-ink);
+  opacity: 0.8;
+}
+.hds-dropdown-menu-item-stacked .hds-dropdown-menu-shortcut {
+  margin-top: 3px;
+}
+.hds-dropdown-menu-item .hds-kbd {
+  background: var(--bg-2);
+}
 .hds-dropdown-menu-shortcut {
   flex-shrink: 0;
   font-family: var(--ff-num);
@@ -2995,6 +3049,9 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .hds-dropdown-menu-content {
     animation-duration: 0.01ms;
+  }
+  .hds-dropdown-menu-item-icon {
+    transition: none;
   }
 }
 
@@ -6004,5 +6061,141 @@ button.hds-breadcrumb-segment:hover {
   .hds-prompt-input-send[data-mode=stop]:not(:disabled) {
     animation: none;
   }
+}
+
+/* src/components/ActivityBorder/ActivityBorder.css */
+.hds-activity-border {
+  --hds-activity-radius: var(--rounded-lg);
+  --hds-activity-thickness: 1.5px;
+  --hds-activity-duration: 2.6s;
+  position: relative;
+  border-radius: var(--hds-activity-radius);
+}
+.hds-activity-border-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.24s var(--ease-quart);
+}
+.hds-activity-border[data-active] .hds-activity-border-ring {
+  opacity: 1;
+}
+.hds-activity-border-ring rect {
+  x: calc(var(--hds-activity-thickness) / 2);
+  y: calc(var(--hds-activity-thickness) / 2);
+  width: calc(100% - var(--hds-activity-thickness));
+  height: calc(100% - var(--hds-activity-thickness));
+  rx: calc(var(--hds-activity-radius) - var(--hds-activity-thickness) / 2);
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: var(--hds-activity-thickness);
+  stroke-linecap: round;
+}
+.hds-activity-border-ring rect[data-lane=head] {
+  stroke-dasharray: 7 93;
+  stroke: color-mix(in oklab, var(--accent) 82%, white);
+}
+.hds-activity-border-ring rect[data-lane=mid] {
+  stroke-dasharray: 17 83;
+  opacity: 0.55;
+}
+.hds-activity-border-ring rect[data-lane=tail] {
+  stroke-dasharray: 32 68;
+  opacity: 0.2;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect {
+  animation-duration: var(--hds-activity-duration);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane=head] {
+  animation-name: hds-activity-head;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane=mid] {
+  animation-name: hds-activity-mid;
+}
+.hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane=tail] {
+  animation-name: hds-activity-tail;
+}
+@keyframes hds-activity-head {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes hds-activity-mid {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: -90;
+  }
+}
+@keyframes hds-activity-tail {
+  from {
+    stroke-dashoffset: 25;
+  }
+  to {
+    stroke-dashoffset: -75;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-activity-border-ring {
+    transition: none;
+  }
+  .hds-activity-border[data-active] .hds-activity-border-ring rect {
+    animation: none;
+    stroke-dasharray: none;
+    stroke: var(--accent);
+    opacity: 0.6;
+  }
+  .hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane=mid],
+  .hds-activity-border[data-active] .hds-activity-border-ring rect[data-lane=tail] {
+    display: none;
+  }
+}
+
+/* src/components/MessageToken/MessageToken.css */
+.hds-message-token {
+  color: inherit;
+  font-weight: 600;
+  border-radius: var(--rounded-sm);
+  padding: 0 5px;
+  background: var(--surface-3);
+}
+.hds-message-token[data-kind=file] {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  overflow-wrap: anywhere;
+}
+.hds-message-token[data-kind=command] {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 0 6px 0 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 32%, var(--border-strong));
+}
+.hds-message-token-glyph {
+  flex: none;
+  color: var(--accent);
+}
+.hds-chat-message-user .hds-message-token {
+  background: oklch(100% 0 0 / 16%);
+}
+.hds-chat-message-user .hds-message-token[data-kind=command] {
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 30%);
+}
+.hds-chat-message-user .hds-message-token-glyph {
+  color: inherit;
+  opacity: 0.75;
 }
 /*# sourceMappingURL=ds-bundle.css.map */

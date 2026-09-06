@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { FileViewerHandle } from '../explorer/Explorer'
 import type { GitDiffSide } from '../scm/gitStatus'
+import type { RestoredTab } from './workspaceSession'
 
 /** What an editor tab shows (git-management §6.5; +review, Agent Change Review). */
 export type EditorTabKind = 'file' | 'diff' | 'conflict' | 'commit' | 'review'
@@ -63,6 +64,15 @@ export interface EditorTabsState {
   /** How many more dirty tabs are queued behind `pendingClose` (a bulk close asks once per file, VS Code-style). */
   pendingCloseRemaining: number
   openFile: (path: string, opts?: { pin?: boolean }) => void
+  /**
+   * workspace-session: puts a previously-open strip back (file tabs only).
+   *
+   * A no-op unless the strip is still empty, because this races the user: the
+   * restore needs one round trip to disk to drop tabs whose files are gone,
+   * and someone who clicked a tree row inside that window has already said
+   * what they want on screen. Their click wins.
+   */
+  restoreTabs: (tabs: readonly RestoredTab[], activePath: string | null) => void
   /** Opens (or focuses) a diff tab for `filePath` on the given side (git-management §6.5). */
   openDiff: (filePath: string, side: GitDiffSide) => void
   /** Opens (or focuses) a commit's diff tab (git-management GIT-R8.2). */
@@ -144,6 +154,19 @@ export function useEditorTabs(): EditorTabsState {
     },
     [openTab]
   )
+
+  const restoreTabs = useCallback((restored: readonly RestoredTab[], active: string | null) => {
+    if (restored.length === 0) return
+    setTabs((current) => {
+      if (current.length > 0) return current
+      return restored.map((tab) => ({ path: tab.path, pinned: tab.pinned, kind: 'file' as const }))
+    })
+    setActivePath((current) => {
+      if (current !== null) return current
+      const wanted = restored.find((tab) => tab.path === active) ?? restored[0]
+      return wanted.path
+    })
+  }, [])
 
   const openDiff = useCallback(
     (filePath: string, side: GitDiffSide) => {
@@ -337,6 +360,7 @@ export function useEditorTabs(): EditorTabsState {
     pendingClose,
     pendingCloseRemaining: Math.max(closeQueue.length - 1, 0),
     openFile,
+    restoreTabs,
     openDiff,
     openCommitDiff,
     openConflict,

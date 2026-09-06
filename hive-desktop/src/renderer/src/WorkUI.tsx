@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, HTMLAttributes, ReactNode } from 'react'
 import {
   DropdownMenu,
@@ -17,7 +17,7 @@ import { Chat, type ChatHandle } from './chat/Chat'
 import { SessionHistory } from './chat/SessionHistory'
 import { EditorTabs, type EditorTabActions } from './ui/EditorTabs'
 import { useEditorTabs } from './ui/useEditorTabs'
-import { ActionRail, type RoleAction, type SidebarView } from './ui/ActionRail'
+import { ActionRail, SIDEBAR_REGION_ID, type RoleAction, type SidebarView } from './ui/ActionRail'
 import { SidebarHost } from './ui/SidebarHost'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
@@ -79,6 +79,12 @@ import { ThemePicker } from './ui/ThemePicker'
 import type { Theme } from './ui/theme'
 import { ChevronDownIcon, FolderIcon, FolderOpenIcon, RefreshIcon, UserIcon } from './ui/icons'
 import { copyText } from './ui/clipboard'
+import {
+  loadWorkspaceSession,
+  mergeLayout,
+  saveWorkspaceSession,
+  type WorkspaceSession
+} from './ui/workspaceSession'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -130,18 +136,33 @@ interface WorkUIProps {
   onUserNameChange?: (name: string) => void
 }
 
-/** Interleaves the visible panes with resize handles (module scope — keeps the loop's branches off `WorkUI`'s complexity budget). */
+/**
+ * Interleaves the panes with resize handles (module scope — keeps the loop's
+ * branches off `WorkUI`'s complexity budget).
+ *
+ * A sash pinned against the window's left edge with nothing on its far side is
+ * a control that promises a boundary where there is none, so the one beside a
+ * hidden sidebar is *marked* (`data-offscreen`) and taken out of the layout by
+ * the stylesheet — not removed from the tree. Removing it is what the first
+ * version did, and `react-resizable-panels` re-normalised the whole group when
+ * its children changed shape, snapping the panel that had just been expanded
+ * straight back to zero. The group's children stay constant; only their
+ * painting changes.
+ */
 function buildPanels(
-  visiblePanes: readonly PaneId[],
-  renderers: Record<PaneId, () => ReactNode>
+  renderedPanes: readonly PaneId[],
+  renderers: Record<PaneId, () => ReactNode>,
+  isOnScreen: (pane: PaneId) => boolean = () => true
 ): ReactNode[] {
   const panels: ReactNode[] = []
-  for (const [index, pane] of visiblePanes.entries()) {
+  for (const [index, pane] of renderedPanes.entries()) {
     if (index > 0) {
+      const dead = !isOnScreen(pane) || !isOnScreen(renderedPanes[index - 1])
       panels.push(
         <ResizableHandle
-          key={`handle-${index}`}
+          key={`handle-${pane}`}
           withGrip
+          data-offscreen={dead ? '' : undefined}
           aria-label={t('workUI.resizeHandleLabel')}
         />
       )
@@ -176,59 +197,95 @@ function initialsOf(name: string | null): string | null {
 /** Map of Resizable panel id -> flex-grow percentage (mirrors react-resizable-panels' `Layout` type). */
 type WorkLayout = Record<string, number>
 
-/** localStorage key for the persisted rail/chat/viewer split (T11, design.md §7, UX-R6.2). */
-const WORK_LAYOUT_STORAGE_KEY = 'hive.workLayout'
+/** How long the sidebar takes to slide away and back — the low end of this app's 150–250ms band (PRODUCT.md §5), because it is chrome moving, not content arriving. Must match `--wb-sidebar-anim` in workbench.css. */
+const SIDEBAR_ANIMATION_MS = 180
 
-/** Reads a previously-persisted layout back out of `localStorage`, tolerating missing/corrupt data (private mode, manual edits, older schema). */
-function loadWorkLayout(): WorkLayout | undefined {
-  try {
-    const raw = localStorage.getItem(WORK_LAYOUT_STORAGE_KEY)
-    if (!raw) return undefined
-    const parsed: unknown = JSON.parse(raw)
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      Object.values(parsed as Record<string, unknown>).every((value) => typeof value === 'number')
-    ) {
-      return parsed as WorkLayout
-    }
-    return undefined
-  } catch {
-    return undefined
+/** When the slide is considered over. A little past the transition: dropping the animating class on its exact last frame can clip the final pixels. */
+const SIDEBAR_SETTLE_MS = SIDEBAR_ANIMATION_MS + 60
+
+/** How long a sash has to stop moving before its width is written down. */
+const LAYOUT_WRITE_DELAY_MS = 200
+
+/**
+ * The pane widths the group mounts with.
+ *
+ * A hidden sidebar mounts at zero rather than opening wide and snapping shut a
+ * frame later — the flash of a panel you closed last week is the least
+ * trustworthy thing a restore can do.
+ */
+function initialLayout(session: WorkspaceSession): WorkLayout | undefined {
+  if (!session.layout) return undefined
+  return { ...session.layout, rail: session.sidebarOpen ? session.layout.rail : 0 }
+}
+
+/**
+ * The rail's stored width, or the default the panel would have picked.
+ *
+ * A stored width below 1% is not a width — it is a collapse that leaked into
+ * the record — and reopening at it would put the sidebar back as a sliver.
+ */
+function initialRailSize(session: WorkspaceSession): number {
+  const stored = session.layout?.rail
+  return stored !== undefined && stored >= 1 ? stored : DEFAULT_RAIL_SIZE
+}
+
+/** Rail width, in group percent, before anyone has dragged one. Mirrors the panel's own `defaultSize`. */
+const DEFAULT_RAIL_SIZE = 22
+
+/**
+ * Everything the shell renders differently because the sidebar is (or isn't)
+ * showing.
+ *
+ * At module scope so `WorkUI`'s own branch budget goes on decisions rather
+ * than on how three attributes are spelled.
+ */
+function sidebarChrome(
+  open: boolean,
+  animating: boolean
+): { bodyState: 'open' | 'closed'; groupClass: string | undefined; collapsedFlag: '' | undefined } {
+  return {
+    bodyState: open ? 'open' : 'closed',
+    groupClass: animating ? 'wb-panes-animating' : undefined,
+    collapsedFlag: open ? undefined : ''
   }
 }
 
-/** Persists the group's current layout so the rail width survives a reload. Write failures (quota, private mode) are swallowed — persistence is a nicety, not a hard requirement. */
-function persistWorkLayout(layout: WorkLayout): void {
-  try {
-    localStorage.setItem(WORK_LAYOUT_STORAGE_KEY, JSON.stringify(layout))
-  } catch {
-    // ignore
-  }
+/**
+ * The panel handle `ResizablePanel` hands back through `panelRef`.
+ *
+ * Declared here rather than imported: `react-resizable-panels` is the design
+ * system's dependency, not this app's, and the DS does not re-export the type.
+ * Nothing drifts silently — `panelRef={railPanel}` only compiles while this
+ * still matches the real handle, so the assignment at the call site is the
+ * check.
+ */
+interface PanelHandle {
+  collapse: () => void
+  expand: () => void
+  getSize: () => { asPercentage: number; inPixels: number }
+  isCollapsed: () => boolean
+  resize: (size: number | string) => void
 }
 
-/** The panes actually on screen: the viewer only exists while at least one tab is open. */
-function visiblePanesFor(order: PaneId[], hasTabs: boolean): PaneId[] {
+/**
+ * The panes that get *rendered*: the viewer only exists while at least one tab
+ * is open.
+ *
+ * The rail is always in here, even with the sidebar hidden — it is a
+ * `collapsible` panel collapsed to zero, not an unmounted one. Unmounting it
+ * would throw the file tree away on every Ctrl+B: every folder shut, the
+ * scroller back at the top, and a walk of the whole workspace (spinner and
+ * all) on the way back. That is the same reason `SidebarHost` keeps its
+ * inactive views mounted, one level down; hiding a panel must cost nothing.
+ */
+function renderedPanesFor(order: PaneId[], hasTabs: boolean): PaneId[] {
   return order.filter((id) => id !== 'viewer' || hasTabs)
-}
-
-/** localStorage key for the persisted sidebar view (git-management D-GIT-2). */
-const SIDEBAR_VIEW_STORAGE_KEY = 'hive.sidebarView'
-
-/** Reads the persisted sidebar view, defaulting to the Explorer (tolerates missing/corrupt data). */
-function loadSidebarView(): SidebarView {
-  try {
-    const stored = localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY)
-    return stored === 'scm' || stored === 'review' || stored === 'brain' ? stored : 'explorer'
-  } catch {
-    return 'explorer'
-  }
 }
 
 /** The three movable workbench panes (customizable-layout). */
 type PaneId = 'rail' | 'chat' | 'viewer'
 
-/** localStorage key for the persisted left-to-right pane order (customizable-layout — sibling of `hive.workLayout`, which keeps per-pane widths). */
+/** localStorage key for the persisted left-to-right pane order (customizable-layout). Global, unlike the per-workspace `hive.workspaceSession` that keeps the widths: where a pane sits is a personal habit, not a fact about a folder. */
 const PANE_ORDER_STORAGE_KEY = 'hive.paneOrder'
 
 const DEFAULT_PANE_ORDER: readonly PaneId[] = ['rail', 'chat', 'viewer']
@@ -258,7 +315,7 @@ function loadPaneOrder(): PaneId[] {
   }
 }
 
-/** Same write-failure tolerance as `persistWorkLayout`. */
+/** Same write-failure tolerance as the workspace session: persistence is a nicety, not a hard requirement. */
 function persistPaneOrder(order: PaneId[]): void {
   try {
     localStorage.setItem(PANE_ORDER_STORAGE_KEY, JSON.stringify(order))
@@ -286,8 +343,9 @@ function persistPaneOrder(order: PaneId[]): void {
  * T11 (design.md §7, UX-R6): the whole body — rail, chat, and the optional
  * viewer — is one horizontal `Resizable` group (rail/chat/viewer keyed by
  * stable `id`s), and the group's layout is persisted to/restored from
- * `localStorage['hive.workLayout']` via `defaultLayout`/`onLayoutChanged` so
- * a dragged rail width survives a reload.
+ * the workspace's session record (`hive.workspaceSession`) via
+ * `defaultLayout`/`onLayoutChanged` so a dragged rail width survives a reload
+ * — per workspace, the way VS Code keeps a folder's layout.
  */
 /** Shared empty roster, so a workspace with no handshake yet re-renders against a stable value. */
 const NO_SERVERS: McpServerReport[] = []
@@ -375,20 +433,69 @@ export function WorkUI({
   // "Perguntar à base" (SB-R9.1) — reachable from Ctrl+Shift+K, the sidebar's
   // primary action and the floating button's menu.
   const [askOpen, setAskOpen] = useState(false)
-  // The swappable left-sidebar view (Explorer ⇄ Source Control), persisted so
-  // it survives a reload (D-GIT-2).
-  const [activeView, setActiveViewState] = useState<SidebarView>(loadSidebarView)
+  /**
+   * workspace-session: everything this workspace was left in the middle of —
+   * open files, the conversation on screen, the folders that were open, the
+   * sidebar's view and whether it was showing at all, and the pane widths.
+   *
+   * Read once, in a state initializer, because `WorkUI` is keyed on the
+   * workspace path in `App` (WS-R4.4): a switch is a remount, so "restore
+   * this workspace" and "mount" are the same moment and no effect has to
+   * watch for the path changing.
+   */
+  const [session] = useState(() => loadWorkspaceSession(workspace))
+  // The swappable left-sidebar view (Explorer ⇄ Source Control ⇄ Revisão ⇄
+  // Second Brain), persisted per workspace so it survives a reload (D-GIT-2).
+  const [activeView, setActiveViewState] = useState<SidebarView>(session.sidebarView)
+  /**
+   * Whether the sidebar panel itself is on screen.
+   *
+   * Its own state rather than a "null view", because the view outlives the
+   * hiding: closing the sidebar over Source Control and pressing Ctrl+B must
+   * bring Source Control back, not send you to the Explorer.
+   */
+  const [sidebarOpen, setSidebarOpen] = useState(session.sidebarOpen)
   // git-management (GIT-R6): the branch quick-pick + a branch checkout parked
   // behind the three-way unsaved-work guard (mirrors the workspace switch).
   const [branchPickerOpen, setBranchPickerOpen] = useState(false)
-  const setActiveView = useCallback((view: SidebarView) => {
-    setActiveViewState(view)
-    try {
-      localStorage.setItem(SIDEBAR_VIEW_STORAGE_KEY, view)
-    } catch {
-      // persistence is a nicety, not a hard requirement
-    }
-  }, [])
+  /**
+   * Shows a view — and the sidebar with it.
+   *
+   * Every *programmatic* caller means "put this in front of me": the review
+   * bar's "Revisar →", the status bar's change count, a reveal-in-tree from
+   * the Ctrl+P palette. None of them can be allowed to select a view behind a
+   * hidden panel and call it done, which is the one bug a plain setter would
+   * have shipped everywhere at once.
+   */
+  const showView = useCallback(
+    (view: SidebarView) => {
+      setActiveViewState(view)
+      setSidebarOpen(true)
+      saveWorkspaceSession(workspace, { sidebarView: view, sidebarOpen: true })
+    },
+    [workspace]
+  )
+  /**
+   * The rail's own click: the entry already on screen puts the sidebar away
+   * (VS Code parity), anything else brings that view forward.
+   */
+  const toggleView = useCallback(
+    (view: SidebarView) => {
+      if (view === activeView && sidebarOpen) {
+        setSidebarOpen(false)
+        saveWorkspaceSession(workspace, { sidebarOpen: false })
+        return
+      }
+      showView(view)
+    },
+    [activeView, sidebarOpen, showView, workspace]
+  )
+  /** Ctrl+B: hide/show whatever view the rail is resting on. */
+  const toggleSidebar = useCallback(() => {
+    const next = !sidebarOpen
+    setSidebarOpen(next)
+    saveWorkspaceSession(workspace, { sidebarOpen: next })
+  }, [sidebarOpen, workspace])
   // The file the tree has been asked to point at. `nonce` and not just a path,
   // so revealing the same file twice in a row is two requests (see
   // `FileTreeProps.revealRequest`).
@@ -408,10 +515,10 @@ export function WorkUI({
   const openAndReveal = useCallback(
     (path: string) => {
       editor.openFile(path)
-      setActiveView('explorer')
+      showView('explorer')
       setRevealRequest((current) => ({ path, nonce: (current?.nonce ?? 0) + 1 }))
     },
-    [editor, setActiveView]
+    [editor, showView]
   )
 
   /**
@@ -439,14 +546,14 @@ export function WorkUI({
           .catch(() => {})
       },
       revealInTree: (filePath) => {
-        setActiveView('explorer')
+        showView('explorer')
         setRevealRequest((current) => ({ path: filePath, nonce: (current?.nonce ?? 0) + 1 }))
       },
       revealInOs: (filePath) => {
         void Promise.resolve(window.hive.fs.revealPath(workspace, filePath, false)).catch(() => {})
       }
     }),
-    [editor, workspace, setActiveView]
+    [editor, workspace, showView]
   )
 
   // Branch checkout (GIT-R6.3): dirty editor drafts park behind the same
@@ -462,7 +569,191 @@ export function WorkUI({
   // effects fire only once the real work UI is already showing, never inside
   // or ahead of App.tsx's onboarding gate chain (ND-R2.5).
   const updateFlow = useUpdateFlow()
-  const [defaultLayout] = useState(loadWorkLayout)
+  const [defaultLayout] = useState<WorkLayout | undefined>(() => initialLayout(session))
+  /**
+   * The rail panel's imperative handle (`react-resizable-panels`) — how the
+   * sidebar is hidden and brought back without unmounting the tree inside it.
+   */
+  const railPanel = useRef<PanelHandle | null>(null)
+  /**
+   * The width the sidebar reopens at, in group percent.
+   *
+   * Kept here rather than read back from the panel because a collapsed panel
+   * measures zero: by the time you need the number, the thing that knew it is
+   * the one that has been put away.
+   */
+  const railSize = useRef(initialRailSize(session))
+  /**
+   * True only while a *programmatic* sidebar toggle is in flight — the one
+   * moment the pane group animates its widths.
+   *
+   * Not a permanent transition on the panels: a sash follows the pointer, and
+   * a width easing 200ms behind the cursor is the difference between dragging
+   * a boundary and watching one catch up. The toggle is the opposite case —
+   * nothing is under the hand, and the slide is what says the panel went
+   * somewhere rather than blinked out of existence.
+   */
+  const [sidebarAnimating, setSidebarAnimating] = useState(false)
+  /**
+   * The live pane layout, mirrored so a drag doesn't have to re-read (and
+   * re-parse) the stored session on every animation frame.
+   */
+  const layoutRef = useRef<WorkLayout | null>(session.layout)
+  const layoutWriteRef = useRef(0)
+
+  /**
+   * Drives the panel from `sidebarOpen`.
+   *
+   * A layout effect, not a plain one: on the very first launch the panel
+   * mounts at its default width and the sidebar has to be closed *before* the
+   * first paint, or every new user watches a file tree appear and vanish.
+   * The same reason keeps the mount pass silent — `didToggle` is what
+   * separates "restore this state" from "the user just asked for this".
+   */
+  const didToggle = useRef(false)
+  /**
+   * True while a toggle we started is still sliding.
+   *
+   * The panel reports its width every frame of that slide, and every frame of
+   * a *close* is a width above the collapse threshold until the last one — read
+   * as gestures they would each say "the user just opened the sidebar" and undo
+   * the close in progress. A toggle is not a gesture; only a hand on the sash
+   * is.
+   */
+  const toggling = useRef(false)
+  useLayoutEffect(() => {
+    const panel = railPanel.current
+    if (!panel) return
+    const alreadyRight = sidebarOpen !== panel.isCollapsed()
+    const animate = didToggle.current
+    didToggle.current = true
+    if (alreadyRight) return
+    toggling.current = true
+    if (sidebarOpen) {
+      panel.expand()
+      // `expand()` restores "the most recent size", which after a reload is a
+      // size nothing in this process ever saw. The width we persisted is the
+      // one the user chose, so say it outright.
+      panel.resize(`${railSize.current}%`)
+    } else {
+      panel.collapse()
+    }
+    if (animate) setSidebarAnimating(true)
+    const timer = window.setTimeout(() => {
+      toggling.current = false
+      setSidebarAnimating(false)
+    }, SIDEBAR_SETTLE_MS)
+    return () => window.clearTimeout(timer)
+  }, [sidebarOpen])
+
+  /** Ends a slide early — the pointer-down path, so a hand on the sash is never fighting a transition. */
+  const endSidebarAnimation = useCallback(() => {
+    toggling.current = false
+    setSidebarAnimating((animating) => (animating ? false : animating))
+  }, [])
+
+  /**
+   * The panel reporting its own width — which is also how a *drag* to the edge
+   * reaches this state.
+   *
+   * `react-resizable-panels` collapses a `collapsible` panel dragged below its
+   * minimum, so the sash and Ctrl+B are two gestures for one state; without
+   * this they would disagree, and the rail would still be showing an accent
+   * bar over a sidebar the user just dragged shut.
+   */
+  const handleRailResize = useCallback(
+    (size: { asPercentage: number }, _id: unknown, previous: unknown) => {
+      // The mount report is the layout being applied, and the frames of a
+      // toggle are the app moving its own furniture. Neither is a gesture.
+      if (previous === undefined || toggling.current) return
+      const percentage = size.asPercentage
+      if (percentage >= 1) railSize.current = percentage
+      const open = percentage >= 1
+      if (open === sidebarOpen) return
+      setSidebarOpen(open)
+      saveWorkspaceSession(workspace, { sidebarOpen: open })
+    },
+    [sidebarOpen, workspace]
+  )
+
+  /**
+   * Persists the pane widths, coalesced: `onLayoutChanged` fires per frame
+   * while a sash is moving, and a JSON round trip per frame is a drag that
+   * stutters on a slow disk.
+   */
+  const handleLayoutChanged = useCallback(
+    (layout: WorkLayout) => {
+      // Same rule as `handleRailResize`: the frames of a toggle are not widths
+      // anyone chose. Recording them means a *close* leaves whatever the slide
+      // happened to be passing through — the last frame above the collapse
+      // threshold — as "how wide the sidebar was", and the next launch reopens
+      // at a sliver.
+      if (toggling.current) return
+      layoutRef.current = mergeLayout(layoutRef.current, layout)
+      window.clearTimeout(layoutWriteRef.current)
+      layoutWriteRef.current = window.setTimeout(() => {
+        saveWorkspaceSession(workspace, { layout: layoutRef.current })
+      }, LAYOUT_WRITE_DELAY_MS)
+    },
+    [workspace]
+  )
+  useEffect(() => () => window.clearTimeout(layoutWriteRef.current), [])
+
+  /** workspace-session: the Explorer's open folders, as the tree reports them. */
+  const persistExpanded = useCallback(
+    (paths: string[]) => {
+      saveWorkspaceSession(workspace, { expanded: paths })
+    },
+    [workspace]
+  )
+
+  /**
+   * Puts the previously-open files back.
+   *
+   * Every path is checked against disk first: a workspace is a folder other
+   * tools also write to, and reopening a tab whose file was deleted, renamed
+   * or moved by a git checkout between launches would greet the user with a
+   * strip of errors describing work they already finished. What survives the
+   * check is restored; what doesn't is dropped without a word, because there
+   * is nothing to decide.
+   */
+  const [tabsRestored, setTabsRestored] = useState(session.tabs.length === 0)
+  const restoreTabs = editor.restoreTabs
+  useEffect(() => {
+    if (session.tabs.length === 0) return
+    let cancelled = false
+    void Promise.all(
+      session.tabs.map((tab) =>
+        Promise.resolve(window.hive.fs.exists(workspace, tab.path)).catch(() => false)
+      )
+    ).then((present) => {
+      if (cancelled) return
+      restoreTabs(
+        session.tabs.filter((_tab, index) => present[index]),
+        session.activeTab
+      )
+      setTabsRestored(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [restoreTabs, session, workspace])
+
+  // ...and keeps them current. Gated on the restore having landed, so the
+  // empty strip of the first two frames never overwrites the strip being
+  // restored into it.
+  const editorTabs = editor.tabs
+  const editorActivePath = editor.activePath
+  useEffect(() => {
+    if (!tabsRestored) return
+    saveWorkspaceSession(workspace, {
+      // File tabs only — see `RestoredTab`.
+      tabs: editorTabs
+        .filter((tab) => tab.kind === 'file')
+        .map((tab) => ({ path: tab.path, pinned: tab.pinned })),
+      activeTab: editorActivePath
+    })
+  }, [tabsRestored, editorTabs, editorActivePath, workspace])
   // customizable-layout: persisted left-to-right pane order + live drag state.
   const [paneOrder, setPaneOrder] = useState<PaneId[]>(loadPaneOrder)
   const [dragPane, setDragPane] = useState<PaneId | null>(null)
@@ -531,6 +822,36 @@ export function WorkUI({
   // session-history: the stored conversation currently on screen — reported
   // up by Chat, consumed by the history panel (highlight + delete coupling).
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  /**
+   * workspace-session: reopen the conversation that was on screen.
+   *
+   * `false` until the restore has been attempted, because `Chat` reports its
+   * (empty) session on mount and writing that through would erase the very id
+   * this is about to reopen. A conversation that no longer exists — deleted
+   * from the history panel on another launch — resolves to nothing and leaves
+   * the pane on its hero, which is the right answer and needs no apology.
+   */
+  const [chatRestored, setChatRestored] = useState(session.chatSessionId === null)
+  useEffect(() => {
+    const restoring = session.chatSessionId
+    if (restoring === null) return
+    let cancelled = false
+    void Promise.resolve(chatRef.current?.openSession(restoring))
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setChatRestored(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session.chatSessionId])
+  const handleSessionChange = useCallback(
+    (id: string | null) => {
+      setActiveSessionId(id)
+      if (chatRestored) saveWorkspaceSession(workspace, { chatSessionId: id })
+    },
+    [chatRestored, workspace]
+  )
   // background-turns: conversations whose reply is still being generated —
   // reported up by Chat, shown as "Em andamento" in the history panel.
   const [runningSessionIds, setRunningSessionIds] = useState<string[]>([])
@@ -697,12 +1018,33 @@ export function WorkUI({
     function onKeyDown(event: globalThis.KeyboardEvent): void {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'g') {
         event.preventDefault()
-        setActiveView('scm')
+        showView('scm')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setActiveView])
+  }, [showView])
+
+  // workspace-session: Ctrl/Cmd+B hides and shows the sidebar; Ctrl+Shift+E
+  // brings the Explorer forward. Both are the VS Code chords, because the
+  // hands that will reach for them learned them there — this app's whole
+  // familiarity argument (PRODUCT.md) is that muscle memory transfers.
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if (!(event.ctrlKey || event.metaKey)) return
+      if (!event.shiftKey && event.key.toLowerCase() === 'b') {
+        event.preventDefault()
+        toggleSidebar()
+        return
+      }
+      if (event.shiftKey && event.key.toLowerCase() === 'e') {
+        event.preventDefault()
+        showView('explorer')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [toggleSidebar, showView])
 
   // mcp-logs: one subscription per window, hoisted here because the status bar
   // reads it while the dock is closed — that ambient signal is the reason the
@@ -774,12 +1116,12 @@ export function WorkUI({
         openAsk()
       } else if (key === 'b') {
         event.preventDefault()
-        setActiveView('brain')
+        showView('brain')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setActiveView, openAsk])
+  }, [showView, openAsk])
 
   const replayTour = useCallback(() => {
     setProfileOpen(false)
@@ -874,15 +1216,27 @@ export function WorkUI({
 
   // --- customizable-layout: movable panes ----------------------------------
   // The pane order is a persisted permutation of rail/chat/viewer
-  // (`hive.paneOrder`); widths stay in the sibling `hive.workLayout` keyed by
+  // (`hive.paneOrder`); widths stay in the workspace's session record keyed by
   // pane id, so they survive reordering too. Two ways to move a pane: drag
   // its header onto another pane (the drop side follows the pointer's half),
   // or the ↔ menu every header carries (the keyboard path).
 
-  /** Panes actually on screen, in order — the viewer only exists while at least one tab is open. */
-  const visiblePanes = useMemo(
-    () => visiblePanesFor(paneOrder, editor.tabs.length > 0),
+  /** Panes that get rendered, in order — the viewer only exists while at least one tab is open. */
+  const renderedPanes = useMemo(
+    () => renderedPanesFor(paneOrder, editor.tabs.length > 0),
     [paneOrder, editor.tabs.length]
+  )
+  /**
+   * Panes a user can actually see — `renderedPanes` minus the rail while the
+   * sidebar is hidden.
+   *
+   * The distinction is what keeps the move controls honest: "mover para a
+   * esquerda" offered on the chat, with only a collapsed rail to its left,
+   * is a menu item that runs and changes nothing anybody can see.
+   */
+  const onScreenPanes = useMemo(
+    () => renderedPanes.filter((pane) => pane !== 'rail' || sidebarOpen),
+    [renderedPanes, sidebarOpen]
   )
 
   const applyPaneOrder = useCallback((next: PaneId[]) => {
@@ -904,7 +1258,7 @@ export function WorkUI({
   /** Swap `pane` with its visible neighbor (↔ menu path). */
   const shiftPane = useCallback(
     (pane: PaneId, dir: -1 | 1) => {
-      const neighbor = visiblePanes[visiblePanes.indexOf(pane) + dir]
+      const neighbor = onScreenPanes[onScreenPanes.indexOf(pane) + dir]
       if (neighbor === undefined) return
       const next = [...paneOrder]
       const a = next.indexOf(pane)
@@ -913,7 +1267,7 @@ export function WorkUI({
       next[b] = pane
       applyPaneOrder(next)
     },
-    [visiblePanes, paneOrder, applyPaneOrder]
+    [onScreenPanes, paneOrder, applyPaneOrder]
   )
 
   /** Drag-source props for a pane's header. */
@@ -972,12 +1326,12 @@ export function WorkUI({
 
   /** The ↔ move menu for a pane, bounds derived from the visible order. */
   const paneMoveMenuFor = (pane: PaneId, name: string): React.JSX.Element => {
-    const index = visiblePanes.indexOf(pane)
+    const index = onScreenPanes.indexOf(pane)
     return (
       <PaneMoveMenu
         paneName={name}
         canMoveLeft={index > 0}
-        canMoveRight={index !== -1 && index < visiblePanes.length - 1}
+        canMoveRight={index !== -1 && index < onScreenPanes.length - 1}
         onMoveLeft={() => shiftPane(pane, -1)}
         onMoveRight={() => shiftPane(pane, 1)}
       />
@@ -1018,7 +1372,10 @@ export function WorkUI({
     })
   }, [pendingSwitch, editor, proceedSwitch])
 
-  // customizable-layout: the three pane bodies, rendered in `visiblePanes`
+  // Declared ahead of `paneRenderers` on purpose: those closures read it, and
+  // `buildPanels` calls them during this very render.
+  const chrome = sidebarChrome(sidebarOpen, sidebarAnimating)
+  // customizable-layout: the three pane bodies, rendered in `renderedPanes`
   // order. Every element in the array carries a stable key (pane id) so React
   // reconciles a reorder as a *move*, never a remount — the chat session and
   // the viewer's draft survive any drag.
@@ -1040,9 +1397,27 @@ export function WorkUI({
           minSize="12%"
           maxSize="40%"
           defaultSize="22%"
+          /* workspace-session: hiding the sidebar collapses this panel to zero
+             instead of unmounting it, so the tree inside keeps its expansion,
+             its selection and its scroll across a Ctrl+B. `collapsible` also
+             buys the VS Code drag gesture for free — pull the sash past the
+             minimum and the sidebar puts itself away. */
+          collapsible
+          collapsedSize="0%"
+          panelRef={railPanel}
+          onResize={handleRailResize}
           aria-label={paneTitle}
         >
-          <div {...paneWrapPropsFor('rail')} data-tour="files">
+          <div
+            {...paneWrapPropsFor('rail')}
+            id={SIDEBAR_REGION_ID}
+            /* Not `hidden`, not `display: none`: destroying the layout box is
+               exactly what resets a scroller to the top. `visibility: hidden`
+               (in the stylesheet) keeps the box while taking the panel out of
+               the tab order, the a11y tree and the hit-testing — the same
+               trick `SidebarHost` uses one level down. */
+            data-collapsed={chrome.collapsedFlag}
+          >
             <PaneHeader
               title={paneTitle}
               dragProps={dragHandlePropsFor('rail')}
@@ -1057,6 +1432,8 @@ export function WorkUI({
                   onOpenFile={editor.openFile}
                   decorations={git.decorations}
                   revealRequest={revealRequest ?? undefined}
+                  initialExpandedPaths={session.expanded}
+                  onExpandedPathsChange={persistExpanded}
                 />
               }
               scm={
@@ -1119,7 +1496,7 @@ export function WorkUI({
             onManageAgents={() => openProfile('agents')}
             onOpenVoiceSettings={() => openProfile('voice')}
             userName={userName}
-            onSessionChange={setActiveSessionId}
+            onSessionChange={handleSessionChange}
             onRunningSessionsChange={setRunningSessionIds}
             onCustomizeShortcuts={setShortcutsScope}
             onOpenFile={editor.openFile}
@@ -1183,7 +1560,9 @@ export function WorkUI({
         </ResizablePanel>
       )
   }
-  const panels = buildPanels(visiblePanes, paneRenderers)
+  const panels = buildPanels(renderedPanes, paneRenderers, (pane) =>
+    onScreenPanes.includes(pane)
+  )
 
   return (
     <GitProvider store={git}>
@@ -1292,7 +1671,8 @@ export function WorkUI({
           <div className="wb-shell">
             <ActionRail
               activeView={activeView}
-              onSelectView={setActiveView}
+              onSelectView={toggleView}
+              sidebarOpen={sidebarOpen}
               changeCount={changeCount(git.status)}
               reviewCount={review.pendingCount}
               rawPendingCount={secondBrain.rawPending}
@@ -1308,14 +1688,19 @@ export function WorkUI({
                 console) lives inside it, and the action rail beside it is a
                 sibling so the `nav` stays out. Before this the page had no
                 `main` at all, so "skip to content" had nothing to skip to. */}
-            <main className="wb-body">
+            <main className="wb-body" data-sidebar={chrome.bodyState}>
               <Resizable
                 orientation="horizontal"
+                className={chrome.groupClass}
+                /* A hand on a sash outranks an animation in flight. Without
+                   this, grabbing the divider during the 180ms slide means
+                   dragging against a transition that is still easing toward
+                   its own target — the pane fights back for a fifth of a
+                   second and then snaps. Pointer down ends the slide. */
+                onPointerDownCapture={endSidebarAnimation}
                 style={{ flex: 1, minWidth: 0, minHeight: 0 }}
                 defaultLayout={defaultLayout}
-                onLayoutChanged={(layout: WorkLayout) => {
-                  persistWorkLayout(layout)
-                }}
+                onLayoutChanged={handleLayoutChanged}
               >
                 {panels}
               </Resizable>
@@ -1342,11 +1727,11 @@ export function WorkUI({
           {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
             work-surface footer, above the status bar — present only while the
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
-          <ReviewBar onReview={() => setActiveView('review')} />
+          <ReviewBar onReview={() => showView('review')} />
           {/* Second Brain (SB-R3/R9/R10): the floating button and everything it
             carries — the ask surface, the capture sheet, and the ambient
             health-check reminder. All sit OUTSIDE the resizable body so
-            `hive.workLayout` is untouched. */}
+            the persisted pane layout is untouched. */}
           <SecondBrainFab
             onSelectMode={openIngest}
             onAsk={openAsk}
@@ -1414,7 +1799,7 @@ export function WorkUI({
             />
           )}
           <StatusBar
-            onChanges={() => setActiveView('scm')}
+            onChanges={() => showView('scm')}
             onInit={() => void git.init()}
             onBranch={() => setBranchPickerOpen(true)}
             onSync={gitRemote.sync}

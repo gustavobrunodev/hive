@@ -161,3 +161,7 @@ export { TypingIndicator } from "./components/TypingIndicator/TypingIndicator";
 export { MessageList } from "./components/MessageList/MessageList";
 export { Attachment } from "./components/Attachment/Attachment";
 export { PromptInput } from "./components/PromptInput/PromptInput";
+export { ActivityBorder } from "./components/ActivityBorder/ActivityBorder";
+export type { ActivityBorderProps } from "./components/ActivityBorder/ActivityBorder";
+export { MessageToken } from "./components/MessageToken/MessageToken";
+export type { MessageTokenProps, MessageTokenKind } from "./components/MessageToken/MessageToken";

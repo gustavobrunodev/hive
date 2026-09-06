@@ -54,6 +54,23 @@ export function insertMention(
   return { value: next, caret: mention.start + inserted.length }
 }
 
+/**
+ * Types the mention sigil at `caret`, as if the user had pressed `@` there —
+ * the "Arquivos do workspace" menu row's whole job.
+ *
+ * A token only opens at the start of the value or after whitespace
+ * (`mentionQueryAt`), so a caret sitting at the end of a word would otherwise
+ * produce a dead `@` that opens nothing: the space is what makes the button
+ * honest. Text to the right of the caret is left alone, so reaching for the
+ * button mid-sentence inserts a reference instead of rewriting the line.
+ */
+export function openMentionAt(value: string, caret: number): { value: string; caret: number } {
+  const at = Math.max(0, Math.min(caret, value.length))
+  const before = value.slice(0, at)
+  const inserted = before === '' || /\s$/.test(before) ? MENTION_SIGIL : ` ${MENTION_SIGIL}`
+  return { value: before + inserted + value.slice(at), caret: at + inserted.length }
+}
+
 const MENTION_RESULT_LIMIT = 8
 
 /**

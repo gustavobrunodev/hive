@@ -62,7 +62,8 @@ async (page) => {
   })
 
   // 3. Stage files + type, and leave it unsent.
-  await page.getByRole('button', { name: 'Anexar arquivos' }).click()
+  await page.getByRole('button', { name: 'Adicionar contexto' }).click()
+  await page.getByRole('menuitem', { name: /Arquivos do computador/ }).click()
   await composer.fill('compara estes números com a especificação e me diz o que mudou')
   await page.waitForTimeout(400)
   await shoot('tray-staged')
@@ -101,7 +102,8 @@ async (page) => {
   })
   await composer.fill('')
   await page.waitForTimeout(200)
-  await page.getByRole('button', { name: 'Anexar arquivos' }).click()
+  await page.getByRole('button', { name: 'Adicionar contexto' }).click()
+  await page.getByRole('menuitem', { name: /Arquivos do computador/ }).click()
   await page.waitForTimeout(400)
   await shoot('tray-single')
 

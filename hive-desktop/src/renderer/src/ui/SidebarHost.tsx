@@ -21,7 +21,7 @@ const VIEW_ORDER: readonly SidebarView[] = ['explorer', 'scm', 'review', 'brain'
  * Swaps the rail pane's body between the Explorer, Source Control, "Revisão do
  * agente", and "Second Brain" views one at a time (git-management D-GIT-2;
  * +review, M11; +brain, M12). It lives *inside* the rail `ResizablePanel`,
- * which keeps `id="rail"` — so `hive.workLayout`/`paneOrder` and the
+ * which keeps `id="rail"` — so the persisted layout/`paneOrder` and the
  * movable-pane machinery are untouched; only this body swaps (design.md §5.1).
  *
  * ## Why the inactive views stay mounted

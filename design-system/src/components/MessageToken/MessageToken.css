@@ -1,0 +1,57 @@
+/* A `<mark>` carries a browser default of black-on-yellow; every property here
+   is written against that, not on top of an assumed reset. */
+.hds-message-token {
+  color: inherit;
+  font-weight: 600;
+  border-radius: var(--rounded-sm);
+  /* No border and no padding-block growth: the token has to fit inside the
+     line box it sits in, or a paragraph containing one loosens visibly against
+     a paragraph without. The outline below is an inset shadow for that reason. */
+  padding: 0 5px;
+  background: var(--surface-3);
+}
+
+/* A file reference can be longer than the bubble, so it wraps like the text it
+   is part of and each fragment keeps the plate. */
+.hds-message-token[data-kind="file"] {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  overflow-wrap: anywhere;
+}
+
+/* A command name is one identifier — it never breaks, and the glyph rides with
+   it. `rem`, never `em`: nested inside a `code` run two relative sizes compose
+   and the same token renders at two different sizes in one message. */
+.hds-message-token[data-kind="command"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--ff-num);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 0 6px 0 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 32%, var(--border-strong));
+}
+
+.hds-message-token-glyph {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Inside a filled bubble the ground is the accent itself. A *white* wash keeps
+   the bubble's own ink above the AA floor; a coloured tint darkens the fill
+   under that same ink and drops the pair below it. */
+.hds-chat-message-user .hds-message-token {
+  background: oklch(100% 0 0 / 16%);
+}
+
+.hds-chat-message-user .hds-message-token[data-kind="command"] {
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 30%);
+}
+
+/* The glyph too: `--accent` on an accent fill is invisible by construction. */
+.hds-chat-message-user .hds-message-token-glyph {
+  color: inherit;
+  opacity: 0.75;
+}

@@ -125,10 +125,38 @@ describe('resolveShortcuts()', () => {
     )
   })
 
-  it('empty catalog → role defaults even with prefs (no data to validate against)', () => {
-    expect(
-      resolveShortcuts('pm', { start: { skills: ['bmad-prd'], agents: [] }, during: null }, [])
-    ).toEqual(resolveRoleActions('pm'))
+  // The regression that made "remove a default shortcut" impossible in a
+  // workspace with no BMAD: an empty catalog used to veto the user's own
+  // selection and reinstate the role defaults on every read.
+  it('empty catalog → the selection is still honoured, key for key', () => {
+    const actions = resolveShortcuts(
+      'pm',
+      { start: { skills: ['bmad-prd'], agents: ['bmad-agent-pm'] }, during: null },
+      []
+    )
+    expect(actions).toEqual([
+      { key: 'bmad-prd', kind: 'workflow', command: { key: 'bmad-prd', prompt: '/bmad-prd' } },
+      {
+        key: 'bmad-agent-pm',
+        kind: 'persona',
+        command: { key: 'bmad-agent-pm', prompt: '/bmad-agent-pm' }
+      }
+    ])
+  })
+
+  it('empty catalog + everything deselected → nothing, not the role defaults', () => {
+    expect(resolveShortcuts('pm', { start: { skills: [], agents: [] }, during: null }, [])).toEqual(
+      []
+    )
+  })
+
+  it('empty catalog invents nothing — only what the selection names comes back', () => {
+    const actions = resolveShortcuts(
+      'pm',
+      { start: { skills: ['bmad-brainstorming'], agents: [] }, during: null },
+      []
+    )
+    expect(actions.map((action) => action.key)).toEqual(['bmad-brainstorming'])
   })
 
   it('maps selected skills/agents to launch-ready actions in selection order', () => {

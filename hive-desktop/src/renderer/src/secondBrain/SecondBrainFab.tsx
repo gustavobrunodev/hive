@@ -38,7 +38,7 @@ function modeIcon(mode: IngestMode): React.JSX.Element {
  * knowledge base from anywhere in the work UI without leaving flow.
  *
  * Placement: fixed, bottom-right, **outside** the resizable body so it never
- * disturbs the persisted `hive.workLayout`, and offset above the status bar so
+ * disturbs the persisted pane layout, and offset above the status bar so
  * it never covers the composer. Quiet by default (a single accent disc, no
  * label), it opens on activation and closes on Escape, outside-click, or
  * selection — returning focus to the button.

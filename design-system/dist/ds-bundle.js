@@ -13774,15 +13774,25 @@ var DropdownMenuContent2 = forwardRef39(
 );
 DropdownMenuContent2.displayName = "DropdownMenuContent";
 var DropdownMenuItem2 = forwardRef39(
-  function DropdownMenuItem3({ className, variant = "default", shortcut, children, ...rest }, ref) {
+  function DropdownMenuItem3({ className, variant = "default", icon, description, shortcut, children, ...rest }, ref) {
+    const stacked = description !== void 0 && description !== null && description !== false;
     return /* @__PURE__ */ jsxs37(
       Item22,
       {
         ref,
-        className: cx("hds-dropdown-menu-item", variant === "danger" && "hds-dropdown-menu-item-danger", className),
+        className: cx(
+          "hds-dropdown-menu-item",
+          stacked && "hds-dropdown-menu-item-stacked",
+          variant === "danger" && "hds-dropdown-menu-item-danger",
+          className
+        ),
         ...rest,
         children: [
-          /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-item-label", children }),
+          icon && /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-item-icon", "aria-hidden": "true", children: icon }),
+          stacked ? /* @__PURE__ */ jsxs37("span", { className: "hds-dropdown-menu-item-label", children: [
+            /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-item-title", children }),
+            /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-item-desc", children: description })
+          ] }) : /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-item-label", children }),
           shortcut && /* @__PURE__ */ jsx64("span", { className: "hds-dropdown-menu-shortcut", "aria-hidden": "true", children: shortcut })
         ]
       }
@@ -21034,11 +21044,77 @@ function PromptInput({
     }
   );
 }
+
+// src/components/ActivityBorder/ActivityBorder.tsx
+import { jsx as jsx105, jsxs as jsxs66 } from "react/jsx-runtime";
+var LANES = ["tail", "mid", "head"];
+function ActivityBorder({
+  active = false,
+  radius,
+  thickness,
+  duration,
+  className,
+  children,
+  style,
+  ...rest
+}) {
+  const vars = {
+    ...radius === void 0 ? null : { "--hds-activity-radius": radius },
+    ...thickness === void 0 ? null : { "--hds-activity-thickness": thickness },
+    ...duration === void 0 ? null : { "--hds-activity-duration": duration },
+    ...style
+  };
+  return /* @__PURE__ */ jsxs66(
+    "div",
+    {
+      className: cx("hds-activity-border", className),
+      "data-active": active || void 0,
+      style: vars,
+      ...rest,
+      children: [
+        children,
+        /* @__PURE__ */ jsx105("svg", { className: "hds-activity-border-ring", "aria-hidden": "true", focusable: "false", children: LANES.map((lane) => (
+          // `pathLength` normalises the outline to 100 units, so one dash
+          // pattern describes the comet on any size of box.
+          /* @__PURE__ */ jsx105("rect", { "data-lane": lane, pathLength: 100 }, lane)
+        )) })
+      ]
+    }
+  );
+}
+
+// src/components/MessageToken/MessageToken.tsx
+import { jsx as jsx106, jsxs as jsxs67 } from "react/jsx-runtime";
+function SlashGlyph() {
+  return /* @__PURE__ */ jsx106(
+    "svg",
+    {
+      className: "hds-message-token-glyph",
+      width: "11",
+      height: "11",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.75",
+      strokeLinecap: "round",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx106("path", { d: "M10 2.75 6 13.25" })
+    }
+  );
+}
+function MessageToken({ kind, icon, className, children, ...rest }) {
+  const glyph = icon === void 0 && kind === "command" ? /* @__PURE__ */ jsx106(SlashGlyph, {}) : icon;
+  return /* @__PURE__ */ jsxs67("mark", { className: cx("hds-message-token", className), "data-kind": kind, ...rest, children: [
+    glyph,
+    children
+  ] });
+}
 export {
   Accordion2 as Accordion,
   AccordionContent2 as AccordionContent,
   AccordionItem2 as AccordionItem,
   AccordionTrigger2 as AccordionTrigger,
+  ActivityBorder,
   Alert,
   AlertDialog2 as AlertDialog,
   AlertDialogAction2 as AlertDialogAction,
@@ -21113,6 +21189,7 @@ export {
   LevelMeter,
   Logo,
   MessageList,
+  MessageToken,
   ModeBlock,
   ModeSplit,
   Nav,

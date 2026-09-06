@@ -684,6 +684,43 @@ export function PaperclipIcon({ size, ...rest }: IconProps): React.JSX.Element {
   )
 }
 
+/**
+ * A folder holding a list — "files the workspace already has", the `@` route.
+ *
+ * It draws the *contents*, not the sigil. An `@` inside a folder leaves about
+ * seven pixels for a spiral that needs twelve, and at 16px it renders as a
+ * blob; the sigil is carried instead by the key cap on the same row, where it
+ * is set at real type size. The pairing that has to read instantly is this
+ * glyph against `ComputerUploadIcon` — a folder against a machine — and that
+ * one survives any size.
+ */
+export function FolderFilesIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.75 3.75c0-.55.45-1 1-1h3.1l1.4 1.5h5c.55 0 1 .45 1 1v7c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-8.5Z" />
+      <path d="M4.9 8.4h6.2M4.9 10.9h3.9" />
+    </svg>
+  )
+}
+
+/**
+ * A display with an arrow rising inside it — files coming *from* the machine
+ * into the conversation. Up, because that is the direction of travel from the
+ * user's disk to the agent, which is also why this is not the download glyph
+ * flipped. The arrow stays inside the screen: an earlier draft let it break
+ * through the bottom edge, and the gap that needed in the outline read as a
+ * broken monitor at 16px.
+ */
+export function ComputerUploadIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M1.75 4.25c0-.55.45-1 1-1h10.5c.55 0 1 .45 1 1v5.5c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1v-5.5Z" />
+      <path d="M5.75 13.25h4.5" />
+      <path d="M8 9.4V5.6M6.3 7.3 8 5.6l1.7 1.7" />
+    </svg>
+  )
+}
+
 export function GripIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>

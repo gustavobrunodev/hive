@@ -240,4 +240,43 @@ describe("DropdownMenu", () => {
     expect(item.querySelector(".hds-dropdown-menu-item-indicator")).toBeNull()
     expect(item.lastElementChild).toHaveClass("hds-dropdown-menu-item-check")
   })
+  it("stacks a described item's second line under its title and keeps it in the accessible name", async () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Add</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem icon={<svg data-testid="glyph" />} description="Reference a project file" shortcut="@">
+            Workspace files
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+    // The description is content, not a hint: it is what tells this row apart
+    // from the one beside it, so it belongs in the name a screen reader hears.
+    const item = await screen.findByRole("menuitem", { name: "Workspace files Reference a project file" })
+    expect(item).toHaveClass("hds-dropdown-menu-item-stacked")
+    expect(item.querySelector(".hds-dropdown-menu-item-title")?.textContent).toBe("Workspace files")
+    expect(item.querySelector(".hds-dropdown-menu-item-desc")?.textContent).toBe("Reference a project file")
+    // The tile is decoration for the label beside it — announcing it would
+    // read the row twice.
+    expect(item.querySelector(".hds-dropdown-menu-item-icon")).toHaveAttribute("aria-hidden", "true")
+    expect(screen.getByTestId("glyph")).toBeInTheDocument()
+  })
+
+  it("leaves a plain item flat, so an inline icon keeps the label row's own spacing", async () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>File</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>Rename</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+    const item = await screen.findByRole("menuitem", { name: "Rename" })
+    expect(item).not.toHaveClass("hds-dropdown-menu-item-stacked")
+    expect(item.querySelector(".hds-dropdown-menu-item-title")).toBeNull()
+    expect(item.querySelector(".hds-dropdown-menu-item-label")?.textContent).toBe("Rename")
+  })
 })

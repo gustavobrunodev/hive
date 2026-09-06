@@ -416,6 +416,21 @@ export interface FileTreeProps {
    * the entire point of the panel.
    */
   initialExpandedPaths?: readonly string[]
+  /**
+   * workspace-session: reports the open folders whenever they change, so the
+   * workbench can put the same tree back on the next launch.
+   *
+   * The counterpart to `initialExpandedPaths`, not a replacement for it —
+   * expansion stays this component's own state (a controlled version would
+   * make every chevron a round trip through the parent). Silent until the
+   * root's first walk lands, because the empty set a mounting tree reports is
+   * a state it has not reached yet, and persisting it would erase the very
+   * thing the next launch is meant to restore.
+   *
+   * Pass a stable callback (`useCallback`): it is an effect dependency, so a
+   * new identity per render would re-report on every render of the parent.
+   */
+  onExpandedPathsChange?: (paths: string[]) => void
   /** Path of the file currently open in the viewer — kept highlighted in the tree. */
   selectedPath: string | null
   /**
@@ -889,6 +904,7 @@ export function FileTree({
   rootPath = '',
   title,
   initialExpandedPaths,
+  onExpandedPathsChange,
   selectedPath,
   onOpenFile,
   decorations = EMPTY_DECORATIONS,
@@ -1044,6 +1060,14 @@ export function FileTree({
       cancelled = true
     }
   }, [workspace, rootPath, refreshToken, seedExpansion])
+
+  // workspace-session: report the open folders upward whenever they move.
+  useEffect(() => {
+    // Ahead of the first walk there is no expansion to report, only the empty
+    // set every mount starts from — see the prop's own doc comment.
+    if (treeState.status !== 'ready') return
+    onExpandedPathsChange?.(expandedIds)
+  }, [expandedIds, treeState.status, onExpandedPathsChange])
 
   // The workspace changing is the one case that *must* drop the old rows: they
   // belong to a different root, and showing them under the new one while the

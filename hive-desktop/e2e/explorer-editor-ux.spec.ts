@@ -341,11 +341,18 @@ test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app
       if (!after) throw new Error('rail bounding box not found after drag')
       expect(after.width).toBeGreaterThan(before.width + 50)
 
-      // Give the (debounce-free, but React-state-driven) onLayoutChanged
-      // persistence a moment to actually land in localStorage before reload.
+      // The width lands in the workspace's session record, and the write is
+      // coalesced (a sash fires `onLayoutChanged` per frame) — so poll for the
+      // dragged number itself, not merely for the key existing.
       await expect
-        .poll(async () => window.evaluate(() => localStorage.getItem('hive.workLayout')))
-        .not.toBeNull()
+        .poll(async () =>
+          window.evaluate(() => {
+            const raw = localStorage.getItem('hive.workspaceSession')
+            const record = raw ? (JSON.parse(raw) as Record<string, { layout?: { rail?: number } }>) : {}
+            return Object.values(record)[0]?.layout?.rail ?? 0
+          })
+        )
+        .toBeGreaterThan(22)
 
       await app.close()
 

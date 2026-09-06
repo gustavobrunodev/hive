@@ -11,6 +11,23 @@ export type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenu
     /** Tints the item as a destructive action (e.g. delete). */
     variant?: "default" | "danger";
     /**
+     * Leading visual, rendered into a reserved tile that tints with the row's
+     * own highlight. `aria-hidden`: an icon beside a label it duplicates is
+     * noise to a screen reader, and every icon here has a label beside it.
+     */
+    icon?: ReactNode;
+    /**
+     * A second line under the label, for a menu whose items are *choices*
+     * rather than plain commands — two ways to do the same thing, where the
+     * title alone cannot say which is which ("do workspace" vs "do computador").
+     *
+     * Unlike `shortcut`, this is NOT hidden from the accessible name: it is the
+     * item's own content, and the distinction it carries is exactly what a
+     * screen-reader user needs to pick the right row. Pass `textValue` when the
+     * extra words would spoil Radix's type-ahead.
+     */
+    description?: ReactNode;
+    /**
      * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
      * visual reminder of a binding, not part of what the item *is*, and folding
      * it into the accessible name turns "Recortar" into "Recortar Ctrl+X" for
@@ -23,6 +40,23 @@ export type DropdownMenuItemProps = ComponentPropsWithoutRef<typeof DropdownMenu
 export declare const DropdownMenuItem: import("react").ForwardRefExoticComponent<Omit<DropdownMenuPrimitive.DropdownMenuItemProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
     /** Tints the item as a destructive action (e.g. delete). */
     variant?: "default" | "danger";
+    /**
+     * Leading visual, rendered into a reserved tile that tints with the row's
+     * own highlight. `aria-hidden`: an icon beside a label it duplicates is
+     * noise to a screen reader, and every icon here has a label beside it.
+     */
+    icon?: ReactNode;
+    /**
+     * A second line under the label, for a menu whose items are *choices*
+     * rather than plain commands — two ways to do the same thing, where the
+     * title alone cannot say which is which ("do workspace" vs "do computador").
+     *
+     * Unlike `shortcut`, this is NOT hidden from the accessible name: it is the
+     * item's own content, and the distinction it carries is exactly what a
+     * screen-reader user needs to pick the right row. Pass `textValue` when the
+     * extra words would spoil Radix's type-ahead.
+     */
+    description?: ReactNode;
     /**
      * Right-aligned shortcut hint (e.g. "⌘K"). Rendered `aria-hidden`: it is a
      * visual reminder of a binding, not part of what the item *is*, and folding

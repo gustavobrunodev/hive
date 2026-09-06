@@ -17,7 +17,7 @@ import {
 import { agentMeta, shortcutLabel, t } from '../i18n'
 import { commandFilter } from './shortcutSearch'
 import { shortcutIcon, skillIcon } from './roleVisuals'
-import { CheckIcon, PersonaChatIcon, SparkleIcon } from './icons'
+import { CheckIcon, CloseIcon, PersonaChatIcon, SparkleIcon } from './icons'
 
 /** Structural mirror of `main/workflowCatalog.ts`'s `WorkspaceSkill` (the
  *  renderer tsconfig doesn't include `src/main` — same local-mirror
@@ -72,22 +72,39 @@ interface PreviewEntry {
 }
 
 /**
- * Resolves a scope's selection against the workspace catalog, in the order the
- * real surfaces render it (workflows, then personas). A key the workspace
- * doesn't have is skipped — exactly what `main/roleCatalog.ts` does when it
- * resolves the live sets, so the preview and the counts can't promise a
- * shortcut that won't appear.
+ * Resolves a scope's selection into the chips the stage draws, in the order the
+ * real surfaces render them (workflows, then personas).
+ *
+ * `validate` has to mirror `main/roleCatalog.ts` **exactly**, and mirroring it
+ * is the whole job: the stage must draw the set that is actually on the
+ * surface, never one chip more or less, or the chip you click is not the pill
+ * you meant. Two rules over there, and both matter here:
+ *
+ *  - a scope still on its **role defaults** is never validated — the resolver
+ *    hands those back untouched, catalog or no catalog;
+ *  - a scope with a real **selection** is validated against the catalog, so a
+ *    skill this workspace does not have is dropped rather than drawn as a dead
+ *    shortcut — unless there is no catalog at all, in which case there is
+ *    nothing to check against and the selection stands as written.
+ *
+ * The first rule is the one that had to be found the hard way: a workspace with
+ * a partial BMAD install renders role defaults it cannot resolve, and a stage
+ * that validated them showed three chips fewer than the hero it was drawing —
+ * with no way to remove the three that were missing. (`e2e/shortcut-removal`
+ * caught it; no mocked pass could, because every fixture had a complete
+ * catalog.)
  */
 function resolveEntries(
   selection: Selection | undefined,
-  catalogByKey: Map<string, WorkspaceSkill>
+  catalogByKey: Map<string, WorkspaceSkill>,
+  validate: boolean
 ): PreviewEntry[] {
   if (!selection) return []
   const pick = (keys: string[], kind: 'workflow' | 'persona'): PreviewEntry[] =>
     keys.flatMap((key) => {
       const skill = catalogByKey.get(key)
-      if (!skill) return []
-      return [{ key, kind, label: shortcutLabel(key, kind, skill.label), custom: skill.custom }]
+      if (!skill && validate) return []
+      return [{ key, kind, label: shortcutLabel(key, kind, skill?.label), custom: skill?.custom }]
     })
   return [...pick(selection.skills, 'workflow'), ...pick(selection.agents, 'persona')]
 }
@@ -218,44 +235,78 @@ function CatalogGroup({
   )
 }
 
-/** One preview chip, painted with the real surface's own class so the preview
- *  IS the thing it previews rather than a drawing of it. */
-function PreviewChip({
+/**
+ * One chip of the live set — painted with the real surface's own class, so the
+ * stage IS the thing it shows rather than a drawing of it, and clickable to
+ * take that shortcut off the surface.
+ *
+ * The whole chip is the target, and the leading icon becomes an ✕ on hover or
+ * focus rather than a permanent ✕ riding every chip. A row of six delete
+ * buttons is a row that shouts about deleting; swapping the glyph in place
+ * keeps the set looking like the set at rest, gives the gesture a target the
+ * size of the whole chip, and still announces itself the moment a pointer or
+ * the keyboard arrives.
+ */
+function ShortcutChip({
   entry,
-  scope
+  scope,
+  onRemove
 }: {
   entry: PreviewEntry
   scope: ShortcutScope
+  onRemove: (entry: PreviewEntry) => void
 }): React.JSX.Element {
   const persona = entry.kind === 'persona' || undefined
-  return scope === 'start' ? (
-    <span className="wb-pill" data-persona={persona}>
-      {shortcutIconEl(entry, 13)}
+  return (
+    <button
+      type="button"
+      className={`wb-sc-chip ${scope === 'start' ? 'wb-pill' : 'wb-shortcut-chip'}`}
+      data-persona={persona}
+      aria-label={t('shortcuts.removeAria', entry.label)}
+      title={t('shortcuts.removeTitle')}
+      onClick={() => onRemove(entry)}
+    >
+      <span className="wb-sc-chip-mark" aria-hidden="true">
+        <span className="wb-sc-chip-icon">
+          {shortcutIconEl(entry, scope === 'start' ? 13 : 12)}
+        </span>
+        <span className="wb-sc-chip-x">
+          <CloseIcon size={scope === 'start' ? 13 : 12} />
+        </span>
+      </span>
       {entry.label}
-    </span>
-  ) : (
-    <span className="wb-shortcut-chip" data-persona={persona}>
-      {shortcutIconEl(entry, 12)}
-      {entry.label}
-    </span>
+    </button>
   )
 }
 
 /**
- * The live preview: the current scope's selection drawn where it will land —
- * hero pills over a centered composer, or strip chips docked on top of it.
- * Two sets of shortcuts is one concept more than a picker usually carries, and
- * a picture of each placement answers "which list does this belong in?" faster
- * than any label can. Decorative and inert (`aria-hidden` on the stage): the
- * authoritative state is the checked rows below, which screen readers already
- * announce.
+ * The live set: this scope's shortcuts drawn where they will land — hero pills
+ * over a centered composer, or strip chips docked on top of it — and editable
+ * in place.
+ *
+ * Two shortcut sets is one concept more than a picker usually carries, and a
+ * picture of each placement answers "which list does this belong in?" faster
+ * than any label can. Making that picture the *editor* answers the other
+ * question this dialog kept failing: where do I take one **off**. It used to be
+ * a decorative stage over a 60-row catalog, so removing a shortcut you could
+ * see right there meant hunting for its row among sixty — and in a workspace
+ * with no BMAD, where the catalog renders nothing at all, it was simply not
+ * possible. Now the set on screen is the control: click a chip, it is gone,
+ * defaults included.
+ *
+ * The stand-in composer stays decorative and inert — it is the landmark the two
+ * placements are read against, not a control.
  */
-function ScopePreview({
+function ScopeStage({
   scope,
-  entries
+  entries,
+  onRemove,
+  onClear
 }: {
   scope: ShortcutScope
   entries: PreviewEntry[]
+  onRemove: (entry: PreviewEntry) => void
+  onClear: () => void
 }): React.JSX.Element {
   const shown = entries.slice(0, PREVIEW_LIMIT)
   const overflow = entries.length - shown.length
@@ -270,8 +321,13 @@ function ScopePreview({
     >
       <p className="wb-sc-preview-caption">
         {scope === 'start' ? t('shortcuts.scopeStartCaption') : t('shortcuts.scopeDuringCaption')}
+        {entries.length > 0 && (
+          <button type="button" className="wb-sc-clear" onClick={onClear}>
+            {t('shortcuts.clearScopeCta')}
+          </button>
+        )}
       </p>
-      <div className="wb-sc-stage" aria-hidden="true">
+      <div className="wb-sc-stage">
         {entries.length === 0 ? (
           <p className="wb-sc-stage-empty">
             {scope === 'start'
@@ -281,19 +337,83 @@ function ScopePreview({
         ) : (
           <div className="wb-sc-stage-chips">
             {shown.map((entry) => (
-              <PreviewChip key={entry.key} entry={entry} scope={scope} />
+              <ShortcutChip key={entry.key} entry={entry} scope={scope} onRemove={onRemove} />
             ))}
-            {overflow > 0 && <span className="wb-sc-stage-more">+{overflow}</span>}
+            {/* The tail counts what the miniature has no room for, never what
+                the real surface would hide — so it is a fact about this box,
+                and inert like the composer under it. */}
+            {overflow > 0 && (
+              <span className="wb-sc-stage-more" aria-hidden="true">
+                +{overflow}
+              </span>
+            )}
           </div>
         )}
         {/* The composer both sets are positioned against — the anchor that
             makes "before the first message" and "during" legible as places. */}
-        <div className="wb-sc-stage-composer">
+        <div className="wb-sc-stage-composer" aria-hidden="true">
           <span className="wb-sc-stage-caret" />
           <span className="wb-sc-stage-send" />
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * The catalog half: search over everything the workspace has, in three groups,
+ * each row a toggle. This is where shortcuts are *added* — a search problem,
+ * over sixty-odd skills most people have never heard of. Removing lives on the
+ * chips above, where you are already looking at the thing you want gone.
+ */
+function CatalogPicker({
+  groups,
+  selection,
+  onToggle
+}: {
+  groups: { customs: WorkspaceSkill[]; agents: WorkspaceSkill[]; skills: WorkspaceSkill[] }
+  /** `null` until both fetches land — the list renders its own empty state meanwhile. */
+  selection: Selection | null
+  onToggle: (skill: WorkspaceSkill) => void
+}): React.JSX.Element {
+  return (
+    <Command
+      label={t('shortcuts.customizeTitle')}
+      className="wb-sc-command"
+      filter={commandFilter}
+      loop
+    >
+      <CommandInput
+        placeholder={t('shortcuts.searchPlaceholder')}
+        aria-label={t('shortcuts.searchAria')}
+        autoFocus
+      />
+      <CommandList className="wb-sc-list">
+        <CommandEmpty>{t('shortcuts.noMatch')}</CommandEmpty>
+        {selection && (
+          <>
+            <CatalogGroup
+              label={t('shortcuts.createdGroupLabel')}
+              entries={groups.customs}
+              selectedKeys={[...selection.skills, ...selection.agents]}
+              onToggle={onToggle}
+            />
+            <CatalogGroup
+              label={t('shortcuts.agentsGroupLabel')}
+              entries={groups.agents}
+              selectedKeys={selection.agents}
+              onToggle={onToggle}
+            />
+            <CatalogGroup
+              label={t('shortcuts.skillsGroupLabel')}
+              entries={groups.skills}
+              selectedKeys={selection.skills}
+              onToggle={onToggle}
+            />
+          </>
+        )}
+      </CommandList>
+    </Command>
   )
 }
 
@@ -322,15 +442,22 @@ function buildView(
   const groups = splitCatalog(entries)
   const byKey = new Map(entries.map((skill) => [skill.key, skill]))
   const active = scopes === null ? null : scopes[scope]
+  // Exactly the resolver's own rule, per scope (see `resolveEntries`): role
+  // defaults pass through untouched, a real selection is checked against the
+  // catalog, and with no catalog nothing is checked at all.
+  const validates = (state: ScopeState[ShortcutScope] | null): boolean =>
+    entries.length > 0 && state?.customized === true
   const countOf = (target: ShortcutScope): number =>
-    scopes === null ? 0 : resolveEntries(scopes[target].selection, byKey).length
+    scopes === null
+      ? 0
+      : resolveEntries(scopes[target].selection, byKey, validates(scopes[target])).length
   const loaded = catalog !== null && scopes !== null
   return {
     ...groups,
     loaded,
     emptyCatalog: loaded && entries.length === 0,
     active,
-    previewEntries: resolveEntries(active?.selection, byKey),
+    previewEntries: resolveEntries(active?.selection, byKey, validates(active)),
     scopeOptions: [
       {
         id: 'start',
@@ -358,11 +485,20 @@ function buildView(
  *  - **Para iniciar** — the hero, before the first message.
  *  - **Durante a conversa** — the strip above the composer, mid-thread.
  *
- * Each set starts as that scope's role defaults and every toggle persists
+ * Each set starts as that scope's role defaults and every edit persists
  * immediately for that scope alone — the hero pills and the composer strip
- * behind the dialog update live, which doubles as a second preview. "Restaurar
- * padrão do papel" drops the customization of the *visible* scope only
- * (`shortcuts.set(scope, null)`).
+ * behind the dialog update live. "Restaurar padrão" drops the customization of
+ * the *visible* scope only (`shortcuts.set(scope, null)`).
+ *
+ * ## Adding and removing are two different gestures, in two different places
+ *
+ * Adding is a search problem — sixty-odd skills, most of which you have never
+ * heard of — and it belongs in the catalog list. Removing is not: you already
+ * know which one you want gone, because you are looking at it. Routing both
+ * through the same list is what made "take this default off" feel impossible,
+ * and in a workspace with no BMAD (where the list renders nothing) it *was*
+ * impossible. So the set at the top is the control for its own members: click
+ * a chip and it leaves, whether it came from your selection or from the role.
  *
  * A thin closed-state gate: nothing (no catalog fetch, no DS dialog tree)
  * mounts until the picker actually opens.
@@ -413,25 +549,63 @@ function CustomizerDialog({
     }
   }, [workspace, role])
 
-  const toggle = useCallback(
-    (skill: WorkspaceSkill) => {
+  /**
+   * The one write path. Every edit — a row toggled, a chip removed, the set
+   * cleared — goes through here, so "this scope is customized now" and the
+   * persisted value can never come apart.
+   *
+   * Writes are whole-object *per scope*, so rapid edits cannot interleave into
+   * a corrupt state (last write wins) and the other scope is never rewritten.
+   */
+  const commit = useCallback(
+    (edit: (selection: Selection) => Selection) => {
       setScopes((current) => {
         if (!current) return current
-        const listKey = skill.kind === 'agent' ? 'agents' : 'skills'
-        const list = current[scope].selection[listKey]
-        const next = list.includes(skill.key)
-          ? list.filter((key) => key !== skill.key)
-          : [...list, skill.key]
-        const selection = { ...current[scope].selection, [listKey]: next }
-        // Persist-and-notify per toggle: writes are whole-object *per scope*,
-        // so rapid toggles can't interleave into a corrupt state (last write
-        // wins) and the other scope is never rewritten.
+        const selection = edit(current[scope].selection)
         void window.hive.shortcuts.set(scope, selection).then(onChanged)
         return { ...current, [scope]: { selection, customized: true } }
       })
     },
     [scope, onChanged]
   )
+
+  const toggle = useCallback(
+    (skill: WorkspaceSkill) => {
+      const listKey = skill.kind === 'agent' ? 'agents' : 'skills'
+      commit((selection) => {
+        const list = selection[listKey]
+        return {
+          ...selection,
+          [listKey]: list.includes(skill.key)
+            ? list.filter((key) => key !== skill.key)
+            : [...list, skill.key]
+        }
+      })
+    },
+    [commit]
+  )
+
+  /**
+   * Takes one shortcut off the surface, from the chip that is drawing it.
+   *
+   * Keyed off the chip's own `kind` rather than a catalog lookup: a workspace
+   * with no BMAD has no catalog to look anything up in, and that is exactly
+   * the workspace where removing a role default used to be impossible.
+   */
+  const removeEntry = useCallback(
+    (entry: PreviewEntry) => {
+      const listKey = entry.kind === 'persona' ? 'agents' : 'skills'
+      commit((selection) => ({
+        ...selection,
+        [listKey]: selection[listKey].filter((key) => key !== entry.key)
+      }))
+    },
+    [commit]
+  )
+
+  /** Empties the visible scope. Reversible in one click while a role default
+   *  set is what was cleared — "Restaurar padrão" appears the moment it is. */
+  const clearScope = useCallback(() => commit(() => ({ skills: [], agents: [] })), [commit])
 
   const restore = useCallback(async () => {
     await window.hive.shortcuts.set(scope, null)
@@ -457,49 +631,24 @@ function CustomizerDialog({
           onScopeChange={setScope}
         />
 
+        {/* The set comes first and is always here — including in a workspace
+            with no BMAD, where the catalog below has nothing to offer but the
+            shortcuts on screen still have to be removable. */}
+        <ScopeStage
+          scope={scope}
+          entries={previewEntries}
+          onRemove={removeEntry}
+          onClear={clearScope}
+        />
+
         {emptyCatalog ? (
           <p className="wb-sc-empty-catalog">{t('shortcuts.emptyCatalog')}</p>
         ) : (
-          <>
-            <ScopePreview scope={scope} entries={previewEntries} />
-            <Command
-              label={t('shortcuts.customizeTitle')}
-              className="wb-sc-command"
-              filter={commandFilter}
-              loop
-            >
-              <CommandInput
-                placeholder={t('shortcuts.searchPlaceholder')}
-                aria-label={t('shortcuts.searchAria')}
-                autoFocus
-              />
-              <CommandList className="wb-sc-list">
-                <CommandEmpty>{t('shortcuts.noMatch')}</CommandEmpty>
-                {loaded && active && (
-                  <>
-                    <CatalogGroup
-                      label={t('shortcuts.createdGroupLabel')}
-                      entries={customs}
-                      selectedKeys={[...active.selection.skills, ...active.selection.agents]}
-                      onToggle={toggle}
-                    />
-                    <CatalogGroup
-                      label={t('shortcuts.agentsGroupLabel')}
-                      entries={agents}
-                      selectedKeys={active.selection.agents}
-                      onToggle={toggle}
-                    />
-                    <CatalogGroup
-                      label={t('shortcuts.skillsGroupLabel')}
-                      entries={skills}
-                      selectedKeys={active.selection.skills}
-                      onToggle={toggle}
-                    />
-                  </>
-                )}
-              </CommandList>
-            </Command>
-          </>
+          <CatalogPicker
+            groups={{ customs, agents, skills }}
+            selection={loaded ? (active?.selection ?? null) : null}
+            onToggle={toggle}
+          />
         )}
         <CustomizerFoot
           count={previewEntries.length}

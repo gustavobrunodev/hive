@@ -156,6 +156,14 @@ async (page) => {
     await page.waitForTimeout(400)
     await page.locator('.wb-sc-dialog').screenshot({ path: `${shots}/scopes-empty-${theme}.png` })
     results.push(...(await measure('picker/empty', ['.wb-sc-stage-empty'])))
+    // Put the default back before leaving. The harness fixture really persists
+    // now (`shortcuts.set` used to resolve `undefined` and `actions` answered
+    // with a frozen list), so the deselection above genuinely empties the
+    // `during` set — and step 5 below, which measures the strip, would find
+    // nothing to measure and report MISSING, which reads exactly like "nothing
+    // to fix". Any pass that EDITS state now has to put it back.
+    await page.getByRole('button', { name: 'Restaurar padrão' }).click()
+    await page.waitForTimeout(300)
     await page.getByRole('button', { name: 'Concluído' }).click()
     await page.waitForTimeout(300)
 
