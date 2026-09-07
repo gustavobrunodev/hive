@@ -105,6 +105,7 @@ import { QueuedMessages } from './QueuedMessages'
 import { useMessageQueue } from './useMessageQueue'
 import { useTicker } from './useTicker'
 import { awsTurnError } from '../aws/awsSession'
+import { claudeTurnError } from '../claudeAuth/claudeSession'
 import type { QueuedMessage } from './messageQueue'
 import { countSteps, type TurnMetrics, type TurnUsage } from './turnTiming'
 import {
@@ -275,6 +276,12 @@ interface ChatProps {
    * detour through a settings panel to press a second button is a detour.
    */
   onAwsReconnect?: () => void
+  /**
+   * claude-account: starts a Claude-account sign-in straight from the failed
+   * turn — the same "repair where the problem is" the AWS lane gets, for the
+   * lane most machines actually use.
+   */
+  onClaudeConnect?: () => Promise<boolean> | void
   /**
    * agent-patch: opens a file the agent edited, by workspace-relative path —
    * the editor's own `openFile`. Lets a path named in the transcript be a way
@@ -961,7 +968,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onMcpRoster,
     onOpenMcpConsole,
     onOpenAwsPanel,
-    onAwsReconnect
+    onAwsReconnect,
+    onClaudeConnect
   },
   ref
 ) {
@@ -1515,8 +1523,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
    * handle (read at dispatch time, so a queued follow-up resumes the
    * conversation as it stands *then*, not as it stood when it was typed).
    */
+  /** The message the newest turn was started from (claude-account resend). */
+  const lastSentRef = useRef<QueuedMessage | null>(null)
+
   const sendNow = useCallback(
     (message: QueuedMessage) => {
+      // claude-account: kept so a turn that died for want of credentials can
+      // be re-sent the moment they exist, without the user retyping a line the
+      // app still has. One slot, deliberately: only the newest turn is ever
+      // the one whose failure is on screen.
+      lastSentRef.current = message
       const resume = cliSessionRef.current
       // Read before `beginTurn`: this is the conversation the user is sending
       // from, and it's what scopes the turn's change card (ACR-R2.2).
@@ -2425,6 +2441,27 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   )
 
   /**
+   * Sign in, and then send the message that failed for want of an account.
+   *
+   * The resend is the point. Without it the repair ends one step short of what
+   * the user was doing: they came back from a browser, the app said
+   * "connected", and the question they asked is still sitting in a dead turn
+   * they now have to retype. It only ever re-sends the turn the banner is
+   * about, and only when the sign-in actually landed.
+   */
+  async function connectAndResend(): Promise<void> {
+    const pending = lastSentRef.current
+    const connected = await onClaudeConnect?.()
+    if (connected !== true || !pending) return
+    submitOrQueue({
+      text: pending.text,
+      ...(pending.contextFiles ? { contextFiles: pending.contextFiles } : {}),
+      ...(pending.attachmentNames ? { attachmentNames: pending.attachmentNames } : {}),
+      ...(pending.workflow ? { workflow: pending.workflow } : {})
+    })
+  }
+
+  /**
    * The failed-turn banner.
    *
    * aws-bedrock: a turn that died because the AWS session did gets its own
@@ -2435,6 +2472,27 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
    * are more useful than anything the app could paraphrase.
    */
   function renderTurnError(message: string): React.JSX.Element {
+    // claude-account: the first-party reading comes first, because it is the
+    // one most machines will hit — and because the CLI's own words for it
+    // ("Failed to authenticate: OAuth session expired…") are true, unactionable
+    // and identical for six different situations.
+    const claude = claudeTurnError(message)
+    if (claude) {
+      return (
+        <Alert variant="danger" role="alert" className="wb-composer-error wb-composer-error-aws">
+          <span className="wb-composer-error-text">{claude.text}</span>
+          {claude.canConnect && onClaudeConnect && (
+            <button
+              type="button"
+              className="wb-composer-error-cta"
+              onClick={() => void connectAndResend()}
+            >
+              {t('claude.connectCta')}
+            </button>
+          )}
+        </Alert>
+      )
+    }
     const aws = awsTurnError(message)
     if (!aws) {
       return (

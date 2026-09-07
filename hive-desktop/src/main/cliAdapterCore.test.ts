@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCliAgentSession, stripAnsi } from './cliAdapterCore'
+import { createCliAgentSession, failureDetail, readFailureText, stripAnsi } from './cliAdapterCore'
 import { createFakeProcessRunner } from './processRunner'
 import type { AgentEvent } from './agentAdapter'
 
@@ -215,5 +215,106 @@ describe('compaction boundaries', () => {
   it('leaves every other system line alone', async () => {
     const init = JSON.stringify({ type: 'system', subtype: 'init', session_id: 'abc' })
     expect(await compactEventsFor(`${init}\n`)).toEqual([])
+  })
+})
+
+/**
+ * The failure a CLI states **only inside its own JSON stream**.
+ *
+ * The reported bug, in one line: `Não foi possível concluir a resposta: claude
+ * exited with code 1`. A `claude` signed out of its account writes nothing to
+ * stderr — it prints the reason as stream-json and exits 1 — so the app had
+ * literally nothing to quote but the exit code. These are the two payloads it
+ * really prints, captured from `claude 2.1.226`.
+ */
+const AUTH_FAILURE_STREAM = [
+  JSON.stringify({
+    type: 'assistant',
+    message: {
+      model: '<synthetic>',
+      content: [{ type: 'text', text: 'Failed to authenticate: OAuth session expired' }]
+    },
+    error: 'authentication_failed',
+    is_api_error_message: true
+  }),
+  JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    is_error: true,
+    result: 'Failed to authenticate: OAuth session expired and could not be refreshed'
+  })
+].join('\n')
+
+describe('readFailureText', () => {
+  it('reads the `result` line even though its subtype says "success"', () => {
+    expect(
+      readFailureText({ type: 'result', subtype: 'success', is_error: true, result: 'boom' })
+    ).toBe('boom')
+  })
+
+  it('falls back to the error code when the result line carries no prose', () => {
+    expect(
+      readFailureText({ type: 'result', is_error: true, error: 'authentication_failed' })
+    ).toBe('authentication_failed')
+    expect(readFailureText({ type: 'result', is_error: true })).toBeNull()
+  })
+
+  it('reads the API-error message the CLI dresses up as an assistant turn', () => {
+    expect(
+      readFailureText({
+        type: 'assistant',
+        is_api_error_message: true,
+        message: { content: [{ type: 'text', text: 'Invalid API key' }] }
+      })
+    ).toBe('Invalid API key')
+  })
+
+  it('ignores every ordinary line — the happy path must cost nothing', () => {
+    expect(readFailureText({ type: 'assistant', message: { content: [] } })).toBeNull()
+    expect(readFailureText({ type: 'result', is_error: false, result: 'tudo certo' })).toBeNull()
+    expect(readFailureText({ type: 'stream_event' })).toBeNull()
+  })
+})
+
+describe('failureDetail', () => {
+  it('uses the stream when stderr is silent (the reported case)', () => {
+    expect(failureDetail('', 'Failed to authenticate')).toBe('Failed to authenticate')
+  })
+
+  it('keeps stderr when the stream said nothing', () => {
+    expect(failureDetail('  boom  ', null)).toBe('boom')
+  })
+
+  it('states one fact once when both streams said the same thing', () => {
+    expect(failureDetail('Failed to authenticate: x', 'Failed to authenticate: x')).toBe(
+      'Failed to authenticate: x'
+    )
+  })
+
+  it('keeps both when they are different halves of the story', () => {
+    expect(failureDetail('Warning: MCP blocked', 'Failed to authenticate')).toBe(
+      'Failed to authenticate (Warning: MCP blocked)'
+    )
+  })
+})
+
+describe('a turn that fails with an empty stderr', () => {
+  it('reports the reason the CLI streamed instead of only its exit code', async () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ chunks: [{ stream: 'stdout', data: `${AUTH_FAILURE_STREAM}\n` }], code: 1 })
+    const session = createCliAgentSession(
+      runner,
+      { workspace: '/ws' },
+      { command: 'claude', errorLabel: 'claude', buildArgs: (prompt) => ['-p', prompt] }
+    )
+    session.send({ text: 'oi' })
+
+    const iterator = session.events[Symbol.asyncIterator]()
+    let event = (await iterator.next()).value as AgentEvent
+    while (event.type !== 'error') event = (await iterator.next()).value as AgentEvent
+    expect(event.message).toContain('OAuth session expired and could not be refreshed')
+    // The exit code stays in the sentence — it is the CLI's own verdict — but
+    // it is no longer the *whole* sentence.
+    expect(event.message).toContain('claude exited with code 1')
   })
 })

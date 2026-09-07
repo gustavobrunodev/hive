@@ -29,6 +29,7 @@ import { createCheckpointService } from './checkpointService'
 import { createReviewService, type ReviewSnapshot } from './reviewService'
 import { createAgentRegistry } from './agentRegistry'
 import { createAwsAuthService, type AwsLoginState } from './awsAuthService'
+import { createClaudeAuthService, type ClaudeLoginState } from './claudeAuthService'
 import { reconcileAgents } from './agentAdoption'
 import { createShellService, type ShellService } from './shellService'
 import type { ShellInfo } from './shellCatalog'
@@ -406,6 +407,14 @@ app.whenReady().then(() => {
   ipcMain.handle('clipboard:writeText', async (_event, text: string): Promise<void> => {
     clipboard.writeText(String(text))
   })
+  // claude-account: the one read, and the narrow reason for it. The sign-in
+  // ends with a code the user copies out of a browser tab, and pasting it is
+  // the last step of a flow that has already sent them to another window —
+  // a "Colar" button that works is what keeps that step from being where
+  // people give up (Ctrl+V still works; this is the affordance, not the only
+  // way). Nothing reads the clipboard unprompted: this handler answers a
+  // click, and the value goes to the field the user is looking at.
+  ipcMain.handle('clipboard:readText', async (): Promise<string> => clipboard.readText())
 
   // explorer-os-actions: hands a workspace path to the host's file manager —
   // Explorer on Windows, Finder on macOS, whatever `xdg-open` resolves to on
@@ -606,6 +615,17 @@ app.whenReady().then(() => {
     // the boot path that no test can reach without a real browser.
     openExternal: shell.openExternal.bind(shell),
     preferredProfile: configStore.getAwsProfile
+  })
+
+  // claude-account: the *other* auth lane — a Claude subscription talking
+  // straight to Anthropic, which is how most machines run and which this app
+  // could neither see nor repair. Same two reasons as the AWS service above
+  // for holding the unwrapped runner and Electron's own `openExternal`: the
+  // login is `claude auth login`, not an agent turn, and its hand-off is a
+  // real browser window.
+  const claudeAuth = createClaudeAuthService({
+    processRunner,
+    openExternal: shell.openExternal.bind(shell)
   })
 
   const agentRegistry = createAgentRegistry(withScriptedAgentCli(processRunner), {
@@ -1158,6 +1178,48 @@ app.whenReady().then(() => {
     const senderId = event.sender.id
     awsStateUnsubs.get(senderId)?.()
     awsStateUnsubs.delete(senderId)
+  })
+
+  // claude-account: the first-party session surface. Same five shapes as the
+  // AWS block above, plus the one thing that lane never needed —
+  // `claude:submitCode`, which is how a browser code reaches a CLI that is
+  // sitting on a terminal prompt nobody can type into.
+  //
+  //   'claude:status'     — what the panel and the pre-flight callout draw.
+  //   'claude:login'      — starts `claude auth login` and opens the browser.
+  //   'claude:submitCode' — writes the pasted code to that process's stdin.
+  //   'claude:cancel'     — stops the in-flight sign-in.
+  //   'claude:state:*'    — the live sign-in stream.
+  ipcMain.handle('claude:status', async (_event, workspace?: string, refresh?: boolean) =>
+    claudeAuth.status(workspace, refresh === true)
+  )
+  ipcMain.handle('claude:loginState', async () => claudeAuth.loginState())
+  ipcMain.handle('claude:login', async (_event, mode?: 'claudeai' | 'console', workspace?: string) =>
+    claudeAuth.login(mode ?? 'claudeai', workspace)
+  )
+  ipcMain.handle('claude:submitCode', async (_event, code: string) => claudeAuth.submitCode(code))
+  ipcMain.handle('claude:cancel', async () => {
+    claudeAuth.cancel()
+  })
+
+  const claudeStateUnsubs = new Map<number, () => void>()
+  ipcMain.on('claude:state:start', (event) => {
+    const senderId = event.sender.id
+    claudeStateUnsubs.get(senderId)?.()
+    claudeStateUnsubs.set(
+      senderId,
+      claudeAuth.onState((state: ClaudeLoginState) => sendTo(event.sender, 'claude:state', state))
+    )
+    sendTo(event.sender, 'claude:state', claudeAuth.loginState())
+    event.sender.once('destroyed', () => {
+      claudeStateUnsubs.get(senderId)?.()
+      claudeStateUnsubs.delete(senderId)
+    })
+  })
+  ipcMain.on('claude:state:stop', (event) => {
+    const senderId = event.sender.id
+    claudeStateUnsubs.get(senderId)?.()
+    claudeStateUnsubs.delete(senderId)
   })
 
   // chat-controls CC-R1 via session-history: the Stop button interrupts one

@@ -324,6 +324,11 @@ export function createClaudeCliAdapter(
           const { cause } = diagnoseClaudeFailure(detail)
           if (cause === 'sso-expired') return 'aws-auth:sso-expired'
           if (cause === 'no-credentials') return 'aws-auth:no-credentials'
+          // The first-party lane (claude-account). Same contract as the AWS
+          // codes above: a word the chat can draw a repair for, instead of the
+          // CLI's `Failed to authenticate: OAuth session expired…`, which is
+          // true, unactionable, and identical for six different situations.
+          if (cause === 'anthropic-auth') return 'claude-auth:signed-out'
           return null
         },
         // agent-terminal: re-read per turn, so switching terminals in the

@@ -1,7 +1,7 @@
 import {
-  CloudKeyIcon,
   HiveCellIcon,
   MicIcon,
+  PlugIcon,
   SparkleIcon,
   TerminalIcon,
   UserIcon
@@ -22,7 +22,7 @@ const SCOPE_ICONS: Record<ProfileScope, IconComponent> = {
   account: UserIcon,
   agents: SparkleIcon,
   shortcuts: HiveCellIcon,
-  aws: CloudKeyIcon,
+  connection: PlugIcon,
   voice: MicIcon,
   shell: TerminalIcon
 }

@@ -7,9 +7,10 @@ import { ShellPicker, type ShellCatalogView } from '../ui/ShellPicker'
 import type { ShortcutScope } from '../ui/ShortcutCustomizer'
 import { useAsrReadiness } from '../voice/useAsrReadiness'
 import { voiceSummary } from '../voice/voiceSummary'
-import { AwsScope } from './AwsScope'
-import { awsSummary } from '../aws/awsSummary'
+import { ConnectionScope, type ConnectionLane } from './ConnectionScope'
+import { connectionSummary } from '../claudeAuth/connectionSummary'
 import { useAwsSession } from '../aws/useAwsSession'
+import { useClaudeAuth } from '../claudeAuth/useClaudeAuth'
 import { AccountScope } from './AccountScope'
 import { ProfileNav } from './ProfileNav'
 import { ShortcutsScope } from './ShortcutsScope'
@@ -19,6 +20,14 @@ import { scopeMeta, type ProfileScope } from './scopes'
 interface ProfileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * The open workspace, for the credential reads that are workspace-scoped —
+   * a project's `.claude/settings.json` can point the CLI at a different
+   * provider. Passing it here also means this sheet and the shell share one
+   * cache entry in main instead of paying for the probe twice (it costs a
+   * spawn — seconds, on Windows).
+   */
+  workspace?: string
   /** The role chosen at first access — shown as context, never edited here. */
   role: string | null
   /** Enabled agent ids (multi-agent). */
@@ -31,6 +40,12 @@ interface ProfileSheetProps {
   shortcutCounts?: Record<ShortcutScope, number>
   /** Which detail to open on, when something outside deep-links into the sheet. */
   initialScope?: ProfileScope | null
+  /**
+   * claude-account: which lane of the connection scope that deep link meant.
+   * `null` leaves it to detection — the right default when the user simply
+   * opened the row themselves.
+   */
+  initialConnectionLane?: ConnectionLane | null
   /** Opens the "Personalizar atalhos" picker on the given set. */
   onOpenShortcuts?: (scope: ShortcutScope) => void
   onAgentsChange?: (ids: string[]) => void
@@ -68,12 +83,14 @@ interface ProfileSheetProps {
 export function ProfileSheet({
   open,
   onOpenChange,
+  workspace,
   role,
   agents,
   defaultAgent,
   userName,
   shortcutCounts = { start: 0, during: 0 },
   initialScope = null,
+  initialConnectionLane = null,
   onOpenShortcuts,
   onAgentsChange = () => {},
   onDefaultAgentChange = () => {},
@@ -98,7 +115,11 @@ export function ProfileSheet({
   // aws-bedrock: read whenever the sheet is open, for the same reason — the
   // index row states how much session is left, which is the fact a user opens
   // this sheet to check.
-  const aws = useAwsSession(open)
+  const aws = useAwsSession(open, workspace)
+  // claude-account: the first-party session, read on open for the same reason
+  // — the index row states which of the two lanes authorises this machine, and
+  // that is the fact people open this sheet to check.
+  const claude = useClaudeAuth(open, workspace)
 
   useEffect(() => {
     if (!open) return
@@ -177,11 +198,11 @@ export function ProfileSheet({
       account: userName?.trim() || t('profile.summaryUnset'),
       agents: t('profile.agentsSummary', enabledCount),
       shortcuts: t('profile.shortcutsSummary', shortcutTotal),
-      aws: awsSummary(aws.status),
+      connection: connectionSummary(claude.status, aws.status),
       voice: voiceSummary(readiness.readiness),
       shell: shellSummary(shellView)
     }),
-    [userName, enabledCount, shortcutTotal, aws.status, readiness.readiness, shellView]
+    [userName, enabledCount, shortcutTotal, claude.status, aws.status, readiness.readiness, shellView]
   )
 
   // Published upward on every change, including the reset on open — the host's
@@ -231,14 +252,17 @@ export function ProfileSheet({
     if (scope === 'shortcuts') {
       return <ShortcutsScope counts={shortcutCounts} onOpenShortcuts={onOpenShortcuts} />
     }
-    if (scope === 'aws') {
+    if (scope === 'connection') {
       return (
-        <AwsScope
-          session={aws}
+        <ConnectionScope
+          initialLane={initialConnectionLane}
+          claude={claude}
+          aws={aws}
           onOpenUrl={(url) => void window.hive.openExternal(url)}
           // file-clipboard: through main, never `navigator.clipboard` — this
           // window's permission for it is denied.
           onCopyUrl={(text) => void window.hive.clipboard.writeText(text)}
+          onReadClipboard={() => window.hive.clipboard.readText()}
         />
       )
     }

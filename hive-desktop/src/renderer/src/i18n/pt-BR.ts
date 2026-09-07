@@ -2264,8 +2264,9 @@ export const ptBR = {
   // a pessoa que abre esta tela está tentando **voltar a conversar** — a copy
   // fala do efeito, e o detalhe técnico fica ao lado, verificável.
   aws: {
-    scopeLabel: 'Conexão AWS',
-    scopeHint: 'A sessão que autoriza o Claude a rodar no Amazon Bedrock desta conta.',
+    // O escopo do perfil agora é "Conexão do Claude" e tem duas pistas
+    // (claude-account) — o rótulo e a dica daquela linha vivem em `claude.*`.
+    // O que sobrou aqui é a pista da AWS em si.
     title: 'Conexão AWS',
     // O sujeito é a sessão, não o token: é o que expira e o que o usuário renova.
     stateReady: 'Sessão ativa',
@@ -2363,6 +2364,87 @@ export const ptBR = {
     chipExpiredShort: 'sessão expirada',
     chipAria: (profile: string, state: string) => `Conexão AWS, perfil ${profile}: ${state}`,
     beaconAria: 'Entrada na AWS em andamento'
+  },
+  // claude-account: a conexão da conta Claude — a forma nativa (assinatura ou
+  // chave), que é como a maioria das máquinas roda.
+  //
+  // Vocabulário: "conta" (não "credencial"), "conectar" (não "autenticar"),
+  // "código" (não "token"). Quem abre esta tela quer **voltar a conversar**;
+  // por isso cada estado é dito pelo efeito ("a próxima mensagem…"), e o
+  // detalhe técnico fica ao lado, verificável.
+  claude: {
+    scopeLabel: 'Conexão do Claude',
+    scopeHint: 'Como este computador autoriza o Claude — pela sua conta ou pela AWS.',
+    // --- as duas pistas, lado a lado ---
+    laneClaude: 'Conta Claude',
+    laneBedrock: 'Amazon Bedrock',
+    laneBedrockOn: 'Autorizando as conversas',
+    laneBedrockOff: 'Não está em uso',
+    laneInUse: 'Em uso',
+    laneReading: 'Lendo…',
+    // --- o estado da conta ---
+    stateConnected: 'Conta conectada',
+    stateConnectedHint: 'Está tudo certo — o Claude responde normalmente.',
+    stateSignedOut: 'Nenhuma conta conectada',
+    stateSignedOutHint: 'É por isso que a resposta para aqui. Conectar leva menos de um minuto.',
+    stateApiKey: 'Chave de API em uso',
+    stateApiKeyHint:
+      'Uma ANTHROPIC_API_KEY do ambiente autoriza as conversas. Não há conta para conectar aqui.',
+    stateThirdParty: 'Autorizado pela AWS',
+    stateThirdPartyHint:
+      'Este computador fala com o Claude pelo Amazon Bedrock. A sessão fica na aba ao lado.',
+    stateNoCli: 'Claude CLI não encontrado',
+    stateNoCliHint: 'Sem o comando "claude" não há o que conectar — nem conversa para autorizar.',
+    stateUnknown: 'Não deu para ler a conexão',
+    stateUnknownHint:
+      'O comando "claude auth status" respondeu algo que o Hive não reconhece. Tente de novo.',
+    planLabel: (plan: string) => `Plano ${plan}`,
+    connectCta: 'Conectar conta',
+    switchCta: 'Trocar de conta',
+    scopeNote: 'A conta vale para o computador todo — o mesmo login do seu terminal.',
+    noCliTitle: 'Claude CLI não encontrada',
+    noCliHint:
+      'Instale o Claude Code e abra o Hive de novo. O Hive usa o mesmo comando "claude" do seu terminal.',
+    noCliCta: 'Como instalar o Claude Code',
+    // --- o login ao vivo ---
+    loginTitle: 'Conectar sua conta Claude',
+    stepOpen: 'Abrir o navegador',
+    stepOpenHint: 'Preparando o endereço de autorização',
+    stepAuthorize: 'Autorizar o acesso',
+    stepAuthorizeHint: 'Entre na sua conta e confirme na página que abriu',
+    stepCode: 'Colar o código',
+    stepCodeHint: 'A página mostra um código no fim — cole aqui',
+    stepConnected: 'Conectado',
+    stepConnectedHint: 'Conferindo o código com a Anthropic',
+    stepFailedHint: 'Ninguém confirmou o acesso',
+    codeFieldLabel: 'Código do navegador',
+    codeFieldHint: 'É o código que a página mostrou depois que você autorizou.',
+    codePlaceholder: 'cole o código aqui',
+    codeSubmit: 'Conectar',
+    codePaste: 'Colar',
+    codeInvalid: 'Código não aceito. Copie o código inteiro e cole de novo.',
+    urlLabel: 'Endereço de autorização',
+    openAgainCta: 'Abrir de novo',
+    copyUrlCta: 'Copiar link',
+    copiedLabel: 'Copiado',
+    cancelCta: 'Cancelar',
+    retryCta: 'Tentar de novo',
+    detailsShow: 'Ver detalhes',
+    detailsHide: 'Ocultar detalhes',
+    elapsed: (seconds: number) =>
+      seconds < 60 ? `${seconds}s esperando` : `${Math.floor(seconds / 60)} min esperando`,
+    successTitle: 'Conta conectada',
+    successHint: 'Pode mandar a mensagem — o Claude já responde.',
+    successGeneric: 'Sua conta Claude',
+    failedTitle: 'Não deu para conectar',
+    canceledTitle: 'Conexão cancelada',
+    beaconAria: 'Conexão da conta Claude em andamento',
+    // --- o erro de turno, quando a origem é a conta ---
+    turnErrorSignedOut: 'Sua conta Claude não está conectada — por isso a resposta parou.',
+    // --- o aviso antes de tentar ---
+    calloutTitle: 'Conecte sua conta Claude',
+    calloutHint: 'O Claude CLI desta máquina está sem conta. Sem isso, nenhuma mensagem é respondida.',
+    calloutDismiss: 'Agora não'
   },
   shell: {
     groupLabel: 'Terminal usado pelos agentes',

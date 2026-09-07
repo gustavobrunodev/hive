@@ -998,6 +998,7 @@ async (page) => {
     const settledSubs = []
     const phaseSubs = []
     const awsSubs = []
+    const claudeSubs = []
 
     // aws-bedrock: a real-shaped Bedrock machine with a live session. The
     // numbers are the ones a Identity Center account actually produces —
@@ -1036,6 +1037,32 @@ async (page) => {
           signedIn: false
         }
       ]
+    }
+    // claude-account: the first-party lane. The default is a connected
+    // subscription — the majority machine — so every surface renders its
+    // ordinary state and the repair surfaces stay invisible until asked for.
+    const CLAUDE_STATUS = {
+      state: 'connected',
+      account: {
+        loggedIn: true,
+        authMethod: 'claude.ai',
+        apiProvider: 'firstParty',
+        apiKeySource: null,
+        email: 'gustavo@fitame.dev',
+        organization: 'Fitame',
+        subscription: 'max'
+      },
+      cliAvailable: true,
+      checkedAt: Date.now()
+    }
+    const CLAUDE_IDLE_LOGIN = {
+      phase: 'idle',
+      mode: 'claudeai',
+      url: null,
+      codeError: null,
+      message: null,
+      startedAt: null,
+      account: null
     }
     const AWS_IDLE_LOGIN = {
       phase: 'idle',
@@ -1399,7 +1426,11 @@ async (page) => {
         writeText: (text) => {
           state.clipboardText = text
           return Promise.resolve(undefined)
-        }
+        },
+        // claude-account: the sign-in's "Colar". Seeded so a pass can click it
+        // and see a value land, the way a user coming back from the browser
+        // does; `window.__claude.clipboard('…')` changes what it holds.
+        readText: () => Promise.resolve(state.clipboardText ?? '')
       },
       // git-management: a real repo by default, because every Source Control
       // surface (the change groups, the commit box, the history timeline) is
@@ -1583,7 +1614,45 @@ async (page) => {
           awsSubs.push(fn)
           return () => awsSubs.splice(awsSubs.indexOf(fn), 1)
         }
+      },
+      // claude-account: the Claude account behind a first-party CLI. Same
+      // shape as `aws` above, driven from the console:
+      //
+      //   window.__claude.status({ state: 'signed-out' })
+      //   window.__claude.login({ phase: 'code', url: 'https://claude.com/…' })
+      //   window.__claude.login({ phase: 'success', account: {…} })
+      claudeAuth: {
+        status: () => Promise.resolve(globalThis.__HIVE_CLAUDE ?? CLAUDE_STATUS),
+        loginState: () => Promise.resolve(globalThis.__HIVE_CLAUDE_LOGIN ?? CLAUDE_IDLE_LOGIN),
+        login: ok({ ok: true, account: CLAUDE_STATUS.account }),
+        submitCode: (code) => {
+          state.claudeCode = code
+          return Promise.resolve(true)
+        },
+        cancel: ok(undefined),
+        onState: (fn) => {
+          claudeSubs.push(fn)
+          return () => claudeSubs.splice(claudeSubs.indexOf(fn), 1)
+        }
       }
+    }
+
+    window.__claude = {
+      /** Replaces the machine's answer; surfaces re-read it when they refresh. */
+      status: (patch) => {
+        globalThis.__HIVE_CLAUDE = { ...(globalThis.__HIVE_CLAUDE ?? CLAUDE_STATUS), ...patch }
+      },
+      /** Pushes one live sign-in phase to every subscriber. */
+      login: (patch) => {
+        globalThis.__HIVE_CLAUDE_LOGIN = { ...CLAUDE_IDLE_LOGIN, ...patch }
+        for (const fn of claudeSubs) fn(globalThis.__HIVE_CLAUDE_LOGIN)
+      },
+      /** What the "Colar" control will find on the clipboard. */
+      clipboard: (text) => {
+        state.clipboardText = text
+      },
+      /** The last code the sign-in handed to the CLI. */
+      code: () => state.claudeCode ?? null
     }
 
     window.__aws = {

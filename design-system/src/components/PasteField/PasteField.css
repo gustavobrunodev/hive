@@ -1,0 +1,151 @@
+/* PasteField — a one-line field for a value the user copied somewhere else.
+
+   Drawn as ONE object, not as an input with buttons beside it. The border
+   belongs to the row and the controls sit inside it, because the paste is not
+   a separate decision from the field: it *is* how the value gets there. Two
+   detached controls next to a box would read as three choices where there is
+   one gesture. */
+
+.hds-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.hds-paste-label {
+  font-family: var(--ff-body);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+}
+
+.hds-paste-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  /* `--muted`, never `--faint`: this line is often the only place the format
+     of the value is stated, so it has to clear the 4.5:1 floor at 12px. */
+  color: var(--muted);
+}
+
+.hds-paste-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 3px 3px 3px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  transition:
+    border-color 0.18s var(--ease-quart),
+    box-shadow 0.18s var(--ease-quart);
+}
+
+/* The focus ring is on the ROW, drawn from the input's focus — the ring has to
+   describe the object the user is in, and that object includes the controls
+   they are about to tab to. */
+.hds-paste-row:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 1px var(--focus);
+}
+
+.hds-paste-invalid .hds-paste-row {
+  border-color: var(--danger);
+}
+
+.hds-paste-invalid .hds-paste-row:focus-within {
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.hds-paste-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 var(--s-3);
+  /* The numeric face: a verification code is compared character by character
+     against a browser tab, and tabular figures are what make that possible. */
+  font-family: var(--ff-num);
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.hds-paste-input::placeholder {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.hds-paste-input:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.hds-paste-btn,
+.hds-paste-go {
+  flex: none;
+  height: 30px;
+  padding: 0 var(--s-3);
+  font-family: var(--ff-body);
+  font-size: 0.75rem;
+  font-weight: 650;
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+
+/* Paste is quiet and Connect is loud, in that order, because that is the order
+   the user does them in and only the second one is irreversible. */
+.hds-paste-btn {
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.hds-paste-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+
+.hds-paste-go {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid transparent;
+}
+
+.hds-paste-go:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.hds-paste-btn:disabled,
+.hds-paste-go:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hds-paste-btn:focus-visible,
+.hds-paste-go:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hds-paste-error {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--danger-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-paste-row,
+  .hds-paste-btn,
+  .hds-paste-go {
+    transition: none;
+  }
+}

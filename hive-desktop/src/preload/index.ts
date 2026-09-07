@@ -56,6 +56,12 @@ import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTy
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
 import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
 import type { AwsAuthStatus, AwsLoginState, AwsPreflightResult } from '../main/awsAuthService'
+import type {
+  ClaudeAuthStatus,
+  ClaudeLoginMode,
+  ClaudeLoginResult,
+  ClaudeLoginState
+} from '../main/claudeAuthService'
 
 // Typed counterpart to main/index.ts's `CONFLICT:`/`STALE:` message-prefix
 // convention (see the `withConflictPrefix` comment there for why a prefix
@@ -524,6 +530,31 @@ const hive = {
     }
   },
 
+  // claude-account: the first-party session — a Claude subscription (or an
+  // API key) talking straight to Anthropic, which is how most machines run.
+  // `status` costs a spawn (and whole seconds against a Windows npm shim), so
+  // main caches it and `refresh` is explicit; everything else mirrors `aws`
+  // above, except `submitCode`: this CLI's sign-in ends at a terminal prompt,
+  // and that is how the code the user copied out of the browser reaches it.
+  claudeAuth: {
+    status: (workspace?: string, refresh?: boolean): Promise<ClaudeAuthStatus> =>
+      ipcRenderer.invoke('claude:status', workspace, refresh === true),
+    loginState: (): Promise<ClaudeLoginState> => ipcRenderer.invoke('claude:loginState'),
+    login: (mode?: ClaudeLoginMode, workspace?: string): Promise<ClaudeLoginResult> =>
+      ipcRenderer.invoke('claude:login', mode ?? 'claudeai', workspace),
+    submitCode: (code: string): Promise<boolean> => ipcRenderer.invoke('claude:submitCode', code),
+    cancel: (): Promise<void> => ipcRenderer.invoke('claude:cancel'),
+    onState: (onState: (state: ClaudeLoginState) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, state: ClaudeLoginState): void => onState(state)
+      ipcRenderer.on('claude:state', listener)
+      ipcRenderer.send('claude:state:start')
+      return () => {
+        ipcRenderer.removeListener('claude:state', listener)
+        ipcRenderer.send('claude:state:stop')
+      }
+    }
+  },
+
   // The terminal agent turns run inside (agent-terminal). `list` returns the
   // shells detected on this machine, the persisted choice, and each enabled
   // agent's caveat **code** (the copy lives in the renderer's i18n, never in
@@ -638,9 +669,12 @@ const hive = {
   // granted async clipboard write requires the document to be focused, which a
   // copy fired from a closing menu cannot promise. Main's `clipboard` has
   // neither constraint, so this is the path every in-app copy takes.
-  // Deliberately write-only: there is no `readText` here.
+  // `readText` is the one read, added for the Claude sign-in (claude-account):
+  // its last step is pasting a code copied from a browser tab, and it answers
+  // a click on a "Colar" control the user is looking at — never a poll.
   clipboard: {
-    writeText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:writeText', text)
+    writeText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:writeText', text),
+    readText: (): Promise<string> => ipcRenderer.invoke('clipboard:readText')
   },
 
   // GitService (git-management M10), grouped under a `git` namespace matching

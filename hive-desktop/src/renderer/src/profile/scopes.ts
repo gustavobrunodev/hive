@@ -1,7 +1,7 @@
 import { t } from '../i18n'
 
 /** Which detail the sheet is showing; `null` is the index itself. */
-export type ProfileScope = 'account' | 'agents' | 'shortcuts' | 'aws' | 'voice' | 'shell'
+export type ProfileScope = 'account' | 'agents' | 'shortcuts' | 'connection' | 'voice' | 'shell'
 
 export interface ScopeMeta {
   id: ProfileScope
@@ -26,15 +26,17 @@ export interface ScopeMeta {
  * A module-level constant would freeze the copy at import time, before `t()`
  * ever matters to a locale switch — so these are functions.
  */
-// `aws` sits with the two conversation-shaping scopes rather than with the
-// machine-level ones below it: an expired cloud session stops every message,
-// which makes it a thing you check *before* a working day, not a preference
-// you set once.
+// `connection` sits with the two conversation-shaping scopes rather than with
+// the machine-level ones below it: a credential that lapsed overnight stops
+// every message, which makes it a thing you check *before* a working day, not
+// a preference you set once. It used to be `aws`, and only `aws` — which meant
+// the majority of machines, authorised by a Claude account rather than by
+// Bedrock, had no row here at all (claude-account).
 const SCOPE_ORDER: readonly ProfileScope[] = [
   'account',
   'agents',
   'shortcuts',
-  'aws',
+  'connection',
   'voice',
   'shell'
 ]
@@ -56,7 +58,11 @@ function scopeTable(): Record<ProfileScope, ScopeMeta> {
       label: t('profile.scopeShortcutsLabel'),
       hint: t('profile.scopeShortcutsHint')
     },
-    aws: { id: 'aws', label: t('aws.scopeLabel'), hint: t('aws.scopeHint') },
+    connection: {
+      id: 'connection',
+      label: t('claude.scopeLabel'),
+      hint: t('claude.scopeHint')
+    },
     voice: { id: 'voice', label: t('profile.scopeVoiceLabel'), hint: t('profile.scopeVoiceHint') },
     shell: { id: 'shell', label: t('profile.scopeShellLabel'), hint: t('profile.scopeShellHint') }
   }

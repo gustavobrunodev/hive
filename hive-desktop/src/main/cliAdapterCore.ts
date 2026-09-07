@@ -168,6 +168,8 @@ interface StreamJsonLine {
       input?: Record<string, unknown>
       tool_use_id?: string
       is_error?: boolean
+      /** `text` blocks. Only read on an API-error message (`readFailureText`). */
+      text?: string
       /**
        * `tool_result` only: what the call answered. A string, or the same
        * content-block list a message body uses (agent-tool-details).
@@ -208,6 +210,24 @@ interface StreamJsonLine {
   mcp_servers?: unknown
   /** `system`/`init` only: every tool name the turn was given, MCP tools included. */
   tools?: unknown
+  /**
+   * `result` only: whether the turn ended badly, and what it ended as.
+   *
+   * These three are the whole reason `readFailureText` exists. A `claude` that
+   * cannot authenticate prints **nothing on stderr**, exits 1, and says why
+   * only here — so the app's own report was `claude exited with code 1`, a
+   * sentence with no cause in it. `result` carries the CLI's message verbatim.
+   */
+  is_error?: boolean
+  result?: unknown
+  /**
+   * `assistant` only: the API-level failure the CLI turned into a message
+   * (`authentication_failed`, `rate_limit_error`, …). Paired with
+   * `is_api_error_message`, which marks the message as the error rather than
+   * as an answer.
+   */
+  error?: unknown
+  is_api_error_message?: boolean
 }
 
 /** The Anthropic-shaped `usage` object, as it appears on both message and result lines. */
@@ -569,6 +589,61 @@ function readCompactBoundary(
  * bracketed-paste guard, `\x1b[?2004l`, is the one measured here) must not put
  * escape bytes into the transcript.
  */
+/**
+ * The failure a CLI states inside its own JSON stream, or `null` when this line
+ * states none.
+ *
+ * Two shapes, both measured against `claude 2.1.226` signed out of its account:
+ *
+ * ```json
+ * {"type":"assistant","message":{"content":[{"type":"text","text":"Failed to
+ *   authenticate: OAuth session expired…"}]},"error":"authentication_failed",
+ *   "is_api_error_message":true}
+ * {"type":"result","subtype":"success","is_error":true,"result":"Failed to
+ *   authenticate: OAuth session expired and could not be refreshed"}
+ * ```
+ *
+ * Note the `subtype` of that last line: `success`. The CLI's own vocabulary
+ * says the *run* succeeded in producing a verdict — so `is_error` is the only
+ * field worth branching on, and a parser that trusted `subtype` would report
+ * nothing at all. The text is what the user gets to read instead of an exit
+ * code, which is the entire point of reading it.
+ */
+export function readFailureText(parsed: StreamJsonLine): string | null {
+  if (parsed.type === 'result' && parsed.is_error === true) {
+    return typeof parsed.result === 'string' && parsed.result.trim() !== ''
+      ? parsed.result.trim()
+      : typeof parsed.error === 'string' && parsed.error.trim() !== ''
+        ? parsed.error.trim()
+        : null
+  }
+  if (parsed.type !== 'assistant' || parsed.is_api_error_message !== true) return null
+  const text = (parsed.message?.content ?? [])
+    .filter((block) => block.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join(' ')
+    .trim()
+  if (text !== '') return text
+  return typeof parsed.error === 'string' && parsed.error.trim() !== '' ? parsed.error.trim() : null
+}
+
+/**
+ * What a failed turn gets to say, out of the two places a CLI may have said it.
+ *
+ * stderr wins the tie only when it is the *same* fact stated twice; otherwise
+ * both are kept, because they are usually different halves of one story (a
+ * warning banner on stderr, the actual refusal in the stream). Either may be
+ * empty — a signed-out `claude` writes nothing to stderr at all, which is the
+ * failure this function was written for.
+ */
+export function failureDetail(stderrTail: string, streamed: string | null): string {
+  const stderr = stderrTail.trim()
+  const stream = streamed?.trim() ?? ''
+  if (stream === '') return stderr
+  if (stderr === '' || stderr.includes(stream) || stream.includes(stderr)) return stream
+  return `${stream} (${stderr})`
+}
+
 function handleStdoutLine(
   line: string,
   queue: ReturnType<typeof createAgentEventQueue>,
@@ -604,6 +679,11 @@ function handleStdoutLine(
   // The roster arrives on the CLI's very first line, before the agent has done
   // anything — so the UI can say which servers this turn got, and whether they
   // answered, while the turn is still starting rather than in hindsight.
+  // Kept, not emitted: the turn may still recover (a `result` line can be
+  // followed by a retry), and the transcript already shows whatever the CLI
+  // streamed. It becomes the failure's words only if the process then dies.
+  const failure = readFailureText(parsed)
+  if (failure !== null) tracker.errorText = failure
   const roster = readMcpRoster(parsed)
   if (roster !== null) queue.push({ type: 'mcp', servers: roster, turnId })
   const compaction = readCompactBoundary(parsed, turnId)
@@ -622,6 +702,12 @@ function handleStdoutLine(
 interface TurnTracker {
   lastId: string | null
   context: TurnUsage | null
+  /**
+   * The failure the CLI reported *inside* its own JSON stream, kept for the
+   * exit that follows it (see `readFailureText`). `null` on every turn that
+   * did not fail, which is the case that must cost nothing.
+   */
+  errorText: string | null
   /**
    * Whether this stream has ever produced a parseable JSON line. It decides
    * how the raw fallback treats blank lines — structure in prose, noise
@@ -745,7 +831,12 @@ async function pipeTurn(
 ): Promise<TurnOutcome> {
   const { turnId } = run
   let produced = false
-  const tracker: TurnTracker = { lastId: null, context: null, structured: false }
+  const tracker: TurnTracker = {
+    lastId: null,
+    context: null,
+    structured: false,
+    errorText: null
+  }
   let stdoutRest = ''
   let stderrTail = ''
   for await (const chunk of handle.output) {
@@ -771,7 +862,7 @@ async function pipeTurn(
   return settleAttempt(run, queue, {
     result,
     errorLabel,
-    detail: stderrTail.trim(),
+    detail: failureDetail(stderrTail, tracker.errorText),
     produced,
     ...(shouldRetry ? { shouldRetry } : {}),
     ...(describeFailure ? { describeFailure } : {})

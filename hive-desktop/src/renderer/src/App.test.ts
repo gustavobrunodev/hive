@@ -7,6 +7,7 @@ import { createHiveGitMock, createHiveReviewMock } from './testSupport/hiveGitMo
 import { createHiveSecondBrainMock } from './testSupport/hiveSecondBrainMock'
 import { createHiveAsrMock } from './testSupport/hiveAsrMock'
 import { createHiveAwsMock } from './testSupport/hiveAwsMock'
+import { createHiveClaudeAuthMock } from './testSupport/hiveClaudeAuthMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 
 /**
@@ -304,12 +305,16 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         revealPath: vi.fn().mockResolvedValue(undefined),
         absolutePath: vi.fn().mockResolvedValue('/ws/abs')
       },
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+        readText: vi.fn().mockResolvedValue('')
+      },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
       asr: createHiveAsrMock(),
-      aws: createHiveAwsMock()
+      aws: createHiveAwsMock(),
+      claudeAuth: createHiveClaudeAuthMock()
     }
     window.hive = Object.assign(defaults, overrides)
   }

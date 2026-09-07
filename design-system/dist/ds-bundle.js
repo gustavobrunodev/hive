@@ -18036,9 +18036,104 @@ var StepFlow = React64.forwardRef(function StepFlow2({ steps, label, orientation
 });
 StepFlow.displayName = "StepFlow";
 
+// src/components/PasteField/PasteField.tsx
+import { useEffect as useEffect39, useId as useId4, useRef as useRef45, useState as useState36 } from "react";
+import { jsx as jsx91, jsxs as jsxs54 } from "react/jsx-runtime";
+function PasteField({
+  label,
+  description,
+  value,
+  onValueChange,
+  onSubmit,
+  submitLabel = "OK",
+  onPaste,
+  pasteLabel = "Colar",
+  submitOnPaste = false,
+  error,
+  busy = false,
+  placeholder,
+  autoFocus = false,
+  className
+}) {
+  const id = useId4();
+  const inputRef = useRef45(null);
+  const [pasting, setPasting] = useState36(false);
+  const invalid = error != null && error !== false;
+  useEffect39(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+  function commit(next) {
+    if (next.trim() === "" || busy) return;
+    onSubmit?.(next.trim());
+  }
+  async function handlePaste() {
+    if (!onPaste || busy) return;
+    setPasting(true);
+    try {
+      const pasted = await onPaste();
+      if (pasted == null || pasted.trim() === "") return;
+      onValueChange(pasted.trim());
+      inputRef.current?.focus();
+      if (submitOnPaste) commit(pasted);
+    } catch {
+    } finally {
+      setPasting(false);
+    }
+  }
+  return /* @__PURE__ */ jsxs54("div", { className: cx("hds-paste", invalid && "hds-paste-invalid", className), children: [
+    /* @__PURE__ */ jsx91("label", { className: "hds-paste-label", htmlFor: id, children: label }),
+    description != null && /* @__PURE__ */ jsx91("p", { className: "hds-paste-desc", id: `${id}-desc`, children: description }),
+    /* @__PURE__ */ jsxs54("div", { className: "hds-paste-row", children: [
+      /* @__PURE__ */ jsx91(
+        "input",
+        {
+          ref: inputRef,
+          id,
+          className: "hds-paste-input",
+          type: "text",
+          value,
+          placeholder,
+          spellCheck: false,
+          autoComplete: "off",
+          disabled: busy,
+          "aria-invalid": invalid ? "true" : void 0,
+          "aria-describedby": cx(description != null && `${id}-desc`, invalid && `${id}-error`) || void 0,
+          onChange: (event) => onValueChange(event.target.value),
+          onKeyDown: (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            commit(value);
+          }
+        }
+      ),
+      onPaste && /* @__PURE__ */ jsx91(
+        "button",
+        {
+          type: "button",
+          className: "hds-paste-btn",
+          onClick: () => void handlePaste(),
+          disabled: busy || pasting,
+          children: pasteLabel
+        }
+      ),
+      onSubmit && /* @__PURE__ */ jsx91(
+        "button",
+        {
+          type: "button",
+          className: "hds-paste-go",
+          onClick: () => commit(value),
+          disabled: busy || value.trim() === "",
+          children: submitLabel
+        }
+      )
+    ] }),
+    invalid && /* @__PURE__ */ jsx91("p", { className: "hds-paste-error", id: `${id}-error`, role: "alert", children: error })
+  ] });
+}
+
 // src/components/LevelMeter/LevelMeter.tsx
 import * as React65 from "react";
-import { jsx as jsx91 } from "react/jsx-runtime";
+import { jsx as jsx92 } from "react/jsx-runtime";
 var DEFAULT_BARS = 20;
 var DEFAULT_SILENCE_THRESHOLD = 0.02;
 var LevelMeter = React65.forwardRef(function LevelMeter2({
@@ -18053,7 +18148,7 @@ var LevelMeter = React65.forwardRef(function LevelMeter2({
   const padded = [...new Array(Math.max(0, bars - recent.length)).fill(0), ...recent];
   const current = padded[padded.length - 1] ?? 0;
   const silent = padded.every((level) => level <= silenceThreshold);
-  return /* @__PURE__ */ jsx91(
+  return /* @__PURE__ */ jsx92(
     "div",
     {
       ref,
@@ -18065,7 +18160,7 @@ var LevelMeter = React65.forwardRef(function LevelMeter2({
       "aria-valuemax": 1,
       "aria-valuenow": Number(current.toFixed(2)),
       ...rest,
-      children: padded.map((level, index2) => /* @__PURE__ */ jsx91(
+      children: padded.map((level, index2) => /* @__PURE__ */ jsx92(
         "span",
         {
           className: "hds-level-meter-bar",
@@ -18080,33 +18175,33 @@ LevelMeter.displayName = "LevelMeter";
 
 // src/components/Alert/Alert.tsx
 import { forwardRef as forwardRef64 } from "react";
-import { jsx as jsx92, jsxs as jsxs54 } from "react/jsx-runtime";
+import { jsx as jsx93, jsxs as jsxs55 } from "react/jsx-runtime";
 var Alert = forwardRef64(function Alert2({ variant = "info", icon, title, className, children, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs54("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx92("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsxs54("div", { className: "hds-alert-body", children: [
-      title && /* @__PURE__ */ jsx92("div", { className: "hds-alert-title", children: title }),
-      children && /* @__PURE__ */ jsx92("div", { className: "hds-alert-description", children })
+  return /* @__PURE__ */ jsxs55("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx93("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsxs55("div", { className: "hds-alert-body", children: [
+      title && /* @__PURE__ */ jsx93("div", { className: "hds-alert-title", children: title }),
+      children && /* @__PURE__ */ jsx93("div", { className: "hds-alert-description", children })
     ] })
   ] });
 });
 Alert.displayName = "Alert";
 
 // src/components/Empty/Empty.tsx
-import { jsx as jsx93, jsxs as jsxs55 } from "react/jsx-runtime";
+import { jsx as jsx94, jsxs as jsxs56 } from "react/jsx-runtime";
 function Empty({ icon, title, description, action, className, ...rest }) {
-  return /* @__PURE__ */ jsxs55("div", { className: cx("hds-empty", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx93("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsx93("div", { className: "hds-empty-title", children: title }),
-    description && /* @__PURE__ */ jsx93("div", { className: "hds-empty-description", children: description }),
-    action && /* @__PURE__ */ jsx93("div", { className: "hds-empty-action", children: action })
+  return /* @__PURE__ */ jsxs56("div", { className: cx("hds-empty", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx94("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsx94("div", { className: "hds-empty-title", children: title }),
+    description && /* @__PURE__ */ jsx94("div", { className: "hds-empty-description", children: description }),
+    action && /* @__PURE__ */ jsx94("div", { className: "hds-empty-action", children: action })
   ] });
 }
 
 // src/components/Kbd/Kbd.tsx
-import { jsx as jsx94 } from "react/jsx-runtime";
+import { jsx as jsx95 } from "react/jsx-runtime";
 function Kbd({ className, children, ...rest }) {
-  return /* @__PURE__ */ jsx94("kbd", { className: cx("hds-kbd", className), ...rest, children });
+  return /* @__PURE__ */ jsx95("kbd", { className: cx("hds-kbd", className), ...rest, children });
 }
 
 // src/components/Resizable/Resizable.tsx
@@ -20214,27 +20309,27 @@ function Qt({
 Qt.displayName = "Separator";
 
 // src/components/Resizable/Resizable.tsx
-import { jsx as jsx95, jsxs as jsxs56 } from "react/jsx-runtime";
+import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
 var Resizable = forwardRef65(function Resizable2({ className, orientation = "horizontal", ...rest }, ref) {
-  return /* @__PURE__ */ jsx95(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
+  return /* @__PURE__ */ jsx96(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
 });
 Resizable.displayName = "Resizable";
 var ResizablePanel = forwardRef65(function ResizablePanel2({ className, ...rest }, ref) {
-  return /* @__PURE__ */ jsx95(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
+  return /* @__PURE__ */ jsx96(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
 });
 ResizablePanel.displayName = "ResizablePanel";
 var ResizableHandle = forwardRef65(function ResizableHandle2({ className, withGrip = false, ...rest }, ref) {
-  return /* @__PURE__ */ jsx95(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs56("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsx95("span", {}),
-    /* @__PURE__ */ jsx95("span", {}),
-    /* @__PURE__ */ jsx95("span", {})
+  return /* @__PURE__ */ jsx96(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs57("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx96("span", {}),
+    /* @__PURE__ */ jsx96("span", {}),
+    /* @__PURE__ */ jsx96("span", {})
   ] }) });
 });
 ResizableHandle.displayName = "ResizableHandle";
 
 // src/components/SegmentedControl/SegmentedControl.tsx
-import { useCallback as useCallback26, useEffect as useEffect39, useLayoutEffect as useLayoutEffect8, useRef as useRef45, useState as useState36 } from "react";
-import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
+import { useCallback as useCallback26, useEffect as useEffect40, useLayoutEffect as useLayoutEffect8, useRef as useRef46, useState as useState37 } from "react";
+import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
 function SegmentedControl({
   options,
   value,
@@ -20243,8 +20338,8 @@ function SegmentedControl({
   size: size4 = "sm",
   className
 }) {
-  const trackRef = useRef45(null);
-  const [thumb, setThumb] = useState36(null);
+  const trackRef = useRef46(null);
+  const [thumb, setThumb] = useState37(null);
   const measure = useCallback26(() => {
     const track = trackRef.current;
     if (!track) return;
@@ -20257,7 +20352,7 @@ function SegmentedControl({
     setThumb(width > 0 ? { x: active.offsetLeft, width } : null);
   }, []);
   useLayoutEffect8(measure, [measure, value, options]);
-  useEffect39(() => {
+  useEffect40(() => {
     const track = trackRef.current;
     if (!track || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -20283,7 +20378,7 @@ function SegmentedControl({
     event.preventDefault();
     onChange(target.id);
   };
-  return /* @__PURE__ */ jsxs57(
+  return /* @__PURE__ */ jsxs58(
     "div",
     {
       ref: trackRef,
@@ -20292,7 +20387,7 @@ function SegmentedControl({
       className: cx("hds-seg", `hds-seg-${size4}`, className),
       onKeyDown: handleKeyDown,
       children: [
-        thumb && /* @__PURE__ */ jsx96(
+        thumb && /* @__PURE__ */ jsx97(
           "span",
           {
             className: "hds-seg-thumb",
@@ -20302,7 +20397,7 @@ function SegmentedControl({
         ),
         options.map((option) => {
           const active = option.id === value;
-          return /* @__PURE__ */ jsxs57(
+          return /* @__PURE__ */ jsxs58(
             "button",
             {
               type: "button",
@@ -20314,8 +20409,8 @@ function SegmentedControl({
               className: "hds-seg-item",
               onClick: () => onChange(option.id),
               children: [
-                /* @__PURE__ */ jsx96("span", { className: "hds-seg-label", children: option.label }),
-                option.count !== void 0 && /* @__PURE__ */ jsx96("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
+                /* @__PURE__ */ jsx97("span", { className: "hds-seg-label", children: option.label }),
+                option.count !== void 0 && /* @__PURE__ */ jsx97("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
               ]
             },
             option.id
@@ -20327,8 +20422,8 @@ function SegmentedControl({
 }
 
 // src/components/RampSelect/RampSelect.tsx
-import { useId as useId4, useState as useState37 } from "react";
-import { Fragment as Fragment17, jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
+import { useId as useId5, useState as useState38 } from "react";
+import { Fragment as Fragment17, jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
 function RampSelect({
   steps,
   value,
@@ -20340,8 +20435,8 @@ function RampSelect({
   size: size4 = "sm",
   className
 }) {
-  const descriptionId = useId4();
-  const [preview, setPreview] = useState37(-1);
+  const descriptionId = useId5();
+  const [preview, setPreview] = useState38(-1);
   const all = autoStep ? [autoStep, ...steps] : steps;
   const level = steps.findIndex((step) => step.id === value);
   const selected = all.find((step) => step.id === value) ?? null;
@@ -20365,8 +20460,8 @@ function RampSelect({
     event.preventDefault();
     onChange(target.id);
   };
-  return /* @__PURE__ */ jsxs58("div", { className: cx("hds-ramp", `hds-ramp-${size4}`, className), children: [
-    /* @__PURE__ */ jsxs58(
+  return /* @__PURE__ */ jsxs59("div", { className: cx("hds-ramp", `hds-ramp-${size4}`, className), children: [
+    /* @__PURE__ */ jsxs59(
       "div",
       {
         role: "radiogroup",
@@ -20377,20 +20472,20 @@ function RampSelect({
         onKeyDown: handleKeyDown,
         onPointerLeave: () => setPreview(-1),
         children: [
-          autoStep && /* @__PURE__ */ jsxs58(Fragment17, { children: [
-            /* @__PURE__ */ jsx97(
+          autoStep && /* @__PURE__ */ jsxs59(Fragment17, { children: [
+            /* @__PURE__ */ jsx98(
               Rung,
               {
                 step: autoStep,
                 checked: value === autoStep.id,
                 onSelect: () => onChange(autoStep.id),
                 onPreview: () => setPreview(-1),
-                glyph: /* @__PURE__ */ jsx97(AutoGlyph, {})
+                glyph: /* @__PURE__ */ jsx98(AutoGlyph, {})
               }
             ),
-            /* @__PURE__ */ jsx97("span", { className: "hds-ramp-divider", "aria-hidden": "true" })
+            /* @__PURE__ */ jsx98("span", { className: "hds-ramp-divider", "aria-hidden": "true" })
           ] }),
-          steps.map((step, index2) => /* @__PURE__ */ jsx97(
+          steps.map((step, index2) => /* @__PURE__ */ jsx98(
             Rung,
             {
               step,
@@ -20399,7 +20494,7 @@ function RampSelect({
               preview: preview > level && index2 <= preview && index2 > level,
               onSelect: () => onChange(step.id),
               onPreview: () => setPreview(step.disabled ? -1 : index2),
-              glyph: /* @__PURE__ */ jsx97(
+              glyph: /* @__PURE__ */ jsx98(
                 "span",
                 {
                   className: "hds-ramp-bar",
@@ -20415,7 +20510,7 @@ function RampSelect({
         ]
       }
     ),
-    showDescription && /* @__PURE__ */ jsx97("p", { className: "hds-ramp-description", id: descriptionId, children: description ?? descriptionFallback ?? "" })
+    showDescription && /* @__PURE__ */ jsx98("p", { className: "hds-ramp-description", id: descriptionId, children: description ?? descriptionFallback ?? "" })
   ] });
 }
 function Rung({
@@ -20427,7 +20522,7 @@ function Rung({
   onPreview,
   glyph
 }) {
-  return /* @__PURE__ */ jsxs58(
+  return /* @__PURE__ */ jsxs59(
     "button",
     {
       type: "button",
@@ -20442,14 +20537,14 @@ function Rung({
       onClick: onSelect,
       onPointerEnter: onPreview,
       children: [
-        /* @__PURE__ */ jsx97("span", { className: "hds-ramp-slot", children: glyph }),
-        /* @__PURE__ */ jsx97("span", { className: "hds-ramp-label", children: step.label })
+        /* @__PURE__ */ jsx98("span", { className: "hds-ramp-slot", children: glyph }),
+        /* @__PURE__ */ jsx98("span", { className: "hds-ramp-label", children: step.label })
       ]
     }
   );
 }
 function AutoGlyph() {
-  return /* @__PURE__ */ jsxs58(
+  return /* @__PURE__ */ jsxs59(
     "svg",
     {
       className: "hds-ramp-auto-glyph",
@@ -20459,16 +20554,16 @@ function AutoGlyph() {
       fill: "none",
       "aria-hidden": "true",
       children: [
-        /* @__PURE__ */ jsx97("path", { d: "M1.5 7h11", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", opacity: "0.5" }),
-        /* @__PURE__ */ jsx97("circle", { cx: "7", cy: "7", r: "2.6", fill: "currentColor" })
+        /* @__PURE__ */ jsx98("path", { d: "M1.5 7h11", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", opacity: "0.5" }),
+        /* @__PURE__ */ jsx98("circle", { cx: "7", cy: "7", r: "2.6", fill: "currentColor" })
       ]
     }
   );
 }
 
 // src/components/OutputBlock/OutputBlock.tsx
-import { useId as useId5, useRef as useRef46, useState as useState38 } from "react";
-import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
+import { useId as useId6, useRef as useRef47, useState as useState39 } from "react";
+import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
 var SKELETON_LINES = 3;
 function OutputBlock({
   text,
@@ -20488,10 +20583,10 @@ function OutputBlock({
   className,
   ...rest
 }) {
-  const [grown, setGrown] = useState38(false);
-  const [copied, setCopied] = useState38(false);
-  const timeoutRef = useRef46(null);
-  const bodyId = useId5();
+  const [grown, setGrown] = useState39(false);
+  const [copied, setCopied] = useState39(false);
+  const timeoutRef = useRef47(null);
+  const bodyId = useId6();
   const lines = text === "" ? [] : text.split("\n");
   const capped = maxLines > 0 && !grown && lines.length > maxLines;
   const hidden = capped ? lines.length - maxLines : 0;
@@ -20503,11 +20598,11 @@ function OutputBlock({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setCopied(false), 1600);
   }
-  return /* @__PURE__ */ jsxs59("div", { className: cx("hds-out", `hds-out-${tone}`, className), ...rest, children: [
-    (label !== void 0 || meta !== void 0 || onCopy !== void 0) && /* @__PURE__ */ jsxs59("div", { className: "hds-out-head", children: [
-      label !== void 0 && /* @__PURE__ */ jsx98("span", { className: "hds-out-label", children: label }),
-      meta !== void 0 && /* @__PURE__ */ jsx98("span", { className: "hds-out-meta", children: meta }),
-      onCopy !== void 0 && /* @__PURE__ */ jsx98(
+  return /* @__PURE__ */ jsxs60("div", { className: cx("hds-out", `hds-out-${tone}`, className), ...rest, children: [
+    (label !== void 0 || meta !== void 0 || onCopy !== void 0) && /* @__PURE__ */ jsxs60("div", { className: "hds-out-head", children: [
+      label !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-label", children: label }),
+      meta !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-meta", children: meta }),
+      onCopy !== void 0 && /* @__PURE__ */ jsx99(
         "button",
         {
           type: "button",
@@ -20518,12 +20613,12 @@ function OutputBlock({
         }
       )
     ] }),
-    pending ? /* @__PURE__ */ jsx98("div", { className: "hds-out-body hds-out-skel", "aria-busy": "true", children: Array.from({ length: SKELETON_LINES }, (_, i) => /* @__PURE__ */ jsx98("span", { className: "hds-out-skel-line", style: { ["--i"]: String(i) } }, i)) }) : text === "" ? /* @__PURE__ */ jsx98("p", { className: "hds-out-empty", children: emptyLabel }) : /* @__PURE__ */ jsxs59("pre", { className: "hds-out-body", id: bodyId, "data-capped": capped || void 0, tabIndex: 0, children: [
-      prompt !== void 0 && /* @__PURE__ */ jsx98("span", { className: "hds-out-prompt", "aria-hidden": "true", children: prompt }),
-      /* @__PURE__ */ jsx98("code", { children: shown })
+    pending ? /* @__PURE__ */ jsx99("div", { className: "hds-out-body hds-out-skel", "aria-busy": "true", children: Array.from({ length: SKELETON_LINES }, (_, i) => /* @__PURE__ */ jsx99("span", { className: "hds-out-skel-line", style: { ["--i"]: String(i) } }, i)) }) : text === "" ? /* @__PURE__ */ jsx99("p", { className: "hds-out-empty", children: emptyLabel }) : /* @__PURE__ */ jsxs60("pre", { className: "hds-out-body", id: bodyId, "data-capped": capped || void 0, tabIndex: 0, children: [
+      prompt !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-prompt", "aria-hidden": "true", children: prompt }),
+      /* @__PURE__ */ jsx99("code", { children: shown })
     ] }),
-    (canGrow || note !== void 0) && /* @__PURE__ */ jsxs59("div", { className: "hds-out-foot", children: [
-      canGrow && /* @__PURE__ */ jsx98(
+    (canGrow || note !== void 0) && /* @__PURE__ */ jsxs60("div", { className: "hds-out-foot", children: [
+      canGrow && /* @__PURE__ */ jsx99(
         "button",
         {
           type: "button",
@@ -20534,14 +20629,14 @@ function OutputBlock({
           children: grown ? lessLabel : moreLabel(hidden)
         }
       ),
-      note !== void 0 && /* @__PURE__ */ jsx98("span", { className: "hds-out-note", children: note })
+      note !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-note", children: note })
     ] })
   ] });
 }
 
 // src/components/DataGrid/DataGrid.tsx
 import * as React66 from "react";
-import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
+import { jsx as jsx100, jsxs as jsxs61 } from "react/jsx-runtime";
 var PAGE_ROWS = 12;
 function valueAt(rows, row, column) {
   return rows[row]?.[column] ?? "";
@@ -20675,8 +20770,8 @@ function DataGrid({
       startEditing(row, column, pressed);
     }
   };
-  const body = rows.map((_, rowIndex) => /* @__PURE__ */ jsxs60("tr", { className: "hds-grid-row", "aria-rowindex": rowIndex + 2, children: [
-    rowHeader !== false && /* @__PURE__ */ jsx99(
+  const body = rows.map((_, rowIndex) => /* @__PURE__ */ jsxs61("tr", { className: "hds-grid-row", "aria-rowindex": rowIndex + 2, children: [
+    rowHeader !== false && /* @__PURE__ */ jsx100(
       "th",
       {
         scope: "row",
@@ -20689,7 +20784,7 @@ function DataGrid({
       const active = cursor.row === rowIndex && cursor.column === columnIndex;
       const isEditing = active && editing !== null;
       const value = valueAt(rows, rowIndex, columnIndex);
-      return /* @__PURE__ */ jsx99(
+      return /* @__PURE__ */ jsx100(
         "td",
         {
           ref: (node) => {
@@ -20716,7 +20811,7 @@ function DataGrid({
             handleCellKeyDown(event, rowIndex, columnIndex);
           },
           onDoubleClick: () => startEditing(rowIndex, columnIndex),
-          children: isEditing ? /* @__PURE__ */ jsx99(
+          children: isEditing ? /* @__PURE__ */ jsx100(
             "input",
             {
               className: "hds-grid-input",
@@ -20746,14 +20841,14 @@ function DataGrid({
                 }
               }
             }
-          ) : /* @__PURE__ */ jsx99("span", { className: "hds-grid-value", children: value })
+          ) : /* @__PURE__ */ jsx100("span", { className: "hds-grid-value", children: value })
         },
         column.id
       );
     })
   ] }, rowIndex));
-  return /* @__PURE__ */ jsx99("div", { className: cx("hds-grid", className), children: /* @__PURE__ */ jsxs60("div", { className: "hds-grid-scroller", ref: scrollerRef, children: [
-    /* @__PURE__ */ jsxs60(
+  return /* @__PURE__ */ jsx100("div", { className: cx("hds-grid", className), children: /* @__PURE__ */ jsxs61("div", { className: "hds-grid-scroller", ref: scrollerRef, children: [
+    /* @__PURE__ */ jsxs61(
       "table",
       {
         role: "grid",
@@ -20763,9 +20858,9 @@ function DataGrid({
         "aria-colcount": columns.length + (rowHeader === false ? 0 : 1),
         "aria-readonly": readOnly || void 0,
         children: [
-          /* @__PURE__ */ jsx99("thead", { children: /* @__PURE__ */ jsxs60("tr", { className: "hds-grid-row", "aria-rowindex": 1, children: [
-            rowHeader !== false && /* @__PURE__ */ jsx99("th", { className: "hds-grid-corner", scope: "col", "aria-label": ariaLabel }),
-            columns.map((column, index2) => /* @__PURE__ */ jsxs60(
+          /* @__PURE__ */ jsx100("thead", { children: /* @__PURE__ */ jsxs61("tr", { className: "hds-grid-row", "aria-rowindex": 1, children: [
+            rowHeader !== false && /* @__PURE__ */ jsx100("th", { className: "hds-grid-corner", scope: "col", "aria-label": ariaLabel }),
+            columns.map((column, index2) => /* @__PURE__ */ jsxs61(
               "th",
               {
                 scope: "col",
@@ -20775,9 +20870,9 @@ function DataGrid({
                 "data-hue": colorColumns ? index2 % 6 : void 0,
                 "aria-colindex": index2 + (rowHeader === false ? 1 : 2),
                 children: [
-                  /* @__PURE__ */ jsxs60("span", { className: "hds-grid-colhead-body", children: [
-                    /* @__PURE__ */ jsx99("span", { className: "hds-grid-colhead-label", children: column.label }),
-                    column.hint !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-grid-colhead-hint", children: column.hint })
+                  /* @__PURE__ */ jsxs61("span", { className: "hds-grid-colhead-body", children: [
+                    /* @__PURE__ */ jsx100("span", { className: "hds-grid-colhead-label", children: column.label }),
+                    column.hint !== void 0 && /* @__PURE__ */ jsx100("span", { className: "hds-grid-colhead-hint", children: column.hint })
                   ] }),
                   columnActions?.(index2)
                 ]
@@ -20785,26 +20880,26 @@ function DataGrid({
               column.id
             ))
           ] }) }),
-          rows.length > 0 && /* @__PURE__ */ jsx99("tbody", { children: body })
+          rows.length > 0 && /* @__PURE__ */ jsx100("tbody", { children: body })
         ]
       }
     ),
-    rows.length === 0 && empty !== void 0 && /* @__PURE__ */ jsx99("div", { className: "hds-grid-empty", children: empty }),
+    rows.length === 0 && empty !== void 0 && /* @__PURE__ */ jsx100("div", { className: "hds-grid-empty", children: empty }),
     footer
   ] }) });
 }
 
 // src/components/ChatMessage/ChatMessage.tsx
 import { forwardRef as forwardRef66 } from "react";
-import { jsx as jsx100, jsxs as jsxs61 } from "react/jsx-runtime";
+import { jsx as jsx101, jsxs as jsxs62 } from "react/jsx-runtime";
 var ChatMessage = forwardRef66(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs61("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
-    role !== "system" && avatar && /* @__PURE__ */ jsx100("div", { className: "hds-chat-message-avatar", children: avatar }),
-    /* @__PURE__ */ jsxs61("div", { className: "hds-chat-message-body", children: [
-      /* @__PURE__ */ jsx100("div", { className: "hds-chat-message-bubble", children }),
-      (timestamp || actions) && /* @__PURE__ */ jsxs61("div", { className: "hds-chat-message-meta", children: [
-        timestamp && /* @__PURE__ */ jsx100("span", { className: "hds-chat-message-timestamp", children: timestamp }),
-        actions && /* @__PURE__ */ jsx100("div", { className: "hds-chat-message-actions", children: actions })
+  return /* @__PURE__ */ jsxs62("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs62("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs62("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx101("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-actions", children: actions })
       ] })
     ] })
   ] });
@@ -20812,19 +20907,19 @@ var ChatMessage = forwardRef66(function ChatMessage2({ role, avatar, timestamp, 
 ChatMessage.displayName = "ChatMessage";
 
 // src/components/TypingIndicator/TypingIndicator.tsx
-import { jsx as jsx101, jsxs as jsxs62 } from "react/jsx-runtime";
+import { jsx as jsx102, jsxs as jsxs63 } from "react/jsx-runtime";
 function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
-  return /* @__PURE__ */ jsxs62("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
-    /* @__PURE__ */ jsx101("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx101("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx101("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx101(VisuallyHidden2, { children: label })
+  return /* @__PURE__ */ jsxs63("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx102(VisuallyHidden2, { children: label })
   ] });
 }
 
 // src/components/MessageList/MessageList.tsx
-import { useCallback as useCallback28, useEffect as useEffect40, useRef as useRef48, useState as useState40 } from "react";
-import { jsx as jsx102, jsxs as jsxs63 } from "react/jsx-runtime";
+import { useCallback as useCallback28, useEffect as useEffect41, useRef as useRef49, useState as useState41 } from "react";
+import { jsx as jsx103, jsxs as jsxs64 } from "react/jsx-runtime";
 function prefersReducedMotion3() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -20836,10 +20931,10 @@ function MessageList({
   className,
   ...rest
 }) {
-  const viewportRef = useRef48(null);
-  const contentRef = useRef48(null);
-  const [isPinned, setIsPinned] = useState40(true);
-  const isPinnedRef = useRef48(isPinned);
+  const viewportRef = useRef49(null);
+  const contentRef = useRef49(null);
+  const [isPinned, setIsPinned] = useState41(true);
+  const isPinnedRef = useRef49(isPinned);
   isPinnedRef.current = isPinned;
   const isNearBottom = useCallback28(() => {
     const viewport = viewportRef.current;
@@ -20862,13 +20957,13 @@ function MessageList({
   const handleScroll2 = useCallback28(() => {
     setIsPinned(isNearBottom());
   }, [isNearBottom]);
-  useEffect40(() => {
+  useEffect41(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     viewport.addEventListener("scroll", handleScroll2, { passive: true });
     return () => viewport.removeEventListener("scroll", handleScroll2);
   }, [handleScroll2]);
-  useEffect40(() => {
+  useEffect41(() => {
     const content = contentRef.current;
     if (!content || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
@@ -20877,12 +20972,12 @@ function MessageList({
     observer.observe(content);
     return () => observer.disconnect();
   }, [scrollToBottom]);
-  useEffect40(() => {
+  useEffect41(() => {
     scrollToBottom("instant");
   }, [scrollToBottom]);
-  return /* @__PURE__ */ jsxs63("div", { className: cx("hds-message-list", className), ...rest, children: [
-    /* @__PURE__ */ jsx102(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx102("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
-    !isPinned && /* @__PURE__ */ jsx102(
+  return /* @__PURE__ */ jsxs64("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx103(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx103("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx103(
       "button",
       {
         type: "button",
@@ -20899,7 +20994,7 @@ function MessageList({
 
 // src/components/Attachment/Attachment.tsx
 import { forwardRef as forwardRef67 } from "react";
-import { jsx as jsx103, jsxs as jsxs64 } from "react/jsx-runtime";
+import { jsx as jsx104, jsxs as jsxs65 } from "react/jsx-runtime";
 function splitAtTail(name) {
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 && name.length - dot <= 7 ? name.length - dot : 0;
@@ -20911,28 +21006,28 @@ var Attachment = forwardRef67(function Attachment2({ name, meta, icon, onRemove,
   const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
   const middle = truncate === "middle" && typeof name === "string";
   const [head, tail] = middle ? splitAtTail(name) : ["", ""];
-  return /* @__PURE__ */ jsxs64("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx103("span", { className: "hds-attachment-icon", children: icon }),
-    /* @__PURE__ */ jsxs64("span", { className: "hds-attachment-text", children: [
-      middle ? /* @__PURE__ */ jsxs64("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
-        /* @__PURE__ */ jsx103("span", { className: "hds-attachment-name-head", children: head }),
-        tail !== "" && /* @__PURE__ */ jsx103("span", { className: "hds-attachment-name-tail", children: tail })
-      ] }) : /* @__PURE__ */ jsx103("span", { className: "hds-attachment-name", children: name }),
-      meta && /* @__PURE__ */ jsx103("span", { className: "hds-attachment-meta", children: meta })
+  return /* @__PURE__ */ jsxs65("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs65("span", { className: "hds-attachment-text", children: [
+      middle ? /* @__PURE__ */ jsxs65("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
+        /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name-head", children: head }),
+        tail !== "" && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name-tail", children: tail })
+      ] }) : /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-meta", children: meta })
     ] }),
-    onRemove && /* @__PURE__ */ jsx103("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx103("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx103("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+    onRemove && /* @__PURE__ */ jsx104("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx104("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx104("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
   ] });
 });
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
-import { useLayoutEffect as useLayoutEffect9, useRef as useRef49 } from "react";
-import { jsx as jsx104, jsxs as jsxs65 } from "react/jsx-runtime";
+import { useLayoutEffect as useLayoutEffect9, useRef as useRef50 } from "react";
+import { jsx as jsx105, jsxs as jsxs66 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx104("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx104("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx105("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx105("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
 }
 function StopIcon() {
-  return /* @__PURE__ */ jsx104("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx104("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
+  return /* @__PURE__ */ jsx105("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx105("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -20963,8 +21058,8 @@ function PromptInput({
     defaultValue,
     onChange
   });
-  const backdropRef = useRef49(null);
-  const innerTextareaRef = useRef49(null);
+  const backdropRef = useRef50(null);
+  const innerTextareaRef = useRef50(null);
   const isEmpty = value.trim().length === 0;
   const stopMode = streaming && onStop !== void 0;
   const sendDisabled = disabled || streaming || isEmpty && !allowEmptySubmit;
@@ -20990,7 +21085,7 @@ function PromptInput({
   useLayoutEffect9(() => {
     if (highlight2) syncBackdropScroll();
   });
-  const textarea = /* @__PURE__ */ jsx104(
+  const textarea = /* @__PURE__ */ jsx105(
     Textarea,
     {
       ref: setTextareaNode,
@@ -21008,7 +21103,7 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs65(
+  return /* @__PURE__ */ jsxs66(
     "div",
     {
       className: cx("hds-prompt-input", className),
@@ -21016,14 +21111,14 @@ function PromptInput({
       "data-highlighted": highlighted || void 0,
       ...rest,
       children: [
-        attachments && /* @__PURE__ */ jsx104("div", { className: "hds-prompt-input-attachments", children: attachments }),
-        highlight2 ? /* @__PURE__ */ jsxs65("div", { className: "hds-prompt-input-editor", children: [
-          /* @__PURE__ */ jsx104("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight2(value) }),
+        attachments && /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight2 ? /* @__PURE__ */ jsxs66("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx105("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight2(value) }),
           textarea
         ] }) : textarea,
-        /* @__PURE__ */ jsxs65("div", { className: "hds-prompt-input-toolbar", children: [
-          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx104("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx104("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
-          /* @__PURE__ */ jsxs65(
+        /* @__PURE__ */ jsxs66("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs66(
             "button",
             {
               type: "button",
@@ -21034,8 +21129,8 @@ function PromptInput({
               title: stopMode ? stopLabel : sendLabel,
               onClick: stopMode ? onStop : submit,
               children: [
-                sendIcon === void 0 ? /* @__PURE__ */ jsx104(SendIcon, {}) : /* @__PURE__ */ jsx104("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
-                /* @__PURE__ */ jsx104(StopIcon, {})
+                sendIcon === void 0 ? /* @__PURE__ */ jsx105(SendIcon, {}) : /* @__PURE__ */ jsx105("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
+                /* @__PURE__ */ jsx105(StopIcon, {})
               ]
             }
           )
@@ -21046,7 +21141,7 @@ function PromptInput({
 }
 
 // src/components/ActivityBorder/ActivityBorder.tsx
-import { jsx as jsx105, jsxs as jsxs66 } from "react/jsx-runtime";
+import { jsx as jsx106, jsxs as jsxs67 } from "react/jsx-runtime";
 var LANES = ["tail", "mid", "head"];
 function ActivityBorder({
   active = false,
@@ -21064,7 +21159,7 @@ function ActivityBorder({
     ...duration === void 0 ? null : { "--hds-activity-duration": duration },
     ...style
   };
-  return /* @__PURE__ */ jsxs66(
+  return /* @__PURE__ */ jsxs67(
     "div",
     {
       className: cx("hds-activity-border", className),
@@ -21073,10 +21168,10 @@ function ActivityBorder({
       ...rest,
       children: [
         children,
-        /* @__PURE__ */ jsx105("svg", { className: "hds-activity-border-ring", "aria-hidden": "true", focusable: "false", children: LANES.map((lane) => (
+        /* @__PURE__ */ jsx106("svg", { className: "hds-activity-border-ring", "aria-hidden": "true", focusable: "false", children: LANES.map((lane) => (
           // `pathLength` normalises the outline to 100 units, so one dash
           // pattern describes the comet on any size of box.
-          /* @__PURE__ */ jsx105("rect", { "data-lane": lane, pathLength: 100 }, lane)
+          /* @__PURE__ */ jsx106("rect", { "data-lane": lane, pathLength: 100 }, lane)
         )) })
       ]
     }
@@ -21084,9 +21179,9 @@ function ActivityBorder({
 }
 
 // src/components/MessageToken/MessageToken.tsx
-import { jsx as jsx106, jsxs as jsxs67 } from "react/jsx-runtime";
+import { jsx as jsx107, jsxs as jsxs68 } from "react/jsx-runtime";
 function SlashGlyph() {
-  return /* @__PURE__ */ jsx106(
+  return /* @__PURE__ */ jsx107(
     "svg",
     {
       className: "hds-message-token-glyph",
@@ -21098,13 +21193,13 @@ function SlashGlyph() {
       strokeWidth: "1.75",
       strokeLinecap: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx106("path", { d: "M10 2.75 6 13.25" })
+      children: /* @__PURE__ */ jsx107("path", { d: "M10 2.75 6 13.25" })
     }
   );
 }
 function MessageToken({ kind, icon, className, children, ...rest }) {
-  const glyph = icon === void 0 && kind === "command" ? /* @__PURE__ */ jsx106(SlashGlyph, {}) : icon;
-  return /* @__PURE__ */ jsxs67("mark", { className: cx("hds-message-token", className), "data-kind": kind, ...rest, children: [
+  const glyph = icon === void 0 && kind === "command" ? /* @__PURE__ */ jsx107(SlashGlyph, {}) : icon;
+  return /* @__PURE__ */ jsxs68("mark", { className: cx("hds-message-token", className), "data-kind": kind, ...rest, children: [
     glyph,
     children
   ] });
@@ -21196,6 +21291,7 @@ export {
   OptionPicker,
   OutputBlock,
   Panel,
+  PasteField,
   PinChip,
   Pkg,
   Popover2 as Popover,

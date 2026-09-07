@@ -818,6 +818,37 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // claude-account: the first-party credential lane, added this round.
+        // The main-side service, the renderer's reading half + hook + the
+        // sign-in card, and the connection scope that puts the two lanes side
+        // by side. `ClaudeSignInBeacon.tsx` is covered through the card's own
+        // suite, which mounts it.
+        'src/main/claudeAuthService.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/claudeAuth/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/renderer/src/profile/ConnectionScope.tsx': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // composer-menu-scroll: the arithmetic that keeps the highlighted row
+        // of the `/` and `@` menus inside their scroll port.
+        'src/renderer/src/chat/menuScroll.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

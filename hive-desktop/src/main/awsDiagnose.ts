@@ -20,12 +20,26 @@
  * opens a login, `stale-session` retries the turn without the dead handle —
  * instead of handing the user a paragraph of machine text to interpret.
  *
- * The patterns are matched against the stderr *tail* the adapter already keeps,
- * so this costs nothing on the happy path.
+ * The patterns are matched against the failure detail the adapter keeps — which
+ * since this feature is no longer only stderr: a first-party `claude` that
+ * cannot authenticate writes **nothing** there and states the cause only inside
+ * its JSON stream, so `cliAdapterCore.readFailureText` feeds it in from the
+ * other side. That is also why the first pattern below is an Anthropic one:
+ * this module started life reading Bedrock failures and, read in the old order,
+ * told users with no AWS account at all that their SSO session had expired.
+ *
+ * Costs nothing on the happy path — a turn that exits 0 never gets here.
  */
 
 /** What actually went wrong, at the granularity a repair can be attached to. */
 export type ClaudeFailureCause =
+  /**
+   * The **Anthropic** account, not the AWS one: no session, an expired OAuth
+   * token, or a key the API rejected. The majority case, and the one this
+   * module was blind to — see the note above `PATTERNS` on why it is tested
+   * first.
+   */
+  | 'anthropic-auth'
   /** The AWS SSO token expired (or `awsAuthRefresh` tried and failed to renew it). */
   | 'sso-expired'
   /** No AWS credentials at all — a profile that isn't there, or was never configured. */
@@ -49,6 +63,8 @@ export interface ClaudeFailureDiagnosis {
   retryWithoutResume: boolean
   /** Whether the repair is "log in to AWS again", i.e. the SSO flow applies. */
   needsAwsLogin: boolean
+  /** Whether the repair is "sign in to Claude again" (`claudeAuthService.ts`). */
+  needsClaudeLogin: boolean
 }
 
 /**
@@ -60,6 +76,21 @@ export interface ClaudeFailureDiagnosis {
  * fails, because the command it runs (`aws sso login`) wants a terminal.
  */
 const PATTERNS: Array<{ cause: ClaudeFailureCause; test: RegExp }> = [
+  /**
+   * First, and not by accident.
+   *
+   * `Failed to authenticate: OAuth session expired and could not be refreshed`
+   * — the verbatim message from a signed-out first-party CLI — contains the
+   * words "session expired", which the AWS pattern below matches. Read in that
+   * order, a user who has never touched Bedrock was told their AWS SSO session
+   * had expired and handed a login for an account they do not have. The
+   * markers here are all first-party vocabulary (`OAuth`, `API key`,
+   * `authentication_failed`), so an AWS failure can never fall into them.
+   */
+  {
+    cause: 'anthropic-auth',
+    test: /OAuth|authentication_failed|Failed to authenticate|Invalid API key|API key.{0,24}(invalid|expired|revoked)|not logged in|please run\s+`?\/?(claude )?(auth )?login|claude auth login/i
+  },
   {
     cause: 'sso-expired',
     test: /awsAuthRefresh|ExpiredToken|expired.{0,40}(token|session|credential)|(token|session|credential).{0,40}(has\s+)?expired|refresh.{0,20}sso|sso.{0,20}(session|token).{0,20}(expired|invalid)|InvalidGrantException/i
@@ -92,10 +123,16 @@ export function diagnoseClaudeFailure(detail: string): ClaudeFailureDiagnosis {
     return {
       cause,
       retryWithoutResume: cause === 'stale-session',
-      needsAwsLogin: cause === 'sso-expired' || cause === 'no-credentials'
+      needsAwsLogin: cause === 'sso-expired' || cause === 'no-credentials',
+      needsClaudeLogin: cause === 'anthropic-auth'
     }
   }
-  return { cause: 'unknown', retryWithoutResume: false, needsAwsLogin: false }
+  return {
+    cause: 'unknown',
+    retryWithoutResume: false,
+    needsAwsLogin: false,
+    needsClaudeLogin: false
+  }
 }
 
 /**

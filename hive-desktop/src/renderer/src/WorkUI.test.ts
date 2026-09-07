@@ -20,6 +20,7 @@ import { makeStatus } from './testSupport/gitStoreMock'
 import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 import { createHiveAsrMock } from './testSupport/hiveAsrMock'
 import { createHiveAwsMock } from './testSupport/hiveAwsMock'
+import { createHiveClaudeAuthMock } from './testSupport/hiveClaudeAuthMock'
 import { HighlightedTextareaMock } from './testSupport/dsMocks'
 import type { McpLogEntry } from './mcpLogs/logConsole'
 
@@ -491,8 +492,93 @@ vi.mock('@hive/design-system', () => ({
     createElement(Fragment, null, children),
   Toast: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
     open ? createElement('div', { role: 'status' }, children) : null,
-  ToastViewport: (props: Record<string, unknown>) => createElement('div', props)
+  ToastViewport: (props: Record<string, unknown>) => createElement('div', props),
+  // claude-account: the connection panel's two lanes and the sign-in's code
+  // field, mounted whenever the profile sheet opens on Conexão do Claude.
+  // Stand-ins for the same reason as `StepFlow` above — what the tests read is
+  // which lane is selected and which panel is mounted.
+  Tabs: ({
+    value,
+    onValueChange,
+    children
+  }: {
+    value?: string
+    onValueChange?: (value: string) => void
+    children?: ReactNode
+  }) =>
+    createElement(
+      TabsMockCtx.Provider,
+      { value: { value, onValueChange } },
+      createElement('div', null, children)
+    ),
+  TabsList: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'tablist' }, children),
+  TabsTrigger: ({ value, children }: { value: string; children?: ReactNode }) =>
+    createElement(TabsTriggerMock, { value }, children),
+  TabsContent: ({ value, children }: { value: string; children?: ReactNode }) =>
+    createElement(TabsContentMock, { value }, children),
+  PasteField: ({
+    label,
+    value,
+    onValueChange,
+    onSubmit,
+    submitLabel
+  }: {
+    label?: ReactNode
+    value?: string
+    onValueChange?: (value: string) => void
+    onSubmit?: (value: string) => void
+    submitLabel?: ReactNode
+  }) =>
+    createElement(
+      'label',
+      null,
+      label,
+      createElement('input', {
+        value,
+        onChange: (event: { target: { value: string } }) => onValueChange?.(event.target.value)
+      }),
+      createElement(
+        'button',
+        { type: 'button', onClick: () => onSubmit?.(value ?? '') },
+        submitLabel
+      )
+    )
 }))
+
+/** Shared state for the mocked tabs above (Radix's context, in miniature). */
+const TabsMockCtx = createContext<{ value?: string; onValueChange?: (value: string) => void }>({})
+
+function TabsTriggerMock({
+  value,
+  children
+}: {
+  value: string
+  children?: ReactNode
+}): React.JSX.Element {
+  const tabs = useContext(TabsMockCtx)
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      role: 'tab',
+      'aria-selected': tabs.value === value,
+      onClick: () => tabs.onValueChange?.(value)
+    },
+    children
+  )
+}
+
+function TabsContentMock({
+  value,
+  children
+}: {
+  value: string
+  children?: ReactNode
+}): React.JSX.Element | null {
+  const tabs = useContext(TabsMockCtx)
+  return tabs.value === value ? createElement('div', { role: 'tabpanel' }, children) : null
+}
 
 /**
  * T8 — `FileViewer`'s imperative `requestSave` handle (WS-R5.1, design.md
@@ -777,6 +863,7 @@ function createHiveMock(): Window['hive'] {
     // field named `downloaded`), which is exactly what the helper prevents.
     asr: createHiveAsrMock(),
     aws: createHiveAwsMock(),
+    claudeAuth: createHiveClaudeAuthMock(),
     // aws-bedrock: the beacon opens the verification URL through main and
     // copies it through main's clipboard — this window's `navigator.clipboard`
     // permission is denied, which is why neither goes through the DOM.
@@ -3262,7 +3349,13 @@ describe('WorkUI — AWS login beacon (aws-bedrock)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'simular reconectar aws' }))
     expect(hive.aws.login).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'simular abrir conexão aws' }))
-    expect(await screen.findByText('Conexão AWS')).toBeTruthy()
+    // claude-account: the panel is now the two-lane connection screen, and a
+    // deep link from an AWS failure has to land on the AWS lane rather than on
+    // whichever one the sheet happens to default to.
+    expect(await screen.findByText('Conexão do Claude')).toBeTruthy()
+    expect(
+      screen.getByRole('tab', { name: /Amazon Bedrock/ }).getAttribute('aria-selected')
+    ).toBe('true')
   })
 
   it('retries a failed login from the beacon', async () => {

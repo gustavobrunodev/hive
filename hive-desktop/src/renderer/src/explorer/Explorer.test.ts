@@ -26,6 +26,7 @@ import { createHiveGitMock, createHiveReviewMock } from '../testSupport/hiveGitM
 import { createHiveSecondBrainMock } from '../testSupport/hiveSecondBrainMock'
 import { createHiveAsrMock } from '../testSupport/hiveAsrMock'
 import { createHiveAwsMock } from '../testSupport/hiveAwsMock'
+import { createHiveClaudeAuthMock } from '../testSupport/hiveClaudeAuthMock'
 import { createHiveMcpLogsMock } from '../testSupport/hiveMcpLogsMock'
 
 // jsdom lacks these observers, which the rich file viewers (image/pdf) use to
@@ -666,12 +667,16 @@ describe('Explorer (T12/T8)', () => {
         revealPath: vi.fn().mockResolvedValue(undefined),
         absolutePath: vi.fn((_root: string, rel: string) => Promise.resolve(`/ws/${rel}`))
       },
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+        readText: vi.fn().mockResolvedValue('')
+      },
       git: createHiveGitMock(),
       review: createHiveReviewMock(),
       secondBrain: createHiveSecondBrainMock(),
       asr: createHiveAsrMock(),
-      aws: createHiveAwsMock()
+      aws: createHiveAwsMock(),
+      claudeAuth: createHiveClaudeAuthMock()
     }
     window.hive = Object.assign(defaults, overrides)
     return { watchListeners }

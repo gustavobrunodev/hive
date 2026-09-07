@@ -784,6 +784,7 @@ describe('Chat', () => {
       onOpenMcpConsole?: () => void
       onOpenAwsPanel?: () => void
       onAwsReconnect?: () => void
+      onClaudeConnect?: () => void
       agents?: string[]
     } = {}
   ): ReturnType<typeof mockHive> {
@@ -3840,6 +3841,66 @@ describe('Chat', () => {
       act(() => emit({ type: 'error', message: 'aws-auth:no-cli' }))
       const banner = await screen.findByRole('alert')
       expect(banner.textContent).toContain('Instale a AWS CLI v2')
+      expect(within(banner).queryByRole('button')).toBeNull()
+    })
+
+    // claude-account: the same repair, for the lane most machines are on.
+    it('reads a signed-out Claude account as itself, and offers to connect', async () => {
+      // What the user saw before: `claude exited with code 1` — a sentence
+      // with no cause in it, for the single most common way a turn dies.
+      const onClaudeConnect = vi.fn()
+      const { emit } = renderChat({}, { onClaudeConnect })
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+      const banner = await screen.findByRole('alert')
+      expect(banner.textContent).toContain('Sua conta Claude não está conectada')
+      expect(banner.textContent).not.toContain('exited with code')
+      fireEvent.click(screen.getByRole('button', { name: 'Conectar conta' }))
+      expect(onClaudeConnect).toHaveBeenCalled()
+    })
+
+    it('sends the message again once the account is connected — the user typed it once', async () => {
+      // The repair used to end one step short: back from the browser, the app
+      // said "connected", and the question was still sitting in a dead turn.
+      const onClaudeConnect = vi.fn().mockResolvedValue(true)
+      const { emit } = renderChat({}, { onClaudeConnect })
+      const send = vi.mocked(window.hive.agent.send)
+
+      await screen.findByText('Modelo A')
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'Resuma o PRD' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+      expect(send).toHaveBeenLastCalledWith('Resuma o PRD', expect.any(Object))
+    })
+
+    it('sends nothing again when the sign-in did not land', async () => {
+      const onClaudeConnect = vi.fn().mockResolvedValue(false)
+      const { emit } = renderChat({}, { onClaudeConnect })
+      const send = vi.mocked(window.hive.agent.send)
+
+      await screen.findByText('Modelo A')
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'Resuma o PRD' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
+      await waitFor(() => expect(onClaudeConnect).toHaveBeenCalled())
+      expect(send).toHaveBeenCalledTimes(1)
+    })
+
+    it('still explains the account failure when the host offers no repair', async () => {
+      const { emit } = renderChat()
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+      const banner = await screen.findByRole('alert')
+      expect(banner.textContent).toContain('Sua conta Claude não está conectada')
       expect(within(banner).queryByRole('button')).toBeNull()
     })
 

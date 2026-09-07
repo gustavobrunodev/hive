@@ -1612,3 +1612,35 @@ teclado. Quatro lições, todas pagas nesta rodada:
   espiral que precisa de 12, e sai um borrão. A sigla ficou na tecla, onde é
   tipografia de verdade; o ícone passou a desenhar o **conteúdo** (pasta com uma
   lista), e o par que precisa ser lido num relance é pasta × monitor.
+
+## A conexão do Claude e a rolagem do menu de comandos
+
+`tools/visual/claude-connection.mjs` é a cena (Perfil › Conexão do Claude, na
+pista que estiver valendo — `HIVE_CLAUDE_STATE` e `HIVE_CLAUDE_PHASE` escolhem o
+cenário); `tools/visual/claude-connection-contrast.mjs` mede 105 alvos (3 temas ×
+4 estados); `tools/visual/claude-signin-pass.mjs` atravessa o fluxo inteiro (o
+turno que falha → o botão no transcript → o farol → o `Colar` → o recibo); e
+`tools/visual/slash-scroll-pass.mjs` dirige o menu de `/` pelo teclado e lê a
+geometria real. Cinco lições:
+
+- **Um passe que não pode falhar não é prova.** O `slash-scroll-pass` serve o
+  próprio catálogo de 24 skills por um segundo init script: com as cinco do
+  `boot.mjs` o menu **cabe inteiro**, não há dobra para ultrapassar, e o passe
+  ficaria verde contra o build quebrado. Verificado ao contrário também —
+  desligando o hook, 21 das 24 teclas caem em linha invisível.
+- **jsdom não responde "está na vista".** O defeito é geometria pura (a porta de
+  rolagem segue o *foco*, e o foco fica no textarea): nenhum teste unitário pode
+  vê-lo, e é exatamente por isso que a aritmética foi extraída para uma função
+  pura testável e só o *resto* — a medição — vive no browser.
+- **Medir o chão a partir do pai reprova botões preenchidos.** A sonda de
+  contraste copiada do `aws-contrast.mjs` reportou **1,13:1** para o botão
+  "Conectar": ela media a tinta de acento contra a superfície *atrás* do botão,
+  um par que nunca é renderizado. `groundOf` tem que começar **no** elemento do
+  chão; ele já ignora fundos transparentes sozinho.
+- **Alvo que não existe naquele estado reporta `missing`, e `missing` se lê como
+  "nada a corrigir".** A linha da conta só existe onde há conta — listá-la no
+  estado deslogado é a mesma armadilha que o `aws-contrast.mjs` já pagou.
+- **O `boot.mjs` envelhece junto com a bridge, de novo.** `window.hive.claudeAuth`
+  é lido no boot pelo `WorkUI`; sem o namespace no harness, **todo** passe visual
+  abriria em branco — a falha continua muda, e continua sendo a primeira coisa a
+  suspeitar.

@@ -1,0 +1,53 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link "Gmail" [ref=e8] [cursor=pointer]:
+          - /url: https://mail.google.com/mail/&ogbl
+        - link "Pesquisar imagens" [ref=e10] [cursor=pointer]:
+          - /url: https://www.google.com/imghp?hl=pt-BR&ogbl
+          - text: Imagens
+      - button "Google Apps" [ref=e13] [cursor=pointer]
+      - link "Fazer login" [ref=e18] [cursor=pointer]:
+        - /url: https://accounts.google.com/ServiceLogin?hl=pt-BR&passive=true&continue=https://www.google.com/&ec=futura_exp_og_so_72776762_e
+  - generic [ref=e20]:
+    - link [ref=e21] [cursor=pointer]:
+      - /url: /search?sca_esv=a39be9d9e408cef3&q=Dia+da+Independ%C3%AAncia+do+Brasil&oi=ddle&noiga=1&ct=456449219&hl=pt-BR&si=APenkKkicnuBo3HChbgOSg9PTrSKjmOZoDYMZFfiLeKjxtW673fanmz3mi8Yw-jWIxw5Ly6gI6zLZTFHYwNaLl75bBcudt1Z2xbM6QOBlzFLhxl_NUV33STF811Xv-XQA2l4i-FybKqaBhf-42fhUbMI2NLdoyAUQxMit3W_ngNFeosNFQtqHkvmUTJVz7chKMg-069bxlsd&sa=X&ved=0ahUKEwizqOfU8dyWAxVKgpUCHSO2PCkQPQgF
+      - img "Dia da Independência do Brasil 2026" [ref=e23]
+    - button "Compartilhar" [ref=e25]
+  - search [ref=e33]:
+    - generic [ref=e35]:
+      - generic [ref=e37]:
+        - button "Adicionar arquivos e ferramentas" [ref=e42] [cursor=pointer]
+        - combobox "Pesquisar" [active] [ref=e47]
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - button "Ferramentas de inserção de texto" [ref=e52] [cursor=pointer]
+            - button "Pesquisar por voz" [ref=e58] [cursor=pointer]
+            - button "Pesquisa por imagem" [ref=e63] [cursor=pointer]
+          - link "Modo IA" [ref=e66] [cursor=pointer]
+      - generic [ref=e79]:
+        - button "Pesquisa Google" [ref=e80] [cursor=pointer]
+        - button "Estou com sorte" [ref=e81] [cursor=pointer]
+  - generic [ref=e84]:
+    - text: "Disponibilizado pelo Google em:"
+    - link "English" [ref=e85] [cursor=pointer]:
+      - /url: https://www.google.com/setprefs?sig=0_PSLst2pwF6AnPLeuu6bk7YE9OL0%3D&hl=en&source=homepage&sa=X&ved=0ahUKEwizqOfU8dyWAxVKgpUCHSO2PCkQ2ZgBCDk
+  - contentinfo [ref=e87]:
+    - generic [ref=e88]: Brasil
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - link "Sobre" [ref=e91] [cursor=pointer]:
+          - /url: https://about.google/?utm_source=google-BR&utm_medium=referral&utm_campaign=hp-footer&fg=1
+        - link "Publicidade" [ref=e92] [cursor=pointer]:
+          - /url: https://www.google.com/intl/pt-BR_br/ads/?subid=ww-ww-et-g-awa-a-g_hpafoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpafooter&fg=1
+        - link "Negócios" [ref=e93] [cursor=pointer]:
+          - /url: https://www.google.com/services/?subid=ww-ww-et-g-awa-a-g_hpbfoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpbfooter&fg=1
+        - link "Como funciona a Pesquisa" [ref=e94] [cursor=pointer]:
+          - /url: https://google.com/search/howsearchworks/?fg=1
+      - generic [ref=e95]:
+        - link "Privacidade" [ref=e96] [cursor=pointer]:
+          - /url: https://policies.google.com/privacy?hl=pt-BR&fg=1
+        - link "Termos" [ref=e97] [cursor=pointer]:
+          - /url: https://policies.google.com/terms?hl=pt-BR&fg=1
+        - button "Configurações" [ref=e101] [cursor=pointer]

@@ -1,0 +1,810 @@
+- generic [active] [ref=f3e1]:
+  - generic:
+    - generic:
+      - link "Ir para o conteúdo principal" [ref=f3e2] [cursor=pointer]
+      - link "Ajuda sobre acessibilidade" [ref=f3e3] [cursor=pointer]:
+        - /url: https://support.google.com/websearch/answer/181196?hl=pt-BR
+  - generic [ref=f3e8]:
+    - search [ref=f3e9]:
+      - generic [ref=f3e11]:
+        - link [ref=f3e13] [cursor=pointer]:
+          - /url: https://www.google.com/webhp?hl=pt-BR&ictx=2&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QPXoECAYQBA
+          - img "Dia da Independência do Brasil 2026" [ref=f3e14]
+        - generic [ref=f3e16]:
+          - combobox "Pesquisar" [ref=f3e18]: botafogo botafogo
+          - generic [ref=f3e19]:
+            - button "Limpar" [ref=f3e23] [cursor=pointer]
+            - generic [ref=f3e28]:
+              - button "Ferramentas de inserção de texto" [ref=f3e31] [cursor=pointer]
+              - button "Pesquisar por voz" [ref=f3e37] [cursor=pointer]
+              - button "Pesquisa por imagem" [ref=f3e42] [cursor=pointer]
+    - generic [ref=f3e45]:
+      - button "Configurações" [ref=f3e47] [cursor=pointer]
+      - button "Compartilhar" [ref=f3e53] [cursor=pointer]
+      - generic [ref=f3e59]:
+        - button "Google Apps" [ref=f3e61] [cursor=pointer]
+        - link "Fazer login" [ref=f3e66] [cursor=pointer]:
+          - /url: https://accounts.google.com/ServiceLogin?hl=pt-BR&passive=true&continue=https://www.google.com/search%3Fq%3Dbotafogo%26sei%3DHeaeat7qO9vR1sQPho6KiAw&ec=futura_srp_og_si_72236_p
+  - generic [ref=f3e68]:
+    - navigation [ref=f3e74]:
+      - generic [ref=f3e80]:
+        - list [ref=f3e81]:
+          - listitem [ref=f3e82]:
+            - link "Modo IA" [ref=f3e85] [cursor=pointer]:
+              - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&udm=50&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&vsint=&aep=1&ntc=1&cs=0&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q2J8OegQIDhAD
+          - listitem [ref=f3e89]:
+            - link "Tudo" [disabled] [ref=f3e90]
+          - listitem [ref=f3e93]:
+            - link "Notícias" [ref=f3e94] [cursor=pointer]:
+              - /url: /search?sca_esv=a39be9d9e408cef3&q=botafogo&tbm=nws&source=lnms&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q0pQJegQIFxAB
+          - listitem [ref=f3e97]:
+            - link "Vídeos" [ref=f3e98] [cursor=pointer]:
+              - /url: /search?sca_esv=a39be9d9e408cef3&udm=7&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&q=botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QtKgLegQIFhAB
+          - listitem [ref=f3e101]:
+            - link "Imagens" [ref=f3e102] [cursor=pointer]:
+              - /url: /search?sca_esv=a39be9d9e408cef3&udm=2&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&q=botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QtKgLegQIFRAB
+          - listitem [ref=f3e105]:
+            - link "Vídeos curtos" [ref=f3e106] [cursor=pointer]:
+              - /url: /search?sca_esv=a39be9d9e408cef3&udm=39&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&q=botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qs6gLegQIExAB
+          - listitem [ref=f3e109]:
+            - link "Shopping" [ref=f3e110] [cursor=pointer]:
+              - /url: /search?sca_esv=a39be9d9e408cef3&udm=28&fbs=ABfTbFVGaQeaqnsRPI5sOMG32Ksz_Qb61Fj5ZtxC2tjOZZgQR5ciZaQ31W5Tb7ABaDpcXvEcgGQwVA5_KeWSjOyZxGhHp19n-xoY2LzSiXixESitH05zCXlO1ajahZN3dSg9PXgksbOXbeKEqnjmVasIxNkkEbJxygPxeBBVZIF2eRnZCR_KigCnW2wYJSc7kMOsAAY_ntHvjwAveAvYYnwagZGePw1yYg&q=botafogo&ved=1t:220175&ictx=111
+          - listitem [ref=f3e113]:
+            - button [ref=f3e114] [cursor=pointer]:
+              - generic "Mais filtros" [ref=f3e115]: Mais
+        - button "Ferramentas" [ref=f3e122] [cursor=pointer]
+    - heading "Resultados da pesquisa" [level=1] [ref=f3e129]
+    - group [ref=f3e136]:
+      - tablist [ref=f3e138]:
+        - generic [ref=f3e141]:
+          - tab "Futebol masculino" [selected] [ref=f3e142] [cursor=pointer]:
+            - generic [ref=f3e145]: Futebol masculino
+          - tab "Futebol feminino" [ref=f3e147] [cursor=pointer]:
+            - generic [ref=f3e150]: Futebol feminino
+    - generic [ref=f3e152]:
+      - generic [ref=f3e157]:
+        - generic [ref=f3e160]:
+          - button "Imagem em miniatura de Botafogo de Futebol e Regatas" [ref=f3e164] [cursor=pointer]
+          - generic [ref=f3e167]:
+            - heading "Botafogo de Futebol e Regatas" [level=2] [ref=f3e170]
+            - generic [ref=f3e171]:
+              - generic [ref=f3e172]: 13º lugar Brasileirão Série A
+              - button [ref=f3e180] [cursor=pointer]:
+                - img "Mais opções de Botafogo de Futebol e Regatas" [ref=f3e181]
+        - generic [aria-hidden] [ref=f3e185] [cursor=pointer]
+        - navigation [ref=f3e193]:
+          - link "Visão geral" [ref=f3e194] [cursor=pointer]:
+            - /url: /search?sca_esv=a39be9d9e408cef3&q=botafogo&si=APenkKm8lxXlpP1RxqXjUdZuWs_yEaoFvjoGhKRTbc39mcG0IMvHB4rJGgyyoRE3_gpmaO3bTQ-IBEivvXeIjHFKwmMdGXMTaejBCO-IzXHHkr4FGZ-4mMspaM1L1fNGp-E4AkhLnTIWha7TCTo5i-f8PvEx3n1H1wWooqRW8g72Z_1YUo45YDo%3D&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QyNoBKAB6BAgZEAA&ictx=1
+          - link "Partidas" [ref=f3e196] [cursor=pointer]:
+            - /url: /search?sca_esv=a39be9d9e408cef3&q=jogos+de+botafogo&si=APenkKnIXFgQxFcEG7z_OzTkDv4HrjJabyBkc0QVcboVVLh9NG6HeG0MaLLWeOvT_Hr8e6eGUdbQX56pGgANujMSlqyaXGHWYzRPR7KxgBb1pw3OuCy3xllsJlAiIgmpGCO0ERBOb2B0lS150OZ0xsTMcKi1ycBOYJ0LNDpcacmY_AnVMzNfU-2xXjHUbqGBWF2hRP1345TxPDPLS8QrExvL_i2NSic-Uw%3D%3D&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QyNoBKAB6BAgaEAA&ictx=1
+          - link "Classificação" [ref=f3e198] [cursor=pointer]:
+            - /url: /search?sca_esv=a39be9d9e408cef3&q=classifica%C3%A7%C3%B5es+de+botafogo&si=APenkKmF8sbMxn5Fz3GR0RKeIQQNRuoArUuDOBLqzbZlZTruI147XxkiuaX8AuRmuwS2PsJCq8y6rIaFXP2DmeWwPVVVdtULuFlscZmT2QI15hy3PdgjuzyGgJbarnh819XbVB4DuM3DhJglbJGSGENXWuHgSe1pi-Ldok2qJiu2kzcW14Qm0_abfFQL7_A9oPR6g1B8nmwXPH5ObT47aVSBouUDSK-dS53neMDZ8slJbr4gL_LaXOrSayCAoReyv2BryPVh5WFe&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QyNoBKAB6BAgbEAA&ictx=1
+          - link "Time" [ref=f3e200] [cursor=pointer]:
+            - /url: /search?sca_esv=a39be9d9e408cef3&q=jogadores+de+botafogo&si=APenkKkLittAhcCfZ1lWRU204-tCFI4agEOo1tT1yFHTVB0DcBCmm-xMYD3Z0A84l4bGEE-74JrWHF8SZNfjy8_A2y_WQ-_-C6D-iF520crxBiSJ6sO5AVJCwYyNU5Iz2XRYwNAnEs343jeodcA1jUnHeRnk8XQ1oO38XrFpLJ9Gxjff4LHLb9sTcf0rUWK6Fth5HIdgN2m4QG2J0L8MW4qx5Dvce7xaVhfJuS_2y6w5nCJ_u9Yj6hA%3D&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QyNoBKAB6BAgcEAA&ictx=1
+      - group "Resultados em destaque" [ref=f3e211]:
+        - generic [ref=f3e213]:
+          - generic [ref=f3e216]:
+            - link [ref=f3e218] [cursor=pointer]:
+              - heading "Partidas" [level=2] [ref=f3e219]
+              - generic "Mais informações sobre partidas" [ref=f3e221]
+            - generic [ref=f3e225]:
+              - link "Brasileirão Série A Botafogo 0 Placar do tempo integral Ontem 0 Palmeiras Resumo da partida · 7:05" [ref=f3e226]:
+                - generic [ref=f3e227] [cursor=pointer]:
+                  - generic [ref=f3e228]: Brasileirão Série A
+                  - generic [ref=f3e235]:
+                    - generic [ref=f3e240]:
+                      - generic [ref=f3e241]: Botafogo
+                      - text: Botafogo
+                    - generic [ref=f3e245]:
+                      - generic [ref=f3e246]: "0"
+                      - generic [ref=f3e248]:
+                        - text: Encerrado
+                        - generic [ref=f3e249]: Ontem
+                      - generic [ref=f3e250]: "0"
+                    - generic [ref=f3e255]:
+                      - generic [ref=f3e256]: Palmeiras
+                      - text: Palmeiras
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - link "Resumo da partida · 7:05":
+                                - /url: /goto?url=CAEScgHrOzAV_lAA0HGKYY1vLXgn7gGWo8eIvxdQKPns7kYvKXPsrtXt1rtCT4DLsy7D2IabL8KAxLqxEHMdvbC2lVDu9CXMeJAH48vTaAvi_kVwTd9VDmtwozrEITJTT623En0tDHCJDNhHDKtH62YRc5YrXQ
+                                - generic: Resumo da partida
+              - generic [ref=f3e263]:
+                - link [ref=f3e266]:
+                  - generic [ref=f3e270] [cursor=pointer]:
+                    - table [ref=f3e271]:
+                      - rowgroup [ref=f3e272]:
+                        - row [ref=f3e273]:
+                          - cell [ref=f3e274]
+                    - generic [ref=f3e275]:
+                      - generic [ref=f3e276]:
+                        - table [ref=f3e277]:
+                          - rowgroup [ref=f3e278]:
+                            - row "Botafogo" [ref=f3e279]:
+                              - cell [ref=f3e280]
+                              - cell "Botafogo" [ref=f3e282]:
+                                - generic [ref=f3e285]:
+                                  - generic [ref=f3e286]: Botafogo
+                                  - text: Botafogo
+                              - cell [ref=f3e287]
+                        - table [ref=f3e288]:
+                          - rowgroup [ref=f3e289]:
+                            - row "Bragantino" [ref=f3e290]:
+                              - cell [ref=f3e291]
+                              - cell "Bragantino" [ref=f3e293]:
+                                - generic [ref=f3e296]:
+                                  - generic [ref=f3e297]: Bragantino
+                                  - text: Bragantino
+                              - cell [ref=f3e298]
+                      - table [ref=f3e299]:
+                        - rowgroup [ref=f3e300]:
+                          - row [ref=f3e301]:
+                            - cell "Sáb., 12/09 20:30" [ref=f3e302]:
+                              - generic [ref=f3e305]:
+                                - generic [ref=f3e306]: Sáb., 12/09
+                                - generic [ref=f3e307]: 20:30
+                - link [ref=f3e308]:
+                  - generic [ref=f3e312] [cursor=pointer]:
+                    - table [ref=f3e313]:
+                      - rowgroup [ref=f3e314]:
+                        - row [ref=f3e315]:
+                          - cell [ref=f3e316]
+                    - generic [ref=f3e317]:
+                      - generic [ref=f3e318]:
+                        - table [ref=f3e319]:
+                          - rowgroup [ref=f3e320]:
+                            - row "Botafogo" [ref=f3e321]:
+                              - cell [ref=f3e322]
+                              - cell "Botafogo" [ref=f3e324]:
+                                - generic [ref=f3e327]:
+                                  - generic [ref=f3e328]: Botafogo
+                                  - text: Botafogo
+                              - cell [ref=f3e329]
+                        - table [ref=f3e330]:
+                          - rowgroup [ref=f3e331]:
+                            - row "Grêmio" [ref=f3e332]:
+                              - cell [ref=f3e333]
+                              - cell "Grêmio" [ref=f3e335]:
+                                - generic [ref=f3e338]:
+                                  - generic [ref=f3e339]: Grêmio
+                                  - text: Grêmio
+                              - cell [ref=f3e340]
+                      - table [ref=f3e341]:
+                        - rowgroup [ref=f3e342]:
+                          - row [ref=f3e343]:
+                            - cell "Qua., 16/09 A confirmar" [ref=f3e344]:
+                              - generic [ref=f3e347]:
+                                - generic [ref=f3e348]: Qua., 16/09
+                                - generic [ref=f3e349]: A confirmar
+            - generic [ref=f3e350]:
+              - generic [ref=f3e351]: De acordo com o Horário de Brasília
+              - button "Programação completa de jogos" [ref=f3e354] [cursor=pointer]
+          - generic [ref=f3e365]:
+            - heading [level=3] [ref=f3e367]:
+              - link "Classificação Mais informações sobre os dados Brasileirão Série A" [ref=f3e368] [cursor=pointer]:
+                - /url: /search?sca_esv=a39be9d9e408cef3&q=botafogo+classifica%C3%A7%C3%A3o&si=APenkKmF8sbMxn5Fz3GR0RKeIQQNRuoArUuDOBLqzbZlZTruI147XxkiuaX8AuRmuwS2PsJCq8y6rIaFXP2DmeWwPVVVdtULuFlscZmT2QI15hy3PdgjuzyGgJbarnh819XbVB4DuM3DhJglbJGSGENXWuHgSe1pi-Ldok2qJiu2kzcW1zWciyiPxLP70KGteKs3DqO6kdgXg1KeuBIGNZ8BOlO50_XWpKmPwNjNvXasUtjJek3EQ8sOO6EuE4JX7YzIR6aEzw9k&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QwsAMegQIJxAD
+                - generic [ref=f3e369]:
+                  - generic [ref=f3e370]: Classificação
+                  - generic:
+                    - generic "Mais informações sobre os dados"
+                - generic [ref=f3e372]: Brasileirão Série A
+            - table [ref=f3e374]:
+              - row [ref=f3e375]:
+                - columnheader "Clube" [ref=f3e376]
+                - columnheader "Partidas jogadas" [ref=f3e378]: PJ
+                - columnheader "Vitórias" [ref=f3e379]: VIT
+                - columnheader "Empates" [ref=f3e380]: E
+                - columnheader "Derrotas" [ref=f3e381]: DER
+                - columnheader "Saldo de gols" [ref=f3e382]: SG
+                - columnheader "Pontos" [ref=f3e383]: Pts
+              - link [ref=f3e386] [cursor=pointer]:
+                - /url: /search?sca_esv=a39be9d9e408cef3&q=Sport+Club+Corinthians+Paulista&stick=H4sIAAAAAAAAAONgVuLUz9U3MLTMKSt7xGjCLfDyxz1hKe1Ja05eY1Tl4grOyC93zSvJLKkUEudig7J4pbi5ELp4FrHKBxfkF5UoOOeUJik45xdl5pVkZCbmFSsEJJbmZBaXJAIAzZnGKWYAAAA&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qw8AMegQIJxAE
+                - row "Corinthians" [ref=f3e387]:
+                  - generic [ref=f3e388]:
+                    - rowheader "11 Corinthians" [ref=f3e389]:
+                      - generic [ref=f3e390]: "11"
+                      - generic [ref=f3e394]: Corinthians
+                    - cell "26" [ref=f3e395]
+                    - cell "8" [ref=f3e396]
+                    - cell "8" [ref=f3e397]
+                    - cell "10" [ref=f3e398]
+                    - cell "0" [ref=f3e399]
+                    - cell "32" [ref=f3e400]
+              - link [ref=f3e403] [cursor=pointer]:
+                - /url: /search?sca_esv=a39be9d9e408cef3&q=Santos+Futebol+Clube&stick=H4sIAAAAAAAAAONgVuLUz9U3MLTMqch9xGjCLfDyxz1hKe1Ja05eY1Tl4grOyC93zSvJLKkUEudig7J4pbi5ELp4FrGKBCfmleQXK7iVlqQm5ecoOOeUJqUCAH4bYxBbAAAA&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qw8AMegQIJxAG
+                - row "Santos" [ref=f3e404]:
+                  - generic [ref=f3e405]:
+                    - rowheader "12 Santos" [ref=f3e406]:
+                      - generic [ref=f3e407]: "12"
+                      - generic [ref=f3e411]: Santos
+                    - cell "25" [ref=f3e412]
+                    - cell "8" [ref=f3e413]
+                    - cell "8" [ref=f3e414]
+                    - cell "9" [ref=f3e415]
+                    - cell "-1" [ref=f3e416]
+                    - cell "32" [ref=f3e417]
+              - row "Botafogo" [ref=f3e419]:
+                - generic [ref=f3e423]:
+                  - rowheader "13 Botafogo" [ref=f3e424]:
+                    - generic [ref=f3e425]: "13"
+                    - generic [ref=f3e429]: Botafogo
+                  - cell "25" [ref=f3e430]
+                  - cell "8" [ref=f3e431]
+                  - cell "7" [ref=f3e432]
+                  - cell "10" [ref=f3e433]
+                  - cell "-3" [ref=f3e434]
+                  - cell "31" [ref=f3e435]
+              - link [ref=f3e438] [cursor=pointer]:
+                - /url: /search?sca_esv=a39be9d9e408cef3&q=Esporte+Clube+Vit%C3%B3ria&stick=H4sIAAAAAAAAAONgVuLUz9U3MLTMtch9xGjCLfDyxz1hKe1Ja05eY1Tl4grOyC93zSvJLKkUEudig7J4pbi5ELp4FrGKuRYX5BeVpCo455QmpSqEZZYc3lyUmQgAWzwmBF0AAAA&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qw8AMegQIJxAJ
+                - row "EC Vitória" [ref=f3e439]:
+                  - generic [ref=f3e440]:
+                    - rowheader "14 EC Vitória" [ref=f3e441]:
+                      - generic [ref=f3e442]: "14"
+                      - generic [ref=f3e446]: EC Vitória
+                    - cell "25" [ref=f3e447]
+                    - cell "8" [ref=f3e448]
+                    - cell "5" [ref=f3e449]
+                    - cell "12" [ref=f3e450]
+                    - cell "-13" [ref=f3e451]
+                    - cell "29" [ref=f3e452]
+          - generic [ref=f3e454] [cursor=pointer]:
+            - link "Instagram O Botafogo receberá seu novo reforço nesta terça-feira. Hakim Ziyech desembarcará no Rio de Janeiro, às 19h45 (de Brasília), para assinar contrato com o clube carioca até dezembro de 2028. O clube se mobiliza ... Galera achando que Botafogo tá quebrado, mal sabem que tem um novo dono bilionário por trás. Isso não significa que vai sair gastando feito loco... há 2 horas" [ref=f3e455]:
+              - /url: /goto?url=CAESYAHrOzAV6vNXtJ2rie7n_PL-nYSfcBuvrImOibeqy81aRW61qwcR4nrQKWk7tvE2rBmBCC5cjvT7PL4rrwqrz4zaxRt4j_cCVfAr1DQJMeBb9cOxinm00JWDqG0fclecEA
+            - generic [ref=f3e459]:
+              - generic [ref=f3e460]: Instagram
+              - generic [ref=f3e463]: O Botafogo receberá seu novo reforço nesta terça-feira. Hakim Ziyech desembarcará no Rio de Janeiro, às 19h45 (de Brasília), para assinar contrato com o clube carioca até dezembro de 2028. O clube se mobiliza ...
+              - generic [ref=f3e465]: Galera achando que Botafogo tá quebrado, mal sabem que tem um novo dono bilionário por trás. Isso não significa que vai sair gastando feito loco...
+              - generic [ref=f3e467]: há 2 horas
+      - main [ref=f3e473]:
+        - tabpanel [ref=f3e487]:
+          - generic [ref=f3e491]:
+            - generic [ref=f3e495]:
+              - heading "Perfis" [level=3] [ref=f3e498]
+              - generic [ref=f3e501]:
+                - link "Botafogo de Futebol e Regatas Instagram" [ref=f3e505] [cursor=pointer]:
+                  - /url: /goto?url=CAESWgHrOzAVuErWrhBu29ZCJaMQp2vBT0jl9v06At2qriV-yDZVfOobZFo3w5qUFnGdkJm3cq6bURPRjoPgcEYVXhtbepV3ptXzok5LLZ5B0r8oRrFmNZtUYT8NiA
+                  - generic [ref=f3e506]:
+                    - generic "Botafogo de Futebol e Regatas" [ref=f3e508]
+                    - generic [ref=f3e510]: Instagram
+                - link "Botafogo de Futebol e Regatas Facebook" [ref=f3e515] [cursor=pointer]:
+                  - /url: /goto?url=CAESWQHrOzAVIqjyJ5oIjGdXRbvNG8Lb_oXl20dQYwht02oJQpgS5r2cVInk2iImBhTwM2ZMK7ppT8itTVEGuIGhlB_5xDYpxcI7nF0Gn-vPalM4ek02OoGzxY59
+                  - generic [ref=f3e516]:
+                    - generic "Botafogo de Futebol e Regatas" [ref=f3e518]
+                    - generic [ref=f3e520]: Facebook
+                - link "Botafogo de Futebol e Regatas YouTube" [ref=f3e525] [cursor=pointer]:
+                  - /url: /goto?url=CAESWgHrOzAVUnun7uhobPizWYSd7HrJBnz6bjP8-EcCt2xQVbCnuPhTqRsxpSe6HQ5xlUDrzI8UiskEzwgyNR8uKTb8T69yW85kRUh6LxLWlRWrKQFOXb1Ve-14Og
+                  - generic [ref=f3e526]:
+                    - generic "Botafogo de Futebol e Regatas" [ref=f3e528]
+                    - generic [ref=f3e530]: YouTube
+                - link "Botafogo de Futebol e Regatas X (Twitter)" [ref=f3e535] [cursor=pointer]:
+                  - /url: /goto?url=CAESVAHrOzAVj6ejdfcqV9EzY1WnPKSAc2qoHSn9AyhR7FSetubdoVFZw5RdWoXIgN1ffkW8zSyhm-LaPbLVn7mA_yZVv0r-MlEo9D2SlHbSgCHQRlMj_Q
+                  - generic [ref=f3e536]:
+                    - generic "Botafogo de Futebol e Regatas" [ref=f3e538]
+                    - generic [ref=f3e540]: X (Twitter)
+              - separator [ref=f3e542]
+            - generic [ref=f3e546]:
+              - heading "Outras pessoas também pesquisaram" [level=3] [ref=f3e549]
+              - generic [ref=f3e554]:
+                - list [ref=f3e555]:
+                  - listitem [ref=f3e557]:
+                    - generic [ref=f3e558]:
+                      - link "Flamengo" [ref=f3e559] [cursor=pointer]:
+                        - /url: /search?sca_esv=a39be9d9e408cef3&si=APenkKlisoOXLiCMwraINHtdqOQii4CK9kOlkQc8Apn-pS60yUILSBBPxtLRQUAKhNadvHH088SQLWxWnm1H7WBg8daFX0HMiVuiSE0IV1rb1UaarlRSC584y6Q07dpJ2_ek2r_05gd4PUQkSlNq5tJhujUysoM-lkAHA9FpTa9gndKQLLjpyNn7CleS67ksB08Y9jEC-6EYdoPwH-4u60QPlAGMqgAU1LWnSkyH4izH_A39Of_Ct5mKVdiXwl5tU07gUAe_KQKR0cIPw8nMOGGJBNsA0cYXYKVWzdcXqwAHxT2Q2MSHm9s%3D&q=Flamengo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qs9oBKAB6BAghEAU
+                      - heading [level=3] [aria-hidden] [ref=f3e564]:
+                        - generic [ref=f3e565]: Flamengo
+                  - listitem [ref=f3e567]:
+                    - generic [ref=f3e568]:
+                      - link "Esporte Clube Bahia" [ref=f3e569] [cursor=pointer]:
+                        - /url: /search?sca_esv=a39be9d9e408cef3&si=APenkKlisoOXLiCMwraINHtdqOQii4CK9kOlkQc8Apn-pS60yfwFzWhiDGPLhESY5FQd8Cyo0gantVKD4EkDv9KOGqo0fHWOeNj5hrZlU6aJqEqzr7XCwvjWHnKua7fv69L0Vz7TXVw1YRk44aVy5jDEYHwJMK5Y1XihJ4hb_wVPSz37Dd_ZvI-v4-JtJfPkJzvNJuMtv4Y2UG7wTUsXTj3yVsdQYbC4h70IkxDGSsjYx4_Bg3Tb9FWju5y3WRXuPuiM2bO2Q4b7sZNf4woJFKyVg-MjQt1kC8eDuyAYNA97ql2QlQ9YcrY%3D&q=Esporte+Clube+Bahia&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qs9oBKAB6BAghEAk
+                      - heading [level=3] [aria-hidden] [ref=f3e574]:
+                        - generic [ref=f3e575]: Esporte Clube Bahia
+                  - listitem [ref=f3e577]:
+                    - generic [ref=f3e578]:
+                      - link "Esporte Clube Vitória" [ref=f3e579] [cursor=pointer]:
+                        - /url: /search?sca_esv=a39be9d9e408cef3&si=APenkKlisoOXLiCMwraINHtdqOQii4CK9kOlkQc8Apn-pS60yeHgoSLeJAIgVlycjn2TMdgRVzN122fteW4SmHJ7Rf-1dob4FKvMEMRrlXOWjz8tJveGEGmAezxcghYTKQFqVVWpS6DB62hIP6fOZjR5cfDLtxxzQ4emrMsZqOgnmPYny99oTngp99w1PCXHYLWqmDhoIgsDKRV5-EXdcD9heMN4mQY4hkzbdldiINbelT-7zf8rHPyS4jtLoNdVBBuLY1lT5vsaM4xHTfH5AihJVOTAkjvtZG7JMzIsIjnQuV0b2ij7WPA%3D&q=EC+Vit%C3%B3ria&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qs9oBKAB6BAghEA0
+                      - heading [level=3] [aria-hidden] [ref=f3e584]:
+                        - generic [ref=f3e585]: Esporte Clube Vitória
+                  - listitem [ref=f3e587]:
+                    - generic [ref=f3e588]:
+                      - link "Club de Regatas Vasco da Gama" [ref=f3e589] [cursor=pointer]:
+                        - /url: /search?sca_esv=a39be9d9e408cef3&si=APenkKlisoOXLiCMwraINHtdqOQii4CK9kOlkQc8Apn-pS60yfSgnM-cO7XyrKY5raElz0HRlSTskY7QwBmXmLANJd2WX-c0YE2NEG4oi71fdGEBblk4pZIOyu_pu07uqG7H9kThwIbvCxvuVqZsVbYAQp2pzWdFjaKGWhSr5M9TOKprd_tnosTsYDwsENdtvgeQt1zwfumaYVrttGRAt6i1CKK3zpSlrmL_esQXtGUjdbOPXr_wiEBui8fBiVb441gZwYxIGXMlxYz5xuw6lch9m_FgbwFwXLAjVJLxIlBKJFZZF26NpsA%3D&q=Vasco&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qs9oBKAB6BAghEBE
+                      - heading [level=3] [aria-hidden] [ref=f3e594]:
+                        - generic [ref=f3e595]: Club de Regatas Vasco da Gama
+                - link "Ver mais" [ref=f3e597] [cursor=pointer]:
+                  - /url: /search?sca_esv=a39be9d9e408cef3&q=Botafogo&stick=H4sIAAAAAAAAAONgFuLUz9U3MLTMKUlXQjC1BIMzU1LLEyuL_VIrSoJLUguKfzFKepak5hUrlCTmJh1ematQkFpcWJpZnJiSX7yIlcMpvyQxLT89fwcr4y02SYY3DhWBD-5-YQ6UYPDVNXmUsPaDxSWru0fEAAVBbF5xAAAA&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QzO0BKAR6BAghEBM
+            - generic [ref=f3e606]:
+              - generic [ref=f3e608]:
+                - heading "Principais notícias" [level=2] [ref=f3e610]
+                - link "Faça login para personalizar" [ref=f3e614] [cursor=pointer]:
+                  - /url: https://accounts.google.com/ServiceLogin?ec=oo-seaport-srp-sp-11135&continue=https://www.google.com/search?q%3Dbotafogo%26sca_esv%3Da39be9d9e408cef3%26ptid%3D11135%26ptt%3D8%26fpts%3D1788798494622
+              - generic [ref=f3e620]:
+                - heading "Tigres faz proposta ao Botafogo por Arthur Cabral" [level=2] [ref=f3e624]
+                - generic [ref=f3e628]:
+                  - link "FogãoNET Sobre este resultado Proposta do Tigres ao Botafogo por Arthur Cabral é de US$ 8 milhões, diz TV; clube avalia ... há 1 hora" [ref=f3e631] [cursor=pointer]:
+                    - /url: /goto?url=CAEStgEB6zswFTZkZWeMYhlj_Nb4Evpmftd8--BwIv_NYg0wZPxtktePxUGxm-KxEPt-xb28ngHgmlvwFYI59X4AzaDKGJSwgKA-wZgjskqZWRtfnfP1K7EVL8j5sDtuwkXefjW9g8TOwtHvgnDw5iJtTUGvpX1y6tUGAQZGyyNayzvCjvbk1WJGVobpiUR4SjoHBgWFE6OVVq-DRsMT6E9NyM9tGlaYcixQBM9EwKuDBlnhsAOAmxyGdg
+                    - generic [ref=f3e636]:
+                      - generic [ref=f3e638]:
+                        - generic [ref=f3e639]: FogãoNET
+                        - button "Sobre este resultado" [ref=f3e646]
+                      - heading "Proposta do Tigres ao Botafogo por Arthur Cabral é de US$ 8 milhões, diz TV; clube avalia ..." [level=4] [ref=f3e649]
+                      - generic [ref=f3e650]: há 1 hora
+                  - generic [ref=f3e652]:
+                    - link "FogãoNET Sobre este resultado Botafogo já sabia de chance de saída de Arthur Cabral e tem centroavantes mapeados, diz ... há 2 horas" [ref=f3e655] [cursor=pointer]:
+                      - /url: /goto?url=CAESuQEB6zswFb6YbX7lpqUkBtb78OqfO5bLFbEo2hFHeE_2IAvuZ2Hr35WU6dlHP1IdyQijp4IsU6OVCHNdVPWQmuaXW4gtdHu6Yyv81hjYmpiPyZbTZeQkmCREN3FcmmIfu-BxFLIfWB-7il-B_L75P9_KB1p9GHTBq1tSxFpOUNOrgN6Vx9Q-FGG57mvIgMI73r9dl9cUWoG_muZeXFoCPSQxIZ45q5Se2GkUm7dEvRZxZIEk9P8pVenhZQ
+                      - generic [ref=f3e660]:
+                        - generic [ref=f3e662]:
+                          - generic [ref=f3e663]: FogãoNET
+                          - button "Sobre este resultado" [ref=f3e670]
+                        - heading "Botafogo já sabia de chance de saída de Arthur Cabral e tem centroavantes mapeados, diz ..." [level=4] [ref=f3e673]
+                        - generic: há 2 horas
+                    - link "ge Sobre este resultado Tigres faz proposta por Arthur Cabral, do Botafogo há 32 minutos" [ref=f3e678] [cursor=pointer]:
+                      - /url: /goto?url=CAESrgEB6zswFZL_25Xvkl-q8uqXnByyZrvnkWepP1Xmjy1g2vo3FvQnmAPMz9EMCP0Qh_D3SlGxXtBhwGGwP1MeK2zG9CXy-CWPGoborLz_tF-b1MoHKs4bJJfwCnW9Hf-kf2EZUsHVLSToNki1DItuUMTZy4yHvLs8ROGCh5fowqz31t3zUPXPvbRX11-7bJ0qJsLVkCSMSbxboREov6QYUnT6yJf3sbgiyq7OuXmir14
+                      - generic [ref=f3e683]:
+                        - generic [ref=f3e685]:
+                          - generic [ref=f3e686]: ge
+                          - button "Sobre este resultado" [ref=f3e693]
+                        - heading "Tigres faz proposta por Arthur Cabral, do Botafogo" [level=4] [ref=f3e696]
+                        - generic: há 32 minutos
+              - generic [ref=f3e698]:
+                - heading [level=2] [ref=f3e702]:
+                  - link "Botafogo x Palmeiras pelo Brasileirão" [ref=f3e703] [cursor=pointer]:
+                    - /url: https://www.google.com/search?q=botafogo&sca_esv=a39be9d9e408cef3&tbm=nws&story=GigSJkJvdGFmb2dvIHggUGFsbWVpcmFzIHBlbG8gQnJhc2lsZWlyw6NvMjAKJq-l79Lux-LmW7Kc39_AuvnCP5iPw9r8tZmAxwGxvreTzc7ykY0BEOamwO8RGAVyAhAB&fcs=AF4cvB5IA2scdPkZBnydc6YtYk4VO_kXew&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8QjcEJegQIPhAD
+                - generic [ref=f3e710]:
+                  - link "UOL Sobre este resultado Palmeiras empata com Botafogo e vê Flamengo virar líder do Brasileirão há 13 horas" [ref=f3e713] [cursor=pointer]:
+                    - /url: /goto?url=CAESpQEB6zswFSWx9z-Kv8TsgndvcbtVqBMtZ2GKdGQ2tj5e_yae3O5qDVupPY4R-KeQPA7RoY12AaswOVuAqlO7XpqrMl9_UMXkDbRL9pN1a-T4cplQAcEzLV_DvZSEnJCmGQGMnIh8d7v8GiCazTExfI-eURTjUnjtmY2lMx_YZzCwMp7EBKMX2l6h6JtTOuLHUKYpdZoMmqcYTXVwtn6AXt9venJ_uUI
+                    - generic [ref=f3e718]:
+                      - generic [ref=f3e720]:
+                        - generic [ref=f3e721]: UOL
+                        - button "Sobre este resultado" [ref=f3e728]
+                      - heading "Palmeiras empata com Botafogo e vê Flamengo virar líder do Brasileirão" [level=4] [ref=f3e731]
+                      - generic: há 13 horas
+                  - link "LANCE! Sobre este resultado Felipe Melo manda recado a Abel após Botafogo x Palmeiras há 3 horas" [ref=f3e736] [cursor=pointer]:
+                    - /url: /goto?url=CAESnQEB6zswFUVaB5eBegXKklP5Rt2_qq0p7BxCX7l0qpvHeXX6II2SJH19nPCaNEAARmJIDam4dA9yhrfwQR0M_2DMoYHMHa6DS1qHWMAnLXw-kRXBvgC7aMdwl1D2zv86bxdnkUkyDgtSCAYbTIC4mcYy0fJu6uQOWfTIF5Sh6S3FDARKzQRMSPOkaaptYRBE-YAJAw_3HYG2MZ3Fsapb
+                    - generic [ref=f3e741]:
+                      - generic [ref=f3e743]:
+                        - generic [ref=f3e744]: LANCE!
+                        - button "Sobre este resultado" [ref=f3e751]
+                      - heading "Felipe Melo manda recado a Abel após Botafogo x Palmeiras" [level=4] [ref=f3e754]
+                      - generic: há 3 horas
+              - generic [ref=f3e756]:
+                - heading "Outras notícias" [level=2] [ref=f3e760]
+                - generic [ref=f3e764]:
+                  - link "ge Sobre este resultado Ziyech chegará ao Rio na terça-feira para assinar com Botafogo há 2 horas" [ref=f3e767] [cursor=pointer]:
+                    - /url: /goto?url=CAESvAEB6zswFeccDlxJcrZCasIZLxOoLrg20VJjNSvIS_2V5bXGC9AYOGDJ63Jxf-PebyGyMuemJRiToDpPedezLUrjlFtnPFVL-s3u3ctbcocTCU1UiQRLeU5J17YmUsxs2E_aGXUGfvEeCW2kJMhGrcZigql-RSCyfXtnVbjBO0Lwe6WA2XcFqNa9DA8nhx8qmv34qSZGSNKG0Q_QrkPchYVUhEKYADBFkUgHLULacHRY4PX8HKiHgJgBED6GDw
+                    - generic [ref=f3e772]:
+                      - generic [ref=f3e774]:
+                        - generic [ref=f3e775]: ge
+                        - button "Sobre este resultado" [ref=f3e782]
+                      - heading "Ziyech chegará ao Rio na terça-feira para assinar com Botafogo" [level=4] [ref=f3e785]
+                      - generic: há 2 horas
+                  - link "FogãoNET Sobre este resultado Zenit recusa proposta de € 45 milhões do Al-Ittihad por Luiz Henrique, ex-Botafogo há 18 minutos" [ref=f3e790] [cursor=pointer]:
+                    - /url: /goto?url=CAESuQEB6zswFd2vjoiOW-060wY-LP90tt9k1PnT5N2U-q1qSopgdgik348-FGAbQPG-WFybcGXtDgeV2vwjQqnkpdpP4nanc7dA31FzQ02tC5BQnhJ6G74ivHZvKUWLCUnsjchALyj-mx_SF5_MmYTzkx9YSaIfkYJQnhTa0MQhcGs5uWh7d2waoH_vN_SSiQh4Oy0u2j-XyXMOiUyzjEKmnIUHGbfE1hDoLf_UWJRCrBWvfBjrGGPOLKAnCA
+                    - generic [ref=f3e795]:
+                      - generic [ref=f3e797]:
+                        - generic [ref=f3e798]: FogãoNET
+                        - button "Sobre este resultado" [ref=f3e805]
+                      - heading "Zenit recusa proposta de € 45 milhões do Al-Ittihad por Luiz Henrique, ex-Botafogo" [level=4] [ref=f3e808]
+                      - generic: há 18 minutos
+              - link "Mais notícias" [ref=f3e811] [cursor=pointer]:
+                - /url: /search?sca_esv=a39be9d9e408cef3&q=botafogo&tbm=nws&source=univ&tbo=u&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Qt8YBKAJ6BAg9EAU
+                - separator [aria-hidden] [ref=f3e812]
+            - generic [ref=f3e824]:
+              - generic [ref=f3e826]:
+                - heading "O que as pessoas estão falando" [level=2] [ref=f3e827]
+                - generic [ref=f3e830]: Posts e discussões em alta
+              - generic [ref=f3e841]:
+                - list [ref=f3e843]:
+                  - generic [ref=f3e844]:
+                    - listitem [ref=f3e845]:
+                      - generic [ref=f3e849]:
+                        - 'link "🚨👀 O TIGRES, DO MÉXICO, FEZ PROPOSTA POR ARTHUR CABRAL, DO BOTAFOGO! Se a negociação for fechada, o jogador pode se despedir do alvinegro nesta semana ainda! 🗞️ Venê Casagrande #CoberturaCazéTV #FutBr #cztv06 Mais de 17,7 mil marcações \"Gostei\" · há 2 horas cazetv Instagram" [ref=f3e850] [cursor=pointer]':
+                          - /url: /goto?url=CAESYAHrOzAVCORtHEG1Bdpi4U_Q5SM7mCtkPBbfbKRRgsaN6LVPRGi1eRlPhTGIDE8ufll_cu2hFalT2FeBTFF2uV-fS14hYTRzKNAd4LWTuK7G6wbUSKNtGhEaxe253FvHAg
+                          - generic [ref=f3e854]:
+                            - 'heading "🚨👀 O TIGRES, DO MÉXICO, FEZ PROPOSTA POR ARTHUR CABRAL, DO BOTAFOGO! Se a negociação for fechada, o jogador pode se despedir do alvinegro nesta semana ainda! 🗞️ Venê Casagrande #CoberturaCazéTV #FutBr #cztv06" [level=3] [ref=f3e856]'
+                            - generic [ref=f3e857]: Mais de 17,7 mil marcações "Gostei" · há 2 horas
+                            - generic [ref=f3e866]:
+                              - generic [ref=f3e867]: cazetv
+                              - generic [ref=f3e868]: Instagram
+                        - button "Sobre este resultado" [ref=f3e874] [cursor=pointer]
+                    - listitem [ref=f3e879]:
+                      - generic [ref=f3e883]:
+                        - 'link "1:45 Marçal deveria ter sido expulso em Botafogo x Palmeiras pelo Brasileirão? @soudoapito analisa o lance #futebol #brasileirao #botafogo #palmeiras #estadaoesportes Mais de 3,2 mil marcações \"Gostei\" · há 2 horas estadaoesporte Instagram" [ref=f3e884] [cursor=pointer]':
+                          - /url: /goto?url=CAESYwHrOzAVfVeegmeOPd4wWAyHIQC1BCOZ3aW5oCusWyjlUVQGNs15mZzDD04gpesuFeaI7RouRC6GK8VMXlZSJLVDfTR-fzWQdEAtg8iTpW2eRnPCcJPz4FPwDCx3phzn9mwYSg
+                          - generic [ref=f3e885]: 1:45
+                          - generic [ref=f3e894]:
+                            - 'heading "Marçal deveria ter sido expulso em Botafogo x Palmeiras pelo Brasileirão? @soudoapito analisa o lance #futebol #brasileirao #botafogo #palmeiras #estadaoesportes" [level=3] [ref=f3e896]'
+                            - generic [ref=f3e897]: Mais de 3,2 mil marcações "Gostei" · há 2 horas
+                            - generic [ref=f3e907]:
+                              - generic [ref=f3e908]: estadaoesporte
+                              - generic [ref=f3e909]: Instagram
+                        - button "Sobre este resultado" [ref=f3e915] [cursor=pointer]
+                    - listitem [ref=f3e920]:
+                      - generic [ref=f3e924]:
+                        - link "URGENTE! 🚨 Após empate com o Botafogo no Brasileirão, os jogadores e a comissão técnica do Palmeiras se reuniram e fizeram um pacto no vestiário. Agora eles prometem tratar todos os jogos de 2026 como se fossem uma final e prometem \"dar a vida\" em campo. Mais de 1,6 mil marcações \"Gostei\" · há 2 horas deprepalmeiras X" [ref=f3e925] [cursor=pointer]:
+                          - /url: /goto?url=CAESpQEB6zswFUIlryu6Q0VDKEYAcCbmaGJnqckkFW2yzuDUk2r3Q1nZDS-e60ZWQerUsnrNv5nSA5dBDqrpTT8QEbyHJVXKcvcw6_TxWyky1U0ZvcjUFRNJyUENQ_D-VHvGWJRXChyBLgs44TlJA4bPluTIKZ7nHQYZWr8qCfij4rPldD0SDeF9BJJHcpwUOkNok7PqiFJ4zN4L8zBkRZvOzGRiD3F9lZ0
+                          - generic [ref=f3e926]:
+                            - heading "URGENTE! 🚨 Após empate com o Botafogo no Brasileirão, os jogadores e a comissão técnica do Palmeiras se reuniram e fizeram um pacto no vestiário. Agora eles prometem tratar todos os jogos de 2026 como se fossem uma final e prometem \"dar a vida\" em campo." [level=3] [ref=f3e928]
+                            - generic [ref=f3e929]: Mais de 1,6 mil marcações "Gostei" · há 2 horas
+                            - generic [ref=f3e941]:
+                              - generic [ref=f3e942]: deprepalmeiras
+                              - generic [ref=f3e943]: X
+                        - button "Sobre este resultado" [ref=f3e949] [cursor=pointer]
+                    - listitem [ref=f3e954]:
+                      - generic [ref=f3e959]:
+                        - 'link "Ontem conversei rapidamente com o Gabriel De Alba e perguntei o que ele achou do empate do Botafogo contra o Palmeiras: \"O time jogou bem, tivemos boas chances, lutaram. As vitórias vão chegar!\" Internamente o sentimento no Botafogo é de que passada essa sequência mais difícil, com a estreia de reforços o Botafogo voltará a vencer e se estabilizar. Mais de 610 marcações \"Gostei\" · há 4 horas CanalDoManel_ X" [ref=f3e960] [cursor=pointer]':
+                          - /url: /goto?url=CAESpAEB6zswFQvaP6fyuek4-PB2vAaNuL-y8ChHF3d6KWVUgbc9K50sdRpRp9I3iM-V2ZPXudC1TlGe7I2z6byXc_wAIpdGOk7dSQE1EJAMsPaeh8TTLBPsIlwwCjhw_v99Eg2_kaX6VbafHJ3Gem3Y6ywuhEz3tH5gN0mnKP_14AthHREbxr4YAYnJHLEcvRyDkChup_7EIBXlB_VGOkvJ5l8YJGxZ3Q
+                          - generic [ref=f3e961]:
+                            - 'heading "Ontem conversei rapidamente com o Gabriel De Alba e perguntei o que ele achou do empate do Botafogo contra o Palmeiras: \"O time jogou bem, tivemos boas chances, lutaram. As vitórias vão chegar!\" Internamente o sentimento no Botafogo é de que passada essa sequência mais difícil, com a estreia de reforços o Botafogo voltará a vencer e se estabilizar." [level=3] [ref=f3e963]'
+                            - generic [ref=f3e964]: Mais de 610 marcações "Gostei" · há 4 horas
+                            - generic [ref=f3e976]:
+                              - generic [ref=f3e977]: CanalDoManel_
+                              - generic [ref=f3e978]: X
+                        - button "Sobre este resultado" [ref=f3e984] [cursor=pointer]
+                    - listitem [ref=f3e989]:
+                      - generic [ref=f3e994]:
+                        - 'link "Fim de jogo: Botafogo 0x0 Palmeiras. #FimDeJogoSEP #BOTxPAL Mais de 66,4 mil marcações \"Gostei\" · há 17 horas palmeiras Instagram" [ref=f3e995] [cursor=pointer]':
+                          - /url: /goto?url=CAESYAHrOzAVSV6e3V4S2J-nZo-hQuH9ZxzSwVaTWnUuDKDEveNapYqeFYD54t5HqCp7X37EBfmdMhFyVqJlIFQY5Tahfjyl5dTgy1Xhz_41Rt3i4EjesQ8syAUQKbhszUFtNw
+                          - generic [ref=f3e999]:
+                            - 'heading "Fim de jogo: Botafogo 0x0 Palmeiras. #FimDeJogoSEP #BOTxPAL" [level=3] [ref=f3e1001]'
+                            - generic [ref=f3e1002]: Mais de 66,4 mil marcações "Gostei" · há 17 horas
+                            - generic [ref=f3e1011]:
+                              - generic [ref=f3e1012]: palmeiras
+                              - generic [ref=f3e1013]: Instagram
+                        - button "Sobre este resultado" [ref=f3e1019] [cursor=pointer]
+                    - listitem [ref=f3e1024]:
+                      - generic [ref=f3e1029]:
+                        - 'link "O Tigres, do México, fez proposta ao Botafogo para contratar Arthur Cabral. O atacante pode deixar o Alvinegro ainda nesta semana. Falaremos mais sobre o assunto no @sbtrio desta segunda-feira. O programa começa às 13h25 (após o horário eleitoral). Foto: Vitor Silva / Botafogo Mais de 360 marcações \"Gostei\" · há 2 horas venecasagrande X" [ref=f3e1030] [cursor=pointer]':
+                          - /url: /goto?url=CAESpQEB6zswFeH1sXRpAFZQ8DnjTN7QxxANsKZiiiQVH4LWI8mNuEocYJ3kvrD24bgUFW6IqP-cPNMbtNgg3pgKsxFlsIHNggIL8_Oo-YC4H_5FN_uvl00xsZ5H-hCqgin6XKDp_M8tKvFhAU8EOlX6nCmdJRIDP_bI1yedtEUWUn6XiK9LF8jBj4JLJQvwNOp9zPqMyw8z3VNdPnXZkUryUpzFlzprl9A
+                          - generic [ref=f3e1031]:
+                            - 'heading "O Tigres, do México, fez proposta ao Botafogo para contratar Arthur Cabral. O atacante pode deixar o Alvinegro ainda nesta semana. Falaremos mais sobre o assunto no @sbtrio desta segunda-feira. O programa começa às 13h25 (após o horário eleitoral). Foto: Vitor Silva / Botafogo" [level=3] [ref=f3e1033]'
+                            - generic [ref=f3e1034]: Mais de 360 marcações "Gostei" · há 2 horas
+                            - generic [ref=f3e1046]:
+                              - generic [ref=f3e1047]: venecasagrande
+                              - generic [ref=f3e1048]: X
+                        - button "Sobre este resultado" [ref=f3e1054] [cursor=pointer]
+                    - listitem [ref=f3e1059]:
+                      - generic [ref=f3e1064]:
+                        - 'link "0:27 DESABAFO DO BARBOZA! 🐷⚔️🌟 O ex-zagueiro do Botafogo lamentou as vaias durante o jogo do Palmeiras e mandou um abraço para os \"torcedores que realmente têm um carinho\" por ele. #FBR #Brasileirão Mais de 30,5 mil marcações \"Gostei\" · há 14 horas tntsportsbr Instagram" [ref=f3e1065] [cursor=pointer]':
+                          - /url: /goto?url=CAESYwHrOzAVMraicbA7_5cuEmblMpSmKiWXMad6wa-q8ROmnJsoCrXT3H6uCKdRcoKv-JlM-nonDLUydOcnXANCoTJlPICRP5UrAV8-Z1UHa0OnBag6d6GNreFd8sQ8wo8pD4nW_Q
+                          - generic [ref=f3e1066]: 0:27
+                          - generic [ref=f3e1078]:
+                            - 'heading "DESABAFO DO BARBOZA! 🐷⚔️🌟 O ex-zagueiro do Botafogo lamentou as vaias durante o jogo do Palmeiras e mandou um abraço para os \"torcedores que realmente têm um carinho\" por ele. #FBR #Brasileirão" [level=3] [ref=f3e1080]'
+                            - generic [ref=f3e1081]: Mais de 30,5 mil marcações "Gostei" · há 14 horas
+                            - generic [ref=f3e1094]:
+                              - generic [ref=f3e1095]: tntsportsbr
+                              - generic [ref=f3e1096]: Instagram
+                        - button "Sobre este resultado" [ref=f3e1102] [cursor=pointer]
+                    - listitem [ref=f3e1107]:
+                      - generic [ref=f3e1112]:
+                        - button "React Botafogo 0x0 Palmeiras | Melhores momentos | Gols | Brasileirão. Assistir no Google. 10:16" [ref=f3e1117] [cursor=pointer]:
+                          - generic [ref=f3e1118]: 10:16
+                        - link "React Botafogo 0x0 Palmeiras | Melhores momentos | Gols | Brasileirão Mais de 57,6 mil visualizações · há 16 horas Canal Rivalidade FC YouTube" [ref=f3e1132] [cursor=pointer]:
+                          - /url: /goto?url=CAESYwHrOzAVHbFVyC-7VGDFzhII29UnYvixR2WC-0JlK1uYEyxT9gEj93Y4YMj_uF7i6teGbO86sjNmlbSgq9qmjW0Iaul_MansVguT-LOCnxoBw6f42p764U_XpUeZFNWdopvRIQ
+                          - generic [ref=f3e1133]:
+                            - heading "React Botafogo 0x0 Palmeiras | Melhores momentos | Gols | Brasileirão" [level=3] [ref=f3e1135]
+                            - generic [ref=f3e1136]: Mais de 57,6 mil visualizações · há 16 horas
+                            - generic [ref=f3e1149]:
+                              - generic [ref=f3e1150]: Canal Rivalidade FC
+                              - generic [ref=f3e1151]: YouTube
+                        - button "Sobre este resultado" [ref=f3e1157] [cursor=pointer]
+                    - listitem [ref=f3e1162]:
+                      - generic [ref=f3e1167]:
+                        - 'link "Fim de jogo: Botafogo 0x0 Palmeiras. #FimDeJogoSEP #BOTxPAL Mais de 4,4 mil marcações \"Gostei\" · há 12 horas leilapereira Instagram" [ref=f3e1168] [cursor=pointer]':
+                          - /url: /goto?url=CAESYAHrOzAVJnM0mQs07Na44OZbVlox5xtHZ7jHf7dmZCzizZQynD0DlYvLS2D1PlPYZ1WOFjX9hD9yb1KAmD2GcYZT1-2g5hPxQTVS5vXEWEnStPT8xFi9lAwVhTTWC5x4TQ
+                          - generic [ref=f3e1172]:
+                            - 'heading "Fim de jogo: Botafogo 0x0 Palmeiras. #FimDeJogoSEP #BOTxPAL" [level=3] [ref=f3e1174]'
+                            - generic [ref=f3e1175]: Mais de 4,4 mil marcações "Gostei" · há 12 horas
+                            - generic [ref=f3e1184]:
+                              - generic [ref=f3e1185]: leilapereira
+                              - generic [ref=f3e1186]: Instagram
+                        - button "Sobre este resultado" [ref=f3e1192] [cursor=pointer]
+                    - listitem [ref=f3e1197]:
+                      - generic [ref=f3e1202]:
+                        - link "🚨🚨EITA! Esposa de Alexander Barboza fez uma publicação após Botafogo 0 x 0 Palmeiras, no Nilton Santos. “A melhor coisa que eu pude ter feito é ficar em casa para assistir o jogo. Incrível a falta de memória de algumas pessoas 😅” A postagem repercutiu nas redes sociais após o confronto. Mais de 19 mil marcações \"Gostei\" · há 16 horas futeousadia Instagram" [ref=f3e1203] [cursor=pointer]:
+                          - /url: /goto?url=CAESYAHrOzAVy3eP4qQV40lhrvWOn0hTOQHStoV1XsY8uQxyBdHJMFW2RB-wchFaZ8ZsJ96Gcx78kUivlfq1HwTNSgd170pRVr2rpI21qb6yNHUR44cEjep9DW2i6MMY1KJzgA
+                          - generic [ref=f3e1207]:
+                            - heading "🚨🚨EITA! Esposa de Alexander Barboza fez uma publicação após Botafogo 0 x 0 Palmeiras, no Nilton Santos. “A melhor coisa que eu pude ter feito é ficar em casa para assistir o jogo. Incrível a falta de memória de algumas pessoas 😅” A postagem repercutiu nas redes sociais após o confronto." [level=3] [ref=f3e1209]
+                            - generic [ref=f3e1210]: Mais de 19 mil marcações "Gostei" · há 16 horas
+                            - generic [ref=f3e1219]:
+                              - generic [ref=f3e1220]: futeousadia
+                              - generic [ref=f3e1221]: Instagram
+                        - button "Sobre este resultado" [ref=f3e1227] [cursor=pointer]
+                    - listitem [ref=f3e1232]:
+                      - generic [ref=f3e1237]:
+                        - 'link "0:52 Goleiro do Botafogo faz grande defesa contra o Palmeiras, e garante Flamengo na liderança do Brasileirão. #botafogo #palmeiras #flamengo #brasileirão #futebol #ge Mais de 190 reações · há 2 horas ge.globo Facebook" [ref=f3e1238] [cursor=pointer]':
+                          - /url: /goto?url=CAESxAEB6zswFdRMWQf_AA-Zf-Wb5OwplLQFru64U60qUY_LE46tgKnuWi6NDm0wHqGVI0TvJAnvCladyWxSw8uTawG2l_sasz8Re6XCNvaSi054vgo9X2S4ZNObo6xLDTWC_Gn9To4FJs5Qwmhe-mcuS0hE80AjUtUL3floGRfZBEcM9mncnFLiWlHRkeayj0KDf_hskrrfoeDWUbrJHzr46qRcpiTpXfb8ExB3zTA4QZoXoeRl9Aqx68wdrJGwSlgs7G3bemfT
+                          - generic [ref=f3e1239]: 0:52
+                          - generic [ref=f3e1248]:
+                            - 'heading "Goleiro do Botafogo faz grande defesa contra o Palmeiras, e garante Flamengo na liderança do Brasileirão. #botafogo #palmeiras #flamengo #brasileirão #futebol #ge" [level=3] [ref=f3e1250]'
+                            - generic [ref=f3e1251]: Mais de 190 reações · há 2 horas
+                            - generic [ref=f3e1264]:
+                              - generic [ref=f3e1265]: ge.globo
+                              - generic [ref=f3e1266]: Facebook
+                        - button "Sobre este resultado" [ref=f3e1272] [cursor=pointer]
+                    - listitem [ref=f3e1277]:
+                      - generic [ref=f3e1282]:
+                        - 'link "O Tigres, do México, fez proposta ao Botafogo para contratar Arthur Cabral. O atacante pode deixar o Alvinegro ainda nesta semana. Falaremos mais sobre o assunto no @sbtrio desta segunda-feira. O programa começa às 13h25 (após o horário eleitoral). Foto: Vitor Silva / Botafogo #botafogo Mais de 740 marcações \"Gostei\" · há 2 horas venecasagrande Instagram" [ref=f3e1283] [cursor=pointer]':
+                          - /url: /goto?url=CAESYAHrOzAVQjw5dAI3ptVuNvfND2gBRRWKs8neJ8d_sZsuBa3ypYdv-VZKn5OE5SUQtBxmcnp7caV0mV2iSH0MK__zpBxeJgdk2ST48ukn8NKB_0H7ZhQSWpJV-zGyc4XhQA
+                          - generic [ref=f3e1287]:
+                            - 'heading "O Tigres, do México, fez proposta ao Botafogo para contratar Arthur Cabral. O atacante pode deixar o Alvinegro ainda nesta semana. Falaremos mais sobre o assunto no @sbtrio desta segunda-feira. O programa começa às 13h25 (após o horário eleitoral). Foto: Vitor Silva / Botafogo #botafogo" [level=3] [ref=f3e1289]'
+                            - generic [ref=f3e1290]: Mais de 740 marcações "Gostei" · há 2 horas
+                            - generic [ref=f3e1299]:
+                              - generic [ref=f3e1300]: venecasagrande
+                              - generic [ref=f3e1301]: Instagram
+                        - button "Sobre este resultado" [ref=f3e1307] [cursor=pointer]
+                - button [aria-hidden] [ref=f3e1312] [cursor=pointer]
+            - generic [ref=f3e1324]:
+              - generic [ref=f3e1327]:
+                - link "Botafogo | Últimas notícias, resultados e próximos jogos ge https://ge.globo.com › futebol › times › botafogo" [ref=f3e1329] [cursor=pointer]:
+                  - /url: /goto?url=CAESZAHrOzAVhqU13_WnC6-Xwk6F-5BacQsURioJaxY24n9pY7UWQXVgUrSBob6JIMfFOWqI4GBJNTAEhnUcdIA_QFS51o7wLzzQ4oElXO0bjI_Hmleh_VM3AvXfcnBWzqul-jpRMHE
+                  - heading "Botafogo | Últimas notícias, resultados e próximos jogos" [level=3] [ref=f3e1330]
+                  - generic [ref=f3e1336]:
+                    - generic [ref=f3e1337]: ge
+                    - generic [ref=f3e1339]: https://ge.globo.com › futebol › times › botafogo
+                - button "Sobre este resultado" [ref=f3e1345] [cursor=pointer]
+              - generic [ref=f3e1352]:
+                - emphasis [ref=f3e1353]: Acompanhe as notícias do Botafogo no ge.globo
+                - text: ", próximos jogos, resultados, contratações e muito mais."
+            - generic [ref=f3e1357]:
+              - generic [ref=f3e1359]:
+                - heading "Vídeos" [level=2] [ref=f3e1360]
+                - button "Sobre este resultado" [ref=f3e1365] [cursor=pointer]
+              - generic [ref=f3e1372]:
+                - generic [ref=f3e1374]:
+                  - generic [ref=f3e1380]:
+                    - generic [ref=f3e1381]:
+                      - link [ref=f3e1383] [cursor=pointer]:
+                        - /url: /goto?url=CAESYwHrOzAVbGU6Xg5eEBjyW7WIXHNDoZuAaNEU8qqU4prCXAEmDXMJrY8jvQ-asGVCYxYcuztMaPpQcQU10CCsOn5qMYOcFOvhMnd0usF04SHSR4CzS-8bqxLwLi5kRz-qyq_0BA
+                        - heading "BOTAFOGO X PALMEIRAS | BRASILEIRÃO 2026 | 26ª RODADA YouTube CazéTV há 13 horas" [level=3] [ref=f3e1384]:
+                          - generic [ref=f3e1385]: BOTAFOGO X PALMEIRAS | BRASILEIRÃO 2026 | 26ª RODADA
+                          - generic [ref=f3e1389]:
+                            - generic [ref=f3e1390]:
+                              - text: YouTube
+                              - generic [ref=f3e1391]: · CazéTV
+                            - generic [ref=f3e1392]: há 13 horas
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic [aria-hidden]:
+                                - text: YouTube
+                                - generic: · CazéTV
+                          - button "Sobre este resultado" [ref=f3e1396] [cursor=pointer]
+                    - link "BOTAFOGO X PALMEIRAS | BRASILEIRÃO 2026 | 26ª RODADA enviado por CazéTV em YouTube. Assistir em YouTube. 6:59:10" [ref=f3e1401] [cursor=pointer]:
+                      - /url: /goto?url=CAESYwHrOzAVbGU6Xg5eEBjyW7WIXHNDoZuAaNEU8qqU4prCXAEmDXMJrY8jvQ-asGVCYxYcuztMaPpQcQU10CCsOn5qMYOcFOvhMnd0usF04SHSR4CzS-8bqxLwLi5kRz-qyq_0BA
+                      - generic [ref=f3e1411]: 6:59:10
+                  - generic [ref=f3e1419]:
+                    - generic [ref=f3e1420]:
+                      - link [ref=f3e1422] [cursor=pointer]:
+                        - /url: /goto?url=CAESYwHrOzAV7u5Fhh0hFMtE8HVojAKI0wChuoG8kAxJuZ4JTd2c_k_qrFHF9BHBSy2rZF_DN2qDSfD9M0tgfEX7cBqZ_blehagsiR7SeVl_ZLW9TMun-Im3j3LO5XzufiT2G-EEuw
+                        - heading "BOTAFOGO X PALMEIRAS | 26ª RODADA BRASILEIRÃO YouTube Botafogo TV há 16 horas" [level=3] [ref=f3e1423]:
+                          - generic [ref=f3e1424]: BOTAFOGO X PALMEIRAS | 26ª RODADA BRASILEIRÃO
+                          - generic [ref=f3e1428]:
+                            - generic [ref=f3e1429]:
+                              - text: YouTube
+                              - generic [ref=f3e1430]: · Botafogo TV
+                            - generic [ref=f3e1431]: há 16 horas
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic [aria-hidden]:
+                                - text: YouTube
+                                - generic: · Botafogo TV
+                          - button "Sobre este resultado" [ref=f3e1435] [cursor=pointer]
+                    - button "BOTAFOGO X PALMEIRAS | 26ª RODADA BRASILEIRÃO enviado por Botafogo TV em YouTube. Assistir no Google. 5:09:02" [ref=f3e1440] [cursor=pointer]:
+                      - generic [ref=f3e1447]: 5:09:02
+                  - generic [ref=f3e1460]:
+                    - generic [ref=f3e1461]:
+                      - link [ref=f3e1463] [cursor=pointer]:
+                        - /url: /goto?url=CAESYwHrOzAVC0VqCSr3V3FSvH1ddmpdSnv6TjJbxm3vn8Zax2XKGHMTSsm95em90nyHqBml9i7FVcTZDLQThUYlu_cuA2R35jDmFNeF5hk691UNIxxEmy02WrbKz2ydda5OxFUGvg
+                        - heading "BOTAFOGO 0 X 0 PALMEIRAS | MELHORES MOMENTOS YouTube ge tv há 16 horas" [level=3] [ref=f3e1464]:
+                          - generic [ref=f3e1465]: BOTAFOGO 0 X 0 PALMEIRAS | MELHORES MOMENTOS
+                          - generic [ref=f3e1469]:
+                            - generic [ref=f3e1470]:
+                              - text: YouTube
+                              - generic [ref=f3e1471]: · ge tv
+                            - generic [ref=f3e1472]: há 16 horas
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic [aria-hidden]:
+                                - text: YouTube
+                                - generic: · ge tv
+                          - button "Sobre este resultado" [ref=f3e1476] [cursor=pointer]
+                    - button "BOTAFOGO 0 X 0 PALMEIRAS | MELHORES MOMENTOS enviado por ge tv em YouTube. Assistir no Google. 5:12" [ref=f3e1481] [cursor=pointer]:
+                      - generic [ref=f3e1491]: 5:12
+                - link "Ver todos os vídeos" [ref=f3e1500] [cursor=pointer]:
+                  - /url: /search?sca_esv=a39be9d9e408cef3&udm=7&q=botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8ccDKAF6BQiAARAC
+                  - separator [aria-hidden] [ref=f3e1501]
+                  - generic [ref=f3e1502]: Ver tudo
+            - generic [ref=f3e1514]:
+              - generic [ref=f3e1517]:
+                - link "Botafogo F.R. (@botafogo) • Instagram photos and videos Instagram · botafogo Mais de 2 mi seguidores" [ref=f3e1519] [cursor=pointer]:
+                  - /url: /goto?url=CAESZAHrOzAV-WLCTUzuprD2Gdnk0Q6-ajIaOJdgqbQoa-wttCUzxk33VtlSrL4S7OfSJOMepFauvl5O07aDeqDXj9xXEV9VdfzMQAGwKutHlKPIQRpvvxM0OC6nmFO8egigvBiy3UY
+                  - heading "Botafogo F.R. (@botafogo) • Instagram photos and videos" [level=3] [ref=f3e1520]
+                  - generic [ref=f3e1526]:
+                    - generic [ref=f3e1527]: Instagram · botafogo
+                    - generic [ref=f3e1529]: Mais de 2 mi seguidores
+                - button "Sobre este resultado" [ref=f3e1535] [cursor=pointer]
+              - generic [ref=f3e1542]:
+                - emphasis [ref=f3e1543]: O Clube Mais Tradicional
+                - text: "☆彡 · #DiaDeFogo Hoje ⌚ 18h30 Nilton Santos Campeonato Brasileiro · Apoiar brindando é coisa de alvinegro!"
+            - generic [ref=f3e1551]:
+              - generic [ref=f3e1554]:
+                - link "Botafogo F.R. X · Botafogo Mais de 1,3 mi seguidores" [ref=f3e1556] [cursor=pointer]:
+                  - /url: /goto?url=CAESTgHrOzAVOB6XecwgpugIdltYLmrbMHjJpgmi773BGhGr-NdUNp9aI2V_5noOQcepNn4zHH1gQLurTQdwY2ZHEAqRdlhZlV4PumBCzpU4ZA
+                  - heading "Botafogo F.R." [level=3] [ref=f3e1557]
+                  - generic [ref=f3e1563]:
+                    - generic [ref=f3e1564]: X · Botafogo
+                    - generic [ref=f3e1566]: Mais de 1,3 mi seguidores
+                - button "Sobre este resultado" [ref=f3e1572] [cursor=pointer]
+              - generic [ref=f3e1579]:
+                - text: "Partida encerrada:"
+                - emphasis [ref=f3e1580]: Botafogo 0 x 0 Palmeiras
+                - text: . Equipe alvinegra faz bom jogo, conta com apoio da torcida e empata no Nilton Santos. Seguimos em frente!
+            - generic [ref=f3e1588]:
+              - generic [ref=f3e1591]:
+                - link "Página principal | Botafogo de Futebol e Regatas Botafogo.com.br https://www.botafogo.com.br" [ref=f3e1593] [cursor=pointer]:
+                  - /url: /goto?url=CAESVAHrOzAV0tsXkmoSJGL0ObKeNkcmM500sYVMvtGDuJIZkEwy6lM3cjAjdWzLPFTbZuFMjSY1PcFFC1FWNhiw3jFENq_bzj4lll3ZUAOdwGGT4XKi-A
+                  - heading "Página principal | Botafogo de Futebol e Regatas" [level=3] [ref=f3e1594]
+                  - generic [ref=f3e1600]:
+                    - generic [ref=f3e1601]: Botafogo.com.br
+                    - generic [ref=f3e1603]: https://www.botafogo.com.br
+                - button "Sobre este resultado" [ref=f3e1609] [cursor=pointer]
+              - generic [ref=f3e1614]: GLORIOSO. Prioridade 1 na compra de ingressos;; Check-in Gratuito;; 02 acompanhantes com 60% de desconto no ingresso;; 100% de desconto em uma camisa ...
+            - generic [ref=f3e1623]:
+              - generic [ref=f3e1626]:
+                - link "Botafogo | Notícias, jogos e resultados LANCE! https://www.lance.com.br › botafogo" [ref=f3e1628] [cursor=pointer]:
+                  - /url: /goto?url=CAESWQHrOzAVqdk2JXEk9QB2YGpSS5wt93y94EnT0ds4D880_7dvBSrGQ0FQP_QBQfkx9gwfMUvDN4mUtGTDMdNwhQxFP38XCzegkSzAtlpDk8s4rezYrrCRQE_C
+                  - heading "Botafogo | Notícias, jogos e resultados" [level=3] [ref=f3e1629]
+                  - generic [ref=f3e1635]:
+                    - generic [ref=f3e1636]: LANCE!
+                    - generic [ref=f3e1638]: https://www.lance.com.br › botafogo
+                - button "Sobre este resultado" [ref=f3e1644] [cursor=pointer]
+              - generic [ref=f3e1650]:
+                - generic [ref=f3e1651]:
+                  - generic [ref=f3e1652]: há 3 horas
+                  - text: —
+                - generic [ref=f3e1653]:
+                  - emphasis [ref=f3e1654]: No LANCE, você fica por dentro de tudo sobre Botafogo
+                  - text: . Acompanhe as últimas notícias, resultados e próximos jogos. Clique e não perca nada!
+            - generic [ref=f3e1662]:
+              - generic [ref=f3e1665]:
+                - link "Botafogo de Futebol e Regatas | Rio de Janeiro RJ Facebook · Botafogo de Futebol e Regatas Mais de 1,6 mi seguidores" [ref=f3e1667] [cursor=pointer]:
+                  - /url: /goto?url=CAESZwHrOzAVylDbU5atilrcIEC7AZQ9nPaxFb43nQpzpEJYUV8JRi7h5C4qAWr7buPcnz8uhMOiV9f-tnQfwRdeKkUxnKPKIJ_KAeC-4San9z8V2oI3aBbR43nQZ2yeOYTGy-v8HFvWMno
+                  - heading "Botafogo de Futebol e Regatas | Rio de Janeiro RJ" [level=3] [ref=f3e1668]
+                  - generic [ref=f3e1674]:
+                    - generic [ref=f3e1675]: Facebook · Botafogo de Futebol e Regatas
+                    - generic [ref=f3e1677]: Mais de 1,6 mi seguidores
+                - button "Sobre este resultado" [ref=f3e1683] [cursor=pointer]
+              - generic [ref=f3e1690]:
+                - emphasis [ref=f3e1691]: Botafogo de Futebol e Regatas, Rio de Janeiro
+                - text: . 1587002 likes · 23098 talking about this. Página Oficial do Botafogo de Futebol e Regatas, o Glorioso...
+            - generic [ref=f3e1699]:
+              - generic [ref=f3e1702]:
+                - link "Botafogo de Futebol e Regatas Wikipedia https://pt.wikipedia.org › wiki › Botafogo_de_Futebol_..." [ref=f3e1704] [cursor=pointer]:
+                  - /url: /goto?url=CAEScwHrOzAVbAvdw4DBbaFYcFEtvIIsujDdpcmKfHQFvMTHfjPVt3ymUv1jrEqPhgHdMXtXZw7bk5mUQV1ksXESixDwa53etRDuS-NjztrpiAQQK07oJGP3r_POclvY2luMXyAGkNgbLxgIftoRHv6IDHgfhQc
+                  - heading "Botafogo de Futebol e Regatas" [level=3] [ref=f3e1705]
+                  - generic [ref=f3e1711]:
+                    - generic [ref=f3e1712]: Wikipedia
+                    - generic [ref=f3e1714]: https://pt.wikipedia.org › wiki › Botafogo_de_Futebol_...
+                - button "Sobre este resultado" [ref=f3e1720] [cursor=pointer]
+              - generic [ref=f3e1727]:
+                - emphasis [ref=f3e1728]: Botafogo de Futebol e Regatas
+                - text: é uma agremiação poliesportiva brasileira, com sede no bairro homônimo ao clube, na cidade do Rio de Janeiro. Nascido da fusão do ...
+            - generic [ref=f3e1736]:
+              - generic [ref=f3e1739]:
+                - link "Botafogo Resultados, vídeos e estatísticas ESPN Brasil https://www.espn.com.br › futebol › time › botafogo" [ref=f3e1741] [cursor=pointer]:
+                  - /url: /goto?url=CAESbwHrOzAVBRxXYjJYZ5lE9UP-Pky9zRmMErJsJnNtG4RYR3nC0MT2RxSmsIiW5_jWkuKQhCxWgnrZ8w8cR1Fs36S5gHDvyQbdYUlRAg1PQVI7ZlyhKXoK8JxMACITrP8cTxlgvZrYvPLyymk7nj8TAg
+                  - heading "Botafogo Resultados, vídeos e estatísticas" [level=3] [ref=f3e1742]
+                  - generic [ref=f3e1748]:
+                    - generic [ref=f3e1749]: ESPN Brasil
+                    - generic [ref=f3e1751]: https://www.espn.com.br › futebol › time › botafogo
+                - button "Sobre este resultado" [ref=f3e1757] [cursor=pointer]
+              - generic [ref=f3e1763]:
+                - generic [ref=f3e1764]:
+                  - generic [ref=f3e1765]: há 4 horas
+                  - text: —
+                - generic [ref=f3e1766]:
+                  - text: Acesse ESPN (BR) para
+                  - emphasis [ref=f3e1767]: resultados ao vivo, vídeos e notícias do Botafogo
+                  - text: . Encontre a classificação e o cronograma completo da temporada de 2026.
+            - generic [ref=f3e1775]:
+              - generic [ref=f3e1778]:
+                - 'link "Botafogo x Palmeiras: onde assistir ao vivo, horário e ... ge https://ge.globo.com › futebol › noticia › 2026/09/06" [ref=f3e1780] [cursor=pointer]':
+                  - /url: /goto?url=CAESxQEB6zswFevspQS4Bpk7aEYKkWMlhTT4S5pveiEqwF-hiN0kaACGFyhOCckIJ11IlHUVA-rlJ6V-MMV8YwlGX_exnvqIH3jfiO2SFO02eONZcQZ4Vj68kG0IQVsEmZSwyByeleldHwZkgSfLbmbcKLfQWxsUt_V0sqfN_gNGoQGT67bl4oNrhxILM6kuw0AkW78blp2vqze-wlqcv-HsBZTZQZe2-1Dw2hKwNfi32DUJ-Zf4UqJkRORo7hW9WiRXlAZcwM-LKQ
+                  - 'heading "Botafogo x Palmeiras: onde assistir ao vivo, horário e ..." [level=3] [ref=f3e1781]'
+                  - generic [ref=f3e1787]:
+                    - generic [ref=f3e1788]: ge
+                    - generic [ref=f3e1790]: https://ge.globo.com › futebol › noticia › 2026/09/06
+                - button "Sobre este resultado" [ref=f3e1796] [cursor=pointer]
+              - generic [ref=f3e1802]:
+                - generic [ref=f3e1803]: há 1 dia —
+                - generic [ref=f3e1804]:
+                  - emphasis [ref=f3e1805]: Botafogo
+                  - text: e Palmeiras se enfrentam neste domingo, às 18h30 (de Brasília) no Nilton Santos, pela 26ª rodada do Campeonato Brasileiro.
+            - generic [ref=f3e1813]:
+              - heading "Outras pessoas pesquisaram" [level=2] [ref=f3e1815]
+              - generic [ref=f3e1817]:
+                - generic [ref=f3e1818]:
+                  - link "Ziyech botafogo" [ref=f3e1822] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Ziyech+botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhOEAE
+                  - link "Resultado do jogo palmeiras-botafogo" [ref=f3e1840] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Resultado+do+jogo+palmeiras-botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhlEAE
+                  - link "Globo esporte botafogo" [ref=f3e1858] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Globo+esporte+botafogo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhfEAE
+                  - link "Botafogo jogos" [ref=f3e1872] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Botafogo+jogos&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhaEAE
+                - generic [ref=f3e1883]:
+                  - link "Botafogo hoje" [ref=f3e1887] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Botafogo+hoje&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhZEAE
+                  - link "Últimas notícias do botafogo hoje" [ref=f3e1901] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=%C3%9Altimas+not%C3%ADcias+do+botafogo+hoje&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhYEAE
+                  - link "Time do botafogo hoje" [ref=f3e1915] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Time+do+botafogo+hoje&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhXEAE
+                  - link "Jogo do botafogo hoje ao vivo" [ref=f3e1929] [cursor=pointer]:
+                    - /url: /search?sca_esv=a39be9d9e408cef3&q=Jogo+do+botafogo+hoje+ao+vivo&sa=X&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q1QJ6BAhVEAE
+        - navigation [ref=f3e1942]:
+          - heading "Navegação nas páginas" [level=1] [ref=f3e1943]
+          - text: "1"
+          - link "Page 2" [ref=f3e1946] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=10&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAE
+            - text: "2"
+          - link "Page 3" [ref=f3e1948] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=20&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAG
+            - text: "3"
+          - link "Page 4" [ref=f3e1950] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=30&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAI
+            - text: "4"
+          - link "Page 5" [ref=f3e1952] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=40&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAK
+            - text: "5"
+          - link "Page 6" [ref=f3e1954] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=50&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAM
+            - text: "6"
+          - link "Page 7" [ref=f3e1956] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=60&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAO
+            - text: "7"
+          - link "Page 8" [ref=f3e1958] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=70&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAQ
+            - text: "8"
+          - link "Page 9" [ref=f3e1960] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=80&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAS
+            - text: "9"
+          - link "Page 10" [ref=f3e1962] [cursor=pointer]:
+            - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=90&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8tMDegQIQxAU
+            - text: "10"
+          - heading [level=2] [ref=f3e1964]:
+            - link "Mais" [ref=f3e1965] [cursor=pointer]:
+              - /url: /search?q=botafogo&sca_esv=a39be9d9e408cef3&ei=HuaeatTADq3e1sQPvpjG-Qc&start=10&sa=N&sstk=AS6-VmJWGDNU6U9TRuIzsmpxAwA5XnvOi1xQKxjl8CnvxDSNxfYq16H319ebbx87HTbo6cZOW1o9b3FjP7JIobzpd97Z-g38mHpx4g&ved=2ahUKEwjUx8vW8dyWAxUtr5UCHT6MMX8Q8NMDegQIQxAW
+        - navigation
+      - complementary [ref=f3e1968]:
+        - heading "Resultados complementares" [level=2] [ref=f3e1969]
+    - contentinfo [ref=f3e1970]:
+      - heading "Links do rodapé" [level=1] [ref=f3e1971]
+      - generic [ref=f3e1975]:
+        - generic [ref=f3e1977]:
+          - text: Brasil
+          - generic [ref=f3e1979]:
+            - button "Jabotiana, Aracaju - SE - Do seu endereço IP" [ref=f3e1981] [cursor=pointer]:
+              - generic [ref=f3e1982]: Jabotiana, Aracaju - SE
+              - generic [ref=f3e1984]:
+                - text: "-"
+                - generic [ref=f3e1985]: Do seu endereço IP
+            - text: "-"
+            - button "Atualizar local" [ref=f3e1987] [cursor=pointer]
+        - generic [ref=f3e1990]:
+          - link "Ajuda" [ref=f3e1991] [cursor=pointer]:
+            - /url: https://support.google.com/websearch/?p=ws_results_help&hl=pt-BR&fg=1
+          - link "Enviar feedback" [ref=f3e1992] [cursor=pointer]:
+            - /url: "#"
+          - link "Privacidade" [ref=f3e1993] [cursor=pointer]:
+            - /url: https://policies.google.com/privacy?hl=pt-BR&fg=1
+          - link "Termos" [ref=f3e1994] [cursor=pointer]:
+            - /url: https://policies.google.com/terms?hl=pt-BR&fg=1

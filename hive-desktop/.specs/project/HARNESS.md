@@ -718,6 +718,18 @@ distinguir ausência deliberada de esquecimento.
 | — | E2E de fechar-e-reabrir o app real | `e2e/workspace-session.spec.ts` | É a única prova da promessa inteira: o `localStorage` do renderer vive no `userData`, então só um segundo `launch` sobre o mesmo perfil mostra abas, pastas e lateral voltando. |
 | ⚠ | `waitForWorkUI` **abre a lateral** | `e2e/fixtures/workspace.ts` | Mudança de contrato do helper: um workspace sem sessão abre só com o chat, e toda spec anterior descreve um app com a árvore na tela. A spec de primeira execução deliberadamente **não** passa por ele. |
 
+### Controles novos — conta Claude + rolagem do menu de comandos (2026-09-06)
+
+| # | Controle | Onde | O que ele pegou / por que existe |
+| --- | --- | --- | --- |
+| — | Gate de cobertura per-file de `claudeAuthService.ts`, `renderer/claudeAuth/**`, `ConnectionScope.tsx` e `chat/menuScroll.ts` | `vitest.config.ts` | Regra de sempre: arquivo novo entra no gate no mesmo commit, senão ele simplesmente **não é medido** e o relatório segue verde. |
+| — | E2E ao vivo da pista nativa — status + turno haiku real + turno de CLI deslogada | `src/main/claudeAuthLive.e2e.test.ts` | Duas afirmações que nenhum runner falso pode fazer: que `claude auth status --json` ainda responde no formato que a feature lê, e que um turno que morre por credencial **diz por quê**. A segunda roda contra um segundo binário deslogado (`HIVE_E2E_SIGNED_OUT_CLAUDE`), que é como se prova o bug sem deslogar a máquina. |
+| — | Passe funcional da rolagem do menu `/` — 24 teclas, 3 temas | `tools/visual/slash-scroll-pass.mjs` | O defeito é geometria: as linhas são `role="option"` dirigidas por `aria-activedescendant`, então **o foco nunca se move** e o navegador não rola nada. jsdom não faz layout, logo nenhum teste unitário pode responder "a linha destacada está dentro da porta de rolagem". Verificado que morde: com o hook desligado, **21 das 24** teclas caem em linha invisível; com ele, 0. |
+| — | Passe funcional do login da conta — do turno que falhou ao código colado | `tools/visual/claude-signin-pass.mjs` | Prova que as quatro superfícies são **um fluxo**: erro no transcript → botão → farol com a trilha → `Colar` lendo o clipboard do main → recibo com a conta. Cada uma tem teste próprio; nenhum deles atravessa a costura. |
+| — | Sonda de contraste da conexão — 105 alvos (3 temas × 4 estados) | `tools/visual/claude-connection-contrast.mjs` | Regra do M16/M19/M20/M21. Achou dois defeitos **da própria sonda** herdados do `aws-contrast.mjs`: medir o chão a partir do *pai* reporta 1,13:1 para um botão preenchido (tinta de acento sobre a superfície, um par que nunca renderiza), e listar a linha da conta num estado sem conta reporta `missing`, que se lê como "nada a corrigir". |
+| ⚠ | `aws-contrast.mjs` abre a aba do Bedrock | `tools/visual/aws-contrast.mjs` | O escopo `aws` virou `connection` com duas pistas: a sonda antiga clicava numa linha que não existe mais. Segue verde nos 90 alvos. |
+| ⚠ | `boot.mjs` ganhou `claudeAuth` e `clipboard.readText` | `tools/visual/boot.mjs` | O harness envelhece junto com a bridge e **a falha é muda** (página em branco). O namespace novo é lido no boot por `WorkUI`; sem ele, todo passe visual abriria vazio. |
+
 **Limites honestos** — o que *nenhum* controle daqui cobre:
 
 - **Comportamento continua sendo o elo fraco.** 1589 testes e E2E em Electron

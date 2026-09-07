@@ -16,6 +16,36 @@ describe('diagnoseClaudeFailure', () => {
     expect(diagnosis.retryWithoutResume).toBe(false)
   })
 
+  it('reads a signed-out first-party CLI as an Anthropic problem, not an AWS one', () => {
+    // Verbatim from `claude 2.1.226` with no account signed in. It contains
+    // the words "session expired", which the AWS pattern also matches — read
+    // in the wrong order this told users with no AWS account that their SSO
+    // session had expired, and offered them a login they cannot complete.
+    const diagnosis = diagnoseClaudeFailure(
+      'Failed to authenticate: OAuth session expired and could not be refreshed'
+    )
+    expect(diagnosis.cause).toBe('anthropic-auth')
+    expect(diagnosis.needsClaudeLogin).toBe(true)
+    expect(diagnosis.needsAwsLogin).toBe(false)
+  })
+
+  it('reads the rest of the first-party auth vocabulary', () => {
+    for (const text of [
+      'API Error: 401 {"error":{"type":"authentication_error"},"code":"authentication_failed"}',
+      'Invalid API key · Please run /login',
+      'You are not logged in. Run claude auth login to continue.'
+    ]) {
+      expect(diagnoseClaudeFailure(text).cause).toBe('anthropic-auth')
+    }
+  })
+
+  it('leaves the AWS vocabulary to the AWS lane', () => {
+    // No first-party marker anywhere in these, so the order above costs the
+    // Bedrock diagnosis nothing.
+    expect(diagnoseClaudeFailure('ExpiredTokenException').needsClaudeLogin).toBe(false)
+    expect(diagnoseClaudeFailure('Unable to locate credentials').needsClaudeLogin).toBe(false)
+  })
+
   it('reads a bare awsAuthRefresh failure as the expiry it always is inside Hive', () => {
     expect(
       diagnoseClaudeFailure('Error running awsAuthRefresh (in settings or ~/.claude.json)').cause

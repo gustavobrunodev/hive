@@ -500,6 +500,74 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('aws:setProfile', null)
   })
 
+  it('hive.clipboard reads and writes through main, never through navigator', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      clipboard: { writeText: (text: string) => Promise<unknown>; readText: () => Promise<unknown> }
+    }
+    await hive.clipboard.writeText('/ws/docs/prd.md')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('clipboard:writeText', '/ws/docs/prd.md')
+    // The one read, added for the Claude sign-in's paste control.
+    await expect(hive.clipboard.readText()).resolves.toBe('invoked:clipboard:readText')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('clipboard:readText')
+  })
+
+  // claude-account: the first-party session bridge.
+  it('hive.claudeAuth.* invokes the Claude account channels', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      claudeAuth: {
+        status: (workspace?: string, refresh?: boolean) => Promise<unknown>
+        loginState: () => Promise<unknown>
+        login: (mode?: string, workspace?: string) => Promise<unknown>
+        submitCode: (code: string) => Promise<unknown>
+        cancel: () => Promise<unknown>
+      }
+    }
+
+    await expect(hive.claudeAuth.status('/ws')).resolves.toBe('invoked:claude:status')
+    // `refresh` crosses as a real boolean: main branches on it to decide
+    // whether to pay for a spawn that costs seconds on Windows.
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:status', '/ws', false)
+    await hive.claudeAuth.status('/ws', true)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:status', '/ws', true)
+
+    await hive.claudeAuth.loginState()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:loginState')
+
+    await hive.claudeAuth.login()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:login', 'claudeai', undefined)
+    await hive.claudeAuth.login('console', '/ws')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:login', 'console', '/ws')
+
+    await hive.claudeAuth.submitCode('abc-123')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:submitCode', 'abc-123')
+
+    await hive.claudeAuth.cancel()
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('claude:cancel')
+  })
+
+  it('hive.claudeAuth.onState subscribes to the live sign-in and unsubscribes cleanly', () => {
+    const hive = exposedGlobals().get('hive') as {
+      claudeAuth: { onState: (cb: (state: unknown) => void) => () => void }
+    }
+    const onState = vi.fn()
+    const unsubscribe = hive.claudeAuth.onState(onState)
+    expect(ipcRenderer.on).toHaveBeenCalledWith('claude:state', expect.any(Function))
+    expect(ipcRenderer.send).toHaveBeenCalledWith('claude:state:start')
+
+    const listener = vi
+      .mocked(ipcRenderer.on)
+      .mock.calls.find(([channel]) => channel === 'claude:state')?.[1] as (
+      event: unknown,
+      state: unknown
+    ) => void
+    listener({}, { phase: 'code' })
+    expect(onState).toHaveBeenCalledWith({ phase: 'code' })
+
+    unsubscribe()
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('claude:state', listener)
+    expect(ipcRenderer.send).toHaveBeenCalledWith('claude:state:stop')
+  })
+
   it('hive.aws.onState subscribes to the live login and unsubscribes cleanly', () => {
     const hive = exposedGlobals().get('hive') as {
       aws: { onState: (cb: (state: unknown) => void) => () => void }

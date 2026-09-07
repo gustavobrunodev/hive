@@ -28,7 +28,14 @@ for (const key of [
   'HIVE_SIDEBAR_OPEN',
   'HIVE_AUDIO_DIR',
   'HIVE_WANT_LIGHT',
-  'HIVE_NO_BMAD'
+  'HIVE_NO_BMAD',
+  // claude-account: which credential state and which sign-in phase the
+  // connection scene should render.
+  'HIVE_CLAUDE_STATE',
+  'HIVE_CLAUDE_PHASE',
+  // Where a scene that takes one should write its screenshot(s).
+  'HIVE_SHOT',
+  'HIVE_SHOT_DIR'
 ]) {
   if (process.env[key] !== undefined) globalThis[key] = process.env[key]
 }

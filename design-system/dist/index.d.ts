@@ -67,6 +67,8 @@ export { Gauge } from "./components/Gauge/Gauge";
 export type { GaugeProps } from "./components/Gauge/Gauge";
 export { StepFlow } from "./components/StepFlow/StepFlow";
 export type { StepFlowProps, StepFlowStep, StepStatus } from "./components/StepFlow/StepFlow";
+export { PasteField } from "./components/PasteField/PasteField";
+export type { PasteFieldProps } from "./components/PasteField/PasteField";
 export { LevelMeter } from "./components/LevelMeter/LevelMeter";
 export type { LevelMeterProps } from "./components/LevelMeter/LevelMeter";
 export { Alert } from "./components/Alert/Alert";

@@ -1,6 +1,7 @@
 import { t } from '../i18n'
 import { FileTypeIcon } from '../ui/fileIcons'
 import { highlightParts, matchRanges, type MatchRange } from './composerMentions'
+import { useActiveOptionScroll } from './menuScroll'
 
 interface FileMentionMenuProps {
   /** Already filtered/ranked by the caller (Chat owns query + keyboard bounds). Workspace-relative POSIX paths. */
@@ -86,6 +87,9 @@ export function FileMentionMenu({
   emptyLabel,
   listboxId
 }: FileMentionMenuProps): React.JSX.Element {
+  // Same reason as the slash menu: the highlight moves without focus, so
+  // nothing scrolls unless we scroll it (`menuScroll.ts`).
+  const listRef = useActiveOptionScroll<HTMLUListElement>(highlightIndex, items.length)
   const truncated = total > items.length
   return (
     <div className="wb-slash-menu wb-mention-menu" role="presentation">
@@ -102,6 +106,7 @@ export function FileMentionMenu({
         </div>
       ) : (
         <ul
+          ref={listRef}
           className="wb-slash-list"
           role="listbox"
           id={listboxId}

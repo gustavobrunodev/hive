@@ -192,9 +192,17 @@ async (page) => {
     startedAt: Date.now() - 11000
   }
 
+  /**
+   * Opens Perfil › Conexão do Claude **on the Bedrock lane**.
+   *
+   * The scope was renamed and split in two (claude-account): what used to be
+   * the whole panel is now one of two lanes, and the boot fixture is a Bedrock
+   * machine, so the panel already opens here — the tab click is the belt to
+   * that braces, for a fixture that changes later.
+   */
   async function openPanel() {
     const open = await page.evaluate(() =>
-      Boolean(document.querySelector('.wb-profile-sheet[data-view="aws"]'))
+      Boolean(document.querySelector('.wb-profile-sheet[data-view="connection"] .wb-aws-scope'))
     )
     if (open) return
     const sheet = await page.evaluate(() => Boolean(document.querySelector('.wb-profile-sheet')))
@@ -205,8 +213,16 @@ async (page) => {
         .click()
       await page.waitForTimeout(400)
     }
-    await page.getByRole('button', { name: /Conexão AWS/ }).first().click()
-    await page.waitForTimeout(350)
+    const row = page.getByRole('button', { name: /Conexão do Claude/ })
+    if ((await row.count()) > 0) {
+      await row.first().click()
+      await page.waitForTimeout(350)
+    }
+    const lane = page.getByRole('tab', { name: /Amazon Bedrock/ })
+    if ((await lane.count()) > 0 && (await lane.first().getAttribute('aria-selected')) !== 'true') {
+      await lane.first().click()
+      await page.waitForTimeout(250)
+    }
   }
 
   /**

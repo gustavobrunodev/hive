@@ -102,7 +102,7 @@ vi.mock('electron', () => {
     dialog: { showOpenDialog: vi.fn(() => Promise.resolve({ canceled: true, filePaths: [] })) },
     // file-clipboard: main's own clipboard, which is what every in-app copy
     // now goes through — `navigator.clipboard` is refused in the renderer.
-    clipboard: { writeText: vi.fn() },
+    clipboard: { writeText: vi.fn(), readText: vi.fn(() => '') },
     // No scheme is registered and no protocol handled any more; the fakes stay
     // so the assertions that this is so have something to read.
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
@@ -1442,19 +1442,34 @@ describe('main process bootstrap', () => {
     })
   })
 
-  describe('clipboard:writeText (file-clipboard)', () => {
+  describe('clipboard:* (file-clipboard + claude-account)', () => {
     it("writes through main's clipboard — the renderer's own is denied by the permission handler", async () => {
       vi.mocked(clipboard.writeText).mockClear()
       await findHandler('clipboard:writeText')({}, '/ws/docs/prd.md')
       expect(clipboard.writeText).toHaveBeenCalledWith('/ws/docs/prd.md')
     })
 
-    it('is write-only: no read channel exists to pair with it', () => {
+    /**
+     * The read exists now, and it is deliberately the *only* one.
+     *
+     * It was added for one gesture (claude-account): the Claude sign-in ends
+     * with a code the user copies out of a browser tab, and a "Colar" control
+     * that works is what keeps that last step from being where people give up.
+     * It answers a click and nothing else — no polling, no read on focus, no
+     * second read channel. Pinning the exact set here is what keeps a third
+     * one from arriving quietly.
+     */
+    it('exposes exactly two clipboard channels: the write, and the paste the sign-in needs', () => {
       const channels = vi.mocked(ipcMain.handle).mock.calls.map(([channel]) => channel)
-      expect(channels).toContain('clipboard:writeText')
-      expect(channels.filter((c) => String(c).startsWith('clipboard:'))).toEqual([
+      expect(channels.filter((c) => String(c).startsWith('clipboard:')).sort()).toEqual([
+        'clipboard:readText',
         'clipboard:writeText'
       ])
+    })
+
+    it("reads through main's clipboard for the sign-in's paste control", async () => {
+      vi.mocked(clipboard.readText).mockReturnValue('cod-9f21-a7c4')
+      await expect(findHandler('clipboard:readText')({})).resolves.toBe('cod-9f21-a7c4')
     })
   })
 
@@ -1749,6 +1764,53 @@ describe('main process bootstrap', () => {
     it('drops the subscription when the window closes without stopping', () => {
       const sender = fakeSender(9102)
       findOnHandler('aws:state:start')({ sender })
+      expect(() => sender.close()).not.toThrow()
+    })
+  })
+
+  // claude-account: the first-party session channels. Registration and the
+  // idle contract only — `claude:status` spawns the real CLI, which a unit
+  // test must never do; `claudeAuthService.test.ts` owns that behaviour.
+  describe('claude:* (claude-account)', () => {
+    it('registers every channel, including the live-state pair', () => {
+      for (const channel of [
+        'claude:status',
+        'claude:loginState',
+        'claude:login',
+        'claude:submitCode',
+        'claude:cancel'
+      ]) {
+        expect(ipcMain.handle).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+      for (const channel of ['claude:state:start', 'claude:state:stop']) {
+        expect(ipcMain.on).toHaveBeenCalledWith(channel, expect.any(Function))
+      }
+    })
+
+    it('starts idle and stays idle until something happens', async () => {
+      await expect(findHandler('claude:loginState')({})).resolves.toMatchObject({ phase: 'idle' })
+    })
+
+    it('refuses a code when no sign-in is waiting for one', async () => {
+      await expect(findHandler('claude:submitCode')({}, 'abc')).resolves.toBe(false)
+    })
+
+    it('cancelling with nothing in flight is a no-op, not an error across IPC', async () => {
+      await expect(findHandler('claude:cancel')({})).resolves.toBeUndefined()
+    })
+
+    it('subscribes one window to the live sign-in and tears down on stop', () => {
+      const send = vi.fn()
+      const sender = fakeSender(9201, send)
+      findOnHandler('claude:state:start')({ sender })
+      expect(send).toHaveBeenCalledWith('claude:state', expect.objectContaining({ phase: 'idle' }))
+      findOnHandler('claude:state:stop')({ sender })
+      expect(() => findOnHandler('claude:state:stop')({ sender })).not.toThrow()
+    })
+
+    it('drops the subscription when the window closes without stopping', () => {
+      const sender = fakeSender(9202)
+      findOnHandler('claude:state:start')({ sender })
       expect(() => sender.close()).not.toThrow()
     })
   })
@@ -2259,9 +2321,11 @@ describe('main process bootstrap', () => {
         'midi',
         // file-clipboard: the asymmetric pair. *Sanitized write* is granted —
         // without it `navigator.clipboard.writeText()` rejects with
-        // `NotAllowedError` and every in-app copy fails. *Read* stays denied:
-        // nothing in this app has any business seeing what the user copied
-        // somewhere else.
+        // `NotAllowedError` and every in-app copy fails. *Read* stays denied
+        // to the web page: the one paste this app performs (claude-account's
+        // sign-in code) goes through the `clipboard:readText` IPC channel on
+        // an explicit click, which is a narrower thing than handing the whole
+        // renderer standing permission to read the clipboard.
         'clipboard-sanitized-write',
         'clipboard-read',
         'openExternal'

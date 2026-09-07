@@ -19006,3 +19006,381 @@ button.wb-mcplog-summary:focus-visible {
 .wb-ctx-auto-managed {
   margin: 0;
 }
+
+/* ===========================================================================
+   CONEXÃO DO CLAUDE (claude-account)
+   ===========================================================================
+
+   A segunda — e majoritária — forma de autorizar o Claude: a conta nativa da
+   Anthropic. Três superfícies, mesma linguagem da pista AWS ao lado, porque
+   são a mesma pergunta ("a próxima mensagem vai funcionar?") em dois mundos:
+
+     .wb-claude-beacon — o login ao vivo, flutuando acima do trabalho
+     .wb-claude-scope  — o painel em Perfil › Conexão do Claude
+     .wb-conn-*        — a tira que mostra as duas pistas lado a lado
+
+   O `StepFlow` e o `PasteField` vêm do design system; aqui só existe o que é
+   desta feature. Nenhuma cor literal: tudo em token, para os três temas
+   resolverem de graça. */
+
+/* --- o farol -------------------------------------------------------------
+   Mesma âncora do farol da AWS (topo-centro, acima do trabalho, abaixo de
+   diálogo): os dois nunca aparecem juntos — uma máquina autentica por uma
+   pista só — e ancorá-los em lugares diferentes faria o usuário procurar. */
+.wb-claude-beacon {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-sticky);
+  width: min(460px, calc(100vw - 32px));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  animation: wb-aws-beacon-in 0.24s var(--ease-quart);
+}
+
+/* --- o cartão do login (farol e painel) ---------------------------------- */
+.wb-claude-flow {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 13px;
+}
+.wb-claude-scope .wb-claude-flow {
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+}
+.wb-claude-flow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* A placa do glifo é o único lugar com cor cheia no cartão: diz "algo está
+   acontecendo aqui" antes de qualquer palavra ser lida. */
+.wb-claude-flow-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+}
+.wb-claude-flow-mark[data-phase='success'] {
+  background: var(--success-bg);
+  color: var(--success-tint-ink);
+}
+.wb-claude-flow-mark[data-phase='failed'],
+.wb-claude-flow-mark[data-phase='canceled'] {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+.wb-claude-flow-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-claude-flow-elapsed {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wb-claude-flow-steps {
+  margin: 0;
+}
+
+/* O campo do código é o passo que as pessoas perdem — todos os outros
+   acontecem em outra janela. Por isso ele ganha moldura própria e o tom de
+   destaque: é a única coisa na tela que o app está pedindo. */
+.wb-claude-code {
+  padding: 10px 12px 12px;
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, var(--border));
+  border-radius: var(--rounded-md);
+  background: var(--surface-3);
+}
+
+.wb-claude-flow-url {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.wb-claude-flow-url-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.wb-claude-flow-url-value {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 6px 8px;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.wb-claude-flow-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wb-claude-flow-actions .wb-btn-sm.hds-btn {
+  gap: 6px;
+}
+/* Cancelar sai da linha dos botões que fazem o fluxo andar: é a saída, não uma
+   terceira ação equivalente. */
+.wb-claude-flow-cancel {
+  margin-left: auto;
+}
+.wb-claude-flow-detail {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* O recibo: quem ficou conectado. Um "pronto" sozinho é uma afirmação; a conta
+   é a prova — e quem tem duas contas (a pessoal e a do trabalho) descobre aqui,
+   não daqui a uma semana. */
+.wb-claude-connected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--rounded-md);
+  background: var(--success-bg);
+}
+.wb-claude-connected-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  color: var(--success-tint-ink);
+  font-family: var(--ff-num);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.wb-claude-connected-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-claude-connected-line {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-claude-connected-hint {
+  font-size: 0.75rem;
+  color: var(--success-tint-ink);
+}
+
+/* --- a tira das duas pistas (Perfil › Conexão do Claude) ------------------
+   Não é um seletor de preferência: quem decide é a CLI. A tira DIZ qual das
+   duas está valendo ("Em uso") e deixa a outra legível — é um lugar para
+   olhar, não um interruptor. */
+.wb-conn-scope {
+  display: grid;
+  gap: 16px;
+}
+/* Empilhadas, não lado a lado. Medido no painel real (440px): duas abas de
+   ~210px cortavam a leitura da pista em "Nenhuma con…" — e a leitura é o
+   conteúdo da tira. Uma linha inteira por pista cabe a frase toda e ainda
+   deixa o selo "EM USO" alinhado à direita, que é o que responde "qual das
+   duas está valendo". */
+.wb-conn-lanes.hds-tabs-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+/* `justify-content: flex-start` sobrescreve o `center` do gatilho segmentado do
+   DS: aqui a aba é uma LINHA (marca · nome · leitura · selo), e centralizar
+   fazia a segunda pista começar 130px à direita da primeira — duas linhas que
+   deveriam ser comparáveis, desalinhadas. */
+.wb-conn-lane.hds-tabs-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: var(--rounded-md);
+}
+.wb-conn-lane-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.wb-conn-lane[data-state='active'] .wb-conn-lane-mark {
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+}
+.wb-conn-lane-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.wb-conn-lane-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* A linha de baixo é a leitura da pista (a conta, ou "não está em uso"), então
+   ela trunca em vez de quebrar: duas alturas diferentes fariam as duas abas
+   pularem uma em relação à outra. */
+.wb-conn-lane-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-conn-lane-badge {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 7px;
+  border-radius: var(--rounded-full);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.wb-conn-panel.hds-tabs-content {
+  padding: 0;
+}
+
+/* --- o painel da conta --------------------------------------------------- */
+.wb-claude-scope {
+  display: grid;
+  gap: 16px;
+}
+.wb-claude-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+}
+.wb-claude-card[data-tone='warn'] {
+  border-color: color-mix(in oklab, var(--warning) 38%, var(--border));
+}
+.wb-claude-card[data-tone='bad'] {
+  border-color: color-mix(in oklab, var(--danger) 38%, var(--border));
+}
+.wb-claude-card-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.wb-claude-card-mark[data-tone='ok'] {
+  background: var(--success-bg);
+  color: var(--success-tint-ink);
+}
+.wb-claude-card-mark[data-tone='bad'] {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+.wb-claude-card-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  grid-column: 2;
+}
+.wb-claude-card-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-claude-card-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+/* A conta em si, na face numérica: um e-mail é comparado caractere a caractere
+   com o que está aberto no navegador. */
+.wb-claude-card-account {
+  margin: 0;
+  font-family: var(--ff-num);
+  font-size: 0.75rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A ação não divide a linha com a frase: medido no painel real (440px), a
+   frase espremia entre a placa e o botão. Empilhada, ela usa a largura toda. */
+.wb-claude-card-cta.hds-btn {
+  grid-column: 2;
+  justify-self: start;
+}
+.wb-claude-nocli {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-lg);
+}
+.wb-claude-nocli-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-claude-nocli-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.wb-claude-scope-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-claude-beacon {
+    animation: none;
+  }
+}

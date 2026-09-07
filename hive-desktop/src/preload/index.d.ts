@@ -55,6 +55,12 @@ import type { SkillEvent, VaultHealth, VaultStatus } from '../main/secondBrainTy
 import type { AsrDownload, AsrModelId, AsrReadiness } from '../main/asr/asrTypes'
 import type { AsrEnginePhase } from '../main/asr/asrWorkerProtocol'
 import type { AwsAuthStatus, AwsLoginState, AwsPreflightResult } from '../main/awsAuthService'
+import type {
+  ClaudeAuthStatus,
+  ClaudeLoginMode,
+  ClaudeLoginResult,
+  ClaudeLoginState
+} from '../main/claudeAuthService'
 
 declare global {
   interface Window {
@@ -234,6 +240,21 @@ declare global {
         setProfile(name: string | null): Promise<void>
         onState(onState: (state: AwsLoginState) => void): () => void
       }
+      /**
+       * claude-account: the first-party session (a Claude subscription, or an
+       * API key). `status` costs a spawn — seconds against a Windows npm shim
+       * — so main caches it and `refresh` is deliberate; `login` drives
+       * `claude auth login` and `submitCode` hands it the code the user
+       * copied out of the browser.
+       */
+      claudeAuth: {
+        status(workspace?: string, refresh?: boolean): Promise<ClaudeAuthStatus>
+        loginState(): Promise<ClaudeLoginState>
+        login(mode?: ClaudeLoginMode, workspace?: string): Promise<ClaudeLoginResult>
+        submitCode(code: string): Promise<boolean>
+        cancel(): Promise<void>
+        onState(onState: (state: ClaudeLoginState) => void): () => void
+      }
       shell: {
         list(refresh?: boolean): Promise<ShellCatalogView>
         select(id: string | null): Promise<void>
@@ -318,6 +339,8 @@ declare global {
        */
       clipboard: {
         writeText(text: string): Promise<void>
+        /** Reads the system clipboard — only ever in answer to a paste control the user clicked. */
+        readText(): Promise<string>
       }
       /**
        * GitService (git-management M10) surface — see preload/index.ts for the

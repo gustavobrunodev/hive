@@ -60,6 +60,9 @@ import type { GitFileChange } from './scm/gitStatus'
 import { ProfileSheet } from './profile/ProfileSheet'
 import { AwsLoginBeacon } from './aws/AwsLoginBeacon'
 import { useAwsSession } from './aws/useAwsSession'
+import { ClaudeSignInBeacon } from './claudeAuth/ClaudeSignInBeacon'
+import type { ConnectionLane } from './profile/ConnectionScope'
+import { useClaudeAuth } from './claudeAuth/useClaudeAuth'
 import type { ProfileScope } from './profile/scopes'
 import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
@@ -773,10 +776,16 @@ export function WorkUI({
   // voice-settings: a deep link into one scope of the profile sheet (the
   // ingestion sheet's "Alterar" points at `voice`). `null` opens the index.
   const [profileScope, setProfileScope] = useState<ProfileScope | null>(null)
+  /** Which lane of Perfil › Conexão do Claude a deep link asked for (claude-account). */
+  const [connectionLane, setConnectionLane] = useState<ConnectionLane | null>(null)
   // aws-bedrock: the app-level subscription. The beacon has to be able to
   // appear with no AWS surface open at all, so the subscription lives here
   // rather than inside the panel that usually shows it.
   const aws = useAwsSession(true, workspace)
+  // claude-account: the first-party session. Read once per window (main caches
+  // it — the probe costs a spawn) and subscribed for the live sign-in, which
+  // can be started from a failed turn or from the connection panel.
+  const claudeAuth = useClaudeAuth(true, workspace)
   // Which profile detail is open *right now* — not the one that was deep-linked
   // to. The beacon steps aside only for the scope that draws the same login.
   const [openProfileScope, setOpenProfileScope] = useState<ProfileScope | null>(null)
@@ -963,8 +972,13 @@ export function WorkUI({
    * the right detail — flipping it afterwards would show the index for a frame
    * and then slide, which reads as the sheet correcting itself.
    */
-  const openProfile = useCallback((scope: ProfileScope | null) => {
+  const openProfile = useCallback((scope: ProfileScope | null, lane?: ConnectionLane) => {
     setProfileScope(scope)
+    // claude-account: the connection screen has two lanes, and a deep link
+    // always comes from one of them — a turn that died on an AWS session must
+    // not land on the account lane just because this machine reads as
+    // first-party. `undefined` leaves the choice to detection.
+    setConnectionLane(lane ?? null)
     setProfileOpen(true)
   }, [])
 
@@ -1502,8 +1516,11 @@ export function WorkUI({
             onOpenFile={editor.openFile}
             onMcpRoster={(servers) => setMcpReported({ workspace, servers })}
             onOpenMcpConsole={() => setMcpConsoleOpen(true)}
-            onOpenAwsPanel={() => openProfile('aws')}
+            onOpenAwsPanel={() => openProfile('connection', 'aws')}
             onAwsReconnect={() => aws.connect()}
+            // claude-account: the first-party repair, from the turn that
+            // failed — same shape as the AWS one directly above.
+            onClaudeConnect={() => claudeAuth.connect()}
           />
         </div>
       </ResizablePanel>
@@ -1908,7 +1925,9 @@ export function WorkUI({
           <ProfileSheet
             open={profileOpen}
             onOpenChange={setProfileOpen}
+            workspace={workspace}
             initialScope={profileScope}
+            initialConnectionLane={connectionLane}
             role={role}
             agents={agents}
             defaultAgent={defaultAgent}
@@ -1930,9 +1949,23 @@ export function WorkUI({
               they are. Suppressed while the AWS panel is open, which draws the
               same flow inline: two copies of one login, twenty pixels apart,
               is the duplication that makes a user wonder which is real. */}
+          {/* claude-account: the first-party sign-in, on the same shelf and
+              for the same reasons as the AWS one below — it can be started by
+              a turn that failed while the user is somewhere else entirely,
+              and it ends with a code that has to be pasted *somewhere*. */}
+          <ClaudeSignInBeacon
+            state={claudeAuth.login}
+            suppressed={openProfileScope === 'connection'}
+            onOpenUrl={(url) => void window.hive.openExternal(url)}
+            onCopyUrl={(text) => void window.hive.clipboard.writeText(text)}
+            onSubmitCode={claudeAuth.submitCode}
+            onReadClipboard={() => window.hive.clipboard.readText()}
+            onCancel={claudeAuth.cancel}
+            onRetry={() => claudeAuth.connect()}
+          />
           <AwsLoginBeacon
             state={aws.login}
-            suppressed={openProfileScope === 'aws'}
+            suppressed={openProfileScope === 'connection'}
             onOpenUrl={(url) => void window.hive.openExternal(url)}
             onCopyUrl={(text) => void window.hive.clipboard.writeText(text)}
             onCancel={aws.cancel}

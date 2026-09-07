@@ -3839,3 +3839,81 @@ rodado com catálogo e com `HIVE_NO_BMAD=1`) e `tools/visual/chat-round-contrast
 (9 alvos × 3 temas + 5 afirmações estruturais, zero falhas e zero amostras não
 medidas), mais `e2e/shortcut-removal.spec.ts` no Electron real. As lições de
 sonda estão em `docs/visual-validation.md`.
+
+## A conta do Claude e o menu que não rolava (2026-09-06)
+
+Pedido do usuário, dois itens: no menu de `/`, a rolagem não acompanha as setas
+— a linha destacada some da lista; e **o Claude não responde** no chat ("Não foi
+possível concluir a resposta: claude exited with code 1") numa máquina que usa a
+conexão nativa com a Anthropic, não Bedrock. As duas formas têm que funcionar,
+automaticamente. Mais o mandato de sempre: "me surpreenda com uma interface
+bonita, moderna e intuitiva".
+
+- **O padrão ARIA correto é exatamente o motivo de nada rolar.** As linhas dos
+  menus do compositor são `role="option"` apontadas por `aria-activedescendant`,
+  com o foco **parado no textarea** — que é o certo, e é por isso que o
+  navegador não faz nada: porta de rolagem segue *foco*. Descer além da última
+  linha visível movia o destaque para uma linha que ninguém via; dar a volta da
+  última para a primeira era pior — o destaque ia para casa e a vista ficava no
+  fundo. O conserto é aritmético (`menuScroll.ts`), a linha de seção viaja junto
+  com a primeira linha do grupo, e o hook depende também de uma "revisão" (a
+  contagem de linhas): digitar mais uma letra reconstrói a lista com o destaque
+  parado em 0, e um efeito preso só ao índice não dispara.
+- **`claude exited with code 1` era a frase inteira porque o CLI não escreve
+  nada em stderr.** Medido no binário real (2.1.226) sem conta: a razão viaja
+  **dentro** do stream-json — uma mensagem `assistant` com
+  `is_api_error_message: true` e uma linha `result` com `is_error: true` cujo
+  `subtype` é… `success`. Quem lesse `subtype` não veria nada. `cliAdapterCore`
+  agora guarda esse texto e o entrega como o detalhe da falha; sem isso, nenhuma
+  camada acima tinha do que fazer diagnóstico.
+- **Ler a falha errada é pior que não ler.** `Failed to authenticate: OAuth
+  session expired…` casa com o padrão `(session).{0,40}expired` do lado AWS: uma
+  pessoa que nunca tocou em Bedrock era informada de que sua sessão SSO tinha
+  expirado, com um botão de login para uma conta que ela não tem. O padrão da
+  Anthropic passa a ser testado **primeiro**, e ele só usa vocabulário de
+  primeira parte (`OAuth`, `API key`, `authentication_failed`).
+- **A CLI já sabe qual das duas formas está valendo — basta perguntar.**
+  `claude auth status --json` responde `loggedIn` / `authMethod` / `apiProvider`
+  (e `email`, `orgName`, `subscriptionType` quando há conta). Numa máquina em
+  Bedrock ele devolve `authMethod: "third_party"`, `apiProvider: "bedrock"`.
+  Isso encerra a adivinhação por arquivos de settings: as duas pistas passam a
+  ser **uma tela só** (Perfil › Conexão do Claude), com um selo dizendo qual
+  autoriza as conversas. Custo medido: 0,3 s num build nativo e **5,9 s** no
+  shim npm do Windows visto do WSL — por isso o status é cache no main, lido uma
+  vez por janela e nunca em laço.
+- **`claude auth login` é dirigível sem terminal.** Ele imprime a URL e depois
+  **bloqueia num prompt de terminal** (`Paste code here if prompted >`) que
+  ninguém pode digitar num app. Medido: com stdin em pipe ele aceita o código
+  colado e responde a um código errado com `Invalid code. Please make sure the
+  full code was copied.` no stderr **sem sair** — ou seja, colar errado é
+  repetir, não recomeçar. O Hive faz o papel do terminal: lê a URL (que vem como
+  hyperlink OSC-8, com o endereço duplicado — tem que passar por `stripAnsi`
+  antes de qualquer regex), abre o navegador de verdade pelo Electron, e escreve
+  o código no stdin. Nenhum segredo passa por aqui: quem grava é o CLI, no
+  mesmo lugar que o terminal do usuário usa.
+- **`navigator.clipboard` continua negado — e o "Colar" é o último passo do
+  fluxo.** O canal `clipboard:readText` é a única leitura do app, responde a um
+  clique e nada mais. O componente novo do design system (`PasteField`) existe
+  porque o gesto não é digitar: o valor já está na área de transferência, e cada
+  passo entre isso e "conectado" é um passo onde o fluxo morre.
+- **Estado assíncrono não pode semear `useState`.** O painel de conexão escolhia
+  a aba inicial a partir das duas leituras — que chegam depois — e ficava presa
+  na pista errada para sempre. O pick do usuário é `null` até existir; a aba
+  mostrada é `picked ?? (detectado)`. Foi um teste que pegou, não a tela.
+- **O reparo terminava um passo antes do fim.** Conectar e depois ter que
+  redigitar a pergunta é o reparo pela metade: o `Chat` guarda a mensagem do
+  turno mais novo e, quando o login volta `ok`, reenvia sozinho.
+- **Duas armadilhas da própria sonda, herdadas do `aws-contrast.mjs`.** Medir o
+  chão a partir do **pai** do elemento reporta 1,13:1 para um botão preenchido
+  (tinta de acento sobre a superfície — um par que nunca é renderizado); e
+  listar a linha da conta num estado **sem** conta reporta `missing`, que se lê
+  exatamente como "nada a corrigir".
+
+Verify verde (4 127 testes, lint sem erros; as duas coberturas fora do piso são
+`WorkUI.tsx` 86,36% e `configStore.ts` 89,13%, ambas herdadas). Validado contra
+o **CLI real** com haiku no esforço baixo (`claudeAuthLive.e2e.test.ts`: turno
+respondido numa máquina conectada, e `claude-auth:signed-out` numa CLI
+deslogada), e com três passes no build servido: `slash-scroll-pass.mjs` (0 de 24
+teclas fora da vista — 21 de 24 com o hook desligado), `claude-signin-pass.mjs`
+(erro → botão → farol → código → recibo) e `claude-connection-contrast.mjs`
+(105 alvos × 3 temas, zero falhas).

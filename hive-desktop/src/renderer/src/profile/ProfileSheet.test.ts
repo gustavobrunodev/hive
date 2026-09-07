@@ -6,6 +6,7 @@ import { ProfileSheet } from './ProfileSheet'
 import type { AgentMeta } from '../ui/AgentPicker'
 import { asrReadinessFixture, createHiveAsrMock } from '../testSupport/hiveAsrMock'
 import { awsReadyFixture, createHiveAwsMock } from '../testSupport/hiveAwsMock'
+import { createHiveClaudeAuthMock } from '../testSupport/hiveClaudeAuthMock'
 
 /**
  * P1-010 (RP-R6 / AG-R3.2) — the profile sheet is where a *settled* user
@@ -174,8 +175,106 @@ vi.mock('@hive/design-system', () => ({
       onChange: (event: { target: { checked: boolean } }) =>
         onCheckedChange?.(event.target.checked),
       ...rest
-    })
+    }),
+  // claude-account: the two-lane connection panel renders inside this sheet.
+  // Stand-ins that keep exactly what the tests read — which tab is selected,
+  // which panel is mounted, and the code field's label and controls — without
+  // Radix's roving focus or the real field's clipboard plumbing.
+  Tabs: ({
+    value,
+    onValueChange,
+    children
+  }: {
+    value?: string
+    onValueChange?: (value: string) => void
+    children?: ReactNode
+  }) =>
+    createElement(
+      TabsContext.Provider,
+      { value: { value, onValueChange } },
+      createElement('div', null, children)
+    ),
+  TabsList: ({ children }: { children?: ReactNode }) =>
+    createElement('div', { role: 'tablist' }, children),
+  TabsTrigger: ({ value, children }: { value: string; children?: ReactNode }) =>
+    createElement(TabsTriggerMock, { value }, children),
+  TabsContent: ({ value, children }: { value: string; children?: ReactNode }) =>
+    createElement(TabsContentMock, { value }, children),
+  PasteField: ({
+    label,
+    value,
+    onValueChange,
+    onSubmit,
+    onPaste,
+    submitLabel,
+    pasteLabel,
+    error
+  }: {
+    label?: ReactNode
+    value?: string
+    onValueChange?: (value: string) => void
+    onSubmit?: (value: string) => void
+    onPaste?: () => Promise<string | null> | string | null
+    submitLabel?: ReactNode
+    pasteLabel?: ReactNode
+    error?: ReactNode
+  }) =>
+    createElement(
+      'label',
+      null,
+      label,
+      createElement('input', {
+        value,
+        onChange: (event: { target: { value: string } }) => onValueChange?.(event.target.value)
+      }),
+      createElement(
+        'button',
+        { type: 'button', onClick: () => void onPaste?.() },
+        pasteLabel ?? 'Colar'
+      ),
+      createElement(
+        'button',
+        { type: 'button', onClick: () => onSubmit?.(value ?? '') },
+        submitLabel
+      ),
+      error
+    )
 }))
+
+/** Shared state for the mocked tabs above (Radix's context, in miniature). */
+const TabsContext = createContext<{ value?: string; onValueChange?: (value: string) => void }>({})
+
+function TabsTriggerMock({
+  value,
+  children
+}: {
+  value: string
+  children?: ReactNode
+}): React.JSX.Element {
+  const tabs = useContext(TabsContext)
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      role: 'tab',
+      'aria-selected': tabs.value === value,
+      'data-state': tabs.value === value ? 'active' : 'inactive',
+      onClick: () => tabs.onValueChange?.(value)
+    },
+    children
+  )
+}
+
+function TabsContentMock({
+  value,
+  children
+}: {
+  value: string
+  children?: ReactNode
+}): React.JSX.Element | null {
+  const tabs = useContext(TabsContext)
+  return tabs.value === value ? createElement('div', { role: 'tabpanel' }, children) : null
+}
 
 /** Shared state for the mocked radio group above (Radix's context, in miniature). */
 const ShellRadioContext = createContext<{
@@ -326,11 +425,15 @@ beforeEach(() => {
       select: vi.fn(async () => undefined)
     },
     openExternal: vi.fn(),
-    clipboard: { writeText: vi.fn(async () => undefined) },
+    clipboard: {
+      writeText: vi.fn(async () => undefined),
+      readText: vi.fn(async () => '')
+    },
     // voice-settings (M25): the index row states whether transcription is
     // ready, so the bridge answers for every render of this sheet — not only
     // inside the detail.
     aws: createHiveAwsMock(awsReadyFixture()),
+    claudeAuth: createHiveClaudeAuthMock(),
     asr: {
       ...createHiveAsrMock(),
       readiness: vi.fn(async () => INSTALLED),
@@ -976,19 +1079,50 @@ describe('ProfileSheet (P1-010)', () => {
     await waitFor(() => expect(document.body.textContent).toBe(''))
   })
 
-  // aws-bedrock: the index row states the session, and the detail draws the
-  // panel — including the two actions the panel cannot perform itself
-  // (opening a browser, writing the clipboard), which both go through main.
-  describe('Conexão AWS', () => {
+  // aws-bedrock + claude-account: the index row states whichever lane
+  // authorises this machine, and the detail draws both — including the two
+  // actions the panel cannot perform itself (opening a browser, writing the
+  // clipboard), which go through main.
+  describe('Conexão do Claude', () => {
     it('states the session on the index without opening anything', async () => {
       renderSheet()
       expect(await screen.findByText('acme-dev · 6 h')).toBeTruthy()
     })
 
-    it('opens the panel from the index row', async () => {
+    it('opens on the lane in use — Bedrock, on a machine the CLI says is on Bedrock', async () => {
       renderSheet()
-      fireEvent.click(await screen.findByRole('button', { name: /Conexão AWS/ }))
+      fireEvent.click(await screen.findByRole('button', { name: /Conexão do Claude/ }))
       expect(await screen.findByText('Sessão ativa')).toBeTruthy()
+      // The other lane is right there, and readable, without changing anything.
+      expect(screen.getByRole('tab', { name: /Conta Claude/ })).toBeTruthy()
+    })
+
+    it('reads the account on the first-party lane', async () => {
+      renderSheet({ initialScope: 'connection' })
+      fireEvent.click(await screen.findByRole('tab', { name: /Conta Claude/ }))
+      expect(await screen.findByText('Conta conectada')).toBeTruthy()
+      // Twice on purpose: the lane strip states it before the panel is opened,
+      // and the panel repeats it as the account it is talking about.
+      expect(screen.getAllByText('pessoa@exemplo.dev · Plano Pro')).toHaveLength(2)
+    })
+
+    it('takes the browser code through main’s clipboard, not the renderer’s', async () => {
+      // claude-account: `navigator.clipboard` is denied in this window, so the
+      // paste control the whole sign-in ends on has to reach the system
+      // clipboard through the bridge.
+      vi.mocked(window.hive.claudeAuth.loginState).mockResolvedValue({
+        phase: 'code',
+        mode: 'claudeai',
+        url: 'https://claude.com/cai/oauth/authorize',
+        codeError: null,
+        message: null,
+        startedAt: Date.now(),
+        account: null
+      })
+      renderSheet({ initialScope: 'connection' })
+      fireEvent.click(await screen.findByRole('tab', { name: /Conta Claude/ }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Colar' }))
+      expect(window.hive.clipboard.readText).toHaveBeenCalled()
     })
 
     it('routes the verification URL through main, not through the DOM', async () => {
@@ -1001,7 +1135,7 @@ describe('ProfileSheet (P1-010)', () => {
         startedAt: Date.now(),
         expiresAt: null
       })
-      renderSheet({ initialScope: 'aws' })
+      renderSheet({ initialScope: 'connection' })
       fireEvent.click(await screen.findByRole('button', { name: /Abrir de novo/ }))
       expect(window.hive.openExternal).toHaveBeenCalledWith('https://oidc.example/authorize')
       fireEvent.click(screen.getByRole('button', { name: /Copiar link/ }))

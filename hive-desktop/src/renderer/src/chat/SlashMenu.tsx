@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { t } from '../i18n'
 import { AutomationIcon, CompactIcon } from '../ui/icons'
 import { highlightParts, matchRanges } from './composerMentions'
+import { useActiveOptionScroll } from './menuScroll'
 import type { SlashCommand, SlashKind } from './slashCommands'
 
 interface SlashMenuProps {
@@ -76,6 +77,9 @@ export function SlashMenu({
   note,
   listboxId
 }: SlashMenuProps): React.JSX.Element {
+  // The keyboard moves the highlight while focus stays in the textarea, so the
+  // scroll port has to be moved by hand — see `menuScroll.ts`.
+  const listRef = useActiveOptionScroll<HTMLUListElement>(highlightIndex, items.length)
   return (
     <div className="wb-slash-menu" role="presentation">
       {items.length === 0 ? (
@@ -85,6 +89,7 @@ export function SlashMenu({
         </>
       ) : (
         <ul
+          ref={listRef}
           className="wb-slash-list"
           role="listbox"
           id={listboxId}
