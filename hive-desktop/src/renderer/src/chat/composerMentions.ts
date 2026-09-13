@@ -71,7 +71,18 @@ export function openMentionAt(value: string, caret: number): { value: string; ca
   return { value: before + inserted + value.slice(at), caret: at + inserted.length }
 }
 
-const MENTION_RESULT_LIMIT = 8
+/**
+ * How many ranked matches the picker may hold.
+ *
+ * It used to be **8**, and that number was the whole defect: the ninth match
+ * could not be reached by arrow, by scroll or by click, because it was never
+ * in the list at all — the menu's "8 de 412" header was the only trace it
+ * existed. The cap now matches `fsService`'s own walk cap, so the picker's
+ * list is never shorter than what the workspace scan returned; the *viewport*
+ * still shows eight at a time, and the menu renders only the rows near it
+ * (`useVirtualOptionList`), which is what makes holding them all free.
+ */
+const MENTION_RESULT_LIMIT = 5000
 
 /**
  * Case/accent-insensitive normalization shared by filtering and match

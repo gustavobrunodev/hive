@@ -1,0 +1,46 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link "Gmail" [ref=e8] [cursor=pointer]:
+          - /url: https://mail.google.com/mail/&ogbl
+        - link "Pesquisar imagens" [ref=e10] [cursor=pointer]:
+          - /url: https://www.google.com/imghp?hl=pt-BR&ogbl
+          - text: Imagens
+      - button "Google Apps" [ref=e13] [cursor=pointer]
+      - link "Fazer login" [ref=e18] [cursor=pointer]:
+        - /url: https://accounts.google.com/ServiceLogin?hl=pt-BR&passive=true&continue=https://www.google.com/&ec=futura_exp_og_so_72776762_e
+  - img "Google" [ref=e22]
+  - search [ref=e30]:
+    - generic [ref=e32]:
+      - generic [ref=e34]:
+        - combobox "Pesquisar" [active] [ref=e41]
+        - generic [ref=e43]:
+          - button "Ferramentas de inserção de texto" [ref=e44] [cursor=pointer]
+          - button "Pesquisar por voz" [ref=e48] [cursor=pointer]
+          - button "Pesquisa por imagem" [ref=e51] [cursor=pointer]
+      - generic [ref=e55]:
+        - button "Pesquisa Google" [ref=e56] [cursor=pointer]
+        - button "Estou com sorte" [ref=e57] [cursor=pointer]
+  - generic [ref=e60]:
+    - text: "Disponibilizado pelo Google em:"
+    - link "English" [ref=e61] [cursor=pointer]:
+      - /url: https://www.google.com/setprefs?sig=0_sjflkiz-7RFtp_dg47mxAzZO8rk%3D&hl=en&source=homepage&sa=X&ved=0ahUKEwi08oT3qd-WAxWdjpUCHTj9JUgQ2ZgBCBQ
+  - contentinfo [ref=e63]:
+    - generic [ref=e64]: Brasil
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - link "Sobre" [ref=e67] [cursor=pointer]:
+          - /url: https://about.google/?utm_source=google-BR&utm_medium=referral&utm_campaign=hp-footer&fg=1
+        - link "Publicidade" [ref=e68] [cursor=pointer]:
+          - /url: https://www.google.com/intl/pt-BR_br/ads/?subid=ww-ww-et-g-awa-a-g_hpafoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpafooter&fg=1
+        - link "Negócios" [ref=e69] [cursor=pointer]:
+          - /url: https://www.google.com/services/?subid=ww-ww-et-g-awa-a-g_hpbfoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpbfooter&fg=1
+        - link "Como funciona a Pesquisa" [ref=e70] [cursor=pointer]:
+          - /url: https://google.com/search/howsearchworks/?fg=1
+      - generic [ref=e71]:
+        - link "Privacidade" [ref=e72] [cursor=pointer]:
+          - /url: https://policies.google.com/privacy?hl=pt-BR&fg=1
+        - link "Termos" [ref=e73] [cursor=pointer]:
+          - /url: https://policies.google.com/terms?hl=pt-BR&fg=1
+        - button "Configurações" [ref=e77] [cursor=pointer]

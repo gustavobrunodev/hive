@@ -26,10 +26,10 @@ function git(cwd: string, ...args: string[]): string {
 }
 
 async function waitForWorkUI(window: Page): Promise<void> {
-  // The **activity bar**, not the file rail: a workspace with no stored session
-  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
-  // zero here — `openSidebar` at the end is what brings it back.
-  const rail = window.locator('.wb-actionrail')
+  // The **navbar**, not the file rail: it is the one chrome element that is
+  // always on screen, even with the sidebar collapsed to zero —
+  // `openSidebar` at the end is what brings the panel back.
+  const chrome = window.locator('.wb-navbar')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   // The provisioning gate has TWO steps (BMAD, then second-brain / M12), each
   // shelling out to a real network-backed CLI, and each offering "Continuar
@@ -37,17 +37,16 @@ async function waitForWorkUI(window: Page): Promise<void> {
   // never leaves the app parked on the gate.
   for (let step = 0; step < 2; step++) {
     await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
+      chrome.waitFor({ state: 'visible', timeout: 200_000 }),
       continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
     ])
-    if (await rail.isVisible().catch(() => false)) break
+    if (await chrome.isVisible().catch(() => false)) break
     if (await continueAnyway.isVisible().catch(() => false)) {
       await continueAnyway.click()
       await window.waitForTimeout(300)
     }
   }
-  await rail.waitFor({ state: 'visible', timeout: 30_000 })
-  await openSidebar(window)
+  await chrome.waitFor({ state: 'visible', timeout: 30_000 })
 }
 
 test.describe('git-management E2E (real repo + bare remote, real Electron)', () => {
@@ -115,6 +114,7 @@ test.describe('git-management E2E (real repo + bare remote, real Electron)', () 
       // its overlay would otherwise intercept every click.
       await window.getByRole('button', { name: 'Pular tour' }).click({ timeout: 20_000 })
       await window.locator('.wb-tour').waitFor({ state: 'hidden', timeout: 10_000 })
+      await openSidebar(window)
 
       // --- Flip to Source Control (GIT-R13) --------------------------------
       await window.getByRole('button', { name: /Controle de versão/ }).click()

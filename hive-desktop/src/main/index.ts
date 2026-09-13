@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import { spawn } from 'child_process'
 import { statSync } from 'fs'
-import { basename, join, sep } from 'path'
+import { basename, isAbsolute, join, sep } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import packageJson from '../../package.json'
@@ -35,6 +35,7 @@ import { createShellService, type ShellService } from './shellService'
 import type { ShellInfo } from './shellCatalog'
 import { createAgentInstaller } from './agentInstaller'
 import { createAgentService } from './agentService'
+import { describeAttachments, pruneStagedAttachments } from './attachmentContext'
 import { createApprovalService } from './approvalService'
 import { grantAgentPermission } from './agentPermissions'
 import { withScriptedAgentCli } from './e2eAgentSeam'
@@ -646,6 +647,15 @@ app.whenReady().then(() => {
     // machine that wipes `/tmp` mid-session doesn't cost the conversation.
     scratchDir: join(app.getPath('userData'), 'agent-scratch')
   })
+  // Where a mis-named image gets a correctly-named copy for the agent to open.
+  // Under `userData`, beside the agent scratch, for the same reason: a
+  // hardened machine that wipes `/tmp` mid-session must not take the user's
+  // attachment with it. Yesterday's copies go at startup — a conversation can
+  // be resumed long after it was composed, so they outlive their turn on
+  // purpose (`attachmentContext.ts`).
+  const attachmentStageDir = join(app.getPath('userData'), 'attachment-stage')
+  pruneStagedAttachments(attachmentStageDir)
+
   const shells = createShellService(configStore, agentRegistry)
   shellService = shells
   const agentService = createAgentService(agentRegistry)
@@ -1111,21 +1121,52 @@ app.whenReady().then(() => {
   ipcMain.handle('agent:start', async (_event, opts: SessionOpts) => {
     agentService.startSession(opts)
   })
-  ipcMain.handle('agent:send', async (_event, text: string, opts?: TurnOpts) => {
+  /**
+   * A turn as the *renderer* can describe one: paths and nothing else. It is
+   * sandboxed — it cannot stat a host file, let alone read its first bytes —
+   * so the richer `TurnOpts.attachments` only ever comes into being on this
+   * side of the boundary.
+   */
+  type RendererTurnOpts = Omit<TurnOpts, 'attachments'> & { attachments?: string[] }
+
+  /**
+   * Upgrades a turn's raw attachment paths into described context.
+   *
+   * The renderer can only send paths — it is sandboxed and cannot stat a host
+   * file, let alone read its first bytes. So identification happens here, on
+   * the way to the adapter, and it is what stops an attached photo from being
+   * opened as text by an agent that decides "is this an image?" from the file
+   * extension alone (`attachmentContext.ts` has the whole story).
+   */
+  const withDescribedAttachments = (opts?: RendererTurnOpts): TurnOpts | undefined => {
+    if (opts?.attachments === undefined || opts.attachments.length === 0) return opts
+    return {
+      ...opts,
+      attachments: describeAttachments(opts.attachments, {
+        stageDir: attachmentStageDir,
+        isAbsolute
+      })
+    }
+  }
+
+  ipcMain.handle('agent:send', async (_event, text: string, opts?: RendererTurnOpts) => {
     // Checkpoint before the turn spawns (ACR-R1.1). Synthesize a turnId when
     // the caller didn't supply one so the terminal event can be matched back;
     // pass it through to the agent so its events carry the same id.
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
     beginReviewTurn(turnId, opts?.conversationId)
     rememberTurnAgent(turnId, opts?.agentId)
-    agentService.send(text, { ...opts, turnId })
+    agentService.send(text, { ...withDescribedAttachments(opts), turnId })
   })
-  ipcMain.handle('agent:runWorkflow', async (_event, cmd: WorkflowCommand, opts?: TurnOpts) => {
-    const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
-    beginReviewTurn(turnId, opts?.conversationId)
-    rememberTurnAgent(turnId, opts?.agentId)
-    agentService.runWorkflow(cmd, { ...opts, turnId })
-  })
+  ipcMain.handle(
+    'agent:runWorkflow',
+    async (_event, cmd: WorkflowCommand, opts?: RendererTurnOpts) => {
+      const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
+      beginReviewTurn(turnId, opts?.conversationId)
+      rememberTurnAgent(turnId, opts?.agentId)
+      agentService.runWorkflow(cmd, { ...withDescribedAttachments(opts), turnId })
+    }
+  )
   // T8 (WS-R5.2): explicit session teardown, called by Chat's unmount
   // cleanup so a switched-away-from workspace's session doesn't keep
   // running orphaned when no new session immediately replaces it.
@@ -1194,8 +1235,10 @@ app.whenReady().then(() => {
     claudeAuth.status(workspace, refresh === true)
   )
   ipcMain.handle('claude:loginState', async () => claudeAuth.loginState())
-  ipcMain.handle('claude:login', async (_event, mode?: 'claudeai' | 'console', workspace?: string) =>
-    claudeAuth.login(mode ?? 'claudeai', workspace)
+  ipcMain.handle(
+    'claude:login',
+    async (_event, mode?: 'claudeai' | 'console', workspace?: string) =>
+      claudeAuth.login(mode ?? 'claudeai', workspace)
   )
   ipcMain.handle('claude:submitCode', async (_event, code: string) => claudeAuth.submitCode(code))
   ipcMain.handle('claude:cancel', async () => {
@@ -1684,6 +1727,13 @@ app.whenReady().then(() => {
     'chatHistory:setCliSession',
     async (_event, workspace: string, id: string, cliSessionId: string) =>
       chatHistoryStore.setCliSession(workspace, id, cliSessionId)
+  )
+  // session-usage: how full this conversation's context window is, stored with
+  // the conversation so reopening it does not blank the composer's meter.
+  ipcMain.handle(
+    'chatHistory:setUsage',
+    async (_event, workspace: string, id: string, usage: unknown) =>
+      chatHistoryStore.setUsage(workspace, id, usage)
   )
   ipcMain.handle('chatHistory:search', async (_event, workspace: string, query: string) =>
     chatHistoryStore.search(workspace, query)

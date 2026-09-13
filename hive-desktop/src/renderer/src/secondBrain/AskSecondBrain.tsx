@@ -8,7 +8,7 @@ import {
   HighlightedTextarea
 } from '@hive/design-system'
 import { t } from '../i18n'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import { BrainIcon, HistoryIcon, MicIcon } from '../ui/icons'
 import { DictationBar } from '../dictation/DictationBar'
 import { useAsrDictation, type AsrDictation } from '../dictation/useAsrDictation'

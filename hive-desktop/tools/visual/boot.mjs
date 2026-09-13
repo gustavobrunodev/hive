@@ -585,7 +585,124 @@ async (page) => {
           { name: 'architecture.md', path: 'docs/architecture.md', type: 'file' },
           { name: 'epics.md', path: 'docs/epics.md', type: 'file' },
           { name: 'prd.md', path: 'docs/prd.md', type: 'file' },
-          { name: 'ux-spec.md', path: 'docs/ux-spec.md', type: 'file' }
+          { name: 'ux-spec.md', path: 'docs/ux-spec.md', type: 'file' },
+          // initiatives: three demands at three different points of the BMAD
+          // plan (barely started, halfway, finished) plus a second release and
+          // a second year, so a pass sees every state the tracker and the
+          // progress chip can be in — not just the one the fixture happened to
+          // fill. Only the middle one carries a manifest, which is also the
+          // difference between an accented title and a de-slugged one.
+          {
+            name: 'iniciativas',
+            path: 'docs/iniciativas',
+            type: 'directory',
+            children: [
+              {
+                name: 'R2',
+                path: 'docs/iniciativas/R2',
+                type: 'directory',
+                children: [
+                  {
+                    name: 'portal-de-cobranca',
+                    path: 'docs/iniciativas/R2/portal-de-cobranca',
+                    type: 'directory',
+                    children: [
+                      {
+                        name: 'iniciativa.json',
+                        path: 'docs/iniciativas/R2/portal-de-cobranca/iniciativa.json',
+                        type: 'file'
+                      },
+                      {
+                        name: 'pesquisa-dominio.md',
+                        path: 'docs/iniciativas/R2/portal-de-cobranca/pesquisa-dominio.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'brainstorming.md',
+                        path: 'docs/iniciativas/R2/portal-de-cobranca/brainstorming.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'prd.md',
+                        path: 'docs/iniciativas/R2/portal-de-cobranca/prd.md',
+                        type: 'file'
+                      }
+                    ]
+                  },
+                  {
+                    name: 'novo-checkout',
+                    path: 'docs/iniciativas/R2/novo-checkout',
+                    type: 'directory',
+                    children: []
+                  }
+                ]
+              },
+              {
+                name: 'R3',
+                path: 'docs/iniciativas/R3',
+                type: 'directory',
+                children: [
+                  {
+                    name: 'antifraude',
+                    path: 'docs/iniciativas/R3/antifraude',
+                    type: 'directory',
+                    children: [
+                      {
+                        name: 'pesquisa-dominio.md',
+                        path: 'docs/iniciativas/R3/antifraude/pesquisa-dominio.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'brainstorming.md',
+                        path: 'docs/iniciativas/R3/antifraude/brainstorming.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'prd.md',
+                        path: 'docs/iniciativas/R3/antifraude/prd.md',
+                        type: 'file'
+                      },
+                      {
+                        // The stage `bmad-ux` writes. It is here so the "whole
+                        // plan finished" demand really finishes all eight, and
+                        // the completed-progress pill keeps a target to measure.
+                        name: 'DESIGN.md',
+                        path: 'docs/iniciativas/R3/antifraude/DESIGN.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'arquitetura.md',
+                        path: 'docs/iniciativas/R3/antifraude/arquitetura.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'test-design.md',
+                        path: 'docs/iniciativas/R3/antifraude/test-design.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'epicos.md',
+                        path: 'docs/iniciativas/R3/antifraude/epicos.md',
+                        type: 'file'
+                      },
+                      {
+                        name: 'historias',
+                        path: 'docs/iniciativas/R3/antifraude/historias',
+                        type: 'directory',
+                        children: [
+                          {
+                            name: 'h-1-bloqueio.md',
+                            path: 'docs/iniciativas/R3/antifraude/historias/h-1-bloqueio.md',
+                            type: 'file'
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
         ]
       },
       {
@@ -1143,7 +1260,18 @@ async (page) => {
       // the surface swaps between Editar and Visualizar.
       readFile: (_root, rel) =>
         Promise.resolve(
-          rel && rel.endsWith('.md')
+          // initiatives: the one manifest in the fixture. It is what gives that
+          // demand its accented title and its own year — a folder without one
+          // falls back to the de-slugged name and the current year, which is
+          // the other case the tree has to show.
+          rel && rel.endsWith('/iniciativa.json')
+            ? JSON.stringify({
+                title: 'Portal de Cobrança',
+                year: 2026,
+                release: 'R2',
+                createdAt: '2026-08-14T10:00:00.000Z'
+              })
+            : rel && rel.endsWith('.md')
             ? [
                 `# ${rel.split('/').pop()?.replace(/\.md$/, '') ?? 'Documento'}`,
                 '',
@@ -1304,10 +1432,40 @@ async (page) => {
           }
           return Promise.resolve(s ? { id: s.id, title: s.title, updatedAt: Date.now() } : null)
         },
-        rename: ok(null),
+        rename: (_ws, id, title) => {
+          const s = sessions.find((x) => x.id === id)
+          if (s) s.title = title
+          return Promise.resolve(
+            s ? { id: s.id, title: s.title, updatedAt: s.updatedAt, messageCount: s.messages.length, agent: s.agent ?? null, preview: '' } : null
+          )
+        },
         setCliSession: ok(undefined),
+        // session-usage: the context reading is stored WITH the conversation
+        // now, and `get` has to hand it back — a mock that swallows it makes a
+        // restored meter look broken when it is the harness that forgot.
+        setUsage: (_ws, id, usage) => {
+          const s = allSessions().find((x) => x.id === id)
+          if (s) s.usage = usage
+          return Promise.resolve(undefined)
+        },
         search: ok([]),
-        delete: ok(undefined)
+        // A delete that resolves without deleting cannot tell a working
+        // multi-select from a dead button. Seeded rows live in localStorage,
+        // so removing one means rewriting that list too.
+        delete: (_ws, id) => {
+          const index = sessions.findIndex((x) => x.id === id)
+          if (index !== -1) sessions.splice(index, 1)
+          try {
+            const seeded = JSON.parse(localStorage.getItem('hive.__seedChat') ?? '[]')
+            localStorage.setItem(
+              'hive.__seedChat',
+              JSON.stringify(seeded.filter((s) => s.id !== id))
+            )
+          } catch {
+            // ignore — an unseeded harness has nothing to rewrite
+          }
+          return Promise.resolve(undefined)
+        }
       },
       app: {
         info: ok({ version: '0.1.0', channel: 'stable' }),

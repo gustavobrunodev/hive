@@ -9,6 +9,7 @@ import {
   type AgentInput,
   type AgentSession,
   type SessionOpts,
+  type TurnOpts,
   type WorkflowCommand
 } from './agentAdapter'
 
@@ -23,6 +24,8 @@ interface FakeSession extends AgentSession {
   opts: SessionOpts
   sends: AgentInput[]
   workflows: WorkflowCommand[]
+  /** The per-turn opts each `runWorkflow` arrived with — the service's forwarding contract. */
+  workflowOpts: Array<TurnOpts | undefined>
   interrupts: Array<string | undefined>
   stopped: boolean
   push(event: AgentEvent): void
@@ -34,6 +37,7 @@ function createFakeSession(opts: SessionOpts): FakeSession {
     opts,
     sends: [],
     workflows: [],
+    workflowOpts: [],
     interrupts: [],
     stopped: false,
     events: queue,
@@ -41,8 +45,9 @@ function createFakeSession(opts: SessionOpts): FakeSession {
     send(input: AgentInput) {
       session.sends.push(input)
     },
-    runWorkflow(cmd: WorkflowCommand) {
+    runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts) {
       session.workflows.push(cmd)
+      session.workflowOpts.push(opts)
     },
     interrupt(turnId?: string) {
       session.interrupts.push(turnId)
@@ -224,6 +229,22 @@ describe('AgentService (multi-agent pool)', () => {
     expect(sessions[0].workflows).toEqual([{ key: 'prd', prompt: 'run prd' }])
   })
 
+  it('send()/runWorkflow() forward freshSession — a live transport needs to know whose conversation this is', () => {
+    // Dropped here, the flag never reaches the only adapter that can act on
+    // it, and a new conversation silently continues another one's ACP session.
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }))
+
+    service.startSession({ workspace: '/ws' })
+    service.send('conversa nova', { freshSession: true, turnId: 't1' })
+    service.runWorkflow({ key: 'bmad-agent-builder' }, { freshSession: true, turnId: 't2' })
+    service.send('continuando', { resume: 'sess-1', turnId: 't3' })
+
+    expect(sessions[0].sends[0]).toMatchObject({ freshSession: true })
+    expect(sessions[0].workflowOpts[0]).toMatchObject({ freshSession: true })
+    expect(sessions[0].sends[1].freshSession).toBeUndefined()
+  })
+
   it('send() forwards resume, turnId, model/effort override and attachments', () => {
     const { adapter, sessions } = createFakeAdapter()
     const service = createAgentService(createFakeRegistry({ fake: adapter }))
@@ -241,6 +262,9 @@ describe('AgentService (multi-agent pool)', () => {
       {
         text: 'vai',
         resume: 'cli-7',
+        // Not set by this caller, and forwarded as the absence it is: for a
+        // one-shot CLI `resume` alone already decides continuity.
+        freshSession: undefined,
         turnId: 'turn-9',
         model: 'opus',
         effort: 'max',

@@ -282,7 +282,7 @@ export const CodeEditor = React.forwardRef<HTMLTextAreaElement, CodeEditorProps>
           </pre>
           <textarea
             ref={setNode}
-            className="hds-editor-input"
+            className="hds-editor-input hds-scrollbar"
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onScroll={(event) => {

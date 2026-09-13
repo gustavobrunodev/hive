@@ -26,8 +26,11 @@ describe("Attachment", () => {
       render(<Attachment name="relatorio-trimestral-consolidado-v3.docx" truncate="middle" />)
       const tail = document.querySelector(".hds-attachment-name-tail")
       expect(tail?.textContent).toBe("-v3.docx")
-      // Head + tail still read as the one uninterrupted name — to a screen
-      // reader, and to copy/paste.
+      // Head + tail are one `textContent`, so copy/paste gets the whole name.
+      // NOT the same as what a screen reader hears — the two spans are flex
+      // items, so there is a block boundary between them; `Attachment.css`
+      // carries the measurement and why it stays. This assertion is about the
+      // clipboard, and about the head/tail split not losing a character.
       expect(document.querySelector(".hds-attachment-name")?.textContent).toBe(
         "relatorio-trimestral-consolidado-v3.docx"
       )

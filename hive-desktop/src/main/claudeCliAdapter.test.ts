@@ -149,6 +149,53 @@ function toolUseLine(
 }
 
 describe('ClaudeCliAdapter — session turns (stream-json)', () => {
+  /**
+   * The defect this suite was written for.
+   *
+   * A user attached a photo, asked Claude to read it, and got "não vejo
+   * nenhuma foto anexada" — while the same attachment on the same machine
+   * worked with Devin. The attachment was never the problem: the prompt was.
+   *
+   * `composeTurnPrompt` puts the `<attached-files>` block on the prompt's
+   * **second line**, and on Windows the npm `claude.cmd` shim cannot receive a
+   * command line with a newline in it — `cmd` reads the escaped newline as a
+   * line continuation and drops everything after it, silently. Measured
+   * against a real `cmd.exe` and a real batch shim:
+   *
+   * ```text
+   *   argv in : ['-p', 'line one\nline two', '--flagA', 'valA']
+   *   argv out: ['-p', 'line one']
+   * ```
+   *
+   * Devin was unaffected because its turns go over ACP — JSON-RPC on stdin.
+   * The repair is the same insight: the prompt leaves argv and travels as the
+   * child's stdin, which carries it verbatim.
+   */
+  it('sends the whole prompt on stdin, never in argv — a multi-line turn is what argv loses on Windows', async () => {
+    const fakeRunner = createFakeProcessRunner()
+    fakeRunner.script({ chunks: [{ stream: 'stdout', data: initLine() }], code: 0 })
+    const session = createClaudeCliAdapter(fakeRunner).startSession({ workspace: '/ws' })
+
+    session.send({
+      text: 'Extraia o texto da foto anexada',
+      attachments: [{ path: 'C:\\Users\\gu\\foto.jpeg', name: 'foto.jpeg', kind: 'image' }]
+    })
+    await take(session.events, 2)
+
+    const call = fakeRunner.calls[0]
+    // Nothing of the prompt is on the command line — not the text, not the
+    // block. An argv assertion is the only one that can fail if someone
+    // "helpfully" restores the positional prompt.
+    expect(call.args).not.toContain('Extraia o texto da foto anexada')
+    expect(call.args.some((arg) => arg.includes('attached-files'))).toBe(false)
+    // …and all of it is on stdin, newlines intact.
+    const input = call.opts?.input ?? ''
+    expect(input).toContain('Extraia o texto da foto anexada')
+    expect(input).toContain('<attached-files>')
+    expect(input).toContain('C:\\Users\\gu\\foto.jpeg')
+    expect(input.split('\n').length).toBeGreaterThan(1)
+  })
+
   it('a successful turn: init → session event, text deltas → tokens, then done', async () => {
     const fakeRunner = createFakeProcessRunner()
     fakeRunner.script({
@@ -182,7 +229,12 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     // for a fresh conversation.
     expect(fakeRunner.calls).toHaveLength(1)
     expect(fakeRunner.calls[0].command).toBe('claude')
-    expect(fakeRunner.calls[0].args).toEqual(['-p', 'hi there', ...BASE_FLAGS])
+    // The prompt is NOT in the argv: `-p` carries no positional and the text
+    // travels as the child's stdin (`opts.input`). On Windows the npm `.cmd`
+    // shim truncates a command line at its first newline, which dropped the
+    // `<attached-files>` block — and every flag after it — from every turn
+    // that carried an attachment. See `CliAdapterConfig.promptOnStdin`.
+    expect(fakeRunner.calls[0].args).toEqual(['-p', ...BASE_FLAGS])
     // agent-terminal: `shell: true` marks this as an agent turn — the one
     // spawn routed through the user's chosen terminal. With no adapter env and
     // nothing chosen, the runner still spawns exactly as it did before.
@@ -191,6 +243,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     expect(fakeRunner.calls[0].opts).toEqual({
       cwd: '/ws',
       env: undefined,
+      input: 'hi there',
       shell: true,
       processGroup: true
     })
@@ -368,13 +421,8 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: 'continue please', resume: 'cli-sess-9' })
     await take(session.events, 1) // drain done
 
-    expect(fakeRunner.calls[0].args).toEqual([
-      '-p',
-      'continue please',
-      ...BASE_FLAGS,
-      '--resume',
-      'cli-sess-9'
-    ])
+    expect(fakeRunner.calls[0].args).toEqual(['-p', ...BASE_FLAGS, '--resume', 'cli-sess-9'])
+    expect(fakeRunner.calls[0].opts?.input).toBe('continue please')
   })
 
   it('send({attachments}) folds the file paths into the prompt as an <attached-files> block (chat-attachments)', async () => {
@@ -390,7 +438,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: 'resuma isso', attachments: ['/abs/relatorio.pdf', 'docs/prd.md'] })
     await take(session.events, 1) // drain done
 
-    const prompt = fakeRunner.calls[0].args[1]
+    const prompt = fakeRunner.calls[0].opts?.input ?? ''
     expect(prompt.startsWith('resuma isso\n\n<attached-files>')).toBe(true)
     expect(prompt).toContain('- /abs/relatorio.pdf')
     expect(prompt).toContain('- docs/prd.md')
@@ -410,7 +458,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: '', attachments: ['/abs/planilha.xlsx'] })
     await take(session.events, 1)
 
-    const prompt = fakeRunner.calls[0].args[1]
+    const prompt = fakeRunner.calls[0].opts?.input ?? ''
     expect(prompt.startsWith('<attached-files>')).toBe(true)
     expect(prompt).toContain('- /abs/planilha.xlsx')
   })
@@ -428,7 +476,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
     session.send({ text: 'oi', attachments: [] })
     await take(session.events, 1)
 
-    expect(fakeRunner.calls[0].args[1]).toBe('oi')
+    expect(fakeRunner.calls[0].opts?.input).toBe('oi')
   })
 
   it('a JSON line split across chunks reassembles; complete assistant/result objects are not re-emitted as tokens', async () => {
@@ -773,7 +821,7 @@ describe('ClaudeCliAdapter — session turns (stream-json)', () => {
       { type: 'done' }
     ])
     // Promptless commands fall back to the skill's slash command.
-    expect(fakeRunner.calls[0].args).toContain('/prd')
+    expect(fakeRunner.calls[0].opts?.input).toBe('/prd')
     expect(fakeRunner.calls[0].args).toContain('--resume')
     expect(fakeRunner.calls[0].args).toContain('cli-sess-3')
   })

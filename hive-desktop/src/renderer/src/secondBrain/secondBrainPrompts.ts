@@ -1,4 +1,4 @@
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 
 /**
  * The Second Brain slash commands the panel/FAB launch through the normal

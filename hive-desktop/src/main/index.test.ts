@@ -1065,6 +1065,47 @@ describe('main process bootstrap', () => {
     })
   })
 
+  /**
+   * chat-attachments: the renderer can only send paths — it is sandboxed and
+   * cannot stat a host file, let alone sniff its first bytes. So main upgrades
+   * them on the way to the adapter, which is what stops an attached photo from
+   * being opened as text by a reader that decides "is this an image?" from the
+   * extension (`attachmentContext.ts`).
+   */
+  it('describes a turn\u2019s attachments before dispatching it, on both send and runWorkflow', async () => {
+    const photo = join(tmpdir(), `hive-idx-${Date.now()}.jpe`)
+    writeFileSync(photo, Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(24)]))
+    try {
+      await findHandler('agent:send')({}, 'extraia os dados', {
+        turnId: 'a1',
+        attachments: [photo, 'docs/prd.md']
+      })
+      const sent = fakeAgentService.send.mock.calls.at(-1)?.[1].attachments
+      // The photo is typed AND pointed at a readable copy; the workspace
+      // reference is passed through, because it resolves against the session's
+      // cwd and a stat from here would stat the wrong file.
+      expect(sent[0]).toMatchObject({ mime: 'image/jpeg', kind: 'image', stagedFrom: photo })
+      expect(sent[0].path.endsWith('.jpg')).toBe(true)
+      expect(sent[1]).toMatchObject({ path: 'docs/prd.md' })
+
+      await findHandler('agent:runWorkflow')(
+        {},
+        { key: 'bmad-prd' },
+        { turnId: 'a2', attachments: [photo] }
+      )
+      expect(fakeAgentService.runWorkflow.mock.calls.at(-1)?.[1].attachments[0].mime).toBe(
+        'image/jpeg'
+      )
+    } finally {
+      rmSync(photo, { force: true })
+    }
+  })
+
+  it('leaves a turn with no attachments untouched', async () => {
+    await findHandler('agent:send')({}, 'oi', { turnId: 'b1', attachments: [] })
+    expect(fakeAgentService.send).toHaveBeenLastCalledWith('oi', { turnId: 'b1', attachments: [] })
+  })
+
   // T8 (WS-R5.2): explicit session-teardown handler, called by Chat's
   // unmount cleanup — routes to AgentService.stop() with no args.
   it('registers an agent:stop handler routing to AgentService.stop()', async () => {

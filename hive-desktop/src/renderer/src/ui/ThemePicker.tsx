@@ -5,7 +5,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
 } from '@hive/design-system'
 import { t } from '../i18n'
 import { HiveCellIcon, MoonIcon, SunIcon } from './icons'
@@ -14,6 +17,8 @@ import { THEMES, THEME_SWATCHES, isTheme, type Theme } from './theme'
 interface ThemePickerProps {
   theme: Theme
   onSelectTheme: (theme: Theme) => void
+  /** Extra classes for the trigger, so the navbar can size it like its siblings. */
+  className?: string
 }
 
 const ICONS: Record<Theme, (props: { size?: number }) => React.JSX.Element> = {
@@ -106,24 +111,38 @@ function ThemePreview({ theme }: { theme: Theme }): React.JSX.Element {
  * "current" — and, because the DS then right-aligned the rest of the row, gave
  * every option a different text indent.
  */
-export function ThemePicker({ theme, onSelectTheme }: ThemePickerProps): React.JSX.Element {
+export function ThemePicker({
+  theme,
+  onSelectTheme,
+  className
+}: ThemePickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const CurrentIcon = ICONS[theme]
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="wb-icon-btn"
-          title={t('theme.pickerLabel')}
-          aria-label={t('theme.pickerLabelWithCurrent', t(`theme.${theme}`))}
-        >
-          <CurrentIcon />
-        </button>
-      </DropdownMenuTrigger>
+      {/* Radix's documented trigger composition: the tooltip wraps the menu
+          trigger, which wraps the real button. It buys the same styled,
+          keyboard-reachable hint the navbar's other icon controls get (see
+          `TooltipIconButton`) without this control needing a second element to
+          hang it on. Needs a `TooltipProvider` ancestor — the navbar mounts
+          one around the whole row. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={['wb-icon-btn', className].filter(Boolean).join(' ')}
+              aria-label={t('theme.pickerLabelWithCurrent', t(`theme.${theme}`))}
+            >
+              <CurrentIcon />
+            </button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t('theme.pickerLabel')}</TooltipContent>
+      </Tooltip>
       {open && (
-        <DropdownMenuContent align="end" className="wb-theme-menu">
+        <DropdownMenuContent align="start" className="wb-theme-menu">
           <DropdownMenuLabel>{t('theme.pickerLabel')}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={theme}

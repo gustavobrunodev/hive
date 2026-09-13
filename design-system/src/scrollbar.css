@@ -1,0 +1,94 @@
+/* ==========================================================================
+   `.hds-scrollbar` — the native scrollbar, recoloured to the palette.
+
+   Recolour, never rebehave. The bar keeps the platform's geometry, its wheel
+   and drag behaviour and its accessibility; only its colours come from the
+   tokens. PRODUCT.md lists a reinvented scrollbar as an anti-reference, and a
+   *raw* platform bar down the edge of a themed panel is the same tell from the
+   other side — a light track with a grey thumb pinned to a dark popover.
+
+   ## The trap this class exists to close
+
+   `scrollbar-width: thin` looks like the safe, standards-track way to ask for
+   a discreet bar. In Chromium it is the opposite: setting `scrollbar-width`
+   (or `scrollbar-color`) to anything but `auto` puts the element on the
+   standard scrollbar path and makes it **ignore every `::-webkit-scrollbar-*`
+   rule** that would otherwise reach it — including an app's global, tokenized
+   ones. So the single declaration written to make a bar unobtrusive is exactly
+   what makes it look foreign.
+
+   That has now been found three times in this codebase — two scrollers in the
+   MCP console, the `OptionPicker` list, and the chat's `@` file-mention menu,
+   where it put a light platform track down the side of a dark popover. Twice
+   it was fixed by copying this block into the component; this file is that
+   copy promoted to one place, so the fourth occurrence is a class name instead
+   of a rediscovery.
+
+   ## Using it
+
+   Put `hds-scrollbar` on the element that actually scrolls (the one with
+   `overflow: auto`), and retune it with the custom properties below where a
+   surface needs different weight — a code editor wants a wider bar than a
+   popover list. Never re-add `scrollbar-width` to a Chromium-served element:
+   the `@supports` block at the bottom is the only place it belongs, and it is
+   guarded so Chromium can never take that branch.
+   ========================================================================== */
+
+.hds-scrollbar {
+  /* Track width. The full width stays the hit target even though the thumb is
+     drawn narrower — see `--hds-sb-inset`. */
+  --hds-sb-size: 10px;
+  /* Transparent border on the thumb, clipped to the padding box: it insets the
+     drawn thumb without shrinking what you can grab. 10px of bar, 6px of thumb,
+     10px of target. */
+  --hds-sb-inset: 2px;
+  /* `--border-strong` is a *hairline* token (26% ink) and a 6px bar drawn in it
+     is not something a user finds: on a list with a dozen rows below the fold
+     the thumb is indistinguishable from the panel edge. This is the position
+     indicator for a list that has one, so it is drawn at a weight you can see
+     and grab, in the same neutral ink as the rest of the chrome. */
+  --hds-sb-thumb: color-mix(in oklab, var(--ink) 32%, transparent);
+  --hds-sb-thumb-hover: color-mix(in oklab, var(--ink) 52%, transparent);
+}
+
+.hds-scrollbar::-webkit-scrollbar {
+  width: var(--hds-sb-size);
+  height: var(--hds-sb-size);
+}
+
+.hds-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--hds-sb-thumb);
+  border-radius: var(--rounded-full);
+  border: var(--hds-sb-inset) solid transparent;
+  background-clip: padding-box;
+  transition: background-color 120ms var(--ease-quart);
+}
+
+.hds-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--hds-sb-thumb-hover);
+  background-clip: padding-box;
+}
+
+/* The track carries no chrome of its own: the surface behind it already says
+   where the column is, and a filled track on a popover reads as a second
+   border. */
+.hds-scrollbar::-webkit-scrollbar-track,
+.hds-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Engines without the pseudo-elements (Firefox) get the standard properties.
+   This is the branch Chromium must never take — hence the `@supports` guard
+   rather than declaring both, which is the whole trap documented above. */
+@supports not selector(::-webkit-scrollbar-thumb) {
+  .hds-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hds-sb-thumb) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-scrollbar::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}

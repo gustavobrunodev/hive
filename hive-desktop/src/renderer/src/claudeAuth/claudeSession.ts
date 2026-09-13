@@ -77,6 +77,21 @@ export function loginSteps(phase: ClaudePhase): ClaudeStepView[] {
   ]
 }
 
+/**
+ * Whether the machine has credentials the agent can actually run on —
+ * `null` while the app has not read an answer yet.
+ *
+ * `api-key` and `third-party` count: both are working arrangements this lane
+ * has no say over, and a turn will not die for want of an account under either.
+ * `unknown` deliberately stays `null` rather than guessing: it is the state
+ * where `claude auth status` said something this app does not parse, and a
+ * guess there would be a claim with nothing behind it.
+ */
+export function accountReady(state: ClaudeAuthState | null | undefined): boolean | null {
+  if (state === null || state === undefined || state === 'unknown') return null
+  return state !== 'signed-out' && state !== 'no-cli'
+}
+
 /** Whether a sign-in is happening right now — what makes the live surface appear. */
 export function isLoginLive(phase: ClaudePhase): boolean {
   return phase === 'starting' || phase === 'browser' || phase === 'code' || phase === 'finishing'

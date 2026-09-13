@@ -50,6 +50,31 @@ import { asRecord, asText } from './modelCatalog'
  * protocol stalled exactly there.) Answering is still the right side of the
  * trade: it routes the agent's reads and writes through this process, which is
  * what lets the rest of the app see them.
+ *
+ * ## One connection, many sessions — and why that distinction is load-bearing
+ *
+ * `AgentService` pools sessions **per agent**, not per conversation: for a
+ * one-shot CLI that is free, because the session object holds nothing a
+ * conversation could leak through. Here it is not free. This module holds a
+ * live ACP session, and the first version of it treated "already connected" as
+ * "nothing to do" — `if (client && acpSessionId) return`, with the turn's
+ * `resume` never read.
+ *
+ * The consequence, reported and then found in the stored transcript: a skill
+ * build launched from the Estúdio de skills — a **new** conversation, empty
+ * transcript, no resume handle — was prompted into the ACP session a PRD
+ * discovery was running in, and answered *"pausando a descoberta do PRD (o
+ * workspace fica salvo para retomarmos depois)"*. Two Hive conversations, one
+ * agent memory. The same bug in the other direction: going back to the earlier
+ * conversation kept prompting the newer session, because `session/load` was
+ * only ever tried on the very first turn.
+ *
+ * So the two lifetimes are now separate. The **connection** (process +
+ * handshake + `fs/*` handlers) is what the measurements above are about and is
+ * reused for everything; the **session** on it is chosen per turn from the
+ * turn's own account of which conversation it belongs to (`sessionPlan`). A
+ * conversation switch costs one `session/new` or `session/load` on a warm
+ * connection — not a cold start.
  */
 
 /** ACP's own protocol version. Bumping this is a deliberate act, not a default. */
@@ -340,9 +365,43 @@ export function createDevinAcpSession(
     UPDATE_HANDLERS[update.sessionUpdate ?? '']?.(update, activeTurnId)
   }
 
-  /** Brings up the connection and opens (or re-attaches to) a Devin session. */
-  async function connect(resume: string | null | undefined): Promise<void> {
-    if (client && acpSessionId) return
+  /**
+   * Which ACP session this turn runs on, given the one the connection is
+   * already holding.
+   *
+   *  - `keep` — the turn belongs to the live session: it asked to resume that
+   *    exact id, or it asked for nothing at all while a session is open. The
+   *    second case is not laxness: it is the window between a conversation's
+   *    first turn opening a session and the `session` event carrying that id
+   *    back to the renderer, during which a follow-up honestly has no handle
+   *    to send. Treating it as "new" there would drop the conversation's
+   *    memory one turn in — which is why the caller says `freshSession` when
+   *    it really is a new conversation, instead of this inferring it.
+   *  - `load` — the turn names a different session (the user went back to an
+   *    earlier conversation, or the app restarted and read the id off disk).
+   *  - `new` — a conversation with no agent session: the caller declared it
+   *    fresh, or nothing is open yet.
+   */
+  function sessionPlan(turnOpts: TurnOpts | undefined): 'keep' | 'load' | 'new' {
+    const resume = turnOpts?.resume ?? null
+    if (turnOpts?.freshSession === true) return 'new'
+    // Before the "is anything open?" test, not after: a named id with nothing
+    // open is the app having just started on a conversation it read off disk,
+    // and that is the case `session/load` exists for.
+    if (resume !== null && resume !== acpSessionId) return 'load'
+    if (acpSessionId === null) return 'new'
+    return 'keep'
+  }
+
+  /**
+   * The connection: process, handshake and the handlers the agent calls back
+   * into. Reused for every session — this is what the 1.7s second turn in
+   * `acpClient.ts` is measuring, and re-spawning it per conversation would
+   * give back the whole reason this transport exists.
+   */
+  async function ensureClient(): Promise<AcpClient> {
+    const existing = client
+    if (existing) return existing
     const acp = createAcpClient(processRunner, {
       command,
       args: ['acp'],
@@ -398,23 +457,11 @@ export function createDevinAcpSession(
       protocolVersion: PROTOCOL_VERSION,
       clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false }
     })
+    return acp
+  }
 
-    if (resume) {
-      try {
-        await acp.request('session/load', {
-          sessionId: resume,
-          cwd: opts.workspace,
-          mcpServers: []
-        })
-        acpSessionId = resume
-        return
-      } catch {
-        // The id is from an older run the agent no longer has, or from a
-        // different workspace. A fresh session is a better answer than an
-        // error the user can do nothing about.
-      }
-    }
-
+  /** Opens a new Devin session on the connection and announces its id. */
+  async function openSession(acp: AcpClient): Promise<void> {
     const created = (await acp.request<NewSessionResult>('session/new', {
       cwd: opts.workspace,
       mcpServers: []
@@ -422,7 +469,38 @@ export function createDevinAcpSession(
     const id = asText(created?.sessionId)
     if (!id) throw new Error('O Devin não devolveu um id de sessão.')
     acpSessionId = id
+    // The model in force belongs to the session, not to the connection: a new
+    // session starts on the agent's own default, so the next `applyModel` has
+    // to send the flag again rather than believe a previous session's answer.
+    appliedModel = null
     queue.push({ type: 'session', id, turnId: activeTurnId })
+  }
+
+  /** Brings up the connection and puts the turn's own session in force. */
+  async function connect(turnOpts: TurnOpts | undefined): Promise<void> {
+    const plan = sessionPlan(turnOpts)
+    const acp = await ensureClient()
+    if (plan === 'keep') return
+    if (plan === 'load') {
+      const resume = turnOpts?.resume ?? null
+      try {
+        await acp.request('session/load', {
+          sessionId: resume,
+          cwd: opts.workspace,
+          mcpServers: []
+        })
+        acpSessionId = resume
+        appliedModel = null
+        return
+      } catch {
+        // The id is from an older run the agent no longer has, or from a
+        // different workspace. A fresh session is a better answer than an
+        // error the user can do nothing about — and it must be a *fresh* one,
+        // not whatever this connection happened to be holding, which is the
+        // conversation the user just navigated away from.
+      }
+    }
+    await openSession(acp)
   }
 
   /**
@@ -493,7 +571,7 @@ export function createDevinAcpSession(
       compactionTrigger = 'auto'
       compactionPhase = 'idle'
     }
-    await connect(turnOpts?.resume)
+    await connect(turnOpts)
     const acp = client
     if (!acp || !acpSessionId) throw new Error('Não foi possível abrir a sessão do Devin.')
     await applyModel(acp, turnOpts?.model ?? opts.model, turnOpts?.effort ?? opts.effort)

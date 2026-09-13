@@ -169,7 +169,7 @@ async (page) => {
     await page.waitForTimeout(1400)
 
     if (theme !== 'dark') {
-      await page.locator('[aria-label^="Aparência (atual:"]').click()
+      await page.locator('[aria-label^="Escolha do tema (atual:"]').click()
       await page.waitForTimeout(200)
       await page.getByRole('menuitemradio', { name: theme === 'light' ? /Claro/ : /Hive/ }).click()
       await page.waitForTimeout(400)

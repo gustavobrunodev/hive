@@ -583,4 +583,58 @@ describe('ConfigStore — enginePins (engine-pins)', () => {
     expect(store.setEnginePin('  ', { model: 'opus', effort: null })).toEqual({})
     expect(createConfigStore(baseDir).getEnginePins()).toEqual({})
   })
+
+  /**
+   * The agents this machine has *ever* had, as opposed to the ones enabled
+   * now — it is what lets onboarding tell "installed since we last looked"
+   * from "was always there". Sanitized on write like every other list here.
+   */
+  it('remembers the agents it has seen, dropping blanks and repeats', () => {
+    const store = createConfigStore(baseDir)
+    store.setKnownAgents(['claude-cli', '', 'devin', 'claude-cli'])
+    expect(createConfigStore(baseDir).getKnownAgents()).toEqual(['claude-cli', 'devin'])
+
+    // An empty set is stored as "nothing known", not as an empty array that
+    // later reads as a list — `getKnownAgents` answers `null` for both.
+    store.setKnownAgents([])
+    expect(createConfigStore(baseDir).getKnownAgents()).toBeNull()
+  })
+
+  /**
+   * Hive's own compact-at-80% threshold.
+   *
+   * Anything other than an explicit `false` reads as on: a config written
+   * before the setting existed has no opinion, and the safe reading of no
+   * opinion is the default the feature ships with.
+   */
+  it('reads auto-compaction as on unless it was explicitly turned off', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getAutoCompact()).toBe(true)
+
+    store.setAutoCompact(false)
+    expect(createConfigStore(baseDir).getAutoCompact()).toBe(false)
+
+    store.setAutoCompact(true)
+    expect(createConfigStore(baseDir).getAutoCompact()).toBe(true)
+  })
+
+  /**
+   * The transcription model, as an id or as "none chosen" — never as a blank
+   * string, which would be an id the library cannot resolve and a download
+   * that silently never starts.
+   */
+  it('stores the transcription model, and reads a blank one as none', () => {
+    const store = createConfigStore(baseDir)
+    expect(store.getWhisperModel()).toBeNull()
+
+    store.setWhisperModel('  small  ')
+    expect(createConfigStore(baseDir).getWhisperModel()).toBe('small')
+
+    store.setWhisperModel('   ')
+    expect(createConfigStore(baseDir).getWhisperModel()).toBeNull()
+
+    store.setWhisperModel('base')
+    store.setWhisperModel(null)
+    expect(createConfigStore(baseDir).getWhisperModel()).toBeNull()
+  })
 })

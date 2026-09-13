@@ -41,8 +41,8 @@ export const ptBR = {
       'Sistema de design conectado — conteúdo temporário, substituído em tarefas futuras.'
   },
   theme: {
-    pickerLabel: 'Aparência',
-    pickerLabelWithCurrent: (current: string) => `Aparência (atual: ${current})`,
+    pickerLabel: 'Escolha do tema',
+    pickerLabelWithCurrent: (current: string) => `Escolha do tema (atual: ${current})`,
     dark: 'Escuro',
     darkHint: 'Grafite neutro, para horas de leitura',
     light: 'Claro',
@@ -511,6 +511,11 @@ export const ptBR = {
     // button (`ui/markdown.tsx`); the title says what a click does, since the
     // visible label is just the bare command name.
     runCommandTitle: (command: string) => `Executar /${command}`,
+    // A fenced code block in any rendered Markdown — an agent's reply, a `.md`
+    // preview — carries a copy control (`ui/markdown.tsx` → DS `CodeFence`).
+    // The label is the verb alone: the block it sits on says what is copied.
+    codeCopy: 'Copiar',
+    codeCopied: 'Copiado',
     // chat-attachments (R6.5/T16): file attachments + `@` workspace references.
     // add-context: the `+` that replaced the paperclip. The trigger is named
     // for the *outcome* ("adicionar contexto"), not for the mechanism — a user
@@ -543,6 +548,10 @@ export const ptBR = {
     // The ranked list is a page of at most 8. Saying so turns "meu arquivo não
     // está aqui" into "escreva mais um pouco".
     mentionCount: (shown: number, total: number) => `${shown} de ${total}`,
+    // The plain scale of the list, shown whenever nothing was cut. Singular
+    // matters here: "1 arquivos" in a picker that just narrowed to one answer
+    // is the moment the copy is read most closely.
+    mentionTotal: (total: number) => (total === 1 ? '1 arquivo' : `${total} arquivos`),
     mentionEmpty: 'Nenhum arquivo encontrado no workspace.',
     mentionNoMatch: 'Nenhum arquivo corresponde à busca.',
     // Both empty cases end the same way: the menu is a suggestion, not a mode.
@@ -758,13 +767,17 @@ export const ptBR = {
     unreadAria: 'Janela de contexto: ainda sem leitura depois da compactação. Ver detalhes.',
     detailTitle: 'Contexto da sessão',
     ofWindow: (total: string) => `de ${total}`,
+    // Beside the ring, the absolute count needs its own noun: the ring's face
+    // already carries the share, and "12,4 k" alone next to a percentage reads
+    // as a second percentage.
+    usedTokens: 'tokens no contexto',
     barAria: (used: string, total: string) =>
       total === '' ? `${used} tokens em uso` : `${used} de ${total} tokens em uso`,
     segCacheRead: 'Reaproveitado do cache',
     segCacheCreation: 'Gravado no cache agora',
     segInput: 'Enviado nesta chamada',
     segFree: 'Livre',
-    // Says what the bar is a picture *of* — the last request, not a running
+    // Says what the ring is a picture *of* — the last request, not a running
     // total — because that is the one thing a percentage can't say by itself.
     contextNote:
       'É tudo o que o agente releu na última chamada. Toda mensagem reenvia a conversa inteira; o que ele escreve entra no contexto da próxima.',
@@ -1289,6 +1302,10 @@ export const ptBR = {
   chatHistory: {
     newLabel: 'Nova conversa',
     historyLabel: 'Histórico de conversas',
+    renameError: 'Não foi possível renomear a conversa. Tente novamente.',
+    deleteError: 'Não foi possível excluir a conversa. Tente novamente.',
+    searchError:
+      'Não foi possível buscar no conteúdo das conversas. Os resultados abaixo consideram apenas título e prévia.',
     panelTitle: 'Conversas',
     searchPlaceholder: 'Buscar conversas…',
     searchClearLabel: 'Limpar busca',
@@ -1311,6 +1328,26 @@ export const ptBR = {
     deleteConfirmQuestion: 'Excluir esta conversa?',
     deleteConfirmCta: 'Excluir',
     deleteCancelCta: 'Cancelar',
+    // --- seleção múltipla ---
+    // Nomeia a conversa, não a linha: quem ouve a lista recebe "Selecionar
+    // Revisar o PRD", que é o que a caixa realmente faz.
+    selectLabel: (title: string) => `Selecionar ${title}`,
+    deselectLabel: (title: string) => `Tirar ${title} da seleção`,
+    selectAllLabel: 'Selecionar todas as conversas da lista',
+    selectionClearLabel: 'Sair da seleção',
+    // Duas frases para a mesma contagem, e a diferença é a largura: a barra vive
+    // numa coluna de 280px ao lado de um botão e de um ✕, e "3 conversas
+    // selecionadas" sai de lá como "3 conversas s…". O visível é curto; o nome
+    // acessível é a frase inteira, que é o que um leitor de tela anuncia.
+    selectedCount: (count: number) => (count === 1 ? '1 selecionada' : `${count} selecionadas`),
+    selectedAria: (count: number) =>
+      count === 1 ? '1 conversa selecionada' : `${count} conversas selecionadas`,
+    deleteSelectedCta: 'Excluir',
+    // A pergunta diz o número porque é a única defesa contra apagar mais do
+    // que se pretendia — "Excluir as selecionadas?" some com o que importa.
+    deleteManyQuestion: (count: number) =>
+      count === 1 ? 'Excluir 1 conversa?' : `Excluir ${count} conversas?`,
+    deleteManyError: 'Não foi possível excluir todas as conversas. Tente novamente.',
     messageCount: (count: number) => (count === 1 ? '1 mensagem' : `${count} mensagens`),
     loadingLabel: 'Carregando conversas…',
     heroRecentsLabel: 'Continuar de onde parou',
@@ -1323,7 +1360,42 @@ export const ptBR = {
     openWithReviewAria: (title: string, n: number) =>
       n === 1
         ? `Abrir conversa: ${title} — 1 mudança pendente de revisão`
-        : `Abrir conversa: ${title} — ${n} mudanças pendentes de revisão`
+        : `Abrir conversa: ${title} — ${n} mudanças pendentes de revisão`,
+
+    // --- nav-redesign: the sidebar's conversation section ---------------------
+    // The list moved out of a popover and into the sidebar, where it is on
+    // screen the whole time — which is what makes a filter and a sort worth
+    // having: in a popover you were always one click from the top of the list
+    // anyway.
+    /** The last-activity window. Compact labels: they render inside a 4-item row. */
+    filterLabel: 'Filtrar por última atividade',
+    filterLabelWithCurrent: (current: string) => `Filtrar por última atividade: ${current}`,
+    filter1d: '1 dia',
+    filter3d: '3 dias',
+    filter7d: '7 dias',
+    filter30d: '30 dias',
+    filterAll: 'Todos',
+    /** The order. */
+    sortLabel: 'Ordenar conversas',
+    sortLabelWithCurrent: (current: string) => `Ordenar conversas: ${current}`,
+    sortName: 'Nome',
+    sortCreated: 'Recém-criadas',
+    sortActivity: 'Última atividade',
+    /** Nothing survived the window — distinct from "no conversations at all". */
+    windowEmpty: (window: string) => `Nenhuma conversa com atividade nos últimos ${window}.`,
+    windowEmptyCta: 'Ver todos os períodos',
+    /** The list failed to load. A history read is a disk read: it can fail. */
+    errorTitle: 'Não foi possível carregar as conversas',
+    errorDescription: 'A leitura do histórico deste workspace falhou.',
+    retryCta: 'Tentar de novo',
+    /** How many rows the sidebar is showing out of the loaded set. */
+    shownCount: (shown: number, total: number) =>
+      shown === total ? `${total}` : `${shown} de ${total}`,
+    /** The wide "all conversations" surface. */
+    allTitle: 'Todas as conversas',
+    allDescription: 'Busque, filtre e ordene todo o histórico deste workspace.',
+    allCount: (count: number) => (count === 1 ? '1 conversa' : `${count} conversas`),
+    closeLabel: 'Fechar'
   },
   // agent-selection AG-R3.1: first-run agent picker.
   // agent-onboarding (M17): in-app install + a re-runnable, evidenced scan.
@@ -2047,18 +2119,165 @@ export const ptBR = {
     onceOnly: 'Só uma vez — depois funciona offline.',
     keepsGoing: 'Pode fechar — o download continua em segundo plano e o Hive avisa quando terminar.'
   },
-  actionRail: {
-    ariaLabel: 'Ferramentas do workspace',
-    searchLabel: 'Buscar arquivos no workspace',
-    appSettingsLabel: 'Configurações do aplicativo',
-    // git-management (M10): the activity-bar view entries + change badge.
-    explorerView: 'Explorador',
-    // workspace-session: the entry on screen names what the click does now —
-    // an activity-bar icon that never changes its name never says it can hide.
-    hideView: (name: string) => `Ocultar ${name}`,
+  /**
+   * nav-redesign — the shell's navigation vocabulary.
+   *
+   * It replaced `actionRail`, whose four peer icons said nothing about how the
+   * app is organised. The names of the views themselves are unchanged on
+   * purpose: "Explorador de arquivos", "Controle de versão", "Revisão do
+   * agente" and "Bases de conhecimento" are what users already call them, and
+   * a reorganisation is not a rename.
+   */
+  nav: {
+    /** The sidebar's own `nav` landmark. */
+    ariaLabel: 'Navegação do Hive',
+    /** The two-tab switcher above it. */
+    tabsLabel: 'Seções',
+    /**
+     * The tab is no longer only a transcript: initiatives live under it too,
+     * and working *inside* one — chat on the left, the demand's artifacts and
+     * its BMAD plan on the right — is a different activity from asking a
+     * question. "Chat & Cowork" is the name for both halves.
+     */
+    tabChat: 'Chat & Cowork',
+    tabFiles: 'Arquivos',
+    /** The Chat tab's primary action — visible text is short, the name says what it starts. */
+    newLabel: 'Novo',
+    newAria: 'Novo — iniciar uma nova conversa',
+    /** The group of chat-adjacent tools under it. */
+    toolsLabel: 'Ferramentas do chat',
+    /** The workspace's two file surfaces. */
+    filesLabel: 'Arquivos do workspace',
+    explorerView: 'Explorador de arquivos',
     scmView: 'Controle de versão',
+    /**
+     * The entry on screen names what the click does now — a nav row that never
+     * changes its name never says it can hide (kept from the old activity bar,
+     * where it was the whole discoverability budget for the toggle).
+     */
+    hideView: (name: string) => `Ocultar ${name}`,
     scmChangeCount: (count: number) =>
-      count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`
+      count === 1 ? `${count} alteração pendente` : `${count} alterações pendentes`,
+    searchLabel: 'Buscar arquivos no workspace',
+    /** The navbar's icon-only controls (tooltip + accessible name are the same words). */
+    hideSidebar: 'Ocultar barra lateral',
+    showSidebar: 'Exibir barra lateral',
+    conversationsLabel: 'Conversas',
+    seeAllLabel: 'Ver todas as conversas'
+  },
+  /**
+   * Iniciativas — the demands a workspace is working on, above the conversation
+   * history on the Chat & Cowork tab.
+   *
+   * The vocabulary is the team's own, not BMAD's: a folder under
+   * `docs/iniciativas/R2/` is a **demanda** inside a **release** inside a
+   * **ano**, and the artifacts in it are **contexto**. BMAD's names show up in
+   * exactly one place — the stage list — because those are the workflows the
+   * user actually launches.
+   */
+  initiatives: {
+    sectionLabel: 'Iniciativas',
+    treeLabel: 'Iniciativas por ano e release',
+    collapse: 'Recolher iniciativas',
+    expand: 'Expandir iniciativas',
+    /** The section's primary action. Icon-only in the header; the name carries the words. */
+    newLabel: 'Nova iniciativa',
+    loading: 'Carregando iniciativas…',
+    /** First run: no `docs/iniciativas/` at all. An invitation, not a warning. */
+    emptyTitle: 'Nenhuma iniciativa ainda',
+    emptyBody:
+      'Crie a primeira para reunir a conversa, os artefatos e o fluxo BMAD de uma demanda.',
+    emptyCta: 'Criar iniciativa',
+    /** Folded into a year row's accessible name — the badge beside it is a visual-only cue. */
+    countAria: (count: number) => (count === 1 ? '1 demanda' : `${count} demandas`),
+    /** The badge on a demand row: how much of the plan is done. */
+    progress: (done: number, total: number) => `${done}/${total}`,
+    progressAria: (done: number, total: number) => `${done} de ${total} etapas concluídas`,
+
+    // --- the create dialog -------------------------------------------------
+    createTitle: 'Nova iniciativa',
+    createDescription: 'A demanda vira uma pasta no workspace, com a conversa e o fluxo ao lado.',
+    nameLabel: 'Nome da demanda',
+    namePlaceholder: 'Portal de cobrança',
+    yearLabel: 'Ano',
+    releaseLabel: 'Release',
+    /** The folder the form will create, shown live so nobody is surprised by the slug. */
+    pathPreview: 'Será criada em',
+    createCta: 'Criar iniciativa',
+    cancelCta: 'Cancelar',
+    nameRequired: 'Dê um nome à demanda.',
+    nameUnusable: 'Use ao menos uma letra ou número no nome.',
+    duplicate: 'Já existe uma demanda com esse nome nessa release.',
+    createFailed: 'Não foi possível criar a pasta da iniciativa.',
+
+    // --- the work surface --------------------------------------------------
+    /** The work pane's title while an initiative is open. */
+    paneTitle: (title: string) => `Iniciativa · ${title}`,
+    close: 'Fechar iniciativa',
+    breadcrumbLabel: 'Localização da iniciativa',
+    contextLabel: 'Contexto da demanda',
+    contextTitle: 'Contexto',
+    /** The right rail's two halves. */
+    flowTitle: 'Fluxo',
+    flowLabel: 'Etapas do fluxo desta demanda',
+    flowSummary: (done: number, total: number) => `${done} de ${total} etapas`,
+    /**
+     * The two things the rail could not say on its own, in one line above it:
+     * that the rows run something, and that running one never takes over the
+     * conversation you are in. Both were surprises worth one line of copy.
+     */
+    flowHint: 'Clique numa etapa para executá-la em uma conversa nova.',
+    flowHintNext: 'Próxima etapa',
+    /** The four phases the eight stages are read in. */
+    phaseAnalysis: 'Análise',
+    phasePlanning: 'Planejamento',
+    phaseSolution: 'Solucionamento',
+    phaseImplementation: 'Implementação',
+    phaseSummary: (done: number, total: number) => `${done}/${total}`,
+    /** Rides in the row's accessible name too — a chip nobody hears is not information. */
+    stageOptional: 'Opcional',
+    /** Printed inside the one row that is next, so the call to action is visible at rest. */
+    stageRunCue: 'Iniciar',
+    /**
+     * The row's verb, by status. One rule: the row takes you TO the stage —
+     * which is the document when the stage has produced one, and the run that
+     * would produce it when it has not. Re-running is the trailing action,
+     * because a click that silently overwrites a document should not be the
+     * easy one to hit.
+     */
+    runStage: (name: string) => `Iniciar ${name}`,
+    openStage: (name: string) => `Abrir ${name}`,
+    redoStage: (name: string) => `Refazer ${name}`,
+    stageDone: 'concluída',
+    stageActive: 'próxima',
+    stagePending: 'pendente',
+    /** The eight stages, in the order they are worked. */
+    stageResearch: 'Pesquisa de domínio',
+    stageBrainstorm: 'Brainstorming',
+    stagePrd: 'PRD',
+    stageUx: 'UX Design',
+    stageArchitecture: 'Arquitetura',
+    stageTestDesign: 'Design de testes',
+    stageEpics: 'Épicos e histórias',
+    stageStories: 'Criação de histórias'
+  },
+  /**
+   * nav-redesign — the avatar's menu, bottom-left of the sidebar.
+   *
+   * Identity first, then the two settings surfaces in the order a desktop app
+   * puts them (your preferences, then the software's own version), then the
+   * way out.
+   */
+  userMenu: {
+    openLabel: 'Abrir menu do usuário',
+    openLabelNamed: (name: string) => `Menu do usuário: ${name}`,
+    noName: 'Sem nome',
+    settings: 'Configurações',
+    settingsHint: 'Nome, papel, agentes, atalhos, conexão, voz, terminal e MCP.',
+    app: 'Versão e atualizações',
+    appHint: 'Versão instalada e atualizações do Hive.',
+    signOut: 'Sair do Hive',
+    signOutHint: 'Fecha o aplicativo.'
   },
   // Workspace file search (Ctrl+P palette).
   fileSearch: {
@@ -2199,6 +2418,18 @@ export const ptBR = {
     awsInactiveSummary: 'Sem Bedrock',
     scopeShellLabel: 'Terminal',
     scopeShellHint: 'Onde os agentes executam os comandos no seu computador.',
+    // nav-redesign: MCP left the toolbar and became a settings row like every
+    // other integration the agent depends on. Same manager, same functionality
+    // — reached from where a user goes looking for configuration.
+    scopeMcpLabel: 'Servidores MCP',
+    scopeMcpHint: 'Ferramentas externas que os agentes podem usar via Model Context Protocol.',
+    mcpSummary: (count: number) =>
+      count === 0 ? 'Nenhum' : count === 1 ? '1 servidor' : `${count} servidores`,
+    // nav-redesign: the index is grouped now. Eight ungrouped rows read as a
+    // pile; three headings say what kind of decision each row is.
+    groupIdentityLabel: 'Conta',
+    groupConversationLabel: 'Conversa',
+    groupSystemLabel: 'Sistema',
     // Live summaries on the index rows: the list states the setup instead of
     // merely linking to it.
     agentsSummary: (enabled: number) =>
@@ -2400,6 +2631,10 @@ export const ptBR = {
       'O comando "claude auth status" respondeu algo que o Hive não reconhece. Tente de novo.',
     planLabel: (plan: string) => `Plano ${plan}`,
     connectCta: 'Conectar conta',
+    // What the banner's button says while the browser has the user. A control
+    // that looks untouched after it sent someone to another tab is the app
+    // saying nothing happened.
+    connecting: 'Conectando…',
     switchCta: 'Trocar de conta',
     scopeNote: 'A conta vale para o computador todo — o mesmo login do seu terminal.',
     noCliTitle: 'Claude CLI não encontrada',
@@ -2443,7 +2678,8 @@ export const ptBR = {
     turnErrorSignedOut: 'Sua conta Claude não está conectada — por isso a resposta parou.',
     // --- o aviso antes de tentar ---
     calloutTitle: 'Conecte sua conta Claude',
-    calloutHint: 'O Claude CLI desta máquina está sem conta. Sem isso, nenhuma mensagem é respondida.',
+    calloutHint:
+      'O Claude CLI desta máquina está sem conta. Sem isso, nenhuma mensagem é respondida.',
     calloutDismiss: 'Agora não'
   },
   shell: {
@@ -2499,23 +2735,30 @@ export const ptBR = {
     composerTitle: 'Converse do seu jeito',
     composerBody:
       'Escreva livremente, digite / para executar um comando do workspace ou @ para trazer arquivos como contexto.',
-    railTitle: 'Encontre qualquer arquivo',
+    // nav-redesign: the stop anchors the two-tab switcher, so it teaches the
+    // shape of the app rather than a single button.
+    railTitle: 'Duas abas, dois assuntos',
     railBody:
-      'A busca do workspace localiza qualquer arquivo em segundos — clique aqui ou pressione Ctrl+P de qualquer lugar.',
+      'Em "Chat" ficam suas conversas e as ferramentas do agente: revisão, estúdio de skills e bases de conhecimento. Em "Arquivos", o explorador do workspace e o controle de versão.',
     filesTitle: 'Os artefatos moram aqui',
-    // workspace-session: the app now opens on the chat alone, so this stop
-    // anchors the rail button instead of a tree that isn't on screen — and
-    // teaches the gesture, which is the part that changed.
     filesBody:
-      'PRDs, histórias e documentos gerados pelos agentes ficam aqui. Este botão abre o painel de arquivos — e o fecha de novo, quando você quiser só a conversa. Ctrl+B faz o mesmo pelo teclado.',
+      'PRDs, histórias e documentos gerados pelos agentes ficam nesta aba, ao lado do controle de versão. Ctrl+B esconde e mostra a barra lateral inteira quando você quiser só a conversa.',
     profileTitle: 'Deixe com a sua cara',
+    // nav-redesign: the avatar moved to the foot of the sidebar, and the menu
+    // it opens now leads to both settings surfaces.
     profileBody:
-      'Seu avatar, no canto superior direito, abre o perfil: nome, papel e agente. Você também pode rever este tour por lá.'
+      'Seu avatar, no rodapé da barra lateral, abre as configurações: nome, papel, agentes, atalhos, conexão, voz, terminal e MCP. Você também pode rever este tour por lá.'
   },
   workUI: {
     resizeHandleLabel: 'Redimensionar painéis',
     // customizable-layout: movable panes (drag the pane header, or use the ↔ menu).
     paneChat: 'Conversa',
+    /**
+     * The way out of a chat tool that opened in the transcript's place. Names
+     * the surface it closes, because "Fechar" alone in a workbench with four
+     * panes is a promise about nothing in particular.
+     */
+    closeWorkView: (title: string) => `Fechar ${title} e voltar à conversa`,
     paneEditor: 'Editor',
     paneMoveMenuLabel: (pane: string) => `Mover o painel ${pane}`,
     paneMoveLeft: 'Mover para a esquerda',

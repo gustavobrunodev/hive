@@ -212,6 +212,57 @@ describe('chatHistoryStore', () => {
     expect(hit.match!.endsWith('…')).toBe(true)
   })
 
+  /**
+   * session-usage: how full the conversation's context window is, stored with
+   * the conversation because that is what it is a fact about — the prompt the
+   * agent re-reads next turn is the transcript, and its size does not change
+   * because the app was closed.
+   */
+  it('stores the context reading with the conversation and hands it back', () => {
+    const session = store.create(WS, 'claude-cli')
+    store.setUsage(WS, session.id, { context: { inputTokens: 60_000 }, reportedWindow: 200_000 })
+
+    const back = createChatHistoryStore(baseDir).get(WS, session.id)
+    expect(back?.usage).toEqual({ context: { inputTokens: 60_000 }, reportedWindow: 200_000 })
+  })
+
+  /** It is plumbing, not activity: a measurement of a turn that already happened must not re-sort the history. */
+  it('does not bump updatedAt when recording a reading', () => {
+    const session = store.create(WS, 'claude-cli')
+    const before = store.get(WS, session.id)?.updatedAt
+    store.setUsage(WS, session.id, { context: { inputTokens: 10 } })
+    expect(store.get(WS, session.id)?.updatedAt).toBe(before)
+  })
+
+  it('ignores a reading for a session that no longer exists', () => {
+    const session = store.create(WS, 'claude-cli')
+    store.remove(WS, session.id)
+    expect(() => store.setUsage(WS, session.id, { context: { inputTokens: 1 } })).not.toThrow()
+    expect(store.get(WS, session.id)).toBeNull()
+  })
+
+  /**
+   * The store is index-free: `list`/`search` read whatever is in the
+   * workspace's directory. So both have to survive what a real userData
+   * directory accumulates — a stray file that is not a session, and a session
+   * file that is not readable JSON.
+   */
+  it('skips foreign and corrupt files instead of taking the history down', () => {
+    const session = store.create(WS, 'claude-cli')
+    store.appendMessage(WS, session.id, { role: 'user', text: 'conteúdo procurável' })
+    const dir = join(baseDir, 'chat-history', readdirSync(join(baseDir, 'chat-history'))[0])
+    writeFileSync(join(dir, 'README.txt'), 'não é uma sessão')
+    writeFileSync(join(dir, '00000000-0000-4000-8000-0000000000ff.json'), '{corrompido')
+
+    expect(store.list(WS).map((meta) => meta.id)).toEqual([session.id])
+    expect(store.search(WS, 'procurável').map((meta) => meta.id)).toEqual([session.id])
+  })
+
+  /** A workspace nobody has talked in has no directory at all — searching it is empty, not an error. */
+  it('searches a workspace with no history at all', () => {
+    expect(store.search(OTHER_WS, 'qualquer coisa')).toEqual([])
+  })
+
   it('deriveSessionTitle collapses whitespace and cuts long text at a word boundary', () => {
     expect(deriveSessionTitle('curto e direto')).toBe('curto e direto')
     const long = deriveSessionTitle(

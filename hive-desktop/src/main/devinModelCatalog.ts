@@ -103,6 +103,15 @@ const DEVIN_STOCK_DEFAULT = 'adaptive'
  * `gemini` "always resolve to the latest version in that model family", which
  * is the right thing to pin in a list that can go stale. Unlike a dated id, a
  * family name keeps meaning the same thing.
+ *
+ * The windows are the ones the alias resolved to on `devin 3000.6.14`, read
+ * off `devin models list --format json` rather than from prose: `swe` →
+ * swe-1.7-lightning 202_752, `opus` → claude-opus-5 and `sonnet` →
+ * claude-sonnet-5 at 1M, `gpt` → gpt-6-astra 1M, `codex` → gpt-5.3-codex
+ * 400_000, `gemini` → gemini-3.8-flash 1_048_576. They exist so the context
+ * meter has a denominator on a machine where the probe failed; a listing that
+ * answers always outranks them (`detectDevinCapabilities` prefers `listed`).
+ * `adaptive` is absent from this list on purpose — see `defaultRow`.
  */
 export const DEVIN_CATALOG: AgentOption[] = [
   {
@@ -119,6 +128,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'SWE',
     descriptionKey: 'devin.swe',
     vendor: 'Cognition',
+    contextWindow: 202_752,
     traits: ['balanced'],
     group: 'recommended',
     source: 'catalog'
@@ -128,6 +138,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'Opus',
     descriptionKey: 'devin.opus',
     vendor: 'Anthropic',
+    contextWindow: 1_000_000,
     traits: ['flagship', 'thinking'],
     group: 'recommended',
     source: 'catalog'
@@ -137,6 +148,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'Sonnet',
     descriptionKey: 'devin.sonnet',
     vendor: 'Anthropic',
+    contextWindow: 1_000_000,
     traits: ['balanced', 'thinking'],
     group: 'recommended',
     source: 'catalog'
@@ -146,6 +158,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'GPT',
     descriptionKey: 'devin.gpt',
     vendor: 'OpenAI',
+    contextWindow: 1_000_000,
     traits: ['flagship'],
     group: 'more',
     source: 'catalog'
@@ -155,6 +168,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'Codex',
     descriptionKey: 'devin.codex',
     vendor: 'OpenAI',
+    contextWindow: 400_000,
     traits: ['balanced'],
     group: 'more',
     source: 'catalog'
@@ -164,6 +178,7 @@ export const DEVIN_CATALOG: AgentOption[] = [
     label: 'Gemini',
     descriptionKey: 'devin.gemini',
     vendor: 'Google',
+    contextWindow: 1_048_576,
     traits: ['balanced'],
     group: 'more',
     source: 'catalog'
@@ -192,7 +207,7 @@ export async function detectDevinCapabilities(deps: DevinCatalogDeps): Promise<A
   const models = listed === null ? [...DEVIN_CATALOG] : listed
   const note: CapabilityNote | undefined = listed === null ? 'probe-failed' : undefined
 
-  const withDefault = [defaultRow(configured), ...models]
+  const withDefault = [defaultRow(configured, models), ...models]
   return {
     models: withDefault,
     // Devin's effort ladder is a property of the *model*, not of the agent:
@@ -208,7 +223,29 @@ export async function detectDevinCapabilities(deps: DevinCatalogDeps): Promise<A
   }
 }
 
-function defaultRow(configured: string | null): AgentOption {
+/**
+ * The "Automático" row — and the context meter's denominator when the user
+ * never picks a model, which is most sessions.
+ *
+ * It carries the window of whatever it actually resolves to. Without that the
+ * meter has no denominator for the default engine and falls back to printing a
+ * raw token count: the session says `48,2k` where the Claude one says `24%`,
+ * for no reason the user can see. Claude's own default row has carried its
+ * window since the start; this is the same rule, applied to the same row.
+ *
+ * `adaptive` — Devin's stock default — is the one case with no answer to
+ * inherit. Measured against `devin models list --format json` on
+ * `devin 3000.6.14`: every one of the 46 families declares
+ * `max_context_tokens` on its variants except `adaptive`, whose single variant
+ * declares none, because the router picks a different underlying model per
+ * turn and those range from 200k to 1M. Guessing one would make the meter
+ * confidently wrong — 60% shown against a real 12% the turn it routes to a 1M
+ * model — so the row stays windowless and the meter keeps showing the honest
+ * token count until the user pins a model.
+ */
+function defaultRow(configured: string | null, models: AgentOption[]): AgentOption {
+  const resolvedId = configured ?? DEVIN_STOCK_DEFAULT
+  const contextWindow = windowOf(resolvedId, models)
   return {
     id: CLI_DEFAULT_ID,
     label: 'Automático',
@@ -216,8 +253,39 @@ function defaultRow(configured: string | null): AgentOption {
     traits: ['cli-default'],
     group: 'default',
     source: configured ? 'configured' : 'catalog',
-    resolvedId: configured ?? DEVIN_STOCK_DEFAULT
+    resolvedId,
+    ...(contextWindow ? { contextWindow } : {})
   }
+}
+
+/**
+ * The declared window of one model id.
+ *
+ * Three spellings reach here, because `devin`'s own `--model` flag accepts all
+ * three and so does its config file:
+ *
+ *  - a **family slug** (`claude-opus-5`) — a model row;
+ *  - a short **alias** (`opus`, `swe`, `codex`) — what Devin's docs tell people
+ *    to write, so it is what ends up in hand-edited configs;
+ *  - a **variant id** (`claude-opus-5-max`) — a rung on that family's ladder,
+ *    which is what the CLI itself writes into `config.json` when the level is
+ *    changed in-session with Alt+T.
+ *
+ * The third is the one that made this a bug worth a function: a config saying
+ * `claude-opus-5-max` matched no model row, so "Automático" resolved to an id
+ * this catalog could not price and the meter lost its denominator — while the
+ * picker, which reads the rungs, showed the level just fine.
+ */
+function windowOf(id: string, models: AgentOption[]): number | undefined {
+  const named = (option: AgentOption): boolean =>
+    option.id === id || (option.aliases ?? []).includes(id) || option.resolvedId === id
+  const family = models.find(named)
+  if (family?.contextWindow) return family.contextWindow
+  for (const option of models) {
+    const rung = option.efforts?.find((entry) => entry.id === id || entry.fastId === id)
+    if (rung) return rung.contextWindow ?? option.contextWindow
+  }
+  return family?.contextWindow
 }
 
 /**

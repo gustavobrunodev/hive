@@ -25,23 +25,23 @@ import { openSidebar } from './fixtures/sidebar'
 //      to prevent — so `getUserMedia` being untouched is the assertion, not
 //      the dialog's presence.
 async function waitForWorkUI(window: Page): Promise<void> {
-  // The **activity bar**, not the file rail: a workspace with no stored session
-  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
-  // zero here — `openSidebar` at the end is what brings it back.
-  const rail = window.locator('.wb-actionrail')
+  // The **navbar**, not the file rail: it is the one chrome element that is
+  // always on screen, even with the sidebar collapsed to zero —
+  // `openSidebar` at the end is what brings the panel back.
+  const chrome = window.locator('.wb-navbar')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   for (let step = 0; step < 2; step++) {
     await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
+      chrome.waitFor({ state: 'visible', timeout: 200_000 }),
       continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
     ])
-    if (await rail.isVisible().catch(() => false)) break
+    if (await chrome.isVisible().catch(() => false)) break
     if (await continueAnyway.isVisible().catch(() => false)) {
       await continueAnyway.click()
       await window.waitForTimeout(300)
     }
   }
-  await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await chrome.waitFor({ state: 'visible', timeout: 60_000 })
   await openSidebar(window)
 }
 
@@ -90,6 +90,11 @@ test.describe('voice model gate E2E (real Electron)', () => {
     try {
       const window = await app.firstWindow()
       await window.waitForLoadState('domcontentloaded')
+      // The guided tour is a modal scrim, so it intercepts every click — and
+      // since the sidebar grew tabs (nav-redesign), `waitForWorkUI` has a real
+      // one to make. Seeded before the work UI mounts, so no reload is needed
+      // (a reload would re-run the provisioning gate).
+      await window.evaluate(() => localStorage.setItem('hive.tourSeen', '1'))
       await waitForWorkUI(window)
       await window
         .getByRole('button', { name: 'Pular tour' })

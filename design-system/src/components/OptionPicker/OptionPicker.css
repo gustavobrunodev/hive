@@ -188,56 +188,11 @@
 /* The list is the one part of this panel that scrolls, and it was doing it
    behind a raw platform scrollbar — a light track with a grey thumb pinned to
    the right edge of a dark popover, which is exactly the mismatched-chrome
-   tell PRODUCT.md lists as an anti-reference.
-
-   The cause was `scrollbar-width: thin`, and it is worth naming because it
-   looks like the safe, standards-track way to ask for a discreet scrollbar:
-   in Chromium, setting `scrollbar-width` (or `scrollbar-color`) to anything
-   but `auto` makes the element take the standard scrollbar path and IGNORE
-   every `::-webkit-scrollbar-*` rule that would otherwise reach it. So the one
-   declaration meant to make the bar unobtrusive was also what opted this list
-   out of the host app's tokenized scrollbar. Recolour, never rebehave: same
-   geometry as the native bar, DS tokens for the thumb. */
-.hds-picker-list::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-/* The 2px transparent border + `padding-box` clip is what makes a 10px-wide
-   scrollbar draw a 6px thumb: the inset is padding, so the hit target stays
-   the full width and the thumb stays easy to grab. */
-/* `--border-strong` is a *hairline* token — 26% ink — and a 6px bar drawn in it
-   over `--surface` is not something a user finds: in the app's own screenshots
-   the thumb of a list with thirteen rows below the fold is indistinguishable
-   from the panel edge. This is the position indicator for a list that has one,
-   so it is drawn at a weight you can see and grab, in the same neutral ink the
-   rest of the panel's chrome uses. */
-.hds-picker-list::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--ink) 32%, transparent);
-  border-radius: var(--rounded-full);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  transition: background-color 120ms var(--ease-quart);
-}
-
-.hds-picker-list::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklab, var(--ink) 52%, transparent);
-  background-clip: padding-box;
-}
-
-.hds-picker-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Engines without the pseudo-elements (Firefox) get the standard properties —
-   the branch Chromium must never take, hence the `@supports` guard rather than
-   declaring both. */
-@supports not selector(::-webkit-scrollbar-thumb) {
-  .hds-picker-list {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--ink) 32%, transparent) transparent;
-  }
-}
+   tell PRODUCT.md lists as an anti-reference. The cause, and the whole recipe
+   that replaced it, now live in one place: `hds-scrollbar` (scrollbar.css),
+   which this list carries alongside its own class. Its defaults — 10px of
+   track, a 6px thumb at 32% ink — were measured here, so nothing is overridden
+   below. */
 
 .hds-picker-empty {
   padding: var(--s-5) var(--s-4);

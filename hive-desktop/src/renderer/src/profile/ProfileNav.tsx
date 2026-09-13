@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import { ChevronRightIcon, CompassIcon, UserIcon } from '../ui/icons'
 import { roleIcon } from '../ui/roleVisuals'
 import { scopeIcon } from './scopeVisuals'
-import { profileScopes, type ProfileScope } from './scopes'
+import { SCOPE_GROUP_ORDER, scopeGroupLabel, scopesInGroup, type ProfileScope } from './scopes'
 
 interface ProfileNavProps {
   userName: string | null
@@ -74,36 +74,45 @@ export function ProfileNav({
         </span>
       </div>
 
-      <ul className="wb-pnav-list" aria-label={t('profile.navLabel')}>
-        {profileScopes().map((scope) => {
-          const value = summaries[scope.id]
-          return (
-            <li key={scope.id}>
-              <button
-                type="button"
-                className="wb-pnav-row"
-                data-scope={scope.id}
-                onClick={() => onOpen(scope.id)}
-              >
-                <span className="wb-pnav-icon" aria-hidden="true">
-                  {iconEl(scope.id)}
-                </span>
-                <span className="wb-pnav-label">{scope.label}</span>
-                {value === null ? (
-                  <span className="wb-pnav-skeleton" aria-hidden="true" />
-                ) : (
-                  <span className="wb-pnav-value" title={value}>
-                    {value}
-                  </span>
-                )}
-                <span className="wb-pnav-chevron" aria-hidden="true">
-                  <ChevronRightIcon size={15} />
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      {/* nav-redesign: one list per heading, each `ul` named by its own
+          heading — a single `ul` with headings interleaved is not a list, and a
+          single name over seven unrelated rows tells a screen reader less than
+          the visual grouping tells everyone else. */}
+      {SCOPE_GROUP_ORDER.map((group) => (
+        <section key={group} className="wb-pnav-group">
+          <h3 className="wb-pnav-group-label">{scopeGroupLabel(group)}</h3>
+          <ul className="wb-pnav-list" aria-label={scopeGroupLabel(group)}>
+            {scopesInGroup(group).map((scope) => {
+              const value = summaries[scope.id]
+              return (
+                <li key={scope.id}>
+                  <button
+                    type="button"
+                    className="wb-pnav-row"
+                    data-scope={scope.id}
+                    onClick={() => onOpen(scope.id)}
+                  >
+                    <span className="wb-pnav-icon" aria-hidden="true">
+                      {iconEl(scope.id)}
+                    </span>
+                    <span className="wb-pnav-label">{scope.label}</span>
+                    {value === null ? (
+                      <span className="wb-pnav-skeleton" aria-hidden="true" />
+                    ) : (
+                      <span className="wb-pnav-value" title={value}>
+                        {value}
+                      </span>
+                    )}
+                    <span className="wb-pnav-chevron" aria-hidden="true">
+                      <ChevronRightIcon size={15} />
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      ))}
 
       {onReplayTour && (
         <button type="button" className="wb-pnav-tour" onClick={onReplayTour}>

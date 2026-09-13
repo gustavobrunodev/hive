@@ -1,0 +1,14 @@
+- generic [ref=f3e2]:
+  - separator [ref=f3e3]
+  - iframe [ref=f3e8]:
+    - generic [ref=f4e2]:
+      - generic [ref=f4e3]:
+        - checkbox "I'm not a robot" [ref=f4e7]
+        - generic [aria-hidden] [ref=f4e11]: I'm not a robot
+      - generic [ref=f4e12]: reCAPTCHA
+  - separator [ref=f3e9]
+  - generic [ref=f3e10]:
+    - text: About this page Our systems have detected unusual traffic from your computer network. This page checks to see if it's really you sending the requests, and not a robot.
+    - link "Why did this happen?" [ref=f3e11] [cursor=pointer]:
+      - /url: "#"
+    - generic [ref=f3e12]: "IP address: 181.217.162.255Time: 2026-09-08T15:45:24ZURL: https://www.google.com/search?q=Botafogo&sca_esv=f2d48d055a0c39d3&sxsrf=APpeQnv7D_kh__oP0ppQqUupkTVABFLVow%3A1788882314173&source=hp&ei=ii2garSFCZ2d1sQPuPqXwQQ&iflsig=ABILxe8AAAAAaqA7mki-RDIcwnOqRoHihK5aMHJyfmvL&ved=0ahUKEwi08oT3qd-WAxWdjpUCHTj9JUgQ4dUDCAw&uact=5&oq=Botafogo&gs_lp=Egdnd3Mtd2l6IghCb3RhZm9nb0hbUABYAHAAeACQAQCYAQCgAQCqAQC4AQPIAQD4AQGYAgCgAgCYAwCSBwCgBwCyBwC4BwDCBwDIBwCACAE&sclient=gws-wiz&sei=ky2gasbqOtzm1sQP8LfPiQw"

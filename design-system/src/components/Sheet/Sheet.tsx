@@ -1,6 +1,7 @@
 import { forwardRef } from "react"
 import type { ComponentPropsWithoutRef, ElementRef } from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { useSurfaceDismissGuard } from "../../hooks/useSurfaceDismissGuard"
 import { cx } from "../../utils/cx"
 import "./Sheet.css"
 
@@ -23,17 +24,27 @@ export type SheetContentProps = ComponentPropsWithoutRef<typeof DialogPrimitive.
  * (`--surface`, `--shadow-3`) on `--z-modal`. Radix supplies focus trap,
  * Escape/outside-click dismiss, and focus restore to the trigger on close —
  * this layer only styles on top and adds the `side` slide direction.
+ *
+ * Same **dismiss guard** as `DialogContent`, for the same reason: this panel
+ * hosts popovers and menus too (the ingestion sheet's agent selector), and a
+ * modal one of those makes every click over the panel arrive as a click on the
+ * overlay. See `useSurfaceDismissGuard`.
  */
 export const SheetContent = forwardRef<ElementRef<typeof DialogPrimitive.Content>, SheetContentProps>(
-  function SheetContent({ className, side = "right", children, ...rest }, ref) {
+  function SheetContent({ className, side = "right", children, onPointerDownOutside, ...rest }, ref) {
+    const guard = useSurfaceDismissGuard<HTMLDivElement>(ref)
     return (
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="hds-sheet-overlay" />
         <DialogPrimitive.Content
-          ref={ref}
+          ref={guard.ref}
           aria-modal="true"
           data-side={side}
           className={cx("hds-sheet-content", className)}
+          onPointerDownOutside={(event) => {
+            onPointerDownOutside?.(event)
+            guard.onPointerDownOutside(event)
+          }}
           {...rest}
         >
           {children}

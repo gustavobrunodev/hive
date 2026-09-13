@@ -21,7 +21,7 @@ import { createHiveMcpLogsMock } from './testSupport/hiveMcpLogsMock'
 import { createHiveAsrMock } from './testSupport/hiveAsrMock'
 import { createHiveAwsMock } from './testSupport/hiveAwsMock'
 import { createHiveClaudeAuthMock } from './testSupport/hiveClaudeAuthMock'
-import { HighlightedTextareaMock } from './testSupport/dsMocks'
+import { HighlightedTextareaMock, selectionDsMocks } from './testSupport/dsMocks'
 import type { McpLogEntry } from './mcpLogs/logConsole'
 
 /**
@@ -73,7 +73,15 @@ function RadioItemMock({
 /** Same bridge for the session-history Popover (the chat pane header mounts the real `SessionHistory`, which rides DS `Popover`). */
 const PopoverMockCtx = createContext<{ onOpenChange?: (open: boolean) => void }>({})
 
+/** The shape the DS `Tree` mock walks — declared here since the mock factory is hoisted. */
+interface DsTreeNode {
+  id: string
+  label: ReactNode
+  children?: DsTreeNode[]
+}
+
 vi.mock('@hive/design-system', () => ({
+  ...selectionDsMocks(),
   Resizable: ({
     children,
     defaultLayout,
@@ -357,6 +365,61 @@ vi.mock('@hive/design-system', () => ({
     createElement('div', { role: 'dialog' }, children),
   Empty: ({ title, description }: { title?: ReactNode; description?: ReactNode }) =>
     createElement('div', null, title, description),
+  // initiatives: the demand tree and its BMAD plan. Both are mocked flat —
+  // the hierarchy's own keyboard/expansion contract belongs to the DS suites,
+  // and what WorkUI owns is which id it gets told about and what it does next.
+  Tree: ({
+    nodes,
+    onSelectedIdsChange
+  }: {
+    nodes: DsTreeNode[]
+    onSelectedIdsChange?: (ids: string[]) => void
+  }) => {
+    function rows(list: DsTreeNode[]): ReactNode[] {
+      return list.flatMap((node) => [
+        createElement(
+          'button',
+          {
+            key: node.id,
+            type: 'button',
+            role: 'treeitem',
+            onClick: () => onSelectedIdsChange?.([node.id])
+          },
+          node.label
+        ),
+        ...rows(node.children ?? [])
+      ])
+    }
+    return createElement('div', { role: 'tree' }, ...rows(nodes))
+  },
+  StageTracker: ({
+    stages,
+    onSelect,
+    actionLabels
+  }: {
+    stages: { id: string; label: string; status: 'done' | 'active' | 'pending' }[]
+    onSelect?: (id: string) => void
+    actionLabels?: Partial<Record<string, (label: string) => string>>
+  }) =>
+    createElement(
+      'ol',
+      null,
+      ...stages.map((stage) =>
+        createElement(
+          'li',
+          { key: stage.id },
+          createElement(
+            'button',
+            {
+              type: 'button',
+              'aria-label': actionLabels?.[stage.status]?.(stage.label) ?? stage.label,
+              onClick: () => onSelect?.(stage.id)
+            },
+            stage.label
+          )
+        )
+      )
+    ),
   Skeleton: () => createElement('div', { 'data-testid': 'skeleton' }),
   // Workspace file search (Ctrl+P palette): CommandDialog renders its content
   // only while `open`, matching the real Dialog-backed component.
@@ -610,11 +673,7 @@ vi.mock('./explorer/Explorer', () => ({
     createElement(
       'div',
       null,
-      createElement(
-        'span',
-        { 'data-testid': 'tree-seed' },
-        (initialExpandedPaths ?? []).join(',')
-      ),
+      createElement('span', { 'data-testid': 'tree-seed' }, (initialExpandedPaths ?? []).join(',')),
       createElement(
         'button',
         {
@@ -706,7 +765,9 @@ function ChatStandIn(
     onManageAgents,
     onOpenVoiceSettings,
     onOpenAwsPanel,
-    onAwsReconnect
+    onAwsReconnect,
+    onClaudeConnect,
+    claudeAccountReady
   }: {
     onCustomizeShortcuts?: (scope: 'start' | 'during') => void
     onSessionChange?: (id: string | null) => void
@@ -716,6 +777,9 @@ function ChatStandIn(
     onOpenVoiceSettings?: () => void
     onOpenAwsPanel?: () => void
     onAwsReconnect?: () => void
+    onClaudeConnect?: () => Promise<boolean> | void
+    /** claude-account: what WorkUI reads off the machine and hands down. */
+    claudeAccountReady?: boolean | null
   },
   ref: React.Ref<typeof chatHandle>
 ): ReactElement {
@@ -777,7 +841,15 @@ function ChatStandIn(
       'button',
       { type: 'button', onClick: () => onOpenMcpConsole?.() },
       'abrir console mcp pelo turno'
-    )
+    ),
+    // claude-account: the first-party lane's repair, and the fact the pane
+    // needs to finish it wherever the sign-in actually happened.
+    createElement(
+      'button',
+      { type: 'button', onClick: () => void onClaudeConnect?.() },
+      'simular conectar conta claude'
+    ),
+    createElement('span', { 'data-testid': 'claude-ready' }, String(claudeAccountReady))
   )
 }
 
@@ -839,6 +911,12 @@ let WorkUI: typeof import('./WorkUI').WorkUI
 function createHiveMock(): Window['hive'] {
   return {
     chooseWorkspace: vi.fn(async () => null),
+    chatHistory: {
+      list: vi.fn(async () => []),
+      search: vi.fn(async () => []),
+      rename: vi.fn(async () => null),
+      delete: vi.fn(async () => undefined)
+    },
     getRecentWorkspaces: vi.fn(async () => []),
     openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),
     // The file-search palette loads the flat workspace file list on open.
@@ -959,7 +1037,40 @@ function createHiveMock(): Window['hive'] {
   } as unknown as Window['hive']
 }
 
+/**
+ * Navigate through the new file entry before exercising the existing editor
+ * fixture. The Arquivos tab is the Explorer's home — selecting it opens the
+ * sidebar and lands on the file tree, which is what the navbar's second slot
+ * used to shortcut before it was given to workspace search.
+ */
+function openExplorer(): void {
+  fireEvent.click(screen.getByRole('tab', { name: 'Arquivos' }))
+}
+function openFileFromExplorer(): void {
+  openExplorer()
+  fireEvent.click(screen.getByTestId('file-tree'))
+}
+function openUserSettings(): void {
+  fireEvent.click(screen.getByRole('button', { name: /[Mm]enu do usuário/ }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /^Configurações/ }))
+}
+function openMcpSettings(): void {
+  openUserSettings()
+  fireEvent.click(screen.getByRole('button', { name: /Servidores MCP/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
+}
+function editorTabs(): ReturnType<typeof within> {
+  return within(document.querySelector('.wb-tabs') as HTMLElement)
+}
+
 beforeEach(async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn()
+      disconnect = vi.fn()
+    }
+  )
   vi.stubGlobal('localStorage', createLocalStorageMock())
   // Default: the guided tour was already seen, so it never pops into
   // unrelated tests mid-run. The tour describe below removes the flag.
@@ -974,9 +1085,133 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.resetModules()
   for (const spy of Object.values(chatHandle)) spy.mockReset()
+})
+
+describe('WorkUI — navigation actions and safe exit', () => {
+  function start(): ReturnType<typeof vi.spyOn> {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    render(createElement(WorkUI, { workspace: WS, theme: 'dark', onSelectTheme: vi.fn() }))
+    return close
+  }
+  function exit(): void {
+    fireEvent.click(screen.getByRole('button', { name: /[Mm]enu do usuário/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sair do Hive' }))
+  }
+  /**
+   * A chat tool opens in the WORK pane, never over the sidebar.
+   *
+   * As sidebar views these two evicted the conversation list — the user gave up
+   * the thing they navigate by in order to look at a diff review squeezed into
+   * a 280px column. The history staying put is the assertion that matters here.
+   */
+  it('opens a chat tool in the work pane, leaving the conversation list on screen', () => {
+    start()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisão do agente' }))
+    expect(activeWorkView()).toBe('review')
+    expect(activeSidebarView()).toBe('chat')
+    expect(screen.getByText('Conversas')).toBeTruthy()
+
+    // The row is a toggle: pressing the one already in front returns the
+    // transcript. Its name says so while it is active.
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar Revisão do agente' }))
+    expect(activeWorkView()).toBe('chat')
+
+    // ...and so does the pane's own way out.
+    fireEvent.click(screen.getByRole('button', { name: 'Revisão do agente' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Fechar Revisão do agente e voltar à conversa' })
+    )
+    expect(activeWorkView()).toBe('chat')
+  })
+
+  /**
+   * The other half of "the history stays on screen": it has to still work.
+   * Clicking a conversation while a tool covers the pane is a request to see
+   * that conversation, so the transcript comes back to the front — otherwise
+   * the row highlights and nothing visible happens.
+   */
+  it('opening a conversation from the history brings the transcript back to the front', async () => {
+    vi.mocked(window.hive.chatHistory.list).mockResolvedValue([
+      {
+        id: 'sess-1',
+        title: 'Histórico antigo',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        agent: null,
+        messageCount: 3,
+        preview: 'trecho'
+      }
+    ])
+    start()
+    fireEvent.click(screen.getByRole('button', { name: 'Bases de conhecimento' }))
+    expect(activeWorkView()).toBe('brain')
+
+    fireEvent.click(await screen.findByText('Histórico antigo'))
+    expect(activeWorkView()).toBe('chat')
+    expect(chatHandle.openSession).toHaveBeenCalledWith('sess-1')
+  })
+
+  it('starting a new conversation from a tool returns the transcript to the pane', () => {
+    start()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisão do agente' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Novo — iniciar uma nova conversa' }))
+    expect(activeWorkView()).toBe('chat')
+    expect(chatHandle.newConversation).toHaveBeenCalled()
+  })
+  /**
+   * The seam the redesign introduced: the sidebar previews the history, and the
+   * button under it hands the *same* store to the wide archive. Both components
+   * are covered on their own — what only WorkUI can answer is that the button
+   * is wired to the dialog at all, and that the lens the sidebar is on travels
+   * with it rather than resetting on the way.
+   */
+  it('opens the wide archive from the sidebar, on the lens the sidebar is showing', async () => {
+    start()
+    fireEvent.click(screen.getByRole('button', { name: /^Ordenar conversas/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Nome' }))
+    expect(screen.queryByText('Todas as conversas')).toBeNull()
+
+    fireEvent.click(screen.getByText('Ver todas as conversas'))
+    expect(screen.getByText('Todas as conversas')).toBeTruthy()
+    // Two triggers now, both reading the order the sidebar was on: the archive
+    // opened on the same lens instead of resetting to the default.
+    expect(screen.getAllByRole('button', { name: 'Ordenar conversas: Nome' })).toHaveLength(2)
+  })
+  it('keeps the account menu available with the sidebar collapsed and exits a clean workspace', () => {
+    const close = start()
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar barra lateral' }))
+    expect(document.querySelector('.wb-collapsed-user .wb-usermenu-trigger')).not.toBeNull()
+    exit()
+    expect(close).toHaveBeenCalledOnce()
+  })
+  it('protects dirty drafts on exit: cancel keeps them, discard closes', () => {
+    const close = start()
+    openFileFromExplorer()
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    exit()
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(document.querySelector('.wb-tab[data-dirty]')).not.toBeNull()
+    exit()
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
+    expect(close).toHaveBeenCalledOnce()
+  })
+  it('closes after a successful save and keeps the window when saving fails', async () => {
+    const close = start()
+    openFileFromExplorer()
+    fireEvent.click(screen.getByTestId('mark-dirty'))
+    fileViewerMock.requestSave.mockResolvedValueOnce(false)
+    exit()
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(fileViewerMock.requestSave).toHaveBeenCalledOnce())
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+  })
 })
 
 describe('WorkUI — resizable rail persistence (T11)', () => {
@@ -1029,7 +1264,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
   // to migrate — but not an open sidebar: "first launch shows only the chat"
   // is a rule about a workspace with no session, and the old global key says
   // nothing about this workspace.
-  it('seeds the layout from the pre-workspaceSession key, still closed', () => {
+  it('migrates legacy widths into the visible navigation', () => {
     localStorage.setItem(LEGACY_LAYOUT_KEY, JSON.stringify({ rail: 26, chat: 74 }))
 
     render(
@@ -1040,7 +1275,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       })
     )
 
-    expect(resizableProps.defaultLayout).toEqual({ rail: 0, chat: 74 })
+    expect(resizableProps.defaultLayout).toEqual({ rail: 26, chat: 74 })
   })
 
   it('ignores a corrupt persisted value instead of crashing', () => {
@@ -1084,9 +1319,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
     fireEvent.click(screen.getByTestId('simulate-drag'))
 
     // Written after the sash stops moving, not per frame.
-    await waitFor(() =>
-      expect(storedSession().layout).toEqual({ rail: 30, chat: 45, viewer: 25 })
-    )
+    await waitFor(() => expect(storedSession().layout).toEqual({ rail: 30, chat: 45, viewer: 25 }))
   })
 
   it('renders rail and chat panels, and only mounts the viewer panel while a file is open', () => {
@@ -1102,7 +1335,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
     expect(screen.getByTestId('panel-chat')).toBeTruthy()
     expect(screen.queryByTestId('panel-viewer')).toBeNull()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
 
     expect(screen.getByTestId('panel-viewer')).toBeTruthy()
     expect(screen.getByText('FileViewer: README.md')).toBeTruthy()
@@ -1117,7 +1350,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       })
     )
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     expect(screen.getByTestId('panel-viewer')).toBeTruthy()
 
     fireEvent.click(screen.getByTestId('close-viewer'))
@@ -1134,7 +1367,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       })
     )
 
-    expect(screen.getByRole('button', { name: 'Aparência (atual: Claro)' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Escolha do tema (atual: Claro)' })).toBeTruthy()
   })
 
   it('offers all three themes, marks the active one, and reports the pick', () => {
@@ -1147,7 +1380,7 @@ describe('WorkUI — resizable rail persistence (T11)', () => {
       })
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Escolha do tema/ }))
 
     const options = screen.getAllByRole('menuitemradio')
     expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual([
@@ -1481,7 +1714,7 @@ describe('WorkUI — workspace chip menu (T7)', () => {
 describe('WorkUI — switch guard + openWorkspace pipeline (T8)', () => {
   /** Opens the file viewer (via the mocked FileTree) and marks it dirty (via the mocked FileViewer's onDirtyChange hook). */
   function openDirtyViewer(): void {
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
   }
 
@@ -1854,16 +2087,17 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
       })
     )
 
-    const avatar = screen.getByRole('button', { name: 'Abrir configurações de perfil' })
-    expect(avatar.textContent).toBe('GB')
+    const avatar = screen.getByRole('button', { name: /[Mm]enu do usuário/ })
+    expect(avatar.querySelector('.wb-usermenu-avatar')?.textContent).toBe('GB')
     // The profile sheet is closed initially, then opens from the avatar.
     expect(screen.queryByText('Perfil')).toBeNull()
     fireEvent.click(avatar)
-    expect(await screen.findByText('Perfil')).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Configurações/ }))
+    expect(await screen.findByText('Configurações')).toBeTruthy()
 
     // voice-settings (M25): the sheet opens on its INDEX, which states the
     // active role and the live setup without a click.
-    expect(screen.getByText('Product Manager')).toBeTruthy()
+    expect(screen.getAllByText('Product Manager').length).toBeGreaterThan(0)
     expect(screen.queryByText('Tech Lead')).toBeNull()
 
     // Agentes is one drill-down away, and picking one there runs the (default
@@ -1890,7 +2124,8 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     )
 
     expect(screen.queryByText('Aplicativo')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Configurações do aplicativo' }))
+    fireEvent.click(screen.getByRole('button', { name: /[Mm]enu do usuário/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Versão e atualizações/ }))
     expect(await screen.findByText('Aplicativo')).toBeTruthy()
     // Version resolved from app.info; dev builds show the honest no-updates note.
     expect(await screen.findByText('Versão 0.1.0')).toBeTruthy()
@@ -1929,9 +2164,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     })
 
     // The rail's ambient dot (T12) lit up from the same shared state.
-    expect(
-      screen.getByLabelText('Configurações do aplicativo — Atualização disponível')
-    ).toBeTruthy()
+    expect(document.querySelector('.wb-usermenu-dot')).toBeTruthy()
 
     // The notice's "Ver novidades" opens UpdateCenter (WorkUI wires it to
     // the same appSettingsOpen state as the rail gear).
@@ -1950,7 +2183,7 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     )
 
     expect(screen.queryByText('Nenhum servidor MCP ainda')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
+    openMcpSettings()
     // The module opens on its empty state (the mock lists no servers).
     expect(await screen.findByText('Nenhum servidor MCP ainda')).toBeTruthy()
   })
@@ -2034,7 +2267,8 @@ describe('WorkUI — tool rail, profile avatar, file search', () => {
     )
 
     expect(screen.queryByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Buscar arquivos no workspace' }))
+    openExplorer()
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar arquivos no workspace/ }))
     expect(await screen.findByRole('dialog', { name: 'Buscar arquivos no workspace' })).toBeTruthy()
 
     // Picking the row opens the file: the viewer panel mounts and the dialog closes.
@@ -2090,7 +2324,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   function renderWorkUI(): void {
     // The sidebar is hidden on a workspace with no session (workspace-session),
     // and moving a pane you cannot see is not what this suite is about.
-    seedSession({ sidebarOpen: true })
+    seedSession({ sidebarOpen: true, sidebarView: 'explorer' })
     render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
@@ -2111,7 +2345,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
     renderWorkUI()
     expect(panelOrder()).toEqual(['rail', 'chat'])
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     expect(panelOrder()).toEqual(['rail', 'chat', 'viewer'])
   })
 
@@ -2120,7 +2354,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
     renderWorkUI()
     expect(panelOrder()).toEqual(['chat', 'rail'])
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     expect(panelOrder()).toEqual(['chat', 'viewer', 'rail'])
   })
 
@@ -2148,11 +2382,19 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
     )
   })
 
-  // workspace-session: the collapsed rail is still *rendered* (its tree keeps
-  // its state), but it is not a pane anyone can move next to.
-  it('offers no move past a hidden sidebar — the chat is already leftmost', () => {
-    localStorage.removeItem(STORAGE_KEY)
-    render(
+  /**
+   * With the sidebar away the conversation is the ONLY pane on screen, so every
+   * layout affordance it carries is naming an arrangement that does not exist:
+   * a grip with nowhere to drag to, a ↔ whose two items are both disabled, and
+   * an uppercase "CONVERSA" labelling the only thing there — in the top-left
+   * corner, the most valuable real estate a window has.
+   *
+   * The whole strip goes. It used to merely disable the menu's items, which is
+   * how a control that can never do anything stayed on screen forever.
+   */
+  it('drops the pane chrome entirely when the conversation is the only pane', () => {
+    seedSession({ sidebarOpen: false, sidebarView: 'chat' })
+    const { container } = render(
       createElement(WorkUI, {
         workspace: '/home/user/my-workspace',
         theme: 'dark',
@@ -2160,12 +2402,33 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
       })
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mover o painel Conversa' }))
-    const moveLeft = screen.getByRole('menuitem', { name: 'Mover para a esquerda' })
-    expect((moveLeft as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Mover o painel Conversa' })).toBeNull()
+    expect(container.querySelector('.wb-pane-header')).toBeNull()
+    expect(container.querySelector('.wb-pane-grip')).toBeNull()
 
     // And the rail is still rendered behind it — collapsed, not unmounted.
     expect(screen.getByTestId('panel-rail')).toBeTruthy()
+  })
+
+  /**
+   * claude-account: the transcript's repair is WorkUI's `claudeAuth`, and the
+   * account fact it needs to *finish* that repair is WorkUI's too. A banner
+   * that could only be withdrawn by its own button's promise is what left a
+   * user signed in, told so, and still looking at the failure.
+   */
+  it('wires the composer’s account repair to the sign-in, and hands the account fact down', async () => {
+    renderWorkUI()
+    fireEvent.click(await screen.findByText('simular conectar conta claude'))
+    await waitFor(() => expect(window.hive.claudeAuth.login).toHaveBeenCalled())
+    // …and the machine's own answer reaches the pane, which is what lets the
+    // transcript withdraw a banner a sign-in elsewhere already made false.
+    await waitFor(() => expect(screen.getByTestId('claude-ready').textContent).toBe('true'))
+  })
+
+  /** ...and it comes back the moment there is a second pane to move it against. */
+  it('brings the pane chrome back with the sidebar', () => {
+    renderWorkUI()
+    expect(screen.getByRole('button', { name: 'Mover o painel Conversa' })).toBeTruthy()
   })
 
   it('moving the leftmost pane further left is a no-op', () => {
@@ -2189,7 +2452,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('leaving a hovered pane clears its drop hint', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-sidebar-tabbar') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),
@@ -2210,7 +2473,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('drag-and-drop guards: no phantom hints, before-half targeting, child leave keeps the hint', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-sidebar-tabbar') as HTMLElement
     const railPane = screen.getByTestId('panel-rail').querySelector('.wb-pane') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
@@ -2264,7 +2527,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('reorders panes by dragging a pane header onto another pane and persists it', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-sidebar-tabbar') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),
@@ -2293,7 +2556,7 @@ describe('WorkUI — movable panes (customizable-layout)', () => {
   it('a drag that ends without a drop clears the drop hint (dragend path)', () => {
     renderWorkUI()
 
-    const railHeader = screen.getByText('Arquivos').closest('.wb-pane-header') as HTMLElement
+    const railHeader = screen.getByText('Arquivos').closest('.wb-sidebar-tabbar') as HTMLElement
     const chatPane = screen.getByTestId('panel-chat').querySelector('.wb-pane') as HTMLElement
     const dataTransfer = {
       setData: vi.fn(),
@@ -2325,15 +2588,17 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
 
   /** Visible tab names, in strip order. */
   function tabNames(): string[] {
-    return screen.getAllByRole('tab').map((tab) => tab.textContent ?? '')
+    return editorTabs()
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent ?? '')
   }
 
   it('a plain click opens a preview tab that the next plain open replaces in place', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     expect(tabNames()).toEqual(['README.md'])
-    expect(screen.getByRole('tab').hasAttribute('data-preview')).toBe(true)
+    expect(editorTabs().getByRole('tab').hasAttribute('data-preview')).toBe(true)
 
     fireEvent.click(screen.getByTestId('open-other'))
     expect(tabNames()).toEqual(['other.md'])
@@ -2342,20 +2607,21 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
   it('a pinned open (double-click in the tree) keeps the preview tab and adds its own', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
+    openExplorer()
     fireEvent.click(screen.getByTestId('open-pinned'))
 
     expect(tabNames()).toEqual(['README.md', 'pinned.md'])
-    const pinned = screen.getAllByRole('tab')[1] as HTMLElement
+    const pinned = editorTabs().getAllByRole('tab')[1] as HTMLElement
     expect(pinned.hasAttribute('data-preview')).toBe(false)
   })
 
   it('double-clicking a preview tab pins it, so the next open adds a second tab', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
-    fireEvent.doubleClick(screen.getByRole('tab'))
-    expect(screen.getByRole('tab').hasAttribute('data-preview')).toBe(false)
+    openFileFromExplorer()
+    fireEvent.doubleClick(editorTabs().getByRole('tab'))
+    expect(editorTabs().getByRole('tab').hasAttribute('data-preview')).toBe(false)
 
     fireEvent.click(screen.getByTestId('open-other'))
     expect(tabNames()).toEqual(['README.md', 'other.md'])
@@ -2364,10 +2630,10 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
   it('editing a preview tab pins it and shows the dirty dot state', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
 
-    const tab = screen.getByRole('tab')
+    const tab = editorTabs().getByRole('tab')
     expect(tab.hasAttribute('data-preview')).toBe(false)
     expect(tab.hasAttribute('data-dirty')).toBe(true)
   })
@@ -2375,7 +2641,8 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
   it('selecting another tab switches the visible viewer without unmounting the hidden one', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
+    openExplorer()
     fireEvent.click(screen.getByTestId('open-pinned'))
 
     // Both viewers stay mounted; only the active tab's body is visible.
@@ -2383,7 +2650,7 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
     expect(bodies).toHaveLength(2)
     expect(bodies.filter((body) => !body.hasAttribute('hidden'))).toHaveLength(1)
 
-    fireEvent.click(screen.getAllByRole('tab')[0] as HTMLElement)
+    fireEvent.click(editorTabs().getAllByRole('tab')[0] as HTMLElement)
     const readmeBody = bodies[0] as HTMLElement
     expect(readmeBody.hasAttribute('hidden')).toBe(false)
   })
@@ -2399,8 +2666,8 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
     /** Opens README.md, then the menu on its tab. */
     function openTabMenu(): void {
       renderWorkUI()
-      fireEvent.click(screen.getByTestId('file-tree'))
-      fireEvent.contextMenu(screen.getAllByRole('tab')[0] as HTMLElement)
+      openFileFromExplorer()
+      fireEvent.contextMenu(editorTabs().getAllByRole('tab')[0] as HTMLElement)
     }
 
     it('copies the workspace-relative path without a round trip to main', async () => {
@@ -2429,11 +2696,12 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
 
     it('points the tree at the file, bringing the Explorer back if it is not showing', () => {
       renderWorkUI()
-      fireEvent.click(screen.getByTestId('file-tree'))
+      openFileFromExplorer()
+      openExplorer()
       fireEvent.click(screen.getByLabelText('Controle de versão'))
       expect(activeSidebarView()).toBe('scm')
 
-      fireEvent.contextMenu(screen.getAllByRole('tab')[0] as HTMLElement)
+      fireEvent.contextMenu(editorTabs().getAllByRole('tab')[0] as HTMLElement)
       fireEvent.click(screen.getByRole('menuitem', { name: 'Revelar no explorador' }))
 
       expect(activeSidebarView()).toBe('explorer')
@@ -2450,94 +2718,96 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
 
     it('closes every other tab through the same guard the × uses', () => {
       renderWorkUI()
-      fireEvent.click(screen.getByTestId('file-tree'))
+      openFileFromExplorer()
+      openExplorer()
       fireEvent.click(screen.getByTestId('open-pinned'))
-      expect(screen.getAllByRole('tab')).toHaveLength(2)
+      expect(editorTabs().getAllByRole('tab')).toHaveLength(2)
 
-      fireEvent.contextMenu(screen.getAllByRole('tab')[1] as HTMLElement)
+      fireEvent.contextMenu(editorTabs().getAllByRole('tab')[1] as HTMLElement)
       fireEvent.click(screen.getByRole('menuitem', { name: 'Fechar as outras' }))
 
-      expect(screen.getAllByRole('tab')).toHaveLength(1)
+      expect(editorTabs().getAllByRole('tab')).toHaveLength(1)
     })
   })
 
   it('closing a clean tab from the strip closes immediately (no guard dialog)', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByLabelText('Fechar README.md'))
 
-    expect(screen.queryByRole('tab')).toBeNull()
+    expect(document.querySelector('.wb-tabs')).toBeNull()
     expect(screen.queryByTestId('panel-viewer')).toBeNull()
   })
 
   it('closing a dirty tab asks the three-way guard; Salvar saves via the handle then closes', async () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
     fireEvent.click(screen.getByLabelText('Fechar README.md'))
 
     // Guard dialog up, tab still open.
     expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(screen.getByRole('tab')).toBeTruthy()
+    expect(editorTabs().getByRole('tab')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
     await waitFor(() => {
       expect(fileViewerMock.requestSave).toHaveBeenCalledTimes(1)
     })
     await waitFor(() => {
-      expect(screen.queryByRole('tab')).toBeNull()
+      expect(document.querySelector('.wb-tabs')).toBeNull()
     })
   })
 
   it('closing a dirty tab and picking Descartar closes without saving', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
     fireEvent.click(screen.getByLabelText('Fechar README.md'))
     fireEvent.click(screen.getByRole('button', { name: 'Descartar alterações' }))
 
     expect(fileViewerMock.requestSave).not.toHaveBeenCalled()
-    expect(screen.queryByRole('tab')).toBeNull()
+    expect(document.querySelector('.wb-tabs')).toBeNull()
   })
 
   it('closing a dirty tab and picking Cancelar keeps the tab (and its dirty state)', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
     fireEvent.click(screen.getByLabelText('Fechar README.md'))
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('tab').hasAttribute('data-dirty')).toBe(true)
+    expect(editorTabs().getByRole('tab').hasAttribute('data-dirty')).toBe(true)
   })
 
   it('closing the active tab activates its neighbor', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
+    openExplorer()
     fireEvent.click(screen.getByTestId('open-pinned'))
     expect(tabNames()).toEqual(['README.md', 'pinned.md'])
 
     // pinned.md is active; close it — README.md becomes the active tab.
     fireEvent.click(screen.getByLabelText('Fechar pinned.md'))
     expect(tabNames()).toEqual(['README.md'])
-    expect(screen.getByRole('tab').hasAttribute('data-active')).toBe(true)
+    expect(editorTabs().getByRole('tab').hasAttribute('data-active')).toBe(true)
   })
 
   it('middle-clicking a tab closes it (VS Code muscle memory)', () => {
     renderWorkUI()
 
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent(
-      screen.getByRole('tab'),
+      editorTabs().getByRole('tab'),
       new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 })
     )
 
-    expect(screen.queryByRole('tab')).toBeNull()
+    expect(document.querySelector('.wb-tabs')).toBeNull()
   })
 })
 
@@ -2548,6 +2818,11 @@ describe('WorkUI — multi-tab editor (VS Code preview/pin)', () => {
  */
 function activeSidebarView(): string | null {
   return document.querySelector('.wb-sidebar-layer[data-active]')?.getAttribute('data-view') ?? null
+}
+
+/** The surface the work pane is showing — the transcript, or a chat tool opened in its place. */
+function activeWorkView(): string | null {
+  return document.querySelector('.wb-work-layer[data-active]')?.getAttribute('data-view') ?? null
 }
 
 describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
@@ -2563,6 +2838,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
 
   it('defaults to the Explorer view (file tree visible, pane titled "Arquivos")', () => {
     renderWork()
+    openExplorer()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     expect(screen.getByText('Arquivos')).toBeTruthy()
     expect(document.querySelector('.wb-scm-empty')).toBeNull()
@@ -2570,6 +2846,7 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
 
   it('clicking Source Control swaps the rail body and persists the view', () => {
     renderWork()
+    openExplorer()
     fireEvent.click(screen.getByLabelText('Controle de versão'))
 
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
@@ -2579,16 +2856,18 @@ describe('WorkUI — sidebar view switch (git-management D-GIT-2)', () => {
 
     // The tree is not thrown away by leaving it — it is the inactive layer,
     // still holding its expansion, selection and scroll (SidebarHost).
+    openExplorer()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
 
     // Switching back to Explorer shows it again.
-    fireEvent.click(screen.getByLabelText('Explorador'))
+    openExplorer()
     expect(activeSidebarView()).toBe('explorer')
     expect(storedSession().sidebarView).toBe('explorer')
   })
 
   it('Ctrl+Shift+G opens the Source Control view', () => {
     renderWork()
+    openExplorer()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'G', ctrlKey: true, shiftKey: true })
     expect(document.querySelector('.wb-scm-empty')).not.toBeNull()
@@ -2694,7 +2973,7 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
   it('guards a dirty checkout behind the three-way dialog (Salvar proceeds)', async () => {
     const git = renderRepoWork()
     // Make an editor tab dirty first.
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
     fireEvent.click(await screen.findByLabelText('Branch atual: main. Trocar de branch'))
     fireEvent.click(await screen.findByLabelText('Trocar para feature/x'))
@@ -2709,7 +2988,7 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
 
   it('guards a dirty checkout — Descartar proceeds, Cancelar aborts', async () => {
     const git = renderRepoWork()
-    fireEvent.click(screen.getByTestId('file-tree'))
+    openFileFromExplorer()
     fireEvent.click(screen.getByTestId('mark-dirty'))
 
     // Cancelar: no checkout.
@@ -2781,6 +3060,7 @@ describe('WorkUI — git status bar + branch picker (T21/T22)', () => {
     })
 
     // Switch to the Source Control view via the rail entry.
+    openExplorer()
     fireEvent.click(await screen.findByLabelText(/Controle de versão/))
     // Click the conflict row → a conflict tab opens (readFile '' → resolved state).
     fireEvent.click(await screen.findByRole('button', { name: /c\.txt/ }))
@@ -2985,11 +3265,14 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
     withVault()
     renderWork()
 
+    openExplorer()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
 
     expect(await screen.findByText('Perguntar à base')).toBeTruthy()
-    expect(activeSidebarView()).toBe('brain')
+    expect(activeWorkView()).toBe('brain')
+    // The Explorer keeps the rail: the chord opens a work surface, not a view.
+    expect(activeSidebarView()).toBe('explorer')
   })
 
   it('Ctrl+Shift+K opens the ask surface from anywhere, without touching the sidebar', async () => {
@@ -3001,6 +3284,7 @@ describe('WorkUI — Second Brain ask + health cadence (M12)', () => {
 
     expect(await screen.findByLabelText('Sua pergunta')).toBeTruthy()
     // The Explorer stays where it was — asking is not a navigation.
+    openExplorer()
     expect(screen.getByTestId('file-tree')).toBeTruthy()
   })
 
@@ -3254,7 +3538,7 @@ describe('WorkUI — MCP manager ↔ console bridge (mcp-logs)', () => {
 
   it('opens the console from the manager and closes the manager behind it', async () => {
     renderWithServer()
-    fireEvent.click(screen.getByRole('button', { name: 'Servidores MCP' }))
+    openMcpSettings()
 
     // Expand the server row to reach its detail actions.
     fireEvent.click(await screen.findByRole('button', { name: 'Ver detalhes de playwright' }))
@@ -3353,9 +3637,9 @@ describe('WorkUI — AWS login beacon (aws-bedrock)', () => {
     // deep link from an AWS failure has to land on the AWS lane rather than on
     // whichever one the sheet happens to default to.
     expect(await screen.findByText('Conexão do Claude')).toBeTruthy()
-    expect(
-      screen.getByRole('tab', { name: /Amazon Bedrock/ }).getAttribute('aria-selected')
-    ).toBe('true')
+    expect(screen.getByRole('tab', { name: /Amazon Bedrock/ }).getAttribute('aria-selected')).toBe(
+      'true'
+    )
   })
 
   it('retries a failed login from the beacon', async () => {
@@ -3394,21 +3678,23 @@ describe('WorkUI — hideable sidebar (workspace-session)', () => {
    * unscoped query matches the label and the button that opened it.
    */
   function railEntry(name: string): HTMLElement {
-    const rail = document.querySelector('.wb-actionrail') as HTMLElement
+    if (!document.querySelector('.wb-sidebar-nav [data-view="explorer"]')) openExplorer()
+    const rail = document.querySelector('.wb-sidebar-nav') as HTMLElement
     return within(rail).getByLabelText(new RegExp(`^(Ocultar )?${name}`))
   }
 
-  it('opens a first-launch workspace on the chat alone', () => {
+  it('opens a first-launch workspace on Chat with its navigation visible', () => {
     renderWork()
-    // The panel is rendered (collapsed, so the tree inside keeps its state)…
     expect(screen.getByTestId('panel-rail')).toBeTruthy()
-    expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
-    // …and the rail says so: nothing pressed, the Explorer resting.
-    expect(railEntry('Explorador').getAttribute('aria-pressed')).toBe('false')
-    expect(railEntry('Explorador').hasAttribute('data-resting')).toBe(true)
+    expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
+    expect(activeSidebarView()).toBe('chat')
+    expect(screen.getByRole('tab', { name: 'Chat & Cowork' }).getAttribute('aria-selected')).toBe(
+      'true'
+    )
   })
 
   it('clicking the resting view opens the sidebar; clicking it again puts it away', () => {
+    seedSession({ sidebarOpen: false, sidebarView: 'explorer' })
     renderWork()
     fireEvent.click(railEntry('Explorador'))
     expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
@@ -3435,7 +3721,7 @@ describe('WorkUI — hideable sidebar (workspace-session)', () => {
     fireEvent.click(railEntry('Controle de versão'))
     fireEvent.click(railEntry('Controle de versão'))
     expect(document.querySelector('.wb-pane[data-collapsed]')).not.toBeNull()
-    expect(railEntry('Controle de versão').hasAttribute('data-resting')).toBe(true)
+    expect(storedSession().sidebarView).toBe('scm')
 
     fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
     expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
@@ -3443,6 +3729,7 @@ describe('WorkUI — hideable sidebar (workspace-session)', () => {
   })
 
   it('Ctrl+B toggles the sidebar and writes the state down', () => {
+    seedSession({ sidebarOpen: false, sidebarView: 'chat' })
     renderWork()
     fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
     expect(document.querySelector('.wb-pane[data-collapsed]')).toBeNull()
@@ -3456,7 +3743,7 @@ describe('WorkUI — hideable sidebar (workspace-session)', () => {
   it('leaves Ctrl+Shift+B alone — that chord belongs to the knowledge base', () => {
     renderWork()
     fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
-    expect(activeSidebarView()).toBe('brain')
+    expect(activeWorkView()).toBe('brain')
   })
 
   it('Ctrl+Shift+E brings the Explorer forward from a hidden sidebar', () => {
@@ -3543,6 +3830,7 @@ describe('WorkUI — restoring a workspace (workspace-session)', () => {
 
   it('records the strip as it changes, file tabs only', async () => {
     renderWork()
+    openExplorer()
     fireEvent.click(screen.getByTestId('open-pinned'))
 
     await waitFor(() =>
@@ -3571,12 +3859,148 @@ describe('WorkUI — restoring a workspace (workspace-session)', () => {
   })
 
   it('seeds the tree with the folders that were open, and records the ones that change', async () => {
-    seedSession({ expanded: ['docs'], sidebarOpen: true })
+    seedSession({ expanded: ['docs'], sidebarOpen: true, sidebarView: 'explorer' })
     renderWork()
 
     expect(screen.getByTestId('tree-seed').textContent).toBe('docs')
 
     fireEvent.click(screen.getByTestId('expand-folder'))
     await waitFor(() => expect(storedSession().expanded).toEqual(['docs', 'docs/stories']))
+  })
+})
+
+/**
+ * Iniciativas — the demands the Chat & Cowork tab opens into.
+ *
+ * What `WorkUI` owns here is the wiring: the section above the history, the
+ * work pane renaming itself after the demand, the rail arriving beside the
+ * transcript (never in place of it), and the choice surviving a restart. The
+ * model, the tree and the create form have their own suites under
+ * `initiatives/`.
+ */
+describe('WorkUI — iniciativas', () => {
+  const R2 = 'docs/iniciativas/R2'
+  const DEMAND = `${R2}/portal-de-cobranca`
+
+  /** `docs/iniciativas/R2/portal-de-cobranca/prd.md`, as the bridge answers it. */
+  function initiativesTree(): unknown {
+    return [
+      {
+        name: 'R2',
+        path: R2,
+        type: 'directory',
+        children: [
+          {
+            name: 'portal-de-cobranca',
+            path: DEMAND,
+            type: 'directory',
+            children: [{ name: 'prd.md', path: `${DEMAND}/prd.md`, type: 'file' }]
+          }
+        ]
+      }
+    ]
+  }
+
+  beforeEach(() => {
+    window.hive = {
+      ...window.hive,
+      listTree: vi.fn(async (_root: string, rel?: string) =>
+        rel === 'docs/iniciativas' ? initiativesTree() : []
+      )
+    } as unknown as Window['hive']
+  })
+
+  function renderWork(): void {
+    render(
+      createElement(WorkUI, {
+        workspace: WS,
+        theme: 'dark',
+        onSelectTheme: vi.fn()
+      })
+    )
+  }
+
+  /** Renders, and waits for the demand row to arrive from disk. */
+  async function openDemand(): Promise<void> {
+    renderWork()
+    fireEvent.click(await screen.findByText('Portal De Cobranca'))
+  }
+
+  it('lists the workspace’s demands above the conversation history', async () => {
+    renderWork()
+    expect(await screen.findByText('Portal De Cobranca')).toBeTruthy()
+    const section = document.querySelector('.wb-inits')
+    const history = document.querySelector('.wb-chatside-head')
+    // `compareDocumentPosition` rather than a class check: the requirement is
+    // an order on screen, and only the DOM order says that.
+    expect(section?.compareDocumentPosition(history as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('renames the work pane after the demand and brings its rail in beside the chat', async () => {
+    await openDemand()
+    expect(screen.getByText('Iniciativa · Portal De Cobranca')).toBeTruthy()
+    expect(document.querySelector('.wb-initctx')).toBeTruthy()
+    // The transcript is still there — the rail sits beside it, not over it.
+    expect(screen.getByTestId('chat')).toBeTruthy()
+  })
+
+  it('remembers the demand across a restart, by folder', async () => {
+    await openDemand()
+    await waitFor(() => expect(storedSession().initiativePath).toBe(DEMAND))
+
+    cleanup()
+    renderWork()
+    expect(await screen.findByText('Iniciativa · Portal De Cobranca')).toBeTruthy()
+  })
+
+  it('closes back to a plain conversation', async () => {
+    await openDemand()
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar iniciativa' }))
+    expect(screen.getByText('Conversa')).toBeTruthy()
+    expect(document.querySelector('.wb-initctx')).toBeNull()
+    expect(storedSession().initiativePath).toBeNull()
+  })
+
+  it('puts the rail away while a chat tool covers the transcript it belongs to', async () => {
+    await openDemand()
+    fireEvent.click(screen.getByRole('button', { name: /Revisão do agente/ }))
+    expect(document.querySelector('.wb-initctx')).toBeNull()
+  })
+
+  it('runs a stage in a conversation of its own, scoped to the demand’s folder', async () => {
+    await openDemand()
+    chatHandle.launchCreation.mockClear()
+    chatHandle.launchAction.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar Arquitetura' }))
+    expect(chatHandle.launchCreation).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'bmad-architecture' })
+    )
+    expect(chatHandle.launchCreation.mock.calls[0][0].command.prompt).toContain(DEMAND)
+    // `launchAction` appends to whatever conversation is on screen. A whole
+    // BMAD workflow inheriting an unrelated transcript was the defect.
+    expect(chatHandle.launchAction).not.toHaveBeenCalled()
+  })
+
+  it('opens the demand it just created, rather than leaving it to be found', async () => {
+    const created = 'docs/iniciativas/R1/novo-checkout'
+    window.hive = {
+      ...window.hive,
+      fs: {
+        ...window.hive.fs,
+        exists: vi.fn(async () => false),
+        createDirectory: vi.fn(async () => undefined),
+        saveFile: vi.fn(async () => ({ mtimeMs: 1, size: 1 }))
+      }
+    } as unknown as Window['hive']
+    renderWork()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nova iniciativa' }))
+    fireEvent.change(screen.getByLabelText('Nome da demanda'), {
+      target: { value: 'Novo checkout' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Criar iniciativa' }))
+
+    await waitFor(() => expect(window.hive.fs.createDirectory).toHaveBeenCalledWith(WS, created))
+    await waitFor(() => expect(storedSession().initiativePath).toBe(created))
   })
 })

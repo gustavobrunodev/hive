@@ -265,7 +265,7 @@ async (page) => {
     if (theme !== 'dark') {
       // Driven through the app's own control. A probe that sets what the boot
       // harness also sets measures the harness default three times (M15).
-      await page.locator('[aria-label^="Aparência (atual:"]').click()
+      await page.locator('[aria-label^="Escolha do tema (atual:"]').click()
       await page.waitForTimeout(200)
       await page.getByRole('menuitemradio', { name: theme === 'light' ? /Claro/ : /Hive/ }).click()
       await page.waitForTimeout(400)

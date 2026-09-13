@@ -3,7 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { openSidebar } from './sidebar'
+import { newConversation, openAllConversations, openSidebar } from './sidebar'
 
 // QA infrastructure for the E2E layer (test-design-qa.md, "Infraestrutura de
 // QA"). Two problems this file exists to solve, both recorded as risks:
@@ -251,10 +251,10 @@ export async function launchSeededApp(
  * about; `workspace-session.spec.ts` covers the first-run state itself and
  * deliberately does not come through here.
  */
-export { openSidebar }
+export { openSidebar, newConversation, openAllConversations }
 
 export async function waitForWorkUI(window: Page, timeout = 45_000): Promise<void> {
-  await window.locator('.wb-actionrail').waitFor({ state: 'visible', timeout })
+  await window.locator('.wb-navbar').waitFor({ state: 'visible', timeout })
   await openSidebar(window)
 }
 

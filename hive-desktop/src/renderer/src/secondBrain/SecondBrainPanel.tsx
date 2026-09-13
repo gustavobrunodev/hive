@@ -1,6 +1,6 @@
 import { Button } from '@hive/design-system'
 import { t } from '../i18n'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import {
   BrainIcon,
   CheckCircleIcon,

@@ -19,28 +19,41 @@ test.describe('workspace session (Ctrl+B, primeira execução, restauração)', 
   }) => {
     const app = await launchSeededApp(seeded)
     const window = await app.firstWindow()
-    await window.locator('.wb-actionrail').waitFor({ state: 'visible', timeout: 45_000 })
+    await window.locator('.wb-navbar').waitFor({ state: 'visible', timeout: 45_000 })
 
-    // A primeira execução não tem sessão gravada: o painel existe (a árvore
-    // dentro dele guarda o próprio estado), mas está recolhido.
+    // nav-redesign: a primeira execução abre COM a lateral, na aba Chat — a
+    // primeira tela dela é "+ Novo" e as conversas de ontem, não uma árvore de
+    // arquivos que ninguém pediu ainda.
+    await expect(window.locator('.wb-rail')).toBeVisible()
+    await expect(window.getByRole('tab', { name: 'Chat' })).toHaveAttribute('aria-selected', 'true')
+
+    // O botão da navbar guarda o painel — e o nome dele diz o que o próximo
+    // clique faz.
+    const hide = window.getByRole('button', { name: 'Ocultar barra lateral' })
+    await hide.click()
     await expect(window.locator('.wb-pane[data-collapsed]')).toHaveCount(1)
     await expect(window.locator('.wb-rail')).toBeHidden()
-    const explorer = window.getByRole('button', { name: 'Explorador', exact: true })
-    await expect(explorer).toHaveAttribute('aria-expanded', 'false')
+    const show = window.getByRole('button', { name: 'Exibir barra lateral' })
+    await expect(show).toHaveAttribute('aria-expanded', 'false')
 
-    await explorer.click()
+    // E o mesmo botão o traz de volta.
+    await show.click()
     await expect(window.locator('.wb-rail')).toBeVisible()
-    // O rótulo passa a nomear o que o clique faz agora.
-    const showing = window.getByRole('button', { name: 'Ocultar Explorador', exact: true })
-    await expect(showing).toHaveAttribute('aria-expanded', 'true')
-
-    // E o mesmo clique guarda de novo.
-    await showing.click()
-    await expect(window.locator('.wb-rail')).toBeHidden()
+    await expect(hide).toHaveAttribute('aria-expanded', 'true')
 
     // Ctrl+B é o caminho de teclado para o mesmo gesto.
     await window.keyboard.press('Control+b')
+    await expect(window.locator('.wb-rail')).toBeHidden()
+    await window.keyboard.press('Control+b')
     await expect(window.locator('.wb-rail')).toBeVisible()
+
+    // A linha do Explorador, dentro da aba Arquivos, é a outra forma de
+    // guardar/mostrar a mesma coisa — e também nomeia o que o clique faz.
+    await window.getByRole('tab', { name: 'Arquivos' }).click()
+    const explorer = window.getByRole('button', { name: 'Ocultar Explorador de arquivos' })
+    await expect(explorer).toHaveAttribute('aria-expanded', 'true')
+    await explorer.click()
+    await expect(window.locator('.wb-rail')).toBeHidden()
 
     await app.close()
   })
@@ -72,7 +85,7 @@ test.describe('workspace session (Ctrl+B, primeira execução, restauração)', 
     // Mesmo userData, mesmo workspace: é literalmente reabrir o app.
     const second = await launchSeededApp(seeded)
     const secondWindow = await second.firstWindow()
-    await secondWindow.locator('.wb-actionrail').waitFor({ state: 'visible', timeout: 45_000 })
+    await secondWindow.locator('.wb-navbar').waitFor({ state: 'visible', timeout: 45_000 })
 
     await expect(secondWindow.locator('.wb-rail')).toBeVisible()
     await expect(secondWindow.locator('.wb-tab')).toHaveCount(2)

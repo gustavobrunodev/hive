@@ -14,6 +14,7 @@
  * beyond this contract.
  */
 
+import type { AttachmentContext } from './attachmentContext'
 import type { ShellInfo } from './shellCatalog'
 import type { ToolOutput, ToolParam } from './toolDetails'
 import type { ToolPatch } from './toolPatch'
@@ -316,8 +317,14 @@ export interface AgentInput {
    * Adapters fold them into the turn's prompt (`composeTurnPrompt`) — the
    * agent CLI reads the files itself via its own tools, so nothing is
    * inlined over IPC.
+   *
+   * Plain strings are what crosses the IPC boundary from the renderer; main
+   * upgrades them to `AttachmentContext` before the turn is dispatched, so
+   * the block can say what each file *is* and point at a readable copy when
+   * the user's own name would send an image down a text reader
+   * (`attachmentContext.ts`).
    */
-  attachments?: string[]
+  attachments?: ReadonlyArray<string | AttachmentContext>
   /**
    * session-history (conversation memory): the adapter-native session id to
    * resume so the agent keeps the conversation's prior context (`claude -p
@@ -326,6 +333,25 @@ export interface AgentInput {
    * conversation id.
    */
   resume?: string | null
+  /**
+   * "This turn opens a conversation that has **no agent session yet** — do not
+   * continue any session you are already holding."
+   *
+   * For the one-shot adapters this says nothing new: they spawn a process per
+   * turn, and `resume: null` already means a fresh CLI session. It exists for
+   * the **live** transports, where a session outlives the turn — Devin over
+   * ACP keeps one connection for the whole conversation — and where
+   * `resume: null` is therefore ambiguous: it can mean "a brand-new
+   * conversation" or "the first turn's id has not reached me yet". Guessing
+   * wrong in the first direction leaks one conversation into another; in the
+   * second it drops a conversation's memory one turn in.
+   *
+   * The renderer is the only place that knows which it is (it is the thing
+   * that started the conversation), so it says. Measured failure this closes:
+   * a skill build launched from the Estúdio landed inside a running PRD
+   * session and opened with "pausando a descoberta do PRD".
+   */
+  freshSession?: boolean
   /**
    * Caller-chosen identity for this turn (background-turns): echoed on every
    * event the turn produces, so concurrent turns — e.g. one conversation
@@ -699,10 +725,12 @@ export interface TurnOpts {
   agentId?: string
   /** Same contract as `AgentInput.resume`. */
   resume?: string | null
+  /** Same contract as `AgentInput.freshSession`. */
+  freshSession?: boolean
   /** Same contract as `AgentInput.turnId`. */
   turnId?: string
   /** Same contract as `AgentInput.attachments`. */
-  attachments?: string[]
+  attachments?: ReadonlyArray<string | AttachmentContext>
   /** Same contract as `AgentInput.model` — a per-turn model override. */
   model?: string
   /** Same contract as `AgentInput.effort` — a per-turn effort override. */
@@ -717,6 +745,20 @@ export interface TurnOpts {
   conversationId?: string
 }
 
+/** One line of the `<attached-files>` block. */
+function attachmentLine(entry: string | AttachmentContext): string {
+  if (typeof entry === 'string') return `- ${entry}`
+  const notes: string[] = []
+  if (entry.mime !== undefined) notes.push(entry.mime)
+  // A staged copy has to name the original, or the agent answers about a file
+  // the user has never heard of — and the temp path is not something anyone
+  // can act on afterwards.
+  if (entry.stagedFrom !== undefined) {
+    notes.push(`a copy of "${entry.name}" (${entry.stagedFrom}), renamed so image readers open it`)
+  }
+  return notes.length === 0 ? `- ${entry.path}` : `- ${entry.path} — ${notes.join('; ')}`
+}
+
 /**
  * Folds a turn's attached/referenced file paths into the prompt an adapter
  * hands its CLI. Shared across adapter implementations (the *transport*
@@ -724,11 +766,21 @@ export interface TurnOpts {
  * English — it's machine-facing instruction to the agent, not UI chrome, and
  * the agent's reply language is governed by the workspace's own config
  * (R1.6 scope note in i18n/pt-BR.ts).
+ *
+ * The block carries **types**, not just paths, and the instruction says
+ * images are to be opened rather than reported missing. Both exist because of
+ * a real failure: a photo whose extension the reader did not know was opened
+ * as text, and the agent replied that no image had been attached. The staging
+ * in `attachmentContext.ts` is the other half of that fix — this is the half
+ * that tells the agent what it is looking at.
  */
-export function composeTurnPrompt(text: string, attachments?: string[]): string {
+export function composeTurnPrompt(
+  text: string,
+  attachments?: ReadonlyArray<string | AttachmentContext>
+): string {
   if (!attachments || attachments.length === 0) return text
-  const list = attachments.map((path) => `- ${path}`).join('\n')
-  const block = `<attached-files>\nThe user attached the following files as context for this message. Read each one before answering:\n${list}\n</attached-files>`
+  const list = attachments.map(attachmentLine).join('\n')
+  const block = `<attached-files>\nThe user attached the following files as context for this message. They are real files on disk at the paths below — read each one before answering. Image files must be opened with your file-reading tool so you actually see them; never answer that no image was provided without trying to read the path.\n${list}\n</attached-files>`
   return text.trim().length === 0 ? block : `${text}\n\n${block}`
 }
 

@@ -1,0 +1,110 @@
+/* SelectionBar — the contextual toolbar a list grows while rows are selected. */
+
+.hds-selbar {
+  display: flex;
+  align-items: center;
+  /* `--s-2`, not `--s-3`. Four items on one line in a 280px column with a
+     scrollbar in it leaves the count 81px for the 87px it wants, and the count
+     is the one thing on this bar that is *information*. Measured; the rhythm at
+     8px still reads as a toolbar. */
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border-radius: var(--rounded-md);
+  /* An accent tint, not a raised surface: the bar is a *state* the list is in,
+     not a panel sitting over it. `--accent-tint-ink` is the token for text on
+     that tint (`--accent-ink` is its opposite — for text on a filled accent,
+     and it measures as the same hue on the tint). */
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent);
+  color: var(--accent-tint-ink);
+}
+
+.hds-selbar-all {
+  /* The bar's own ground is already a tint; a checkbox carrying a second
+     surface under it reads as a chip rather than as a control. */
+  background: transparent;
+}
+
+.hds-selbar-count {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The question, while the bar is asking one.
+   
+   `flex-basis: 12rem` + a wrapping row is what makes one component read right
+   in both places this bar lives: in a 280px sidebar the question takes the
+   first line and the two buttons sit under it; in the wide archive dialog
+   everything fits on one line and nothing moves. Truncation stays as the
+   last-resort guard below the wrap, and it cuts the QUESTION rather than a
+   button — a clipped "Excluir 3 conv…" is still readable, a clipped "Cancelar"
+   is a way out nobody finds. */
+.hds-selbar-prompt {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.78125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-selbar[data-asking] {
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+}
+/* On the wrapped (narrow) layout the buttons claim the second line's trailing
+   edge, where a pair of choices belongs. */
+.hds-selbar[data-asking] .hds-selbar-actions {
+  margin-left: auto;
+}
+
+.hds-selbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.hds-selbar[data-asking] .hds-selbar-actions {
+  gap: var(--s-2);
+}
+
+.hds-selbar-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+
+.hds-selbar-dismiss:hover {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+.hds-selbar-dismiss:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-selbar-dismiss {
+    transition: none;
+  }
+}

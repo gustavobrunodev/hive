@@ -22,8 +22,8 @@ import {
  */
 describe('pt-BR copy — pure helpers', () => {
   it('theme.pickerLabelWithCurrent() interpolates the active theme name into the label', () => {
-    expect(ptBR.theme.pickerLabelWithCurrent('Escuro')).toBe('Aparência (atual: Escuro)')
-    expect(ptBR.theme.pickerLabelWithCurrent('Hive')).toBe('Aparência (atual: Hive)')
+    expect(ptBR.theme.pickerLabelWithCurrent('Escuro')).toBe('Escolha do tema (atual: Escuro)')
+    expect(ptBR.theme.pickerLabelWithCurrent('Hive')).toBe('Escolha do tema (atual: Hive)')
   })
 
   it('workUI.workspaceChipTitle() interpolates the workspace path into the label', () => {

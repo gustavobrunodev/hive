@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
-import { scrollTopFor, useActiveOptionScroll } from './menuScroll'
+import { rowWindow, scrollTopFor, useActiveOptionScroll } from './menuScroll'
 import { SlashMenu } from './SlashMenu'
 import type { SlashCommand } from './slashCommands'
 
@@ -157,5 +157,72 @@ describe('useActiveOptionScroll (through SlashMenu)', () => {
     }
     render(createElement(Harness))
     expect(screen.getByRole('listbox').scrollTop).toBe(0)
+  })
+})
+
+/**
+ * The `@` picker's windowed rendering. The arithmetic is the whole rule, and
+ * the defect it replaces was a list that simply did not contain its own
+ * matches past the eighth.
+ *
+ * The spacer these numbers describe is padding, and padding must sit on the
+ * listbox INSIDE the scroll port, never on the port itself: under
+ * `box-sizing: border-box` a box can never be shorter than its own padding,
+ * so a port carrying both ignores its `max-height` entirely. Measured in the
+ * built app before the fix: 1536px of port where 256 was asked for.
+ */
+describe('rowWindow', () => {
+  const ROW = 32
+  const PORT = ROW * 8
+
+  it('renders the visible rows plus overscan, and stands the rest up as padding', () => {
+    const win = rowWindow(400, ROW, 0, PORT, 0, 6)
+    expect(win.start).toBe(0)
+    expect(win.end).toBe(14)
+    expect(win.padTop).toBe(0)
+    expect(win.padBottom).toBe((400 - 14) * ROW)
+  })
+
+  it('follows the scroll: the padding above and below always adds up to the whole list', () => {
+    const win = rowWindow(400, ROW, ROW * 100, PORT, 100, 6)
+    expect(win.start).toBe(94)
+    expect(win.end).toBe(114)
+    expect(win.padTop + (win.end - win.start) * ROW + win.padBottom).toBe(400 * ROW)
+  })
+
+  it('keeps the active row inside the window even when the port has not moved yet', () => {
+    // The highlight lands first; the reveal scroll is an effect that runs
+    // after. For that one commit the row marked `data-active` must still
+    // exist, or the effect has nothing to find.
+    const win = rowWindow(400, ROW, 0, PORT, 300, 6)
+    expect(win.start).toBeLessThanOrEqual(300)
+    expect(win.end).toBeGreaterThan(300)
+  })
+
+  it('never runs past either end of the list', () => {
+    expect(rowWindow(5, ROW, 0, PORT, 0, 6)).toEqual({
+      start: 0,
+      end: 5,
+      padTop: 0,
+      padBottom: 0
+    })
+    const bottom = rowWindow(20, ROW, ROW * 12, PORT, 19, 6)
+    expect(bottom.end).toBe(20)
+    expect(bottom.padBottom).toBe(0)
+  })
+
+  it('renders everything rather than nothing when the port has not been measured', () => {
+    // jsdom, and the first paint in a browser. A window computed from a zero
+    // height would render no rows at all, which reads exactly like "no match".
+    expect(rowWindow(30, ROW, 0, 0, 0)).toEqual({ start: 0, end: 30, padTop: 0, padBottom: 0 })
+    expect(rowWindow(30, 0, 0, PORT, 0)).toEqual({ start: 0, end: 30, padTop: 0, padBottom: 0 })
+  })
+
+  it('is empty for an empty list', () => {
+    expect(rowWindow(0, ROW, 0, PORT, 0)).toEqual({ start: 0, end: 0, padTop: 0, padBottom: 0 })
+  })
+
+  it('treats a negative scroll position (rubber-banding) as the top', () => {
+    expect(rowWindow(400, ROW, -80, PORT, 0, 6).start).toBe(0)
   })
 })

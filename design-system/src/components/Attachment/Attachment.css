@@ -34,8 +34,21 @@
 
 /* Middle truncation: the head takes the ellipsis, the tail is never allowed to
    shrink. Two spans rather than a CSS trick because there is no CSS that can
-   ellipsize a run of text from the inside — and the pair still reads as one
-   uninterrupted string to a screen reader and to copy/paste. */
+   ellipsize a run of text from the inside.
+
+   Copy/paste gets the whole name (the two spans are one `textContent`), but a
+   screen reader does **not** get one uninterrupted string, and an earlier note
+   here claimed it did. Measured: `innerText` comes back as
+   `"…at 00.16\n.18.jpeg"`, because flex items are blockified and a block
+   boundary is a line break to both `innerText` and a reader's browse mode — so
+   the name is announced in two chunks.
+
+   Left as is, deliberately. The flex is load-bearing: it is what lets the head
+   shrink while the tail refuses to, and no inline arrangement reproduces that.
+   The obvious repair — a visually-hidden copy of the whole name — trades a
+   two-chunk announcement for a name that pastes twice, which is worse for
+   more people. A host that needs the unbroken string has it: `title` carries
+   the full name (the app puts the full path there). */
 .hds-attachment-name[data-truncate="middle"] {
   display: flex;
   min-width: 0;
@@ -84,4 +97,54 @@
 .hds-attachment-remove:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+/* ==========================================================================
+   On the user bubble
+
+   A chip inside `ChatMessage`'s user bubble is standing on the accent fill,
+   not on a surface — and every colour it would otherwise use is tuned against
+   a surface. Left alone it drew a translucent wash of the fill under ink that
+   was *also* tuned for that fill: a plate you could barely see, carrying a
+   file name at the fill's own contrast, with a hue-coded file icon (a light
+   pink for an image, a light blue for a document) laid over a light coral.
+
+   The repair is the pair the bubble already owns, swapped — the same move
+   `ChatMessage.css` makes for `::selection` on this one bubble, and for the
+   same reason: `--accent` and `--accent-ink` are the one pair whose ratio the
+   fill already guarantees in every theme, so inverting them cannot fail a
+   contrast floor that the bubble itself passes.
+
+   `--accent-ink` is softened toward the fill so a message with four files
+   reads as four plates rather than four holes; the mix stays far enough from
+   the fill to keep the chip's own edge visible without a border doing the
+   work. Ink, icon and meta all come off that same pair.
+   ========================================================================== */
+
+.hds-chat-message-user .hds-attachment {
+  background: color-mix(in oklab, var(--accent-ink) 94%, var(--accent));
+  border-color: color-mix(in oklab, var(--accent-ink) 82%, var(--accent));
+  color: var(--accent);
+}
+
+.hds-chat-message-user .hds-attachment-name {
+  color: inherit;
+}
+
+/* The icon drops its file-type hue here. Those hues are chosen to separate
+   kinds from each other on a neutral surface; on a saturated fill they read as
+   a second accent fighting the first, and the light ones (image, document)
+   land on a light coral at a ratio no icon should have. Kind is not what a
+   chip inside a sent message is for — the name already carries the extension. */
+.hds-chat-message-user .hds-attachment-icon,
+.hds-chat-message-user .hds-attachment-icon .wb-file-icon {
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* `--muted` is a neutral-surface token and means nothing on this ground. The
+   meta line is the same ink, stepped back by transparency against a ground it
+   is guaranteed to clear. */
+.hds-chat-message-user .hds-attachment-meta {
+  color: color-mix(in oklab, var(--accent) 78%, var(--accent-ink));
 }

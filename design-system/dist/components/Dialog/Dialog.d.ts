@@ -14,6 +14,12 @@ export type DialogContentProps = ComponentPropsWithoutRef<typeof DialogPrimitive
  * (`--surface`, `--shadow-3`) on `--z-modal`. Radix supplies focus trap,
  * Escape/outside-click dismiss, and focus restore to the trigger on close
  * (spec.md's Overlays AC1/AC2) — this layer only styles on top.
+ *
+ * The one behaviour added here is a **dismiss guard**: a click whose pointer
+ * landed on the panel itself never closes it, however the hit-test reported
+ * that click. `useSurfaceDismissGuard` carries the whole account — it is what
+ * keeps a `DropdownMenu` opened from inside a dialog from taking the dialog
+ * down with it when the trigger is clicked a second time.
  */
 export declare const DialogContent: import("react").ForwardRefExoticComponent<Omit<DialogPrimitive.DialogContentProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
     /** Applies the brand register's diagonal-cut corner clip-path instead of a plain rounded corner. Off by default (product register). */

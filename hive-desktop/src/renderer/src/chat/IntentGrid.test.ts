@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { IntentGrid } from './IntentGrid'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 
 /**
  * IntentGrid in isolation (no window.hive surface — it's a pure view).

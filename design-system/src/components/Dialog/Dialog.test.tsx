@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./Dialog"
 
 function Fixture() {
@@ -121,5 +121,68 @@ describe("Dialog", () => {
     await user.click(screen.getByText("Open"))
     const dialog = await screen.findByRole("dialog")
     expect(dialog).toHaveClass("hds-dialog-content", "extra")
+  })
+
+  /**
+   * The dismiss guard, driven through Radix's own outside-interaction path.
+   *
+   * A modal popover opened inside a dialog turns the dialog content
+   * `pointer-events: none`, so the hit-test delivers every click over the
+   * dialog to the dialog's *overlay* — and `react-dialog` decides the dismissal
+   * on the `click` that follows, by which time the popover has deregistered.
+   * These two cases are that exact sequence, dispatched by hand (jsdom has no
+   * layout, so the panel's box is stubbed and the coordinates are the whole
+   * point).
+   */
+  describe("dismiss guard", () => {
+    /** Puts a real box on the panel — jsdom reports zeros for everything. */
+    function measure(node: Element): void {
+      vi.spyOn(node, "getBoundingClientRect").mockReturnValue({
+        x: 100,
+        y: 80,
+        left: 100,
+        top: 80,
+        right: 500,
+        bottom: 380,
+        width: 400,
+        height: 300,
+        toJSON: () => ({}),
+      } as DOMRect)
+    }
+
+    /** The pointerdown → click pair Radix's deferred check reads, on the overlay. */
+    async function clickOverlayAt(x: number, y: number): Promise<void> {
+      const overlay = document.querySelector(".hds-dialog-overlay") as Element
+      const init = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }
+      await act(async () => {
+        overlay.dispatchEvent(new MouseEvent("pointerdown", init))
+        overlay.dispatchEvent(new MouseEvent("pointerup", init))
+        overlay.dispatchEvent(new MouseEvent("click", init))
+        // The deferred dismissal is dispatched from a `setTimeout(0)`.
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+    }
+
+    it("keeps the dialog open when the pointer went down on the panel", async () => {
+      const user = userEvent.setup()
+      render(<Fixture />)
+      await user.click(screen.getByText("Open"))
+      const dialog = await screen.findByRole("dialog")
+      measure(dialog)
+
+      await clickOverlayAt(300, 200)
+      expect(screen.queryByRole("dialog")).toBeInTheDocument()
+    })
+
+    it("still closes on a click beside the panel", async () => {
+      const user = userEvent.setup()
+      render(<Fixture />)
+      await user.click(screen.getByText("Open"))
+      const dialog = await screen.findByRole("dialog")
+      measure(dialog)
+
+      await clickOverlayAt(40, 200)
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    })
   })
 })

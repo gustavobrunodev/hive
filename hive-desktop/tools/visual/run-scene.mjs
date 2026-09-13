@@ -54,7 +54,21 @@ function load(path) {
 
 const browser = await chromium.launch({
   // WSL has no GPU worth the trouble, and the pass measures paint, not frames.
-  args: ['--enable-unsafe-swiftshader', '--force-color-profile=srgb']
+  args: [
+    '--enable-unsafe-swiftshader',
+    '--force-color-profile=srgb',
+    // A scene that needs a scrollbar it can SEE sets `HIVE_CLASSIC_SCROLLBARS=1`.
+    // Headless Chromium on Linux draws overlay scrollbars: they reserve no
+    // gutter (`offsetWidth - clientWidth` is 0) and paint nothing in a still
+    // frame, so a `::-webkit-scrollbar` rule can be perfectly correct and
+    // perfectly invisible in the screenshot. Windows — where this app actually
+    // ships — uses classic ones, and this flag is how a pass looks at what that
+    // user sees. Off by default: turning it on adds a real gutter to every
+    // scroller and would shift the layout of every other scene by 10px.
+    ...(process.env.HIVE_CLASSIC_SCROLLBARS === '1'
+      ? ['--disable-features=OverlayScrollbar,FluentOverlayScrollbar']
+      : [])
+  ]
 })
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 page.on('pageerror', (error) => console.error('[pageerror]', error.message))

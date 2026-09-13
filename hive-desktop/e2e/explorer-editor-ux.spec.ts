@@ -348,7 +348,9 @@ test.describe('explorer-editor-ux E2E — rail resize persistence (dedicated app
         .poll(async () =>
           window.evaluate(() => {
             const raw = localStorage.getItem('hive.workspaceSession')
-            const record = raw ? (JSON.parse(raw) as Record<string, { layout?: { rail?: number } }>) : {}
+            const record = raw
+              ? (JSON.parse(raw) as Record<string, { layout?: { rail?: number } }>)
+              : {}
             return Object.values(record)[0]?.layout?.rail ?? 0
           })
         )

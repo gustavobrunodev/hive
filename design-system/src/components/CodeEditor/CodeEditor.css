@@ -311,42 +311,14 @@
 
 /* --- the field's own scrollbar ------------------------------------------ */
 
-/* Same recolour-never-rebehave rule the OptionPicker's list documents: keep
-   the platform bar's geometry, take its colours from the palette, and never
-   set `scrollbar-width`, which would opt the element out of these rules
-   entirely in Chromium. */
-.hds-editor-input::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+/* Recolour, never rebehave — the whole recipe (and the `scrollbar-width` trap
+   it exists to close) lives in `hds-scrollbar`, which this field carries
+   alongside its own class. A code surface is wider and denser than a popover
+   list, so it takes a wider bar and a quieter thumb than the shared default. */
+.hds-editor-input.hds-scrollbar {
+  --hds-sb-size: 12px;
+  --hds-sb-inset: 3px;
+  --hds-sb-thumb: color-mix(in oklab, var(--ink) 26%, transparent);
+  --hds-sb-thumb-hover: color-mix(in oklab, var(--ink) 44%, transparent);
 }
 
-.hds-editor-input::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--ink) 26%, transparent);
-  border-radius: var(--rounded-full);
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  transition: background-color 120ms var(--ease-quart);
-}
-
-.hds-editor-input::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklab, var(--ink) 44%, transparent);
-  background-clip: padding-box;
-}
-
-.hds-editor-input::-webkit-scrollbar-track,
-.hds-editor-input::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-@supports not selector(::-webkit-scrollbar-thumb) {
-  .hds-editor-input {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--ink) 26%, transparent) transparent;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hds-editor-input::-webkit-scrollbar-thumb {
-    transition: none;
-  }
-}

@@ -205,7 +205,16 @@ function startDevinSession(
   const dir = exportDir(deps)
   /** turnId (or the sentinel for an unnamed turn) → the export path that turn was given. */
   const exports = new Map<string, string>()
-  const KEY = (turnId?: string): string => turnId ?? ' anon'
+  /**
+   * A turn with no id, keyed under something no turn id can collide with.
+   *
+   * Written as an escape rather than a literal NUL: a raw 0x00 in the source
+   * makes the whole file **binary to grep**, which silently took this module
+   * out of every grep-based sweep over `src/main` (found the hard way, while
+   * looking for the very call site below). Same byte at runtime.
+   */
+  const UNNAMED_TURN = '\u0000anon'
+  const KEY = (turnId?: string): string => turnId ?? UNNAMED_TURN
 
   const inner = createCliAgentSession(processRunner, opts, {
     command: DEVIN_COMMAND,
@@ -220,6 +229,15 @@ function startDevinSession(
         exports.delete(KEY(turnId))
       }
       return [
+        // Still positional, and on Windows still subject to the `.cmd` shim's
+        // newline truncation that `CliAdapterConfig.promptOnStdin` documents —
+        // a multi-line prompt loses everything past its first line here. Not
+        // repaired with the Claude adapter because the repair needs the CLI's
+        // agreement (stdin, or this binary's `--prompt-file`) and neither is
+        // verified against a real `devin`, while this whole path is a fallback
+        // for a binary too old to have `acp` and reachable only via
+        // `HIVE_DEVIN_ACP=0`. The default transport — ACP over stdin — never
+        // had the defect.
         '-p',
         prompt,
         ...(chosen ? ['--model', chosen] : []),

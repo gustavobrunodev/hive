@@ -75,6 +75,19 @@ export function ChevronDownIcon({ size, ...rest }: IconProps): React.JSX.Element
   )
 }
 
+/**
+ * The "this opens a menu" caret for a trigger whose menu opens **upward** —
+ * the account row at the bottom of the sidebar. A down chevron there would
+ * point away from where the menu actually appears.
+ */
+export function ChevronUpIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4 9.75 8 6l4 3.75" />
+    </svg>
+  )
+}
+
 export function FileIcon({ size, ...rest }: IconProps): React.JSX.Element {
   return (
     <svg {...base(size)} {...rest}>
@@ -1323,6 +1336,110 @@ export function TierLegacyIcon({ size, ...rest }: IconProps): React.JSX.Element 
     <svg {...base(size)} {...rest}>
       <circle cx="8" cy="8" r="5.75" />
       <path d="M8 4.75V8l2.1 1.6" />
+    </svg>
+  )
+}
+
+/* --- Shell navigation (nav-redesign) ------------------------------------
+   The window drawn as a window: a frame with the sidebar column marked
+   inside it. The two glyphs differ only in the arrow's direction, because
+   the control is one toggle and the icon's job is to say which way the next
+   press goes — not to re-describe the panel each time. */
+
+/** Hide the sidebar — the panel is on screen, the arrow points it away. */
+export function PanelLeftCloseIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" />
+      <path d="M6.25 2.75v10.5" />
+      <path d="M11.6 6.4 9.9 8l1.7 1.6" />
+    </svg>
+  )
+}
+
+/** Show the sidebar — the panel is away, the arrow brings it back. */
+export function PanelLeftOpenIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" />
+      <path d="M6.25 2.75v10.5" />
+      <path d="M9.5 6.4 11.2 8 9.5 9.6" />
+    </svg>
+  )
+}
+
+/** Sort order — a descending stack with the direction arrow beside it. */
+export function SortIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.25 4h6M2.25 8h4.25M2.25 12h2.5" />
+      <path d="M11.5 3.25v9.5M9.6 10.9l1.9 1.9 1.9-1.9" />
+    </svg>
+  )
+}
+
+/** A filter — the funnel every list control uses for "narrow this down". */
+export function FilterIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.25 3.25h11.5L9.4 8.4v4.35l-2.8-1.6V8.4L2.25 3.25Z" />
+    </svg>
+  )
+}
+
+/** Leave the app — a door with the arrow heading out of it. */
+export function SignOutIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M9.75 2.75h-6c-.55 0-1 .45-1 1v8.5c0 .55.45 1 1 1h6" />
+      <path d="M7.25 8h6.5M11.5 5.6 13.9 8l-2.4 2.4" />
+    </svg>
+  )
+}
+
+/** About this build — the universal "information" disc, for the version surface. */
+export function InfoIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 7.25v3.5" />
+      <path d="M8 5.1v.05" strokeWidth={1.9} />
+    </svg>
+  )
+}
+
+/**
+ * An initiative — a demand planted in a release, drawn as a milestone flag.
+ *
+ * A flag rather than a folder or a target: the sidebar already spends folders
+ * on the file tree, and the thing this names is not a place, it is something
+ * the team committed to shipping.
+ */
+export function InitiativeIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M4 14V2.5" />
+      <path d="M4 3.1h6.9l-1.5 2.4 1.5 2.4H4" />
+    </svg>
+  )
+}
+
+/** A release — the numbered slot a set of demands ships in, drawn as a stacked marker. */
+export function ReleaseIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 1.9 14 5v6l-6 3.1L2 11V5l6-3.1Z" />
+      <path d="M2.3 5.15 8 8l5.7-2.85M8 8v6" />
+    </svg>
+  )
+}
+
+/** The full list behind a preview — "see everything", drawn as rows plus an outward arrow. */
+export function ListAllIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M2.25 4h8M2.25 8h5.5M2.25 12h8" />
+      <path d="M12.4 5.6 14.25 8 12.4 10.4" />
     </svg>
   )
 }

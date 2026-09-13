@@ -23,23 +23,23 @@ import { openSidebar } from './fixtures/sidebar'
 // segmenter deciding where a phrase ends, the real serial queue, the real join
 // and caret restoration, the real PromptInput overlay, and the real teardown.
 async function waitForWorkUI(window: Page): Promise<void> {
-  // The **activity bar**, not the file rail: a workspace with no stored session
-  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
-  // zero here — `openSidebar` at the end is what brings it back.
-  const rail = window.locator('.wb-actionrail')
+  // The **navbar**, not the file rail: it is the one chrome element that is
+  // always on screen, even with the sidebar collapsed to zero —
+  // `openSidebar` at the end is what brings the panel back.
+  const chrome = window.locator('.wb-navbar')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   for (let step = 0; step < 2; step++) {
     await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
+      chrome.waitFor({ state: 'visible', timeout: 200_000 }),
       continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
     ])
-    if (await rail.isVisible().catch(() => false)) break
+    if (await chrome.isVisible().catch(() => false)) break
     if (await continueAnyway.isVisible().catch(() => false)) {
       await continueAnyway.click()
       await window.waitForTimeout(300)
     }
   }
-  await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await chrome.waitFor({ state: 'visible', timeout: 60_000 })
   await openSidebar(window)
 }
 
@@ -132,6 +132,11 @@ test.describe('voice-prompt E2E (real Electron)', () => {
         ;(window as unknown as { __hiveDictationE2E: unknown }).__hiveDictationE2E = {
           transcript: 'arquivo de configuração'
         }
+        // The tour, dismissed before the app mounts rather than after. It was
+        // skipped below via its own "Pular tour" button, which was fine while
+        // `waitForWorkUI` only waited — now the sidebar has tabs and that helper
+        // has a click to make, which the tour's modal scrim swallows first.
+        localStorage.setItem('hive.tourSeen', '1')
       })
       await window.reload()
       await window.waitForLoadState('domcontentloaded')

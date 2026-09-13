@@ -1,6 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { test, expect, launchSeededApp, waitForWorkUI } from './fixtures/workspace'
+import {
+  test,
+  expect,
+  launchSeededApp,
+  newConversation,
+  openAllConversations,
+  waitForWorkUI,
+  openSidebar
+} from './fixtures/workspace'
 import { armScriptedAgent } from './fixtures/scriptedAgent'
 
 // Agent Change Review (M11) E2E — ACR-R9.4 and P1-018.
@@ -34,6 +42,7 @@ test.describe('agent-change-review E2E (real Electron)', () => {
     await expect(window.locator('.wb-review-bar')).toHaveCount(0)
 
     // Flip to the "Revisão do agente" activity-bar view (ACR-R2.4).
+    await openSidebar(window, 'chat')
     await window.getByRole('button', { name: /Revisão do agente/ }).click()
 
     // The dedicated panel teaches instead of showing a void (ACR-R1.8).
@@ -84,6 +93,7 @@ test.describe('agent-change-review E2E (real Electron)', () => {
       timeout: 20_000
     })
 
+    await openSidebar(window, 'chat')
     await window.getByRole('button', { name: /Revisão do agente/ }).click()
 
     // --- Accept the modification: the agent's bytes stay ---------------------
@@ -92,15 +102,19 @@ test.describe('agent-change-review E2E (real Electron)', () => {
     // so an unscoped locator is a strict-mode violation rather than a defect.
     // The assertions that follow stay window-wide on purpose — a decided file
     // has to leave *every* surface at once.
-    const rail = window.getByTestId('rail')
-    await rail.getByRole('button', { name: 'Aceitar README.md' }).click()
+    // Scoped to the review panel itself, which is a WORK pane now — it used to
+    // be a sidebar layer, and `getByTestId('rail')` was how this test aimed at
+    // it there. The scoping still matters for the same reason: the chat's
+    // change card carries the same per-file control by design.
+    const panel = window.locator('.wb-review-panel')
+    await panel.getByRole('button', { name: 'Aceitar README.md' }).click()
     await expect(window.getByRole('button', { name: 'Aceitar README.md' })).toHaveCount(0, {
       timeout: 15_000
     })
     expect(fs.readFileSync(readmePath, 'utf-8')).toBe('linha reescrita pelo agente\n')
 
     // --- Reject the creation: the file goes away ----------------------------
-    await rail.getByRole('button', { name: 'Rejeitar docs/spec.md' }).click()
+    await panel.getByRole('button', { name: 'Rejeitar docs/spec.md' }).click()
     await expect.poll(() => fs.existsSync(specPath), { timeout: 15_000 }).toBe(false)
     // The accepted half is untouched by the rejection of its neighbour — the
     // exact interaction P0-005 pins at hunk level, here at file level.
@@ -144,7 +158,7 @@ test.describe('agent-change-review E2E (real Electron)', () => {
       chunks: ['Iniciando o brainstorm.'],
       writes: [{ path: 'docs/brief.md', content: '# Brief\n' }]
     })
-    await window.getByRole('button', { name: 'Nova conversa' }).click()
+    await newConversation(window)
     await sendTurn(window, 'faça um brainstorm')
     await expect(window.locator('.wb-change-card')).toContainText('brief.md', { timeout: 30_000 })
 
@@ -157,8 +171,11 @@ test.describe('agent-change-review E2E (real Electron)', () => {
     await expect(window.locator('.wb-review-bar')).toContainText('2 mudanças pendentes', {
       timeout: 20_000
     })
-    // …and the history list points back at the conversation still holding one.
-    await window.getByRole('button', { name: 'Histórico de conversas' }).click()
+    // …and the conversation list points back at the one still holding a file.
+    // The sidebar's own section already shows it (nav-redesign); the archive is
+    // opened here because it lists the *whole* history, so the assertion holds
+    // whatever the preview happened to fit.
+    await openAllConversations(window)
     await expect(window.locator('.wb-history-review').first()).toContainText('1 pendente', {
       timeout: 15_000
     })

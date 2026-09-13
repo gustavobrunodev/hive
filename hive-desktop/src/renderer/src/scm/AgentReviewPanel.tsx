@@ -138,8 +138,12 @@ export function AgentReviewPanel({ onOpenDiff }: AgentReviewPanelProps): React.J
 
   return (
     <div className="wb-review-panel" aria-label={t('review.panelTitle')}>
+      {/* No title of its own: this panel's only home is the work pane, whose
+          header already names it. Two "REVISÃO DO AGENTE" headings 30px apart
+          was what the move to the work area first produced. The head stays for
+          the bulk actions, and the name still reaches the a11y tree through
+          the `aria-label` above. */}
       <header className="wb-review-panel-head">
-        <span className="wb-review-panel-title">{t('review.panelTitle')}</span>
         {review.pendingCount > 0 && (
           <div className="wb-review-panel-bulk">
             <button

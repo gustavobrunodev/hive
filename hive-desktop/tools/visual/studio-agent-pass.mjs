@@ -1,14 +1,21 @@
-// Companion to tools/visual/boot.mjs — the visual + contrast pass for the
-// Estúdio's builder picker (M26): who builds the skill, and therefore who the
-// user goes on talking to in the conversation the build opens.
+// The visual + contrast pass for the Estúdio's builder picker: who builds the
+// skill, and therefore who the user goes on talking to in the conversation the
+// build opens.
 //
-//   run_code_unsafe --filename tools/visual/boot.mjs
-//   run_code_unsafe --filename tools/visual/studio-agent-pass.mjs
+//   npx electron-vite build && python3 -m http.server 8123 -d out/renderer
+//   node tools/visual/run-scene.mjs tools/visual/studio-agent-pass.mjs
 //
 // Two states per theme: the create form with Claude selected (the app default)
 // and with Copilot selected — which is also the state that proves the run
 // config follows the agent, since Copilot's capabilities expose no effort.
-// Screenshots land in `.playwright-mcp/m26-studio-<state>-<theme>.png`.
+// Screenshots land in `.playwright-mcp/studio-run-<state>-<theme>.png`.
+//
+// **Its targets went stale once, and it stayed green.** This pass was written
+// against a bespoke `.wb-studio-run` block with `.wb-studio-agent` radios; that
+// form was replaced by the shared `RunConfigBar` (the composer's own controls),
+// and every selector here started reporting `missing` — which the verdict read
+// as "nothing to fix". So it now measures the shared control's classes, and
+// `missing` is a **failure**, not a skip. See `docs/visual-validation.md`.
 async (page) => {
   const shots = '/home/gustavobgt/user-harness/hive/.playwright-mcp'
   const THEMES = ['dark', 'light', 'hive']
@@ -84,12 +91,12 @@ async (page) => {
       { state, targets }
     )
 
+  /** The shared run-config's own classes — the controls the composer uses. */
   const RUN = [
-    '.wb-studio-run-legend',
-    '.wb-studio-agent[aria-checked="true"] .wb-studio-agent-name',
-    '.wb-studio-agent[aria-checked="false"] .wb-studio-agent-name',
-    '.wb-studio-run-field label',
-    '.wb-studio-run-field .hds-select-trigger'
+    '.wb-studio-dialog .wb-runconfig-legend',
+    '.wb-studio-dialog .wb-agent-pill-name',
+    '.wb-studio-dialog .wb-engine-name',
+    '.wb-studio-dialog .wb-studio-handoff'
   ]
 
   async function sweep(theme) {
@@ -103,27 +110,39 @@ async (page) => {
     await page.reload()
     await page.waitForTimeout(1400)
     if (theme !== 'dark') {
-      await page.locator('[aria-label^="Aparência (atual:"]').click()
+      await page.locator('[aria-label^="Escolha do tema (atual:"]').click()
       await page.waitForTimeout(200)
-      await page.getByRole('menuitemradio', { name: theme === 'light' ? /Claro/ : /Hive/ }).click()
+      await page.getByRole('menuitemradio', { name: theme === 'light' ? /^Claro/ : /^Hive/ }).click()
       await page.waitForTimeout(400)
     }
 
-    // Into the Estúdio, then into the create form (the empty gallery's own CTA).
-    await page.locator('[aria-label="Estúdio de skills"]').click()
+    // Into the Estúdio, then into the create form (whichever entry point this
+    // workspace has — the empty gallery teaches with cards, a populated one
+    // puts the two CTAs in the header).
+    await page.getByRole('tab', { name: 'Chat' }).click()
+    await page.waitForTimeout(250)
+    await page.locator('button[data-tour="studio"]').click()
     await page.waitForTimeout(700)
-    await page.getByRole('button', { name: /Uma skill/ }).first().click()
+    await page
+      .getByRole('button', { name: /Uma skill|Nova skill/ })
+      .first()
+      .click()
     await page.waitForTimeout(500)
-    await page.locator('.wb-studio-run').scrollIntoViewIfNeeded()
+    await page.locator('.wb-runconfig').scrollIntoViewIfNeeded()
     await page.waitForTimeout(300)
 
     take(await measure('run-claude', RUN))
-    await page.locator('.wb-studio-run').screenshot({ path: `${shots}/m26-studio-claude-${theme}.png` })
+    await page.locator('.wb-runconfig').screenshot({ path: `${shots}/studio-run-claude-${theme}.png` })
 
-    await page.getByRole('radio', { name: /GitHub Copilot/ }).click()
-    await page.waitForTimeout(600)
+    // The agent, picked through the real control (a dropdown, not radios).
+    await page.locator('.wb-studio-dialog .wb-agent-pill-btn').click()
+    await page.waitForTimeout(300)
+    await page.getByRole('menuitemradio', { name: /Copilot/ }).click()
+    await page.waitForTimeout(800)
     take(await measure('run-copilot', RUN))
-    await page.locator('.wb-studio-run').screenshot({ path: `${shots}/m26-studio-copilot-${theme}.png` })
+    await page
+      .locator('.wb-runconfig')
+      .screenshot({ path: `${shots}/studio-run-copilot-${theme}.png` })
 
     await page.keyboard.press('Escape')
     await page.waitForTimeout(300)

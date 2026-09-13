@@ -849,6 +849,57 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // initiatives: the demand model and the two hooks over it. The model
+        // files carry 100 — they are the ones whose failures are silent (a
+        // release that sorts R10 before R9, a manifest whose bad field costs
+        // the whole folder, a stage reported pending while its artifact sits
+        // right there in the tree). The three components follow the ungated
+        // `SkillStudio`/`McpManager` precedent — they are covered by their own
+        // suites, but their render-callback arrows make a function gate noise.
+        'src/renderer/src/initiatives/initiatives.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/initiatives/initiativeStages.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/initiatives/useInitiatives.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        // The 2026-09-12 round's two pure modules. Both carry 100: their
+        // failures are the silent kind. A selection rule that keeps a tick past
+        // its row deletes a conversation it never showed; a usage snapshot that
+        // restores a reading of nothing draws a 0% gauge over an occupancy
+        // nobody measured. `ConversationList.tsx`/`ConversationRow.tsx` and
+        // `TurnErrorNotice.tsx` are the presentational shells over them and
+        // follow the ungated `SkillStudio` precedent — their behaviour is
+        // covered by `ChatSidebar.test.ts` and `Chat.test.ts`.
+        'src/renderer/src/chat/conversationSelection.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/renderer/src/chat/usageLedger.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100
+        },
+        'src/main/chatHistoryStore.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

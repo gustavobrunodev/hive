@@ -167,7 +167,7 @@ async (page) => {
     ['claro', 'Claro'],
     ['hive', 'Hive']
   ]) {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.waitForTimeout(250)
     await page.getByRole('menuitemradio', { name: item }).click()
     await page.waitForTimeout(500)

@@ -236,7 +236,7 @@ async function setTheme(window: Page, theme: Theme): Promise<void> {
     () => document.documentElement.getAttribute('data-theme') ?? 'dark'
   )
   if (current === theme) return
-  await window.getByRole('button', { name: /^Aparência/ }).click()
+  await window.getByRole('button', { name: /^Escolha do tema/ }).click()
   await window
     .getByRole('menuitemradio', { name: new RegExp(`^${THEME_OPTION_LABEL[theme]}`) })
     .click()
@@ -281,7 +281,7 @@ for (const theme of THEMES) {
     await setTheme(window, theme)
     await freezeMotion(window)
 
-    await window.getByRole('button', { name: /^Aparência/ }).click()
+    await window.getByRole('button', { name: /^Escolha do tema/ }).click()
     await window.locator('.wb-theme-menu').waitFor({ state: 'visible' })
 
     const menu = await sampleTextContrast(window, '.wb-theme-menu')
@@ -508,8 +508,11 @@ for (const theme of THEMES) {
     // The profile sheet. voice-settings (M25) turned it into a drill-down, so
     // the index is now its own measurable surface — five rows carrying live
     // values — and the two-set summary is one click deeper.
-    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
-    await window.locator('.wb-pnav-list').waitFor({ state: 'visible' })
+    await window.getByRole('button', { name: /^Menu do usuário|^Abrir menu do usuário/ }).click()
+    await window.getByRole('menuitem', { name: /^Configurações/ }).click()
+    // One list per settings group now (nav-redesign), so the bare class is three
+    // elements and a strict-mode violation.
+    await window.locator('.wb-pnav-list').first().waitFor({ state: 'visible' })
 
     const indexSamples = await sampleTextContrast(window)
     expect(indexSamples.length).toBeGreaterThan(5)
@@ -584,10 +587,9 @@ for (const theme of THEMES) {
 
     // The Ctrl+P palette. Its folder column and its keyboard-hint footer are
     // the read text that was under the floor.
-    await window
-      .getByRole('navigation', { name: 'Ferramentas do workspace' })
-      .getByRole('button', { name: 'Buscar arquivos no workspace' })
-      .click()
+    // nav-redesign: workspace search rides the Arquivos tab's header now.
+    await window.getByRole('tab', { name: 'Arquivos' }).click()
+    await window.getByRole('button', { name: /^Buscar arquivos no workspace/ }).click()
     await window.locator('.wb-filesearch-hint').waitFor({ state: 'visible' })
     await sweep('file palette')
     await window.keyboard.press('Escape')
@@ -595,27 +597,36 @@ for (const theme of THEMES) {
 
     // The MCP manager. Its server count and its "Não testado" status pill sit
     // on the dialog's elevated surface, where `--faint` falls furthest.
-    // Scoped to the rail: the status bar carries a second control whose name
-    // also contains "Servidores MCP" (it opens the activity console, not this
-    // dialog), and an unscoped `getByRole` matches both.
-    await window
-      .getByRole('navigation', { name: 'Ferramentas do workspace' })
-      .getByRole('button', { name: 'Servidores MCP' })
-      .click()
+    // nav-redesign: it is a Configurações row now, reached through the user
+    // menu — which is also the only path a user has to it, so measuring it from
+    // anywhere else would be measuring a route nobody takes.
+    await window.getByRole('button', { name: /^Menu do usuário|^Abrir menu do usuário/ }).click()
+    await window.getByRole('menuitem', { name: /^Configurações/ }).click()
+    await window.locator('button.wb-pnav-row[data-scope="mcp"]').click()
+    await window.getByRole('button', { name: 'Servidores MCP' }).click()
     await window.locator('.wb-mcp-dialog').waitFor({ state: 'visible' })
     await sweep('MCP manager')
     await window.keyboard.press('Escape')
     await expect(window.locator('.wb-mcp-dialog')).toHaveCount(0)
 
-    // The conversation history popover: a date group header in `--faint`, plus
-    // the "ATUAL" badge and the "Em andamento" marker, which render only on the
-    // current row — the one painted with `--selected-bg`, so they are measured
-    // against the accent's own tint rather than against the popover.
-    await window.getByRole('button', { name: 'Histórico de conversas' }).click()
-    await window.locator('.wb-history-pop').waitFor({ state: 'visible' })
-    await sweep('history popover')
+    // The conversation list, in both homes (nav-redesign). The sidebar's
+    // section carries the date group header, the lens triggers and — on the
+    // current row, painted with `--selected-bg` — the "ATUAL" badge, so those
+    // are measured against the accent's own tint rather than against a panel.
+    // The archive is swept too because it draws the same rows on a *dialog*
+    // surface, one tier up, which is where `--faint` falls furthest.
+    await window.getByRole('tab', { name: 'Chat' }).click()
+    await window.locator('.wb-chatside').waitFor({ state: 'visible' })
+    await sweep('conversation sidebar')
+
+    await window.getByRole('button', { name: /Ver todas as conversas/ }).click()
+    await window.locator('.wb-allconv').waitFor({ state: 'visible' })
+    await sweep('all conversations')
     await window.keyboard.press('Escape')
-    await expect(window.locator('.wb-history-pop')).toHaveCount(0)
+    await expect(window.locator('.wb-allconv')).toHaveCount(0)
+
+    // The tree row menu below needs the file tree back.
+    await window.getByRole('tab', { name: 'Arquivos' }).click()
 
     // A tree row's actions menu, disabled items included. Addressed by pattern
     // rather than by filename: this suite's seeded workspace holds only
@@ -652,7 +663,8 @@ for (const theme of THEMES) {
     await setTheme(window, theme)
     await freezeMotion(window)
 
-    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await window.getByRole('button', { name: /^Menu do usuário|^Abrir menu do usuário/ }).click()
+    await window.getByRole('menuitem', { name: /^Configurações/ }).click()
     // voice-settings (M25): one drill-down deep — the sheet opens on its index.
     await window.locator('button.wb-pnav-row[data-scope="agents"]').click()
     await window.locator('.wb-agent-scan').waitFor({ state: 'visible' })
@@ -703,7 +715,8 @@ for (const theme of THEMES) {
     await freezeMotion(window)
 
     const openVoiceScope = async (): Promise<void> => {
-      await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+      await window.getByRole('button', { name: /^Menu do usuário|^Abrir menu do usuário/ }).click()
+      await window.getByRole('menuitem', { name: /^Configurações/ }).click()
       await window.locator('button.wb-pnav-row[data-scope="voice"]').click()
       await window.locator('.wb-vmodel').waitFor({ state: 'visible' })
     }

@@ -52,7 +52,7 @@ async (page) => {
     // silently answers the very card it came to photograph.
     await page.evaluate(() => document.activeElement?.blur())
     await page.waitForTimeout(150)
-    await page.locator('button[aria-label^="Aparência"]').first().click()
+    await page.locator('button[aria-label^="Escolha do tema"]').first().click()
     await page.waitForTimeout(250)
     await page.locator('[role="menuitemradio"]').nth(THEME_INDEX[key]).click()
     await page.waitForTimeout(350)

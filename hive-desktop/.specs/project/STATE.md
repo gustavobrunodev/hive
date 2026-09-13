@@ -3917,3 +3917,531 @@ deslogada), e com três passes no build servido: `slash-scroll-pass.mjs` (0 de 2
 teclas fora da vista — 21 de 24 com o hook desligado), `claude-signin-pass.mjs`
 (erro → botão → farol → código → recibo) e `claude-connection-contrast.mjs`
 (105 alvos × 3 temas, zero falhas).
+
+## Iniciativas — as demandas do workspace na aba Chat & Cowork (2026-09-10)
+
+Pedido do usuário, a partir de uma foto transcrita: uma seção **Iniciativas**
+acima do histórico da conversa, com `Ano → Release (R1–R4) → Demanda`; clicar
+numa demanda abre uma seção **no lugar da conversa, com o chat embutido**, com
+os arquivos de contexto na lateral direita (o mesmo núcleo do gerenciador de
+arquivos, enraizado na pasta) e uma **visão do fluxo BMAD** que diz o que já foi
+feito e qual é a próxima etapa, com atalho para iniciá-la. Mais o rename da aba
+para **Chat & Cowork** e o mandato de sempre: "me surpreenda com uma interface
+bonita, moderna e intuitiva".
+
+- **A pasta é a iniciativa — e é por isso que o plano pode ser confiável.** Não
+  existe status guardado em lugar nenhum: as sete etapas são resolvidas lendo os
+  nomes dos arquivos dentro de `docs/iniciativas/<release>/<demanda>/`. Um campo
+  de status precisaria de alguém para mantê-lo honesto — o BMAD reportando de
+  volta, ou o usuário marcando caixinhas — e na primeira vez que qualquer um dos
+  dois falhasse o trilho começaria a mentir, que é pior do que não existir,
+  porque a coisa toda serve para ser acreditada. Um arquivo no disco não deriva:
+  sobrevive a um restart, a um `git pull`, a uma rodada do agente que o app nunca
+  viu e a alguém escrevendo o documento em outro editor. O preço é uma
+  heurística — um `prd.md` vazio conta como PRD — e é a troca certa: um arquivo
+  que a pessoa criou de propósito é uma afirmação sobre onde ela está.
+- **`-p` resolve `/nome` como *busca de comando*, e um desconhecido aborta o
+  turno inteiro.** Medido no binário real: `/bmad-architecture` num workspace sem
+  a skill devolve `unknown command: /bmad-architecture` e **nada** da frase
+  depois dele é lido — nem o parágrafo que diz em que pasta trabalhar. Numa
+  máquina com BMAD instalado (os sete nomes conferidos numa instalação real) o
+  lançamento funciona e o agente vai para a pasta certa; o que isso encerra é a
+  suposição de que a frase é lida "de qualquer jeito". Foi o teste ao vivo que
+  achou, e ele só achou porque rodava num diretório temporário — que era a
+  metade irrealista, não o lançamento.
+- **O `WorkUI.tsx` está no teto do que o compilador do React aceita, e o sinal é
+  mudo.** Somar seis `useState` e um ternário ao corpo dele fez **oito** erros de
+  `Existing memoization could not be preserved` aparecerem — nenhum deles neste
+  código, todos causados por ele — mais um estouro do limite de `complexity`.
+  Medido nos dois lados (neutralizar só o estado novo devolve o arquivo ao verde).
+  A correção é estrutural: o estado saiu para `useOpenInitiative.ts` e a decisão
+  do cabeçalho do painel virou uma função de módulo. **Toda condição escrita
+  dentro do corpo do `WorkUI` custa um ponto de um orçamento que já acabou.**
+- **Uma árvore aninha os filhos dentro do pai, então `[aria-level='1'] .x` casa
+  com o neto.** As regras de cor por nível tinham a mesma especificidade e a
+  última venceu: *todo* nome da árvore saiu `--muted`, inclusive o da demanda,
+  que é o destino da linha. Na tela isso é um achatamento perfeitamente legível —
+  4,16:1 na linha selecionada do tema claro foi como apareceu. O combinador de
+  filho (`> .hds-tree-row`) prende cada regra à própria linha.
+- **A sonda de contraste herdada compõe DUAS camadas translúcidas errado.** O
+  `over()` das sondas anteriores força alpha 1, então a segunda camada é tratada
+  como opaca. Com um tint só sobre uma superfície opaca — o caso comum — dá no
+  mesmo; com dois empilhados, não. E é exatamente o caso aqui: a pílula de
+  progresso da demanda aberta tem o próprio tint sobre o tint da linha
+  selecionada. A conta errada reprovou em **1,03:1** um par que mede 5,15:1 na
+  tela. A versão corrigida junta as camadas **de baixo para cima**.
+- **Nem todo indicador é um fundo.** O anel que diz "você está nesta etapa" é uma
+  **borda**; a sonda comparava os dois *fundos* (`--bg` do nó contra `--bg-2` do
+  painel) e reprovava em 1,07:1 um indicador que nunca esteve ali. É a terceira
+  vez que este repositório escreve alguma variação de "o alvo certo não é o que
+  parece colorido" — desta vez a lição é: **quando o indicador é um traço, meça
+  `borderColor`.**
+- **Tinta tingida não é tinta de texto a 10px.** `--success-ink` sobre
+  `--success-bg` mede 3,71:1 no tema claro sobre a lateral, e a tinta de acento
+  cai num tint **duplo** quando a linha da demanda é a selecionada. As três
+  pílulas passaram a usar `--ink` (8,7–12,9 nos três temas) e o tint ficou só
+  dizendo qual estado é — que é o papel dele. Os próprios números (0/7 contra
+  7/7) já dizem a mesma coisa sem cor nenhuma.
+- **Um `Chat` só.** A demanda não monta um segundo transcrito: ela abre um trilho
+  **ao lado** do que já está na tela, dentro do mesmo painel. Abrir e fechar uma
+  demanda não derruba a sessão viva, e "chat embutido" fica sendo literalmente
+  verdade em vez de uma segunda sessão competindo pelo mesmo pool.
+
+Componente novo no design system: **`StageTracker`** — um trilho de etapas
+acionável. O `StepFlow` que já existia é a outra metade da ideia (a interface
+dirigindo, o usuário assistindo) e é inerte por construção; aqui as etapas são do
+usuário, numa ordem que o trilho apenas **sugere** — pular o brainstorming porque
+a demanda chegou especificada é normal, e refazer um PRD depois de a arquitetura
+achar um buraco também.
+
+Verify verde (4 283 testes, lint sem erros; as duas coberturas fora do piso são
+herdadas — `WorkUI.tsx` subiu de **86,36%** na base para **88,57%**, e
+`configStore.ts` segue em 89,13% sem nada aqui tocá-lo). Passe visual:
+`initiatives-contrast.mjs` com 0 reprovações em 22 alvos × 3 temas e as 7
+afirmações estruturais verdes nos três. CLI real do Claude (haiku, esforço
+baixo): a etapa lançada leva o agente para dentro da pasta da demanda.
+
+## Fluxo por fases, etapas que parecem clicáveis, e o botão largo demais (2026-09-11)
+
+Pedido do usuário, de novo a partir de uma foto transcrita: renomear **Fluxo
+BMAD → Fluxo**; dar ao fluxo uma **visão de Etapas** (Análise · Planejamento ·
+Solucionamento · Implementação) com **badges para as opcionais**; clicar numa
+etapa tem que **iniciar sempre uma sessão nova**, e não mandar o prompt na
+conversa que está aberta; deixar **claro que as linhas do fluxo são clicáveis**;
+e ajustar o botão "Configurar base", largo demais no painel de Bases de
+conhecimento.
+
+- **Uma etapa opcional nunca pode ser a seta.** O trilho aponta para a primeira
+  etapa *obrigatória* sem artefato, não para a primeira sem artefato. Com três
+  opcionais (pesquisa, brainstorming, UX), a regra antiga mandaria um recém
+  chegado fazer pesquisa de domínio numa demanda que já chegou escrita — e
+  "próxima etapa" sobre algo que a pessoa sempre teve o direito de pular é uma
+  instrução que o fluxo não quis dar. As opcionais continuam lançáveis; só não
+  ganham a seta. Sonda: `activeIsNeverOptional`.
+- **`DESIGN.md` e `design-de-testes.md` disputam a mesma palavra.** O `bmad-ux`
+  grava `DESIGN.md`, e "design de testes" é justamente o nome pt-BR da saída do
+  `bmad-testarch-test-design` duas linhas abaixo. Um `design[^/]*\.md` na etapa
+  de UX acende a linha dela para um trabalho que ninguém fez. O casamento da UX
+  é **exato** (`design\.md`) ou ancorado em `ux` (`ux*.md`, `*-ux*.md`); a de
+  testes ganhou `design[-_]?de[-_]?testes?`. Teste dedicado, porque a próxima
+  pessoa que "afrouxar um pouquinho" a regex reintroduz isto.
+- **Quieto por alpha apaga a affordance — recue por TAMANHO.** O ▷ das etapas
+  pendentes nasceu como `--muted` a 55% de opacidade, que "parecia certo": mede
+  **2,83:1 no escuro e 2,71:1 no claro**, abaixo dos 3:1 que um indicador
+  interativo deve. O mesmo valia para o ↻ de refazer, que era `opacity: 0` (e
+  portanto isento) até esta rodada torná-lo visível. A correção é usar a cor
+  cheia e deixar a discrição por conta do tamanho do glifo. Os dois entraram na
+  sonda com piso explícito.
+- **O defeito relatado ERA o hover.** "Não está claro que os itens são
+  clicáveis" não se resolve com um hover mais forte: um affordance que só
+  aparece sob o ponteiro é invisível para quem nunca pensou em apontar. O que
+  resolveu foi tornar visível em repouso — pílula **"Iniciar"** na única etapa
+  que é a próxima, ▷ nas demais, ↻ nas concluídas — mais uma linha de texto
+  acima do trilho que diz as duas coisas que o desenho não conseguia dizer
+  sozinho ("Clique numa etapa para executá-la em uma conversa nova").
+- **`launchAction` anexa; `launchCreation` abre conversa nova.** A etapa usava o
+  primeiro, então uma workflow inteira do BMAD herdava o contexto e o histórico
+  de uma conversa sobre outro assunto, e o transcrito da rodada ficava soterrado.
+  O handle do Chat já tinha o segundo (era o caminho do Estúdio de skills): ele
+  também põe em segundo plano qualquer turno ainda gerando, em vez de
+  interrompê-lo.
+- **Uma regra de trilho não sobrevive à superfície mudar de tamanho.** O
+  `width: 100%` do "Configurar base" tinha um porquê escrito no CSS — "num
+  trilho estreito a ação primária merece a largura inteira" — e continuou lá
+  depois que o painel de Bases virou um painel de trabalho de ~760px. Resultado
+  medido: um botão de **728px** com o texto estacionado na ponta esquerda, que
+  lê como faixa, não como algo para apertar. Correção: a coluna ganha medida
+  (`max-width: 46ch` + `margin-inline: auto`) e o botão volta a abraçar o
+  rótulo (139px). De quebra, o bloco tinha três medidas empilhadas (parágrafo
+  42ch, promessas livres, nota 42ch) — agora é uma só.
+- **Uma dica que se repete em toda linha é ruído, não informação.** Oito
+  "Ainda não iniciada" empilhados ficavam entre o leitor e as quatro fases.
+  Sobraram as duas dicas que informam alguma coisa: o nome do arquivo na etapa
+  concluída (que é o que faz "clicar abre o documento" parecer óbvio) e
+  "Próxima etapa" na que é a próxima. O plano encolheu de 587px para 514px.
+- **Um teto que esconde a última fase devolve o problema que as fases
+  resolvem.** O `max-height: 52%` do `.wb-initctx-flow` foi desenhado para sete
+  linhas sem cabeçalhos; com quatro fases ele cortava "Solucionamento" no meio.
+  A sonda passou a afirmar `phasesOnScreen === 4` em vez de confiar no olho.
+- **`StageTracker` com fases troca a tag da raiz, e o TypeScript cobra.** Com
+  `groups` a raiz é uma `<div role="group">` de `<section>`s, cada um com sua
+  `<ol aria-labelledby>`; sem eles continua a `<ol aria-label>` de antes. Props
+  baseadas em `ComponentPropsWithoutRef<"div">` **não** são espalháveis numa
+  `<ol>` (o erro sai em `onCopy`: `ClipboardEventHandler<HTMLDivElement>` vs
+  `<HTMLOListElement>`) — a base certa é `HTMLAttributes<HTMLElement>`.
+- **Aninhar o rótulo quebra `getByText` sem quebrar a UI.** O rótulo virou
+  `.hds-stage-name` + badge + status oculto dentro de `.hds-stage-label`, e
+  `getByText(/Pesquisa/)` passou a devolver o span interno — que não contém o
+  `, concluída` que o teste media. Asserção certa: o `listitem`, não o miolo.
+- **A badge entra no nome acessível.** `aria-label` no botão da linha
+  *substitui* o conteúdo, então uma chip "Opcional" puramente visual é
+  informação que o leitor de tela nunca recebe. O `StageTracker` concatena
+  (`"Iniciar Brainstorming, Opcional"`) quando a badge é string.
+
+Validação: `verify` verde (243 arquivos, **4 294 testes**; as duas coberturas
+fora do piso são as mesmas herdadas — `WorkUI.tsx` 88,57% e `configStore.ts`
+89,13%, nenhuma das duas tocada aqui), design system verde (82 arquivos, 912
+testes), `e2e/initiatives.spec.ts` 6/6 no Electron real, e a sonda
+`initiatives-contrast.mjs` com **0 reprovações** em 28 alvos × 3 temas e as 10
+afirmações estruturais verdes. Cena conferida à mão nos três estados do plano
+(0/8, 3/8, 8/8), nos três temas, mais hover e foco de teclado.
+
+## O anel de contexto, o `@` que tinha oito linhas, e a foto que não chegava (2026-09-13)
+
+Três pedidos do usuário, um deles com uma causa-raiz fora do app.
+
+**1. A janela de contexto virou um anel.** O medidor do rodapé do composer era
+uma barra de 34×4px — uma linha que o olho arquiva como divisória, de modo que
+a leitura dependia inteiramente do número ao lado. Virou um mostrador de 16px;
+na folha de detalhe, a barra segmentada virou um disco de 104px com as três
+proveniências como trechos de uma volta e a porcentagem no meio, com a legenda
+embaixo em largura cheia. Componente novo no design system: **`RingMeter`** —
+medidor radial de *ocupação* (enche), irmão do `Gauge` (esvazia) e do
+`Progress` (percurso). São perguntas diferentes e escolher errado inverte todo
+limiar do chamador.
+
+**2. O `@` passou a conter todos os arquivos.** `MENTION_RESULT_LIMIT` era
+**8**: a nona correspondência não existia no DOM, então não havia seta, rolagem
+nem clique que chegasse nela — e o cabeçalho "8 de 412" era o único vestígio de
+que existia. O limite subiu para o teto da própria varredura (5 000) e o menu
+passou a renderizar só as linhas perto da porta (`useVirtualOptionList`), com
+oito visíveis por vez, linhas de altura fixa (32px, contrato único entre TS e
+CSS) e desvanecimento nas bordas.
+
+**3. Um anexo agora chega como o que ele é.** O usuário anexou
+`WhatsApp Image … .jpe` e o agente respondeu que não tinha recebido imagem
+nenhuma. O caminho *estava* no bloco `<attached-files>`: o que derrubou foi a
+**extensão**. Ferramentas de leitura de agente decidem "isto é imagem?" pelo
+nome, não pelos bytes, e `.jpe` — extensão JPEG legítima que o WhatsApp e
+exportações do Windows emitem — não está na lista de ninguém. O agente abriu a
+foto como UTF-8, viu mojibake, e disse honestamente que não havia imagem.
+Medido com a própria ferramenta: `.jpe` volta como texto, `.png` volta como
+imagem. Agora `attachmentContext.ts` identifica o arquivo pelos **bytes** e,
+quando o nome derrotaria o leitor, entrega ao agente uma cópia com o nome certo
+(hard link quando possível, `userData/attachment-stage`, podada a cada dia). O
+bloco passou a carregar o tipo de cada arquivo, o nome original da cópia e a
+instrução de **abrir** imagens em vez de declará-las ausentes. No caminho,
+apareceu um segundo defeito real: `runWorkflow` nunca passou `attachments` —
+um `/bmad-prd` com um PDF preso rodava com o prompt e sem o contexto.
+
+Lições da rodada:
+
+- **Quando o sintoma é "falta conteúdo", a sonda tem que contar, não olhar.**
+  O menu de `@` quebrado era fotograficamente perfeito.
+- **`box-sizing: border-box` impede uma caixa de ser menor que o próprio
+  padding.** Os espaçadores da virtualização são padding; com o `max-height` na
+  mesma caixa, a porta de rolagem mediu **1536px onde 256 foram pedidos** — e o
+  `max-height` computado continuava dizendo `256px`. A porta virou um invólucro
+  e a `<ul>` o conteúdo.
+- **Uma medição ruim guardada em estado envenena tudo depois dela.** O
+  `clientHeight` errado virou a altura da porta, e o sintoma apareceu uma tecla
+  depois da causa.
+- **Duas superfícies flutuantes não ficam abertas juntas, e a sonda não
+  percebe** — ela reporta `missing`, que se lê como "nada a corrigir". Terceira
+  aparição desta armadilha no `visual-validation.md`.
+- **A legenda tem que caber.** Ao lado do anel, os rótulos tinham 160px e
+  `Reaproveitado do cache` virava `Reaproveitado do c…` — perdendo justamente a
+  palavra que diz *qual* cache. A sonda passou a afirmar `scrollWidth ≤
+  clientWidth` em toda linha da legenda.
+
+Validação: `verify` verde (246 arquivos, **4 378 testes**, cobertura nos
+pisos), design system verde (84 arquivos, **938 testes**),
+`e2e/chat-timing.spec.ts` 4/4 e o novo `e2e/attachment-context.spec.ts` 2/2 no
+Electron real, `tools/visual/round-2026-09-13.mjs` 12/12, `ring-pass.mjs` 18/18
+e `ring-themes.mjs` com **0 reprovações** em 21 alvos × 3 temas. A cópia
+preparada foi aberta com a mesma ferramenta que falhava antes: volta como
+imagem.
+
+## O modal que fechava, o briefing que não era lido e a sessão que era de outra conversa (2026-09-13)
+
+Três defeitos relatados juntos, nenhum deles onde parecia estar.
+
+### 1. O modal do Estúdio fechava no segundo clique do seletor de agentes
+
+Relato: "abro 'Nova skill' ou 'Novo agente', clico 2x no seletor de agentes e o
+modal fecha". Fecha mesmo — e leva o briefing digitado. A causa são **quatro
+fatos que só juntos produzem o defeito**, e o relato completo mora no cabeçalho
+de `design-system/src/hooks/useSurfaceDismissGuard.ts`:
+
+1. o `DropdownMenu` do Radix é **modal por padrão**: enquanto aberto põe
+   `pointer-events: none` no `body` e, como camada mais alta, força
+   `pointer-events: none` no conteúdo do diálogo embaixo dele;
+2. o `Dialog.Overlay` do Radix fixa `pointer-events: auto` por **estilo
+   inline** — com o conteúdo desligado, o overlay é o que o hit-test encontra,
+   então um clique mirado num controle *dentro* do diálogo chega como clique
+   **fora** dele;
+3. o `@radix-ui/react-dialog` 1.1.18 pede `deferPointerDownOutside`, ou seja, a
+   decisão de descartar não é tomada no `pointerdown` — é adiada para o `click`;
+4. nessa altura o menu já fechou e a limpeza do `react-dismissable-layer` 1.1.14
+   **já removeu** o menu de `layersWithOutsidePointerEventsDisabled`. O diálogo
+   volta a ser a camada mais alta, o guarda dele passa, e ele se descarta.
+
+Medido no app real, com o menu aberto:
+`body: none · conteúdo: none · overlay: auto · elementFromPoint(pílula) = div.hds-dialog-overlay`.
+
+**Correção em duas camadas, de propósito.** No design system, `DialogContent` e
+`SheetContent` ganharam um guarda geométrico (`useSurfaceDismissGuard`): um
+`pointerdown` cujas coordenadas caem dentro da caixa do próprio painel não é
+interação de fora, seja lá o que o hit-test tenha dito — `preventDefault()` é o
+que o `DismissableLayer` lê antes de chamar `onDismiss`. Isso fecha a **classe**
+inteira, para todo diálogo que hospede um popover modal. No app, o menu do
+`AgentSwitcher` passou a `modal={false}`, que remove a *causa* (o apagão de
+pointer-events) nas três superfícies onde esse controle vive — e com isso o
+clique mirado no formulário **chega ao formulário**, em vez de ser engolido.
+
+### 2. O briefing do Estúdio chegava e era ignorado
+
+Relato: o builder foi acionado "sem o contexto textual". O contexto chegou. Duas
+medições:
+
+- **A CLI entrega.** Uma skill de sonda que devolve os próprios argumentos,
+  invocada como `/arg-echo\n\n<texto>` no `claude` 2.1.226 real, respondeu
+  `ARGS_START<texto>ARGS_END` — verbatim. Transporte não era o problema.
+- **O builder seguia o próprio roteiro.** A ativação de `bmad-workflow-builder`
+  e `bmad-agent-builder` tem um passo "Open the floor" — *"invite the user to
+  share everything they have in mind"* — qualificado só por *"skip if the
+  invocation already carries enough to act on"*. Um briefing que apenas
+  **contém** a ideia deixa esse julgamento para o modelo; o modelo abriu a mesa
+  e perguntou o objetivo que o formulário já tinha coletado.
+
+A correção é no briefing (`studioPrompts.ts`): ele passou a **nomear a
+intenção** (o passo acima é "Detect intent"), **declarar-se o despejo de
+ideia** e **fechar a mesa pelo nome**. Medido antes/depois com o builder de
+verdade, mesmo modelo (sonnet), mesmo workspace: antes, quatro perguntas e
+nada construído; depois, direto para o build, escolhendo a forma, declarando os
+defaults e dizendo o que recusou. **Não** usa `--headless`: isso fecharia a
+mesa tornando a construção inteira não-interativa, que é o oposto do que a
+superfície promete ("o construtor assume o chat para lapidar os detalhes").
+
+### 3. Uma conversa nova do Devin caía dentro da sessão de outra
+
+O mais grave. Relato: uma criação de agente lançada pelo Estúdio respondeu
+*"pausando a descoberta do PRD (o workspace fica salvo para retomarmos
+depois)"*. Encontrado no transcrito guardado: a conversa do PRD tinha
+`cliSessionId: metal-diamond`; a da criação, `null` — e recebeu a resposta de
+dentro da primeira.
+
+Causa: `AgentService` agrupa sessões **por agente**, não por conversa (livre
+para uma CLI one-shot, onde o objeto de sessão não guarda nada que possa
+vazar), e `devinAcpSession` tratava "já conectado" como "nada a fazer" —
+`if (client && acpSessionId) return`, sem nunca ler o `resume` do turno. Os dois
+ciclos de vida agora são separados: a **conexão** (processo + handshake +
+handlers `fs/*`) é o que vale os 1,7s de segundo turno e é reaproveitada para
+tudo; a **sessão** sobre ela é escolhida por turno (`sessionPlan`). Trocar de
+conversa custa um `session/new` ou `session/load` numa conexão quente, não um
+cold start. O mesmo conserto fecha o defeito no sentido inverso: **voltar** para
+a conversa anterior agora faz `session/load`, que antes só era tentado no
+primeiro turno da vida do processo.
+
+O turno precisou ganhar um campo (`TurnOpts.freshSession`) porque
+`resume: null` é **ambíguo** para um transporte vivo: é igualmente "conversa
+nova" e "o id do primeiro turno ainda não voltou para mim". Errar para um lado
+vaza uma conversa na outra; para o outro, perde a memória da conversa um turno
+adentro. Só o `Chat` sabe qual é — ele começou a conversa —, então ele diz.
+
+### Lições
+
+- **`locator.click()` não é um clique.** Ele desce e sobe o botão no mesmo
+  tick, antes de o React esvaziar a limpeza da camada, e o descarte adiado do
+  Radix ainda declina. Duas sondas minhas reportaram **PASS em tudo** num build
+  em que o diálogo fechava sempre na mão. Sintoma que depende de ordem de
+  eventos exige gesto montado evento a evento (`mouse.move`/`down`/`up`).
+- **Um seletor errado num sweep vira "ABSENT" e se lê como "nada a corrigir".**
+  A primeira varredura desta rodada testou `.hds-choice-card`, que não existe
+  (é `.wb-choice-card`), e reportou o cartão de tipo como ausente entre dez
+  PASS. O cartão nunca foi testado. Mesma armadilha, de novo, do
+  `studio-agent-pass.mjs` — que estava **verde medindo nada** desde que o
+  formulário local virou `RunConfigBar`, e que ao ser re-apontado achou um
+  defeito de contraste herdado na primeira execução.
+- **`--faint` para texto que alguém lê, quarta vez.** `.wb-studio-handoff` — a
+  frase que explica o que o botão vai fazer — media 4,18:1 no escuro e 3,71:1
+  no claro sobre a `--surface` de um diálogo. A regra do
+  `visual-validation.md` é sobre **quem lê**, não sobre o quão subordinado o
+  papel parece.
+- **Um teste ancorado numa corrida é um flake.** O mesmo gesto fechava o
+  diálogo 100% das vezes no Chromium servido por HTTP e de forma intermitente
+  no Electron sob xvfb. O E2E afirma a **medição** determinística que
+  diagnosticou o defeito; a queda do diálogo fica como afirmação secundária, e
+  o sensor determinístico vive no jsdom do design system (verificado vermelho
+  sem o guarda).
+- **Um byte NUL literal numa string torna o arquivo binário para o `grep`.**
+  `devinCliAdapter.ts` tinha `turnId ?? '<NUL>anon'` como sentinela, e com isso
+  saía de **toda** varredura por `grep` sobre `src/main` — descoberto
+  procurando `createDevinAcpSession` nele e recebendo silêncio. Virou escape
+  unicode: mesmo byte em runtime, texto para as sondas.
+- **Meça a dívida antes de assumi-la.** O gate de cobertura do design system
+  (funções, threshold global 90) já estava vermelho em **87,46%** antes desta
+  rodada — medido removendo as mudanças — e fechou em 87,52%.
+
+Validação: `verify` do app verde (246 arquivos, **4 389 testes**, cobertura nos
+pisos), design system verde (85 arquivos, **944 testes**),
+`e2e/studio-agent-picker.spec.ts` 1/1 no Electron real,
+`tools/visual/modal-menu-pass.mjs` **15/15 nos três temas** (Dialog do Estúdio,
+Sheet de ingestão e "Perguntar à base") e `studio-agent-pass.mjs` com 0
+reprovações nos três temas após o conserto de contraste. O comportamento do
+builder foi medido contra o `bmad-workflow-builder` real, antes e depois, no
+mesmo modelo.
+
+---
+
+## O anexo que o Claude nunca via, o bloco que não dava para copiar e a barra estrangeira (2026-09-13)
+
+Quatro pedidos numa rodada. Três eram de interface; o quarto era um defeito de
+transporte que vinha sendo lido como um problema do agente.
+
+### 1. O `<attached-files>` que o Windows apagava (o defeito da rodada)
+
+Sintoma, do usuário: anexar um arquivo no chat e pedir que o agente o leia
+funciona no **Devin** e falha sempre no **Claude** — *"Não vejo nenhuma foto
+anexada nesta mensagem"*. Duas vezes, com uma foto e com um `.txt`.
+
+A leitura óbvia (o adapter do Claude não manda os anexos) está errada:
+`composeTurnPrompt` é **compartilhado** e monta o bloco `<attached-files>`
+idêntico para os dois. O que difere é o **transporte**, e é ali que o bloco
+morre.
+
+Medido contra um `cmd.exe` real e um shim `.cmd` real, via interop do WSL
+(`/mnt/c/Program Files/nodejs/node.exe`), com um shim que despeja o próprio
+`argv`:
+
+```text
+argv de entrada : ['-p', 'linha um\nlinha dois', '--flagA', 'valA']
+argv de saída   : ['-p', 'linha um']
+```
+
+**Uma linha de comando do Windows não carrega quebra de linha.** O escape que
+`escapeCmdArgument` põe na frente dela (`^`) é lido pelo `cmd` como
+*continuação de linha*, e tudo a partir dali some — sem erro, sem stderr, sem
+código de saída diferente. Com `\r\n` é pior: sobra um `^` literal no texto.
+
+E o bloco de anexos começa na **segunda linha** do prompt. Daí o sintoma
+exato: o texto do usuário chega, o bloco não, e o agente responde com
+honestidade sobre o que recebeu. O mesmo corte apagava, junto, **todas as flags
+depois do `-p`** — `--permission-mode`, `--output-format stream-json`,
+`--resume`, `--mcp-config` — e truncava qualquer mensagem multilinha que o
+usuário digitasse, defeito que ninguém tinha ligado a isto.
+
+O Devin nunca mostrou nada disso porque seus turnos vão por **ACP** — JSON-RPC
+no stdin. Que é a mesma percepção chegando por outra estrada: **o que uma linha
+de comando do Windows destrói, um pipe entrega intacto.**
+
+Conserto: `RunOptions.input` no `processRunner` (escreve e fecha o stdin) +
+`CliAdapterConfig.promptOnStdin`, ligado no adapter do Claude. Verificado ao
+vivo contra `claude 2.1.226`: sem prompt posicional, `-p` lê o stdin inteiro
+como prompt, inclusive sob `--output-format stream-json`. E verificado no
+Windows de verdade que o stdin atravessa `cmd.exe → claude.cmd → binário`
+byte a byte, pela rota do `cmd` **e** pela do PowerShell (as duas famílias de
+shell que o "terminal do agente" pode escolher).
+
+Brinde: sai também o teto de 8191 caracteres da linha de comando do Windows,
+que um prompt com alguns anexos alcança de verdade.
+
+**Não** foi consertado no `copilotCliAdapter` nem no fallback `-p` do Devin: o
+reparo exige a concordância da CLI (stdin, ou o `--prompt-file` que o `devin`
+anuncia), e nenhuma das duas está verificada contra binário real aqui. Os dois
+pontos estão comentados no código, e o caminho do Devin só existe atrás de
+`HIVE_DEVIN_ACP=0`.
+
+### 2. O chip de anexo dentro do balão — 1,23:1
+
+O chip media **1,23:1 contra o próprio balão** (escuro e hive; 1,48 no claro) e
+seu ícone de tipo de arquivo **1,17:1** — medidos re-aplicando o tratamento
+antigo na cena e comparando. Era um véu branco a 16% sobre o preenchimento
+`--accent`, com a tinta do balão, e o ícone na rampa colorida por tipo (um rosa
+claro para imagem) sobre um coral claro.
+
+O reparo é o par que o balão já possui, **invertido** — o mesmo movimento que
+`ChatMessage.css` faz para o `::selection` deste balão, e pela mesma razão:
+`--accent`/`--accent-ink` é o único par cuja razão o preenchimento já garante em
+todos os temas. Depois: **5,20:1** (escuro/hive) e **8,06:1** (claro), chip
+contra balão e nome do arquivo.
+
+O chip do balão passou a ser o **mesmo `Attachment` do design system** que a
+bandeja do compositor mostra — o que você anexa e o que você enviou deixam de
+ser dois sósias.
+
+### 3. Bloco de código com botão de copiar
+
+`CodeFence` novo no design system, usado pelo `Markdown` em **toda** superfície
+que renderiza markdown (resposta do agente e pré-visualização de `.md`). Nem
+`CodeBlock` (registro de marca, placa fixa, `navigator.clipboard` direto) nem
+`OutputBlock` (saída de máquina: teto, crescimento, tom de falha) serviam.
+
+Três decisões dentro dele:
+
+- **Faixa, não botão flutuante.** Um controle sobre o canto ou cobre a primeira
+  linha ou obriga a reservar canto vazio para não cobrir. Uma faixa é linha
+  própria e não colide com nada — e é onde o olho já vai perguntar "que
+  linguagem é esta?", então as duas respostas dividem a linha.
+- **Repouso quieto, força na aproximação** (`:hover` **e** `:focus-within`:
+  um controle que só existe no hover é um controle que o teclado não acha).
+- **Copia o `code`, nunca o DOM.** `textContent` insere espaço em cada
+  fronteira de elemento e o passeio pelos filhos React perde as quebras entre
+  spans irmãos — nos dois casos, código que não roda mais.
+
+### 4. A barra de rolagem estrangeira do menu `@`
+
+`scrollbar-width: thin` no port do menu. Quarta ocorrência da mesma armadilha
+(duas no console MCP, uma no `OptionPicker`, esta): no Chromium, qualquer valor
+não-`auto` em `scrollbar-width`/`scrollbar-color` tira o elemento das regras
+`::-webkit-scrollbar-*` — inclusive das globais do app — e o devolve à barra da
+plataforma. A declaração escrita para deixar a barra discreta é o que a deixa
+estrangeira.
+
+A receita virou `hds-scrollbar` no design system (`scrollbar.css`), com a
+armadilha documentada dentro; `OptionPicker` e `CodeEditor` passaram a consumi-la
+em vez de manterem cópias, e os dois menus do compositor (`@` e `/`) a usam.
+
+### Lições
+
+- **O transporte é parte do contrato, e no Windows ele tem gramática.** O
+  `AGENTS.md` já dizia "JSON nunca entra em argv" depois do D39a. A regra é mais
+  larga do que se pensava: **quebra de linha também não entra em argv** — e
+  falha *em silêncio*, o que é pior do que o `Invalid MCP configuration` que
+  fez a regra nascer. Prompt de turno agora vai por stdin.
+- **"Funciona num agente e não no outro" quase nunca é sobre o agente.** Os dois
+  adapters compartilhavam o compositor de prompt; o que os separava era uma
+  camada abaixo do que o sintoma apontava.
+- **Interop do WSL é um laboratório de Windows.** `/mnt/c/.../node.exe` +
+  `cmd.exe` rodam a partir daqui, então a hipótese "o shim `.cmd` come a quebra
+  de linha" virou medição em dois minutos em vez de dedução.
+- **Nem todo pixel colorido é um indicador, terceira vez.** A sonda desta rodada
+  reprovou "faixa ↔ corpo do bloco" (1,16:1) e "bloco ↔ resposta" (1,07:1) —
+  alvos errados. Num tema escuro todas as superfícies estão a poucos pontos de
+  luminância umas das outras, então o *preenchimento* nunca foi o que distingue
+  um bloco de código da prosa; a **borda** é. Re-apontada para a borda, sobe
+  para ~1,3 e ainda fica sob 3 — e aí o piso é que precisa ser justificado:
+  1.4.11 cobre o que é *necessário* para identificar componente ou entender
+  gráfico, e aqui o código lê a 12,8:1, a etiqueta a 6:1 e o botão a 6:1. A
+  linha ficou **relatada, não pontuada**, com o porquê escrito dentro da lista.
+  A borda subiu de `--border` para `--border-strong` mesmo assim (1,31 → 1,38).
+- **Barra de rolagem overlay não aparece em screenshot.** O Chromium headless
+  do Linux desenha barras overlay: reservam gutter 0 e não pintam nada num
+  quadro parado, então uma regra `::-webkit-scrollbar` pode estar perfeitamente
+  certa e perfeitamente invisível na sonda. O Windows — onde este app roda —
+  usa barras clássicas. `HIVE_CLASSIC_SCROLLBARS=1` no `run-scene.mjs` liga
+  `--disable-features=OverlayScrollbar`, mas **só funciona com `headless: false`
+  sob xvfb**; foi assim que o antes/depois (trilho branco com setinha × polegar
+  arredondado sem trilho) virou imagem.
+- **Truncar no meio parte o nome em dois para quem ouve.** O snapshot de a11y
+  da rodada devolveu `"…at 00.16\n.18.jpeg"` para o chip: as duas metades do
+  `truncate="middle"` são itens de flex, e item de flex é bloco — fronteira de
+  bloco é quebra de linha para `innerText` **e** para o modo de leitura de um
+  leitor de tela. O comentário no `Attachment.css` afirmava o contrário
+  (*"reads as one uninterrupted string to a screen reader"*), o que a medição
+  desmente. Ficou **como está**, com a medição escrita no lugar da afirmação:
+  o flex é quem faz a cabeça encolher e a cauda não, e o reparo óbvio (uma
+  cópia visualmente escondida do nome inteiro) troca um anúncio em duas partes
+  por um nome que cola duas vezes — pior para mais gente. Quem precisa da
+  string inteira tem o `title`.
+- **`userEvent` sob `vi.useFakeTimers()` trava.** Ele agenda trabalho próprio em
+  timers e espera um tick que só `advanceTimersByTime` entrega — chamada que
+  está atrás do `await` que nunca volta. Para um controle que só escuta
+  `click`, `fireEvent.click` é a interação inteira.
+
+Validação: `verify` do app verde, design system verde (86 arquivos, 951
+testes), sonda `round-2026-09-13b-contrast.mjs` sem reprovações nos três temas
+(com antes/depois medidos na mesma cena), `round-2026-09-13b-states.mjs`
+confirmando que o controle põe a fonte do bloco no clipboard **verbatim** e que
+o estado "Copiado" passa do piso (5,93 / 7,04 / 6,63), e o transporte por stdin
+medido contra `cmd.exe` e PowerShell reais no Windows.

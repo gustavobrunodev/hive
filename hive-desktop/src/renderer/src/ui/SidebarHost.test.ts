@@ -3,16 +3,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { SidebarHost } from './SidebarHost'
-import type { SidebarView } from './ActionRail'
+import type { SidebarView } from './sidebarNav'
 
 afterEach(() => {
   cleanup()
 })
 
+const chat = createElement('div', { 'data-testid': 'chat-body' }, 'conversations')
 const explorer = createElement('div', { 'data-testid': 'explorer-body' }, 'tree')
 const scm = createElement('div', { 'data-testid': 'scm-body' }, 'source control')
-const review = createElement('div', { 'data-testid': 'review-body' }, 'agent review')
-const brain = createElement('div', { 'data-testid': 'brain-body' }, 'second brain')
 
 /** The layer a body sits in — what carries the active/hidden state. */
 function layerOf(testId: string): HTMLElement {
@@ -23,7 +22,7 @@ function layerOf(testId: string): HTMLElement {
 
 /** Renders the host on one view. */
 function host(activeView: SidebarView): ReturnType<typeof render> {
-  return render(createElement(SidebarHost, { activeView, explorer, scm, review, brain }))
+  return render(createElement(SidebarHost, { activeView, chat, explorer, scm }))
 }
 
 describe('SidebarHost', () => {
@@ -33,17 +32,31 @@ describe('SidebarHost', () => {
     expect(layerOf('explorer-body').hasAttribute('data-active')).toBe(true)
     // Nothing else has been asked for yet — an unvisited view costs nothing.
     expect(screen.queryByTestId('scm-body')).toBeNull()
-    expect(screen.queryByTestId('review-body')).toBeNull()
-    expect(screen.queryByTestId('brain-body')).toBeNull()
+    expect(screen.queryByTestId('chat-body')).toBeNull()
   })
 
   it.each<[SidebarView, string]>([
+    ['chat', 'chat-body'],
     ['scm', 'scm-body'],
-    ['review', 'review-body'],
-    ['brain', 'brain-body']
+    ['explorer', 'explorer-body']
   ])('activates the %s view when it is selected', (view, testId) => {
     host(view)
     expect(layerOf(testId).hasAttribute('data-active')).toBe(true)
+  })
+
+  /**
+   * The host swaps the *navigation* surfaces only. "Revisão do agente" and
+   * "Bases de conhecimento" used to be layers in here too, and that is exactly
+   * what made opening one cost the user their conversation history — they are
+   * work-area panes now (`WorkView`), so this host never hears about them.
+   */
+  it('has no layer for the chat tools, which live in the work area now', () => {
+    host('chat')
+    const views = Array.from(document.querySelectorAll('.wb-sidebar-layer')).map((layer) =>
+      layer.getAttribute('data-view')
+    )
+    expect(views).not.toContain('review')
+    expect(views).not.toContain('brain')
   })
 
   /**
@@ -54,7 +67,7 @@ describe('SidebarHost', () => {
   it('keeps a visited view mounted (but inactive) after switching away from it', () => {
     const { rerender } = host('explorer')
 
-    rerender(createElement(SidebarHost, { activeView: 'scm', explorer, scm, review, brain }))
+    rerender(createElement(SidebarHost, { activeView: 'scm', chat, explorer, scm }))
 
     // Still in the DOM, still holding its own state — just not the visible layer.
     expect(screen.getByTestId('explorer-body')).toBeTruthy()
@@ -66,23 +79,23 @@ describe('SidebarHost', () => {
     const { rerender } = host('explorer')
     const first = screen.getByTestId('explorer-body')
 
-    rerender(createElement(SidebarHost, { activeView: 'brain', explorer, scm, review, brain }))
-    rerender(createElement(SidebarHost, { activeView: 'explorer', explorer, scm, review, brain }))
+    rerender(createElement(SidebarHost, { activeView: 'chat', chat, explorer, scm }))
+    rerender(createElement(SidebarHost, { activeView: 'explorer', chat, explorer, scm }))
 
     // The very same node: a remount would have replaced it, taking its state with it.
     expect(screen.getByTestId('explorer-body')).toBe(first)
     expect(layerOf('explorer-body').hasAttribute('data-active')).toBe(true)
-    expect(layerOf('brain-body').hasAttribute('data-active')).toBe(false)
+    expect(layerOf('chat-body').hasAttribute('data-active')).toBe(false)
   })
 
   it('keeps the layers in rail order regardless of the order they were visited in', () => {
-    const { rerender } = host('brain')
-    rerender(createElement(SidebarHost, { activeView: 'scm', explorer, scm, review, brain }))
-    rerender(createElement(SidebarHost, { activeView: 'explorer', explorer, scm, review, brain }))
+    const { rerender } = host('scm')
+    rerender(createElement(SidebarHost, { activeView: 'chat', chat, explorer, scm }))
+    rerender(createElement(SidebarHost, { activeView: 'explorer', chat, explorer, scm }))
 
     const views = Array.from(document.querySelectorAll('.wb-sidebar-layer')).map((layer) =>
       layer.getAttribute('data-view')
     )
-    expect(views).toEqual(['explorer', 'scm', 'brain'])
+    expect(views).toEqual(['chat', 'explorer', 'scm'])
   })
 })

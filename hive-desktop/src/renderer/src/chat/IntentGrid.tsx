@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { relativeTimeLabel, shortcutLabel, t } from '../i18n'
 import { shortcutIcon } from '../ui/roleVisuals'
 import { ChatBubbleIcon, HiveCellIcon, SlidersIcon } from '../ui/icons'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import { sessionTitle, type ChatSessionMeta } from './sessionMeta'
 
 interface IntentGridProps {

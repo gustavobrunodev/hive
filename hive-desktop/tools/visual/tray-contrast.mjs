@@ -115,7 +115,7 @@ async (page) => {
     // A menu left open from a previous step swallows the next click.
     await page.keyboard.press('Escape')
     await page.waitForTimeout(150)
-    await page.locator('button[aria-label^="Aparência"]').click()
+    await page.locator('button[aria-label^="Escolha do tema"]').click()
     await page.waitForTimeout(250)
     await page.getByRole('menuitemradio', { name: theme, exact: false }).first().click()
     await page.waitForTimeout(400)

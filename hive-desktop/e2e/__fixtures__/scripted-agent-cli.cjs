@@ -86,8 +86,37 @@ const scriptPath = process.env.HIVE_E2E_AGENT_SCRIPT
 const script =
   scriptPath && fs.existsSync(scriptPath) ? JSON.parse(fs.readFileSync(scriptPath, 'utf-8')) : {}
 
-const promptIndex = argv.indexOf('-p')
-const prompt = promptIndex >= 0 ? argv[promptIndex + 1] : null
+/**
+ * The turn's prompt, read from **stdin** — the way the real `claude -p` reads
+ * one when no positional prompt follows the flag.
+ *
+ * It used to be `argv[argv.indexOf('-p') + 1]`, and that is precisely the
+ * arrangement that hid a shipped defect for months: on Windows an npm `.cmd`
+ * shim truncates a command line at its first newline, so the
+ * `<attached-files>` block — which starts on the prompt's second line — never
+ * reached the agent, and the user was told no file had been attached. A
+ * stand-in that reads argv cannot reproduce what a real shim does to argv, but
+ * it must at least mirror the contract the adapter now uses, or these tests
+ * assert against a CLI that no longer exists.
+ *
+ * `readFileSync(0)` rather than a stream: this file is synchronous top to
+ * bottom, and the adapter closes the pipe immediately after writing, so the
+ * EOF is already there. A spawn with no pipe on stdin (a probe) throws, and
+ * `null` is the honest answer for it.
+ */
+function readPrompt() {
+  if (!argv.includes('-p')) return null
+  // A positional prompt still wins, for any adapter that sends one.
+  const positional = argv[argv.indexOf('-p') + 1]
+  if (positional !== undefined && !positional.startsWith('-')) return positional
+  try {
+    return fs.readFileSync(0, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+const prompt = readPrompt()
 // agent-terminal: the environment the turn was actually given. Only the
 // variables the terminal choice is supposed to set — enough for a test to
 // assert that picking a shell reached the CLI, and nothing that could leak a

@@ -95,6 +95,23 @@ export interface StoredChatSession {
    * (and always `null` on files written before this field existed).
    */
   cliSessionId?: string | null
+  /**
+   * How full this conversation's context window was the last time a turn
+   * reported it (session-usage), as the renderer's own `UsageSnapshot`.
+   *
+   * Stored with the conversation because that is what it is a fact *about*: the
+   * prompt the agent re-reads on its next turn is the transcript below, and its
+   * size does not change because the app was closed. Without it, reopening a
+   * conversation left the composer's context meter blank until the next answer
+   * landed — on a long run, minutes of the one number that says how much room
+   * the agent has left.
+   *
+   * Opaque here on purpose (`unknown`): the shape belongs to the renderer that
+   * writes and reads it (`chat/usageLedger.ts`), which validates it field by
+   * field on the way back in. Main neither computes nor interprets it, and
+   * mirroring the type would be a second definition to keep in step.
+   */
+  usage?: unknown
 }
 
 /** The list()/mutation projection: everything the history UI needs, without shipping whole transcripts over IPC per row. */
@@ -138,6 +155,14 @@ export interface ChatHistoryStore {
   rename(workspace: string, id: string, title: string): ChatSessionMeta | null
   /** Records the CLI-native session id used for `--resume` (conversation memory). No `updatedAt` bump: it's plumbing, not user activity. */
   setCliSession(workspace: string, id: string, cliSessionId: string): void
+  /**
+   * Records the conversation's context-window reading (session-usage). Like
+   * `setCliSession` it does **not** bump `updatedAt`: a measurement of a turn
+   * that already happened is not new activity, and letting it re-sort the
+   * history would make conversations jump around the list for no reason a user
+   * could see.
+   */
+  setUsage(workspace: string, id: string, usage: unknown): void
   /**
    * Full-text search (session-history): matches `query` against titles AND
    * every message's text, case- and accent-insensitively (pt-BR: "financas"
@@ -376,6 +401,13 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
     writeSession(workspace, session)
   }
 
+  function setUsage(workspace: string, id: string, usage: unknown): void {
+    const session = get(workspace, id)
+    if (!session) return
+    session.usage = usage
+    writeSession(workspace, session)
+  }
+
   function search(workspace: string, query: string): ChatSessionMeta[] {
     const needle = searchNormalize(query.trim())
     if (needle === '') return list(workspace)
@@ -416,5 +448,5 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
     }
   }
 
-  return { list, get, create, appendMessage, rename, setCliSession, search, remove }
+  return { list, get, create, appendMessage, rename, setCliSession, setUsage, search, remove }
 }

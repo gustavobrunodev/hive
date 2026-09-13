@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import { SECOND_BRAIN_SETUP } from './secondBrainPrompts'
 import type { SecondBrainStore } from './useSecondBrain'
 

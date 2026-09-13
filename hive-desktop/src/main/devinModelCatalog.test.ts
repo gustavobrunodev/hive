@@ -192,6 +192,78 @@ describe('detectDevinCapabilities', () => {
     })
   })
 
+  /**
+   * The context meter's denominator. A Devin session used to print a raw token
+   * count where the Claude one printed a percentage, because "Automático" — the
+   * row every session starts on — carried no window for the meter to divide by.
+   */
+  describe('the window behind "Automático"', () => {
+    it('inherits the window of the model it resolves to, by slug or by alias', async () => {
+      const configured = await detect({
+        stdout: REAL_LISTING,
+        files: { '/home/u/.config/devin/config.json': { agent: { model: 'claude-sonnet-5' } } }
+      })
+      const auto = configured.capabilities.models.find((model) => model.id === '')
+      expect(auto?.resolvedId).toBe('claude-sonnet-5')
+      expect(auto?.contextWindow).toBe(1_000_000)
+
+      // A user who wrote the short name Devin documents gets the same answer.
+      const byAlias = await detect({
+        stdout: REAL_LISTING,
+        files: { '/home/u/.config/devin/config.json': { agent: { model: 'opus' } } }
+      })
+      expect(byAlias.capabilities.models.find((model) => model.id === '')?.contextWindow).toBe(
+        1_000_000
+      )
+    })
+
+    /**
+     * The spelling that actually broke it. `devin` writes the *variant* id into
+     * `config.json` when the reasoning level is changed in-session (Alt+T), so
+     * a real config says `claude-opus-5-max` — a rung, matching no model row.
+     */
+    it('resolves a variant id written by the CLI itself, not just a family slug', async () => {
+      const { capabilities } = await detect({
+        stdout: REAL_LISTING,
+        files: { '/home/u/.config/devin/config.json': { agent: { model: 'claude-opus-5-max' } } }
+      })
+      const auto = capabilities.models.find((model) => model.id === '')
+      expect(auto?.resolvedId).toBe('claude-opus-5-max')
+      expect(auto?.contextWindow).toBe(1_000_000)
+    })
+
+    /**
+     * `adaptive` is the one family in the real listing whose variant declares no
+     * `max_context_tokens`, because the router picks a different underlying
+     * model per turn and those run from 200k to 1M. Inventing a number here
+     * would make the meter confidently wrong — 60% shown against a real 12% on
+     * the turn it routes to a 1M model — so the row stays windowless and the
+     * meter keeps printing the honest token count.
+     */
+    it('claims no window for the router, rather than guessing one', async () => {
+      const { capabilities } = await detect({ stdout: REAL_LISTING })
+      const auto = capabilities.models.find((model) => model.id === '')
+      expect(auto?.resolvedId).toBe('adaptive')
+      expect(auto?.contextWindow).toBeUndefined()
+      expect(
+        capabilities.models.find((model) => model.id === 'adaptive')?.contextWindow
+      ).toBeUndefined()
+    })
+
+    // The probe fails on a machine without the CLI; the meter still needs a
+    // denominator for anyone who pinned a model before it broke.
+    it('falls back to the measured catalog windows when the probe fails', async () => {
+      const { capabilities } = await detect({ code: 1 })
+      const byId = (id: string): number | undefined =>
+        capabilities.models.find((model) => model.id === id)?.contextWindow
+      expect(byId('opus')).toBe(1_000_000)
+      expect(byId('swe')).toBe(202_752)
+      expect(byId('codex')).toBe(400_000)
+      expect(byId('gemini')).toBe(1_048_576)
+      expect(byId('adaptive')).toBeUndefined()
+    })
+  })
+
   describe('the effort ladder, which is per model', () => {
     // The other half of the report: "mapeamento de effort por modelo também
     // não aparece". Devin has no `--effort` flag — the reasoning level IS the

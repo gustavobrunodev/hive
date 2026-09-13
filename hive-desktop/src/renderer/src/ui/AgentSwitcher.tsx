@@ -78,7 +78,15 @@ export function AgentSwitcher({
   }
 
   return (
-    <DropdownMenu>
+    // `modal={false}`: this control lives inside dialogs and sheets (the Skill
+    // Studio's create form, the ingestion sheet, "Perguntar à base"), and a
+    // *modal* menu blacks out pointer events on everything below it —
+    // including the surface hosting it, whose own overlay then receives every
+    // click aimed at the form. That is what closed the studio dialog when the
+    // user clicked this pill a second time; `useSurfaceDismissGuard` in the
+    // design system stops the dismissal, and this stops the blackout, so the
+    // click reaches the control the user aimed at instead of being swallowed.
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

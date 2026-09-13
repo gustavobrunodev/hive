@@ -10,19 +10,20 @@ import {
 } from 'react'
 import {
   ActivityBorder,
-  Alert,
+  Attachment,
   ChatMessage,
   MessageList,
   MessageToken,
-  PromptInput,
-  Spinner
+  PromptInput
 } from '@hive/design-system'
 import { shortcutLabel, t } from '../i18n'
 import { Markdown } from '../ui/markdown'
 import {
+  CloudKeyIcon,
   HiveCellIcon,
   MicIcon,
   PaperclipIcon,
+  PlugIcon,
   QueueIcon,
   SlidersIcon,
   StopIcon,
@@ -32,7 +33,7 @@ import { AgentSwitcher, type SwitchableAgent } from '../ui/AgentSwitcher'
 import { ScrollableRow } from '../ui/ScrollableRow'
 import { shortcutIcon } from '../ui/roleVisuals'
 import { FileTypeIcon } from '../ui/fileIcons'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import { EnginePicker } from './EnginePicker'
 import { carryEffort, effortsFor, pickInitial, type EngineCapabilities } from './engineOptions'
 import { initialEngine, useEnginePins } from './enginePins'
@@ -74,7 +75,15 @@ import { createSkillOracle, type SkillOracle } from './commandMentions'
 import { useAttachments } from './useAttachments'
 import { AddContextMenu } from './AddContextMenu'
 import { AttachmentTray } from './AttachmentTray'
+import { TurnErrorNotice } from './TurnErrorNotice'
 import { parkDraft, takeDraft, type DraftStore } from './composerDraft'
+import {
+  parkUsage,
+  restore as restoreUsage,
+  snapshot as usageSnapshot,
+  takeUsage,
+  type UsageStore
+} from './usageLedger'
 import { useMentions } from './useMentions'
 import type { ChatSessionMeta } from './sessionMeta'
 import { ChangeCard } from './ChangeCard'
@@ -282,6 +291,27 @@ interface ChatProps {
    * lane most machines actually use.
    */
   onClaudeConnect?: () => Promise<boolean> | void
+  /**
+   * claude-account: whether the machine currently has an account the agent can
+   * run on — `null` until the app has read one.
+   *
+   * The banner under a dead turn is a claim about *the account*, and it was
+   * only ever withdrawn by the return value of its own button's promise. That
+   * made every other way of fixing the problem invisible to it: signing in from
+   * Perfil › Conexão, from the beacon's "Tentar de novo", or in the terminal
+   * left the app still saying "sua conta não está conectada" over an account
+   * that was, with the question the user asked stranded in a dead turn.
+   *
+   * Handing the fact in instead is what lets the repair be finished from
+   * anywhere — see `repairAccountTurn`.
+   */
+  claudeAccountReady?: boolean | null
+  /**
+   * claude-account: a sign-in is happening right now (any surface started it).
+   * The banner's control says so instead of looking untouched while the user is
+   * away in a browser tab.
+   */
+  claudeSigningIn?: boolean
   /**
    * agent-patch: opens a file the agent edited, by workspace-relative path —
    * the editor's own `openFile`. Lets a path named in the transcript be a way
@@ -939,6 +969,49 @@ function UserMessageText({
 }
 
 /**
+ * claude-account: whether a sign-in is in flight, from either of the two things
+ * that can mean it.
+ *
+ * `connecting` is this pane's own press, true from the instant of the click —
+ * main's first phase is a round trip away, and a control that looks untouched
+ * after sending someone to a browser is the app saying nothing happened.
+ * `claudeSigningIn` is the live stream, which also covers a sign-in started
+ * from the beacon or from Perfil › Conexão.
+ */
+function isSigningIn(connecting: boolean, streamed: boolean | undefined): boolean {
+  return connecting || streamed === true
+}
+
+/**
+ * What the engine control may say, given a detection that is tagged with the
+ * agent it describes.
+ *
+ * Three decisions, all the same one: **an answer about another agent is not an
+ * answer.** Switching agents re-reads the machine, and a CLI spawn is not
+ * instant; holding the previous agent's capabilities until the new ones land
+ * meant the picker offered one agent's models under another agent's name, and a
+ * turn sent in that window carried a `--model` the new CLI has never heard of.
+ *
+ * Clearing the state in an effect does not close it — React renders with the
+ * new agent *before* effects run, so there is always a frame of the lie. Reading
+ * the tagged answer back through the agent in force makes that frame
+ * unrepresentable: `capabilities` is `null` from the first render after a
+ * switch, which is exactly what "still loading" means, and the selection reads
+ * `null` with it, which becomes "omit the flag" — the CLI's own default, and the
+ * only honest answer before its capabilities are known.
+ */
+function engineView(
+  detected: { agentId: string | null; caps: AgentCapabilities } | null,
+  activeAgent: string | null,
+  modelChoice: string | null,
+  effortChoice: string | null
+): { capabilities: AgentCapabilities | null; model: string | null; effort: string | null } {
+  const capabilities = detected !== null && detected.agentId === activeAgent ? detected.caps : null
+  if (capabilities === null) return { capabilities: null, model: null, effort: null }
+  return { capabilities, model: modelChoice, effort: effortChoice }
+}
+
+/**
  * Chat surface. A visual conversation (DS `MessageList`/`ChatMessage`/
  * `PromptInput`/`TypingIndicator`) with model/effort pickers driven by the
  * active adapter's capabilities.
@@ -969,22 +1042,59 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onOpenMcpConsole,
     onOpenAwsPanel,
     onAwsReconnect,
-    onClaudeConnect
+    onClaudeConnect,
+    claudeAccountReady,
+    claudeSigningIn
   },
   ref
 ) {
-  const [capabilities, setCapabilities] = useState<AgentCapabilities | null>(null)
+  /**
+   * The detected capabilities **and the agent they describe**.
+   *
+   * The pair is the point. Held as a bare `AgentCapabilities | null`, this
+   * state outlived the agent it belonged to: switching Claude → Devin re-ran
+   * the detection but left the previous answer in state until the new one
+   * landed, so for as long as that call took — a CLI spawn, seconds on a cold
+   * Windows shim — the picker offered **Claude's models under Devin's name**,
+   * and picking one would have sent `--model opus` to a CLI that has never
+   * heard of it.
+   *
+   * Clearing it in the effect is not enough: React renders with the new
+   * `activeAgent` *before* effects run, so there is always at least one frame
+   * of the lie. Tagging the answer and reading it back through `activeAgent`
+   * makes the stale frame unrepresentable instead — `capabilities` below is
+   * `null` from the very first render after a switch, which is exactly what
+   * "still loading" means.
+   */
+  const [detected, setDetected] = useState<{
+    agentId: string | null
+    caps: AgentCapabilities
+  } | null>(null)
   // chat-file-links: the live oracle that decides which paths in a reply are
   // real files (and so become links). Live because the file the agent just
   // created is exactly the one the user wants to click.
   const workspaceFiles = useWorkspaceFiles(workspace)
-  const [model, setModel] = useState<string | null>(null)
-  const [effort, setEffort] = useState<string | null>(null)
+  const [modelChoice, setModel] = useState<string | null>(null)
+  const [effortChoice, setEffort] = useState<string | null>(null)
   // model-picker: a re-detection is in flight (the picker's "Redetectar").
   const [detecting, setDetecting] = useState(false)
+  /**
+   * claude-account: a sign-in started **from this banner** is in flight.
+   *
+   * Local rather than derived from the login stream, for two reasons. It has to
+   * be true from the instant of the press — main's first phase is a round trip
+   * away, and a control that looks untouched after sending someone to a browser
+   * is the app saying nothing happened. And it has to become false when the
+   * attempt *ends*, whatever it returns: `claude auth login` can write the
+   * credentials and still exit non-zero (a killed timeout, a browser tab that
+   * took its time), and it is the end of the attempt — not its verdict — that
+   * tells the app to go and look at the account again.
+   */
+  const [connecting, setConnecting] = useState(false)
   // agent id → the model/effort last chosen for it, so switching agent and
   // back doesn't silently reset the engine.
   const enginePrefs = useRef<Map<string, { model?: string; effort?: string }>>(new Map())
+
   const [messages, setMessages] = useState<ChatMessageEntry[]>([])
   // The on-screen turn's live timeline (prose + steps + permission cards, in
   // order). `null` when no turn is running in this conversation.
@@ -1019,6 +1129,15 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // conversation) or when restoring a stored conversation's own agent.
   const [conversationAgent, setConversationAgent] = useState<string | null>(null)
   const activeAgent = conversationAgent ?? defaultAgent
+  // What the engine control is allowed to say right now — resolved at module
+  // scope (`engineView`), because `Chat` is at the lint's branch ceiling and
+  // this is three decisions, not one.
+  const { capabilities, model, effort } = engineView(
+    detected,
+    activeAgent,
+    modelChoice,
+    effortChoice
+  )
   // id → displayName for every registered agent, for the switcher labels.
   const [agentNames, setAgentNames] = useState<Record<string, string>>({})
   const [skills, setSkills] = useState<SlashSkill[]>([])
@@ -1052,6 +1171,15 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // measured against is composed at read time, so the raw record has no
   // denominator and a threshold reading it would never fire.
   const sessionUsageRef = useRef<SessionUsage>(sessionUsage)
+  /**
+   * session-usage: conversation id → how full its context window is.
+   *
+   * The same park/take store the send queue and the composer draft use, for the
+   * same reason: the reading belongs to the conversation, not to the pane. See
+   * `usageLedger.ts` for the defect it closes (the meter going blank the moment
+   * a user moved between two conversations).
+   */
+  const usageStore = useRef<UsageStore>(new Map())
   const handleCompactRef = useRef<(event: Extract<AgentEventIn, { type: 'compact' }>) => void>(
     () => {}
   )
@@ -1144,6 +1272,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // sent as `resume` with every turn so the agent keeps prior context, and
   // refreshed by each turn's `session` event.
   const cliSessionRef = useRef<string | null>(null)
+  /**
+   * Whether a turn of *this* conversation has already asked the agent for a
+   * session — i.e. whether `resume: null` still means "brand-new conversation".
+   *
+   * It stops meaning that the moment the first turn goes out, because the id
+   * only comes back on the `session` event: between the two, a follow-up would
+   * look identical to a fresh conversation. On a one-shot CLI that ambiguity
+   * costs nothing (every turn is its own process), but Devin holds a **live**
+   * session, and the two readings are "keep the conversation" versus "start a
+   * new one" — which is the pair that put a skill build inside a running PRD
+   * session. So the pane states which it is, in `TurnOpts.freshSession`,
+   * instead of leaving main to guess.
+   */
+  const agentSessionAskedRef = useRef(false)
   const turnsRef = useRef<ActiveTurn[]>([])
   // Agent Change Review: turnId → the conversation the turn was asked from
   // (`null` = asked before that conversation was persisted). Main owns this
@@ -1207,6 +1349,30 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     sessionUsageRef.current = sessionUsageView
   }, [sessionUsageView])
 
+  /**
+   * Keep the conversation's reading with the conversation — in this window's
+   * ledger, and on disk.
+   *
+   * Written on every change rather than only when leaving: a turn that is still
+   * running is a reading that is still moving, and a window that closes
+   * mid-answer should not take the last five minutes of it with it. The write
+   * is one small JSON field on a file the store already rewrites per message,
+   * and it never bumps `updatedAt` — see `setUsage`.
+   *
+   * `?.` on the bridge call is deliberate: this is the newest thing on
+   * `chatHistory`, and the visual harness's mock of that namespace ages
+   * separately from the bridge (docs/visual-validation.md). A missing method
+   * must cost the persistence, never the app.
+   */
+  useEffect(() => {
+    const id = sessionId
+    if (id === null) return
+    parkUsage(usageStore.current, id, sessionUsageView)
+    const stored = usageSnapshot(sessionUsageView)
+    if (stored === null) return
+    void window.hive.chatHistory.setUsage?.(workspace, id, stored)
+  }, [sessionId, sessionUsageView, workspace])
+
   const recordUsage = useCallback(
     (usage: TurnUsage, opts: { final: boolean; runtimeMs: number; turnId?: string }) => {
       setSessionUsage((current) => applyUsage(current, usage, opts))
@@ -1259,7 +1425,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     // same agent honestly answers differently in two folders.
     window.hive.agent.capabilities(activeAgent ?? undefined, { workspace }).then((caps) => {
       if (cancelled) return
-      setCapabilities(caps)
+      setDetected({ agentId: activeAgent, caps })
       // Coming back to an agent restores what was picked for it, and a first
       // visit lands on the CLI's own default (the `''` row) rather than on
       // whatever happened to be first in the list — Hive overriding a model
@@ -1288,7 +1454,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     void window.hive.agent
       .capabilities(activeAgent ?? undefined, { workspace, refresh: true })
       .then((caps) => {
-        setCapabilities(caps)
+        setDetected({ agentId: activeAgent, caps })
         setModel((current) => {
           const next = pickInitial(caps.models, current ?? undefined)
           setEffort((rung) => pickInitial(effortsFor(caps, next), rung ?? undefined))
@@ -1473,14 +1639,50 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     [persistUserMessage, refreshRunning, workspace]
   )
 
+  /**
+   * The turn the newest failure would have to re-run — one slot, because only
+   * the newest turn's failure is ever the one on screen.
+   *
+   * Written by **both** ways a turn starts. It used to be written only by
+   * `sendNow`, which meant the whole account repair silently did nothing for
+   * anything launched as a workflow: an intent card, a `/bmad-*` shortcut, a
+   * stage of an initiative. Those are exactly the long, expensive turns a
+   * user least wants to re-type, and the banner's button would sign them in
+   * and then stop — no resend, and (since the banner was only ever cleared by
+   * a resend) the failure still on screen over a working account.
+   */
+  const lastSentRef = useRef<QueuedMessage | null>(null)
+
+  /**
+   * The turn's account of which agent session it belongs to, read and latched
+   * in one move so the *next* turn of this conversation no longer claims to be
+   * its first. See `agentSessionAskedRef`.
+   */
+  const claimAgentSession = useCallback((): { resume: string | null; freshSession: boolean } => {
+    const resume = cliSessionRef.current
+    const freshSession = resume === null && !agentSessionAskedRef.current
+    agentSessionAskedRef.current = true
+    return { resume, freshSession }
+  }, [])
+
   const startWorkflowTurn = useCallback(
     (
       command: WorkflowCommand,
       label: string,
       opts?: { model?: string; effort?: string; agentId?: string }
     ) => {
-      const resume = cliSessionRef.current
+      const { resume, freshSession } = claimAgentSession()
       const conversationId = sessionIdRef.current ?? undefined
+      // Re-runnable as the same command: `sendNow`'s workflow branch dispatches
+      // it through `runWorkflow` exactly as this call does.
+      lastSentRef.current = {
+        id: '',
+        text: label,
+        workflow: {
+          key: command.key,
+          ...(command.prompt === undefined ? {} : { prompt: command.prompt })
+        }
+      }
       const turnId = beginTurn(label)
       // multi-agent: the turn runs on THIS conversation's agent. Per-turn
       // model/effort (skill-studio override, else the current selection) travel
@@ -1495,6 +1697,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       window.hive.agent.runWorkflow(command, {
         agentId: opts?.agentId ?? activeAgent ?? undefined,
         resume,
+        freshSession,
         turnId,
         conversationId,
         // model-picker: the "automatic" row's id is the empty string, and it
@@ -1504,7 +1707,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         effort: (opts?.effort ?? effort) || undefined
       })
     },
-    [beginTurn, activeAgent, model, effort]
+    [beginTurn, claimAgentSession, activeAgent, model, effort]
   )
 
   const launchAction = useCallback(
@@ -1523,9 +1726,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
    * handle (read at dispatch time, so a queued follow-up resumes the
    * conversation as it stands *then*, not as it stood when it was typed).
    */
-  /** The message the newest turn was started from (claude-account resend). */
-  const lastSentRef = useRef<QueuedMessage | null>(null)
-
   const sendNow = useCallback(
     (message: QueuedMessage) => {
       // claude-account: kept so a turn that died for want of credentials can
@@ -1533,7 +1733,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // app still has. One slot, deliberately: only the newest turn is ever
       // the one whose failure is on screen.
       lastSentRef.current = message
-      const resume = cliSessionRef.current
+      const { resume, freshSession } = claimAgentSession()
       // Read before `beginTurn`: this is the conversation the user is sending
       // from, and it's what scopes the turn's change card (ACR-R2.2).
       const conversationId = sessionIdRef.current ?? undefined
@@ -1548,8 +1748,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         window.hive.agent.runWorkflow(message.workflow, {
           agentId: activeAgent ?? undefined,
           resume,
+          freshSession,
           turnId,
           conversationId,
+          // A skill turn is still a turn the user attached files to. This line
+          // was missing: `/bmad-prd` with a spec PDF clipped to it ran with the
+          // prompt and none of the context, and the only symptom was an agent
+          // that never mentioned the file.
+          attachments: message.contextFiles?.length ? message.contextFiles : undefined,
           model: model || undefined,
           effort: effort || undefined
         })
@@ -1558,6 +1764,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       window.hive.agent.send(message.text, {
         agentId: activeAgent ?? undefined,
         resume,
+        freshSession,
         turnId,
         conversationId,
         attachments: message.contextFiles?.length ? message.contextFiles : undefined,
@@ -1565,7 +1772,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         effort: effort || undefined
       })
     },
-    [beginTurn, activeAgent, model, effort]
+    [beginTurn, claimAgentSession, activeAgent, model, effort]
   )
 
   useEffect(() => {
@@ -1654,6 +1861,76 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     },
     [isStreaming, queue, sendNow]
   )
+
+  // Read by `repairAccountTurn` without making that callback — and so the
+  // effect under it — churn on every keystroke of a failure message.
+  const errorRef = useRef<string | null>(null)
+  useEffect(() => {
+    errorRef.current = errorMessage
+  }, [errorMessage])
+
+  /**
+   * The account is back, so finish the repair: drop the banner and put the
+   * question back on its way.
+   *
+   * **Idempotent and self-scoping.** It does nothing unless the error currently
+   * on screen is an *account* error, which is what makes it safe to call from
+   * every signal that could mean "the account came back" rather than having to
+   * prove which one was the real one.
+   *
+   * The banner is cleared even when there is nothing to re-send. It is a
+   * sentence about the account ("não está conectada"), and once that is false
+   * leaving it up is the app contradicting the receipt it just showed — the
+   * exact state a user reported: signed in, confirmed, and the error still
+   * sitting there.
+   */
+  const repairAccountTurn = useCallback(() => {
+    const message = errorRef.current
+    if (message === null || claudeTurnError(message) === null) return
+    setErrorMessage(null)
+    errorRef.current = null
+    const pending = lastSentRef.current
+    if (!pending) return
+    submitOrQueue({
+      text: pending.text,
+      ...(pending.contextFiles ? { contextFiles: pending.contextFiles } : {}),
+      ...(pending.attachmentNames ? { attachmentNames: pending.attachmentNames } : {}),
+      ...(pending.workflow ? { workflow: pending.workflow } : {})
+    })
+  }, [submitOrQueue])
+
+  /**
+   * claude-account: watch the account itself, not only this pane's own button.
+   *
+   * Two transitions mean "it came back", and both are needed:
+   *
+   *  - **signed-out → usable.** The ordinary case, whichever surface did it —
+   *    this banner, the beacon's "Tentar de novo", Perfil › Conexão, or a
+   *    `claude auth login` in the user's own terminal.
+   *  - **a sign-in ended with the account usable.** The case the first one
+   *    cannot see: the status is read once per window and cached, so a token
+   *    that expired mid-session leaves the app still holding `connected` while
+   *    the turn dies signed-out. There is no `false` to come back from, and
+   *    hanging the repair on the sign-in *promise* instead is what left the
+   *    user stranded — `claude auth login` can write the credentials and still
+   *    exit non-zero (a killed timeout, a browser tab that took its time), and
+   *    the promise then reports failure over an account that works.
+   */
+  const accountWasReady = useRef<boolean | null | undefined>(null)
+  const attemptWasRunning = useRef(false)
+  // Module scope (`isSigningIn`): `Chat` is at the lint's branch ceiling, and
+  // that ceiling is the sensor that has kept this file readable.
+  const signInRunning = isSigningIn(connecting, claudeSigningIn)
+  useEffect(() => {
+    const previousReady = accountWasReady.current
+    const previousAttempt = attemptWasRunning.current
+    accountWasReady.current = claudeAccountReady
+    attemptWasRunning.current = signInRunning
+    if (claudeAccountReady !== true) return
+    const cameBack = previousReady === false
+    const attemptEnded = previousAttempt && !signInRunning
+    if (cameBack || attemptEnded) repairAccountTurn()
+  }, [claudeAccountReady, signInRunning, repairAccountTurn])
 
   /**
    * Asks the agent to compact its own context (context-compaction).
@@ -1965,10 +2242,15 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setSessionId(null)
     sessionChainRef.current = Promise.resolve(null)
     cliSessionRef.current = null
-    // The context reading belongs to the CLI session being left; a fresh
-    // conversation starts from nothing known. The queue is *parked*, not
-    // dropped — those messages were written for the conversation that keeps
-    // running in the background, and they come back with it.
+    // …and this conversation has asked the agent for nothing yet, so its first
+    // turn is entitled to a session of its own rather than whatever a live
+    // transport happens to be holding.
+    agentSessionAskedRef.current = false
+    // The context reading belongs to the conversation being left, so it is
+    // *parked* with it — like the queue and the draft below — rather than
+    // discarded. A fresh conversation genuinely starts from nothing, which is
+    // the one case where an empty reading is the truth.
+    parkUsage(usageStore.current, leaving, sessionUsageRef.current)
     setSessionUsage(EMPTY_SESSION_USAGE)
     queue.switchConversation(leaving, null)
     // ...and so is the composer's unsent draft: a fresh conversation starts
@@ -2038,12 +2320,23 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       // Conversation memory: the next turn resumes this conversation's CLI
       // session, so the agent picks up right where this transcript left off.
       cliSessionRef.current = stored.cliSessionId ?? null
-      // The usage reading belongs to the conversation being left: a restored
-      // transcript's real occupancy is unknown until its next turn reports one,
-      // and showing the previous conversation's number would be a lie about
-      // this one. The queue swaps with the pane — each conversation gets back
-      // whatever it had waiting.
-      setSessionUsage(EMPTY_SESSION_USAGE)
+      // A stored conversation whose agent session was never recorded has no
+      // handle to resume, and re-entering it must not silently continue
+      // whatever session a live transport is holding for another transcript.
+      agentSessionAskedRef.current = false
+      // The usage reading swaps with the pane, exactly like the queue and the
+      // draft: the conversation being left keeps its number, and this one gets
+      // back its own — from this window's ledger if it was measured here, and
+      // otherwise from what the conversation itself has on disk. Blanking the
+      // meter (what this used to do) was only ever right about the *previous*
+      // conversation's number; it threw away this one's along with it, and the
+      // percentage disappeared for anyone working across two threads.
+      parkUsage(usageStore.current, leaving, sessionUsageRef.current)
+      // This window's own ledger first — it holds every turn of this run,
+      // including the totals. The file is the fallback, and carries only what
+      // survives a restart (the occupancy; see `UsageSnapshot`).
+      const parked = takeUsage(usageStore.current, stored.id)
+      setSessionUsage(parked ?? restoreUsage(stored.usage) ?? EMPTY_SESSION_USAGE)
       queue.switchConversation(leaving, stored.id)
       // Same rule for the composer: this conversation gets its own unsent
       // draft back — never the one belonging to the conversation just left.
@@ -2268,14 +2561,24 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           <UserMessageText text={message.text} fileSet={mentions.fileSet} oracle={skillOracle} />
         )}
         {hasAttachments && (
-          <span className="wb-bubble-attachments">
+          // The same DS `Attachment` the composer's tray draws, on the same
+          // row shape — so the chip you staged and the chip you sent are
+          // visibly one object rather than two lookalikes. What changes inside
+          // the bubble is only its ground, and that is the design system's
+          // business (`Attachment.css`), because the bubble is the design
+          // system's surface.
+          <div className="wb-bubble-attachments">
             {message.attachments?.map((name, index) => (
-              <span key={`${name}-${index}`} className="wb-bubble-attachment">
-                <FileTypeIcon path={name} size={13} />
-                <span className="wb-bubble-attachment-name">{name}</span>
-              </span>
+              <Attachment
+                key={`${name}-${index}`}
+                className="wb-bubble-attachment"
+                name={name}
+                truncate="middle"
+                title={name}
+                icon={<FileTypeIcon path={name} size={13} />}
+              />
             ))}
-          </span>
+          </div>
         )}
       </>
     )
@@ -2284,7 +2587,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // Nested so its own conditionals (capabilities/streaming/agent) stay off the
   // Chat component's complexity budget.
   function renderToolbar(): React.JSX.Element {
-    if (!capabilities) return <Spinner label={t('chat.loadingCapabilities')} />
     return (
       <>
         {/* Leading the paperclip and sharing its weight: dictation is an
@@ -2311,7 +2613,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             into the workspace the agent is already standing in — had no
             affordance at all and shipped as folklore. */}
         <AddContextMenu
-          canUpload={capabilities.supportsAttachments}
+          canUpload={capabilities?.supportsAttachments ?? false}
           onMention={mentions.trigger}
           onUpload={() => void attachments.pick()}
           onCloseFocus={() => composerTextareaRef.current?.focus()}
@@ -2334,6 +2636,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           model={model}
           effort={effort}
           onModelChange={(id) => {
+            if (capabilities === null) return
             setModel(id)
             // Changing the model can change the ladder under it (Devin's rungs
             // are that model's own variants). Carrying the *position* by name
@@ -2440,25 +2743,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     />
   )
 
-  /**
-   * Sign in, and then send the message that failed for want of an account.
-   *
-   * The resend is the point. Without it the repair ends one step short of what
-   * the user was doing: they came back from a browser, the app said
-   * "connected", and the question they asked is still sitting in a dead turn
-   * they now have to retype. It only ever re-sends the turn the banner is
-   * about, and only when the sign-in actually landed.
-   */
-  async function connectAndResend(): Promise<void> {
-    const pending = lastSentRef.current
-    const connected = await onClaudeConnect?.()
-    if (connected !== true || !pending) return
-    submitOrQueue({
-      text: pending.text,
-      ...(pending.contextFiles ? { contextFiles: pending.contextFiles } : {}),
-      ...(pending.attachmentNames ? { attachmentNames: pending.attachmentNames } : {}),
-      ...(pending.workflow ? { workflow: pending.workflow } : {})
-    })
+  /** Starts a sign-in from the banner. The resend is not this function's job — see `repairAccountTurn`. */
+  function connectAccount(): void {
+    if (connecting) return
+    setConnecting(true)
+    void Promise.resolve(onClaudeConnect?.()).finally(() => setConnecting(false))
   }
 
   /**
@@ -2479,41 +2768,38 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     const claude = claudeTurnError(message)
     if (claude) {
       return (
-        <Alert variant="danger" role="alert" className="wb-composer-error wb-composer-error-aws">
-          <span className="wb-composer-error-text">{claude.text}</span>
-          {claude.canConnect && onClaudeConnect && (
-            <button
-              type="button"
-              className="wb-composer-error-cta"
-              onClick={() => void connectAndResend()}
-            >
-              {t('claude.connectCta')}
-            </button>
-          )}
-        </Alert>
+        <TurnErrorNotice
+          text={claude.text}
+          icon={<PlugIcon size={16} />}
+          busy={signInRunning}
+          action={
+            claude.canConnect && onClaudeConnect
+              ? {
+                  label: t('claude.connectCta'),
+                  busyLabel: t('claude.connecting'),
+                  onClick: connectAccount
+                }
+              : null
+          }
+        />
       )
     }
     const aws = awsTurnError(message)
-    if (!aws) {
-      return (
-        <Alert variant="danger" role="alert" className="wb-composer-error">
-          {t('chat.errorMessage', message)}
-        </Alert>
-      )
-    }
+    if (!aws) return <TurnErrorNotice text={t('chat.errorMessage', message)} />
+    const awsRepair = onAwsReconnect ?? onOpenAwsPanel
     return (
-      <Alert variant="danger" role="alert" className="wb-composer-error wb-composer-error-aws">
-        <span className="wb-composer-error-text">{aws.text}</span>
-        {aws.canReconnect && (onAwsReconnect ?? onOpenAwsPanel) && (
-          <button
-            type="button"
-            className="wb-composer-error-cta"
-            onClick={onAwsReconnect ?? onOpenAwsPanel}
-          >
-            {onAwsReconnect ? t('aws.connectCta') : t('aws.openPanelCta')}
-          </button>
-        )}
-      </Alert>
+      <TurnErrorNotice
+        text={aws.text}
+        icon={<CloudKeyIcon size={16} />}
+        action={
+          aws.canReconnect && awsRepair
+            ? {
+                label: onAwsReconnect ? t('aws.connectCta') : t('aws.openPanelCta'),
+                onClick: awsRepair
+              }
+            : null
+        }
+      />
     )
   }
 

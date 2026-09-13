@@ -252,7 +252,7 @@ async (page) => {
     await page.waitForTimeout(150)
     await page.keyboard.press('Escape')
     await page.waitForTimeout(250)
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.getByRole('menuitemradio', { name: new RegExp(`^${menuLabel}`) }).click()
     await page.waitForTimeout(320)
     report[name] = await forTheme()

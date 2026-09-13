@@ -3289,7 +3289,7 @@ var CodeEditor = React2.forwardRef(
             "textarea",
             {
               ref: setNode,
-              className: "hds-editor-input",
+              className: "hds-editor-input hds-scrollbar",
               value,
               onChange: (event) => onChange(event.target.value),
               onScroll: (event) => {
@@ -11647,21 +11647,50 @@ function getState4(open) {
   return open ? "open" : "closed";
 }
 
+// src/hooks/useSurfaceDismissGuard.ts
+import { useCallback as useCallback15, useRef as useRef30 } from "react";
+function useSurfaceDismissGuard(forwarded) {
+  const node = useRef30(null);
+  const ref = useCallback15(
+    (element) => {
+      node.current = element;
+      if (typeof forwarded === "function") forwarded(element);
+      else if (forwarded) forwarded.current = element;
+    },
+    [forwarded]
+  );
+  const onPointerDownOutside = useCallback15((event) => {
+    if (isOnSurface(node.current, event.detail.originalEvent)) event.preventDefault();
+  }, []);
+  return { ref, onPointerDownOutside };
+}
+function isOnSurface(node, event) {
+  if (node === null) return false;
+  const rect = node.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+}
+
 // src/components/Dialog/Dialog.tsx
 import { jsx as jsx55, jsxs as jsxs32 } from "react/jsx-runtime";
 var Dialog2 = Dialog;
 var DialogTrigger2 = DialogTrigger;
 var DialogClose2 = DialogClose;
 var DialogContent2 = forwardRef30(
-  function DialogContent3({ className, cut = false, children, ...rest }, ref) {
+  function DialogContent3({ className, cut = false, children, onPointerDownOutside, ...rest }, ref) {
+    const guard = useSurfaceDismissGuard(ref);
     return /* @__PURE__ */ jsxs32(DialogPortal, { children: [
       /* @__PURE__ */ jsx55(DialogOverlay, { className: "hds-dialog-overlay" }),
       /* @__PURE__ */ jsx55(
         DialogContent,
         {
-          ref,
+          ref: guard.ref,
           "aria-modal": "true",
           className: cx("hds-dialog-content", cut && "cut-sm", className),
+          onPointerDownOutside: (event) => {
+            onPointerDownOutside?.(event);
+            guard.onPointerDownOutside(event);
+          },
           ...rest,
           children
         }
@@ -13848,7 +13877,7 @@ var DropdownMenuLabel2 = forwardRef39(
 DropdownMenuLabel2.displayName = "DropdownMenuLabel";
 
 // src/components/Toast/Toast.tsx
-import { createContext as createContext4, forwardRef as forwardRef41, useCallback as useCallback20, useContext as useContext4, useMemo as useMemo14, useState as useState28 } from "react";
+import { createContext as createContext4, forwardRef as forwardRef41, useCallback as useCallback21, useContext as useContext4, useMemo as useMemo14, useState as useState28 } from "react";
 
 // node_modules/@radix-ui/react-toast/dist/index.mjs
 import * as React51 from "react";
@@ -14528,10 +14557,10 @@ function ToastProvider2({
   viewport = true
 }) {
   const [toasts, setToasts] = useState28([]);
-  const dismiss = useCallback20((id) => {
+  const dismiss = useCallback21((id) => {
     setToasts((current) => current.filter((item) => item.id !== id));
   }, []);
-  const toast = useCallback20((options) => {
+  const toast = useCallback21((options) => {
     const id = nextToastId();
     setToasts((current) => [...current, { id, ...options }]);
     return id;
@@ -16139,16 +16168,21 @@ var Sheet = Dialog;
 var SheetTrigger = DialogTrigger;
 var SheetClose = DialogClose;
 var SheetContent = forwardRef52(
-  function SheetContent2({ className, side = "right", children, ...rest }, ref) {
+  function SheetContent2({ className, side = "right", children, onPointerDownOutside, ...rest }, ref) {
+    const guard = useSurfaceDismissGuard(ref);
     return /* @__PURE__ */ jsxs44(DialogPortal, { children: [
       /* @__PURE__ */ jsx78(DialogOverlay, { className: "hds-sheet-overlay" }),
       /* @__PURE__ */ jsx78(
         DialogContent,
         {
-          ref,
+          ref: guard.ref,
           "aria-modal": "true",
           "data-side": side,
           className: cx("hds-sheet-content", className),
+          onPointerDownOutside: (event) => {
+            onPointerDownOutside?.(event);
+            guard.onPointerDownOutside(event);
+          },
           ...rest,
           children
         }
@@ -16921,7 +16955,7 @@ var CommandSeparator = forwardRef56(
 CommandSeparator.displayName = "CommandSeparator";
 
 // src/components/OptionPicker/OptionPicker.tsx
-import { useEffect as useEffect37, useLayoutEffect as useLayoutEffect7, useMemo as useMemo17, useRef as useRef42, useState as useState33 } from "react";
+import { useEffect as useEffect37, useLayoutEffect as useLayoutEffect7, useMemo as useMemo17, useRef as useRef43, useState as useState33 } from "react";
 
 // src/hooks/useScrollLockEscape.ts
 import { useEffect as useEffect36 } from "react";
@@ -16972,7 +17006,7 @@ function OptionPicker({
   const isOpen = open ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const [query, setQuery] = useState33("");
-  const inputRef = useRef42(null);
+  const inputRef = useRef43(null);
   const [list, setList] = useState33(null);
   const [scroller, setScroller] = useState33(null);
   const [cursor, setCursor] = useState33("");
@@ -17066,7 +17100,7 @@ function OptionPicker({
                   )
                 ] }),
                 header && /* @__PURE__ */ jsx82("div", { className: "hds-picker-header", children: header }),
-                /* @__PURE__ */ jsx82("div", { className: "hds-picker-scroll", ref: setScroller, children: /* @__PURE__ */ jsxs48(_e.List, { ref: setList, className: "hds-picker-list", label: ariaLabel, children: [
+                /* @__PURE__ */ jsx82("div", { className: "hds-picker-scroll", ref: setScroller, children: /* @__PURE__ */ jsxs48(_e.List, { ref: setList, className: "hds-picker-list hds-scrollbar", label: ariaLabel, children: [
                   /* @__PURE__ */ jsx82(_e.Empty, { className: "hds-picker-empty", children: emptyLabel }),
                   ordered.map(({ group, items }) => /* @__PURE__ */ jsx82(
                     _e.Group,
@@ -17262,7 +17296,7 @@ function Breadcrumb({ items, maxItems, className, ...rest }) {
 }
 
 // src/components/Tree/Tree.tsx
-import { useCallback as useCallback25, useMemo as useMemo18, useRef as useRef43, useState as useState34 } from "react";
+import { useCallback as useCallback26, useMemo as useMemo18, useRef as useRef44, useState as useState34 } from "react";
 import { Fragment as Fragment16, jsx as jsx84, jsxs as jsxs50 } from "react/jsx-runtime";
 function hasChildrenOf(node) {
   return Boolean(node.children && node.children.length > 0);
@@ -17326,34 +17360,34 @@ function Tree({
   const flat = useMemo18(() => flattenVisible(nodes, expandedSet), [nodes, expandedSet]);
   const enabledFlat = useMemo18(() => flat.filter((item) => !item.node.disabled), [flat]);
   const [activeId, setActiveId] = useState34(() => enabledFlat[0]?.node.id ?? null);
-  const activeIdRef = useRef43(activeId);
+  const activeIdRef = useRef44(activeId);
   activeIdRef.current = activeId;
-  const anchorIdRef = useRef43(null);
-  const itemRefs = useRef43(/* @__PURE__ */ new Map());
-  const typeAheadRef = useRef43({
+  const anchorIdRef = useRef44(null);
+  const itemRefs = useRef44(/* @__PURE__ */ new Map());
+  const typeAheadRef = useRef44({
     text: "",
     timeout: null
   });
-  const focusItem = useCallback25((id) => {
+  const focusItem = useCallback26((id) => {
     if (!id) return;
     setActiveId(id);
     itemRefs.current.get(id)?.focus();
   }, []);
-  const expand = useCallback25(
+  const expand = useCallback26(
     (id) => {
       if (expandedSet.has(id)) return;
       setExpandedIds([...expandedIds, id]);
     },
     [expandedSet, expandedIds, setExpandedIds]
   );
-  const collapse = useCallback25(
+  const collapse = useCallback26(
     (id) => {
       if (!expandedSet.has(id)) return;
       setExpandedIds(expandedIds.filter((existing) => existing !== id));
     },
     [expandedSet, expandedIds, setExpandedIds]
   );
-  const activate = useCallback25(
+  const activate = useCallback26(
     (id, mods = { toggle: false, range: false }) => {
       if (selection === "multiple") {
         const anchor = anchorIdRef.current;
@@ -17381,7 +17415,7 @@ function Tree({
     },
     [selection, selectedSet, selectedIds, setSelectedIds, enabledFlat]
   );
-  const moveFocus = useCallback25(
+  const moveFocus = useCallback26(
     (toId, fromId, extend) => {
       focusItem(toId);
       if (!extend || selection !== "multiple") return;
@@ -17390,7 +17424,7 @@ function Tree({
     },
     [focusItem, selection, activate]
   );
-  const handleKeyDown = useCallback25(
+  const handleKeyDown = useCallback26(
     (event) => {
       const currentId = activeIdRef.current;
       if (!currentId) return;
@@ -17961,9 +17995,141 @@ var Gauge = React63.forwardRef(function Gauge2({ value, label, children, caption
 });
 Gauge.displayName = "Gauge";
 
-// src/components/StepFlow/StepFlow.tsx
+// src/components/RingMeter/RingMeter.tsx
 import * as React64 from "react";
 import { jsx as jsx90, jsxs as jsxs53 } from "react/jsx-runtime";
+var RAMP = [100, 66, 42, 26];
+function clamp01(value) {
+  return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+function autoTone2(filled, [warning, danger]) {
+  if (filled >= danger) return "danger";
+  if (filled >= warning) return "warning";
+  return "accent";
+}
+function ringArcs(segments, circumference, gap) {
+  const arcs = [];
+  let cursor = 0;
+  let remaining = 1;
+  for (const segment of segments) {
+    const share = Math.min(clamp01(segment.value), remaining);
+    if (share <= 0) continue;
+    remaining -= share;
+    const full = share * circumference;
+    arcs.push({
+      id: segment.id,
+      offset: cursor,
+      length: full > gap * 2 ? full - gap : full,
+      ...segment.color === void 0 ? {} : { color: segment.color }
+    });
+    cursor += full;
+  }
+  return arcs;
+}
+function arcPaint(arc, index2, single) {
+  if (arc.color !== void 0) return { style: { stroke: arc.color } };
+  if (single) return {};
+  const weight = RAMP[Math.min(index2, RAMP.length - 1)];
+  return { style: { stroke: `color-mix(in oklab, var(--hds-ring-fill) ${weight}%, var(--surface-3))` } };
+}
+var RingMeter = React64.forwardRef(function RingMeter2({
+  value = 0,
+  segments,
+  label,
+  size: size4 = 44,
+  thickness,
+  tone = "auto",
+  thresholds = [0.75, 0.9],
+  children,
+  caption,
+  valueText,
+  indeterminate = false,
+  className,
+  ...rest
+}, ref) {
+  const runs = segments ?? [{ id: "value", value }];
+  const filled = indeterminate ? 0 : clamp01(runs.reduce((sum, run) => sum + clamp01(run.value), 0));
+  const resolved = tone === "auto" ? autoTone2(filled, thresholds) : tone;
+  const stroke = thickness ?? Math.max(2, Math.round(size4 * 0.16 * 10) / 10);
+  const radius = (size4 - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const gap = Math.min(stroke, circumference / 10);
+  const arcs = indeterminate ? [] : ringArcs(runs, circumference, runs.length > 1 ? gap : 0);
+  const single = arcs.length === 1;
+  return /* @__PURE__ */ jsxs53(
+    "div",
+    {
+      ref,
+      className: cx("hds-ring-meter", className),
+      "data-tone": resolved,
+      "data-indeterminate": indeterminate || void 0,
+      style: { width: size4, height: size4 },
+      role: "meter",
+      "aria-label": label,
+      "aria-valuemin": 0,
+      "aria-valuemax": 100,
+      "aria-valuenow": Math.round(filled * 100),
+      ...valueText ? { "aria-valuetext": valueText } : {},
+      ...rest,
+      children: [
+        /* @__PURE__ */ jsxs53("svg", { className: "hds-ring-meter-svg", viewBox: `0 0 ${size4} ${size4}`, "aria-hidden": "true", children: [
+          /* @__PURE__ */ jsx90(
+            "circle",
+            {
+              className: "hds-ring-meter-track",
+              cx: size4 / 2,
+              cy: size4 / 2,
+              r: radius,
+              fill: "none",
+              strokeWidth: stroke
+            }
+          ),
+          arcs.map((arc, index2) => /* @__PURE__ */ jsx90(
+            "circle",
+            {
+              className: "hds-ring-meter-arc",
+              "data-seg": arc.id,
+              cx: size4 / 2,
+              cy: size4 / 2,
+              r: radius,
+              fill: "none",
+              strokeWidth: stroke,
+              strokeLinecap: single ? "round" : "butt",
+              strokeDasharray: `${arc.length} ${circumference - arc.length}`,
+              strokeDashoffset: -arc.offset,
+              ...arcPaint(arc, index2, single)
+            },
+            arc.id
+          ))
+        ] }),
+        children !== void 0 && children !== null || caption !== void 0 && caption !== null ? (
+          // The face scales with the ring instead of taking a fixed step: the
+          // same component draws a 92px dial in a panel and a 132px one in a
+          // sheet, and type that doesn't follow makes the larger one look empty.
+          /* @__PURE__ */ jsxs53(
+            "div",
+            {
+              className: "hds-ring-meter-face",
+              style: {
+                "--hds-ring-value-size": `${Math.max(12, Math.round(size4 * 0.21))}px`,
+                "--hds-ring-caption-size": `${Math.max(9, Math.round(size4 * 0.105))}px`
+              },
+              children: [
+                children !== void 0 && children !== null && /* @__PURE__ */ jsx90("span", { className: "hds-ring-meter-value", children }),
+                caption !== void 0 && caption !== null && /* @__PURE__ */ jsx90("span", { className: "hds-ring-meter-caption", children: caption })
+              ]
+            }
+          )
+        ) : null
+      ]
+    }
+  );
+});
+RingMeter.displayName = "RingMeter";
+
+// src/components/StepFlow/StepFlow.tsx
+import * as React65 from "react";
+import { jsx as jsx91, jsxs as jsxs54 } from "react/jsx-runtime";
 var DEFAULT_STATUS_LABELS = {
   pending: "pendente",
   active: "em andamento",
@@ -17972,7 +18138,7 @@ var DEFAULT_STATUS_LABELS = {
 };
 function StepMark({ status }) {
   if (status === "done") {
-    return /* @__PURE__ */ jsx90("svg", { viewBox: "0 0 12 12", className: "hds-stepflow-glyph", "aria-hidden": "true", children: /* @__PURE__ */ jsx90(
+    return /* @__PURE__ */ jsx91("svg", { viewBox: "0 0 12 12", className: "hds-stepflow-glyph", "aria-hidden": "true", children: /* @__PURE__ */ jsx91(
       "path",
       {
         d: "M2.5 6.2 4.9 8.6 9.5 3.6",
@@ -17985,7 +18151,7 @@ function StepMark({ status }) {
     ) });
   }
   if (status === "failed") {
-    return /* @__PURE__ */ jsx90("svg", { viewBox: "0 0 12 12", className: "hds-stepflow-glyph", "aria-hidden": "true", children: /* @__PURE__ */ jsx90(
+    return /* @__PURE__ */ jsx91("svg", { viewBox: "0 0 12 12", className: "hds-stepflow-glyph", "aria-hidden": "true", children: /* @__PURE__ */ jsx91(
       "path",
       {
         d: "M3.6 3.6 8.4 8.4M8.4 3.6 3.6 8.4",
@@ -17998,9 +18164,9 @@ function StepMark({ status }) {
   }
   return null;
 }
-var StepFlow = React64.forwardRef(function StepFlow2({ steps, label, orientation = "vertical", statusLabels, className, ...rest }, ref) {
+var StepFlow = React65.forwardRef(function StepFlow2({ steps, label, orientation = "vertical", statusLabels, className, ...rest }, ref) {
   const words = { ...DEFAULT_STATUS_LABELS, ...statusLabels };
-  return /* @__PURE__ */ jsx90(
+  return /* @__PURE__ */ jsx91(
     "ol",
     {
       ref,
@@ -18010,7 +18176,7 @@ var StepFlow = React64.forwardRef(function StepFlow2({ steps, label, orientation
       ...rest,
       children: steps.map((step, index2) => {
         const previous = steps[index2 - 1];
-        return /* @__PURE__ */ jsxs53(
+        return /* @__PURE__ */ jsxs54(
           "li",
           {
             className: "hds-stepflow-step",
@@ -18018,13 +18184,13 @@ var StepFlow = React64.forwardRef(function StepFlow2({ steps, label, orientation
             "data-lit": previous?.status === "done" || void 0,
             ...step.status === "active" ? { "aria-current": "step" } : {},
             children: [
-              /* @__PURE__ */ jsx90("span", { className: "hds-stepflow-rail", "aria-hidden": "true", children: /* @__PURE__ */ jsx90("span", { className: "hds-stepflow-node", children: /* @__PURE__ */ jsx90(StepMark, { status: step.status }) }) }),
-              /* @__PURE__ */ jsxs53("span", { className: "hds-stepflow-body", children: [
-                /* @__PURE__ */ jsxs53("span", { className: "hds-stepflow-label", children: [
+              /* @__PURE__ */ jsx91("span", { className: "hds-stepflow-rail", "aria-hidden": "true", children: /* @__PURE__ */ jsx91("span", { className: "hds-stepflow-node", children: /* @__PURE__ */ jsx91(StepMark, { status: step.status }) }) }),
+              /* @__PURE__ */ jsxs54("span", { className: "hds-stepflow-body", children: [
+                /* @__PURE__ */ jsxs54("span", { className: "hds-stepflow-label", children: [
                   step.label,
-                  /* @__PURE__ */ jsx90("span", { className: "hds-stepflow-status", children: `, ${words[step.status]}` })
+                  /* @__PURE__ */ jsx91("span", { className: "hds-stepflow-status", children: `, ${words[step.status]}` })
                 ] }),
-                step.hint !== void 0 && step.hint !== null && /* @__PURE__ */ jsx90("span", { className: "hds-stepflow-hint", children: step.hint })
+                step.hint !== void 0 && step.hint !== null && /* @__PURE__ */ jsx91("span", { className: "hds-stepflow-hint", children: step.hint })
               ] })
             ]
           },
@@ -18036,9 +18202,126 @@ var StepFlow = React64.forwardRef(function StepFlow2({ steps, label, orientation
 });
 StepFlow.displayName = "StepFlow";
 
+// src/components/StageTracker/StageTracker.tsx
+import * as React66 from "react";
+import { jsx as jsx92, jsxs as jsxs55 } from "react/jsx-runtime";
+var DEFAULT_STATUS_LABELS2 = {
+  done: "conclu\xEDda",
+  active: "pr\xF3xima",
+  pending: "pendente"
+};
+function StageMark({
+  status,
+  ordinal
+}) {
+  if (status === "done") {
+    return /* @__PURE__ */ jsx92("svg", { viewBox: "0 0 12 12", className: "hds-stage-glyph", "aria-hidden": "true", children: /* @__PURE__ */ jsx92(
+      "path",
+      {
+        d: "M2.5 6.2 4.9 8.6 9.5 3.6",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "1.9",
+        strokeLinecap: "round",
+        strokeLinejoin: "round"
+      }
+    ) });
+  }
+  return /* @__PURE__ */ jsx92("span", { className: "hds-stage-ordinal", children: ordinal });
+}
+var StageTracker = React66.forwardRef(
+  function StageTracker2({ stages, groups, label, onSelect, actionLabels, statusLabels, className, ...rest }, ref) {
+    const words = { ...DEFAULT_STATUS_LABELS2, ...statusLabels };
+    const ordinals = new Map(stages.map((stage, index2) => [stage.id, index2 + 1]));
+    function renderRows(rows) {
+      return rows.map((stage, index2) => {
+        const previous = rows[index2 - 1];
+        const interactive = onSelect !== void 0 && stage.disabled !== true;
+        const verb = actionLabels?.[stage.status];
+        const named = verb !== void 0 && typeof stage.label === "string";
+        const name = named ? typeof stage.badge === "string" ? `${verb(stage.label)}, ${stage.badge}` : verb(stage.label) : void 0;
+        return /* @__PURE__ */ jsxs55(
+          "li",
+          {
+            className: "hds-stage",
+            "data-status": stage.status,
+            "data-lit": previous?.status === "done" || void 0,
+            ...stage.status === "active" ? { "aria-current": "step" } : {},
+            children: [
+              /* @__PURE__ */ jsxs55(
+                RowTag,
+                {
+                  interactive,
+                  onSelect: onSelect === void 0 ? void 0 : () => onSelect(stage.id),
+                  name,
+                  children: [
+                    /* @__PURE__ */ jsx92("span", { className: "hds-stage-rail", "aria-hidden": "true", children: /* @__PURE__ */ jsx92("span", { className: "hds-stage-node", children: /* @__PURE__ */ jsx92(StageMark, { status: stage.status, ordinal: ordinals.get(stage.id) ?? index2 + 1 }) }) }),
+                    /* @__PURE__ */ jsxs55("span", { className: "hds-stage-body", children: [
+                      /* @__PURE__ */ jsxs55("span", { className: "hds-stage-label", children: [
+                        /* @__PURE__ */ jsx92("span", { className: "hds-stage-name", children: stage.label }),
+                        stage.badge !== void 0 && stage.badge !== null && /* @__PURE__ */ jsx92("span", { className: "hds-stage-badge", children: stage.badge }),
+                        /* @__PURE__ */ jsx92("span", { className: "hds-stage-status", children: `, ${words[stage.status]}` })
+                      ] }),
+                      stage.hint !== void 0 && stage.hint !== null && /* @__PURE__ */ jsx92("span", { className: "hds-stage-hint", children: stage.hint })
+                    ] }),
+                    stage.cue !== void 0 && stage.cue !== null && /* @__PURE__ */ jsx92("span", { className: "hds-stage-cue", "aria-hidden": "true", children: stage.cue })
+                  ]
+                }
+              ),
+              stage.trailing !== void 0 && stage.trailing !== null && /* @__PURE__ */ jsx92("span", { className: "hds-stage-trailing", children: stage.trailing })
+            ]
+          },
+          stage.id
+        );
+      });
+    }
+    if (groups === void 0 || groups.length === 0) {
+      return /* @__PURE__ */ jsx92(
+        "ol",
+        {
+          ref,
+          className: cx("hds-stages", className),
+          "aria-label": label,
+          ...rest,
+          children: renderRows(stages)
+        }
+      );
+    }
+    return /* @__PURE__ */ jsx92(
+      "div",
+      {
+        ref,
+        role: "group",
+        "aria-label": label,
+        className: cx("hds-stages-grouped", className),
+        ...rest,
+        children: groups.map((group) => /* @__PURE__ */ jsxs55("section", { className: "hds-stage-group", children: [
+          /* @__PURE__ */ jsxs55("p", { className: "hds-stage-group-head", id: `hds-stage-group-${group.id}`, children: [
+            /* @__PURE__ */ jsx92("span", { className: "hds-stage-group-label", children: group.label }),
+            group.meta !== void 0 && group.meta !== null && /* @__PURE__ */ jsx92("span", { className: "hds-stage-group-meta", children: group.meta })
+          ] }),
+          /* @__PURE__ */ jsx92("ol", { className: "hds-stages", "aria-labelledby": `hds-stage-group-${group.id}`, children: renderRows(stages.filter((stage) => stage.group === group.id)) })
+        ] }, group.id))
+      }
+    );
+  }
+);
+StageTracker.displayName = "StageTracker";
+function RowTag({
+  interactive,
+  onSelect,
+  name,
+  children
+}) {
+  if (!interactive) {
+    return /* @__PURE__ */ jsx92("span", { className: "hds-stage-row", children });
+  }
+  return /* @__PURE__ */ jsx92("button", { type: "button", className: "hds-stage-row", "aria-label": name, onClick: onSelect, children });
+}
+
 // src/components/PasteField/PasteField.tsx
-import { useEffect as useEffect39, useId as useId4, useRef as useRef45, useState as useState36 } from "react";
-import { jsx as jsx91, jsxs as jsxs54 } from "react/jsx-runtime";
+import { useEffect as useEffect39, useId as useId4, useRef as useRef46, useState as useState36 } from "react";
+import { jsx as jsx93, jsxs as jsxs56 } from "react/jsx-runtime";
 function PasteField({
   label,
   description,
@@ -18056,7 +18339,7 @@ function PasteField({
   className
 }) {
   const id = useId4();
-  const inputRef = useRef45(null);
+  const inputRef = useRef46(null);
   const [pasting, setPasting] = useState36(false);
   const invalid = error != null && error !== false;
   useEffect39(() => {
@@ -18080,11 +18363,11 @@ function PasteField({
       setPasting(false);
     }
   }
-  return /* @__PURE__ */ jsxs54("div", { className: cx("hds-paste", invalid && "hds-paste-invalid", className), children: [
-    /* @__PURE__ */ jsx91("label", { className: "hds-paste-label", htmlFor: id, children: label }),
-    description != null && /* @__PURE__ */ jsx91("p", { className: "hds-paste-desc", id: `${id}-desc`, children: description }),
-    /* @__PURE__ */ jsxs54("div", { className: "hds-paste-row", children: [
-      /* @__PURE__ */ jsx91(
+  return /* @__PURE__ */ jsxs56("div", { className: cx("hds-paste", invalid && "hds-paste-invalid", className), children: [
+    /* @__PURE__ */ jsx93("label", { className: "hds-paste-label", htmlFor: id, children: label }),
+    description != null && /* @__PURE__ */ jsx93("p", { className: "hds-paste-desc", id: `${id}-desc`, children: description }),
+    /* @__PURE__ */ jsxs56("div", { className: "hds-paste-row", children: [
+      /* @__PURE__ */ jsx93(
         "input",
         {
           ref: inputRef,
@@ -18106,7 +18389,7 @@ function PasteField({
           }
         }
       ),
-      onPaste && /* @__PURE__ */ jsx91(
+      onPaste && /* @__PURE__ */ jsx93(
         "button",
         {
           type: "button",
@@ -18116,7 +18399,7 @@ function PasteField({
           children: pasteLabel
         }
       ),
-      onSubmit && /* @__PURE__ */ jsx91(
+      onSubmit && /* @__PURE__ */ jsx93(
         "button",
         {
           type: "button",
@@ -18127,16 +18410,16 @@ function PasteField({
         }
       )
     ] }),
-    invalid && /* @__PURE__ */ jsx91("p", { className: "hds-paste-error", id: `${id}-error`, role: "alert", children: error })
+    invalid && /* @__PURE__ */ jsx93("p", { className: "hds-paste-error", id: `${id}-error`, role: "alert", children: error })
   ] });
 }
 
 // src/components/LevelMeter/LevelMeter.tsx
-import * as React65 from "react";
-import { jsx as jsx92 } from "react/jsx-runtime";
+import * as React67 from "react";
+import { jsx as jsx94 } from "react/jsx-runtime";
 var DEFAULT_BARS = 20;
 var DEFAULT_SILENCE_THRESHOLD = 0.02;
-var LevelMeter = React65.forwardRef(function LevelMeter2({
+var LevelMeter = React67.forwardRef(function LevelMeter2({
   levels,
   bars = DEFAULT_BARS,
   label,
@@ -18148,7 +18431,7 @@ var LevelMeter = React65.forwardRef(function LevelMeter2({
   const padded = [...new Array(Math.max(0, bars - recent.length)).fill(0), ...recent];
   const current = padded[padded.length - 1] ?? 0;
   const silent = padded.every((level) => level <= silenceThreshold);
-  return /* @__PURE__ */ jsx92(
+  return /* @__PURE__ */ jsx94(
     "div",
     {
       ref,
@@ -18160,7 +18443,7 @@ var LevelMeter = React65.forwardRef(function LevelMeter2({
       "aria-valuemax": 1,
       "aria-valuenow": Number(current.toFixed(2)),
       ...rest,
-      children: padded.map((level, index2) => /* @__PURE__ */ jsx92(
+      children: padded.map((level, index2) => /* @__PURE__ */ jsx94(
         "span",
         {
           className: "hds-level-meter-bar",
@@ -18174,38 +18457,38 @@ var LevelMeter = React65.forwardRef(function LevelMeter2({
 LevelMeter.displayName = "LevelMeter";
 
 // src/components/Alert/Alert.tsx
-import { forwardRef as forwardRef64 } from "react";
-import { jsx as jsx93, jsxs as jsxs55 } from "react/jsx-runtime";
-var Alert = forwardRef64(function Alert2({ variant = "info", icon, title, className, children, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs55("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx93("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsxs55("div", { className: "hds-alert-body", children: [
-      title && /* @__PURE__ */ jsx93("div", { className: "hds-alert-title", children: title }),
-      children && /* @__PURE__ */ jsx93("div", { className: "hds-alert-description", children })
+import { forwardRef as forwardRef66 } from "react";
+import { jsx as jsx95, jsxs as jsxs57 } from "react/jsx-runtime";
+var Alert = forwardRef66(function Alert2({ variant = "info", icon, title, className, children, ...rest }, ref) {
+  return /* @__PURE__ */ jsxs57("div", { ref, className: cx("hds-alert", `hds-alert-${variant}`, className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx95("span", { className: "hds-alert-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsxs57("div", { className: "hds-alert-body", children: [
+      title && /* @__PURE__ */ jsx95("div", { className: "hds-alert-title", children: title }),
+      children && /* @__PURE__ */ jsx95("div", { className: "hds-alert-description", children })
     ] })
   ] });
 });
 Alert.displayName = "Alert";
 
 // src/components/Empty/Empty.tsx
-import { jsx as jsx94, jsxs as jsxs56 } from "react/jsx-runtime";
+import { jsx as jsx96, jsxs as jsxs58 } from "react/jsx-runtime";
 function Empty({ icon, title, description, action, className, ...rest }) {
-  return /* @__PURE__ */ jsxs56("div", { className: cx("hds-empty", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx94("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
-    /* @__PURE__ */ jsx94("div", { className: "hds-empty-title", children: title }),
-    description && /* @__PURE__ */ jsx94("div", { className: "hds-empty-description", children: description }),
-    action && /* @__PURE__ */ jsx94("div", { className: "hds-empty-action", children: action })
+  return /* @__PURE__ */ jsxs58("div", { className: cx("hds-empty", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx96("div", { className: "hds-empty-icon", "aria-hidden": "true", children: icon }),
+    /* @__PURE__ */ jsx96("div", { className: "hds-empty-title", children: title }),
+    description && /* @__PURE__ */ jsx96("div", { className: "hds-empty-description", children: description }),
+    action && /* @__PURE__ */ jsx96("div", { className: "hds-empty-action", children: action })
   ] });
 }
 
 // src/components/Kbd/Kbd.tsx
-import { jsx as jsx95 } from "react/jsx-runtime";
+import { jsx as jsx97 } from "react/jsx-runtime";
 function Kbd({ className, children, ...rest }) {
-  return /* @__PURE__ */ jsx95("kbd", { className: cx("hds-kbd", className), ...rest, children });
+  return /* @__PURE__ */ jsx97("kbd", { className: cx("hds-kbd", className), ...rest, children });
 }
 
 // src/components/Resizable/Resizable.tsx
-import { forwardRef as forwardRef65 } from "react";
+import { forwardRef as forwardRef67 } from "react";
 
 // node_modules/react-resizable-panels/dist/react-resizable-panels.js
 import { jsx as ae } from "react/jsx-runtime";
@@ -20309,27 +20592,27 @@ function Qt({
 Qt.displayName = "Separator";
 
 // src/components/Resizable/Resizable.tsx
-import { jsx as jsx96, jsxs as jsxs57 } from "react/jsx-runtime";
-var Resizable = forwardRef65(function Resizable2({ className, orientation = "horizontal", ...rest }, ref) {
-  return /* @__PURE__ */ jsx96(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
+import { jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
+var Resizable = forwardRef67(function Resizable2({ className, orientation = "horizontal", ...rest }, ref) {
+  return /* @__PURE__ */ jsx98(Wt, { elementRef: ref, orientation, className: cx("hds-resizable", className), ...rest });
 });
 Resizable.displayName = "Resizable";
-var ResizablePanel = forwardRef65(function ResizablePanel2({ className, ...rest }, ref) {
-  return /* @__PURE__ */ jsx96(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
+var ResizablePanel = forwardRef67(function ResizablePanel2({ className, ...rest }, ref) {
+  return /* @__PURE__ */ jsx98(Yt, { elementRef: ref, className: cx("hds-resizable-panel", className), ...rest });
 });
 ResizablePanel.displayName = "ResizablePanel";
-var ResizableHandle = forwardRef65(function ResizableHandle2({ className, withGrip = false, ...rest }, ref) {
-  return /* @__PURE__ */ jsx96(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs57("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsx96("span", {}),
-    /* @__PURE__ */ jsx96("span", {}),
-    /* @__PURE__ */ jsx96("span", {})
+var ResizableHandle = forwardRef67(function ResizableHandle2({ className, withGrip = false, ...rest }, ref) {
+  return /* @__PURE__ */ jsx98(Qt, { elementRef: ref, className: cx("hds-resizable-handle", className), ...rest, children: withGrip && /* @__PURE__ */ jsxs59("span", { className: "hds-resizable-handle-grip", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx98("span", {}),
+    /* @__PURE__ */ jsx98("span", {}),
+    /* @__PURE__ */ jsx98("span", {})
   ] }) });
 });
 ResizableHandle.displayName = "ResizableHandle";
 
 // src/components/SegmentedControl/SegmentedControl.tsx
-import { useCallback as useCallback26, useEffect as useEffect40, useLayoutEffect as useLayoutEffect8, useRef as useRef46, useState as useState37 } from "react";
-import { jsx as jsx97, jsxs as jsxs58 } from "react/jsx-runtime";
+import { useCallback as useCallback27, useEffect as useEffect40, useLayoutEffect as useLayoutEffect8, useRef as useRef47, useState as useState37 } from "react";
+import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
 function SegmentedControl({
   options,
   value,
@@ -20338,9 +20621,9 @@ function SegmentedControl({
   size: size4 = "sm",
   className
 }) {
-  const trackRef = useRef46(null);
+  const trackRef = useRef47(null);
   const [thumb, setThumb] = useState37(null);
-  const measure = useCallback26(() => {
+  const measure = useCallback27(() => {
     const track = trackRef.current;
     if (!track) return;
     const active = track.querySelector('[data-active="true"]');
@@ -20378,7 +20661,7 @@ function SegmentedControl({
     event.preventDefault();
     onChange(target.id);
   };
-  return /* @__PURE__ */ jsxs58(
+  return /* @__PURE__ */ jsxs60(
     "div",
     {
       ref: trackRef,
@@ -20387,7 +20670,7 @@ function SegmentedControl({
       className: cx("hds-seg", `hds-seg-${size4}`, className),
       onKeyDown: handleKeyDown,
       children: [
-        thumb && /* @__PURE__ */ jsx97(
+        thumb && /* @__PURE__ */ jsx99(
           "span",
           {
             className: "hds-seg-thumb",
@@ -20397,7 +20680,7 @@ function SegmentedControl({
         ),
         options.map((option) => {
           const active = option.id === value;
-          return /* @__PURE__ */ jsxs58(
+          return /* @__PURE__ */ jsxs60(
             "button",
             {
               type: "button",
@@ -20409,8 +20692,8 @@ function SegmentedControl({
               className: "hds-seg-item",
               onClick: () => onChange(option.id),
               children: [
-                /* @__PURE__ */ jsx97("span", { className: "hds-seg-label", children: option.label }),
-                option.count !== void 0 && /* @__PURE__ */ jsx97("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
+                /* @__PURE__ */ jsx99("span", { className: "hds-seg-label", children: option.label }),
+                option.count !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-seg-count", "data-tone": option.tone ?? "neutral", children: option.count })
               ]
             },
             option.id
@@ -20421,9 +20704,70 @@ function SegmentedControl({
   );
 }
 
+// src/components/SelectionBar/SelectionBar.tsx
+import { Fragment as Fragment17, jsx as jsx100, jsxs as jsxs61 } from "react/jsx-runtime";
+function SelectionBar({
+  count: count3,
+  total,
+  label,
+  ariaLabel,
+  selectAllLabel,
+  onSelectAllChange,
+  onDismiss,
+  dismissLabel,
+  actions,
+  prompt,
+  className
+}) {
+  const all = total > 0 && count3 >= total;
+  const asking = prompt !== void 0 && prompt !== null;
+  return /* @__PURE__ */ jsxs61(
+    "div",
+    {
+      className: cx("hds-selbar", className),
+      "data-asking": asking || void 0,
+      role: "group",
+      "aria-label": ariaLabel ?? label,
+      children: [
+        asking ? /* @__PURE__ */ jsx100("span", { className: "hds-selbar-prompt", children: prompt }) : /* @__PURE__ */ jsxs61(Fragment17, { children: [
+          /* @__PURE__ */ jsx100(
+            Checkbox2,
+            {
+              className: "hds-selbar-all",
+              checked: all ? true : count3 > 0 ? "indeterminate" : false,
+              "aria-label": selectAllLabel,
+              onCheckedChange: (next) => onSelectAllChange(next === true)
+            }
+          ),
+          /* @__PURE__ */ jsx100("span", { className: "hds-selbar-count", "aria-live": "polite", children: label })
+        ] }),
+        actions !== void 0 && actions !== null && /* @__PURE__ */ jsx100("div", { className: "hds-selbar-actions", children: actions }),
+        !asking && /* @__PURE__ */ jsx100(
+          "button",
+          {
+            type: "button",
+            className: "hds-selbar-dismiss",
+            "aria-label": dismissLabel,
+            onClick: onDismiss,
+            children: /* @__PURE__ */ jsx100("svg", { viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", width: "13", height: "13", children: /* @__PURE__ */ jsx100(
+              "path",
+              {
+                d: "M4 4l8 8M12 4l-8 8",
+                stroke: "currentColor",
+                strokeWidth: "1.6",
+                strokeLinecap: "round"
+              }
+            ) })
+          }
+        )
+      ]
+    }
+  );
+}
+
 // src/components/RampSelect/RampSelect.tsx
 import { useId as useId5, useState as useState38 } from "react";
-import { Fragment as Fragment17, jsx as jsx98, jsxs as jsxs59 } from "react/jsx-runtime";
+import { Fragment as Fragment18, jsx as jsx101, jsxs as jsxs62 } from "react/jsx-runtime";
 function RampSelect({
   steps,
   value,
@@ -20460,8 +20804,8 @@ function RampSelect({
     event.preventDefault();
     onChange(target.id);
   };
-  return /* @__PURE__ */ jsxs59("div", { className: cx("hds-ramp", `hds-ramp-${size4}`, className), children: [
-    /* @__PURE__ */ jsxs59(
+  return /* @__PURE__ */ jsxs62("div", { className: cx("hds-ramp", `hds-ramp-${size4}`, className), children: [
+    /* @__PURE__ */ jsxs62(
       "div",
       {
         role: "radiogroup",
@@ -20472,20 +20816,20 @@ function RampSelect({
         onKeyDown: handleKeyDown,
         onPointerLeave: () => setPreview(-1),
         children: [
-          autoStep && /* @__PURE__ */ jsxs59(Fragment17, { children: [
-            /* @__PURE__ */ jsx98(
+          autoStep && /* @__PURE__ */ jsxs62(Fragment18, { children: [
+            /* @__PURE__ */ jsx101(
               Rung,
               {
                 step: autoStep,
                 checked: value === autoStep.id,
                 onSelect: () => onChange(autoStep.id),
                 onPreview: () => setPreview(-1),
-                glyph: /* @__PURE__ */ jsx98(AutoGlyph, {})
+                glyph: /* @__PURE__ */ jsx101(AutoGlyph, {})
               }
             ),
-            /* @__PURE__ */ jsx98("span", { className: "hds-ramp-divider", "aria-hidden": "true" })
+            /* @__PURE__ */ jsx101("span", { className: "hds-ramp-divider", "aria-hidden": "true" })
           ] }),
-          steps.map((step, index2) => /* @__PURE__ */ jsx98(
+          steps.map((step, index2) => /* @__PURE__ */ jsx101(
             Rung,
             {
               step,
@@ -20494,7 +20838,7 @@ function RampSelect({
               preview: preview > level && index2 <= preview && index2 > level,
               onSelect: () => onChange(step.id),
               onPreview: () => setPreview(step.disabled ? -1 : index2),
-              glyph: /* @__PURE__ */ jsx98(
+              glyph: /* @__PURE__ */ jsx101(
                 "span",
                 {
                   className: "hds-ramp-bar",
@@ -20510,7 +20854,7 @@ function RampSelect({
         ]
       }
     ),
-    showDescription && /* @__PURE__ */ jsx98("p", { className: "hds-ramp-description", id: descriptionId, children: description ?? descriptionFallback ?? "" })
+    showDescription && /* @__PURE__ */ jsx101("p", { className: "hds-ramp-description", id: descriptionId, children: description ?? descriptionFallback ?? "" })
   ] });
 }
 function Rung({
@@ -20522,7 +20866,7 @@ function Rung({
   onPreview,
   glyph
 }) {
-  return /* @__PURE__ */ jsxs59(
+  return /* @__PURE__ */ jsxs62(
     "button",
     {
       type: "button",
@@ -20537,14 +20881,14 @@ function Rung({
       onClick: onSelect,
       onPointerEnter: onPreview,
       children: [
-        /* @__PURE__ */ jsx98("span", { className: "hds-ramp-slot", children: glyph }),
-        /* @__PURE__ */ jsx98("span", { className: "hds-ramp-label", children: step.label })
+        /* @__PURE__ */ jsx101("span", { className: "hds-ramp-slot", children: glyph }),
+        /* @__PURE__ */ jsx101("span", { className: "hds-ramp-label", children: step.label })
       ]
     }
   );
 }
 function AutoGlyph() {
-  return /* @__PURE__ */ jsxs59(
+  return /* @__PURE__ */ jsxs62(
     "svg",
     {
       className: "hds-ramp-auto-glyph",
@@ -20554,16 +20898,16 @@ function AutoGlyph() {
       fill: "none",
       "aria-hidden": "true",
       children: [
-        /* @__PURE__ */ jsx98("path", { d: "M1.5 7h11", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", opacity: "0.5" }),
-        /* @__PURE__ */ jsx98("circle", { cx: "7", cy: "7", r: "2.6", fill: "currentColor" })
+        /* @__PURE__ */ jsx101("path", { d: "M1.5 7h11", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", opacity: "0.5" }),
+        /* @__PURE__ */ jsx101("circle", { cx: "7", cy: "7", r: "2.6", fill: "currentColor" })
       ]
     }
   );
 }
 
 // src/components/OutputBlock/OutputBlock.tsx
-import { useId as useId6, useRef as useRef47, useState as useState39 } from "react";
-import { jsx as jsx99, jsxs as jsxs60 } from "react/jsx-runtime";
+import { useId as useId6, useRef as useRef48, useState as useState39 } from "react";
+import { jsx as jsx102, jsxs as jsxs63 } from "react/jsx-runtime";
 var SKELETON_LINES = 3;
 function OutputBlock({
   text,
@@ -20585,7 +20929,7 @@ function OutputBlock({
 }) {
   const [grown, setGrown] = useState39(false);
   const [copied, setCopied] = useState39(false);
-  const timeoutRef = useRef47(null);
+  const timeoutRef = useRef48(null);
   const bodyId = useId6();
   const lines = text === "" ? [] : text.split("\n");
   const capped = maxLines > 0 && !grown && lines.length > maxLines;
@@ -20598,11 +20942,11 @@ function OutputBlock({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setCopied(false), 1600);
   }
-  return /* @__PURE__ */ jsxs60("div", { className: cx("hds-out", `hds-out-${tone}`, className), ...rest, children: [
-    (label !== void 0 || meta !== void 0 || onCopy !== void 0) && /* @__PURE__ */ jsxs60("div", { className: "hds-out-head", children: [
-      label !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-label", children: label }),
-      meta !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-meta", children: meta }),
-      onCopy !== void 0 && /* @__PURE__ */ jsx99(
+  return /* @__PURE__ */ jsxs63("div", { className: cx("hds-out", `hds-out-${tone}`, className), ...rest, children: [
+    (label !== void 0 || meta !== void 0 || onCopy !== void 0) && /* @__PURE__ */ jsxs63("div", { className: "hds-out-head", children: [
+      label !== void 0 && /* @__PURE__ */ jsx102("span", { className: "hds-out-label", children: label }),
+      meta !== void 0 && /* @__PURE__ */ jsx102("span", { className: "hds-out-meta", children: meta }),
+      onCopy !== void 0 && /* @__PURE__ */ jsx102(
         "button",
         {
           type: "button",
@@ -20613,12 +20957,12 @@ function OutputBlock({
         }
       )
     ] }),
-    pending ? /* @__PURE__ */ jsx99("div", { className: "hds-out-body hds-out-skel", "aria-busy": "true", children: Array.from({ length: SKELETON_LINES }, (_, i) => /* @__PURE__ */ jsx99("span", { className: "hds-out-skel-line", style: { ["--i"]: String(i) } }, i)) }) : text === "" ? /* @__PURE__ */ jsx99("p", { className: "hds-out-empty", children: emptyLabel }) : /* @__PURE__ */ jsxs60("pre", { className: "hds-out-body", id: bodyId, "data-capped": capped || void 0, tabIndex: 0, children: [
-      prompt !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-prompt", "aria-hidden": "true", children: prompt }),
-      /* @__PURE__ */ jsx99("code", { children: shown })
+    pending ? /* @__PURE__ */ jsx102("div", { className: "hds-out-body hds-out-skel", "aria-busy": "true", children: Array.from({ length: SKELETON_LINES }, (_, i) => /* @__PURE__ */ jsx102("span", { className: "hds-out-skel-line", style: { ["--i"]: String(i) } }, i)) }) : text === "" ? /* @__PURE__ */ jsx102("p", { className: "hds-out-empty", children: emptyLabel }) : /* @__PURE__ */ jsxs63("pre", { className: "hds-out-body", id: bodyId, "data-capped": capped || void 0, tabIndex: 0, children: [
+      prompt !== void 0 && /* @__PURE__ */ jsx102("span", { className: "hds-out-prompt", "aria-hidden": "true", children: prompt }),
+      /* @__PURE__ */ jsx102("code", { children: shown })
     ] }),
-    (canGrow || note !== void 0) && /* @__PURE__ */ jsxs60("div", { className: "hds-out-foot", children: [
-      canGrow && /* @__PURE__ */ jsx99(
+    (canGrow || note !== void 0) && /* @__PURE__ */ jsxs63("div", { className: "hds-out-foot", children: [
+      canGrow && /* @__PURE__ */ jsx102(
         "button",
         {
           type: "button",
@@ -20629,14 +20973,14 @@ function OutputBlock({
           children: grown ? lessLabel : moreLabel(hidden)
         }
       ),
-      note !== void 0 && /* @__PURE__ */ jsx99("span", { className: "hds-out-note", children: note })
+      note !== void 0 && /* @__PURE__ */ jsx102("span", { className: "hds-out-note", children: note })
     ] })
   ] });
 }
 
 // src/components/DataGrid/DataGrid.tsx
-import * as React66 from "react";
-import { jsx as jsx100, jsxs as jsxs61 } from "react/jsx-runtime";
+import * as React68 from "react";
+import { jsx as jsx103, jsxs as jsxs64 } from "react/jsx-runtime";
 var PAGE_ROWS = 12;
 function valueAt(rows, row, column) {
   return rows[row]?.[column] ?? "";
@@ -20659,16 +21003,16 @@ function DataGrid({
   footer,
   className
 }) {
-  const [internalCursor, setInternalCursor] = React66.useState({ row: 0, column: 0 });
+  const [internalCursor, setInternalCursor] = React68.useState({ row: 0, column: 0 });
   const cursor = cursorProp ?? internalCursor;
-  const [editing, setEditing] = React66.useState(null);
-  const scrollerRef = React66.useRef(null);
-  const closedRef = React66.useRef(false);
-  const cellRefs = React66.useRef(/* @__PURE__ */ new Map());
+  const [editing, setEditing] = React68.useState(null);
+  const scrollerRef = React68.useRef(null);
+  const closedRef = React68.useRef(false);
+  const cellRefs = React68.useRef(/* @__PURE__ */ new Map());
   const lastRow = rows.length - 1;
   const lastColumn = columns.length - 1;
   const key = (row, column) => `${row}:${column}`;
-  const moveTo = React66.useCallback(
+  const moveTo = React68.useCallback(
     (row, column) => {
       const next = { row: clamp3(row, lastRow), column: clamp3(column, lastColumn) };
       setInternalCursor(next);
@@ -20678,7 +21022,7 @@ function DataGrid({
     },
     [lastRow, lastColumn, onCursorChange]
   );
-  const commit = React66.useCallback(
+  const commit = React68.useCallback(
     (row, column, value) => {
       if (closedRef.current) return;
       closedRef.current = true;
@@ -20687,12 +21031,12 @@ function DataGrid({
     },
     [rows, onCellChange]
   );
-  const cancelEditing = React66.useCallback((row, column) => {
+  const cancelEditing = React68.useCallback((row, column) => {
     closedRef.current = true;
     setEditing(null);
     cellRefs.current.get(`${row}:${column}`)?.focus();
   }, []);
-  const startEditing = React66.useCallback(
+  const startEditing = React68.useCallback(
     (row, column, seed) => {
       if (readOnly) return;
       closedRef.current = false;
@@ -20770,8 +21114,8 @@ function DataGrid({
       startEditing(row, column, pressed);
     }
   };
-  const body = rows.map((_, rowIndex) => /* @__PURE__ */ jsxs61("tr", { className: "hds-grid-row", "aria-rowindex": rowIndex + 2, children: [
-    rowHeader !== false && /* @__PURE__ */ jsx100(
+  const body = rows.map((_, rowIndex) => /* @__PURE__ */ jsxs64("tr", { className: "hds-grid-row", "aria-rowindex": rowIndex + 2, children: [
+    rowHeader !== false && /* @__PURE__ */ jsx103(
       "th",
       {
         scope: "row",
@@ -20784,7 +21128,7 @@ function DataGrid({
       const active = cursor.row === rowIndex && cursor.column === columnIndex;
       const isEditing = active && editing !== null;
       const value = valueAt(rows, rowIndex, columnIndex);
-      return /* @__PURE__ */ jsx100(
+      return /* @__PURE__ */ jsx103(
         "td",
         {
           ref: (node) => {
@@ -20811,7 +21155,7 @@ function DataGrid({
             handleCellKeyDown(event, rowIndex, columnIndex);
           },
           onDoubleClick: () => startEditing(rowIndex, columnIndex),
-          children: isEditing ? /* @__PURE__ */ jsx100(
+          children: isEditing ? /* @__PURE__ */ jsx103(
             "input",
             {
               className: "hds-grid-input",
@@ -20841,14 +21185,14 @@ function DataGrid({
                 }
               }
             }
-          ) : /* @__PURE__ */ jsx100("span", { className: "hds-grid-value", children: value })
+          ) : /* @__PURE__ */ jsx103("span", { className: "hds-grid-value", children: value })
         },
         column.id
       );
     })
   ] }, rowIndex));
-  return /* @__PURE__ */ jsx100("div", { className: cx("hds-grid", className), children: /* @__PURE__ */ jsxs61("div", { className: "hds-grid-scroller", ref: scrollerRef, children: [
-    /* @__PURE__ */ jsxs61(
+  return /* @__PURE__ */ jsx103("div", { className: cx("hds-grid", className), children: /* @__PURE__ */ jsxs64("div", { className: "hds-grid-scroller", ref: scrollerRef, children: [
+    /* @__PURE__ */ jsxs64(
       "table",
       {
         role: "grid",
@@ -20858,9 +21202,9 @@ function DataGrid({
         "aria-colcount": columns.length + (rowHeader === false ? 0 : 1),
         "aria-readonly": readOnly || void 0,
         children: [
-          /* @__PURE__ */ jsx100("thead", { children: /* @__PURE__ */ jsxs61("tr", { className: "hds-grid-row", "aria-rowindex": 1, children: [
-            rowHeader !== false && /* @__PURE__ */ jsx100("th", { className: "hds-grid-corner", scope: "col", "aria-label": ariaLabel }),
-            columns.map((column, index2) => /* @__PURE__ */ jsxs61(
+          /* @__PURE__ */ jsx103("thead", { children: /* @__PURE__ */ jsxs64("tr", { className: "hds-grid-row", "aria-rowindex": 1, children: [
+            rowHeader !== false && /* @__PURE__ */ jsx103("th", { className: "hds-grid-corner", scope: "col", "aria-label": ariaLabel }),
+            columns.map((column, index2) => /* @__PURE__ */ jsxs64(
               "th",
               {
                 scope: "col",
@@ -20870,9 +21214,9 @@ function DataGrid({
                 "data-hue": colorColumns ? index2 % 6 : void 0,
                 "aria-colindex": index2 + (rowHeader === false ? 1 : 2),
                 children: [
-                  /* @__PURE__ */ jsxs61("span", { className: "hds-grid-colhead-body", children: [
-                    /* @__PURE__ */ jsx100("span", { className: "hds-grid-colhead-label", children: column.label }),
-                    column.hint !== void 0 && /* @__PURE__ */ jsx100("span", { className: "hds-grid-colhead-hint", children: column.hint })
+                  /* @__PURE__ */ jsxs64("span", { className: "hds-grid-colhead-body", children: [
+                    /* @__PURE__ */ jsx103("span", { className: "hds-grid-colhead-label", children: column.label }),
+                    column.hint !== void 0 && /* @__PURE__ */ jsx103("span", { className: "hds-grid-colhead-hint", children: column.hint })
                   ] }),
                   columnActions?.(index2)
                 ]
@@ -20880,26 +21224,101 @@ function DataGrid({
               column.id
             ))
           ] }) }),
-          rows.length > 0 && /* @__PURE__ */ jsx100("tbody", { children: body })
+          rows.length > 0 && /* @__PURE__ */ jsx103("tbody", { children: body })
         ]
       }
     ),
-    rows.length === 0 && empty !== void 0 && /* @__PURE__ */ jsx100("div", { className: "hds-grid-empty", children: empty }),
+    rows.length === 0 && empty !== void 0 && /* @__PURE__ */ jsx103("div", { className: "hds-grid-empty", children: empty }),
     footer
   ] }) });
 }
 
+// src/components/CodeFence/CodeFence.tsx
+import { useRef as useRef50, useState as useState41 } from "react";
+import { jsx as jsx104, jsxs as jsxs65 } from "react/jsx-runtime";
+var COPIED_MS = 1600;
+function CopyGlyph() {
+  return /* @__PURE__ */ jsxs65("svg", { width: "13", height: "13", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx104("rect", { x: "5.75", y: "5.75", width: "8.5", height: "8.5", rx: "1.75", stroke: "currentColor", strokeWidth: "1.4" }),
+    /* @__PURE__ */ jsx104(
+      "path",
+      {
+        d: "M10.5 3.75A1.75 1.75 0 0 0 8.75 2h-5A1.75 1.75 0 0 0 2 3.75v5c0 .966.784 1.75 1.75 1.75",
+        stroke: "currentColor",
+        strokeWidth: "1.4",
+        strokeLinecap: "round"
+      }
+    )
+  ] });
+}
+function CheckGlyph2() {
+  return /* @__PURE__ */ jsx104("svg", { width: "13", height: "13", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx104(
+    "path",
+    {
+      d: "M3 8.5 6.3 12 13 4.5",
+      stroke: "currentColor",
+      strokeWidth: "1.6",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }
+  ) });
+}
+function CodeFence({
+  children,
+  code,
+  language,
+  onCopy,
+  copyLabel = "Copiar",
+  copiedLabel = "Copiado",
+  className,
+  ...rest
+}) {
+  const [copied, setCopied] = useState41(false);
+  const timeoutRef = useRef50(null);
+  function handleCopy() {
+    onCopy?.(code);
+    setCopied(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setCopied(false), COPIED_MS);
+  }
+  return (
+    // Everything the caller passes lands on the FRAME, not on the `pre`: the
+    // frame is the block. A host anchoring a scroll target or a test hook to
+    // this component means the whole thing, and the `pre` inside it starts one
+    // header-strip lower than the block does.
+    /* @__PURE__ */ jsxs65("div", { className: cx("hds-fence", className), ...rest, children: [
+      /* @__PURE__ */ jsxs65("div", { className: "hds-fence-bar", children: [
+        language !== void 0 && language !== "" && /* @__PURE__ */ jsx104("span", { className: "hds-fence-lang", children: language }),
+        onCopy !== void 0 && /* @__PURE__ */ jsxs65(
+          "button",
+          {
+            type: "button",
+            className: cx("hds-fence-copy", copied && "is-copied"),
+            onClick: handleCopy,
+            "aria-label": copied ? copiedLabel : copyLabel,
+            children: [
+              copied ? /* @__PURE__ */ jsx104(CheckGlyph2, {}) : /* @__PURE__ */ jsx104(CopyGlyph, {}),
+              /* @__PURE__ */ jsx104("span", { className: "hds-fence-copy-text", children: copied ? copiedLabel : copyLabel })
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsx104("pre", { tabIndex: 0, children })
+    ] })
+  );
+}
+
 // src/components/ChatMessage/ChatMessage.tsx
-import { forwardRef as forwardRef66 } from "react";
-import { jsx as jsx101, jsxs as jsxs62 } from "react/jsx-runtime";
-var ChatMessage = forwardRef66(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
-  return /* @__PURE__ */ jsxs62("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
-    role !== "system" && avatar && /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-avatar", children: avatar }),
-    /* @__PURE__ */ jsxs62("div", { className: "hds-chat-message-body", children: [
-      /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-bubble", children }),
-      (timestamp || actions) && /* @__PURE__ */ jsxs62("div", { className: "hds-chat-message-meta", children: [
-        timestamp && /* @__PURE__ */ jsx101("span", { className: "hds-chat-message-timestamp", children: timestamp }),
-        actions && /* @__PURE__ */ jsx101("div", { className: "hds-chat-message-actions", children: actions })
+import { forwardRef as forwardRef68 } from "react";
+import { jsx as jsx105, jsxs as jsxs66 } from "react/jsx-runtime";
+var ChatMessage = forwardRef68(function ChatMessage2({ role, avatar, timestamp, actions, children, className, ...rest }, ref) {
+  return /* @__PURE__ */ jsxs66("div", { ref, className: cx("hds-chat-message", `hds-chat-message-${role}`, className), "data-role": role, ...rest, children: [
+    role !== "system" && avatar && /* @__PURE__ */ jsx105("div", { className: "hds-chat-message-avatar", children: avatar }),
+    /* @__PURE__ */ jsxs66("div", { className: "hds-chat-message-body", children: [
+      /* @__PURE__ */ jsx105("div", { className: "hds-chat-message-bubble", children }),
+      (timestamp || actions) && /* @__PURE__ */ jsxs66("div", { className: "hds-chat-message-meta", children: [
+        timestamp && /* @__PURE__ */ jsx105("span", { className: "hds-chat-message-timestamp", children: timestamp }),
+        actions && /* @__PURE__ */ jsx105("div", { className: "hds-chat-message-actions", children: actions })
       ] })
     ] })
   ] });
@@ -20907,19 +21326,19 @@ var ChatMessage = forwardRef66(function ChatMessage2({ role, avatar, timestamp, 
 ChatMessage.displayName = "ChatMessage";
 
 // src/components/TypingIndicator/TypingIndicator.tsx
-import { jsx as jsx102, jsxs as jsxs63 } from "react/jsx-runtime";
+import { jsx as jsx106, jsxs as jsxs67 } from "react/jsx-runtime";
 function TypingIndicator({ label = "Assistant is responding", className, ...rest }) {
-  return /* @__PURE__ */ jsxs63("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
-    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx102("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx102(VisuallyHidden2, { children: label })
+  return /* @__PURE__ */ jsxs67("span", { role: "status", className: cx("hds-typing-indicator", className), ...rest, children: [
+    /* @__PURE__ */ jsx106("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx106("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx106("span", { className: "hds-typing-indicator-dot", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx106(VisuallyHidden2, { children: label })
   ] });
 }
 
 // src/components/MessageList/MessageList.tsx
-import { useCallback as useCallback28, useEffect as useEffect41, useRef as useRef49, useState as useState41 } from "react";
-import { jsx as jsx103, jsxs as jsxs64 } from "react/jsx-runtime";
+import { useCallback as useCallback29, useEffect as useEffect41, useRef as useRef51, useState as useState42 } from "react";
+import { jsx as jsx107, jsxs as jsxs68 } from "react/jsx-runtime";
 function prefersReducedMotion3() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -20931,18 +21350,18 @@ function MessageList({
   className,
   ...rest
 }) {
-  const viewportRef = useRef49(null);
-  const contentRef = useRef49(null);
-  const [isPinned, setIsPinned] = useState41(true);
-  const isPinnedRef = useRef49(isPinned);
+  const viewportRef = useRef51(null);
+  const contentRef = useRef51(null);
+  const [isPinned, setIsPinned] = useState42(true);
+  const isPinnedRef = useRef51(isPinned);
   isPinnedRef.current = isPinned;
-  const isNearBottom = useCallback28(() => {
+  const isNearBottom = useCallback29(() => {
     const viewport = viewportRef.current;
     if (!viewport) return true;
     const distance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
     return distance <= bottomThreshold;
   }, [bottomThreshold]);
-  const scrollToBottom = useCallback28((behavior = "smooth") => {
+  const scrollToBottom = useCallback29((behavior = "smooth") => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     if (typeof viewport.scrollTo === "function") {
@@ -20954,7 +21373,7 @@ function MessageList({
       viewport.scrollTop = viewport.scrollHeight;
     }
   }, []);
-  const handleScroll2 = useCallback28(() => {
+  const handleScroll2 = useCallback29(() => {
     setIsPinned(isNearBottom());
   }, [isNearBottom]);
   useEffect41(() => {
@@ -20975,9 +21394,9 @@ function MessageList({
   useEffect41(() => {
     scrollToBottom("instant");
   }, [scrollToBottom]);
-  return /* @__PURE__ */ jsxs64("div", { className: cx("hds-message-list", className), ...rest, children: [
-    /* @__PURE__ */ jsx103(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx103("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
-    !isPinned && /* @__PURE__ */ jsx103(
+  return /* @__PURE__ */ jsxs68("div", { className: cx("hds-message-list", className), ...rest, children: [
+    /* @__PURE__ */ jsx107(ScrollArea2, { className: "hds-message-list-scroll-area", viewportRef, children: /* @__PURE__ */ jsx107("div", { ref: contentRef, className: "hds-message-list-content", children }) }),
+    !isPinned && /* @__PURE__ */ jsx107(
       "button",
       {
         type: "button",
@@ -20993,8 +21412,8 @@ function MessageList({
 }
 
 // src/components/Attachment/Attachment.tsx
-import { forwardRef as forwardRef67 } from "react";
-import { jsx as jsx104, jsxs as jsxs65 } from "react/jsx-runtime";
+import { forwardRef as forwardRef69 } from "react";
+import { jsx as jsx108, jsxs as jsxs69 } from "react/jsx-runtime";
 function splitAtTail(name) {
   const dot = name.lastIndexOf(".");
   const extension = dot > 0 && name.length - dot <= 7 ? name.length - dot : 0;
@@ -21002,32 +21421,32 @@ function splitAtTail(name) {
   if (name.length <= 12) return [name, ""];
   return [name.slice(0, name.length - tail), name.slice(name.length - tail)];
 }
-var Attachment = forwardRef67(function Attachment2({ name, meta, icon, onRemove, removeLabel, truncate = "end", className, ...rest }, ref) {
+var Attachment = forwardRef69(function Attachment2({ name, meta, icon, onRemove, removeLabel, truncate = "end", className, ...rest }, ref) {
   const label = removeLabel ?? (typeof name === "string" ? `Remove ${name}` : "Remove attachment");
   const middle = truncate === "middle" && typeof name === "string";
   const [head, tail] = middle ? splitAtTail(name) : ["", ""];
-  return /* @__PURE__ */ jsxs65("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
-    icon && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-icon", children: icon }),
-    /* @__PURE__ */ jsxs65("span", { className: "hds-attachment-text", children: [
-      middle ? /* @__PURE__ */ jsxs65("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
-        /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name-head", children: head }),
-        tail !== "" && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name-tail", children: tail })
-      ] }) : /* @__PURE__ */ jsx104("span", { className: "hds-attachment-name", children: name }),
-      meta && /* @__PURE__ */ jsx104("span", { className: "hds-attachment-meta", children: meta })
+  return /* @__PURE__ */ jsxs69("div", { ref, className: cx("hds-attachment", className), ...rest, children: [
+    icon && /* @__PURE__ */ jsx108("span", { className: "hds-attachment-icon", children: icon }),
+    /* @__PURE__ */ jsxs69("span", { className: "hds-attachment-text", children: [
+      middle ? /* @__PURE__ */ jsxs69("span", { className: "hds-attachment-name", "data-truncate": "middle", children: [
+        /* @__PURE__ */ jsx108("span", { className: "hds-attachment-name-head", children: head }),
+        tail !== "" && /* @__PURE__ */ jsx108("span", { className: "hds-attachment-name-tail", children: tail })
+      ] }) : /* @__PURE__ */ jsx108("span", { className: "hds-attachment-name", children: name }),
+      meta && /* @__PURE__ */ jsx108("span", { className: "hds-attachment-meta", children: meta })
     ] }),
-    onRemove && /* @__PURE__ */ jsx104("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx104("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx104("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
+    onRemove && /* @__PURE__ */ jsx108("button", { type: "button", className: "hds-attachment-remove", "aria-label": label, onClick: onRemove, children: /* @__PURE__ */ jsx108("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx108("path", { d: "M3 3l10 10M13 3L3 13", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }) }) })
   ] });
 });
 Attachment.displayName = "Attachment";
 
 // src/components/PromptInput/PromptInput.tsx
-import { useLayoutEffect as useLayoutEffect9, useRef as useRef50 } from "react";
-import { jsx as jsx105, jsxs as jsxs66 } from "react/jsx-runtime";
+import { useLayoutEffect as useLayoutEffect9, useRef as useRef52 } from "react";
+import { jsx as jsx109, jsxs as jsxs70 } from "react/jsx-runtime";
 function SendIcon() {
-  return /* @__PURE__ */ jsx105("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx105("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
+  return /* @__PURE__ */ jsx109("svg", { className: "hds-prompt-input-icon-send", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx109("path", { d: "M8 13V3M3.5 7.5 8 3l4.5 4.5", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }) });
 }
 function StopIcon() {
-  return /* @__PURE__ */ jsx105("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx105("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
+  return /* @__PURE__ */ jsx109("svg", { className: "hds-prompt-input-icon-stop", width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: /* @__PURE__ */ jsx109("rect", { x: "3.5", y: "3.5", width: "9", height: "9", rx: "1.5", fill: "currentColor" }) });
 }
 function PromptInput({
   value: valueProp,
@@ -21058,8 +21477,8 @@ function PromptInput({
     defaultValue,
     onChange
   });
-  const backdropRef = useRef50(null);
-  const innerTextareaRef = useRef50(null);
+  const backdropRef = useRef52(null);
+  const innerTextareaRef = useRef52(null);
   const isEmpty = value.trim().length === 0;
   const stopMode = streaming && onStop !== void 0;
   const sendDisabled = disabled || streaming || isEmpty && !allowEmptySubmit;
@@ -21085,7 +21504,7 @@ function PromptInput({
   useLayoutEffect9(() => {
     if (highlight2) syncBackdropScroll();
   });
-  const textarea = /* @__PURE__ */ jsx105(
+  const textarea = /* @__PURE__ */ jsx109(
     Textarea,
     {
       ref: setTextareaNode,
@@ -21103,7 +21522,7 @@ function PromptInput({
       maxRows
     }
   );
-  return /* @__PURE__ */ jsxs66(
+  return /* @__PURE__ */ jsxs70(
     "div",
     {
       className: cx("hds-prompt-input", className),
@@ -21111,14 +21530,14 @@ function PromptInput({
       "data-highlighted": highlighted || void 0,
       ...rest,
       children: [
-        attachments && /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-attachments", children: attachments }),
-        highlight2 ? /* @__PURE__ */ jsxs66("div", { className: "hds-prompt-input-editor", children: [
-          /* @__PURE__ */ jsx105("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight2(value) }),
+        attachments && /* @__PURE__ */ jsx109("div", { className: "hds-prompt-input-attachments", children: attachments }),
+        highlight2 ? /* @__PURE__ */ jsxs70("div", { className: "hds-prompt-input-editor", children: [
+          /* @__PURE__ */ jsx109("div", { ref: backdropRef, className: "hds-prompt-input-backdrop", "aria-hidden": "true", children: highlight2(value) }),
           textarea
         ] }) : textarea,
-        /* @__PURE__ */ jsxs66("div", { className: "hds-prompt-input-toolbar", children: [
-          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx105("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
-          /* @__PURE__ */ jsxs66(
+        /* @__PURE__ */ jsxs70("div", { className: "hds-prompt-input-toolbar", children: [
+          toolbarOverlay === void 0 ? /* @__PURE__ */ jsx109("div", { className: "hds-prompt-input-toolbar-extra", children: toolbar }) : /* @__PURE__ */ jsx109("div", { className: "hds-prompt-input-toolbar-overlay", children: toolbarOverlay }),
+          /* @__PURE__ */ jsxs70(
             "button",
             {
               type: "button",
@@ -21129,8 +21548,8 @@ function PromptInput({
               title: stopMode ? stopLabel : sendLabel,
               onClick: stopMode ? onStop : submit,
               children: [
-                sendIcon === void 0 ? /* @__PURE__ */ jsx105(SendIcon, {}) : /* @__PURE__ */ jsx105("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
-                /* @__PURE__ */ jsx105(StopIcon, {})
+                sendIcon === void 0 ? /* @__PURE__ */ jsx109(SendIcon, {}) : /* @__PURE__ */ jsx109("span", { className: "hds-prompt-input-icon-send", children: sendIcon }),
+                /* @__PURE__ */ jsx109(StopIcon, {})
               ]
             }
           )
@@ -21141,7 +21560,7 @@ function PromptInput({
 }
 
 // src/components/ActivityBorder/ActivityBorder.tsx
-import { jsx as jsx106, jsxs as jsxs67 } from "react/jsx-runtime";
+import { jsx as jsx110, jsxs as jsxs71 } from "react/jsx-runtime";
 var LANES = ["tail", "mid", "head"];
 function ActivityBorder({
   active = false,
@@ -21159,7 +21578,7 @@ function ActivityBorder({
     ...duration === void 0 ? null : { "--hds-activity-duration": duration },
     ...style
   };
-  return /* @__PURE__ */ jsxs67(
+  return /* @__PURE__ */ jsxs71(
     "div",
     {
       className: cx("hds-activity-border", className),
@@ -21168,10 +21587,10 @@ function ActivityBorder({
       ...rest,
       children: [
         children,
-        /* @__PURE__ */ jsx106("svg", { className: "hds-activity-border-ring", "aria-hidden": "true", focusable: "false", children: LANES.map((lane) => (
+        /* @__PURE__ */ jsx110("svg", { className: "hds-activity-border-ring", "aria-hidden": "true", focusable: "false", children: LANES.map((lane) => (
           // `pathLength` normalises the outline to 100 units, so one dash
           // pattern describes the comet on any size of box.
-          /* @__PURE__ */ jsx106("rect", { "data-lane": lane, pathLength: 100 }, lane)
+          /* @__PURE__ */ jsx110("rect", { "data-lane": lane, pathLength: 100 }, lane)
         )) })
       ]
     }
@@ -21179,9 +21598,9 @@ function ActivityBorder({
 }
 
 // src/components/MessageToken/MessageToken.tsx
-import { jsx as jsx107, jsxs as jsxs68 } from "react/jsx-runtime";
+import { jsx as jsx111, jsxs as jsxs72 } from "react/jsx-runtime";
 function SlashGlyph() {
-  return /* @__PURE__ */ jsx107(
+  return /* @__PURE__ */ jsx111(
     "svg",
     {
       className: "hds-message-token-glyph",
@@ -21193,13 +21612,13 @@ function SlashGlyph() {
       strokeWidth: "1.75",
       strokeLinecap: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx107("path", { d: "M10 2.75 6 13.25" })
+      children: /* @__PURE__ */ jsx111("path", { d: "M10 2.75 6 13.25" })
     }
   );
 }
 function MessageToken({ kind, icon, className, children, ...rest }) {
-  const glyph = icon === void 0 && kind === "command" ? /* @__PURE__ */ jsx107(SlashGlyph, {}) : icon;
-  return /* @__PURE__ */ jsxs68("mark", { className: cx("hds-message-token", className), "data-kind": kind, ...rest, children: [
+  const glyph = icon === void 0 && kind === "command" ? /* @__PURE__ */ jsx111(SlashGlyph, {}) : icon;
+  return /* @__PURE__ */ jsxs72("mark", { className: cx("hds-message-token", className), "data-kind": kind, ...rest, children: [
     glyph,
     children
   ] });
@@ -21234,6 +21653,7 @@ export {
   Cmt,
   CodeBlock,
   CodeEditor,
+  CodeFence,
   Command,
   CommandDialog,
   CommandEmpty,
@@ -21309,6 +21729,7 @@ export {
   ResizableHandle,
   ResizablePanel,
   Reveal,
+  RingMeter,
   ScrollArea2 as ScrollArea,
   SectionHeading,
   SegmentedControl,
@@ -21320,6 +21741,7 @@ export {
   SelectSeparator2 as SelectSeparator,
   SelectTrigger2 as SelectTrigger,
   SelectValue2 as SelectValue,
+  SelectionBar,
   Separator4 as Separator,
   Sheet,
   SheetClose,
@@ -21335,6 +21757,7 @@ export {
   SpineLabel,
   Spinner,
   Stack,
+  StageTracker,
   Stagger,
   Step,
   StepFlow,

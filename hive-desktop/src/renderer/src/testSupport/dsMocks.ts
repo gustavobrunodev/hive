@@ -187,3 +187,104 @@ function PickerMock({
       )
   )
 }
+
+/**
+ * The design-system stand-ins the **conversation list** needs since it grew a
+ * multi-select: the row tick box and the bulk bar over it.
+ *
+ * Shared for the reason recorded above, and for one more this feature made
+ * concrete: three suites render that list, and when `ConversationRow` started
+ * importing `Checkbox`, all three went red at once with "No 'Checkbox' export
+ * is defined on the mock" — an error about a *stub*, not about the code under
+ * test. One definition is one place to keep in step with the real component.
+ *
+ * They keep the contract a consumer test depends on and nothing else: a real
+ * `role="checkbox"` with `aria-checked` (so a test asserts what a screen reader
+ * would hear), a click that carries its modifiers (Shift-range is half the
+ * feature), and a bar whose count, select-all, actions and dismiss are all
+ * reachable by role.
+ */
+export function selectionDsMocks(): Record<string, unknown> {
+  return {
+    Checkbox: ({
+      checked,
+      onCheckedChange,
+      onClick,
+      ...rest
+    }: {
+      checked?: boolean | 'indeterminate'
+      onCheckedChange?: (checked: boolean | 'indeterminate') => void
+      onClick?: (event: unknown) => void
+    }) =>
+      createElement('button', {
+        ...rest,
+        type: 'button',
+        role: 'checkbox',
+        // The real Radix root reports the third state as `mixed`; a stub that
+        // said `false` would let a tri-state bug through unnoticed.
+        'aria-checked': checked === 'indeterminate' ? 'mixed' : checked === true,
+        onClick: (event: unknown) => {
+          onClick?.(event)
+          onCheckedChange?.(checked === true ? false : true)
+        }
+      }),
+    SelectionBar: ({
+      count,
+      total,
+      label,
+      ariaLabel,
+      selectAllLabel,
+      onSelectAllChange,
+      onDismiss,
+      dismissLabel,
+      actions,
+      prompt,
+      className
+    }: {
+      count?: number
+      total?: number
+      label?: string
+      ariaLabel?: string
+      selectAllLabel?: string
+      onSelectAllChange?: (checked: boolean) => void
+      onDismiss?: () => void
+      dismissLabel?: string
+      actions?: ReactNode
+      prompt?: ReactNode
+      className?: string
+    }) => {
+      const asking = prompt !== undefined && prompt !== null
+      return createElement(
+        'div',
+        { role: 'group', 'aria-label': ariaLabel ?? label, className },
+        asking
+          ? createElement('span', null, prompt)
+          : createElement(
+              'button',
+              {
+                type: 'button',
+                role: 'checkbox',
+                'aria-label': selectAllLabel,
+                'aria-checked':
+                  (total ?? 0) > 0 && (count ?? 0) >= (total ?? 0)
+                    ? true
+                    : (count ?? 0) > 0
+                      ? 'mixed'
+                      : false,
+                onClick: () =>
+                  onSelectAllChange?.(!((total ?? 0) > 0 && (count ?? 0) >= (total ?? 0)))
+              },
+              label
+            ),
+        actions,
+        asking
+          ? null
+          : createElement(
+              'button',
+              { type: 'button', 'aria-label': dismissLabel, onClick: onDismiss },
+              '×'
+            )
+      )
+    }
+  }
+}

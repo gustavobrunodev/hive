@@ -112,6 +112,76 @@ describe('Markdown (T1)', () => {
     )
   })
 
+  /**
+   * A reply that answers with a block — extracted text, a config, a command —
+   * is answering with something the user is about to take somewhere else, and
+   * hand-selecting it out of a scrolling transcript is what made that answer
+   * expensive. Every fence carries its own copy control (DS `CodeFence`).
+   */
+  describe('the copy control on a fenced block', () => {
+    beforeEach(() => {
+      window.hive = {
+        ...window.hive,
+        clipboard: {
+          writeText: vi.fn().mockResolvedValue(undefined),
+          readText: vi.fn().mockResolvedValue('')
+        }
+      } as typeof window.hive
+    })
+
+    it('copies the fence source verbatim — not the DOM text, which loses the newlines', async () => {
+      render(
+        createElement(Markdown, {
+          source: ['```json', '{', '  "a": 1', '}', '```'].join('\n')
+        })
+      )
+
+      screen.getByRole('button', { name: 'Copiar' }).click()
+
+      // Byte-for-byte the fence's own text. Reading `textContent` off the
+      // rendered block would have put a space at every element boundary, and
+      // walking React children would have dropped the line breaks between
+      // sibling spans — either way, JSON that no longer parses.
+      expect(window.hive.clipboard.writeText).toHaveBeenCalledWith('{\n  "a": 1\n}')
+    })
+
+    it('names the language the fence was opened with', () => {
+      render(createElement(Markdown, { source: '```bash\nnpm run verify\n```' }))
+      expect(document.querySelector('.hds-fence-lang')?.textContent).toBe('bash')
+    })
+
+    it('still offers the control on an untagged fence, and keeps the scroll-sync anchor', () => {
+      render(createElement(Markdown, { source: '```\nsem linguagem\n```' }))
+
+      expect(screen.getByRole('button', { name: 'Copiar' })).not.toBeNull()
+      expect(document.querySelector('.hds-fence-lang')).toBeNull()
+      // `data-line` is what the edit ⇄ preview scroll sync steers by
+      // (`explorer/scrollSync.ts`); a fence that lost it would be a hole in
+      // the crossing exactly where the tallest blocks are.
+      expect(document.querySelector('.hds-fence')?.getAttribute('data-line')).toBe('1')
+    })
+
+    // An empty fence still renders a block: the header is what says one is
+    // there, and a control that copies nothing is honest about it. The case
+    // also covers the source reader's "no text node under this pre" fallback,
+    // which is the only shape react-markdown can produce that has none.
+    it('renders an empty fence without breaking, and copies nothing from it', () => {
+      render(createElement(Markdown, { source: '```\n```' }))
+
+      const button = screen.getByRole('button', { name: 'Copiar' })
+      button.click()
+      expect(window.hive.clipboard.writeText).toHaveBeenCalledWith('')
+    })
+
+    it('goes through the Electron bridge, which is the only clipboard this window has', async () => {
+      render(createElement(Markdown, { source: '```\nx\n```' }))
+      screen.getByRole('button', { name: 'Copiar' }).click()
+      // `navigator.clipboard` is denied by the session's permission handler —
+      // every copy in this app routes through `ui/clipboard.ts`.
+      expect(window.hive.clipboard.writeText).toHaveBeenCalledWith('x')
+    })
+  })
+
   describe('file links in an agent reply (chat-file-links)', () => {
     const files = createPathOracle('/ws', ['src/main/index.ts', 'docs/prd.md'])
 
@@ -144,10 +214,12 @@ describe('Markdown (T1)', () => {
     })
 
     // A fenced block is a listing. Turning half the tokens inside a diff into
-    // buttons is noise, not help.
+    // buttons is noise, not help. The fence's own copy control is a different
+    // thing — it acts on the block, not on a token inside it — so the
+    // assertion is about path links specifically, not about buttons at large.
     it('leaves a fenced code block alone', () => {
       renderLinked(['Antes:', '', '```', 'cat src/main/index.ts', '```'].join('\n'))
-      expect(screen.queryByRole('button')).toBeNull()
+      expect(document.querySelector('.wb-pathlink')).toBeNull()
     })
 
     it('finds a path that markdown split across emphasis boundaries', () => {
@@ -233,7 +305,10 @@ describe('Markdown (T1)', () => {
 
     it('leaves a fenced code block alone', () => {
       renderRunnable(['Antes:', '', '```', 'run /bmad-party-mode', '```'].join('\n'))
-      expect(screen.queryByRole('button')).toBeNull()
+      // Same as the file-link suite: the fence's copy control is not a command
+      // chip, and asserting "no buttons" would have been asserting the absence
+      // of a feature rather than the presence of this rule.
+      expect(document.querySelector('.wb-cmdlink')).toBeNull()
     })
 
     it('renders mentions as plain text when the host has no skill catalog loaded', () => {

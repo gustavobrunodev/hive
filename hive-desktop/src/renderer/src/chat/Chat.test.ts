@@ -14,7 +14,7 @@ import {
 import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { Chat, type ChatHandle } from './Chat'
 import { workspaceRelative } from './toolActivity'
-import type { RoleAction } from '../ui/ActionRail'
+import type { RoleAction } from '../ui/sidebarNav'
 import { ReviewProvider, type ReviewStore } from '../scm/useReview'
 
 /**
@@ -158,6 +158,48 @@ vi.mock('@hive/design-system', () => ({
       'aria-checked': checked === true,
       onClick: () => onCheckedChange?.(checked !== true)
     }),
+  // session-usage: the footer dial and the sheet's segmented one. Stubbed
+  // WITH its reading, because both call sites exist to publish a number —
+  // a stub that dropped `aria-valuenow` would let a meter wired to the wrong
+  // fraction pass.
+  RingMeter: ({
+    value,
+    segments,
+    label,
+    children,
+    caption,
+    indeterminate,
+    valueText,
+    ...rest
+  }: {
+    value?: number
+    segments?: ReadonlyArray<{ id: string; value: number }>
+    label: string
+    children?: ReactNode
+    caption?: ReactNode
+    indeterminate?: boolean
+    valueText?: string
+    className?: string
+  }) => {
+    const filled = indeterminate
+      ? 0
+      : (segments ?? [{ id: 'value', value: value ?? 0 }]).reduce(
+          (sum, seg) => sum + (seg.value ?? 0),
+          0
+        )
+    return createElement(
+      'div',
+      {
+        ...rest,
+        role: 'meter',
+        'aria-label': label,
+        'aria-valuenow': Math.round(Math.min(1, Math.max(0, filled)) * 100),
+        ...(valueText === undefined ? {} : { 'aria-valuetext': valueText })
+      },
+      children === undefined ? null : createElement('span', null, children),
+      caption === undefined ? null : createElement('span', null, caption)
+    )
+  },
   MessageList: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
   // The composer's "a turn is running here" ring. Stubbed with its state
   // attribute intact: the whole point of the wrapper is that `data-active`
@@ -615,6 +657,8 @@ describe('Chat', () => {
     updatedAt: number
     messages: Array<{ id: string; role: 'user' | 'assistant'; text: string; at: number }>
     cliSessionId?: string | null
+    /** session-usage: the context reading stored with the conversation. */
+    usage?: unknown
   }
 
   interface SessionMetaLike {
@@ -674,6 +718,7 @@ describe('Chat', () => {
       append: ReturnType<typeof vi.fn>
       rename: ReturnType<typeof vi.fn>
       setCliSession: ReturnType<typeof vi.fn>
+      setUsage: ReturnType<typeof vi.fn>
       search: ReturnType<typeof vi.fn>
       delete: ReturnType<typeof vi.fn>
     }
@@ -692,6 +737,7 @@ describe('Chat', () => {
       append: vi.fn().mockResolvedValue(null),
       rename: vi.fn().mockResolvedValue(null),
       setCliSession: vi.fn().mockResolvedValue(undefined),
+      setUsage: vi.fn().mockResolvedValue(undefined),
       search: vi.fn().mockResolvedValue([]),
       delete: vi.fn().mockResolvedValue(undefined)
     }
@@ -785,6 +831,9 @@ describe('Chat', () => {
       onOpenAwsPanel?: () => void
       onAwsReconnect?: () => void
       onClaudeConnect?: () => void
+      /** claude-account: whether the machine has an account the agent can run on. */
+      claudeAccountReady?: boolean | null
+      claudeSigningIn?: boolean
       agents?: string[]
     } = {}
   ): ReturnType<typeof mockHive> {
@@ -1376,6 +1425,33 @@ describe('Chat', () => {
     )
   })
 
+  /**
+   * A skill turn is still a turn the user attached files to. `runWorkflow`
+   * was built without the `attachments` line `send` has, so `/bmad-prd` with a
+   * spec clipped to it ran with the prompt and none of the context — and the
+   * only symptom was an agent that never mentioned the file.
+   */
+  it('a workflow turn carries the composer\u2019s attachments, exactly as a plain send does', async () => {
+    renderChat({
+      skills: [{ key: 'bmad-prd', label: 'Create PRD', description: 'PRD' }],
+      pickedAttachments: [{ path: '/abs/spec.pdf', name: 'spec.pdf', size: 4096 }]
+    })
+    await screen.findByText('Modelo A')
+
+    fireEvent.click(screen.getByLabelText('Adicionar contexto'))
+    fireEvent.click(await screen.findByRole('button', { name: /Arquivos do computador/ }))
+    await screen.findByTitle('/abs/spec.pdf')
+
+    const input = screen.getByPlaceholderText('Escreva uma mensagem…')
+    fireEvent.change(input, { target: { value: '/bmad-prd usa esse spec' } })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    expect(window.hive.agent.runWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'bmad-prd' }),
+      expect.objectContaining({ attachments: ['/abs/spec.pdf'] })
+    )
+  })
+
   it('keyboard-navigates the slash menu (ArrowDown + Enter completes)', async () => {
     renderChat({
       skills: [
@@ -1523,17 +1599,44 @@ describe('Chat', () => {
 
   // A capped list that doesn't say it's capped reads as "your file isn't
   // here". The header only appears when there is something below the fold.
-  it('says how much of the match set the ranked page shows, and only when it truncates', async () => {
+  it('says how large the match set is, and narrows the count as the query does', async () => {
     const many = Array.from({ length: 12 }, (_, index) => `docs/prd-${index}.md`)
     renderChat({ workspaceFiles: many })
     await screen.findByText('Modelo A')
     const input = screen.getByPlaceholderText('Escreva uma mensagem…')
 
     fireEvent.change(input, { target: { value: 'veja @prd' } })
-    expect(await screen.findByText('8 de 12')).toBeTruthy()
+    expect(await screen.findByText('12 arquivos')).toBeTruthy()
 
-    fireEvent.change(input, { target: { value: 'veja @prd-1' } })
-    await waitFor(() => expect(screen.queryByText(/ de /)).toBeNull())
+    fireEvent.change(input, { target: { value: 'veja @prd-11' } })
+    expect(await screen.findByText('1 arquivo')).toBeTruthy()
+  })
+
+  /**
+   * The defect this list was rebuilt for: the ranked page was **eight rows**,
+   * so a workspace with more matches than that had files nobody could reach —
+   * not by arrow, not by wheel, not by click. The list now holds every match
+   * (eight of them on screen at a time), so the ninth is an option like any
+   * other and arrowing past the eighth lands on it.
+   */
+  it('holds every match, not a page of eight: the ninth is selectable by keyboard', async () => {
+    const many = Array.from({ length: 12 }, (_, index) => `docs/prd-${index}.md`)
+    renderChat({ workspaceFiles: many })
+    await screen.findByText('Modelo A')
+    const input = screen.getByPlaceholderText<HTMLTextAreaElement>('Escreva uma mensagem…')
+
+    fireEvent.change(input, { target: { value: 'veja @prd' } })
+    const options = await screen.findAllByRole('option')
+    expect(options).toHaveLength(12)
+    expect(options[11]?.getAttribute('aria-posinset')).toBe('12')
+
+    // Eight presses to walk off the old page, plus one that used to wrap.
+    for (let press = 0; press < 8; press += 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => expect(input.value).toMatch(/^veja @docs\/prd-\d+\.md $/))
+    // The ninth row, not the first — a wrap would have inserted `prd-0`.
+    expect(input.value).not.toContain('prd-0.md')
   })
 
   it('selecting a mention inserts the @path token and closes the menu', async () => {
@@ -2305,6 +2408,57 @@ describe('Chat', () => {
     await waitFor(() => expect(onRunningSessionsChange).toHaveBeenLastCalledWith(['session-1']))
   })
 
+  /**
+   * `freshSession` — which conversation a turn belongs to, told rather than
+   * inferred.
+   *
+   * `resume: null` is already asserted above, and it is not enough for a live
+   * transport: it is equally the first turn of a new conversation and a
+   * follow-up sent before the first turn's session id came back. Devin holds a
+   * real session between turns, so reading it the wrong way either leaks one
+   * conversation into another (the Estúdio build that landed inside a running
+   * PRD) or drops a conversation's memory one turn in. Only this pane knows
+   * which, so it says.
+   */
+  it('the first turn of a conversation declares a fresh agent session; the next does not', async () => {
+    const { emit } = renderChat()
+    await screen.findByText('Modelo A')
+    const send = (text: string): void => {
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: text }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+    }
+
+    send('primeira')
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'primeira',
+      expect.objectContaining({ resume: null, freshSession: true })
+    )
+
+    // A turn that ended without the CLI ever announcing a session id: there is
+    // still nothing to resume, and this is still the same conversation. That
+    // pair is exactly what `resume: null` alone cannot say.
+    await act(async () => {
+      emit({ type: 'done' })
+    })
+    send('segunda')
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'segunda',
+      expect.objectContaining({ resume: null, freshSession: false })
+    )
+
+    await act(async () => {
+      emit({ type: 'session', id: 'cli-sess-1' })
+      emit({ type: 'done' })
+    })
+    send('terceira')
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'terceira',
+      expect.objectContaining({ resume: 'cli-sess-1', freshSession: false })
+    )
+  })
+
   // session-history — conversation memory (--resume via the session event).
   it("a session event persists the CLI id into the turn's conversation and the next send resumes it", async () => {
     const { chatHistory, emit } = renderChat()
@@ -2430,6 +2584,9 @@ describe('Chat', () => {
       expect.objectContaining({
         agentId: 'claude-cli',
         resume: null,
+        // …and it is entitled to a session of its own: a live transport must
+        // not answer here inside the conversation just left.
+        freshSession: true,
         turnId: expect.any(String)
       })
     )
@@ -2907,6 +3064,78 @@ describe('Chat', () => {
       // The gate still opens, and its link out is inert rather than fatal.
       fireEvent.click(screen.getByText('Ver detalhes'))
       expect(screen.getByRole('dialog')).toBeTruthy()
+    })
+
+    /**
+     * Switching agents re-reads the machine, and a CLI spawn is not instant.
+     * What used to fill those seconds was the PREVIOUS agent's model list under
+     * the new agent's name — reported as "os modelos do Claude ficaram
+     * aparecendo para o Devin". Picking one of those rows would have sent
+     * `--model opus` to a CLI that has never heard of it.
+     *
+     * Clearing the state in an effect is not enough: React renders with the new
+     * agent *before* effects run, so there is always a frame of the lie. The
+     * answer is tagged with the agent it describes and read back through the
+     * agent in force, which makes the stale frame unrepresentable.
+     */
+    it('shows a loading engine control while a new agent is detected — never the old agent’s models', async () => {
+      renderChat({}, { agents: ['claude-cli', 'copilot-cli'] })
+      expect(await screen.findByText('Modelo A')).toBeTruthy()
+
+      // The next detection hangs, which is the window the defect lived in.
+      const caps = vi.mocked(window.hive.agent.capabilities)
+      // The detection hangs until the test lets it land. Typed through
+      // `caps`'s own resolved type so the fixture below is checked against the
+      // real capability shape rather than smuggled in as `any`.
+      type Caps = Awaited<ReturnType<typeof window.hive.agent.capabilities>>
+      let settle: (value: Caps) => void = () => {}
+      caps.mockImplementation(
+        () =>
+          new Promise<Caps>((resolve) => {
+            settle = resolve
+          })
+      )
+
+      fireEvent.click(await screen.findByLabelText(/Agente da conversa/))
+      fireEvent.click(await screen.findByText('copilot-cli'))
+
+      // No model name at all — not the previous agent's, not a guess.
+      await waitFor(() => expect(screen.queryByText('Modelo A')).toBeNull())
+      const loading = screen.getByRole('status', { name: 'Carregando opções do agente…' })
+      expect(loading.getAttribute('aria-busy')).toBe('true')
+
+      await act(async () => {
+        settle({
+          models: [{ id: 'copilot-1', label: 'Modelo do Copilot', contextWindow: 128_000 }],
+          efforts: [],
+          supportsAttachments: false
+        })
+      })
+      expect(await screen.findByText('Modelo do Copilot')).toBeTruthy()
+      expect(screen.queryByRole('status', { name: 'Carregando opções do agente…' })).toBeNull()
+    })
+
+    /** …and nothing sends the old agent's model id in the meantime. */
+    it('omits the model flag on a turn sent while the new agent is still being detected', async () => {
+      renderChat({}, { agents: ['claude-cli', 'copilot-cli'] })
+      await screen.findByText('Modelo A')
+
+      const caps = vi.mocked(window.hive.agent.capabilities)
+      caps.mockImplementation(() => new Promise(() => {}))
+      fireEvent.click(await screen.findByLabelText(/Agente da conversa/))
+      fireEvent.click(await screen.findByText('copilot-cli'))
+      await waitFor(() => expect(screen.queryByText('Modelo A')).toBeNull())
+
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'oi' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+
+      const send = vi.mocked(window.hive.agent.send)
+      await waitFor(() => expect(send).toHaveBeenCalled())
+      // `undefined` is "omit the flag", which is the CLI's own default — the
+      // only honest answer before its capabilities are known.
+      expect(send.mock.calls.at(-1)?.[1]).toMatchObject({ model: undefined })
     })
 
     it('survives a host that wired no way out to the agent list either', async () => {
@@ -3726,9 +3955,20 @@ describe('Chat', () => {
       })
     }
 
-    // Nothing to report is not a widget showing zero — the meter simply is not
-    // there until a turn has said something about the window.
-    it('stays absent until a turn reports usage', async () => {
+    /**
+     * The meter is **always on screen**, and it distinguishes the two ways a
+     * reading can be missing.
+     *
+     * It used to remove itself whenever nothing had been measured, which is
+     * exactly the state a user switching between two conversations lands in —
+     * the footer's only indicator of how much room the agent has left simply
+     * disappeared, and came back minutes later when the next turn answered. A
+     * gauge that removes itself teaches nobody that it exists.
+     *
+     * Empty and unread are not the same thing, though, and `0%` over an
+     * occupancy nobody has measured is the one reading a gauge must never give.
+     */
+    it('is always on screen once there is a conversation: "—" while unread, the share once measured', async () => {
       const { emit } = renderChat()
       await screen.findByText('Modelo A')
       fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
@@ -3736,9 +3976,13 @@ describe('Chat', () => {
       })
       fireEvent.click(screen.getByText('Enviar'))
       act(() => emit({ type: 'token', text: 'ola' }))
-      // A turn is running and streaming, and still there is nothing to show:
-      // an adapter that reports no usage gets no widget, not a widget at zero.
-      expect(screen.queryByText('de contexto')).toBeNull()
+      // A turn is running and the adapter has reported no usage: the occupancy
+      // is genuinely unknown. The meter says so — and, crucially, it is THERE.
+      // It used to remove itself, which is the state a user switching between
+      // two conversations lands in.
+      expect(screen.getByText('de contexto')).toBeTruthy()
+      expect(screen.getByText('—')).toBeTruthy()
+      expect(screen.queryByText('0%')).toBeNull()
 
       act(() => {
         emit({
@@ -3755,6 +3999,130 @@ describe('Chat', () => {
       })
       expect(await screen.findByText('de contexto')).toBeTruthy()
       expect(screen.getByText('37%')).toBeTruthy()
+    })
+
+    /**
+     * The reading belongs to the conversation, not to the pane.
+     *
+     * Reported in one sentence: moving between two conversations blanked the
+     * percentage. The pane reset the meter on every switch, so a number
+     * measured ten seconds earlier was thrown away and only came back when the
+     * next turn answered — minutes, on a long run.
+     */
+    it('keeps each conversation’s reading across a switch', async () => {
+      const ref = createRef<ChatHandle>()
+      const other: StoredSessionLike = {
+        id: 'session-7',
+        workspace: '/ws',
+        agent: 'claude-cli',
+        title: 'Outra conversa',
+        createdAt: 1,
+        updatedAt: 2,
+        messages: [{ id: 'm0', role: 'user', text: 'outro assunto', at: 1 }]
+      }
+      const { chatHistory, emit } = mockHive({})
+      render(
+        createElement(Chat, {
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          ref
+        })
+      )
+      await screen.findByText('Modelo A')
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'primeira mensagem' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      await screen.findByText('primeira mensagem')
+      act(() => {
+        emit({
+          type: 'usage',
+          final: true,
+          usage: {
+            inputTokens: 800,
+            cacheReadTokens: 60_000,
+            cacheCreationTokens: 14_000,
+            outputTokens: 1200
+          }
+        })
+        emit({ type: 'done' })
+      })
+      expect(await screen.findByText('37%')).toBeTruthy()
+
+      // Away to a conversation nothing has measured: the meter is still THERE,
+      // and it says it has no reading rather than inventing a zero.
+      chatHistory.get.mockResolvedValue(other)
+      await act(async () => {
+        await ref.current?.openSession('session-7')
+      })
+      await screen.findByText('outro assunto')
+      expect(screen.getByText('de contexto')).toBeTruthy()
+      expect(screen.getByText('—')).toBeTruthy()
+
+      // …and back: the number measured here is still this conversation's,
+      // without waiting for another turn to report one.
+      chatHistory.get.mockResolvedValue({
+        ...CREATED_SESSION,
+        messages: [{ id: 'm0', role: 'user' as const, text: 'primeira mensagem', at: 1 }]
+      })
+      await act(async () => {
+        await ref.current?.openSession(CREATED_SESSION.id)
+      })
+      expect(await screen.findByText('37%')).toBeTruthy()
+    })
+
+    /** …and it survives the app closing, because it is stored with the transcript. */
+    it('writes the occupancy to the conversation, and not the session totals', async () => {
+      // `reportUsage` mounts the pane itself — a second `renderChat()` here
+      // would leave two on screen and every query would find two of everything.
+      await reportUsage()
+      await screen.findByText('37%')
+
+      const setUsage = vi.mocked(window.hive.chatHistory.setUsage)
+      await waitFor(() => expect(setUsage).toHaveBeenCalled())
+      const call = setUsage.mock.calls.at(-1) as [string, string, Record<string, unknown>]
+      expect(call[1]).toBe(CREATED_SESSION.id)
+      expect((call[2].context as { inputTokens: number }).inputTokens).toBe(800)
+      // The session totals are NOT stored: they are this window's record of its
+      // own work, and persisting them would make a lifetime bill of them.
+      expect(call[2]).not.toHaveProperty('turns')
+      expect(call[2]).not.toHaveProperty('costUsd')
+    })
+
+    /** …and a window that never measured it reads it back off the transcript. */
+    it('restores a stored occupancy when the conversation is reopened from disk', async () => {
+      const ref = createRef<ChatHandle>()
+      const hive = mockHive({})
+      hive.chatHistory.get.mockResolvedValue({
+        ...CREATED_SESSION,
+        id: 'guardada',
+        messages: [{ id: 'm0', role: 'user' as const, text: 'guardada', at: 1 }],
+        usage: {
+          context: {
+            inputTokens: 800,
+            cacheReadTokens: 60_000,
+            cacheCreationTokens: 14_000,
+            outputTokens: 1200
+          },
+          reportedWindow: 200_000
+        }
+      })
+      render(
+        createElement(Chat, {
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          ref
+        })
+      )
+      await screen.findByText('Modelo A')
+      await act(async () => {
+        await ref.current?.openSession('guardada')
+      })
+      expect(await screen.findByText('37%')).toBeTruthy()
     })
 
     it('opens a breakdown of what the model actually read', async () => {
@@ -3858,11 +4226,24 @@ describe('Chat', () => {
       expect(onClaudeConnect).toHaveBeenCalled()
     })
 
-    it('sends the message again once the account is connected — the user typed it once', async () => {
-      // The repair used to end one step short: back from the browser, the app
-      // said "connected", and the question was still sitting in a dead turn.
-      const onClaudeConnect = vi.fn().mockResolvedValue(true)
-      const { emit } = renderChat({}, { onClaudeConnect })
+    /**
+     * The repair ends where the user's intent was: the question they asked is
+     * on its way again, and the sentence that stopped being true is off screen.
+     *
+     * **The trigger is the account, not the promise.** `claude auth login` can
+     * write the credentials and still exit non-zero — a killed timeout, a
+     * browser tab that took its time — and keying the resend on its return
+     * value is what left a user signed in, told so by the app, and still
+     * looking at "sua conta não está conectada" over a dead turn. What the app
+     * watches instead is the attempt *ending* with a usable account, which is
+     * also what makes a sign-in done anywhere else (the beacon, Perfil ›
+     * Conexão, the user's own terminal) finish the repair.
+     */
+    it('sends the message again once the account is usable — even when the CLI exits non-zero', async () => {
+      // `false` is the sign-in's own verdict; `claudeAccountReady` is the
+      // machine's. They disagree here, and the machine is the one that decides.
+      const onClaudeConnect = vi.fn().mockResolvedValue(false)
+      const { emit } = renderChat({}, { onClaudeConnect, claudeAccountReady: true })
       const send = vi.mocked(window.hive.agent.send)
 
       await screen.findByText('Modelo A')
@@ -3876,11 +4257,67 @@ describe('Chat', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
       await waitFor(() => expect(send).toHaveBeenCalledTimes(2))
       expect(send).toHaveBeenLastCalledWith('Resuma o PRD', expect.any(Object))
+      // ...and the banner goes with it: it is a claim about the account, and
+      // the account is fine now.
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     })
 
-    it('sends nothing again when the sign-in did not land', async () => {
+    /**
+     * The repair can land from somewhere this pane never saw: Perfil › Conexão,
+     * the beacon's "Tentar de novo", or `claude auth login` in the user's own
+     * terminal. The account coming back is the signal — not this button being
+     * pressed — so the banner goes and the question goes with it either way.
+     */
+    it('finishes the repair when the account comes back from anywhere else', async () => {
+      const hive = mockHive({})
+      const props = {
+        workspace: '/ws',
+        startActions: roleActions,
+        agents: ['claude-cli'],
+        defaultAgent: 'claude-cli',
+        claudeAccountReady: false
+      }
+      const { rerender } = render(createElement(Chat, props))
+      await screen.findByText('Modelo A')
+
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'Resuma o PRD' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      const send = vi.mocked(window.hive.agent.send)
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+
+      act(() => {
+        hive.emit({ type: 'error', message: 'claude-auth:signed-out' })
+      })
+      expect(await screen.findByRole('alert')).toBeTruthy()
+
+      // Nothing was pressed here. The machine simply has an account now.
+      await act(async () => {
+        rerender(createElement(Chat, { ...props, claudeAccountReady: true }))
+      })
+
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    /** A turn launched as a workflow is re-runnable too — those are the long ones. */
+    it('re-runs a slash-command turn that died for want of an account', async () => {
+      const onClaudeConnect = vi.fn().mockResolvedValue(true)
+      const { emit } = renderChat({}, { onClaudeConnect, claudeAccountReady: true })
+      const runWorkflow = vi.mocked(window.hive.agent.runWorkflow)
+
+      fireEvent.click(await screen.findByText('Criar um PRD'))
+      await waitFor(() => expect(runWorkflow).toHaveBeenCalledTimes(1))
+
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
+      await waitFor(() => expect(runWorkflow).toHaveBeenCalledTimes(2))
+    })
+
+    it('sends nothing again while the account is still not usable', async () => {
       const onClaudeConnect = vi.fn().mockResolvedValue(false)
-      const { emit } = renderChat({}, { onClaudeConnect })
+      const { emit } = renderChat({}, { onClaudeConnect, claudeAccountReady: false })
       const send = vi.mocked(window.hive.agent.send)
 
       await screen.findByText('Modelo A')
@@ -3894,6 +4331,31 @@ describe('Chat', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
       await waitFor(() => expect(onClaudeConnect).toHaveBeenCalled())
       expect(send).toHaveBeenCalledTimes(1)
+      // The failure is still true, so it is still on screen.
+      expect(screen.getByRole('alert').textContent).toContain('não está conectada')
+    })
+
+    /** While the browser has the user, the control says so instead of looking untouched. */
+    it('marks the repair as running from the press, not from the stream', async () => {
+      let land: (value: boolean) => void = () => {}
+      const onClaudeConnect = vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            land = resolve
+          })
+      )
+      const { emit } = renderChat({}, { onClaudeConnect, claudeAccountReady: false })
+      act(() => emit({ type: 'error', message: 'claude-auth:signed-out' }))
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta' }))
+      const busy = await screen.findByText('Conectando…')
+      expect(busy.closest('button')?.getAttribute('aria-disabled')).toBe('true')
+      // A second press must not start a second `claude auth login`.
+      fireEvent.click(busy)
+      expect(onClaudeConnect).toHaveBeenCalledTimes(1)
+      await act(async () => {
+        land(false)
+      })
     })
 
     it('still explains the account failure when the host offers no repair', async () => {

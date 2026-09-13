@@ -1,11 +1,13 @@
-import { createElement, useMemo } from 'react'
-import type { MouseEvent } from 'react'
+import { Children, createElement, useMemo } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { CodeFence } from '@hive/design-system'
 import { t } from '../i18n'
 import { resolveCommand, splitCommandMentions, type SkillOracle } from '../chat/commandMentions'
 import { resolvePath, splitFilePaths, type PathOracle } from '../chat/filePaths'
+import { copyText } from './clipboard'
 import { FileTypeIcon } from './fileIcons'
 import { SlashIcon } from './icons'
 
@@ -78,6 +80,86 @@ function anchored<Tag extends keyof React.JSX.IntrinsicElements>(tag: Tag) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Fenced code blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * The plain source behind a rendered `<pre>`.
+ *
+ * Read off the **markdown AST**, not off the DOM and not off `children`. Both
+ * shortcuts corrupt the text in ways that only show up once someone pastes it:
+ * `textContent` inserts a space at every element boundary, and walking the
+ * React children of a highlighted block loses the newlines that live between
+ * sibling spans. The AST node still holds the fence verbatim.
+ */
+function sourceOf(node: unknown): string {
+  const value = (node as { children?: Array<{ children?: Array<{ value?: string }> }> })
+    ?.children?.[0]?.children?.[0]?.value
+  return typeof value === 'string' ? value.replace(/\n$/, '') : ''
+}
+
+/**
+ * The language a fence was opened with (` ```ts `), or `undefined`.
+ *
+ * remark writes it onto the inner `<code>` as `language-<name>`, which is the
+ * only place it survives to — the `<pre>` itself carries nothing.
+ */
+function languageOf(children: ReactNode): string | undefined {
+  // `Children.toArray` rather than an `Array.isArray` branch: react-markdown
+  // hands a fence's single `<code>` through as a bare node or as a one-element
+  // array depending on whitespace, and normalising is cheaper than carrying a
+  // fork that exists only to describe that.
+  const [only] = Children.toArray(children)
+  const className = (only as { props?: { className?: string } })?.props?.className
+  const match = typeof className === 'string' ? /language-([\w+#-]+)/.exec(className) : null
+  return match ? match[1] : undefined
+}
+
+/**
+ * Every fenced block in a reply gets the control people now expect in its top
+ * corner: copy.
+ *
+ * An agent that answers with extracted text, a config, a command or a patch is
+ * answering with something the user is about to take somewhere else, and
+ * selecting it by hand out of a scrolling transcript is the step that made
+ * that answer expensive. The block is the unit — one control, one block, no
+ * selection.
+ *
+ * `data-line` still rides on the `<pre>`: the edit ⇄ preview scroll sync steers
+ * by it (`explorer/scrollSync.ts`), and a fence that lost it would be a hole in
+ * the crossing exactly where the tallest blocks are.
+ *
+ * The clipboard goes through `ui/clipboard.ts`, never the DS's own — in this
+ * window `navigator.clipboard` is denied by the session's permission handler,
+ * which is why every copy in this app is routed through the Electron bridge.
+ */
+function CodeFenceBlock({
+  node,
+  children,
+  className
+}: {
+  node?: { position?: { start?: { line?: number } } }
+  children?: ReactNode
+  className?: string
+}): React.JSX.Element {
+  const code = sourceOf(node)
+  const language = languageOf(children)
+  return (
+    <CodeFence
+      className={className}
+      data-line={node?.position?.start?.line}
+      code={code}
+      language={language}
+      onCopy={(text) => void copyText(text)}
+      copyLabel={t('chat.codeCopy')}
+      copiedLabel={t('chat.codeCopied')}
+    >
+      {children}
+    </CodeFence>
+  )
+}
+
 /**
  * Every block-level element the renderer can emit. Inline elements are
  * deliberately left out: an anchor inside a paragraph is not a scroll target,
@@ -93,7 +175,7 @@ const BLOCK_COMPONENTS: Components = {
   h6: anchored('h6'),
   p: anchored('p'),
   li: anchored('li'),
-  pre: anchored('pre'),
+  pre: CodeFenceBlock,
   blockquote: anchored('blockquote'),
   table: anchored('table'),
   hr: anchored('hr')

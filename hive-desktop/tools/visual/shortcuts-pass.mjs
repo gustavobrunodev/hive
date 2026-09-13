@@ -109,7 +109,7 @@ async (page) => {
     await page.reload()
     await page.waitForTimeout(1200)
     if (theme !== 'dark') {
-      await page.locator('[aria-label^="Aparência (atual:"]').click()
+      await page.locator('[aria-label^="Escolha do tema (atual:"]').click()
       await page.waitForTimeout(200)
       // The DS DropdownMenu exposes the theme options as `menuitemradio`.
       await page.getByRole('menuitemradio', { name: theme === 'light' ? /Claro/ : /Hive/ }).click()

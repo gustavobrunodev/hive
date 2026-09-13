@@ -130,7 +130,7 @@ async (page) => {
   const switchTheme = async (theme) => {
     // The real Aparência menu, never the storage key or the attribute — see
     // the header note.
-    await page.click('button[aria-label^="Aparência"]')
+    await page.click('button[aria-label^="Escolha do tema"]')
     await page.waitForTimeout(200)
     const label = { dark: 'Escuro', light: 'Claro', hive: 'Hive' }[theme]
     await page.getByRole('menuitemradio', { name: label }).click()

@@ -1,4 +1,4 @@
-import type { SidebarView } from './ActionRail'
+import { isSidebarView, isWorkView, type SidebarView, type WorkView } from './sidebarNav'
 
 /**
  * One restored editor tab (workspace-session).
@@ -30,6 +30,19 @@ export interface WorkspaceSession {
   chatSessionId: string | null
   /** Which sidebar view the rail was showing (or would show, if hidden). */
   sidebarView: SidebarView
+  /** Which surface the work area's first pane was showing — the transcript, or one of the chat tools. */
+  workView: WorkView
+  /**
+   * The initiative the work area was opened on, as its workspace-relative
+   * folder — `null` for a plain conversation.
+   *
+   * A path rather than the initiative itself: the folder is the identity, and
+   * anything else about it (its title, its artifacts, how far along its plan
+   * is) has to be re-read from disk on the way back in anyway. Restoring a
+   * *copy* of that would mean restoring an initiative as it was when the app
+   * closed, which is exactly the state the agent has been changing since.
+   */
+  initiativePath: string | null
   /** Whether the sidebar panel itself was on screen. */
   sidebarOpen: boolean
   /**
@@ -48,24 +61,30 @@ export const EMPTY_SESSION: WorkspaceSession = {
   activeTab: null,
   expanded: [],
   chatSessionId: null,
-  sidebarView: 'explorer',
   /**
-   * **First launch opens on the chat alone.**
+   * **First launch opens on the Chat tab, with the sidebar showing.**
    *
-   * A file tree over a workspace whose files you have not asked about yet is
-   * a wall of names with nothing to say; the one thing a first-time user is
-   * here to do is talk to an agent. The sidebar is one keystroke (Ctrl+B) or
-   * one rail click away, and the guided tour points at that button — so this
-   * hides a surface, never a capability.
+   * It used to open on the Explorer, hidden — for a good reason at the time: a
+   * file tree over a workspace whose files you have not asked about yet is a
+   * wall of names with nothing to say, so the app hid the whole panel rather
+   * than lead with it (nav-redesign supersedes that).
+   *
+   * The sidebar's first face is no longer a file tree. It is "+ Novo", the
+   * agent's tools and the conversations you had yesterday — which is exactly
+   * what a returning user came for, and the one screen a first-time user should
+   * be looking at. Hiding it now would hide the app's own table of contents.
+   * Ctrl+B still puts it away, and the choice is remembered per workspace.
    */
-  sidebarOpen: false,
+  sidebarView: 'chat',
+  workView: 'chat',
+  initiativePath: null,
+  sidebarOpen: true,
   layout: null
 }
 
 const STORAGE_KEY = 'hive.workspaceSession'
 
-/** Pre-`workspaceSession` keys, read once to migrate an existing install (never written again). */
-const LEGACY_VIEW_KEY = 'hive.sidebarView'
+/** Pre-`workspaceSession` key, read once to migrate an existing install (never written again). See `legacySeed` for why `hive.sidebarView` is no longer one of them. */
 const LEGACY_LAYOUT_KEY = 'hive.workLayout'
 
 /**
@@ -83,11 +102,8 @@ interface StoredEntry extends WorkspaceSession {
 
 type Store = Record<string, StoredEntry>
 
-const VIEWS: readonly SidebarView[] = ['explorer', 'scm', 'review', 'brain']
-
-function isView(value: unknown): value is SidebarView {
-  return typeof value === 'string' && (VIEWS as readonly string[]).includes(value)
-}
+/** The view vocabulary lives with the nav model, so a new view cannot be storable without being navigable. */
+const isView = isSidebarView
 
 /** A flex-grow map is a plain object of finite numbers — anything else is corrupt and is dropped whole. */
 function readLayout(value: unknown): Record<string, number> | null {
@@ -118,7 +134,9 @@ function readTabs(value: unknown): RestoredTab[] {
 
 function readStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return []
-  return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry !== ''))]
+  return [
+    ...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry !== ''))
+  ]
 }
 
 function readEntry(value: unknown): WorkspaceSession | null {
@@ -132,7 +150,17 @@ function readEntry(value: unknown): WorkspaceSession | null {
     activeTab: tabs.some((tab) => tab.path === activeTab) ? activeTab : (tabs[0]?.path ?? null),
     expanded: readStrings(raw.expanded),
     chatSessionId: typeof raw.chatSessionId === 'string' ? raw.chatSessionId : null,
-    sidebarView: isView(raw.sidebarView) ? raw.sidebarView : 'explorer',
+    sidebarView: isView(raw.sidebarView) ? raw.sidebarView : EMPTY_SESSION.sidebarView,
+    // `review` and `brain` were sidebar views before they became work-area
+    // panes. A session saved then still names one here, and `isView` now says
+    // no to both — so the field above falls back to `chat` (the right rail) and
+    // this carries the intent across to where that surface actually lives now.
+    workView: isWorkView(raw.workView)
+      ? raw.workView
+      : isWorkView(raw.sidebarView)
+        ? raw.sidebarView
+        : EMPTY_SESSION.workView,
+    initiativePath: typeof raw.initiativePath === 'string' ? raw.initiativePath : null,
     sidebarOpen: raw.sidebarOpen === true,
     layout: readLayout(raw.layout)
   }
@@ -177,15 +205,25 @@ function writeStore(store: Store): void {
   }
 }
 
-/** One legacy key's value, or `undefined` — the reads are separate so a corrupt layout can't cost the view. */
+/**
+ * What a workspace with no session of its own inherits from the
+ * pre-`workspaceSession` globals: **the rail's width, and nothing else.**
+ *
+ * The view used to be seeded from `hive.sidebarView` too, and that turned a
+ * one-off migration into a permanent rule: the key is global and was last
+ * written by a build that predates the Chat tab, so *every* folder opened for
+ * the first time since then landed on whatever surface that install happened to
+ * quit on — the Explorer, or the diff list, or (worse) a work view that opened
+ * over the conversation. A first-run default that varies with an old machine's
+ * leftovers is not a default; opening a new workspace on Chat & Cowork with the
+ * transcript in front is (`EMPTY_SESSION`).
+ *
+ * A width is different in kind, and is kept: it is a fact about this user's
+ * monitor and their hand, it is the same answer in every folder, and getting it
+ * wrong costs one drag rather than a wrong screen.
+ */
 function legacySeed(): Partial<WorkspaceSession> {
   const seed: Partial<WorkspaceSession> = {}
-  try {
-    const view = localStorage.getItem(LEGACY_VIEW_KEY)
-    if (isView(view)) seed.sidebarView = view
-  } catch {
-    // ignore
-  }
   try {
     const raw = localStorage.getItem(LEGACY_LAYOUT_KEY)
     const layout = raw ? readLayout(JSON.parse(raw)) : null
@@ -199,12 +237,13 @@ function legacySeed(): Partial<WorkspaceSession> {
 /**
  * The state to open this workspace in.
  *
- * A workspace nobody has saved yet gets `EMPTY_SESSION` — including its closed
- * sidebar — with the pre-workspaceSession globals folded in as seeds, so an
- * existing install keeps the rail width it dragged and the view it left on
- * without ever having been asked to migrate. `sidebarOpen` is deliberately
- * NOT seeded: "first launch shows only the chat" is a rule about a workspace
- * with no session, and an old global says nothing about this workspace.
+ * A workspace nobody has saved yet gets `EMPTY_SESSION` — Chat & Cowork, with
+ * the transcript in front — plus the one pre-`workspaceSession` global still
+ * worth folding in (the rail's width; see `legacySeed`). Nothing an old install
+ * left behind is allowed to choose the *screen* a new workspace opens on:
+ * "first launch lands on the conversation" is a rule about a workspace with no
+ * session, and a global written by a build that predates the Chat tab says
+ * nothing about this one.
  */
 export function loadWorkspaceSession(workspace: string): WorkspaceSession {
   const stored = readStore()[workspace]
@@ -217,6 +256,8 @@ export function loadWorkspaceSession(workspace: string): WorkspaceSession {
       expanded: stored.expanded,
       chatSessionId: stored.chatSessionId,
       sidebarView: stored.sidebarView,
+      workView: stored.workView,
+      initiativePath: stored.initiativePath,
       sidebarOpen: stored.sidebarOpen,
       layout: stored.layout
     }

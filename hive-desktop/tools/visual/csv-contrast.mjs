@@ -31,7 +31,7 @@ async (page) => {
   for (const theme of THEMES) {
     // O menu de aparência é o controle real; trocar `data-theme` na mão não
     // passa pelo React e o valor da sessão anterior sobrevive no storage.
-    await page.getByRole('button', { name: 'Aparência' }).click()
+    await page.getByRole('button', { name: /^Escolha do tema/ }).click()
     await page.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) }).click()
     await page.waitForTimeout(350)
 

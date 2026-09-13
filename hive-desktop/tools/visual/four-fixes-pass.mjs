@@ -59,7 +59,7 @@ async (page) => {
     })
 
   const openThemeMenu = async () => {
-    await page.locator('button[aria-label*="Aparência"]').first().click()
+    await page.locator('button[aria-label*="Escolha do tema"]').first().click()
     await page.waitForTimeout(420)
   }
 

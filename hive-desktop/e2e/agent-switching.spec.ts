@@ -2,6 +2,7 @@ import {
   test,
   expect,
   launchSeededApp,
+  newConversation,
   patchSeededConfig,
   waitForWorkUI
 } from './fixtures/workspace'
@@ -87,7 +88,7 @@ test.describe('agent switching across conversations (P2-005)', () => {
 
     // A new conversation is a new binding — the lock was per-conversation, not
     // a one-way door for the app.
-    await window.getByRole('button', { name: 'Nova conversa' }).click()
+    await newConversation(window)
     const switcher = window.getByRole('button', { name: /^Agente da conversa: / })
     await expect(switcher).toBeVisible({ timeout: 20_000 })
 

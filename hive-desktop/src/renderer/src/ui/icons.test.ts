@@ -42,7 +42,16 @@ import {
   MinusIcon,
   ExternalLinkIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  SortIcon,
+  FilterIcon,
+  SignOutIcon,
+  ListAllIcon,
+  InfoIcon,
+  InitiativeIcon,
+  ReleaseIcon
 } from './icons'
 
 /**
@@ -105,7 +114,11 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
       ToolsIcon,
       ZapIcon,
       StatusDotIcon,
-      AlertTriangleIcon
+      AlertTriangleIcon,
+      // initiatives: the sidebar's demand and release marks. The `Tree`'s own
+      // `renderLabel` draws them, which no suite selects by icon.
+      InitiativeIcon,
+      ReleaseIcon
     ]) {
       const { container } = render(createElement(Icon, { size: 18 }))
       expect(container.querySelector('svg')).toBeTruthy()
@@ -137,6 +150,24 @@ describe('icons — theme + intent icons not exercised by feature UI suites', ()
   it('renders the scroll-affordance and external-link icons', () => {
     for (const Icon of [ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon]) {
       const { container } = render(createElement(Icon, { size: 14 }))
+      expect(container.querySelector('svg')).toBeTruthy()
+    }
+  })
+
+  // nav-redesign — the shell's own glyph set: the sidebar toggle's two faces,
+  // the conversation list's filter/sort controls, "see everything", and the
+  // user menu's departure.
+  it('renders the shell navigation icons', () => {
+    for (const Icon of [
+      PanelLeftCloseIcon,
+      PanelLeftOpenIcon,
+      SortIcon,
+      FilterIcon,
+      SignOutIcon,
+      ListAllIcon,
+      InfoIcon
+    ]) {
+      const { container } = render(createElement(Icon, { size: 15 }))
       expect(container.querySelector('svg')).toBeTruthy()
     }
   })

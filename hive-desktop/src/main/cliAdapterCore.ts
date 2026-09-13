@@ -62,6 +62,41 @@ export interface CliAdapterConfig {
     turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
   ): string[]
   /**
+   * Send the turn's prompt down the child's **stdin** instead of its argv.
+   *
+   * Set it and `buildArgs` is handed an empty `prompt` — it must place none —
+   * while the engine writes the real one to stdin and closes the pipe.
+   *
+   * This is not a preference. On Windows an npm-installed CLI is a `.cmd`
+   * batch shim, and a Windows command line **cannot carry a newline**: the
+   * escape `cliEnv.escapeCmdArgument` puts in front of one is read by `cmd` as
+   * a line continuation, and everything after it — the rest of the prompt and
+   * every flag that followed `-p` — is dropped with no error anywhere.
+   * Measured against a real `cmd.exe` and a real batch shim:
+   *
+   * ```text
+   *   argv in : ['-p', 'line one\nline two', '--flagA', 'valA']
+   *   argv out: ['-p', 'line one']
+   * ```
+   *
+   * Which is exactly the shape of the bug it was found through: attachments
+   * ride in an `<attached-files>` block that starts on the prompt's **second
+   * line**, so on Windows the agent was told about no files at all and
+   * answered, correctly for what it received, that nothing had been attached.
+   * A user's own multi-line message was losing everything past its first line
+   * the same way — the same defect, just harder to notice.
+   *
+   * Devin never showed it because its turns go over ACP (JSON-RPC on stdin),
+   * which is the same insight arriving by a different road: what a Windows
+   * command line mangles, a pipe carries verbatim.
+   *
+   * Opt-in per adapter because it takes the CLI's agreement: `claude -p` with
+   * no positional prompt reads one from stdin (verified live, including under
+   * `--output-format stream-json`), and a CLI that does not would be handed
+   * nothing at all.
+   */
+  promptOnStdin?: boolean
+  /**
    * agent-terminal (AT-R4): extra environment for this turn — the adapter's
    * own translation of the shell the user chose (`CLAUDE_CODE_SHELL` and
    * friends). Called per turn, so a choice made mid-session applies to the
@@ -963,9 +998,14 @@ export function createCliAgentSession(
     prompt: string,
     turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
   ): ProcessHandle {
-    return processRunner.run(config.command, config.buildArgs(prompt, turn), {
+    // `promptOnStdin`: the prompt leaves argv entirely and travels as the
+    // child's whole stdin, because a Windows `.cmd` shim silently truncates a
+    // command line at its first newline. See the field's own doc.
+    const viaStdin = config.promptOnStdin === true
+    return processRunner.run(config.command, config.buildArgs(viaStdin ? '' : prompt, turn), {
       cwd: opts.workspace,
       env: config.buildEnv?.(),
+      ...(viaStdin ? { input: prompt } : {}),
       // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
       // inside the user's chosen terminal. With nothing chosen the runner
       // spawns exactly as it always did.

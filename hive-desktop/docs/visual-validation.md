@@ -299,6 +299,44 @@ nenhum recebe foco (`visibility: hidden` tira da ordem de tabulação e da árvo
 de acessibilidade — `display: none` também tiraria, mas junto levaria o scroll,
 que é metade do estado que essa mudança existe para guardar).
 
+`tools/visual/round-2026-09-12.mjs` + `tools/visual/round-2026-09-12-contrast.mjs`
+cobrem a rodada de 2026-09-12 — o cromo do painel sozinho, a seleção múltipla do
+histórico, o banner do turno morto e o seletor de motor em carregamento. São 10
+afirmações funcionais × 3 temas mais 17 alvos de contraste/estrutura. Cinco
+lições, todas pagas nesta rodada:
+
+- **Um passe que só devolve dados lê-se como "está tudo bem".** O
+  `claude-signin-pass.mjs` vinha reportando `bannerGone: false` e `sends: 0` —
+  ou seja, o defeito exato que o usuário relatou, já capturado por uma sonda do
+  próprio repositório — e ninguém viu, porque ele devolvia um objeto em vez de
+  um veredito. Todo `ok:` aqui é booleano e o retorno carrega `failures: []`.
+- **`page.locator('textarea').first()` não é o compositor.** Se a view de
+  Controle de versão estiver montada (as camadas da lateral ficam montadas), a
+  primeira `textarea` do documento é a caixa de mensagem do commit — o passe
+  digita lá, o Enter vira quebra de linha, nada é enviado e todas as
+  afirmações seguintes medem um app onde nada aconteceu. Ancore no
+  `.hds-prompt-input-textarea`.
+- **A largura tem que ser medida no estado em que ela aperta.** A barra de
+  seleção cabia com folga (264/280) e estourava ao _perguntar_ — a pergunta e um
+  segundo botão entram na mesma linha, e o "Cancelar" saía pela borda. A sonda
+  mede as duas caras, e afirma que cada botão está inteiro, não só que a barra
+  cabe.
+- **`background-image` também é fundo.** O Chromium serializa as paradas de um
+  gradiente como `oklab(...)`, que o regex de cor da sonda não casava — então o
+  tint de uma barra `sticky` ficava invisível para ela e _todo_ par de placa
+  contra essa barra media exatamente 1,00:1. Um 1,00 redondo é quase sempre a
+  sonda, não o CSS.
+- **Uma caixa marcada é uma placa, não um glifo sobre a linha.** Medir o tick
+  contra a linha atrás dele deu 1,13–1,48:1 nos três temas e parecia um achado;
+  o par real é `--accent-ink` sobre `--accent` (5,54–8,91:1). É a mesma lição do
+  `add-context-contrast.mjs` — alvos `self` para qualquer coisa que pinte a
+  própria superfície.
+
+A rodada também achou um defeito de contraste **herdado**: a meta da linha
+_atual_ do histórico (`--muted` sobre `--selected-bg`) media 4,16:1 no tema
+claro desde que essa linha ganhou o tint. A sonda mede a linha atual ao lado da
+linha marcada justamente para que uma falha diga qual das duas é nova.
+
 `tools/visual/contrast.mjs` cobre as superfícies do M12/M12.1 (convite, guarda,
 toast). `tools/visual/ingestContrast.mjs` cobre a folha de ingestão redesenhada
 (M12.4): 34 alvos em seis estados — áudio, arquivos em fila, popover de modelo,
@@ -681,8 +719,8 @@ estruturais. Cinco lições, todas pagas nesta rodada:
   compositor em trabalho mediu 2,61–2,73:1 e parecia reprovação de piso 3:1. A
   borda **em repouso** do mesmo app mede 1,70–1,98:1 (`--border-strong`): é
   aresta de contêiner, não indicador. Quem indica é o facho (6,7:1), mais o botão
-  que vira Parar e a linha de status do turno. A afirmação certa é *em trabalho >
-  em repouso*, e o motivo mora **dentro** da lista de alvos — sem isso a próxima
+  que vira Parar e a linha de status do turno. A afirmação certa é _em trabalho >
+  em repouso_, e o motivo mora **dentro** da lista de alvos — sem isso a próxima
   rodada re-adiciona o 3:1 e "conserta" clareando uma borda de 1px acima de todas
   as outras do app.
 - **Fixture que resolve `undefined` não distingue edição viva de edição morta.**
@@ -1573,7 +1611,7 @@ mede os dois estados novos da rail nos três temas.
   aberto de volta para zero. A alça agora **fica sempre no DOM** e sai do layout
   por CSS (`[data-offscreen] { display: none }`).
 - **Os frames de um toggle não são um gesto.** O painel reporta a largura a cada
-  frame do deslize, e todo frame de um *fechamento* está acima do limiar até o
+  frame do deslize, e todo frame de um _fechamento_ está acima do limiar até o
   último. Lidos como gesto, cada um deles diz "o usuário acabou de abrir a
   lateral" e desfaz o fechamento em curso. `WorkUI` marca `toggling` enquanto o
   próprio deslize corre; só o `onResize` fora dessa janela conta como a mão na
@@ -1629,12 +1667,12 @@ geometria real. Cinco lições:
   ficaria verde contra o build quebrado. Verificado ao contrário também —
   desligando o hook, 21 das 24 teclas caem em linha invisível.
 - **jsdom não responde "está na vista".** O defeito é geometria pura (a porta de
-  rolagem segue o *foco*, e o foco fica no textarea): nenhum teste unitário pode
+  rolagem segue o _foco_, e o foco fica no textarea): nenhum teste unitário pode
   vê-lo, e é exatamente por isso que a aritmética foi extraída para uma função
-  pura testável e só o *resto* — a medição — vive no browser.
+  pura testável e só o _resto_ — a medição — vive no browser.
 - **Medir o chão a partir do pai reprova botões preenchidos.** A sonda de
   contraste copiada do `aws-contrast.mjs` reportou **1,13:1** para o botão
-  "Conectar": ela media a tinta de acento contra a superfície *atrás* do botão,
+  "Conectar": ela media a tinta de acento contra a superfície _atrás_ do botão,
   um par que nunca é renderizado. `groundOf` tem que começar **no** elemento do
   chão; ele já ignora fundos transparentes sozinho.
 - **Alvo que não existe naquele estado reporta `missing`, e `missing` se lê como
@@ -1644,3 +1682,153 @@ geometria real. Cinco lições:
   é lido no boot pelo `WorkUI`; sem o namespace no harness, **todo** passe visual
   abriria em branco — a falha continua muda, e continua sendo a primeira coisa a
   suspeitar.
+
+## O anel de contexto e o `@` que parou de ter oito linhas (2026-09-13)
+
+`tools/visual/ring-pass.mjs` dirige o medidor de contexto nas quatro leituras
+que ele tem (folgada, apertada, o detalhe aberto, e a que ninguém mediu ainda),
+`tools/visual/round-2026-09-13.mjs` prova o seletor de arquivos pelo DOM, e
+`tools/visual/ring-themes.mjs` mede 21 alvos de contraste × 3 temas nas duas
+superfícies. Quatro lições, todas pagas nesta rodada:
+
+- **O defeito do `@` era invisível a screenshot.** O menu parecia certo — ele
+  simplesmente não continha as linhas. Um passe que só fotografa teria aprovado
+  o build quebrado; o que pega é ler `aria-setsize`, `scrollHeight` e a linha
+  que o `ArrowDown` acende. Vale a regra geral: **quando o sintoma é "falta
+  conteúdo", a sonda tem que contar, não olhar.**
+- **`box-sizing: border-box` impede uma caixa de ser menor que o próprio
+  padding.** A virtualização usa padding como espaçador das linhas fora da
+  janela — e com o `max-height` na MESMA caixa, a porta de rolagem passou a
+  medir **1536px onde 256 foram pedidos**, sem erro nenhum: o `max-height`
+  computado continuava dizendo `256px`. A porta tem que ser um invólucro e a
+  `<ul>` o conteúdo. O sinal que denunciou foi `clientHeight` ≠ `max-height`,
+  e a sonda passou a afirmar isso.
+- **Uma medição ruim envenena o estado pra sempre.** O `clientHeight` errado
+  foi guardado como altura da porta, e dali em diante a janela renderizava 52
+  linhas de 60 — ou seja, o sintoma apareceu **uma tecla depois** da causa.
+  Efeito que guarda medição precisa de um valor que não possa estar errado, ou
+  de uma afirmação que o denuncie.
+- **Duas superfícies flutuantes não ficam abertas juntas — e a sonda não
+  percebe.** Abrir o menu de `@` significa focar o composer, e isso FECHA a
+  folha de contexto (Popover dismissa em interação externa). Uma varredura só
+  media o menu certinho e reportava **todos** os alvos da folha como `missing`,
+  que se lê exatamente como "nada a corrigir". É a terceira vez que esta
+  armadilha aparece neste arquivo: são dois momentos, não um laço.
+
+## Um menu dentro de um modal, e o gesto que a sonda não fazia (2026-09-13)
+
+`tools/visual/modal-menu-pass.mjs` cobre as três superfícies que hospedam o
+seletor de agentes — o Dialog do Estúdio, a Sheet de ingestão e o diálogo de
+"Perguntar à base" — com 5 afirmações cada, nos três temas. O defeito relatado:
+abrir "Nova skill", clicar **duas vezes** no seletor de agentes, e o modal
+inteiro fecha levando o briefing digitado. A causa completa está no cabeçalho
+de `design-system/src/hooks/useSurfaceDismissGuard.ts`. Quatro lições, todas
+pagas nesta rodada:
+
+- **`locator.click()` não é um clique.** Ele desce e sobe o botão no mesmo
+  tick, e o descarte do Radix é decidido no `click` — cedo demais para o React
+  ter esvaziado a limpeza da camada do menu que está fechando. Resultado: a
+  sonda reportou **PASS em todos os alvos** num build em que o diálogo fechava
+  100% das vezes na mão. O que reproduz é `mouse.move` + `mouse.down` +
+  `mouse.up` como eventos separados. Regra geral: **quando o sintoma depende de
+  ordem de eventos, o gesto tem que ser montado evento a evento.**
+- **E nem no app real, nem no navegador, o mesmo gesto falha igual.** A mesma
+  sequência fechava o diálogo sempre no Chromium servido por HTTP e só
+  intermitentemente no Electron sob xvfb. Ancorar o teste na corrida é
+  construir um flake; o teste E2E afirma a **medição** que diagnosticou o
+  defeito (`getComputedStyle(...).pointerEvents` e `elementFromPoint`), que é
+  determinística, e deixa a sobrevivência do diálogo como afirmação secundária.
+- **`elementFromPoint` sobre um modal pode devolver o overlay DELE.** Um
+  `DropdownMenu` modal apaga `pointer-events` de tudo abaixo, e o
+  `Dialog.Overlay` do Radix é o único elemento que volta a `auto` por estilo
+  inline — então ele vira o alvo de hit-test do painel inteiro. É isso que
+  transforma um clique *no formulário* em um clique *fora do formulário*. A
+  sonda mede as duas coisas (`pointer-events` do conteúdo e se o hit cai no
+  overlay) porque a segunda explica a primeira.
+- **Uma afirmação depois de um `Escape` mede o nada.** A primeira versão do
+  passe fechava a superfície com `Escape` e só então verificava que "um clique
+  ao lado do painel ainda fecha" — com nada aberto, o `count() === 0` passava
+  trivialmente. O ramo ausente agora **reprova** em vez de pular, que é a mesma
+  lição do `aws-contrast.mjs` ("um passe que só devolve dados lê-se como está
+  tudo bem").
+
+Vale também o negativo: `tools/visual/studio-agent-pass.mjs` mede
+`.wb-studio-run` e `.wb-studio-agent`, seletores de um formulário que virou
+`RunConfigBar` — ele reporta `missing` para tudo e sempre passou. Uma sonda
+cujos alvos sumiram continua verde.
+
+## Uma barra de rolagem que a sonda não consegue ver (2026-09-13)
+
+Cenas: `tools/visual/round-2026-09-13b.mjs`, `…-contrast.mjs`, `…-states.mjs`.
+Cobrem o chip de anexo dentro do balão, o bloco de código com botão de copiar e
+a barra do menu `@`.
+
+### Barra overlay não aparece em quadro parado
+
+O Chromium **headless** do Linux desenha barras de rolagem *overlay*: elas não
+reservam gutter (`offsetWidth - clientWidth` é **0**) e não pintam nada num
+screenshot. Uma regra `::-webkit-scrollbar` pode estar perfeitamente correta e
+perfeitamente invisível para a sonda — que foi exatamente o defeito desta
+rodada (`scrollbar-width: thin` devolvendo o menu `@` à barra da plataforma).
+
+O Windows, onde este app roda, usa barras **clássicas**. Para olhar o que aquele
+usuário vê:
+
+```bash
+HIVE_CLASSIC_SCROLLBARS=1 node tools/visual/run-scene.mjs <cena>
+```
+
+**A flag sozinha não basta.** `--disable-features=OverlayScrollbar` não surte
+efeito em `headless: true` — medido: `gutter` continua 0, inclusive para um
+`<div overflow:scroll>` cru. Só com `headless: false` sob `xvfb-run` o gutter
+vira 10px e a barra pinta. Um script de uma vez só, com `chromium.launch({
+headless: false })` e `deviceScaleFactor: 4`, recortando 30px da borda direita,
+foi o que produziu o antes/depois legível — trilho branco com setinha de
+plataforma × polegar arredondado sem trilho.
+
+E a evidência que **não** depende de pintura, útil em qualquer modo:
+
+- `getComputedStyle(port).scrollbarWidth` — tem que ser `auto`. Qualquer outro
+  valor é o elemento fora das regras `::-webkit-scrollbar-*`.
+- `getComputedStyle(port, '::-webkit-scrollbar').width` — prova que a regra
+  alcança o elemento.
+- `getComputedStyle(port, '::-webkit-scrollbar-thumb').backgroundColor` — prova
+  que ela alcança com o token certo.
+
+### Medir o "antes" na mesma cena, não de memória
+
+"O contraste estava ruim" não é achado. A sonda re-aplica o tratamento antigo
+no elemento (via `element.style`), mede, e restaura — três linhas que
+transformam a frase em **1,23:1 → 5,20:1**. É o que prova o relato do usuário e
+o que dimensiona o conserto. Guarde o `getAttribute('style')` e devolva-o: a
+cena continua depois da medição.
+
+### Nem todo pixel colorido é um indicador, terceira vez
+
+A sonda nasceu reprovando "faixa ↔ corpo do bloco" (1,16:1) e "bloco ↔
+resposta" (1,07:1). Alvos errados: num tema escuro **todas** as superfícies
+estão a poucos pontos de luminância umas das outras, então o preenchimento
+nunca foi o que distingue um bloco de código da prosa — a **borda** é.
+Re-apontada para a borda (`borderTopColor` composto sobre os dois lados, o pior
+valendo), sobe para ~1,3 e ainda fica sob 3.
+
+E aí a pergunta deixa de ser "como subo esse número" e passa a ser "esse piso
+vale aqui?". WCAG 1.4.11 cobre o que é **necessário** para identificar um
+componente ou entender um gráfico. O código lê a 12,8:1, a etiqueta de
+linguagem a 6:1 e o botão Copiar a 6:1 — três sinais redundantes dizendo onde o
+bloco começa, e nenhum estado da moldura que alguém precise perceber. Levar uma
+linha de 1px a 3:1 poria um traço quase branco em volta de cada trecho de
+código do transcript.
+
+A linha ficou **relatada, sem piso** (`informative: true`), com o parágrafo
+acima escrito **dentro** da lista de alvos — sem isso a próxima rodada
+re-adiciona o gate. A borda subiu de `--border` para `--border-strong` mesmo
+assim, e o número é como isso foi conferido (1,31 → 1,38 no escuro).
+
+### `userEvent` sob `vi.useFakeTimers()` trava
+
+Não é sonda, é o teste unitário do componente que a acompanha. `userEvent`
+agenda trabalho próprio em timers e espera um tick que só `advanceTimersByTime`
+entrega — chamada que está atrás do `await` que nunca retorna. Timeout de 5s,
+sem pista. Para um controle que só escuta `click`, `fireEvent.click` é a
+interação inteira.

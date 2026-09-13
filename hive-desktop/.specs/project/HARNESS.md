@@ -695,6 +695,32 @@ tinta comum no tema claro — nove falsos negativos. O bloco correto já existia
 em `csv-contrast.mjs` (sobe até o primeiro fundo opaco, `html` incluído). Toda
 sonda nova deve **copiar aquele bloco**, não reescrevê-lo.
 
+### 2026-09-13 — anexos por stdin, bloco copiável, barra do menu `@`
+
+**Controles novos**
+
+| Controle | O que mede | Por que ele existe |
+| --- | --- | --- |
+| `processRunner.test.ts` › "writes `input` to a real child stdin verbatim" + "survives a child that exits before its stdin is written" | Que o transporte novo de prompt entrega os bytes **intactos** a um processo real — várias linhas, `<`, `>`, acento, barra invertida — e que o `EPIPE` da corrida (filho morre antes da escrita) não vira erro. | O defeito que originou o transporte é *silencioso*: no Windows um shim `.cmd` corta a linha de comando na primeira quebra de linha e ninguém é avisado. Um teste com `ProcessRunner` dublado não pode ver isso; só um filho de verdade lendo o próprio stdin pode. |
+| `claudeCliAdapter.test.ts` › "sends the whole prompt on stdin, never in argv" | Que o prompt do turno **não está** na argv (nem o texto nem o bloco `<attached-files>`) e **está** inteiro no `opts.input`. | É uma afirmação sobre ausência, e é a única forma de a regressão ser barrada: "restaurar" o prompt posicional é uma edição de uma linha que passa em todo o resto da suíte. |
+| `tools/visual/round-2026-09-13b.mjs` + `-contrast.mjs` + `-states.mjs` | Cena da rodada nos três temas: 7 alvos de texto/ícone com piso, 2 de borda **relatados sem piso** (com o porquê dentro da lista), o antes/depois do chip medido na mesma cena, e as três fases do controle de copiar — com o que ele põe no clipboard como afirmação. | O passe visual desta rodada. O antes/depois é o que transforma "o contraste estava ruim" em 1,23:1 → 5,20:1, e o `-states` cobre o que um quadro parado não pode: repouso × hover × copiado, e o **conteúdo** copiado. |
+| `HIVE_CLASSIC_SCROLLBARS=1` em `tools/visual/run-scene.mjs` | Liga `--disable-features=OverlayScrollbar` para uma cena que precisa **ver** uma barra de rolagem. | Chromium headless no Linux desenha barras overlay — gutter 0, nada pintado num quadro parado. Uma regra `::-webkit-scrollbar` pode estar certa e invisível na sonda, que é exatamente o defeito desta rodada. Desligado por padrão: ligado, acrescenta 10px de gutter a todo scroller e desloca o layout de toda outra cena. **Só surte efeito com `headless: false` sob xvfb** — registrado no `visual-validation.md`. |
+| `design-system` › `CodeFence.test.tsx` | Que o controle copia o `code` que recebeu e **não** o texto do que renderizou, que o nome acessível muda com o estado, e que os atributos do chamador pousam na moldura (o `data-line` do scroll-sync) e não no `pre`. | Um botão de copiar que copia `textContent` devolve código que não roda — falha invisível em revisão e óbvia ao colar. |
+
+**Regra de guia ampliada.** O `AGENTS.md` dizia *"JSON nunca entra em argv"*
+(D39a). A regra real é mais larga e agora está escrita assim: **nada com quebra
+de linha entra em argv no Windows** — e, ao contrário do caso do JSON, essa
+falha é *muda*. O prompt de turno passou a viajar por stdin
+(`CliAdapterConfig.promptOnStdin`).
+
+**Não implementado, com motivo:** o mesmo transporte no `copilotCliAdapter` e no
+fallback `-p` do `devinCliAdapter`. Exige a concordância da CLI (stdin, ou o
+`--prompt-file` que o `devin` anuncia) e nenhuma das duas está verificada contra
+binário real aqui — trocar por palpite converteria um prompt truncado num turno
+que não roda. Os dois pontos estão comentados no código; o caminho do Devin só
+existe atrás de `HIVE_DEVIN_ACP=0`, e o transporte padrão dele (ACP por stdin)
+nunca teve o defeito.
+
 Cada linha é uma decisão, não um backlog. Estão aqui para que a próxima rodada
 — humana ou agente — não as re-proponha como ideia nova, e para que dê para
 distinguir ausência deliberada de esquecimento.
@@ -730,6 +756,17 @@ distinguir ausência deliberada de esquecimento.
 | ⚠ | `aws-contrast.mjs` abre a aba do Bedrock | `tools/visual/aws-contrast.mjs` | O escopo `aws` virou `connection` com duas pistas: a sonda antiga clicava numa linha que não existe mais. Segue verde nos 90 alvos. |
 | ⚠ | `boot.mjs` ganhou `claudeAuth` e `clipboard.readText` | `tools/visual/boot.mjs` | O harness envelhece junto com a bridge e **a falha é muda** (página em branco). O namespace novo é lido no boot por `WorkUI`; sem ele, todo passe visual abriria vazio. |
 
+### Controles novos — Iniciativas (2026-09-10)
+
+| # | Controle | Onde | O que ele pegou / por que existe |
+| --- | --- | --- | --- |
+| — | Gate de cobertura per-file de `initiatives.ts` e `initiativeStages.ts` (100) e `useInitiatives.ts` (90) | `vitest.config.ts` | Regra de sempre: arquivo novo entra no gate no mesmo commit, senão ele simplesmente **não é medido**. Os dois modelos carregam 100 porque toda falha deles é silenciosa — uma release que ordena R10 antes de R9, um manifesto cujo campo ruim custa a pasta inteira, uma etapa reportada como pendente com o artefato dela na árvore ao lado. |
+| — | `tools/visual/initiatives-contrast.mjs` — 22 alvos × 3 temas + 7 afirmações estruturais | `tools/visual/` | Regra do M16/M19/M20/M21. Achou **dois defeitos reais** e **dois erros da própria sonda** — ver abaixo. As afirmações estruturais são o que contraste não vê: que a seção está **acima** do histórico (é uma ordem no DOM, não uma cor), que o trilho da demanda fica **ao lado** do transcrito e não no lugar dele, que exatamente uma etapa é "a próxima", e que a árvore de contexto está enraizada na demanda (se listasse o workspace, `_bmad` estaria lá). |
+| — | `e2e/initiatives.spec.ts` — pastas de verdade no disco, no Electron real | `e2e/` | A feature inteira se apoia numa afirmação que nenhum teste com bridge dublada pode fazer: **a pasta é a iniciativa**. Só uma spec que escreve `docs/iniciativas/R2/<demanda>/` e depois lê a tela de volta prova o percurso. Cobre também o sentido oposto — "Nova iniciativa" tem que deixar pasta e manifesto no disco, ou a demanda que ela acabou de abrir some no próximo launch. |
+| — | `src/renderer/src/initiatives/initiativesLive.e2e.test.ts` — o prompt lido por um Claude real (haiku, esforço baixo) | `src/renderer/` | A única afirmação que nenhum runner falso pode fazer: que a **frase** que a etapa manda ancora o agente na pasta da demanda. Dois `prd.md` a uma palavra de distância, um na raiz e um na pasta — um arquivo só acharia o certo por não ter onde mais olhar. Ele pegou um comportamento do CLI que ninguém tinha registrado: em `-p`, um `/nome` desconhecido **aborta o turno inteiro** (`unknown command: /bmad-architecture`) e a frase depois dele nunca é lida. |
+| ⚠ | `vitest.e2e.config.ts` passa a incluir `src/renderer/**/*.e2e.test.ts` | `vitest.e2e.config.ts` | O teste ao vivo acima não pode morar em `src/main/`: ele importa `stageAction`, que é do renderer, e um import de **valor** cruzando as zonas é violação sem exceção (`moduleBoundaries.test.ts`). |
+| ⚠ | `boot.mjs` ganhou `docs/iniciativas/` e o `iniciativa.json` | `tools/visual/boot.mjs` | Três demandas em três pontos do plano (0/7, 3/7, 7/7), duas releases e **um** manifesto. Medir só a demanda pela metade deixaria de fora justamente os dois extremos que a pílula e o trilho precisam saber desenhar — e sem o manifesto o passe nunca veria a diferença entre um título com acento e um lido de volta do slug. |
+
 **Limites honestos** — o que *nenhum* controle daqui cobre:
 
 - **Comportamento continua sendo o elo fraco.** 1589 testes e E2E em Electron
@@ -746,3 +783,22 @@ distinguir ausência deliberada de esquecimento.
   texto vizinhos são **cores diferentes**, o que pega a classe "token que não
   existe, `var()` herda calado, painel inteiro vira um cinza só". É barato e
   vale replicar; não é estética, é só a negação do achatamento.
+
+### Controles novos — menu dentro de modal, sessão por conversa, briefing do Estúdio (2026-09-13)
+
+| # | Controle | Onde | O que ele pegou / por que existe |
+| --- | --- | --- | --- |
+| — | `design-system/src/hooks/useSurfaceDismissGuard.test.ts` — 4 casos de geometria | `design-system/src/hooks/` | O guarda decide por coordenada, e as bordas são a parte que erra: um clique **na borda** do painel é nele, um pixel fora não é, e um painel sem caixa (0×0, meio de animação) não pode deixar o overlay inerte por um frame. |
+| — | `Dialog.test.tsx › dismiss guard` — 2 casos que dirigem a rota real do Radix | `design-system/src/components/Dialog/` | Sensor **determinístico** do defeito relatado: despacha o par `pointerdown`→`click` no overlay com a caixa do painel dublada e afirma que o diálogo fica; com as coordenadas ao lado, que ele fecha. Verificado vermelho sem o guarda. É o único nível em que esse defeito não é uma corrida. |
+| — | `e2e/studio-agent-picker.spec.ts` — Electron real, gesto montado evento a evento | `e2e/` | O que nenhum teste com `locator.click()` pode dizer. Ele afirma a **medição** que diagnosticou o defeito (`pointerEvents` do conteúdo e `elementFromPoint`), porque no Electron a queda do diálogo é intermitente e ancorar um teste nela é construir um flake. |
+| — | `tools/visual/modal-menu-pass.mjs` — 5 afirmações × 3 superfícies × 3 temas | `tools/visual/` | Generaliza o defeito para **onde ele mora**: o Dialog do Estúdio, a Sheet de ingestão e o diálogo de "Perguntar à base" hospedam o mesmo controle. Afirma também o inverso — que o overlay continua fechando o modal —, senão o guarda poderia ter matado o clique-fora. |
+| ⚠ | `tools/visual/studio-agent-pass.mjs` re-apontado para as classes do `RunConfigBar` | `tools/visual/` | **Esse arquivo estava verde medindo nada** desde que o formulário local virou o controle compartilhado: todos os alvos (`.wb-studio-run`, `.wb-studio-agent`) reportavam `missing`, e o veredito lê `missing` como "sem problemas". Re-apontado, achou na primeira execução um defeito herdado: `.wb-studio-handoff` em `--faint` medindo **4,18:1 escuro / 3,71:1 claro**. Quarta reincidência do mesmo token. |
+| — | `devinAcpSession.test.ts › one connection, one session per conversation` — 7 casos | `src/main/` | O defeito grave da rodada: duas conversas do Hive compartilhando uma sessão ACP. Os casos nomeiam **qual** sessão recebeu cada prompt (o servidor dublado emite um id por `session/new`), que é a única coisa que distingue a correção do defeito. Cinco dos sete verificados vermelhos contra o comportamento antigo; os outros dois guardam o lado oposto (não perder memória entre turnos, e carregar um id do disco após reiniciar). |
+| — | `SkillStudio.test.ts › every briefing names the intent and closes the open-floor step` | `src/renderer/` | Um briefing que só *contém* a ideia deixa a decisão para o modelo, e o modelo segue o roteiro da skill. O segundo caso afirma a **ordem** (a frase de fechamento por último), porque "o objetivo está acima" só é verdade se estiver. |
+| ⚠ | `src/main/devinCliAdapter.ts` não é mais binário para o `grep` | `src/main/` | Havia um byte NUL **literal** dentro de uma string sentinela, e com ele o arquivo inteiro saía de qualquer varredura por `grep` — descoberto procurando `createDevinAcpSession` nele e recebendo silêncio. Virou escape unicode: mesmo byte em runtime, arquivo de texto para as sondas. |
+
+**Dívida medida, não herdada por descuido:** o gate de cobertura do
+**design system** (thresholds globais de 90) já estava vermelho em *funções*
+antes desta rodada — 87,46%, medido com as mudanças removidas — e fechou em
+87,52%. Não é regressão desta rodada e não foi ampliada; é o análogo, no DS, dos
+14 arquivos herdados do app.

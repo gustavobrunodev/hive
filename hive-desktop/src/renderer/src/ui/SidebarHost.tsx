@@ -1,26 +1,31 @@
-import { useState, type ReactNode } from 'react'
-import type { SidebarView } from './ActionRail'
+import type { ReactNode } from 'react'
+import { SIDEBAR_VIEWS, type SidebarView } from './sidebarNav'
+import { useMountedLayers } from './useMountedLayers'
 
 interface SidebarHostProps {
-  /** The active sidebar view (git-management D-GIT-2, GIT-R13; +review, M11). */
+  /**
+   * The active sidebar view (git-management D-GIT-2, GIT-R13; +chat, nav-redesign).
+   *
+   * "Revisão do agente" and "Bases de conhecimento" used to be layers in here.
+   * They are work-area panes now (`WorkView`): opening one no longer costs the
+   * user the conversation history they navigate by.
+   */
   activeView: SidebarView
+  /** The Chat tab's home — the conversation list (nav-redesign). Optional so older callers keep compiling. */
+  chat?: ReactNode
   /** The Explorer (file tree) body. */
   explorer: ReactNode
   /** The Source Control body. */
   scm: ReactNode
-  /** The "Revisão do agente" body (Agent Change Review, ACR-R2.4). Optional until WorkUI wires it (T12). */
-  review?: ReactNode
-  /** The "Second Brain" body (M12, SB-R2.1). Optional until WorkUI wires it (T6). */
-  brain?: ReactNode
 }
 
-/** The views in rail order — also the DOM order of the layers below. */
-const VIEW_ORDER: readonly SidebarView[] = ['explorer', 'scm', 'review', 'brain']
+/** The views in nav order — also the DOM order of the layers below. */
+const VIEW_ORDER = SIDEBAR_VIEWS
 
 /**
- * Swaps the rail pane's body between the Explorer, Source Control, "Revisão do
- * agente", and "Second Brain" views one at a time (git-management D-GIT-2;
- * +review, M11; +brain, M12). It lives *inside* the rail `ResizablePanel`,
+ * Swaps the rail pane's body between the conversation list, the Explorer and
+ * Source Control, one at a time (git-management D-GIT-2). It lives *inside*
+ * the rail `ResizablePanel`,
  * which keeps `id="rail"` — so the persisted layout/`paneOrder` and the
  * movable-pane machinery are untouched; only this body swaps (design.md §5.1).
  *
@@ -44,19 +49,13 @@ const VIEW_ORDER: readonly SidebarView[] = ['explorer', 'scm', 'review', 'brain'
  */
 export function SidebarHost({
   activeView,
+  chat,
   explorer,
-  scm,
-  review,
-  brain
+  scm
 }: SidebarHostProps): React.JSX.Element {
-  // Which views have ever been shown. A render-phase update (React's own
-  // "adjusting state during render" pattern) rather than an effect: an effect
-  // would paint one empty frame on the first visit to a view, which is a
-  // flash on every first switch.
-  const [mounted, setMounted] = useState<readonly SidebarView[]>(() => [activeView])
-  if (!mounted.includes(activeView)) setMounted([...mounted, activeView])
+  const mounted = useMountedLayers<SidebarView>(activeView)
 
-  const bodies: Record<SidebarView, ReactNode> = { explorer, scm, review, brain }
+  const bodies: Record<SidebarView, ReactNode> = { chat, explorer, scm }
 
   return (
     <div className="wb-sidebar-host">

@@ -21,7 +21,7 @@ async (page) => {
   const theme = 'dark'
 
   if (theme !== 'dark') {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.getByRole('menuitemradio', { name: { light: 'Claro', hive: 'Hive' }[theme] }).click()
     await page.waitForTimeout(250)
   }

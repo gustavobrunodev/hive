@@ -4,6 +4,7 @@ import {
   PlugIcon,
   SparkleIcon,
   TerminalIcon,
+  ToolsIcon,
   UserIcon
 } from '../ui/icons'
 import type { ProfileScope } from './scopes'
@@ -24,7 +25,11 @@ const SCOPE_ICONS: Record<ProfileScope, IconComponent> = {
   shortcuts: HiveCellIcon,
   connection: PlugIcon,
   voice: MicIcon,
-  shell: TerminalIcon
+  shell: TerminalIcon,
+  // nav-redesign: MCP servers are the agent's external *tools*, which is the
+  // one thing `PlugIcon` (already spent on the credential row) would have
+  // muddled.
+  mcp: ToolsIcon
 }
 
 export function scopeIcon(scope: ProfileScope): IconComponent {

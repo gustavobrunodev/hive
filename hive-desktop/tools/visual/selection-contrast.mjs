@@ -59,7 +59,7 @@ async (page) => {
     // `menuitemradio` (a theme is a choice, not a command) and their
     // accessible name is the label *plus* the description underneath it —
     // so this anchors on the start of the name rather than matching it whole.
-    await page.locator('[aria-label^="Aparência"]').click()
+    await page.locator('[aria-label^="Escolha do tema"]').click()
     await page.waitForTimeout(200)
     await page.getByRole('menuitemradio', { name: new RegExp(`^${menuLabel}`) }).click()
     await page.waitForTimeout(350)

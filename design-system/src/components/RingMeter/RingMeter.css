@@ -1,0 +1,84 @@
+.hds-ring-meter {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  /* One name for "the colour this ring fills with", so the tone rules below
+     set it once and both the lone arc and every ramp step follow. */
+  --hds-ring-fill: var(--accent);
+}
+
+.hds-ring-meter-svg {
+  position: absolute;
+  inset: 0;
+  /* Twelve o'clock, clockwise — where a dial starts. */
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.hds-ring-meter-track {
+  stroke: var(--surface-3);
+}
+
+.hds-ring-meter-arc {
+  stroke: var(--hds-ring-fill);
+  /* Occupancy moves at the end of a turn, not per frame, so it can afford a
+     real transition: it reads as the number settling, not as a loading bar. */
+  transition:
+    stroke-dasharray 0.5s var(--ease-quart),
+    stroke-dashoffset 0.5s var(--ease-quart),
+    stroke 0.3s var(--ease-quart);
+}
+
+.hds-ring-meter[data-tone="success"] {
+  --hds-ring-fill: var(--success);
+}
+.hds-ring-meter[data-tone="warning"] {
+  --hds-ring-fill: var(--warning);
+}
+.hds-ring-meter[data-tone="danger"] {
+  --hds-ring-fill: var(--danger);
+}
+.hds-ring-meter[data-tone="neutral"] {
+  --hds-ring-fill: var(--border-strong);
+}
+
+/* Nothing measured yet: the track alone, dimmed, so the control keeps its
+   place in the layout without claiming a reading it does not have. */
+.hds-ring-meter[data-indeterminate] .hds-ring-meter-track {
+  stroke: var(--border);
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+
+.hds-ring-meter-face {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  text-align: center;
+  padding: 0 12%;
+  line-height: 1.1;
+}
+
+.hds-ring-meter-value {
+  font-family: var(--ff-num);
+  font-size: var(--hds-ring-value-size, 0.9375rem);
+  font-weight: 640;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.hds-ring-meter-caption {
+  font-size: var(--hds-ring-caption-size, 0.6875rem);
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-ring-meter-arc {
+    transition-duration: 0.01ms;
+  }
+}

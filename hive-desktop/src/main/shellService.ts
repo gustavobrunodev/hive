@@ -98,8 +98,18 @@ export interface ShellService {
   detected(): ShellInfo[]
 }
 
-/** The prompt stand-in in the command preview: short, obviously a placeholder, and never mistaken for real text. */
-const PREVIEW_PROMPT = '…'
+/**
+ * The preview's argv, which is deliberately the *real* one and not a
+ * readable approximation of it.
+ *
+ * It used to carry a `'…'` after `-p`, standing in for the user's message.
+ * That stopped being true: the turn's prompt travels on **stdin** now
+ * (`CliAdapterConfig.promptOnStdin`, because a Windows `.cmd` shim truncates a
+ * command line at its first newline), so a positional prompt is a thing this
+ * app no longer sends. A preview whose whole job is "this is what a turn runs"
+ * cannot show an argument that is not there.
+ */
+const PREVIEW_ARGS: readonly string[] = ['-p']
 
 export function createShellService(
   configStore: ConfigStore,
@@ -231,7 +241,7 @@ export function createShellService(
           agents: agentIds
             .map((agentId) => supportFor(shell, agentId))
             .filter((entry): entry is ShellAgentSupport => entry !== null),
-          preview: shellCommandPreview(shell, command, ['-p', PREVIEW_PROMPT])
+          preview: shellCommandPreview(shell, command, [...PREVIEW_ARGS])
         })),
         selectedId,
         resolvedId: resolved?.id ?? null,

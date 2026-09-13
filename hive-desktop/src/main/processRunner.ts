@@ -84,6 +84,38 @@ export interface RunOptions {
    */
   stdin?: 'pipe'
   /**
+   * Text written to the child's stdin, which is then **closed immediately**.
+   *
+   * The one-shot counterpart to `stdin: 'pipe'`: no live conversation, no
+   * handle to write through, just "here is the input, that is all of it". The
+   * caller cannot forget to end the pipe, so the three-second
+   * "no stdin data received" stall the `stdio` comment in `run` describes can
+   * never come back through this door.
+   *
+   * It exists because of a **measured** Windows defect, and it is the only
+   * transport that survives it. An npm-installed CLI on Windows is a `.cmd`
+   * batch shim, so every turn goes `cmd.exe → claude.cmd → the binary`, and a
+   * Windows command line **cannot carry a newline**: `escapeCmdArgument` hides
+   * one behind a caret, cmd reads `^<LF>` as a line continuation, and
+   * everything from there on is dropped *without an error*. Measured against a
+   * real `cmd.exe` with a real batch shim:
+   *
+   * ```text
+   *   argv in : ['-p', 'line one\nline two', '--flagA', 'valA']
+   *   argv out: ['-p', 'line one']            ← the rest, flags included, gone
+   * ```
+   *
+   * That is the whole of the "o Claude não vê o arquivo anexado" report: the
+   * `<attached-files>` block starts on the prompt's second line. The same run
+   * with the prompt on stdin arrives byte-for-byte — newlines, `<`, `>`,
+   * accents and backslashes included — and every flag survives with it.
+   *
+   * It also lifts a ceiling nobody had noticed: a Windows command line stops
+   * at 8191 characters, which a prompt plus a handful of attachment paths can
+   * genuinely reach. stdin has no such limit.
+   */
+  input?: string
+  /**
    * agent-terminal (AT-R3 / D-AT-1): run this command *inside* the user's
    * chosen shell instead of spawning it directly. Opt-in per call, and only
    * the agent's own turns opt in — `git`, `npx bmad-method`, the MCP probe and
@@ -306,10 +338,12 @@ function composeTarget(
  * makes `claude -p` stall for 3s waiting on input it will never get, printing
  * "Warning: no stdin data received in 3s, proceeding without it." Handing it an
  * immediate EOF lets it proceed at once and drops the warning. stdout/stderr
- * stay piped so `output` still streams. The one exception is an explicit
- * `stdin: 'pipe'`, which the ACP client uses to hold a JSON-RPC conversation
- * with a long-lived agent. (If a future adapter needs *interactive* stdin, add
- * a pty-backed ProcessRunner per the ProcessHandle doc — don't reopen this.)
+ * stay piped so `output` still streams. Two exceptions open the pipe: an
+ * explicit `stdin: 'pipe'`, which the ACP client uses to hold a JSON-RPC
+ * conversation with a long-lived agent, and `input`, which writes one payload
+ * and closes — so the EOF is still immediate and the warning still never
+ * appears. (If a future adapter needs *interactive* stdin, add a pty-backed
+ * ProcessRunner per the ProcessHandle doc — don't reopen this.)
  *
  * `cwd` is dropped when it is not a usable directory: libuv resolves it before
  * the binary and reports the failure as an ENOENT naming the *command*, which
@@ -321,7 +355,29 @@ function spawnStdio(opts?: RunOptions): {
 } {
   return {
     cwd: isUsableCwd(opts?.cwd) ? opts?.cwd : undefined,
-    stdio: [opts?.stdin === 'pipe' ? 'pipe' : 'ignore', 'pipe', 'pipe']
+    stdio: [opts?.stdin === 'pipe' || opts?.input !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe']
+  }
+}
+
+/**
+ * Hands the child its whole stdin and closes the pipe.
+ *
+ * Every failure here is swallowed on purpose. A process that died before it
+ * could be written to answers with `EPIPE`, and that is a race, not a fault of
+ * this call: the caller learns *why* the turn ended from `exitCode` and the
+ * stderr it already streams, and a throw from inside `run` would replace that
+ * account with a stack trace from the wrong layer.
+ */
+function feedStdin(child: ChildProcess, input: string): void {
+  const stdin = child.stdin
+  if (!stdin) return
+  stdin.on('error', () => {
+    // See above — an early exit closes the pipe under us.
+  })
+  try {
+    stdin.end(input)
+  } catch {
+    // Already gone.
   }
 }
 
@@ -362,6 +418,8 @@ export function createProcessRunner(deps: ProcessRunnerDeps = {}): ProcessRunner
       detached: processGroup,
       windowsVerbatimArguments: target.windowsVerbatimArguments
     })
+
+    if (opts?.input !== undefined) feedStdin(child, opts.input)
 
     const queue = createAsyncQueue<ProcessStreamChunk>()
     let resolveExit: (result: ProcessExitResult) => void

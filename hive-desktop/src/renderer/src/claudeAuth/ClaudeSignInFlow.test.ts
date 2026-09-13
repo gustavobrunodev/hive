@@ -156,7 +156,10 @@ describe('ClaudeSignInFlow', () => {
 
   it('keeps the CLI’s own words behind a disclosure when it fails', () => {
     const onRetry = vi.fn()
-    renderFlow({ phase: 'failed', url: null, message: 'Error: could not reach claude.com' }, { onRetry })
+    renderFlow(
+      { phase: 'failed', url: null, message: 'Error: could not reach claude.com' },
+      { onRetry }
+    )
 
     expect(screen.queryByText('Error: could not reach claude.com')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalhes' }))
@@ -189,7 +192,9 @@ describe('ClaudeSignInBeacon', () => {
 
   it('appears mid-sign-in, from anywhere in the app', () => {
     renderBeacon()
-    expect(screen.getByRole('status', { name: 'Conexão da conta Claude em andamento' })).toBeTruthy()
+    expect(
+      screen.getByRole('status', { name: 'Conexão da conta Claude em andamento' })
+    ).toBeTruthy()
   })
 
   it('is not drawn twice when a panel is already drawing the same sign-in', () => {

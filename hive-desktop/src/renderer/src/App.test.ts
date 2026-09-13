@@ -246,6 +246,7 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         append: vi.fn().mockResolvedValue(null),
         rename: vi.fn().mockResolvedValue(null),
         setCliSession: vi.fn().mockResolvedValue(undefined),
+      setUsage: vi.fn().mockResolvedValue(undefined),
         search: vi.fn().mockResolvedValue([]),
         delete: vi.fn().mockResolvedValue(undefined)
       },

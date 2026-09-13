@@ -152,7 +152,7 @@ async (page) => {
     ['claro', 'Claro'],
     ['hive', 'Hive']
   ]) {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.getByRole('menuitemradio', { name: new RegExp(`^${menuLabel}`) }).click()
     await page.waitForTimeout(320)
     report[name] = await measure()

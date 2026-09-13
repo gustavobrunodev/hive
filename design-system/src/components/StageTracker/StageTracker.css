@@ -1,0 +1,338 @@
+.hds-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.hds-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+/* The row is the hit target, and it owns the node column so the wire stays
+   centred on the node however far the label wraps. */
+.hds-stage-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px 6px 4px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+button.hds-stage-row {
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    box-shadow 0.15s var(--ease-quart);
+}
+
+/* `--surface-2` rather than `--surface`: this row has to announce itself as a
+   launcher, and the one-step-up tint measured too close to the panel to be
+   noticed by someone who did not already suspect the row was clickable. */
+button.hds-stage-row:hover {
+  background: var(--surface-2);
+}
+
+button.hds-stage-row:active {
+  background: var(--surface-3);
+}
+
+button.hds-stage-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* --- chapters ------------------------------------------------------------ */
+
+.hds-stages-grouped {
+  display: grid;
+  gap: 0;
+}
+
+/* A hairline is the whole separator: at this width a boxed or tinted phase
+   header turns four chapters into four cards, and nested cards are never the
+   answer to "these rows belong together". */
+.hds-stage-group + .hds-stage-group {
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.hds-stage-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: 0 0 2px;
+  padding: 0 8px 0 4px;
+}
+
+.hds-stage-group-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-stage-group-meta {
+  flex: none;
+  font-family: var(--ff-num);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* --- the wire ----------------------------------------------------------- */
+
+/* Drawn on the list item rather than the row so it spans the row's padding and
+   reaches its neighbours: a wire that stops at the button's edge leaves a gap
+   at every hover target, which reads as a broken chain. */
+.hds-stage::before,
+.hds-stage::after {
+  content: "";
+  position: absolute;
+  left: calc(4px + 11px);
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--border);
+}
+
+.hds-stage::before {
+  top: 0;
+  height: calc(50% - 11px);
+}
+
+.hds-stage::after {
+  top: calc(50% + 11px);
+  bottom: 0;
+}
+
+.hds-stage:first-child::before,
+.hds-stage:last-child::after {
+  content: none;
+}
+
+.hds-stage[data-lit]::before,
+.hds-stage[data-status="done"]::after {
+  background: var(--accent);
+}
+
+/* --- the node ----------------------------------------------------------- */
+
+.hds-stage-rail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+}
+
+.hds-stage-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--rounded-full);
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--muted);
+  flex: none;
+  transition:
+    transform 0.2s var(--ease-expo),
+    border-color 0.15s var(--ease-quart);
+}
+
+button.hds-stage-row:hover .hds-stage-node {
+  transform: scale(1.08);
+  border-color: var(--accent);
+}
+
+.hds-stage-glyph {
+  width: 12px;
+  height: 12px;
+}
+
+.hds-stage-ordinal {
+  font-family: var(--ff-num);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.hds-stage[data-status="done"] .hds-stage-node {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Next up: a filled ring around the ordinal, so "this is where you are" is a
+   different shape from both the check behind it and the outlines ahead. */
+/* `--ink` for the ordinal, not the accent: it is 11px bold type and has to
+   clear 4.5:1 on `--bg` in both themes, which the accent does not (4.02:1
+   measured on dark). The accent carries the state through the ring and the
+   tinted halo instead — colour where it is decoration, ink where it is text. */
+.hds-stage[data-status="active"] .hds-stage-node {
+  border-color: var(--accent);
+  border-width: 2px;
+  color: var(--ink);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--selected-bg);
+}
+
+/* --- the body ----------------------------------------------------------- */
+
+.hds-stage-body {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.hds-stage-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.hds-stage-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hds-stage[data-status="active"] .hds-stage-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.hds-stage[data-status="done"] .hds-stage-label {
+  color: var(--ink);
+}
+
+/* A hairline chip, not a filled one: the text inside is real text a user has to
+   read at the body floor, and it only clears that over the panel's own
+   background — a tint under it moves the pair and buys nothing but decoration.
+   Same reason it is not shrunk below the tracker's smallest step. */
+.hds-stage-badge {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Spoken only: the state is drawn for sighted readers and said for the rest. */
+.hds-stage-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* `--muted`, never `--faint`: a hint under a stage is real text a user has to
+   read, and `--faint` measures under 4.5:1 on the light theme's `--bg`. */
+.hds-stage-hint {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- the cue ------------------------------------------------------------- */
+
+/* Visible at rest, on purpose. The whole defect this slot exists to fix is a
+   plan nobody realised was runnable, and an affordance that only appears under
+   the pointer is invisible to everyone who never thought to point at it.
+   It recedes by *size* — a small outline glyph against the stage's own label —
+   and never by alpha: `--muted` at the 55% that first read as "quiet" measures
+   2.83:1 on dark and 2.71:1 on light, under the 3:1 an affordance indicator
+   owes, which is exactly how a control goes silently unreadable. */
+.hds-stage-cue {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--muted);
+  transition:
+    color 0.15s var(--ease-quart),
+    transform 0.2s var(--ease-expo);
+}
+
+button.hds-stage-row:hover .hds-stage-cue,
+button.hds-stage-row:focus-visible .hds-stage-cue {
+  color: var(--accent);
+  transform: translateX(1px);
+}
+
+/* The one stage that is next gets a named verb rather than a glyph, at full
+   strength: there is exactly one of these on screen, and it is the answer to
+   "what do I do now". */
+.hds-stage[data-status="active"] .hds-stage-cue {
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.hds-stage[data-status="active"] button.hds-stage-row:hover .hds-stage-cue,
+.hds-stage[data-status="active"] button.hds-stage-row:focus-visible .hds-stage-cue {
+  background: var(--accent-hover);
+  color: var(--accent-ink);
+  transform: none;
+}
+
+.hds-stage-trailing {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-stage-node,
+  .hds-stage-cue,
+  button.hds-stage-row {
+    transition: none;
+  }
+
+  button.hds-stage-row:hover .hds-stage-node,
+  button.hds-stage-row:hover .hds-stage-cue,
+  button.hds-stage-row:focus-visible .hds-stage-cue {
+    transform: none;
+  }
+}

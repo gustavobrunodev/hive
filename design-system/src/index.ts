@@ -130,12 +130,26 @@ export type {
 } from "./components/OptionPicker/OptionPicker";
 export { Breadcrumb, BreadcrumbItem } from "./components/Breadcrumb/Breadcrumb";
 export { Tree } from "./components/Tree/Tree";
+export type {
+  TreeNode,
+  TreeProps,
+  TreeRenderState
+} from "./components/Tree/Tree";
 export { Avatar } from "./components/Avatar/Avatar";
 export { Progress } from "./components/Progress/Progress";
 export { Gauge } from "./components/Gauge/Gauge";
 export type { GaugeProps } from "./components/Gauge/Gauge";
+export { RingMeter } from "./components/RingMeter/RingMeter";
+export type { RingMeterProps, RingMeterSegment } from "./components/RingMeter/RingMeter";
 export { StepFlow } from "./components/StepFlow/StepFlow";
 export type { StepFlowProps, StepFlowStep, StepStatus } from "./components/StepFlow/StepFlow";
+export { StageTracker } from "./components/StageTracker/StageTracker";
+export type {
+  StageStatus,
+  StageTrackerGroup,
+  StageTrackerProps,
+  StageTrackerStage
+} from "./components/StageTracker/StageTracker";
 export { PasteField } from "./components/PasteField/PasteField";
 export type { PasteFieldProps } from "./components/PasteField/PasteField";
 export { LevelMeter } from "./components/LevelMeter/LevelMeter";
@@ -145,6 +159,8 @@ export { Empty } from "./components/Empty/Empty";
 export { Kbd } from "./components/Kbd/Kbd";
 export { Resizable, ResizablePanel, ResizableHandle } from "./components/Resizable/Resizable";
 export { SegmentedControl } from "./components/SegmentedControl/SegmentedControl";
+export { SelectionBar } from "./components/SelectionBar/SelectionBar";
+export type { SelectionBarProps } from "./components/SelectionBar/SelectionBar";
 export type {
   SegmentedControlProps,
   SegmentedOption,
@@ -156,6 +172,8 @@ export { OutputBlock } from "./components/OutputBlock/OutputBlock";
 export { DataGrid } from "./components/DataGrid/DataGrid";
 export type { DataGridProps, DataGridColumn, DataGridCursor } from "./components/DataGrid/DataGrid";
 export type { OutputBlockProps, OutputBlockTone } from "./components/OutputBlock/OutputBlock";
+export { CodeFence } from "./components/CodeFence/CodeFence";
+export type { CodeFenceProps } from "./components/CodeFence/CodeFence";
 
 // Phase 3 — generic AI-chat primitives
 export { ChatMessage } from "./components/ChatMessage/ChatMessage";

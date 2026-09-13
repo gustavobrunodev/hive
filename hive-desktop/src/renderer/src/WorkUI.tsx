@@ -14,11 +14,34 @@ import {
 import { t } from './i18n'
 import { FileTree, FileViewer } from './explorer/Explorer'
 import { Chat, type ChatHandle } from './chat/Chat'
-import { SessionHistory } from './chat/SessionHistory'
+import { ChatSidebar, NewConversationButton } from './chat/ChatSidebar'
+import { AllConversationsDialog } from './chat/AllConversationsDialog'
+import { useChatSessions } from './chat/useChatSessions'
+import {
+  DEFAULT_SORT,
+  DEFAULT_WINDOW,
+  type ActivityWindow,
+  type ConversationSort
+} from './chat/conversationFilters'
 import { EditorTabs, type EditorTabActions } from './ui/EditorTabs'
 import { useEditorTabs } from './ui/useEditorTabs'
-import { ActionRail, SIDEBAR_REGION_ID, type RoleAction, type SidebarView } from './ui/ActionRail'
+import {
+  SIDEBAR_REGION_ID,
+  WORK_REGION_ID,
+  WORK_VIEWS,
+  defaultViewOfTab,
+  tabOfView,
+  type RoleAction,
+  type SidebarTab,
+  type SidebarView,
+  type WorkView
+} from './ui/sidebarNav'
+import { AppNavbar } from './ui/AppNavbar'
+import { useNavbarBounds } from './ui/useNavbarBounds'
+import { SidebarNavItem, SidebarTabs } from './ui/SidebarNav'
+import { UserMenu } from './ui/UserMenu'
 import { SidebarHost } from './ui/SidebarHost'
+import { useMountedLayers } from './ui/useMountedLayers'
 import { useGitStore, GitProvider } from './scm/useGit'
 import { useReviewStore, ReviewProvider } from './scm/useReview'
 import { pendingByConversation } from './scm/reviewScope'
@@ -31,6 +54,11 @@ import { IngestPanel } from './secondBrain/IngestPanel'
 import { AskSecondBrain } from './secondBrain/AskSecondBrain'
 import { HealthNudge } from './secondBrain/HealthNudge'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT } from './secondBrain/secondBrainPrompts'
+import { InitiativesPanel } from './initiatives/InitiativesPanel'
+import { InitiativeContext } from './initiatives/InitiativeContext'
+import { NewInitiativeDialog } from './initiatives/NewInitiativeDialog'
+import { useOpenInitiative } from './initiatives/useOpenInitiative'
+import type { Initiative } from './initiatives/initiatives'
 import { changeCount } from './scm/gitStatus'
 import { SourceControlPanel } from './scm/SourceControlPanel'
 import { GitLogConsole } from './scm/GitLogConsole'
@@ -63,6 +91,7 @@ import { useAwsSession } from './aws/useAwsSession'
 import { ClaudeSignInBeacon } from './claudeAuth/ClaudeSignInBeacon'
 import type { ConnectionLane } from './profile/ConnectionScope'
 import { useClaudeAuth } from './claudeAuth/useClaudeAuth'
+import { accountReady, isLoginLive } from './claudeAuth/claudeSession'
 import type { ProfileScope } from './profile/scopes'
 import { ShortcutCustomizer, type ShortcutScope } from './ui/ShortcutCustomizer'
 import { SkillStudio, type StudioLaunchOpts } from './ui/SkillStudio'
@@ -77,10 +106,19 @@ import { GuidedTour } from './tour/GuidedTour'
 import { useGuidedTour } from './tour/useGuidedTour'
 import { PaneHeader, PaneMoveMenu } from './ui/PaneHeader'
 import { PANE_DRAG_MIME } from './ui/paneDnd'
-import { HiveLogo } from './ui/HiveLogo'
-import { ThemePicker } from './ui/ThemePicker'
+import { IconButton } from './ui/IconButton'
 import type { Theme } from './ui/theme'
-import { ChevronDownIcon, FolderIcon, FolderOpenIcon, RefreshIcon, UserIcon } from './ui/icons'
+import {
+  BrainIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  RefreshIcon,
+  ReviewIcon,
+  SourceControlIcon,
+  SparkleIcon
+} from './ui/icons'
 import { copyText } from './ui/clipboard'
 import {
   loadWorkspaceSession,
@@ -155,7 +193,13 @@ interface WorkUIProps {
 function buildPanels(
   renderedPanes: readonly PaneId[],
   renderers: Record<PaneId, () => ReactNode>,
-  isOnScreen: (pane: PaneId) => boolean = () => true
+  /**
+   * Which panes a user can actually see — a rendered pane is not the same as a
+   * visible one (the rail stays mounted while the sidebar is away). Required,
+   * not defaulted: the one caller always knows, and an `() => true` fallback is
+   * a branch nothing exercises and a claim nobody checked.
+   */
+  isOnScreen: (pane: PaneId) => boolean
 ): ReactNode[] {
   const panels: ReactNode[] = []
   for (const [index, pane] of renderedPanes.entries()) {
@@ -188,13 +232,87 @@ function workspaceName(workspace: string): string {
   return segments[segments.length - 1] ?? workspace
 }
 
-/** Up to two initials from the display name ("Gustavo Bruno" → "GB", "Gustavo" → "G"); `null` when unset — the avatar then falls back to a person glyph. */
-function initialsOf(name: string | null): string | null {
-  const words = name?.trim().split(/\s+/).filter(Boolean) ?? []
-  if (words.length === 0) return null
-  const first = words[0][0]
-  const last = words.length > 1 ? words[words.length - 1][0] : ''
-  return (first + last).toUpperCase()
+/**
+ * The sidebar panel's accessible name — whichever surface is showing inside it.
+ *
+ * The panel is one landmark whose content swaps, so its name has to swap too:
+ * "Arquivos" announced over the conversation list is the pane-header defect
+ * `docs/visual-validation.md` records, one level up.
+ */
+function sidebarPaneTitle(view: SidebarView): string {
+  switch (view) {
+    case 'chat':
+      return t('nav.conversationsLabel')
+    case 'scm':
+      return t('git.paneTitle')
+    case 'explorer':
+      return t('explorer.paneTitle')
+  }
+}
+
+/**
+ * The first work pane's title — it names whichever surface is in front.
+ *
+ * The pane used to be called "Conversa" unconditionally, because a transcript
+ * was the only thing it could hold. Now that the agent's tools open here, the
+ * header is the one place that says which of them you are looking at, and the
+ * one place that offers the way back.
+ */
+function workPaneTitle(view: WorkView): string {
+  switch (view) {
+    case 'chat':
+      return t('workUI.paneChat')
+    case 'review':
+      return t('review.panelTitle')
+    case 'brain':
+      return t('secondBrain.panelTitle')
+  }
+}
+
+/**
+ * The way back out of a chat tool that opened in the transcript's place.
+ *
+ * `null` on the transcript itself: there is nothing to close, and a disabled or
+ * no-op ✕ in a pane header is worse than no ✕ at all.
+ */
+function workCloseButton(
+  view: WorkView,
+  title: string,
+  onClose: (view: WorkView) => void
+): ReactNode {
+  if (view === 'chat') return null
+  return (
+    <IconButton label={t('workUI.closeWorkView', title)} onClick={() => onClose('chat')}>
+      <CloseIcon size={14} />
+    </IconButton>
+  )
+}
+
+/**
+ * The chat pane's header, which an open initiative renames and takes the ✕ of.
+ *
+ * A module-level function rather than three `? :` inside the component: every
+ * branch written in `WorkUI`'s own body counts against a `complexity` ceiling
+ * this file is already at, and the decision is the same one either way.
+ */
+function chatPaneHeader(
+  initiative: Initiative | null,
+  workView: WorkView,
+  showWorkView: (view: WorkView) => void,
+  onCloseInitiative: () => void
+): { title: string; primaryActions: ReactNode } {
+  if (initiative === null) {
+    const title = workPaneTitle(workView)
+    return { title, primaryActions: workCloseButton(workView, title, showWorkView) }
+  }
+  return {
+    title: t('initiatives.paneTitle', initiative.title),
+    primaryActions: (
+      <IconButton label={t('initiatives.close')} onClick={onCloseInitiative}>
+        <CloseIcon size={14} />
+      </IconButton>
+    )
+  }
 }
 
 /** Map of Resizable panel id -> flex-grow percentage (mirrors react-resizable-panels' `Layout` type). */
@@ -395,6 +513,17 @@ function reportedFor(
   return reported !== null && reported.workspace === workspace ? reported.servers : NO_SERVERS
 }
 
+function brainNavigationDetail(rawPending: number, healthDue: boolean): string | null {
+  return (
+    [
+      rawPending > 0 ? t('secondBrain.railPending', rawPending) : null,
+      healthDue ? t('secondBrain.railHealthDue') : null
+    ]
+      .filter(Boolean)
+      .join(' · ') || null
+  )
+}
+
 export function WorkUI({
   workspace,
   theme,
@@ -451,6 +580,23 @@ export function WorkUI({
   // Second Brain), persisted per workspace so it survives a reload (D-GIT-2).
   const [activeView, setActiveViewState] = useState<SidebarView>(session.sidebarView)
   /**
+   * What the first work pane is showing: the transcript, or one of the two chat
+   * tools opened in its place.
+   *
+   * These two used to be sidebar layers, and opening one **replaced the
+   * conversation history** — the user gave up the list they navigate by, and
+   * got a diff review squeezed into a 280px column, in exchange. They are work,
+   * so they live in the work area: full pane width, history untouched, and one
+   * click on the same row (or the pane's own ✕) to come back.
+   */
+  const [workView, setWorkViewState] = useState<WorkView>(session.workView)
+  /**
+   * Which work views have ever been shown. `chat` is always in — the transcript
+   * holds the live session, so it is mounted from the first frame whether or not
+   * a tool is covering it.
+   */
+  const mountedWorkViews = useMountedLayers<WorkView>(workView, ['chat'])
+  /**
    * Whether the sidebar panel itself is on screen.
    *
    * Its own state rather than a "null view", because the view outlives the
@@ -461,6 +607,20 @@ export function WorkUI({
   // git-management (GIT-R6): the branch quick-pick + a branch checkout parked
   // behind the three-way unsaved-work guard (mirrors the workspace switch).
   const [branchPickerOpen, setBranchPickerOpen] = useState(false)
+  /**
+   * The view each tab returns to (nav-redesign).
+   *
+   * Leaving `Arquivos` on the diff list and coming back to the file tree is the
+   * same broken promise `sidebarOpen` exists to avoid one level up: a tab is a
+   * place you were, not a reset. Seeded from the restored view so a reload lands
+   * on it, with the other tab on its default.
+   */
+  const [lastViewByTab, setLastViewByTab] = useState<Record<SidebarTab, SidebarView>>(() => ({
+    chat:
+      tabOfView(session.sidebarView) === 'chat' ? session.sidebarView : defaultViewOfTab('chat'),
+    files:
+      tabOfView(session.sidebarView) === 'files' ? session.sidebarView : defaultViewOfTab('files')
+  }))
   /**
    * Shows a view — and the sidebar with it.
    *
@@ -473,13 +633,14 @@ export function WorkUI({
   const showView = useCallback(
     (view: SidebarView) => {
       setActiveViewState(view)
+      setLastViewByTab((current) => ({ ...current, [tabOfView(view)]: view }))
       setSidebarOpen(true)
       saveWorkspaceSession(workspace, { sidebarView: view, sidebarOpen: true })
     },
     [workspace]
   )
   /**
-   * The rail's own click: the entry already on screen puts the sidebar away
+   * A nav row's own click: the row already on screen puts the sidebar away
    * (VS Code parity), anything else brings that view forward.
    */
   const toggleView = useCallback(
@@ -492,6 +653,43 @@ export function WorkUI({
       showView(view)
     },
     [activeView, sidebarOpen, showView, workspace]
+  )
+  /**
+   * Brings a work surface forward. Unlike `showView` it says nothing about the
+   * sidebar: these tools open *beside* the history, never instead of it.
+   */
+  const showWorkView = useCallback(
+    (view: WorkView) => {
+      setWorkViewState(view)
+      saveWorkspaceSession(workspace, { workView: view })
+    },
+    [workspace]
+  )
+  /** A chat tool's own row: pressing the one already in front returns to the transcript. */
+  const toggleWorkView = useCallback(
+    (view: WorkView) => showWorkView(view === workView ? 'chat' : view),
+    [workView, showWorkView]
+  )
+  /** The transcript, uncovered — what entering an initiative asks for. */
+  const showChat = useCallback(() => showWorkView('chat'), [showWorkView])
+  /** Initiatives: the workspace's demands, and whichever one the work area is opened on. */
+  const initiative = useOpenInitiative(workspace, session.initiativePath, workView, showChat)
+  /** The tab currently in front — derived, never stored, so the two can't disagree. */
+  const activeTab = tabOfView(activeView)
+  /**
+   * A tab click.
+   *
+   * Tabs select; they do not toggle. Clicking the tab you are already on with
+   * the sidebar showing is a no-op — the *toggle* is the navbar's own button and
+   * the row that is already active, both of which say so in their names. What a
+   * tab click does do is bring the panel back if it was away, which is the one
+   * case where "select the tab I am on" is a real request.
+   */
+  const selectTab = useCallback(
+    (tab: SidebarTab) => {
+      showView(tab === activeTab ? defaultViewOfTab(tab) : lastViewByTab[tab])
+    },
+    [activeTab, lastViewByTab, showView]
   )
   /** Ctrl+B: hide/show whatever view the rail is resting on. */
   const toggleSidebar = useCallback(() => {
@@ -925,11 +1123,44 @@ export function WorkUI({
 
   const handleNewConversation = useCallback(() => {
     chatRef.current?.newConversation()
-  }, [])
+    showView('chat')
+    // Starting a conversation has to show it. Without this the fresh transcript
+    // opens behind whichever tool is covering the pane, and "+ Novo" looks like
+    // it did nothing at all.
+    showWorkView('chat')
+  }, [showView, showWorkView])
 
-  const handleOpenSession = useCallback((id: string) => {
-    void chatRef.current?.openSession(id)
-  }, [])
+  const handleOpenSession = useCallback(
+    (id: string) => {
+      void chatRef.current?.openSession(id)
+      // Same rule as "+ Novo": picking a conversation out of the history is a
+      // request to *see* it, so it comes to the front of the pane.
+      showWorkView('chat')
+    },
+    [showWorkView]
+  )
+
+  // --- nav-redesign: the sidebar's conversation list ------------------------
+  // The lens (window + order) is lifted here rather than kept inside the
+  // sidebar, because the wide "Todas as conversas" surface opens on the same
+  // one — arriving there to a different list than the one you clicked from is
+  // the fastest way to make a "ver todas" button feel like a different app.
+  const [convWindow, setConvWindow] = useState<ActivityWindow>(DEFAULT_WINDOW)
+  const [convSort, setConvSort] = useState<ConversationSort>(DEFAULT_SORT)
+  const [allConvOpen, setAllConvOpen] = useState(false)
+  const chatSessions = useChatSessions({
+    workspace,
+    activeSessionId,
+    onNewConversation: handleNewConversation
+  })
+  // The list is on screen permanently now, so it has to answer for what the
+  // rest of the app did: a fresh conversation, a rename from the transcript, a
+  // turn that just retitled itself. `activeSessionId` changing is the one
+  // signal every one of those shares.
+  const reloadSessions = chatSessions.reload
+  useEffect(() => {
+    if (activeSessionId !== null) reloadSessions()
+  }, [activeSessionId, runningSessionIds, reloadSessions])
 
   // skill-studio: every studio action (create briefing, eval run, test) is a
   // chat turn — the studio composes it, the chat runs it. A creation launch
@@ -1130,12 +1361,12 @@ export function WorkUI({
         openAsk()
       } else if (key === 'b') {
         event.preventDefault()
-        showView('brain')
+        showWorkView('brain')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showView, openAsk])
+  }, [showWorkView, openAsk])
 
   const replayTour = useCallback(() => {
     setProfileOpen(false)
@@ -1284,6 +1515,20 @@ export function WorkUI({
     [onScreenPanes, paneOrder, applyPaneOrder]
   )
 
+  /**
+   * There is exactly one pane on screen, so there is nowhere to move it to.
+   *
+   * Every layout affordance a pane header carries — the grip, the ↔ menu, and
+   * the uppercase name that exists to tell one pane from another — is an answer
+   * to "which of these am I dragging where?". With one pane that question has
+   * no referents: the menu's two items are both disabled, the drag has no
+   * target, and "CONVERSA" labels the only thing on screen while occupying the
+   * top-left corner. So the whole strip goes, and the conversation gets the
+   * height back. It returns the instant a second pane does (Ctrl+B, or opening
+   * a file).
+   */
+  const soloPane = onScreenPanes.length === 1
+
   /** Drag-source props for a pane's header. */
   const dragHandlePropsFor = useCallback(
     (pane: PaneId): HTMLAttributes<HTMLElement> => ({
@@ -1338,8 +1583,13 @@ export function WorkUI({
     [dragPane, dropPane]
   )
 
-  /** The ↔ move menu for a pane, bounds derived from the visible order. */
-  const paneMoveMenuFor = (pane: PaneId, name: string): React.JSX.Element => {
+  /** Drag-source props, or `undefined` while this pane is the only one on screen (`soloPane`). */
+  const paneDragPropsFor = (pane: PaneId): HTMLAttributes<HTMLElement> | undefined =>
+    soloPane ? undefined : dragHandlePropsFor(pane)
+
+  /** The ↔ move menu for a pane, bounds derived from the visible order — `null` while this pane is the only one on screen. */
+  const paneMoveMenuFor = (pane: PaneId, name: string): React.JSX.Element | null => {
+    if (soloPane) return null
     const index = onScreenPanes.indexOf(pane)
     return (
       <PaneMoveMenu
@@ -1352,6 +1602,18 @@ export function WorkUI({
     )
   }
 
+  /**
+   * The pane the floating navbar sits over — the leftmost one a user can see.
+   *
+   * It is derived rather than hardcoded to `rail` because both facts it depends
+   * on can change: the sidebar can be away (the chat becomes the leftmost thing
+   * on screen), and the panes are re-orderable (the chat can be genuinely first).
+   * Whichever pane it is takes the top inset, which is what keeps the navbar
+   * from ever covering content.
+   */
+  const navOffsetPane = onScreenPanes[0]
+  const shellRef = useNavbarBounds(navOffsetPane, sidebarOpen)
+
   /** Shared inner-wrapper props: the drop-target surface + drop-hint/drag styling hooks. */
   const paneWrapPropsFor = (
     pane: PaneId
@@ -1359,6 +1621,7 @@ export function WorkUI({
     className: 'wb-pane',
     'data-drop': dropHint?.pane === pane ? dropHint.side : undefined,
     'data-dragging': dragPane === pane || undefined,
+    'data-navtop': navOffsetPane === pane ? '' : undefined,
     ...dropTargetPropsFor(pane)
   })
 
@@ -1393,24 +1656,46 @@ export function WorkUI({
   // order. Every element in the array carries a stable key (pane id) so React
   // reconciles a reorder as a *move*, never a remount — the chat session and
   // the viewer's draft survive any drag.
+  const brainNavDetail = brainNavigationDetail(secondBrain.rawPending, brainHealthDue)
+  const [pendingExit, setPendingExit] = useState(false)
+  const closeApp = (): void => {
+    saveWorkspaceSession(workspace, { layout: layoutRef.current })
+    window.close()
+  }
+  const userMenu = (
+    <UserMenu
+      userName={userName}
+      role={role}
+      onOpenSettings={() => openProfile(null)}
+      onOpenApp={() => setAppSettingsOpen(true)}
+      onSignOut={() => (editor.dirtyPaths.size > 0 ? setPendingExit(true) : closeApp())}
+      updatePending={updateFlow.pending}
+    />
+  )
   const paneRenderers: Record<PaneId, () => ReactNode> = {
     rail: () => {
-      const paneTitle =
-        activeView === 'scm'
-          ? t('git.paneTitle')
-          : activeView === 'review'
-            ? t('review.panelTitle')
-            : activeView === 'brain'
-              ? t('secondBrain.panelTitle')
-              : t('explorer.paneTitle')
+      const paneTitle = sidebarPaneTitle(activeView)
       return (
         <ResizablePanel
           key="rail"
           id="rail"
           className="wb-rail"
-          minSize="12%"
-          maxSize="40%"
-          defaultSize="22%"
+          minSize="260px"
+          maxSize="45%"
+          defaultSize="280px"
+          /* KNOWN ISSUE (2026-09-10): a rail width the user drags does not
+             survive a restart. `e2e/explorer-editor-ux.spec.ts:315` fails on
+             it and passes at `36a34fe`, so it arrived with this redesign.
+             Measured while chasing it: the group's `defaultLayout` is not being
+             applied at all any more, in ANY unit — seeding `{rail: 35, chat:
+             65}` and reloading gives the panel's own `defaultSize` (set it to
+             20% and you get 20%), and deleting `defaultSize` gives `maxSize`
+             (45%), never the stored 35%. So the cause is the Group renormalising
+             around the new pane shape, not these three numbers, and changing
+             them does not fix it — they are the values the UI was reviewed on.
+             `initialLayout`, `mergeLayout` and `handleLayoutChanged` are all
+             byte-identical to the baseline; the write half still works (the
+             dragged number does reach the session record). */
           /* workspace-session: hiding the sidebar collapses this panel to zero
              instead of unmounting it, so the tree inside keeps its expansion,
              its selection and its scroll across a Ctrl+B. `collapsible` also
@@ -1431,14 +1716,125 @@ export function WorkUI({
                the tab order, the a11y tree and the hit-testing — the same
                trick `SidebarHost` uses one level down. */
             data-collapsed={chrome.collapsedFlag}
+            role="tabpanel"
+            aria-labelledby={`wb-sidebar-tab-${activeTab}`}
           >
-            <PaneHeader
-              title={paneTitle}
-              dragProps={dragHandlePropsFor('rail')}
-              actions={paneMoveMenuFor('rail', paneTitle)}
+            {/* The tab bar doubles as this pane's header: it keeps the drag
+                surface and the ↔ move menu the movable-pane feature needs,
+                without stacking a second 40px strip of chrome above it. */}
+            <SidebarTabs
+              active={activeTab}
+              onSelect={selectTab}
+              dragProps={paneDragPropsFor('rail')}
+              /* Workspace search used to sit here too, on the Arquivos tab
+                 only. It moved to the navbar, where it is on screen from both
+                 tabs and with the sidebar away — so a second copy 40px below
+                 would be the duplicated affordance, not a convenience. */
+              trailing={paneMoveMenuFor('rail', paneTitle)}
             />
+            {/* Fixed above the swapping body: the tab's own controls stay put
+                while the region below them changes, so the tools that opened a
+                panel are still there to leave it by. */}
+            <div className="wb-sidebar-fixed">
+              {activeTab === 'chat' ? (
+                <>
+                  <NewConversationButton onClick={handleNewConversation} />
+                  <nav className="wb-sidebar-nav" aria-label={t('nav.toolsLabel')}>
+                    {/* These two disclose the WORK pane, not the sidebar —
+                        `controls` is what says so to a screen reader, and the
+                        history below them stays put either way. */}
+                    <SidebarNavItem
+                      view="review"
+                      controls={WORK_REGION_ID}
+                      label={t('review.railLabel')}
+                      icon={<ReviewIcon size={15} />}
+                      active={workView === 'review'}
+                      togglesOff={workView === 'review'}
+                      count={review.pendingCount}
+                      detail={
+                        review.pendingCount > 0 ? t('review.barPending', review.pendingCount) : null
+                      }
+                      onSelect={() => toggleWorkView('review')}
+                      data-tour="review"
+                    />
+                    <SidebarNavItem
+                      label={t('studio.openLabel')}
+                      active={studioOpen}
+                      icon={<SparkleIcon size={15} />}
+                      onSelect={() => setStudioOpen(true)}
+                      data-tour="studio"
+                    />
+                    <SidebarNavItem
+                      view="brain"
+                      controls={WORK_REGION_ID}
+                      label={t('secondBrain.railLabel')}
+                      icon={<BrainIcon size={15} />}
+                      active={workView === 'brain'}
+                      togglesOff={workView === 'brain'}
+                      count={secondBrain.rawPending}
+                      dot={brainHealthDue}
+                      detail={brainNavDetail}
+                      onSelect={() => toggleWorkView('brain')}
+                      aria-keyshortcuts="Control+Shift+B"
+                      data-tour="brain"
+                    />
+                  </nav>
+                </>
+              ) : (
+                <nav className="wb-sidebar-nav" aria-label={t('nav.filesLabel')}>
+                  <SidebarNavItem
+                    view="explorer"
+                    label={t('nav.explorerView')}
+                    icon={<FolderIcon size={15} />}
+                    active={activeView === 'explorer' && sidebarOpen}
+                    togglesOff={activeView === 'explorer' && sidebarOpen}
+                    onSelect={() => toggleView('explorer')}
+                    aria-keyshortcuts="Control+Shift+E"
+                    data-tour="explorer"
+                  />
+                  <SidebarNavItem
+                    view="scm"
+                    label={t('nav.scmView')}
+                    icon={<SourceControlIcon size={15} />}
+                    active={activeView === 'scm' && sidebarOpen}
+                    togglesOff={activeView === 'scm' && sidebarOpen}
+                    count={changeCount(git.status)}
+                    detail={
+                      changeCount(git.status) > 0
+                        ? t('nav.scmChangeCount', changeCount(git.status))
+                        : null
+                    }
+                    onSelect={() => toggleView('scm')}
+                    aria-keyshortcuts="Control+Shift+G"
+                    data-tour="scm"
+                  />
+                </nav>
+              )}
+            </div>
             <SidebarHost
               activeView={activeView}
+              chat={
+                <ChatSidebar
+                  initiatives={
+                    <InitiativesPanel
+                      store={initiative.all}
+                      activePath={initiative.path}
+                      onOpen={(entry: Initiative) => initiative.show(entry.path)}
+                      onCreate={() => initiative.setCreateOpen(true)}
+                    />
+                  }
+                  store={chatSessions}
+                  window={convWindow}
+                  sort={convSort}
+                  onWindowChange={setConvWindow}
+                  onSortChange={setConvSort}
+                  activeSessionId={activeSessionId}
+                  runningSessionIds={runningSessionIds}
+                  reviewPendingBySession={reviewPendingBySession}
+                  onOpenSession={handleOpenSession}
+                  onOpenAll={() => setAllConvOpen(true)}
+                />
+              }
               explorer={
                 <FileTree
                   workspace={workspace}
@@ -1463,43 +1859,35 @@ export function WorkUI({
                   onShowLogs={openGitLog}
                 />
               }
-              review={
-                <AgentReviewPanel onOpenDiff={(path: string) => editor.openReviewDiff(path)} />
-              }
-              brain={
-                <SecondBrainPanel
-                  store={secondBrain}
-                  onLaunch={launchBrainAction}
-                  onAsk={openAsk}
-                  onOpenFile={editor.openFile}
-                  selectedPath={editor.activePath}
-                  setup={brainSetup}
-                  onIngest={() => openIngest('text')}
-                />
-              }
             />
+            {/* The column's bottom edge: who you are, and the two settings
+                surfaces. It anchors the sidebar the way a scrolling list
+                cannot, and it is where a desktop user's hand already goes. */}
+            <div className="wb-sidebar-foot">{sidebarOpen && userMenu}</div>
           </div>
         </ResizablePanel>
       )
     },
-    chat: () => (
-      <ResizablePanel key="chat" id="chat" minSize="30%" defaultSize="53%">
-        <div {...paneWrapPropsFor('chat')}>
-          <PaneHeader
-            title={t('workUI.paneChat')}
-            dragProps={dragHandlePropsFor('chat')}
-            primaryActions={
-              <SessionHistory
-                workspace={workspace}
-                activeSessionId={activeSessionId}
-                runningSessionIds={runningSessionIds}
-                reviewPendingBySession={reviewPendingBySession}
-                onNewConversation={handleNewConversation}
-                onOpenSession={handleOpenSession}
-              />
-            }
-            actions={paneMoveMenuFor('chat', t('workUI.paneChat'))}
-          />
+    chat: () => {
+      /* An open initiative renames the pane after itself. The transcript is
+         still the transcript — it is the same `Chat`, holding the same live
+         session — but "Conversa" over a pane that is showing a demand's plan
+         and its artifacts would be naming a third of what is on screen. */
+      const header = chatPaneHeader(initiative.shown, workView, showWorkView, () =>
+        initiative.show(null)
+      )
+      const title = header.title
+      /* The two chat tools open HERE, in place of the transcript — not in the
+         sidebar, where they used to evict the conversation history and then
+         squeeze a diff review into a 280px column.
+
+         Every layer stays mounted, exactly as the sidebar's own host does it
+         and for the same reason: `Chat` holds the live session (a turn may be
+         streaming), and the review list holds its expansion and its scroll.
+         Only visibility changes, so leaving a tool and coming back costs
+         nothing. */
+      const bodies: Record<WorkView, ReactNode> = {
+        chat: (
           <Chat
             ref={chatRef}
             workspace={workspace}
@@ -1521,10 +1909,94 @@ export function WorkUI({
             // claude-account: the first-party repair, from the turn that
             // failed — same shape as the AWS one directly above.
             onClaudeConnect={() => claudeAuth.connect()}
+            // ...and the two facts that let the transcript finish that repair
+            // no matter WHERE the sign-in happened — this banner, the beacon,
+            // Perfil › Conexão, or the user's own terminal. Without them the
+            // banner could only ever be withdrawn by the return value of its
+            // own button's promise, which is how a landed sign-in left the
+            // failure on screen and the question unasked.
+            claudeAccountReady={accountReady(claudeAuth.status?.state)}
+            claudeSigningIn={isLoginLive(claudeAuth.login.phase)}
           />
-        </div>
-      </ResizablePanel>
-    ),
+        ),
+        review: <AgentReviewPanel onOpenDiff={(path: string) => editor.openReviewDiff(path)} />,
+        brain: (
+          <SecondBrainPanel
+            store={secondBrain}
+            onLaunch={launchBrainAction}
+            onAsk={openAsk}
+            onOpenFile={editor.openFile}
+            selectedPath={editor.activePath}
+            setup={brainSetup}
+            onIngest={() => openIngest('text')}
+          />
+        )
+      }
+      return (
+        <ResizablePanel key="chat" id="chat" minSize="30%">
+          <div {...paneWrapPropsFor('chat')} id={WORK_REGION_ID}>
+            {/* nav-redesign: the pane header no longer carries "Nova conversa"
+                and the history popover. Both moved into the sidebar's Chat tab,
+                where they are on screen permanently instead of behind a click —
+                and where "+ Novo" can be a real primary button rather than a
+                16px glyph competing with the pane's ↔ menu. Keeping a second copy
+                here would be the duplicated affordance the redesign set out to
+                remove. */}
+            {/* With the conversation alone on screen the strip has nothing left
+                to say: no grip (nowhere to drag to), no ↔ (both directions
+                disabled), and a name that labels the only pane there is. It is
+                kept only while something is *covering* the transcript — a chat
+                tool or an initiative — because then the title names what you
+                are looking at and the ✕ is the way back. See `soloPane`. */}
+            {(!soloPane || header.primaryActions !== null) && (
+              <PaneHeader
+                title={title}
+                dragProps={paneDragPropsFor('chat')}
+                /* `primaryActions`, not `actions`: the move menu is layout
+                   plumbing and is right to stay quiet until the pane is hovered,
+                   but the way out of a panel that is covering your conversation
+                   cannot be invisible until you go looking for it. */
+                primaryActions={header.primaryActions}
+                actions={paneMoveMenuFor('chat', title)}
+              />
+            )}
+            {/* The initiative's rail sits BESIDE the transcript, sharing the
+                pane — not in place of it. Embedding the chat is the whole
+                point: the demand's plan is something you act on by talking to
+                the agent, and a surface that replaced the conversation would
+                have put the two a click apart. One `Chat` either way, so the
+                live session is never torn down by opening a demand. */}
+            <div className="wb-work-split">
+              <div className="wb-work-host">
+                {WORK_VIEWS.filter((view) => mountedWorkViews.includes(view)).map((view) => (
+                  <div
+                    key={view}
+                    className="wb-work-layer"
+                    data-view={view}
+                    data-active={view === workView || undefined}
+                  >
+                    {bodies[view]}
+                  </div>
+                ))}
+              </div>
+              <InitiativeContext
+                workspace={workspace}
+                initiative={initiative.shown}
+                selectedPath={editor.activePath}
+                onOpenFile={editor.openFile}
+                // A stage is a whole BMAD workflow, not a follow-up: appending
+                // one to whatever is on screen made it inherit that
+                // conversation's context and its history, and the transcript of
+                // the run got buried under it. `launchCreation` opens a fresh
+                // conversation instead and backgrounds any turn still running,
+                // so every stage is its own readable thread.
+                onRunStage={(action) => chatRef.current?.launchCreation(action)}
+              />
+            </div>
+          </div>
+        </ResizablePanel>
+      )
+    },
     // The viewer opens wide enough to actually read a document (~40% of the
     // body) — its flex-grow ratio sits above chat's leftover so the rail/chat
     // home split is untouched when no file is open. A 30% floor keeps
@@ -1541,7 +2013,7 @@ export function WorkUI({
               onPin={editor.pinTab}
               onClose={editor.requestCloseTab}
               actions={tabActions}
-              dragProps={dragHandlePropsFor('viewer')}
+              dragProps={paneDragPropsFor('viewer')}
               trailing={paneMoveMenuFor('viewer', t('workUI.paneEditor'))}
             />
             {/* Every tab's body stays mounted and stays the same size (drafts
@@ -1577,134 +2049,109 @@ export function WorkUI({
         </ResizablePanel>
       )
   }
-  const panels = buildPanels(renderedPanes, paneRenderers, (pane) =>
-    onScreenPanes.includes(pane)
-  )
+  const panels = buildPanels(renderedPanes, paneRenderers, (pane) => onScreenPanes.includes(pane))
 
   return (
     <GitProvider store={git}>
       <ReviewProvider store={review}>
         <div className="wb-app">
-          <header className="wb-topbar">
-            {/* The identity itself carries the app's name — the wordmark IS
-            the word — so the title bar shows the lockup instead of a mark
-            plus "Hive" set in the same 13px label as everything else
-            around it. `aria-label` keeps the full product name for anyone
-            reading the accessibility tree, where the drawing says nothing. */}
-            <HiveLogo className="wb-topbar-logo" aria-label={t('app.title')} />
-            <span className="wb-topbar-sep" aria-hidden="true" />
-            <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="wb-workspace-chip"
-                  title={t('workUI.workspaceChipTitle', workspace)}
-                  aria-label={t('workUI.workspaceChipAria', workspace)}
-                >
-                  <FolderIcon size={14} className="wb-workspace-chip-icon" />
-                  <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
-                  <ChevronDownIcon size={14} className="wb-workspace-chip-caret" />
-                </button>
-              </DropdownMenuTrigger>
-              {chipMenuOpen && (
-                <DropdownMenuContent align="start" className="wb-workspace-menu">
-                  <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={handleChooseFolder}>
-                    <span className="wb-menu-item-icon" aria-hidden="true">
-                      <FolderOpenIcon size={15} />
-                    </span>
-                    <span className="wb-menu-item-text">
-                      <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
-                    </span>
-                  </DropdownMenuItem>
-                  {recents.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
-                      {recents.map((path) => (
-                        <DropdownMenuItem
-                          key={path}
-                          title={path}
-                          onSelect={() => requestSwitch(path)}
-                        >
-                          <span className="wb-menu-item-icon" aria-hidden="true">
-                            <FolderIcon size={15} />
-                          </span>
-                          <span className="wb-menu-item-text">
-                            <span className="wb-menu-item-title">{workspaceName(path)}</span>
-                            <span className="wb-menu-item-sub">{path}</span>
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                  {/* app-reload: window-scoped, so it sits under its own
-                      heading rather than reading as a fourth way to change
-                      workspace. This chip menu is the app's only title-bar
-                      menu — the same place VS Code keeps "Reload Window". */}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t('workUI.windowSection')}</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onSelect={reloadWindow}
-                    /* Canonical key names for the a11y tree (the handler takes
-                       `metaKey` wherever it takes `ctrlKey`), while the visible
-                       hint below uses the platform's own notation. */
-                    aria-keyshortcuts={window.hive.platform === 'darwin' ? 'Meta+R' : 'Ctrl+R'}
-                  >
-                    <span className="wb-menu-item-icon" aria-hidden="true">
-                      <RefreshIcon size={15} />
-                    </span>
-                    <span className="wb-menu-item-text">
-                      <span className="wb-menu-item-title">{t('workUI.reloadWindow')}</span>
-                    </span>
-                    <span className="wb-menu-item-kbd" aria-hidden="true">
-                      {t('workUI.reloadWindowKey', window.hive.platform)}
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              )}
-            </DropdownMenu>
-            <div className="wb-topbar-spacer" />
-            <ThemePicker theme={theme} onSelectTheme={onSelectTheme} />
-            {/* Profile avatar (top-right, the desktop-app convention): the user's
-            initials open the profile sheet — who you are; the rail's gear
-            below is the software's settings. */}
-            <button
-              type="button"
-              className="wb-avatar-btn"
-              data-tour="profile"
-              title={t('profile.openLabel')}
-              aria-label={t('profile.openLabel')}
-              onClick={() => openProfile(null)}
-            >
-              {initialsOf(userName) ?? <UserIcon size={15} />}
-            </button>
-          </header>
           {switchError && (
             <div className="wb-switch-error" role="alert">
               {switchError}
             </div>
           )}
-          <div className="wb-shell">
-            <ActionRail
-              activeView={activeView}
-              onSelectView={toggleView}
+          <div className="wb-shell" ref={shellRef} data-sidebar={chrome.bodyState}>
+            {/* nav-redesign: the navbar floats at the top-left of the shell —
+                positioned against it, not parented into the collapsible rail —
+                so it keeps working with the sidebar away. The pane underneath
+                it makes room via `data-navtop` (see `paneWrapPropsFor`), which
+                is why nothing is ever covered. */}
+            <AppNavbar
               sidebarOpen={sidebarOpen}
-              changeCount={changeCount(git.status)}
-              reviewCount={review.pendingCount}
-              rawPendingCount={secondBrain.rawPending}
-              healthDue={brainHealthDue}
+              onToggleSidebar={toggleSidebar}
               onOpenSearch={() => setSearchOpen(true)}
-              onOpenStudio={() => setStudioOpen(true)}
-              onOpenMcp={() => setMcpOpen(true)}
-              onOpenAppSettings={() => setAppSettingsOpen(true)}
-              updatePending={updateFlow.pending}
+              searchOpen={searchOpen}
+              theme={theme}
+              onSelectTheme={onSelectTheme}
+              workspaceChip={
+                <DropdownMenu open={chipMenuOpen} onOpenChange={handleChipMenuOpenChange}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="wb-workspace-chip"
+                      title={t('workUI.workspaceChipTitle', workspace)}
+                      aria-label={t('workUI.workspaceChipAria', workspace)}
+                    >
+                      <FolderIcon size={13} className="wb-workspace-chip-icon" />
+                      <span className="wb-workspace-chip-name">{workspaceName(workspace)}</span>
+                      <ChevronDownIcon size={13} className="wb-workspace-chip-caret" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  {chipMenuOpen && (
+                    <DropdownMenuContent align="start" className="wb-workspace-menu">
+                      <DropdownMenuLabel>{t('workUI.switchWorkspace')}</DropdownMenuLabel>
+                      <DropdownMenuItem onSelect={handleChooseFolder}>
+                        <span className="wb-menu-item-icon" aria-hidden="true">
+                          <FolderOpenIcon size={15} />
+                        </span>
+                        <span className="wb-menu-item-text">
+                          <span className="wb-menu-item-title">{t('workUI.openFolder')}</span>
+                        </span>
+                      </DropdownMenuItem>
+                      {recents.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>{t('workUI.recents')}</DropdownMenuLabel>
+                          {recents.map((path) => (
+                            <DropdownMenuItem
+                              key={path}
+                              title={path}
+                              onSelect={() => requestSwitch(path)}
+                            >
+                              <span className="wb-menu-item-icon" aria-hidden="true">
+                                <FolderIcon size={15} />
+                              </span>
+                              <span className="wb-menu-item-text">
+                                <span className="wb-menu-item-title">{workspaceName(path)}</span>
+                                <span className="wb-menu-item-sub">{path}</span>
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                      {/* app-reload: window-scoped, so it sits under its own
+                          heading rather than reading as a fourth way to change
+                          workspace. This chip menu is the app's only title-bar
+                          menu — the same place VS Code keeps "Reload Window". */}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>{t('workUI.windowSection')}</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onSelect={reloadWindow}
+                        /* Canonical key names for the a11y tree (the handler
+                           takes `metaKey` wherever it takes `ctrlKey`), while
+                           the visible hint below uses the platform's own
+                           notation. */
+                        aria-keyshortcuts={window.hive.platform === 'darwin' ? 'Meta+R' : 'Ctrl+R'}
+                      >
+                        <span className="wb-menu-item-icon" aria-hidden="true">
+                          <RefreshIcon size={15} />
+                        </span>
+                        <span className="wb-menu-item-text">
+                          <span className="wb-menu-item-title">{t('workUI.reloadWindow')}</span>
+                        </span>
+                        <span className="wb-menu-item-kbd" aria-hidden="true">
+                          {t('workUI.reloadWindowKey', window.hive.platform)}
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  )}
+                </DropdownMenu>
+              }
             />
             {/* The work area is the app's one `main` landmark: everything a
                 user came here to do (the panes and, under them, the MCP
-                console) lives inside it, and the action rail beside it is a
-                sibling so the `nav` stays out. Before this the page had no
-                `main` at all, so "skip to content" had nothing to skip to. */}
+                console) lives inside it. Before this the page had no `main` at
+                all, so "skip to content" had nothing to skip to. */}
             <main className="wb-body" data-sidebar={chrome.bodyState}>
               <Resizable
                 orientation="horizontal"
@@ -1740,11 +2187,12 @@ export function WorkUI({
                 }}
               />
             </main>
+            {!sidebarOpen && <div className="wb-collapsed-user">{userMenu}</div>}
           </div>
           {/* Agent Change Review (ACR-R2.3): the ambient review bar sits at the
             work-surface footer, above the status bar — present only while the
             pending set is non-empty; `Revisar →` opens the sidebar panel. */}
-          <ReviewBar onReview={() => showView('review')} />
+          <ReviewBar onReview={() => showWorkView('review')} />
           {/* Second Brain (SB-R3/R9/R10): the floating button and everything it
             carries — the ask surface, the capture sheet, and the ambient
             health-check reminder. All sit OUTSIDE the resizable body so
@@ -1839,6 +2287,16 @@ export function WorkUI({
           />
           <GitOpToast result={gitRemote.result} onClose={gitRemote.clear} />
           <UnsavedGuardDialog
+            open={pendingExit}
+            onCancel={() => setPendingExit(false)}
+            onDiscard={closeApp}
+            onSave={() => {
+              void editor.saveAllDirty().then((ok) => {
+                if (ok) closeApp()
+              })
+            }}
+          />
+          <UnsavedGuardDialog
             open={pendingSwitch !== null}
             onCancel={cancelSwitch}
             onDiscard={handleDiscardSwitch}
@@ -1863,6 +2321,22 @@ export function WorkUI({
             onOpenChange={setSearchOpen}
             workspace={workspace}
             onOpenFile={openAndReveal}
+          />
+          {/* nav-redesign: the archive behind "Ver todas as conversas" — the
+              same rows, the same rename and delete, at a width where searching
+              and re-sorting a year of history is actually pleasant. */}
+          <AllConversationsDialog
+            open={allConvOpen}
+            onOpenChange={setAllConvOpen}
+            store={chatSessions}
+            activeSessionId={activeSessionId}
+            runningSessionIds={runningSessionIds}
+            reviewPendingBySession={reviewPendingBySession}
+            window={convWindow}
+            sort={convSort}
+            onWindowChange={setConvWindow}
+            onSortChange={setConvSort}
+            onOpenSession={handleOpenSession}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
           {/* One notification column, bottom-left, above the rail's gear. Both
@@ -1901,6 +2375,14 @@ export function WorkUI({
               setStudioOpen(true)
             }}
           />
+          <NewInitiativeDialog
+            open={initiative.createOpen}
+            onOpenChange={initiative.setCreateOpen}
+            onCreate={initiative.all.create}
+            // Creating one and then having to find it in the tree would be the
+            // repair left half-done: the folder was made *in order to* work in it.
+            onCreated={initiative.show}
+          />
           <SkillStudio
             open={studioOpen}
             onOpenChange={setStudioOpen}
@@ -1937,6 +2419,13 @@ export function WorkUI({
               during: shortcutSets.during.length
             }}
             onOpenShortcuts={openShortcuts}
+            // nav-redesign: MCP is a settings row now. The sheet steps aside
+            // rather than stacking the manager's dialog inside its own.
+            mcpCount={mcpCatalog.length}
+            onOpenMcp={() => {
+              setProfileOpen(false)
+              setMcpOpen(true)
+            }}
             onAgentsChange={onAgentsChange}
             onDefaultAgentChange={onDefaultAgentChange}
             onUserNameChange={onUserNameChange}

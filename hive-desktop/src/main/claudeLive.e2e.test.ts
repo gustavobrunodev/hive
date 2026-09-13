@@ -64,12 +64,50 @@ describe.skipIf(!AVAILABLE)('ClaudeCliAdapter — against the real CLI', () => {
 
     session.stop()
   }, 300_000)
+
+  /**
+   * The turn the user reported: a file attached in the chat, and the agent
+   * answering that no file was attached.
+   *
+   * Nothing about the *content* of the prompt was ever wrong —
+   * `composeTurnPrompt` builds the same `<attached-files>` block for every
+   * adapter. What was wrong was the transport: on Windows the npm `.cmd` shim
+   * truncates a command line at its first newline, and the block starts on the
+   * prompt's second line, so the agent was told about no files at all.
+   *
+   * This is the half a unit test cannot make. The unit test asserts the prompt
+   * is on `opts.input` and not in argv; only a real binary can say that
+   * `claude -p`, with no positional prompt and all the flags this adapter
+   * really sends, reads that stdin as the turn and acts on what is in it.
+   *
+   * It also carries the multi-line case in general: a reply that quotes the
+   * file's contents can only come from a prompt whose second line survived.
+   */
+  it('reads a file attached to the turn — the block that argv used to truncate', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-claude-attach-'))
+    const attached = join(dir, 'anexo.txt')
+    writeFileSync(attached, 'jabuticaba\n')
+
+    const adapter = createClaudeCliAdapter(createProcessRunner())
+    const session = adapter.startSession({ workspace: dir, model: 'haiku' })
+
+    const events = await turnOf(session, {
+      text: 'Leia o arquivo anexado e responda só com a palavra que está nele.',
+      // Absolute, exactly as a picked attachment arrives from the renderer.
+      attachments: [attached],
+      resume: null,
+      turnId: 'live-attach-1'
+    })
+
+    expect(textOf(events).toLowerCase()).toContain('jabuticaba')
+    session.stop()
+  }, 300_000)
 })
 
 /** Runs one turn and returns its events. */
 async function turnOf(
   session: AgentSession,
-  input: { text: string; resume: string | null; turnId: string }
+  input: { text: string; resume: string | null; turnId: string; attachments?: string[] }
 ): Promise<AgentEvent[]> {
   const events: AgentEvent[] = []
   const iterator = session.events[Symbol.asyncIterator]()

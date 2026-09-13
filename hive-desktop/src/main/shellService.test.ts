@@ -189,7 +189,9 @@ describe('ShellService.list', () => {
     // The CLI's own path is whatever this machine resolved (or the bare name
     // where it isn't installed), so the assertion is on the shape around it —
     // `exec`, the quoting, the flags — which is the part that is ours.
-    expect(view.shells[0].preview).toMatch(/^\/usr\/bin\/zsh -c exec '.*claude.*' '-p' '…'$/)
+    // No positional prompt: it travels on stdin now, and the preview shows the
+    // argv a turn really carries rather than a readable stand-in for one.
+    expect(view.shells[0].preview).toMatch(/^\/usr\/bin\/zsh -c exec '.*claude.*' '-p'$/)
   })
 
   it('falls back to every registered agent when the user has none enabled', () => {

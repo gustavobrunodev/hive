@@ -21,7 +21,7 @@ import {
   slugify,
   type StudioCommand
 } from './studioPrompts'
-import type { RoleAction } from './ActionRail'
+import type { RoleAction } from './sidebarNav'
 import { RunConfigBar } from './RunConfigBar'
 import { useRunConfig, type RunConfig } from '../chat/useRunConfig'
 import {
@@ -34,7 +34,7 @@ import {
   TrashIcon
 } from './icons'
 
-/** Structural mirror of `main/skillStudio.ts`'s `CreatedSkill` (renderer files mirror main types — the `ActionRail`/`ShortcutCustomizer` convention). */
+/** Structural mirror of `main/skillStudio.ts`'s `CreatedSkill` (renderer files mirror main types — the `sidebarNav`/`ShortcutCustomizer` convention). */
 export interface CreatedSkill {
   key: string
   name: string

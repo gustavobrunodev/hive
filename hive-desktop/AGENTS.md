@@ -56,12 +56,21 @@ funções focadas.
 - **Só o turno do agente passa pelo shell escolhido** (`RunOptions.shell`, veja
   `shellCatalog.ts`). `git`, `npx bmad-method` e os probes continuam com spawn
   direto: cada um depende do stdout exato, e um banner de rc quebraria o parser.
-- **JSON nunca entra em argv.** No Windows o turno atravessa o shell do usuário
-  _e_ o shim `.cmd` do npm, e as duas camadas discordam sobre `\"` — qualquer
-  argumento com aspas **e** espaço é re-partido no meio. Foi o que matou toda
-  sessão do Claude com `Invalid MCP configuration: MCP config file not found`
-  (D39a). Configuração vai para um arquivo e o que viaja é o **caminho**;
-  `approvalService.ts` guarda o relato completo.
+- **No Windows, argv é um canal estreito — e ele falha calado.** O turno
+  atravessa o shell do usuário _e_ o shim `.cmd` do npm. Duas consequências,
+  as duas medidas contra `cmd.exe` de verdade:
+  - **JSON não entra em argv.** As duas camadas discordam sobre `\"`, e qualquer
+    argumento com aspas **e** espaço é re-partido no meio. Matou toda sessão do
+    Claude com `Invalid MCP configuration: MCP config file not found` (D39a).
+    Configuração vai para um arquivo e o que viaja é o **caminho**;
+    `approvalService.ts` guarda o relato completo.
+  - **Quebra de linha não entra em argv.** Um shim `.cmd` **corta a linha de
+    comando na primeira `\n`** — o escape (`^`) é lido como continuação de linha
+    — e some com o resto do argumento *e com todas as flags seguintes*, sem
+    erro nenhum. Apagava o bloco `<attached-files>` de todo turno com anexo
+    (o agente respondia que nada tinha sido anexado) e truncava qualquer
+    mensagem multilinha. Texto multilinha vai por **stdin**
+    (`RunOptions.input` + `CliAdapterConfig.promptOnStdin`), nunca por argv.
 - **Processos não se importam.** `main`, `preload` e `renderer` são bundles
   separados; o renderer fala com o main **só** pela bridge `window.hive` e deriva
   tipos dela (`Awaited<ReturnType<Window['hive'][…]>>`). Só o preload pode

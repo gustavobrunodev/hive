@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react'
+import { forwardRef } from 'react'
 import { OptionPicker, RampSelect, Switch } from '@hive/design-system'
 import type { OptionPickerProps, PickerOption, RampStep } from '@hive/design-system'
 import { t } from '../i18n'
@@ -33,7 +33,18 @@ import {
 } from './engineOptions'
 
 interface EnginePickerProps {
-  capabilities: EngineCapabilities
+  /**
+   * What the active agent supports — **`null` while that is still being
+   * detected**, which is a state this control has to be able to draw.
+   *
+   * Switching agents re-reads the machine, and a CLI spawn is not instant. The
+   * caller used to keep the previous agent's answer on screen until the new one
+   * arrived, so for those seconds the control offered one agent's models under
+   * another agent's name. Saying "carregando" is the only honest thing to show
+   * there, and it is also the only thing that cannot be clicked into a model id
+   * the new agent would reject.
+   */
+  capabilities: EngineCapabilities | null
   /** The chosen model id; `''` is the meaningful "let the CLI decide" value. */
   model: string | null
   effort: string | null
@@ -96,6 +107,10 @@ export function EnginePicker({
   refreshing,
   pin
 }: EnginePickerProps): React.JSX.Element | null {
+  // Before the hooks below, because the loading trigger has none of the data
+  // they derive — and because a control that is not yet a picker must not be a
+  // picker with empty rows.
+  if (capabilities === null) return <EngineTriggerSkeleton />
   const { models } = capabilities
   const current = models.find((option) => option.id === model) ?? models[0] ?? null
   // Not `capabilities.efforts`: on Devin the ladder belongs to the *selected
@@ -107,11 +122,11 @@ export function EnginePicker({
   const currentEffort = baseRung(efforts, effort) ?? null
   const byVendor = distinctVendors(models).length > 1
 
-  const options = useMemo(
-    () => models.map((option) => toPickerOption(option, byVendor)),
-    [models, byVendor]
-  )
-  const groups = useMemo(() => groupsFor(models), [models])
+  // Plain expressions, not `useMemo`: the early return above (the loading
+  // trigger) makes any hook here a conditional one, and mapping a list of
+  // seventeen rows is not what this control spends its time on.
+  const options = models.map((option) => toPickerOption(option, byVendor))
+  const groups = groupsFor(models)
 
   if (models.length === 0) return null
 
@@ -248,6 +263,33 @@ function pinBinding({
  * plain `<button>`. See `EnginePicker.open.test.ts`, which drives the real
  * popover for this reason.
  */
+/**
+ * The control while the agent's capabilities are in flight.
+ *
+ * Same footprint as the real trigger — the composer's toolbar must not jump
+ * when the answer lands — and inert: there is nothing yet to choose between.
+ * It is `aria-busy` with a live label rather than a bare spinner, so a screen
+ * reader is told the control exists and is loading instead of finding a gap
+ * where it was a moment ago.
+ */
+function EngineTriggerSkeleton(): React.JSX.Element {
+  return (
+    <span
+      className="wb-engine-btn wb-engine-btn-loading"
+      role="status"
+      aria-busy="true"
+      aria-label={t('chat.loadingCapabilities')}
+    >
+      <span className="wb-engine-glyph" aria-hidden="true">
+        <span className="wb-engine-skel-dot" />
+      </span>
+      <span className="wb-engine-skel-bar" aria-hidden="true" />
+      <span className="wb-engine-sep" aria-hidden="true" />
+      <span className="wb-engine-skel-bar" data-short="" aria-hidden="true" />
+    </span>
+  )
+}
+
 const EngineTrigger = forwardRef<
   HTMLButtonElement,
   React.ComponentPropsWithoutRef<'button'> & {

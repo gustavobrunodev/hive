@@ -232,7 +232,7 @@ async (page) => {
   }
 
   const setTheme = async (menuLabel) => {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     // Anchored: the Hive theme's own description reads "Escuro, nas cores da
     // marca", so a loose `Escuro` matches two rows and throws on strict mode.
     await page.getByRole('menuitemradio', { name: new RegExp(`^${menuLabel}`) }).click()

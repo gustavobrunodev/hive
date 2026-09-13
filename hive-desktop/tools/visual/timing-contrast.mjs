@@ -73,7 +73,10 @@ async (page) => {
       '.wb-ctx-model',
       '.wb-ctx-used',
       '.wb-ctx-window',
-      '.wb-ctx-percent',
+      // The sheet's percentage moved INTO the ring's face (the linear bar it
+      // used to sit beside is gone); `.hds-ring-meter-value` is where it lives.
+      '.wb-ctx-ring .hds-ring-meter-value',
+      '.wb-ctx-ring .hds-ring-meter-caption',
       '.wb-ctx-legend-row dt',
       '.wb-ctx-legend-tokens',
       '.wb-ctx-legend-share',

@@ -90,7 +90,9 @@ export function SlashMenu({
       ) : (
         <ul
           ref={listRef}
-          className="wb-slash-list"
+          // Same tokenized bar as the `@` menu beside it: two popovers anchored
+          // to the same composer must not scroll behind two different chromes.
+          className="wb-slash-list hds-scrollbar"
           role="listbox"
           id={listboxId}
           aria-label={t('chat.slashMenuLabel')}

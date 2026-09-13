@@ -329,7 +329,7 @@ export function OptionPicker({
                 area* rather than of the whole panel, which is the only way to
                 place them without hardcoding the search row's height. */}
             <div className="hds-picker-scroll" ref={setScroller}>
-              <CommandPrimitive.List ref={setList} className="hds-picker-list" label={ariaLabel}>
+              <CommandPrimitive.List ref={setList} className="hds-picker-list hds-scrollbar" label={ariaLabel}>
                 <CommandPrimitive.Empty className="hds-picker-empty">{emptyLabel}</CommandPrimitive.Empty>
                 {ordered.map(({ group, items }) => (
                   <CommandPrimitive.Group

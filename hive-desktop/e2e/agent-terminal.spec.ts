@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { test, expect, launchSeededApp, waitForWorkUI } from './fixtures/workspace'
 import { armScriptedAgent } from './fixtures/scriptedAgent'
+import { openSettings } from './fixtures/sidebar'
 
 // agent-terminal (M20, AT-R1/AT-R2/AT-R3/AT-R4).
 //
@@ -25,7 +26,9 @@ test.describe('the terminal the agent runs in (M20)', () => {
     const window = await app.firstWindow()
     await waitForWorkUI(window)
 
-    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    // nav-redesign: the avatar left the title bar for the bottom of the
+    // sidebar, and settings are one step inside its menu now.
+    await openSettings(window)
     // voice-settings (M25): the sheet is a drill-down — the terminal picker is
     // its own scope, one click from the index.
     await window.locator('button.wb-pnav-row[data-scope="shell"]').click()
@@ -130,7 +133,7 @@ test.describe('the terminal the agent runs in (M20)', () => {
     // POSIX never touches the Windows PowerShell switch.
     expect(turns[0].shellEnv?.CLAUDE_CODE_USE_POWERSHELL_TOOL).toBeNull()
 
-    await window.getByRole('button', { name: 'Abrir configurações de perfil' }).click()
+    await openSettings(window)
     await window.locator('button.wb-pnav-row[data-scope="shell"]').click()
     await expect(window.locator('.hds-radio-card[data-selected]')).toContainText('Automático', {
       timeout: 20_000

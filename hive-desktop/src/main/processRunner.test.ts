@@ -214,6 +214,44 @@ describe('ProcessRunner — real child_process-backed runner', () => {
     // macOS resolves /tmp to /private/tmp; just assert the leaf segment.
     expect(stdout.trim().endsWith('tmp')).toBe(true)
   })
+
+  /**
+   * `input` is the transport an agent turn's prompt uses, and the property
+   * that matters is the one a string assertion cannot make: a REAL child
+   * receives the bytes unchanged. The payload is deliberately the shape that
+   * argv destroys on Windows — several lines, angle brackets, an accent and a
+   * backslash path — because that is what the option exists for.
+   */
+  it('writes `input` to a real child stdin verbatim, newlines and all, then closes the pipe', async () => {
+    const runner = createProcessRunner()
+    const payload =
+      'Extraia o texto da foto anexada\n\n<attached-files>\n- C:\\Users\\gu\\foto.jpeg — image/jpeg\n</attached-files>'
+    const handle = runner.run(
+      process.execPath,
+      [
+        '-e',
+        'let b="";process.stdin.setEncoding("utf8");process.stdin.on("data",d=>b+=d);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(b)))'
+      ],
+      { input: payload }
+    )
+
+    const chunks = await collect(handle.output)
+    await handle.exitCode
+
+    // The child saw EOF at all — an unclosed pipe would hang this test — and
+    // what it read is byte-for-byte what was handed over.
+    expect(JSON.parse(chunks.map((c) => c.data).join(''))).toBe(payload)
+  })
+
+  it('survives a child that exits before its stdin is written — the race is not an error', async () => {
+    const runner = createProcessRunner()
+    const handle = runner.run(process.execPath, ['-e', 'process.exit(0)'], {
+      input: 'x'.repeat(200_000)
+    })
+
+    // The EPIPE is swallowed; the caller still learns the outcome from exitCode.
+    await expect(handle.exitCode).resolves.toEqual({ code: 0, signal: null })
+  })
 })
 
 /**

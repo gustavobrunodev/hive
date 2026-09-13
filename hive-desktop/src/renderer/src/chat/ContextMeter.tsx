@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Popover, PopoverContent, PopoverTrigger, Switch } from '@hive/design-system'
+import { Popover, PopoverContent, PopoverTrigger, RingMeter, Switch } from '@hive/design-system'
 import { t } from '../i18n'
 import { CompactIcon } from '../ui/icons'
 import type { CompactionSupport } from './compaction'
@@ -56,8 +56,18 @@ interface ContextMeterProps {
  * The three occupied tiers (reused from cache, written to cache this turn,
  * sent fresh) are one quantity at three provenances — not three statuses.
  * Drawn in three colours they would read as good/warn/bad; drawn as one hue at
- * descending emphasis they read as what they are: a single bar filling up.
+ * descending emphasis they read as what they are: one dial filling up.
  * Colour is reserved for the one state that *is* semantic — near the ceiling.
+ *
+ * ## Why a ring and not a bar
+ *
+ * Occupancy is a state, not a journey — and a 4px-tall hairline 34px wide is
+ * a shape the eye files as a divider, which is why the footer's reading used
+ * to depend entirely on the number beside it. At the same footprint a 16px
+ * ring still reads as *a dial with an amount in it*, so the percentage becomes
+ * confirmation rather than the only evidence. In the sheet the same shape pays
+ * again: the three provenances become runs of one lap with the total in the
+ * middle, and the legend sits beside it instead of under it.
  */
 export function ContextMeter({
   usage,
@@ -68,20 +78,28 @@ export function ContextMeter({
   agentName,
   autoCompact,
   onAutoCompactChange
-}: ContextMeterProps): React.JSX.Element | null {
+}: ContextMeterProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const used = contextTokens(usage.context)
-  // Nothing measured yet — except right after a compaction, when "nothing
-  // measured" is itself the news and the sheet is where its receipt lives.
-  if (used === 0 && usage.compactions === 0) return null
-
   const fraction = contextFraction(usage)
   const tight = contextIsTight(usage)
-  // A share that rounds to zero is not zero, and saying "0%" over a window that
-  // really holds something is the one reading a meter must never give. Both
-  // states below became easy to hit with context-compaction: 757 tokens of 200k
-  // is what a compaction leaves behind, and an agent that reports no post-count
-  // leaves the occupancy genuinely unknown until the next turn says.
+  /**
+   * A share that rounds to zero is not zero, and saying "0%" over a window that
+   * really holds something is the one reading a meter must never give. Three
+   * states became easy to hit: 757 tokens of 200k is what a compaction leaves
+   * behind, an agent that reports no post-count leaves the occupancy genuinely
+   * unknown until the next turn says, and a conversation reopened from a build
+   * that stored no reading has turns behind it and no number.
+   *
+   * **The control itself no longer disappears in any of them.** It used to
+   * return `null` whenever nothing had been measured — which is exactly the
+   * moment a user switching between two conversations landed in, and the
+   * footer's one indicator of how much room the agent has left simply vanished
+   * from the composer. A gauge that removes itself teaches nobody that it
+   * exists; one reading `—` says "no number yet" and is still there when there
+   * is one. (The composer's footer only exists once the pane is showing a
+   * conversation, so "nothing has been said yet" never reaches this control.)
+   */
   const unread = used === 0
   const summary = unread ? t('usage.unread') : meterSummary(fraction, used)
 
@@ -94,14 +112,23 @@ export function ContextMeter({
           data-tight={tight || undefined}
           aria-label={unread ? t('usage.unreadAria') : t('usage.meterAria', summary)}
         >
-          {/* No icon beside the bar: the bar already *is* the gauge glyph, and
-              a second gauge-shaped mark next to it reads as a smudge at 12px. */}
-          <span className="wb-ctx-meter-bar" aria-hidden="true">
-            <span
-              className="wb-ctx-meter-fill"
-              style={{ width: unread ? '0%' : `${Math.min(100, (fraction ?? 1) * 100)}%` }}
-            />
-          </span>
+          {/* No icon beside the ring: the ring already *is* the gauge glyph,
+              and a second gauge-shaped mark next to it reads as a smudge at
+              12px. Hidden from AT because the button's own `aria-label`
+              already says the whole reading — a nested `meter` would announce
+              the same number twice, in a worse order. */}
+          <RingMeter
+            className="wb-ctx-meter-ring"
+            aria-hidden="true"
+            label={t('usage.meterLabel')}
+            size={16}
+            value={unread ? 0 : (fraction ?? 1)}
+            indeterminate={unread}
+            // Not the ring's own `auto`: "tight" is this app's threshold
+            // (`CONTEXT_WARN_FRACTION`), and the footer must turn at the same
+            // moment the sheet's advice appears, not one of its own.
+            tone={tight ? 'warning' : 'accent'}
+          />
           <span className="wb-ctx-meter-value">{summary}</span>
           <span className="wb-ctx-meter-label">{t('usage.meterLabel')}</span>
         </button>
@@ -167,44 +194,54 @@ function ContextDetail({
         {usage.context?.model && <span className="wb-ctx-model">{usage.context.model}</span>}
       </header>
 
-      <p className="wb-ctx-headline">
-        <strong className="wb-ctx-used">{formatTokens(used)}</strong>
-        {usage.contextWindow !== null && (
-          <span className="wb-ctx-window">
-            {t('usage.ofWindow', formatTokens(usage.contextWindow))}
-          </span>
-        )}
-        {fraction !== null && (
-          <span className="wb-ctx-percent">
-            {t('usage.meterPercent', Math.round(fraction * 100))}
-          </span>
-        )}
-      </p>
+      {/* The window itself, to scale, as one dial: the ring is the reading and
+          the legend is its key, side by side so the eye moves once. Runs are
+          separated by a gap of the sheet's own surface rather than by a
+          border, so three tints of one hue read as three parts of one fill
+          without adding a fourth colour. */}
+      <div className="wb-ctx-hero">
+        <RingMeter
+          className="wb-ctx-ring"
+          size={104}
+          label={t('usage.detailTitle')}
+          valueText={t(
+            'usage.barAria',
+            formatTokens(used),
+            usage.contextWindow === null ? '' : formatTokens(usage.contextWindow)
+          )}
+          tone={tight ? 'warning' : 'accent'}
+          indeterminate={used === 0}
+          segments={segments
+            .filter((segment) => segment.id !== 'free' && segment.tokens > 0)
+            .map((segment) => ({
+              id: segment.id,
+              value: segment.fraction,
+              // The provenance ramp is this app's vocabulary, so it stays in
+              // `workbench.css` next to the legend swatches that must match it
+              // exactly — one declaration, two surfaces.
+              color: `var(--wb-ctx-${segment.id})`
+            }))}
+          caption={
+            usage.contextWindow === null
+              ? undefined
+              : t('usage.ofWindow', formatTokens(usage.contextWindow))
+          }
+        >
+          {fraction === null
+            ? formatTokens(used)
+            : t('usage.meterPercent', Math.round(fraction * 100))}
+        </RingMeter>
 
-      {/* The window itself, to scale. Segments are separated by a 1px gap of
-          the sheet's own surface rather than by a border, so three tints of one
-          hue still read as three blocks without adding a fourth colour. */}
-      <div
-        className="wb-ctx-bar"
-        role="img"
-        aria-label={t(
-          'usage.barAria',
-          formatTokens(used),
-          usage.contextWindow === null ? '' : formatTokens(usage.contextWindow)
-        )}
-      >
-        {segments
-          .filter((segment) => segment.tokens > 0)
-          .map((segment) => (
-            <span
-              key={segment.id}
-              className="wb-ctx-seg"
-              data-seg={segment.id}
-              style={{ flexGrow: segment.fraction }}
-            />
-          ))}
+        <p className="wb-ctx-headline">
+          <strong className="wb-ctx-used">{formatTokens(used)}</strong>
+          <span className="wb-ctx-window">{t('usage.usedTokens')}</span>
+        </p>
       </div>
 
+      {/* The key runs the full width of the sheet rather than squeezing in
+          beside the dial: at 160px "Reaproveitado do cache" ellipsised into
+          "Reaproveitado do c…", losing the word that says WHICH cache — and a
+          legend whose labels are cropped is not a legend. */}
       <dl className="wb-ctx-legend">
         {segments.map((segment) => (
           <div key={segment.id} className="wb-ctx-legend-row">

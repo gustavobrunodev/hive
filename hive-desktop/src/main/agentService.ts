@@ -57,8 +57,15 @@ export interface AgentService {
    * Forwards a turn to the session named by `opts.agentId` (default agent when
    * omitted), starting that session first if needed (so a `send` never fails
    * merely because `startSession` wasn't called for that agent yet). `resume`
-   * (conversation memory), `turnId` (background-turns) and `model`/`effort`
+   * (conversation memory), `freshSession` (whose conversation this is, for the
+   * live transports), `turnId` (background-turns) and `model`/`effort`
    * (per-turn overrides) travel through unchanged.
+   *
+   * Note what the pool is keyed on: the **agent**, not the conversation. That
+   * is right for a one-shot CLI, where the session object owns no state a
+   * conversation could leak through. For a live transport it is only right
+   * because the turn says which conversation it belongs to — see
+   * `TurnOpts.freshSession`.
    */
   send(text: string, opts?: TurnOpts): void
   /** Forwards a guided-intent workflow command to the named agent's session. Same routing/opts as `send`. */
@@ -168,6 +175,7 @@ export function createAgentService(registry: AgentRegistry): AgentService {
       sessionFor(opts).send({
         text,
         resume: opts?.resume ?? null,
+        freshSession: opts?.freshSession,
         turnId: opts?.turnId,
         attachments: opts?.attachments,
         model: opts?.model,
@@ -177,6 +185,7 @@ export function createAgentService(registry: AgentRegistry): AgentService {
     runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts): void {
       sessionFor(opts).runWorkflow(cmd, {
         resume: opts?.resume ?? null,
+        freshSession: opts?.freshSession,
         turnId: opts?.turnId,
         attachments: opts?.attachments,
         model: opts?.model,

@@ -31,41 +31,66 @@ beforeEach(() => {
  * files, conversation, folders, sidebar and pane widths.
  */
 describe('workspaceSession — first launch', () => {
-  it('opens a workspace nobody has saved on the chat alone', () => {
+  it('opens a workspace nobody has saved on the Chat tab, sidebar showing', () => {
+    // nav-redesign: the sidebar's first face is "+ Novo", the agent's tools and
+    // yesterday's conversations — the app's own table of contents. It used to
+    // open on a hidden Explorer, which was right when the first face was a wall
+    // of file names nobody had asked about yet.
     expect(loadWorkspaceSession(WS)).toEqual(EMPTY_SESSION)
-    expect(EMPTY_SESSION.sidebarOpen).toBe(false)
+    expect(EMPTY_SESSION.sidebarOpen).toBe(true)
+    expect(EMPTY_SESSION.sidebarView).toBe('chat')
   })
 
   it('keeps workspaces apart', () => {
-    saveWorkspaceSession(WS, { sidebarOpen: true, sidebarView: 'scm' })
-    expect(loadWorkspaceSession('/other').sidebarOpen).toBe(false)
+    saveWorkspaceSession(WS, { sidebarOpen: false, sidebarView: 'scm' })
+    expect(loadWorkspaceSession('/other').sidebarOpen).toBe(true)
     expect(loadWorkspaceSession(WS).sidebarView).toBe('scm')
+    expect(loadWorkspaceSession(WS).sidebarOpen).toBe(false)
   })
 })
 
 describe('workspaceSession — migration from the pre-workspaceSession keys', () => {
-  it('adopts the old global view and layout as seeds', () => {
-    localStorage.setItem('hive.sidebarView', 'brain')
+  it('adopts the old global layout as a seed', () => {
     localStorage.setItem('hive.workLayout', JSON.stringify({ rail: 27, chat: 73 }))
 
     const session = loadWorkspaceSession(WS)
-    expect(session.sidebarView).toBe('brain')
     expect(session.layout).toEqual({ rail: 27, chat: 73 })
-    // ...but never an open sidebar: the rule is about a workspace with no
-    // session, and the old global key says nothing about this workspace.
-    expect(session.sidebarOpen).toBe(false)
+    // ...but the sidebar's own open/closed default is never seeded: the rule is
+    // about a workspace with no session, and the old global key says nothing
+    // about this workspace.
+    expect(session.sidebarOpen).toBe(EMPTY_SESSION.sidebarOpen)
   })
 
-  it('survives each legacy key being corrupt on its own', () => {
+  /**
+   * The width is a fact about a monitor and a hand; the *view* is a fact about
+   * a screen, and `hive.sidebarView` was last written by a build that predates
+   * the Chat tab. Seeding it made "which surface does a brand-new workspace
+   * open on?" depend on what some install quit on months ago — so every folder
+   * opened for the first time landed on the Explorer, or the diff list, or a
+   * work view covering the conversation. A first-run default cannot vary with
+   * leftovers.
+   */
+  it('never lets the old global view choose the screen a new workspace opens on', () => {
+    for (const legacy of ['scm', 'explorer', 'brain', 'review']) {
+      localStorage.setItem('hive.sidebarView', legacy)
+
+      const session = loadWorkspaceSession(`/ws-${legacy}`)
+      expect(session.sidebarView).toBe('chat')
+      expect(session.workView).toBe('chat')
+    }
+  })
+
+  it('survives the legacy layout key being corrupt', () => {
     localStorage.setItem('hive.sidebarView', 'not-a-view')
     localStorage.setItem('hive.workLayout', '{corrupt')
     expect(loadWorkspaceSession(WS)).toEqual(EMPTY_SESSION)
   })
 
   it('stops consulting them once the workspace has a session of its own', () => {
-    localStorage.setItem('hive.sidebarView', 'brain')
-    saveWorkspaceSession(WS, { sidebarView: 'explorer' })
+    localStorage.setItem('hive.workLayout', JSON.stringify({ rail: 27, chat: 73 }))
+    saveWorkspaceSession(WS, { sidebarView: 'explorer', layout: { rail: 40, chat: 60 } })
     expect(loadWorkspaceSession(WS).sidebarView).toBe('explorer')
+    expect(loadWorkspaceSession(WS).layout).toEqual({ rail: 40, chat: 60 })
   })
 })
 
@@ -80,6 +105,8 @@ describe('workspaceSession — reading back what was written', () => {
       expanded: ['docs', 'docs/stories'],
       chatSessionId: 's7',
       sidebarView: 'scm' as const,
+      workView: 'review' as const,
+      initiativePath: 'docs/iniciativas/R2/portal-de-cobranca',
       sidebarOpen: true,
       layout: { rail: 22, chat: 50, viewer: 28 }
     }
@@ -120,6 +147,8 @@ describe('workspaceSession — corrupt and hand-edited payloads', () => {
         expanded: ['docs', 'docs', 7],
         chatSessionId: 12,
         sidebarView: 'nowhere',
+        workView: 'nowhere',
+        initiativePath: 42,
         sidebarOpen: 'yes',
         layout: { rail: 'wide' }
       }
@@ -130,7 +159,11 @@ describe('workspaceSession — corrupt and hand-edited payloads', () => {
       activeTab: 'a.md',
       expanded: ['docs'],
       chatSessionId: null,
-      sidebarView: 'explorer',
+      // An unknown view falls back to the same one a fresh workspace opens on.
+      sidebarView: 'chat',
+      workView: 'chat',
+      // Anything but a string is not a folder, so no initiative reopens.
+      initiativePath: null,
       // Only a literal `true` opens the sidebar — a truthy string does not.
       sidebarOpen: false,
       layout: null

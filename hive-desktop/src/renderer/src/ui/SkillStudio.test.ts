@@ -627,4 +627,60 @@ describe('studioPrompts', () => {
     expect(create.prompt).toContain('.claude/skills/x')
     expect(create.prompt).toContain('evals/cases.json')
   })
+
+  /**
+   * Every briefing closes the builders' "Open the floor" step by name.
+   *
+   * Without it, the builder answered a filled-in form with "What's on your
+   * mind? Share as much as you have: the goal…" — the one question the form
+   * exists to have already asked. The builders' own activation says to skip
+   * that step when "the invocation already carries enough to act on", so the
+   * briefing has to say that it does, in the step's own words. Measured
+   * before/after against the real builder on the same model: four questions
+   * and nothing built, versus straight to the build.
+   */
+  it('every briefing names the intent and closes the open-floor step', () => {
+    const briefings = [
+      buildCreationCommand({
+        kind: 'skill',
+        name: 'Revisor',
+        idea: 'revisa notas',
+        withEvals: false
+      }),
+      buildCreationCommand({
+        kind: 'agent',
+        name: 'Clara',
+        idea: 'dados',
+        persona: 'Clara',
+        withEvals: true
+      }),
+      buildEvalCreateCommand({ key: 'x', relPath: '.claude/skills/x' })
+    ]
+    for (const briefing of briefings) {
+      expect(briefing.prompt).toContain('Open the floor')
+      expect(briefing.prompt).toContain('Intenção:')
+      expect(briefing.prompt).toMatch(/despejo de ideia/)
+    }
+  })
+
+  it('the closing line comes last, after the goal it refers to', () => {
+    // Order is the whole argument: "o objetivo está acima" is only true if it
+    // is. A briefing that opened with the instruction and then gave the goal
+    // would be asking the builder to trust a forward reference.
+    const command = buildCreationCommand({
+      kind: 'skill',
+      name: 'Revisor',
+      idea: 'revisa release notes',
+      withEvals: true
+    })
+    const lines = command.prompt.split('\n').filter((line) => line !== '')
+    expect(lines[0]).toBe('/bmad-workflow-builder')
+    expect(lines[lines.length - 1]).toContain('Open the floor')
+    expect(command.prompt.indexOf('Objetivo:')).toBeLessThan(
+      command.prompt.indexOf('Open the floor')
+    )
+    expect(command.prompt.indexOf('evals/cases.json')).toBeLessThan(
+      command.prompt.indexOf('Open the floor')
+    )
+  })
 })

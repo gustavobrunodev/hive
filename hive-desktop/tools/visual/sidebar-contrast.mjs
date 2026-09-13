@@ -142,7 +142,7 @@ async (page) => {
     })
 
   for (const theme of THEMES) {
-    await page.getByRole('button', { name: 'Aparência' }).click()
+    await page.getByRole('button', { name: /^Escolha do tema/ }).click()
     await page.getByRole('menuitemradio', { name: new RegExp(`^${theme.label}`) }).click()
     await page.waitForTimeout(400)
 

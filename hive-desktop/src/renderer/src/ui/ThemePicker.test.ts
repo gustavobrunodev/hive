@@ -67,7 +67,17 @@ vi.mock('@hive/design-system', async () => {
         'data-mark': mark,
         role: 'img',
         'aria-label': ariaLabel ?? 'Hive'
-      })
+      }),
+    // nav-redesign: the trigger is tooltip-wrapped now (Radix's documented
+    // Tooltip→DropdownMenu→button composition). Both wrappers are pass-throughs
+    // here so the composition is exercised without pulling Radix's portals into
+    // jsdom; the bubble's own text is asserted below.
+    Tooltip: ({ children }: { children?: ReactNode }) =>
+      react.createElement(react.Fragment, null, children),
+    TooltipTrigger: ({ children }: { children?: ReactNode }) =>
+      react.createElement(react.Fragment, null, children),
+    TooltipContent: ({ children }: { children?: ReactNode }) =>
+      react.createElement('span', { role: 'tooltip' }, children)
   }
 })
 
@@ -77,12 +87,16 @@ describe('ThemePicker', () => {
   it('names the active theme on the trigger, so the control says where you are', () => {
     render(createElement(ThemePicker, { theme: 'hive', onSelectTheme: vi.fn() }))
 
-    expect(screen.getByRole('button', { name: 'Aparência (atual: Hive)' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Escolha do tema (atual: Hive)' })).toBeTruthy()
+    // The hint says what the control *is*; the name says where you are. A
+    // tooltip that repeated "(atual: Hive)" would make the reader parse the
+    // state twice to find the action.
+    expect(screen.getByRole('tooltip').textContent).toBe('Escolha do tema')
   })
 
   it('lists the three themes with a name, a hint and a preview of their own colours', () => {
     render(createElement(ThemePicker, { theme: 'dark', onSelectTheme: vi.fn() }))
-    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Escolha do tema/ }))
 
     const options = screen.getAllByRole('menuitemradio')
     expect(options.map((option) => option.textContent)).toEqual([
@@ -110,7 +124,7 @@ describe('ThemePicker', () => {
     // glyphs the reader had to tell apart — and the DS then right-aligned the
     // rest of the row, giving every option a different text indent.
     render(createElement(ThemePicker, { theme: 'dark', onSelectTheme: vi.fn() }))
-    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Escolha do tema/ }))
 
     for (const option of screen.getAllByRole('menuitemradio')) {
       expect(option.getAttribute('data-indicator')).toBe('trailing')
@@ -120,7 +134,7 @@ describe('ThemePicker', () => {
   it('marks the active theme and reports a pick', () => {
     const onSelectTheme = vi.fn()
     render(createElement(ThemePicker, { theme: 'light', onSelectTheme }))
-    fireEvent.click(screen.getByRole('button', { name: /^Aparência/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Escolha do tema/ }))
 
     expect(
       screen.getAllByRole('menuitemradio').map((option) => option.getAttribute('aria-checked'))

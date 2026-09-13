@@ -21,7 +21,7 @@ import { CheckIcon, CloseIcon, PersonaChatIcon, SparkleIcon } from './icons'
 
 /** Structural mirror of `main/workflowCatalog.ts`'s `WorkspaceSkill` (the
  *  renderer tsconfig doesn't include `src/main` — same local-mirror
- *  convention as `ActionRail`'s `RoleAction`). */
+ *  convention as `sidebarNav`'s `RoleAction`). */
 export interface WorkspaceSkill {
   key: string
   label: string

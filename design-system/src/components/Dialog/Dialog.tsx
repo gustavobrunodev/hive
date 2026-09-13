@@ -1,6 +1,7 @@
 import { forwardRef } from "react"
 import type { ComponentPropsWithoutRef, ElementRef } from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { useSurfaceDismissGuard } from "../../hooks/useSurfaceDismissGuard"
 import { cx } from "../../utils/cx"
 import "./Dialog.css"
 
@@ -21,16 +22,27 @@ export type DialogContentProps = ComponentPropsWithoutRef<typeof DialogPrimitive
  * (`--surface`, `--shadow-3`) on `--z-modal`. Radix supplies focus trap,
  * Escape/outside-click dismiss, and focus restore to the trigger on close
  * (spec.md's Overlays AC1/AC2) — this layer only styles on top.
+ *
+ * The one behaviour added here is a **dismiss guard**: a click whose pointer
+ * landed on the panel itself never closes it, however the hit-test reported
+ * that click. `useSurfaceDismissGuard` carries the whole account — it is what
+ * keeps a `DropdownMenu` opened from inside a dialog from taking the dialog
+ * down with it when the trigger is clicked a second time.
  */
 export const DialogContent = forwardRef<ElementRef<typeof DialogPrimitive.Content>, DialogContentProps>(
-  function DialogContent({ className, cut = false, children, ...rest }, ref) {
+  function DialogContent({ className, cut = false, children, onPointerDownOutside, ...rest }, ref) {
+    const guard = useSurfaceDismissGuard<HTMLDivElement>(ref)
     return (
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="hds-dialog-overlay" />
         <DialogPrimitive.Content
-          ref={ref}
+          ref={guard.ref}
           aria-modal="true"
           className={cx("hds-dialog-content", cut && "cut-sm", className)}
+          onPointerDownOutside={(event) => {
+            onPointerDownOutside?.(event)
+            guard.onPointerDownOutside(event)
+          }}
           {...rest}
         >
           {children}

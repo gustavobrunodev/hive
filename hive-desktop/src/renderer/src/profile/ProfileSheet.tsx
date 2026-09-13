@@ -12,6 +12,7 @@ import { connectionSummary } from '../claudeAuth/connectionSummary'
 import { useAwsSession } from '../aws/useAwsSession'
 import { useClaudeAuth } from '../claudeAuth/useClaudeAuth'
 import { AccountScope } from './AccountScope'
+import { McpScope } from './McpScope'
 import { ProfileNav } from './ProfileNav'
 import { ShortcutsScope } from './ShortcutsScope'
 import { VoiceScope } from './VoiceScope'
@@ -48,6 +49,18 @@ interface ProfileSheetProps {
   initialConnectionLane?: ConnectionLane | null
   /** Opens the "Personalizar atalhos" picker on the given set. */
   onOpenShortcuts?: (scope: ShortcutScope) => void
+  /**
+   * Opens the MCP manager (nav-redesign).
+   *
+   * A hand-off, not an embed: `McpManager` is its own `Dialog` with its own
+   * add/edit/delete dialogs inside it, and nesting that under a `Sheet` would
+   * stack three modal layers to change one server's arguments. Same pattern the
+   * shortcuts row already uses — the index states the setup, the row opens the
+   * tool that changes it.
+   */
+  onOpenMcp?: () => void
+  /** How many MCP servers this workspace has configured — the row's live summary. */
+  mcpCount?: number | null
   onAgentsChange?: (ids: string[]) => void
   onDefaultAgentChange?: (agentId: string) => void
   onUserNameChange: (name: string) => void
@@ -92,6 +105,8 @@ export function ProfileSheet({
   initialScope = null,
   initialConnectionLane = null,
   onOpenShortcuts,
+  onOpenMcp,
+  mcpCount = null,
   onAgentsChange = () => {},
   onDefaultAgentChange = () => {},
   onUserNameChange,
@@ -200,9 +215,19 @@ export function ProfileSheet({
       shortcuts: t('profile.shortcutsSummary', shortcutTotal),
       connection: connectionSummary(claude.status, aws.status),
       voice: voiceSummary(readiness.readiness),
-      shell: shellSummary(shellView)
+      shell: shellSummary(shellView),
+      mcp: mcpCount === null ? null : t('profile.mcpSummary', mcpCount)
     }),
-    [userName, enabledCount, shortcutTotal, claude.status, aws.status, readiness.readiness, shellView]
+    [
+      userName,
+      enabledCount,
+      shortcutTotal,
+      claude.status,
+      aws.status,
+      readiness.readiness,
+      shellView,
+      mcpCount
+    ]
   )
 
   // Published upward on every change, including the reset on open — the host's
@@ -267,6 +292,13 @@ export function ProfileSheet({
       )
     }
     if (scope === 'voice') return <VoiceScope readiness={readiness} />
+    if (scope === 'mcp') {
+      return (
+        <div className="wb-profile-section">
+          <McpScope count={mcpCount} onOpen={onOpenMcp} />
+        </div>
+      )
+    }
     if (scope === 'shell') {
       return (
         <div className="wb-profile-section">

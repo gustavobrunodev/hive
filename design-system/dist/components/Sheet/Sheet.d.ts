@@ -15,6 +15,11 @@ export type SheetContentProps = ComponentPropsWithoutRef<typeof DialogPrimitive.
  * (`--surface`, `--shadow-3`) on `--z-modal`. Radix supplies focus trap,
  * Escape/outside-click dismiss, and focus restore to the trigger on close —
  * this layer only styles on top and adds the `side` slide direction.
+ *
+ * Same **dismiss guard** as `DialogContent`, for the same reason: this panel
+ * hosts popovers and menus too (the ingestion sheet's agent selector), and a
+ * modal one of those makes every click over the panel arrive as a click on the
+ * overlay. See `useSurfaceDismissGuard`.
  */
 export declare const SheetContent: import("react").ForwardRefExoticComponent<Omit<DialogPrimitive.DialogContentProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
     /** Which viewport edge the panel slides in from. Defaults to `"right"`. */

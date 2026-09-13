@@ -23,10 +23,10 @@ import { openSidebar } from './fixtures/sidebar'
 //      under the production CSP (SB-R4.1's foundation), with escapes refused.
 
 async function waitForWorkUI(window: Page): Promise<void> {
-  // The **activity bar**, not the file rail: a workspace with no stored session
-  // opens on the chat alone (workspace-session), so `.wb-rail` is collapsed to
-  // zero here — `openSidebar` at the end is what brings it back.
-  const rail = window.locator('.wb-actionrail')
+  // The **navbar**, not the file rail: it is the one chrome element that is
+  // always on screen, even with the sidebar collapsed to zero —
+  // `openSidebar` at the end is what brings the panel back.
+  const chrome = window.locator('.wb-navbar')
   const continueAnyway = window.getByRole('button', { name: 'Continuar mesmo assim' })
   // The provisioning gate has TWO steps (BMAD, then second-brain), each
   // shelling out to a real network-backed CLI, and each offering "Continuar
@@ -34,16 +34,16 @@ async function waitForWorkUI(window: Page): Promise<void> {
   // failing step never leaves the app parked on the gate.
   for (let step = 0; step < 2; step++) {
     await Promise.race([
-      rail.waitFor({ state: 'visible', timeout: 200_000 }),
+      chrome.waitFor({ state: 'visible', timeout: 200_000 }),
       continueAnyway.waitFor({ state: 'visible', timeout: 200_000 })
     ])
-    if (await rail.isVisible().catch(() => false)) break
+    if (await chrome.isVisible().catch(() => false)) break
     if (await continueAnyway.isVisible().catch(() => false)) {
       await continueAnyway.click()
       await window.waitForTimeout(300)
     }
   }
-  await rail.waitFor({ state: 'visible', timeout: 60_000 })
+  await chrome.waitFor({ state: 'visible', timeout: 60_000 })
   await openSidebar(window)
 }
 
@@ -121,6 +121,18 @@ test.describe('second-brain E2E (real Electron)', () => {
       const window = await app.firstWindow()
       await window.waitForLoadState('domcontentloaded')
 
+      // Dismiss the guided tour before the work UI ever mounts. It is a modal
+      // scrim, so it intercepts the pointer — and since the sidebar grew tabs
+      // (nav-redesign), `openSidebar` has a real click to make, which the tour
+      // silently swallowed until the actionability timeout.
+      //
+      // Seeded HERE, not after `waitForWorkUI`: the flag lives in renderer
+      // localStorage, so dismissing it later means a `window.reload()`, and a
+      // reload re-runs the two-step provisioning gate this spec has just spent
+      // a minute getting through. That is what turned a 1.6-minute pass into a
+      // 5-minute timeout. Setting it before the gate finishes costs nothing.
+      await window.evaluate(() => localStorage.setItem('hive.tourSeen', '1'))
+
       // Any CSP violation from the production policy would show up here.
       const cspViolations: string[] = []
       window.on('console', (message) => {
@@ -147,6 +159,7 @@ test.describe('second-brain E2E (real Electron)', () => {
       // launch can only be in one of the two states.)
       // `exact` matters: the floating button carries a near-identical name
       // ("Base de conhecimento — perguntar ou capturar").
+      await openSidebar(window, 'chat')
       await window.getByRole('button', { name: 'Bases de conhecimento', exact: true }).click()
       await expect(window.getByRole('button', { name: /Ingerir/ }).first()).toBeVisible({
         timeout: 15_000

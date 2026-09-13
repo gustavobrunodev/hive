@@ -9,7 +9,10 @@
  */
 
 :root {
-  --wb-topbar-h: 46px;
+  /* nav-redesign: the floating navbar's height. It is also the top inset the
+     leftmost visible pane takes, so the two can never disagree — see
+     `.wb-navbar` and `.wb-pane[data-navtop]`. */
+  --wb-navbar-h: 44px;
   --wb-pane-header-h: 40px;
   /* Sidebar collapse/expand — the low end of the 150–250ms band (PRODUCT.md
      §5): chrome moving out of the way, not content arriving. Kept in sync with
@@ -116,11 +119,18 @@ body ::-webkit-scrollbar-corner {
    non-`auto` value on either opts that element out of the rules above and back
    onto the raw platform scrollbar — so `scrollbar-width: thin`, written to make
    a bar discreet, is what makes it look foreign. Two scrollers in the MCP
-   console had it, and the design system's OptionPicker list had it, which is
-   how the chat's model panel ended up with a light track down its dark edge. */
+   console had it, the design system's OptionPicker list had it (which is how
+   the chat's model panel ended up with a light track down its dark edge), and
+   the composer's `@` file menu had it too.
+
+   A surface that wants a *weightier* bar than this global one — a popover
+   whose thumb has to be findable in a 256px port — asks for it by class:
+   `hds-scrollbar`, from the design system (`scrollbar.css`), which is that
+   same recipe with the trap documented inside it. Never by reaching for
+   `scrollbar-width` again. */
 
 /* ==========================================================================
-   Shell — top bar + 3-zone body (rail | chat | viewer)
+   Shell — floating navbar + 3-zone body (sidebar | chat | viewer)
    ========================================================================== */
 
 .wb-app {
@@ -130,32 +140,68 @@ body ::-webkit-scrollbar-corner {
   background: var(--bg);
 }
 
-.wb-topbar {
+/* --- The navbar (nav-redesign) -------------------------------------------
+   A compact cluster in the shell's top-left corner, floating over the
+   sidebar's own top edge rather than spanning the window.
+
+   ## Why it is positioned instead of laid out
+
+   Two requirements pull in opposite directions: it has to sit at the top of
+   the sidebar column (that is what its controls are *about*), and it has to
+   keep working when that column is collapsed to zero. Parenting it into the
+   rail panel satisfies the first and breaks the second — a `visibility:
+   hidden` panel takes its children with it, including the button that brings
+   the panel back. So it is positioned against `.wb-shell`, and the leftmost
+   visible pane makes room for it (`.wb-pane[data-navtop]`). Nothing is ever
+   covered, and the work area reaches the top of the window instead of
+   starting 46px down.
+
+   No background of its own, no border, no shadow: the bar IS the top of the
+   sidebar, and a card floating over a surface of the same colour would draw a
+   seam where there is no boundary. What separates it from the panel below is
+   the space around it. */
+.wb-navbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  height: var(--wb-topbar-h);
-  padding: 0 var(--s-3) 0 var(--s-4);
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  gap: 2px;
+  height: var(--wb-navbar-h);
+  /* Content width, capped so a narrow sidebar truncates the workspace name
+     rather than pushing the cluster over the sash. */
+  max-width: min(360px, var(--wb-navbar-width, 100%));
+  min-width: 0;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  box-sizing: border-box;
 }
 
-/* The identity, in two colors: the symbol in the accent, the wordmark in the
-   reading ink. A logo is the one element on this surface where brand color is
-   identity rather than decoration — everywhere else `--accent` stays reserved
-   for primary actions and selection (PRODUCT.md). Both tiers resolve per
-   theme, so the coral title bar becomes bordo-sensatez on light for free. */
-.wb-topbar-logo {
-  --hds-logo-height: 19px;
+/* The mark alone, at 18px — small enough that it never outranks the controls
+   beside it, in the accent because a logo is the one place on this surface
+   where brand colour is identity rather than decoration (PRODUCT.md).
+   `--hds-logo-wordmark` is still set: `mark="lockup"` would otherwise inherit
+   an unrelated ink if a caller ever switched it back. */
+.wb-navbar-logo {
+  --hds-logo-height: 18px;
   --hds-logo-mark: var(--accent);
   --hds-logo-wordmark: var(--ink);
   flex-shrink: 0;
+  margin-right: var(--s-1);
 }
 
-.wb-topbar-sep {
+/* 28px, not the 30px of `IconButton`: three of these plus a chip have to fit
+   inside a 12%-wide sidebar without the chip losing its name. */
+.wb-navbar-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.wb-navbar-sep {
   width: 1px;
   height: 16px;
+  margin: 0 var(--s-1);
+  flex-shrink: 0;
   background: var(--border-strong);
 }
 
@@ -166,13 +212,18 @@ body ::-webkit-scrollbar-corner {
 .wb-workspace-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 5px;
   min-width: 0;
-  max-width: 240px;
-  padding: 4px 6px 4px 9px;
+  /* nav-redesign: the chip shares a ~300px bar with three icon buttons and a
+     logo, so it flexes instead of reserving 240px. `1ch` of basis plus
+     `flex: 1` means it takes whatever is left and truncates its own name —
+     the one element in the row whose content is variable-length. */
+  flex: 1 1 auto;
+  max-width: 210px;
+  padding: 3px 5px 3px 7px;
   border-radius: var(--rounded-md);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.78125rem;
   font-weight: 600;
   color: var(--ink);
   background: var(--surface);
@@ -267,7 +318,7 @@ body ::-webkit-scrollbar-corner {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.75rem;
-  color: var(--faint);
+  color: var(--muted);
 }
 /* app-reload: the chord a menu row advertises, pushed to the trailing edge —
    the desktop-menu convention. `--muted`, not `--faint`: somebody reads this
@@ -281,10 +332,6 @@ body ::-webkit-scrollbar-corner {
   font-size: 0.6875rem;
   letter-spacing: 0.02em;
   color: var(--muted);
-}
-
-.wb-topbar-spacer {
-  flex: 1;
 }
 
 /* Theme menu: a swatch, a name, and one line saying what the theme is *for*,
@@ -390,41 +437,451 @@ body ::-webkit-scrollbar-corner {
   cursor: not-allowed;
 }
 
-/* Profile avatar (top-right): the user's initials in a small accent-tinted
-   disc — the desktop-app convention for "this is you; click for your
-   settings". A hairline ring materializes on hover so the disc reads as
-   pressable without shouting at rest. */
-.wb-avatar-btn {
+/* ==========================================================================
+   Sidebar navigation (nav-redesign) — the tab bar, the tab-scoped nav rows,
+   the "+ Novo" primary action, the conversation section's lens, and the user
+   menu pinned to the column's foot.
+   ========================================================================== */
+
+/* --- Tab bar -------------------------------------------------------------
+   Doubles as the rail pane's header, so it keeps the drag surface and the ↔
+   move menu the movable-pane feature needs. Its height matches the navbar's
+   so the tabs line up with the controls floating above them — the alignment
+   the whole floating arrangement depends on to read as one column. */
+.wb-sidebar-tabbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: var(--wb-pane-header-h);
+  padding: 0 var(--s-2) 0 var(--s-3);
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wb-sidebar-tabbar:active {
+  cursor: grabbing;
+}
+.wb-sidebar-tabbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  /* The row is a drag handle; its buttons are not. */
+  cursor: default;
+}
+
+/* A segmented pair on a recessed track — the shape that says "one of these",
+   as opposed to two buttons that each look independently pressable. */
+.wb-sidebar-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--rounded-md);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  cursor: default;
+}
+
+.wb-sidebar-tab {
+  appearance: none;
+  padding: 4px 11px;
+  border: 0;
+  border-radius: calc(var(--rounded-md) - 2px);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  /* Not plain `--muted`: these tabs sit on their own track (`--ink` at 6%),
+     which is darker than the sidebar behind it, and that costs the label about
+     half a point. Measured in the light theme, `--muted` lands at 4.34:1 —
+     under AA, and the E2E contrast gate says so. Nudging it a quarter of the
+     way to `--ink` reads as the same quiet grey and measures 6.04 / 7.36 / 7.66
+     (light / dark / hive), while staying well clear of the active tab's full
+     `--ink` so the pair still tells you which one is in front. */
+  color: color-mix(in oklab, var(--ink) 25%, var(--muted));
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-sidebar-tab:hover {
+  color: var(--ink);
+}
+/* A tooltip is never a click target.
+   The navbar floats directly above this tab bar, so its tooltips — which open
+   `side="bottom"` — land squarely on top of `Chat`/`Arquivos`. Without this the
+   tooltip eats the click: the tab is visible, enabled and stable, and the
+   pointer still never reaches it. Radix ships tooltip content as a normal
+   hit-testable box (it keeps it open while hovered so text can be selected);
+   for chrome hints that trade is the wrong way round. */
+.hds-tooltip-content,
+[data-radix-popper-content-wrapper]:has(> .hds-tooltip-content) {
+  pointer-events: none;
+}
+
+.wb-sidebar-tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+/* The selected tab lifts onto a real surface with a hairline and a shadow: it
+   is the only thing in the pair that should look like it is in front. Colour
+   alone would have been a 1.1:1 difference against the track. */
+.wb-sidebar-tab[data-active] {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+/* --- The fixed region under the tabs ------------------------------------- */
+.wb-sidebar-fixed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-1) var(--s-2) var(--s-2);
+  flex-shrink: 0;
+}
+
+/* "+ Novo" — the Chat tab's primary action, and the only filled control in the
+   column. Full width because it is the one thing here with no competition: a
+   button sized to its label would leave a ragged edge above a list of
+   full-width rows for no gain. */
+.wb-newconv {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: var(--s-1);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent-tint-ink, var(--accent));
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-newconv:hover {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 52%, transparent);
+}
+.wb-newconv:active {
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
+}
+.wb-newconv:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-newconv:disabled {
+  color: var(--faint);
+  background: transparent;
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.wb-newconv svg {
+  flex-shrink: 0;
+}
+.wb-newconv-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Nav rows ------------------------------------------------------------
+   Icon, label, optional badge. Quiet at rest (`--muted` ink, no fill), and the
+   active one gets a tint plus full ink — the same "where you are" vocabulary
+   the file tree's selection uses, so the two never argue about what selected
+   means. No left accent bar: the old activity bar needed one because its rows
+   were 38px squares with no text, and a tint on a full-width row is already
+   unambiguous. */
+.wb-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wb-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-nav-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-nav-item:active {
+  background: var(--surface-3);
+}
+.wb-nav-item[data-active] {
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink, var(--ink));
+  font-weight: 600;
+}
+.wb-nav-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: currentcolor;
+}
+.wb-nav-item-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The count, folded into the row's accessible name as words too — a coloured
+   chip alone is a visual-only cue. */
+.wb-nav-item-badge {
+  flex-shrink: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  padding: 0;
-  font: inherit;
-  font-size: 0.6875rem;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* "Needs attention" (Second Brain health check) — quieter than a count, and
+   stacks beside one. */
+.wb-nav-item-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+}
+
+/* --- Section headings ----------------------------------------------------- */
+.wb-sidebar-group-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- The user menu, pinned to the column's foot --------------------------- */
+.wb-sidebar-foot {
+  flex-shrink: 0;
+  padding: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+.wb-usermenu-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-usermenu-trigger:hover,
+.wb-usermenu-trigger[data-state='open'] {
+  background: var(--surface-2);
+}
+.wb-usermenu-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* The initials disc — the same accent-tinted circle the profile sheet's
+   identity block uses, at chrome size. */
+.wb-usermenu-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--rounded-full);
   background: var(--selected-bg);
   border: 1px solid color-mix(in oklab, var(--accent) 28%, transparent);
-  border-radius: var(--rounded-full);
-  cursor: pointer;
+  color: var(--accent-tint-ink, var(--accent));
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wb-usermenu-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+/* The caret that makes the row read as a control. Quiet by default — it is a
+   hint about the affordance, not a thing to look at — and it comes up to full
+   strength on hover and while the menu is open, which is when the user is
+   actually asking "is this clickable?". `flex-shrink: 0` so a long name
+   truncates instead of squeezing the caret out of the row. */
+.wb-usermenu-caret {
+  flex-shrink: 0;
+  color: var(--muted);
+  opacity: 0.7;
   transition:
-    border-color 0.15s var(--ease-quart),
-    box-shadow 0.15s var(--ease-quart);
+    opacity 0.15s var(--ease-quart),
+    transform 0.15s var(--ease-quart);
 }
-.wb-avatar-btn:hover {
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent);
+.wb-usermenu-trigger:hover .wb-usermenu-caret,
+.wb-usermenu-trigger:focus-visible .wb-usermenu-caret,
+.wb-usermenu-trigger[data-state='open'] .wb-usermenu-caret {
+  opacity: 1;
+  color: var(--ink);
 }
-.wb-avatar-btn:active {
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 18%, transparent);
+/* Open = the menu is up there; the caret turns to match it. */
+.wb-usermenu-trigger[data-state='open'] .wb-usermenu-caret {
+  transform: rotate(180deg);
 }
-.wb-avatar-btn:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+
+/* Collapsed sidebar: the row is just the avatar disc, so the caret would be a
+   glyph floating beside a circle with no row to belong to. */
+.wb-collapsed-user .wb-usermenu-caret {
+  display: none;
+}
+.wb-usermenu-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78125rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.wb-usermenu-role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+/* Update pending: the same ambient dot the old rail gear carried, moved with
+   the destination it points at. Non-colour-only — the trigger's title and the
+   menu row both name it. */
+.wb-usermenu-dot {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.wb-usermenu-menu {
+  min-width: 268px;
+  max-width: 320px;
+}
+/* The menu restates who you are: an avatar is two initials and a colour, and
+   "am I in the right profile?" is the question the click is usually asking. */
+.wb-usermenu-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+}
+.wb-usermenu-head-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--rounded-full);
+  background: var(--selected-bg);
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, transparent);
+  color: var(--accent-tint-ink, var(--accent));
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.wb-usermenu-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wb-usermenu-head-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-usermenu-head-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.wb-usermenu-head-role svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.wb-usermenu-menu .hds-dropdown-menu-item-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+}
+.wb-usermenu-item-dot {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
 }
 
 /* Column, not row: the resizable pane group fills the top and the MCP console
@@ -450,6 +907,13 @@ body ::-webkit-scrollbar-corner {
   height: 100%;
   min-height: 0;
   min-width: 0;
+}
+/* The pane the floating navbar sits over takes its height as a top inset, so
+   the bar never covers content (nav-redesign). Which pane that is comes from
+   `WorkUI` — it changes when the sidebar hides and when the panes are
+   reordered, both of which move what is leftmost on screen. */
+.wb-pane[data-navtop] {
+  padding-top: var(--wb-navbar-h);
 }
 /* Pane bodies that used to BE the panel keep filling it from inside the wrapper. */
 .wb-pane > .wb-chat,
@@ -550,6 +1014,14 @@ body ::-webkit-scrollbar-corner {
 }
 .wb-pane-header:active {
   cursor: grabbing;
+}
+/* A header with nowhere to drag to (the last pane on screen — see `soloPane`)
+   keeps the row for its title and its ✕, but must not offer the hand: a grab
+   cursor over a surface that cannot be grabbed is a promise the layout cannot
+   keep. The grip is dropped in `PaneHeader` for the same reason. */
+.wb-pane-header[data-static] {
+  cursor: default;
+  padding-left: var(--s-4);
 }
 
 .wb-pane-grip {
@@ -1637,16 +2109,24 @@ body ::-webkit-scrollbar-corner {
   border-radius: var(--rounded-sm);
   padding: 2px 6px;
 }
+/* Every fenced block in rendered Markdown is a DS `CodeFence` (see
+   `ui/markdown.tsx`): the frame, the language tag and the copy control belong
+   to the component, so all that is left here is the type. The frame
+   properties that used to live on this rule moved to `.hds-fence` — leaving
+   them would draw a second border inside the first. */
 .wb-md pre {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--rounded-md);
-  padding: var(--s-4);
-  margin: 0 0 var(--s-4);
-  overflow-x: auto;
   font-family: var(--ff-num);
   font-size: 0.8125rem;
   line-height: 1.6;
+}
+/* The transcript's blocks sit inside a 640px column that is itself inside a
+   resizable pane, so a wide line has to scroll rather than push the column
+   open. `min-width: 0` on the frame is what lets the `pre` inside it actually
+   become narrower than its own content — without it a flex/grid ancestor sizes
+   the block to its longest line and the whole reply widens. */
+.wb-md .hds-fence {
+  min-width: 0;
+  max-width: 100%;
 }
 .wb-md pre code {
   background: transparent;
@@ -1948,6 +2428,23 @@ body ::-webkit-scrollbar-corner {
   border-color: var(--focus);
 }
 
+/* A narrow chat pane still exposes model selection and Send without clipping. */
+.wb-composer-wrap .hds-prompt-input-toolbar-extra {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.wb-composer-wrap .hds-prompt-input-toolbar {
+  align-items: flex-end;
+}
+.wb-composer-wrap .wb-engine-btn {
+  max-width: 100%;
+  min-width: 0;
+}
+.wb-composer-wrap .wb-engine-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- The composer while a turn is running -------------------------------
    The travelling ring (DS `ActivityBorder`) rides the composer's own edge, so
    the "this conversation is busy" state costs no new box and no layout. Two
@@ -2057,6 +2554,67 @@ body ::-webkit-scrollbar-corner {
   background: var(--surface-3);
   border-color: var(--border-strong);
   color: var(--ink);
+}
+
+/* --- The control while the agent's capabilities are being detected ---------
+
+   Switching agents re-reads the machine, and a CLI spawn is not instant. What
+   used to fill those seconds was the PREVIOUS agent's model list under the new
+   agent's name — Claude's rows offered as Devin's. This is what stands there
+   instead: the same pill, the same width band, nothing to click.
+
+   It keeps the trigger's exact metrics so the toolbar does not jump when the
+   answer lands — a row of controls that reflows on every agent switch is a
+   worse tell than the stale list was.
+   -------------------------------------------------------------------------- */
+.wb-engine-btn-loading {
+  cursor: default;
+  /* Two bars + a dot + the separator, at the width of a typical
+     "Automático · Auto" — the pill neither grows nor shrinks on settle. */
+  min-width: 148px;
+}
+.wb-engine-btn-loading:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--muted);
+}
+.wb-engine-skel-dot,
+.wb-engine-skel-bar {
+  display: block;
+  border-radius: var(--rounded-full);
+  /* The tint has to survive on `--surface-2` in all three themes, so it is
+     mixed from the ink rather than from a fixed grey. */
+  background: color-mix(in oklab, var(--ink) 16%, transparent);
+  animation: wb-engine-skel 1.3s var(--ease-quart) infinite;
+}
+.wb-engine-skel-dot {
+  width: 12px;
+  height: 12px;
+}
+.wb-engine-skel-bar {
+  width: 62px;
+  height: 8px;
+  border-radius: var(--rounded-sm);
+}
+.wb-engine-skel-bar[data-short] {
+  width: 30px;
+  animation-delay: 0.18s;
+}
+@keyframes wb-engine-skel {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-engine-skel-dot,
+  .wb-engine-skel-bar {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 /* Open: the trigger and the panel are one object, so the trigger takes the
@@ -3164,12 +3722,17 @@ body ::-webkit-scrollbar-corner {
 }
 
 /* ==========================================================================
-   Action rail (role-personalization RP-R5) — a fixed chrome column on the far
-   left, OUTSIDE the resizable body group so it never disturbs the pane layout.
-   Quiet by default (icon-only, --muted), accent only on hover/active/persona.
+   Shell (nav-redesign) — the work area, with the navbar positioned against it.
+
+   The 52px activity bar that used to live here is gone: everything it held
+   moved into the sidebar's two tabs, into Configurações (MCP), or into the
+   user menu (the settings gear). A column of four peer icons said nothing
+   about how the app is organised, and the tabs say it in two words.
    ========================================================================== */
 
 .wb-shell {
+  /* The containing block for `.wb-navbar` — the one reason this is `relative`. */
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -3178,32 +3741,26 @@ body ::-webkit-scrollbar-corner {
   min-width: 0;
 }
 
-.wb-actionrail {
-  flex-shrink: 0;
-  width: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-1);
-  padding: var(--s-3) 0;
-  background: var(--bg-2);
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-  overflow-x: hidden;
+/* A narrow account strip keeps settings reachable when the sidebar is put away. */
+.wb-shell[data-sidebar='closed'] > .wb-body {
+  margin-left: 48px;
 }
-
-.wb-actionrail-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-1);
+.wb-collapsed-user {
+  position: absolute;
+  inset: auto auto var(--s-2) var(--s-1);
+  width: 40px;
 }
-
-.wb-actionrail-divider {
-  width: 20px;
-  height: 1px;
-  background: var(--border-strong);
-  margin: var(--s-1) 0;
+.wb-collapsed-user .wb-usermenu-trigger {
+  justify-content: center;
+  padding: var(--s-2) var(--s-1);
+}
+.wb-collapsed-user .wb-usermenu-identity {
+  display: none;
+}
+.wb-collapsed-user .wb-usermenu-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
 }
 
 /* git-management (D-GIT-2): the swappable rail body host — fills the pane
@@ -3238,6 +3795,45 @@ body ::-webkit-scrollbar-corner {
 
 .wb-sidebar-layer[data-active] {
   visibility: visible;
+}
+
+/* The work pane's own layer stack — the transcript and the two chat tools that
+   open in its place. Same mechanism as the sidebar's host directly above, and
+   for the same reason: `Chat` may have a turn streaming into it, so leaving a
+   tool and coming back must not remount anything. What differs is only the
+   width these layers get, which is the whole point of the move — a diff review
+   that used to run in a 280px column now has the pane. */
+.wb-work-host {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wb-work-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  visibility: hidden;
+}
+
+.wb-work-layer[data-active] {
+  visibility: visible;
+}
+
+/* The two tools were written as sidebar bodies — full-bleed, every row edge to
+   edge, because 280px has no room to spare. At pane width that reads as a
+   stretched sidebar, so the content gets a measure and centres in it, the way
+   the transcript already does. */
+.wb-work-layer[data-view='review'] > *,
+.wb-work-layer[data-view='brain'] > * {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
 }
 
 /* ── Source Control view (git-management §5.2/§7) ──────────────────────────
@@ -4454,169 +5050,6 @@ body ::-webkit-scrollbar-corner {
   margin-top: var(--s-2);
 }
 
-/* git-management (GIT-R13): activity-bar view entries. Same footprint as
-   wb-rail-btn, plus a left accent bar + filled state when active (VS Code
-   parity) and a change-count badge on the SCM entry. */
-.wb-rail-view {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  background: transparent;
-  border: 0;
-  border-radius: var(--rounded-md);
-  color: var(--muted);
-  cursor: pointer;
-  transition:
-    background-color 0.15s var(--ease-quart),
-    color 0.15s var(--ease-quart);
-}
-.wb-rail-view:hover {
-  background: var(--surface-2);
-  color: var(--ink);
-}
-.wb-rail-view:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.wb-rail-view[data-active] {
-  color: var(--ink);
-}
-/* The VS Code left accent bar marking the view that is on screen. */
-.wb-rail-view[data-active]::before {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-}
-
-/* Selected, but the sidebar is hidden (workspace-session): the view Ctrl+B
-   brings back. Same slot, deliberately weaker — a shorter bar and the icon
-   lifted out of `--muted`. Four identical grey icons and no answer to "which
-   one reopens" is the state this replaces; a second *accent* bar would have
-   been a lie about what is on screen, so the difference is carried by hue and
-   length, not by dimming: `--border-strong` measured 1.68–1.95:1 across the
-   three themes, which is a mark nobody can find. `--muted` is the quietest
-   ink in the ramp that a person can still see (4.9–7.08:1 measured), and a
-   grey half-height tick can never be mistaken for the full-height coral one. */
-.wb-rail-view[data-resting] {
-  color: var(--ink);
-}
-.wb-rail-view[data-resting]::before {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: 14px;
-  bottom: 14px;
-  width: 2px;
-  border-radius: var(--rounded-full);
-  background: var(--muted);
-}
-@media (prefers-reduced-motion: reduce) {
-  .wb-rail-view {
-    transition: none;
-  }
-}
-/* Change-count badge on the Source Control entry. */
-.wb-rail-badge {
-  position: absolute;
-  top: 2px;
-  right: 1px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 0.625rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.wb-actionrail-settings {
-  margin-top: auto;
-  position: relative;
-}
-
-/* Ambient update dot (npm-distribution T12, design.md §5 Tier 1) — a 6px
-   --accent dot, non-color-only (the gear's aria-label grows an addition
-   alongside it, ActionRail.tsx). Survives the Tier 2 notice being dismissed;
-   clears only when the pending version is skipped or applied. */
-.wb-rail-update-dot {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-  pointer-events: none;
-}
-
-/* Ambient "needs attention" dot (Second Brain health-check, SB-R10.4). Sits
-   bottom-right so it stacks with the top-right count badge instead of fighting
-   it, and is ringed in the rail's own background so it reads on any icon. */
-.wb-rail-attention-dot {
-  position: absolute;
-  right: 7px;
-  bottom: 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--rounded-full);
-  background: var(--accent);
-  box-shadow: 0 0 0 2px var(--bg-2);
-  pointer-events: none;
-}
-
-.wb-rail-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  background: transparent;
-  border: 0;
-  border-radius: var(--rounded-md);
-  color: var(--muted);
-  cursor: pointer;
-  transition:
-    background-color 0.15s var(--ease-quart),
-    color 0.15s var(--ease-quart),
-    transform 0.1s var(--ease-quart);
-}
-.wb-rail-btn:hover {
-  background: var(--surface-2);
-  color: var(--ink);
-}
-.wb-rail-btn:active {
-  transform: scale(0.92);
-  background: var(--surface-3);
-}
-.wb-rail-btn:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-/* Persona action ("Conversar com o especialista") — the warm, human entry. */
-.wb-rail-btn[data-persona] {
-  color: var(--accent);
-}
-.wb-rail-btn[data-persona]:hover {
-  background: var(--selected-bg);
-  color: var(--accent);
-}
-
 /* ==========================================================================
    Setup screens (agent + role pickers) — a wider gate card holding a
    selectable-card radiogroup (agent-selection AG-R3.1, role-personalization RP-R2).
@@ -5709,15 +6142,62 @@ button.wb-agent-pill-btn:focus-visible {
   display: flex;
   flex-direction: column;
   overflow-y: hidden;
-  /* Taller than the slash menu's 280px: this list ranks up to eight files and
-     at 280 only four of them fitted, so half the answer sat under a scrollbar
-     the user had no reason to expect. Eight single-line rows plus the header
-     and footer land just under this. */
-  max-height: 356px;
+  /* The card is sized by its parts, not by a guessed number: eight rows of
+     list plus whatever the header and footer need. The row height and the row
+     count both arrive from `FileMentionMenu.tsx` as custom properties, which
+     is what keeps the CSS and the windowed rendering describing one list. */
+  max-height: none;
 }
-.wb-mention-menu .wb-slash-list {
+
+/* Exactly eight rows of port. The list holds every match — this is the only
+   place the number eight still means anything, and it now means "what you can
+   see at once" rather than "what exists".
+   
+   The port is this wrapper and the listbox is its content, on purpose. The
+   rows outside the rendered window stand in as padding on the `<ul>`, and
+   under `box-sizing: border-box` a box can never be shorter than its own
+   padding — so a port that carried both simply ignored its own `max-height`.
+   Measured in the built app: 1536px of list where 256 was asked for, which
+   read as a menu that had quietly stopped scrolling. */
+.wb-mention-menu .wb-mention-scroll {
   overflow-y: auto;
   min-height: 0;
+  max-height: calc(var(--wb-mention-row, 32px) * var(--wb-mention-rows, 8));
+  overscroll-behavior: contain;
+}
+
+/* The bar itself is `hds-scrollbar`, on the element in `FileMentionMenu.tsx`.
+   It used to be `scrollbar-width: thin` right here, which is the trap the
+   section at the top of this file names: in Chromium a non-`auto`
+   `scrollbar-width` opts the element out of every `::-webkit-scrollbar-*`
+   rule, including this app's own — so the one declaration meant to make the
+   bar discreet was what put a raw platform scrollbar, light track and all,
+   down the side of a dark popover. Fourth sighting of the same trap; the DS
+   utility is where it is written down now. */
+.wb-mention-menu .wb-mention-list {
+  /* The window's spacers are padding; a stray default would offset every row
+     and desynchronise the scroll arithmetic by that much. */
+  padding-inline: 0;
+}
+
+/* There is more list this way. A fade rather than a shadow, because the rows
+   below are the same surface as the ones above — the edge has to dissolve,
+   not stack. Applied to the port, so it stays at the edges while the content
+   moves under it. */
+.wb-mention-menu .wb-mention-scroll[data-more-below] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+}
+.wb-mention-menu .wb-mention-scroll[data-more-above] {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 28px);
+}
+.wb-mention-menu .wb-mention-scroll[data-more-above][data-more-below] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 28px,
+    #000 calc(100% - 28px),
+    transparent 100%
+  );
 }
 
 /* The header carries two facts on one line: what this list is, and — only
@@ -5764,12 +6244,17 @@ button.wb-agent-pill-btn:focus-visible {
    sensible height showed four of eight matches; and the thing being searched
    for is the name, which a two-line block buries in the middle of a paragraph.
    This is also the shape every quick-open the user already knows has. */
+/* Uniform rows, at the height `FileMentionMenu.tsx` hands down. Fixed rather
+   than content-sized for two reasons that happen to agree: windowed rendering
+   needs a height it can multiply, and a list whose rows all measure the same
+   is simply calmer to run an eye down. */
 .wb-mention-item {
-  align-items: baseline;
-  padding-block: 6px;
+  box-sizing: border-box;
+  height: var(--wb-mention-row, 32px);
+  align-items: center;
+  padding-block: 0;
 }
 .wb-mention-item .wb-slash-item-icon {
-  /* Nudged off the baseline the text sits on, back to optical centre. */
   align-self: center;
   margin-top: 0;
 }
@@ -5779,6 +6264,9 @@ button.wb-agent-pill-btn:focus-visible {
   align-items: baseline;
   gap: var(--s-2);
   min-width: 0;
+  /* The row is a fixed box now; without this the two baselines inside it can
+     push the text off the vertical centre they were aligned to. */
+  overflow: hidden;
 }
 .wb-mention-item-text .wb-slash-item-label {
   flex: none;
@@ -5885,54 +6373,284 @@ button.wb-agent-pill-btn:focus-visible {
   border-radius: 2px;
 }
 
-/* Attachments ride under the text as one chip row. */
+/* Attachments ride under the text as one chip row — the same DS `Attachment`
+   the composer's tray stages, so the chip does not change shape between being
+   picked and being sent. Its ground on this fill is the design system's own
+   (`Attachment.css`, "On the user bubble"): the bubble's fill/ink pair,
+   swapped. Everything left here is the row and the fit. */
 .wb-bubble-attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-1);
-  margin-top: var(--s-2);
+  gap: var(--s-2);
+  margin-top: var(--s-3);
 }
 .wb-bubble-attachments:first-child {
   margin-top: 0;
 }
 .wb-bubble-attachment {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 240px;
-  padding: 3px 8px;
+  /* Narrower than the tray's chip: the bubble is at most 640px and right-
+     aligned, so a 220px chip beside a short message drags the eye off the
+     text. Middle truncation keeps the extension, which is the token a file
+     name is actually recognised by. */
+  max-width: 260px;
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-1);
   font-size: 0.75rem;
   font-weight: 600;
-  /* Same white wash as the message tokens, for the same contrast reason. */
-  background: oklch(100% 0 0 / 16%);
-  border-radius: var(--rounded-md);
+  line-height: 1.35;
 }
-.wb-bubble-attachment svg {
+.wb-bubble-attachment .hds-attachment-icon {
+  /* A plate under the glyph, so the icon is a badge on the chip rather than a
+     mark floating at its edge. Struck from the chip's own ink at low alpha, so
+     it moves with the theme instead of pinning a colour. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--rounded-sm);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+/* ==========================================================================
+   Conversation list (session-history, restructured by nav-redesign) — the
+   recency-grouped rows with inline rename/delete, plus the two surfaces that
+   host them: the sidebar's `Conversas` section and the wide "Todas as
+   conversas" archive.
+
+   The list used to live in a popover on the chat pane's header. The row styles
+   below are unchanged (`.wb-history-row` and friends) because the row did not
+   change — only where it is shown did.
+   ========================================================================== */
+
+/* --- The sidebar's `Conversas` section ------------------------------------ */
+.wb-chatside {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+/* Heading and lens on one line: the section has ~300px, and stacking them
+   would spend two lines saying what the list is before showing any of it. */
+.wb-chatside-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-1);
   flex-shrink: 0;
-  opacity: 0.85;
 }
-.wb-bubble-attachment-name {
+.wb-chatside-head .wb-sidebar-group-label {
+  flex-shrink: 0;
+}
+.wb-chatside-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The lens: two compact triggers that state the value in force, so "why am I
+   seeing so few conversations?" is answerable without opening anything. */
+.wb-conv-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  min-width: 0;
+}
+.wb-conv-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 140px;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--rounded-sm, 6px);
+  background: transparent;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart);
+}
+.wb-conv-control:hover,
+.wb-conv-control[data-state='open'] {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.wb-conv-control:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-conv-control svg {
+  flex-shrink: 0;
+}
+.wb-conv-control-value {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A filter that is actively hiding rows says so at rest. Without this, the
+   only difference between "Todos" and "1 dia" is one word in an 11px label —
+   which is exactly how a user concludes their history was lost. */
+.wb-conv-control[data-narrowed] {
+  color: var(--accent-tint-ink, var(--accent));
+  background: var(--selected-bg);
+  border-color: color-mix(in oklab, var(--accent) 24%, transparent);
+}
+.wb-conv-menu {
+  min-width: 184px;
+}
 
-/* ==========================================================================
-   Session history (session-history) — the chat pane's conversation panel:
-   search on top, recency-grouped rows, inline rename/delete. Rides the DS
-   popover (portal, z-overlay, open/close motion + reduced-motion fallback
-   come for free); this section only shapes the inside.
-   ========================================================================== */
+/* "Ver todas as conversas" — the archive's door, at the column's foot above
+   the user menu. Quiet: it is a way out of the preview, not a call to action. */
+.wb-chatside-all {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  margin: var(--s-1) var(--s-2) var(--s-2);
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.15s var(--ease-quart),
+    border-color 0.15s var(--ease-quart),
+    color 0.15s var(--ease-quart);
+}
+.wb-chatside-all:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+.wb-chatside-all:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.wb-chatside-all svg {
+  flex-shrink: 0;
+}
+.wb-chatside-all-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* How much more the archive holds — the remainder is what makes this button a
+   promise rather than a label. */
+.wb-chatside-all-count {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: var(--rounded-full);
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
-.wb-history-pop.hds-popover-content {
-  width: 340px;
-  max-width: min(340px, calc(100vw - var(--s-5)));
+/* --- The archive ("Todas as conversas") ----------------------------------- */
+.wb-allconv.hds-dialog-content {
+  width: min(860px, calc(100vw - var(--s-6)));
+  max-width: none;
+  height: min(720px, 86vh);
   padding: 0;
-  border-radius: var(--rounded-lg);
   display: flex;
   flex-direction: column;
-  max-height: min(480px, 72vh);
   overflow: hidden;
+}
+.wb-allconv-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) 0;
+  flex-shrink: 0;
+}
+.wb-allconv-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink, var(--accent));
+}
+.wb-allconv-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+.wb-allconv-count {
+  padding: 2px 8px;
+  border-radius: var(--rounded-full);
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wb-allconv-close.wb-icon-btn {
+  margin-left: auto;
+}
+.wb-allconv-desc {
+  margin: var(--s-1) var(--s-4) 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.wb-allconv-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) var(--s-2);
+  flex-shrink: 0;
+}
+.wb-allconv-search {
+  /* Reuses `.wb-history-search`, which carries its own margin for the popover
+     it was built in. */
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+}
+/* At this width the lens has room to say its full label without truncating. */
+.wb-allconv-controls .wb-conv-control {
+  max-width: none;
+  padding: 6px 10px;
+  font-size: 0.78125rem;
+  border-color: var(--border);
+}
+.wb-allconv-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--s-3) var(--s-3);
+  border-top: 1px solid var(--border);
+}
+/* Two columns of rows at this width: a 860px dialog with one 40px-tall row per
+   line is a column of text with 700px of nothing beside it. */
+.wb-allconv-body .wb-history-group-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2px var(--s-3);
 }
 
 /* Search — the panel's header: one calm field, no title bar (the trigger's
@@ -6030,6 +6748,106 @@ button.wb-agent-pill-btn:focus-visible {
   gap: var(--s-2);
 }
 
+/* --- Seleção múltipla ------------------------------------------------------
+
+   A caixa fica escondida até o mouse passar (ou o foco chegar) — uma coluna
+   permanente de caixas vazias sobre uma lista que se usa 95% das vezes para
+   *abrir* uma conversa é mobília. Assim que existe UMA selecionada, porém, a
+   lista inteira mostra as suas: as linhas não marcadas são justamente as que
+   você está decidindo, e elas ficariam sem o controle da decisão.
+
+   `visibility` + `width`, não `display: none`: a caixa reserva o lugar dela
+   desde sempre, então o título não desliza para o lado quando o mouse entra.
+   ------------------------------------------------------------------------- */
+.wb-history-check.hds-checkbox {
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  flex: none;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-quart);
+}
+.wb-history-row:hover .wb-history-check,
+.wb-history-row:focus-within .wb-history-check,
+.wb-history-row[data-selecting] .wb-history-check {
+  opacity: 1;
+}
+/* A linha marcada carrega o tint do acento, como a linha atual — e as duas
+   podem coincidir, então a marcada vem depois e ganha. */
+.wb-history-row[data-selected] {
+  background: var(--selected-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.wb-history-row[data-selected]:hover {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+}
+/* Com a caixa na frente, o texto não precisa do recuo que ele tinha quando era
+   o primeiro elemento da linha. */
+.wb-history-row:has(.wb-history-check) .wb-history-open {
+  padding-left: var(--s-2);
+}
+
+/* A barra de seleção fica colada no topo da lista rolável: ela é o estado em
+   que a lista está, e rolar para fora dele perderia tanto a contagem quanto o
+   caminho de volta. */
+.wb-history-selbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-bottom: var(--s-2);
+  /* Um elemento sticky precisa ser opaco: a barra tem tint translúcido, então
+     a cor de fundo da própria lista entra por baixo como camada. */
+  background-color: var(--bg-2);
+  background-image: linear-gradient(
+    color-mix(in oklab, var(--accent) 12%, transparent),
+    color-mix(in oklab, var(--accent) 12%, transparent)
+  );
+}
+
+/* Superfície OPACA, não um tint do próprio vermelho: a barra já é um tint de
+   acento, e `--danger-ink` sobre vermelho-sobre-acento-sobre-`--bg-2` mediu
+   3,39:1 no tema claro — três camadas translúcidas empilhadas comem o
+   contraste que cada uma delas sozinha teria. Uma placa opaca com tinta de
+   perigo e um fio vermelho em volta diz a mesma coisa e é mensurável. */
+.wb-history-bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  /* `--surface-3`, não `--surface`: nos dois temas escuros `--surface` e o tint
+     da barra medem 1,01:1 um contra o outro — a placa simplesmente não existe
+     ali, e o botão vira texto solto com um fio em volta. A placa é medida
+     (≥1,08:1 nos três temas), não presumida. */
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 45%, transparent);
+  color: var(--danger-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-history-bulk-btn:hover {
+  /* Mistura sobre a própria placa (opaca), não sobre `transparent`: o hover
+     escurece a placa em vez de deixar a barra aparecer por baixo dela. */
+  background: color-mix(in oklab, var(--danger) 14%, var(--surface-3));
+}
+.wb-history-bulk-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+/* Dentro da barra a pergunta divide a linha com dois botões; o texto encolhe
+   primeiro para que nenhum dos dois seja cortado. */
+.wb-history-selbar .wb-history-confirm-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wb-history-open {
   flex: 1;
   min-width: 0;
@@ -6083,6 +6901,16 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 0.71875rem;
   color: var(--muted);
   white-space: nowrap;
+}
+/* Sobre o tint de acento — a linha atual e, agora, a linha marcada — `--muted`
+   cai para 4,16:1 no tema claro. Herdado: o par existe desde que a linha atual
+   ganhou o tint, e ninguém tinha medido. `--accent-tint-ink` é o token para
+   texto sobre esse tint (o oposto de `--accent-ink`, que é para texto sobre o
+   acento CHEIO), e a hierarquia continua: o título é `--ink` a 13px, isto é
+   11,5px em outro tom. */
+.wb-history-row[data-active] .wb-history-row-meta,
+.wb-history-row[data-selected] .wb-history-row-meta {
+  color: var(--accent-tint-ink);
 }
 .wb-history-row-dot {
   width: 2px;
@@ -6254,6 +7082,77 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+.wb-history-nomatch p {
+  margin: 0 0 var(--s-2);
+}
+/* The undo, inside the state it undoes: a window that admits nothing is a
+   control the user set, so the way back belongs where they notice the
+   consequence — not only back up in the trigger they have to remember. */
+.wb-history-window-reset {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent-tint-ink, var(--accent));
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wb-history-window-reset:hover {
+  text-decoration-thickness: 2px;
+}
+.wb-history-window-reset:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* A failed read (nav-redesign). Distinct from the teaching empty state, which
+   is what this app used to draw over a disk error — telling the user their
+   history was gone when it was merely unread. */
+.wb-history-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--danger-bg);
+}
+.wb-history-error-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--danger-ink);
+}
+.wb-history-error-body {
+  margin: 0;
+  font-size: 0.78125rem;
+  color: var(--muted);
+}
+.wb-history-error-retry {
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-history-error-retry:hover {
+  background: var(--surface-2);
+}
+.wb-history-error-retry:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
 
 /* ==========================================================================
    Profile sheet (role-personalization RP-R6, agent-selection AG-R3.2) —
@@ -6368,6 +7267,25 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-pnav-role-icon {
   display: flex;
   color: var(--accent);
+}
+
+/* nav-redesign: the index is grouped now — three headings over seven rows.
+   Six ungrouped rows were a list; seven is a pile, and "Servidores MCP"
+   between "Conexão" and "Voz e transcrição" said nothing about which of them
+   it resembles. */
+.wb-pnav-group + .wb-pnav-group {
+  margin-top: var(--s-4);
+}
+.wb-pnav-group-label {
+  margin: 0 0 var(--s-2);
+  padding: 0 var(--s-1);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  /* `--muted`, not `--faint`: the same lesson `docs/visual-validation.md`
+     records for every small uppercase label in this app. */
+  color: var(--muted);
 }
 
 /* The scope rows. One bordered group with hairlines between, the desktop
@@ -6513,6 +7431,66 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-pnav-tour-hint {
   font-size: 0.71875rem;
   color: var(--muted);
+}
+
+/* nav-redesign: the `Servidores MCP` detail. It states what is configured and
+   hands off to the manager — the manager is its own `Dialog` with nested
+   add/edit/delete dialogs, so embedding it would stack three modal layers to
+   change one server's arguments. */
+.wb-mcpscope {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.wb-mcpscope-state {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.wb-mcpscope-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--rounded-md);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink, var(--accent));
+}
+.wb-mcpscope-count {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wb-mcpscope-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.wb-mcpscope-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+.wb-mcpscope-cta:hover {
+  background: var(--surface-2);
+}
+.wb-mcpscope-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 /* --- The detail ---------------------------------------------------------- */
@@ -7662,10 +8640,16 @@ button.wb-agent-pill-btn:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wb-rail-btn,
   .wb-choice-card,
   .wb-choice-card-check,
-  .wb-avatar-btn,
+  .wb-nav-item,
+  .wb-sidebar-tab,
+  .wb-newconv,
+  .wb-conv-control,
+  .wb-usermenu-trigger,
+  .wb-chatside-all,
+  .wb-history-error-retry,
+  .wb-mcpscope-cta,
   .wb-shortcut-chip,
   .wb-shortcut-chip svg,
   .wb-appset-btn,
@@ -7677,6 +8661,11 @@ button.wb-agent-pill-btn:focus-visible {
   .wb-history-search,
   .wb-history-row,
   .wb-history-actions,
+  /* The specificity has to match the rule it is cancelling
+     (`.wb-history-check.hds-checkbox`) — the sensor in
+     `reducedMotion.test.ts` compares selectors, and it caught this one. */
+  .wb-history-check.hds-checkbox,
+  .wb-history-bulk-btn,
   .wb-history-confirm-btn {
     transition: none;
   }
@@ -8608,7 +9597,14 @@ button.wb-agent-pill-btn:focus-visible {
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.5;
-  color: var(--faint);
+  /* `--muted`, not `--faint`: this is a sentence somebody reads before pressing
+     the button it describes. `--faint` only clears 4.5:1 against the darkest
+     `--bg`, and this sits on a dialog's elevated `--surface` — measured 4,18:1
+     dark and 3,71:1 light before this line (studio-agent-pass.mjs). Fourth
+     time this token has been used for read text in this file; the rule in
+     docs/visual-validation.md is about who reads it, not about how
+     subordinate it feels. */
+  color: var(--muted);
   max-width: 40ch;
 }
 .wb-studio-create-foot .wb-btn svg {
@@ -10529,18 +11525,19 @@ button.wb-agent-pill-btn:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 
-.wb-review-panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  flex: 1 1 auto;
+/* The head holds only the bulk actions now (the pane header carries the
+   name). With nothing pending it has no children at all — and a 1px rule
+   under an empty strip reads as a broken divider, so it takes itself out. */
+.wb-review-panel-head:empty {
+  display: none;
 }
 
 .wb-review-panel-bulk {
   display: inline-flex;
   gap: var(--s-1);
+  /* Was the removed title's `flex: 1 1 auto` that pushed these to the trailing
+     edge; now they claim the space themselves. */
+  margin-left: auto;
 }
 
 .wb-review-list {
@@ -10728,6 +11725,11 @@ button.wb-agent-pill-btn:focus-visible {
    just launched, still running in the chat. Left-aligned rather than centered —
    the rail is 200-400px wide, and a centered column with a list in it reads
    ragged at every width. */
+/* This state was drawn for a 200-400px rail and now lives in a work pane that
+   is nearly 800px wide. Left unconstrained it spreads an invitation across the
+   full width and leaves half the pane empty beside it; the column is capped at
+   a readable measure and centred instead, so the composition is the same at
+   either size. */
 .wb-brain-empty {
   flex: 1 1 auto;
   display: flex;
@@ -10735,6 +11737,9 @@ button.wb-agent-pill-btn:focus-visible {
   align-items: flex-start;
   justify-content: center;
   gap: var(--s-2);
+  width: 100%;
+  max-width: 46ch;
+  margin-inline: auto;
   padding: var(--s-5) var(--s-4);
 }
 
@@ -10775,12 +11780,14 @@ button.wb-agent-pill-btn:focus-visible {
   text-wrap: balance;
 }
 
+/* No measure of its own: the column above already caps at one, and a paragraph
+   narrower than the list under it stacks three different right edges in a block
+   of four elements. */
 .wb-brain-empty-desc {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
-  max-width: 42ch;
   text-wrap: pretty;
 }
 
@@ -10812,10 +11819,10 @@ button.wb-agent-pill-btn:focus-visible {
   color: var(--accent);
 }
 
-/* In a narrow rail the primary action earns the full width — there is nothing
-   to sit beside it, and a hugged button reads as one more option. */
+/* The button hugs its label. Stretching it was a rail-era rule, and in a wide
+   pane it produced a 728px slab of accent with the words parked at its left
+   edge — which reads as a banner, not as something to press. */
 .wb-brain-empty-cta {
-  width: 100%;
   margin-top: var(--s-1);
 }
 
@@ -10825,6 +11832,11 @@ button.wb-agent-pill-btn:focus-visible {
   font-size: 11px;
   line-height: 1.45;
   color: var(--muted);
+}
+
+/* The guard has no capped column around it — it is dropped into a sheet and a
+   dialog that are both far wider than a paragraph wants to be. */
+.wb-brain-guard-note {
   max-width: 42ch;
 }
 
@@ -16020,25 +17032,15 @@ span.wb-change-card-open {
   outline-offset: 1px;
 }
 
-.wb-ctx-meter-bar {
-  position: relative;
-  display: block;
-  width: 34px;
-  height: 4px;
-  border-radius: var(--rounded-full);
-  background: var(--surface-3);
-  overflow: hidden;
+/* The footer's dial. `RingMeter` sizes and animates itself; all this adds is
+   the one thing a 16px ring needs that a 92px one doesn't — a track light
+   enough to disappear against the composer, so at a glance the arc is the
+   only mark. */
+.wb-ctx-meter-ring {
+  --hds-ring-track: var(--border);
 }
-.wb-ctx-meter-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-  /* Occupancy only ever moves at the end of a turn, so it can afford a real
-     transition — it reads as the number settling, not as a loading bar. */
-  transition:
-    width 0.5s var(--ease-quart),
-    background-color 0.3s var(--ease-quart);
+.wb-ctx-meter-ring .hds-ring-meter-track {
+  stroke: var(--hds-ring-track);
 }
 
 .wb-ctx-meter-value {
@@ -16054,10 +17056,9 @@ span.wb-change-card-open {
   color: inherit;
 }
 
-/* Near the ceiling the meter stops being chrome and starts being advice. */
-.wb-ctx-meter[data-tight] .wb-ctx-meter-fill {
-  background: var(--warning);
-}
+/* Near the ceiling the meter stops being chrome and starts being advice. The
+   ring's own `tone` paints the arc (ContextMeter passes it); this is the half
+   of that state the ring can't reach — the number beside it. */
 .wb-ctx-meter[data-tight] .wb-ctx-meter-value {
   color: var(--warning-ink);
 }
@@ -16065,11 +17066,15 @@ span.wb-change-card-open {
 /* --- The detail sheet ---------------------------------------------------- */
 
 .wb-ctx-sheet.hds-popover-content {
-  width: min(360px, calc(100vw - 32px));
+  /* Wider than the 360px the stacked bar needed: the key now sits beside a
+     104px ring, and at 360 "Reaproveitado do cache" ellipsised into
+     "Reaproveitado do…" — the word that says which cache. */
+  width: min(400px, calc(100vw - 32px));
   padding: var(--s-4);
 }
 
 .wb-ctx-detail-head {
+  margin-bottom: var(--s-3);
   display: flex;
   align-items: baseline;
   gap: var(--s-2);
@@ -16092,68 +17097,86 @@ span.wb-change-card-open {
   max-width: 45%;
 }
 
+/* The absolute count, beside the ring that carries the share. Wrapping, not
+   one line: the noun under the number is the pairing that reads, and at four
+   significant figures it will not fit beside it. */
 .wb-ctx-headline {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin: var(--s-3) 0 var(--s-2);
+  flex-wrap: wrap;
+  gap: 0 6px;
+  margin: 0;
 }
 .wb-ctx-used {
   font-family: var(--ff-num);
   font-variant-numeric: tabular-nums;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
   color: var(--ink);
 }
 .wb-ctx-window {
   font-size: 0.8125rem;
   color: var(--muted);
 }
-.wb-ctx-percent {
-  margin-left: auto;
-  font-family: var(--ff-num);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8125rem;
-  font-weight: 650;
-  color: var(--muted);
-}
 
-/* The window, to scale. Segments are separated by a gap of the sheet's own
-   surface rather than by a border, so three tints of one hue read as three
-   blocks without adding a fourth colour. */
-.wb-ctx-bar {
+/* The reading: one dial and the count it is a picture of, side by side. The
+   key goes UNDER them at full width — beside the ring its labels had 160px and
+   ellipsised, and a legend with cropped labels names nothing. */
+.wb-ctx-hero {
   display: flex;
-  gap: 2px;
-  height: 10px;
-  border-radius: var(--rounded-sm);
-  overflow: hidden;
-  background: var(--surface-3);
+  align-items: center;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
 }
-.wb-ctx-seg {
-  min-width: 2px;
-  border-radius: 2px;
-  animation: wb-meter-in 0.35s var(--ease-quart) both;
+.wb-ctx-ring {
+  animation: wb-ctx-ring-in 0.42s var(--ease-quart) both;
 }
 
-/* The one hue, three emphases — plus the empty track. Mixed toward the
-   sheet's own surface (not toward transparent) so the steps stay separated on
-   all three themes instead of collapsing on the darkest one. */
-.wb-ctx-seg[data-seg='cacheRead'],
+/* The ring arrives by scaling from its own centre rather than sliding: a dial
+   that slides in reads as a card, one that grows reads as a measurement being
+   taken. */
+@keyframes wb-ctx-ring-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The one hue, three emphases — the provenance ramp, declared once and used
+   by BOTH the ring's runs (via `--wb-ctx-<seg>`, passed as each run's colour)
+   and the legend swatch that names it. Two surfaces reading the same fact must
+   not be able to drift apart. Mixed toward the sheet's own surface (not toward
+   transparent) so the steps stay separated on all three themes instead of
+   collapsing on the darkest one. */
+.wb-ctx-detail {
+  --wb-ctx-cacheRead: color-mix(in oklab, var(--accent) 34%, var(--surface-3));
+  --wb-ctx-cacheCreation: color-mix(in oklab, var(--accent) 62%, var(--surface-3));
+  --wb-ctx-input: var(--accent);
+}
+/* Tight: the ring turns warning, and so must the key beside it — a legend
+   still painted accent under a warning ring names colours that aren't there. */
+.wb-ctx-detail:has(.wb-ctx-ring[data-tone='warning']),
+.wb-ctx-detail:has(.wb-ctx-ring[data-tone='danger']) {
+  --wb-ctx-cacheRead: color-mix(in oklab, var(--warning) 34%, var(--surface-3));
+  --wb-ctx-cacheCreation: color-mix(in oklab, var(--warning) 62%, var(--surface-3));
+  --wb-ctx-input: var(--warning);
+}
 .wb-ctx-swatch[data-seg='cacheRead'] {
-  background: color-mix(in oklab, var(--accent) 34%, var(--surface-3));
+  background: var(--wb-ctx-cacheRead);
 }
-.wb-ctx-seg[data-seg='cacheCreation'],
 .wb-ctx-swatch[data-seg='cacheCreation'] {
-  background: color-mix(in oklab, var(--accent) 62%, var(--surface-3));
+  background: var(--wb-ctx-cacheCreation);
 }
-.wb-ctx-seg[data-seg='input'],
 .wb-ctx-swatch[data-seg='input'] {
-  background: var(--accent);
-}
-.wb-ctx-seg[data-seg='free'] {
-  background: var(--surface-3);
+  background: var(--wb-ctx-input);
 }
 .wb-ctx-swatch[data-seg='free'] {
   background: var(--surface-3);
@@ -16161,7 +17184,7 @@ span.wb-change-card-open {
 }
 
 .wb-ctx-legend {
-  margin: var(--s-3) 0 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -16281,14 +17304,13 @@ span.wb-change-card-open {
   .wb-activity-time,
   .wb-queue,
   .wb-queue-row,
-  .wb-ctx-seg {
+  .wb-ctx-ring {
     animation: none;
   }
   .wb-turn-meter-pulse {
     animation: none;
     opacity: 1;
   }
-  .wb-ctx-meter-fill,
   .wb-queue-remove,
   .wb-queue-action,
   .wb-ctx-meter,
@@ -18430,30 +19452,88 @@ button.wb-mcplog-summary:focus-visible {
 }
 
 /* --- o banner de erro do turno, quando a causa é a AWS ------------------- */
-.wb-composer-error-aws {
+/* --- A dead turn, and the one thing that would restart it (TurnErrorNotice)
+
+   The row goes on the alert's DESCRIPTION, not on its root. `Alert` renders
+   `icon` + `body > description`, so a flex row on the root spends its `gap`
+   between the icon slot and one box — while the sentence and the button, the
+   actual siblings one level down, sit with nothing between them. That is
+   exactly how this shipped reading `…a resposta parou.Conectar conta`.
+   ------------------------------------------------------------------------- */
+.wb-turnfix {
+  align-items: center;
+}
+.wb-turnfix .hds-alert-description {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-4);
   flex-wrap: wrap;
+  row-gap: var(--s-2);
 }
-.wb-composer-error-text {
-  flex: 1;
+.wb-turnfix-text {
+  flex: 1 1 16rem;
   min-width: 0;
 }
-.wb-composer-error-cta {
+
+/* The repair is the only action here, so it is a real button rather than the
+   ghost outline this used to be — and it is `--accent`, not `--danger`: it is
+   the way OUT of the failure, and a red button under a red sentence reads as
+   more of the same problem. `--accent-ink` is the ink for a FILLED accent
+   surface (`--accent-tint-ink` is its opposite — for text on the tint). */
+.wb-turnfix-cta {
   flex: none;
-  padding: 4px 10px;
-  border: 1px solid currentColor;
-  border-radius: var(--rounded-sm);
-  background: transparent;
-  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: var(--accent);
+  color: var(--accent-ink);
   font: inherit;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.2;
   cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
 }
-.wb-composer-error-cta:focus-visible {
+.wb-turnfix-cta:hover {
+  background: var(--accent-hover);
+}
+.wb-turnfix-cta:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+/* Busy is `aria-disabled`, not `disabled` — the control keeps the focus it
+   already has instead of dropping the keyboard user at the top of the
+   document mid-repair. So the pointer affordance has to be withdrawn here. */
+.wb-turnfix-cta[aria-disabled] {
+  cursor: default;
+  background: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+.wb-turnfix-spinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid color-mix(in oklab, var(--accent-ink) 35%, transparent);
+  border-top-color: var(--accent-ink);
+  border-radius: var(--rounded-full);
+  animation: wb-turnfix-spin 0.7s linear infinite;
+}
+@keyframes wb-turnfix-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-turnfix-spinner {
+    animation: none;
+    border-top-color: color-mix(in oklab, var(--accent-ink) 35%, transparent);
+    border-left-color: var(--accent-ink);
+  }
+  .wb-turnfix-cta {
+    transition: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -19382,5 +20462,410 @@ button.wb-mcplog-summary:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .wb-claude-beacon {
     animation: none;
+  }
+}
+
+/* The account caret's fade + flip. The state it reports (open/closed) is
+   carried by opacity and rotation regardless — only the tween goes. */
+@media (prefers-reduced-motion: reduce) {
+  .wb-usermenu-caret {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Iniciativas — the demands a workspace is working on.
+
+   Two surfaces: the sidebar section above the conversation history, and the
+   right rail of an open initiative (its BMAD plan over its artifacts).
+   ========================================================================== */
+
+/* The section keeps its own scroller and yields to the history below it: an
+   initiatives list that grew until the conversations were off-screen would have
+   cost the user the list they navigate by, which is the same mistake the rail
+   redesign existed to undo. `max-height` in `vh` rather than `%` because the
+   parent is a flex column with no fixed height of its own. */
+.wb-inits {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.wb-inits[data-open] {
+  max-height: 42vh;
+}
+
+.wb-inits-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-2) var(--s-1) var(--s-3);
+  flex-shrink: 0;
+}
+
+/* The whole heading is the disclosure, not a 12px chevron beside it: the row is
+   already the width of the sidebar and the target ought to be too. */
+.wb-inits-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px 3px 0;
+  margin-left: -2px;
+  border: 0;
+  border-radius: var(--rounded-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.wb-inits-toggle:hover .wb-sidebar-group-label {
+  color: var(--ink);
+}
+
+.wb-inits-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* One chevron drawing for both the section header and the tree rows: closed
+   points right, open points down, and the turn is the state. */
+.wb-inits-chev {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.18s var(--ease-quart);
+}
+
+.wb-inits-chev[data-open] {
+  transform: rotate(0deg);
+}
+
+.wb-inits-new {
+  flex: none;
+}
+
+.wb-inits-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--s-2);
+}
+
+.wb-inits-status {
+  margin: 0;
+  padding: var(--s-1) var(--s-3) var(--s-3);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* --- the tree ------------------------------------------------------------ */
+
+.wb-inits-tree {
+  padding: 0 var(--s-2);
+}
+
+/* The DS tree row lays its label out; these are the parts this app adds to it. */
+.wb-inits-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.wb-inits-leaf-icon,
+.wb-inits-release-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+/* The demand row is the destination — it gets the app's ink, while the years
+   and releases above it stay quiet scaffolding.
+
+   The `> .hds-tree-row` matters: a tree nests its children INSIDE the parent
+   item, so `[aria-level='1'] .wb-inits-name` also matches every demand three
+   levels down. With equal specificity the later rule wins, and every name in
+   the tree came out `--muted` — measured 4,16:1 on the selected row in the
+   light theme. The child combinator pins each rule to its own row. */
+.wb-inits-tree .hds-tree-item[aria-level='3'] > .hds-tree-row .wb-inits-name {
+  color: var(--ink);
+}
+
+.wb-inits-tree .hds-tree-item[aria-level='1'] > .hds-tree-row .wb-inits-name,
+.wb-inits-tree .hds-tree-item[aria-level='2'] > .hds-tree-row .wb-inits-name {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-inits-count {
+  flex: none;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  padding-right: 2px;
+}
+
+/* Progress as `4/8`. Three states by fill, not by hue alone: untouched is an
+   outline, in-flight takes the accent tint, finished takes the success tint.
+
+   The digits stay `--ink` on both filled states rather than taking the tint's
+   own ink. At 10px/600 they are text and owe 4.5:1, and the tinted inks do not
+   pay it here: `--success-ink` on `--success-bg` over the sidebar measured
+   3,71:1 in the light theme, and the accent ink lands on a DOUBLE tint when the
+   demand's row is the selected one. `--ink` measures 8,7–12,9 across the three
+   themes on every one of those grounds. The tint keeps saying which state it
+   is; it just stops being asked to carry the reading too — and the numbers
+   themselves (0/8 vs 8/8) say it without any colour at all. */
+.wb-inits-progress {
+  flex: none;
+  font-size: 0.625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--rounded-full);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+}
+
+.wb-inits-progress[data-started] {
+  border-color: transparent;
+  background: var(--selected-bg);
+  color: var(--ink);
+}
+
+.wb-inits-progress[data-complete] {
+  border-color: transparent;
+  background: var(--success-bg);
+  color: var(--ink);
+}
+
+/* --- the empty state ----------------------------------------------------- */
+
+.wb-inits-empty {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  margin: 0 var(--s-3) var(--s-2);
+  padding: var(--s-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--rounded-lg);
+}
+
+.wb-inits-empty-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wb-inits-empty-body {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.wb-inits-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wb-inits-empty-cta:hover {
+  background: var(--accent-hover);
+}
+
+.wb-inits-empty-cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --- the create dialog --------------------------------------------------- */
+
+.wb-newinit-form {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.wb-newinit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.wb-newinit-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.wb-newinit-path-value {
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--surface);
+  border-radius: var(--rounded-sm);
+  padding: 2px 6px;
+  word-break: break-all;
+}
+
+.wb-newinit-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--danger-ink);
+}
+
+/* ==========================================================================
+   The open initiative's work surface.
+   ========================================================================== */
+
+/* Chat on the left, the demand's rail on the right — inside the one pane, so
+   the transcript keeps its own `Chat` instance and the live session survives
+   opening and closing a demand. */
+.wb-work-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wb-work-split > .wb-work-host {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Wide enough for a file name and a stage label, capped so the conversation
+   never becomes the narrow half of its own pane. */
+.wb-initctx {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: clamp(248px, 30%, 340px);
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-2);
+}
+
+.wb-initctx-id {
+  padding: var(--s-3) var(--s-3) var(--s-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-initctx-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-initctx-crumb-sep {
+  color: var(--border-strong);
+}
+
+.wb-initctx-name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+/* The plan is short and fixed; the tree below it is what grows and scrolls.
+   The ceiling is what it is because eight stages in four named phases is the
+   tallest the plan ever gets, and a cap that hides the last phase turns the one
+   thing this section is for — seeing the whole shape at once — back into
+   scrolling. The tree keeps the remainder and scrolls inside it. */
+.wb-initctx-flow {
+  flex-shrink: 0;
+  padding: var(--s-3) var(--s-2) var(--s-3) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  max-height: 70%;
+  overflow-y: auto;
+}
+
+.wb-initctx-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.wb-initctx-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wb-initctx-count {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* One line, once, above the plan: what the rows do and where they do it. */
+.wb-initctx-flow-hint {
+  margin: 0 0 var(--s-2);
+  padding-right: var(--s-2);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+/* Visible, not hover-only. The complaint this rail is being reworked for is
+   that its affordances could not be found, and "appears when you point at it"
+   is invisible to anyone who never thought to point. It recedes by *size* — a
+   13px outline glyph beside a 13px ink label — and not by alpha: a washed-out
+   `--muted` stops clearing the 3:1 an interactive icon owes, which is how this
+   kind of control goes quietly unreadable. `--muted` is inherited from
+   `.wb-icon-btn`, whose hover already takes it to `--ink`. */
+.wb-initctx-redo {
+  width: 26px;
+  height: 26px;
+}
+
+.wb-initctx-files {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-inits-chev,
+  .wb-initctx-redo {
+    transition: none;
   }
 }

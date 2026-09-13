@@ -33,8 +33,15 @@ import { diagnoseClaudeFailure } from './awsDiagnose'
  * VERIFIED against a real `claude` binary (v2.1.206) and a live `-p` run
  * driving the real `bmad-prd` skill end-to-end (produced a real
  * `_bmad-output/.../prd.md`):
- *   - `claude -p "<prompt>"` — non-interactive "print mode": run one turn
- *     against the given prompt, stream/print the result, then exit.
+ *   - `claude -p` — non-interactive "print mode": run one turn, stream/print
+ *     the result, then exit. The prompt is fed on **stdin**, not as the
+ *     positional argument the flag also accepts. Verified against `claude
+ *     2.1.226`: with no positional prompt the CLI reads its whole stdin as the
+ *     prompt, `--output-format stream-json` included. The positional form is
+ *     what shipped first, and it is unusable on Windows — a `.cmd` shim
+ *     truncates any command line at its first newline, which silently dropped
+ *     the `<attached-files>` block (and every flag after `-p`) from every turn
+ *     that carried an attachment. See `CliAdapterConfig.promptOnStdin`.
  *   - `--model <id>` — selects the model. `--help` recommends aliases
  *     (`opus`/`sonnet`/`haiku`/`fable`) over pinned full model ids.
  *   - `--effort <level>` — confirmed real, values `low|medium|high|xhigh|max`.
@@ -356,7 +363,12 @@ export function createClaudeCliAdapter(
           if (!shellEnv && !awsEnv) return undefined
           return { ...shellEnv, ...awsEnv }
         },
-        buildArgs: (turnPrompt, { model, effort, resume, turnId }) => {
+        // The prompt goes down stdin, never argv — `CliAdapterConfig.promptOnStdin`
+        // carries the measurement. Verified live against `claude 2.1.226`: with
+        // no positional prompt, `-p` reads one from stdin and streams the same
+        // `stream-json` it does for an inline one.
+        promptOnStdin: true,
+        buildArgs: (_prompt, { model, effort, resume, turnId }) => {
           // agent-approvals: only wire the prompt tool once the bridge is
           // actually listening — a config pointing at no port would fail the
           // whole turn, which is strictly worse than today's behavior.
@@ -364,8 +376,8 @@ export function createClaudeCliAdapter(
           // Windows' shell + `.cmd` argv layers.
           const mcpConfig = prompt?.mcpConfig(turnId) ?? null
           return [
+            // No positional prompt: `promptOnStdin` above puts it on stdin.
             '-p',
-            turnPrompt,
             ...(model ? ['--model', model] : []),
             ...(effort ? ['--effort', effort] : []),
             // Verified live: without a permission-mode flag, `-p` silently

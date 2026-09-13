@@ -236,7 +236,7 @@ async (page) => {
   /** Puts the app on one named theme through its own appearance menu. */
   const useTheme = async (item) => {
     await page.keyboard.press('Escape')
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.waitForTimeout(250)
     // Anchored: each row's accessible name is "<tema> <descrição>", and
     // "Escuro" also appears inside the Hive row's description ("Escuro, nas

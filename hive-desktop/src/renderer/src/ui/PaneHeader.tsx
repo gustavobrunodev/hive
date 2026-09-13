@@ -16,6 +16,15 @@ import { GripIcon, MoveHorizontalIcon } from './icons'
  * (2) a keyboard/menu path to the same reordering ("Mover para a esquerda/
  * direita"), so the layout is never drag-only. `WorkUI` owns the order
  * state + persistence; these are the presentational pieces.
+ *
+ * **Both disappear when there is only one pane on screen.** A grip that drags
+ * a pane onto nothing and a menu whose every item is disabled are not quiet
+ * affordances, they are furniture: they teach a rearrangement that cannot
+ * happen, and they spend the top-left corner — the most valuable real estate
+ * a window has — saying "CONVERSA" over the only thing on screen. `WorkUI`
+ * decides (`soloPane`) and simply stops passing `dragProps`/`actions`; this
+ * file's rule is the narrower one below: **the grip is the mark of a drag
+ * surface, so no drag means no grip.**
  */
 
 export interface PaneMoveMenuProps {
@@ -87,13 +96,22 @@ export function PaneHeader({
     // three banner landmarks (the title bar plus one per pane) where the spec
     // allows one. The pane's name reaches the accessibility tree through the
     // `aria-label` on its `ResizablePanel`, not through this element.
-    <div className="wb-pane-header" {...dragProps}>
-      <GripIcon size={12} className="wb-pane-grip" />
+    <div
+      className="wb-pane-header"
+      data-static={dragProps === undefined || undefined}
+      {...dragProps}
+    >
+      {/* The grip is the *mark* of the drag surface, not decoration beside the
+          title — so a header that is not draggable does not wear one. Six dots
+          promising a gesture that does nothing is worse than no dots. */}
+      {dragProps !== undefined && <GripIcon size={12} className="wb-pane-grip" />}
       <span className="wb-pane-header-label">{title}</span>
-      {primaryActions !== undefined && (
+      {primaryActions !== undefined && primaryActions !== null && (
         <div className="wb-pane-header-primary">{primaryActions}</div>
       )}
-      <div className="wb-pane-header-actions">{actions}</div>
+      {actions !== undefined && actions !== null && (
+        <div className="wb-pane-header-actions">{actions}</div>
+      )}
     </div>
   )
 }

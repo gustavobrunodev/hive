@@ -8,14 +8,43 @@
  * would drive by hand, so the transcript stays honest about what ran. The
  * first line of each prompt is the slash invocation (Claude Code resolves a
  * leading-slash prompt as a skill invocation — the roleCatalog contract);
- * the lines after it are the briefing the builder opens the floor with.
+ * the lines after it are the briefing the builder acts on.
+ *
+ * ## Why the briefing has to say "don't ask me again"
+ *
+ * The studio's whole promise is that the form is the first half of the
+ * conversation. What shipped instead: the user filled in the name and the
+ * goal, hit "Criar com o Construtor", and the builder answered
+ *
+ *   > Hi Gustavo — I'm ready to build, edit, or analyze a skill. What's on
+ *   > your mind? Share as much as you have: the goal, …
+ *
+ * for a goal that was two lines above it (measured — the transcript is in
+ * `chat-history`). The cause is not transport: the text after the slash line
+ * **does** reach the agent, verified against the real `claude` 2.1.226 by
+ * invoking a skill that echoes its own arguments, which came back verbatim.
+ *
+ * The cause is that both builders' activation runs an "Open the floor" step —
+ * *"invite the user to share everything they have in mind"* — qualified only
+ * by *"skip if the invocation already carries enough to act on"*. A briefing
+ * that merely contains the idea leaves that judgement to the model, and the
+ * model followed the script. So every creation briefing now **names the
+ * intent** (the step above it is "Detect intent"), **declares itself the idea
+ * dump**, and **closes the floor by name** — three sentences that turn the
+ * builders' own escape hatch from a guess into an instruction.
+ *
+ * What it deliberately does not do is pass `--headless`. The builders take it,
+ * and it would also close the floor — by making the whole build
+ * non-interactive, which is the opposite of what this surface promises ("o
+ * construtor assume o chat para lapidar os detalhes com você"). The
+ * conversation stays; only the question that was already answered goes away.
  *
  * These strings are *sent to the agent* (conversation content, pt-BR per the
  * BMAD install's communication language), not UI chrome — labels/buttons
  * around them stay in `i18n/pt-BR.ts` as usual.
  */
 
-/** Structural mirror of `main/agentAdapter.ts`'s `WorkflowCommand` (renderer-side, same convention as `ActionRail`'s `RoleAction`). */
+/** Structural mirror of `main/agentAdapter.ts`'s `WorkflowCommand` (renderer-side, same convention as `sidebarNav`'s `RoleAction`). */
 export interface StudioCommand {
   key: string
   prompt: string
@@ -58,11 +87,36 @@ function evalsInstruction(slug: string): string {
 }
 
 /**
+ * The line that closes the builders' "Open the floor" step.
+ *
+ * Both builders' activation step 4 invites the user to dump everything they
+ * have in mind, "skip[ping] if the invocation already carries enough to act
+ * on". This says so in as many words, because leaving it implicit is what made
+ * the builder ask for a goal the form had already collected. It also names the
+ * intent — the step *above* it is "Detect intent" — and says what to do
+ * instead, so closing one question does not read as "stop talking to me": the
+ * conversation continues at the beat where the builder confirms the shape and
+ * proposes what the idea implies.
+ */
+function briefingIsTheIdea(what: string): string {
+  return (
+    `Intenção: criar (Build). Este briefing É o despejo de ideia da ativação — ` +
+    `ele vem de um formulário que o usuário já preencheu no Estúdio de skills do Hive. ` +
+    `**Não abra a mesa ("Open the floor") e não peça a ideia de novo**: o ${what} ` +
+    `está acima. Siga direto para confirmar a forma, propor o que a ideia implica ` +
+    `e construir, perguntando só o que o briefing não responde.`
+  )
+}
+
+/**
  * The creation briefing: skill drafts go to `bmad-workflow-builder`, agent
  * drafts to `bmad-agent-builder`. Both explicitly pin the install location
  * to `.claude/skills/<slug>/` — that's where Claude Code resolves skills
  * from, and where the studio's scanner (main/skillStudio.ts) rediscovers
  * the creation for the gallery, the shortcut catalog, and the slash menu.
+ *
+ * The closing line is `briefingIsTheIdea`, and the module header explains why
+ * a briefing that merely *contains* the idea was not enough.
  */
 export function buildCreationCommand(draft: SkillDraft): StudioCommand {
   const slug = slugify(draft.name) || 'nova-skill'
@@ -98,6 +152,8 @@ export function buildCreationCommand(draft: SkillDraft): StudioCommand {
     lines.push('', evalsInstruction(slug))
   }
 
+  lines.push('', briefingIsTheIdea(draft.kind === 'agent' ? 'que ele faz' : 'objetivo'))
+
   return {
     key: draft.kind === 'agent' ? 'bmad-agent-builder' : 'bmad-workflow-builder',
     prompt: lines.join('\n')
@@ -112,7 +168,14 @@ export function buildEvalRunCommand(skill: { relPath: string }): StudioCommand {
   }
 }
 
-/** Adds evals to an existing skill (it has none yet) via the workflow builder's Edit intent, without touching behavior. */
+/**
+ * Adds evals to an existing skill (it has none yet) via the workflow builder's
+ * Edit intent, without touching behavior.
+ *
+ * Same closing line as a creation, for the same reason: this invocation names
+ * the skill, the change and the format, so there is nothing left to open the
+ * floor for.
+ */
 export function buildEvalCreateCommand(skill: { key: string; relPath: string }): StudioCommand {
   return {
     key: 'bmad-workflow-builder',
@@ -121,7 +184,11 @@ export function buildEvalCreateCommand(skill: { key: string; relPath: string }):
       '',
       `Edite a skill existente em \`${skill.relPath}\`: apenas adicione evals, sem alterar o comportamento da skill.`,
       '',
-      evalsInstruction(skill.key)
+      evalsInstruction(skill.key),
+      '',
+      `Intenção: editar (Edit). Este briefing É o despejo de ideia da ativação — ` +
+        `**não abra a mesa ("Open the floor") e não pergunte no que focar**: a mudança ` +
+        `está acima. Leia só a parte da skill que ela toca e siga.`
     ].join('\n')
   }
 }

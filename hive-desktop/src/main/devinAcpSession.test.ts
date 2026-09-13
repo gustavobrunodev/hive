@@ -506,3 +506,168 @@ describe('DevinAcpSession — context compaction', () => {
     expect(text).toBe('resposta de verdade')
   })
 })
+
+/**
+ * Two conversations on one connection (the session-independence defect).
+ *
+ * `AgentService` pools this session object **per agent**, so both of a user's
+ * Devin conversations arrive here. The first version treated "already
+ * connected" as "nothing to do" and prompted every turn into whichever ACP
+ * session happened to be open — which is how a skill build launched from the
+ * Estúdio landed inside a running PRD discovery.
+ *
+ * The server below hands out a new id per `session/new` so the assertions can
+ * name *which* session each prompt went to, which is the only thing that
+ * distinguishes the fix from the bug.
+ */
+describe('DevinAcpSession — one connection, one session per conversation', () => {
+  interface Prompt {
+    sessionId: string
+    text: string
+  }
+
+  function multiSessionDevin(loadable: string[] = []): {
+    server: AcpTestServer
+    prompts: Prompt[]
+  } {
+    const prompts: Prompt[] = []
+    let minted = 0
+    const server = createAcpTestServer((method, params) => {
+      const record = (params ?? {}) as Record<string, unknown>
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: `sess-${++minted}` }
+      if (method === 'session/load') {
+        if (!loadable.includes(String(record.sessionId))) throw new Error('sessão desconhecida')
+        return {}
+      }
+      if (method === 'session/prompt') {
+        const prompt = (record.prompt ?? []) as { text?: string }[]
+        prompts.push({ sessionId: String(record.sessionId), text: prompt[0]?.text ?? '' })
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+    return { server, prompts }
+  }
+
+  it('gives a declared-fresh conversation its own session, on the same process', async () => {
+    const { server, prompts } = multiSessionDevin()
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    // Conversation A: two turns, the second resuming what the first opened.
+    session.send({ text: 'faça um PRD', turnId: 'a1', freshSession: true })
+    await drain(session.events)
+    session.send({ text: 'continue', turnId: 'a2', resume: 'sess-1' })
+    await drain(session.events)
+
+    // Conversation B: a build launched from the Estúdio — no resume handle,
+    // and the pane says so.
+    session.send({ text: '/bmad-agent-builder', turnId: 'b1', freshSession: true })
+    await drain(session.events)
+
+    expect(prompts).toEqual([
+      { sessionId: 'sess-1', text: 'faça um PRD' },
+      { sessionId: 'sess-1', text: 'continue' },
+      { sessionId: 'sess-2', text: '/bmad-agent-builder' }
+    ])
+    const methods = server.received.map((message) => message.method)
+    // Two sessions, but one connection: the whole point of this transport is
+    // that a conversation switch must not cost a cold start.
+    expect(methods.filter((method) => method === 'session/new')).toHaveLength(2)
+    expect(methods.filter((method) => method === 'initialize')).toHaveLength(1)
+  })
+
+  it('announces the new session id, so the second conversation can resume its own', async () => {
+    const { server } = multiSessionDevin()
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    session.send({ text: 'um', turnId: 'a1', freshSession: true })
+    await drain(session.events)
+    session.send({ text: 'dois', turnId: 'b1', freshSession: true })
+    const events = await drain(session.events)
+
+    expect(events).toContainEqual({ type: 'session', id: 'sess-2', turnId: 'b1' })
+  })
+
+  it('goes back to an earlier conversation by loading its id', async () => {
+    const { server, prompts } = multiSessionDevin(['sess-1'])
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    session.send({ text: 'A', turnId: 'a1', freshSession: true })
+    await drain(session.events)
+    session.send({ text: 'B', turnId: 'b1', freshSession: true })
+    await drain(session.events)
+    // Back to A, which is not the session the connection is holding.
+    session.send({ text: 'A de novo', turnId: 'a2', resume: 'sess-1' })
+    await drain(session.events)
+
+    expect(prompts.map((prompt) => prompt.sessionId)).toEqual(['sess-1', 'sess-2', 'sess-1'])
+    expect(server.received.filter((message) => message.method === 'session/load')).toHaveLength(1)
+  })
+
+  it('keeps the live session for a follow-up sent before the id came back', async () => {
+    // The ambiguity `freshSession` exists to resolve, from the other side: a
+    // second turn dispatched while the pane still has no handle must NOT be
+    // read as a new conversation, or a conversation loses its memory one turn
+    // in. Only the pane can tell the two apart, so absence of the flag means
+    // "carry on".
+    const { server, prompts } = multiSessionDevin()
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    session.send({ text: 'um', turnId: 't1', freshSession: true })
+    await drain(session.events)
+    session.send({ text: 'dois', turnId: 't2' })
+    await drain(session.events)
+
+    expect(prompts.map((prompt) => prompt.sessionId)).toEqual(['sess-1', 'sess-1'])
+    expect(server.received.filter((message) => message.method === 'session/new')).toHaveLength(1)
+  })
+
+  it('loads a stored id on the first turn after a restart', async () => {
+    const { server, prompts } = multiSessionDevin(['sess-de-ontem'])
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    session.send({ text: 'retomando', turnId: 't1', resume: 'sess-de-ontem' })
+    await drain(session.events)
+
+    expect(prompts).toEqual([{ sessionId: 'sess-de-ontem', text: 'retomando' }])
+    expect(server.received.filter((message) => message.method === 'session/new')).toHaveLength(0)
+  })
+
+  it('falls back to a fresh session — not the live one — when a load fails', async () => {
+    const { server, prompts } = multiSessionDevin([])
+    const session = createDevinAcpSession(server, { workspace: workspace() })
+
+    session.send({ text: 'A', turnId: 'a1', freshSession: true })
+    await drain(session.events)
+    // An id the agent no longer has. The old conversation cannot be restored,
+    // but answering *inside* the other conversation would be worse than a
+    // clean start.
+    session.send({ text: 'C', turnId: 'c1', resume: 'sess-que-morreu' })
+    await drain(session.events)
+
+    expect(prompts.map((prompt) => prompt.sessionId)).toEqual(['sess-1', 'sess-2'])
+  })
+
+  it('re-applies the model on a new session, since the setting is per session', async () => {
+    const { server } = multiSessionDevin()
+    const session = createDevinAcpSession(server, {
+      workspace: workspace(),
+      model: 'claude-sonnet-5'
+    })
+
+    session.send({ text: 'um', turnId: 'a1', freshSession: true, model: 'claude-sonnet-5' })
+    await drain(session.events)
+    session.send({ text: 'dois', turnId: 'b1', freshSession: true, model: 'claude-sonnet-5' })
+    await drain(session.events)
+
+    const configs = server.received.filter(
+      (message) => message.method === 'session/set_config_option'
+    )
+    expect(configs).toHaveLength(2)
+    expect(configs.map((message) => (message.params as { sessionId: string }).sessionId)).toEqual([
+      'sess-1',
+      'sess-2'
+    ])
+  })
+})

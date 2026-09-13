@@ -24,7 +24,7 @@ async (page) => {
     })
 
   const setTheme = async (theme) => {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page
       .getByRole('menuitemradio', { name: { dark: 'Escuro', light: 'Claro', hive: 'Hive' }[theme] })
       .click()

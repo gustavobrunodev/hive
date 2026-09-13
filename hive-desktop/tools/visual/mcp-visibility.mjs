@@ -252,7 +252,7 @@ async (page) => {
 
   /** Drives the app's own Aparência menu — never localStorage (see header). */
   const pickTheme = (item) => async () => {
-    await page.locator('.wb-icon-btn[aria-label^="Aparência"]').click()
+    await page.locator('.wb-icon-btn[aria-label^="Escolha do tema"]').click()
     await page.waitForTimeout(250)
     await page.getByRole('menuitemradio', { name: item }).click()
     await page.waitForTimeout(450)
