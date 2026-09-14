@@ -4,11 +4,15 @@ import { ListAllIcon, PlusIcon } from '../ui/icons'
 import { ConversationControls } from './ConversationControls'
 import { ConversationList } from './ConversationList'
 import {
+  INITIATIVE_ALL,
+  filterByInitiative,
   filterByWindow,
   sortConversations,
   type ActivityWindow,
   type ConversationSort
 } from './conversationFilters'
+import type { InitiativeFilterOption } from './ConversationControls'
+import type { InitiativeMarks } from '../initiatives/initiativeChrome'
 import type { ChatSessionsStore } from './useChatSessions'
 
 /**
@@ -41,6 +45,12 @@ export interface ChatSidebarProps {
   reviewPendingBySession?: Readonly<Record<string, number>>
   onOpenSession: (id: string) => void
   onOpenAll: () => void
+  /** initiatives: demands by folder path — resolves each row's badge. */
+  initiativeMarks?: InitiativeMarks
+  /** initiatives: the demands the filter can narrow to. Empty hides the control. */
+  initiativeOptions?: readonly InitiativeFilterOption[]
+  initiativeFilter?: string
+  onInitiativeFilterChange?: (path: string) => void
 }
 
 /**
@@ -62,12 +72,22 @@ export function ChatSidebar({
   runningSessionIds,
   reviewPendingBySession,
   onOpenSession,
-  onOpenAll
+  onOpenAll,
+  initiativeMarks,
+  initiativeOptions = [],
+  initiativeFilter = INITIATIVE_ALL,
+  onInitiativeFilterChange
 }: ChatSidebarProps): React.JSX.Element {
   const visible = useMemo(
     () =>
-      sortConversations(filterByWindow(store.sessions ?? [], activityWindow, store.loadedAt), sort),
-    [store.sessions, store.loadedAt, activityWindow, sort]
+      sortConversations(
+        filterByInitiative(
+          filterByWindow(store.sessions ?? [], activityWindow, store.loadedAt),
+          initiativeFilter
+        ),
+        sort
+      ),
+    [store.sessions, store.loadedAt, activityWindow, initiativeFilter, sort]
   )
   const loaded = store.sessions ?? []
   const shown = visible.slice(0, SIDEBAR_PREVIEW_LIMIT)
@@ -83,6 +103,9 @@ export function ChatSidebar({
           sort={sort}
           onWindowChange={onWindowChange}
           onSortChange={onSortChange}
+          initiatives={initiativeOptions}
+          initiativeFilter={initiativeFilter}
+          {...(onInitiativeFilterChange ? { onInitiativeFilterChange } : {})}
         />
       </div>
 
@@ -105,6 +128,7 @@ export function ChatSidebar({
           onRetry={store.reload}
           onClearWindow={() => onWindowChange('all')}
           skeletonRows={4}
+          {...(initiativeMarks ? { initiatives: initiativeMarks } : {})}
         />
       </div>
 

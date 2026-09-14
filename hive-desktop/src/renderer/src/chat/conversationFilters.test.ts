@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SORT,
   DEFAULT_WINDOW,
+  INITIATIVE_ALL,
+  INITIATIVE_NONE,
+  filterByInitiative,
   filterByWindow,
   groupTimestamp,
   groupsFor,
@@ -161,5 +164,39 @@ describe('conversationFilters — labels and guards', () => {
     expect(isConversationSort('name')).toBe(true)
     expect(isConversationSort('nome')).toBe(false)
     expect(isConversationSort(null)).toBe(false)
+  })
+})
+
+describe('filterByInitiative', () => {
+  const rows = [
+    meta({ id: 'a', initiativePath: 'docs/iniciativas/R1/testes' }),
+    meta({ id: 'b', initiativePath: 'docs/iniciativas/R2/portal' }),
+    meta({ id: 'c' }),
+    meta({ id: 'd', initiativePath: null })
+  ]
+
+  it('keeps everything by default, so a surface that never sets it is unchanged', () => {
+    expect(filterByInitiative(rows, INITIATIVE_ALL).map((row) => row.id)).toEqual([
+      'a',
+      'b',
+      'c',
+      'd'
+    ])
+  })
+
+  it('narrows to one demand', () => {
+    expect(filterByInitiative(rows, 'docs/iniciativas/R1/testes').map((row) => row.id)).toEqual([
+      'a'
+    ])
+  })
+
+  it('treats "no demand" as a real answer, not an absence', () => {
+    // Both shapes of "none" — the field missing entirely (a conversation from
+    // before the tag existed) and an explicit null.
+    expect(filterByInitiative(rows, INITIATIVE_NONE).map((row) => row.id)).toEqual(['c', 'd'])
+  })
+
+  it('never hands back the caller’s array, which is React state', () => {
+    expect(filterByInitiative(rows, INITIATIVE_ALL)).not.toBe(rows)
   })
 })

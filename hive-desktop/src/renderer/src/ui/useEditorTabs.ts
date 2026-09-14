@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { watchWorkspaceShared } from '../workspaceWatch'
 import type { FileViewerHandle } from '../explorer/Explorer'
 import type { GitDiffSide } from '../scm/gitStatus'
 import type { RestoredTab } from './workspaceSession'
@@ -112,7 +113,7 @@ export interface EditorTabsState {
  * Viewers stay mounted per tab (their drafts survive switching), so dirty
  * state and save handles are tracked per path here.
  */
-export function useEditorTabs(): EditorTabsState {
+export function useEditorTabs(workspace?: string): EditorTabsState {
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [activePath, setActivePath] = useState<string | null>(null)
   const [dirtyPaths, setDirtyPaths] = useState<ReadonlySet<string>>(new Set())
@@ -256,6 +257,46 @@ export function useEditorTabs(): EditorTabsState {
   )
 
   const removeTab = useCallback((path: string) => removeTabs([path]), [removeTabs])
+
+  /**
+   * A file that no longer exists closes its own tab.
+   *
+   * Reported by the workspace watcher rather than by the delete button,
+   * because the button is not the only way a file goes away: the same tab has
+   * to close when the agent deletes the file, when a `git checkout` drops it,
+   * when it is deleted from the "Contexto" tree of an open initiative, and
+   * when it is deleted from another window entirely. One rule at the layer
+   * that sees all of them.
+   *
+   * Unconditional — no unsaved-changes guard — and that is the point rather
+   * than an oversight: the guard's whole offer is "save it first", and there
+   * is nothing left on disk to save it to. Leaving the tab open instead means
+   * an editor pointed at nothing, whose next save would silently recreate a
+   * file the user just deleted.
+   *
+   * A directory's `unlink` covers everything under it: the prefix test closes
+   * the tabs of its children, which some platforms never report individually.
+   */
+  const removeTabsRef = useRef(removeTabs)
+  useEffect(() => {
+    removeTabsRef.current = removeTabs
+  })
+  const tabsRef = useRef(tabs)
+  useEffect(() => {
+    tabsRef.current = tabs
+  })
+  useEffect(() => {
+    if (workspace === undefined || workspace === '') return
+    return watchWorkspaceShared(workspace, (event) => {
+      if (event.type !== 'unlink') return
+      const prefix = `${event.path}/`
+      const gone = tabsRef.current
+        .filter((tab) => tab.kind === 'file')
+        .filter((tab) => tab.path === event.path || tab.path.startsWith(prefix))
+        .map((tab) => tab.path)
+      if (gone.length > 0) removeTabsRef.current(gone)
+    })
+  }, [workspace])
 
   /**
    * Closes `paths`, asking about the unsaved ones.

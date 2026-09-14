@@ -3,7 +3,8 @@ import { StageTracker, type StageTrackerGroup, type StageTrackerStage } from '@h
 import { t } from '../i18n'
 import { FileTree } from '../explorer/Explorer'
 import { IconButton } from '../ui/IconButton'
-import { PlayIcon, SyncIcon } from '../ui/icons'
+import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, PlayIcon, SyncIcon } from '../ui/icons'
+import { colorVar } from './initiativeChrome'
 import type { RoleAction } from '../ui/sidebarNav'
 import {
   PHASES,
@@ -44,6 +45,13 @@ export interface InitiativeContextProps {
   onOpenFile: (path: string) => void
   /** Runs one BMAD stage, in a conversation of its own beside this rail. */
   onRunStage: (action: RoleAction) => void
+  /** The panel has taken the whole pane — the transcript beside it is collapsed. */
+  expanded: boolean
+  onToggleExpanded: () => void
+  /** Opens this demand's settings (name, colour, release, delete). */
+  onEdit: () => void
+  /** Closes the initiative — back to a plain conversation. */
+  onClose: () => void
 }
 
 /** The eight stages' pt-BR names. A total map, so a new stage cannot ship nameless. */
@@ -114,7 +122,11 @@ export function InitiativeContext({
   initiative,
   selectedPath,
   onOpenFile,
-  onRunStage
+  onRunStage,
+  expanded,
+  onToggleExpanded,
+  onEdit,
+  onClose
 }: InitiativeContextProps): React.JSX.Element | null {
   // The "no demand open" case is answered here rather than by a `&&` at the
   // call site: that call site is `WorkUI`, which is at its `complexity`
@@ -162,20 +174,47 @@ export function InitiativeContext({
   if (initiative === null) return null
 
   return (
-    <aside className="wb-initctx" aria-label={t('initiatives.contextLabel')}>
-      {/* The demand's identity lives here, not over the transcript: this rail
-          *is* the initiative, and the pane header on the left already says
-          which one is open without spending a second strip of chrome on it. */}
-      <div className="wb-initctx-id">
-        <p className="wb-initctx-crumbs" aria-label={t('initiatives.breadcrumbLabel')}>
-          <span>{initiative.year}</span>
-          <span className="wb-initctx-crumb-sep" aria-hidden="true">
-            /
-          </span>
-          <span>{initiative.release}</span>
-        </p>
-        <h2 className="wb-initctx-name">{initiative.title}</h2>
-      </div>
+    <aside
+      className="wb-initctx"
+      aria-label={t('initiatives.contextLabel')}
+      data-expanded={expanded || undefined}
+      // The demand's hue, for the accent stripe this panel wears — the same
+      // colour its conversations carry in the history, so the two read as one
+      // thing without either having to name the other.
+      style={{ ['--init-hue' as string]: colorVar(initiative.color) }}
+    >
+      {/* The initiative's own bar. It used to be the *work pane's* header,
+          which spans the transcript too — so the strip holding the ✕ was on the
+          pane's background while the panel it belonged to was on `--bg-2`, and
+          the seam ran right through the control. Identity and controls now sit
+          on the panel they act on, which is also what gives the expand toggle
+          somewhere to live. */}
+      <header className="wb-initctx-id">
+        <div className="wb-initctx-id-text">
+          <p className="wb-initctx-crumbs" aria-label={t('initiatives.breadcrumbLabel')}>
+            <span>{initiative.year}</span>
+            <span className="wb-initctx-crumb-sep" aria-hidden="true">
+              /
+            </span>
+            <span>{initiative.release}</span>
+          </p>
+          <h2 className="wb-initctx-name">{initiative.title}</h2>
+        </div>
+        <div className="wb-initctx-id-actions">
+          <IconButton label={t('initiatives.settings')} onClick={onEdit}>
+            <GearIcon size={14} />
+          </IconButton>
+          <IconButton
+            label={expanded ? t('initiatives.collapsePanel') : t('initiatives.expandPanel')}
+            onClick={onToggleExpanded}
+          >
+            {expanded ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
+          </IconButton>
+          <IconButton label={t('initiatives.close')} onClick={onClose}>
+            <CloseIcon size={14} />
+          </IconButton>
+        </div>
+      </header>
 
       <section className="wb-initctx-flow">
         <header className="wb-initctx-head">

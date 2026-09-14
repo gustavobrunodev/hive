@@ -203,3 +203,41 @@
     ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'DejaVu Sans Mono',
     'Liberation Mono', var(--ff-emoji), monospace;
 }
+
+/**
+ * Initiative badge hues (initiatives).
+ *
+ * A badge names *which demand* a conversation belongs to, so the set has to be
+ * told apart at a glance — and it has to survive all three themes, which is why
+ * `iniciativa.json` stores a **name** (`violet`) and never a hex. The theme
+ * resolves the name; the stored file never has to know what the theme did.
+ *
+ * Each value is the badge's **ink**, and the pill tint is mixed down from it at
+ * the use site, so one token per hue per theme keeps the pair in step. The
+ * lightness ramps are split rather than shared because the same colour cannot
+ * clear 4.5:1 against both #151313 and white: the dark themes take the light
+ * end of each hue, the light theme the dark end. Chroma stays modest on
+ * purpose — six saturated pills in a conversation list would out-shout the
+ * accent, which is the one colour in this app that means "act on me".
+ */
+:root {
+  /* Measured, not guessed: the first ramp put violet/sky/rose at 4,49 · 4,30 ·
+     4,38 against their own tint on the light theme — a badge is 11px type and
+     owes 4,5:1. Four lightness points down clears it with margin on all six. */
+  --init-violet: oklch(42% 0.19 295);
+  --init-sky: oklch(40% 0.13 240);
+  --init-emerald: oklch(40% 0.11 160);
+  --init-amber: oklch(42% 0.11 70);
+  --init-rose: oklch(42% 0.17 15);
+  --init-slate: oklch(40% 0.02 260);
+}
+
+:root[data-theme='dark'],
+:root[data-theme='hive'] {
+  --init-violet: oklch(78% 0.13 295);
+  --init-sky: oklch(80% 0.1 240);
+  --init-emerald: oklch(80% 0.11 160);
+  --init-amber: oklch(82% 0.11 70);
+  --init-rose: oklch(78% 0.12 15);
+  --init-slate: oklch(76% 0.02 260);
+}

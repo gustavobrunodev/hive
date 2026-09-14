@@ -259,6 +259,27 @@ interface ChatProps {
   onOpenVoiceSettings?: () => void
   /** Display name for the empty-state hero greeting ("Olá <nome>, …"). */
   userName?: string | null
+  /**
+   * initiatives: the demand the user is working inside, as its
+   * workspace-relative folder — `null` for a plain conversation.
+   *
+   * Every conversation *started* while a demand is open belongs to it, and
+   * this is how it gets stamped: the tag is written once, when the
+   * conversation is created. It is a prop rather than something the chat
+   * derives because the chat has no idea what an initiative is; it only knows
+   * that a conversation is born with (or without) one.
+   */
+  initiativePath?: string | null
+  /**
+   * initiatives: the demand a conversation *restored from history* turns out
+   * to belong to — `null` when it belongs to none.
+   *
+   * The work UI answers it by opening that demand, or closing whatever was
+   * open. Reported on every conversation switch, including the ones the chat
+   * starts itself, so the rail can never be showing a demand the transcript
+   * beside it has nothing to do with.
+   */
+  onConversationInitiative?: (path: string | null) => void
   /** session-history: notifies the work UI which stored conversation is on screen (highlight in the history panel). */
   onSessionChange?: (id: string | null) => void
   /** background-turns: stored-conversation ids with a turn still running (the history panel's "Em andamento" indicator). */
@@ -516,6 +537,24 @@ interface TurnEventCtx {
 }
 
 /** Finds an in-flight turn by event `turnId`; events without one (older adapter, implicit turns) fall back positionally. */
+/**
+ * Tags a just-created conversation with the demand it was started inside.
+ *
+ * Module scope, and a no-op for `null`, because `Chat` is at the lint's
+ * `complexity` ceiling: the branch has to live somewhere that is not the
+ * component's own body. Failures are swallowed on purpose — the tag is a label
+ * on the conversation, and losing it must never cost the user the message they
+ * just sent.
+ */
+async function stampInitiative(
+  workspace: string,
+  id: string,
+  initiativePath: string | null
+): Promise<void> {
+  if (initiativePath === null) return
+  await window.hive.chatHistory.setInitiative(workspace, id, initiativePath).catch(() => null)
+}
+
 function findTurn(
   turns: ActiveTurn[],
   turnId: string | undefined,
@@ -628,9 +667,33 @@ function closeMetrics(
  * (session-history). It belongs to the event's turn — persist it into that
  * turn's stored conversation for future --resume, and adopt it as the live
  * resume handle only if that turn is on screen right now.
+ *
+ * ## Why this one event may never guess its turn
+ *
+ * Every other event here falls back to the newest (or oldest) in-flight turn
+ * when it cannot match a `turnId`, and that is right for them: a stray token
+ * or a terminal event lands one pane off, and the worst case is cosmetic.
+ * A session id is not a stream fragment — it is an **identity**, and the
+ * fallback wrote it into whichever conversation happened to be newest.
+ *
+ * Measured in a real `chat-history` (2026-09-13, workspace `58900cda…`): a
+ * conversation stored as `agent: 'claude-cli'` holding `brick-jackrabbit` and
+ * `fierce-tuck`, which are Devin session names, while a `devin` conversation
+ * held `8e25bd7a-…`, a Claude UUID. Both directions then resume with an id the
+ * agent has never seen: Claude re-runs without `--resume` (its briefing gone),
+ * Devin's ACP opens a brand-new session — which is the "I need more context!
+ * What are you saying yes to?" the user hit one turn into a skill build the
+ * Estúdio had fully briefed.
+ *
+ * Two turns are enough to produce it: a background turn whose `session` event
+ * arrives after its own turn was consumed by a terminal event, with another
+ * conversation's turn now newest. So this attributes **exactly or not at all** —
+ * an id that cannot name its turn is dropped, and the conversation simply keeps
+ * the handle it already had.
  */
 function adoptCliSession(ctx: TurnEventCtx, cliId: string, turnId: string | undefined): void {
-  const turn = findTurn(ctx.turns, turnId, 'newest')
+  const turn =
+    turnId === undefined ? undefined : ctx.turns.find((candidate) => candidate.id === turnId)
   if (!turn) return
   if (turn.visible) ctx.setCliSession(cliId)
   void turn.session
@@ -1034,6 +1097,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     onManageAgents = () => {},
     onOpenVoiceSettings = () => {},
     userName = null,
+    initiativePath,
+    onConversationInitiative,
     onSessionChange,
     onRunningSessionsChange,
     onCustomizeShortcuts,
@@ -1307,6 +1372,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   useEffect(() => {
     onMcpRosterRef.current = onMcpRoster
   })
+  // initiatives: the demand open *right now*, read at the moment a conversation
+  // is created. A ref and not a dependency: `persistUserMessage` is on the send
+  // path of every turn, and re-creating it whenever the rail opens or closes
+  // would churn `beginTurn` and everything built on it for a value only the
+  // very first message of a conversation ever reads.
+  // No default in the destructuring above, and the `??` lives in here: a
+  // default value in a component's parameter list counts against the lint's
+  // `complexity` budget, and this component is at its ceiling.
+  const initiativePathRef = useRef<string | null>(null)
+  useEffect(() => {
+    initiativePathRef.current = initiativePath ?? null
+  })
+  const onConversationInitiativeRef = useRef<((path: string | null) => void) | undefined>(undefined)
+  useEffect(() => {
+    onConversationInitiativeRef.current = onConversationInitiative
+  })
   // Latest conversations for the empty-state hero's "continue" list.
   const [recentSessions, setRecentSessions] = useState<ChatSessionMeta[]>([])
   // background-turns: which stored conversations have a turn still running —
@@ -1569,6 +1650,12 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             id = created.id
             sessionIdRef.current = id
             setSessionId(id)
+            // initiatives: a conversation born inside a demand belongs to it,
+            // and says so once — here, where the conversation first exists.
+            // Stamping it later (on every turn, say) would mean a conversation
+            // could change demands halfway through, which is not a thing a
+            // transcript can be.
+            await stampInitiative(workspace, id, initiativePathRef.current)
           }
           await window.hive.chatHistory.append(workspace, id, { role: 'user', text, attachments })
           return id
@@ -2260,6 +2347,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     // multi-agent: a fresh conversation reverts to the app default agent (the
     // switcher can then re-pick before the first message).
     setConversationAgent(null)
+    // initiatives: deliberately NOT reported. "Nova conversa" inside an open
+    // demand starts another conversation *in* that demand — it is how a stage
+    // is run — so the rail stays exactly where it is, and the new conversation
+    // will be stamped with it when its first message creates it.
   }, [detachTurns, queue, switchDraft])
 
   // skill-studio: launching a creation/generation opens a *fresh* conversation
@@ -2317,6 +2408,12 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       sessionIdRef.current = stored.id
       setSessionId(stored.id)
       sessionChainRef.current = Promise.resolve(stored.id)
+      // initiatives: this transcript brings its own demand — or brings none,
+      // which is just as much an instruction. Opening an unrelated
+      // conversation while a demand is on screen has to close that demand, or
+      // the rail would keep offering to run stages for a folder the
+      // conversation beside it never mentions.
+      onConversationInitiativeRef.current?.(stored.initiativePath ?? null)
       // Conversation memory: the next turn resumes this conversation's CLI
       // session, so the agent picks up right where this transcript left off.
       cliSessionRef.current = stored.cliSessionId ?? null

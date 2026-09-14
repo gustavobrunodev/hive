@@ -2211,8 +2211,6 @@ export const ptBR = {
     createFailed: 'Não foi possível criar a pasta da iniciativa.',
 
     // --- the work surface --------------------------------------------------
-    /** The work pane's title while an initiative is open. */
-    paneTitle: (title: string) => `Iniciativa · ${title}`,
     close: 'Fechar iniciativa',
     breadcrumbLabel: 'Localização da iniciativa',
     contextLabel: 'Contexto da demanda',
@@ -2259,7 +2257,49 @@ export const ptBR = {
     stageArchitecture: 'Arquitetura',
     stageTestDesign: 'Design de testes',
     stageEpics: 'Épicos e histórias',
-    stageStories: 'Criação de histórias'
+    stageStories: 'Criação de histórias',
+
+    // --- the rail's own bar ------------------------------------------------
+    // The initiative's chrome belongs to the initiative's panel. It used to
+    // live in the work pane's header, which spans the transcript as well —
+    // so the ✕ sat on one background and the panel it closed on another.
+    expandPanel: 'Expandir o painel da iniciativa',
+    collapsePanel: 'Restaurar o painel da iniciativa',
+    resizePanel: 'Redimensionar o painel da iniciativa',
+    settings: 'Editar iniciativa',
+
+    // --- the settings dialog -----------------------------------------------
+    editTitle: 'Editar iniciativa',
+    editDescription:
+      'O nome, a cor e a release desta demanda. A cor identifica as conversas ligadas a ela.',
+    colorLabel: 'Cor',
+    colorHint: 'Marca as conversas desta iniciativa no histórico.',
+    colorPickerAria: 'Cor da iniciativa',
+    colorViolet: 'Violeta',
+    colorSky: 'Azul',
+    colorEmerald: 'Verde',
+    colorAmber: 'Âmbar',
+    colorRose: 'Rosa',
+    colorSlate: 'Cinza',
+    saveCta: 'Salvar',
+    saveFailed: 'Não foi possível salvar as alterações.',
+    /** Moving a release moves the folder — said plainly, because it changes a path. */
+    moveNotice: (from: string, to: string) => `A pasta será movida de ${from} para ${to}.`,
+    deleteCta: 'Excluir iniciativa',
+    deleteTitle: 'Excluir esta iniciativa?',
+    deleteDescription: (title: string) =>
+      `A pasta de "${title}" e tudo dentro dela vão para a lixeira. As conversas ligadas a ela continuam no histórico, sem a marca.`,
+    deleteConfirmCta: 'Excluir',
+    deleteFailed: 'Não foi possível excluir a pasta da iniciativa.',
+
+    // --- the badge a linked conversation wears -----------------------------
+    /** On a conversation row in the history. The name alone — the row is narrow. */
+    conversationBadgeAria: (title: string) => `Iniciativa: ${title}`,
+    /** The history's "which initiative" filter. */
+    filterLabel: 'Iniciativa',
+    filterAll: 'Todas as iniciativas',
+    filterNone: 'Sem iniciativa',
+    filterAria: 'Filtrar conversas por iniciativa'
   },
   /**
    * nav-redesign — the avatar's menu, bottom-left of the sidebar.

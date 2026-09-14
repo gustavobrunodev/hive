@@ -425,6 +425,8 @@ const hive = {
       ipcRenderer.invoke('chatHistory:rename', workspace, id, title),
     setCliSession: (workspace: string, id: string, cliSessionId: string): Promise<void> =>
       ipcRenderer.invoke('chatHistory:setCliSession', workspace, id, cliSessionId),
+    setInitiative: (workspace: string, id: string, initiativePath: string | null): Promise<void> =>
+      ipcRenderer.invoke('chatHistory:setInitiative', workspace, id, initiativePath),
     setUsage: (workspace: string, id: string, usage: unknown): Promise<void> =>
       ipcRenderer.invoke('chatHistory:setUsage', workspace, id, usage),
     search: (workspace: string, query: string): Promise<ChatSessionMeta[]> =>

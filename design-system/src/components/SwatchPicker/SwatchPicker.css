@@ -1,0 +1,101 @@
+/* SwatchPicker — a radiogroup of colour chips. The hue arrives per chip as the
+   inline `--hds-swatch` custom property, so this file never names a colour. */
+
+.hds-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hds-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  /* The ring lives in the gap between the chip and its outline, so a selected
+     chip grows an outline rather than a border — a border would shrink the
+     colour it is meant to be reporting. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition:
+    outline-color 0.15s var(--ease-quart),
+    transform 0.15s var(--ease-quart);
+}
+
+.hds-swatches-sm .hds-swatch {
+  width: 22px;
+  height: 22px;
+}
+
+.hds-swatches-md .hds-swatch {
+  width: 28px;
+  height: 28px;
+}
+
+.hds-swatch-fill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--hds-swatch);
+  /* An inner hairline keeps a chip whose hue is close to the surface it sits on
+     from disappearing — the pale end of a light-theme ramp, most of all. */
+  box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 14%);
+}
+
+.hds-swatch:hover {
+  transform: scale(1.08);
+}
+
+.hds-swatch:focus-visible {
+  outline-color: var(--focus);
+}
+
+.hds-swatch[data-active] {
+  outline-color: var(--hds-swatch);
+}
+
+/* Both marks of selection: the ring above, and this tick. Hue alone would be
+   the one encoding a colour picker cannot use. */
+.hds-swatch-check {
+  width: 62%;
+  height: 62%;
+  fill: none;
+  /* The page background, not white. Each hue token is tuned to read AGAINST
+     the theme's background, so the background is the one colour guaranteed to
+     contrast with every chip: a dark tick on the dark themes' light chips, a
+     light one on the light theme's dark chips. A hardcoded white tick vanished
+     on every dark-theme chip. */
+  stroke: var(--bg);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.15s var(--ease-quart),
+    transform 0.15s var(--ease-quart);
+}
+
+.hds-swatch[data-active] .hds-swatch-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-swatch,
+  .hds-swatch-check {
+    transition: none;
+  }
+  .hds-swatch:hover {
+    transform: none;
+  }
+}

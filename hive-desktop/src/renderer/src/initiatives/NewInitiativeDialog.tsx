@@ -10,21 +10,11 @@ import {
   SegmentedControl
 } from '@hive/design-system'
 import { t } from '../i18n'
+// The same two closed sets the edit dialog offers, from one place: a release
+// list that drifted between "create" and "edit" would file demands into folders
+// the other form cannot reach.
+import { RELEASES, YEAR_SPAN } from './initiativeChrome'
 import { initiativePath, initiativeSlug } from './initiatives'
-
-/**
- * The releases a demand can be planted in.
- *
- * Four, because that is what the team ships in a year. They are offered as a
- * segmented control rather than a free text field for the same reason a month
- * is a picker: `R2` and `r2` and `R 2` would be three different folders on
- * disk, and the tree would show three different releases — a typo nobody sees
- * until the demand is missing from where they looked.
- */
-const RELEASES = ['R1', 'R2', 'R3', 'R4'] as const
-
-/** How many years back the picker offers. Enough for last year's tail end, not an archive. */
-const YEAR_SPAN = 2
 
 export interface NewInitiativeDialogProps {
   open: boolean

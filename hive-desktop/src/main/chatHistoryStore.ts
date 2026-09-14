@@ -96,6 +96,18 @@ export interface StoredChatSession {
    */
   cliSessionId?: string | null
   /**
+   * initiatives: the demand this conversation belongs to, as its
+   * workspace-relative folder (`docs/iniciativas/R1/testes`) — `null`/absent
+   * for an ordinary conversation.
+   *
+   * A **path**, not a copy of the initiative's name or colour, because the
+   * folder is the initiative: renaming a demand or recolouring it has to reach
+   * every conversation already tagged with it, and it does, because none of
+   * them stored the old answer. The cost is that a release move has to re-point
+   * the tag, which `setInitiative` is how the renderer does.
+   */
+  initiativePath?: string | null
+  /**
    * How full this conversation's context window was the last time a turn
    * reported it (session-usage), as the renderer's own `UsageSnapshot`.
    *
@@ -124,6 +136,8 @@ export interface ChatSessionMeta {
   agent: string | null
   /** One-line snippet of the last message, for row subtitles. */
   preview: string
+  /** initiatives: the demand folder this conversation belongs to, or `null`. Drives the row badge and the history filter. */
+  initiativePath?: string | null
   /** `search()` only: a snippet of the message text around the first match (null when the match was in the title). */
   match?: string | null
 }
@@ -155,6 +169,8 @@ export interface ChatHistoryStore {
   rename(workspace: string, id: string, title: string): ChatSessionMeta | null
   /** Records the CLI-native session id used for `--resume` (conversation memory). No `updatedAt` bump: it's plumbing, not user activity. */
   setCliSession(workspace: string, id: string, cliSessionId: string): void
+  /** initiatives: tags a conversation with the demand folder it belongs to (`null` clears it). */
+  setInitiative(workspace: string, id: string, initiativePath: string | null): void
   /**
    * Records the conversation's context-window reading (session-usage). Like
    * `setCliSession` it does **not** bump `updatedAt`: a measurement of a turn
@@ -253,7 +269,8 @@ function metaOf(session: StoredChatSession): ChatSessionMeta {
     // Turns, not rows: a compaction seam is not a message anybody sent.
     messageCount: session.messages.filter((message) => message.role !== 'compaction').length,
     agent: session.agent,
-    preview: previewOf(session.messages)
+    preview: previewOf(session.messages),
+    initiativePath: session.initiativePath ?? null
   }
 }
 
@@ -401,6 +418,20 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
     writeSession(workspace, session)
   }
 
+  /**
+   * Tags (or untags, with `null`) a conversation with the demand it belongs to.
+   *
+   * Idempotent and cheap on purpose: the renderer calls it on the first turn of
+   * an initiative-launched conversation, and again for every conversation that
+   * has to follow a release move.
+   */
+  function setInitiative(workspace: string, id: string, initiativePath: string | null): void {
+    const session = get(workspace, id)
+    if (!session) return
+    session.initiativePath = initiativePath
+    writeSession(workspace, session)
+  }
+
   function setUsage(workspace: string, id: string, usage: unknown): void {
     const session = get(workspace, id)
     if (!session) return
@@ -448,5 +479,16 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
     }
   }
 
-  return { list, get, create, appendMessage, rename, setCliSession, setUsage, search, remove }
+  return {
+    list,
+    get,
+    create,
+    appendMessage,
+    rename,
+    setCliSession,
+    setInitiative,
+    setUsage,
+    search,
+    remove
+  }
 }

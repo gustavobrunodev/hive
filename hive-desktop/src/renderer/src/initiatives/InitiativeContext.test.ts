@@ -32,6 +32,7 @@ function initiative(files: string[] = []): Initiative {
     title: 'Portal de Cobrança',
     release: 'R2',
     year: 2026,
+    color: 'violet',
     files
   }
 }
@@ -46,6 +47,10 @@ function rail(
       selectedPath: null,
       onOpenFile: vi.fn(),
       onRunStage: vi.fn(),
+      expanded: false,
+      onToggleExpanded: vi.fn(),
+      onEdit: vi.fn(),
+      onClose: vi.fn(),
       ...props
     })
   )

@@ -84,6 +84,32 @@ export function windowFloor(window: ActivityWindow, now: number): number | null 
   return startOfToday.getTime() - (WINDOW_DAYS[window] - 1) * DAY_MS
 }
 
+/**
+ * The two pseudo-values the initiative filter adds either side of the real
+ * demands: everything, and everything with no demand at all.
+ *
+ * `''` for "all" so the control's resting state is falsy and a surface that
+ * never sets it behaves exactly as it did before the filter existed. "None" is
+ * a real answer rather than an absence — "which of these did I start outside a
+ * demand?" is the question you ask right before filing them.
+ */
+export const INITIATIVE_ALL = ''
+export const INITIATIVE_NONE = '\u0000none'
+
+/**
+ * The conversations belonging to one demand (by folder path), to no demand at
+ * all, or — the default — all of them.
+ */
+export function filterByInitiative(
+  sessions: readonly ChatSessionMeta[],
+  initiativePath: string
+): ChatSessionMeta[] {
+  if (initiativePath === INITIATIVE_ALL) return [...sessions]
+  if (initiativePath === INITIATIVE_NONE)
+    return sessions.filter((meta) => (meta.initiativePath ?? null) === null)
+  return sessions.filter((meta) => meta.initiativePath === initiativePath)
+}
+
 /** The conversations whose last activity falls inside the window. */
 export function filterByWindow(
   sessions: readonly ChatSessionMeta[],

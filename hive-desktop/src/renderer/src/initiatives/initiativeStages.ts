@@ -183,6 +183,13 @@ export function stagesDone(states: readonly StageState[]): number {
  * its own default output location and the artifacts land outside the
  * initiative — where this app's tracker will never see them, and where the
  * user will not think to look.
+ *
+ * The reading clause is deliberately *on demand* rather than an instruction to
+ * read the folder up front. A stage that opens every artifact before it starts
+ * spends the context window on documents it may never need — the architecture
+ * run does not want the whole PRD in the prompt, it wants the two sections it
+ * is about to contradict. "Sob demanda quando necessário" leaves the choice
+ * with the skill, which is the only thing that knows what it is about to do.
  */
 export function stageAction(skill: string, title: string, folder: string): RoleAction {
   return {
@@ -192,7 +199,7 @@ export function stageAction(skill: string, title: string, folder: string): RoleA
       key: skill,
       prompt:
         `/${skill} Iniciativa "${title}". Trabalhe no contexto da pasta ${folder} — ` +
-        `leia os artefatos que já existem lá e grave a saída desta etapa dentro dela.`
+        `leia os artefatos que já existem lá sob demanda quando necessário.`
     }
   }
 }

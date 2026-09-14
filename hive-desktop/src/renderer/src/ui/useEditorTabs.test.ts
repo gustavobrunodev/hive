@@ -1,11 +1,35 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { useEditorTabs } from './useEditorTabs'
 
-afterEach(() => {
-  cleanup()
+/** The workspace watcher's listeners, so a test can make a file disappear. */
+let watchers: ((event: { type: string; path: string }) => void)[] = []
+
+beforeEach(() => {
+  watchers = []
+  window.hive = {
+    ...window.hive,
+    watchWorkspace: vi.fn((_root: string, onChange: (event: never) => void) => {
+      watchers.push(onChange as never)
+      return () => {}
+    })
+  } as unknown as typeof window.hive
 })
+
+afterEach(() => {
+  // `watchWorkspaceShared` keeps ONE bridge subscription per root at module
+  // scope: leaving a hook mounted means the next test's mock is never called.
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+/** Reports `path` as gone, the way the workspace watcher would. */
+function unlink(path: string): void {
+  act(() => {
+    for (const watcher of watchers) watcher({ type: 'unlink', path })
+  })
+}
 
 describe('useEditorTabs — diff tabs (git-management §6.5)', () => {
   it('opens a diff tab with a synthetic key, kind and git descriptor', () => {
@@ -236,5 +260,71 @@ describe('useEditorTabs — restoreTabs (workspace-session)', () => {
 
     expect(result.current.tabs.map((tab) => tab.path)).toEqual(['notes.md'])
     expect(result.current.activePath).toBe('notes.md')
+  })
+})
+
+/**
+ * A file that no longer exists closes its own tab.
+ *
+ * Reported by the workspace watcher, not by the delete button, because the
+ * button is not the only way a file goes away: the same tab has to close when
+ * the file is deleted from the Arquivos tree, from the "Contexto" section of an
+ * open initiative, by the agent, or by a `git checkout`.
+ */
+describe('useEditorTabs — a deleted file closes its editor', () => {
+  it('closes the tab of a file that was deleted', () => {
+    const { result } = renderHook(() => useEditorTabs('/ws'))
+    act(() => result.current.openFile('docs/prd.md', { pin: true }))
+    act(() => result.current.openFile('README.md', { pin: true }))
+
+    unlink('docs/prd.md')
+    expect(result.current.tabs.map((tab) => tab.path)).toEqual(['README.md'])
+  })
+
+  it('closes it even with unsaved changes, because there is nothing left to save it to', () => {
+    const { result } = renderHook(() => useEditorTabs('/ws'))
+    act(() => result.current.openFile('docs/prd.md', { pin: true }))
+    act(() => result.current.handleDirtyChange('docs/prd.md', true))
+
+    unlink('docs/prd.md')
+    // No guard dialog: its whole offer is "save it first", and the file is
+    // gone. A surviving tab's next save would recreate what was just deleted.
+    expect(result.current.tabs).toEqual([])
+    expect(result.current.pendingClose).toBeNull()
+    expect(result.current.dirtyPaths.has('docs/prd.md')).toBe(false)
+  })
+
+  it('takes the tabs of everything under a deleted folder', () => {
+    const { result } = renderHook(() => useEditorTabs('/ws'))
+    act(() => result.current.openFile('docs/iniciativas/R1/testes/prd.md', { pin: true }))
+    act(() => result.current.openFile('docs/iniciativas/R1/testes/ux.md', { pin: true }))
+    act(() => result.current.openFile('README.md', { pin: true }))
+
+    // Some platforms report the directory and never its children.
+    unlink('docs/iniciativas/R1/testes')
+    expect(result.current.tabs.map((tab) => tab.path)).toEqual(['README.md'])
+  })
+
+  it('does not mistake a sibling whose name merely starts the same', () => {
+    const { result } = renderHook(() => useEditorTabs('/ws'))
+    act(() => result.current.openFile('docs/prd.md', { pin: true }))
+    act(() => result.current.openFile('docs/prd.md.bak', { pin: true }))
+
+    unlink('docs/prd.md')
+    expect(result.current.tabs.map((tab) => tab.path)).toEqual(['docs/prd.md.bak'])
+  })
+
+  it('leaves the strip alone for an add or a change', () => {
+    const { result } = renderHook(() => useEditorTabs('/ws'))
+    act(() => result.current.openFile('docs/prd.md', { pin: true }))
+    act(() => {
+      for (const watcher of watchers) watcher({ type: 'change', path: 'docs/prd.md' })
+    })
+    expect(result.current.tabs).toHaveLength(1)
+  })
+
+  it('watches nothing without a workspace', () => {
+    renderHook(() => useEditorTabs())
+    expect(window.hive.watchWorkspace).not.toHaveBeenCalled()
   })
 })

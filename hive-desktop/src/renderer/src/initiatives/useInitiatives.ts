@@ -10,6 +10,7 @@ import {
   readInitiatives,
   readManifest,
   type Initiative,
+  type InitiativeColor,
   type InitiativeManifest,
   type TreeNodeLike,
   type YearGroup
@@ -25,6 +26,14 @@ export class InitiativeExistsError extends Error {
 
 export type InitiativesStatus = 'loading' | 'ready'
 
+/** What the edit form can change about an existing demand. Every field optional — the dialog sends only what moved. */
+export interface InitiativeEdit {
+  title?: string
+  year?: number
+  release?: string
+  color?: InitiativeColor
+}
+
 export interface InitiativesStore {
   status: InitiativesStatus
   /** Flat, for lookups by path. */
@@ -33,6 +42,14 @@ export interface InitiativesStore {
   years: YearGroup[]
   /** Creates the folder (and its manifest) and resolves with the new initiative's path. */
   create: (draft: { title: string; year: number; release: string }) => Promise<string>
+  /**
+   * Applies an edit and resolves with the initiative's path **afterwards** —
+   * which is a different path when the release changed, because the release is
+   * a folder. Callers re-point whatever was holding the old one.
+   */
+  update: (initiative: Initiative, edit: InitiativeEdit) => Promise<string>
+  /** Sends the whole folder to the OS trash. */
+  remove: (initiative: Initiative) => Promise<void>
   refresh: () => void
 }
 
@@ -139,7 +156,78 @@ export function useInitiatives(workspace: string): InitiativesStore {
     [workspace, refresh]
   )
 
+  /**
+   * Applies an edit to one initiative.
+   *
+   * The title, the year and the colour are **manifest** edits: the folder's
+   * name is left exactly as it is. Renaming the folder to match a new title
+   * would look tidier for about a second and then break every reference that
+   * points at it — the conversations tagged with this initiative, an open
+   * editor tab, the artifacts a BMAD run wrote paths into. The slug is an
+   * identity; the title is a label, and this changes the label.
+   *
+   * The **release** is the exception, because the release is not stored, it is
+   * the parent folder — so changing it is a move, and the new path is what this
+   * resolves with. The move happens before the manifest write so a failed move
+   * leaves the manifest describing where the folder actually is.
+   */
+  const update = useCallback(
+    async (initiative: Initiative, edit: InitiativeEdit): Promise<string> => {
+      const release = edit.release ?? initiative.release
+      const nextPath = initiativePath(release, initiative.slug)
+      if (nextPath !== initiative.path) {
+        if (await window.hive.fs.exists(workspace, nextPath))
+          throw new InitiativeExistsError(nextPath)
+        await window.hive.fs.createDirectory(workspace, `${INITIATIVES_ROOT}/${release}`)
+        await window.hive.fs.move(workspace, initiative.path, nextPath)
+      }
+      const manifest: InitiativeManifest = {
+        title: edit.title ?? initiative.title,
+        year: edit.year ?? initiative.year,
+        release,
+        // The one field that is not on `Initiative`: it is only ever read off
+        // the manifest, so it is re-read rather than invented here. A folder
+        // that never had a manifest gets today's date, which is the truth
+        // available — the app has no record of when somebody else made it.
+        createdAt: await readCreatedAt(workspace, nextPath),
+        color: edit.color ?? initiative.color
+      }
+      await window.hive.fs.saveFile(
+        workspace,
+        `${nextPath}/${MANIFEST_NAME}`,
+        `${JSON.stringify(manifest, null, 2)}\n`
+      )
+      refresh()
+      return nextPath
+    },
+    [workspace, refresh]
+  )
+
+  const remove = useCallback(
+    async (initiative: Initiative): Promise<void> => {
+      // The OS trash, not an unlink: an initiative folder holds every artifact
+      // a demand produced, and "recoverable" is the only acceptable meaning of
+      // delete for that. Same call the file tree's own delete makes.
+      await window.hive.fs.trash(workspace, initiative.path)
+      refresh()
+    },
+    [workspace, refresh]
+  )
+
   const years = useMemo(() => groupInitiatives(initiatives), [initiatives])
 
-  return { status, initiatives, years, create, refresh }
+  return { status, initiatives, years, create, update, remove, refresh }
+}
+
+/** The manifest's `createdAt` if there is one, else now — an edit must not invent a history. */
+async function readCreatedAt(workspace: string, folder: string): Promise<string> {
+  try {
+    const existing = readManifest(
+      await window.hive.readFile(workspace, `${folder}/${MANIFEST_NAME}`)
+    )
+    if (existing.createdAt !== undefined) return existing.createdAt
+  } catch {
+    // No manifest yet — this edit is the one creating it.
+  }
+  return new Date().toISOString()
 }

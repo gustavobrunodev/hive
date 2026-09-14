@@ -1097,17 +1097,29 @@ body ::-webkit-scrollbar-corner {
   padding: 0 var(--s-2) var(--s-4);
 }
 
-.wb-rail .hds-tree {
+/* These three follow the FILE TREE, not the sidebar it usually sits in.
+   `.wb-rail-scroll` is `FileTree`'s own scroller, so the same tree is styled
+   the same wherever it is mounted — the Arquivos tab, the Explorer rail, and
+   the "Contexto" section of an open initiative. Scoping them to `.wb-rail`
+   alone is what left the initiative's tree on the DS defaults: every file row
+   carried the leaf indent below (~28px of empty gutter the Arquivos tab does
+   not have) and a size larger than the tab it is supposed to mirror.
+   `.wb-rail` stays on each selector for the initiatives tree, which is in the
+   rail but is not a `FileTree`. */
+.wb-rail .hds-tree,
+.wb-rail-scroll .hds-tree {
   font-size: 0.8125rem;
 }
-.wb-rail .hds-tree-toggle {
+.wb-rail .hds-tree-toggle,
+.wb-rail-scroll .hds-tree-toggle {
   padding-top: 5px;
   padding-bottom: 5px;
 }
 /* Every row renders its own fixed caret slot (chevron for folders, empty
    spacer for files), so the DS's extra leaf indent must not double it —
    icons and names land in one aligned column, OS-file-manager style. */
-.wb-rail .hds-tree-toggle-leaf {
+.wb-rail .hds-tree-toggle-leaf,
+.wb-rail-scroll .hds-tree-toggle-leaf {
   padding-left: var(--s-2);
 }
 .wb-tree-caret {
@@ -6897,10 +6909,22 @@ button.wb-agent-pill-btn:focus-visible {
 .wb-history-row-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* Wraps, because the initiative badge shares this line and the sidebar row is
+     ~230px wide. Without it the badge was the element that gave way — measured
+     at "P…" and "Ant…", a pill whose whole job is to name a demand, reduced to
+     one letter. A badged row is one line taller; that is the right price. */
+  flex-wrap: wrap;
+  gap: 2px 6px;
   font-size: 0.71875rem;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* The badge never shrinks below legibility: it takes what it needs up to most
+   of the row, and the time/count pair is what moves to the next line. */
+.wb-history-row-meta .wb-init-badge {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 /* Sobre o tint de acento — a linha atual e, agora, a linha marcada — `--muted`
    cai para 4,16:1 no tema claro. Herdado: o par existe desde que a linha atual
@@ -20749,26 +20773,126 @@ button.wb-mcplog-summary:focus-visible {
   min-width: 0;
 }
 
-.wb-work-split > .wb-work-host {
+/* The conversation's column: its own header stacked over the transcript. The
+   header lives HERE, not above the split, so the initiative's panel runs the
+   full height of the pane and its own bar is the top-most thing in its column.
+   With the header spanning both, a strip of the pane's `--bg` sat directly
+   above a panel painted `--bg-2` — the mismatched bar the demand's ✕ used to
+   sit in. */
+.wb-work-split > .wb-work-col {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+}
+
+.wb-work-split > .wb-work-col > .wb-work-host {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The expanded panel takes the pane, so the conversation gives up its share.
+   Zero-width rather than `display: none`: the transcript stays laid out and
+   keeps its scroll position, so restoring the panel puts the reader back
+   exactly where they were instead of at the top. */
+.wb-work-split[data-expanded] > .wb-work-col {
+  flex: 0 0 0;
+  overflow: hidden;
 }
 
 /* Wide enough for a file name and a stage label, capped so the conversation
    never becomes the narrow half of its own pane. */
 .wb-initctx {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: none;
-  width: clamp(248px, 30%, 340px);
+  /* The drag handle writes `--wb-initctx-w` onto `.wb-work-split`; until it
+     does, the clamp is the resting width. One property means a drag never has
+     to become React state — see `InitiativeSash`. */
+  width: var(--wb-initctx-w, clamp(248px, 30%, 340px));
   min-height: 0;
   border-left: 1px solid var(--border);
   background: var(--bg-2);
 }
 
+/* A 5px hit area over a 1px line: the border between the two halves stays a
+   hairline, and the target stays something a hand can actually land on. */
+.wb-initctx-sash {
+  flex: none;
+  width: 5px;
+  margin-right: -5px;
+  z-index: 1;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 0.15s var(--ease-quart);
+}
+
+.wb-initctx-sash:hover,
+.wb-initctx-sash:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* Expanded: the panel takes the pane. The transcript beside it is collapsed by
+   its own resizable panel, so this only has to stop clamping its own width —
+   `flex: 1` with the clamp still in `width` would keep the old ceiling. */
+.wb-initctx[data-expanded] {
+  flex: 1;
+  width: auto;
+  max-width: none;
+}
+
+/* Expanded, the panel is ~1150px wide and its rows were a 1150px ribbon: a
+   stage label at the left margin and its re-run glyph a screen away at the
+   right. This repo has paid for that exact trap before — a rail's rules do not
+   survive the surface becoming a panel (a `width: 100%` primary button that
+   became a 728px band when the Bases rail turned into one). So the CONTENT
+   keeps a reading column and the extra width becomes margin, in one rule that
+   collapses back to ordinary padding at rail widths. */
+.wb-initctx[data-expanded] .wb-initctx-id,
+.wb-initctx[data-expanded] .wb-initctx-flow,
+.wb-initctx[data-expanded] .wb-initctx-files {
+  padding-inline: max(var(--s-3), calc((100% - 860px) / 2));
+}
+
+/* The demand's hue, as a hairline along the panel's leading edge. It is the
+   one place the colour appears at full strength — it is decoration here, not
+   information, so it stays a 2px rule rather than a tint that would fight the
+   artifact names for attention. */
+.wb-initctx::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 2px;
+  background: var(--init-hue, transparent);
+  pointer-events: none;
+}
+
 .wb-initctx-id {
-  padding: var(--s-3) var(--s-3) var(--s-2);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  min-height: var(--wb-pane-header-h);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-initctx-id-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The panel's controls sit on the panel, so bar and body are one surface. The
+   ✕ used to live in the work pane's header — a strip that also spans the
+   transcript, and therefore a different background from the thing it closed. */
+.wb-initctx-id-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -20865,7 +20989,103 @@ button.wb-mcplog-summary:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .wb-inits-chev,
-  .wb-initctx-redo {
+  .wb-initctx-redo,
+  .wb-initctx-sash {
     transition: none;
   }
+}
+
+/* --- initiatives: the badge a linked conversation wears ------------------
+   One rule for every badge; the hue arrives per instance as `--init-hue`
+   (ui: `initiativeChrome.tsx`). The pill is mixed DOWN from the same ink
+   token rather than being a second stored colour — one value per hue per
+   theme is what keeps the fill and the text in step when a theme re-tunes
+   its ramp, and it is why `iniciativa.json` stores a name and not a hex. */
+.wb-init-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--rounded-full);
+  background: color-mix(in oklab, var(--init-hue) 16%, transparent);
+  color: var(--init-hue);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.wb-init-badge[data-variant='row'] {
+  padding: 1px 7px 1px 5px;
+  font-size: 0.6875rem;
+}
+
+.wb-init-badge[data-variant='panel'] {
+  padding: 2px 9px 2px 7px;
+  font-size: 0.75rem;
+}
+
+.wb-init-badge-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+  background: var(--init-hue);
+}
+
+/* The name is what makes the badge readable; the hue only makes the set
+   scannable. So it truncates rather than wrapping a conversation row into two
+   lines, and never disappears. */
+.wb-init-badge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- initiatives: the edit dialog --------------------------------------- */
+
+.wb-initedit-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.wb-initedit-foot-spacer {
+  flex: 1;
+}
+
+/* Destructive, and deliberately the quiet end of the footer: it is the one
+   control here whose result cannot be undone by re-opening the dialog. */
+.wb-initedit-delete {
+  color: var(--danger-ink);
+}
+
+.wb-initedit-delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+/* Inline rather than a second Dialog — a modal over a modal hides the thing
+   being confirmed exactly when the reader wants to check it. */
+.wb-initedit-confirm {
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--rounded-md);
+  background: var(--danger-bg);
+}
+
+.wb-initedit-confirm-title {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.wb-initedit-confirm-body {
+  margin: 0 0 var(--s-3);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
 }

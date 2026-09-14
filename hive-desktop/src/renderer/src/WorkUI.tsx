@@ -56,6 +56,8 @@ import { HealthNudge } from './secondBrain/HealthNudge'
 import { SECOND_BRAIN_INGEST, SECOND_BRAIN_LINT } from './secondBrain/secondBrainPrompts'
 import { InitiativesPanel } from './initiatives/InitiativesPanel'
 import { InitiativeContext } from './initiatives/InitiativeContext'
+import { InitiativeSash } from './initiatives/InitiativeSash'
+import { InitiativeSettingsDialog } from './initiatives/InitiativeSettingsDialog'
 import { NewInitiativeDialog } from './initiatives/NewInitiativeDialog'
 import { useOpenInitiative } from './initiatives/useOpenInitiative'
 import type { Initiative } from './initiatives/initiatives'
@@ -289,30 +291,25 @@ function workCloseButton(
 }
 
 /**
- * The chat pane's header, which an open initiative renames and takes the ✕ of.
+ * The chat pane's header.
  *
- * A module-level function rather than three `? :` inside the component: every
- * branch written in `WorkUI`'s own body counts against a `complexity` ceiling
- * this file is already at, and the decision is the same one either way.
+ * An open initiative used to rename this strip after itself and take its ✕.
+ * That put the demand's only close control on the **pane's** background while
+ * the panel it closed sits on `--bg-2` — one strip, two surfaces, with the
+ * seam running straight through the button. The initiative now carries its own
+ * bar inside `InitiativeContext`, so this header is back to describing the one
+ * thing it spans: whatever is showing in place of the transcript.
+ *
+ * A module-level function rather than `? :` inside the component: every branch
+ * written in `WorkUI`'s own body counts against a `complexity` ceiling this
+ * file is already at.
  */
 function chatPaneHeader(
-  initiative: Initiative | null,
   workView: WorkView,
-  showWorkView: (view: WorkView) => void,
-  onCloseInitiative: () => void
+  showWorkView: (view: WorkView) => void
 ): { title: string; primaryActions: ReactNode } {
-  if (initiative === null) {
-    const title = workPaneTitle(workView)
-    return { title, primaryActions: workCloseButton(workView, title, showWorkView) }
-  }
-  return {
-    title: t('initiatives.paneTitle', initiative.title),
-    primaryActions: (
-      <IconButton label={t('initiatives.close')} onClick={onCloseInitiative}>
-        <CloseIcon size={14} />
-      </IconButton>
-    )
-  }
+  const title = workPaneTitle(workView)
+  return { title, primaryActions: workCloseButton(workView, title, showWorkView) }
 }
 
 /** Map of Resizable panel id -> flex-grow percentage (mirrors react-resizable-panels' `Layout` type). */
@@ -538,7 +535,10 @@ export function WorkUI({
   onUserNameChange = () => {}
 }: WorkUIProps): React.JSX.Element {
   // Multi-tab editor pane (VS Code preview/pin semantics live in the hook).
-  const editor = useEditorTabs()
+  // The workspace is handed over so the strip can close a tab whose file was
+  // deleted — by the explorer, by the initiative's Contexto tree, by the agent,
+  // or by anything else that touches the folder.
+  const editor = useEditorTabs(workspace)
   // git-management (M10): the single git store for this workspace, shared via
   // GitProvider to the rail's Source Control view, the status bar, the
   // explorer decorations and the editor gutter. Mounted once here (like
@@ -1833,6 +1833,10 @@ export function WorkUI({
                   reviewPendingBySession={reviewPendingBySession}
                   onOpenSession={handleOpenSession}
                   onOpenAll={() => setAllConvOpen(true)}
+                  initiativeMarks={initiative.marks}
+                  initiativeOptions={initiative.filterOptions}
+                  initiativeFilter={initiative.filter}
+                  onInitiativeFilterChange={initiative.setFilter}
                 />
               }
               explorer={
@@ -1869,13 +1873,7 @@ export function WorkUI({
       )
     },
     chat: () => {
-      /* An open initiative renames the pane after itself. The transcript is
-         still the transcript — it is the same `Chat`, holding the same live
-         session — but "Conversa" over a pane that is showing a demand's plan
-         and its artifacts would be naming a third of what is on screen. */
-      const header = chatPaneHeader(initiative.shown, workView, showWorkView, () =>
-        initiative.show(null)
-      )
+      const header = chatPaneHeader(workView, showWorkView)
       const title = header.title
       /* The two chat tools open HERE, in place of the transcript — not in the
          sidebar, where they used to evict the conversation history and then
@@ -1898,6 +1896,13 @@ export function WorkUI({
             onManageAgents={() => openProfile('agents')}
             onOpenVoiceSettings={() => openProfile('voice')}
             userName={userName}
+            // initiatives: a conversation started inside a demand belongs to it.
+            initiativePath={initiative.path}
+            // ...and a conversation opened out of the history brings its own —
+            // which may be none, and that closes whatever demand was open. The
+            // rail must never stand beside a transcript from another subject
+            // offering to run stages into a folder it never mentions.
+            onConversationInitiative={initiative.show}
             onSessionChange={handleSessionChange}
             onRunningSessionsChange={setRunningSessionIds}
             onCustomizeShortcuts={setShortcutsScope}
@@ -1948,42 +1953,72 @@ export function WorkUI({
                 kept only while something is *covering* the transcript — a chat
                 tool or an initiative — because then the title names what you
                 are looking at and the ✕ is the way back. See `soloPane`. */}
-            {(!soloPane || header.primaryActions !== null) && (
-              <PaneHeader
-                title={title}
-                dragProps={paneDragPropsFor('chat')}
-                /* `primaryActions`, not `actions`: the move menu is layout
-                   plumbing and is right to stay quiet until the pane is hovered,
-                   but the way out of a panel that is covering your conversation
-                   cannot be invisible until you go looking for it. */
-                primaryActions={header.primaryActions}
-                actions={paneMoveMenuFor('chat', title)}
-              />
-            )}
             {/* The initiative's rail sits BESIDE the transcript, sharing the
                 pane — not in place of it. Embedding the chat is the whole
                 point: the demand's plan is something you act on by talking to
                 the agent, and a surface that replaced the conversation would
                 have put the two a click apart. One `Chat` either way, so the
-                live session is never torn down by opening a demand. */}
-            <div className="wb-work-split">
-              <div className="wb-work-host">
-                {WORK_VIEWS.filter((view) => mountedWorkViews.includes(view)).map((view) => (
-                  <div
-                    key={view}
-                    className="wb-work-layer"
-                    data-view={view}
-                    data-active={view === workView || undefined}
-                  >
-                    {bodies[view]}
-                  </div>
-                ))}
+                live session is never torn down by opening a demand.
+
+                The split is the pane's WHOLE height, and the conversation's
+                header sits inside the left column rather than above both. It
+                used to span the panel's column too, which left a strip of the
+                pane's own background directly above a panel painted `--bg-2` —
+                the seam the demand's ✕ used to sit in the middle of. */}
+            <div
+              className="wb-work-split"
+              data-railed={initiative.shown !== null || undefined}
+              // The expanded flag lives on the SPLIT, not on the panel: the
+              // transcript is the panel's earlier sibling, so no selector
+              // rooted at the panel can reach back and collapse it — and
+              // leaving it at `flex: 1` meant "expanded" split the pane in
+              // half instead of taking it (measured: 340px → 576px of a
+              // 1120px pane).
+              data-expanded={(initiative.shown !== null && initiative.expanded) || undefined}
+            >
+              <div className="wb-work-col">
+                {(!soloPane || header.primaryActions !== null) && (
+                  <PaneHeader
+                    title={title}
+                    dragProps={paneDragPropsFor('chat')}
+                    /* `primaryActions`, not `actions`: the move menu is layout
+                       plumbing and is right to stay quiet until the pane is
+                       hovered, but the way out of a panel that is covering your
+                       conversation cannot be invisible until you go looking. */
+                    primaryActions={header.primaryActions}
+                    actions={paneMoveMenuFor('chat', title)}
+                  />
+                )}
+                <div className="wb-work-host">
+                  {WORK_VIEWS.filter((view) => mountedWorkViews.includes(view)).map((view) => (
+                    <div
+                      key={view}
+                      className="wb-work-layer"
+                      data-view={view}
+                      data-active={view === workView || undefined}
+                    >
+                      {bodies[view]}
+                    </div>
+                  ))}
+                </div>
               </div>
+              {/* The sash. Only while a demand is open — a handle between a
+                  pane and nothing is furniture. Plain CSS rather than another
+                  `Resizable` group: this split lives *inside* one of that
+                  group's panels, and nesting a second group re-normalises the
+                  outer layout every time the inner one's children change shape
+                  (the panel that had just been expanded snaps back). The rail's
+                  width is one custom property, so a drag is one number. */}
+              {initiative.shown !== null && !initiative.expanded && <InitiativeSash />}
               <InitiativeContext
                 workspace={workspace}
                 initiative={initiative.shown}
                 selectedPath={editor.activePath}
                 onOpenFile={editor.openFile}
+                expanded={initiative.expanded}
+                onToggleExpanded={initiative.toggleExpanded}
+                onEdit={() => initiative.setEditing(initiative.shown)}
+                onClose={() => initiative.show(null)}
                 // A stage is a whole BMAD workflow, not a follow-up: appending
                 // one to whatever is on screen made it inherit that
                 // conversation's context and its history, and the transcript of
@@ -2337,6 +2372,10 @@ export function WorkUI({
             onWindowChange={setConvWindow}
             onSortChange={setConvSort}
             onOpenSession={handleOpenSession}
+            initiativeMarks={initiative.marks}
+            initiativeOptions={initiative.filterOptions}
+            initiativeFilter={initiative.filter}
+            onInitiativeFilterChange={initiative.setFilter}
           />
           <UpdateCenter open={appSettingsOpen} onOpenChange={setAppSettingsOpen} />
           {/* One notification column, bottom-left, above the rail's gear. Both
@@ -2382,6 +2421,17 @@ export function WorkUI({
             // Creating one and then having to find it in the tree would be the
             // repair left half-done: the folder was made *in order to* work in it.
             onCreated={initiative.show}
+          />
+          <InitiativeSettingsDialog
+            initiative={initiative.editing}
+            onOpenChange={(next) => !next && initiative.setEditing(null)}
+            onSave={initiative.all.update}
+            // A release change moves the folder, so the demand that is open has
+            // to follow it — otherwise the panel would keep pointing at a path
+            // that no longer exists.
+            onSaved={initiative.show}
+            onDelete={initiative.all.remove}
+            onDeleted={() => initiative.show(null)}
           />
           <SkillStudio
             open={studioOpen}

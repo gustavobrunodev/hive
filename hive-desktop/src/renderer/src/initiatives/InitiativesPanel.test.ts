@@ -19,6 +19,7 @@ function initiative(overrides: Partial<Initiative> = {}): Initiative {
     title: 'Portal de Cobrança',
     release,
     year: 2026,
+    color: 'violet',
     files: [],
     ...overrides
   }
@@ -33,6 +34,8 @@ function store(
     initiatives,
     years: groupInitiatives(initiatives),
     create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
     refresh: vi.fn()
   }
 }

@@ -24,12 +24,45 @@ export const INITIATIVES_ROOT = 'docs/iniciativas'
 /** The optional per-initiative metadata file. */
 export const MANIFEST_NAME = 'iniciativa.json'
 
+/**
+ * The badge hues an initiative can wear.
+ *
+ * Named, never a raw hex: the badge shows up on three themes, and a colour the
+ * user picked against the dark one would be the colour that fails on the light
+ * one. A name is a *role* the theme resolves (`--init-<name>`), so picking
+ * "âmbar" stays legible everywhere and a theme can re-tune its own ramp without
+ * rewriting anybody's `iniciativa.json`.
+ */
+export const INITIATIVE_COLORS = ['violet', 'sky', 'emerald', 'amber', 'rose', 'slate'] as const
+
+export type InitiativeColor = (typeof INITIATIVE_COLORS)[number]
+
+export function isInitiativeColor(value: unknown): value is InitiativeColor {
+  return typeof value === 'string' && (INITIATIVE_COLORS as readonly string[]).includes(value)
+}
+
+/**
+ * The hue an initiative wears when nobody has picked one.
+ *
+ * Derived from the folder name rather than a single default, so a workspace
+ * that never opens the colour picker still gets a legible set of badges
+ * instead of a column of identical pills — which is the whole reason the badge
+ * is coloured. Stable across restarts because the slug is.
+ */
+export function defaultColorFor(slug: string): InitiativeColor {
+  let hash = 0
+  for (const char of slug) hash = (hash * 31 + char.charCodeAt(0)) % 100_000
+  return INITIATIVE_COLORS[hash % INITIATIVE_COLORS.length] as InitiativeColor
+}
+
 /** What `iniciativa.json` holds. Data keys, so they stay English like the rest of the app's stored shapes. */
 export interface InitiativeManifest {
   title: string
   year: number
   release: string
   createdAt: string
+  /** The badge hue. Optional: a folder made by hand still gets `defaultColorFor`. */
+  color?: InitiativeColor
 }
 
 export interface Initiative {
@@ -42,6 +75,8 @@ export interface Initiative {
   /** The release folder's name, verbatim — `R2`. */
   release: string
   year: number
+  /** The badge hue: the manifest's, else one derived from the slug. */
+  color: InitiativeColor
   /** Every file inside, as initiative-relative POSIX paths. What the stage model reads. */
   files: string[]
 }
@@ -126,6 +161,7 @@ export function readInitiatives(
         title: manifest?.title ?? titleFromSlug(folder.name),
         release: release.name,
         year: manifest?.year ?? currentYear,
+        color: manifest?.color ?? defaultColorFor(folder.name),
         files: filesUnder(folder)
       })
     }
@@ -207,6 +243,10 @@ export function readManifest(text: string): Partial<InitiativeManifest> {
     manifest.year = Math.trunc(raw.year)
   if (typeof raw.release === 'string' && raw.release !== '') manifest.release = raw.release
   if (typeof raw.createdAt === 'string') manifest.createdAt = raw.createdAt
+  // An unknown colour name is dropped, not repaired: the initiative then falls
+  // back to `defaultColorFor`, which is a legible hue, where keeping the
+  // unknown string would resolve to a `var()` nothing defines.
+  if (isInitiativeColor(raw.color)) manifest.color = raw.color
   return manifest
 }
 
@@ -215,7 +255,14 @@ export function buildManifest(
   title: string,
   year: number,
   release: string,
-  now: Date
+  now: Date,
+  color?: InitiativeColor
 ): InitiativeManifest {
-  return { title, year, release, createdAt: now.toISOString() }
+  return {
+    title,
+    year,
+    release,
+    createdAt: now.toISOString(),
+    color: color ?? defaultColorFor(initiativeSlug(title))
+  }
 }

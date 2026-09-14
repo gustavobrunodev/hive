@@ -6,11 +6,15 @@ import { ChatBubbleIcon, CloseIcon, SearchIcon } from '../ui/icons'
 import { ConversationControls } from './ConversationControls'
 import { ConversationList } from './ConversationList'
 import {
+  INITIATIVE_ALL,
+  filterByInitiative,
   filterByWindow,
   sortConversations,
   type ActivityWindow,
   type ConversationSort
 } from './conversationFilters'
+import type { InitiativeFilterOption } from './ConversationControls'
+import type { InitiativeMarks } from '../initiatives/initiativeChrome'
 import { resolveQuery, type ChatSessionsStore } from './useChatSessions'
 import type { RowMode } from './ConversationRow'
 
@@ -28,6 +32,12 @@ export interface AllConversationsDialogProps {
   onWindowChange: (window: ActivityWindow) => void
   onSortChange: (sort: ConversationSort) => void
   onOpenSession: (id: string) => void
+  /** initiatives: demands by folder path — resolves each row's badge. */
+  initiativeMarks?: InitiativeMarks
+  /** initiatives: the demands the filter can narrow to. Lifted like the window and the order, for the same reason. */
+  initiativeOptions?: readonly InitiativeFilterOption[]
+  initiativeFilter?: string
+  onInitiativeFilterChange?: (path: string) => void
 }
 
 /**
@@ -68,7 +78,11 @@ function AllConversations({
   sort,
   onWindowChange,
   onSortChange,
-  onOpenSession
+  onOpenSession,
+  initiativeMarks,
+  initiativeOptions = [],
+  initiativeFilter = INITIATIVE_ALL,
+  onInitiativeFilterChange
 }: AllConversationsDialogProps): React.JSX.Element {
   const { query, setQuery, reload } = store
   const [rowMode, setRowMode] = useState<RowMode | null>(null)
@@ -96,10 +110,16 @@ function AllConversations({
 
   const entries = useMemo(
     () =>
-      sortConversations(filterByWindow(resolveQuery(store), activityWindow, store.loadedAt), sort),
+      sortConversations(
+        filterByInitiative(
+          filterByWindow(resolveQuery(store), activityWindow, store.loadedAt),
+          initiativeFilter
+        ),
+        sort
+      ),
     // `store` is a fresh object every render of the hook, and it already
     // carries `query` — naming it again only misleads the next reader.
-    [store, activityWindow, sort]
+    [store, activityWindow, initiativeFilter, sort]
   )
 
   const handleOpen = (id: string): void => {
@@ -161,6 +181,9 @@ function AllConversations({
             sort={sort}
             onWindowChange={onWindowChange}
             onSortChange={onSortChange}
+            initiatives={initiativeOptions}
+            initiativeFilter={initiativeFilter}
+            {...(onInitiativeFilterChange ? { onInitiativeFilterChange } : {})}
           />
         </div>
 
@@ -186,6 +209,7 @@ function AllConversations({
             onRetry={store.reload}
             onClearWindow={() => onWindowChange('all')}
             skeletonRows={8}
+            {...(initiativeMarks ? { initiatives: initiativeMarks } : {})}
           />
         </div>
       </DialogContent>

@@ -4,6 +4,8 @@ import { Checkbox } from '@hive/design-system'
 import { relativeTimeLabel, t } from '../i18n'
 import { IconButton } from '../ui/IconButton'
 import { CheckIcon, CloseIcon, PencilIcon, TrashIcon } from '../ui/icons'
+import { InitiativeBadge } from '../initiatives/InitiativeBadge'
+import type { InitiativeMark } from '../initiatives/initiativeChrome'
 import { sessionTitle, type ChatSessionMeta } from './sessionMeta'
 
 /** Per-row transient UI state: which row is being renamed / has its delete armed. */
@@ -41,6 +43,15 @@ export interface ConversationRowProps {
   selectionMode?: boolean
   /** Ticks or unticks this row. `range` is a Shift-click — extend from the last row touched. */
   onToggleSelect?: (id: string, opts: { range: boolean }) => void
+  /**
+   * initiatives: the demand this conversation belongs to, already resolved.
+   *
+   * Resolved by the list rather than looked up here, because the row is
+   * rendered once per conversation and the answer comes from one map: a row
+   * that did its own lookup would need the whole initiatives store threaded
+   * into it to show a name and a colour.
+   */
+  initiative?: InitiativeMark
 }
 
 /**
@@ -66,7 +77,8 @@ export function ConversationRow({
   onDelete,
   selected = false,
   selectionMode = false,
-  onToggleSelect
+  onToggleSelect,
+  initiative
 }: ConversationRowProps): React.JSX.Element {
   const title = sessionTitle(meta)
   const [draft, setDraft] = useState(title)
@@ -181,6 +193,13 @@ export function ConversationRow({
           {active && <span className="wb-history-current">{t('chatHistory.currentBadge')}</span>}
         </span>
         <span className="wb-history-row-meta">
+          {/* initiatives: which demand this conversation belongs to. In the
+              meta line, not beside the title — the title is the thing being
+              scanned for, and a pill in front of it would push every name to a
+              different starting column. */}
+          {initiative !== undefined && (
+            <InitiativeBadge title={initiative.title} color={initiative.color} />
+          )}
           {/* Agent Change Review: this conversation is holding files nobody has
               decided on yet. It rides alongside the other faces instead of
               replacing them — the review card is scoped to its own transcript

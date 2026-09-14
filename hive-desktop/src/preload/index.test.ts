@@ -379,6 +379,7 @@ describe('preload: window.hive bridge', () => {
           append: (ws: string, id: string, message: unknown) => Promise<unknown>
           rename: (ws: string, id: string, title: string) => Promise<unknown>
           setCliSession: (ws: string, id: string, cliSessionId: string) => Promise<void>
+          setInitiative: (ws: string, id: string, path: string | null) => Promise<void>
           search: (ws: string, query: string) => Promise<unknown>
           delete: (ws: string, id: string) => Promise<void>
         }
@@ -407,6 +408,22 @@ describe('preload: window.hive bridge', () => {
       '/ws',
       'id-1',
       'cli-sess-1'
+    )
+    // initiatives: which demand a conversation belongs to. `null` is a real
+    // value here (it untags), so it has to cross the bridge as one.
+    await chatHistory.setInitiative('/ws', 'id-1', 'docs/iniciativas/R1/testes')
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'chatHistory:setInitiative',
+      '/ws',
+      'id-1',
+      'docs/iniciativas/R1/testes'
+    )
+    await chatHistory.setInitiative('/ws', 'id-1', null)
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'chatHistory:setInitiative',
+      '/ws',
+      'id-1',
+      null
     )
     await chatHistory.search('/ws', 'cascata')
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:search', '/ws', 'cascata')

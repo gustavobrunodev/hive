@@ -339,6 +339,34 @@ vi.mock('@hive/design-system', () => ({
         )
       )
     ),
+  // initiatives: the demand's colour picker. Same shape as the real one — a
+  // radiogroup whose radios are NAMED, because a colour with no name is a
+  // control nobody can query and nobody can hear.
+  SwatchPicker: ({
+    swatches,
+    value,
+    onChange,
+    ariaLabel
+  }: {
+    swatches: { id: string; label: string; color: string }[]
+    value: string
+    onChange: (id: string) => void
+    ariaLabel: string
+  }) =>
+    createElement(
+      'div',
+      { role: 'radiogroup', 'aria-label': ariaLabel },
+      ...swatches.map((swatch) =>
+        createElement('button', {
+          key: swatch.id,
+          type: 'button',
+          role: 'radio',
+          'aria-label': swatch.label,
+          'aria-checked': swatch.id === value,
+          onClick: () => onChange(swatch.id)
+        })
+      )
+    ),
   // session-history: the chat pane header mounts the real `SessionHistory`,
   // which rides DS Popover — same context-bridge pattern as DropdownMenu
   // above. Content renders only while the component holds `open`, matching
@@ -3936,12 +3964,37 @@ describe('WorkUI — iniciativas', () => {
     expect(section?.compareDocumentPosition(history as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
-  it('renames the work pane after the demand and brings its rail in beside the chat', async () => {
+  it('brings the demand’s panel in beside the chat, naming it inside the panel', async () => {
     await openDemand()
-    expect(screen.getByText('Iniciativa · Portal De Cobranca')).toBeTruthy()
-    expect(document.querySelector('.wb-initctx')).toBeTruthy()
-    // The transcript is still there — the rail sits beside it, not over it.
+    const rail = document.querySelector('.wb-initctx')
+    expect(rail).toBeTruthy()
+    // The demand names itself INSIDE its own panel. It used to rename the work
+    // pane's header instead — a strip that also spans the transcript, which put
+    // the demand's ✕ on one background and the panel it closes on another.
+    expect(rail?.querySelector('.wb-initctx-name')?.textContent).toBe('Portal De Cobranca')
+    // The transcript is still there — the panel sits beside it, not over it.
     expect(screen.getByTestId('chat')).toBeTruthy()
+  })
+
+  it('keeps the demand’s own controls on the demand’s own panel', async () => {
+    await openDemand()
+    const actions = document.querySelector('.wb-initctx-id-actions')
+    expect(actions).toBeTruthy()
+    for (const name of [
+      'Editar iniciativa',
+      'Expandir o painel da iniciativa',
+      'Fechar iniciativa'
+    ])
+      expect(actions?.contains(screen.getByRole('button', { name }))).toBe(true)
+  })
+
+  it('expands the panel over the transcript, and back', async () => {
+    await openDemand()
+    expect(document.querySelector('.wb-initctx')?.hasAttribute('data-expanded')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir o painel da iniciativa' }))
+    expect(document.querySelector('.wb-initctx')?.hasAttribute('data-expanded')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar o painel da iniciativa' }))
+    expect(document.querySelector('.wb-initctx')?.hasAttribute('data-expanded')).toBe(false)
   })
 
   it('remembers the demand across a restart, by folder', async () => {
@@ -3950,7 +4003,8 @@ describe('WorkUI — iniciativas', () => {
 
     cleanup()
     renderWork()
-    expect(await screen.findByText('Iniciativa · Portal De Cobranca')).toBeTruthy()
+    const rail = await screen.findByLabelText('Contexto da demanda')
+    expect(rail.querySelector('.wb-initctx-name')?.textContent).toBe('Portal De Cobranca')
   })
 
   it('closes back to a plain conversation', async () => {
@@ -4002,5 +4056,64 @@ describe('WorkUI — iniciativas', () => {
 
     await waitFor(() => expect(window.hive.fs.createDirectory).toHaveBeenCalledWith(WS, created))
     await waitFor(() => expect(storedSession().initiativePath).toBe(created))
+  })
+
+  /**
+   * The demand's settings, reached from its own panel — the three arrows the
+   * panel hands the dialog (`onEdit`, `onSaved`, `onDeleted`) only exist at
+   * this seam, and each of them is a decision the dialog cannot make alone:
+   * where the demand went, and what happens to the one on screen.
+   */
+  it('edits the demand from its own panel, writing the manifest in place', async () => {
+    window.hive = {
+      ...window.hive,
+      fs: {
+        ...window.hive.fs,
+        exists: vi.fn(async () => false),
+        createDirectory: vi.fn(async () => undefined),
+        move: vi.fn(async () => undefined),
+        saveFile: vi.fn(async () => ({ mtimeMs: 1, size: 1 }))
+      },
+      readFile: vi.fn(async () => '{}')
+    } as unknown as Window['hive']
+    await openDemand()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar iniciativa' }))
+    fireEvent.change(await screen.findByLabelText('Nome da demanda'), {
+      target: { value: 'Portal renomeado' }
+    })
+    fireEvent.click(screen.getByRole('radio', { name: 'Âmbar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() =>
+      expect(window.hive.fs.saveFile).toHaveBeenCalledWith(
+        WS,
+        `${DEMAND}/iniciativa.json`,
+        expect.stringContaining('"title": "Portal renomeado"')
+      )
+    )
+    // The slug is an identity — conversations and editor tabs point at it — so
+    // a rename is a manifest edit and never a folder move.
+    expect(window.hive.fs.move).not.toHaveBeenCalled()
+    expect(JSON.parse(vi.mocked(window.hive.fs.saveFile).mock.calls[0][2] as string)).toMatchObject(
+      { color: 'amber' }
+    )
+  })
+
+  it('closes the demand it just deleted, instead of leaving its panel pointing at nothing', async () => {
+    window.hive = {
+      ...window.hive,
+      fs: { ...window.hive.fs, trash: vi.fn(async () => undefined) }
+    } as unknown as Window['hive']
+    await openDemand()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar iniciativa' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Excluir iniciativa' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }))
+
+    await waitFor(() => expect(window.hive.fs.trash).toHaveBeenCalledWith(WS, DEMAND))
+    await waitFor(() => expect(document.querySelector('.wb-initctx')).toBeNull())
+    // …and the workspace does not reopen on a folder that is in the trash.
+    await waitFor(() => expect(storedSession().initiativePath).toBeNull())
   })
 })

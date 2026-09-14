@@ -181,6 +181,8 @@ declare global {
         ): Promise<ChatSessionMeta | null>
         rename(workspace: string, id: string, title: string): Promise<ChatSessionMeta | null>
         setCliSession(workspace: string, id: string, cliSessionId: string): Promise<void>
+        /** initiatives: tags a conversation with the demand folder it belongs to (`null` clears it). */
+        setInitiative(workspace: string, id: string, initiativePath: string | null): Promise<void>
         /** session-usage: the conversation's context-window reading, as `chat/usageLedger.ts`'s `UsageSnapshot`. */
         setUsage(workspace: string, id: string, usage: unknown): Promise<void>
         search(workspace: string, query: string): Promise<ChatSessionMeta[]>

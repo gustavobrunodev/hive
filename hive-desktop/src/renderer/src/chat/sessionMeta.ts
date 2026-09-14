@@ -16,6 +16,8 @@ export interface ChatSessionMeta {
   messageCount: number
   agent: string | null
   preview: string
+  /** initiatives: the demand folder this conversation belongs to, or `null`. */
+  initiativePath?: string | null
   /** Full-text `search()` results only: snippet around the first message-text match (null = the title matched). */
   match?: string | null
 }

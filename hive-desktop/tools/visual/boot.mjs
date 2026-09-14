@@ -532,8 +532,12 @@ async (page) => {
       const selection = prefs ?? ROLE_DEFAULTS[scope]
       return [...pick(selection.skills, 'workflow'), ...pick(selection.agents, 'persona')]
     }
-    window.__fsChange = (path) => {
-      for (const cb of state.watchers) cb({ type: 'add', path: path || 'second-brain/wiki/index.md' })
+    // `type` defaults to `add` (every caller before 2026-09-13 wanted one), but
+    // it has to be sayable: a deletion is the event the editor strip closes a
+    // tab on, and a harness that can only report additions cannot drive that
+    // path at all.
+    window.__fsChange = (path, type = 'add') => {
+      for (const cb of state.watchers) cb({ type, path: path || 'second-brain/wiki/index.md' })
     }
     window.__setVault = (v) => {
       state.vault = v
@@ -1408,7 +1412,11 @@ async (page) => {
               createdAt: s.updatedAt,
               messageCount: s.messages.length,
               agent: s.agent ?? null,
-              preview: s.messages[s.messages.length - 1]?.text ?? ''
+              preview: s.messages[s.messages.length - 1]?.text ?? '',
+              // initiatives: which demand the conversation belongs to. The
+              // badge and the history filter both read it off the meta, so a
+              // fixture that drops it makes both look unimplemented.
+              initiativePath: s.initiativePath ?? null
             }))
           ),
         get: (_ws, id) => Promise.resolve(allSessions().find((s) => s.id === id) || null),
@@ -1440,6 +1448,11 @@ async (page) => {
           )
         },
         setCliSession: ok(undefined),
+        setInitiative: (_ws, id, initiativePath) => {
+          const s = allSessions().find((x) => x.id === id)
+          if (s) s.initiativePath = initiativePath
+          return Promise.resolve(undefined)
+        },
         // session-usage: the context reading is stored WITH the conversation
         // now, and `get` has to hand it back — a mock that swallows it makes a
         // restored meter look broken when it is the harness that forgot.

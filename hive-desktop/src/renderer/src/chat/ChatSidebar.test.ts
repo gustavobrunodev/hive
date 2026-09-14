@@ -180,6 +180,8 @@ interface HarnessProps {
   onNewConversation?: () => void
   initialWindow?: ActivityWindow
   initialSort?: ConversationSort
+  initiativeMarks?: Record<string, { title: string; color: 'violet' | 'sky' | 'amber' }>
+  initiativeOptions?: { path: string; title: string }[]
 }
 
 /** Mounts the hook + the sidebar the way `WorkUI` does (lens lifted above both). */
@@ -188,6 +190,7 @@ function Harness(props: HarnessProps): React.JSX.Element {
     props.initialWindow ?? DEFAULT_WINDOW
   )
   const [sort, setSort] = useState<ConversationSort>(props.initialSort ?? DEFAULT_SORT)
+  const [initiativeFilter, setInitiativeFilter] = useState('')
   const store = useChatSessions({
     workspace: '/ws',
     activeSessionId: props.activeSessionId ?? null,
@@ -203,7 +206,11 @@ function Harness(props: HarnessProps): React.JSX.Element {
     runningSessionIds: props.runningSessionIds ?? [],
     reviewPendingBySession: props.reviewPendingBySession ?? {},
     onOpenSession: props.onOpenSession ?? vi.fn(),
-    onOpenAll: props.onOpenAll ?? vi.fn()
+    onOpenAll: props.onOpenAll ?? vi.fn(),
+    initiativeMarks: props.initiativeMarks ?? {},
+    initiativeOptions: props.initiativeOptions ?? [],
+    initiativeFilter,
+    onInitiativeFilterChange: setInitiativeFilter
   })
 }
 
@@ -1067,5 +1074,82 @@ describe('AllConversationsDialog — the archive', () => {
     expect(
       sidebar.getByRole('button', { name: 'Filtrar por última atividade: Todos' })
     ).toBeTruthy()
+  })
+})
+
+/**
+ * initiatives: a conversation started inside a demand carries that demand into
+ * the history — as a badge that names it, and as something the list can be
+ * narrowed to.
+ */
+describe('ChatSidebar — conversations that belong to a demand', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  const TESTES = 'docs/iniciativas/R1/testes'
+  const PORTAL = 'docs/iniciativas/R2/portal'
+  const MARKS = {
+    [TESTES]: { title: 'Testes', color: 'violet' as const },
+    [PORTAL]: { title: 'Portal', color: 'sky' as const }
+  }
+  const OPTIONS = [
+    { path: TESTES, title: 'R1 · Testes' },
+    { path: PORTAL, title: 'R2 · Portal' }
+  ]
+  const ROWS = [
+    meta({
+      id: '00000000-0000-4000-8000-00000000000a',
+      title: 'PRD dos testes',
+      initiativePath: TESTES
+    }),
+    meta({
+      id: '00000000-0000-4000-8000-00000000000b',
+      title: 'Arquitetura do portal',
+      initiativePath: PORTAL
+    }),
+    meta({ id: '00000000-0000-4000-8000-00000000000c', title: 'Conversa solta' })
+  ]
+
+  it('badges a row with the demand’s name, in the demand’s colour', async () => {
+    renderSidebar(ROWS, { initiativeMarks: MARKS, initiativeOptions: OPTIONS })
+    await screen.findByText('PRD dos testes')
+    const badge = document.querySelector('.wb-init-badge')
+    // The NAME is in the pill. Colour makes the set scannable; it is never what
+    // makes it readable.
+    expect(badge?.textContent).toBe('Testes')
+    expect(badge?.getAttribute('style')).toContain('--init-hue: var(--init-violet)')
+  })
+
+  it('leaves a conversation that belongs to no demand unbadged', async () => {
+    renderSidebar(ROWS, { initiativeMarks: MARKS, initiativeOptions: OPTIONS })
+    await screen.findByText('Conversa solta')
+    expect(document.querySelectorAll('.wb-init-badge')).toHaveLength(2)
+  })
+
+  it('narrows the list to one demand', async () => {
+    renderSidebar(ROWS, { initiativeMarks: MARKS, initiativeOptions: OPTIONS })
+    await screen.findByText('PRD dos testes')
+    pick(/Filtrar conversas por iniciativa/, 'R1 · Testes')
+    expect(screen.getByText('PRD dos testes')).toBeTruthy()
+    expect(screen.queryByText('Arquitetura do portal')).toBeNull()
+    expect(screen.queryByText('Conversa solta')).toBeNull()
+  })
+
+  it('can ask for the ones that belong to no demand at all', async () => {
+    renderSidebar(ROWS, { initiativeMarks: MARKS, initiativeOptions: OPTIONS })
+    await screen.findByText('PRD dos testes')
+    pick(/Filtrar conversas por iniciativa/, 'Sem iniciativa')
+    expect(screen.getByText('Conversa solta')).toBeTruthy()
+    expect(screen.queryByText('PRD dos testes')).toBeNull()
+  })
+
+  it('offers no filter at all in a workspace with no demands', async () => {
+    renderSidebar(ROWS)
+    await screen.findByText('Conversa solta')
+    // A control whose every option is "todas" teaches a feature this workspace
+    // is not using, in the narrowest column of the app.
+    expect(screen.queryByRole('button', { name: /Filtrar conversas por iniciativa/ })).toBeNull()
   })
 })

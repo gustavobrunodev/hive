@@ -159,6 +159,8 @@ export { Empty } from "./components/Empty/Empty";
 export { Kbd } from "./components/Kbd/Kbd";
 export { Resizable, ResizablePanel, ResizableHandle } from "./components/Resizable/Resizable";
 export { SegmentedControl } from "./components/SegmentedControl/SegmentedControl";
+export { SwatchPicker } from "./components/SwatchPicker/SwatchPicker";
+export type { Swatch, SwatchPickerProps } from "./components/SwatchPicker/SwatchPicker";
 export { SelectionBar } from "./components/SelectionBar/SelectionBar";
 export type { SelectionBarProps } from "./components/SelectionBar/SelectionBar";
 export type {

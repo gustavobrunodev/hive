@@ -614,6 +614,10 @@ describe('Chat', () => {
     postTokens?: number
     durationMs?: number
     summary?: string
+    // background-turns: every event names the turn it belongs to. A `session`
+    // event that cannot is DROPPED rather than attributed to the newest turn —
+    // see `adoptCliSession` — so the tests have to carry it.
+    turnId?: string
     // agent-approvals `approval` fields.
     requestId?: string
     tool?: string
@@ -718,6 +722,7 @@ describe('Chat', () => {
       append: ReturnType<typeof vi.fn>
       rename: ReturnType<typeof vi.fn>
       setCliSession: ReturnType<typeof vi.fn>
+      setInitiative: ReturnType<typeof vi.fn>
       setUsage: ReturnType<typeof vi.fn>
       search: ReturnType<typeof vi.fn>
       delete: ReturnType<typeof vi.fn>
@@ -737,6 +742,7 @@ describe('Chat', () => {
       append: vi.fn().mockResolvedValue(null),
       rename: vi.fn().mockResolvedValue(null),
       setCliSession: vi.fn().mockResolvedValue(undefined),
+      setInitiative: vi.fn().mockResolvedValue(undefined),
       setUsage: vi.fn().mockResolvedValue(undefined),
       search: vi.fn().mockResolvedValue([]),
       delete: vi.fn().mockResolvedValue(undefined)
@@ -835,6 +841,9 @@ describe('Chat', () => {
       claudeAccountReady?: boolean | null
       claudeSigningIn?: boolean
       agents?: string[]
+      /** initiatives: the demand open while this pane is mounted. */
+      initiativePath?: string | null
+      onConversationInitiative?: (path: string | null) => void
     } = {}
   ): ReturnType<typeof mockHive> {
     const hive = mockHive(extra)
@@ -2420,6 +2429,23 @@ describe('Chat', () => {
    * PRD) or drops a conversation's memory one turn in. Only this pane knows
    * which, so it says.
    */
+  /**
+   * The `turnId` the newest turn was dispatched with.
+   *
+   * Session events have to carry it, and the tests have to say so: a `session`
+   * event that cannot name its turn is **dropped** (see `adoptCliSession`), and
+   * the fallback that used to guess "the newest turn" is what wrote one agent's
+   * session id into another conversation on disk.
+   */
+  const liveTurnId = (): string => {
+    const calls = [
+      ...vi.mocked(window.hive.agent.send).mock.calls,
+      ...vi.mocked(window.hive.agent.runWorkflow).mock.calls
+    ]
+    const last = calls[calls.length - 1]?.[1] as { turnId?: string } | undefined
+    return last?.turnId ?? ''
+  }
+
   it('the first turn of a conversation declares a fresh agent session; the next does not', async () => {
     const { emit } = renderChat()
     await screen.findByText('Modelo A')
@@ -2449,7 +2475,7 @@ describe('Chat', () => {
     )
 
     await act(async () => {
-      emit({ type: 'session', id: 'cli-sess-1' })
+      emit({ type: 'session', id: 'cli-sess-1', turnId: liveTurnId() })
       emit({ type: 'done' })
     })
     send('terceira')
@@ -2457,6 +2483,185 @@ describe('Chat', () => {
       'terceira',
       expect.objectContaining({ resume: 'cli-sess-1', freshSession: false })
     )
+  })
+
+  /**
+   * The defect this closes, measured in a real `chat-history` (2026-09-13):
+   * conversations stored as `agent: 'claude-cli'` holding `brick-jackrabbit`
+   * and `fierce-tuck` — Devin session names — while a `devin` conversation
+   * held a Claude UUID. `adoptCliSession` used to fall back to "the newest
+   * in-flight turn" whenever it could not match the event's `turnId`, so a
+   * background turn's session id landed in whatever conversation happened to
+   * be on screen. Both directions then resume with a handle the agent has
+   * never seen: the Claude side re-runs with its briefing gone, the Devin side
+   * opens a blank session — which is the "I need more context! What are you
+   * saying yes to?" a user hit one turn into a fully-briefed skill build.
+   */
+  it('drops a session id that cannot name its turn, instead of guessing the newest one', async () => {
+    const { chatHistory, emit } = renderChat()
+    await screen.findByText('Modelo A')
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'primeira pergunta' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+
+    await act(async () => {
+      // Another agent's turn, announcing its own session. It belongs to no
+      // turn this pane is holding.
+      emit({ type: 'session', id: 'brick-jackrabbit', turnId: 'turn-from-another-agent' })
+      emit({ type: 'token', text: 'resposta', turnId: liveTurnId() })
+      emit({ type: 'done', turnId: liveTurnId() })
+    })
+
+    // Not written to this conversation's file…
+    expect(chatHistory.setCliSession).not.toHaveBeenCalledWith(
+      '/ws',
+      'session-1',
+      'brick-jackrabbit'
+    )
+    // …and not adopted as the live resume handle either: the next turn still
+    // has nothing to resume, which is the truth.
+    fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+      target: { value: 'segunda pergunta' }
+    })
+    fireEvent.click(screen.getByText('Enviar'))
+    expect(window.hive.agent.send).toHaveBeenLastCalledWith(
+      'segunda pergunta',
+      expect.objectContaining({ resume: null })
+    )
+  })
+
+  /**
+   * initiatives: which demand a conversation belongs to.
+   *
+   * Two rules, and the second is the repair the user asked for: a conversation
+   * is stamped with the demand it was *started inside*, once, when it is
+   * created; and a conversation restored from the history reports its own demand
+   * — including "none", which closes whatever demand was on screen.
+   */
+  describe('Chat — conversations that belong to a demand', () => {
+    const DEMAND = 'docs/iniciativas/R1/testes'
+
+    function renderInDemand(
+      props: Parameters<typeof renderChat>[1] = {}
+    ): ReturnType<typeof mockHive> {
+      const hive = mockHive({})
+      render(
+        createElement(Chat, {
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          initiativePath: DEMAND,
+          ...props
+        })
+      )
+      return hive
+    }
+
+    it('stamps a conversation started inside a demand, once, as it is created', async () => {
+      const hive = renderInDemand()
+      const { chatHistory, emit } = hive
+      await screen.findByText('Modelo A')
+      const send = async (text: string): Promise<void> => {
+        fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+          target: { value: text }
+        })
+        fireEvent.click(screen.getByText('Enviar'))
+        // The composer belongs to the turn while one is streaming; settle it
+        // before typing the next message.
+        await act(async () => {
+          emit({ type: 'done' })
+        })
+      }
+
+      await send('primeira')
+      await waitFor(() =>
+        expect(chatHistory.setInitiative).toHaveBeenCalledWith('/ws', 'session-1', DEMAND)
+      )
+      expect(chatHistory.setInitiative).toHaveBeenCalledTimes(1)
+
+      // A second message is the same conversation — a transcript cannot change
+      // demands halfway through, so nothing is stamped again.
+      await send('segunda')
+      await waitFor(() => expect(chatHistory.append).toHaveBeenCalledTimes(2))
+      expect(chatHistory.setInitiative).toHaveBeenCalledTimes(1)
+    })
+
+    it('stamps nothing when no demand is open', async () => {
+      const { chatHistory } = renderChat()
+      await screen.findByText('Modelo A')
+      fireEvent.change(screen.getByPlaceholderText('Escreva uma mensagem…'), {
+        target: { value: 'primeira' }
+      })
+      fireEvent.click(screen.getByText('Enviar'))
+      await waitFor(() => expect(chatHistory.append).toHaveBeenCalled())
+      expect(chatHistory.setInitiative).not.toHaveBeenCalled()
+    })
+
+    it('reports the demand a restored conversation belongs to', async () => {
+      const onConversationInitiative = vi.fn()
+      const ref = createRef<ChatHandle>()
+      const hive = mockHive({})
+      hive.chatHistory.get.mockResolvedValue({
+        id: 'session-7',
+        workspace: '/ws',
+        agent: 'claude-cli',
+        title: 'PRD dos testes',
+        createdAt: 1,
+        updatedAt: 2,
+        messages: [],
+        initiativePath: DEMAND
+      })
+      render(
+        createElement(Chat, {
+          ref,
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          onConversationInitiative
+        })
+      )
+      await screen.findByText('Modelo A')
+      await act(async () => {
+        await ref.current?.openSession('session-7')
+      })
+      expect(onConversationInitiative).toHaveBeenCalledWith(DEMAND)
+    })
+
+    it('reports NO demand for an unrelated conversation, which is what closes the open one', async () => {
+      const onConversationInitiative = vi.fn()
+      const ref = createRef<ChatHandle>()
+      const hive = mockHive({})
+      hive.chatHistory.get.mockResolvedValue({
+        id: 'session-7',
+        workspace: '/ws',
+        agent: 'claude-cli',
+        title: 'Conversa solta',
+        createdAt: 1,
+        updatedAt: 2,
+        messages: []
+      })
+      render(
+        createElement(Chat, {
+          ref,
+          workspace: '/ws',
+          startActions: roleActions,
+          agents: ['claude-cli'],
+          defaultAgent: 'claude-cli',
+          initiativePath: DEMAND,
+          onConversationInitiative
+        })
+      )
+      await screen.findByText('Modelo A')
+      await act(async () => {
+        await ref.current?.openSession('session-7')
+      })
+      // The panel must never stand beside a transcript from another subject,
+      // offering to run stages into a folder it never mentions.
+      expect(onConversationInitiative).toHaveBeenCalledWith(null)
+    })
   })
 
   // session-history — conversation memory (--resume via the session event).
@@ -2478,7 +2683,7 @@ describe('Chat', () => {
     )
 
     await act(async () => {
-      emit({ type: 'session', id: 'cli-sess-42' })
+      emit({ type: 'session', id: 'cli-sess-42', turnId: liveTurnId() })
       emit({ type: 'token', text: 'resposta' })
       emit({ type: 'done' })
     })

@@ -5,6 +5,7 @@ import { t } from '../i18n'
 import { ChatBubbleIcon, TrashIcon } from '../ui/icons'
 import { ConversationRow, type RowMode } from './ConversationRow'
 import { extend, setAll, toggle, visible } from './conversationSelection'
+import type { InitiativeMark, InitiativeMarks } from '../initiatives/initiativeChrome'
 import type { ChatSessionMeta } from './sessionMeta'
 import {
   groupTimestamp,
@@ -26,6 +27,24 @@ const GROUP_LABEL_KEY = {
   month: 'chatHistory.groupMonth',
   older: 'chatHistory.groupOlder'
 } as const
+
+/**
+ * The row's `initiative` prop, or nothing.
+ *
+ * At module scope rather than inline in the row factory for the reason every
+ * other decision in this file is: `ConversationListBody` is at the lint's
+ * `complexity` ceiling, and a two-branch lookup written in its body is what
+ * pushes it over. The optional-prop spread is also how the row keeps
+ * `initiative` genuinely absent rather than explicitly `undefined`.
+ */
+function initiativeProp(
+  meta: ChatSessionMeta,
+  initiatives: InitiativeMarks | undefined
+): { initiative: InitiativeMark } | Record<string, never> {
+  const path = meta.initiativePath
+  const mark = path == null ? undefined : initiatives?.[path]
+  return mark === undefined ? {} : { initiative: mark }
+}
 
 /** Recency buckets, cut on calendar-day boundaries (an 11pm chat is "Ontem" at 1am, exactly like every reference app). */
 function groupKeyOf(updatedAt: number, now: number): GroupKey {
@@ -77,6 +96,8 @@ export interface ConversationListProps {
   onClearWindow: () => void
   /** How many skeleton rows the loading state draws (the sidebar has less room than the dialog). */
   skeletonRows?: number
+  /** initiatives: demands by folder path, so each row can wear its badge. Omitted = no badges. */
+  initiatives?: InitiativeMarks
 }
 
 /**
@@ -129,7 +150,11 @@ function ConversationListBody({
   onDeleteMany,
   onRetry,
   onClearWindow,
-  skeletonRows = 3
+  skeletonRows = 3,
+  // No default: one in a parameter list counts against this function's
+  // `complexity` budget, which is at its ceiling. `initiativeProp` takes the
+  // absence instead.
+  initiatives
 }: ConversationListProps): React.JSX.Element {
   const [localMode, setLocalMode] = useState<RowMode | null>(null)
   const rowMode = controlledMode === undefined ? localMode : controlledMode
@@ -253,6 +278,7 @@ function ConversationListBody({
       selected={selection.has(meta.id)}
       selectionMode={selection.count > 0}
       {...(selection.enabled ? { onToggleSelect: selection.pick } : {})}
+      {...initiativeProp(meta, initiatives)}
     />
   )
 

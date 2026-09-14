@@ -4445,3 +4445,117 @@ testes), sonda `round-2026-09-13b-contrast.mjs` sem reprovações nos três tema
 confirmando que o controle põe a fonte do bloco no clipboard **verbatim** e que
 o estado "Copiado" passa do piso (5,93 / 7,04 / 6,63), e o transporte por stdin
 medido contra `cmd.exe` e PowerShell reais no Windows.
+
+## Iniciativas, 2ª rodada + o id de sessão que atravessava conversas (2026-09-13)
+
+Oito itens pedidos juntos: um no Estúdio de skills, sete nas Iniciativas.
+
+### O briefing do Estúdio: o defeito não estava no briefing
+
+O usuário relatou, de novo, que criar skill/agente pelo Estúdio "aciona a skill
+e não passa o contexto". A rodada anterior tinha concluído *"a causa não é
+transporte"* e reescrito a copy do briefing; o defeito continuou. Desta vez a
+investigação começou pelo disco, não pelo código: o `chat-history` real do
+usuário (`%APPDATA%/Hive/chat-history/58900cda…`) mostra outra coisa.
+
+```text
+agent='devin'       cli='8e25bd7a-a0fa-4e26-a6bb-f73cb7cba150'   ← UUID do Claude
+agent='claude-cli'  cli='brick-jackrabbit'                       ← nome do Devin
+agent='claude-cli'  cli='fierce-tuck'                            ← nome do Devin
+agent='claude-cli'  cli=None
+```
+
+**Os ids de sessão estavam trocados entre conversas e entre agentes.** Causa:
+`adoptCliSession` (renderer) usava `findTurn(..., 'newest')`, o mesmo fallback
+que todo evento de turno usa. Para um token perdido isso custa um pixel no
+painel errado; para um **id de sessão** custa a identidade da conversa — o id
+do turno de fundo de um agente ia parar na conversa que estivesse por cima.
+Aí o turno seguinte manda `--resume <id que aquele agente nunca viu>`: o Claude
+re-executa sem `--resume` (briefing perdido) e o ACP do Devin abre sessão nova.
+É exatamente o `"I need more context! What are you saying yes to?"` do relato,
+um turno depois de um briefing completo.
+
+Correção: **atribuição exata ou nenhuma** — um `session` sem turno vivo que o
+nomeie é descartado, e a conversa fica com o handle que já tinha. Regressão em
+`Chat.test.ts`, verificada nas duas direções (ela reprova no código antigo).
+
+Medições que descartaram as hipóteses anteriores, e que ficam:
+
+- **O briefing multilinha CHEGA.** Sonda `/arg-echo` real (`claude 2.1.226`) por
+  **stdin**, no formato exato do Estúdio (`/cmd\n\n<texto>`): devolvido verbatim,
+  `input_tokens: 10`. O transporte por stdin não tem o problema de argv.
+- **O builder real honra o briefing.** `bmad-agent-builder` de verdade, mesmo
+  modelo, com e sem o parágrafo "não abra a mesa": as duas formas responderam
+  sabendo o nome do agente. O "Let's open the floor" genérico do relato é
+  variação do modelo, não ausência de contexto — e é o que o parágrafo mitiga.
+- **A conversa do relato rodava no Devin**, não no Claude (`agent: 'devin'` no
+  arquivo), o que também explica por que só ela perdeu tudo.
+
+### Iniciativas
+
+- **A barra do ✕ virou barra do painel.** Ela era o cabeçalho do *painel de
+  trabalho*, que atravessa o transcrito também — então o ✕ ficava sobre `--bg` e
+  o painel que ele fecha sobre `--bg-2`. O split agora é a altura inteira do
+  painel (`.wb-work-col` guarda cabeçalho + transcrito), e identidade, ⚙,
+  expandir e ✕ moram dentro do `InitiativeContext`. Medido: barra vs. corpo =
+  **1,00:1** nos três temas (o único par deste app cujo piso é *não* distinguir).
+- **Expandir.** `data-expanded` fica no **split**, não no painel: o transcrito é
+  irmão *anterior* do painel, e nenhum seletor ancorado nele alcança para trás.
+  Com `flex: 1` nos dois, "expandir" dividia o painel ao meio — medido 340px →
+  **576px** de um painel de 1120px. Agora 340 → 1151 de 1151.
+- **A alça é CSS, não um segundo `Resizable`.** Este split vive *dentro* de um
+  painel do grupo externo, e aninhar um grupo renormaliza o layout de fora toda
+  vez que os filhos mudam de forma. A largura é uma custom property escrita pela
+  alça — um número, nenhum estado em `WorkUI` (que está no teto do compilador).
+- **Conversa ↔ iniciativa.** `StoredChatSession.initiativePath` guarda o
+  **caminho da pasta**, nunca uma cópia do nome ou da cor: renomear ou recolorir
+  uma demanda tem de alcançar toda conversa já marcada, e alcança porque nenhuma
+  guardou a resposta antiga. Carimbado **uma vez**, quando a conversa é criada.
+- **Abrir uma conversa de outro assunto FECHA a iniciativa.** O `Chat` reporta o
+  `initiativePath` do transcrito restaurado — inclusive `null`, que é tão
+  instrução quanto um caminho.
+- **Cor por nome, nunca hex.** `iniciativa.json` guarda `violet`; o tema resolve
+  `--init-violet`. Uma cor escolhida contra o escuro é a que reprova no claro —
+  e reprovou: a primeira rampa media 4,49 · 4,30 · 4,38 no claro (piso 4,5 para
+  tipo de 11px). Quatro pontos de luminosidade abaixo resolveram os seis.
+- **Editar release MOVE a pasta**, então `update()` devolve o caminho **depois**
+  da edição e quem segurava o antigo re-aponta. Título, ano e cor são edições de
+  manifesto: o slug é identidade (conversas, abas, artefatos apontam para ele).
+- **Excluir arquivo fecha o editor.** Pelo *watcher*, não pelo botão de excluir:
+  o botão não é o único jeito de um arquivo sumir (o agente, um `git checkout`,
+  a árvore "Contexto", outra janela). Sem guarda de não-salvos — a oferta dela é
+  "salve antes", e não há mais onde salvar.
+- **As regras da árvore seguiam a LATERAL, não a árvore.** `.wb-rail .hds-tree-*`
+  de-indentava as linhas de arquivo; a árvore do "Contexto" é o mesmo componente
+  fora da lateral, e ficava nos defaults do DS (~28px de calha a mais e fonte
+  maior). Re-escopadas para `.wb-rail-scroll`, que é o scroller do próprio
+  `FileTree`. Medido nos dois lares: **8px / 13px** nos dois.
+- **Uma regra de trilho não sobrevive à superfície virar painel** (3ª vez neste
+  repositório). Expandido, as linhas de etapa viravam uma faixa de 1151px com o
+  glifo de refazer a uma tela de distância do rótulo. O conteúdo agora mantém
+  coluna de leitura e a largura extra vira margem, numa regra só.
+- **O crachá encolhia até uma letra.** `"P…"`, `"Ant…"` — uma pílula cujo
+  trabalho inteiro é nomear a demanda, numa linha de ~230px. A linha de meta
+  passou a quebrar: o par hora·contagem é que desce, nunca o nome.
+
+### Armadilhas de sonda desta rodada
+
+- **`backdrop(el)` começa no PRÓPRIO elemento.** O ponto do crachá tem o hue
+  como fundo, então medi-lo assim compõe o ponto sobre si mesmo: **1,00 em
+  todas as seis cores e nos três temas**, o que se lê como "reprovou tudo". O
+  que está atrás do ponto é a pílula (`el.parentElement`).
+- **Sonda que constrói o alvo tem de construí-lo INTEIRO.** O crachá plantado
+  era um `<span>` com texto e sem `.wb-init-badge-dot`; os seis alvos de ponto
+  voltaram `ausente` — que se lê como "nada a corrigir".
+- **Meça o botão ANTES de armar a confirmação.** "Excluir iniciativa" é
+  *substituído* pela caixa de confirmação; a sonda que abria a caixa primeiro
+  reportava o botão ausente.
+- **A cena anterior deixa um modal aberto.** O probe de contraste engolia todo
+  clique no menu de tema e estourava em timeout — dois `Escape` no topo.
+- **`page.evaluate` não enxerga constante do runner.** A lista de hues declarada
+  no Node virou `ReferenceError` dentro da página.
+
+Validação: `verify` verde (248 arquivos, **4448** testes), design system verde
+(`SwatchPicker` novo, 8 testes), sonda `initiatives-round-contrast.mjs` com
+**75 alvos × 3 temas sem reprovações**, e `initiatives-contrast.mjs` (herdada)
+sem regressão.

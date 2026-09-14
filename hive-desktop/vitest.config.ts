@@ -875,6 +875,17 @@ export default defineConfig({
           functions: 90,
           lines: 90
         },
+        // initiatives (2026-09-13): the badge/palette vocabulary every surface
+        // that shows a demand resolves through. Gated because its failures are
+        // the silent kind — a hue that resolves to a `var()` nothing defines
+        // renders a colourless pill, and a marks lookup that drops an entry
+        // leaves a conversation looking like it belongs to no demand.
+        'src/renderer/src/initiatives/initiativeChrome.ts': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
         // The 2026-09-12 round's two pure modules. Both carry 100: their
         // failures are the silent kind. A selection rule that keeps a tick past
         // its row deletes a conversation it never showed; a usage snapshot that

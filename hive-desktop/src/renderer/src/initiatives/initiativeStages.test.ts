@@ -114,6 +114,15 @@ describe('stageAction', () => {
     expect(action.command.prompt).toContain('Portal')
   })
 
+  it('asks for the folder’s artifacts ON DEMAND, not as an upfront read', () => {
+    const action = stageAction('bmad-prd', 'Testes', 'docs/iniciativas/R1/testes')
+    // A stage that opens every artifact before it starts spends the context
+    // window on documents it may never need. The choice belongs to the skill,
+    // which is the only thing that knows what it is about to do.
+    expect(action.command.prompt).toContain('sob demanda quando necessário')
+    expect(action.command.prompt).not.toContain('grave a saída')
+  })
+
   it('keeps the invocation on one line so the command and its argument stay together', () => {
     const action = stageAction('bmad-architecture', 'Novo checkout', 'docs/iniciativas/R1/checkout')
     expect(action.command.prompt).not.toContain('\n')

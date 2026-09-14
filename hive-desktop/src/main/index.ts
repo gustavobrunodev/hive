@@ -1728,6 +1728,13 @@ app.whenReady().then(() => {
     async (_event, workspace: string, id: string, cliSessionId: string) =>
       chatHistoryStore.setCliSession(workspace, id, cliSessionId)
   )
+  // initiatives: which demand a conversation belongs to. Stored with the
+  // conversation so the badge and the history filter survive a restart.
+  ipcMain.handle(
+    'chatHistory:setInitiative',
+    async (_event, workspace: string, id: string, initiativePath: string | null) =>
+      chatHistoryStore.setInitiative(workspace, id, initiativePath)
+  )
   // session-usage: how full this conversation's context window is, stored with
   // the conversation so reopening it does not blank the composer's meter.
   ipcMain.handle(

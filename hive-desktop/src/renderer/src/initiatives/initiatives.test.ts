@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   INITIATIVES_ROOT,
+  INITIATIVE_COLORS,
   buildManifest,
   compareReleases,
+  defaultColorFor,
   groupInitiatives,
+  isInitiativeColor,
   initiativePath,
   initiativeSlug,
   readInitiatives,
@@ -192,7 +195,56 @@ describe('paths', () => {
       title: 'Portal',
       year: 2026,
       release: 'R2',
-      createdAt: '2026-09-10T12:00:00.000Z'
+      createdAt: '2026-09-10T12:00:00.000Z',
+      // A demand is born with a hue so its conversations are already
+      // distinguishable in the history before anyone opens a colour picker.
+      color: defaultColorFor('portal')
     })
+  })
+
+  it('honours a colour the form picked over the one derived from the name', () => {
+    const manifest = buildManifest('Portal', 2026, 'R2', new Date('2026-09-10T12:00:00Z'), 'rose')
+    expect(manifest.color).toBe('rose')
+  })
+})
+
+describe('badge colours', () => {
+  it('gives a folder that never picked one a stable hue, derived from its name', () => {
+    expect(defaultColorFor('portal-de-cobranca')).toBe(defaultColorFor('portal-de-cobranca'))
+    expect(INITIATIVE_COLORS).toContain(defaultColorFor('portal-de-cobranca'))
+  })
+
+  it('spreads those defaults across the palette, which is the only reason they are coloured', () => {
+    const slugs = ['alpha', 'beta', 'gama', 'delta', 'epsilon', 'zeta', 'eta', 'teta', 'iota']
+    // Not "all six" — a hash over nine names need not hit every bucket. The
+    // property that matters is that it does not collapse to one.
+    expect(new Set(slugs.map(defaultColorFor)).size).toBeGreaterThan(2)
+  })
+
+  it('reads a stored colour back', () => {
+    expect(readManifest(JSON.stringify({ color: 'amber' })).color).toBe('amber')
+  })
+
+  it('drops a colour name nothing defines, rather than resolving to an empty var()', () => {
+    expect(readManifest(JSON.stringify({ color: 'fucsia' })).color).toBeUndefined()
+    expect(readManifest(JSON.stringify({ color: 7 })).color).toBeUndefined()
+  })
+
+  it('recognises exactly the palette', () => {
+    expect(isInitiativeColor('violet')).toBe(true)
+    expect(isInitiativeColor('mauve')).toBe(false)
+    expect(isInitiativeColor(undefined)).toBe(false)
+  })
+
+  it('carries the folder’s hue onto the initiative it reads', () => {
+    const tree = [dir('R2', 'docs/iniciativas/R2', [dir('portal', 'docs/iniciativas/R2/portal')])]
+    const [read] = readInitiatives(tree, { 'docs/iniciativas/R2/portal': { color: 'sky' } }, 2026)
+    expect(read.color).toBe('sky')
+  })
+
+  it('falls back to the derived hue for a folder with no manifest', () => {
+    const tree = [dir('R2', 'docs/iniciativas/R2', [dir('portal', 'docs/iniciativas/R2/portal')])]
+    const [read] = readInitiatives(tree, {}, 2026)
+    expect(read.color).toBe(defaultColorFor('portal'))
   })
 })

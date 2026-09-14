@@ -1742,7 +1742,7 @@ pagas nesta rodada:
   `DropdownMenu` modal apaga `pointer-events` de tudo abaixo, e o
   `Dialog.Overlay` do Radix é o único elemento que volta a `auto` por estilo
   inline — então ele vira o alvo de hit-test do painel inteiro. É isso que
-  transforma um clique *no formulário* em um clique *fora do formulário*. A
+  transforma um clique _no formulário_ em um clique _fora do formulário_. A
   sonda mede as duas coisas (`pointer-events` do conteúdo e se o hit cai no
   overlay) porque a segunda explica a primeira.
 - **Uma afirmação depois de um `Escape` mede o nada.** A primeira versão do
@@ -1765,7 +1765,7 @@ a barra do menu `@`.
 
 ### Barra overlay não aparece em quadro parado
 
-O Chromium **headless** do Linux desenha barras de rolagem *overlay*: elas não
+O Chromium **headless** do Linux desenha barras de rolagem _overlay_: elas não
 reservam gutter (`offsetWidth - clientWidth` é **0**) e não pintam nada num
 screenshot. Uma regra `::-webkit-scrollbar` pode estar perfeitamente correta e
 perfeitamente invisível para a sonda — que foi exatamente o defeito desta
@@ -1832,3 +1832,36 @@ agenda trabalho próprio em timers e espera um tick que só `advanceTimersByTime
 entrega — chamada que está atrás do `await` que nunca retorna. Timeout de 5s,
 sem pista. Para um controle que só escuta `click`, `fireEvent.click` é a
 interação inteira.
+
+`tools/visual/initiatives-round.mjs` + `tools/visual/initiatives-round-contrast.mjs`
+cobrem a 2ª rodada das Iniciativas (2026-09-13): a barra própria do painel, o
+painel expandido, a alça, o diálogo de edição com a confirmação de exclusão, e o
+crachá que liga uma conversa à demanda. São **75 alvos × 3 temas**, mais nove
+afirmações estruturais (a barra e o corpo têm de ser a MESMA superfície, o
+expandido tem de **tomar** o painel e não dividi-lo, a árvore do "Contexto" tem
+de medir igual à da aba Arquivos). Cinco lições, todas pagas aqui:
+
+- **`backdrop(el)` começa no próprio elemento.** O ponto do crachá tem o hue
+  como fundo; medi-lo assim compõe o ponto sobre si mesmo e devolve **1,00 nas
+  seis cores e nos três temas** — dezoito reprovações que não existiam. O que
+  está atrás do ponto é a pílula: `backdrop(el.parentElement)`.
+- **Uma sonda que CONSTRÓI o alvo tem de construí-lo inteiro.** O crachá
+  plantado era um `<span>` com texto e sem `.wb-init-badge-dot`, e os seis alvos
+  de ponto voltaram `ausente` — que se lê exatamente como "nada a corrigir".
+  (4ª reincidência desta classe neste arquivo.)
+- **Meça o controle antes de armar o que o substitui.** "Excluir iniciativa" é
+  _trocado_ pela caixa de confirmação; a sonda que abria a caixa primeiro
+  reportava o botão ausente. Ele é lido fora do `evaluate` e passado para dentro.
+- **A cena anterior pode deixar um modal aberto.** `initiatives-round.mjs`
+  termina na confirmação de exclusão, de propósito — é o último screenshot. O
+  probe seguinte estourava em timeout esperando o menu de tema, porque o modal
+  engole o clique. Dois `Escape` no topo do probe.
+- **`page.evaluate` roda na PÁGINA.** A lista de hues declarada no runner virou
+  `ReferenceError` dentro do `evaluate`; constantes que a sonda usa no browser
+  são declaradas no browser.
+
+E a lição de design que a cena existe para checar, porque nenhum teste a vê:
+**uma regra de trilho não sobrevive à superfície virar painel** — expandido, as
+linhas de etapa viram uma faixa de 1151px com o glifo de refazer a uma tela do
+rótulo. É a terceira vez neste repositório (a 1ª foi o botão primário do painel
+de Bases). A sonda mede a largura; o olho é que pega a faixa.

@@ -1,6 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { INITIATIVE_ALL } from '../chat/conversationFilters'
 import type { WorkView } from '../ui/sidebarNav'
 import { saveWorkspaceSession } from '../ui/workspaceSession'
+import { initiativeMarks, type InitiativeMarks } from './initiativeChrome'
 import type { Initiative } from './initiatives'
 import { useInitiatives, type InitiativesStore } from './useInitiatives'
 
@@ -32,6 +34,18 @@ export interface OpenInitiativeStore {
   show: (path: string | null) => void
   createOpen: boolean
   setCreateOpen: (open: boolean) => void
+  /** The panel has taken the whole work pane (the transcript beside it is collapsed). */
+  expanded: boolean
+  toggleExpanded: () => void
+  /** The demand whose settings dialog is open, or `null`. */
+  editing: Initiative | null
+  setEditing: (initiative: Initiative | null) => void
+  /** initiatives: demands by folder path, for the conversation rows' badges. */
+  marks: InitiativeMarks
+  /** initiatives: the demands the history filter offers, newest release first (the tree's own order, flattened). */
+  filterOptions: { path: string; title: string }[]
+  filter: string
+  setFilter: (path: string) => void
 }
 
 export function useOpenInitiative(
@@ -45,11 +59,18 @@ export function useOpenInitiative(
   const all = useInitiatives(workspace)
   const [path, setPath] = useState<string | null>(initialPath)
   const [createOpen, setCreateOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState<Initiative | null>(null)
+  const [filter, setFilter] = useState<string>(INITIATIVE_ALL)
 
   const show = useCallback(
     (next: string | null) => {
       setPath(next)
       saveWorkspaceSession(workspace, { initiativePath: next })
+      // Closing a demand takes its panel's expansion with it. Otherwise the
+      // next demand opened would arrive already covering the transcript,
+      // because of a toggle pressed inside a different one.
+      if (next === null) setExpanded(false)
       if (next !== null) onEnter()
     },
     [workspace, onEnter]
@@ -59,6 +80,23 @@ export function useOpenInitiative(
   // folder, not from what it looked like when it was clicked.
   const current = all.initiatives.find((entry) => entry.path === path) ?? null
 
+  const marks = useMemo(() => initiativeMarks(all.initiatives), [all.initiatives])
+  const filterOptions = useMemo(
+    () =>
+      all.years.flatMap((year) =>
+        year.releases.flatMap((release) =>
+          release.initiatives.map((entry) => ({
+            path: entry.path,
+            // The release rides along because two demands can share a name
+            // across releases, and a filter menu listing "Testes" twice is a
+            // menu you cannot pick from.
+            title: `${entry.release} · ${entry.title}`
+          }))
+        )
+      ),
+    [all.years]
+  )
+
   return {
     all,
     path,
@@ -66,6 +104,14 @@ export function useOpenInitiative(
     shown: workView === 'chat' ? current : null,
     show,
     createOpen,
-    setCreateOpen
+    setCreateOpen,
+    expanded,
+    toggleExpanded: useCallback(() => setExpanded((value) => !value), []),
+    editing,
+    setEditing,
+    marks,
+    filterOptions,
+    filter,
+    setFilter
   }
 }
