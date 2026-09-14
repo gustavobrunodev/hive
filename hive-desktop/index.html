@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Every string in this app is pt-BR (PRODUCT.md). Without `lang` a screen
+     reader reads it with the host locale's voice, which mangles Portuguese
+     into nonsense — WCAG 3.1.1, and the cheapest Level A failure there is. -->
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hive</title>
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <!--
+      `'wasm-unsafe-eval'` (script-src): the ONNX Runtime Web WASM backend that
+      powers offline Whisper transcription (D-SB-1). ORT's own `.mjs`/`.wasm`
+      assets ship SAME-ORIGIN with the renderer (they load via dynamic
+      `import()`, a script-src concern), so no extra origin is needed for them.
+      `hive-model:` (connect-src): the privileged scheme that serves locally
+      downloaded model files from userData — the renderer still never reaches
+      the network. `blob:` (media-src/worker-src): recorder playback and ORT's
+      worker. No remote origins.
+      `frame-src 'none'`: the app frames nothing by URL. The `hive-studio:`
+      entry that used to sit here went with the Design Studio; the HTML
+      preview's iframe is `srcdoc`, which this directive does not gate.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' hive-model:; worker-src 'self' blob:; frame-src 'none'"
+    />
+    <script type="module" crossorigin src="./assets/index-Br4ueZv6.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Bl7vIj_2.css">
+  </head>
+
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
