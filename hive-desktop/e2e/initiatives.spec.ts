@@ -98,9 +98,10 @@ test.describe('iniciativas', () => {
     await window.getByText('Portal de Cobrança').click()
 
     await expect(window.locator('.wb-initctx')).toBeVisible()
-    await expect(window.locator('.wb-pane-header-label').first()).toHaveText(
-      /Iniciativa · Portal de Cobrança/
-    )
+    // The demand names itself INSIDE its own panel. It used to rename the work
+    // pane's header — a strip that also spans the transcript, which left the
+    // demand's ✕ on one background and the panel it closes on another.
+    await expect(window.locator('.wb-initctx-name')).toHaveText('Portal de Cobrança')
     // The composer is still there: the demand's rail sits beside the chat, it
     // does not replace it.
     await expect(window.getByPlaceholder('Escreva uma mensagem…')).toBeVisible()
@@ -151,9 +152,7 @@ test.describe('iniciativas', () => {
     expect(manifest).toMatchObject({ title: 'Régua de Cobrança', release: 'R4' })
 
     // Creating one and then having to go find it is the repair left half-done.
-    await expect(window.locator('.wb-pane-header-label').first()).toHaveText(
-      /Iniciativa · Régua de Cobrança/
-    )
+    await expect(window.locator('.wb-initctx-name')).toHaveText('Régua de Cobrança')
   })
 
   test('refuses to create a second demand over an existing folder', async ({ seeded, hiveApp }) => {
@@ -180,10 +179,9 @@ test.describe('iniciativas', () => {
 
     const relaunched = await launchSeededApp(seeded)
     const window = await relaunched.firstWindow()
-    await expect(window.locator('.wb-pane-header-label').first()).toHaveText(
-      /Iniciativa · Portal de Cobrança/,
-      { timeout: 30_000 }
-    )
+    await expect(window.locator('.wb-initctx-name')).toHaveText('Portal de Cobrança', {
+      timeout: 30_000
+    })
     await relaunched.close()
   })
 })
