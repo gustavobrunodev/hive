@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e8]:
+    - img "Tech Leads club" [ref=e9]
+    - heading "Faça login na sua conta" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - link [ref=e13] [cursor=pointer]:
+          - /url: https://www.techleads.club/oauth2/initiate
+          - button "Continuar com Tech Leads Club" [ref=e15]
+        - link [ref=e17] [cursor=pointer]:
+          - /url: /sign_in#email
+          - button "Continuar com Circle (legado)" [ref=e19]
+      - link "Esqueceu sua senha?" [ref=e23] [cursor=pointer]:
+        - /url: /users/password/new
+  - generic:
+    - region "Notifications":
+      - dialog [ref=e24]:
+        - generic [ref=e25]:
+          - heading "Você precisa fazer login ou se cadastrar antes de continuar." [level=6] [ref=e31]
+          - button "Close" [ref=e33] [cursor=pointer]

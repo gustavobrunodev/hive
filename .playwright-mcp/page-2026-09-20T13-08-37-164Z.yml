@@ -1,0 +1,20 @@
+- generic [ref=f6e1]:
+  - banner [ref=f6e2]:
+    - img "Tech Leads Club" [ref=f6e3]
+  - main [ref=f6e4]:
+    - generic [ref=f6e5]:
+      - heading "Entrar com senha" [level=1] [ref=f6e6]
+      - generic [ref=f6e7]:
+        - textbox "Seu email" [active] [ref=f6e8]
+        - textbox "Senha" [ref=f6e9]
+        - button "Entrar" [ref=f6e10] [cursor=pointer]
+      - generic [ref=f6e11]:
+        - link "Esqueceu a senha?" [ref=f6e12] [cursor=pointer]:
+          - /url: /passwords/new
+        - link "Entrar com link mágico" [ref=f6e13] [cursor=pointer]:
+          - /url: /session/new
+  - contentinfo [ref=f6e14]:
+    - text: Precisa de ajuda?
+    - link "Nos envie uma mensagem" [ref=f6e15] [cursor=pointer]:
+      - /url: https://api.whatsapp.com/send?phone=5553933002967
+    - text: .

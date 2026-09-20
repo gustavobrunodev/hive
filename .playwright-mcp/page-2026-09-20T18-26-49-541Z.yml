@@ -1,0 +1,254 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e8]:
+    - complementary [aria-hidden] [ref=e9]
+    - region "Canvas" [ref=e10]:
+      - generic [ref=e13]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - button "Fechar barra lateral" [expanded] [ref=e17] [cursor=pointer]
+            - generic [ref=e20]: "Workshop IA #3 09/2026 - Gravação"
+          - generic [ref=e21]:
+            - button "Favoritos" [ref=e23] [cursor=pointer]
+            - generic [ref=e26]:
+              - button "sessão anterior" [disabled] [ref=e27]
+              - button "Próximo sessão" [ref=e30] [cursor=pointer]
+            - button "Concluído" [ref=e33] [cursor=pointer]
+        - generic [ref=e35]:
+          - complementary "Barra lateral" [ref=e37]:
+            - generic [ref=e39]:
+              - generic [ref=e41]:
+                - button "Voltar ao curso" [ref=e42] [cursor=pointer]
+                - progressbar "1 de 11 concluído" [ref=e45]:
+                  - generic [ref=e46]:
+                    - text: 1 de 11 concluído
+                    - generic [aria-hidden] [ref=e47]: 9%
+                  - text: x
+              - generic [ref=e54]:
+                - generic [ref=e55]:
+                  - generic [ref=e57]:
+                    - generic [ref=e58]: "Dia 1: Desenvolvendo com IA"
+                    - generic [ref=e59]: 6 sessões
+                  - generic [ref=e61]:
+                    - generic [ref=e64]:
+                      - generic [ref=e65]: Desenvolvimento com IA, Harness, Spec-Driven e Como Trabalhar com Modelos Frontier
+                      - generic [ref=e66]: Concluído
+                    - button "A Próxima Fase da Fabrica de Software Agêntica Sessão" [ref=e70] [cursor=pointer]:
+                      - generic [ref=e72]:
+                        - generic [ref=e73]: A Próxima Fase da Fabrica de Software Agêntica
+                        - generic [ref=e74]: Sessão
+                    - 'button "Hooks: Harness-toolkit - Felipe Rodrigues Sessão" [ref=e76] [cursor=pointer]':
+                      - generic [ref=e78]:
+                        - generic [ref=e79]: "Hooks: Harness-toolkit - Felipe Rodrigues"
+                        - generic [ref=e80]: Sessão
+                    - button "Mercado e o Papel do Novo Dev - Felipe Adamoli Sessão" [ref=e82] [cursor=pointer]:
+                      - generic [ref=e84]:
+                        - generic [ref=e85]: Mercado e o Papel do Novo Dev - Felipe Adamoli
+                        - generic [ref=e86]: Sessão
+                    - button "Desenvolvimento com IA no Ifood - Júlio Santos Sessão" [ref=e88] [cursor=pointer]:
+                      - generic [ref=e90]:
+                        - generic [ref=e91]: Desenvolvimento com IA no Ifood - Júlio Santos
+                        - generic [ref=e92]: Sessão
+                    - button "Oportunidade Especial - Elevate Sessão" [ref=e94] [cursor=pointer]:
+                      - generic [ref=e96]:
+                        - generic [ref=e97]: Oportunidade Especial - Elevate
+                        - generic [ref=e98]: Sessão
+                - generic [ref=e99]:
+                  - generic [ref=e101]:
+                    - generic [ref=e102]: "Dia 2: Arquitetura e Workflows"
+                    - generic [ref=e103]: 5 sessões
+                  - generic [ref=e105]:
+                    - button "Arquitetura de Software na Era da IA Sessão" [ref=e107] [cursor=pointer]:
+                      - generic [ref=e109]:
+                        - generic [ref=e110]: Arquitetura de Software na Era da IA
+                        - generic [ref=e111]: Sessão
+                    - button "Arquitetando para Eficiência - William Calderipe Sessão" [ref=e113] [cursor=pointer]:
+                      - generic [ref=e115]:
+                        - generic [ref=e116]: Arquitetando para Eficiência - William Calderipe
+                        - generic [ref=e117]: Sessão
+                    - button "Construindo uma Empresa IA First - Rogério Chaves Sessão" [ref=e119] [cursor=pointer]:
+                      - generic [ref=e121]:
+                        - generic [ref=e122]: Construindo uma Empresa IA First - Rogério Chaves
+                        - generic [ref=e123]: Sessão
+                    - button "Transformando contexto em Feature - William Fernandes Sessão" [ref=e125] [cursor=pointer]:
+                      - generic [ref=e127]:
+                        - generic [ref=e128]: Transformando contexto em Feature - William Fernandes
+                        - generic [ref=e129]: Sessão
+                    - button "Workflow End 2 End em Codebase Real Sessão" [ref=e131] [cursor=pointer]:
+                      - generic [ref=e133]:
+                        - generic [ref=e134]: Workflow End 2 End em Codebase Real
+                        - generic [ref=e135]: Sessão
+          - button "Redimensionar barra lateral"
+          - main [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e147]:
+                - region "video player" [ref=e149]:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic: Velocidade de reprodução
+                        - generic: Qualidade
+                        - generic: Legendas/CC
+                      - generic [ref=e153] [cursor=pointer]:
+                        - slider "seek" [ref=e158]: "0"
+                        - generic: en 0:00
+                      - generic [ref=e159]:
+                        - generic:
+                          - button "play" [ref=e160] [cursor=pointer]
+                          - button "mute" [ref=e169] [cursor=pointer]
+                          - slider "volume" [ref=e188] [cursor=pointer]: "1"
+                          - progressbar "playback time" [ref=e189]: 0:00 / 1:46:38
+                          - switch "closed captions" [checked] [ref=e191] [cursor=pointer]
+                          - button "settings" [ref=e195] [cursor=pointer]
+                          - button "enter picture in picture mode" [ref=e199] [cursor=pointer]
+                          - button "enter fullscreen mode" [ref=e204] [cursor=pointer]
+                - generic [ref=e213]:
+                  - generic [ref=e214]:
+                    - generic [ref=e215]: 00:00
+                    - generic [ref=e217]: Será que a vai colar esse tipo de coisa gente
+                  - button "Mostrar transcrição" [ref=e219] [cursor=pointer]
+              - generic [ref=e221]:
+                - generic [ref=e222]:
+                  - heading "Desenvolvimento com IA, Harness, Spec-Driven e Como Trabalhar com Modelos Frontier" [level=2] [ref=e223]
+                  - generic [ref=e225]:
+                    - paragraph [ref=e226]: Nessa aula construímos um ERP do zero para entender, nível a nível, por que um prompt solto não basta e o que precisa existir em volta do modelo para o código sair validado. Começamos com um "implemente isso" seco, passamos por plan mode, criamos uma skill de spec e verificação, rodamos o tlc-spec-driven completo e chegamos na versão lean, onde o modelo implementa livre e um sub agent prova o trabalho contra um checklist. No caminho vemos o que mudou nos modelos nos últimos meses e por que parte do harness que a gente construía já virou babysitting.
+                    - paragraph [ref=e227]: Tópicos da aula
+                    - list [ref=e228]:
+                      - listitem [ref=e229]:
+                        - paragraph [ref=e230]: O que saiu e o que não saiu como esperado com IA
+                      - listitem [ref=e231]:
+                        - paragraph [ref=e232]:
+                          - link "AGENTS.md" [ref=e233] [cursor=pointer]:
+                            - /url: http://agents.md/
+                          - text: "mínimo: só o que o modelo não descobre sozinho"
+                      - listitem [ref=e234]:
+                        - paragraph [ref=e235]: Playwright MCP para o agente provar mudanças de tela
+                      - listitem [ref=e236]:
+                        - paragraph [ref=e237]: Por que um prompt cru não é revisável
+                      - listitem [ref=e238]:
+                        - paragraph [ref=e239]: "Plan mode: iterar na spec é mais barato que no código"
+                      - listitem [ref=e240]:
+                        - paragraph [ref=e241]: Sub agents para explorar sem poluir o contexto principal
+                      - listitem [ref=e242]:
+                        - paragraph [ref=e243]: "Janela de contexto: por que a qualidade cai acima de 60%"
+                      - listitem [ref=e244]:
+                        - paragraph [ref=e245]: "Research, plan, implement, verify: o ciclo que não muda"
+                      - listitem [ref=e246]:
+                        - paragraph [ref=e247]: Criando uma skill que planeja, pergunta e se autovalida
+                      - listitem [ref=e248]:
+                        - paragraph [ref=e249]: "Harness: guias que direcionam e sensores que dão feedback"
+                      - listitem [ref=e250]:
+                        - paragraph [ref=e251]: Quem implementa não pode ser quem aprova
+                      - listitem [ref=e252]:
+                        - paragraph [ref=e253]: "tlc-spec-driven: spec, design, tasks atômicas e gates determinísticos"
+                      - listitem [ref=e254]:
+                        - paragraph [ref=e255]: "Determinismo dentro da skill: scripts extraindo regras em vez da IA"
+                      - listitem [ref=e256]:
+                        - paragraph [ref=e257]: Os limites do spec driven com modelos atuais
+                      - listitem [ref=e258]:
+                        - paragraph [ref=e259]: Spec como fonte da verdade e o drift com o código
+                      - listitem [ref=e260]:
+                        - paragraph [ref=e261]: "tlc-spec-lean: plano único, checklist final e menos tokens"
+                      - listitem [ref=e262]:
+                        - paragraph [ref=e263]: Worktrees para implementar duas features em paralelo
+                      - listitem [ref=e264]:
+                        - paragraph [ref=e265]: "Code review em camadas: segurança, requisitos, arquitetura, regressão"
+                      - listitem [ref=e266]:
+                        - paragraph [ref=e267]: "Auditando o próprio harness: o que já ficou redundante"
+                    - heading "Referências" [level=2] [ref=e268]
+                    - list [ref=e269]:
+                      - listitem [ref=e270]:
+                        - paragraph [ref=e271]:
+                          - link "Diagramas mostrados na aula" [ref=e272] [cursor=pointer]:
+                            - /url: https://link.excalidraw.com/l/7V6DWtFSy3p/2CqCeb9zehB
+                      - listitem [ref=e273]:
+                        - paragraph [ref=e274]:
+                          - link "Código utilizado" [ref=e275] [cursor=pointer]:
+                            - /url: https://github.com/tech-leads-club/workshop-1209
+                    - list [ref=e276]:
+                      - listitem [ref=e277]:
+                        - paragraph [ref=e278]:
+                          - link "Catálogo de skills da Tech Leads Club" [ref=e279] [cursor=pointer]:
+                            - /url: https://agent-skills.techleads.club/
+                      - listitem [ref=e280]:
+                        - paragraph [ref=e281]:
+                          - link "Repositório oficial das skills da TLC" [ref=e282] [cursor=pointer]:
+                            - /url: https://github.com/tech-leads-club/agent-skills
+                      - listitem [ref=e283]:
+                        - paragraph [ref=e284]:
+                          - link "Skill tlc-spec-driven" [ref=e285] [cursor=pointer]:
+                            - /url: https://agent-skills.techleads.club/skills/tlc-spec-driven/
+                      - listitem [ref=e286]:
+                        - paragraph [ref=e287]:
+                          - link "Skill tlc-spec-lean" [ref=e288] [cursor=pointer]:
+                            - /url: https://agent-skills.techleads.club/skills/tlc-spec-lean/
+                          - text: (nova versão do spec driven para modelos mais capazes )
+                      - listitem [ref=e289]:
+                        - paragraph [ref=e290]:
+                          - link "Playwright MCP" [ref=e291] [cursor=pointer]:
+                            - /url: https://github.com/microsoft/playwright-mcp
+                      - listitem [ref=e292]:
+                        - paragraph [ref=e293]:
+                          - link "Paper sobre degradação de qualidade com o tamanho da janela de contexto (arXiv 2402.01438)" [ref=e294] [cursor=pointer]:
+                            - /url: https://arxiv.org/abs/2402.01438
+                      - listitem [ref=e295]:
+                        - paragraph [ref=e296]:
+                          - link "Skill Code review" [ref=e297] [cursor=pointer]:
+                            - /url: https://agent-skills.techleads.club/skills/the-judge/
+                      - listitem [ref=e298]:
+                        - paragraph [ref=e299]: Harness evalution
+                        - list [ref=e300]:
+                          - listitem [ref=e301]:
+                            - paragraph [ref=e302]:
+                              - link "Harness-score" [ref=e303] [cursor=pointer]:
+                                - /url: https://github.com/paladini/harness-score
+                              - text: "- avalia se os documentos existem e estão corretos"
+                          - listitem [ref=e304]:
+                            - paragraph [ref=e305]:
+                              - text: Skill
+                              - link "Harness-eval" [ref=e306] [cursor=pointer]:
+                                - /url: https://agent-skills.techleads.club/skills/harness-eval
+                              - text: "- avalia se o harness ainda é valido"
+                      - listitem [ref=e307]:
+                        - paragraph [ref=e308]:
+                          - 'button "🔴 Fundamentos de IA, Rules, Skills e Contexto Dinâmico: Aquecimento Workshop" [ref=e312] [cursor=pointer]'
+                    - heading "Conteúdos relacionados na TLC" [level=2] [ref=e313]
+                    - list [ref=e314]:
+                      - listitem [ref=e315]:
+                        - paragraph [ref=e316]:
+                          - 'button "Fundamentos do Desenvolvimento Assistido por IA: Context Engineering, Rules, Skills, MCPs e Dev Flow" [ref=e320] [cursor=pointer]'
+                      - listitem [ref=e321]:
+                        - paragraph [ref=e322]:
+                          - button "Harness Engineering" [ref=e326] [cursor=pointer]
+                      - listitem [ref=e327]:
+                        - paragraph [ref=e328]:
+                          - button "Implementando tasks com Spec-Driven" [ref=e332] [cursor=pointer]
+                      - listitem [ref=e333]:
+                        - paragraph [ref=e334]:
+                          - 'button "[Aula] Testes com IA: Como Garantir que o Agente Não Sabote Seus Testes" [ref=e338] [cursor=pointer]'
+                - generic [ref=e339]:
+                  - separator [ref=e340]
+                  - generic [ref=e341]:
+                    - tablist [ref=e343]:
+                      - tab "Comentários" [selected] [ref=e344] [cursor=pointer]
+                    - tabpanel "Comentários" [ref=e346]:
+                      - generic [ref=e348]:
+                        - generic [ref=e354]:
+                          - heading "Diga oi!" [level=6] [ref=e355]
+                          - paragraph [ref=e356]: Seja o primeiro a comentar nesta sessão
+                        - generic [ref=e359]:
+                          - button "Choose File" [ref=e360]
+                          - paragraph [ref=e364]: Digite uma mensagem...
+                          - generic [ref=e365]:
+                            - generic [ref=e366]:
+                              - button "Anexar arquivos" [ref=e367] [cursor=pointer]
+                              - button "Adicionar imagem" [ref=e370] [cursor=pointer]
+                              - button "Adicionar GIF" [ref=e373] [cursor=pointer]
+                              - button "Adicionar emoji" [ref=e376] [cursor=pointer]:
+                                - button "Adicionar emoji" [ref=e377]
+                              - button "Link para uma publicação, evento, aula ou espaço" [ref=e380] [cursor=pointer]
+                              - button "Adicionar menção" [ref=e383] [cursor=pointer]
+                            - button "Enviar mensagem" [disabled] [ref=e386]
+  - generic:
+    - region "Notifications"
+  - generic:
+    - region "Notifications"
