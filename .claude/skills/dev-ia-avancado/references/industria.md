@@ -112,10 +112,17 @@ suporte / incidente / ticket
         PR
 ```
 
+É uma mudança de unidade: de **sessão de chat** para **evento**. Issue, mensagem no Slack,
+alerta e item de backlog entram numa forma comum (escopo, critério, dono, estado), e o
+tracker assume três funções que o chat não consegue sustentar: fila, lock entre agentes e
+ponto de pausa/correção humana.
+
 Consequências que mudam decisões hoje:
 
 - **O tracker vira o centro**, não o repositório. Por isso o plano-que-vira-ticket (spec-lean)
   e não a spec-que-mora-no-repo.
+- **MCPs formam o grafo de contexto.** A task pode ligar para o design doc no Notion, para o
+  repo no GitHub e para métricas/observabilidade; o agente segue esses links de onde estiver.
 - **O loop de implementação não pode depender de você.** Cada passo que exige sua máquina ou
   sua atenção é um passo que não roda nesse desenho. Essa é a métrica de maturidade real do
   seu fluxo.
@@ -130,6 +137,11 @@ que circula entre quem trabalha nisso é que o conjunto de skills necessárias e
 geração. Por isso auditar o harness periodicamente (`harness-eval`) deixou de ser higiene e
 virou necessidade.
 
+O exemplo mostrado na segunda sessão foi um *second brain* no Slack conectado a Notion,
+GitHub, Linear e PostHog: ele localizou por que uma liberação estava atrasada e o pedido de
+correção virou PR sem o responsável abrir o computador. O princípio é integração + processo
+padronizado; a ferramenta específica não é requisito.
+
 ---
 
 ## 5. A evolução da fábrica de software
@@ -143,12 +155,20 @@ do loop. Construir leva dias, revisar leva horas ou dias.
 ideia) → filtro de engenharia/PM → backlog → dev pega e implementa **com IA**, normalmente
 spec-driven → PR → produção. Humano ainda bem envolvido no loop.
 
-**Para onde vai.** O fluxo da seção 4: triagem e implementação agênticas, humano na revisão
-do crítico e nas decisões, não na execução.
+**Para onde vai.** O fluxo da seção 4: triagem e implementação agênticas, humano nas pontas
+— intenção/discovery antes e validação de direção depois —, não no meio repetitivo da
+execução. Agentes em nuvem rodam a mesma linha e devolvem o PR, sem depender da máquina do
+desenvolvedor.
 
 Se a pessoa está no estágio atual e quer avançar, o próximo passo raramente é "adotar
-framework X". É **automatizar verificação e review**, porque é isso que permite tirar o humano
-do loop de execução sem perder confiança.
+framework X". É **padronizar a entrada e automatizar verificação e review**, porque é isso
+que permite tirar o humano do loop de execução sem perder confiança. Depois automatize o que
+não diferencia o negócio — bugs pequenos, triagem repetitiva, coleta de contexto — antes de
+procurar mais uma ferramenta para o ato de implementar.
+
+Essa é uma direção, não um calendário universal. Legado, cultura, compliance e qualidade do
+harness colocam cada empresa num nível diferente. Trate previsões de "até o fim do ano" da
+aula como **posição da TLC**, não como consenso ou garantia.
 
 ---
 

@@ -1,10 +1,10 @@
 ---
 name: dev-ia-avancado
-description: Especialista consultor em desenvolvimento assistido por IA avançado — tira dúvidas, compara abordagens, recomenda o fluxo certo para cada caso e confronta a escolha com o que a indústria de fato adotou (e com o que ela abandonou). Cobre a régua capacidade-do-modelo→fluxo (prompt cru, plan mode, spec-driven vs spec-lean), o ciclo research→plan→implement→verify, harness (guias vs sensores), AGENTS.md e CONTEXT.md/context map, orçamento de janela de contexto e compactação, subagentes e worktrees, verificação independente (autor ≠ verificador), teste de mutação, code review em camadas, validação visual com Playwright MCP, skills vs agentes custom, benchmark de skills e custo em tokens. Use sempre que a conversa envolver como trabalhar com agentes de código, escolher/comparar framework, metodologia ou skill, avaliar se um setup está bom, entender por que o agente erra ou não valida o próprio trabalho, ou saber se uma prática ainda faz sentido no mercado — inclusive em frases casuais como "vale a pena spec-driven?", "meu AGENTS.md está bom?", "devo usar subagente ou skill?", "isso ainda é usado?", "por que o agente disse que terminou e não terminou?". English also triggers this skill — advisory expert on advanced AI-assisted development, agentic coding workflows, spec-driven vs lean, context engineering, harness design, agent self-verification, comparing approaches against industry practice. NÃO use para executar uma feature (isso é tlc-spec-driven / tlc-spec-lean), montar o harness estático do repo (harness-builder) ou orquestrar a entrega (agentic-delivery-harness) — esta skill aconselha, compara e encaminha para essas.
+description: Especialista consultor em desenvolvimento assistido por IA avançado. Recomenda fluxo e confronta a escolha com o que a indústria adotou ou abandonou. Cobre capacidade do modelo→estrutura; prompt/plan/spec-driven/spec-lean; discover→plan→implement→verify/review; fábricas agênticas orientadas a eventos; tracker/board, MCPs e agentes em nuvem; PRD/design doc/RFC/ADR/task/checklist; harness, AGENTS.md, contexto/compactação, subagentes, verificação independente, mutation testing, code review e Playwright. Use sempre para dúvida, comparação ou diagnóstico sobre coding agents, metodologia/skill, fluxo Slack/ticket/alerta→agente→PR, humano no loop, task sizing, artefatos, erro do agente ou prática de mercado — mesmo sem citar a skill. English triggers too. Consultoria apenas; para executar use tlc-discover/tlc-plan/tlc-implement, tlc-spec-* ou agentic-delivery-harness; para montar harness use harness-builder.
 license: CC-BY-4.0
 metadata:
-  version: 1.0.0
-  fonte: 'Workshop Tech Leads Club "Desenvolvimento Assistido por IA Avançado #3" — Dia 1, sessão 1 (set/2026)'
+  version: 1.1.0
+  fonte: 'Workshop Tech Leads Club "Desenvolvimento Assistido por IA Avançado #3" — Dia 1, sessões 1 e 2 (set/2026)'
   snapshot: "2026-09"
 ---
 
@@ -80,8 +80,10 @@ Duas consequências que as pessoas erram:
 - **O modelo do *implementador* é que decide**, não o do planejador. É comum planejar com
   modelo caro e implementar com barato — nesse caso a régua é o barato.
 
-O que **não** é opção: não usar estrutura nenhuma. Modelos seguem sendo não-determinísticos
-e vão deixar coisa passar mesmo sendo bons — ver *As cinco regras*, item 1.
+O que **não** é opção: levar trabalho relevante ou irreversível à produção sem intenção
+declarada e prova. Modelos seguem sendo não-determinísticos e vão deixar coisa passar mesmo
+sendo bons. Prompt cru é aceitável para POC isolada ou alteração simples e reversível; não é
+licença para eliminar verificação — ver *As cinco regras*, item 1.
 
 ---
 
@@ -91,20 +93,32 @@ Framework vai e volta; este ciclo sobrevive a todos. Quando alguém se perder em
 metodologia, traga de volta para cá.
 
 ```
-RESEARCH  →  PLAN  →  IMPLEMENT  →  VERIFY
+DISCOVER / RESEARCH  →  PLAN  →  IMPLEMENT  →  VERIFY  →  REVIEW
 ```
 
 Cada fase tem um **perfil de contexto diferente**, e é aí que a maioria erra:
 
 | Fase | Contexto | Regra |
 |---|---|---|
-| **Research** | Abrir o máximo. Subagentes, links, MCPs, métricas, janela grande | O ruído aqui é aceitável porque o produto da fase é um documento, não código |
+| **Discover / Research** | Abrir o máximo. Humano dirigindo, subagentes, links, MCPs, métricas, janela grande | O ruído aqui é aceitável porque o produto da fase é uma decisão e um design, não código |
 | **Plan** | Iterar aqui, não no código | Corrigir uma linha de plano custa ordens de grandeza menos que corrigir a implementação dela. Plan mode é nativo em todas as ferramentas — use |
 | **Implement** | **Janela nova**, carregando só o plano | Se você implementa na mesma janela que pesquisou, entrega com o contexto já degradado |
 | **Verify** | Agente **diferente**, missão **oposta** | Ver regra 1 |
+| **Review** | Humano valida direção; agentes já provaram mecânica | Não desperdice leitura humana caçando falha que lint, teste e review automatizado deveriam ter encontrado |
 
 A transição Plan→Implement em janela limpa é a melhoria de maior retorno e menor custo
 que existe nesse fluxo. É também a mais ignorada.
+
+Numa fábrica agêntica, esse ciclo vira uma linha orientada a eventos: issue, Slack, alerta ou
+backlog entram pelo tracker; triagem decide o caminho; agentes executam as estações; um PR
+volta para o gate. O humano não some — move-se para as pontas: **intenção e direção**. Ver
+`references/fabrica-agentica.md`.
+
+**Nem todo trabalho percorre todas as estações.** Mudança pequena, reversível e de baixo
+risco pode ir direto para implementação + autovalidação. Exploração pode virar POC numa
+branch descartável e só depois retornar a discovery/plan para a implementação real. Bug
+óbvio frequentemente pula discovery. O atalho é proporcional ao risco; a prova continua
+proporcional ao que pode dar errado.
 
 ---
 
@@ -147,7 +161,7 @@ alguém está e qual é o próximo problema dele — a pergunta útil nunca é "
 
 | Degrau | O que resolve | O que **ainda** falta |
 |---|---|---|
-| **1. Prompt cru** ("implementa isso") | Nada além de velocidade | Você não sabe o que vai ser feito, e depois não tem contra o que revisar. Insustentável em produção |
+| **1. Prompt cru** ("implementa isso") | Velocidade em POC ou mudança pequena, reversível e de baixo risco | Você não sabe o que vai ser feito, e depois não tem contra o que revisar. Insustentável como padrão de produção |
 | **2. Plan mode** | Você passa a ver o escopo antes, e itera barato | Ninguém prova que o plano foi cumprido. Revisar plano contra diff na mão não escala |
 | **3. Skill própria** (planeja, pergunta, autovalida) | Regras em Given/When/Then + subagente validando contra elas | Estrutura fraca: não cobre arquitetura, regressão, segurança, qualidade de teste |
 | **4. spec-driven** | Spec + design revisáveis, tasks atômicas, gate por task, log de decisões | Lento e caro com modelo bom; vira babysitting. Spec tende a driftar do código |
@@ -234,6 +248,7 @@ for fundo num eixo:
 | A pergunta é sobre | Leia |
 |---|---|
 | Escolher/comparar framework, plan mode, spec-driven, spec-lean, criar a própria skill | `references/fluxo-e-metodos.md` |
+| Fábrica agêntica, humano no loop, tracker/MCPs, discovery→task→agente→PR, documentos e tamanho de task | `references/fabrica-agentica.md` |
 | `AGENTS.md`, CONTEXT.md/context map, guias vs sensores, Playwright MCP, auditar o harness | `references/harness.md` |
 | Verificador independente, teste de mutação, code review em camadas, limites de LLM-as-judge | `references/verificacao.md` |
 | Janela de contexto, compactação, subagentes, worktrees, papers | `references/contexto.md` |
@@ -248,6 +263,9 @@ Esta skill aconselha. Quando a intenção vira execução, diga qual é o próxi
 
 | Intenção | Vá para |
 |---|---|
+| Explorar uma ideia ainda sem forma e produzir design doc | skill `tlc-discover` |
+| Transformar PRD/design doc/RFC/thread já decidido em task executável | skill `tlc-plan` |
+| Implementar trabalho já planejado e provar cada check | skill `tlc-implement` |
 | Planejar e implementar uma feature com estrutura completa | skill `tlc-spec-driven` |
 | Idem, com modelo frontier e verificação por checklist | skill `tlc-spec-lean` |
 | Revisar PR/branch em camadas com evidência | skill `the-judge` (ou `/code-review`) |

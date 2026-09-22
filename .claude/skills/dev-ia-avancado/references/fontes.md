@@ -5,7 +5,7 @@ interlocutor questionar de onde vem a recomendação.
 
 ---
 
-## 1. Fonte primária desta versão
+## 1. Fontes primárias desta versão
 
 **Workshop Tech Leads Club — "Desenvolvimento Assistido por IA Avançado #3" (set/2026)**
 Dia 1, sessão 1: *"Desenvolvimento com IA, Harness, Spec-Driven e Como Trabalhar com Modelos
@@ -28,6 +28,21 @@ Resumo oficial da aula, na íntegra:
 > mudou nos modelos nos últimos meses e por que parte do harness que a gente construía já
 > virou babysitting.
 
+**Dia 1, sessão 2:** *"A Próxima Fase da Fábrica de Software Agêntica"* — 1h09, conduzida
+por Waldemar Neto.
+https://www.techleads.club/c/workshop-ia-3-09-2026/sections/1181300/lessons/4533572
+
+**Formato da aula:** continuação do ERP ao vivo. Uma mudança visual simples roda sem plano;
+uma POC em branch ilustra exploração aberta; depois o fluxo completo passa por discovery,
+design doc, task no Linear, implementação local/remota, verificação e PR. A sessão também
+mostra automação de triagem e um caso real de Slack → contexto → correção → PR.
+
+**Resumo editorial, em paráfrase:** a aula move a fábrica do fluxo humano-em-todas-as-etapas
+para uma linha em que qualquer task — vinda de Slack, alerta ou PM — atravessa o mesmo
+planejamento, implementação e verificação. O humano concentra-se em intenção/discovery e no
+review final; design doc e task vivem em ferramentas colaborativas ligadas por MCPs; um
+agente em nuvem pode devolver o PR sem depender da máquina do desenvolvedor.
+
 ---
 
 ## 2. Links de referência
@@ -35,10 +50,16 @@ Resumo oficial da aula, na íntegra:
 **Material da aula**
 - Diagramas (Excalidraw): https://link.excalidraw.com/l/7V6DWtFSy3p/2CqCeb9zehB
 - Código construído ao vivo: https://github.com/tech-leads-club/workshop-1209
+- Aula — sessão 2: https://www.techleads.club/c/workshop-ia-3-09-2026/sections/1181300/lessons/4533572
+- `getdesign.md` (catálogo de DESIGN.md usado na demo): https://getdesign.md/
 
 **Skills da Tech Leads Club** (abertas, gratuitas)
 - Catálogo: https://agent-skills.techleads.club/
 - Repositório: https://github.com/tech-leads-club/agent-skills
+- AI Dev Flow (fábrica agêntica): https://agent-skills.techleads.club/tlc-ai-dev-flow/
+- `tlc-discover`: https://agent-skills.techleads.club/skills/tlc-discover/
+- `tlc-plan`: https://agent-skills.techleads.club/skills/tlc-plan/
+- `tlc-implement`: https://agent-skills.techleads.club/skills/tlc-implement/
 - `tlc-spec-driven`: https://agent-skills.techleads.club/skills/tlc-spec-driven/
 - `tlc-spec-lean`: https://agent-skills.techleads.club/skills/tlc-spec-lean/
 - `the-judge` (code review): https://agent-skills.techleads.club/skills/the-judge/
@@ -101,6 +122,28 @@ Sobre **benchmark de skills**:
 > pessoa. Se a gente está gastando token numa coisa, eu quero saber se ela é realmente
 > efetiva."
 
+### Teses da sessão 2 (paráfrase da transcrição)
+
+- O humano sai do meio repetitivo da execução, não das decisões: dirige discovery/intenção
+  e valida direção no final.
+- Tracker não morreu; voltou como fila, estado e ponto de entrada para agentes.
+- Design doc explica o porquê e a solução de alto nível; a task diz o que construir; o
+  checklist diz como provar.
+- Negócio não deveria ser obrigado a versionar Markdown se já trabalha melhor em
+  Notion/Confluence; MCPs preservam acesso do agente ao contexto externo.
+- A experiência tende a se unificar: o agente aparece nas ferramentas das pessoas, em vez de
+  obrigar cada área a adotar a interface e o formato preferidos por engenharia.
+- Task grande demais força decisões durante a implementação. A heurística da aula é ficar na
+  ordem de até uma semana de trabalho humano, calibrando pelo harness e pela maturidade.
+- Subagente prematuro custa mais e demora mais; o valor aparece quando a mudança ameaça a
+  janela ou quando a missão precisa ser independente, como verificação.
+- Automatize primeiro o que não diferencia o negócio e resista a adicionar ferramenta nova
+  apenas para a etapa de implementação.
+
+As anotações do participante registram o fluxo de Waldemar com `tlc-spec-lean`; o catálogo
+oficial pós-aula publica `tlc-discover → tlc-plan → tlc-implement → the-judge`. A skill
+preserva os dois como variantes e usa os nomes/links publicados ao encaminhar execução.
+
 ---
 
 ## 4. Ressalvas de precisão
@@ -125,20 +168,28 @@ trabalho entregue, e variam enormemente por contexto. Cite com essa ressalva.
 **e) Nomes de modelo e tiers envelhecem rápido.** Quando a pergunta citar um modelo posterior
 a set/2026, não finja conhecê-lo: classifique pela régua de capacidade e responda pelo eixo.
 
-**f) Esta é a sessão 1 de um workshop de 11 sessões.** Ver seção 5.
+**f) Esta versão cobre as sessões 1 e 2 de um workshop de 11 sessões.** Ver seção 5.
+
+**g) "Até uma semana humana" é heurística operacional da sessão 2.** Não é medida de paper
+nem limite do modelo. O tamanho sustentável cresce com arquitetura, sensores, isolamento e
+capacidade do modelo; o mecanismo importante é evitar planejar etapas futuras sobre código
+que ainda não existe.
+
+**h) A previsão de automação até o fim de 2026/início de 2027 é posição da TLC.** A direção
+é sustentada pelos exemplos apresentados; o prazo não é consenso e não vale igualmente para
+empresas com legado, compliance ou baixa maturidade de harness.
 
 ---
 
 ## 5. O que esta versão **não** cobre
 
-A v1 vem da primeira sessão. Conscientemente fora de escopo — se a pergunta cair aqui,
-responda pelos fundamentos e **diga que essa parte não veio da fonte**:
+A v1.1 vem das duas primeiras sessões. Conscientemente fora de escopo — se a pergunta cair
+aqui, responda pelos fundamentos e **diga que essa parte não veio da fonte**:
 
 | Tema | Onde foi tratado no workshop |
 |---|---|
 | Projeto brownfield, migração e repatriação de legado | Dia 1 tarde / Dia 2 |
 | Arquitetura de software na era da IA | Dia 2 |
-| Design doc → planejamento → board (o fluxo completo de entrada) | Dia 1 tarde |
 | Hooks e harness-toolkit | Dia 1 (Felipe Rodrigues) |
 | Mercado e o papel do novo dev | Dia 1 (Felipe Adamoli) |
 | Desenvolvimento com IA no iFood | Dia 1 (Júlio Santos) |

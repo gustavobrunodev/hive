@@ -115,6 +115,25 @@ Ferramentas e modelos atuais decidem sozinhos quando abrir subagente para (a) �
 geralmente não precisa pedir. Para (b) você precisa pedir, porque é decisão de processo, não
 de eficiência.
 
+**O timing tem custo nos dois sentidos.** Abrir cedo demais exige briefing, coordenação e
+handoff quando uma única janela ainda resolveria — fica mais caro e mais lento. Abrir tarde
+demais deixa o builder decidir sob contexto degradado. Por isso o gatilho útil é o **tamanho
+estimado da mudança e do que precisa ser lido**, não uma contagem fixa de tasks ou slices.
+
+Ao dividir implementação longa:
+
+1. mantenha cada fatia vertical inteira; nunca entregue meio resultado observável;
+2. prefira a fronteira onde muda a superfície/módulo, porque o próximo agente já teria que
+   ler outro conjunto de arquivos;
+3. faça handoff só no verde, com checklist + diff + decisões e tentativas abandonadas;
+4. não use o builder seguinte como verificador — autoria compartilhada continua sendo
+   autoria. O verificador entra fresco depois da última fatia.
+
+A configuração publicada de `tlc-implement` usa 150k tokens estimados de leitura como
+orçamento default de um lote e permite override em projetos com janela menor. **Posição da
+TLC:** o número é uma heurística daquela skill, não limiar universal. O princípio que
+transfere é pesar contexto e cortar numa fronteira contestável antes de o código começar.
+
 Regra de conteúdo: **o conhecimento vai em skill, não no subagente.** Subagente é mecanismo
 de contexto e de incentivo. Um subagente genérico com 3–4 skills é mais útil que um agente
 custom com um papel fixo.

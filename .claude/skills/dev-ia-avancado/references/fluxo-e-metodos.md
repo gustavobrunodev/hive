@@ -28,7 +28,9 @@ Funciona e é rápido. Dois problemas fatais em produção:
 - **Não há contra o que revisar.** Sem uma declaração prévia, revisar significa ler
   mudança por mudança e torcer para lembrar de todas as regras de negócio.
 
-É um degrau legítimo para protótipo, script, spike. Nunca para código que vai para produção.
+É um degrau legítimo para protótipo, script, spike e mudança pequena/reversível de baixo
+risco, desde que ainda haja autovalidação proporcional. Não é um padrão sustentável para
+trabalho relevante em produção.
 
 ### Degrau 2 — plan mode
 
@@ -172,8 +174,11 @@ por evidência, não por decreto.
 
 | Situação | Recomendação |
 |---|---|
-| Protótipo, spike, script descartável | Prompt cru. Estrutura aqui é cerimônia |
+| Protótipo, spike, script descartável | Prompt cru numa branch/sandbox isolada. Use o aprendizado; depois planeje a implementação real |
+| Mudança simples, reversível, baixo risco, código conhecido | Prompt direto + autovalidação. Se toca UI, veja a tela; se algum risco aparecer, suba de degrau |
 | Feature pequena, código já bem estruturado, modelo bom | Plan mode + validação no fim |
+| Ideia ainda abstrata, problema ou solução não decididos | `tlc-discover` (ou discovery equivalente) → design doc; humano dirige a decisão |
+| PRD/design doc/RFC/thread já decidido, mas sem task executável | `tlc-plan`; não reabra produto durante o planejamento |
 | Time todo com modelo frontier, quer padronizar | spec-lean |
 | Time com modelo barato no loop de implementação | spec-driven, sem negociar |
 | Modelo bom para planejar + barato para implementar | spec-driven — a régua é o implementador |
@@ -181,6 +186,9 @@ por evidência, não por decreto.
 | Domínio com regra de negócio densa | Qualquer degrau ≥3, mas o inegociável é regra em Given/When/Then — é o que a verificação consome |
 | Empresa quer framework próprio | Pegue os fundamentos (verificador independente, evidência-ou-zero, gates determinísticos, mutação) e aplique no processo que já existe. São markdowns; dá para pedir ao agente para explicar e adaptar |
 | Pipeline automatizado (ticket → agente → PR, sem passar na máquina de ninguém) | Board como fonte, plano que vira ticket, verificação e review 100% automatizados. Aqui o spec-driven repo-cêntrico atrapalha |
+
+Para o desenho completo da fábrica — estações, documentos, tracker, MCPs, agentes em nuvem
+e tamanho de task — leia `fabrica-agentica.md`.
 
 ---
 
@@ -214,11 +222,15 @@ Regras de conteúdo:
 | Mecanismo | O que é | Quando usar |
 |---|---|---|
 | **Skill** | Instrução carregada sob demanda | Padrão. Reusável e **componível** — um subagente genérico pode receber 3–4 skills |
-| **Subagente** | Thread separado, contexto zerado, devolve só a resposta | Exploração ampla, e sobretudo **verificação** (missão diferente do autor) |
+| **Subagente** | Thread separado, contexto zerado, devolve só a resposta | Exploração ampla, handoff quando a mudança não cabe numa janela saudável, e sobretudo **verificação** (missão diferente do autor) |
 | **Agente custom** | Persona/papel fixo configurado | Raro. É um papel só, não compõe. Skills praticamente os tornaram obsoletos |
 
 Na prática: crie skills, quase nunca agentes. Subagente é mecanismo de contexto e de
 incentivo, não de conhecimento — o conhecimento vai em skill.
+
+Não antecipe subagentes só porque há várias slices: briefing e handoff tornam o fluxo mais
+caro e lento. Pese o tamanho do contexto; quando dividir, preserve fatias verticais inteiras.
+Ver `contexto.md`, seção 5.
 
 ---
 
