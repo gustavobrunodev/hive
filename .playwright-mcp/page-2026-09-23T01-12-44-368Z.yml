@@ -1,0 +1,382 @@
+- generic [ref=e2]:
+  - heading "0 notificação" [level=2] [ref=e3]
+  - generic [ref=e4]:
+    - generic:
+      - generic "Pular menu de navegação":
+        - button "Fechar menu pular" [ref=e6] [cursor=pointer]
+    - generic [ref=e9]:
+      - banner [ref=e11]:
+        - generic [ref=e14]:
+          - button [ref=e15] [cursor=pointer]
+          - generic [ref=e18]:
+            - navigation [ref=e22]:
+              - list [ref=e23]:
+                - listitem [ref=e24]:
+                  - button "Início, 1 nova notificação" [ref=e25] [cursor=pointer]:
+                    - generic [ref=e29]: Início
+                - listitem [ref=e31]:
+                  - link "Minha rede0 nova notificação" [ref=e32] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/mynetwork
+                    - generic [ref=e36]: Minha rede
+                - listitem [ref=e38]:
+                  - link "Vagas, 0 nova notificação" [ref=e39] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/jobs/
+                    - generic [ref=e43]: Vagas
+                - listitem [ref=e45]:
+                  - link "Mensagens, 0 nova notificação" [ref=e46] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/messaging/
+                    - generic [ref=e50]: Mensagens
+                - listitem [ref=e52]:
+                  - link "Notificações, 0 nova notificação" [ref=e53] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/notifications/
+                    - generic [ref=e57]: Notificações
+                - listitem [ref=e59]:
+                  - button "Eu" [ref=e60] [cursor=pointer]:
+                    - figure [aria-hidden] [ref=e62]
+            - generic [ref=e67]:
+              - navigation [ref=e68]:
+                - list [ref=e69]:
+                  - listitem [ref=e70]:
+                    - button "Para negócios" [ref=e71] [cursor=pointer]
+              - button [ref=e80] [cursor=pointer]:
+                - paragraph [ref=e82]:
+                  - link "Ative o Premium por R$ 0" [ref=e84]:
+                    - /url: "#"
+      - generic [ref=e86]:
+        - toolbar [ref=e87]:
+          - link [ref=e96] [cursor=pointer]:
+            - /url: https://www.linkedin.com/in/gustavobrunodev/
+            - generic "Gustavo Bruno" [ref=e97]:
+              - figure [aria-hidden] [ref=e98]
+              - generic [ref=e99]:
+                - paragraph [ref=e100]: Gustavo Bruno
+                - paragraph [ref=e102]: Senior Software Engineer
+        - main [ref=e103]:
+          - generic [ref=e105]:
+            - region "Conteúdo principal" [ref=e106]:
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - generic [ref=e113]:
+                    - button "Voltar para a tela principal do perfil" [ref=e115] [cursor=pointer]
+                    - paragraph [ref=e118]: Experiência
+                  - button "Adicionar cargo ou pausa na carreira" [ref=e120] [cursor=pointer]
+                - generic [ref=e123]:
+                  - generic [ref=e126]:
+                    - link [ref=e127] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/1407682/
+                      - figure [ref=e128]
+                    - link [ref=e130] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/1407682/
+                      - generic [ref=e133]:
+                        - paragraph [ref=e134]: Zup Innovation
+                        - paragraph [ref=e135]: Tempo integral · 4 a 3 m
+                  - list [ref=e136]:
+                    - listitem [ref=e137]:
+                      - generic [ref=e140]:
+                        - generic [ref=e141]:
+                          - link [ref=e142] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/2185572906/
+                            - generic [ref=e143]:
+                              - paragraph [ref=e144]: Engenheiro de software sênior
+                              - paragraph [ref=e145]: abr de 2023 - o momento · 3 anos 6 meses
+                              - paragraph [ref=e146]: Uberlândia, Minas Gerais, Brasil · Remoto
+                          - generic [ref=e147]:
+                            - button "Aprimorar com IA" [ref=e149] [cursor=pointer]
+                            - link "Editar Engenheiro de software sênior na empresa Zup Innovation" [ref=e154] [cursor=pointer]:
+                              - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/2185572906/
+                        - generic [ref=e157]:
+                          - paragraph [ref=e158]:
+                            - generic [ref=e159]: Tendo como responsabilidade o desenvolvimento de diferentes produtos e serviços de câmbio do maior banco da América Latina, ajudei a construir soluções de ponta para atender milhões de clientes que acessam o aplicativo mobile todos os dias.Sendo a principal referência de frontend da equipe, criei padrões e diretrizes de forma colaborativa e auxiliei todo o time a construir aplicações de qualidade e com escalabilidade.
+                          - generic [ref=e160]:
+                            - link [ref=e161] [cursor=pointer]:
+                              - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/2185572906/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                              - paragraph [ref=e166]: Hub Câmbio.png
+                            - link [ref=e167] [cursor=pointer]:
+                              - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/2185572906/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                              - generic [ref=e171]:
+                                - paragraph [ref=e172]: Transferência Internacional
+                                - paragraph [ref=e174]: Fiz parte do time responsável pelo hub que direciona para todos os serviços de câmbio do banco. Ou seja, nosso objetivo é direcionar o usuário para cada tipo de serviço de forma rápida, intuitiva, com a melhor experiência (UX) e usabilidade possível, para o cliente chegar onde precisa.
+                          - link [ref=e175] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/2185572906/skill-associations-details/?associationType=position
+                            - paragraph [ref=e176]:
+                              - strong [ref=e177]: "Competências:"
+                              - text: AWS, Jest e mais 9 competências
+                    - listitem [ref=e178]:
+                      - generic [ref=e181]:
+                        - generic [ref=e182]:
+                          - link [ref=e183] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1995488501/
+                            - generic [ref=e184]:
+                              - paragraph [ref=e185]: Engenheiro de Software Pleno
+                              - paragraph [ref=e186]: jul de 2022 - abr de 2023 · 10 meses
+                          - link "Editar Engenheiro de Software Pleno na empresa Zup Innovation" [ref=e188] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1995488501/
+                        - generic [ref=e191]:
+                          - paragraph [ref=e192]:
+                            - generic [ref=e193]: Trabalhei no desenvolvimento de um dos principais produtos da maior empresa de telecomunicações do Brasil, responsável por atender uma base de milhões de clientes que utilizam os serviços diariamente.Atuei na concepção e criação do Design System e da biblioteca de componentes reutilizáveis para todas as aplicações web da empresa. Também fui promotor e atuei na implementação de uma arquitetura microfrontend para as aplicações, garantindo menores custos de desenvolvimento, maior potencial de escalabilidade para as equipes e uma melhor experiência do usuário.
+                          - link [ref=e195] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/1995488501/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                            - generic [ref=e199]:
+                              - paragraph [ref=e200]: Vivo Easy — O plano digital que se adapta a você
+                              - paragraph [ref=e202]: O Plano que se adapta à você — Vivo Easy é totalmente flexível, com internet que não expira, Cashback e muitas vantagens.
+                          - link [ref=e203] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/1995488501/skill-associations-details/?associationType=position
+                            - paragraph [ref=e204]:
+                              - strong [ref=e205]: "Competências:"
+                              - text: AWS, Jest e mais 13 competências
+                - generic [ref=e208]:
+                  - generic [ref=e211]:
+                    - link [ref=e212] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/18826051/
+                      - figure [ref=e213]
+                    - generic [ref=e214]:
+                      - link [ref=e215] [cursor=pointer]:
+                        - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1671478022/
+                        - generic [ref=e216]:
+                          - generic [ref=e218]:
+                            - paragraph [ref=e219]: Desenvolvedor de Software Freelancer
+                            - paragraph [ref=e220]: Freelancer · Freelance
+                          - paragraph [ref=e221]: out de 2018 - mar de 2023 · 4 anos 6 meses
+                          - paragraph [ref=e222]: Aracaju, Sergipe, Brasil
+                      - generic [ref=e223]:
+                        - paragraph [ref=e224]:
+                          - generic [ref=e225]: "Projeto: Gama App - App de Gestão InternoDesenvolvimento de uma aplicação web para cálculo de comissionamento de vendedores de concessionárias, baseada em critérios definidos pela empresa. Implementação de funcionalidades que permitem a edição e atualização de critérios de comissionamento conforme necessário, com foco na automação completa, minimizando a necessidade de inserção manual de valores. Gerenciamento da performance dos vendedores através de um dashboard centralizado, facilitando a análise e tomada de decisões para melhorar o desempenho da equipe.Responsável por todo o ciclo de desenvolvimento, desde a prototipação até a implementação das stacks front-end e back-end.Projeto: Amanda Café FotografiaDesenvolvimento de um site para apresentar os trabalhos profissionais da fotógrafa Amanda Café. Criação de funcionalidades para facilitar a conexão com a fotógrafa e a venda de presets personalizados. Foco na experiência do usuário e na estética visual para refletir a qualidade do trabalho da fotógrafa."
+                        - link [ref=e228] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/1671478022/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                          - generic [ref=e232]:
+                            - paragraph [ref=e233]: Amanda Café Fotografia
+                            - paragraph [ref=e235]: Sou fotógrafa desde 2016 e hoje celebro a beleza feminina, principalmente nas cidades de Aracaju e Salvador. Me considero uma pessoa divertida e adaptável! Quero fazer de tudo para o seu ensaio sair do jeito que você imaginou, se não melhor!
+                      - paragraph [ref=e236]:
+                        - link "Jest, GraphQL e mais 12 competências" [ref=e237] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/1671478022/skill-associations-details/?associationType=position
+                  - link "Editar Desenvolvedor de Software Freelancer na empresa Freelancer" [ref=e241] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1671478022/
+                - generic [ref=e244]:
+                  - generic [ref=e247]:
+                    - link [ref=e248] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/11434493/
+                      - figure [ref=e249]
+                    - link [ref=e251] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/11434493/
+                      - generic [ref=e252]:
+                        - generic [ref=e254]:
+                          - paragraph [ref=e255]: labsit
+                          - paragraph [ref=e256]: Tempo integral · 1 a 5 m
+                        - paragraph [ref=e257]: São Paulo, Brasil
+                  - list [ref=e258]:
+                    - listitem [ref=e259]:
+                      - generic [ref=e262]:
+                        - generic [ref=e263]:
+                          - link [ref=e264] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1822960792/
+                            - generic [ref=e265]:
+                              - paragraph [ref=e266]: Engenheiro de Software Pleno
+                              - paragraph [ref=e267]: ago de 2021 - jul de 2022 · 1 ano
+                          - link "Editar Engenheiro de Software Pleno na empresa labsit" [ref=e269] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1822960792/
+                        - generic [ref=e272]:
+                          - paragraph [ref=e273]:
+                            - generic [ref=e274]: Nessa oportunidade, ajudei a construir do zero, desde a concepção até o desenvolvimento, uma aplicação web white-label do principal produto de uma das maiores HealthTechs do mercado brasileiro, responsável por gerar milhões em receita para a empresa no formato B2B.Como principal referência de frontend da equipe, assisti a equipe de arquitetura de software na definição de padrões de software para a solução, utilizando as melhores práticas e casos utilizados por empresas líderes de mercado, garantindo que o objetivo de negócio fosse alcançado.
+                          - link [ref=e276] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/1822960792/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                            - generic [ref=e280]:
+                              - paragraph [ref=e281]: Funcional Multi (Mobile App)
+                              - paragraph [ref=e283]: Funcional Multi é um cartão de benefícios corporativos bandeira Mastercard, aceito em mais de 4 milhões de estabelecimentos. Ele pode reunir em um só cartão e em um só aplicativo benefícios como Alimentação, Refeição, Mobilidade, Premiação e muito mais.
+                          - link [ref=e284] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/1822960792/skill-associations-details/?associationType=position
+                            - paragraph [ref=e285]:
+                              - strong [ref=e286]: "Competências:"
+                              - text: Jest, GraphQL e mais 12 competências
+                    - listitem [ref=e287]:
+                      - generic [ref=e290]:
+                        - generic [ref=e291]:
+                          - link [ref=e292] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1750807988/
+                            - generic [ref=e293]:
+                              - paragraph [ref=e294]: Engenheiro de software júnior
+                              - paragraph [ref=e295]: mar de 2021 - ago de 2021 · 6 meses
+                          - link "Editar Engenheiro de software júnior na empresa labsit" [ref=e297] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1750807988/
+                        - generic [ref=e300]:
+                          - paragraph [ref=e301]:
+                            - generic [ref=e302]: Atuei no desenvolvimento mobile do principal produto de uma das maiores HealthTechs do mercado brasileiro, sendo responsável por uma receita milionária para empresa para clientes no formato B2B.Nessa experiência tive a oportunidade de ser um dos membros da equipe a propor e a desenvolver um grande refactor na aplicação, visando a reestruturação do código legado e arquitetural do projeto para melhor performance do aplicativo. Garantindo assim resolver grande parte dos problemas (bugs) recorrentes da aplicação, o que gerou uma maior nota do aplicativo nas lojas, assim como também proporcionar aos desenvolvedores um código mais limpo e claro visando uma melhor padronização, e consequentemente uma maior agilidade no desenvolvimento das novas demandas que chegavam.
+                          - link [ref=e303] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/1750807988/skill-associations-details/?associationType=position
+                            - paragraph [ref=e304]:
+                              - strong [ref=e305]: "Competências:"
+                              - text: Jest, GraphQL e mais 12 competências
+                - generic [ref=e308]:
+                  - generic [ref=e311]:
+                    - link [ref=e312] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/company/3124501/
+                      - figure [ref=e313]
+                    - generic [ref=e314]:
+                      - link [ref=e315] [cursor=pointer]:
+                        - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1679426172/
+                        - generic [ref=e316]:
+                          - generic [ref=e318]:
+                            - paragraph [ref=e319]: Desenvolvedor full stack
+                            - paragraph [ref=e320]: Getinfo Soluções Corporativas · Tempo integral
+                          - paragraph [ref=e321]: out de 2019 - mar de 2021 · 1 ano 6 meses
+                          - paragraph [ref=e322]: Aracaju, Sergipe, Brasil · Remoto
+                      - generic [ref=e323]:
+                        - paragraph [ref=e324]:
+                          - generic [ref=e325]: Atuei no desenvolvimento da Plataforma de Carreiras da maior universidade particular do Nordeste (Unit), assim como no desenvolvimento de produtos e campanhas para o maior banco do estado de Sergipe (Banese).Nessa oportunidade fui responsável por melhorar a manutenibilidade e estruturação de projetos, reestruturar as aplicações utilizando padrões de software, implementar boas práticas e documentar projetos.
+                        - generic [ref=e326]:
+                          - link [ref=e327] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/1679426172/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                            - generic [ref=e331]:
+                              - paragraph [ref=e332]: Unit Carreiras
+                              - paragraph [ref=e334]: O Unit Carreiras é um portal capacitação profissional e oportunidade de estágio da Universidade Tiradentes.
+                          - link [ref=e335] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/Position/1679426172/treasury/?profileId=ACoAACwZ3c8BdIZSSygTaJZF_d_Bfa6BtJQybg8
+                            - generic [ref=e339]:
+                              - paragraph [ref=e340]: Banese, pode contar.
+                              - paragraph [ref=e342]: O Banese é uma empresa múltipla, de capital aberto e economia mista, majoritariamente controlada pelo Governo do Estado de Sergipe. Com sede em Aracaju (SE), o Banese atua em diversos estados do Brasil, especialmente no Nordeste, e prepara a expansão de sua rede na região e o lançamento de um banco digital.
+                      - paragraph [ref=e343]:
+                        - link "Jest, Front-end Development e mais 11 competências" [ref=e344] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/in/gustavobrunodev/overlay/1679426172/skill-associations-details/?associationType=position
+                  - link "Editar Desenvolvedor full stack na empresa Getinfo Soluções Corporativas" [ref=e348] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/in/gustavobrunodev/details/experience/edit/forms/1679426172/
+            - complementary "À parte" [ref=e351]:
+              - generic [ref=e353]:
+                - generic [ref=e357]:
+                  - generic [ref=e358]:
+                    - heading "Idioma do perfil" [level=2] [ref=e359]
+                    - link "Editar idioma do perfil" [ref=e361] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/in/gustavobrunodev/edit/secondary-language/
+                  - button [ref=e365] [cursor=pointer]:
+                    - generic [ref=e366]:
+                      - checkbox "Português"
+                      - generic [ref=e367]: Português
+                - generic [ref=e373]:
+                  - generic [ref=e375]:
+                    - heading "Quem seus visitantes também viram" [level=3] [ref=e377]
+                    - paragraph [ref=e378]: Exibido apenas a você
+                  - generic [ref=e380]:
+                    - button [ref=e381] [cursor=pointer]:
+                      - generic [ref=e382]:
+                        - figure [aria-hidden] [ref=e383]
+                        - generic [ref=e384]:
+                          - paragraph [ref=e387]: Desenvolvedor de software na empresa Zup Innovation
+                          - button "Ver" [ref=e388]
+                    - button [ref=e391] [cursor=pointer]:
+                      - generic [ref=e392]:
+                        - figure [aria-hidden] [ref=e393]
+                        - generic [ref=e394]:
+                          - paragraph [ref=e397]: Desenvolvedor de software na empresa Zup Innovation
+                          - button "Ver" [ref=e398]
+                    - button [ref=e401] [cursor=pointer]:
+                      - generic [ref=e402]:
+                        - figure [aria-hidden] [ref=e403]
+                        - generic [ref=e404]:
+                          - paragraph [ref=e407]: Desenvolvedor de software na empresa Zup Innovation
+                          - button "Ver" [ref=e408]
+                    - button [ref=e411] [cursor=pointer]:
+                      - generic [ref=e412]:
+                        - figure [aria-hidden] [ref=e413]
+                        - generic [ref=e414]:
+                          - paragraph [ref=e417]: Consultor na empresa Capco
+                          - button "Ver" [ref=e418]
+            - generic "Rodapé" [ref=e421]:
+              - generic [ref=e424]:
+                - generic [ref=e425]:
+                  - navigation [ref=e426]:
+                    - link [ref=e427] [cursor=pointer]:
+                      - /url: https://about.linkedin.com/
+                      - paragraph [ref=e428]: Sobre
+                    - link [ref=e429] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/accessibility/
+                      - paragraph [ref=e430]: Acessibilidade
+                    - link [ref=e431] [cursor=pointer]:
+                      - /url: https://business.linkedin.com/talent-solutions?trk=flagship_nav&veh=li-footer-lts-control&src=li-footer
+                      - paragraph [ref=e432]: Soluções de Talentos
+                    - link [ref=e433] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/legal/professional-community-policies/
+                      - paragraph [ref=e434]: Diretrizes da Comunidade
+                    - link [ref=e435] [cursor=pointer]:
+                      - /url: https://careers.linkedin.com/
+                      - paragraph [ref=e436]: Carreiras
+                    - link [ref=e437] [cursor=pointer]:
+                      - /url: https://business.linkedin.com/advertise?trk=n_nav_lms_f&src=li-footer
+                      - paragraph [ref=e438]: Soluções de Marketing
+                    - button [ref=e439] [cursor=pointer]:
+                      - paragraph [ref=e441]: Termos e Privacidade
+                    - link [ref=e443] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/help/linkedin/answer/62931/
+                      - paragraph [ref=e444]: Preferências de anúncios
+                    - link [ref=e445] [cursor=pointer]:
+                      - /url: https://www.linkedin.com/ad/start/?trk=n_nav_ads_rr
+                      - paragraph [ref=e446]: Publicidade
+                    - link [ref=e447] [cursor=pointer]:
+                      - /url: https://business.linkedin.com/sales-solutions?trk=flagship_nav&veh=li-footer-lss-control&src=li-footer
+                      - paragraph [ref=e448]: Soluções de Vendas
+                    - link [ref=e449] [cursor=pointer]:
+                      - /url: https://mobile.linkedin.com/
+                      - paragraph [ref=e450]: Dispositivo móvel
+                    - link [ref=e451] [cursor=pointer]:
+                      - /url: https://business.linkedin.com/grow?src=li-footer
+                      - paragraph [ref=e452]: Pequenas empresas
+                    - link [ref=e453] [cursor=pointer]:
+                      - /url: https://safety.linkedin.com/
+                      - paragraph [ref=e454]: Central de Segurança
+                  - paragraph [ref=e456]: LinkedIn Corporation © 2026
+                - generic [ref=e457]:
+                  - list [ref=e458]:
+                    - listitem [ref=e459]:
+                      - generic [ref=e462]:
+                        - link [ref=e463] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/help/linkedin/
+                          - paragraph [ref=e464]: Dúvidas?
+                        - paragraph [ref=e465]: Acesse a nossa Central de Ajuda.
+                    - listitem [ref=e466]:
+                      - generic [ref=e469]:
+                        - link [ref=e470] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/mypreferences/d/
+                          - paragraph [ref=e471]: Gerencie sua conta e privacidade
+                        - paragraph [ref=e472]: Acesse suas Configurações.
+                    - listitem [ref=e473]:
+                      - generic [ref=e476]:
+                        - link [ref=e477] [cursor=pointer]:
+                          - /url: https://www.linkedin.com/help/linkedin/answer/a1339724/
+                          - paragraph [ref=e478]: Visibilidade da recomendação
+                        - paragraph [ref=e479]: Saiba mais sobre os conteúdos recomendados.
+                  - generic [ref=e481]:
+                    - paragraph [ref=e483]: Selecionar idioma
+                    - combobox "Selecionar idioma" [ref=e485] [cursor=pointer]:
+                      - option "العربية (Árabe)"
+                      - option "বাংলা (Bengali)"
+                      - option "Čeština (Tcheco)"
+                      - option "Dansk (Dinamarquês)"
+                      - option "Deutsch (Alemão)"
+                      - option "Ελληνικά (Grego)"
+                      - option "English (Inglês)"
+                      - option "Español (Espanhol)"
+                      - option "فارسی (Persa)"
+                      - option "Suomi (Finlandês)"
+                      - option "Français (Francês)"
+                      - option "हिंदी (Hindi)"
+                      - option "Magyar (Húngaro)"
+                      - option "Bahasa Indonésia (Indonésio)"
+                      - option "Italiano (Italiano)"
+                      - option "עברית (Hebraico)"
+                      - option "日本語 (Japonês)"
+                      - option "한국어 (Coreano)"
+                      - option "मराठी (Marati)"
+                      - option "Bahasa Malaysia (Malaio)"
+                      - option "Nederlands (Holandês)"
+                      - option "Norsk (Norueguês)"
+                      - option "ਪੰਜਾਬੀ (Punjabi)"
+                      - option "Polski (Polonês)"
+                      - option "Português (Português)" [selected]
+                      - option "Română (Romeno)"
+                      - option "Русский (Russo)"
+                      - option "Svenska (Sueco)"
+                      - option "తెలుగు (Telugu)"
+                      - option "ภาษาไทย (Tailandês)"
+                      - option "Tagalog (Tagalog)"
+                      - option "Türkçe (Turco)"
+                      - option "Українська (Ucraniano)"
+                      - option "Tiếng Việt (Vietnamita)"
+                      - option "简体中文 (Chinês (Simplificado))"
+                      - option "正體中文 (Chinês (Tradicional))"

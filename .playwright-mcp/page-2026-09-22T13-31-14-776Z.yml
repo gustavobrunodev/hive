@@ -1,0 +1,376 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e9]:
+      - heading "Navigation Menu" [level=2] [ref=e10]
+      - generic [ref=e11]:
+        - link "Homepage" [ref=e13] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e16]:
+          - navigation "Global" [ref=e17]:
+            - list [ref=e18]:
+              - listitem [ref=e19]:
+                - button "Platform" [ref=e21] [cursor=pointer]
+              - listitem [ref=e24]:
+                - button "Solutions" [ref=e26] [cursor=pointer]
+              - listitem [ref=e29]:
+                - button "Resources" [ref=e31] [cursor=pointer]
+              - listitem [ref=e34]:
+                - button "Open Source" [ref=e36] [cursor=pointer]
+              - listitem [ref=e39]:
+                - button "Enterprise" [ref=e41] [cursor=pointer]
+              - listitem [ref=e44]:
+                - link "Pricing" [ref=e45] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+          - generic [ref=e46]:
+            - button "Search or jump to, type / to search" [ref=e48] [cursor=pointer]
+            - link "Sign in" [ref=e55] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Ftech-leads-club%2Fharness-toolkit%2Fblob%2Fmain%2Fdocs%2Fcoverage.md
+            - link "Sign up" [ref=e58] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fblob%2Fshow&source=header-repo&source_repo=tech-leads-club%2Fharness-toolkit
+            - button "Appearance settings" [ref=e61] [cursor=pointer]
+  - main [ref=e68]:
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e72]:
+          - link "tech-leads-club" [ref=e76] [cursor=pointer]:
+            - /url: /tech-leads-club
+          - generic [ref=e77]: /
+          - strong [ref=e78]:
+            - link "harness-toolkit" [ref=e79] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit
+          - generic [ref=e80]: Public
+        - generic [ref=e81]:
+          - list:
+            - listitem [ref=e82]:
+              - link "You must be signed in to change notification settings" [ref=e83] [cursor=pointer]:
+                - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                - text: Notifications
+            - listitem [ref=e86]:
+              - link "Fork 18" [ref=e87] [cursor=pointer]:
+                - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                - text: Fork
+                - generic "18" [ref=e90]
+            - listitem [ref=e91]:
+              - link "You must be signed in to star a repository" [ref=e93] [cursor=pointer]:
+                - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                - text: Star
+                - generic "283 users starred this repository" [ref=e96]: "283"
+      - navigation "Repository" [ref=e97]:
+        - list [ref=e98]:
+          - listitem [ref=e99]:
+            - link "Code" [ref=e100] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit
+          - listitem [ref=e104]:
+            - link "Issues" [ref=e105] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/issues
+          - listitem [ref=e110]:
+            - link "Pull requests" [ref=e111] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/pulls
+          - listitem [ref=e116]:
+            - link "Actions" [ref=e117] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/actions
+          - listitem [ref=e121]:
+            - link "Security and quality" [ref=e122] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/security
+          - listitem [ref=e126]:
+            - link "Insights" [ref=e127] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/pulse
+    - generic [ref=e141]:
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - heading "Expand file tree" [level=2] [ref=e148]:
+            - button "Expand file tree" [ref=e149] [cursor=pointer]
+          - button "main branch" [ref=e154] [cursor=pointer]:
+            - generic [ref=e155]: main
+          - generic [ref=e160]:
+            - navigation [ref=e161]:
+              - heading "Breadcrumbs" [level=2] [ref=e162]
+              - list [ref=e163]:
+                - listitem [ref=e164]:
+                  - link "harness-toolkit" [ref=e165] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/tree/main
+                - listitem [ref=e166]:
+                  - text: /
+                  - link "docs" [ref=e167] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/tree/main/docs
+            - generic [ref=e168]:
+              - text: /
+              - heading "coverage.md" [level=1] [ref=e169]
+            - button "Copy path" [ref=e170] [cursor=pointer]
+        - generic [ref=e176]:
+          - combobox "Go to file" [ref=e183]
+          - button "More file actions" [ref=e184] [cursor=pointer]
+      - generic [ref=e187]:
+        - generic [ref=e189]:
+          - heading "Latest commit" [level=2] [ref=e190]
+          - generic [ref=e193]:
+            - heading "History" [level=2] [ref=e194]
+            - link "History" [ref=e195] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/commits/main/docs/coverage.md
+        - generic [ref=e199]:
+          - generic [ref=e201]:
+            - heading "File metadata and controls" [level=2] [ref=e202]
+            - generic [ref=e203]:
+              - list "File view" [ref=e204]:
+                - listitem [ref=e205]:
+                  - button "Preview" [pressed] [ref=e206] [cursor=pointer]
+                - listitem [ref=e209]:
+                  - button "Code" [ref=e210] [cursor=pointer]
+                - listitem [ref=e213]:
+                  - button "Blame" [ref=e214] [cursor=pointer]
+              - generic "4.41 KB" [ref=e219]: 55 lines (43 loc) · 4.41 KB
+            - generic [ref=e220]:
+              - generic [ref=e222]:
+                - link "Raw" [ref=e224] [cursor=pointer]:
+                  - /url: https://github.com/tech-leads-club/harness-toolkit/raw/refs/heads/main/docs/coverage.md
+                - button "Copy raw file" [ref=e228] [cursor=pointer]
+                - button "Download raw file" [ref=e233] [cursor=pointer]
+              - button "Outline" [ref=e237] [cursor=pointer]
+          - region [ref=e241]:
+            - article [ref=e243]:
+              - table [ref=e245]:
+                - rowgroup [ref=e246]:
+                  - row [ref=e247]:
+                    - rowheader "type" [ref=e248]
+                    - cell "Concept" [ref=e249]
+                  - row [ref=e250]:
+                    - rowheader "title" [ref=e251]
+                    - cell "What this covers, and what it does not" [ref=e252]
+                  - row [ref=e253]:
+                    - rowheader "description" [ref=e254]
+                    - 'cell "A self-assessment of the harness against a published agentic-risk taxonomy: which of its own rules answer each risk, and what each one still leaves open. Control names are generated from the catalogs and checked by the gate." [ref=e255]'
+                  - row [ref=e256]:
+                    - rowheader "tags" [ref=e257]
+                    - cell [ref=e258]:
+                      - table [ref=e259]:
+                        - rowgroup [ref=e260]:
+                          - row [ref=e261]:
+                            - cell "coverage" [ref=e262]
+                            - cell "security" [ref=e264]
+                            - cell "self-assessment" [ref=e266]
+                  - row [ref=e268]:
+                    - rowheader "timestamp" [ref=e269]
+                    - cell "2026-08-17" [ref=e270]
+              - generic [ref=e271]:
+                - heading "What this covers, and what it does not" [level=1] [ref=e272]
+                - 'link "Permalink: What this covers, and what it does not" [ref=e273] [cursor=pointer]':
+                  - /url: "#what-this-covers-and-what-it-does-not"
+              - paragraph [ref=e276]:
+                - strong [ref=e277]: This is a self-assessment, not an audit.
+                - text: Nobody external has verified it. It is published because a list with its gaps in it is more useful than a badge, and because this project refuses claims without evidence in the code it governs — the same standard applies to its own README (
+                - link "/decisions/ad-079.md" [ref=e278] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/blob/main/decisions/ad-079.md
+                - text: ).
+              - paragraph [ref=e279]: "Taxonomy: OWASP Top 10 for Agentic Applications, 2026 list (ASI01–ASI10). A revision to that list makes this page stale and nothing here will notice; the date above is how you tell."
+              - paragraph [ref=e280]:
+                - strong [ref=e281]: 4 covered · 5 partial · 1 not applicable.
+              - paragraph [ref=e282]:
+                - text: Every name in the
+                - strong [ref=e283]: Controls
+                - text: column is a floor rule or a capability id, generated from
+                - code [ref=e284]: src/core/floor/floor.catalog.ts
+                - text: and
+                - code [ref=e285]: capabilities/catalog.json
+                - text: and checked by the gate. A control that is renamed or removed fails the build rather than leaving a claim standing here. The
+                - strong [ref=e286]: What it leaves open
+                - text: column is judgement and is written by hand.
+              - table [ref=e288]:
+                - rowgroup [ref=e289]:
+                  - row [ref=e290]:
+                    - columnheader "Risk" [ref=e291]
+                    - columnheader "State" [ref=e292]
+                    - columnheader "Controls" [ref=e293]
+                    - columnheader "What it leaves open" [ref=e294]
+                - rowgroup [ref=e295]:
+                  - row [ref=e296]:
+                    - cell [ref=e297]:
+                      - strong [ref=e298]: ASI01
+                      - text: Agent goal hijack
+                    - cell "partial" [ref=e299]
+                    - cell [ref=e300]:
+                      - code [ref=e301]: untrustedContent
+                      - text: ","
+                      - code [ref=e302]: unprovable-execution
+                      - text: ","
+                      - code [ref=e303]: secret-access
+                    - cell "a command rewritten before it runs is not traced to the content it came from, and only shell actions are checked. The damaging tail is refused by the floor whoever suggested it" [ref=e304]
+                  - row [ref=e305]:
+                    - cell [ref=e306]:
+                      - strong [ref=e307]: ASI02
+                      - text: Tool misuse and exploitation
+                    - cell "covered" [ref=e308]
+                    - cell [ref=e309]:
+                      - code [ref=e310]: outside-project-destruction
+                      - text: ","
+                      - code [ref=e311]: unprovable-destruction
+                      - text: ","
+                      - code [ref=e312]: unprovable-execution
+                      - text: ","
+                      - code [ref=e313]: machine-control
+                      - text: ","
+                      - code [ref=e314]: catastrophicShell
+                      - text: ","
+                      - code [ref=e315]: shellStall
+                    - cell "—" [ref=e316]
+                  - row [ref=e317]:
+                    - cell [ref=e318]:
+                      - strong [ref=e319]: ASI03
+                      - text: Identity and privilege abuse
+                    - cell "partial" [ref=e320]
+                    - cell [ref=e321]:
+                      - code [ref=e322]: subagents
+                      - text: ","
+                      - code [ref=e323]: blockParentFast
+                      - text: ","
+                      - code [ref=e324]: policy-surface-write
+                    - cell "the substrate is one developer's editor session, so identity is the session. There is no per-agent credential to bind a decision to" [ref=e325]
+                  - row [ref=e326]:
+                    - cell [ref=e327]:
+                      - strong [ref=e328]: ASI04
+                      - text: Agentic supply chain
+                    - cell "partial" [ref=e329]
+                    - cell [ref=e330]:
+                      - code [ref=e331]: supplyChain
+                    - cell "a manifest changed without its lockfile, and a version nobody pinned. Advisories, licences and typosquats need the network on every stop and are left to a gate command" [ref=e332]
+                  - row [ref=e333]:
+                    - cell [ref=e334]:
+                      - strong [ref=e335]: ASI05
+                      - text: Unexpected code execution
+                    - cell "covered" [ref=e336]
+                    - cell [ref=e337]:
+                      - code [ref=e338]: unprovable-execution
+                      - text: ","
+                      - code [ref=e339]: unprovable-destruction
+                      - text: ","
+                      - code [ref=e340]: policy-surface-write
+                    - cell "—" [ref=e341]
+                  - row [ref=e342]:
+                    - cell [ref=e343]:
+                      - strong [ref=e344]: ASI06
+                      - text: Memory and context poisoning
+                    - cell "partial" [ref=e345]
+                    - cell [ref=e346]:
+                      - code [ref=e347]: policy-surface-write
+                      - text: ","
+                      - code [ref=e348]: lessons
+                    - cell "the handoff and the project lesson store are sealed on write and withheld when a write the harness did not make is detected. The global lesson store is written by other repositories' sessions and cannot be sealed per project" [ref=e349]
+                  - row [ref=e350]:
+                    - cell [ref=e351]:
+                      - strong [ref=e352]: ASI07
+                      - text: Insecure inter-agent communication
+                    - cell "n/a" [ref=e353]
+                    - cell [ref=e354]:
+                      - code [ref=e355]: subagents
+                    - cell "subagents are spawned by the host and exchange no messages the harness sits between. There is no wire to secure; what is governed is the spawn" [ref=e356]
+                  - row [ref=e357]:
+                    - cell [ref=e358]:
+                      - strong [ref=e359]: ASI08
+                      - text: Cascading agent failures
+                    - cell "covered" [ref=e360]
+                    - cell [ref=e361]:
+                      - code [ref=e362]: budgetContinue
+                      - text: ","
+                      - code [ref=e363]: shellStall
+                      - text: ","
+                      - code [ref=e364]: idleTurnGate
+                      - text: ","
+                      - code [ref=e365]: failureClassification
+                      - text: ","
+                      - code [ref=e366]: grind
+                    - cell "—" [ref=e367]
+                  - row [ref=e368]:
+                    - cell [ref=e369]:
+                      - strong [ref=e370]: ASI09
+                      - text: Human-agent trust exploitation
+                    - cell "covered" [ref=e371]
+                    - cell [ref=e372]:
+                      - code [ref=e373]: shipGate
+                      - text: ","
+                      - code [ref=e374]: emptyDiffAntiShip
+                      - text: ","
+                      - code [ref=e375]: planGate
+                      - text: ","
+                      - code [ref=e376]: comments
+                    - cell "—" [ref=e377]
+                  - row [ref=e378]:
+                    - cell [ref=e379]:
+                      - strong [ref=e380]: ASI10
+                      - text: Rogue agents
+                    - cell "partial" [ref=e381]
+                    - cell [ref=e382]:
+                      - code [ref=e383]: observe
+                      - text: ","
+                      - code [ref=e384]: subagents
+                      - text: ","
+                      - code [ref=e385]: idleTurnGate
+                    - cell "every decision is recorded and hash-chained, and a stalled or idle agent is caught. There is no behavioural baseline, so an agent acting plausibly but wrongly is not flagged" [ref=e386]
+              - generic [ref=e387]:
+                - heading "How to read \"covered\"" [level=2] [ref=e388]
+                - 'link "Permalink: How to read \"covered\"" [ref=e389] [cursor=pointer]':
+                  - /url: "#how-to-read-covered"
+              - paragraph [ref=e392]:
+                - text: It means every mechanism this project has for that risk is in place and enforced before any policy is read, or is a rail an operator can switch on. It does not mean the risk is eliminated. Prompt-level safety is a request to a stochastic system, so what is claimed here is only ever about what happens in deterministic code
+                - emphasis [ref=e393]: after
+                - text: the model decides (
+                - link "/decisions/ad-016.md" [ref=e394] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/blob/main/decisions/ad-016.md
+                - text: ).
+              - generic [ref=e395]:
+                - heading "How to read \"partial\"" [level=2] [ref=e396]
+                - 'link "Permalink: How to read \"partial\"" [ref=e397] [cursor=pointer]':
+                  - /url: "#how-to-read-partial"
+              - paragraph [ref=e400]: "The row's limit says what is missing, in the terms an operator would notice. Three of the four partials are partial for the same reason: the harness sits at one developer's editor, so it sees actions rather than identities, and it sees what a turn wrote rather than what a turn meant."
+              - generic [ref=e401]:
+                - heading "See also" [level=2] [ref=e402]
+                - 'link "Permalink: See also" [ref=e403] [cursor=pointer]':
+                  - /url: "#see-also"
+              - list [ref=e406]:
+                - listitem [ref=e407]:
+                  - link "/concepts.md" [ref=e408] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/concepts.md
+                  - text: — every rail from the operator's side
+                - listitem [ref=e409]:
+                  - link "/troubleshooting.md" [ref=e410] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/troubleshooting.md
+                  - text: — from a refusal on screen back to the rule
+                - listitem [ref=e411]:
+                  - link "/decisions/index.md" [ref=e412] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/decisions/index.md
+                  - text: — why each rule exists
+  - contentinfo [ref=e414]:
+    - heading "Footer" [level=2] [ref=e415]
+    - generic [ref=e416]:
+      - generic [ref=e417]:
+        - link "GitHub Homepage" [ref=e418] [cursor=pointer]:
+          - /url: https://github.com
+        - generic [ref=e421]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e422]:
+        - heading "Footer navigation" [level=3] [ref=e423]
+        - list "Footer navigation" [ref=e424]:
+          - listitem [ref=e425]:
+            - link "Terms" [ref=e426] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e427]:
+            - link "Privacy" [ref=e428] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e429]:
+            - link "Security" [ref=e430] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e431]:
+            - link "Status" [ref=e432] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e433]:
+            - link "Community" [ref=e434] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e435]:
+            - link "Docs" [ref=e436] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e437]:
+            - link "Contact" [ref=e438] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e439]:
+            - button "Manage cookies" [ref=e441] [cursor=pointer]
+          - listitem [ref=e442]:
+            - button "Do not share my personal information" [ref=e444] [cursor=pointer]

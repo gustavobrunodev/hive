@@ -1,0 +1,211 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - list [ref=e15]:
+          - generic [ref=e17]:
+            - heading [level=1] [ref=e20]:
+              - link "Join us in Orlando, FL 10/11 – 10/15 @ InfoSec World 2026" [ref=e21] [cursor=pointer]:
+                - /url: https://genai.owasp.org/event/infosecworld/
+            - heading "|" [level=2] [ref=e24]
+            - link "Register Now!" [ref=e28] [cursor=pointer]:
+              - /url: https://genai.owasp.org/event/infosecworld/
+        - generic [ref=e34]:
+          - generic [ref=e35] [cursor=pointer]
+          - generic [ref=e38]:
+            - generic [ref=e39]:
+              - text: 
+              - list [ref=e41]:
+                - listitem [ref=e42]:
+                  - link "GETTING STARTED Menu Toggle" [ref=e43] [cursor=pointer]:
+                    - /url: "#"
+                    - text: GETTING STARTED
+                    - application "Menu Toggle"
+                - listitem [ref=e45]:
+                  - link "RESOURCES Menu Toggle" [ref=e46] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/resources/
+                    - text: RESOURCES
+                    - application "Menu Toggle"
+                - listitem [ref=e48]:
+                  - link "PROJECT INITIATIVES Menu Toggle" [ref=e49] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/initiatives/
+                    - text: PROJECT INITIATIVES
+                    - application "Menu Toggle"
+                - listitem [ref=e51]:
+                  - link "BLOG" [ref=e52] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/blog/
+                - listitem [ref=e53]:
+                  - link "ABOUT Menu Toggle" [ref=e54] [cursor=pointer]:
+                    - /url: "#"
+                    - text: ABOUT
+                    - application "Menu Toggle"
+            - text: 
+          - list [ref=e59]:
+            - listitem [ref=e60]:
+              - link [ref=e61] [cursor=pointer]:
+                - /url: https://x.com/OWASPGenAISec
+            - listitem [ref=e65]:
+              - link [ref=e66] [cursor=pointer]:
+                - /url: https://www.linkedin.com/company/owasp-top-10-for-large-language-model-applications/
+            - listitem [ref=e70]:
+              - link [ref=e71] [cursor=pointer]:
+                - /url: https://github.com/genai-security-project/
+            - listitem [ref=e75]:
+              - link [ref=e76] [cursor=pointer]:
+                - /url: https://owasp.org/slack/invite
+            - listitem [ref=e80]:
+              - link [ref=e81] [cursor=pointer]:
+                - /url: https://www.youtube.com/@GenAISecurityProject
+    - main [ref=e88]:
+      - generic [ref=e89]:
+        - generic [ref=e92]:
+          - list [ref=e97]:
+            - listitem [ref=e98]:
+              - generic [ref=e99]: GEN AI SECURITY
+            - listitem [ref=e100]:
+              - generic [ref=e101]: resources
+          - list [ref=e104]:
+            - listitem [ref=e105]:
+              - generic [aria-hidden] [ref=e107]: 
+              - generic [ref=e108]: Whitepapers/Guides
+          - heading "Agentic AI – Threats and Mitigations" [level=2] [ref=e111]
+          - list [ref=e114]:
+            - listitem [ref=e115]:
+              - generic [ref=e119]: February 17, 2025
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - heading "About" [level=2] [ref=e126]
+            - paragraph [ref=e130]: Agentic AI represents an advancement in autonomous systems, increasingly enabled by large language models (LLMs) and generative AI. While agentic AI predates modern LLMs, their integration with generative AI has significantly expanded their scale, capabilities, and associated risks. This document is the first in a series of guides from the OWASP Agentic Security Initiative (ASI) to provide a threat-model-based reference of emerging agentic threats and discuss mitigations.
+          - link "Download" [ref=e138] [cursor=pointer]:
+            - /url: https://genai.owasp.org/download/45674/?tmstv=1739819891
+        - generic [ref=e141]:
+          - heading "Additional Resources" [level=2] [ref=e144]
+          - generic [ref=e150]:
+            - generic [ref=e154]:
+              - list [ref=e155]:
+                - listitem [ref=e156]:
+                  - generic [aria-hidden] [ref=e157]: 
+                  - text: September 1, 2026
+                - listitem [ref=e158]:
+                  - generic [aria-hidden] [ref=e159]: 
+                  - link "Resources" [ref=e161] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/category/resources/
+              - link [ref=e162] [cursor=pointer]:
+                - /url: https://genai.owasp.org/resource/genai-security-industry-framework-crosswalk/
+                - heading "GenAI Security Industry Framework Crosswalk" [level=2] [ref=e163]
+            - generic [ref=e167]:
+              - list [ref=e168]:
+                - listitem [ref=e169]:
+                  - generic [aria-hidden] [ref=e170]: 
+                  - text: September 1, 2026
+                - listitem [ref=e171]:
+                  - generic [aria-hidden] [ref=e172]: 
+                  - link "Resources" [ref=e174] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/category/resources/
+              - link [ref=e175] [cursor=pointer]:
+                - /url: https://genai.owasp.org/resource/agent-control-standard-acs/
+                - heading "Agent Control Standard (ACS)" [level=2] [ref=e176]
+            - generic [ref=e180]:
+              - list [ref=e181]:
+                - listitem [ref=e182]:
+                  - generic [aria-hidden] [ref=e183]: 
+                  - text: August 3, 2026
+                - listitem [ref=e184]:
+                  - generic [aria-hidden] [ref=e185]: 
+                  - link "Resources" [ref=e187] [cursor=pointer]:
+                    - /url: https://genai.owasp.org/category/resources/
+              - link [ref=e188] [cursor=pointer]:
+                - /url: https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/
+                - heading "OWASP GenAI LLM Top 10 2026" [level=2] [ref=e189]
+    - contentinfo [ref=e190]:
+      - generic [ref=e191]:
+        - link [ref=e195] [cursor=pointer]:
+          - /url: https://genai.owasp.org
+        - generic [ref=e196]:
+          - list [ref=e199]:
+            - listitem [ref=e200]:
+              - link "PRIVACY" [ref=e201] [cursor=pointer]:
+                - /url: https://owasp.org/www-policy/operational/privacy
+            - listitem [ref=e203]:
+              - link "NEWSLETTER" [ref=e204] [cursor=pointer]:
+                - /url: https://genaisecurity.beehiiv.com/
+            - listitem [ref=e206]:
+              - link "CONTACT" [ref=e207] [cursor=pointer]:
+                - /url: https://genai.owasp.org/home_page/contact/
+          - generic [ref=e209]:
+            - list [ref=e212]:
+              - listitem [ref=e213]:
+                - link "Overview" [ref=e214] [cursor=pointer]:
+                  - /url: /introduction/
+              - listitem [ref=e216]:
+                - link "LLM Top 10" [ref=e217] [cursor=pointer]:
+                  - /url: /llm-top-10/
+              - listitem [ref=e219]:
+                - link "Initiatives" [ref=e220] [cursor=pointer]:
+                  - /url: /initiatives/
+              - listitem [ref=e222]:
+                - link "Landscape" [ref=e223] [cursor=pointer]:
+                  - /url: /ai-security-solutions-landscape/
+              - listitem [ref=e225]:
+                - link "Glossary" [ref=e226] [cursor=pointer]:
+                  - /url: /glossary/
+            - list [ref=e230]:
+              - listitem [ref=e231]:
+                - link "Roadmaps" [ref=e232] [cursor=pointer]:
+                  - /url: /roadmap/
+              - listitem [ref=e234]:
+                - link "Resources" [ref=e235] [cursor=pointer]:
+                  - /url: /resources/
+              - listitem [ref=e237]:
+                - link "Sponsors" [ref=e238] [cursor=pointer]:
+                  - /url: /supporters/
+              - listitem [ref=e240]:
+                - link "Sponsorship" [ref=e241] [cursor=pointer]:
+                  - /url: /sponsorship/
+              - listitem [ref=e243]:
+                - link "Contribute" [ref=e244] [cursor=pointer]:
+                  - /url: /contribute/
+            - list [ref=e248]:
+              - listitem [ref=e249]:
+                - link "Newsroom" [ref=e250] [cursor=pointer]:
+                  - /url: /news/
+              - listitem [ref=e252]:
+                - link "Events" [ref=e253] [cursor=pointer]:
+                  - /url: /events/
+              - listitem [ref=e255]:
+                - link "Meetings" [ref=e256] [cursor=pointer]:
+                  - /url: /meetings/
+              - listitem [ref=e258]:
+                - link "Leadership" [ref=e259] [cursor=pointer]:
+                  - /url: /contributors/
+              - listitem [ref=e261]:
+                - link "Volunteer Jobs" [ref=e262] [cursor=pointer]:
+                  - /url: /jobs/
+        - list [ref=e267]:
+          - listitem [ref=e268]:
+            - link [ref=e269] [cursor=pointer]:
+              - /url: https://twitter.com/LLM_Top10
+          - listitem [ref=e273]:
+            - link [ref=e274] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/owasp-top-10-for-large-language-model-applications/
+          - listitem [ref=e278]:
+            - link [ref=e279] [cursor=pointer]:
+              - /url: https://github.com/genai-security-project
+          - listitem [ref=e283]:
+            - link [ref=e284] [cursor=pointer]:
+              - /url: https://owasp.org/slack/invite
+          - listitem [ref=e288]:
+            - link [ref=e289] [cursor=pointer]:
+              - /url: https://www.youtube.com/@GenAISecurityProject
+        - generic [ref=e293]:
+          - generic [ref=e294]: OWASP and the OWASP logo are trademarks of the OWASP Foundation, Inc. Unless otherwise specified, all content on the site is Creative Commons Attribution-ShareAlike v4.0 and provided without
+          - paragraph [ref=e299]:
+            - text: warranty of service or accuracy. For more information, please refer to our
+            - strong [ref=e301]:
+              - link "General Disclaimer" [ref=e302] [cursor=pointer]:
+                - /url: https://owasp.org/www-policy/operational/general-disclaimer.html
+              - text: .
+            - text: – Copyright © 2025 OWASP Foundation, Inc.
+  - generic [ref=e303]: desktop

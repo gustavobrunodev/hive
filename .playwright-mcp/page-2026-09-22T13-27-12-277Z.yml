@@ -1,0 +1,237 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e8]:
+    - complementary [aria-hidden] [ref=e9]
+    - region "Canvas" [ref=e10]:
+      - generic [ref=e13]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - button "Fechar barra lateral" [expanded] [ref=e17] [cursor=pointer]
+            - generic [ref=e20]: "Workshop IA #3 09/2026 - Gravação"
+          - generic [ref=e21]:
+            - button "Favoritos" [ref=e23] [cursor=pointer]
+            - generic [ref=e26]:
+              - button "sessão anterior" [ref=e27] [cursor=pointer]
+              - button "Próximo sessão" [ref=e30] [cursor=pointer]
+            - button "Concluído" [ref=e33] [cursor=pointer]
+        - generic [ref=e35]:
+          - complementary "Barra lateral" [ref=e37]:
+            - generic [ref=e39]:
+              - generic [ref=e41]:
+                - button "Voltar ao curso" [ref=e42] [cursor=pointer]
+                - progressbar "3 de 11 concluídos" [ref=e45]:
+                  - generic [ref=e46]:
+                    - text: 3 de 11 concluídos
+                    - generic [aria-hidden] [ref=e47]: 27%
+                  - text: x
+              - generic [ref=e54]:
+                - generic [ref=e55]:
+                  - generic [ref=e57]:
+                    - generic [ref=e58]: "Dia 1: Desenvolvendo com IA"
+                    - generic [ref=e59]: 6 sessões
+                  - generic [ref=e61]:
+                    - button "Desenvolvimento com IA, Harness, Spec-Driven e Como Trabalhar com Modelos Frontier Concluído" [ref=e63] [cursor=pointer]:
+                      - generic [ref=e65]:
+                        - generic [ref=e66]: Desenvolvimento com IA, Harness, Spec-Driven e Como Trabalhar com Modelos Frontier
+                        - generic [ref=e67]: Concluído
+                    - button "A Próxima Fase da Fabrica de Software Agêntica Concluído" [ref=e71] [cursor=pointer]:
+                      - generic [ref=e73]:
+                        - generic [ref=e74]: A Próxima Fase da Fabrica de Software Agêntica
+                        - generic [ref=e75]: Concluído
+                    - generic [ref=e80]:
+                      - generic [ref=e81]: "Hooks: Harness-toolkit - Felipe Rodrigues"
+                      - generic [ref=e82]: Concluído
+                    - button "Mercado e o Papel do Novo Dev - Felipe Adamoli Sessão" [ref=e86] [cursor=pointer]:
+                      - generic [ref=e88]:
+                        - generic [ref=e89]: Mercado e o Papel do Novo Dev - Felipe Adamoli
+                        - generic [ref=e90]: Sessão
+                    - button "Desenvolvimento com IA no Ifood - Júlio Santos Sessão" [ref=e92] [cursor=pointer]:
+                      - generic [ref=e94]:
+                        - generic [ref=e95]: Desenvolvimento com IA no Ifood - Júlio Santos
+                        - generic [ref=e96]: Sessão
+                    - button "Oportunidade Especial - Elevate Sessão" [ref=e98] [cursor=pointer]:
+                      - generic [ref=e100]:
+                        - generic [ref=e101]: Oportunidade Especial - Elevate
+                        - generic [ref=e102]: Sessão
+                - generic [ref=e103]:
+                  - generic [ref=e105]:
+                    - generic [ref=e106]: "Dia 2: Arquitetura e Workflows"
+                    - generic [ref=e107]: 5 sessões
+                  - generic [ref=e109]:
+                    - button "Arquitetura de Software na Era da IA Sessão" [ref=e111] [cursor=pointer]:
+                      - generic [ref=e113]:
+                        - generic [ref=e114]: Arquitetura de Software na Era da IA
+                        - generic [ref=e115]: Sessão
+                    - button "Arquitetando para Eficiência - William Calderipe Sessão" [ref=e117] [cursor=pointer]:
+                      - generic [ref=e119]:
+                        - generic [ref=e120]: Arquitetando para Eficiência - William Calderipe
+                        - generic [ref=e121]: Sessão
+                    - button "Construindo uma Empresa IA First - Rogério Chaves Sessão" [ref=e123] [cursor=pointer]:
+                      - generic [ref=e125]:
+                        - generic [ref=e126]: Construindo uma Empresa IA First - Rogério Chaves
+                        - generic [ref=e127]: Sessão
+                    - button "Transformando contexto em Feature - William Fernandes Sessão" [ref=e129] [cursor=pointer]:
+                      - generic [ref=e131]:
+                        - generic [ref=e132]: Transformando contexto em Feature - William Fernandes
+                        - generic [ref=e133]: Sessão
+                    - button "Workflow End 2 End em Codebase Real Sessão" [ref=e135] [cursor=pointer]:
+                      - generic [ref=e137]:
+                        - generic [ref=e138]: Workflow End 2 End em Codebase Real
+                        - generic [ref=e139]: Sessão
+          - button "Redimensionar barra lateral"
+          - main [ref=e145]:
+            - generic [ref=e146]:
+              - generic [ref=e150]:
+                - region "video player" [ref=e152]:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic: Velocidade de reprodução
+                        - generic: Qualidade
+                        - generic: Legendas/CC
+                      - generic [ref=e156] [cursor=pointer]:
+                        - slider "seek" [ref=e161]: "0"
+                        - generic: en 0:00
+                      - generic [ref=e162]:
+                        - generic:
+                          - button "play" [ref=e163] [cursor=pointer]
+                          - button "mute" [ref=e172] [cursor=pointer]
+                          - slider "volume" [ref=e191] [cursor=pointer]: "1"
+                          - progressbar "playback time" [ref=e192]: 0:00 / 33:12
+                          - switch "closed captions" [checked] [ref=e194] [cursor=pointer]
+                          - button "settings" [ref=e198] [cursor=pointer]
+                          - button "enter picture in picture mode" [ref=e202] [cursor=pointer]
+                          - button "enter fullscreen mode" [ref=e207] [cursor=pointer]
+                - generic [ref=e216]:
+                  - generic [ref=e217]:
+                    - generic [ref=e218]: 00:03
+                    - generic [ref=e220]: Montado eu acho outro não estou escutando
+                  - button "Mostrar transcrição" [ref=e222] [cursor=pointer]
+              - generic [ref=e224]:
+                - generic [ref=e225]:
+                  - 'heading "Hooks: Harness-toolkit - Felipe Rodrigues" [level=2] [ref=e226]'
+                  - generic [ref=e228]:
+                    - paragraph [ref=e229]: "Nessa aula o Felipe Rodrigues apresenta o Harness Toolkit da Tech Leads Club: uma camada de execução determinística entre o agente e o mundo real. Vamos entender por que prompt é pedido e não controle, como os hooks do Cursor e do Claude Code viram gates que o modelo não consegue desligar, e ver ao vivo o agente sendo barrado ao ler segredos, dar force push, encerrar o turno sem rodar testes, duplicar código e abrir PR sem review."
+                    - paragraph [ref=e230]: Tópicos da aula
+                    - list [ref=e231]:
+                      - listitem [ref=e232]:
+                        - paragraph [ref=e233]: As 4 superfícies onde um agente autônomo encosta
+                      - listitem [ref=e234]:
+                        - paragraph [ref=e235]: Problema estrutural, não problema de qualidade do modelo
+                      - listitem [ref=e236]:
+                        - paragraph [ref=e237]: Prompt é pedido, nunca controle de execução
+                      - listitem [ref=e238]:
+                        - paragraph [ref=e239]: Agente = modelo + harness, e quem propõe é o modelo
+                      - listitem [ref=e240]:
+                        - paragraph [ref=e241]: "Hooks do editor: reagir a eventos com código"
+                      - listitem [ref=e242]:
+                        - paragraph [ref=e243]: "O floor roda antes da config: garantia por ordem de execução"
+                      - listitem [ref=e244]:
+                        - paragraph [ref=e245]: Ask que o editor não sabe responder vira deny
+                      - listitem [ref=e246]:
+                        - paragraph [ref=e247]: "Nada de \"if cursor\": core sem nome de fornecedor"
+                      - listitem [ref=e248]:
+                        - paragraph [ref=e249]: Bloquear o cat no .env e liberar o grep
+                      - listitem [ref=e250]:
+                        - paragraph [ref=e251]: 7 regras que ninguém desliga, 24 rails que você escolhe
+                      - listitem [ref=e252]:
+                        - paragraph [ref=e253]: "Ship gate: o turno só termina com teste passando"
+                      - listitem [ref=e254]:
+                        - paragraph [ref=e255]: "Comment gate: só comentário de why, invariant ou hazard"
+                      - listitem [ref=e256]:
+                        - paragraph [ref=e257]: "Duplicate gate: código repetido devolvido para refatorar"
+                      - listitem [ref=e258]:
+                        - paragraph [ref=e259]: "Regra customizada: sem PR review, sem PR"
+                      - listitem [ref=e260]:
+                        - paragraph [ref=e261]: "Loop de 3 tentativas: o harness tira o agente do ciclo"
+                      - listitem [ref=e262]:
+                        - paragraph [ref=e263]: "Observabilidade: o que rodou, por que decidiu, quanto custou"
+                      - listitem [ref=e264]:
+                        - paragraph [ref=e265]: Posturas não mudam o rigor, mudam quanto ele te interrompe
+                      - listitem [ref=e266]:
+                        - paragraph [ref=e267]: Um config JSON versionado para Cursor e Claude Code
+                      - listitem [ref=e268]:
+                        - paragraph [ref=e269]: O que o toolkit cobre e não cobre no OWASP Agentic Top 10
+                    - heading "Referências" [level=2] [ref=e270]
+                    - list [ref=e271]:
+                      - listitem [ref=e272]:
+                        - paragraph [ref=e273]:
+                          - link "Harness Toolkit da Tech Leads Club (GitHub)" [ref=e274] [cursor=pointer]:
+                            - /url: https://github.com/tech-leads-club/harness-toolkit
+                      - listitem [ref=e275]:
+                        - paragraph [ref=e276]:
+                          - link "Catálogo de skills da Tech Leads Club" [ref=e277] [cursor=pointer]:
+                            - /url: https://agent-skills.techleads.club/
+                      - listitem [ref=e278]:
+                        - paragraph [ref=e279]:
+                          - 'link "OWASP Agentic AI: ameaças e mitigações" [ref=e280] [cursor=pointer]':
+                            - /url: https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/
+                    - paragraph [ref=e281]
+                    - generic [ref=e284]:
+                      - generic [ref=e285]:
+                        - generic [ref=e288]:
+                          - generic [ref=e289]: Harness-Toolkit-TLC-2026-09-12.pdf
+                          - generic [ref=e290]: 836.17 KB
+                        - link "Fazer download" [ref=e292] [cursor=pointer]:
+                          - /url: https://assets-v2.circle.so/5r14txpbb99v0uus70ggbitwfjmz
+                      - generic [ref=e295]:
+                        - button "Visualizar prévia" [ref=e296]
+                        - img "Pré-visualização do arquivo" [ref=e297]
+                    - heading "Conteúdos relacionados na TLC" [level=2] [ref=e298]
+                    - list [ref=e299]:
+                      - listitem [ref=e300]:
+                        - paragraph [ref=e301]:
+                          - button "Harness Engineering" [ref=e305] [cursor=pointer]
+                      - listitem [ref=e306]:
+                        - paragraph [ref=e307]:
+                          - 'button "Harness Engineering: O futuro da engenharia de software com IA" [ref=e311] [cursor=pointer]'
+                      - listitem [ref=e312]:
+                        - paragraph [ref=e313]:
+                          - button "Lançado harness-score v1.0 - um scan, qualquer ferramenta agentica" [ref=e317] [cursor=pointer]
+                      - listitem [ref=e318]:
+                        - paragraph [ref=e319]:
+                          - 'button "[Aula] Testes com IA: Como Garantir que o Agente Não Sabote Seus Testes" [ref=e323] [cursor=pointer]'
+                      - listitem [ref=e324]:
+                        - paragraph [ref=e325]:
+                          - button "Code Review Escalável com IA" [ref=e329] [cursor=pointer]
+                - generic [ref=e330]:
+                  - separator [ref=e331]
+                  - generic [ref=e332]:
+                    - tablist [ref=e334]:
+                      - tab "Comentários" [selected] [ref=e335] [cursor=pointer]
+                    - tabpanel "Comentários" [ref=e337]:
+                      - generic [ref=e339]:
+                        - generic [ref=e345]:
+                          - generic [ref=e348]:
+                            - 'button "Abrir o perfil de [missing \"%{name}\" value]" [disabled] [ref=e349]'
+                            - generic [ref=e356]:
+                              - generic [ref=e357]:
+                                - button [disabled] [ref=e358]
+                                - button "09:01" [ref=e360] [cursor=pointer]
+                              - paragraph [ref=e363]: Pq eu nao tenho acesso aos links?
+                          - generic [ref=e367]:
+                            - 'button "Abrir o perfil de [missing \"%{name}\" value]" [disabled] [ref=e368]'
+                            - generic [ref=e375]:
+                              - generic [ref=e376]:
+                                - button [disabled] [ref=e377]
+                                - button "09:02" [ref=e379] [cursor=pointer]
+                              - generic [ref=e380]:
+                                - paragraph [ref=e383]: tem sentido eu ter comprado o curso e nao acessar o conteudo q paguei ?
+                                - button [ref=e386] [cursor=pointer]:
+                                  - img "Imagem do anexo" [ref=e387]
+                        - generic [ref=e393]:
+                          - button "Choose File" [ref=e394]
+                          - paragraph [ref=e398]: Digite uma mensagem...
+                          - generic [ref=e399]:
+                            - generic [ref=e400]:
+                              - button "Anexar arquivos" [ref=e401] [cursor=pointer]
+                              - button "Adicionar imagem" [ref=e404] [cursor=pointer]
+                              - button "Adicionar GIF" [ref=e407] [cursor=pointer]
+                              - button "Adicionar emoji" [ref=e410] [cursor=pointer]:
+                                - button "Adicionar emoji" [ref=e411]
+                              - button "Link para uma publicação, evento, aula ou espaço" [ref=e414] [cursor=pointer]
+                              - button "Adicionar menção" [ref=e417] [cursor=pointer]
+                            - button "Enviar mensagem" [disabled] [ref=e420]
+  - generic:
+    - region "Notifications"
+  - generic:
+    - region "Notifications"

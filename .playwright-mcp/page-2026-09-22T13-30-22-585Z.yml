@@ -1,0 +1,2180 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "Skip to content" [ref=e4] [cursor=pointer]:
+        - /url: "#start-of-content"
+      - banner [ref=e9]:
+        - heading "Navigation Menu" [level=2] [ref=e10]
+        - generic [ref=e11]:
+          - link "Homepage" [ref=e13] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e16]:
+            - navigation "Global" [ref=e17]:
+              - list [ref=e18]:
+                - listitem [ref=e19]:
+                  - button "Platform" [ref=e21] [cursor=pointer]
+                - listitem [ref=e24]:
+                  - button "Solutions" [ref=e26] [cursor=pointer]
+                - listitem [ref=e29]:
+                  - button "Resources" [ref=e31] [cursor=pointer]
+                - listitem [ref=e34]:
+                  - button "Open Source" [ref=e36] [cursor=pointer]
+                - listitem [ref=e39]:
+                  - button "Enterprise" [ref=e41] [cursor=pointer]
+                - listitem [ref=e44]:
+                  - link "Pricing" [ref=e45] [cursor=pointer]:
+                    - /url: https://github.com/pricing
+            - generic [ref=e46]:
+              - button "Search or jump to, type / to search" [ref=e48] [cursor=pointer]
+              - link "Sign in" [ref=e55] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Ftech-leads-club%2Fharness-toolkit
+              - link "Sign up" [ref=e58] [cursor=pointer]:
+                - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=tech-leads-club%2Fharness-toolkit
+              - button "Appearance settings" [ref=e61] [cursor=pointer]
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - link "tech-leads-club" [ref=e76] [cursor=pointer]:
+              - /url: /tech-leads-club
+            - generic [ref=e77]: /
+            - strong [ref=e78]:
+              - link "harness-toolkit" [ref=e79] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit
+            - generic [ref=e80]: Public
+          - generic [ref=e81]:
+            - list:
+              - listitem [ref=e82]:
+                - link "You must be signed in to change notification settings" [ref=e83] [cursor=pointer]:
+                  - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                  - text: Notifications
+              - listitem [ref=e86]:
+                - link "Fork 18" [ref=e87] [cursor=pointer]:
+                  - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                  - text: Fork
+                  - generic "18" [ref=e90]
+              - listitem [ref=e91]:
+                - link "You must be signed in to star a repository" [ref=e93] [cursor=pointer]:
+                  - /url: /login?return_to=%2Ftech-leads-club%2Fharness-toolkit
+                  - text: Star
+                  - generic "283 users starred this repository" [ref=e96]: "283"
+        - navigation "Repository" [ref=e97]:
+          - list [ref=e98]:
+            - listitem [ref=e99]:
+              - link "Code" [ref=e100] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit
+            - listitem [ref=e104]:
+              - link "Issues" [ref=e105] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit/issues
+            - listitem [ref=e110]:
+              - link "Pull requests" [ref=e111] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit/pulls
+            - listitem [ref=e116]:
+              - link "Actions" [ref=e117] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit/actions
+            - listitem [ref=e121]:
+              - link "Security and quality" [ref=e122] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit/security
+            - listitem [ref=e126]:
+              - link "Insights" [ref=e127] [cursor=pointer]:
+                - /url: /tech-leads-club/harness-toolkit/pulse
+      - generic [ref=e144]:
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - button "main branch" [ref=e151] [cursor=pointer]:
+                - generic [ref=e152]: main
+              - generic [ref=e156]:
+                - link [ref=e157] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/branches
+                  - generic [ref=e160]:
+                    - strong [ref=e161]: "3"
+                    - text: Branches
+                - link [ref=e162] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/tags
+                  - generic [ref=e165]:
+                    - strong [ref=e166]: "51"
+                    - text: Tags
+            - generic [ref=e167]:
+              - combobox "Go to file" [ref=e175]
+              - button "Code" [ref=e176] [cursor=pointer]
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - generic [ref=e182]:
+                - heading "Latest commit" [level=2] [ref=e183]
+                - generic [ref=e184]:
+                  - generic [ref=e185]:
+                    - generic [ref=e187]:
+                      - img "dependabot[bot]" [ref=e188]
+                      - img "felipfr" [ref=e189]
+                    - link "commits by dependabot[bot]" [ref=e191] [cursor=pointer]:
+                      - /url: /tech-leads-club/harness-toolkit/commits?author=dependabot%5Bbot%5D
+                      - text: dependabot[bot]
+                    - generic [ref=e192]: and
+                    - link "commits by felipfr" [ref=e194] [cursor=pointer]:
+                      - /url: /tech-leads-club/harness-toolkit/commits?author=felipfr
+                      - text: felipfr
+                  - generic [ref=e195]:
+                    - 'link "chore(deps-dev): bump the dev group across 1 directory with 3 updates" [ref=e198] [cursor=pointer]':
+                      - /url: /tech-leads-club/harness-toolkit/commit/09972f066611d559280b6ad38fea623750e1b504
+                    - button "Open commit details" [ref=e199] [cursor=pointer]
+                    - button "success" [ref=e202] [cursor=pointer]
+                - generic [ref=e205]:
+                  - generic [ref=e207]:
+                    - link "Commit 09972f0" [ref=e208] [cursor=pointer]:
+                      - /url: /tech-leads-club/harness-toolkit/commit/09972f066611d559280b6ad38fea623750e1b504
+                      - text: 09972f0
+                    - text: ·
+                    - generic "Sep 19, 2026, 8:38 AM GMT-3" [ref=e209]: Sep 19, 20263 days ago
+                  - generic [ref=e210]:
+                    - heading "History" [level=2] [ref=e211]
+                    - link "536 Commits" [ref=e212] [cursor=pointer]:
+                      - /url: /tech-leads-club/harness-toolkit/commits/main/
+              - heading "Folders and files" [level=2] [ref=e215]
+              - table "Folders and files" [ref=e216]:
+                - rowgroup:
+                  - row "Name Last commit message Last commit date":
+                    - columnheader "Name"
+                    - columnheader "Last commit message"
+                    - columnheader "Last commit date"
+                - rowgroup [ref=e217]:
+                  - row [ref=e218]:
+                    - cell [ref=e219]:
+                      - link ".github, (Directory)" [ref=e226] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/.github
+                        - text: .github
+                    - cell [ref=e227]:
+                      - 'link "chore(deps): bump zizmorcore/zizmor-action" [ref=e230] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/b16649c8df7a0ae6a06daeb1dfe8bb852534c8d7
+                    - cell "Sep 19, 20263 days ago" [ref=e231]
+                  - row [ref=e233]:
+                    - cell [ref=e234]:
+                      - link ".tlc/harness, (Directory)" [ref=e241] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/.tlc/harness
+                        - text: .tlc/harness
+                    - cell [ref=e242]:
+                      - 'link "chore(config): remove the dead format key doctor flagged as unread" [ref=e245] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/04a21a4a16ccfeebd5034acb77a874c0f700eed6
+                    - cell "Aug 30, 20263 weeks ago" [ref=e246]
+                  - row [ref=e248]:
+                    - cell [ref=e249]:
+                      - link "bin, (Directory)" [ref=e256] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/bin
+                        - text: bin
+                    - cell [ref=e257]:
+                      - 'link "fix(gate): a real error can no longer hide behind the complexity info…" [ref=e260] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/c0601f49900a9baf62b568dabbc4cd204a9bf690
+                    - cell "Sep 12, 2026last week" [ref=e261]
+                  - row [ref=e263]:
+                    - cell [ref=e264]:
+                      - link "capabilities, (Directory)" [ref=e271] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/capabilities
+                        - text: capabilities
+                    - cell [ref=e272]:
+                      - 'link "docs: correct stale last-gate.json references, and record AD-137''s ro…" [ref=e275] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/aa691e18c2599ff2f1915bec650134e83c0fe68c
+                    - cell "Sep 11, 20262 weeks ago" [ref=e276]
+                  - row [ref=e278]:
+                    - cell [ref=e279]:
+                      - link "docs, (Directory)" [ref=e286] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/docs
+                        - text: docs
+                    - cell [ref=e287]:
+                      - 'link "docs(diagrams): mermaid labels carry no raw HTML, so GitHub cannot st…" [ref=e290] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/7aebd084df9e6c9f616a9cf71db4d1512f5a304e
+                    - cell "Sep 19, 20263 days ago" [ref=e291]
+                  - row [ref=e293]:
+                    - cell [ref=e294]:
+                      - link "skills/harness-init, (Directory)" [ref=e301] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/skills/harness-init
+                        - text: skills/harness-init
+                    - cell [ref=e302]:
+                      - 'link "feat(policy): add secrets.redactOutput field, on by default" [ref=e305] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/fbb62fb7576213763842bcc5931667429ae47c08
+                    - cell "Sep 7, 20262 weeks ago" [ref=e306]
+                  - row [ref=e308]:
+                    - cell [ref=e309]:
+                      - link "src, (Directory)" [ref=e316] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/src
+                        - text: src
+                    - cell [ref=e317]:
+                      - 'link "fix(skill): stop hardcoding / when checking a link is inside the runt…" [ref=e320] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/96cf87f27cf3044cc0915bb6bb950bbeb99cd48b
+                    - cell "Sep 19, 20263 days ago" [ref=e321]
+                  - row [ref=e323]:
+                    - cell [ref=e324]:
+                      - link "tools, (Directory)" [ref=e331] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/tree/main/tools
+                        - text: tools
+                    - cell [ref=e332]:
+                      - 'link "fix(gate): check-complexity spawns npx through a shell, so Windows CI…" [ref=e335] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/23c978cd465d77a0edcc7a84ce7e6ae925784344
+                    - cell "Sep 12, 2026last week" [ref=e336]
+                  - row [ref=e338]:
+                    - cell [ref=e339]:
+                      - link ".gitattributes, (File)" [ref=e346] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/.gitattributes
+                        - text: .gitattributes
+                    - cell [ref=e347]:
+                      - 'link "feat: multi-provider agent harness for Cursor and Claude Code" [ref=e350] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/9f5cfc173d9882f659dc6a1a06a93f10c80a74f2
+                    - cell "Jul 30, 20262 months ago" [ref=e351]
+                  - row [ref=e353]:
+                    - cell [ref=e354]:
+                      - link ".gitignore, (File)" [ref=e361] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/.gitignore
+                        - text: .gitignore
+                    - cell [ref=e362]:
+                      - 'link "build(config-schema): generate schema.json in bin/tlc-build.mjs, neve…" [ref=e365] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/35f0ddad9852a7913207b9136f6f89e2419798ae
+                    - cell "Aug 26, 2026last month" [ref=e366]
+                  - row [ref=e368]:
+                    - cell [ref=e369]:
+                      - link "CHANGELOG.md, (File)" [ref=e376] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/CHANGELOG.md
+                        - text: CHANGELOG.md
+                    - cell [ref=e377]:
+                      - 'link "chore(release): 0.16.2" [ref=e380] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/def623f9f846a6366fbb3d2d5bcc7d16a797818b
+                    - cell "Sep 19, 20263 days ago" [ref=e381]
+                  - row [ref=e383]:
+                    - cell [ref=e384]:
+                      - link "CONTRIBUTING.md, (File)" [ref=e391] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/CONTRIBUTING.md
+                        - text: CONTRIBUTING.md
+                    - cell [ref=e392]:
+                      - 'link "fix(gate): a real error can no longer hide behind the complexity info…" [ref=e395] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/c0601f49900a9baf62b568dabbc4cd204a9bf690
+                    - cell "Sep 12, 2026last week" [ref=e396]
+                  - row [ref=e398]:
+                    - cell [ref=e399]:
+                      - link "LICENSE, (File)" [ref=e406] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/LICENSE
+                        - text: LICENSE
+                    - cell [ref=e407]:
+                      - 'link "feat(licence)!: Elastic License 2.0 — anyone may use it, nobody may s…" [ref=e410] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/d0c49be19cd72f09ddc07667a7e82905a75052e2
+                    - cell "Aug 22, 2026last month" [ref=e411]
+                  - row [ref=e413]:
+                    - cell [ref=e414]:
+                      - link "NOTICE, (File)" [ref=e421] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/NOTICE
+                        - text: NOTICE
+                    - cell [ref=e422]:
+                      - 'link "feat(licence)!: Elastic License 2.0 — anyone may use it, nobody may s…" [ref=e425] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/d0c49be19cd72f09ddc07667a7e82905a75052e2
+                    - cell "Aug 22, 2026last month" [ref=e426]
+                  - row [ref=e428]:
+                    - cell [ref=e429]:
+                      - link "README.md, (File)" [ref=e436] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/README.md
+                        - text: README.md
+                    - cell [ref=e437]:
+                      - 'link "docs(diagrams): mermaid labels carry no raw HTML, so GitHub cannot st…" [ref=e440] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/7aebd084df9e6c9f616a9cf71db4d1512f5a304e
+                    - cell "Sep 19, 20263 days ago" [ref=e441]
+                  - row [ref=e443]:
+                    - cell [ref=e444]:
+                      - link "SECURITY.md, (File)" [ref=e451] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/SECURITY.md
+                        - text: SECURITY.md
+                    - cell [ref=e452]:
+                      - 'link "feat: multi-provider agent harness for Cursor and Claude Code" [ref=e455] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/9f5cfc173d9882f659dc6a1a06a93f10c80a74f2
+                    - cell "Jul 30, 20262 months ago" [ref=e456]
+                  - row [ref=e458]:
+                    - cell [ref=e459]:
+                      - link "biome.json, (File)" [ref=e466] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/biome.json
+                        - text: biome.json
+                    - cell [ref=e467]:
+                      - 'link "fix(lint): noExcessiveCognitiveComplexity, at info so it does not bre…" [ref=e470] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/bbc7c50dddb47b7d357bb1735d2b1a959beb9518
+                    - cell "Sep 12, 2026last week" [ref=e471]
+                  - row [ref=e473]:
+                    - cell [ref=e474]:
+                      - link "config.example.json, (File)" [ref=e481] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/config.example.json
+                        - text: config.example.json
+                    - cell [ref=e482]:
+                      - 'link "feat(config-schema): $schema on every new config, config.example.json…" [ref=e485] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/328dd4c2828fe21f93075bd567f2381193d8a29e
+                    - cell "Aug 26, 2026last month" [ref=e486]
+                  - row [ref=e488]:
+                    - cell [ref=e489]:
+                      - link "knip.json, (File)" [ref=e496] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/knip.json
+                        - text: knip.json
+                    - cell [ref=e497]:
+                      - 'link "build(gate): knip finds the dead code a passing suite cannot" [ref=e500] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/fdc481d336dabcd62559425bde337b6c1d44bab8
+                    - cell "Aug 21, 2026last month" [ref=e501]
+                  - row [ref=e503]:
+                    - cell [ref=e504]:
+                      - link "package-lock.json, (File)" [ref=e511] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/package-lock.json
+                        - text: package-lock.json
+                    - cell [ref=e512]:
+                      - 'link "chore(deps-dev): bump the dev group across 1 directory with 3 updates" [ref=e515] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/09972f066611d559280b6ad38fea623750e1b504
+                    - cell "Sep 19, 20263 days ago" [ref=e516]
+                  - row [ref=e518]:
+                    - cell [ref=e519]:
+                      - link "package.json, (File)" [ref=e526] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/package.json
+                        - text: package.json
+                    - cell [ref=e527]:
+                      - 'link "chore(release): 0.16.2" [ref=e530] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/def623f9f846a6366fbb3d2d5bcc7d16a797818b
+                    - cell "Sep 19, 20263 days ago" [ref=e531]
+                  - row [ref=e533]:
+                    - cell [ref=e534]:
+                      - link "tsconfig.json, (File)" [ref=e541] [cursor=pointer]:
+                        - /url: /tech-leads-club/harness-toolkit/blob/main/tsconfig.json
+                        - text: tsconfig.json
+                    - cell [ref=e542]:
+                      - 'link "feat: multi-provider agent harness for Cursor and Claude Code" [ref=e545] [cursor=pointer]':
+                        - /url: /tech-leads-club/harness-toolkit/commit/9f5cfc173d9882f659dc6a1a06a93f10c80a74f2
+                    - cell "Jul 30, 20262 months ago" [ref=e546]
+            - generic [ref=e549]:
+              - generic [ref=e550]:
+                - heading "Repository files navigation" [level=2] [ref=e551]
+                - navigation "Repository files" [ref=e552]:
+                  - list [ref=e553]:
+                    - listitem [ref=e554]:
+                      - link "README" [ref=e555] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e560]:
+                      - link "Contributing" [ref=e561] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e566]:
+                      - link "License" [ref=e567] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e572]:
+                      - link "Security" [ref=e573] [cursor=pointer]:
+                        - /url: "#"
+                - button "Outline" [ref=e578] [cursor=pointer]
+              - article [ref=e582]:
+                - paragraph [ref=e583]:
+                  - link [ref=e584] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/.github/assets/logo.png
+                    - img "Tech Leads Club" [ref=e585]
+                - paragraph [ref=e586]:
+                  - link [ref=e587] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/6292942a371a7384b82746aa1e9a3f70fcff743919a95495774357c2373536b1/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f762f40746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d73717561726526636f6c6f723d626c7565
+                    - img "npm version" [ref=e588]
+                  - link [ref=e589] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/d659d0ac96331c29e461bbb6d4920987e9bb4b63a6b65b8f36ed19d5236f6bc7/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f64742f40746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d73717561726526636f6c6f723d626c7565
+                    - img "total downloads" [ref=e590]
+                  - link [ref=e591] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/8ffb434931a1880a4e4fb9e41e7801b8672211e62f346a05ba682b9c77d3f623/68747470733a2f2f696d672e736869656c64732e696f2f6e706d2f646d2f40746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d73717561726526636f6c6f723d626c7565
+                    - img "monthly downloads" [ref=e592]
+                  - link [ref=e593] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/8da6039998aa9797feeee5dc959a067304b74bb6b3cc54d30901d934bcca1e09/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6c6963656e73652d456c6173746963253230322e302d626c75653f7374796c653d666c61742d737175617265
+                    - img "license" [ref=e594]
+                  - link [ref=e595] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/6fa0eaf702a7a4da2d5bc7917b4763a9133a03482323b95f7e93126a8d6f7c5c/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f616374696f6e732f776f726b666c6f772f7374617475732f746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69742f72656c656173652e796d6c3f7374796c653d666c61742d737175617265
+                    - img "build status" [ref=e596]
+                - paragraph [ref=e597]:
+                  - link [ref=e598] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/2804771fcc20e0b556c7a8b5e6ce45b06b90515a0cbb8e695d5e12296217dad9/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f42756e2d7265636f6d6d656e6465642d626c61636b3f7374796c653d666c61742d737175617265266c6f676f3d62756e
+                    - img "bun" [ref=e599]
+                  - link [ref=e600] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/0b742504052f17a7a4eafd50b489cd41c7d317161d98a1bcd596f9dc966dbd29/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6e6f64652d25334525334432342d627269676874677265656e3f7374796c653d666c61742d737175617265266c6f676f3d6e6f64652e6a73
+                    - img "node version" [ref=e601]
+                  - link [ref=e602] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/c74b85c65547b3f3d6e77b34faa93338da93ddabbd194ce188b64e5997900d81/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f547970655363726970742d7374726963742d626c75653f7374796c653d666c61742d737175617265266c6f676f3d74797065736372697074
+                    - img "typescript" [ref=e603]
+                  - link [ref=e604] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/4626c01d8e454f446af874258da961a540bfd5b831de66294b7496175c58d7a0/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f70726f76656e616e63652d534c534125323076312d677265656e3f7374796c653d666c61742d737175617265266c6f676f3d6e706d
+                    - img "npm provenance" [ref=e605]
+                  - link [ref=e606] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/af352eea4d6291634c7df22f9c6ba48e20f7fd6adeb49b1d84b72b2edc71d737/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f646570656e64656e636965732d3025323072756e74696d652d627269676874677265656e3f7374796c653d666c61742d737175617265
+                    - img "zero runtime dependencies" [ref=e607]
+                - paragraph [ref=e608]:
+                  - link [ref=e609] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/14d9ec854448d5bb716443e97fca39d161a46a222201c7b7f304ceb4349657fb/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f437572736f722d737570706f727465642d626c61636b3f7374796c653d666c61742d737175617265
+                    - img "cursor" [ref=e610]
+                  - link [ref=e611] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/20d7c99440df28c0e62900ee9255762822151bdf58217f316069c628faff950e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436c61756465253230436f64652d737570706f727465642d626c61636b3f7374796c653d666c61742d737175617265266c6f676f3d616e7468726f706963
+                    - img "claude code" [ref=e612]
+                  - link [ref=e613] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/6dd3f74ac59927ea29a908dd192eb9b8d90195d75508f17c4960058d51be4ecb/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c696e75782532302543322542372532306d61634f5325323025433225423725323057696e646f77732d746573746564253230696e25323043492d696e666f726d6174696f6e616c3f7374796c653d666c61742d737175617265
+                    - img "platforms" [ref=e614]
+                - paragraph [ref=e615]:
+                  - link [ref=e616] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/4b56f57d77342198428d4eec2f121102d7da5fb069e7be272e66c29c44841fdf/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f73746172732f746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d73717561726526636f6c6f723d79656c6c6f77
+                    - img "github stars" [ref=e617]
+                  - link [ref=e618] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/f84e9e6dc8563600aeda9860385817fe3ba65749379ddc3e533300f9ae67a2bc/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f636f6e7472696275746f72732f746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d73717561726526636f6c6f723d6f72616e6765
+                    - img "contributors" [ref=e619]
+                  - link [ref=e620] [cursor=pointer]:
+                    - /url: https://camo.githubusercontent.com/96e1c4f7278230d04145bfb1d3e3ce50e8dc83edfbdd009d03334576a03bd10d/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f6c6173742d636f6d6d69742f746563682d6c656164732d636c75622f6861726e6573732d746f6f6c6b69743f7374796c653d666c61742d737175617265
+                    - img "last commit" [ref=e621]
+                - generic [ref=e622]:
+                  - heading "🛡️ Harness Toolkit" [level=1] [ref=e623]
+                  - 'link "Permalink: 🛡️ Harness Toolkit" [ref=e624] [cursor=pointer]':
+                    - /url: "#️-harness-toolkit"
+                - paragraph [ref=e627]:
+                  - strong [ref=e628]: Steers Cursor and Claude Code agents with gates → follow-up → handoff → policy
+                - paragraph [ref=e629]: Hooks fire on the editor's own events. The harness answers each one with a decision — allow, ask, deny, or text injected into the turn — and writes a record of what it decided and why. 8 floor rules no configuration can reach, 3 always-on checks, and 24 rails you choose.
+                - list [ref=e630]:
+                  - listitem [ref=e631]:
+                    - strong [ref=e632]:
+                      - link "Everything it validates" [ref=e633] [cursor=pointer]:
+                        - /url: "#everything-it-validates"
+                    - text: — the whole list, one row per check
+                  - listitem [ref=e634]:
+                    - strong [ref=e635]:
+                      - link "How to see any of it" [ref=e636] [cursor=pointer]:
+                        - /url: "#how-to-see-any-of-it"
+                    - text: — the command behind each row
+                  - listitem [ref=e637]:
+                    - strong [ref=e638]:
+                      - link "How to explain a decision" [ref=e639] [cursor=pointer]:
+                        - /url: "#how-to-explain-a-decision"
+                    - text: — from a message on screen back to the rule
+                - generic [ref=e640]:
+                  - heading "Start here" [level=2] [ref=e641]
+                  - 'link "Permalink: Start here" [ref=e642] [cursor=pointer]':
+                    - /url: "#start-here"
+                - generic [ref=e645]:
+                  - generic [ref=e646]: npm i -g @tech-leads-club/harness-toolkit && tlc harness install
+                  - button "Copy code to clipboard" [ref=e648] [cursor=pointer]
+                - paragraph [ref=e652]:
+                  - text: Then restart Cursor or Claude Code. That is the whole setup —
+                  - code [ref=e653]: install
+                  - text: finds which of the two you have and wires only those, and the harness works in every repository right away with a safe baseline.
+                - paragraph [ref=e654]:
+                  - text: To give one project its own rules, open it and say
+                  - strong [ref=e655]: "\"setup harness\""
+                  - text: to the agent, or run
+                  - code [ref=e656]: tlc harness init --minimal
+                  - text: . To check anything, run
+                  - code [ref=e657]: tlc harness doctor
+                  - text: .
+                - generic [ref=e658]:
+                  - heading "Table of contents" [level=2] [ref=e659]
+                  - 'link "Permalink: Table of contents" [ref=e660] [cursor=pointer]':
+                    - /url: "#table-of-contents"
+                - list [ref=e663]:
+                  - listitem [ref=e664]:
+                    - link "Start here" [ref=e665] [cursor=pointer]:
+                      - /url: "#start-here"
+                  - listitem [ref=e666]:
+                    - link "Everything it validates" [ref=e667] [cursor=pointer]:
+                      - /url: "#everything-it-validates"
+                    - list [ref=e668]:
+                      - listitem [ref=e669]:
+                        - link "Tier 1 — the floor" [ref=e670] [cursor=pointer]:
+                          - /url: "#tier-1--the-floor-no-configuration-reaches-it"
+                      - listitem [ref=e671]:
+                        - link "Tier 2 — always on, no switch" [ref=e672] [cursor=pointer]:
+                          - /url: "#tier-2--always-on-no-switch"
+                      - listitem [ref=e673]:
+                        - link "Tier 3 — the rails you choose" [ref=e674] [cursor=pointer]:
+                          - /url: "#tier-3--the-rails-you-choose"
+                      - listitem [ref=e675]:
+                        - link "One rail takes a rule you write" [ref=e676] [cursor=pointer]:
+                          - /url: "#one-rail-takes-a-rule-you-write"
+                  - listitem [ref=e677]:
+                    - link "How to see any of it" [ref=e678] [cursor=pointer]:
+                      - /url: "#how-to-see-any-of-it"
+                  - listitem [ref=e679]:
+                    - link "How to explain a decision" [ref=e680] [cursor=pointer]:
+                      - /url: "#how-to-explain-a-decision"
+                  - listitem [ref=e681]:
+                    - link "Providers" [ref=e682] [cursor=pointer]:
+                      - /url: "#providers"
+                  - listitem [ref=e683]:
+                    - link "Requirements" [ref=e684] [cursor=pointer]:
+                      - /url: "#requirements"
+                  - listitem [ref=e685]:
+                    - link "Install" [ref=e686] [cursor=pointer]:
+                      - /url: "#install"
+                  - listitem [ref=e687]:
+                    - link "Update" [ref=e688] [cursor=pointer]:
+                      - /url: "#update"
+                  - listitem [ref=e689]:
+                    - link "Quick start" [ref=e690] [cursor=pointer]:
+                      - /url: "#quick-start"
+                  - listitem [ref=e691]:
+                    - link "How it works" [ref=e692] [cursor=pointer]:
+                      - /url: "#how-it-works"
+                  - listitem [ref=e693]:
+                    - link "Commands" [ref=e694] [cursor=pointer]:
+                      - /url: "#commands"
+                  - listitem [ref=e695]:
+                    - link "Connect a project" [ref=e696] [cursor=pointer]:
+                      - /url: "#connect-a-project"
+                  - listitem [ref=e697]:
+                    - link "Paths and shared state" [ref=e698] [cursor=pointer]:
+                      - /url: "#paths-and-shared-state"
+                  - listitem [ref=e699]:
+                    - link "Ship claims" [ref=e700] [cursor=pointer]:
+                      - /url: "#ship-claims"
+                  - listitem [ref=e701]:
+                    - link "Prices" [ref=e702] [cursor=pointer]:
+                      - /url: "#prices"
+                  - listitem [ref=e703]:
+                    - link "Troubleshooting" [ref=e704] [cursor=pointer]:
+                      - /url: "#troubleshooting"
+                  - listitem [ref=e705]:
+                    - link "Documentation" [ref=e706] [cursor=pointer]:
+                      - /url: "#documentation"
+                  - listitem [ref=e707]:
+                    - link "Contributing" [ref=e708] [cursor=pointer]:
+                      - /url: "#contributing"
+                  - listitem [ref=e709]:
+                    - link "License" [ref=e710] [cursor=pointer]:
+                      - /url: "#license"
+                - generic [ref=e711]:
+                  - heading "Everything it validates" [level=2] [ref=e712]
+                  - 'link "Permalink: Everything it validates" [ref=e713] [cursor=pointer]':
+                    - /url: "#everything-it-validates"
+                - paragraph [ref=e716]: Three tiers, and which tier a check is in decides whether you can turn it off.
+                - table [ref=e718]:
+                  - rowgroup [ref=e719]:
+                    - row [ref=e720]:
+                      - columnheader "Tier" [ref=e721]
+                      - columnheader "Count" [ref=e722]
+                      - columnheader "Configurable" [ref=e723]
+                      - columnheader "Runs" [ref=e724]
+                  - rowgroup [ref=e725]:
+                    - row [ref=e726]:
+                      - cell [ref=e727]:
+                        - link "Floor" [ref=e728] [cursor=pointer]:
+                          - /url: "#tier-1--the-floor-no-configuration-reaches-it"
+                      - cell "8 rules" [ref=e729]
+                      - cell "Never" [ref=e730]
+                      - cell "Before any policy is loaded, on every tool call, shell command and read" [ref=e731]
+                    - row [ref=e732]:
+                      - cell [ref=e733]:
+                        - link "Always on" [ref=e734] [cursor=pointer]:
+                          - /url: "#tier-2--always-on-no-switch"
+                      - cell "3 checks" [ref=e735]
+                      - cell "Never" [ref=e736]
+                      - cell "After the floor, on every acting event" [ref=e737]
+                    - row [ref=e738]:
+                      - cell [ref=e739]:
+                        - link "Rails" [ref=e740] [cursor=pointer]:
+                          - /url: "#tier-3--the-rails-you-choose"
+                      - cell "25 capabilities" [ref=e741]
+                      - cell "Each one, individually" [ref=e742]
+                      - cell "Where the table says" [ref=e743]
+                - paragraph [ref=e744]: Nothing else runs. If a message on your screen is not from one of the thirty-six rows below, it is not the harness.
+                - generic [ref=e745]:
+                  - heading "Tier 1 — the floor, no configuration reaches it" [level=3] [ref=e746]
+                  - 'link "Permalink: Tier 1 — the floor, no configuration reaches it" [ref=e747] [cursor=pointer]':
+                    - /url: "#tier-1--the-floor-no-configuration-reaches-it"
+                - paragraph [ref=e750]:
+                  - text: Evaluated before the policy file is read, so no setting and no edit by an agent can clear one. Every denial prints
+                  - code [ref=e751]: rule=<name>
+                  - text: ", and the name is the first column here."
+                - table [ref=e753]:
+                  - rowgroup [ref=e754]:
+                    - row [ref=e755]:
+                      - columnheader "Rule" [ref=e756]
+                      - columnheader "Denies" [ref=e757]
+                      - columnheader "Allowed anyway" [ref=e758]
+                  - rowgroup [ref=e759]:
+                    - row [ref=e760]:
+                      - cell [ref=e761]:
+                        - code [ref=e762]: outside-project-destruction
+                      - cell "a destructive command whose target resolves outside the repository and outside the OS temp directory" [ref=e763]
+                      - cell "the same command inside the repository, or inside the temp directory" [ref=e764]
+                    - row [ref=e765]:
+                      - cell [ref=e766]:
+                        - code [ref=e767]: unprovable-destruction
+                      - cell "a destructive verb whose target is a variable, a command substitution, or otherwise built at runtime — the harness cannot see what it would delete" [ref=e768]
+                      - cell "a literal path it can resolve and check" [ref=e769]
+                    - row [ref=e770]:
+                      - cell [ref=e771]:
+                        - code [ref=e772]: secret-access
+                      - cell [ref=e773]:
+                        - text: a read that would copy a credential into the transcript —
+                        - code [ref=e774]: .env
+                        - text: ","
+                        - code [ref=e775]: ~/.ssh
+                        - text: ","
+                        - code [ref=e776]: ~/.aws
+                        - text: ","
+                        - code [ref=e777]: "*.pem"
+                        - text: and similar through a shell reader or the editor's own read tool, and the instance metadata service through any verb that speaks to the network
+                      - cell [ref=e778]:
+                        - text: searching local files for the literal address, because
+                        - code [ref=e779]: grep
+                        - text: and its kin make no request
+                    - row [ref=e780]:
+                      - cell [ref=e781]:
+                        - code [ref=e782]: history-rewrite
+                      - cell [ref=e783]:
+                        - code [ref=e784]: git push --force
+                      - cell [ref=e785]:
+                        - code [ref=e786]: "--force-with-lease"
+                        - text: ", which refuses on its own when the remote moved"
+                    - row [ref=e787]:
+                      - cell [ref=e788]:
+                        - code [ref=e789]: machine-control
+                      - cell [ref=e790]:
+                        - code [ref=e791]: shutdown
+                        - text: ","
+                        - code [ref=e792]: reboot
+                        - text: ","
+                        - code [ref=e793]: halt
+                        - text: ","
+                        - code [ref=e794]: poweroff
+                      - cell "—" [ref=e795]
+                    - row [ref=e796]:
+                      - cell [ref=e797]:
+                        - code [ref=e798]: unprovable-execution
+                      - cell [ref=e799]:
+                        - text: a program fetched over the network and handed to a shell — piped, process-substituted, or inside a shell's
+                        - code [ref=e800]: "-c"
+                        - text: /
+                        - code [ref=e801]: eval
+                        - text: substitution. The gate cannot read what would run
+                      - cell "a fetch with no shell downstream, and a shell fed a local file the gate can read" [ref=e802]
+                    - row [ref=e803]:
+                      - cell [ref=e804]:
+                        - code [ref=e805]: policy-surface-write
+                      - cell [ref=e806]:
+                        - text: every route an agent has to harness policy and state — a shell redirect, an interpreter, a heredoc program, or a write tool — in the project and under the runtime home, plus the mutating
+                        - code [ref=e807]: tlc harness
+                        - text: subcommands from inside a session
+                      - cell [ref=e808]:
+                        - text: reading them with a proven reader (
+                        - code [ref=e809]: cat
+                        - text: ","
+                        - code [ref=e810]: head
+                        - text: ","
+                        - code [ref=e811]: grep
+                        - text: ","
+                        - code [ref=e812]: jq
+                        - text: ","
+                        - code [ref=e813]: ls
+                        - text: ","
+                        - code [ref=e814]: stat
+                        - text: ","
+                        - code [ref=e815]: test
+                        - text: ), and
+                        - code [ref=e816]: tlc harness handoff
+                        - text: for the handoff state
+                    - row [ref=e817]:
+                      - cell [ref=e818]:
+                        - code [ref=e819]: wiring-tamper
+                      - cell [ref=e820]:
+                        - text: a shell redirect, in-place edit, or delete into a registered provider's wiring target — the document its own editor reads to register the harness's hooks — and a direct
+                        - code [ref=e821]: Edit
+                        - text: /
+                        - code [ref=e822]: Write
+                        - text: /
+                        - code [ref=e823]: MultiEdit
+                        - text: tool call against the same path — overwriting it silences every hook the harness has for that host
+                      - cell "reading the same path with a proven reader or a read tool" [ref=e824]
+                - paragraph [ref=e825]: "Policy changes are the operator's, from a terminal outside the agent session:"
+                - generic [ref=e826]:
+                  - generic [ref=e827]:
+                    - text: tlc harness gate test-command node --test
+                    - generic [ref=e828]: "'src/**/__test__/*.test.ts'"
+                    - text: tlc harness gate lint-command npx biome check .
+                  - button "Copy code to clipboard" [ref=e830] [cursor=pointer]
+                - generic [ref=e834]:
+                  - heading "Tier 2 — always on, no switch" [level=3] [ref=e835]
+                  - 'link "Permalink: Tier 2 — always on, no switch" [ref=e836] [cursor=pointer]':
+                    - /url: "#tier-2--always-on-no-switch"
+                - paragraph [ref=e839]: Not floor rules, and equally unconfigurable — each one detects a condition that a config field could otherwise switch off.
+                - table [ref=e841]:
+                  - rowgroup [ref=e842]:
+                    - row [ref=e843]:
+                      - columnheader "Check" [ref=e844]
+                      - columnheader "Fires on" [ref=e845]
+                      - columnheader "Verdict" [ref=e846]
+                      - columnheader "What it checks" [ref=e847]
+                      - columnheader "How to see it" [ref=e848]
+                  - rowgroup [ref=e849]:
+                    - row [ref=e850]:
+                      - cell [ref=e851]:
+                        - code [ref=e852]: policy-baseline-divergence
+                      - cell "every acting event" [ref=e853]
+                      - cell [ref=e854]:
+                        - code [ref=e855]: deny
+                      - cell [ref=e856]:
+                        - text: Every policy source is hashed at session start. If one changes mid-session with no
+                        - code [ref=e857]: tlc harness
+                        - text: command behind it, the next acting call is refused and the path named. Reads still pass, so the agent can investigate and report
+                      - cell [ref=e858]:
+                        - code [ref=e859]: tlc harness policy
+                        - text: lists what changed;
+                        - code [ref=e860]: tlc harness policy accept <path>
+                        - text: clears it
+                    - row [ref=e861]:
+                      - cell [ref=e862]:
+                        - code [ref=e863]: policy-surface-write
+                        - text: (tool half)
+                      - cell [ref=e864]:
+                        - code [ref=e865]: tool.before
+                      - cell [ref=e866]:
+                        - code [ref=e867]: deny
+                      - cell "An agent write to policy or state through Write, Edit, Delete, MultiEdit or NotebookEdit — the same paths the floor's shell half covers" [ref=e868]
+                      - cell [ref=e869]:
+                        - code [ref=e870]: tlc harness obs report
+                        - text: — refusals by rule
+                    - row [ref=e871]:
+                      - cell [ref=e872]:
+                        - code [ref=e873]: edit-collision
+                      - cell [ref=e874]:
+                        - code [ref=e875]: tool.before
+                      - cell [ref=e876]:
+                        - code [ref=e877]: ask
+                      - cell "Another live session in the same working tree touched this file recently" [ref=e878]
+                      - cell [ref=e879]:
+                        - code [ref=e880]: tlc harness status
+                        - text: lists the live sessions
+                - generic [ref=e881]:
+                  - heading "Tier 3 — the rails you choose" [level=3] [ref=e882]
+                  - 'link "Permalink: Tier 3 — the rails you choose" [ref=e883] [cursor=pointer]':
+                    - /url: "#tier-3--the-rails-you-choose"
+                - paragraph [ref=e886]:
+                  - text: All 24 are off unless the
+                  - strong [ref=e887]: default
+                  - text: column says
+                  - code [ref=e888]: "on"
+                  - text: ", and each was presented with its benefit and its trade-off when you ran the init wizard."
+                  - code [ref=e889]: configPath
+                  - text: is the key in
+                  - code [ref=e890]: .tlc/harness/config.json
+                  - text: .
+                - table [ref=e892]:
+                  - rowgroup [ref=e893]:
+                    - row [ref=e894]:
+                      - columnheader "Rail · key · default" [ref=e895]
+                      - columnheader "What it checks" [ref=e896]
+                      - columnheader "Fires on" [ref=e897]
+                      - columnheader "Verdict" [ref=e898]
+                      - columnheader "How to see it" [ref=e899]
+                  - rowgroup [ref=e900]:
+                    - row [ref=e901]:
+                      - cell [ref=e902]:
+                        - strong [ref=e903]: Grind (lint/test on stop)
+                        - code [ref=e904]: grind.enabled
+                        - text: · off
+                      - cell "Runs your lint and test commands against the files the turn changed, and sends the agent back until they pass." [ref=e905]
+                      - cell [ref=e906]:
+                        - code [ref=e907]: stop
+                      - cell [ref=e908]:
+                        - code [ref=e909]: follow-up
+                      - cell "tlc harness obs report — runs, wall-clock and total; the last verdict is in the project state directory under gate-sessions/.json" [ref=e910]
+                    - row [ref=e911]:
+                      - cell [ref=e912]:
+                        - strong [ref=e913]: Ship gate
+                        - code [ref=e914]: shipGate.enabled
+                        - text: · off
+                      - cell "Checks a declared ship claim against recent PASS evidence for the runtime paths the turn touched." [ref=e915]
+                      - cell [ref=e916]:
+                        - code [ref=e917]: stop
+                      - cell [ref=e918]:
+                        - code [ref=e919]: block-stop
+                      - cell "tlc harness obs report; the ship ledger in the project state directory records every claim, challenge and pass" [ref=e920]
+                    - row [ref=e921]:
+                      - cell [ref=e922]:
+                        - strong [ref=e923]: Empty-diff anti-ship
+                        - code [ref=e924]: shipGate.emptyDiffAntiShip
+                        - text: · off
+                      - cell "Checks that a ship claim has a non-empty diff behind it." [ref=e925]
+                      - cell [ref=e926]:
+                        - code [ref=e927]: stop
+                      - cell [ref=e928]:
+                        - code [ref=e929]: block-stop
+                      - cell "the ship ledger in the project state directory — the challenge row names the empty diff" [ref=e930]
+                    - row [ref=e931]:
+                      - cell [ref=e932]:
+                        - strong [ref=e933]: Comment gate (agent-added comments)
+                        - code [ref=e934]: comments.enabled
+                        - text: · off
+                      - 'cell "Checks the comment lines this turn added against the commit the turn started from: by reason, by resolvability, or none." [ref=e935]'
+                      - cell [ref=e936]:
+                        - code [ref=e937]: stop
+                      - cell [ref=e938]:
+                        - code [ref=e939]: block-stop
+                      - cell "tlc harness obs report — the comments gate appears among the gate outcomes" [ref=e940]
+                    - row [ref=e941]:
+                      - cell [ref=e942]:
+                        - strong [ref=e943]: Duplication gate (agent-added copies)
+                        - code [ref=e944]: duplication.enabled
+                        - text: · off
+                      - cell "Checks whether the runs of code this turn added already exist somewhere else in the project." [ref=e945]
+                      - cell [ref=e946]:
+                        - code [ref=e947]: stop
+                      - cell [ref=e948]:
+                        - code [ref=e949]: block-stop
+                      - cell "tlc harness obs report — the duplication gate appears among the gate outcomes" [ref=e950]
+                    - row [ref=e951]:
+                      - cell [ref=e952]:
+                        - strong [ref=e953]: Supply-chain gate (dependencies this turn added)
+                        - code [ref=e954]: supplyChain.enabled
+                        - text: · off
+                      - 'cell "Checks what this turn added to the dependency graph: a manifest that moved without its lock, or an unpinned version." [ref=e955]'
+                      - cell [ref=e956]:
+                        - code [ref=e957]: stop
+                      - cell [ref=e958]:
+                        - code [ref=e959]: block-stop
+                      - cell "tlc harness obs report — the supply-chain gate appears among the gate outcomes" [ref=e960]
+                    - row [ref=e961]:
+                      - cell [ref=e962]:
+                        - strong [ref=e963]: Subagent allowlist
+                        - code [ref=e964]: subagents.enforceAllowlist
+                        - text: · off
+                      - cell "Checks a subagent's model against the list you wrote, and against the blocked *-fast shapes." [ref=e965]
+                      - cell [ref=e966]:
+                        - code [ref=e967]: tool.before
+                        - code [ref=e968]: subagent.start
+                      - cell [ref=e969]:
+                        - code [ref=e970]: deny
+                      - cell "tlc harness obs report — refusals attributed by rule; the denial text names subagents.allowedModels and lists what is permitted" [ref=e971]
+                    - row [ref=e972]:
+                      - cell [ref=e973]:
+                        - strong [ref=e974]: Block parent Fast mode for Task spawns
+                        - code [ref=e975]: subagents.blockParentFast
+                        - text: · off
+                      - cell "Checks whether the parent chat is in Fast mode before letting it spawn a subagent." [ref=e976]
+                      - cell [ref=e977]:
+                        - code [ref=e978]: tool.before
+                        - code [ref=e979]: subagent.start
+                      - cell [ref=e980]:
+                        - code [ref=e981]: deny
+                      - cell "tlc harness obs report — refusals by rule; tlc harness status shows the sticky parent model it read" [ref=e982]
+                    - row [ref=e983]:
+                      - cell [ref=e984]:
+                        - strong [ref=e985]: Shell stall detection
+                        - code [ref=e986]: shell.stallDetection
+                        - text: · off
+                      - cell "Counts identical shell commands in a row and stops the loop at your threshold." [ref=e987]
+                      - cell [ref=e988]:
+                        - code [ref=e989]: shell.before
+                      - cell [ref=e990]:
+                        - code [ref=e991]: deny
+                      - cell "tlc harness obs report — interruptions attributed to the shell-stall rule" [ref=e992]
+                    - row [ref=e993]:
+                      - cell [ref=e994]:
+                        - strong [ref=e995]: Catastrophic shell ask
+                        - code [ref=e996]: shell.catastrophicAsk
+                        - text: ·
+                        - strong [ref=e997]: "on"
+                      - cell "Checks a shell command for destruction that reaches outside the workspace." [ref=e998]
+                      - cell [ref=e999]:
+                        - code [ref=e1000]: shell.before
+                      - cell [ref=e1001]:
+                        - code [ref=e1002]: ask
+                      - cell "tlc harness obs report — interruptions attributed to the shell-catastrophic rule" [ref=e1003]
+                    - row [ref=e1004]:
+                      - cell [ref=e1005]:
+                        - strong [ref=e1006]: Lessons
+                        - code [ref=e1007]: intelligence.lessons.enabled
+                        - text: · off
+                      - cell "Records what a repeated gate failure taught, ranks it, and injects it into the next session and retry." [ref=e1008]
+                      - cell [ref=e1009]:
+                        - code [ref=e1010]: session.start
+                        - code [ref=e1011]: stop
+                        - code [ref=e1012]: session.end
+                      - cell [ref=e1013]:
+                        - code [ref=e1014]: context
+                      - cell "tlc harness lessons list — every tier with staleness and effectiveness; obs report shows the characters each injection cost" [ref=e1015]
+                    - row [ref=e1016]:
+                      - cell [ref=e1017]:
+                        - strong [ref=e1018]: Budget continue
+                        - code [ref=e1019]: intelligence.budgetContinue
+                        - text: · off
+                      - cell "Checks for unfinished handoff work under context pressure and says keep going rather than wrap up." [ref=e1020]
+                      - cell [ref=e1021]:
+                        - code [ref=e1022]: stop
+                      - cell [ref=e1023]:
+                        - code [ref=e1024]: follow-up
+                      - cell "tlc harness handoff — the follow-up fires only with unfinished work recorded there" [ref=e1025]
+                    - row [ref=e1026]:
+                      - cell [ref=e1027]:
+                        - strong [ref=e1028]: Gap feedback
+                        - code [ref=e1029]: intelligence.gapFeedback
+                        - text: ·
+                        - strong [ref=e1030]: "on"
+                      - cell "Turns a gate's output into a numbered list of gaps the retry has to close." [ref=e1031]
+                      - cell [ref=e1032]:
+                        - code [ref=e1033]: stop
+                      - cell [ref=e1034]:
+                        - code [ref=e1035]: follow-up
+                      - cell "tlc harness handoff — the gaps it injects are the ones stored as previous_gaps" [ref=e1036]
+                    - row [ref=e1037]:
+                      - cell [ref=e1038]:
+                        - strong [ref=e1039]: Failure classification
+                        - code [ref=e1040]: intelligence.failureClassification
+                        - text: ·
+                        - strong [ref=e1041]: "on"
+                      - cell "Labels each gate failure with a category and stores it on the handoff." [ref=e1042]
+                      - cell [ref=e1043]:
+                        - code [ref=e1044]: stop
+                      - cell [ref=e1045]:
+                        - code [ref=e1046]: record
+                      - cell "tlc harness handoff — last_failure_category" [ref=e1047]
+                    - row [ref=e1048]:
+                      - cell [ref=e1049]:
+                        - strong [ref=e1050]: Progressive handoff
+                        - code [ref=e1051]: intelligence.progressiveHandoff
+                        - text: ·
+                        - strong [ref=e1052]: "on"
+                      - cell "Reads the gaps the previous session ended with back out at the next session's start." [ref=e1053]
+                      - cell [ref=e1054]:
+                        - code [ref=e1055]: session.start
+                      - cell [ref=e1056]:
+                        - code [ref=e1057]: context
+                      - cell "tlc harness handoff — the gaps it reads back out are previous_gaps" [ref=e1058]
+                    - row [ref=e1059]:
+                      - cell [ref=e1060]:
+                        - strong [ref=e1061]: Progressive context
+                        - code [ref=e1062]: intelligence.progressiveContext
+                        - text: ·
+                        - strong [ref=e1063]: "on"
+                      - cell "Raises the detail in the follow-up on each stop retry, so a repeat attempt is not given the same prompt." [ref=e1064]
+                      - cell [ref=e1065]:
+                        - code [ref=e1066]: stop
+                      - cell [ref=e1067]:
+                        - code [ref=e1068]: follow-up
+                      - cell "tlc harness obs report — the retry count for a stop is the escalation level it reached" [ref=e1069]
+                    - row [ref=e1070]:
+                      - cell [ref=e1071]:
+                        - strong [ref=e1072]: Autopilot
+                        - code [ref=e1073]: intelligence.autopilot
+                        - text: ·
+                        - strong [ref=e1074]: "on"
+                      - cell "Emits ordered steps after a gate failure, computed by the runtime rather than invented by the model." [ref=e1075]
+                      - cell [ref=e1076]:
+                        - code [ref=e1077]: stop
+                      - cell [ref=e1078]:
+                        - code [ref=e1079]: follow-up
+                      - cell "the AUTOPILOT block is in the follow-up text itself; obs report counts the failing stops that produced one" [ref=e1080]
+                    - row [ref=e1081]:
+                      - cell [ref=e1082]:
+                        - strong [ref=e1083]: Idle-turn gate (asked instead of acting)
+                        - code [ref=e1084]: intelligence.idleTurnGate
+                        - text: · off
+                      - cell "Checks whether a turn that ended with open work recorded any tool call or file change at all." [ref=e1085]
+                      - cell [ref=e1086]:
+                        - code [ref=e1087]: stop
+                      - cell [ref=e1088]:
+                        - code [ref=e1089]: block-stop
+                      - cell "tlc harness obs report for the block; tlc harness handoff shows the open work that armed it" [ref=e1090]
+                    - row [ref=e1091]:
+                      - cell [ref=e1092]:
+                        - strong [ref=e1093]: Docs staleness gate
+                        - code [ref=e1094]: docs.command
+                        - text: · off
+                      - cell "Runs the repository's own documentation staleness tool on stop, like a lint command." [ref=e1095]
+                      - cell [ref=e1096]:
+                        - code [ref=e1097]: stop
+                      - cell [ref=e1098]:
+                        - code [ref=e1099]: block-stop
+                      - cell "tlc harness obs report; the docs gate writes the same gate-sessions/.json artifact the lint and test gates do" [ref=e1100]
+                    - row [ref=e1101]:
+                      - cell [ref=e1102]:
+                        - strong [ref=e1103]: Global observability spool
+                        - code [ref=e1104]: obs.globalSpool
+                        - text: · off
+                      - cell "Copies every record into one file under the runtime home, so cost is readable across repositories." [ref=e1105]
+                      - cell [ref=e1106]:
+                        - code [ref=e1107]: tool.after
+                        - code [ref=e1108]: tool.failure
+                      - cell [ref=e1109]:
+                        - code [ref=e1110]: record
+                      - cell "the spool file under the runtime home; tlc harness obs prune reports how many records it dropped" [ref=e1111]
+                    - row [ref=e1112]:
+                      - cell [ref=e1113]:
+                        - strong [ref=e1114]: Untrusted-content framing and enforcement
+                        - code [ref=e1115]: untrustedContent.enabled
+                        - text: · off
+                      - cell "Frames outside content as data, and in enforce mode asks before a command that appears verbatim in it." [ref=e1116]
+                      - cell [ref=e1117]:
+                        - code [ref=e1118]: tool.after
+                      - cell [ref=e1119]:
+                        - code [ref=e1120]: context
+                      - cell "tlc harness obs report — one framing injection per turn, with the characters it cost" [ref=e1121]
+                    - row [ref=e1122]:
+                      - cell [ref=e1123]:
+                        - strong [ref=e1124]: Plan gate (declared scope vs diff)
+                        - code [ref=e1125]: planGate.enabled
+                        - text: · off
+                      - cell "Checks the files the turn changed against the scope it declared, and against any stated deviation." [ref=e1126]
+                      - cell [ref=e1127]:
+                        - code [ref=e1128]: response.after
+                        - code [ref=e1129]: stop
+                      - cell [ref=e1130]:
+                        - code [ref=e1131]: block-stop
+                      - cell "tlc harness handoff — plan_paths, plan_at and plan_deviations" [ref=e1132]
+                    - row [ref=e1133]:
+                      - cell [ref=e1134]:
+                        - strong [ref=e1135]: Observation mode (measure a rail with its rule off)
+                        - code [ref=e1136]: observe.enabled
+                        - text: · off
+                      - cell "Runs a rail's checker while that rail is not enforcing, and records the reading without acting on it." [ref=e1137]
+                      - cell [ref=e1138]:
+                        - code [ref=e1139]: stop
+                        - code [ref=e1140]: session.end
+                      - cell [ref=e1141]:
+                        - code [ref=e1142]: record
+                      - cell "tlc harness obs report — the observation readings, held apart from the refusal counters so those stay honest" [ref=e1143]
+                    - row [ref=e1144]:
+                      - cell [ref=e1145]:
+                        - strong [ref=e1146]: Operator rules (your trigger, your proof)
+                        - code [ref=e1147]: rules.enabled
+                        - text: · off
+                      - 'cell "Reads the rules you declare in markdown and enforces them: on this trigger, this must have happened." [ref=e1148]'
+                      - cell [ref=e1149]:
+                        - code [ref=e1150]: tool.before
+                        - code [ref=e1151]: stop
+                      - cell [ref=e1152]:
+                        - code [ref=e1153]: deny
+                      - cell "tlc harness doctor — each active rule, its tier, and any proof kind never observed here" [ref=e1154]
+                    - row [ref=e1155]:
+                      - cell [ref=e1156]:
+                        - strong [ref=e1157]: Secret redaction (tool/shell output)
+                        - code [ref=e1158]: secrets.redactOutput
+                        - text: ·
+                        - strong [ref=e1159]: "on"
+                      - cell "Scans a tool's or shell command's output for a secret-shaped signature or high-entropy span and masks it." [ref=e1160]
+                      - cell [ref=e1161]:
+                        - code [ref=e1162]: tool.after
+                      - cell [ref=e1163]:
+                        - code [ref=e1164]: context
+                      - cell [ref=e1165]:
+                        - text: the masked placeholder itself, in the tool output —
+                        - code [ref=e1166]: "[REDACTED:<kind>:<hash>]"
+                - paragraph [ref=e1167]:
+                  - text: The two tables above are generated from
+                  - link [ref=e1168] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/capabilities/catalog.json
+                    - code [ref=e1169]: capabilities/catalog.json
+                  - text: and
+                  - code [ref=e1170]: src/core/floor/floor.catalog.ts
+                  - text: .
+                  - code [ref=e1171]: tlc harness test
+                  - text: fails when they drift, so a rail that exists and is not listed here is a build failure rather than a documentation gap.
+                - paragraph [ref=e1172]:
+                  - text: Each rail's full benefit and trade-off — the long form, as the init wizard reads them out — is in
+                  - link [ref=e1173] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/architecture.md
+                    - code [ref=e1174]: docs/architecture.md
+                  - text: and
+                  - link [ref=e1175] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/concepts.md
+                    - code [ref=e1176]: docs/concepts.md
+                  - text: .
+                - paragraph [ref=e1177]:
+                  - strong [ref=e1178]: "One thing is not in any table: operator posture."
+                  - code [ref=e1179]: tlc harness mode paired|solo|focus
+                  - text: changes how much the agent surfaces and what earns an interruption. It switches no gate on and weakens no verification — the evidence bar is identical at all three (
+                  - link [ref=e1180] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-025.md
+                    - code [ref=e1181]: docs/decisions/ad-025.md
+                  - text: ).
+                - generic [ref=e1182]:
+                  - heading "One rail takes a rule you write" [level=3] [ref=e1183]
+                  - 'link "Permalink: One rail takes a rule you write" [ref=e1184] [cursor=pointer]':
+                    - /url: "#one-rail-takes-a-rule-you-write"
+                - paragraph [ref=e1187]:
+                  - text: Every other capability is a switch.
+                  - strong [ref=e1188]: Operator rules
+                  - text: "is a switch plus a file, because the trigger and the proof are yours:"
+                  - emphasis [ref=e1189]: on this trigger, this must have happened, otherwise do that.
+                  - text: "No pull request without a review, for instance:"
+                - generic [ref=e1190]:
+                  - generic [ref=e1191]: "--- on: pr-open require: - subagent(the-jury) since HEAD otherwise: deny --- Convene the jury on this branch. Checklist: docs/review-checklist.md"
+                  - button "Copy code to clipboard" [ref=e1193] [cursor=pointer]
+                - paragraph [ref=e1197]:
+                  - text: Save it as one markdown file per rule in
+                  - code [ref=e1198]: .tlc/harness/rules/
+                  - text: for this repository, or in the runtime home's
+                  - code [ref=e1199]: rules/
+                  - text: for every repository on this machine, and set
+                  - code [ref=e1200]: "rules.enabled: true"
+                  - text: ". The proof has to be something the harness observed — a subagent that ran, a command that completed, a gate that passed, a file that changed — so the agent cannot write one: that store is under the project state directory, which the floor refuses it."
+                - paragraph [ref=e1201]:
+                  - code [ref=e1202]: tlc harness doctor
+                  - text: lists every rule it loaded, and says so when the switch is on and no file was found. The full grammar — six triggers, four proof kinds, four verdicts and how each lands at the stop — is
+                  - code [ref=e1203]: tlc harness help rules
+                  - text: .
+                - paragraph [ref=e1204]:
+                  - strong [ref=e1205]: Why not the editor's own rules?
+                  - text: "Because a rule file there is context, not a gate: activation is a mode you pick, always-apply defaults to off, and one of the modes leaves it to the model to decide whether to load the rule at all. This is not a replacement for that file — it is the layer underneath it. The editor's rule says what the agent should do; this one says what must be provably true before it may."
+                - paragraph [ref=e1206]:
+                  - text: The fair comparison is with the editors'
+                  - strong [ref=e1207]: hooks
+                  - text: ", which are deterministic too. Three things separate them from this, taken from their own reference rather than from opinion: there is no prerequisite mechanism and no state store, so \"X requires Y to have happened\" is custom logic you write per event; the state you would keep lives in an ordinary repository path the agent can write, while a proof here lives where the floor refuses it; and one host's stop hook cannot refuse completion at all, so the same requirement has to mean something different on each — which is what the capability table and the degrade step already do. A hook is a program per host per repository, fail-open unless it opts out. A rule is five lines of frontmatter, two tiers, both hosts ("
+                  - link [ref=e1208] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-100.md
+                    - code [ref=e1209]: docs/decisions/ad-100.md
+                  - text: ).
+                - generic [ref=e1210]:
+                  - heading "How to see any of it" [level=2] [ref=e1211]
+                  - 'link "Permalink: How to see any of it" [ref=e1212] [cursor=pointer]':
+                    - /url: "#how-to-see-any-of-it"
+                - paragraph [ref=e1215]: Every row above names a command in its last column. These are those commands.
+                - table [ref=e1217]:
+                  - rowgroup [ref=e1218]:
+                    - row [ref=e1219]:
+                      - columnheader "Command" [ref=e1220]
+                      - columnheader "Answers" [ref=e1221]
+                  - rowgroup [ref=e1222]:
+                    - row [ref=e1223]:
+                      - cell [ref=e1224]:
+                        - code [ref=e1225]: tlc harness status
+                      - cell "Which posture, which rails are on, which sessions are live, whether policy diverged" [ref=e1226]
+                    - row [ref=e1227]:
+                      - cell [ref=e1228]:
+                        - code [ref=e1229]: tlc harness doctor
+                      - cell "Whether the install is healthy, and every rail that is off or misconfigured — including a rail switched on with nothing to enforce" [ref=e1230]
+                    - row [ref=e1231]:
+                      - cell [ref=e1232]:
+                        - code [ref=e1233]: tlc harness obs report
+                      - 'cell "Per session: gate outcomes, refusals attributed by rule, interruptions by rule, characters injected, cost" [ref=e1234]'
+                    - row [ref=e1235]:
+                      - cell [ref=e1236]:
+                        - code [ref=e1237]: tlc harness obs live
+                      - cell "The same signal as it happens" [ref=e1238]
+                    - row [ref=e1239]:
+                      - cell [ref=e1240]:
+                        - code [ref=e1241]: tlc harness handoff
+                      - 'cell "What the turn left open: gaps, blockers, next action, plan scope, failure category" [ref=e1242]'
+                    - row [ref=e1243]:
+                      - cell [ref=e1244]:
+                        - code [ref=e1245]: tlc harness lessons list
+                      - cell "Every lesson in all three tiers, with staleness, validity and whether it ever helped" [ref=e1246]
+                    - row [ref=e1247]:
+                      - cell [ref=e1248]:
+                        - code [ref=e1249]: tlc harness why [n]
+                      - cell "The last n decisions this tool made, with the rule behind each — and a plain sentence when it made none" [ref=e1250]
+                    - row [ref=e1251]:
+                      - cell [ref=e1252]:
+                        - code [ref=e1253]: tlc harness attest
+                      - 'cell "One hash-chained record per session: policy in force, rails active, refusals by rule, gate outcomes" [ref=e1254]'
+                    - row [ref=e1255]:
+                      - cell [ref=e1256]:
+                        - code [ref=e1257]: tlc harness policy
+                      - cell "Which policy source changed mid-session, changing nothing" [ref=e1258]
+                    - row [ref=e1259]:
+                      - cell [ref=e1260]:
+                        - code [ref=e1261]: "--json"
+                        - text: on any of them
+                      - cell "The same content, machine-readable" [ref=e1262]
+                - paragraph [ref=e1263]: All of these read. None of them changes a decision.
+                - generic [ref=e1264]:
+                  - heading "How to explain a decision" [level=2] [ref=e1265]
+                  - 'link "Permalink: How to explain a decision" [ref=e1266] [cursor=pointer]':
+                    - /url: "#how-to-explain-a-decision"
+                - paragraph [ref=e1269]:
+                  - strong [ref=e1270]:
+                    - text: Start with
+                    - code [ref=e1271]: tlc harness why
+                  - text: "— the last ten decisions this tool made, each with the rule behind it. When the harness did nothing, it says that in words, which is the answer no other command gives. Full guide:"
+                  - link [ref=e1272] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/troubleshooting.md
+                    - code [ref=e1273]: docs/troubleshooting.md
+                  - text: .
+                - paragraph [ref=e1274]: You saw a message and want to know which rule produced it.
+                - list [ref=e1275]:
+                  - listitem [ref=e1276]:
+                    - strong [ref=e1277]: The message names its rule.
+                    - text: A floor denial ends in
+                    - code [ref=e1278]: rule=<name>
+                    - text: — look it up in
+                    - link "tier 1" [ref=e1279] [cursor=pointer]:
+                      - /url: "#tier-1--the-floor-no-configuration-reaches-it"
+                    - text: . A rail's block names the gate.
+                  - listitem [ref=e1280]:
+                    - strong [ref=e1281]:
+                      - code [ref=e1282]: tlc harness obs report
+                    - text: attributes every refusal and interruption in the session to a rule, so "seven interruptions" becomes "six from the posture, one from the catastrophic rule".
+                  - listitem [ref=e1283]:
+                    - strong [ref=e1284]:
+                      - code [ref=e1285]: tlc harness attest
+                    - text: "is the same thing for a reviewer: which policy the session ran under, whether it changed mid-session, and every gate outcome, hash-chained so a removed record is detectable."
+                  - listitem [ref=e1286]:
+                    - strong [ref=e1287]:
+                      - code [ref=e1288]: tlc harness doctor
+                    - text: explains the absence of a decision — a rail you expected to fire and did not is usually one that is off, or on with nothing configured to enforce.
+                - paragraph [ref=e1289]:
+                  - text: Two limits worth stating. The harness records the decisions it made; it never learns your answer to an
+                  - code [ref=e1290]: ask
+                  - text: ", so it reports a rate and its attribution, never a precision or an accuracy. And the attestation is chained, not signed: it detects a rewritten record and proves nothing about authorship."
+                - generic [ref=e1291]:
+                  - heading "What it covers, and what it does not" [level=3] [ref=e1292]
+                  - 'link "Permalink: What it covers, and what it does not" [ref=e1293] [cursor=pointer]':
+                    - /url: "#what-it-covers-and-what-it-does-not"
+                - paragraph [ref=e1296]:
+                  - link "docs/coverage.md" [ref=e1297] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/coverage.md
+                  - text: assesses the harness against a published agentic-risk taxonomy — four risks covered, five partial, one not applicable — and states what each row leaves open. It is a self-assessment, and the control names in it are generated from the same catalogs this README's tables come from, so a rail that is renamed or removed fails the build rather than leaving a claim standing.
+                - generic [ref=e1298]:
+                  - heading "Providers" [level=2] [ref=e1299]
+                  - 'link "Permalink: Providers" [ref=e1300] [cursor=pointer]':
+                    - /url: "#providers"
+                - paragraph [ref=e1303]:
+                  - text: Both providers share one runtime, one project policy file, and one on-disk state directory. Core steering logic never imports a provider adapter and never branches on a provider's name — see
+                  - link [ref=e1304] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/architecture.md
+                    - code [ref=e1305]: docs/architecture.md
+                  - text: and
+                  - link [ref=e1306] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/providers/index.md
+                    - code [ref=e1307]: docs/providers/index.md
+                  - text: .
+                - table [ref=e1309]:
+                  - rowgroup [ref=e1310]:
+                    - row [ref=e1311]:
+                      - columnheader "Provider" [ref=e1312]
+                      - columnheader "Detected by" [ref=e1313]
+                      - columnheader "User-level wiring" [ref=e1314]
+                      - columnheader "Docs" [ref=e1315]
+                  - rowgroup [ref=e1316]:
+                    - row [ref=e1317]:
+                      - cell [ref=e1318]:
+                        - strong [ref=e1319]: Cursor
+                      - cell [ref=e1320]:
+                        - code [ref=e1321]: CURSOR_CONFIG_DIR
+                        - text: ", else"
+                        - code [ref=e1322]: ~/.cursor
+                      - cell [ref=e1323]:
+                        - code [ref=e1324]: <resolved>/hooks.json
+                        - text: (replaced)
+                      - cell [ref=e1325]:
+                        - link [ref=e1326] [cursor=pointer]:
+                          - /url: /tech-leads-club/harness-toolkit/blob/main/docs/providers/cursor.md
+                          - code [ref=e1327]: docs/providers/cursor.md
+                    - row [ref=e1328]:
+                      - cell [ref=e1329]:
+                        - strong [ref=e1330]: Claude Code
+                      - cell [ref=e1331]:
+                        - code [ref=e1332]: CLAUDE_CONFIG_DIR
+                        - text: ", else"
+                        - code [ref=e1333]: ~/.claude
+                      - cell [ref=e1334]:
+                        - code [ref=e1335]: <resolved>/settings.json
+                        - code [ref=e1336]: hooks
+                        - text: block (merged)
+                      - cell [ref=e1337]:
+                        - link [ref=e1338] [cursor=pointer]:
+                          - /url: /tech-leads-club/harness-toolkit/blob/main/docs/providers/claude-code.md
+                          - code [ref=e1339]: docs/providers/claude-code.md
+                - paragraph [ref=e1340]:
+                  - text: The installer and
+                  - code [ref=e1341]: tlc harness init
+                  - text: detect which of these are present and wire only those — neither assumes Cursor.
+                - paragraph [ref=e1342]:
+                  - text: A rail fires only where the provider can express it.
+                  - code [ref=e1343]: ask
+                  - text: on an event a provider cannot ask about becomes
+                  - code [ref=e1344]: deny
+                  - text: ", and injected context on an event a provider ignores is withheld rather than rendered into a field nothing reads —"
+                  - code [ref=e1345]: src/providers/provider.degrade.ts
+                  - text: .
+                - generic [ref=e1346]:
+                  - heading "Requirements" [level=2] [ref=e1347]
+                  - 'link "Permalink: Requirements" [ref=e1348] [cursor=pointer]':
+                    - /url: "#requirements"
+                - table [ref=e1352]:
+                  - rowgroup [ref=e1353]:
+                    - row [ref=e1354]:
+                      - columnheader "Dependency" [ref=e1355]
+                      - columnheader "Notes" [ref=e1356]
+                  - rowgroup [ref=e1357]:
+                    - row [ref=e1358]:
+                      - cell [ref=e1359]:
+                        - strong [ref=e1360]: Bun
+                        - emphasis [ref=e1361]: or
+                        - strong [ref=e1362]: Node.js 24+
+                      - cell "Either one is enough. Bun runs every hook directly (~1 ms/hook); Node runs the shipped bundles (~27 ms/hook). With neither, the install stops and names both fixes" [ref=e1363]
+                    - row [ref=e1364]:
+                      - cell [ref=e1365]:
+                        - strong [ref=e1366]: npm
+                      - cell [ref=e1367]:
+                        - text: Delivers the package, and generates the
+                        - code [ref=e1368]: tlc
+                        - text: shim for the platform it runs on
+                - paragraph [ref=e1369]:
+                  - text: Linux, macOS and Windows, same commands and same code path. CI runs the full suite and the bundle build on all three on every push; hooks firing inside an editor session on Windows are outside that coverage (
+                  - link [ref=e1370] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-006.md
+                    - code [ref=e1371]: docs/decisions/ad-006.md
+                  - text: ","
+                  - link [ref=e1372] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-097.md
+                    - code [ref=e1373]: docs/decisions/ad-097.md
+                  - text: ).
+                - generic [ref=e1374]:
+                  - heading "Install" [level=2] [ref=e1375]
+                  - 'link "Permalink: Install" [ref=e1376] [cursor=pointer]':
+                    - /url: "#install"
+                - paragraph [ref=e1379]: One command, the same on every platform.
+                - generic [ref=e1380]:
+                  - generic [ref=e1381]: npm i -g @tech-leads-club/harness-toolkit && tlc harness install
+                  - button "Copy code to clipboard" [ref=e1383] [cursor=pointer]
+                - paragraph [ref=e1387]:
+                  - text: The package is the delivery vehicle and
+                  - code [ref=e1388]: tlc harness install
+                  - text: is what puts the runtime in place. They are separate because a directory npm replaces wholesale cannot hold state —
+                  - code [ref=e1389]: config.json
+                  - text: ","
+                  - code [ref=e1390]: state/
+                  - text: and
+                  - code [ref=e1391]: flags/
+                  - text: would be deleted by an ordinary update (
+                  - link [ref=e1392] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-056.md
+                    - code [ref=e1393]: docs/decisions/ad-056.md
+                  - text: ).
+                - paragraph [ref=e1394]:
+                  - text: "Install target:"
+                  - code [ref=e1395]: ~/.tlc/harness
+                  - text: (runtime). The init skill is linked into the skills directory of each provider it finds, because a provider only reads its own.
+                - paragraph [ref=e1396]:
+                  - code [ref=e1397]: tlc harness install
+                  - text: ":"
+                - list [ref=e1398]:
+                  - listitem [ref=e1399]:
+                    - text: Materialises the runtime at
+                    - code [ref=e1400]: ~/.tlc/harness
+                    - text: from the installed package
+                  - listitem [ref=e1401]:
+                    - text: Creates
+                    - code [ref=e1402]: config.json
+                    - text: from
+                    - code [ref=e1403]: config.example.json
+                    - text: when missing
+                  - listitem [ref=e1404]:
+                    - text: Links
+                    - code [ref=e1405]: tlc
+                    - text: into
+                    - code [ref=e1406]: ~/.local/bin
+                    - text: ", and says so if that directory is not on"
+                    - code [ref=e1407]: PATH
+                  - listitem [ref=e1408]:
+                    - text: Links the init skill into each detected provider's
+                    - code [ref=e1409]: skills/harness-init
+                  - listitem [ref=e1410]: Wires user-level hooks for every provider it detects installed, in that provider's resolved config directory
+                - paragraph [ref=e1411]:
+                  - text: Update with
+                  - code [ref=e1412]: tlc harness update
+                  - text: ", which bumps the package and re-materialises the runtime."
+                - paragraph [ref=e1413]:
+                  - text: Every release is published from CI with a short-lived OIDC credential — no token is stored in the repository — and carries a provenance attestation you can check on npmjs.com. What gates it is the test suite on four platforms plus an install of the packed tarball into a clean container, driven as a real command (
+                  - link [ref=e1414] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-102.md
+                    - code [ref=e1415]: docs/decisions/ad-102.md
+                  - text: ).
+                - paragraph [ref=e1416]:
+                  - text: "Overrides:"
+                  - code [ref=e1417]: TLC_HOME
+                  - text: ","
+                  - code [ref=e1418]: TLC_REPO_URL
+                  - text: ","
+                  - code [ref=e1419]: TLC_BIN_DIR
+                  - text: .
+                - generic [ref=e1420]:
+                  - heading "Running a development copy" [level=3] [ref=e1421]
+                  - 'link "Permalink: Running a development copy" [ref=e1422] [cursor=pointer]':
+                    - /url: "#running-a-development-copy"
+                - paragraph [ref=e1425]:
+                  - text: The runtime that answers a hook is whichever one
+                  - code [ref=e1426]: TLC_HOME
+                  - text: "names, and it wins over the location of the launcher that was invoked. So a checkout can be exercised without touching the machine's install:"
+                - generic [ref=e1427]:
+                  - generic [ref=e1428]:
+                    - generic [ref=e1429]: "# one command against the checkout"
+                    - text: TLC_HOME=/path/to/clone tlc harness doctor
+                    - generic [ref=e1430]: "# a whole editor session on the checkout — everything else on the machine stays on the installed copy"
+                    - text: export TLC_HOME=/path/to/clone cursor .
+                  - button "Copy code to clipboard" [ref=e1432] [cursor=pointer]
+                - paragraph [ref=e1436]: "Two things worth knowing before doing that:"
+                - list [ref=e1437]:
+                  - listitem [ref=e1438]:
+                    - strong [ref=e1439]: A checkout serves its hooks from source.
+                    - text: With Bun present the launcher runs
+                    - code [ref=e1440]: src/
+                    - text: directly, so a file saved half-edited is live on the next hook — in that session only. Nothing needs building first, and nothing protects you from a syntax error either.
+                  - listitem [ref=e1441]:
+                    - strong [ref=e1442]:
+                      - text: Do not install a clone with
+                      - code [ref=e1443]: "--link"
+                      - text: as the machine's runtime
+                    - text: unless you accept that your working tree
+                    - emphasis [ref=e1444]: is
+                    - text: what every session on the machine runs. That is the contributor route, and it is why
+                    - code [ref=e1445]: doctor
+                    - text: reports it distinctly (
+                    - code [ref=e1446]: runtime ownership — link to a working clone
+                    - text: ).
+                - paragraph [ref=e1447]:
+                  - text: "Neither of those applies to the ordinary route:"
+                  - code [ref=e1448]: tlc harness test
+                  - text: runs the whole gate hermetically, and the entrypoints can be driven with real hook payloads from a scratch directory, so most work needs no live session at all.
+                - paragraph [ref=e1449]:
+                  - text: "Provider config directories are resolved, not assumed:"
+                  - code [ref=e1450]: CLAUDE_CONFIG_DIR
+                  - text: and
+                  - code [ref=e1451]: CURSOR_CONFIG_DIR
+                  - text: are honoured when set, so a relocated config is wired correctly.
+                  - code [ref=e1452]: tlc harness doctor
+                  - text: prints the resolved target for each provider.
+                - generic [ref=e1453]:
+                  - heading "Uninstall" [level=3] [ref=e1454]
+                  - 'link "Permalink: Uninstall" [ref=e1455] [cursor=pointer]':
+                    - /url: "#uninstall"
+                - generic [ref=e1458]:
+                  - generic [ref=e1459]:
+                    - text: tlc harness uninstall
+                    - generic [ref=e1460]: "# print the plan; change nothing"
+                    - text: tlc harness uninstall --yes
+                    - generic [ref=e1461]: "# apply exactly that plan"
+                    - text: tlc harness uninstall --purge --yes
+                    - generic [ref=e1462]: "# and delete config.json, state/ and flags/ too"
+                  - button "Copy code to clipboard" [ref=e1464] [cursor=pointer]
+                - paragraph [ref=e1468]: "The plan is the confirmation — there is no prompt, so it works the same in CI and in a shell that is already broken. What it does, and what it deliberately does not:"
+                - table [ref=e1470]:
+                  - rowgroup [ref=e1471]:
+                    - row [ref=e1472]:
+                      - columnheader [ref=e1473]
+                      - columnheader [ref=e1474]
+                  - rowgroup [ref=e1475]:
+                    - row [ref=e1476]:
+                      - cell [ref=e1477]:
+                        - code [ref=e1478]: settings.json
+                      - cell "un-merged, never deleted. Every key and every hook that is not ours stays exactly where it is" [ref=e1479]
+                    - row [ref=e1480]:
+                      - cell [ref=e1481]:
+                        - code [ref=e1482]: hooks.json
+                      - cell "deleted when every entry was ours, rewritten when it holds somebody else's" [ref=e1483]
+                    - row [ref=e1484]:
+                      - cell [ref=e1485]:
+                        - text: the
+                        - code [ref=e1486]: tlc
+                        - text: link and the skill links
+                      - cell "removed" [ref=e1487]
+                    - row [ref=e1488]:
+                      - cell [ref=e1489]:
+                        - text: the runtime payload at
+                        - code [ref=e1490]: ~/.tlc/harness
+                      - cell [ref=e1491]:
+                        - text: removed —
+                        - strong [ref=e1492]: unless
+                        - text: it is a symlink to a checkout, which is unlinked and never followed
+                    - row [ref=e1493]:
+                      - cell [ref=e1494]:
+                        - code [ref=e1495]: config.json
+                        - text: ","
+                        - code [ref=e1496]: state/
+                        - text: ","
+                        - code [ref=e1497]: flags/
+                      - cell [ref=e1498]:
+                        - strong [ref=e1499]: kept
+                        - text: ", unless you add"
+                        - code [ref=e1500]: "--purge"
+                    - row [ref=e1501]:
+                      - cell "the global npm package" [ref=e1502]
+                      - cell "reported with the exact command, never run for you" [ref=e1503]
+                    - row [ref=e1504]:
+                      - cell [ref=e1505]:
+                        - code [ref=e1506]: .tlc/
+                        - text: inside your repositories
+                      - cell "reported, never hunted for" [ref=e1507]
+                - paragraph [ref=e1508]: "Running it twice is safe: the second run reports nothing to undo and exits 0."
+                - paragraph [ref=e1509]:
+                  - text: An agent cannot run this for you.
+                  - code [ref=e1510]: ~/.tlc/harness/state
+                  - text: is a policy surface and the runtime home is outside any project, so the floor answers a delegated uninstall with
+                  - code [ref=e1511]: policy-surface-write
+                  - text: or
+                  - code [ref=e1512]: outside-project-destruction
+                  - text: . That is deliberate — the supervised does not switch off the supervisor.
+                - paragraph [ref=e1513]: Restart or reload the provider session after install.
+                - paragraph [ref=e1514]:
+                  - strong [ref=e1515]: From a git clone
+                  - text: — that is a contributor install, and it is described in
+                  - link [ref=e1516] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/CONTRIBUTING.md
+                    - code [ref=e1517]: CONTRIBUTING.md
+                  - text: . Update never writes into a clone.
+                - generic [ref=e1518]:
+                  - heading "Update" [level=2] [ref=e1519]
+                  - 'link "Permalink: Update" [ref=e1520] [cursor=pointer]':
+                    - /url: "#update"
+                - generic [ref=e1523]:
+                  - generic [ref=e1524]: tlc harness update
+                  - button "Copy code to clipboard" [ref=e1526] [cursor=pointer]
+                - paragraph [ref=e1530]: Moves the runtime to upstream, refreshes CLI + init skill + provider wiring, then runs doctor. Reload/restart the provider session afterward if hooks or the init skill should refresh.
+                - paragraph [ref=e1531]:
+                  - strong [ref=e1532]: The runtime path is an artifact the harness owns
+                  - text: ", and update never touches anything else ("
+                  - link "AD-046" [ref=e1533] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-046.md
+                  - text: "):"
+                - table [ref=e1535]:
+                  - rowgroup [ref=e1536]:
+                    - row [ref=e1537]:
+                      - columnheader [ref=e1538]:
+                        - code [ref=e1539]: tlc harness doctor
+                        - text: says
+                      - columnheader "What update writes" [ref=e1540]
+                  - rowgroup [ref=e1541]:
+                    - row [ref=e1542]:
+                      - cell [ref=e1543]:
+                        - code [ref=e1544]: installed from npm
+                      - cell [ref=e1545]:
+                        - text: bumps the package to
+                        - code [ref=e1546]: "@latest"
+                        - text: and re-materialises the runtime. No git command runs
+                    - row [ref=e1547]:
+                      - cell [ref=e1548]:
+                        - code [ref=e1549]: managed checkout
+                      - cell "moves it to upstream with a hard reset. Do not develop there — a local change is discarded" [ref=e1550]
+                    - row [ref=e1551]:
+                      - cell [ref=e1552]:
+                        - code [ref=e1553]: link to a working clone
+                      - cell "nothing in the clone. That is a contributor install; you pull it yourself" [ref=e1554]
+                - paragraph [ref=e1555]: The bundles are rebuilt only when one is missing, and only Bun builds them — a second bundler emits different bytes for the same source.
+                - paragraph [ref=e1556]:
+                  - strong [ref=e1557]:
+                    - text: If
+                    - code [ref=e1558]: update
+                    - text: aborts on
+                    - code [ref=e1559]: dist/
+                    - text: ", install the package again."
+                  - text: A stuck install cannot deliver its own fix — the fix lives in the revision
+                  - code [ref=e1560]: update
+                  - text: has to fetch — so
+                  - code [ref=e1561]: npm i -g @tech-leads-club/harness-toolkit@latest
+                  - text: followed by
+                  - code [ref=e1562]: tlc harness install
+                  - text: is the recovery route, because the registry serves it independently of what is installed. It leaves
+                  - code [ref=e1563]: config.json
+                  - text: ","
+                  - code [ref=e1564]: state/
+                  - text: and any linked clone untouched (
+                  - link "AD-048" [ref=e1565] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-048.md
+                  - text: ). There is no
+                  - code [ref=e1566]: "--force"
+                  - text: .
+                - paragraph [ref=e1567]:
+                  - text: After a successful pull, prints a short digest of
+                  - strong [ref=e1568]: optional catalog capabilities this project has not enabled yet
+                  - text: (benefit + trade-off + how to enable). Nothing is auto-enabled — use the harness-init skill or edit
+                  - code [ref=e1569]: .tlc/harness/config.json
+                  - text: .
+                - paragraph [ref=e1570]:
+                  - code [ref=e1571]: tlc harness doctor
+                  - text: emits non-blocking
+                  - code [ref=e1572]: "WARN:"
+                  - text: lines for the same off/missing opt-ins (and for default-on features you explicitly set to
+                  - code [ref=e1573]: "false"
+                  - text: ).
+                - generic [ref=e1574]:
+                  - heading "Quick start" [level=2] [ref=e1575]
+                  - 'link "Permalink: Quick start" [ref=e1576] [cursor=pointer]':
+                    - /url: "#quick-start"
+                - generic [ref=e1579]:
+                  - generic [ref=e1580]: tlc harness doctor tlc harness help tlc harness status
+                  - button "Copy code to clipboard" [ref=e1582] [cursor=pointer]
+                - paragraph [ref=e1586]: "Healthy install checklist:"
+                - list [ref=e1587]:
+                  - listitem [ref=e1588]:
+                    - text: Bun on PATH, or Node 24+ for the
+                    - code [ref=e1589]: dist/
+                    - text: fallback path
+                  - listitem [ref=e1590]:
+                    - code [ref=e1591]: ~/.tlc/harness
+                    - text: present with
+                    - code [ref=e1592]: dist/*.mjs
+                  - listitem [ref=e1593]:
+                    - text: At least one provider's user-level hooks invoke
+                    - code [ref=e1594]: tlc-exec
+                  - listitem [ref=e1595]:
+                    - code [ref=e1596]: tlc
+                    - text: on PATH (open a new shell if needed)
+                - generic [ref=e1597]:
+                  - heading "How it works" [level=2] [ref=e1598]
+                  - 'link "Permalink: How it works" [ref=e1599] [cursor=pointer]':
+                    - /url: "#how-it-works"
+                - region "mermaid rendered output container" [ref=e1602]:
+                  - generic [ref=e1603]:
+                    - generic [ref=e1604]:
+                      - group [ref=e1605]:
+                        - button "Open dialog" [ref=e1606] [cursor=pointer]
+                      - button "Copy mermaid code" [ref=e1609] [cursor=pointer]
+                    - iframe [ref=e1614]:
+                      - generic [ref=f2e7]:
+                        - button "Zoom in" [ref=f2e8] [cursor=pointer]
+                        - button "Zoom out" [ref=f2e12] [cursor=pointer]
+                        - button "Reset view" [ref=f2e16] [cursor=pointer]
+                        - button "Pan up" [ref=f2e19] [cursor=pointer]
+                        - button "Pan down" [ref=f2e22] [cursor=pointer]
+                        - button "Pan left" [ref=f2e25] [cursor=pointer]
+                        - button "Pan right" [ref=f2e28] [cursor=pointer]
+                  - generic [ref=e1615]: Loading
+                - table [ref=e1621]:
+                  - rowgroup [ref=e1622]:
+                    - row [ref=e1623]:
+                      - columnheader "Layer" [ref=e1624]
+                      - columnheader "Location" [ref=e1625]
+                  - rowgroup [ref=e1626]:
+                    - row [ref=e1627]:
+                      - cell "Runtime" [ref=e1628]
+                      - cell [ref=e1629]:
+                        - code [ref=e1630]: ~/.tlc/harness
+                    - row [ref=e1631]:
+                      - cell "Cursor user hooks" [ref=e1632]
+                      - cell [ref=e1633]:
+                        - code [ref=e1634]: <cursor config>/hooks.json
+                    - row [ref=e1635]:
+                      - cell "Claude Code user hooks" [ref=e1636]
+                      - cell [ref=e1637]:
+                        - code [ref=e1638]: <claude config>/settings.json
+                        - text: (
+                        - code [ref=e1639]: hooks
+                        - text: block)
+                    - row [ref=e1640]:
+                      - cell "Project policy" [ref=e1641]
+                      - cell [ref=e1642]:
+                        - code [ref=e1643]: <repo>/.tlc/harness/config.json
+                    - row [ref=e1644]:
+                      - cell "Project shim (per provider)" [ref=e1645]
+                      - cell [ref=e1646]:
+                        - code [ref=e1647]: <repo>/.cursor/hooks.json
+                        - text: ","
+                        - code [ref=e1648]: <repo>/.claude/settings.json
+                - paragraph [ref=e1649]:
+                  - text: "Entrypoint:"
+                  - code [ref=e1650]: bin/tlc-exec.mjs
+                  - text: ". Wrappers:"
+                  - code [ref=e1651]: bin/tlc
+                  - text: and
+                  - code [ref=e1652]: bin/tlc.cmd
+                  - text: ", kept for installs made before the package existed. Everything else spawns"
+                  - code [ref=e1653]: bin/tlc-exec.mjs
+                  - text: with the interpreter already running.
+                - paragraph [ref=e1654]:
+                  - text: See
+                  - code [ref=e1655]: tlc harness help architecture
+                  - text: or
+                  - link [ref=e1656] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/architecture.md
+                    - code [ref=e1657]: docs/architecture.md
+                  - text: .
+                - generic [ref=e1658]:
+                  - heading "Commands" [level=2] [ref=e1659]
+                  - 'link "Permalink: Commands" [ref=e1660] [cursor=pointer]':
+                    - /url: "#commands"
+                - table [ref=e1664]:
+                  - rowgroup [ref=e1665]:
+                    - row [ref=e1666]:
+                      - columnheader "Command" [ref=e1667]
+                      - columnheader "Purpose" [ref=e1668]
+                  - rowgroup [ref=e1669]:
+                    - row [ref=e1670]:
+                      - cell [ref=e1671]:
+                        - code [ref=e1672]: tlc harness status
+                      - cell "Mode, grind, gates" [ref=e1673]
+                    - row [ref=e1674]:
+                      - cell [ref=e1675]:
+                        - code [ref=e1676]: "--json"
+                        - text: on any read command
+                      - cell [ref=e1677]:
+                        - text: "Machine-readable output:"
+                        - code [ref=e1678]: status
+                        - text: ","
+                        - code [ref=e1679]: doctor
+                        - text: ","
+                        - code [ref=e1680]: obs
+                        - text: ","
+                        - code [ref=e1681]: lessons
+                        - text: ","
+                        - code [ref=e1682]: prices lookup
+                    - row [ref=e1683]:
+                      - cell [ref=e1684]:
+                        - code [ref=e1685]: tlc harness update
+                      - cell "Pull runtime + refresh skill/CLI/wiring + doctor" [ref=e1686]
+                    - row [ref=e1687]:
+                      - cell [ref=e1688]:
+                        - code [ref=e1689]: tlc harness doctor
+                      - cell "Health checklist" [ref=e1690]
+                    - row [ref=e1691]:
+                      - cell [ref=e1692]:
+                        - code [ref=e1693]: tlc harness help [topic]
+                      - cell "Docs" [ref=e1694]
+                    - row [ref=e1695]:
+                      - cell [ref=e1696]:
+                        - code [ref=e1697]: tlc harness build
+                      - cell [ref=e1698]:
+                        - text: Compile
+                        - code [ref=e1699]: dist/
+                        - text: for the Node fallback path
+                    - row [ref=e1700]:
+                      - cell [ref=e1701]:
+                        - code [ref=e1702]: tlc harness test
+                      - cell "Run the full local gate" [ref=e1703]
+                    - row [ref=e1704]:
+                      - cell [ref=e1705]:
+                        - code [ref=e1706]: tlc harness grind [on|off]
+                      - cell "Lint/test follow-ups on stop" [ref=e1707]
+                    - row [ref=e1708]:
+                      - cell [ref=e1709]:
+                        - code [ref=e1710]: tlc harness pause
+                        - text: /
+                        - code [ref=e1711]: resume
+                      - cell "Disable / enable stop checks" [ref=e1712]
+                    - row [ref=e1713]:
+                      - cell [ref=e1714]:
+                        - code [ref=e1715]: tlc harness mode solo|paired|focus
+                      - cell "Operator posture" [ref=e1716]
+                    - row [ref=e1717]:
+                      - cell [ref=e1718]:
+                        - code [ref=e1719]: tlc harness attest
+                      - cell "Tamper-evident record of what each session ran under" [ref=e1720]
+                    - row [ref=e1721]:
+                      - cell [ref=e1722]:
+                        - code [ref=e1723]: tlc harness handoff
+                      - cell "Handoff state between turns and sessions — the sanctioned reader" [ref=e1724]
+                    - row [ref=e1725]:
+                      - cell [ref=e1726]:
+                        - code [ref=e1727]: tlc harness obs live
+                        - text: /
+                        - code [ref=e1728]: obs report
+                      - cell "Signal / session rollup" [ref=e1729]
+                    - row [ref=e1730]:
+                      - cell [ref=e1731]:
+                        - code [ref=e1732]: tlc harness prices refresh
+                        - text: /
+                        - code [ref=e1733]: lookup
+                      - cell "The machine's price catalogue" [ref=e1734]
+                    - row [ref=e1735]:
+                      - cell [ref=e1736]:
+                        - code [ref=e1737]: tlc harness lessons list
+                      - cell "Lessons across the three tiers, with staleness and effectiveness" [ref=e1738]
+                    - row [ref=e1739]:
+                      - cell [ref=e1740]:
+                        - code [ref=e1741]: tlc harness lessons add "…" [--ref path:symbol] [--global] [--pin]
+                      - cell [ref=e1742]:
+                        - text: Write a lesson;
+                        - code [ref=e1743]: "--ref"
+                        - text: retires it when that stops resolving,
+                        - code [ref=e1744]: "--pin"
+                        - text: puts it ahead of ranking
+                    - row [ref=e1745]:
+                      - cell [ref=e1746]:
+                        - code [ref=e1747]: tlc harness policy
+                        - text: /
+                        - code [ref=e1748]: policy accept <path>
+                      - cell "List a mid-session policy change; accept exactly those paths" [ref=e1749]
+                    - row [ref=e1750]:
+                      - cell [ref=e1751]:
+                        - code [ref=e1752]: tlc harness init --minimal
+                      - cell "A project config that decides nothing; an existing one is kept" [ref=e1753]
+                - generic [ref=e1754]:
+                  - heading "Connect a project" [level=2] [ref=e1755]
+                  - 'link "Permalink: Connect a project" [ref=e1756] [cursor=pointer]':
+                    - /url: "#connect-a-project"
+                - list [ref=e1759]:
+                  - listitem [ref=e1760]: Open the repository in Cursor and/or Claude Code.
+                  - listitem [ref=e1761]:
+                    - text: Run
+                    - code [ref=e1762]: tlc harness init --minimal
+                    - text: ", or ask the agent to run the harness-init skill."
+                  - listitem [ref=e1763]:
+                    - text: Confirm
+                    - code [ref=e1764]: .tlc/harness/config.json
+                    - text: and the shim hooks for whichever provider(s) you use.
+                  - listitem [ref=e1765]:
+                    - text: Run
+                    - code [ref=e1766]: tlc harness doctor
+                    - text: from the project root.
+                - paragraph [ref=e1767]:
+                  - text: "Details:"
+                  - code [ref=e1768]: tlc harness help init
+                  - text: or
+                  - link [ref=e1769] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/init.md
+                    - code [ref=e1770]: docs/init.md
+                  - text: .
+                - generic [ref=e1771]:
+                  - heading "Paths and shared state" [level=2] [ref=e1772]
+                  - 'link "Permalink: Paths and shared state" [ref=e1773] [cursor=pointer]':
+                    - /url: "#paths-and-shared-state"
+                - paragraph [ref=e1776]:
+                  - text: Both providers read and write the
+                  - strong [ref=e1777]: same
+                  - text: project state — there is one
+                  - code [ref=e1778]: .tlc/harness/state/
+                  - text: ", not one per provider. Records inside it (signal, debug, audit) carry a"
+                  - code [ref=e1779]: provider
+                  - text: field per event.
+                - table [ref=e1781]:
+                  - rowgroup [ref=e1782]:
+                    - row [ref=e1783]:
+                      - columnheader "Path" [ref=e1784]
+                      - columnheader "Contents" [ref=e1785]
+                  - rowgroup [ref=e1786]:
+                    - row [ref=e1787]:
+                      - cell [ref=e1788]:
+                        - code [ref=e1789]: ~/.tlc/harness
+                      - cell "Runtime" [ref=e1790]
+                    - row [ref=e1791]:
+                      - cell [ref=e1792]:
+                        - code [ref=e1793]: ~/.tlc/harness/state/lessons.json
+                      - cell [ref=e1794]:
+                        - text: Global lesson tier — this machine, every product (
+                        - link "AD-040" [ref=e1795] [cursor=pointer]:
+                          - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-040.md
+                        - text: )
+                    - row [ref=e1796]:
+                      - cell [ref=e1797]:
+                        - code [ref=e1798]: <cursor config>/hooks.json
+                      - cell "Cursor user hooks (if Cursor installed)" [ref=e1799]
+                    - row [ref=e1800]:
+                      - cell [ref=e1801]:
+                        - code [ref=e1802]: <claude config>/settings.json
+                      - cell [ref=e1803]:
+                        - text: Claude Code user hooks,
+                        - code [ref=e1804]: hooks
+                        - text: block (if Claude Code installed)
+                    - row [ref=e1805]:
+                      - cell [ref=e1806]:
+                        - code [ref=e1807]: <provider config>/skills/harness-init
+                      - cell [ref=e1808]:
+                        - text: Init skill, linked per detected provider from runtime
+                        - code [ref=e1809]: skills/harness-init
+                    - row [ref=e1810]:
+                      - cell [ref=e1811]:
+                        - code [ref=e1812]: <repo>/.tlc/harness/config.json
+                      - cell "Project policy (tracked)" [ref=e1813]
+                    - row [ref=e1814]:
+                      - cell [ref=e1815]:
+                        - code [ref=e1816]: <repo>/.tlc/harness/state/
+                      - cell [ref=e1817]:
+                        - text: Handoff, obs, audit, project-tier
+                        - code [ref=e1818]: lessons.json
+                        - text: ", ship ledger (gitignored)"
+                - paragraph [ref=e1819]:
+                  - text: Do not use
+                  - code [ref=e1820]: ~/.tlc/harness
+                  - text: for anything other than the installed runtime — see
+                  - link [ref=e1821] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-002.md
+                    - code [ref=e1822]: docs/decisions/ad-002.md
+                  - text: for why the layout is namespaced this way.
+                - generic [ref=e1823]:
+                  - heading "Ship claims" [level=2] [ref=e1824]
+                  - 'link "Permalink: Ship claims" [ref=e1825] [cursor=pointer]':
+                    - /url: "#ship-claims"
+                - paragraph [ref=e1828]: "Protocol line (free-form \"done/shipped\" is ignored):"
+                - generic [ref=e1829]:
+                  - code [ref=e1831]: "HARNESS_SHIP_CLAIM: <one-line summary>"
+                  - button "Copy code to clipboard" [ref=e1833] [cursor=pointer]
+                - paragraph [ref=e1837]:
+                  - text: When
+                  - code [ref=e1838]: shipGate
+                  - text: is enabled and runtime paths changed, cite recent PASS under
+                  - code [ref=e1839]: evidenceDir
+                  - text: . See
+                  - code [ref=e1840]: tlc harness help concepts
+                  - text: or
+                  - link [ref=e1841] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/concepts.md
+                    - code [ref=e1842]: docs/concepts.md
+                  - text: .
+                - paragraph [ref=e1843]: "The plan gate uses the same shape for scope:"
+                - generic [ref=e1844]:
+                  - code [ref=e1846]: "HARNESS_PLAN: src/core/plan/**, src/entrypoints/stop.ts HARNESS_PLAN_DEVIATION: src/x.ts — the call site moved with the type"
+                  - button "Copy code to clipboard" [ref=e1848] [cursor=pointer]
+                - paragraph [ref=e1852]: Both are protocol lines on purpose. A gate that fires on free-English "done" fires on the word, not the claim.
+                - generic [ref=e1853]:
+                  - heading "Prices" [level=2] [ref=e1854]
+                  - 'link "Permalink: Prices" [ref=e1855] [cursor=pointer]':
+                    - /url: "#prices"
+                - generic [ref=e1858]:
+                  - generic [ref=e1859]: tlc harness prices refresh tlc harness prices refresh cursor tlc harness prices lookup <model-id> [provider]
+                  - button "Copy code to clipboard" [ref=e1861] [cursor=pointer]
+                - paragraph [ref=e1865]:
+                  - text: "Catalogue:"
+                  - code [ref=e1866]: ~/.tlc/harness/model-prices.json
+                  - text: ", one plane per billing origin. Overrides:"
+                  - code [ref=e1867]: model-prices.local.json
+                  - text: . Neither is versioned.
+                  - code [ref=e1868]: install
+                  - text: fetches once,
+                  - code [ref=e1869]: update
+                  - text: refreshes past a 7-day TTL,
+                  - code [ref=e1870]: doctor
+                  - text: reports the age.
+                - paragraph [ref=e1871]:
+                  - text: See
+                  - code [ref=e1872]: tlc harness help prices
+                  - text: or
+                  - link [ref=e1873] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/measure.md
+                    - code [ref=e1874]: docs/measure.md
+                  - text: .
+                - generic [ref=e1875]:
+                  - heading "Troubleshooting" [level=2] [ref=e1876]
+                  - 'link "Permalink: Troubleshooting" [ref=e1877] [cursor=pointer]':
+                    - /url: "#troubleshooting"
+                - table [ref=e1881]:
+                  - rowgroup [ref=e1882]:
+                    - row [ref=e1883]:
+                      - columnheader "Symptom" [ref=e1884]
+                      - columnheader "Action" [ref=e1885]
+                  - rowgroup [ref=e1886]:
+                    - row [ref=e1887]:
+                      - cell [ref=e1888]:
+                        - code [ref=e1889]: "tlc: command not found"
+                      - cell [ref=e1890]:
+                        - text: New shell; ensure
+                        - code [ref=e1891]: ~/.local/bin
+                        - text: on PATH; re-run install
+                    - row [ref=e1892]:
+                      - cell "Hooks never fire" [ref=e1893]
+                      - cell [ref=e1894]:
+                        - text: Reload/restart the provider session; check the provider's own hook log; confirm
+                        - code [ref=e1895]: tlc-exec
+                    - row [ref=e1896]:
+                      - cell [ref=e1897]:
+                        - text: Missing
+                        - code [ref=e1898]: dist/
+                      - cell [ref=e1899]:
+                        - code [ref=e1900]: tlc harness build
+                    - row [ref=e1901]:
+                      - cell [ref=e1902]:
+                        - text: Cost
+                        - code [ref=e1903]: "null"
+                      - cell [ref=e1904]:
+                        - code [ref=e1905]: tlc harness help prices
+                    - row [ref=e1906]:
+                      - cell "Project doctor FAILs" [ref=e1907]
+                      - cell "Expected until project policy exists" [ref=e1908]
+                    - row [ref=e1909]:
+                      - cell "A rail you enabled never fires" [ref=e1910]
+                      - cell [ref=e1911]:
+                        - code [ref=e1912]: tlc harness doctor
+                        - text: — a rail switched on with nothing configured to enforce is reported as a fault
+                    - row [ref=e1913]:
+                      - cell "Every tool call is refused after you edited the config" [ref=e1914]
+                      - cell [ref=e1915]:
+                        - code [ref=e1916]: tlc harness policy
+                        - text: then
+                        - code [ref=e1917]: tlc harness policy accept <path>
+                - paragraph [ref=e1918]:
+                  - text: See
+                  - code [ref=e1919]: tlc harness help diagnose
+                  - text: or
+                  - link [ref=e1920] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/diagnose.md
+                    - code [ref=e1921]: docs/diagnose.md
+                  - text: .
+                - generic [ref=e1922]:
+                  - heading "Documentation" [level=2] [ref=e1923]
+                  - 'link "Permalink: Documentation" [ref=e1924] [cursor=pointer]':
+                    - /url: "#documentation"
+                - paragraph [ref=e1927]:
+                  - text: "Full OKF v0.1 documentation bundle:"
+                  - link [ref=e1928] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/index.md
+                    - code [ref=e1929]: docs/index.md
+                  - text: .
+                - generic [ref=e1930]:
+                  - heading "Contributing" [level=2] [ref=e1931]
+                  - 'link "Permalink: Contributing" [ref=e1932] [cursor=pointer]':
+                    - /url: "#contributing"
+                - paragraph [ref=e1935]:
+                  - link [ref=e1936] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/CONTRIBUTING.md
+                    - code [ref=e1937]: CONTRIBUTING.md
+                  - text: ·
+                  - link [ref=e1938] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/SECURITY.md
+                    - code [ref=e1939]: SECURITY.md
+                - generic [ref=e1940]:
+                  - heading "License" [level=2] [ref=e1941]
+                  - 'link "Permalink: License" [ref=e1942] [cursor=pointer]':
+                    - /url: "#license"
+                - paragraph [ref=e1945]:
+                  - strong [ref=e1946]: Elastic License 2.0
+                  - text: —
+                  - link [ref=e1947] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/LICENSE
+                    - code [ref=e1948]: LICENSE
+                  - text: ","
+                  - link [ref=e1949] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/NOTICE
+                    - code [ref=e1950]: NOTICE
+                  - text: .
+                - table [ref=e1952]:
+                  - rowgroup [ref=e1953]:
+                    - row [ref=e1954]:
+                      - columnheader "Allowed" [ref=e1955]
+                      - columnheader "Not allowed" [ref=e1956]
+                  - rowgroup [ref=e1957]:
+                    - row [ref=e1958]:
+                      - cell "Use, change and redistribute it, inside a company and commercially, at no cost" [ref=e1959]
+                      - cell "Providing it to third parties as a hosted or managed service" [ref=e1960]
+                    - row [ref=e1961]:
+                      - cell "Everything an operator or a team does with it on their own machines and repositories" [ref=e1962]
+                      - cell "Removing or obscuring the copyright and licence notices" [ref=e1963]
+                - paragraph [ref=e1964]:
+                  - text: "Attribution is a condition of the licence rather than a courtesy: keep"
+                  - code [ref=e1965]: NOTICE
+                  - text: and the notices in the files with any copy you distribute.
+                - paragraph [ref=e1966]:
+                  - text: It is source-available, not OSI-approved open source, so a corporate licence scanner will refuse it by default (
+                  - link [ref=e1967] [cursor=pointer]:
+                    - /url: /tech-leads-club/harness-toolkit/blob/main/docs/decisions/ad-105.md
+                    - code [ref=e1968]: docs/decisions/ad-105.md
+                  - text: ).
+        - generic [ref=e1971]:
+          - generic [ref=e1972]:
+            - heading "About" [level=2] [ref=e1973]
+            - paragraph [ref=e1974]: Steers Cursor and Claude Code agents with gates → follow-up → handoff → policy.
+            - heading "Resources" [level=3] [ref=e1975]
+            - link "Readme" [ref=e1977] [cursor=pointer]:
+              - /url: "#readme-ov-file"
+            - link "License" [ref=e1981] [cursor=pointer]:
+              - /url: "#License-1-ov-file"
+            - heading "Contributing" [level=3] [ref=e1984]
+            - link "Contributing" [ref=e1986] [cursor=pointer]:
+              - /url: "#contributing-ov-file"
+            - heading "Security policy" [level=3] [ref=e1989]
+            - link "Security policy" [ref=e1991] [cursor=pointer]:
+              - /url: "#security-ov-file"
+            - link "Activity" [ref=e1995] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/activity
+            - link "Custom properties" [ref=e1999] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/custom-properties
+            - heading "Stars" [level=3] [ref=e2002]
+            - generic [ref=e2004]:
+              - strong [ref=e2007]: "283"
+              - text: stars
+            - heading "Watchers" [level=3] [ref=e2008]
+            - generic [ref=e2010]:
+              - strong [ref=e2013]: "4"
+              - text: watching
+            - heading "Forks" [level=3] [ref=e2014]
+            - link [ref=e2016] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/forks
+              - strong [ref=e2020]: "18"
+              - text: forks
+            - link "Report repository" [ref=e2022] [cursor=pointer]:
+              - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Ftech-leads-club%2Fharness-toolkit&report=tech-leads-club+%28user%29
+          - generic [ref=e2023]:
+            - heading "Releases (51)" [level=2] [ref=e2024]:
+              - generic [ref=e2025]:
+                - link "Releases" [ref=e2026] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/releases
+                - generic [aria-hidden] [ref=e2027]: "51"
+                - generic [ref=e2028]: (51)
+            - link "v0.16.2 Latest Sep 19, 20263 days ago" [ref=e2029] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/releases/tag/harness-toolkit-v0.16.2
+              - generic [ref=e2032]:
+                - generic [ref=e2033]:
+                  - generic "v0.16.2" [ref=e2034]
+                  - generic [ref=e2035]: Latest
+                - generic [ref=e2036]: Sep 19, 20263 days ago
+            - link "+ 50 releases" [ref=e2038] [cursor=pointer]:
+              - /url: /tech-leads-club/harness-toolkit/releases
+          - generic [ref=e2039]:
+            - heading "Contributors (4)" [level=2] [ref=e2040]:
+              - generic [ref=e2041]:
+                - link "Contributors" [ref=e2042] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/graphs/contributors
+                - generic [aria-hidden] [ref=e2043]: "4"
+                - generic [ref=e2044]: (4)
+            - list [ref=e2045]:
+              - listitem [ref=e2046]:
+                - link [ref=e2047] [cursor=pointer]:
+                  - /url: /felipfr
+                  - img "@felipfr" [ref=e2048]
+                - generic "felipfr Felipe Rodrigues" [ref=e2049]:
+                  - link [ref=e2050] [cursor=pointer]:
+                    - /url: /felipfr
+                    - strong [ref=e2051]: felipfr
+                    - text: Felipe Rodrigues
+              - listitem [ref=e2052]:
+                - link [ref=e2053] [cursor=pointer]:
+                  - /url: /tech-leads-club-release-bot[bot]
+                  - img "@tech-leads-club-release-bot[bot]" [ref=e2054]
+                - generic "tech-leads-club-release-bot[bot]" [ref=e2055]:
+                  - link [ref=e2056] [cursor=pointer]:
+                    - /url: /tech-leads-club-release-bot[bot]
+                    - strong [ref=e2057]: tech-leads-club-release-bot[bot]
+              - listitem [ref=e2058]:
+                - link [ref=e2059] [cursor=pointer]:
+                  - /url: /dependabot[bot]
+                  - img "@dependabot[bot]" [ref=e2060]
+                - generic "dependabot[bot]" [ref=e2061]:
+                  - link [ref=e2062] [cursor=pointer]:
+                    - /url: /dependabot[bot]
+                    - strong [ref=e2063]: dependabot[bot]
+              - listitem [ref=e2064]:
+                - link [ref=e2065] [cursor=pointer]:
+                  - /url: /claude
+                  - img "@claude" [ref=e2066]
+                - generic "claude Claude" [ref=e2067]:
+                  - link [ref=e2068] [cursor=pointer]:
+                    - /url: /claude
+                    - strong [ref=e2069]: claude
+                    - text: Claude
+          - generic [ref=e2070]:
+            - heading "Languages" [level=2] [ref=e2071]
+            - generic [ref=e2073]:
+              - 'progressbar "TypeScript: 98.1%" [ref=e2074]'
+              - 'progressbar "JavaScript: 1.9%" [ref=e2075]'
+            - list [ref=e2076]:
+              - listitem [ref=e2077]:
+                - link "TypeScript 98.1%" [ref=e2078] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/search?l=typescript
+                  - generic [ref=e2080]: TypeScript
+                  - generic [ref=e2081]: 98.1%
+              - listitem [ref=e2082]:
+                - link "JavaScript 1.9%" [ref=e2083] [cursor=pointer]:
+                  - /url: /tech-leads-club/harness-toolkit/search?l=javascript
+                  - generic [ref=e2085]: JavaScript
+                  - generic [ref=e2086]: 1.9%
+    - contentinfo [ref=e2088]:
+      - heading "Footer" [level=2] [ref=e2089]
+      - generic [ref=e2090]:
+        - generic [ref=e2091]:
+          - link "GitHub Homepage" [ref=e2092] [cursor=pointer]:
+            - /url: https://github.com
+          - generic [ref=e2095]: © 2026 GitHub, Inc.
+        - navigation "Footer" [ref=e2096]:
+          - heading "Footer navigation" [level=3] [ref=e2097]
+          - list "Footer navigation" [ref=e2098]:
+            - listitem [ref=e2099]:
+              - link "Terms" [ref=e2100] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+            - listitem [ref=e2101]:
+              - link "Privacy" [ref=e2102] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+            - listitem [ref=e2103]:
+              - link "Security" [ref=e2104] [cursor=pointer]:
+                - /url: https://github.com/security
+            - listitem [ref=e2105]:
+              - link "Status" [ref=e2106] [cursor=pointer]:
+                - /url: https://www.githubstatus.com/
+            - listitem [ref=e2107]:
+              - link "Community" [ref=e2108] [cursor=pointer]:
+                - /url: https://github.community/
+            - listitem [ref=e2109]:
+              - link "Docs" [ref=e2110] [cursor=pointer]:
+                - /url: https://docs.github.com/
+            - listitem [ref=e2111]:
+              - link "Contact" [ref=e2112] [cursor=pointer]:
+                - /url: https://support.github.com?tags=dotcom-footer
+            - listitem [ref=e2113]:
+              - button "Manage cookies" [ref=e2115] [cursor=pointer]
+            - listitem [ref=e2116]:
+              - button "Do not share my personal information" [ref=e2118] [cursor=pointer]
+  - alert [ref=e2121]

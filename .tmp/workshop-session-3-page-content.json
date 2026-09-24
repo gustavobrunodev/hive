@@ -1,0 +1,21 @@
+{
+  "text": "Hooks: Harness-toolkit - Felipe Rodrigues\n\nNessa aula o Felipe Rodrigues apresenta o Harness Toolkit da Tech Leads Club: uma camada de execução determinística entre o agente e o mundo real. Vamos entender por que prompt é pedido e não controle, como os hooks do Cursor e do Claude Code viram gates que o modelo não consegue desligar, e ver ao vivo o agente sendo barrado ao ler segredos, dar force push, encerrar o turno sem rodar testes, duplicar código e abrir PR sem review.\n\nTópicos da aula\n\nAs 4 superfícies onde um agente autônomo encosta\n\nProblema estrutural, não problema de qualidade do modelo\n\nPrompt é pedido, nunca controle de execução\n\nAgente = modelo + harness, e quem propõe é o modelo\n\nHooks do editor: reagir a eventos com código\n\nO floor roda antes da config: garantia por ordem de execução\n\nAsk que o editor não sabe responder vira deny\n\nNada de \"if cursor\": core sem nome de fornecedor\n\nBloquear o cat no .env e liberar o grep\n\n7 regras que ninguém desliga, 24 rails que você escolhe\n\nShip gate: o turno só termina com teste passando\n\nComment gate: só comentário de why, invariant ou hazard\n\nDuplicate gate: código repetido devolvido para refatorar\n\nRegra customizada: sem PR review, sem PR\n\nLoop de 3 tentativas: o harness tira o agente do ciclo\n\nObservabilidade: o que rodou, por que decidiu, quanto custou\n\nPosturas não mudam o rigor, mudam quanto ele te interrompe\n\nUm config JSON versionado para Cursor e Claude Code\n\nO que o toolkit cobre e não cobre no OWASP Agentic Top 10\n\nReferências\n\nHarness Toolkit da Tech Leads Club (GitHub)\n\nCatálogo de skills da Tech Leads Club\n\nOWASP Agentic AI: ameaças e mitigações\n\n\n\n\nHarness-Toolkit-TLC-2026-09-12.pdf\n836.17 KB\nConteúdos relacionados na TLC\n\nHarness Engineering \n\nHarness Engineering: O futuro da engenharia de software com IA \n\nLançado harness-score v1.0 - um scan, qualquer ferramenta agentica \n\n[Aula] Testes com IA: Como Garantir que o Agente Não Sabote Seus Testes \n\nCode Review Escalável com IA ",
+  "links": [
+    {
+      "label": "Harness Toolkit da Tech Leads Club (GitHub)",
+      "url": "https://github.com/tech-leads-club/harness-toolkit"
+    },
+    {
+      "label": "Catálogo de skills da Tech Leads Club",
+      "url": "https://agent-skills.techleads.club/"
+    },
+    {
+      "label": "OWASP Agentic AI: ameaças e mitigações",
+      "url": "https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/"
+    },
+    {
+      "label": "",
+      "url": "https://assets-v2.circle.so/5r14txpbb99v0uus70ggbitwfjmz"
+    }
+  ]
+}

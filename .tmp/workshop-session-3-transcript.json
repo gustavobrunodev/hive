@@ -1,0 +1,2953 @@
+{
+  "count": 737,
+  "rows": [
+    {
+      "timestamp": "00:03",
+      "text": "Montado eu acho outro não estou escutando"
+    },
+    {
+      "timestamp": "00:06",
+      "text": "estava multado"
+    },
+    {
+      "timestamp": "00:07",
+      "text": "Boa tarde aí"
+    },
+    {
+      "timestamp": "00:11",
+      "text": "valeu gente valeu valeu pelo chat pelo apoio Leads demais"
+    },
+    {
+      "timestamp": "00:13",
+      "text": "legal demais Tech, gostaram? Eu deixo mutado no Zoom, lotado"
+    },
+    {
+      "timestamp": "00:17",
+      "text": "no microfone para não ter perigo."
+    },
+    {
+      "timestamp": "00:21",
+      "text": "E aí pessoal, boa tarde."
+    },
+    {
+      "timestamp": "00:23",
+      "text": "Queria passar aqui,"
+    },
+    {
+      "timestamp": "00:26",
+      "text": "rapidinho, com"
+    },
+    {
+      "timestamp": "00:27",
+      "text": "essa essa mini talk aqui para vocês, mostrar 1 parada"
+    },
+    {
+      "timestamp": "00:30",
+      "text": "aí bem massa que a gente está construindo aí na"
+    },
+    {
+      "timestamp": "00:32",
+      "text": "Tech Club."
+    },
+    {
+      "timestamp": "00:35",
+      "text": "A gente vem falando sobre isso aí"
+    },
+    {
+      "timestamp": "00:38",
+      "text": "há"
+    },
+    {
+      "timestamp": "00:39",
+      "text": "vários meses, a questão de harness, para quem não sabe,"
+    },
+    {
+      "timestamp": "00:43",
+      "text": "acho difícil não saber, mas para quem não sabe, o"
+    },
+    {
+      "timestamp": "00:45",
+      "text": "harness é ali como se fosse o o arreio ali"
+    },
+    {
+      "timestamp": "00:47",
+      "text": "do cavalo, que é para onde você guia,"
+    },
+    {
+      "timestamp": "00:51",
+      "text": "e o cavalo seria IA, né? Ou então 1 cercadinho"
+    },
+    {
+      "timestamp": "00:54",
+      "text": "de criança ali que você constrói ali pra pra criança"
+    },
+    {
+      "timestamp": "00:56",
+      "text": "quando está aprendendo a andar não se machucar ou fazer"
+    },
+    {
+      "timestamp": "00:59",
+      "text": "bagunça."
+    },
+    {
+      "timestamp": "01:00",
+      "text": "Então é isso que a gente está fazendo com com"
+    },
+    {
+      "timestamp": "01:03",
+      "text": "os agentes de IA hoje em dia. Então,"
+    },
+    {
+      "timestamp": "01:07",
+      "text": "quase toda a conversa sobre"
+    },
+    {
+      "timestamp": "01:08",
+      "text": "geralmente,"
+    },
+    {
+      "timestamp": "01:10",
+      "text": "ela acontece do lado do."
+    },
+    {
+      "timestamp": "01:13",
+      "text": "E o ele fica ali do outro lado. Então,"
+    },
+    {
+      "timestamp": "01:16",
+      "text": "vou mostrar para vocês aí,"
+    },
+    {
+      "timestamp": "01:19",
+      "text": "1"
+    },
+    {
+      "timestamp": "01:20",
+      "text": "1 1 que a gente está construindo, 1 ferramenta aí"
+    },
+    {
+      "timestamp": "01:23",
+      "text": "da da TLC."
+    },
+    {
+      "timestamp": "01:26",
+      "text": "E espero que sejam,"
+    },
+    {
+      "timestamp": "01:28",
+      "text": "seja útil para todos ainda."
+    },
+    {
+      "timestamp": "01:30",
+      "text": "Então, bora lá. Eu sou o Felipe, para quem não"
+    },
+    {
+      "timestamp": "01:33",
+      "text": "me conhece, sou"
+    },
+    {
+      "timestamp": "01:35",
+      "text": "Tech Engineer na BEHUB,"
+    },
+    {
+      "timestamp": "01:38",
+      "text": "sou 1 AWS comnitibuilder,"
+    },
+    {
+      "timestamp": "01:41",
+      "text": "me tornei agora 1 SpaceX"
+    },
+    {
+      "timestamp": "01:43",
+      "text": "AI Ambertador,"
+    },
+    {
+      "timestamp": "01:45",
+      "text": "era do Courser, 1 dos embaixadores do curso aqui no"
+    },
+    {
+      "timestamp": "01:48",
+      "text": "Brasil,"
+    },
+    {
+      "timestamp": "01:49",
+      "text": "mas agora com a compra somos todos SpaceX, vamos fazer"
+    },
+    {
+      "timestamp": "01:53",
+      "text": "código no espaço daqui uns dias. Sou mentor aqui no"
+    },
+    {
+      "timestamp": "01:56",
+      "text": "na Tech Club, particípio aí do grupo de IA,"
+    },
+    {
+      "timestamp": "02:02",
+      "text": "mantenho aí"
+    },
+    {
+      "timestamp": "02:04",
+      "text": "1 laboratório aí com várias ferramentas aí junto com o"
+    },
+    {
+      "timestamp": "02:07",
+      "text": "pessoal."
+    },
+    {
+      "timestamp": "02:08",
+      "text": "Sou o criador da TLC Spectraiving"
+    },
+    {
+      "timestamp": "02:11",
+      "text": "e venho mantendo aí com"
+    },
+    {
+      "timestamp": "02:14",
+      "text": "o pessoal da comunidade, William, Valdemar,"
+    },
+    {
+      "timestamp": "02:17",
+      "text": "Mayara, o Edmar, agora o o Paladini. Então aí queria"
+    },
+    {
+      "timestamp": "02:21",
+      "text": "deixar meu agradecimento a todos. E agora também com o"
+    },
+    {
+      "timestamp": "02:25",
+      "text": "Tech"
+    },
+    {
+      "timestamp": "02:28",
+      "text": "é 1 parada que eu já venho fazendo há algum"
+    },
+    {
+      "timestamp": "02:31",
+      "text": "tempo,"
+    },
+    {
+      "timestamp": "02:32",
+      "text": "mas estava escopado dentro de outro produto e a gente"
+    },
+    {
+      "timestamp": "02:34",
+      "text": "decidiu tirar desse produto"
+    },
+    {
+      "timestamp": "02:36",
+      "text": "e e lançar aí para todos."
+    },
+    {
+      "timestamp": "02:38",
+      "text": "Então bora lá."
+    },
+    {
+      "timestamp": "02:41",
+      "text": "É,"
+    },
+    {
+      "timestamp": "02:42",
+      "text": "o problema estrutural ali de de de trabalhar com agentes,"
+    },
+    {
+      "timestamp": "02:46",
+      "text": "né? Então vocês estão vendo aí 4 blocos,"
+    },
+    {
+      "timestamp": "02:49",
+      "text": "eles, não são 1 lista de coisas ruins que podem"
+    },
+    {
+      "timestamp": "02:52",
+      "text": "acontecer, são as 4 superfícies onde 1 agente,"
+    },
+    {
+      "timestamp": "02:56",
+      "text": "com autonomia real ele vai encostar ali no dia a"
+    },
+    {
+      "timestamp": "02:58",
+      "text": "dia, então eles, e todas elas Tech 1 propriedade em"
+    },
+    {
+      "timestamp": "03:01",
+      "text": "comum,"
+    },
+    {
+      "timestamp": "03:02",
+      "text": "que é o que,"
+    },
+    {
+      "timestamp": "03:04",
+      "text": "acontece ali ele não vai se desfazer sozinho."
+    },
+    {
+      "timestamp": "03:07",
+      "text": "Então geralmente é 1 problema que pode acontecer,"
+    },
+    {
+      "timestamp": "03:10",
+      "text": "e pode dar 1, 1 merda, né?"
+    },
+    {
+      "timestamp": "03:14",
+      "text": "E o mais desconfortável ali é o 2º,"
+    },
+    {
+      "timestamp": "03:18",
+      "text": "que, é 1 política que deveria conter contêlo entre o"
+    },
+    {
+      "timestamp": "03:21",
+      "text": "agente e os seus arquivos, então."
+    },
+    {
+      "timestamp": "03:23",
+      "text": "É,"
+    },
+    {
+      "timestamp": "03:24",
+      "text": "e arquivo é 1 coisa que a gente sabe digitar"
+    },
+    {
+      "timestamp": "03:26",
+      "text": "muito bem, então ele precisa ter 1 freio ali para"
+    },
+    {
+      "timestamp": "03:29",
+      "text": "evitar acontecer qualquer tipo de coisa então por isso que"
+    },
+    {
+      "timestamp": "03:32",
+      "text": "não não. Você está passando o slide ou não?"
+    },
+    {
+      "timestamp": "03:35",
+      "text": "Sim."
+    },
+    {
+      "timestamp": "03:36",
+      "text": "Não mudou? Não mudou? Não mudou?"
+    },
+    {
+      "timestamp": "03:41",
+      "text": "Deixa eu compartilhar a tela de novo,"
+    },
+    {
+      "timestamp": "03:43",
+      "text": "peço perdão."
+    },
+    {
+      "timestamp": "03:47",
+      "text": "Logo logo a gente vai ter que fazer 1 curso"
+    },
+    {
+      "timestamp": "03:49",
+      "text": "técnico de zoom pô. Vai ter vai ter Pois é."
+    },
+    {
+      "timestamp": "03:52",
+      "text": "Se alguém é técnico em informática aí já,"
+    },
+    {
+      "timestamp": "03:54",
+      "text": "quiser ajudar a gente."
+    },
+    {
+      "timestamp": "04:01",
+      "text": "Perdão, gente."
+    },
+    {
+      "timestamp": "04:04",
+      "text": "Está aí, de novo, o que eu tinha falado naquele"
+    },
+    {
+      "timestamp": "04:06",
+      "text": "último slide e peço desculpas aí pela vergonha de"
+    },
+    {
+      "timestamp": "04:09",
+      "text": "estou aprendendo, então, terminei meu curso no Senai,"
+    },
+    {
+      "timestamp": "04:13",
+      "text": "bora."
+    },
+    {
+      "timestamp": "04:17",
+      "text": "Então, é os quadradinhos que eu estava falando ali,"
+    },
+    {
+      "timestamp": "04:21",
+      "text": "ele não são umas, é 1 lista que não são"
+    },
+    {
+      "timestamp": "04:23",
+      "text": "de coisas ruins que podem acontecer, mas é o que"
+    },
+    {
+      "timestamp": "04:25",
+      "text": "está sujeito a acontecer com a gente."
+    },
+    {
+      "timestamp": "04:28",
+      "text": "E, por isso que eu chamo de problema estrutural, e"
+    },
+    {
+      "timestamp": "04:31",
+      "text": "não de problema de qualidade no modelo. A gente já"
+    },
+    {
+      "timestamp": "04:33",
+      "text": "aprendeu nas outras Tech ali que 1 agente ele é,"
+    },
+    {
+      "timestamp": "04:36",
+      "text": "ele é a mescla de"
+    },
+    {
+      "timestamp": "04:38",
+      "text": "modelo mais Harders."
+    },
+    {
+      "timestamp": "04:40",
+      "text": "Então ele virou agente"
+    },
+    {
+      "timestamp": "04:43",
+      "text": "e a gente sabe que o modelo melhor ele vai"
+    },
+    {
+      "timestamp": "04:45",
+      "text": "errar menos,"
+    },
+    {
+      "timestamp": "04:46",
+      "text": "mas ele vai errar. E quando ele errar, o que"
+    },
+    {
+      "timestamp": "04:49",
+      "text": "está ali entre a interação dele e essas 4 superfícies"
+    },
+    {
+      "timestamp": "04:52",
+      "text": "é a única coisa que vai importar."
+    },
+    {
+      "timestamp": "04:55",
+      "text": "E o prompt ele não vai ocupar esse lugar,"
+    },
+    {
+      "timestamp": "04:59",
+      "text": "tirem isso de ideia de vocês."
+    },
+    {
+      "timestamp": "05:02",
+      "text": "Porque mesmo com a instrução mais cuidadosa do mundo, ela"
+    },
+    {
+      "timestamp": "05:04",
+      "text": "vai continuar sendo 1 pedido."
+    },
+    {
+      "timestamp": "05:06",
+      "text": "E pedido nunca vai ser controle de execução."
+    },
+    {
+      "timestamp": "05:09",
+      "text": "Então, sem essa de, ah, pelo amor de Deus, não"
+    },
+    {
+      "timestamp": "05:12",
+      "text": "edita isso, pelo amor de Deus, não aquilo, cara, não"
+    },
+    {
+      "timestamp": "05:14",
+      "text": "vai colar."
+    },
+    {
+      "timestamp": "05:16",
+      "text": "Ele pode respeitar 1 2 vezes, mas ele vai passar"
+    },
+    {
+      "timestamp": "05:19",
+      "text": "por aquilo ali."
+    },
+    {
+      "timestamp": "05:22",
+      "text": "O que que é 1?"
+    },
+    {
+      "timestamp": "05:26",
+      "text": "É basicamente ali o que eu expliquei é 1 camada,"
+    },
+    {
+      "timestamp": "05:29",
+      "text": "mas trazendo para o lado software é 1 camada de"
+    },
+    {
+      "timestamp": "05:31",
+      "text": "execução entre o modelo e o mundo real ali."
+    },
+    {
+      "timestamp": "05:34",
+      "text": "E,"
+    },
+    {
+      "timestamp": "05:35",
+      "text": "temos ali no 1º, no 1º quadradinho, que é o"
+    },
+    {
+      "timestamp": "05:39",
+      "text": "modelo."
+    },
+    {
+      "timestamp": "05:40",
+      "text": "Ao invés de agente, como eu disse, o agente ele"
+    },
+    {
+      "timestamp": "05:43",
+      "text": "é o combo de modelo, a mescla de modelo e"
+    },
+    {
+      "timestamp": "05:45",
+      "text": "harness é o conjunto das 2 pontas"
+    },
+    {
+      "timestamp": "05:48",
+      "text": "e quem propõe é o modelo e isso muda de"
+    },
+    {
+      "timestamp": "05:51",
+      "text": "quem é responsabilidade quando algo dá errado."
+    },
+    {
+      "timestamp": "05:54",
+      "text": "A 2º,"
+    },
+    {
+      "timestamp": "05:57",
+      "text": "ali no na na caixinha é,"
+    },
+    {
+      "timestamp": "06:00",
+      "text": "os hooks do editor."
+    },
+    {
+      "timestamp": "06:01",
+      "text": "Para quem não sabe,"
+    },
+    {
+      "timestamp": "06:05",
+      "text": "eles são, eles eles estão ali no no cursor no"
+    },
+    {
+      "timestamp": "06:08",
+      "text": "club Code, tem nas outras ferramentas também, Codex, Open Code."
+    },
+    {
+      "timestamp": "06:13",
+      "text": "Então eles já estão expostos ali nativamente no ciclo de"
+    },
+    {
+      "timestamp": "06:16",
+      "text": "vida do"
+    },
+    {
+      "timestamp": "06:17",
+      "text": "agente."
+    },
+    {
+      "timestamp": "06:19",
+      "text": "Mas"
+    },
+    {
+      "timestamp": "06:20",
+      "text": "para eles responderem a algo,"
+    },
+    {
+      "timestamp": "06:22",
+      "text": "precisa de alguma coisa alguma decisão algum conector ali e"
+    },
+    {
+      "timestamp": "06:25",
+      "text": "é ali que entra 1 rarnes, então com o Hulk,"
+    },
+    {
+      "timestamp": "06:28",
+      "text": "você pode"
+    },
+    {
+      "timestamp": "06:29",
+      "text": "reagir aos eventos"
+    },
+    {
+      "timestamp": "06:31",
+      "text": "do agente e pode fazer basicamente o que bem entender"
+    },
+    {
+      "timestamp": "06:34",
+      "text": "ali, porque é código."
+    },
+    {
+      "timestamp": "06:37",
+      "text": "Então, vou dar 1 exemplo bem simples aqui, tá? Vamos"
+    },
+    {
+      "timestamp": "06:40",
+      "text": "supor que a cada comit você quer"
+    },
+    {
+      "timestamp": "06:44",
+      "text": "que, ele te mande oi no chat, é só você"
+    },
+    {
+      "timestamp": "06:47",
+      "text": "fazer ali, conectar"
+    },
+    {
+      "timestamp": "06:49",
+      "text": "no no evento que ele vai fazer isso, de forma"
+    },
+    {
+      "timestamp": "06:51",
+      "text": "automática."
+    },
+    {
+      "timestamp": "06:53",
+      "text": "Então,"
+    },
+    {
+      "timestamp": "06:54",
+      "text": "com isso,"
+    },
+    {
+      "timestamp": "06:56",
+      "text": "a gente conecta o de forma determinística"
+    },
+    {
+      "timestamp": "06:59",
+      "text": "ali,"
+    },
+    {
+      "timestamp": "07:00",
+      "text": "no."
+    },
+    {
+      "timestamp": "07:02",
+      "text": "Junto a esses eventos para responder esses eventos."
+    },
+    {
+      "timestamp": "07:06",
+      "text": "E repara ali onde o for está, ele está antes"
+    },
+    {
+      "timestamp": "07:09",
+      "text": "do core. Então o que que é o for? Ele"
+    },
+    {
+      "timestamp": "07:11",
+      "text": "é o piso ali que ele vai avaliar antes de"
+    },
+    {
+      "timestamp": "07:13",
+      "text": "qualquer configuração você lida."
+    },
+    {
+      "timestamp": "07:15",
+      "text": "Isso não é 1 escolha de quão rigoroso o sistema"
+    },
+    {
+      "timestamp": "07:19",
+      "text": "é, é o a escolha de posição no código."
+    },
+    {
+      "timestamp": "07:22",
+      "text": "Por quê?"
+    },
+    {
+      "timestamp": "07:23",
+      "text": "Porque é aí que ele vai filtrar geralmente"
+    },
+    {
+      "timestamp": "07:26",
+      "text": "ali."
+    },
+    {
+      "timestamp": "07:29",
+      "text": "Por exemplo, se ele rodasse depois, poderia ter algum botão"
+    },
+    {
+      "timestamp": "07:32",
+      "text": "de de desligar. Então ele rodando antes, ele não tem"
+    },
+    {
+      "timestamp": "07:36",
+      "text": "como desligar essa chave."
+    },
+    {
+      "timestamp": "07:38",
+      "text": "Então a garantia ela não vem da boa fé do"
+    },
+    {
+      "timestamp": "07:40",
+      "text": "agente, ela vem da ordem de execução."
+    },
+    {
+      "timestamp": "07:44",
+      "text": "Então ali,"
+    },
+    {
+      "timestamp": "07:45",
+      "text": "2 coisas que estão nesse caminho ali que é, que"
+    },
+    {
+      "timestamp": "07:48",
+      "text": "vale"
+    },
+    {
+      "timestamp": "07:50",
+      "text": "Tech atenção, o TLC Exec, no nosso Tech descobre qual"
+    },
+    {
+      "timestamp": "07:54",
+      "text": "editor que está falando pelo formato do payload que chegou"
+    },
+    {
+      "timestamp": "07:57",
+      "text": "para ele."
+    },
+    {
+      "timestamp": "07:58",
+      "text": "Então, você nunca vai falar que está no curso ou"
+    },
+    {
+      "timestamp": "08:01",
+      "text": "no club Code, que aí ele já vai saber de"
+    },
+    {
+      "timestamp": "08:02",
+      "text": "forma automática."
+    },
+    {
+      "timestamp": "08:04",
+      "text": "E o degrade na última caixa, ele ele vai resolver"
+    },
+    {
+      "timestamp": "08:07",
+      "text": "ali o"
+    },
+    {
+      "timestamp": "08:08",
+      "text": "caso mais chato."
+    },
+    {
+      "timestamp": "08:10",
+      "text": "Se o editor ele não sabe o que perguntar,"
+    },
+    {
+      "timestamp": "08:13",
+      "text": "1 ESC ele vai virar ADN."
+    },
+    {
+      "timestamp": "08:16",
+      "text": "Então, ele nunca vai virar, ele nunca vai deixar passar"
+    },
+    {
+      "timestamp": "08:19",
+      "text": "nada em silêncio. Então, ele vai negar"
+    },
+    {
+      "timestamp": "08:21",
+      "text": "e vai esperar você ir lá desbloquear o agente."
+    },
+    {
+      "timestamp": "08:25",
+      "text": "E isso só se sustenta por conta de como o"
+    },
+    {
+      "timestamp": "08:28",
+      "text": "código está separado"
+    },
+    {
+      "timestamp": "08:30",
+      "text": "nesse Tech."
+    },
+    {
+      "timestamp": "08:32",
+      "text": "Que é ali, ó, as 2 setas vermelho ali,"
+    },
+    {
+      "timestamp": "08:36",
+      "text": "elas são,"
+    },
+    {
+      "timestamp": "08:37",
+      "text": "como se fossem proibidas e a proibição ela mora, não"
+    },
+    {
+      "timestamp": "08:40",
+      "text": "mora em 1 documento de arquitetura, em 1 Markdown. Ou"
+    },
+    {
+      "timestamp": "08:44",
+      "text": "algum documento que a gente vai ler 1 vez vai"
+    },
+    {
+      "timestamp": "08:46",
+      "text": "esquecer, ela vai morar ali no build."
+    },
+    {
+      "timestamp": "08:49",
+      "text": "E 1 import ali,"
+    },
+    {
+      "timestamp": "08:51",
+      "text": "naquela linha ele vai quebrar a compilação do do to"
+    },
+    {
+      "timestamp": "08:54",
+      "text": "kit."
+    },
+    {
+      "timestamp": "08:55",
+      "text": "E a 2º trava, é 1 trava bem simples que"
+    },
+    {
+      "timestamp": "08:57",
+      "text": "é 1 varredura ali que proíbe as palavras curser, club"
+    },
+    {
+      "timestamp": "09:00",
+      "text": "and, trop que de existir em qualquer lugar sob core"
+    },
+    {
+      "timestamp": "09:02",
+      "text": "e contract isso aqui eu estou falando da arquitetura para"
+    },
+    {
+      "timestamp": "09:05",
+      "text": "vocês entenderem ali, como a arquitetura do Harness ela se"
+    },
+    {
+      "timestamp": "09:08",
+      "text": "conecta com os hooks"
+    },
+    {
+      "timestamp": "09:11",
+      "text": "dos agentes."
+    },
+    {
+      "timestamp": "09:12",
+      "text": "Então"
+    },
+    {
+      "timestamp": "09:13",
+      "text": "ali,"
+    },
+    {
+      "timestamp": "09:15",
+      "text": "1 if com o nome de fornecedor ali dentro da"
+    },
+    {
+      "timestamp": "09:17",
+      "text": "lógica de decisão,"
+    },
+    {
+      "timestamp": "09:19",
+      "text": "é o 1º passo para existir 2 lógicas"
+    },
+    {
+      "timestamp": "09:22",
+      "text": "repetidas."
+    },
+    {
+      "timestamp": "09:23",
+      "text": "Então"
+    },
+    {
+      "timestamp": "09:24",
+      "text": "ali, a gente faz com que isso não acontece até,"
+    },
+    {
+      "timestamp": "09:28",
+      "text": "para ser extensível,"
+    },
+    {
+      "timestamp": "09:30",
+      "text": "de de forma mais simples, para outros editores, outros agentes,"
+    },
+    {
+      "timestamp": "09:34",
+      "text": "que inclusive o William está trabalhando nisso para trazer o"
+    },
+    {
+      "timestamp": "09:37",
+      "text": "Code, que se trazer o Open Code, hoje só curso"
+    },
+    {
+      "timestamp": "09:39",
+      "text": "e cloud Code. E de forma simples, sem duplicar código,"
+    },
+    {
+      "timestamp": "09:44",
+      "text": "sem duplicar lógica."
+    },
+    {
+      "timestamp": "09:47",
+      "text": "E, é isso, o efeito prático é suportar 1 3º"
+    },
+    {
+      "timestamp": "09:50",
+      "text": "editor,"
+    },
+    {
+      "timestamp": "09:51",
+      "text": "sem mexer ali no core,"
+    },
+    {
+      "timestamp": "09:53",
+      "text": "do produto."
+    },
+    {
+      "timestamp": "09:54",
+      "text": "Agora vou mostrar para vocês 1 pouquinho da, de algumas"
+    },
+    {
+      "timestamp": "09:57",
+      "text": "regras ali que tem no estol kit, e começando pelas"
+    },
+    {
+      "timestamp": "10:01",
+      "text": "que ninguém consegue desligar, as que já vêm ativas ali"
+    },
+    {
+      "timestamp": "10:05",
+      "text": "por padrão."
+    },
+    {
+      "timestamp": "10:07",
+      "text": "Que são ali basicamente,"
+    },
+    {
+      "timestamp": "10:12",
+      "text": "as mais simples ali e as que mais dão problema,"
+    },
+    {
+      "timestamp": "10:15",
+      "text": "então começando ali com o circuit access ele vai impedir"
+    },
+    {
+      "timestamp": "10:18",
+      "text": "o agente de ler,"
+    },
+    {
+      "timestamp": "10:20",
+      "text": "chave SSH, credencial da"
+    },
+    {
+      "timestamp": "10:23",
+      "text": "AWS, e até esperado."
+    },
+    {
+      "timestamp": "10:25",
+      "text": "Então assim, ele deixa passar 1 grap procurando o nome"
+    },
+    {
+      "timestamp": "10:27",
+      "text": "da variável,"
+    },
+    {
+      "timestamp": "10:29",
+      "text": "porque o grap ele não vai fazer requisição nenhuma."
+    },
+    {
+      "timestamp": "10:32",
+      "text": "Então assim, 1 ferramenta que bloqueasse os 2 ela seria"
+    },
+    {
+      "timestamp": "10:35",
+      "text": "mais segura no papel,"
+    },
+    {
+      "timestamp": "10:37",
+      "text": "só que 1 semana de uso você ia lá e"
+    },
+    {
+      "timestamp": "10:39",
+      "text": "ia desinstalar a ferramenta, porque ali atrapalhar todo o seu"
+    },
+    {
+      "timestamp": "10:43",
+      "text": "fluxo. Então ela protege aonde deve ser protegido mesmo."
+    },
+    {
+      "timestamp": "10:47",
+      "text": "Então esse é 1 dos critérios que a gente usa"
+    },
+    {
+      "timestamp": "10:50",
+      "text": "aqui que é"
+    },
+    {
+      "timestamp": "10:51",
+      "text": "negar a parte destrutiva, sem negar o caminho legítimo que"
+    },
+    {
+      "timestamp": "10:55",
+      "text": "vai se parecer com ela. Então assim, foi a parte"
+    },
+    {
+      "timestamp": "10:58",
+      "text": "que mais eu trabalho de acertar,"
+    },
+    {
+      "timestamp": "11:00",
+      "text": "e a que poucas pessoas percebe quando está certa, e"
+    },
+    {
+      "timestamp": "11:03",
+      "text": "a gente está trabalhando nisso."
+    },
+    {
+      "timestamp": "11:05",
+      "text": "O nosso hitler o kit ele está em beta ainda,"
+    },
+    {
+      "timestamp": "11:09",
+      "text": "convida a todos usarem,"
+    },
+    {
+      "timestamp": "11:11",
+      "text": "abrir lixas ali, enfim."
+    },
+    {
+      "timestamp": "11:14",
+      "text": "Então, a gente está ali aprimorando,"
+    },
+    {
+      "timestamp": "11:16",
+      "text": "mas é bem difícil,"
+    },
+    {
+      "timestamp": "11:18",
+      "text": "de novo,"
+    },
+    {
+      "timestamp": "11:20",
+      "text": "você bloquear sem atrapalhar ou a gente trabalhar"
+    },
+    {
+      "timestamp": "11:23",
+      "text": "na forma como deve, deve ser. Então,"
+    },
+    {
+      "timestamp": "11:26",
+      "text": "e o que fecha o raciocínio ali é a 3º"
+    },
+    {
+      "timestamp": "11:28",
+      "text": "linha, é, não tem"
+    },
+    {
+      "timestamp": "11:30",
+      "text": "chave para desligar nenhuma dessas regras."
+    },
+    {
+      "timestamp": "11:34",
+      "text": "E o arquivo que desligaria essa regra, que é o"
+    },
+    {
+      "timestamp": "11:37",
+      "text": "arquivo de configuração,"
+    },
+    {
+      "timestamp": "11:38",
+      "text": "é 1 dos que o policy surface vai"
+    },
+    {
+      "timestamp": "11:41",
+      "text": "proteger."
+    },
+    {
+      "timestamp": "11:42",
+      "text": "Então, ele impede ali da regra você. Só 1 minuto,"
+    },
+    {
+      "timestamp": "11:45",
+      "text": "desculpa te interromper."
+    },
+    {
+      "timestamp": "11:46",
+      "text": "A galera não tem como tu mostrar não sei se"
+    },
+    {
+      "timestamp": "11:48",
+      "text": "vai mostrar mas"
+    },
+    {
+      "timestamp": "11:50",
+      "text": "Vou vou mostrar no final. É se tiver como mostrar"
+    },
+    {
+      "timestamp": "11:52",
+      "text": "agora e depois voltar porque o pessoal"
+    },
+    {
+      "timestamp": "11:54",
+      "text": "é bastante conceito o pessoal não está conseguindo assimilar o"
+    },
+    {
+      "timestamp": "11:57",
+      "text": "que é que é, se puder mostrar na prática antes."
+    },
+    {
+      "timestamp": "12:02",
+      "text": "Deixa eu abrir aqui meu. Boa, aí depois."
+    },
+    {
+      "timestamp": "12:06",
+      "text": "Eu ia passar rapidinho pelo slide aqui."
+    },
+    {
+      "timestamp": "12:11",
+      "text": "Deixa eu abrir ele aqui."
+    },
+    {
+      "timestamp": "12:21",
+      "text": "Espera"
+    },
+    {
+      "timestamp": "12:23",
+      "text": "aí."
+    },
+    {
+      "timestamp": "12:43",
+      "text": "E quem perguntou ali slides esse tipo de coisa vai"
+    },
+    {
+      "timestamp": "12:46",
+      "text": "tudo vai ter vai ser tudo"
+    },
+    {
+      "timestamp": "12:48",
+      "text": "enviado pra vocês não se preocupem gente todas referências referências"
+    },
+    {
+      "timestamp": "12:51",
+      "text": "extras também"
+    },
+    {
+      "timestamp": "12:52",
+      "text": "Vai tudo pra vocês."
+    },
+    {
+      "timestamp": "12:54",
+      "text": "Foquem no conteúdo. Isso aí."
+    },
+    {
+      "timestamp": "13:01",
+      "text": "Compartilhando aqui vocês o curso."
+    },
+    {
+      "timestamp": "13:07",
+      "text": "Beleza."
+    },
+    {
+      "timestamp": "13:08",
+      "text": "Então"
+    },
+    {
+      "timestamp": "13:10",
+      "text": "aqui,"
+    },
+    {
+      "timestamp": "13:11",
+      "text": "explicando ali para vocês, aqui é 1 1 de demo,"
+    },
+    {
+      "timestamp": "13:15",
+      "text": "bem simplesinho."
+    },
+    {
+      "timestamp": "13:16",
+      "text": "Então para não tomar o tempo aí, já deixei pronto"
+    },
+    {
+      "timestamp": "13:19",
+      "text": "aqui alguns prompts,"
+    },
+    {
+      "timestamp": "13:20",
+      "text": "para vocês verem o"
+    },
+    {
+      "timestamp": "13:22",
+      "text": "funcionando,"
+    },
+    {
+      "timestamp": "13:23",
+      "text": "então, aquelas regras que eu estava explicando lá, ah, ele"
+    },
+    {
+      "timestamp": "13:26",
+      "text": "não consegue ver 1 1 segredo. Então aqui eu vou"
+    },
+    {
+      "timestamp": "13:29",
+      "text": "dar 1, mandar 1 pra ele aqui para ele ler"
+    },
+    {
+      "timestamp": "13:31",
+      "text": "o arquivo"
+    },
+    {
+      "timestamp": "13:32",
+      "text": "e me dizer o que que tem dentro."
+    },
+    {
+      "timestamp": "13:36",
+      "text": "Então, mandei para ele aqui."
+    },
+    {
+      "timestamp": "13:39",
+      "text": "Espero que ele não me traia."
+    },
+    {
+      "timestamp": "13:48",
+      "text": "Está aí."
+    },
+    {
+      "timestamp": "13:50",
+      "text": "Ele tentou acessar o e foi bloqueado pelo."
+    },
+    {
+      "timestamp": "13:54",
+      "text": "E aqui ele o ele devolve ali 1 mensagem,"
+    },
+    {
+      "timestamp": "13:57",
+      "text": "para o agente,"
+    },
+    {
+      "timestamp": "13:59",
+      "text": "falando que, para não sugerir nenhum e"
+    },
+    {
+      "timestamp": "14:02",
+      "text": "para para,"
+    },
+    {
+      "timestamp": "14:03",
+      "text": "passar pela por essa trava."
+    },
+    {
+      "timestamp": "14:06",
+      "text": "Então assim, essa é 1 das proteções básicas."
+    },
+    {
+      "timestamp": "14:09",
+      "text": "Outra ali também, Valdemar, que a gente tem."
+    },
+    {
+      "timestamp": "14:15",
+      "text": "Pedi para ele tentar fazer 1 forçado na mainha aqui."
+    },
+    {
+      "timestamp": "14:23",
+      "text": "Geralmente o agente ele vai"
+    },
+    {
+      "timestamp": "14:25",
+      "text": "bloquear,"
+    },
+    {
+      "timestamp": "14:26",
+      "text": "porque ele não gosta de fazer forçada, tem ali 1,"
+    },
+    {
+      "timestamp": "14:31",
+      "text": "1 proteção do do do modelo mesmo, mas aí tem"
+    },
+    {
+      "timestamp": "14:34",
+      "text": "a nossa proteção em camada ali abaixo, que é o"
+    },
+    {
+      "timestamp": "14:36",
+      "text": "que garante. Então, olha lá, ele está, foi bloqueado pelo"
+    },
+    {
+      "timestamp": "14:39",
+      "text": "Hulk,"
+    },
+    {
+      "timestamp": "14:40",
+      "text": "ele bloqueou o forceput,"
+    },
+    {
+      "timestamp": "14:42",
+      "text": "então,"
+    },
+    {
+      "timestamp": "14:43",
+      "text": "para a gente ver os que estão configurados, ele mostra"
+    },
+    {
+      "timestamp": "14:46",
+      "text": "ali onde está no curso. E de novo, falando para"
+    },
+    {
+      "timestamp": "14:48",
+      "text": "a gente não tentar nenhuma coisa que que"
+    },
+    {
+      "timestamp": "14:53",
+      "text": "isso,"
+    },
+    {
+      "timestamp": "14:54",
+      "text": "embora seja ele que esteja bloqueado, ele não vai conseguir."
+    },
+    {
+      "timestamp": "14:57",
+      "text": "E essa mensagem vai ali para a gente."
+    },
+    {
+      "timestamp": "15:00",
+      "text": "Então,"
+    },
+    {
+      "timestamp": "15:03",
+      "text": "esses aqui são umas travas bem simples, então, o conceito"
+    },
+    {
+      "timestamp": "15:05",
+      "text": "ali de conectar no no no cursor, no Club Code,"
+    },
+    {
+      "timestamp": "15:09",
+      "text": "os hooks, é isso, a gente roda ali que é"
+    },
+    {
+      "timestamp": "15:12",
+      "text": "validações determinísticas. Tech."
+    },
+    {
+      "timestamp": "15:17",
+      "text": "E vamos utilizando ali reagindo aos eventos."
+    },
+    {
+      "timestamp": "15:20",
+      "text": "Então aqui vou vou eu vou aproveitar."
+    },
+    {
+      "timestamp": "15:24",
+      "text": "Acho que eu mostro e depois eu termino os slides"
+    },
+    {
+      "timestamp": "15:26",
+      "text": "Leads. O que que você acha Onover?"
+    },
+    {
+      "timestamp": "15:28",
+      "text": "Isso isso mostra e mostra 1, eu tenho implementação de"
+    },
+    {
+      "timestamp": "15:31",
+      "text": "1 para mostrar de 1 simplesão de 1 Hulk simples."
+    },
+    {
+      "timestamp": "15:34",
+      "text": "Pra galera"
+    },
+    {
+      "timestamp": "15:35",
+      "text": "ver que as pessoas que eu abro o que que"
+    },
+    {
+      "timestamp": "15:38",
+      "text": "como que ele é determinístico"
+    },
+    {
+      "timestamp": "15:39",
+      "text": "alguns acham que é o Mark Down."
+    },
+    {
+      "timestamp": "15:42",
+      "text": "Não beleza"
+    },
+    {
+      "timestamp": "15:44",
+      "text": "Eu mostro aqui para vocês já. Então,"
+    },
+    {
+      "timestamp": "15:47",
+      "text": "vou colocar aqui, vou fazer mais 1 teste aqui."
+    },
+    {
+      "timestamp": "15:50",
+      "text": "Para o agente, 1 exemplo de que o agente ele"
+    },
+    {
+      "timestamp": "15:53",
+      "text": "nunca vai decidir sozinho se terminou. Aqui no nosso no"
+    },
+    {
+      "timestamp": "15:56",
+      "text": "nosso você consegue ali configurar ele,"
+    },
+    {
+      "timestamp": "15:59",
+      "text": "para ele só liberar e passar quando o teste realmente"
+    },
+    {
+      "timestamp": "16:02",
+      "text": "roda de verdade."
+    },
+    {
+      "timestamp": "16:04",
+      "text": "Então aqui olha."
+    },
+    {
+      "timestamp": "16:06",
+      "text": "Vou jogar esse aqui para ele,"
+    },
+    {
+      "timestamp": "16:09",
+      "text": "pedindo para ele remover as 2 linhas."
+    },
+    {
+      "timestamp": "16:13",
+      "text": "Sem tratar nada. E ele vai encerrar o turno sem"
+    },
+    {
+      "timestamp": "16:16",
+      "text": "rodar os testes."
+    },
+    {
+      "timestamp": "16:25",
+      "text": "Ele"
+    },
+    {
+      "timestamp": "16:26",
+      "text": "vai alterar."
+    },
+    {
+      "timestamp": "16:34",
+      "text": "Remova lá, né?"
+    },
+    {
+      "timestamp": "16:37",
+      "text": "Só que aí o que que aconteceu?"
+    },
+    {
+      "timestamp": "16:39",
+      "text": "O teste falhou."
+    },
+    {
+      "timestamp": "16:42",
+      "text": "Então olha lá, ele quebrou o teste,"
+    },
+    {
+      "timestamp": "16:45",
+      "text": "só que o obriga ele voltar lá e arrumar o"
+    },
+    {
+      "timestamp": "16:47",
+      "text": "que que ele quebrou."
+    },
+    {
+      "timestamp": "16:49",
+      "text": "Então agora o teste passou,"
+    },
+    {
+      "timestamp": "16:52",
+      "text": "E ele, a gente pode continuar. Por que que isso"
+    },
+    {
+      "timestamp": "16:54",
+      "text": "é importante? Imagina que você deixa rodando ali, fazendo algumas"
+    },
+    {
+      "timestamp": "16:57",
+      "text": "Tech, igual o Walter Maia estava mostrando, 1 fábrica de"
+    },
+    {
+      "timestamp": "17:00",
+      "text": "agênica,"
+    },
+    {
+      "timestamp": "17:01",
+      "text": "autônoma,"
+    },
+    {
+      "timestamp": "17:02",
+      "text": "e ele sai fazendo as coisas, né já Tech casos"
+    },
+    {
+      "timestamp": "17:05",
+      "text": "de criar, apagar Tech para passar ou criar testes realmente"
+    },
+    {
+      "timestamp": "17:08",
+      "text": "que passe, então isso daqui bloqueia e ele não tem"
+    },
+    {
+      "timestamp": "17:11",
+      "text": "como,"
+    },
+    {
+      "timestamp": "17:12",
+      "text": "não,"
+    },
+    {
+      "timestamp": "17:14",
+      "text": "não,"
+    },
+    {
+      "timestamp": "17:16",
+      "text": "passar por isso né?"
+    },
+    {
+      "timestamp": "17:18",
+      "text": "Deixa eu,"
+    },
+    {
+      "timestamp": "17:20",
+      "text": "voltar aqui."
+    },
+    {
+      "timestamp": "17:27",
+      "text": "Tech hora que não atualiza os arquivos,"
+    },
+    {
+      "timestamp": "17:30",
+      "text": "espera aí."
+    },
+    {
+      "timestamp": "17:32",
+      "text": "Espera aí. Então, vou dar mais 1 exemplo aqui."
+    },
+    {
+      "timestamp": "17:38",
+      "text": "Não sei se vocês também deparam com isso, isso é"
+    },
+    {
+      "timestamp": "17:40",
+      "text": "1 das coisas que mais me incomoda quando tem 1"
+    },
+    {
+      "timestamp": "17:42",
+      "text": "agente já mexendo no código,"
+    },
+    {
+      "timestamp": "17:44",
+      "text": "que é a quantidade de comentário desnecessário."
+    },
+    {
+      "timestamp": "17:50",
+      "text": "Aqui nós temos 2 proteções que você pode ativar ou"
+    },
+    {
+      "timestamp": "17:53",
+      "text": "desativar, a forma que você quiser,"
+    },
+    {
+      "timestamp": "17:56",
+      "text": "que é, não aceita comentário nenhum"
+    },
+    {
+      "timestamp": "17:58",
+      "text": "ou"
+    },
+    {
+      "timestamp": "17:59",
+      "text": "aceita 1 comentário que realmente seja útil."
+    },
+    {
+      "timestamp": "18:02",
+      "text": "Porque geralmente o que que a IA"
+    },
+    {
+      "timestamp": "18:05",
+      "text": "costuma fazer? Ela costuma deixar prosa, deixar a conta de"
+    },
+    {
+      "timestamp": "18:08",
+      "text": "fadas, historinha ali em cima, contando a vida dela, como"
+    },
+    {
+      "timestamp": "18:11",
+      "text": "ela resolveu criar aquela função, entendeu?"
+    },
+    {
+      "timestamp": "18:14",
+      "text": "E se você for ver o código fica bem bem"
+    },
+    {
+      "timestamp": "18:16",
+      "text": "zoado."
+    },
+    {
+      "timestamp": "18:17",
+      "text": "Então aqui eu vou pedir para ela deixar 1 comentário"
+    },
+    {
+      "timestamp": "18:20",
+      "text": "explicando o que que a função faz."
+    },
+    {
+      "timestamp": "18:25",
+      "text": "Ele vai lá deixar o comentário."
+    },
+    {
+      "timestamp": "18:30",
+      "text": "Beleza."
+    },
+    {
+      "timestamp": "18:31",
+      "text": "Como está bloqueado 1 comentário genérico, olha lá."
+    },
+    {
+      "timestamp": "18:35",
+      "text": "O Hulk bloqueia ele, o bloqueia"
+    },
+    {
+      "timestamp": "18:38",
+      "text": "e não deixa que ele"
+    },
+    {
+      "timestamp": "18:40",
+      "text": "coloque o comentário."
+    },
+    {
+      "timestamp": "18:42",
+      "text": "Nesse caso aqui,"
+    },
+    {
+      "timestamp": "18:44",
+      "text": "eu tô com a regra mais permissiva, que eu espero"
+    },
+    {
+      "timestamp": "18:46",
+      "text": "1 comentário que realmente diga algo, o que que aquilo"
+    },
+    {
+      "timestamp": "18:49",
+      "text": "ali tá fazendo."
+    },
+    {
+      "timestamp": "18:51",
+      "text": "Então eu vou colocar aqui, ó, reescreva esse comentário como"
+    },
+    {
+      "timestamp": "18:54",
+      "text": "explicando porque a soma usa redust, ao invés de 1"
+    },
+    {
+      "timestamp": "18:56",
+      "text": "loop for."
+    },
+    {
+      "timestamp": "18:59",
+      "text": "Então aqui o comentário"
+    },
+    {
+      "timestamp": "19:01",
+      "text": "se prova mais útil, ao invés da prosa que ele"
+    },
+    {
+      "timestamp": "19:03",
+      "text": "colocou."
+    },
+    {
+      "timestamp": "19:04",
+      "text": "Então Tech comentário realmente que"
+    },
+    {
+      "timestamp": "19:07",
+      "text": "serve pra aula, está vendo? Passou e não bloqueou."
+    },
+    {
+      "timestamp": "19:13",
+      "text": "Então tem, são 3 tipos em variante,"
+    },
+    {
+      "timestamp": "19:16",
+      "text": "o para explicar e 1 hazard,"
+    },
+    {
+      "timestamp": "19:18",
+      "text": "são as 3 categorias aceitas que é algo ali,"
+    },
+    {
+      "timestamp": "19:22",
+      "text": "que geralmente antigamente a gente colocava, né? É hazard, é"
+    },
+    {
+      "timestamp": "19:26",
+      "text": "não mexa nesse código,"
+    },
+    {
+      "timestamp": "19:28",
+      "text": "porque só Deus sabe o que ele faz, então."
+    },
+    {
+      "timestamp": "19:33",
+      "text": "É isso."
+    },
+    {
+      "timestamp": "19:35",
+      "text": "Outro exemplo aqui, olha, que o nosso faz e acontece"
+    },
+    {
+      "timestamp": "19:38",
+      "text": "muito."
+    },
+    {
+      "timestamp": "19:39",
+      "text": "Isso aqui também é é bem bacana, duplicação de código."
+    },
+    {
+      "timestamp": "19:43",
+      "text": "Vou pedir para ele copiar a função inteira que está"
+    },
+    {
+      "timestamp": "19:46",
+      "text": "ali, e colar de novo em outra, criando a calculate"
+    },
+    {
+      "timestamp": "19:49",
+      "text": "chip em V 2."
+    },
+    {
+      "timestamp": "19:52",
+      "text": "Vamos ver o que que vai acontecer aqui."
+    },
+    {
+      "timestamp": "20:03",
+      "text": "Olha, ele editou."
+    },
+    {
+      "timestamp": "20:06",
+      "text": "E olha lá, o Arnes bloqueou, falando que o esse"
+    },
+    {
+      "timestamp": "20:09",
+      "text": "turno adicionou"
+    },
+    {
+      "timestamp": "20:10",
+      "text": "em 2,"
+    },
+    {
+      "timestamp": "20:12",
+      "text": "2 rodadas 6 linhas de código que já existe no"
+    },
+    {
+      "timestamp": "20:14",
+      "text": "projeto."
+    },
+    {
+      "timestamp": "20:15",
+      "text": "Então ele dá a instrução aqui para a gente, mostra"
+    },
+    {
+      "timestamp": "20:18",
+      "text": "aonde que está duplicado."
+    },
+    {
+      "timestamp": "20:22",
+      "text": "E para a gente corrigir,"
+    },
+    {
+      "timestamp": "20:24",
+      "text": "Para não duplicar o código. Aí aqui o que que"
+    },
+    {
+      "timestamp": "20:26",
+      "text": "ele falou? Eu vou fazer com o play chipping chamar"
+    },
+    {
+      "timestamp": "20:28",
+      "text": "a função existente, ele foi lá e refatoou, e"
+    },
+    {
+      "timestamp": "20:31",
+      "text": "não duplicou o código."
+    },
+    {
+      "timestamp": "20:33",
+      "text": "Então assim,"
+    },
+    {
+      "timestamp": "20:35",
+      "text": "é isso, de novo, vocês pegando ali aquela analogia do"
+    },
+    {
+      "timestamp": "20:38",
+      "text": "cercadinho de criança,"
+    },
+    {
+      "timestamp": "20:39",
+      "text": "você coloca IA dentro do seu cercado ali, e as"
+    },
+    {
+      "timestamp": "20:42",
+      "text": "regras são vocês que fazem. Como eu falei Tech tem"
+    },
+    {
+      "timestamp": "20:45",
+      "text": "8 regras que não dá para desligar, mas tem mais"
+    },
+    {
+      "timestamp": "20:47",
+      "text": "24 que você faz o que quiser."
+    },
+    {
+      "timestamp": "20:51",
+      "text": "Você customiza mais seu time e a maneira de vocês."
+    },
+    {
+      "timestamp": "20:57",
+      "text": "Então vamos aqui, mais 1,"
+    },
+    {
+      "timestamp": "20:59",
+      "text": "vou explicar aqui para vocês aqui."
+    },
+    {
+      "timestamp": "21:06",
+      "text": "Só 1 minuto."
+    },
+    {
+      "timestamp": "21:13",
+      "text": "Pedi para ele abrir 1 PR aqui."
+    },
+    {
+      "timestamp": "21:22",
+      "text": "Ele foi bloqueado no PR."
+    },
+    {
+      "timestamp": "21:25",
+      "text": "Por que que ele foi bloqueado? Isso aqui foi feito"
+    },
+    {
+      "timestamp": "21:26",
+      "text": "de"
+    },
+    {
+      "timestamp": "21:27",
+      "text": "propósito. Aqui eu estou mostrando para vocês, eu não vou"
+    },
+    {
+      "timestamp": "21:29",
+      "text": "entrar num detalhe, mas só para vocês"
+    },
+    {
+      "timestamp": "21:31",
+      "text": "saberem."
+    },
+    {
+      "timestamp": "21:32",
+      "text": "Esse"
+    },
+    {
+      "timestamp": "21:33",
+      "text": "script ele simula a criação de 1 PR, mas no"
+    },
+    {
+      "timestamp": "21:36",
+      "text": "Harness a gente consegue"
+    },
+    {
+      "timestamp": "21:38",
+      "text": "configurar regras,"
+    },
+    {
+      "timestamp": "21:39",
+      "text": "qualquer regra customizada."
+    },
+    {
+      "timestamp": "21:41",
+      "text": "E 1 das regras que eu coloquei aqui e que"
+    },
+    {
+      "timestamp": "21:43",
+      "text": "eu uso bastante é, antes de subir qualquer coisa para"
+    },
+    {
+      "timestamp": "21:47",
+      "text": "o BitHUB,"
+    },
+    {
+      "timestamp": "21:48",
+      "text": "o PR tem que ser revisado. E aí eu uso"
+    },
+    {
+      "timestamp": "21:50",
+      "text": "a skill que o Valdemar mostrou que é a Djude,"
+    },
+    {
+      "timestamp": "21:53",
+      "text": "para poder revisar esse código antes de"
+    },
+    {
+      "timestamp": "21:56",
+      "text": "subir."
+    },
+    {
+      "timestamp": "21:57",
+      "text": "Se o agente tenta criar 1 PR sem revisar,"
+    },
+    {
+      "timestamp": "22:00",
+      "text": "ele vai ser bloqueado pelo"
+    },
+    {
+      "timestamp": "22:02",
+      "text": "então ele vai spawnar 1 vai"
+    },
+    {
+      "timestamp": "22:04",
+      "text": "rodar a skill, vai revisar."
+    },
+    {
+      "timestamp": "22:06",
+      "text": "Qualquer"
+    },
+    {
+      "timestamp": "22:07",
+      "text": "modificação nessa ele tem que revisar de novo, ele não"
+    },
+    {
+      "timestamp": "22:10",
+      "text": "consegue subir nada sem revisar o código."
+    },
+    {
+      "timestamp": "22:12",
+      "text": "Mas aí, de novo,"
+    },
+    {
+      "timestamp": "22:14",
+      "text": "personalizado da forma que vocês quiserem."
+    },
+    {
+      "timestamp": "22:17",
+      "text": "Esse é só 1 exemplo e é 1 exemplo que"
+    },
+    {
+      "timestamp": "22:19",
+      "text": "eu uso no meu dia a dia."
+    },
+    {
+      "timestamp": "22:22",
+      "text": "E mostrando aqui para vocês, tudo isso está de forma"
+    },
+    {
+      "timestamp": "22:25",
+      "text": "bem explicada,"
+    },
+    {
+      "timestamp": "22:27",
+      "text": "pro"
+    },
+    {
+      "timestamp": "22:28",
+      "text": "agente, e pro humano,"
+    },
+    {
+      "timestamp": "22:30",
+      "text": "que é o que que o Harness fez e o"
+    },
+    {
+      "timestamp": "22:32",
+      "text": "porquê, então ele mostra aqui,"
+    },
+    {
+      "timestamp": "22:35",
+      "text": "qual que foi quais foram as últimas decisões ali do"
+    },
+    {
+      "timestamp": "22:38",
+      "text": "Harness, você consegue ver,"
+    },
+    {
+      "timestamp": "22:40",
+      "text": "Tech toda a parte de observabilidade,"
+    },
+    {
+      "timestamp": "22:43",
+      "text": "auditoria que eu vou mostrar para vocês na apresentação ali."
+    },
+    {
+      "timestamp": "22:47",
+      "text": "Então,"
+    },
+    {
+      "timestamp": "22:48",
+      "text": "você consegue saber o que que aconteceu,"
+    },
+    {
+      "timestamp": "22:50",
+      "text": "saber"
+    },
+    {
+      "timestamp": "22:51",
+      "text": "o porquê."
+    },
+    {
+      "timestamp": "22:56",
+      "text": "Tem isso daqui, olha."
+    },
+    {
+      "timestamp": "23:00",
+      "text": "Que é 1 de observabilidade."
+    },
+    {
+      "timestamp": "23:03",
+      "text": "Então ele mostra aqui o que que eu usei, tem"
+    },
+    {
+      "timestamp": "23:05",
+      "text": "1 bugzinho aqui, tá pessoal?"
+    },
+    {
+      "timestamp": "23:08",
+      "text": "Estou corrigindo, que ele vai mostrar o custo estimado aqui,"
+    },
+    {
+      "timestamp": "23:11",
+      "text": "os tokens que foram gastos, então aqui, olha, Você consegue"
+    },
+    {
+      "timestamp": "23:14",
+      "text": "ver tudo certinho ali, tem 1 observabilidade do do que"
+    },
+    {
+      "timestamp": "23:17",
+      "text": "que está rodando."
+    },
+    {
+      "timestamp": "23:19",
+      "text": "Ele faz 1"
+    },
+    {
+      "timestamp": "23:21",
+      "text": "ali."
+    },
+    {
+      "timestamp": "23:22",
+      "text": "Do"
+    },
+    {
+      "timestamp": "23:23",
+      "text": "do que que rodou. E para você saber se está"
+    },
+    {
+      "timestamp": "23:26",
+      "text": "tudo certo ali, olha."
+    },
+    {
+      "timestamp": "23:28",
+      "text": "LC rarness."
+    },
+    {
+      "timestamp": "23:31",
+      "text": "Doctor,"
+    },
+    {
+      "timestamp": "23:32",
+      "text": "saber como que está ali, olha. A sua instalação, ele"
+    },
+    {
+      "timestamp": "23:35",
+      "text": "mostra tudo, o que que está ativo, o que que"
+    },
+    {
+      "timestamp": "23:37",
+      "text": "não está."
+    },
+    {
+      "timestamp": "23:39",
+      "text": "Quais configurações."
+    },
+    {
+      "timestamp": "23:41",
+      "text": "E aqui vou mostrar no nos slides ali, mas é"
+    },
+    {
+      "timestamp": "23:44",
+      "text": "1 configuração para para ambos, Coursewer club, você não duplica"
+    },
+    {
+      "timestamp": "23:48",
+      "text": "nada, então, se fosse 1 pessoa da sua equipe pode"
+    },
+    {
+      "timestamp": "23:51",
+      "text": "trabalhar no curso e a outra pode trabalhar no club"
+    },
+    {
+      "timestamp": "23:53",
+      "text": "e a configuração é a mesma."
+    },
+    {
+      "timestamp": "23:58",
+      "text": "Vou entrar aqui Valdemar, no Repo."
+    },
+    {
+      "timestamp": "24:00",
+      "text": "Só para conquistar como que é 1 Hulk?"
+    },
+    {
+      "timestamp": "24:02",
+      "text": "Isso, isso é isso que a gente pediu. Se tiver"
+    },
+    {
+      "timestamp": "24:05",
+      "text": "alguma dúvida aí."
+    },
+    {
+      "timestamp": "24:08",
+      "text": "Não, acho que é isso aí mais o pessoal vai"
+    },
+    {
+      "timestamp": "24:09",
+      "text": "ver o que que a pessoa tinha dúvida."
+    },
+    {
+      "timestamp": "24:12",
+      "text": "Alguém perguntou se ele gastava Tech,"
+    },
+    {
+      "timestamp": "24:15",
+      "text": "Leads mostrar o Tech explicar que o Hulk é 1"
+    },
+    {
+      "timestamp": "24:17",
+      "text": "coisa"
+    },
+    {
+      "timestamp": "24:18",
+      "text": "fora da LLM interessante,"
+    },
+    {
+      "timestamp": "24:20",
+      "text": "mostrar o pra saber como a galera instala. Acho que"
+    },
+    {
+      "timestamp": "24:23",
+      "text": "é isso aí."
+    },
+    {
+      "timestamp": "24:25",
+      "text": "Aí. Então vamos lá,"
+    },
+    {
+      "timestamp": "24:27",
+      "text": "vamos ver o de duplicação aqui olha."
+    },
+    {
+      "timestamp": "24:29",
+      "text": "É 1 normal."
+    },
+    {
+      "timestamp": "24:34",
+      "text": "E aqui para vocês verem os códigos estão assim com"
+    },
+    {
+      "timestamp": "24:36",
+      "text": "comentários de propósito tá?"
+    },
+    {
+      "timestamp": "24:39",
+      "text": "Não foi"
+    },
+    {
+      "timestamp": "24:40",
+      "text": "porque,"
+    },
+    {
+      "timestamp": "24:41",
+      "text": "casa de ferreiro petit pau."
+    },
+    {
+      "timestamp": "24:44",
+      "text": "Mas está aqui, olha, baseado lá, naqueles padrões que eu"
+    },
+    {
+      "timestamp": "24:46",
+      "text": "mostrei pra você, rasga, wai wai. Como era só, eu"
+    },
+    {
+      "timestamp": "24:50",
+      "text": "comecei a fazer sozinho."
+    },
+    {
+      "timestamp": "24:52",
+      "text": "Então tinha algumas coisas ali que estão linkadas em Leads"
+    },
+    {
+      "timestamp": "24:55",
+      "text": "aqui, que o Valdemar já mostrou para vocês, então está"
+    },
+    {
+      "timestamp": "24:57",
+      "text": "dentro do código da documentação."
+    },
+    {
+      "timestamp": "24:59",
+      "text": "Então cada comentário está linkado ao porquê daquilo."
+    },
+    {
+      "timestamp": "25:02",
+      "text": "E é basicamente isso daqui, olha, é 1 função."
+    },
+    {
+      "timestamp": "25:05",
+      "text": "Essa é aquela aquele hulk de de duplicação, ele basicamente"
+    },
+    {
+      "timestamp": "25:08",
+      "text": "roda essa função aqui."
+    },
+    {
+      "timestamp": "25:10",
+      "text": "Então toda a lógica está aqui dentro."
+    },
+    {
+      "timestamp": "25:13",
+      "text": "Eu vou passar em detalhe, mas aqui para vocês verem"
+    },
+    {
+      "timestamp": "25:15",
+      "text": "que é 1 função normal."
+    },
+    {
+      "timestamp": "25:18",
+      "text": "1 função typescript."
+    },
+    {
+      "timestamp": "25:21",
+      "text": "E a gente"
+    },
+    {
+      "timestamp": "25:23",
+      "text": "roda, em cima do bang, se você não tiver o"
+    },
+    {
+      "timestamp": "25:25",
+      "text": "bang instalado, roda em cima do node. Por que o"
+    },
+    {
+      "timestamp": "25:27",
+      "text": "bang? Porque o bang é bem mais rápido do que"
+    },
+    {
+      "timestamp": "25:29",
+      "text": "o node, então,"
+    },
+    {
+      "timestamp": "25:31",
+      "text": "é alguns milissegundos mais rápido ali dá 1 diferença,"
+    },
+    {
+      "timestamp": "25:35",
+      "text": "bacana ali no"
+    },
+    {
+      "timestamp": "25:37",
+      "text": "no final."
+    },
+    {
+      "timestamp": "25:38",
+      "text": "Então é isso,"
+    },
+    {
+      "timestamp": "25:40",
+      "text": "é basicamente 1 função aqui, vou entrar no no randoff"
+    },
+    {
+      "timestamp": "25:44",
+      "text": "aqui que ele grava lá,"
+    },
+    {
+      "timestamp": "25:46",
+      "text": "tem antipagem do randoff,"
+    },
+    {
+      "timestamp": "25:49",
+      "text": "Tech"
+    },
+    {
+      "timestamp": "25:50",
+      "text": "store,"
+    },
+    {
+      "timestamp": "25:52",
+      "text": "setion"
+    },
+    {
+      "timestamp": "25:55",
+      "text": "store. E o service aqui que é chamado."
+    },
+    {
+      "timestamp": "26:00",
+      "text": "Bacana? Vou voltar aqui para o slide aqui."
+    },
+    {
+      "timestamp": "26:03",
+      "text": "Só para mostrar o finalzinho ali de mais algumas coisas"
+    },
+    {
+      "timestamp": "26:06",
+      "text": "interessantes mostra só o regime para galera do Apple depois"
+    },
+    {
+      "timestamp": "26:10",
+      "text": "no final o Felipe já mandou o link para vocês"
+    },
+    {
+      "timestamp": "26:12",
+      "text": "para vocês é vou mandar o link acho que eu"
+    },
+    {
+      "timestamp": "26:15",
+      "text": "já saí Ah não espera aí Acho que deixa o"
+    },
+    {
+      "timestamp": "26:17",
+      "text": "link para o final, só para a galera,"
+    },
+    {
+      "timestamp": "26:19",
+      "text": "é bastante coisa para o pessoal assimilar. É, tem tem"
+    },
+    {
+      "timestamp": "26:22",
+      "text": "no final ali."
+    },
+    {
+      "timestamp": "26:24",
+      "text": "Mas está aqui, olha. Só para vocês verem aqui, olha."
+    },
+    {
+      "timestamp": "26:27",
+      "text": "Tem bastante coisa, as documentações,"
+    },
+    {
+      "timestamp": "26:29",
+      "text": "o conceito, o que que dá para ativar, o que"
+    },
+    {
+      "timestamp": "26:31",
+      "text": "que não dá. Ele tem 1 que auxilia vocês ali"
+    },
+    {
+      "timestamp": "26:33",
+      "text": "na instalação,"
+    },
+    {
+      "timestamp": "26:34",
+      "text": "ele vai falar, ah, a gente pode ativar isso, mas"
+    },
+    {
+      "timestamp": "26:36",
+      "text": "ativando isso o tradeoff é"
+    },
+    {
+      "timestamp": "26:39",
+      "text": "aquilo. Aí cabe a você para decidir se é ativo"
+    },
+    {
+      "timestamp": "26:41",
+      "text": "ou se não ativo, então aqui, olha, tem muita coisa."
+    },
+    {
+      "timestamp": "26:46",
+      "text": "Cara, várias coisas mesmo que eu fui aprendendo no dia"
+    },
+    {
+      "timestamp": "26:49",
+      "text": "a dia, por exemplo,"
+    },
+    {
+      "timestamp": "26:50",
+      "text": "a IA está presa, está, está aqui 1 problema e"
+    },
+    {
+      "timestamp": "26:53",
+      "text": "ela fica rodando rodando depois de 3 vezes ela tentando"
+    },
+    {
+      "timestamp": "26:56",
+      "text": "fazer a mesma coisa, o bloqueia ela e fala, espera"
+    },
+    {
+      "timestamp": "26:58",
+      "text": "aí,"
+    },
+    {
+      "timestamp": "26:59",
+      "text": "Sai desse loop aí, então."
+    },
+    {
+      "timestamp": "27:02",
+      "text": "Tem tudo isso aqui no, no."
+    },
+    {
+      "timestamp": "27:05",
+      "text": "Já mostra ali para vocês ali o link."
+    },
+    {
+      "timestamp": "27:08",
+      "text": "Deixa eu terminar meu."
+    },
+    {
+      "timestamp": "27:12",
+      "text": "Cara eu só Meu PowerPoint ali. A gente Tech uns"
+    },
+    {
+      "timestamp": "27:16",
+      "text": "5 minutinhos só tá."
+    },
+    {
+      "timestamp": "27:18",
+      "text": "Ali é rapidão meu amigo."
+    },
+    {
+      "timestamp": "27:21",
+      "text": "Só estou bagunçada aqui agora no meu."
+    },
+    {
+      "timestamp": "27:26",
+      "text": "No Zoom. Cadê vocês?"
+    },
+    {
+      "timestamp": "27:28",
+      "text": "Por isso que eu falei o Hulk é a cereja"
+    },
+    {
+      "timestamp": "27:30",
+      "text": "do bolo final"
+    },
+    {
+      "timestamp": "27:32",
+      "text": "que a gente adiciona no rarness para"
+    },
+    {
+      "timestamp": "27:36",
+      "text": "adicionar coisas extras né. Principalmente quem tem até no time"
+    },
+    {
+      "timestamp": "27:40",
+      "text": "mesmo pô tem 1 regra do time que sempre tem"
+    },
+    {
+      "timestamp": "27:42",
+      "text": "que acontecer cara pluga 1 Hulk ali pode usar inclusive"
+    },
+    {
+      "timestamp": "27:45",
+      "text": "o rarness nosso o Tech kit e botar 1 Hulk"
+    },
+    {
+      "timestamp": "27:48",
+      "text": "nele porque ele tem observabilidade"
+    },
+    {
+      "timestamp": "27:50",
+      "text": "várias coisas já também 1 testada bom"
+    },
+    {
+      "timestamp": "27:55",
+      "text": "Isto aí."
+    },
+    {
+      "timestamp": "28:00",
+      "text": "Boa."
+    },
+    {
+      "timestamp": "28:05",
+      "text": "Beleza, esse aqui eu já passei."
+    },
+    {
+      "timestamp": "28:10",
+      "text": "Então aqui olha,"
+    },
+    {
+      "timestamp": "28:12",
+      "text": "a gente tem 24 regras lá,"
+    },
+    {
+      "timestamp": "28:14",
+      "text": "customizadas"
+    },
+    {
+      "timestamp": "28:15",
+      "text": "que vocês podem ativar, escolher essas 6 porque,"
+    },
+    {
+      "timestamp": "28:19",
+      "text": "eu acho que vale copiar em qualquer ferramenta. Tem o"
+    },
+    {
+      "timestamp": "28:21",
+      "text": "coment que eu mostrei para vocês."
+    },
+    {
+      "timestamp": "28:24",
+      "text": "O chipgate que ele vai conferir se realmente eu terminei"
+    },
+    {
+      "timestamp": "28:27",
+      "text": "terminou."
+    },
+    {
+      "timestamp": "28:29",
+      "text": "Então,"
+    },
+    {
+      "timestamp": "28:31",
+      "text": "o comit, o, ah, 1 coisa importante do coment que"
+    },
+    {
+      "timestamp": "28:33",
+      "text": "ele vai pegar só o onde o turno seguiu, porque"
+    },
+    {
+      "timestamp": "28:36",
+      "text": "sem essa restrição, se você tiver em 1 repositório Leads"
+    },
+    {
+      "timestamp": "28:39",
+      "text": "e cheio de commit vai gerar 1000 achados, né?"
+    },
+    {
+      "timestamp": "28:42",
+      "text": "Aí, vocês usariam 1 dia, no outro vocês desligariam."
+    },
+    {
+      "timestamp": "28:45",
+      "text": "Duplicate"
+    },
+    {
+      "timestamp": "28:46",
+      "text": "gate e chip gate também é a mesma regra."
+    },
+    {
+      "timestamp": "28:49",
+      "text": "Tem Docs gate ali que você consegue"
+    },
+    {
+      "timestamp": "28:52",
+      "text": "linkar documentos, tipo, cara, mexeu aqui, você tem que criar"
+    },
+    {
+      "timestamp": "28:56",
+      "text": "1, atualizar a documentação."
+    },
+    {
+      "timestamp": "28:58",
+      "text": "Tem o grid, se for para ligar 1 só, eu"
+    },
+    {
+      "timestamp": "29:01",
+      "text": "recomendo ele, que ele vai rodar seu link, o seu"
+    },
+    {
+      "timestamp": "29:03",
+      "text": "teste, quantos os arquivos que mudaram e vai devolver o"
+    },
+    {
+      "timestamp": "29:05",
+      "text": "agente, o trabalho até ele passar, ele não vai deixar"
+    },
+    {
+      "timestamp": "29:08",
+      "text": "o agente passar sem fazer isso, e a pra mim"
+    },
+    {
+      "timestamp": "29:10",
+      "text": "é o que mais muda no dia a dia."
+    },
+    {
+      "timestamp": "29:13",
+      "text": "E"
+    },
+    {
+      "timestamp": "29:14",
+      "text": "com 0 ligado,"
+    },
+    {
+      "timestamp": "29:16",
+      "text": "vocês ainda ficam com o inteiro que é aquele que"
+    },
+    {
+      "timestamp": "29:19",
+      "text": "eu mostrei naquele slide anterior."
+    },
+    {
+      "timestamp": "29:22",
+      "text": "Então,"
+    },
+    {
+      "timestamp": "29:25",
+      "text": "aqui vai entrar o julgamento humano."
+    },
+    {
+      "timestamp": "29:28",
+      "text": "Que são 3 posturas que o Tech."
+    },
+    {
+      "timestamp": "29:31",
+      "text": "Então ali não,"
+    },
+    {
+      "timestamp": "29:33",
+      "text": "não não entendo como rigoroso, médio e frouxo, não é"
+    },
+    {
+      "timestamp": "29:35",
+      "text": "nada disso."
+    },
+    {
+      "timestamp": "29:37",
+      "text": "A barra de evidência ela vai ser idêntica nas 3,"
+    },
+    {
+      "timestamp": "29:39",
+      "text": "os mesmos eles vão rodar, os mesmos critérios de pronto"
+    },
+    {
+      "timestamp": "29:42",
+      "text": "são os mesmos. E a mesma prova é exigida no"
+    },
+    {
+      "timestamp": "29:44",
+      "text": "final, o que vai mudar 1 coisa só. Quando 1"
+    },
+    {
+      "timestamp": "29:47",
+      "text": "decisão só para você em vez de ser tomada e"
+    },
+    {
+      "timestamp": "29:50",
+      "text": "registrada, então assim, você não está escolhendo quantos, quanto o"
+    },
+    {
+      "timestamp": "29:53",
+      "text": "sistema é rigoroso, você está escolhendo o quanto ele te"
+    },
+    {
+      "timestamp": "29:55",
+      "text": "interrompe."
+    },
+    {
+      "timestamp": "29:57",
+      "text": "Então assim, são perguntas diferentes"
+    },
+    {
+      "timestamp": "29:59",
+      "text": "e de novo não é achar que afrouxou alguma coisa."
+    },
+    {
+      "timestamp": "30:04",
+      "text": "E o registro ele sempre vai existir,"
+    },
+    {
+      "timestamp": "30:06",
+      "text": "o ele vai devolver 1 registro em cadeado por ali"
+    },
+    {
+      "timestamp": "30:09",
+      "text": "Leads sobre quais regras cada sessão rodou então dá para"
+    },
+    {
+      "timestamp": "30:12",
+      "text": "você auditar depois se o que ele decidiu sozinho foi"
+    },
+    {
+      "timestamp": "30:14",
+      "text": "o certo. Aqui gosto de usar o o Focus,"
+    },
+    {
+      "timestamp": "30:17",
+      "text": "que ele faz tudo sozinho ali e não fica me"
+    },
+    {
+      "timestamp": "30:20",
+      "text": "chamando toda hora, então, mas se vocês quiserem por exemplo"
+    },
+    {
+      "timestamp": "30:23",
+      "text": "num,"
+    },
+    {
+      "timestamp": "30:24",
+      "text": "ele vai funcionar como 1 toda decisão ali ele vai"
+    },
+    {
+      "timestamp": "30:28",
+      "text": "te consultar."
+    },
+    {
+      "timestamp": "30:29",
+      "text": "Então aqui,"
+    },
+    {
+      "timestamp": "30:31",
+      "text": "trouxe o o aspeto top, o top 10 são, assim,"
+    },
+    {
+      "timestamp": "30:35",
+      "text": "10 listas ali, estou mostrando para vocês o que cobre"
+    },
+    {
+      "timestamp": "30:37",
+      "text": "e o que não cobre, então não vou inventar nenhuma"
+    },
+    {
+      "timestamp": "30:39",
+      "text": "para vocês nem falar que a gente está trabalhando"
+    },
+    {
+      "timestamp": "30:42",
+      "text": "nisso, porque são coisas que a gente não consegue verificar."
+    },
+    {
+      "timestamp": "30:45",
+      "text": "Então 2 desses Tech a mesma raiz, que são parciais"
+    },
+    {
+      "timestamp": "30:48",
+      "text": "é 1 limitação de arquitetura, que a gente não consegue"
+    },
+    {
+      "timestamp": "30:51",
+      "text": "resolver hoje, que é o ele mora na sessão de"
+    },
+    {
+      "timestamp": "30:54",
+      "text": "1 desenvolvedor, ele vai enxergar a ação"
+    },
+    {
+      "timestamp": "30:56",
+      "text": "e não a identidade."
+    },
+    {
+      "timestamp": "30:58",
+      "text": "Então não tem como 1 credencial por agente para amarrar"
+    },
+    {
+      "timestamp": "31:01",
+      "text": "a 1 decisão a alguém. Então isso a gente não"
+    },
+    {
+      "timestamp": "31:04",
+      "text": "consegue resolver, ainda."
+    },
+    {
+      "timestamp": "31:06",
+      "text": "E 1 ferramenta que se declara tipo 10 de 10,"
+    },
+    {
+      "timestamp": "31:09",
+      "text": "contra 1 taxonomia aí de risco eu acredito que está"
+    },
+    {
+      "timestamp": "31:12",
+      "text": "vendendo algo que não cumpre,"
+    },
+    {
+      "timestamp": "31:14",
+      "text": "então, por isso que a gente está publicando parcial aí,"
+    },
+    {
+      "timestamp": "31:17",
+      "text": "que é o que dá para vocês conferirem sozinho."
+    },
+    {
+      "timestamp": "31:21",
+      "text": "E aqui, o que eu falei para vocês que trocar"
+    },
+    {
+      "timestamp": "31:23",
+      "text": "de editor não é reescrever a governança, tem 2 camadas"
+    },
+    {
+      "timestamp": "31:26",
+      "text": "e o que vai importar é a da direita, o"
+    },
+    {
+      "timestamp": "31:28",
+      "text": "config JSON ele vai ficar versionado no repositório junto do"
+    },
+    {
+      "timestamp": "31:32",
+      "text": "código. Então Tech prática isso quer dizer que quem mudar"
+    },
+    {
+      "timestamp": "31:33",
+      "text": "1 regra de governança é só 1 PR, tem revisão,"
+    },
+    {
+      "timestamp": "31:36",
+      "text": "tem histórico, tem alguém aprovando."
+    },
+    {
+      "timestamp": "31:39",
+      "text": "E, como os 2 editores leem esse mesmo arquivo, escrevem"
+    },
+    {
+      "timestamp": "31:42",
+      "text": "no mesmo estado, 2 pessoas no mesmo repositório, 1 no"
+    },
+    {
+      "timestamp": "31:44",
+      "text": "curso e eu tendo no Club Code, eles vão conseguir"
+    },
+    {
+      "timestamp": "31:47",
+      "text": "trabalhar, vão enxergar 1 só,"
+    },
+    {
+      "timestamp": "31:50",
+      "text": "mesmas regras, enfim."
+    },
+    {
+      "timestamp": "31:52",
+      "text": "É"
+    },
+    {
+      "timestamp": "31:53",
+      "text": "o que vai destravar o time. Né? 1 alternativa é"
+    },
+    {
+      "timestamp": "31:56",
+      "text": "manter as 2 governanças sincronizadas ali e está entrando mais,"
+    },
+    {
+      "timestamp": "31:59",
+      "text": "está entrando no Codex Open Code,"
+    },
+    {
+      "timestamp": "32:02",
+      "text": "VS"
+    },
+    {
+      "timestamp": "32:03",
+      "text": "Code,"
+    },
+    {
+      "timestamp": "32:04",
+      "text": "enfim."
+    },
+    {
+      "timestamp": "32:05",
+      "text": "E o custo de"
+    },
+    {
+      "timestamp": "32:07",
+      "text": "rodar é menor do que parece,"
+    },
+    {
+      "timestamp": "32:09",
+      "text": "só 1 linha."
+    },
+    {
+      "timestamp": "32:11",
+      "text": "Depois do install o floor,"
+    },
+    {
+      "timestamp": "32:13",
+      "text": "e as 3 checagens elas já vão estar ativas, já"
+    },
+    {
+      "timestamp": "32:16",
+      "text": "valem em qualquer repositório da sua máquina. Vocês não precisam"
+    },
+    {
+      "timestamp": "32:19",
+      "text": "configurar projeto por projeto, então assim, não preciso nem lembrar"
+    },
+    {
+      "timestamp": "32:22",
+      "text": "que está lá."
+    },
+    {
+      "timestamp": "32:24",
+      "text": "E o configurar por repo é opcional e vem depois,"
+    },
+    {
+      "timestamp": "32:26",
+      "text": "quando algum projeto específico ele pedir mais rigor."
+    },
+    {
+      "timestamp": "32:30",
+      "text": "E essa ordem foi de propósito, porque ferramenta de governança"
+    },
+    {
+      "timestamp": "32:33",
+      "text": "que existe configuração antes de servir para alguma coisa, não"
+    },
+    {
+      "timestamp": "32:36",
+      "text": "passa da 1º semana de uso."
+    },
+    {
+      "timestamp": "32:39",
+      "text": "E a faixa de baixo aí, é para quando alguém"
+    },
+    {
+      "timestamp": "32:42",
+      "text": "perguntar para vocês, o que vocês estão instalando na máquina,"
+    },
+    {
+      "timestamp": "32:45",
+      "text": "então é 0"
+    },
+    {
+      "timestamp": "32:46",
+      "text": "dependência, funciona aí nos,"
+    },
+    {
+      "timestamp": "32:49",
+      "text": "nos 3 principais sistemas operacionais."
+    },
+    {
+      "timestamp": "32:52",
+      "text": "E é isso."
+    },
+    {
+      "timestamp": "32:53",
+      "text": "Está aí o link para vocês no repositório,"
+    },
+    {
+      "timestamp": "32:56",
+      "text": "se vocês gostaram aí e for útil para vocês,"
+    },
+    {
+      "timestamp": "32:59",
+      "text": "peço que deixem 1 estrelinha aí,"
+    },
+    {
+      "timestamp": "33:01",
+      "text": "abram o eixo e, enfim,"
+    },
+    {
+      "timestamp": "33:03",
+      "text": "se quiserem colaborar estão"
+    },
+    {
+      "timestamp": "33:06",
+      "text": "estão convidados."
+    },
+    {
+      "timestamp": "33:08",
+      "text": "E é isso."
+    }
+  ]
+}

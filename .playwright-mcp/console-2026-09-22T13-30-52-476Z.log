@@ -1,0 +1,8 @@
+[     555ms] Uncaught Error: Looks like your website URL has changed. To ensure the proper functioning of your banner, update the registered URL on your CookieYes account (navigate to the Organizations & Sites page (https://app.cookieyes.com/settings/organizations-and-sites) and click the More button associated with your site). Then, reload this page to retry. If the issue persists, please contact us at https://www.cookieyes.com/support.
+    at <anonymous> (https://cdn-cookieyes.com/client_data/8c23b5ad24558ef0ce77938e/script.js:0:89099)
+    at <anonymous> (https://cdn-cookieyes.com/client_data/8c23b5ad24558ef0ce77938e/script.js:0:99883)
+    at <anonymous> (https://cdn-cookieyes.com/client_data/8c23b5ad24558ef0ce77938e/script.js:0:99886)
+[     568ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ https://genai.owasp.org/wp-includes/js/jquery/jquery-migrate.min.js?m=1686289764:1
+[     697ms] [LOG] [GSpeech.io] gspeech_front already initialized @ https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/:1387
+[    2400ms] [WARNING] Hotjar not launching due to suspicious userAgent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36 @ https://static.hotjar.com/c/hotjar-6468470.js?sv=6:2
+[    6630ms] [LOG] GSpeech(gspeech.io) - widget_id: cce670af775eff56eb35f7cb6626b878, Version 3.21.5 @ https://widget.gspeech.io/cce670af775eff56eb35f7cb6626b878?v_ind=2:10

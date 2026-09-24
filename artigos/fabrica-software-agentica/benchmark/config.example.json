@@ -1,0 +1,47 @@
+{
+  "configId": "TODO-pin-a-unique-id",
+  "stage": "implementation",
+  "fixture": "/ABSOLUTE/PATH/TO/FROZEN/FIXTURE",
+  "frozenInput": "/ABSOLUTE/PATH/TO/FROZEN/INPUT.md",
+  "baseline": "/ABSOLUTE/PATH/TO/FROZEN/baseline.json",
+  "cleanScript": "/ABSOLUTE/PATH/TO/scripts/clean-session.sh",
+  "scoreScript": "/home/gustavobgt/user-harness/hive/.claude/skills/agentic-delivery-harness/scripts/score.py",
+  "baseRepository": "/ABSOLUTE/PATH/TO/REFERENCE-REPOSITORY",
+  "baseCommit": "PIN_EXACT_COMMIT",
+  "outputRoot": "/ABSOLUTE/PATH/TO/BENCHMARK-OUTPUT",
+  "runnerModel": "PIN_FULL_MODEL_ID",
+  "judgeModel": "PIN_FULL_MODEL_ID",
+  "effort": "high",
+  "repetitions": 3,
+  "frameworks": [
+    {
+      "name": "superpowers",
+      "version": "PIN_EXACT_COMMIT_OR_RELEASE",
+      "sourcePath": "/ABSOLUTE/PATH/TO/superpowers",
+      "setup": "TODO exact clean-room setup command",
+      "invocation": "TODO exact stage invocation"
+    },
+    {
+      "name": "matt-pocock-skills",
+      "version": "PIN_EXACT_COMMIT_OR_RELEASE",
+      "sourcePath": "/ABSOLUTE/PATH/TO/mattpocock-skills",
+      "setup": "TODO exact clean-room setup command",
+      "invocation": "TODO exact stage invocation"
+    },
+    {
+      "name": "bmad-method",
+      "version": "PIN_EXACT_COMMIT_OR_RELEASE",
+      "sourcePath": "/ABSOLUTE/PATH/TO/BMAD-METHOD",
+      "setup": "TODO exact clean-room setup command",
+      "invocation": "TODO exact stage invocation"
+    },
+    {
+      "name": "tlc-agent-skills",
+      "version": "PIN_EXACT_COMMIT_OR_RELEASE",
+      "sourcePath": "/ABSOLUTE/PATH/TO/agent-skills",
+      "setup": "TODO exact clean-room setup command",
+      "invocation": "TODO exact stage invocation"
+    }
+  ]
+}
+

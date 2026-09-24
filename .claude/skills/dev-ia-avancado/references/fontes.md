@@ -43,6 +43,22 @@ planejamento, implementação e verificação. O humano concentra-se em intenç�
 review final; design doc e task vivem em ferramentas colaborativas ligadas por MCPs; um
 agente em nuvem pode devolver o PR sem depender da máquina do desenvolvedor.
 
+**Dia 1, sessão 3:** *"Hooks: Harness-toolkit"* — 33min12s, apresentada por Felipe
+Rodrigues.
+https://www.techleads.club/c/workshop-ia-3-09-2026/sections/1181300/lessons/4533574
+
+**Formato da aula:** apresentação do Harness Toolkit seguida de demonstrações no Cursor. O
+agente é bloqueado ao tentar ler segredo, executar `push --force`, encerrar com teste
+quebrado, adicionar comentário narrativo, duplicar código e abrir PR sem review. A sessão
+fecha com a arquitetura floor→política/rails, posturas de interação, observabilidade,
+portabilidade entre providers e uma autoavaliação contra o OWASP Agentic Top 10.
+
+**Resumo editorial, em paráfrase:** prompt orienta, mas não controla execução. Hooks dos
+editores viram pontos de interceptação para código determinístico decidir `allow`, `ask`,
+`deny` ou injetar contexto. Um piso anterior à configuração impede que o próprio agente
+desligue garantias básicas; controles opcionais adaptam o rigor operacional do projeto sem
+misturá-lo ao quanto o agente interrompe o humano.
+
 ---
 
 ## 2. Links de referência
@@ -51,6 +67,8 @@ agente em nuvem pode devolver o PR sem depender da máquina do desenvolvedor.
 - Diagramas (Excalidraw): https://link.excalidraw.com/l/7V6DWtFSy3p/2CqCeb9zehB
 - Código construído ao vivo: https://github.com/tech-leads-club/workshop-1209
 - Aula — sessão 2: https://www.techleads.club/c/workshop-ia-3-09-2026/sections/1181300/lessons/4533572
+- Aula — sessão 3: https://www.techleads.club/c/workshop-ia-3-09-2026/sections/1181300/lessons/4533574
+- PDF da sessão 3: https://assets-v2.circle.so/5r14txpbb99v0uus70ggbitwfjmz
 - `getdesign.md` (catálogo de DESIGN.md usado na demo): https://getdesign.md/
 
 **Skills da Tech Leads Club** (abertas, gratuitas)
@@ -68,9 +86,18 @@ agente em nuvem pode devolver o PR sem depender da máquina do desenvolvedor.
 Instalação: `npx @tech-leads-club/agent-skills install --skill <nome>`
 
 **Outras ferramentas**
+- Harness Toolkit: https://github.com/tech-leads-club/harness-toolkit
 - `harness-score` (estrutura do harness existe e está correta?): https://github.com/paladini/harness-score
 - Playwright MCP: https://github.com/microsoft/playwright-mcp
 - Padrão AGENTS.md: https://agents.md/
+- OWASP — Agentic AI Threats and Mitigations: https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/
+
+**Conteúdos relacionados exibidos na sessão 3**
+- Harness Engineering: https://www.techleads.club/c/ia-first-curso-desenvolvimento-com-ia/sections/982679/lessons/3727678
+- Harness Engineering — o futuro da engenharia de software com IA: https://www.techleads.club/c/compartilhe-aprenda/harness-engineering-o-futuro-da-engenharia-de-software-com-ia
+- Lançamento do `harness-score` v1.0: https://www.techleads.club/c/compartilhe-aprenda/lancado-harness-score-v1-0-um-scan-qualquer-ferramenta-agentica
+- Testes com IA — impedir que o agente sabote os testes: https://www.techleads.club/c/aulas-semanais/aula-testes-eficientes-com-ia
+- Code Review Escalável com IA: https://www.techleads.club/c/ia-first-curso-desenvolvimento-com-ia/sections/982679/lessons/3785892
 
 **Papers** — ver `contexto.md` seção 7 para o detalhe e para a correção do link errado.
 - Liu et al. 2023, *Lost in the Middle* — arXiv:2307.03172
@@ -122,6 +149,16 @@ Sobre **benchmark de skills**:
 > pessoa. Se a gente está gastando token numa coisa, eu quero saber se ela é realmente
 > efetiva."
 
+Da **sessão 3, sobre controle de execução**:
+> "Pedido nunca vai ser controle de execução."
+
+Sobre **adoção de governança**:
+> "Ferramenta de governança que exige configuração antes de servir não passa da primeira
+> semana de uso."
+
+E a tese de **autonomia**:
+> "Dar autonomia a um agente é uma decisão de arquitetura, não de prompt."
+
 ### Teses da sessão 2 (paráfrase da transcrição)
 
 - O humano sai do meio repetitivo da execução, não das decisões: dirige discovery/intenção
@@ -143,6 +180,28 @@ Sobre **benchmark de skills**:
 As anotações do participante registram o fluxo de Waldemar com `tlc-spec-lean`; o catálogo
 oficial pós-aula publica `tlc-discover → tlc-plan → tlc-implement → the-judge`. A skill
 preserva os dois como variantes e usa os nomes/links publicados ao encaminhar execução.
+
+### Teses da sessão 3 (paráfrase da transcrição)
+
+- Modelo melhor erra menos, mas continua tocando shell, arquivos, git e subagentes; por isso
+  autonomia é um problema estrutural, não só de qualidade do modelo.
+- Prompt, skill e `AGENTS.md` são pedidos. O controle começa quando um hook intercepta o
+  evento e código fora do modelo decide o que pode ocorrer.
+- Garantia forte vem da ordem: o floor roda antes da configuração, e o agente não escreve na
+  superfície que poderia desligá-lo.
+- Um bloqueio precisa preservar o caminho legítimo parecido com o risco; caso contrário a
+  equipe desliga a governança depois de poucos dias.
+- Gate de saída impede o agente de se declarar pronto sem evidência recente; falha devolve o
+  trabalho ao agente, e repetição precisa de limite para não criar loop autônomo infinito.
+- Regra de time pode virar gate customizado — o exemplo foi impedir abertura de PR sem review
+  pela skill `the-judge` e exigir nova revisão após qualquer modificação.
+- Postura de interação muda interrupções, não evidência nem critério de pronto.
+- Governança adotável entrega baseline antes de configuração; política específica do projeto
+  vem depois, versionada e revisada como código.
+- Decisão, motivo, prova, custo e retry precisam ser observáveis; controle sem trilha não é
+  auditável.
+- A avaliação OWASP apresentada é autoavaliação dos autores, com lacunas publicadas; não é
+  certificação nem cobertura independente.
 
 ---
 
@@ -168,7 +227,7 @@ trabalho entregue, e variam enormemente por contexto. Cite com essa ressalva.
 **e) Nomes de modelo e tiers envelhecem rápido.** Quando a pergunta citar um modelo posterior
 a set/2026, não finja conhecê-lo: classifique pela régua de capacidade e responda pelo eixo.
 
-**f) Esta versão cobre as sessões 1 e 2 de um workshop de 11 sessões.** Ver seção 5.
+**f) Esta versão cobre as sessões 1 a 3 de um workshop de 11 sessões.** Ver seção 5.
 
 **g) "Até uma semana humana" é heurística operacional da sessão 2.** Não é medida de paper
 nem limite do modelo. O tamanho sustentável cresce com arquitetura, sensores, isolamento e
@@ -179,18 +238,30 @@ que ainda não existe.
 é sustentada pelos exemplos apresentados; o prazo não é consenso e não vale igualmente para
 empresas com legado, compliance ou baixa maturidade de harness.
 
+**i) A contagem de regras da sessão 3 diverge entre artefatos.** A página editorial diz sete
+regras inegociáveis; a fala, o PDF e o README público consultado em 22/set/2026 dizem oito.
+Trate nomes, contagens e defaults como snapshot do produto e consulte o catálogo atual antes
+de responder com número fechado.
+
+**j) A cobertura OWASP é autoavaliação do projeto.** O material declara 4 riscos cobertos,
+5 parciais e 1 não aplicável, com lacunas explícitas. Isso é mais auditável que alegar 10/10,
+mas não equivale a teste ou certificação independente.
+
+**k) O toolkit estava em evolução durante a aula.** Diferencie o padrão arquitetural estável
+(interceptar fora do modelo, fail closed, proteger política, registrar decisão) da superfície
+do produto (rails, nomes, defaults, providers e comandos), que pode mudar.
+
 ---
 
 ## 5. O que esta versão **não** cobre
 
-A v1.1 vem das duas primeiras sessões. Conscientemente fora de escopo — se a pergunta cair
+A v1.2 vem das três primeiras sessões. Conscientemente fora de escopo — se a pergunta cair
 aqui, responda pelos fundamentos e **diga que essa parte não veio da fonte**:
 
 | Tema | Onde foi tratado no workshop |
 |---|---|
 | Projeto brownfield, migração e repatriação de legado | Dia 1 tarde / Dia 2 |
 | Arquitetura de software na era da IA | Dia 2 |
-| Hooks e harness-toolkit | Dia 1 (Felipe Rodrigues) |
 | Mercado e o papel do novo dev | Dia 1 (Felipe Adamoli) |
 | Desenvolvimento com IA no iFood | Dia 1 (Júlio Santos) |
 | Empresa IA-first, arquitetura para eficiência | Dia 2 |

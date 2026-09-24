@@ -1,0 +1,2 @@
+[ 1991982ms] [WARNING] Stale connection: 7961ms without pings @ https://www.techleads.club/packs/js/43032-0eb8f2b9bf4fe11d.js:0
+[ 1992317ms] [ERROR] WebSocket connection to 'wss://www.techleads.club/cable?sid=Bve4KNtZaXrwFfFF_EI6q' failed: Close received after close @ https://www.techleads.club/packs/js/16480-775ac1f91f19af54.js:0

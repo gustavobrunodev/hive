@@ -1,10 +1,10 @@
 ---
 name: dev-ia-avancado
-description: Especialista consultor em desenvolvimento assistido por IA avançado. Recomenda fluxo e confronta a escolha com o que a indústria adotou ou abandonou. Cobre capacidade do modelo→estrutura; prompt/plan/spec-driven/spec-lean; discover→plan→implement→verify/review; fábricas agênticas orientadas a eventos; tracker/board, MCPs e agentes em nuvem; PRD/design doc/RFC/ADR/task/checklist; harness, AGENTS.md, contexto/compactação, subagentes, verificação independente, mutation testing, code review e Playwright. Use sempre para dúvida, comparação ou diagnóstico sobre coding agents, metodologia/skill, fluxo Slack/ticket/alerta→agente→PR, humano no loop, task sizing, artefatos, erro do agente ou prática de mercado — mesmo sem citar a skill. English triggers too. Consultoria apenas; para executar use tlc-discover/tlc-plan/tlc-implement, tlc-spec-* ou agentic-delivery-harness; para montar harness use harness-builder.
+description: Especialista consultor em desenvolvimento assistido por IA avançado. Recomenda fluxo e confronta a escolha com o que a indústria adotou ou abandonou. Cobre capacidade do modelo→estrutura; prompt/plan/spec-driven/spec-lean; discover→plan→implement→verify/review; fábricas agênticas orientadas a eventos; tracker/board, MCPs e agentes em nuvem; PRD/design doc/RFC/ADR/task/checklist; harness, hooks, gates/floor/rails, AGENTS.md, contexto/compactação, subagentes, verificação independente, mutation testing, code review e Playwright. Use sempre para dúvida, comparação ou diagnóstico sobre coding agents, autonomia e controle de execução, metodologia/skill, fluxo Slack/ticket/alerta→agente→PR, humano no loop, task sizing, artefatos, erro do agente ou prática de mercado — mesmo sem citar a skill. English triggers too. Consultoria apenas; para executar use tlc-discover/tlc-plan/tlc-implement, tlc-spec-* ou agentic-delivery-harness; para montar harness use harness-builder.
 license: CC-BY-4.0
 metadata:
-  version: 1.1.0
-  fonte: 'Workshop Tech Leads Club "Desenvolvimento Assistido por IA Avançado #3" — Dia 1, sessões 1 e 2 (set/2026)'
+  version: 1.2.0
+  fonte: 'Workshop Tech Leads Club "Desenvolvimento Assistido por IA Avançado #3" — Dia 1, sessões 1 a 3 (set/2026)'
   snapshot: "2026-09"
 ---
 
@@ -135,11 +135,13 @@ A verificação só consegue checar o que foi declarado antes. Por isso o plano 
 carregar as regras de domínio em forma checável (Given/When/Then, critérios observáveis
 com valor concreto). Um plano que só descreve arquitetura não é verificável.
 
-**3. Determinismo onde couber.**
+**3. Determinismo onde couber; pedido não é controle.**
 O modelo é a única peça que você não consegue tornar determinística — então torne o resto.
 Dentro de skills: scripts (Python, shell) que extraem e validam em vez de deixar a IA
 "conferir". Gasta menos token, não alucina e dá um exit code. Misture as duas naturezas
-de propósito.
+de propósito. Prompt, `AGENTS.md` e skill **guiam**; não formam uma fronteira de segurança.
+Se algo precisa ser impedido, intercepte a ação fora do modelo com hook/gate e decida em
+código. O hook é o ponto de interceptação; a política determinística é que controla.
 
 **4. O agente não julga tela que não viu.**
 Modelos são muito bons interpretando imagem e muito ruins julgando algo visual sem a
@@ -150,6 +152,41 @@ e é barata perto do retrabalho.
 
 **5. Contexto é orçamento, não capacidade.**
 Ver *Orçamento de contexto* abaixo.
+
+---
+
+## Autonomia é decisão de arquitetura
+
+**posição da TLC:** dar autonomia real a um agente não é escrever um prompt mais enfático.
+É decidir o que existe entre a intenção do modelo e o mundo quando ele errar. O modelo pode
+propor; não pode ser a única peça autorizando a própria proposta.
+
+```text
+modelo propõe → hook intercepta → código decide allow / ask / deny / contexto → ação ocorre
+```
+
+Mapeie quatro superfícies antes de deixar o agente rodar sem supervisão:
+
+| Superfície | O que não se desfaz sozinho | Controle típico |
+|---|---|---|
+| **Shell** | comando destrutivo fora do projeto, segredo no transcript, código remoto entregue ao shell | resolver o alvo; negar cauda destrutiva; pedir decisão humana quando irreversível |
+| **Arquivos** | teste apagado para o gate ficar verde; política ou wiring do próprio harness reescritos | proteger superfícies de política e comparar mudança com baseline |
+| **Git** | histórico reescrito; PR aberto sem a prova exigida | negar `--force`, preferir `--force-with-lease`, gatear publicação contra evidência |
+| **Subagentes** | outro modelo sem limite herdado, loop/custo em cascata | allowlist, orçamento, limite de repetição e handoff observável |
+
+Escolha a camada pela consequência:
+
+- Se é uma **preferência**, escreva num guia (`AGENTS.md`, skill, ADR).
+- Se precisa **ser visto**, instale um sensor (teste, lint, typecheck, observabilidade).
+- Se **não pode acontecer**, transforme o sensor em gate num ponto de interceptação.
+- Se é irreversível e o código não resolve com segurança, retorne `ask`; ausência de suporte
+  a `ask` deve degradar para `deny`, nunca para aprovação silenciosa.
+
+Não gateie tudo: controle deve acompanhar raio de impacto e reversibilidade. Um gate que
+bloqueia também o caminho legítimo vira atrito e será desligado. O desenho bom nega a cauda
+destrutiva e preserva a operação segura parecida com ela. O Harness Toolkit mostrado na
+sessão 3 é uma implementação desse padrão; os princípios não dependem dele. Detalhes,
+camadas e limites estão em `references/harness.md`.
 
 ---
 
@@ -231,7 +268,8 @@ meu `AGENTS.md`?" não se respondem no genérico. Faça um diagnóstico curto an
 1. `AGENTS.md`/`CLAUDE.md` — tamanho e, para cada regra, a pergunta decisiva:
    *o modelo descobriria isso sozinho lendo o código?* Se sim, é candidata a sair.
 2. Skills instaladas e o peso somado das descrições (tudo isso é contexto fixo).
-3. Sensores existentes: test runner, lint, typecheck, CI, hooks de pre-commit.
+3. Sensores e gates existentes: test runner, lint, typecheck, CI, hooks; quais apenas
+   observam e quais realmente impedem a ação ou o encerramento do turno.
 4. Se existe validação visual e se ela está amarrada a uma regra ou depende de lembrar.
 5. Se há separação entre quem implementa e quem verifica.
 
@@ -249,7 +287,7 @@ for fundo num eixo:
 |---|---|
 | Escolher/comparar framework, plan mode, spec-driven, spec-lean, criar a própria skill | `references/fluxo-e-metodos.md` |
 | Fábrica agêntica, humano no loop, tracker/MCPs, discovery→task→agente→PR, documentos e tamanho de task | `references/fabrica-agentica.md` |
-| `AGENTS.md`, CONTEXT.md/context map, guias vs sensores, Playwright MCP, auditar o harness | `references/harness.md` |
+| `AGENTS.md`, CONTEXT.md/context map, guias/sensores/gates, hooks, autonomia, Playwright MCP, auditar o harness | `references/harness.md` |
 | Verificador independente, teste de mutação, code review em camadas, limites de LLM-as-judge | `references/verificacao.md` |
 | Janela de contexto, compactação, subagentes, worktrees, papers | `references/contexto.md` |
 | O que o mercado adotou/abandonou, tendências, custo, papel do dev | `references/industria.md` |

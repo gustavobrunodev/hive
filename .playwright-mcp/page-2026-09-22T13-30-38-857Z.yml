@@ -1,0 +1,279 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Tech Leads Club Agent Skills by Tech Leads Club" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Tech Leads Club" [ref=e6]
+        - generic [ref=e7]:
+          - generic [ref=e8]: Agent Skills
+          - generic [ref=e9]: by Tech Leads Club
+      - generic [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - link "About" [ref=e12] [cursor=pointer]:
+          - /url: /about/
+        - link "Skills" [ref=e13] [cursor=pointer]:
+          - /url: /skills/
+        - link "Categories" [ref=e14] [cursor=pointer]:
+          - /url: /categories/
+        - link "Agents" [ref=e15] [cursor=pointer]:
+          - /url: /agents/
+        - link "MCP" [ref=e16] [cursor=pointer]:
+          - /url: /mcp/
+        - link "GitHub" [ref=e17] [cursor=pointer]:
+          - /url: https://github.com/tech-leads-club/agent-skills
+        - 'button "Current theme: system. Click to switch." [ref=e21]'
+  - main [ref=e25]:
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: 92 skills available
+        - heading "Skills for smarter AI agents" [level=1] [ref=e35]
+        - paragraph [ref=e36]: Extend your agent's capabilities with curated skills — specialized workflows, domain expertise, and tool integrations.
+        - generic [ref=e37]:
+          - link "Browse Skills" [ref=e38] [cursor=pointer]:
+            - /url: /skills/
+          - link "View on GitHub" [ref=e39] [cursor=pointer]:
+            - /url: https://github.com/tech-leads-club/agent-skills
+      - generic [ref=e41]:
+        - generic [ref=e47]: aws-advisor
+        - generic [ref=e48]: react-patterns
+        - generic [ref=e49]: system-design
+        - generic [ref=e50]: security
+        - generic [ref=e51]: deploy
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - generic [ref=e54]:
+          - heading "Featured Skills" [level=2] [ref=e55]
+          - link "View All →" [ref=e56] [cursor=pointer]:
+            - /url: /skills/
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - generic [ref=e59]: Featured
+            - generic [ref=e60]: Development
+          - heading [level=3] [ref=e61]:
+            - link "Tech Lead's Club - Spec-Driven Development" [ref=e62] [cursor=pointer]:
+              - /url: /tlc-spec-driven/
+          - paragraph [ref=e63]: Turn your AI agent into a disciplined engineering partner. Spec-Driven guides every project through 4 adaptive phases — Specify, Design, Tasks, Execute — automatically sizing depth by complexity. From quick bug fixes to full feature builds, it produces atomic commits, requirement traceability, and persistent memory across sessions. Stack-agnostic, on the agents we support.
+          - code [ref=e65]: npx @tech-leads-club/agent-skills install --skill tlc-spec-driven
+          - generic [ref=e66]:
+            - button "Copy" [ref=e67]
+            - link "View Skill →" [ref=e68] [cursor=pointer]:
+              - /url: /tlc-spec-driven/
+            - button "Copy share link" [ref=e69] [cursor=pointer]
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - heading [level=3] [ref=e75]:
+                - link "Accessibility (a11y)" [ref=e76] [cursor=pointer]:
+                  - /url: /skills/accessibility/
+              - generic [ref=e77]: Quality
+            - paragraph [ref=e78]: Audit and improve web accessibility following WCAG 2.1 guidelines. Use when asked to "improve accessibility", "a11y audit", "WCAG compliance", "screen reader support", "keyboard navigation", or "make accessible". Do NOT use for SEO (use seo), performance (use core-web-vitals), or comprehensive site audits covering multiple areas (use web-quality-audit).
+            - generic [ref=e79]:
+              - code [ref=e80]: npx agent-skills install --skill accessibility
+              - button "Copy" [ref=e81]
+            - link "View Details" [ref=e83] [cursor=pointer]:
+              - /url: /skills/accessibility/
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - heading [level=3] [ref=e88]:
+                - link "ADR Creator" [ref=e89] [cursor=pointer]:
+                  - /url: /skills/create-adr/
+              - generic [ref=e90]: Skill & Agent Creation
+            - paragraph [ref=e91]: Creates Architecture Decision Records (ADRs) to document significant architectural choices and their rationale for future team members. Use when the user says "write an ADR", "document this decision", "record why we chose X", "add an architecture decision record", "create an ADR for", or wants to capture the reasoning behind a technical choice so the team understands it later. Do NOT use when the decision hasn't been made yet (use create-rfc instead), for implementation planning (use technical-design-doc-creator), or for general documentation.
+            - generic [ref=e92]:
+              - code [ref=e93]: npx agent-skills install --skill create-adr
+              - button "Copy" [ref=e94]
+            - link "View Details" [ref=e96] [cursor=pointer]:
+              - /url: /skills/create-adr/
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - heading [level=3] [ref=e101]:
+                - link "AI Cold Outreach" [ref=e102] [cursor=pointer]:
+                  - /url: /skills/ai-cold-outreach/
+              - generic [ref=e103]: Go-to-Market
+            - paragraph [ref=e104]: When the user wants to build an AI-powered outreach system, write cold emails, improve deliverability, or scale personalized outreach. Also use when the user mentions 'cold email,' 'cold outreach,' 'outreach automation,' 'Instantly,' 'Smartlead,' 'Clay,' 'email sequences,' 'deliverability,' 'personalization at scale,' 'reply rate,' or 'outreach stack.' This skill covers the complete AI cold outreach system from signal detection through conversion. Do NOT use for technical implementation, code review, or software architecture.
+            - generic [ref=e105]:
+              - code [ref=e106]: npx agent-skills install --skill ai-cold-outreach
+              - button "Copy" [ref=e107]
+            - link "View Details" [ref=e109] [cursor=pointer]:
+              - /url: /skills/ai-cold-outreach/
+      - region [ref=e112]:
+        - heading "What are agent skills?" [level=2] [ref=e113]
+        - paragraph [ref=e114]: An agent skill is a packaged set of instructions — a Markdown file, plus optional scripts, templates and reference docs — that you install into an AI coding agent. Once installed, the agent loads the skill when the task matches its triggers, so it follows the same reviewed workflow every time instead of improvising. Every skill in this registry is security-scanned and version-tracked.
+        - paragraph [ref=e115]: The registry currently holds 92 skills across 14 categories, installable into 19 AI coding agents.
+      - region [ref=e116]:
+        - heading "Skill categories" [level=2] [ref=e117]
+        - list [ref=e118]:
+          - listitem [ref=e119]:
+            - link "Architecture 14" [ref=e120] [cursor=pointer]:
+              - /url: /categories/architecture/
+              - text: Architecture
+              - generic [ref=e121]: "14"
+          - listitem [ref=e122]:
+            - link "Cloud & Infrastructure 5" [ref=e123] [cursor=pointer]:
+              - /url: /categories/cloud/
+              - text: Cloud & Infrastructure
+              - generic [ref=e124]: "5"
+          - listitem [ref=e125]:
+            - link "Skill & Agent Creation 6" [ref=e126] [cursor=pointer]:
+              - /url: /categories/creation/
+              - text: Skill & Agent Creation
+              - generic [ref=e127]: "6"
+          - listitem [ref=e128]:
+            - link "Decision Making 2" [ref=e129] [cursor=pointer]:
+              - /url: /categories/decision-making/
+              - text: Decision Making
+              - generic [ref=e130]: "2"
+          - listitem [ref=e131]:
+            - link "Design 4" [ref=e132] [cursor=pointer]:
+              - /url: /categories/design/
+              - text: Design
+              - generic [ref=e133]: "4"
+          - listitem [ref=e134]:
+            - link "Go-to-Market 18" [ref=e135] [cursor=pointer]:
+              - /url: /categories/gtm/
+              - text: Go-to-Market
+              - generic [ref=e136]: "18"
+          - listitem [ref=e137]:
+            - link "Development 18" [ref=e138] [cursor=pointer]:
+              - /url: /categories/development/
+              - text: Development
+              - generic [ref=e139]: "18"
+          - listitem [ref=e140]:
+            - link "Learning & Growth 1" [ref=e141] [cursor=pointer]:
+              - /url: /categories/learning/
+              - text: Learning & Growth
+              - generic [ref=e142]: "1"
+          - listitem [ref=e143]:
+            - link "Monitoring 1" [ref=e144] [cursor=pointer]:
+              - /url: /categories/monitoring/
+              - text: Monitoring
+              - generic [ref=e145]: "1"
+          - listitem [ref=e146]:
+            - link "Performance 4" [ref=e147] [cursor=pointer]:
+              - /url: /categories/performance/
+              - text: Performance
+              - generic [ref=e148]: "4"
+          - listitem [ref=e149]:
+            - link "Quality 7" [ref=e150] [cursor=pointer]:
+              - /url: /categories/quality/
+              - text: Quality
+              - generic [ref=e151]: "7"
+          - listitem [ref=e152]:
+            - link "Security 3" [ref=e153] [cursor=pointer]:
+              - /url: /categories/security/
+              - text: Security
+              - generic [ref=e154]: "3"
+          - listitem [ref=e155]:
+            - link "Tooling 8" [ref=e156] [cursor=pointer]:
+              - /url: /categories/tooling/
+              - text: Tooling
+              - generic [ref=e157]: "8"
+          - listitem [ref=e158]:
+            - link "Web Automation 1" [ref=e159] [cursor=pointer]:
+              - /url: /categories/web-automation/
+              - text: Web Automation
+              - generic [ref=e160]: "1"
+      - region [ref=e161]:
+        - heading "Supported AI coding agents" [level=2] [ref=e162]
+        - list [ref=e163]:
+          - listitem [ref=e164]:
+            - link "Aider" [ref=e165] [cursor=pointer]:
+              - /url: /agents/aider/
+          - listitem [ref=e166]:
+            - link "Amazon Q" [ref=e167] [cursor=pointer]:
+              - /url: /agents/amazon-q/
+          - listitem [ref=e168]:
+            - link "Antigravity" [ref=e169] [cursor=pointer]:
+              - /url: /agents/antigravity/
+          - listitem [ref=e170]:
+            - link "Augment" [ref=e171] [cursor=pointer]:
+              - /url: /agents/augment/
+          - listitem [ref=e172]:
+            - link "Claude Code" [ref=e173] [cursor=pointer]:
+              - /url: /agents/claude-code/
+          - listitem [ref=e174]:
+            - link "Cline" [ref=e175] [cursor=pointer]:
+              - /url: /agents/cline/
+          - listitem [ref=e176]:
+            - link "Cursor" [ref=e177] [cursor=pointer]:
+              - /url: /agents/cursor/
+          - listitem [ref=e178]:
+            - link "Droid (Factory.ai)" [ref=e179] [cursor=pointer]:
+              - /url: /agents/droid/
+          - listitem [ref=e180]:
+            - link "Gemini CLI" [ref=e181] [cursor=pointer]:
+              - /url: /agents/gemini/
+          - listitem [ref=e182]:
+            - link "GitHub Copilot" [ref=e183] [cursor=pointer]:
+              - /url: /agents/github-copilot/
+          - listitem [ref=e184]:
+            - link "Kilo Code" [ref=e185] [cursor=pointer]:
+              - /url: /agents/kilocode/
+          - listitem [ref=e186]:
+            - link "Kiro" [ref=e187] [cursor=pointer]:
+              - /url: /agents/kiro/
+          - listitem [ref=e188]:
+            - link "OpenAI Codex" [ref=e189] [cursor=pointer]:
+              - /url: /agents/codex/
+          - listitem [ref=e190]:
+            - link "OpenCode" [ref=e191] [cursor=pointer]:
+              - /url: /agents/opencode/
+          - listitem [ref=e192]:
+            - link "Roo Code" [ref=e193] [cursor=pointer]:
+              - /url: /agents/roo/
+          - listitem [ref=e194]:
+            - link "Sourcegraph Cody" [ref=e195] [cursor=pointer]:
+              - /url: /agents/sourcegraph/
+          - listitem [ref=e196]:
+            - link "Tabnine" [ref=e197] [cursor=pointer]:
+              - /url: /agents/tabnine/
+          - listitem [ref=e198]:
+            - link "TRAE" [ref=e199] [cursor=pointer]:
+              - /url: /agents/trae/
+          - listitem [ref=e200]:
+            - link "Windsurf" [ref=e201] [cursor=pointer]:
+              - /url: /agents/windsurf/
+      - generic [ref=e203]:
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - generic [ref=e206]: Total Skills
+            - generic [ref=e207]: "92"
+          - generic [ref=e208]: ⚡
+        - generic [ref=e209]:
+          - generic [ref=e210]:
+            - generic [ref=e211]: Categories
+            - generic [ref=e212]: "15"
+          - generic [ref=e213]: 📂
+        - generic [ref=e215]:
+          - generic [ref=e216]:
+            - paragraph [ref=e217]: Downloads
+            - paragraph [ref=e219]: last 30 days
+          - generic [ref=e220]: ⬇️
+      - generic [ref=e222]:
+        - heading "Quick Start" [level=2] [ref=e223]
+        - paragraph [ref=e224]: "Install skills directly from the command line:"
+        - generic [ref=e225]:
+          - code [ref=e226]: npx @tech-leads-club/agent-skills install --skill [skill-name]
+          - button "Copy" [ref=e227]
+        - paragraph [ref=e228]: Skills are installed to your agent's skills directory (e.g., .cursor/skills/, .claude/skills/)
+  - contentinfo [ref=e229]:
+    - generic [ref=e230]:
+      - navigation "Footer" [ref=e231]:
+        - link "All skills" [ref=e232] [cursor=pointer]:
+          - /url: /skills/
+        - link "Categories" [ref=e233] [cursor=pointer]:
+          - /url: /categories/
+        - link "Supported agents" [ref=e234] [cursor=pointer]:
+          - /url: /agents/
+        - link "About" [ref=e235] [cursor=pointer]:
+          - /url: /about/
+        - link "AI Dev Flow" [ref=e236] [cursor=pointer]:
+          - /url: /tlc-ai-dev-flow/
+        - link "MCP" [ref=e237] [cursor=pointer]:
+          - /url: /mcp/
+      - paragraph [ref=e238]:
+        - text: Built with ❤️ by
+        - link "Tech Leads Club" [ref=e239] [cursor=pointer]:
+          - /url: https://github.com/tech-leads-club
+  - alert [ref=e240]
