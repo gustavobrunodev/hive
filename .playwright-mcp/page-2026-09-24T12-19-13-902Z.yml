@@ -1,0 +1,131 @@
+- generic [ref=f1e1]:
+  - banner:
+    - heading "Excalidraw" [level=1] [ref=f1e2]
+  - generic [ref=f1e5]:
+    - generic:
+      - generic:
+        - generic:
+          - generic [ref=f1e6]:
+            - button [expanded] [ref=f1e7] [cursor=pointer]
+            - menu [active] [ref=f1e170]:
+              - generic [ref=f1e171]:
+                - menuitem "Open" [ref=f1e172] [cursor=pointer]:
+                  - generic [ref=f1e178]: Ctrl+O
+                - menuitem "Save to..." [ref=f1e179] [cursor=pointer]
+                - menuitem "Export image..." [ref=f1e185] [cursor=pointer]:
+                  - generic [ref=f1e196]: Ctrl+Shift+E
+                - menuitem "Live collaboration..." [ref=f1e197] [cursor=pointer]
+                - menuitem "Command palette" [ref=f1e208] [cursor=pointer]:
+                  - generic [ref=f1e216]: Ctrl+/
+                - menuitem "Find on canvas" [ref=f1e217] [cursor=pointer]:
+                  - generic [ref=f1e226]: Ctrl+F
+                - menuitem "Help" [ref=f1e227] [cursor=pointer]:
+                  - generic [ref=f1e236]: "?"
+                - menuitem "Reset the canvas" [ref=f1e237] [cursor=pointer]
+                - menuitem "Excalidraw+" [ref=f1e244] [cursor=pointer]
+                - menuitem "GitHub" [ref=f1e251] [cursor=pointer]
+                - menuitem "X" [ref=f1e257] [cursor=pointer]:
+                  - generic [ref=f1e264]: Follow us
+                - menuitem "Discord" [ref=f1e266] [cursor=pointer]:
+                  - generic [ref=f1e272]: Discord chat
+                - menuitem "Sign up" [ref=f1e274] [cursor=pointer]
+                - menuitem "Preferences" [ref=f1e285] [cursor=pointer]
+                - generic [ref=f1e300]:
+                  - generic [ref=f1e301]: Theme
+                  - generic [ref=f1e303]:
+                    - generic "Light mode - Shift+Alt+D" [ref=f1e304]:
+                      - radio "Light mode - Shift+Alt+D" [checked] [ref=f1e305] [cursor=pointer]
+                    - generic "Dark mode - Shift+Alt+D" [ref=f1e309]:
+                      - radio "Dark mode - Shift+Alt+D" [ref=f1e310] [cursor=pointer]
+                    - generic "System mode" [ref=f1e313]:
+                      - radio "System mode" [ref=f1e314] [cursor=pointer]
+                - combobox "Select language" [ref=f1e320] [cursor=pointer]:
+                  - option "English" [selected]
+                  - option "Bahasa Indonesia"
+                  - option "Deutsch"
+                  - option "Español"
+                  - option "Euskara"
+                  - option "Français"
+                  - option "Italiano"
+                  - option "Nederlands"
+                  - option "Polski"
+                  - option "Português"
+                  - option "Português Brasileiro"
+                  - option "Română"
+                  - option "Slovenčina"
+                  - option "Slovenščina"
+                  - option "Svenska"
+                  - option "Türkçe"
+                  - option "Русский"
+                  - option "Українська"
+                  - option "עברית"
+                  - option "العربية"
+                  - option "فارسی"
+                  - option "日本語"
+                  - option "简体中文"
+                  - option "繁體中文"
+                  - option "한국어"
+                - generic [ref=f1e321]:
+                  - generic [ref=f1e322]: Canvas background
+                  - dialog [ref=f1e324]:
+                    - generic [ref=f1e325]:
+                      - button "#ffffff" [ref=f1e326] [cursor=pointer]
+                      - button "#f8f9fa" [ref=f1e327] [cursor=pointer]
+                      - button "#f5faff" [ref=f1e328] [cursor=pointer]
+                      - button "#fffce8" [ref=f1e329] [cursor=pointer]
+                      - button "#fdf8f6" [ref=f1e330] [cursor=pointer]
+                    - button "Canvas background" [ref=f1e332] [cursor=pointer]
+          - region "Shapes":
+            - generic [ref=f1e14]:
+              - generic:
+                - generic:
+                  - text: To move canvas, hold
+                  - generic: Scroll wheel
+                  - text: or
+                  - generic: Space
+                  - text: while dragging, or use the hand tool
+              - heading "Shapes" [level=2] [ref=f1e15]
+              - generic [ref=f1e16]:
+                - button "Keep selected tool active after drawing" [ref=f1e17] [cursor=pointer]
+                - button "Hand (panning tool)" [ref=f1e26] [cursor=pointer]
+                - button "Selection" [pressed] [ref=f1e35] [cursor=pointer]:
+                  - generic [ref=f1e36]: V
+                - button "Rectangle" [ref=f1e43] [cursor=pointer]:
+                  - generic [ref=f1e44]: R
+                - button "Diamond" [ref=f1e50] [cursor=pointer]:
+                  - generic [ref=f1e51]: D
+                - button "Ellipse" [ref=f1e57] [cursor=pointer]:
+                  - generic [ref=f1e58]: O
+                - button "Arrow" [ref=f1e64] [cursor=pointer]:
+                  - generic [ref=f1e65]: A
+                - button "Line" [ref=f1e72] [cursor=pointer]:
+                  - generic [ref=f1e73]: L
+                - button "Draw" [ref=f1e76] [cursor=pointer]:
+                  - generic [ref=f1e77]: P
+                - button "Text" [ref=f1e83] [cursor=pointer]:
+                  - generic [ref=f1e84]: T
+                - button "Sticky note" [ref=f1e91] [cursor=pointer]:
+                  - generic [ref=f1e92]: "N"
+                - button "Eraser" [ref=f1e99] [cursor=pointer]:
+                  - generic [ref=f1e100]: E
+                - button "More tools" [ref=f1e109] [cursor=pointer]
+          - generic:
+            - generic [ref=f1e116]:
+              - link "Excalidraw+" [ref=f1e117] [cursor=pointer]:
+                - /url: https://plus.excalidraw.com/plus?utm_source=excalidraw&utm_medium=app&utm_content=guestBanner#excalidraw-redirect
+              - button "Live collaboration..." [ref=f1e118] [cursor=pointer]
+            - button "Library" [ref=f1e121] [cursor=pointer]
+      - contentinfo:
+        - region [ref=f1e129]:
+          - heading "Canvas actions" [level=2] [ref=f1e130]
+          - generic [ref=f1e132]:
+            - button "Zoom out" [ref=f1e133] [cursor=pointer]
+            - button "Reset zoom" [ref=f1e137] [cursor=pointer]: 100%
+            - button "Zoom in" [ref=f1e138] [cursor=pointer]
+          - generic [ref=f1e142]:
+            - button "Undo" [ref=f1e145] [cursor=pointer]
+            - button "Redo" [disabled] [ref=f1e151]
+        - link "Blog post on end-to-end encryption in Excalidraw" [ref=f1e156] [cursor=pointer]:
+          - /url: https://plus.excalidraw.com/blog/end-to-end-encryption
+        - button "Help" [ref=f1e162] [cursor=pointer]
+    - generic [ref=f1e168]: Drawing canvas

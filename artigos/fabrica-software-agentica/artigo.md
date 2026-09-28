@@ -52,31 +52,17 @@ O passo seguinte é converter regras importantes em mecanismos que falham de mod
 
 É aqui que muda a pergunta central. Se gerar código ficou relativamente barato, o gargalo passa a ser **saber se o que foi produzido corresponde à intenção e continua correto sob condições adversas**. A fábrica agêntica não é uma sequência de prompts; é um sistema de produção com feedback.
 
+![Linha do tempo da evolução do desenvolvimento com IA: autocomplete, chat executor, método, artefatos e fábrica verificável](assets/diagrams/01-evolucao-fabrica-agentica.svg)
+
+*Figura 1 — O gargalo migra de escrever código para provar resultado. [Abrir fonte editável no Excalidraw](assets/diagrams/01-evolucao-fabrica-agentica.excalidraw).*
+
 ## A fábrica TO-BE
 
 Uma visão útil da fábrica não começa no código. Ela começa em um evento e termina em aprendizado operacional:
 
-```text
-evento / oportunidade / incidente
-              ↓
-      intake e triagem
-              ↓
- discovery e pesquisa ──→ decisão humana de direção
-              ↓
- produto / UX / arquitetura
-              ↓
- planejamento em fatias observáveis
-              ↓
- implementação isolada
-              ↓
- verificação independente por evidência
-              ↓
- review do diff e gate de PR
-              ↓
- entrega, produção e observabilidade
-              ↓
- feedback, aprendizado e novo evento
-```
+![Arquitetura da fábrica de software agêntica TO-BE com direção humana, execução agêntica, operação e ciclo de feedback](assets/diagrams/02-fabrica-tobe.svg)
+
+*Figura 2 — A fábrica fecha o ciclo quando produção e telemetria voltam a gerar eventos. [Abrir fonte editável no Excalidraw](assets/diagrams/02-fabrica-tobe.excalidraw).*
 
 O humano não desaparece. Ele se concentra onde julgamento e responsabilidade têm maior valor: definir intenção, aceitar trade-offs, aprovar decisões irreversíveis e decidir sobre riscos. Agentes assumem legwork, exploração, decomposição, execução e inspeção — desde que existam contratos de entrada e saída.
 
@@ -117,6 +103,10 @@ Legenda: **● nativo/forte**, **◐ presente ou parcial**, **○ depende de com
 A matriz mostra cobertura, não qualidade absoluta. Uma classificação `○` ou `—` não é defeito quando a ferramenta deliberadamente ocupa uma camada menor.
 
 Há ainda um limite comum: o corpus comparado cobre principalmente o caminho entre intenção e gate de PR. Nenhum dos quatro projetos entrega sozinho um control plane com deploy, operação, observabilidade e feedback de produção. Para fechar a fábrica TO-BE, essa camada precisa vir de CI/CD, plataforma, telemetria, tracker e políticas organizacionais externas — e devolver seus eventos ao intake.
+
+![Mapa de posicionamento de Matt Pocock Skills, BMAD, Superpowers e TLC pelos eixos de amplitude e tipo de governança](assets/diagrams/03-posicionamento-frameworks.svg)
+
+*Figura 3 — As posições representam ênfases complementares, não um ranking. [Abrir fonte editável no Excalidraw](assets/diagrams/03-posicionamento-frameworks.excalidraw).*
 
 ### Superpowers: método de execução portátil
 
@@ -206,6 +196,10 @@ Nenhuma coluna vence a tabela. Os destaques apontam usos diferentes:
 | “Precisamos de TDD e debugging consistentes” | Superpowers ou Matt | gates do repositório |
 | “Cada papel trabalha num chat desconectado” | BMAD artifact-first | contratos de handoff e tracker |
 
+![Árvore de decisão para escolher discovery, rota lean ou granular e intensidade de verificação](assets/diagrams/05-arvore-decisao.svg)
+
+*Figura 4 — A escolha começa pela ambiguidade, passa pela capacidade do implementador e termina no risco. [Abrir fonte editável no Excalidraw](assets/diagrams/05-arvore-decisao.excalidraw).*
+
 ## Compor é legítimo — desde que cada fase tenha um dono
 
 Misturar frameworks funciona bem quando a composição acontece nas bordas dos artefatos. Funciona mal quando duas metodologias tentam governar a mesma fase ao mesmo tempo.
@@ -215,6 +209,10 @@ Uma regra simples evita a maior parte da confusão:
 > Para cada fase, escolha um método controlador, defina seu artefato de saída e entregue apenas esse contrato à fase seguinte.
 
 Não rode dois discoveries completos e depois tente reconciliar narrativas. Não mantenha simultaneamente duas specs como fontes de verdade. Não execute duas políticas de commit incompatíveis. Use capacidades auxiliares como lentes, não como segundos donos do fluxo.
+
+![Três composições práticas: grill-me com TLC, BMAD com TLC e tracker ou BMAD com Superpowers](assets/diagrams/04-composicoes-praticas.svg)
+
+*Figura 5 — A composição funciona melhor quando o handoff é um artefato explícito. [Abrir fonte editável no Excalidraw](assets/diagrams/04-composicoes-praticas.excalidraw).*
 
 ### Receita 1: `grill-me` + TLC para desenvolvimento
 

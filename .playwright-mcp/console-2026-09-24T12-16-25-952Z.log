@@ -1,0 +1,114 @@
+[     318ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: '*'. @ :0
+[    1889ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ https://excalidraw.com/:0
+[    9461ms] [WARNING] AbortError: Failed to execute 'showOpenFilePicker' on 'Window': Intercepted by Page.setInterceptFileChooserDialog().
+    at Object.sSe [as default] (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:332504)
+    at tSe (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:331913)
+    at async HC (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:337542)
+    at async bSe (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:338495)
+    at async Object.perform (https://excalidraw.com/assets/index-Cpmd6tCp.js:157:4989) @ https://excalidraw.com/assets/index-Cpmd6tCp.js:66
+[   27366ms] [WARNING] AbortError: Failed to execute 'showOpenFilePicker' on 'Window': Intercepted by Page.setInterceptFileChooserDialog().
+    at Object.sSe [as default] (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:332504)
+    at tSe (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:331913)
+    at async HC (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:337542)
+    at async bSe (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:338495)
+    at async Object.perform (https://excalidraw.com/assets/index-Cpmd6tCp.js:157:4989) @ https://excalidraw.com/assets/index-Cpmd6tCp.js:66
+[  101946ms] [ERROR] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at jH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:88278)
+    at _l (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:87646)
+    at jH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:88599)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89655)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:92338)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:92338)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89979)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:94559)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781)
+    at KH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89903)
+    at qs (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:89781) @ https://excalidraw.com/assets/index-Cpmd6tCp.js:66
+[  101956ms] Error: Missing Provider from createIsolation
+    at n (https://excalidraw.com/assets/index-Cpmd6tCp.js:94:55246)
+    at useAtomValue (https://excalidraw.com/assets/index-Cpmd6tCp.js:94:55441)
+    at xt (https://excalidraw.com/assets/index-Cpmd6tCp.js:105:15069)
+    at fs (https://excalidraw.com/assets/index-Cpmd6tCp.js:158:29345)
+    at DT (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:42540)
+    at b4 (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:63640)
+    at OH (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:74350)
+    at dV (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:115917)
+    at Cse (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:114990)
+    at V3 (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:114818)
+    at oV (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:111894)
+    at Ik (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:121606)
+    at J2 (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:120395)
+    at Mse (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:118147)
+    at Tk (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:117142)
+    at wk (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:112794)
+    at oV (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:112436)
+    at mV (https://excalidraw.com/assets/index-Cpmd6tCp.js:48:121485)
+    at MessagePort.C (https://excalidraw.com/assets/index-Cpmd6tCp.js:25:1516)
+[  145270ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: '*'. @ :0
+[  145433ms] [WARNING] A preload for 'https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2' is found, but is not used because it is a cross-world service worker resource mismatch. @ https://excalidraw.com/assets/index-Cpmd6tCp.js:150
+[  145434ms] [WARNING] A preload for 'https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2' is found, but is not used because it is a cross-world service worker resource mismatch. @ https://excalidraw.com/assets/index-Cpmd6tCp.js:150
+[  145435ms] [WARNING] A preload for 'https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2' is found, but is not used because it is a cross-world service worker resource mismatch. @ https://excalidraw.com/assets/index-Cpmd6tCp.js:150
+[  145832ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ https://excalidraw.com/:0
+[  148855ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  148855ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  148855ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  182920ms] [WARNING] AbortError: Failed to execute 'showSaveFilePicker' on 'Window': Intercepted by Page.setInterceptFileChooserDialog().
+    at Object.cSe [as default] (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:334949)
+    at iSe (https://excalidraw.com/assets/index-Cpmd6tCp.js:151:332174) @ https://excalidraw.com/assets/index-Cpmd6tCp.js:66
+[  186279ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  186279ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  186279ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  234765ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  234765ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  234765ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  282022ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  282023ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  282023ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  305817ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  305817ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  305817ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  495756ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  495756ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  495756ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  550189ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  550189ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
+[  550189ms] [WARNING] The resource https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://excalidraw.com/:0
