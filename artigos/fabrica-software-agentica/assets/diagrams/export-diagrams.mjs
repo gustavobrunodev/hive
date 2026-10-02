@@ -86,6 +86,46 @@ async function waitFor(client, expression, label) {
   throw new Error(`Timed out waiting for ${label}`);
 }
 
+function addFactoryAnimation(svg) {
+  const viewBox = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  if (!viewBox) throw new Error("Animated factory SVG has no supported viewBox");
+  const width = Number(viewBox[1]);
+  const height = Number(viewBox[2]);
+  const x = (ratio) => Math.round(width * ratio);
+  const y = (ratio) => Math.round(height * ratio);
+  const motionPath = [
+    "M", x(0.07), y(0.36),
+    "L", x(0.985), y(0.36),
+    "L", x(0.985), y(0.78),
+    "L", x(0.18), y(0.78),
+    "L", x(0.01), y(0.78),
+    "L", x(0.01), y(0.22),
+    "L", x(0.07), y(0.22),
+  ].join(" ");
+  const upperFlow = ["M", x(0.07), y(0.36), "L", x(0.985), y(0.36)].join(" ");
+  const lowerFlow = ["M", x(0.985), y(0.78), "L", x(0.01), y(0.78)].join(" ");
+  const animation = [
+    "<!-- animated-overlay:factory-flow-v1 -->",
+    "<style>",
+    "@keyframes factoryDash{to{stroke-dashoffset:-72}}",
+    "@keyframes factoryPulse{0%,100%{opacity:.18;transform:scale(.82)}50%{opacity:.75;transform:scale(1.18)}}",
+    ".factory-flow{animation:factoryDash 3s linear infinite}",
+    ".factory-pulse{animation:factoryPulse 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}",
+    "@media (prefers-reduced-motion:reduce){.factory-flow,.factory-pulse{animation:none}.factory-motion{display:none}}",
+    "</style>",
+    '<g id="factory-animation-overlay" pointer-events="none">',
+    '<path d="' + upperFlow + '" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round" stroke-dasharray="10 14" opacity=".32" class="factory-flow"/>',
+    '<path d="' + lowerFlow + '" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round" stroke-dasharray="10 14" opacity=".32" class="factory-flow"/>',
+    '<circle cx="' + x(0.75) + '" cy="' + y(0.42) + '" r="26" fill="none" stroke="#15803d" stroke-width="3" class="factory-pulse"/>',
+    '<circle cx="' + x(0.84) + '" cy="' + y(0.88) + '" r="26" fill="none" stroke="#15803d" stroke-width="3" class="factory-pulse" style="animation-delay:.8s"/>',
+    '<circle r="7" fill="#7c3aed" stroke="#ffffff" stroke-width="3" class="factory-motion">',
+    '<animateMotion dur="10s" repeatCount="indefinite" path="' + motionPath + '"/>',
+    "</circle>",
+    "</g>",
+  ].join("");
+  return svg.replace("</svg>", animation + "</svg>");
+}
+
 const chrome = spawn(
   CHROME,
   [
@@ -181,7 +221,10 @@ try {
       "typeof window.__capturedExcalidrawSvg === 'string' && window.__capturedExcalidrawSvg.includes('<svg')",
       `SVG export for ${sourceName}`,
     );
-    const svg = await evaluate(client, "window.__capturedExcalidrawSvg");
+    let svg = await evaluate(client, "window.__capturedExcalidrawSvg");
+    if (sourceName === "07-fabrica-agentica-completa.excalidraw") {
+      svg = addFactoryAnimation(svg);
+    }
     writeFileSync(join(HERE, svgName), svg);
 
     await evaluate(

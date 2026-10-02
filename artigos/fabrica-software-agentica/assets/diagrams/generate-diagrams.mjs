@@ -170,6 +170,58 @@ function box(elements, id, x, y, width, height, title, subtitle, color, fill, op
   }
 }
 
+function iconBadge(elements, id, x, y, size, symbol, color, fill = C.white, options = {}) {
+  elements.push(ellipse(id, x, y, size, size, {
+    strokeColor: color,
+    backgroundColor: fill,
+    strokeWidth: options.strokeWidth ?? 2,
+    roughness: options.roughness ?? 1,
+  }));
+  elements.push(centeredText(id + "-symbol", x, y + (options.symbolY ?? size * 0.22), size, symbol, {
+    fontSize: options.fontSize ?? Math.round(size * 0.38),
+    color,
+  }));
+}
+
+function iconBox(elements, id, x, y, width, height, symbol, title, subtitle, color, fill, options = {}) {
+  elements.push(rect(id, x, y, width, height, {
+    strokeColor: color,
+    backgroundColor: fill,
+    strokeWidth: options.strokeWidth ?? 2,
+    roughness: options.roughness ?? 1,
+  }));
+  const iconSize = options.iconSize ?? 56;
+  const iconX = x + (options.iconX ?? 20);
+  const iconY = y + (height - iconSize) / 2;
+  iconBadge(elements, id + "-icon", iconX, iconY, iconSize, symbol, color, C.white, {
+    fontSize: options.iconFontSize,
+    symbolY: options.iconSymbolY,
+  });
+  const textX = x + (options.textX ?? 92);
+  elements.push(text(id + "-title", textX, y + (options.titleY ?? 20), title, {
+    fontSize: options.titleSize ?? 22,
+    color,
+  }));
+  if (subtitle) {
+    elements.push(text(id + "-subtitle", textX, y + (options.subtitleY ?? 58), subtitle, {
+      fontSize: options.subtitleSize ?? 15,
+      color: options.subtitleColor ?? C.ink,
+    }));
+  }
+}
+
+function pill(elements, id, x, y, width, label, color, fill, options = {}) {
+  elements.push(rect(id, x, y, width, options.height ?? 48, {
+    strokeColor: color,
+    backgroundColor: fill,
+    strokeWidth: options.strokeWidth ?? 2,
+  }));
+  elements.push(centeredText(id + "-text", x, y + (options.textY ?? 11), width, label, {
+    fontSize: options.fontSize ?? 17,
+    color,
+  }));
+}
+
 function heading(elements, titleValue, subtitleValue, width) {
   elements.push(text("title", 70, 45, titleValue, { fontSize: 42, color: C.ink }));
   elements.push(text("subtitle", 72, 105, subtitleValue, { fontSize: 21, color: C.muted }));
@@ -398,4 +450,408 @@ scene("05-arvore-decisao", 1600, 1280, (e, w) => {
   e.push(text("q3-yes-label", 1038, 1040, "SIM", { fontSize: 17, color: C.green }));
 });
 
-console.log("Generated 5 editable Excalidraw scenes in", OUT);
+scene("06-evento-ao-feedback", 1760, 1120, (e, w) => {
+  heading(e, "Do evento ao feedback", "Entradas diferentes atravessam a mesma linha e retornam como aprendizado", w);
+
+  const inputs = [
+    ["issue", "#", "ISSUE", "engenharia"],
+    ["slack", "S", "SLACK", "produto · suporte"],
+    ["alert", "!", "ALERTA", "observabilidade"],
+    ["backlog", "≡", "BACKLOG", "prioridade"],
+  ];
+  const inputX = [120, 500, 880, 1260];
+  inputs.forEach(([id, symbol, titleValue, subtitleValue], i) => {
+    iconBox(e, id, inputX[i], 205, 300, 100, symbol, titleValue, subtitleValue, C.orange, C.orangeFill, {
+      iconSize: 52,
+      textX: 90,
+      titleY: 18,
+      subtitleY: 56,
+      titleSize: 21,
+      subtitleSize: 14,
+    });
+    e.push(line(id + "-collector", inputX[i] + 150, 315, inputX[i] + 150, 345, {
+      strokeColor: C.orange,
+      strokeStyle: "dashed",
+      strokeWidth: 2,
+    }));
+  });
+  e.push(line("input-collector", 270, 345, 1410, 345, { strokeColor: C.orange, strokeStyle: "dashed", strokeWidth: 2 }));
+  e.push(arrow("collector-intake", 880, 345, 880, 385, { strokeColor: C.orange, strokeWidth: 3 }));
+
+  iconBox(e, "intake-triage", 650, 400, 460, 110, "Y", "INTAKE + TRIAGEM", "normaliza · classifica · prioriza", C.purple, C.purpleFill, {
+    iconSize: 60,
+    textX: 105,
+    titleY: 20,
+    subtitleY: 62,
+    titleSize: 24,
+    subtitleSize: 16,
+  });
+
+  const stages = [
+    ["discover", "?", "DISCOVER", "problema", C.purple, C.purpleFill],
+    ["plan", "≡", "PLAN", "fatias · checks", C.blue, C.blueFill],
+    ["implement", "</>", "IMPLEMENT", "código · testes", C.blue, C.white],
+    ["verify", "✓", "VERIFY", "provas", C.green, C.greenFill],
+    ["review", "◎", "REVIEW", "diff · risco", C.green, C.white],
+  ];
+  const stageX = [55, 380, 705, 1030, 1355];
+  e.push(line("intake-to-flow-down", 880, 520, 880, 545, { strokeColor: C.purple, strokeWidth: 3 }));
+  e.push(line("intake-to-flow-left", 880, 545, 190, 545, { strokeColor: C.purple, strokeWidth: 3 }));
+  e.push(arrow("intake-to-discover", 190, 545, 190, 575, { strokeColor: C.purple, strokeWidth: 3 }));
+  stages.forEach(([id, symbol, titleValue, subtitleValue, color, fill], i) => {
+    iconBox(e, id, stageX[i], 590, 270, 120, symbol, titleValue, subtitleValue, color, fill, {
+      iconSize: 50,
+      iconFontSize: symbol === "</>" ? 16 : 20,
+      textX: 82,
+      titleY: 24,
+      subtitleY: 68,
+      titleSize: 20,
+      subtitleSize: 15,
+    });
+    if (i < stages.length - 1) {
+      e.push(arrow(id + "-next", stageX[i] + 282, 650, stageX[i + 1] - 12, 650, { strokeColor: C.ink, strokeWidth: 2 }));
+    }
+  });
+
+  iconBox(e, "pull-request", 1355, 775, 270, 105, "PR", "PULL REQUEST", "diff + evidência", C.green, C.greenFill, {
+    iconSize: 50,
+    iconFontSize: 17,
+    textX: 82,
+    titleY: 20,
+    subtitleY: 60,
+    titleSize: 20,
+    subtitleSize: 15,
+  });
+  e.push(arrow("review-pr", 1490, 720, 1490, 763, { strokeColor: C.green, strokeWidth: 3 }));
+
+  iconBox(e, "production-feedback", 1245, 945, 490, 110, "↻", "PRODUÇÃO + FEEDBACK", "uso · qualidade · custo · incidentes", C.green, C.white, {
+    iconSize: 60,
+    textX: 105,
+    titleY: 20,
+    subtitleY: 62,
+    titleSize: 23,
+    subtitleSize: 15,
+  });
+  e.push(arrow("pr-production", 1490, 890, 1490, 933, { strokeColor: C.green, strokeWidth: 3 }));
+
+  e.push(line("feedback-left", 1233, 1000, 35, 1000, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(line("feedback-up", 35, 1000, 35, 255, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(arrow("feedback-reentry", 35, 255, 108, 255, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(text("feedback-label", 58, 960, "novo evento", { fontSize: 16, color: C.purple }));
+});
+
+scene("07-fabrica-agentica-completa", 1900, 1320, (e, w) => {
+  heading(e, "A fábrica agêntica completa", "Intenção humana, execução assistida, controles verificáveis e produção em ciclo fechado", w);
+
+  e.push(rect("human-lane", 55, 185, 1790, 165, { strokeColor: C.orange, backgroundColor: C.orangeFill, opacity: 42, strokeStyle: "dashed" }));
+  e.push(text("human-lane-label", 90, 202, "DIREÇÃO HUMANA", { fontSize: 18, color: C.orange }));
+  iconBox(e, "human-event", 90, 235, 280, 90, "!", "EVENTO", "intenção · incidente", C.orange, C.white, {
+    iconSize: 48,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+  iconBox(e, "human-direction", 755, 235, 390, 90, "↗", "DECISÃO DE DIREÇÃO", "outcome · risco · trade-offs", C.orange, C.white, {
+    iconSize: 48,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+  iconBox(e, "human-accept", 1530, 235, 280, 90, "✓", "ACEITAÇÃO", "merge · release", C.orange, C.white, {
+    iconSize: 48,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+
+  e.push(rect("agent-lane", 55, 400, 1790, 285, { strokeColor: C.blue, backgroundColor: C.blueFill, opacity: 32, strokeStyle: "dashed" }));
+  e.push(text("agent-lane-label", 90, 420, "LINHA AGÊNTICA", { fontSize: 18, color: C.blue }));
+  const agentStages = [
+    ["entry", "#", "ENTRY", "item normalizado", C.purple, C.purpleFill],
+    ["triage", "Y", "TRIAGE", "rota · estado", C.purple, C.white],
+    ["discover-full", "?", "DISCOVER", "problema · outcome", C.purple, C.purpleFill],
+    ["plan-full", "≡", "PLAN", "fatias · provas", C.blue, C.white],
+    ["implement-full", "</>", "IMPLEMENT", "código · testes", C.blue, C.blueFill],
+    ["gate-full", "✓", "GATE", "verify · review", C.green, C.greenFill],
+    ["production-full", "▦", "PRODUCTION", "deploy · operação", C.green, C.white],
+  ];
+  const startX = 80;
+  const cardWidth = 225;
+  const gap = 28;
+  agentStages.forEach(([id, symbol, titleValue, subtitleValue, color, fill], i) => {
+    const x = startX + i * (cardWidth + gap);
+    iconBox(e, id, x, 500, cardWidth, 125, symbol, titleValue, subtitleValue, color, fill, {
+      iconSize: 48,
+      iconFontSize: symbol === "</>" ? 15 : 19,
+      textX: 76,
+      titleY: 25,
+      subtitleY: 69,
+      titleSize: 18,
+      subtitleSize: 13,
+    });
+    if (i < agentStages.length - 1) {
+      e.push(arrow(id + "-next", x + cardWidth + 7, 563, x + cardWidth + gap - 8, 563, { strokeColor: C.ink, strokeWidth: 2 }));
+    }
+  });
+
+  e.push(arrow("event-entry", 230, 338, 193, 488, { strokeColor: C.orange, strokeStyle: "dashed" }));
+  e.push(arrow("discover-direction", 690, 488, 870, 338, { strokeColor: C.orange, strokeStyle: "dashed" }));
+  e.push(arrow("direction-plan", 950, 338, 940, 488, { strokeColor: C.orange, strokeStyle: "dashed" }));
+  e.push(arrow("gate-accept", 1458, 488, 1650, 338, { strokeColor: C.orange, strokeStyle: "dashed" }));
+
+  e.push(rect("control-lane", 55, 740, 1790, 220, { strokeColor: C.purple, backgroundColor: C.purpleFill, opacity: 30, strokeStyle: "dashed" }));
+  e.push(text("control-lane-label", 90, 760, "CONTRATOS, CONTEXTO E PROVA", { fontSize: 18, color: C.purple }));
+  const controls = [
+    ["artifacts", "D", "ARTEFATOS", "PRD · ADR · task", C.orange, C.orangeFill],
+    ["context", "40", "CONTEXTO", "janela nova por fase", C.purple, C.white],
+    ["harness", "H", "HARNESS", "guia · sensor · gate", C.blue, C.blueFill],
+    ["proof", "≠", "PROVA", "autor ≠ verifier", C.green, C.greenFill],
+  ];
+  const controlX = [105, 535, 965, 1395];
+  controls.forEach(([id, symbol, titleValue, subtitleValue, color, fill], i) => {
+    iconBox(e, id, controlX[i], 815, 360, 110, symbol, titleValue, subtitleValue, color, fill, {
+      iconSize: 56,
+      iconFontSize: symbol === "40" ? 16 : 21,
+      textX: 96,
+      titleY: 20,
+      subtitleY: 62,
+      titleSize: 21,
+      subtitleSize: 15,
+    });
+  });
+  e.push(text("model-policy", 610, 975, "Capacidade do implementador decide: granular ↔ lean", { fontSize: 17, color: C.muted }));
+
+  e.push(rect("operation-lane", 55, 1030, 1790, 205, { strokeColor: C.green, backgroundColor: C.greenFill, opacity: 32, strokeStyle: "dashed" }));
+  e.push(text("operation-lane-label", 90, 1050, "OPERAÇÃO E APRENDIZADO", { fontSize: 18, color: C.green }));
+  iconBox(e, "learning", 170, 1110, 330, 90, "↻", "APRENDIZADO", "novo evento", C.green, C.white, {
+    iconSize: 48,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+  iconBox(e, "telemetry", 785, 1110, 330, 90, "∿", "TELEMETRIA", "uso · qualidade · custo", C.green, C.white, {
+    iconSize: 48,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+  iconBox(e, "delivery", 1400, 1110, 330, 90, "CI", "ENTREGA", "CI/CD · produção", C.green, C.white, {
+    iconSize: 48,
+    iconFontSize: 15,
+    textX: 82,
+    titleY: 14,
+    subtitleY: 50,
+    titleSize: 21,
+    subtitleSize: 14,
+  });
+  e.push(arrow("production-delivery", 1710, 638, 1570, 1098, { strokeColor: C.green, strokeWidth: 3 }));
+  e.push(arrow("delivery-telemetry", 1388, 1155, 1127, 1155, { strokeColor: C.green, strokeWidth: 3 }));
+  e.push(arrow("telemetry-learning", 773, 1155, 512, 1155, { strokeColor: C.green, strokeWidth: 3 }));
+  e.push(line("learning-loop-left", 158, 1155, 35, 1155, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(line("learning-loop-up", 35, 1155, 35, 280, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(arrow("learning-loop-event", 35, 280, 78, 280, { strokeColor: C.purple, strokeStyle: "dashed", strokeWidth: 3 }));
+  e.push(centeredText("factory-note", 55, 1260, 1790, "O humano governa intenção e irreversibilidade; a linha automatiza execução, evidência e feedback.", { fontSize: 18, color: C.muted }));
+});
+
+scene("08-contexto-por-fase", 1650, 930, (e, w) => {
+  heading(e, "Contexto é orçamento", "Abra a janela para pesquisar; reduza e renove o contexto para construir e verificar", w);
+
+  e.push(text("gauge-label", 95, 200, "OCUPAÇÃO DA JANELA", { fontSize: 18, color: C.ink }));
+  e.push(rect("gauge-safe", 95, 245, 584, 78, { strokeColor: C.green, backgroundColor: C.greenFill, roughness: 0 }));
+  e.push(rect("gauge-watch", 679, 245, 292, 78, { strokeColor: C.orange, backgroundColor: C.orangeFill, roughness: 0 }));
+  e.push(rect("gauge-risk", 971, 245, 584, 78, { strokeColor: C.red, backgroundColor: C.redFill, roughness: 0 }));
+  e.push(centeredText("gauge-safe-text", 95, 267, 584, "ATÉ ~40% · confortável", { fontSize: 19, color: C.green }));
+  e.push(centeredText("gauge-watch-text", 679, 267, 292, "40–60% · atenção", { fontSize: 18, color: C.orange }));
+  e.push(centeredText("gauge-risk-text", 971, 267, 584, "ACIMA DE 60% · risco crescente", { fontSize: 19, color: C.red }));
+  e.push(text("heuristic-note", 95, 340, "Heurística operacional — a direção da degradação é medida; os limiares variam por tarefa e modelo.", { fontSize: 16, color: C.muted }));
+
+  const phases = [
+    ["research", "∞", "RESEARCH", "links · MCPs · métricas\ncontexto amplo", C.orange, C.orangeFill],
+    ["plan-context", "D", "PLAN", "decisão + código\nrelevante", C.purple, C.purpleFill],
+    ["implement-context", "N", "IMPLEMENT", "janela nova\nsó o contrato", C.blue, C.blueFill],
+    ["verify-context", "≠", "VERIFY", "outro agente\nchecks + diff", C.green, C.greenFill],
+    ["review-context", "◎", "REVIEW", "gates · riscos\nveredito", C.green, C.white],
+  ];
+  const phaseX = [55, 375, 695, 1015, 1335];
+  phases.forEach(([id, symbol, titleValue, subtitleValue, color, fill], i) => {
+    box(e, id, phaseX[i], 475, 260, 190, titleValue, subtitleValue, color, fill, {
+      titleY: 48,
+      subtitleY: 98,
+      titleSize: 21,
+      subtitleSize: 15,
+    });
+    iconBadge(e, id + "-badge", phaseX[i] + 101, 430, 58, symbol, color, C.white, {
+      fontSize: symbol === "∞" ? 25 : 20,
+    });
+    if (i < phases.length - 1) {
+      e.push(arrow(id + "-next", phaseX[i] + 272, 570, phaseX[i + 1] - 12, 570, { strokeColor: C.ink, strokeWidth: 2 }));
+      e.push(text(id + "-handoff", phaseX[i] + 265, 610, "artefato", { fontSize: 13, color: C.muted }));
+    }
+  });
+
+  e.push(rect("context-rule", 210, 745, 1230, 95, { strokeColor: C.purple, backgroundColor: C.white, strokeStyle: "dashed" }));
+  e.push(centeredText("context-rule-title", 210, 765, 1230, "COMPACTAÇÃO DESCARTA; CONTRATO DURÁVEL PRESERVA", { fontSize: 21, color: C.purple }));
+  e.push(centeredText("context-rule-subtitle", 210, 805, 1230, "A conversa pode acabar quando decisões, checks e handoffs vivem fora dela.", { fontSize: 16, color: C.ink }));
+});
+
+scene("09-cadeia-de-artefatos", 1760, 980, (e, w) => {
+  heading(e, "A cadeia de artefatos", "Cada documento responde a uma pergunta e vive perto de quem o altera ou consome", w);
+
+  const columns = [
+    { id: "why", x: 70, color: C.orange, fill: C.orangeFill, title: "POR QUÊ?", subtitle: "intenção e direção" },
+    { id: "what", x: 650, color: C.purple, fill: C.purpleFill, title: "O QUÊ?", subtitle: "decisão e unidade" },
+    { id: "proof", x: 1230, color: C.green, fill: C.greenFill, title: "COMO PROVAR?", subtitle: "evidência e aceite" },
+  ];
+  columns.forEach((column) => {
+    e.push(rect(column.id + "-lane", column.x, 215, 460, 610, {
+      strokeColor: column.color,
+      backgroundColor: column.fill,
+      opacity: 35,
+      strokeStyle: "dashed",
+    }));
+    e.push(centeredText(column.id + "-title", column.x, 245, 460, column.title, { fontSize: 27, color: column.color }));
+    e.push(centeredText(column.id + "-subtitle", column.x, 288, 460, column.subtitle, { fontSize: 16, color: C.muted }));
+  });
+  e.push(arrow("why-what", 542, 515, 638, 515, { strokeColor: C.ink, strokeWidth: 3 }));
+  e.push(arrow("what-proof", 1122, 515, 1218, 515, { strokeColor: C.ink, strokeWidth: 3 }));
+
+  iconBox(e, "prd", 115, 365, 370, 120, "P", "PRD", "problema · público · resultado", C.orange, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 68, titleSize: 22, subtitleSize: 14,
+  });
+  iconBox(e, "design", 115, 535, 370, 120, "D", "DESIGN DOC / RFC", "solução · alternativas · risco", C.orange, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 68, titleSize: 21, subtitleSize: 14,
+  });
+  pill(e, "why-location", 145, 720, 310, "WORKSPACE COLABORATIVO", C.orange, C.white, { fontSize: 15 });
+
+  iconBox(e, "adr", 695, 365, 370, 120, "A", "ADR", "decisão durável", C.purple, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 68, titleSize: 22, subtitleSize: 14,
+  });
+  iconBox(e, "task", 695, 535, 370, 120, "T", "TASK", "fronteira · fatia · critérios", C.purple, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 68, titleSize: 22, subtitleSize: 14,
+  });
+  pill(e, "what-location-repo", 685, 710, 180, "ADR · REPO", C.purple, C.white, { fontSize: 14 });
+  pill(e, "what-location-tracker", 895, 710, 180, "TASK · TRACKER", C.purple, C.white, { fontSize: 14 });
+
+  iconBox(e, "checklist", 1275, 365, 370, 120, "✓", "CHECKLIST", "afirmação + prova", C.green, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 68, titleSize: 22, subtitleSize: 14,
+  });
+  iconBox(e, "pr-review", 1275, 535, 370, 120, "PR", "PR / REVIEW", "diff · evidência · riscos", C.green, C.white, {
+    iconSize: 52, iconFontSize: 16, textX: 90, titleY: 24, subtitleY: 68, titleSize: 22, subtitleSize: 14,
+  });
+  pill(e, "proof-location", 1305, 720, 310, "GIT + RELATÓRIO DA EXECUÇÃO", C.green, C.white, { fontSize: 14 });
+
+  e.push(rect("artifact-rule", 300, 870, 1160, 65, { strokeColor: C.ink, backgroundColor: C.white }));
+  e.push(centeredText("artifact-rule-text", 300, 888, 1160, "Estado mutável no tracker · decisão durável perto do código · colaboração onde as pessoas trabalham", { fontSize: 17, color: C.ink }));
+});
+
+scene("10-harness-e-autonomia", 1760, 1080, (e, w) => {
+  heading(e, "Harness: guiar, medir e impedir", "Autonomia nasce quando a proposta do modelo atravessa controles externos e observáveis", w);
+
+  iconBox(e, "model", 95, 210, 285, 100, "AI", "MODELO PROPÕE", "ação ou conclusão", C.purple, C.purpleFill, {
+    iconSize: 52, iconFontSize: 15, textX: 90, titleY: 20, subtitleY: 58, titleSize: 20, subtitleSize: 14,
+  });
+  iconBox(e, "hook", 500, 210, 260, 100, "H", "HOOK", "intercepta evento", C.blue, C.blueFill, {
+    iconSize: 52, textX: 90, titleY: 20, subtitleY: 58, titleSize: 20, subtitleSize: 14,
+  });
+  iconBox(e, "policy", 880, 210, 300, 100, "P", "POLÍTICA", "decisão fora do modelo", C.orange, C.orangeFill, {
+    iconSize: 52, textX: 90, titleY: 20, subtitleY: 58, titleSize: 20, subtitleSize: 14,
+  });
+  e.push(arrow("model-hook", 392, 260, 488, 260, { strokeColor: C.ink, strokeWidth: 3 }));
+  e.push(arrow("hook-policy", 772, 260, 868, 260, { strokeColor: C.ink, strokeWidth: 3 }));
+  pill(e, "allow", 1300, 195, 150, "ALLOW", C.green, C.greenFill, { fontSize: 17 });
+  pill(e, "ask", 1470, 195, 150, "ASK", C.orange, C.orangeFill, { fontSize: 17 });
+  pill(e, "deny", 1385, 268, 150, "DENY", C.red, C.redFill, { fontSize: 17 });
+  e.push(arrow("policy-outcomes", 1192, 260, 1288, 260, { strokeColor: C.ink, strokeWidth: 3 }));
+
+  const layers = [
+    ["guide", "→", "GUIA", "orienta antes", "AGENTS.md · skill · ADR\ncontext map", C.purple, C.purpleFill],
+    ["sensor", "◎", "SENSOR", "observa e devolve sinal", "test · lint · typecheck\ntelemetria · visão", C.blue, C.blueFill],
+    ["gate", "▣", "GATE", "permite, pede ou nega", "CI obrigatório · policy\nbranch protection", C.green, C.greenFill],
+  ];
+  const layerX = [95, 670, 1245];
+  layers.forEach(([id, symbol, titleValue, subtitleValue, examples, color, fill], i) => {
+    e.push(rect(id, layerX[i], 405, 420, 245, { strokeColor: color, backgroundColor: fill, strokeWidth: 3 }));
+    iconBadge(e, id + "-icon", layerX[i] + 25, 440, 64, symbol, color, C.white, { fontSize: 24 });
+    e.push(text(id + "-title", layerX[i] + 115, 435, titleValue, { fontSize: 27, color }));
+    e.push(text(id + "-subtitle", layerX[i] + 115, 480, subtitleValue, { fontSize: 17, color: C.ink }));
+    e.push(centeredText(id + "-examples", layerX[i], 555, 420, examples, { fontSize: 16, color: C.muted }));
+    if (i < layers.length - 1) {
+      e.push(arrow(id + "-next", layerX[i] + 432, 528, layerX[i + 1] - 12, 528, { strokeColor: C.ink, strokeWidth: 2 }));
+    }
+  });
+
+  e.push(text("surfaces-label", 95, 710, "SUPERFÍCIES DE RISCO", { fontSize: 18, color: C.ink }));
+  const surfaces = [
+    ["shell", "$", "SHELL", "destruição · segredo"],
+    ["files", "F", "ARQUIVOS", "teste · política"],
+    ["git", "G", "GIT", "histórico · publicação"],
+    ["agents", "A", "SUBAGENTES", "cascata · custo"],
+  ];
+  const surfaceX = [95, 510, 925, 1340];
+  surfaces.forEach(([id, symbol, titleValue, subtitleValue], i) => {
+    iconBox(e, id, surfaceX[i], 760, 325, 100, symbol, titleValue, subtitleValue, C.red, C.white, {
+      iconSize: 48, textX: 82, titleY: 18, subtitleY: 56, titleSize: 19, subtitleSize: 14,
+    });
+  });
+
+  e.push(rect("authority", 180, 930, 1400, 95, { strokeColor: C.ink, backgroundColor: C.grayFill }));
+  pill(e, "floor", 220, 953, 300, "FLOOR · NÃO DESLIGA", C.red, C.white, { fontSize: 15 });
+  pill(e, "always", 730, 953, 300, "INTEGRIDADE · SEMPRE", C.orange, C.white, { fontSize: 15 });
+  pill(e, "rails", 1240, 953, 300, "RAILS · CONFIGURÁVEIS", C.green, C.white, { fontSize: 15 });
+});
+
+scene("11-review-em-camadas", 1650, 1000, (e, w) => {
+  heading(e, "Review em camadas", "Checks determinísticos primeiro; lentes independentes depois; ruído sob controle", w);
+
+  const centerX = 825;
+  const centerY = 520;
+  const lensCenters = [
+    [275, 310], [825, 270], [1375, 310],
+    [275, 700], [825, 750], [1375, 700],
+  ];
+  lensCenters.forEach(([x, y], i) => {
+    e.push(line("lens-line-" + i, centerX, centerY, x, y, { strokeColor: C.muted, strokeStyle: "dashed", strokeWidth: 2 }));
+  });
+
+  iconBox(e, "security", 90, 245, 370, 125, "!", "SEGURANÇA", "exploração viável?", C.red, C.redFill, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+  iconBox(e, "requirements", 640, 205, 370, 125, "R", "REQUISITOS", "tudo foi entregue?", C.orange, C.orangeFill, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+  iconBox(e, "tests", 1190, 245, 370, 125, "✓", "TESTES", "cobrem e discriminam?", C.blue, C.blueFill, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+  iconBox(e, "architecture", 90, 635, 370, 125, "A", "ARQUITETURA", "padrão novo sem decisão?", C.purple, C.purpleFill, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+  iconBox(e, "regression", 640, 685, 370, 125, "↻", "REGRESSÃO", "mudança sem relação?", C.purple, C.white, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+  iconBox(e, "performance", 1190, 635, 370, 125, "P", "PERFORMANCE", "regressão óbvia?", C.green, C.greenFill, {
+    iconSize: 52, textX: 90, titleY: 24, subtitleY: 70, titleSize: 21, subtitleSize: 15,
+  });
+
+  e.push(rect("review-center", 620, 420, 410, 200, { strokeColor: C.ink, backgroundColor: C.white, strokeWidth: 4 }));
+  iconBadge(e, "review-center-icon", 790, 445, 70, "PR", C.ink, C.grayFill, { fontSize: 20 });
+  e.push(centeredText("review-center-title", 620, 530, 410, "DIFF + EVIDÊNCIA", { fontSize: 26, color: C.ink }));
+  e.push(centeredText("review-center-subtitle", 620, 573, 410, "lint · types · testes antes do juízo", { fontSize: 16, color: C.muted }));
+
+  e.push(text("severity-label", 125, 875, "SEVERIDADE E ORÇAMENTO DE RUÍDO", { fontSize: 17, color: C.ink }));
+  pill(e, "blocker", 125, 915, 300, "BLOCKER · IMPEDE MERGE", C.red, C.redFill, { fontSize: 14 });
+  pill(e, "should-fix", 490, 915, 300, "SHOULD-FIX · DEFEITO", C.orange, C.orangeFill, { fontSize: 14 });
+  pill(e, "nit", 855, 915, 300, "NIT · COM TETO", C.blue, C.blueFill, { fontSize: 14 });
+  pill(e, "existing", 1220, 915, 300, "PRÉ-EXISTENTE · RESUMO", C.muted, C.grayFill, { fontSize: 14 });
+});
+
+console.log("Generated 11 editable Excalidraw scenes in", OUT);

@@ -1,0 +1,892 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T12:00:00.000Z",
+  "title": "Design System: Design Studio",
+  "extensions": {
+    "colorMeta": {
+      "acento": {
+        "role": "primary",
+        "displayName": "Laranja de Oficina",
+        "canonical": "oklch(68.1% 0.179 50.4)",
+        "tonalRamp": [
+          "#180500",
+          "#3d1801",
+          "#662d00",
+          "#934402",
+          "#c75e02",
+          "#fa7c1f",
+          "#feb891",
+          "#feeadf"
+        ]
+      },
+      "acento-suave": {
+        "role": "primary",
+        "displayName": "Laranja Lavado",
+        "canonical": "oklch(95.8% 0.023 61.2)",
+        "tonalRamp": [
+          "#120903",
+          "#2c2219",
+          "#493d34",
+          "#675b51",
+          "#8b7d73",
+          "#b0a296",
+          "#d6c8bc",
+          "#faebdf"
+        ]
+      },
+      "acento-tinta": {
+        "role": "primary",
+        "displayName": "Laranja Tinta",
+        "canonical": "oklch(51.8% 0.135 50.9)",
+        "tonalRamp": [
+          "#180600",
+          "#3d1800",
+          "#662d02",
+          "#934400",
+          "#be6528",
+          "#e78a50",
+          "#feb990",
+          "#ffeade"
+        ]
+      },
+      "sobre-acento": {
+        "role": "primary",
+        "displayName": "Tinta sobre Acento",
+        "canonical": "oklch(21.8% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "nota-likert": {
+        "role": "secondary",
+        "displayName": "Manteiga Likert",
+        "canonical": "oklch(93.2% 0.093 91.5)",
+        "tonalRamp": [
+          "#100a00",
+          "#2d2300",
+          "#4e3e01",
+          "#715b0e",
+          "#947e39",
+          "#baa35e",
+          "#e1c983",
+          "#ffeebc"
+        ]
+      },
+      "nota-voz": {
+        "role": "secondary",
+        "displayName": "Pêssego Voz",
+        "canonical": "oklch(89.8% 0.057 42.9)",
+        "tonalRamp": [
+          "#1a0400",
+          "#3a1a0c",
+          "#593527",
+          "#795344",
+          "#9e7665",
+          "#c49a89",
+          "#ecbfae",
+          "#feeae2"
+        ]
+      },
+      "nota-fullstory": {
+        "role": "secondary",
+        "displayName": "Menta FullStory",
+        "canonical": "oklch(91.9% 0.045 156.2)",
+        "tonalRamp": [
+          "#000f05",
+          "#0f2b1b",
+          "#2b4736",
+          "#486653",
+          "#6a8975",
+          "#8eae99",
+          "#b4d4be",
+          "#d7f8e2"
+        ]
+      },
+      "nota-tinta": {
+        "role": "secondary",
+        "displayName": "Tinta de Nota",
+        "canonical": "oklch(26.9% 0.017 91.8)",
+        "tonalRamp": [
+          "#0e0b04",
+          "#27241b",
+          "#434036",
+          "#615d53",
+          "#848075",
+          "#a8a499",
+          "#cecabf",
+          "#f2eee2"
+        ]
+      },
+      "critico": {
+        "role": "tertiary",
+        "displayName": "Vermelho Crítico",
+        "canonical": "oklch(53.5% 0.193 29.7)",
+        "tonalRamp": [
+          "#1f0000",
+          "#4b0100",
+          "#7c0501",
+          "#b10a02",
+          "#db4232",
+          "#ff7360",
+          "#feb6aa",
+          "#ffe9e5"
+        ]
+      },
+      "atencao": {
+        "role": "tertiary",
+        "displayName": "Amarelo Atenção",
+        "canonical": "oklch(91.4% 0.111 90.3)",
+        "tonalRamp": [
+          "#100a00",
+          "#2e2200",
+          "#4f3d01",
+          "#735a03",
+          "#9a7d21",
+          "#bfa14b",
+          "#e6c872",
+          "#ffeebf"
+        ]
+      },
+      "observar": {
+        "role": "tertiary",
+        "displayName": "Cinza Observar",
+        "canonical": "oklch(94.3% 0.003 106.5)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#80807e",
+          "#a5a5a3",
+          "#cacac9",
+          "#eeeeec"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Verde Ok",
+        "canonical": "oklch(56.3% 0.119 158.9)",
+        "tonalRamp": [
+          "#000f06",
+          "#012c19",
+          "#004d2f",
+          "#047046",
+          "#2f9566",
+          "#59bb89",
+          "#81e2ae",
+          "#c4ffdc"
+        ]
+      },
+      "quadro": {
+        "role": "neutral",
+        "displayName": "Quadro",
+        "canonical": "oklch(97.3% 0.003 106.4)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#80807e",
+          "#a5a5a3",
+          "#cacac9",
+          "#eeeeec"
+        ]
+      },
+      "ponto": {
+        "role": "neutral",
+        "displayName": "Ponto do Quadro",
+        "canonical": "oklch(89.3% 0.008 106.6)",
+        "tonalRamp": [
+          "#0b0b08",
+          "#242420",
+          "#40403b",
+          "#5e5e59",
+          "#81817b",
+          "#a5a59f",
+          "#cbcbc5",
+          "#efefe9"
+        ]
+      },
+      "superficie": {
+        "role": "neutral",
+        "displayName": "Superfície",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "superficie-2": {
+        "role": "neutral",
+        "displayName": "Superfície 2",
+        "canonical": "oklch(97.6% 0.003 106.4)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#80807e",
+          "#a5a5a3",
+          "#cacac9",
+          "#eeeeec"
+        ]
+      },
+      "superficie-3": {
+        "role": "neutral",
+        "displayName": "Superfície 3",
+        "canonical": "oklch(95.1% 0.004 106.5)",
+        "tonalRamp": [
+          "#0b0b09",
+          "#242422",
+          "#40403d",
+          "#5e5e5b",
+          "#80807e",
+          "#a5a5a2",
+          "#cbcbc8",
+          "#efefec"
+        ]
+      },
+      "borda": {
+        "role": "neutral",
+        "displayName": "Borda",
+        "canonical": "oklch(92.4% 0.007 106.5)",
+        "tonalRamp": [
+          "#0b0b08",
+          "#242421",
+          "#40403c",
+          "#5e5e5a",
+          "#80807c",
+          "#a5a5a0",
+          "#cbcbc6",
+          "#efefea"
+        ]
+      },
+      "borda-forte": {
+        "role": "neutral",
+        "displayName": "Borda Forte",
+        "canonical": "oklch(85.3% 0.010 106.6)",
+        "tonalRamp": [
+          "#0c0b07",
+          "#24241f",
+          "#40403a",
+          "#5e5e58",
+          "#81817a",
+          "#a5a59e",
+          "#cbcbc4",
+          "#efefe8"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(21.8% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "tinta-2": {
+        "role": "neutral",
+        "displayName": "Tinta 2",
+        "canonical": "oklch(39.9% 0.015 107.0)",
+        "tonalRamp": [
+          "#0c0c05",
+          "#25251c",
+          "#404038",
+          "#5e5e55",
+          "#818177",
+          "#a5a59b",
+          "#cbcbc1",
+          "#efefe4"
+        ]
+      },
+      "tinta-3": {
+        "role": "neutral",
+        "displayName": "Tinta 3",
+        "canonical": "oklch(48.0% 0.011 106.8)",
+        "tonalRamp": [
+          "#0c0b07",
+          "#24241e",
+          "#40403a",
+          "#5e5e57",
+          "#818179",
+          "#a5a59d",
+          "#cbcbc3",
+          "#efefe7"
+        ]
+      },
+      "escuro-quadro": {
+        "role": "neutral",
+        "displayName": "Quadro (escuro)",
+        "canonical": "oklch(18.6% 0.002 106.6)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403f",
+          "#5e5e5c",
+          "#80807f",
+          "#a5a5a3",
+          "#cacac9",
+          "#eeeeed"
+        ]
+      },
+      "escuro-acento": {
+        "role": "primary",
+        "displayName": "Laranja de Oficina (escuro)",
+        "canonical": "oklch(72.4% 0.187 48.9)",
+        "tonalRamp": [
+          "#180500",
+          "#3d1701",
+          "#672c01",
+          "#954200",
+          "#c95c01",
+          "#fe7918",
+          "#ffb892",
+          "#feeadf"
+        ]
+      },
+      "escuro-tinta": {
+        "role": "neutral",
+        "displayName": "Tinta (escuro)",
+        "canonical": "oklch(96.0% 0.005 106.5)",
+        "tonalRamp": [
+          "#0b0b09",
+          "#242421",
+          "#40403d",
+          "#5e5e5a",
+          "#80807d",
+          "#a5a5a1",
+          "#cbcbc7",
+          "#efefeb"
+        ]
+      },
+      "escuro-tinta-3": {
+        "role": "neutral",
+        "displayName": "Tinta 3 (escuro)",
+        "canonical": "oklch(66.4% 0.012 106.7)",
+        "tonalRamp": [
+          "#0c0c06",
+          "#25241e",
+          "#404039",
+          "#5e5e57",
+          "#818179",
+          "#a5a59d",
+          "#cbcbc3",
+          "#efefe6"
+        ]
+      },
+      "graf-enfase": {
+        "role": "data",
+        "displayName": "Ênfase do Gráfico",
+        "canonical": "oklch(68.1% 0.179 50.4)",
+        "tonalRamp": [
+          "#1f0000",
+          "#420c00",
+          "#672000",
+          "#903400",
+          "#b84d00",
+          "#e16600",
+          "#ffa062",
+          "#ffe7d4"
+        ],
+        "note": "Série ou categoria em foco, uma por gráfico."
+      },
+      "graf-enfase-lavada": {
+        "role": "data",
+        "displayName": "Ênfase Lavada",
+        "canonical": "rgba(236, 112, 0, 0.38)",
+        "note": "Resto de uma barra partida pelo filtro de Dor."
+      },
+      "graf-contexto": {
+        "role": "data",
+        "displayName": "Contexto do Gráfico",
+        "canonical": "oklch(64.8% 0.010 106.7)",
+        "tonalRamp": [
+          "#0c0b07",
+          "#22221c",
+          "#3b3b35",
+          "#56564f",
+          "#72726b",
+          "#909089",
+          "#bebeb7",
+          "#efefe7"
+        ],
+        "note": "Todas as outras séries; reprovação de croma mínimo proposital (forma de ênfase)."
+      },
+      "graf-area": {
+        "role": "data",
+        "displayName": "Área de Ênfase",
+        "canonical": "rgba(236, 112, 0, 0.10)",
+        "note": "Lavagem sob a linha em foco."
+      },
+      "escuro-graf-enfase": {
+        "role": "data",
+        "displayName": "Ênfase do Gráfico (escuro)",
+        "canonical": "oklch(66.1% 0.174 50.2)",
+        "tonalRamp": [
+          "#1f0000",
+          "#450700",
+          "#662100",
+          "#8f3500",
+          "#bd4800",
+          "#df6800",
+          "#ffa166",
+          "#ffe7d5"
+        ]
+      },
+      "escuro-graf-contexto": {
+        "role": "data",
+        "displayName": "Contexto do Gráfico (escuro)",
+        "canonical": "oklch(57.7% 0.010 106.7)",
+        "tonalRamp": [
+          "#0c0b07",
+          "#22221c",
+          "#3b3b35",
+          "#56564f",
+          "#72726b",
+          "#909088",
+          "#bebeb7",
+          "#efefe7"
+        ]
+      },
+      "marca-claude": {
+        "role": "brand-third-party",
+        "displayName": "Marca Claude",
+        "canonical": "oklch(67.2% 0.131 38.8)",
+        "tonalRamp": [
+          "#210000",
+          "#470100",
+          "#6e1300",
+          "#8f3412",
+          "#b05233",
+          "#d17050",
+          "#ff9f7e",
+          "#ffe6db"
+        ],
+        "note": "Cor da logo oficial do Claude; só dentro do ladrilho de logo, não é acento."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Saudação do Início em Bricolage Grotesque."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de página (Protótipos, Dores, Relatórios)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de folha lateral; base dos cabeçalhos de conversa e rótulos de linha do canvas."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Toda a interface, Geist 15px com numerais tabulares."
+      },
+      "body-lead": {
+        "displayName": "Body Lead",
+        "purpose": "Subtítulo da saudação e texto do campo do chat no Início."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Rótulos de seção, títulos de menu e pílulas; nunca em caixa-alta."
+      },
+      "nota": {
+        "displayName": "Nota",
+        "purpose": "Título da nota autoadesiva, até 3 linhas."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sombra-1 (repouso)",
+        "value": "0 1px 2px rgba(24,24,18,0.06), 0 1px 1px rgba(24,24,18,0.04)",
+        "dark": "0 1px 2px rgba(0,0,0,0.4)",
+        "purpose": "Botão secundário, painéis, cartões de frame, segmento ativo."
+      },
+      {
+        "name": "sombra-2 (flutuante)",
+        "value": "0 8px 24px rgba(24,24,18,0.08), 0 2px 6px rgba(24,24,18,0.05)",
+        "dark": "0 10px 28px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3)",
+        "purpose": "Campo do chat, barras flutuantes do canvas, hover de cartão."
+      },
+      {
+        "name": "sombra-3 (sobreposto)",
+        "value": "0 28px 64px rgba(24,24,18,0.16), 0 8px 20px rgba(24,24,18,0.08)",
+        "dark": "0 30px 70px rgba(0,0,0,0.6), 0 8px 20px rgba(0,0,0,0.35)",
+        "purpose": "Menus, folhas, painéis de edição, balões de comentário, toasts."
+      },
+      {
+        "name": "sombra-nota (papel colado)",
+        "value": "0 1px 1px rgba(20,20,18,0.08), 0 10px 18px -8px rgba(20,20,18,0.26)",
+        "dark": "0 1px 1px rgba(0,0,0,0.3), 0 12px 20px -8px rgba(0,0,0,0.6)",
+        "purpose": "Notas autoadesivas; no hover 0 1px 1px rgba(20,20,18,0.1), 0 18px 26px -10px rgba(20,20,18,0.32)."
+      },
+      {
+        "name": "aparelho",
+        "value": "0 30px 60px rgba(20,20,15,0.18), 0 6px 16px rgba(20,20,15,0.1)",
+        "dark": "0 30px 70px rgba(0,0,0,0.6), 0 0 0 1px #2e2e2c",
+        "purpose": "Molduras de aparelho e janelas no canvas."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Ease-out exponencial de todas as transições."
+      },
+      {
+        "name": "estado",
+        "value": "0.15s",
+        "purpose": "Hover e clique de botões, campos, enviar."
+      },
+      {
+        "name": "painel",
+        "value": "0.16s–0.22s",
+        "purpose": "Menus surgem (translateY 4px + scale 0.98), lateral recolhe, notas se endireitam, mensagens entram."
+      },
+      {
+        "name": "folha",
+        "value": "0.28s",
+        "purpose": "Folha lateral entra deslizando 30px."
+      },
+      {
+        "name": "frame-entra",
+        "value": "0.42s",
+        "purpose": "Frame entra com translateY 18px e scale 0.97."
+      },
+      {
+        "name": "mundo-anima",
+        "value": "0.45s",
+        "purpose": "Câmera do canvas enquadra um alvo."
+      },
+      {
+        "name": "cursor-agente",
+        "value": "0.62s",
+        "purpose": "Cursor do agente desliza até o elemento em edição."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.001ms",
+        "purpose": "Tudo colapsa sob prefers-reduced-motion."
+      },
+      {
+        "name": "pulso-frame",
+        "value": "0.9s cubic-bezier(0.16, 1, 0.3, 1), uma vez",
+        "purpose": "O frame que o agente acabou de mudar pulsa uma vez: outline de 4px no acento, contra-escalado por --z, se afasta de 0 a 26px e some. Com movimento reduzido, anel fixo de 4px a 6px de distância."
+      },
+      {
+        "name": "vaga-gerando",
+        "value": "1.1s linear, em loop enquanto gera",
+        "purpose": "Brilho que varre a vaga do Inserir (e o elemento em geração); é indicador de carregamento, some sob movimento reduzido."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "ferramentas-compactas",
+        "value": "1400px"
+      },
+      {
+        "name": "laptop",
+        "value": "1180px"
+      },
+      {
+        "name": "celular",
+        "value": "820px"
+      }
+    ],
+    "contentLayers": {
+      "prototipo": {
+        "scope": ".pt (proto.css / protos.js)",
+        "note": "App bancário fictício dentro das molduras, vestido o mais perto possível do IDS do Itaú (tema varejo); tokens lidos das variáveis --ids_* de itau.com.br, nome IDS em comentário em cada token. Não faz parte dos tokens do estúdio. Dentro do banco, o iu-memorable troca esta camada no porte.",
+        "font": "'Itau Text' / 'Itau Display' (só se instaladas), depois Lato 400/700/900 servida localmente",
+        "tokens": {
+          "pt-ink": "#000000",
+          "pt-muted": "#4C4C4C",
+          "pt-line": "#CFD1D3",
+          "pt-line-strong": "#5D636F",
+          "pt-bg": "#F1F2F4",
+          "pt-bg-2": "#E3E5E8",
+          "pt-surface": "#FFFFFF",
+          "pt-primary": "#FF6200",
+          "pt-primary-hover": "#E55800",
+          "pt-on-primary": "#FFFFFF",
+          "pt-icone": "#E55800",
+          "pt-secondary": "#000066",
+          "pt-secondary-hover": "#000D3C",
+          "pt-ok": "#0B5B38",
+          "pt-danger": "#CC0000",
+          "pt-alert": "#FFCC00",
+          "pt-disabled": "#CFD1D3",
+          "pt-disabled-ink": "#999999",
+          "pt-focus": "#000066",
+          "pt-radius": "16px",
+          "pt-radius-btn": "12px",
+          "pt-radius-tag": "4px",
+          "pt-ease": "cubic-bezier(0.4, 0, 0.6, 1)"
+        },
+        "anatomy": {
+          "button-primary": "#FF6200, rótulo branco 700 20px/26px, min-height 50px, 12px de canto",
+          "button-ghost": "branco, borda e texto #000066",
+          "card": "borda 1px, 16px de canto, sem sombra",
+          "tag": "4px de canto",
+          "period-month": "8px de canto; selecionado em #000066 cheio",
+          "input": "só borda inferior #5D636F; foco 2px #FF6200",
+          "goal-card": "#000066 com texto branco"
+        },
+        "contrastException": "Branco sobre #FF6200 = 3,0:1; passa AA só como texto grande (20px bold). Vale só nos frames, nunca no estúdio. Botão desabilitado abaixo de 3:1, isento pela WCAG.",
+        "deviceFrameRule": "Status e cabeçalho sticky com flex: none; box-shadow 0 3px 0 var(--pt-surface) sob a barra de status fecha a emenda de subpixel em zoom fracionário.",
+        "insertedElements": ".pt-ins-* (aviso info/alerta/erro, link, ajuda, detalhe, campo, etapas, resumo, ações) com os mesmos tokens"
+      }
+    },
+    "constraints": [
+      "WCAG 2.2 AA com folga para projeção; tinta-3 ≥4.5:1 inclusive sobre o ponto do canvas.",
+      "Interface somente em pt-BR.",
+      "Dados sintéticos sempre rotulados \"Dados de exemplo\".",
+      "Protótipo local; nunca publicado como link público.",
+      "Nenhum azul na interface do estúdio (o azul-marinho do IDS fica só dentro das molduras); nenhum logotipo, nome ou fonte de banco; marca na tela é \"Design Studio\".",
+      "Exceção de contraste escopada: branco sobre #FF6200 só no botão primário do IDS dentro das molduras (3,0:1, texto grande)."
+    ],
+    "dataviz": {
+      "form": "ênfase: uma série graf-enfase contra graf-contexto; nunca paleta categórica",
+      "validation": {
+        "tool": "dataviz validate_palette",
+        "light": {
+          "pair": [
+            "#ec7000",
+            "#8f8f88"
+          ],
+          "surface": "#ffffff",
+          "band": "PASS",
+          "cvdDeltaE": 12.3,
+          "normalDeltaE": 17.7,
+          "contrast": ">=3:1"
+        },
+        "dark": {
+          "pair": [
+            "#e36b00",
+            "#7a7a73"
+          ],
+          "surface": "#1b1b1a",
+          "cvdDeltaE": 11.2,
+          "normalDeltaE": 18.8
+        },
+        "knownFail": "croma mínimo do cinza de contexto, proposital"
+      },
+      "marks": {
+        "bar": "20px de altura, no máximo 74% do trilho, ponta do dado com 4px de canto",
+        "line": "2px, junções redondas, pontos com halo de 2px em superfície",
+        "grid": "horizontal, 1px em borda; linha de base em borda forte",
+        "area": "graf-area sob a série em foco"
+      },
+      "behavior": [
+        "um só eixo de valores",
+        "tabela gêmea em todo gráfico (Ver tabela)",
+        "mira vertical + dica; setas, Home e End percorrem as semanas",
+        "filtro acima: período (90/60/30 dias) e Dor, com Limpar filtro",
+        "títulos de gráfico h2, de insight h3",
+        "corpo do insight até 34em, resumo até 36em"
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal: laranja com tinta escura.",
+      "html": "<button class=\"ds-btn ds-btn-pri\">Criar Protótipo</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;border:1px solid transparent;padding:9px 15px;font:600 0.9375rem/1.2 'Geist','Segoe UI',system-ui,sans-serif;transition:background .15s,transform .15s;cursor:pointer}.ds-btn:active{transform:translateY(1px)}.ds-btn:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}.ds-btn-pri{background:var(--acento,#ec7000);color:var(--sobre-acento,#1a1a1a)}.ds-btn-pri:hover{background:var(--acento-hover,#d96600)}.ds-btn-pri:active{background:var(--acento-press,#c45c00)}"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação alternativa: superfície com borda forte e sombra de repouso.",
+      "html": "<button class=\"ds-btn-sec\">Compartilhar</button>",
+      "css": ".ds-btn-sec{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:9px 15px;font:600 0.9375rem/1.2 'Geist','Segoe UI',system-ui,sans-serif;background:var(--superficie,#fff);color:var(--tinta,#1a1a1a);border:1px solid var(--borda-forte,#cfcfc8);box-shadow:0 1px 2px rgba(24,24,18,.06),0 1px 1px rgba(24,24,18,.04);transition:background .15s,transform .15s;cursor:pointer}.ds-btn-sec:hover{background:var(--superficie-2,#f7f7f5)}.ds-btn-sec:active{transform:translateY(1px)}.ds-btn-sec:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}"
+    },
+    {
+      "name": "Campo do chat",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "Cartão largo de 24px com texto, seletor e enviar laranja.",
+      "html": "<div class=\"ds-cmp\"><textarea class=\"ds-cmp-txt\" placeholder=\"Peça uma mudança, cite uma Dor com @…\"></textarea><div class=\"ds-cmp-bar\"><span class=\"ds-pill\">Claude <span style=\"color:#5e5e57;font-weight:400\">Sonnet</span></span><span style=\"flex:1\"></span><button class=\"ds-cmp-send\" aria-label=\"Enviar\"><svg viewBox=\"0 0 24 24\" width=\"19\" height=\"19\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"/></svg></button></div></div>",
+      "css": ".ds-cmp{background:var(--superficie,#fff);border:1px solid var(--borda,#e6e6e1);border-radius:24px;box-shadow:0 8px 24px rgba(24,24,18,.08),0 2px 6px rgba(24,24,18,.05);padding:12px 12px 10px;display:grid;gap:8px;max-width:620px;font-family:'Geist','Segoe UI',system-ui,sans-serif;transition:border-color .15s}.ds-cmp:focus-within{border-color:var(--borda-forte,#cfcfc8)}.ds-cmp-txt{border:0;outline:none;resize:none;background:transparent;padding:8px;font:400 1.0625rem/1.5 inherit;min-height:84px;color:var(--tinta,#1a1a1a)}.ds-cmp-txt::placeholder{color:var(--tinta-3,#5e5e57)}.ds-cmp-bar{display:flex;align-items:center;gap:6px}.ds-pill{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--borda,#e6e6e1);background:var(--superficie-2,#f7f7f5);font-weight:500;font-size:.875rem}.ds-cmp-send{width:38px;height:38px;border-radius:50%;border:0;background:var(--acento,#ec7000);color:var(--sobre-acento,#1a1a1a);display:grid;place-items:center;cursor:pointer;transition:background .15s}.ds-cmp-send:hover{background:var(--acento-hover,#d96600)}.ds-cmp-send:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}"
+    },
+    {
+      "name": "Navegação lateral",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Itens da lateral; atual em laranja lavado.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-i\" href=\"#\" aria-current=\"page\">Início</a><a class=\"ds-nav-i\" href=\"#\">Protótipos</a><a class=\"ds-nav-i\" href=\"#\">Dores</a><a class=\"ds-nav-i\" href=\"#\">Relatórios</a></nav>",
+      "css": ".ds-nav{display:grid;gap:2px;width:240px;padding:12px;background:var(--superficie,#fff);font-family:'Geist','Segoe UI',system-ui,sans-serif}.ds-nav-i{display:flex;align-items:center;padding:8px 12px;border-radius:10px;text-decoration:none;color:var(--tinta-2,#48483f);font-weight:500;font-size:.9375rem}.ds-nav-i:hover{background:var(--superficie-2,#f7f7f5);color:var(--tinta,#1a1a1a)}.ds-nav-i[aria-current=page]{background:var(--acento-suave,#fdeee2);color:var(--tinta,#1a1a1a);font-weight:600}.ds-nav-i:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}"
+    },
+    {
+      "name": "Pílulas de impacto",
+      "kind": "chip",
+      "refersTo": "impact-high",
+      "description": "Alto, Médio e Baixo.",
+      "html": "<span class=\"ds-imp ds-alto\">Alto</span> <span class=\"ds-imp ds-medio\">Médio</span> <span class=\"ds-imp ds-baixo\">Baixo</span>",
+      "css": ".ds-imp{display:inline-flex;align-items:center;font:600 .75rem/1 'Geist','Segoe UI',system-ui,sans-serif;padding:5px 8px 5px 7px;border-radius:999px}.ds-alto{background:var(--critico,#c4291c);color:#fff}.ds-medio{background:var(--atencao,#ffe08a);color:var(--atencao-tinta,#614300)}.ds-baixo{background:var(--observar,#ececea);color:var(--observar-tinta,#4c4c47)}"
+    },
+    {
+      "name": "Nota autoadesiva",
+      "kind": "card",
+      "refersTo": "sticky-note-voz",
+      "description": "Dor colada no quadro, cor da Fonte, levemente girada.",
+      "html": "<button class=\"ds-nota\" style=\"--r:-1.8deg\"><span class=\"ds-nota-t\">Minha transação de câmbio estornou e não sei o motivo</span><span class=\"ds-nota-pe\">1.284 ligações · Alto</span></button>",
+      "css": ".ds-nota{width:200px;min-height:140px;padding:13px 14px 12px;border:0;border-radius:3px;background:var(--nota-voz,#ffd2c0);color:var(--nota-tinta,#29261d);text-align:left;display:flex;flex-direction:column;gap:10px;font-family:'Geist','Segoe UI',system-ui,sans-serif;box-shadow:0 1px 1px rgba(20,20,18,.08),0 10px 18px -8px rgba(20,20,18,.26);transform:rotate(var(--r,0deg));transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s cubic-bezier(.16,1,.3,1);cursor:pointer}.ds-nota:hover{transform:rotate(0) translateY(-3px);box-shadow:0 1px 1px rgba(20,20,18,.1),0 18px 26px -10px rgba(20,20,18,.32)}.ds-nota:focus-visible{outline:2.5px solid var(--acento,#ec7000);outline-offset:3px}.ds-nota-t{font-weight:600;font-size:.9375rem;line-height:1.32}.ds-nota-pe{margin-top:auto;font-size:.75rem;font-weight:500}"
+    },
+    {
+      "name": "Barra flutuante do canvas",
+      "kind": "custom",
+      "refersTo": "floating-toolbar",
+      "description": "Ferramentas na base do canvas; ativa invertida, Testar em laranja.",
+      "html": "<div class=\"ds-barra\"><button class=\"ds-ferr\" aria-pressed=\"true\">Mover</button><button class=\"ds-ferr\">Comentar</button><button class=\"ds-ferr\">Editar</button><span class=\"ds-sep\"></span><button class=\"ds-ferr ds-ferr-pri\">Testar</button></div>",
+      "css": ".ds-barra{display:inline-flex;align-items:center;gap:4px;padding:4px;border-radius:14px;background:var(--superficie,#fff);border:1px solid var(--borda,#e6e6e1);box-shadow:0 8px 24px rgba(24,24,18,.08),0 2px 6px rgba(24,24,18,.05);font-family:'Geist','Segoe UI',system-ui,sans-serif}.ds-ferr{height:34px;padding:0 9px;border:0;border-radius:10px;background:transparent;color:var(--tinta-2,#48483f);font-weight:500;font-size:.8125rem;cursor:pointer}.ds-ferr:hover{background:var(--superficie-3,#efefec);color:var(--tinta,#1a1a1a)}.ds-ferr[aria-pressed=true]{background:var(--tinta,#1a1a1a);color:var(--superficie,#fff)}.ds-ferr-pri{background:var(--acento,#ec7000);color:var(--sobre-acento,#1a1a1a);font-weight:600}.ds-ferr-pri:hover{background:var(--acento-hover,#d96600)}.ds-ferr:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}.ds-sep{width:1px;height:20px;background:var(--borda,#e6e6e1);margin:0 2px}"
+    },
+    {
+      "name": "Cursor do agente",
+      "kind": "custom",
+      "refersTo": "agent-cursor-label",
+      "description": "Seta e rótulo laranja com o nome do agente.",
+      "html": "<div class=\"ds-cursor\"><svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\"><path d=\"M4 3l15 7-6.6 2.1L10 19z\" fill=\"#ec7000\" stroke=\"#fff\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg><span>Claude</span></div>",
+      "css": ".ds-cursor{display:inline-flex;align-items:flex-start;gap:4px;font-family:'Geist','Segoe UI',system-ui,sans-serif}.ds-cursor svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}.ds-cursor span{margin-top:22px;background:var(--acento,#ec7000);color:var(--sobre-acento,#1a1a1a);font-weight:600;font-size:15px;padding:4px 10px;border-radius:999px 999px 999px 4px;box-shadow:0 4px 10px rgba(0,0,0,.15)}"
+    },
+    {
+      "name": "Logo do agente",
+      "kind": "custom",
+      "refersTo": "agent-logo",
+      "description": "Marca oficial do agente num ladrilho neutro de 24px; 40px nas Configurações.",
+      "html": "<span class=\"ds-ag\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"#D97757\" d=\"M12 2.5l1.6 6.2 5.9-2.5-4.3 4.8 6.3 1-6.3 1 4.3 4.8-5.9-2.5L12 21.5l-1.6-6.2-5.9 2.5 4.3-4.8-6.3-1 6.3-1-4.3-4.8 5.9 2.5z\"/></svg></span> <span class=\"ds-ag ds-ag-g\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"#D97757\" d=\"M12 2.5l1.6 6.2 5.9-2.5-4.3 4.8 6.3 1-6.3 1 4.3 4.8-5.9-2.5L12 21.5l-1.6-6.2-5.9 2.5 4.3-4.8-6.3-1 6.3-1-4.3-4.8 5.9 2.5z\"/></svg></span>",
+      "css": ".ds-ag{width:24px;height:24px;border-radius:8px;display:inline-grid;place-items:center;vertical-align:middle;background:var(--superficie,#fff);border:1px solid var(--borda,#e6e6e1)}.ds-ag svg{width:15px;height:15px;display:block}.ds-ag-g{width:40px;height:40px;border-radius:12px}.ds-ag-g svg{width:24px;height:24px}",
+      "note": "Glifo simplificado só para a prévia; o produto usa o path oficial de MARCAS em core.js."
+    },
+    {
+      "name": "Barras por categoria",
+      "kind": "custom",
+      "refersTo": "chart-bar-emphasis",
+      "description": "Uma categoria em ênfase laranja, as outras em cinza de contexto; barra até 74% do trilho.",
+      "html": "<div class=\"ds-gb\"><button class=\"ds-gb-l on\" aria-pressed=\"true\"><span>Status e avisos</span><span class=\"ds-gb-t\"><i style=\"width:74%\"></i><b>1.796 · 69%</b></span></button><button class=\"ds-gb-l\" aria-pressed=\"false\"><span>Cotação e taxas</span><span class=\"ds-gb-t\"><i style=\"width:16%\"></i><b>388 · 15%</b></span></button><button class=\"ds-gb-l\" aria-pressed=\"false\"><span>Cadastro do beneficiário</span><span class=\"ds-gb-t\"><i style=\"width:10%\"></i><b>241 · 9%</b></span></button></div>",
+      "css": ".ds-gb{display:grid;gap:2px;max-width:520px;font-family:'Geist','Segoe UI',system-ui,sans-serif}.ds-gb-l{display:grid;grid-template-columns:minmax(120px,36%) minmax(0,1fr);gap:12px;align-items:center;padding:6px 8px;border:0;background:none;border-radius:10px;text-align:left;color:var(--tinta,#1a1a1a);font-size:.875rem;font-weight:500;cursor:pointer;transition:background .15s}.ds-gb-l:hover{background:var(--superficie-2,#f7f7f5)}.ds-gb-l:focus-visible{outline:2px solid var(--tinta,#1a1a1a);outline-offset:2px}.ds-gb-l.on{font-weight:600}.ds-gb-t{display:flex;align-items:center;height:24px;min-width:0}.ds-gb-t i{height:20px;flex:none;background:var(--graf-contexto,#8f8f88);border-radius:0 4px 4px 0}.ds-gb-l.on .ds-gb-t i{background:var(--graf-enfase,#ec7000)}.ds-gb-t b{margin-left:8px;font-size:.8125rem;font-weight:400;color:var(--tinta-2,#48483f);font-variant-numeric:tabular-nums;white-space:nowrap}"
+    },
+    {
+      "name": "Mira e vaga do Inserir",
+      "kind": "custom",
+      "refersTo": "insert-slot",
+      "description": "Linha laranja com pílula invertida marca onde entra o novo bloco; a vaga tracejada reserva o espaço enquanto o agente gera.",
+      "html": "<div class=\"ds-ins\"><div class=\"ds-mira\"><span>Inserir depois do bloco “Beneficiário”</span></div><div class=\"ds-vaga\">Gerando Variante 2 de 3…</div></div>",
+      "css": ".ds-ins{display:grid;gap:28px;max-width:320px;padding:24px 8px 8px;font-family:'Geist','Segoe UI',system-ui,sans-serif}.ds-mira{position:relative;border-top:2px solid var(--acento,#ec7000)}.ds-mira::before{content:'';position:absolute;left:-8px;top:-8px;width:14px;height:14px;border-radius:50%;background:var(--acento,#ec7000);box-shadow:0 0 0 2px var(--superficie,#fff)}.ds-mira span{position:absolute;left:12px;bottom:6px;background:var(--toast,#1a1a1a);color:var(--superficie,#fff);font:500 .75rem/1.4 'Geist',system-ui,sans-serif;padding:3px 9px;border-radius:999px;white-space:nowrap}.ds-vaga{display:grid;place-items:center;min-height:96px;border:2px dashed var(--acento,#ec7000);border-radius:12px;background:rgba(236,112,0,.06);color:var(--acento-tinta,#a34c00);font:600 14px/1.3 'Geist',system-ui,sans-serif;position:relative;overflow:hidden}.ds-vaga::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.7) 50%,transparent 80%);background-size:200% 100%;animation:ds-brilho 1.1s linear infinite}@keyframes ds-brilho{from{background-position:150% 0}to{background-position:-50% 0}}@media (prefers-reduced-motion:reduce){.ds-vaga::after{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Quadro de oficina",
+    "overview": "O Design Studio é um quadro de workshop moderno, da família de FigJam e Miro, em que o cliente real está presente. A cena-base é um canvas pontilhado neutro e infinito; sobre ele ficam painéis lisos com sombra suave, telas dentro de molduras de aparelho com rótulo acima, e as Dores coladas como notas autoadesivas levemente giradas, uma cor por Fonte. O agente não é uma caixa de chat: é um colega no mesmo quadro, com cursor laranja e nome, que desliza até o elemento que está criando enquanto a resposta é escrita na lateral.\n\nA densidade é de ferramenta de trabalho, não de vitrine: interface em Geist a 15px, cinzas quentes quase neutros, bordas finas e cantos generosos. A única cor de marca é o laranja da família Itaú, reservado para ação principal, seleção e o cursor do agente, sempre com tinta escura por cima. As cores pastel das notas não são decoração: elas codificam a Fonte da Evidência (Likert, Voz do Cliente, FullStory). Abre no tema claro (projetor e tela compartilhada); o tema escuro serve sessões longas no notebook e mantém a mesma gramática.\n\nO mundo recusa a tela de chat genérica de IA (prompt num vazio creme, brilhos de \"mágica\") e recusa o dashboard; mesmo os Gráficos do Relatório falam em forma de ênfase, uma série laranja contra contexto cinza. Nenhum azul aparece na interface do estúdio, e nenhum logotipo, nome ou fonte de banco é usado: a marca na tela é \"Design Studio\". Os Protótipos exibidos dentro das molduras pertencem a uma camada de conteúdo separada que imita o design system do Itaú (IDS), com o azul-marinho e o laranja #FF6200 do banco e Lato no lugar das fontes proprietárias (ver Components, \"Camada do Protótipo\"). Ela termina na borda da tela do aparelho: nada dela sobe para o estúdio.",
+    "keyCharacteristics": [
+      "Canvas pontilhado infinito como chão de todas as vistas de trabalho e do Início.",
+      "Um único acento laranja, raro, com tinta escura por cima; nenhum azul.",
+      "Notas autoadesivas por Fonte (manteiga, pêssego, menta), giradas entre -1.8° e 1.8°, que se endireitam ao passar o mouse.",
+      "Telas em molduras de aparelho com rótulos no estilo Figma, contra-escalados pelo zoom.",
+      "O agente como presença física: cursor nomeado, conectores tracejados ligando Dor e tela.",
+      "Painéis lisos, sombra suave e difusa, sem brilho, sem gradiente decorativo.",
+      "Gráficos em forma de ênfase: uma série laranja contra cinza quente, um só eixo e sempre uma tabela gêmea.",
+      "WCAG 2.2 AA com folga para projeção, interface só em pt-BR, dados sintéticos sempre rotulados \"Dados de exemplo\"."
+    ],
+    "rules": [
+      {
+        "name": "The Tinta Escura no Laranja Rule",
+        "body": "Todo elemento do estúdio com fundo laranja leva tinta escura (sobre-acento). Branco sobre laranja não passa AA em texto comum e não existe na interface do estúdio. A única exceção do produto é o botão primário do IDS dentro das molduras (ver Camada do Protótipo), e ela não sai de lá.",
+        "section": "colors"
+      },
+      {
+        "name": "The Laranja Raro Rule",
+        "body": "O laranja marca só três coisas: a ação principal, o que está selecionado e o agente. Se um laranja não for nenhuma das três, ele sai.",
+        "section": "colors"
+      },
+      {
+        "name": "The Nenhum Azul Rule",
+        "body": "Não há azul em lugar nenhum da interface do estúdio, nem em links, foco, informação ou gráficos. Foco é contorno em tinta; links herdam a cor do texto. O azul-marinho do IDS existe só dentro da tela do aparelho, como conteúdo do Protótipo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Uma Cor por Fonte Rule",
+        "body": "Manteiga é Likert, pêssego é Voz do Cliente, menta é FullStory. Essas cores não servem para status, categoria ou decoração.",
+        "section": "colors"
+      },
+      {
+        "name": "The Uma Série Laranja Rule",
+        "body": "Um gráfico tem uma série em ênfase e todo o resto em cinza de contexto. Categoria nunca vira arco-íris: trocar a ênfase é tocar em outra categoria, não pintar mais uma.",
+        "section": "colors"
+      },
+      {
+        "name": "The Bricolage Só Fala Rule",
+        "body": "Bricolage Grotesque aparece em saudações, títulos e rótulos de linha do canvas. Nunca em botões, campos, listas ou corpo.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rótulo Sem Grito Rule",
+        "body": "Rótulos são Geist 600 em caixa normal. Não há rótulos em caixa-alta espaçada nem sobrelinhas acima de títulos.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rótulo Contra-escalado Rule",
+        "body": "Rótulos de frame, de linha e de coluna de notas no canvas dividem tamanho e espaçamento por `--z` (zoom, com piso em 0.42), para manter tamanho de leitura constante em qualquer zoom. Conectores usam traço que não escala.",
+        "section": "layout"
+      },
+      {
+        "name": "The Sombra Diz Camada Rule",
+        "body": "O degrau de sombra indica a camada (repouso, flutuando sobre o canvas, sobreposto a tudo), não a importância. Elementos da mesma camada usam a mesma sombra.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Moldura Sem Fresta Rule",
+        "body": "Barra de status e cabeçalho da tela ficam presos no topo e não encolhem (`flex: none`); a barra de status leva por baixo uma sombra de 3px na cor da superfície (`box-shadow: 0 3px 0 var(--pt-surface)`) que fecha a emenda de subpixel quando o canvas está em zoom fracionário. Toda faixa presa dentro de uma moldura segue o mesmo cuidado: o conteúdo rolado nunca vaza por uma linha.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do colocar tinta escura (sobre-acento) em todo fundo laranja do estúdio, nos dois temas.",
+      "Do reservar o laranja para ação principal, seleção e o agente; tudo o mais é tinta e cinza quente.",
+      "Do usar o canvas pontilhado (ponto de 1.15px em passo de 22px) como chão das vistas de trabalho e do Início.",
+      "Do colar cada Dor como nota da cor da sua Fonte, girada entre -1.8° e 1.8°, ao lado da tela que ela explica, com conector tracejado.",
+      "Do dividir por `--z` (piso 0.42) todo rótulo e espaçamento de texto que vive dentro do mundo do canvas.",
+      "Do manter transições entre 0.15s e 0.24s em `cubic-bezier(0.16, 1, 0.3, 1)`; o cursor do agente desliza em 0.62s; tudo cai a 0.001ms sob `prefers-reduced-motion`.",
+      "Do rotular todo dado sintético como \"Dados de exemplo\" e manter contraste AA com folga para projeção (tinta 3 ≥4.5:1 inclusive sobre o ponto do canvas).",
+      "Do escrever toda a interface em pt-BR, com os nomes que PM e UX reconhecem.",
+      "Do desenhar gráficos em forma de ênfase (graf-enfase contra graf-contexto), com um só eixo, barras até 74% do trilho e uma tabela gêmea para cada gráfico.",
+      "Do identificar cada agente pela logo oficial no ladrilho neutro (24px; 40px nas Configurações).",
+      "Do vestir as telas dentro das molduras com os tokens do IDS escopados em `.pt`, inclusive o que for inserido pelo modo ao vivo."
+    ],
+    "donts": [
+      "Don't usar azul em qualquer lugar da interface do estúdio; o azul-marinho do IDS fica dentro das molduras.",
+      "Don't usar texto branco sobre laranja na interface do estúdio; a única exceção é o botão primário do IDS dentro das molduras, com rótulo de 20px em negrito.",
+      "Don't usar logotipo, nome ou fonte de banco; a marca na tela é \"Design Studio\".",
+      "Don't reaproveitar os pastéis das notas para status, categoria ou decoração.",
+      "Don't misturar a camada do Protótipo (IDS: #FF6200, azul-marinho, Lato) com tokens ou componentes do estúdio.",
+      "Don't pintar categorias de um gráfico com cores diferentes; uma série laranja, o resto cinza.",
+      "Don't usar Bricolage Grotesque em botões, campos, listas ou corpo de texto.",
+      "Don't pôr rótulos em caixa-alta espaçada ou sobrelinhas acima de títulos.",
+      "Don't usar brilhos, gradientes de \"mágica\" ou animação decorativa em loop; só indicadores de carregamento giram ou pulsam.",
+      "Don't publicar o protótipo como link público: ele fica em arquivos locais."
+    ]
+  }
+}

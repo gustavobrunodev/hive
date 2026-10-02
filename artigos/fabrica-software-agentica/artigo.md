@@ -62,18 +62,9 @@ Essa evolução não é uma escada de maturidade em que todo degrau anterior fic
 
 Uma fábrica agêntica não começa com “abra o chat”. Ela começa com um evento:
 
-```text
-issue / Slack / alerta / backlog
-              ↓
-        intake + triagem
-              ↓
- discover → plan → implement → verify → review
-              ↓
-             PR
-              ↓
-       produção + feedback ──────┐
-              └──────────────────┘
-```
+![Fluxo orientado a eventos: issue, Slack, alerta e backlog convergem em intake e triagem, atravessam discovery, planejamento, implementação, verificação e review, chegam ao PR e retornam de produção como feedback](assets/diagrams/06-evento-ao-feedback.svg)
+
+*Figura 2 — Entradas diferentes atravessam a mesma linha e retornam como aprendizado. [Abrir fonte editável no Excalidraw](assets/diagrams/06-evento-ao-feedback.excalidraw).*
 
 O evento pode vir de produto, suporte, observabilidade ou engenharia. Todos chegam a uma forma operacional comum: intenção, critério observável, dono, risco e estado. O tracker deixa de ser apenas uma lista de tarefas e assume três funções que o chat não sustenta bem:
 
@@ -85,21 +76,19 @@ O evento pode vir de produto, suporte, observabilidade ou engenharia. Todos cheg
 
 ## A fábrica TO-BE
 
-![Arquitetura da fábrica de software agêntica TO-BE com direção humana, execução agêntica, operação e ciclo de feedback](assets/diagrams/02-fabrica-tobe.svg)
+![Diagrama completo e animado da fábrica de software agêntica com direção humana, sete estações, contratos, contexto, harness, prova independente, entrega, telemetria e aprendizado](assets/diagrams/07-fabrica-agentica-completa.svg)
 
-*Figura 2 — A fábrica fecha o ciclo quando produção e telemetria voltam a gerar eventos. [Abrir fonte editável no Excalidraw](assets/diagrams/02-fabrica-tobe.excalidraw).*
+*Figura 3 — Visão completa da fábrica: o ponto percorre o fluxo e os pulsos destacam gate e entrega. A animação respeita a preferência de movimento reduzido do sistema. [Abrir fonte editável no Excalidraw](assets/diagrams/07-fabrica-agentica-completa.excalidraw).*
 
-A linha pode ser descrita em sete estações:
+A linha tem sete estações complementares:
 
-| Estação | Entrada → saída | Obrigação principal |
-| --- | --- | --- |
-| **1. Entry** | evento → item normalizado | origem, intenção, dono e estado explícitos |
-| **2. Triage** | item → rota e prioridade | decidir se está pronto, precisa discovery, informação ou espera |
-| **3. Discover** | problema sem forma → veredito e direção | humano dirige produto, métrica, risco e trade-offs |
-| **4. Plan** | direção aprovada → unidade executável | fronteira, fatias verticais, critérios e provas |
-| **5. Implement** | unidade → código e testes | trabalhar em branch/sandbox e produzir evidência |
-| **6. Gate** | diff + evidência → veredito | determinismo primeiro; contestação semântica depois |
-| **7. Production** | deploy + telemetria → aprendizado | incidente, uso, custo e qualidade geram novos eventos |
+1. **Entry** normaliza origem, intenção, dono e estado.
+2. **Triage** define rota, prioridade e o próximo estado.
+3. **Discover** transforma problema sem forma em direção e resultado esperado.
+4. **Plan** congela fronteira, fatias verticais, critérios e provas.
+5. **Implement** produz código e testes em branch ou sandbox isolada.
+6. **Gate** executa determinismo primeiro e contestação semântica depois.
+7. **Production** devolve uso, qualidade, custo e incidentes como aprendizado.
 
 O fluxo central — Discover, Plan, Implement, Verify e Review — é estável mesmo quando ferramentas e nomes mudam. Entry, Triage e Production exigem integração com tracker, CI/CD, plataforma e observabilidade; nenhuma biblioteca de prompts fecha essas camadas sozinha.
 
@@ -107,14 +96,7 @@ O fluxo central — Discover, Plan, Implement, Verify e Review — é estável m
 
 “Tirar o humano do loop” é uma formulação incompleta. O objetivo é tirá-lo do meio repetitivo e mantê-lo nas pontas de maior responsabilidade.
 
-| Humano preserva | Agente absorve progressivamente |
-| --- | --- |
-| intenção e prioridade | coleta e normalização de contexto |
-| discovery, resultado e apetite de risco | triagem previsível |
-| decisões difíceis de reverter | implementação mecânica |
-| lógica de negócio no review | checks determinísticos e coleta de evidência |
-| desenho e evolução do harness | execução em branch/sandbox e abertura do PR |
-| merge, release e exceções críticas | bugs pequenos de alta confiança |
+O humano preserva intenção, prioridade, discovery, apetite de risco, decisões irreversíveis, lógica de negócio, desenho do harness e aprovação de merge/release. Agentes absorvem progressivamente coleta de contexto, triagem previsível, implementação mecânica, checks determinísticos, execução isolada e pequenos bugs de alta confiança.
 
 Automatizar uma decisão de produto mal formulada apenas torna o erro mais eficiente. No outro extremo, usar review humano para descobrir lint quebrado, teste ausente ou type error desperdiça julgamento caro em algo que um sensor deveria resolver.
 
@@ -162,13 +144,11 @@ O que muda é a microcoreografia. O que não muda é o contrato.
 
 **Medido:** modelos degradam com contexto longo antes do máximo técnico. [Lost in the Middle](https://arxiv.org/abs/2307.03172) mostrou forte sensibilidade à posição da informação; [Same Task, More Tokens](https://arxiv.org/abs/2402.14848) isolou a queda de raciocínio ao aumentar o input sem mudar a tarefa relevante.
 
-As faixas abaixo são heurísticas operacionais da skill, não limites de paper:
+As faixas de ocupação são heurísticas operacionais, não limites de paper. O desenho combina essa régua com o perfil de contexto adequado a cada fase:
 
-| Ocupação da janela | Uso |
-| --- | --- |
-| até aproximadamente 40% | confortável |
-| 40–60% | ainda saudável |
-| acima de 60% | risco crescente de perda de qualidade |
+![Orçamento de contexto com faixas de ocupação e fluxo de research, plan, implement, verify e review usando artefatos como handoff](assets/diagrams/08-contexto-por-fase.svg)
+
+*Figura 4 — Research abre o contexto; implementação e verificação começam em janelas limpas. [Abrir fonte editável no Excalidraw](assets/diagrams/08-contexto-por-fase.excalidraw).*
 
 Dois fatos explicam a engenharia necessária:
 
@@ -176,16 +156,6 @@ Dois fatos explicam a engenharia necessária:
 2. **Compactação descarta.** A ferramenta resume, remove o histórico e reinjeta instruções fixas. Ela não sabe quais decisões intermediárias eram sagradas.
 
 Daí uma regra de projeto: **a conversa só pode ser descartável quando as regras vivem em artefatos duráveis**.
-
-Cada fase pede um perfil diferente:
-
-| Fase | Contexto adequado | Saída |
-| --- | --- | --- |
-| Research/Discover | amplo: pessoas, links, MCPs, métricas, subagentes | decisão ou design document |
-| Plan | documento decidido + código relevante | plano/checks |
-| Implement | **janela nova**, carregando somente o contrato | código + testes |
-| Verify | **outro agente**, contexto limpo, checks + diff | relatório com evidência |
-| Review | gates, diff, riscos e decisões | veredito de merge/direção |
 
 A transição Plan→Implement em uma janela limpa é uma das mudanças de maior retorno e menor custo. Implementar na mesma conversa que explorou alternativas leva ruído de discovery para uma fase que precisa de precisão.
 
@@ -200,15 +170,9 @@ Abrir cedo demais custa briefing e handoff. Abrir tarde demais deixa o builder d
 
 Cada documento responde a uma pergunta. Confundi-los gera duplicação e drift.
 
-| Artefato | Pergunta |
-| --- | --- |
-| **PRD** | por que o produto precisa disso e qual resultado importa? |
-| **Design doc / TDD** | qual solução e quais decisões de alto impacto estamos escolhendo? |
-| **RFC** | qual alternativa devemos escolher antes de decidir? |
-| **ADR** | qual decisão arquitetural foi tomada e com quais consequências? |
-| **Task** | o que exatamente será construído agora? |
-| **Checklist** | qual afirmação observável e qual prova decidem cada resultado? |
-| **PR/review** | o que mudou, quais riscos restam e há evidência para aceitar? |
+![Cadeia de artefatos organizada entre porquê, o quê e como provar, indicando PRD, design document, RFC, ADR, task, checklist, PR, review e seus locais naturais](assets/diagrams/09-cadeia-de-artefatos.svg)
+
+*Figura 5 — O handoff preserva o contrato sem carregar toda a conversa. [Abrir fonte editável no Excalidraw](assets/diagrams/09-cadeia-de-artefatos.excalidraw).*
 
 A separação crucial é entre **porquê**, **o quê** e **como provar**:
 
@@ -221,16 +185,7 @@ O design deve estar ligado à task, mas não inteiro dentro dela. O implementado
 
 ### Onde cada artefato vive
 
-A ideia de que “tudo precisa morar no repositório” não se sustentou como regra universal. O local depende de quem edita e de como o estado muda.
-
-| Informação | Local que tende a funcionar |
-| --- | --- |
-| intenção de produto e design colaborativo | Notion, Confluence ou ferramenta já usada pelo negócio |
-| fila, dono, prioridade e estado | Jira, Linear, GitHub Projects ou tracker equivalente |
-| decisão durável de um repositório | ADR no próprio repo |
-| decisão entre times/repos | base central, ligada aos tickets e repos |
-| código e testes | Git |
-| prova de uma execução | relatório/checklist local ou retido para auditoria |
+A ideia de que “tudo precisa morar no repositório” não se sustentou como regra universal. O local depende de quem edita e de como o estado muda: intenção e design ficam no workspace colaborativo; fila e estado, no tracker; ADRs, perto do código; checks e relatórios, junto da execução ou da trilha de auditoria.
 
 Princípio: **estado mutável no tracker; decisão durável perto de quem a consome; colaboração onde as pessoas já trabalham**.
 
@@ -243,13 +198,11 @@ O tracker volta ao centro porque a indústria está migrando de sessão para eve
 - **harness-ferramenta:** Codex, Claude Code, Cursor, OpenCode e outros loops que gerenciam modelo, tools e contexto;
 - **harness-projeto:** o conjunto que a equipe controla — instruções, skills, arquitetura, testes, lint, CI, hooks e gates.
 
-No harness do projeto, toda peça deve ser classificada pela função:
+No harness do projeto, toda peça deve ser classificada pela função: guia orienta antes; sensor observa e devolve evidência; gate permite, pede ou nega.
 
-| Camada | Função | Exemplos |
-| --- | --- | --- |
-| **Guia** | orientar antes da ação | `AGENTS.md`, skill, ADR, context map |
-| **Sensor** | observar e devolver evidência | teste, lint, typecheck, observabilidade, inspeção visual |
-| **Gate** | permitir, pedir ou negar | CI obrigatório, branch protection, hook e política determinística |
+![Arquitetura de harness mostrando modelo, hook, política, resultados allow ask deny, camadas de guia sensor gate, superfícies de risco e níveis de autoridade](assets/diagrams/10-harness-e-autonomia.svg)
+
+*Figura 6 — Prompt orienta; controle começa quando uma política externa pode decidir sobre a ação. [Abrir fonte editável no Excalidraw](assets/diagrams/10-harness-e-autonomia.excalidraw).*
 
 Pedido não é controle. `AGENTS.md` e skills influenciam um modelo não determinístico; são excelentes para preferências e processos. Se algo não pode acontecer, a decisão precisa viver fora do modelo.
 
@@ -288,18 +241,7 @@ Isso não equivale a manter uma suíte E2E completa:
 
 **Minha posição:** dar autonomia não é escrever um prompt mais enfático. É definir o que existe entre a intenção do modelo e o mundo quando ele errar.
 
-```text
-modelo propõe → hook intercepta → política decide allow / ask / deny / contexto → ação ocorre
-```
-
-Antes de execução sem supervisão, mapeie quatro superfícies:
-
-| Superfície | Falha que não se desfaz sozinha | Controle típico |
-| --- | --- | --- |
-| Shell | destruição fora do projeto, segredo no transcript, código remoto no shell | resolver alvo, bloquear cauda destrutiva, pedir decisão |
-| Arquivos | apagar teste ou reescrever a política que supervisiona | proteger superfícies de política e comparar baseline |
-| Git | reescrever histórico ou publicar sem evidência | negar force inseguro, exigir review e checks |
-| Subagentes | cascata, modelo não permitido ou custo sem limite | allowlist, orçamento, limite de repetição e handoff |
+Antes de execução sem supervisão, mapeie as quatro superfícies destacadas no desenho: shell, arquivos, Git e subagentes. Em cada uma, identifique o efeito que não se desfaz sozinho e coloque o controle antes desse efeito — por exemplo, resolver o alvo de uma remoção, proteger a política contra escrita, negar reescrita insegura de histórico e limitar cascata/custo de subagentes.
 
 A camada deve acompanhar a consequência:
 
@@ -344,14 +286,9 @@ O retry precisa de limite. Um agente autônomo não deve repetir a mesma correç
 
 Verificação responde “a feature fez o que o plano prometeu?”. Review olha o que o plano pode ter esquecido.
 
-| Lente | Pergunta |
-| --- | --- |
-| Segurança | existe exploração viável e de alta confiança? |
-| Requisitos | tudo que foi prometido foi entregue? |
-| Testes | os testes cobrem e discriminam? |
-| Arquitetura | padrões existentes foram respeitados? entrou padrão novo sem decisão? |
-| Regressão/alucinação | algo sem relação foi alterado? |
-| Performance | há regressão óbvia? |
+![Review de pull request em camadas com lentes de segurança, requisitos, testes, arquitetura, regressão e performance, além de severidade e orçamento de ruído](assets/diagrams/11-review-em-camadas.svg)
+
+*Figura 7 — O PR recebe checks determinísticos antes de seis lentes independentes; findings saem com severidade explícita. [Abrir fonte editável no Excalidraw](assets/diagrams/11-review-em-camadas.excalidraw).*
 
 Checks determinísticos vêm primeiro. Não use julgamento de LLM onde um exit code responde.
 

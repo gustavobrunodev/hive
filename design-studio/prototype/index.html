@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Studio</title>
+<meta name="description" content="Protótipo de validação do Design Studio: das Dores reais dos clientes a Protótipos melhorados pelo agente, no chat. Dados de exemplo.">
+<script>try { if (JSON.parse(localStorage.getItem('ds.tema')) === 'escuro') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
+<link rel="preload" href="fonts/geist-e09adc.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="proto.css">
+</head>
+<body>
+<button class="pular" data-act="pular">Pular para o conteúdo</button>
+<div id="app"><div id="lateral-slot"></div><main id="main" class="principal quadro-fundo" tabindex="-1"></main></div>
+<div id="camadas"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="data.js"></script>
+<script src="protos.js"></script>
+<script src="core.js"></script>
+<script src="chat.js"></script>
+<script src="composer.js"></script>
+<script src="home.js"></script>
+<script src="inserir.js"></script>
+<script src="workspace.js"></script>
+<script src="pages.js"></script>
+<script src="graficos.js"></script>
+<script src="present.js"></script>
+<script>DS.app.iniciar();</script>
+</body>
+</html>
