@@ -33,6 +33,13 @@ export interface SeededWorkspace {
   userData: string
   /** A directory OUTSIDE the workspace, for import/drag-source scenarios. */
   outside: string
+  /**
+   * The Documents folder this case's app sees — the Design Studio keeps its
+   * data in `<documents>/Design Studio` (Landing 3). Every launch points the
+   * app here through `HIVE_E2E_DOCUMENTS`, so no spec can ever read or write
+   * the Documents of whoever runs the suite.
+   */
+  documents: string
 }
 
 export interface SeedOptions {
@@ -69,7 +76,10 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
   const workspace = path.join(root, 'workspace')
   const userData = path.join(root, 'userData')
   const outside = path.join(root, 'outside')
-  for (const dir of [workspace, userData, outside]) fs.mkdirSync(dir, { recursive: true })
+  const documents = path.join(root, 'Documentos')
+  for (const dir of [workspace, userData, outside, documents]) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
 
   const manifestDir = path.join(workspace, '_bmad', '_config')
   fs.mkdirSync(manifestDir, { recursive: true })
@@ -163,7 +173,7 @@ export function seedProvisionedWorkspace(options: SeedOptions = {}): SeededWorks
     'utf-8'
   )
 
-  return { root, workspace, userData, outside }
+  return { root, workspace, userData, outside, documents }
 }
 
 /**
@@ -209,6 +219,9 @@ export async function launchSeededApp(
   }
   delete launchEnv.ELECTRON_RUN_AS_NODE
   launchEnv.HIVE_E2E = '1'
+  // Design Studio (Landing 11): the module's data root follows this case, not
+  // the machine — an override in `options.env` still wins.
+  launchEnv.HIVE_E2E_DOCUMENTS = seeded.documents
   Object.assign(launchEnv, options.env ?? {})
 
   const app = await electron.launch({
