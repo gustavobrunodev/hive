@@ -109,8 +109,12 @@
   color: var(--muted);
 }
 
+/* The meta line too: `--muted` on the tint measured 4.14:1 in the light theme
+   (C7b), under the 4.5:1 its 12px owes — the Hive's own history rows take the
+   accent ink on their meta for the same reason. */
 .ds-recente[aria-current='true'] .ds-recente-icon,
-.ds-recente[aria-current='true'] .ds-recente-title {
+.ds-recente[aria-current='true'] .ds-recente-title,
+.ds-recente[aria-current='true'] .ds-recente-meta {
   color: var(--accent-tint-ink, var(--ink));
 }
 

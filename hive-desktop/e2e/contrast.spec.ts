@@ -5,6 +5,8 @@ import type { Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { THEMES, type Theme } from '../src/renderer/src/ui/theme'
+import { openSidebar } from './fixtures/sidebar'
+import { goToPage, openDesignStudio, seedModuleConversation } from './fixtures/designStudio'
 
 /**
  * P0-010 (test-design-qa.md, risk R-05 — BUS, score 6).
@@ -999,4 +1001,238 @@ for (const theme of THEMES) {
 
     await app.close()
   })
+}
+
+/* ==========================================================================
+   Design Studio — the module (task A, criterion 7), light and dark.
+
+   The task's floor is the two themes the module was designed against; the
+   repo's sweep above still measures `hive`, and a failure there is a finding to
+   report, not this criterion.
+
+   Lote 1 wrote these over what it built: the module's navigation and its five
+   page frames (four reachable — the Relatório page has no way in until lote
+   2's links), with the sidebar showing and hidden, since the "Dados de exemplo"
+   seal only paints while the navigation is away. Lotes 2 and 3 add their
+   scenes to `DS_SCENES` — the folha da Dor, the "@" and "+" menus, Leitura,
+   Gráficos — and the control borders (field, secondary buttons, segmented)
+   to C7c.
+   ========================================================================== */
+
+const DS_THEMES = ['light', 'dark'] as const
+
+/** The module's two regions: its navigation in the sidebar, and its layer of the work area. */
+const DS_REGIONS = ['.ds-nav', '.wb-work-layer[data-view="design"]'] as const
+
+/** A module scene: how to get there with the navigation on screen. */
+const DS_SCENES: Array<{ name: string; go: (window: Page) => Promise<void> }> = [
+  { name: 'Início', go: (window) => goToPage(window, 'Início') },
+  { name: 'Dores', go: (window) => goToPage(window, 'Dores') },
+  { name: 'Relatórios', go: (window) => goToPage(window, 'Relatórios') },
+  {
+    name: 'Conversa',
+    go: async (window) => {
+      await window.locator('.ds-recente').first().click()
+    }
+  }
+]
+
+/** A module app on `theme`, with two recent conversations so "Recentes" has rows (and one can be open). */
+async function moduleApp(
+  seeded: Parameters<typeof launchSeededApp>[0],
+  theme: (typeof DS_THEMES)[number]
+): Promise<{ app: Awaited<ReturnType<typeof launchSeededApp>>; window: Page }> {
+  seedModuleConversation(seeded, 'Câmbio', 'Por que o estorno não avisa o cliente?', 4)
+  seedModuleConversation(seeded, 'Pix', 'Compare as três Fontes', 60 * 26)
+  const app = await launchSeededApp(seeded)
+  const window = await app.firstWindow()
+  await waitForWorkUI(window)
+  await setTheme(window, theme)
+  await freezeMotion(window)
+  await openSidebar(window, 'chat')
+  await openDesignStudio(window)
+  await expect(window.locator('.ds-recente')).toHaveCount(2)
+  return { app, window }
+}
+
+/** Hides or shows the sidebar with Ctrl+B and waits for the slide to land. */
+async function toggleSidebar(window: Page): Promise<void> {
+  await window.keyboard.press('Control+b')
+  await window.waitForFunction(() => document.querySelector('.wb-panes-animating') === null)
+}
+
+for (const theme of DS_THEMES) {
+  test(`C7b: Design Studio text meets WCAG AA in the ${theme} theme`, async ({ seeded }) => {
+    const { app, window } = await moduleApp(seeded, theme)
+    try {
+      const samples: Sample[] = []
+      for (const scene of DS_SCENES) {
+        await scene.go(window)
+        for (const region of DS_REGIONS) {
+          for (const sample of await sampleTextContrast(window, region)) {
+            samples.push({ ...sample, label: `${scene.name} · ${sample.label}` })
+          }
+        }
+        // The same page with the navigation away: its header now carries the seal.
+        await toggleSidebar(window)
+        for (const sample of await sampleTextContrast(window, DS_REGIONS[1])) {
+          samples.push({ ...sample, label: `${scene.name}, sem lateral · ${sample.label}` })
+        }
+        await toggleSidebar(window)
+      }
+
+      // Every text role this lote paints was measured — a sweep that met none
+      // of them would pass over a blank module. Not on the list: "Dados de
+      // exemplo" in the navigation (`ds-nav-sample`). It is the same ink, size
+      // and weight on the same paint as `ds-recente-meta`, and the sampler
+      // measures each (colour, background, size, weight) once, under whichever
+      // label met it first — so its pair is measured, under that label.
+      const roles = samples.map((sample) => sample.label).join('\n')
+      for (const role of [
+        'ds-hero-title',
+        'ds-hero-subtitle',
+        'ds-page-title',
+        'ds-page-subtitle',
+        'ds-conversa-title',
+        'ds-seal',
+        'ds-recente-title',
+        'ds-recente-meta',
+        'wb-nav-item-label',
+        'wb-sidebar-group-label'
+      ]) {
+        expect(roles, `${theme}: no sample for ${role}\n${roles}`).toContain(role)
+      }
+      const failures = failuresIn(samples)
+      expect(
+        failures,
+        `Design Studio contrast failures in ${theme}:\n${failures.join('\n')}`
+      ).toEqual([])
+    } finally {
+      await app.close()
+    }
+  })
+
+  test(`C7c: Design Studio icons and state indicators reach 3:1 in the ${theme} theme`, async ({
+    seeded
+  }) => {
+    const { app, window } = await moduleApp(seeded, theme)
+    try {
+      const measured: NonTextSample[] = []
+      // Início: the entry row and the Início row are the current ones.
+      await goToPage(window, 'Início')
+      measured.push(...(await sampleNonText(window, 'Início')))
+      // A conversation open: its row in Recentes carries the mark.
+      await window.locator('.ds-recente').first().click()
+      measured.push(...(await sampleNonText(window, 'Conversa')))
+
+      const kinds = measured.map((sample) => sample.kind)
+      expect(kinds.filter((kind) => kind === 'icon').length).toBeGreaterThanOrEqual(6)
+      // Início scene: the entry row + the Início row; Conversa scene: the entry
+      // row + the open conversation's row.
+      expect(kinds.filter((kind) => kind === 'indicator').length).toBe(4)
+
+      const failures = measured
+        .map((sample) => ({ sample, ratio: checkContrast(sample.color, sample.background).ratio }))
+        .filter(({ ratio }) => ratio === undefined || ratio < WCAG_AA_LARGE)
+        .map(
+          ({ sample, ratio }) =>
+            `${ratio?.toFixed(2) ?? 'UNMEASURED'}:1 < 3:1 — ${sample.label} (${sample.color} on ${sample.background})`
+        )
+      expect(
+        failures,
+        `Design Studio non-text failures in ${theme}:\n${failures.join('\n')}`
+      ).toEqual([])
+    } finally {
+      await app.close()
+    }
+  })
+}
+
+interface NonTextSample {
+  kind: 'icon' | 'indicator'
+  label: string
+  color: string
+  background: string
+}
+
+/**
+ * The module's non-text marks, each against the paint it sits on.
+ *
+ *   - **icon**: every glyph in the module navigation, plus the entry row's —
+ *     the stroke is `currentColor`, so the colour is the SVG's own.
+ *   - **indicator**: what says "current" on a row with `aria-current="true"`.
+ *     The tint behind the row is not it (a tint is a wash, not a mark); the
+ *     icon recoloured in the accent ink is, and it is measured against the
+ *     tint it sits on, not against the bare sidebar.
+ *
+ * Every background layer from the element up is composited, outermost first —
+ * the stop-at-first-opaque shortcut is the trap this file records twice.
+ */
+async function sampleNonText(window: Page, scene: string): Promise<NonTextSample[]> {
+  return window.evaluate((scene) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D
+    const paint = (layers: string[]): string => {
+      ctx.clearRect(0, 0, 1, 1)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, 1, 1)
+      for (const layer of layers) {
+        ctx.fillStyle = layer
+        ctx.fillRect(0, 0, 1, 1)
+      }
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+      return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`
+    }
+    const layersBehind = (element: Element): string[] => {
+      const layers: string[] = []
+      for (let node: Element | null = element.parentElement; node; node = node.parentElement) {
+        const bg = getComputedStyle(node).backgroundColor
+        if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') continue
+        layers.unshift(bg)
+      }
+      return layers
+    }
+    const measure = (svg: Element): { color: string; background: string } => {
+      const layers = layersBehind(svg)
+      return { color: paint([...layers, getComputedStyle(svg).color]), background: paint(layers) }
+    }
+    const visible = (element: Element): boolean => {
+      const rect = element.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== 'hidden'
+    }
+
+    const entry = document.querySelector('.wb-sidebar-fixed .wb-nav-item[data-view="design"]')
+    const icons = [
+      ...(entry ? Array.from(entry.querySelectorAll('svg')) : []),
+      ...Array.from(document.querySelectorAll('.ds-nav svg'))
+    ].filter(visible)
+    const current = [
+      ...(entry?.getAttribute('aria-current') === 'true' ? [entry] : []),
+      ...Array.from(document.querySelectorAll('.ds-nav [aria-current="true"]'))
+    ].filter(visible)
+
+    const label = (element: Element): string =>
+      (element.closest('button')?.textContent ?? element.textContent ?? '').trim().slice(0, 40)
+    return [
+      ...icons.map((svg) => ({
+        kind: 'icon' as const,
+        label: `${scene} · ícone · ${label(svg)}`,
+        ...measure(svg)
+      })),
+      ...current.flatMap((row) => {
+        const svg = row.querySelector('svg')
+        return svg
+          ? [
+              {
+                kind: 'indicator' as const,
+                label: `${scene} · atual · ${label(row)}`,
+                ...measure(svg)
+              }
+            ]
+          : []
+      })
+    ]
+  }, scene)
 }
