@@ -54,10 +54,7 @@ async (page) => {
   await page.waitForTimeout(400)
   await page.locator('[data-page="conversa"]').waitFor()
   await shot('conversa-sem-lateral')
-  await page.evaluate(() => {
-    // Back to the home without the sidebar: the seal sits in the hero.
-    document.querySelector('.wb-work-layer[data-view="design"]')
-  })
+  // Back to the home without the sidebar: the seal sits in the hero.
   await page.keyboard.press('Control+b')
   await page.waitForTimeout(400)
   await page.locator('.ds-nav').getByRole('button', { name: 'Início' }).click()
