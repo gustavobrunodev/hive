@@ -1,0 +1,4 @@
+.dst-selo-exemplo--pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--tinta-2); background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-pill); padding: 3px 10px 3px 8px; white-space: nowrap; }
+.dst-selo-exemplo--pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--acento); }
+.dst-selo-exemplo--linha { display: block; font-size: 0.75rem; color: var(--tinta-3); padding: 2px 12px 0; }
+.dst-selo-exemplo--linha::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--acento); margin-right: 7px; vertical-align: 1px; }

@@ -1,0 +1,5 @@
+.dst-revisao { border: 1px solid var(--borda); border-radius: var(--raio-painel); overflow: hidden; background: var(--superficie); color: var(--tinta); }
+.dst-revisao__titulo { margin: 0; padding: 10px 14px; font-weight: 600; font-size: 0.875rem; background: var(--superficie-2); border-bottom: 1px solid var(--borda); }
+.dst-revisao__achados { margin: 0; padding: 0; list-style: none; }
+.dst-revisao__achado { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--borda); font-size: 0.875rem; align-items: start; }
+.dst-revisao__achado:first-child { border-top: 0; }

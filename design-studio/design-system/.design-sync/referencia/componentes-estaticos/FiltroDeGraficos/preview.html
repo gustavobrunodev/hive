@@ -1,0 +1,18 @@
+<!-- @dsCard group="Dados" height=90 width=1000 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>FiltroDeGraficos</title>
+<style>
+  body { padding: 20px; background: var(--quadro); --z: 1; }
+  .vitrine { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+  .coluna { display: grid; gap: 8px; justify-items: start; }
+  .rot { font-size: 0.75rem; font-weight: 600; color: var(--tinta-3); }
+
+</style>
+</head>
+<body>
+<div class="graf-filtros" role="group" aria-label="Filtros dos gráficos"><div class="segmentado" role="group" aria-label="Período"><button aria-pressed="true">90 dias</button><button aria-pressed="false">60 dias</button><button aria-pressed="false">30 dias</button></div><label class="graf-dor"><span>Dor</span><select><option value="todas">Todas as Dores</option><optgroup label="Status e avisos"><option value="cam-v1">Minha transação de câmbio estornou e não recebi nenhuma notificação</option><option value="cam-v2">Não entendo o motivo da remessa recusada</option></optgroup><optgroup label="Cotação e taxas"><option value="cam-v3">A cotação cobrada foi diferente da simulada</option></optgroup><optgroup label="Cadastro do beneficiário"><option value="cam-v4">Preciso alterar dados do beneficiário depois de enviar</option></optgroup><optgroup label="Confirmação e limites"><option value="cam-v5">O limite de envio não aparece antes</option></optgroup></select><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></label><button class="btn btn-ter btn-p"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>Limpar filtro</button></div>
+</body>
+</html>

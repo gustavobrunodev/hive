@@ -504,6 +504,10 @@ button.chip-dor:hover { border-color: var(--borda-forte); }
 .janela-barra i { width: 11px; height: 11px; border-radius: 50%; background: #cfcfc8; }
 .janela-barra span { margin-left: 12px; font-size: 13px; color: #5c5c55; background: #fff; padding: 3px 14px; border-radius: 6px; }
 .janela-tela { overflow-y: auto; position: relative; }
+/* A tela é o Protótipo e fica clara nos dois temas: as marcas do estúdio
+   desenhadas dentro dela (texto da vaga do Inserir) usam a tinta laranja do
+   tema claro, senão o laranja claro do escuro cai a ~2:1 sobre o branco. */
+.aparelho-tela, .janela-tela { --acento-tinta: #a34c00; }
 .janela-tela > .pt { min-height: 100%; }
 .frame.criando .aparelho-tela { background: var(--superficie-2); }
 .esqueleto { position: absolute; inset: 0; padding: 64px 22px; display: grid; gap: 16px; align-content: start; }

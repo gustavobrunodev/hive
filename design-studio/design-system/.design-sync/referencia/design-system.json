@@ -1,0 +1,623 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-02T16:08:22Z"
+  },
+  "title": "Design Studio",
+  "namespace": "DesignStudio",
+  "libraries": [],
+  "sections": {},
+  "groups": [
+    "Marca",
+    "iu-memorable",
+    "Agentes",
+    "Icones"
+  ],
+  "assetGroups": {
+    "Marca": {
+      "name": "Marca",
+      "tile": "l",
+      "order": [
+        "sinal.svg",
+        "sinal-escuro.svg"
+      ],
+      "files": {
+        "sinal-escuro.svg": {
+          "name": "sinal-escuro.svg",
+          "blob": "ce0354d6b032eda3686b17d9f88ef732",
+          "size": 344,
+          "type": "image/svg+xml"
+        },
+        "sinal.svg": {
+          "name": "sinal.svg",
+          "blob": "e569cc51a838620793fbbaa581bb173f",
+          "size": 344,
+          "type": "image/svg+xml"
+        }
+      }
+    },
+    "Agentes": {
+      "name": "Agentes",
+      "tile": "m",
+      "order": [
+        "claude.svg",
+        "devin.svg",
+        "devin-claro.svg"
+      ],
+      "files": {
+        "claude.svg": {
+          "name": "claude.svg",
+          "blob": "6dabcae4e6d4d532f3876528919ff113",
+          "size": 2547,
+          "type": "image/svg+xml"
+        },
+        "devin-claro.svg": {
+          "name": "devin-claro.svg",
+          "blob": "6f436424d2f6c0f03b77fe5b791c668d",
+          "size": 1396,
+          "type": "image/svg+xml"
+        },
+        "devin.svg": {
+          "name": "devin.svg",
+          "blob": "921a31f4c47fb4ff31073e8d4d39df42",
+          "size": 1396,
+          "type": "image/svg+xml"
+        }
+      }
+    },
+    "Icones": {
+      "name": "Icones",
+      "tile": "xs",
+      "order": [
+        "ajustar.svg",
+        "alerta.svg",
+        "apresentar.svg",
+        "arquivo.svg",
+        "arroba.svg",
+        "baixo.svg",
+        "busca.svg",
+        "camadas.svg",
+        "celular.svg",
+        "cima.svg",
+        "clipe.svg",
+        "comentar.svg",
+        "compartilhar.svg",
+        "config.svg",
+        "conversa.svg",
+        "copiar.svg",
+        "desce.svg",
+        "dir.svg",
+        "dor.svg",
+        "editar.svg",
+        "enquadrar.svg",
+        "enviar.svg",
+        "esq.svg",
+        "externo.svg",
+        "fechar.svg",
+        "fullstory.svg",
+        "grafico.svg",
+        "historico.svg",
+        "igual.svg",
+        "imagem.svg",
+        "impBaixo.svg",
+        "impMedio.svg",
+        "info.svg",
+        "inicio.svg",
+        "inserir.svg",
+        "lateral.svg",
+        "likert.svg",
+        "link.svg",
+        "lua.svg",
+        "mais.svg",
+        "mais3.svg",
+        "menos.svg",
+        "mic.svg",
+        "monitor.svg",
+        "novo.svg",
+        "nuvem.svg",
+        "ok.svg",
+        "olho.svg",
+        "parar.svg",
+        "pasta.svg",
+        "quadro.svg",
+        "raio.svg",
+        "refazer.svg",
+        "relatorio.svg",
+        "selecionar.svg",
+        "seta.svg",
+        "setaE.svg",
+        "sobe.svg",
+        "sol.svg",
+        "tabela.svg",
+        "testar.svg",
+        "teste.svg",
+        "usuario.svg",
+        "voltar.svg",
+        "voz.svg",
+        "zoomMais.svg",
+        "zoomMenos.svg"
+      ],
+      "files": {
+        "ajustar.svg": {
+          "name": "ajustar.svg",
+          "blob": "a1189ba1a6517169aac465c4fb314658",
+          "size": 309,
+          "type": "image/svg+xml"
+        },
+        "alerta.svg": {
+          "name": "alerta.svg",
+          "blob": "4da172105f40005c92bdad168cd1eac4",
+          "size": 337,
+          "type": "image/svg+xml"
+        },
+        "apresentar.svg": {
+          "name": "apresentar.svg",
+          "blob": "3ad23a24db32787c33fab4f725bcbe5b",
+          "size": 273,
+          "type": "image/svg+xml"
+        },
+        "arquivo.svg": {
+          "name": "arquivo.svg",
+          "blob": "91cf1a8b48e016a3aed941eda389396a",
+          "size": 246,
+          "type": "image/svg+xml"
+        },
+        "arroba.svg": {
+          "name": "arroba.svg",
+          "blob": "e87a33caa9f1ea9baa2a9b540f5f14d9",
+          "size": 291,
+          "type": "image/svg+xml"
+        },
+        "baixo.svg": {
+          "name": "baixo.svg",
+          "blob": "ae84fa499f095005ce709305ccba2836",
+          "size": 215,
+          "type": "image/svg+xml"
+        },
+        "busca.svg": {
+          "name": "busca.svg",
+          "blob": "160fd2ad499a17b732a80ad6fe9c0619",
+          "size": 259,
+          "type": "image/svg+xml"
+        },
+        "camadas.svg": {
+          "name": "camadas.svg",
+          "blob": "ea45cde202586d1cc51a08e8da7a39c8",
+          "size": 252,
+          "type": "image/svg+xml"
+        },
+        "celular.svg": {
+          "name": "celular.svg",
+          "blob": "3b3706f941e7c192f6f685e9da869262",
+          "size": 272,
+          "type": "image/svg+xml"
+        },
+        "cima.svg": {
+          "name": "cima.svg",
+          "blob": "308b880ead0c2deba00cdee6f3e94a2d",
+          "size": 216,
+          "type": "image/svg+xml"
+        },
+        "clipe.svg": {
+          "name": "clipe.svg",
+          "blob": "8be35d46b995ebfa37d979117f1a2378",
+          "size": 307,
+          "type": "image/svg+xml"
+        },
+        "comentar.svg": {
+          "name": "comentar.svg",
+          "blob": "3a0a2bb6324b16990340aee925941e19",
+          "size": 319,
+          "type": "image/svg+xml"
+        },
+        "compartilhar.svg": {
+          "name": "compartilhar.svg",
+          "blob": "c5c46315d015966e8b654e624d8d5247",
+          "size": 308,
+          "type": "image/svg+xml"
+        },
+        "config.svg": {
+          "name": "config.svg",
+          "blob": "008fbbbf17f2dd631110b3114769a11e",
+          "size": 785,
+          "type": "image/svg+xml"
+        },
+        "conversa.svg": {
+          "name": "conversa.svg",
+          "blob": "512bfe0c25f4ca86645c5cd46b065681",
+          "size": 226,
+          "type": "image/svg+xml"
+        },
+        "copiar.svg": {
+          "name": "copiar.svg",
+          "blob": "08b51b3b913f1aff0975160ebf0635b0",
+          "size": 314,
+          "type": "image/svg+xml"
+        },
+        "desce.svg": {
+          "name": "desce.svg",
+          "blob": "48f2e99e29dad8062481aa951655fa6d",
+          "size": 227,
+          "type": "image/svg+xml"
+        },
+        "dir.svg": {
+          "name": "dir.svg",
+          "blob": "b8b80baf5573fc701050bc49b535e114",
+          "size": 215,
+          "type": "image/svg+xml"
+        },
+        "dor.svg": {
+          "name": "dor.svg",
+          "blob": "6926433dd9524c6771aaa5f8b4472e18",
+          "size": 297,
+          "type": "image/svg+xml"
+        },
+        "editar.svg": {
+          "name": "editar.svg",
+          "blob": "f7dd78d7dea8d0375dfa8996d342d97d",
+          "size": 305,
+          "type": "image/svg+xml"
+        },
+        "enquadrar.svg": {
+          "name": "enquadrar.svg",
+          "blob": "96719510c391646b0f1ea950d19e59ef",
+          "size": 333,
+          "type": "image/svg+xml"
+        },
+        "enviar.svg": {
+          "name": "enviar.svg",
+          "blob": "979d0f313a0d1f86de38a16d7a018889",
+          "size": 224,
+          "type": "image/svg+xml"
+        },
+        "esq.svg": {
+          "name": "esq.svg",
+          "blob": "a853d5e768f1d7c9b90e45db291f998b",
+          "size": 217,
+          "type": "image/svg+xml"
+        },
+        "externo.svg": {
+          "name": "externo.svg",
+          "blob": "07d4be24c1ed451f64449f0e7ddfdfea",
+          "size": 296,
+          "type": "image/svg+xml"
+        },
+        "fechar.svg": {
+          "name": "fechar.svg",
+          "blob": "0af9dc91924a5cb270ecb6f18a449cb2",
+          "size": 223,
+          "type": "image/svg+xml"
+        },
+        "fullstory.svg": {
+          "name": "fullstory.svg",
+          "blob": "fa7c9da1ee8c69434d674809cb306e5f",
+          "size": 323,
+          "type": "image/svg+xml"
+        },
+        "grafico.svg": {
+          "name": "grafico.svg",
+          "blob": "4d13995a5862007730f58755d32d6e11",
+          "size": 254,
+          "type": "image/svg+xml"
+        },
+        "historico.svg": {
+          "name": "historico.svg",
+          "blob": "a59baa62bc6090d4dc002f0eefac6ccc",
+          "size": 281,
+          "type": "image/svg+xml"
+        },
+        "igual.svg": {
+          "name": "igual.svg",
+          "blob": "fc4d4160134c70d173d3e49677aa47cd",
+          "size": 211,
+          "type": "image/svg+xml"
+        },
+        "imagem.svg": {
+          "name": "imagem.svg",
+          "blob": "ca66768cd54328d7e9478f82dff584a3",
+          "size": 313,
+          "type": "image/svg+xml"
+        },
+        "impBaixo.svg": {
+          "name": "impBaixo.svg",
+          "blob": "8ecd3c71540af33b75e8b478b7767e83",
+          "size": 251,
+          "type": "image/svg+xml"
+        },
+        "impMedio.svg": {
+          "name": "impMedio.svg",
+          "blob": "a986ad9a632a3c9445effaaaa08d4afe",
+          "size": 284,
+          "type": "image/svg+xml"
+        },
+        "info.svg": {
+          "name": "info.svg",
+          "blob": "3a6c6ea77f4fd0fe7cff231ab37c14da",
+          "size": 260,
+          "type": "image/svg+xml"
+        },
+        "inicio.svg": {
+          "name": "inicio.svg",
+          "blob": "3769669d22a5bfec545fbb813a99a199",
+          "size": 268,
+          "type": "image/svg+xml"
+        },
+        "inserir.svg": {
+          "name": "inserir.svg",
+          "blob": "ef23ecf49bf54e6387ede59bfd99e811",
+          "size": 276,
+          "type": "image/svg+xml"
+        },
+        "lateral.svg": {
+          "name": "lateral.svg",
+          "blob": "206e15af58ea11ad955b99c73777faff",
+          "size": 271,
+          "type": "image/svg+xml"
+        },
+        "likert.svg": {
+          "name": "likert.svg",
+          "blob": "ed28287017eb42c49e88742e79aef557",
+          "size": 277,
+          "type": "image/svg+xml"
+        },
+        "link.svg": {
+          "name": "link.svg",
+          "blob": "605dd8fa936992eb3acc64864640ab5f",
+          "size": 319,
+          "type": "image/svg+xml"
+        },
+        "lua.svg": {
+          "name": "lua.svg",
+          "blob": "604536d8b29167fa05d45be7a6d7a2b3",
+          "size": 248,
+          "type": "image/svg+xml"
+        },
+        "mais.svg": {
+          "name": "mais.svg",
+          "blob": "a5d27ed6afd522d5d916ad98de51daa9",
+          "size": 219,
+          "type": "image/svg+xml"
+        },
+        "mais3.svg": {
+          "name": "mais3.svg",
+          "blob": "50042683fb5c8c104a389e5400a6d309",
+          "size": 314,
+          "type": "image/svg+xml"
+        },
+        "menos.svg": {
+          "name": "menos.svg",
+          "blob": "1a468fe3dbd2213e7c75c07aa6d03d94",
+          "size": 211,
+          "type": "image/svg+xml"
+        },
+        "mic.svg": {
+          "name": "mic.svg",
+          "blob": "a85e88deb7189ea59e0d9f534b0f2150",
+          "size": 312,
+          "type": "image/svg+xml"
+        },
+        "monitor.svg": {
+          "name": "monitor.svg",
+          "blob": "1a6006687cbc3bf9f2e4a3f78dff0e83",
+          "size": 275,
+          "type": "image/svg+xml"
+        },
+        "novo.svg": {
+          "name": "novo.svg",
+          "blob": "f60a0eeaf71c8032bc55240340ab8303",
+          "size": 271,
+          "type": "image/svg+xml"
+        },
+        "nuvem.svg": {
+          "name": "nuvem.svg",
+          "blob": "4089f7066b2682d1ab842ca01b0d1e67",
+          "size": 318,
+          "type": "image/svg+xml"
+        },
+        "ok.svg": {
+          "name": "ok.svg",
+          "blob": "137a02fb95e4695fcb2457ecaa5d8825",
+          "size": 225,
+          "type": "image/svg+xml"
+        },
+        "olho.svg": {
+          "name": "olho.svg",
+          "blob": "25f94ce4a853a5374a19e2d3270d9ee8",
+          "size": 290,
+          "type": "image/svg+xml"
+        },
+        "parar.svg": {
+          "name": "parar.svg",
+          "blob": "f5ad98921ed76c16dcc3180a75365b84",
+          "size": 240,
+          "type": "image/svg+xml"
+        },
+        "pasta.svg": {
+          "name": "pasta.svg",
+          "blob": "470b5856786cf52d2380afd873da51e0",
+          "size": 310,
+          "type": "image/svg+xml"
+        },
+        "quadro.svg": {
+          "name": "quadro.svg",
+          "blob": "7d5d4c7342deb4d6c017fa485ed77b68",
+          "size": 233,
+          "type": "image/svg+xml"
+        },
+        "raio.svg": {
+          "name": "raio.svg",
+          "blob": "6da4b161ce9fb72185e9dfc3ccf60f6b",
+          "size": 229,
+          "type": "image/svg+xml"
+        },
+        "refazer.svg": {
+          "name": "refazer.svg",
+          "blob": "11ae05bc125fbf4ab352fb9d22b32f5a",
+          "size": 255,
+          "type": "image/svg+xml"
+        },
+        "relatorio.svg": {
+          "name": "relatorio.svg",
+          "blob": "2a5afd378f80da6e6ccf12bab6a175c8",
+          "size": 263,
+          "type": "image/svg+xml"
+        },
+        "selecionar.svg": {
+          "name": "selecionar.svg",
+          "blob": "4173c5a17f3783b2becf846dc8641c9a",
+          "size": 261,
+          "type": "image/svg+xml"
+        },
+        "seta.svg": {
+          "name": "seta.svg",
+          "blob": "094fa27167b6ad4726023fd4ed3a3707",
+          "size": 224,
+          "type": "image/svg+xml"
+        },
+        "setaE.svg": {
+          "name": "setaE.svg",
+          "blob": "816c48345744893fa9374287ff95b729",
+          "size": 225,
+          "type": "image/svg+xml"
+        },
+        "sobe.svg": {
+          "name": "sobe.svg",
+          "blob": "f4d64f88fef164e743e5bd9409293436",
+          "size": 226,
+          "type": "image/svg+xml"
+        },
+        "sol.svg": {
+          "name": "sol.svg",
+          "blob": "c2489054dd29b9ddd511c8c42659150e",
+          "size": 337,
+          "type": "image/svg+xml"
+        },
+        "tabela.svg": {
+          "name": "tabela.svg",
+          "blob": "eedb114419afa0f7ac2e3d0be73517e4",
+          "size": 291,
+          "type": "image/svg+xml"
+        },
+        "testar.svg": {
+          "name": "testar.svg",
+          "blob": "af61b2e72e447d75010a34f0ae591c53",
+          "size": 222,
+          "type": "image/svg+xml"
+        },
+        "teste.svg": {
+          "name": "teste.svg",
+          "blob": "a2ebbf9adcb737a0aacf4894f36a1f5c",
+          "size": 307,
+          "type": "image/svg+xml"
+        },
+        "usuario.svg": {
+          "name": "usuario.svg",
+          "blob": "63f992b2a2fc46b54bbbdf87557c6fbe",
+          "size": 261,
+          "type": "image/svg+xml"
+        },
+        "voltar.svg": {
+          "name": "voltar.svg",
+          "blob": "e5a57ddb3996d085563fb6873e6d0792",
+          "size": 259,
+          "type": "image/svg+xml"
+        },
+        "voz.svg": {
+          "name": "voz.svg",
+          "blob": "087e7c6222395235f34f5c74e171296e",
+          "size": 388,
+          "type": "image/svg+xml"
+        },
+        "zoomMais.svg": {
+          "name": "zoomMais.svg",
+          "blob": "2bf586cefc77337a75ed102bfcd6d899",
+          "size": 277,
+          "type": "image/svg+xml"
+        },
+        "zoomMenos.svg": {
+          "name": "zoomMenos.svg",
+          "blob": "014391b2c9b172ec7d02bad8f9f183d6",
+          "size": 268,
+          "type": "image/svg+xml"
+        }
+      }
+    },
+    "iu-memorable": {
+      "name": "iu-memorable",
+      "tile": "l",
+      "order": [
+        "lockup.png",
+        "lockup-escuro.png",
+        "lockup-vertical.png",
+        "lockup-vertical-escuro.png",
+        "simbolo.svg",
+        "simbolo-escuro.svg",
+        "simbolo-16.svg",
+        "simbolo-16-escuro.svg"
+      ],
+      "files": {
+        "lockup.png": {
+          "name": "lockup.png",
+          "blob": "d76c5ac2f3fa52d1fe9c15b1bbdf1ca1",
+          "size": 33796,
+          "type": "image/png"
+        },
+        "lockup-escuro.png": {
+          "name": "lockup-escuro.png",
+          "blob": "41ed0cfeec74e8fd4156ba1000fd5526",
+          "size": 34187,
+          "type": "image/png"
+        },
+        "lockup-vertical.png": {
+          "name": "lockup-vertical.png",
+          "blob": "c8c241c813c3abf1ef2ed833c7677535",
+          "size": 103629,
+          "type": "image/png"
+        },
+        "lockup-vertical-escuro.png": {
+          "name": "lockup-vertical-escuro.png",
+          "blob": "ac8a5fbf478ced90aadce964692b9d38",
+          "size": 110861,
+          "type": "image/png"
+        },
+        "simbolo.svg": {
+          "name": "simbolo.svg",
+          "blob": "8f16d82c8f02fccbae24266f19644c54",
+          "size": 1679,
+          "type": "image/svg+xml"
+        },
+        "simbolo-escuro.svg": {
+          "name": "simbolo-escuro.svg",
+          "blob": "a59bed75c6bad8d8cce8d26c36a92953",
+          "size": 1679,
+          "type": "image/svg+xml"
+        },
+        "simbolo-16.svg": {
+          "name": "simbolo-16.svg",
+          "blob": "9ac860484afcfb8dccdcc2956fb0218d",
+          "size": 1681,
+          "type": "image/svg+xml"
+        },
+        "simbolo-16-escuro.svg": {
+          "name": "simbolo-16-escuro.svg",
+          "blob": "b05573780d8cd6977f58583a9518216b",
+          "size": 1681,
+          "type": "image/svg+xml"
+        }
+      }
+    }
+  },
+  "blobs": {},
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "lastChange": {
+    "by": "Gustavo Bruno",
+    "at": "2026-10-02T16:44:02Z",
+    "via": "Claude Code",
+    "note": "Logos do iu-memorable (lockups horizontal e vertical, símbolo de 24 e de 16px, claro e escuro) no grupo de assets iu-memorable."
+  }
+}

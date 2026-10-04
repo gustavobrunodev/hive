@@ -1,0 +1,30 @@
+.dst-moldura { margin: 0; display: inline-grid; gap: calc(7px / var(--z, 1)); justify-items: start; }
+.dst-moldura__rotulo { font-size: calc(12.5px / var(--z, 1)); line-height: 1.3; color: var(--tinta-3); font-weight: 500; display: flex; align-items: center; gap: calc(6px / var(--z, 1)); white-space: nowrap; }
+.dst-moldura__rotulo b { color: var(--tinta-2); font-weight: 600; }
+.dst-moldura:hover .dst-moldura__rotulo b { color: var(--tinta); }
+.dst-moldura__em-foco { color: var(--acento-tinta); font-weight: 600; }
+.dst-moldura--na-fila { opacity: 0.35; }
+.dst-moldura__aparelho { position: relative; width: 390px; height: 780px; border-radius: var(--raio-aparelho); background: var(--aparelho); padding: 11px; box-shadow: var(--sombra-aparelho); }
+.dst-moldura__aparelho::before { content: ''; position: absolute; top: 21px; left: 50%; width: 92px; height: 25px; border-radius: 13px; background: var(--aparelho); transform: translateX(-50%); z-index: 6; }
+/* A tela é o Protótipo e fica clara nos dois temas: as marcas do estúdio
+   desenhadas dentro dela usam a tinta laranja do tema claro, senão o laranja
+   claro do escuro cai a ~2:1 sobre o branco. */
+.dst-moldura__tela { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; background: #ffffff; isolation: isolate; --acento-tinta: #a34c00; }
+.dst-moldura--criando .dst-moldura__tela { background: var(--superficie-2); }
+.dst-moldura__janela { width: 1040px; height: 680px; border-radius: var(--raio-painel); background: #fff; box-shadow: var(--sombra-aparelho); overflow: hidden; display: grid; grid-template-rows: 38px 1fr; }
+.dst-moldura__janela-barra { background: #ececea; display: flex; align-items: center; gap: 7px; padding: 0 14px; }
+.dst-moldura__janela-barra i { width: 11px; height: 11px; border-radius: 50%; background: #cfcfc8; }
+.dst-moldura__janela-barra span { margin-left: 12px; font-size: 13px; color: #5c5c55; background: #fff; padding: 3px 14px; border-radius: 6px; }
+.dst-moldura__tela--janela { border-radius: 0; overflow-y: auto; }
+.dst-moldura__esqueleto { position: absolute; inset: 0; padding: 64px 22px; display: grid; gap: 16px; align-content: start; }
+.dst-moldura__esqueleto i { display: block; height: 18px; border-radius: 9px; background: linear-gradient(90deg, var(--superficie-3), var(--borda), var(--superficie-3)); background-size: 200% 100%; animation: dst-brilho 1.2s linear infinite; }
+.dst-moldura__esqueleto .dst-moldura__esqueleto-alto { height: 110px; border-radius: 18px; }
+@keyframes dst-brilho { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.dst-moldura--realce .dst-moldura__aparelho, .dst-moldura--realce .dst-moldura__janela { animation: dst-pulso 0.9s var(--ease) 1; }
+@keyframes dst-pulso {
+  from { outline: calc(4px / var(--z, 1)) solid var(--acento); outline-offset: 0; }
+  to { outline: calc(4px / var(--z, 1)) solid transparent; outline-offset: calc(26px / var(--z, 1)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dst-moldura--realce .dst-moldura__aparelho, .dst-moldura--realce .dst-moldura__janela { animation: none; outline: calc(3px / var(--z, 1)) solid var(--acento); outline-offset: calc(6px / var(--z, 1)); }
+}

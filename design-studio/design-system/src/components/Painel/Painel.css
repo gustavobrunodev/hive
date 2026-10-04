@@ -1,0 +1,9 @@
+.dst-painel { margin: 0; padding: 18px 18px 16px; display: grid; gap: 14px; min-width: 0; background: var(--superficie); color: var(--tinta); border: 1px solid var(--borda); border-radius: var(--raio-l); box-shadow: var(--sombra-1); }
+.dst-painel__cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dst-painel__cab h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.dst-painel__cab p { margin: 2px 0 0; color: var(--tinta-3); font-size: 0.8125rem; max-width: 54ch; }
+
+.dst-graf-tabela { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.dst-graf-tabela th, .dst-graf-tabela td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--borda); font-variant-numeric: tabular-nums; }
+.dst-graf-tabela .num { text-align: right; }
+.dst-graf-tabela thead th { color: var(--tinta-3); font-weight: 600; font-size: 0.8125rem; }

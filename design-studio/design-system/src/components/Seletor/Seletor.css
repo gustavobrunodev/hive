@@ -1,0 +1,4 @@
+.dst-seletor { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: var(--raio-pill); border: 1px solid var(--borda); background: var(--superficie-2); color: var(--tinta); font-weight: 500; font-size: 0.875rem; white-space: nowrap; }
+.dst-seletor:hover { border-color: var(--borda-forte); background: var(--superficie-3); }
+.dst-seletor .dst-ic { width: 16px; height: 16px; color: var(--tinta-2); }
+.dst-seletor__complemento { color: var(--tinta-3); font-weight: 400; }

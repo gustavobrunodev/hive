@@ -1,0 +1,13 @@
+.dst-pilula { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.75rem; line-height: 1; padding: 5px 8px 5px 7px; border-radius: var(--raio-pill); white-space: nowrap; }
+.dst-pilula .dst-ic { width: 13px; height: 13px; }
+.dst-pilula--alto { background: var(--critico); color: #fff; }
+.dst-pilula--medio { background: var(--atencao); color: var(--atencao-tinta); }
+.dst-pilula--baixo { background: var(--observar); color: var(--observar-tinta); }
+.dst-pilula--ok { background: var(--ok-suave); color: var(--ok-tinta); }
+.dst-pilula--neutra { background: var(--observar); color: var(--observar-tinta); }
+
+.dst-tendencia { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; font-size: 0.8125rem; white-space: nowrap; }
+.dst-tendencia .dst-ic { width: 13px; height: 13px; }
+.dst-tendencia--sobe { color: var(--critico-tinta); }
+.dst-tendencia--desce { color: var(--ok-tinta); }
+.dst-tendencia--igual { color: var(--tinta-3); }

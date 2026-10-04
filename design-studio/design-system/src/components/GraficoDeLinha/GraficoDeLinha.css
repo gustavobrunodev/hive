@@ -1,0 +1,18 @@
+.dst-graf-linha__caixa { position: relative; width: 100%; min-height: 236px; border-radius: var(--raio-s); cursor: crosshair; }
+.dst-graf-linha__caixa:focus-visible { outline: 2px solid var(--tinta); outline-offset: 4px; }
+.dst-graf-linha__caixa svg { display: block; overflow: visible; }
+.dst-gl-grade { stroke: var(--borda); stroke-width: 1; }
+.dst-gl-eixo { stroke: var(--borda-forte); stroke-width: 1; }
+.dst-gl-tick { fill: var(--tinta-3); font: 500 11px var(--f-ui); font-variant-numeric: tabular-nums; }
+.dst-gl-linha { fill: none; stroke: var(--graf-enfase); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.dst-gl-area { fill: var(--graf-area); }
+.dst-gl-ponto { fill: var(--graf-enfase); stroke: var(--superficie); stroke-width: 2; }
+.dst-gl-fim { fill: var(--tinta); font: 600 12px var(--f-ui); font-variant-numeric: tabular-nums; }
+.dst-gl-cruz { stroke: var(--tinta-3); stroke-width: 1; }
+.dst-graf-dica { position: absolute; z-index: 2; width: max-content; max-width: 220px; background: var(--elevada); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra-2); padding: 8px 12px; display: grid; gap: 3px; pointer-events: none; font-size: 0.8125rem; }
+.dst-graf-dica p { margin: 0; }
+.dst-graf-dica__titulo { font-weight: 600; color: var(--tinta-2); }
+.dst-graf-dica__linha { display: flex; align-items: center; gap: 8px; }
+.dst-graf-dica__linha b { font-size: 0.9375rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.dst-graf-dica__linha span { color: var(--tinta-2); }
+.dst-graf-dica__ctx { color: var(--tinta-3); font-size: 0.75rem; }

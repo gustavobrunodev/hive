@@ -1,0 +1,8 @@
+.dst-barra-flutuante { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--raio-painel); background: var(--elevada); border: 1px solid var(--borda); box-shadow: var(--sombra-2); }
+.dst-ferramenta { height: 34px; min-width: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 9px; border: 0; border-radius: var(--raio-m); background: transparent; color: var(--tinta-2); font-weight: 500; font-size: 0.8125rem; white-space: nowrap; }
+.dst-ferramenta:hover { background: var(--superficie-3); color: var(--tinta); }
+.dst-ferramenta[aria-pressed='true'] { background: var(--tinta); color: var(--superficie); }
+.dst-ferramenta--destaque { background: var(--acento); color: var(--sobre-acento); font-weight: 600; }
+.dst-ferramenta--destaque:hover { background: var(--acento-hover); color: var(--sobre-acento); }
+.dst-ferramenta .dst-ic { width: 17px; height: 17px; }
+.dst-ferramenta-sep { width: 1px; height: 20px; background: var(--borda); margin: 0 2px; }

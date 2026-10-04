@@ -1,0 +1,54 @@
+<!-- @dsCard height=300 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Design Studio</title>
+<style>
+  html, body { margin: 0; height: 100%; padding: 0; }
+  body { background: var(--quadro); color: var(--tinta); font-family: var(--font-ui); overflow: hidden; }
+  .capa { position: relative; height: 300px; overflow: hidden; }
+  .arte { position: absolute; top: 0; left: 480px; width: 480px; height: 300px; }
+  .arte svg { display: block; width: 480px; height: 300px; overflow: hidden; }
+  .capa-ponto { fill: var(--ponto); }
+  .capa-acento { fill: var(--acento); rx: var(--raio); }
+  .capa-aparelho { fill: var(--tinta); rx: var(--raio-xl); }
+  .capa-likert { fill: var(--nota-likert); }
+  .capa-voz { fill: var(--nota-voz); }
+  .capa-fullstory { fill: var(--nota-fullstory); }
+  .capa-nota { rx: var(--raio-nota); }
+  .palavras { position: absolute; left: var(--espaco-xl); bottom: var(--espaco-xl); max-width: 440px; }
+  .nome { margin: 0; font-family: var(--font-titulo); font-weight: 700; font-size: 104px; line-height: 0.95; letter-spacing: -0.025em; font-variation-settings: 'opsz' 64; color: var(--tinta); }
+  .tag { margin: var(--espaco-md) 0 0 4px; font-size: 14px; line-height: 20px; color: var(--tinta-3); }
+</style>
+</head>
+<body>
+<div class="capa">
+<div class="arte" aria-hidden="true">
+<svg viewBox="0 0 480 300" width="480" height="300">
+<!--
+  blocos      acento 210×164 sangrando no topo e à direita (a cor que se lembra) · tinta 124×250 como aparelho, sangrando embaixo · nota-likert 108² · nota-voz 108² sangrando à direita · nota-fullstory 100² · ≈31% de 960×300
+  arranjo     um quadro de oficina: o aparelho no meio, o laranja acima, as notas coladas em volta com giro de -1.8° a 1.6°
+  padrão      o pontilhado do canvas, da linha "precisão, grade de 4px → grade de pontos" e porque o canvas pontilhado é o chão do produto: 9×6 pontos de 1.6px no passo-ponto
+  escalas     passo passo-ponto (22); cantos raio (laranja), raio-xl (aparelho), raio-nota (notas); folgas em espaco-md
+-->
+<circle class="capa-ponto" cx="22" cy="22" r="1.6"/><circle class="capa-ponto" cx="44" cy="22" r="1.6"/><circle class="capa-ponto" cx="66" cy="22" r="1.6"/><circle class="capa-ponto" cx="88" cy="22" r="1.6"/><circle class="capa-ponto" cx="110" cy="22" r="1.6"/><circle class="capa-ponto" cx="132" cy="22" r="1.6"/><circle class="capa-ponto" cx="154" cy="22" r="1.6"/><circle class="capa-ponto" cx="176" cy="22" r="1.6"/><circle class="capa-ponto" cx="198" cy="22" r="1.6"/>
+<circle class="capa-ponto" cx="22" cy="44" r="1.6"/><circle class="capa-ponto" cx="44" cy="44" r="1.6"/><circle class="capa-ponto" cx="66" cy="44" r="1.6"/><circle class="capa-ponto" cx="88" cy="44" r="1.6"/><circle class="capa-ponto" cx="110" cy="44" r="1.6"/><circle class="capa-ponto" cx="132" cy="44" r="1.6"/><circle class="capa-ponto" cx="154" cy="44" r="1.6"/><circle class="capa-ponto" cx="176" cy="44" r="1.6"/><circle class="capa-ponto" cx="198" cy="44" r="1.6"/>
+<circle class="capa-ponto" cx="22" cy="66" r="1.6"/><circle class="capa-ponto" cx="44" cy="66" r="1.6"/><circle class="capa-ponto" cx="66" cy="66" r="1.6"/><circle class="capa-ponto" cx="88" cy="66" r="1.6"/><circle class="capa-ponto" cx="110" cy="66" r="1.6"/><circle class="capa-ponto" cx="132" cy="66" r="1.6"/><circle class="capa-ponto" cx="154" cy="66" r="1.6"/><circle class="capa-ponto" cx="176" cy="66" r="1.6"/><circle class="capa-ponto" cx="198" cy="66" r="1.6"/>
+<circle class="capa-ponto" cx="22" cy="88" r="1.6"/><circle class="capa-ponto" cx="44" cy="88" r="1.6"/><circle class="capa-ponto" cx="66" cy="88" r="1.6"/><circle class="capa-ponto" cx="88" cy="88" r="1.6"/><circle class="capa-ponto" cx="110" cy="88" r="1.6"/><circle class="capa-ponto" cx="132" cy="88" r="1.6"/><circle class="capa-ponto" cx="154" cy="88" r="1.6"/><circle class="capa-ponto" cx="176" cy="88" r="1.6"/><circle class="capa-ponto" cx="198" cy="88" r="1.6"/>
+<circle class="capa-ponto" cx="22" cy="110" r="1.6"/><circle class="capa-ponto" cx="44" cy="110" r="1.6"/><circle class="capa-ponto" cx="66" cy="110" r="1.6"/><circle class="capa-ponto" cx="88" cy="110" r="1.6"/><circle class="capa-ponto" cx="110" cy="110" r="1.6"/><circle class="capa-ponto" cx="132" cy="110" r="1.6"/><circle class="capa-ponto" cx="154" cy="110" r="1.6"/><circle class="capa-ponto" cx="176" cy="110" r="1.6"/><circle class="capa-ponto" cx="198" cy="110" r="1.6"/>
+<circle class="capa-ponto" cx="22" cy="132" r="1.6"/><circle class="capa-ponto" cx="44" cy="132" r="1.6"/><circle class="capa-ponto" cx="66" cy="132" r="1.6"/><circle class="capa-ponto" cx="88" cy="132" r="1.6"/><circle class="capa-ponto" cx="110" cy="132" r="1.6"/><circle class="capa-ponto" cx="132" cy="132" r="1.6"/><circle class="capa-ponto" cx="154" cy="132" r="1.6"/><circle class="capa-ponto" cx="176" cy="132" r="1.6"/><circle class="capa-ponto" cx="198" cy="132" r="1.6"/>
+<rect class="capa-acento" x="284" y="-24" width="210" height="164" rx="12"/>
+<rect class="capa-aparelho" x="118" y="74" width="124" height="250" rx="24"/>
+<rect class="capa-likert capa-nota" x="262" y="162" width="108" height="108" rx="3" transform="rotate(-1.8 316 216)"/>
+<rect class="capa-voz capa-nota" x="384" y="176" width="108" height="108" rx="3" transform="rotate(1.6 438 230)"/>
+<rect class="capa-fullstory capa-nota" x="10" y="176" width="100" height="100" rx="3" transform="rotate(1.2 60 226)"/>
+</svg>
+</div>
+<div class="palavras">
+<h1 class="nome">Design Studio</h1>
+<p class="tag">O quadro onde as Dores dos clientes ficam ao lado das telas.</p>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!-- @dsCard group="Ações" height=190 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Botao</title>
+<style>
+  body { padding: 20px; background: var(--quadro); --z: 1; }
+  .vitrine { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+  .coluna { display: grid; gap: 8px; justify-items: start; }
+  .rot { font-size: 0.75rem; font-weight: 600; color: var(--tinta-3); }
+
+</style>
+</head>
+<body>
+<div class="coluna">
+  <div class="vitrine">
+    <button class="btn btn-pri"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Gerar Variantes</button>
+    <button class="btn btn-sec">Descartar</button>
+    <button class="btn btn-ter">Limpar filtro</button>
+    <button class="btn btn-pri" disabled>Gerar Variantes</button>
+  </div>
+  <div class="vitrine">
+    <button class="btn btn-pri btn-p"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Inserir</button>
+    <button class="btn btn-sec btn-p">Desfazer</button>
+    <button class="btn-icone" aria-label="Fechar"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button class="cmp-enviar" aria-label="Enviar"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+    <button class="cmp-enviar" aria-label="Enviar" disabled=""><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+  </div>
+</div>
+</body>
+</html>

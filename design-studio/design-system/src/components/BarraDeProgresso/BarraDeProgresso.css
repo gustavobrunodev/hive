@@ -1,0 +1,2 @@
+.dst-progresso { height: 6px; border-radius: 3px; background: var(--superficie-3); overflow: hidden; }
+.dst-progresso i { display: block; height: 100%; background: var(--acento); border-radius: inherit; transition: width 0.4s var(--ease); }

@@ -1,0 +1,3 @@
+.dst-toast { display: inline-flex; align-items: center; gap: 10px; background: var(--toast); color: var(--sobre-toast); padding: 10px 16px; border-radius: var(--raio-pill); box-shadow: var(--sombra-3); font-size: 0.9375rem; animation: dst-surge 0.22s var(--ease); transition: opacity 0.3s; }
+.dst-toast .dst-ic { width: 18px; height: 18px; color: var(--acento); }
+.dst-toast--saindo { opacity: 0; }

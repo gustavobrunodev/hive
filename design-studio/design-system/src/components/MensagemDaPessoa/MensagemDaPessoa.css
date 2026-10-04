@@ -1,0 +1,9 @@
+.dst-msg-pessoa { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: end; gap: 8px; min-width: 0; animation: dst-surge 0.22s var(--ease); }
+.dst-msg-pessoa__bolha { background: var(--superficie-3); color: var(--tinta); padding: 10px 14px; border-radius: 18px 18px 6px 18px; max-width: 88%; font-size: 0.9375rem; line-height: 1.55; display: grid; gap: 8px; }
+.dst-msg-pessoa__bolha p { margin: 0; }
+.dst-msg-pessoa__citas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 88%; min-width: 0; }
+.dst-msg-pessoa__selecao { display: flex; gap: 10px; align-items: center; border: 1.5px dashed var(--acento); border-radius: var(--raio-painel); padding: 8px 12px; background: var(--acento-suave); max-width: 88%; color: var(--tinta); }
+.dst-msg-pessoa__selecao .dst-ic { width: 18px; height: 18px; flex: none; }
+.dst-msg-pessoa__selecao span { display: grid; }
+.dst-msg-pessoa__selecao small { color: var(--tinta-2); font-size: 0.8125rem; }
+.dst-msg-pessoa__hora { font-size: 0.75rem; color: var(--tinta-3); }

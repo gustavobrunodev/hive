@@ -1,0 +1,12 @@
+.dst-segmentado { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--raio); background: var(--superficie-3); }
+.dst-segmentado button { border: 0; background: transparent; border-radius: 9px; padding: 6px 12px; font-size: 0.875rem; font-weight: 500; color: var(--tinta-2); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dst-segmentado button[aria-pressed='true'] { background: var(--superficie); color: var(--tinta); box-shadow: var(--sombra-1); font-weight: 600; }
+.dst-segmentado .dst-ic { width: 16px; height: 16px; }
+
+.dst-segmentado--pill { border-radius: var(--raio-pill); background: var(--superficie-2); border: 1px solid var(--borda); }
+.dst-segmentado--pill button { width: 30px; height: 26px; padding: 0; border-radius: var(--raio-pill); justify-content: center; color: var(--tinta-3); font-weight: 500; }
+.dst-segmentado--pill button[aria-pressed='true'] { font-weight: 500; }
+.dst-segmentado--pill .dst-ic { width: 15px; height: 15px; }
+
+.dst-segmentado--compacto { padding: 2px; border-radius: var(--raio-m); }
+.dst-segmentado--compacto button { min-width: 30px; height: 26px; padding: 0 10px; border-radius: var(--raio-s); justify-content: center; font-weight: 600; font-size: 0.8125rem; }

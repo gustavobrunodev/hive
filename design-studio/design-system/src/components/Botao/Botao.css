@@ -1,0 +1,21 @@
+.dst-botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--raio); border: 1px solid transparent; padding: 9px 15px; font-weight: 600; font-size: 0.9375rem; line-height: 1.2; color: var(--tinta); text-decoration: none; transition: background 0.15s, border-color 0.15s, transform 0.15s; white-space: nowrap; }
+.dst-botao:active { transform: translateY(1px); }
+.dst-botao--primario { background: var(--acento); color: var(--sobre-acento); }
+.dst-botao--primario:hover { background: var(--acento-hover); }
+.dst-botao--primario:active { background: var(--acento-press); }
+.dst-botao--secundario { background: var(--superficie); color: var(--tinta); border-color: var(--borda-forte); box-shadow: var(--sombra-1); }
+.dst-botao--secundario:hover { background: var(--superficie-2); }
+.dst-botao--terciario { background: transparent; color: var(--tinta); padding-inline: 10px; }
+.dst-botao--terciario:hover { background: var(--superficie-3); }
+.dst-botao--pequeno { padding: 6px 11px; font-size: 0.875rem; border-radius: var(--raio-m); }
+.dst-botao[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
+.dst-botao .dst-ic { width: 17px; height: 17px; }
+
+.dst-botao-icone { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: var(--raio-m); background: transparent; color: var(--tinta-2); flex: none; }
+.dst-botao-icone:hover { background: var(--superficie-3); color: var(--tinta); }
+.dst-botao-icone .dst-ic { width: 18px; height: 18px; }
+
+.dst-botao-enviar { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--acento); color: var(--sobre-acento); display: grid; place-items: center; flex: none; transition: background 0.15s, transform 0.15s; }
+.dst-botao-enviar:hover { background: var(--acento-hover); }
+.dst-botao-enviar:disabled { background: var(--superficie-3); color: var(--tinta-3); cursor: not-allowed; }
+.dst-botao-enviar .dst-ic { width: 19px; height: 19px; stroke-width: 2.2; }

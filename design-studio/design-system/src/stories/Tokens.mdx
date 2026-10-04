@@ -1,0 +1,16 @@
+import { Meta } from "@storybook/addon-docs/blocks"
+import { Cores, Medidas } from "./AmostrasDeTokens"
+
+<Meta title="Fundamentos/Tokens" />
+
+# Tokens
+
+Todo token é uma variável CSS com o nome dele (`--acento`, `--raio-l`). O claro fica em `:root`; o escuro redefine só o que muda, em `:root[data-theme='dark']`. A fonte é `src/tokens/tokens.ts`: `npm run build` gera o `tokens.css` e um teste confere que os dois não divergem. Cada amostra mostra o claro à esquerda e o escuro à direita.
+
+## Cor
+
+<Cores />
+
+## Raios, espaços e sombras
+
+<Medidas />

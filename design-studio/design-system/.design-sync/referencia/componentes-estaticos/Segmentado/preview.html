@@ -1,0 +1,18 @@
+<!-- @dsCard group="Seleção" height=90 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Segmentado</title>
+<style>
+  body { padding: 20px; background: var(--quadro); --z: 1; }
+  .vitrine { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+  .coluna { display: grid; gap: 8px; justify-items: start; }
+  .rot { font-size: 0.75rem; font-weight: 600; color: var(--tinta-3); }
+
+</style>
+</head>
+<body>
+<div class="vitrine"><div class="segmentado" role="group" aria-label="Produto"><button aria-pressed="true">Câmbio</button><button aria-pressed="false">Extrato</button><button aria-pressed="false">Pix</button></div><div class="tema-troca" role="group" aria-label="Tema"><button aria-pressed="true" title="Tema claro"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"></path></svg><span class="sr">Claro</span></button><button aria-pressed="false" title="Tema escuro"><svg class="ic " viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg><span class="sr">Escuro</span></button></div></div>
+</body>
+</html>

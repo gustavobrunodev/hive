@@ -1,0 +1,7 @@
+.dst-logo-agente { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--superficie); border: 1px solid var(--borda); }
+.dst-logo-agente svg { width: 15px; height: 15px; display: block; }
+.dst-logo-agente--devin { color: var(--tinta); }
+.dst-logo-agente--pequeno { width: 20px; height: 20px; border-radius: 6px; }
+.dst-logo-agente--pequeno svg { width: 12px; height: 12px; }
+.dst-logo-agente--grande { width: 40px; height: 40px; border-radius: 12px; }
+.dst-logo-agente--grande svg { width: 24px; height: 24px; }

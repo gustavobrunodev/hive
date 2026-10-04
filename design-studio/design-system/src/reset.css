@@ -1,0 +1,18 @@
+/* Base do estúdio: a mesma do app. Separada dos tokens e das fontes para a
+   sincronização com a Claude Design, que serve tokens e fontes por conta própria. */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--quadro); color: var(--tinta);
+  font-family: var(--f-ui); font-size: 15px; line-height: 1.5;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  caret-color: var(--acento);
+}
+::selection { background: var(--acento); color: var(--sobre-acento); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; border-radius: 6px; }
+.dst-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes dst-surge { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

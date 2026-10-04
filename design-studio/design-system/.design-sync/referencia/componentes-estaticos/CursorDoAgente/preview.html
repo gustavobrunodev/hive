@@ -1,0 +1,19 @@
+<!-- @dsCard group="Quadro" height=110 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>CursorDoAgente</title>
+<style>
+  body { padding: 20px; background: var(--quadro); --z: 1; }
+  .vitrine { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+  .coluna { display: grid; gap: 8px; justify-items: start; }
+  .rot { font-size: 0.75rem; font-weight: 600; color: var(--tinta-3); }
+  .palco { position: relative; height: 70px; }
+  .palco .cursor-agente { transform: translate(24px, 8px); }
+</style>
+</head>
+<body>
+<div class="palco"><div class="cursor-agente" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3l15 7-6.6 2.1L10 19z" fill="var(--acento)" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"></path></svg><span>Claude</span></div></div>
+</body>
+</html>

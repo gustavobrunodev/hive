@@ -455,7 +455,7 @@ Painel de 300px em superfície elevada, 18px de canto, sombra sobreposta, entra 
 Ferramenta irmã do Editar: escolhe um ponto entre blocos da tela e gera um elemento novo com Variantes.
 - **Mira:** linha laranja de 2px na largura do bloco, ponto laranja de 14px com halo em superfície na ponta esquerda e pílula invertida (toast, Geist 500 0.75rem) dizendo "Inserir antes/depois do bloco …". Cursor `copy` sobre a tela.
 - **Painel:** Onde (Antes/Depois), pedido em texto livre obrigatório, sugestões por tipo (aviso, ajuda, botão, campo, etapas, resumo), Tamanho (P/M/G) e Quantas Variantes (1 a 4).
-- **Vaga:** espaço reservado na tela com contorno laranja tracejado, fundo laranja a 6%, texto em laranja tinta, 12px de canto; altura mínima de 56, 96 ou 160px conforme P/M/G. Enquanto gera, um brilho varre a vaga em 1.1s e o cursor do agente vai até ela.
+- **Vaga:** espaço reservado na tela com contorno laranja tracejado, fundo laranja a 6%, texto em laranja tinta (sempre o valor do tema claro, porque a tela é clara nos dois temas), 12px de canto; altura mínima de 56, 96 ou 160px conforme P/M/G. Enquanto gera, um brilho varre a vaga em 1.1s e o cursor do agente vai até ela.
 - **Prévia:** a Variante em teste ganha contorno laranja tracejado afastado 4px (contra-escalado), até ser aceita ou descartada.
 O elemento inserido é conteúdo do Protótipo: veste os tokens da camada do Protótipo, não os do estúdio.
 

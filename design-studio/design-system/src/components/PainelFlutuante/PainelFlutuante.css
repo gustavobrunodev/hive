@@ -1,0 +1,21 @@
+.dst-painel-flutuante { position: relative; width: var(--painel-vivo); background: var(--elevada); border: 1px solid var(--borda); border-radius: var(--raio-l); box-shadow: var(--sombra-3); display: grid; overflow: hidden; animation: dst-surge 0.18s var(--ease); }
+.dst-painel-flutuante__cab { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 14px; border-bottom: 1px solid var(--borda); }
+.dst-painel-flutuante__cab > .dst-ic { width: 18px; height: 18px; color: var(--tinta-2); }
+.dst-painel-flutuante__cab strong { flex: 1; font-size: 0.9375rem; min-width: 0; }
+.dst-painel-flutuante__cab small { display: block; font-weight: 400; color: var(--tinta-3); font-size: 0.8125rem; }
+.dst-painel-flutuante__corpo { padding: 12px 14px; display: grid; gap: 14px; }
+.dst-painel-flutuante__corpo textarea, .dst-painel-flutuante__corpo input[type='text'] { width: 100%; border: 1px solid var(--borda); border-radius: var(--raio-m); padding: 8px 10px; resize: none; background: var(--superficie); font: inherit; font-size: 0.875rem; line-height: 1.45; outline: none; }
+.dst-painel-flutuante__corpo textarea:focus, .dst-painel-flutuante__corpo input[type='text']:focus { border-color: var(--acento); }
+.dst-painel-flutuante__pe { display: flex; gap: 8px; padding: 10px 14px 14px; }
+.dst-painel-flutuante__pe > * { flex: 1; }
+.dst-painel-flutuante__linha { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--tinta-2); }
+.dst-painel-flutuante__linha > :last-child { margin-left: auto; }
+
+.dst-sugestoes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.dst-sugestoes button { border: 1px solid var(--borda); background: var(--superficie); border-radius: var(--raio-m); padding: 7px 9px; font-size: 0.8125rem; font-weight: 500; text-align: left; color: var(--tinta-2); }
+.dst-sugestoes button:hover { border-color: var(--borda-forte); color: var(--tinta); }
+.dst-sugestoes button[aria-pressed='true'] { background: var(--tinta); border-color: var(--tinta); color: var(--superficie); }
+
+.dst-variantes { display: flex; align-items: center; gap: 8px; }
+.dst-variantes strong { flex: 1; font-size: 0.875rem; }
+.dst-variantes strong span { display: block; font-weight: 400; color: var(--tinta-2); }

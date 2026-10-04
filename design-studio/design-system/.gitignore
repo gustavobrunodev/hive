@@ -1,0 +1,5 @@
+node_modules
+coverage
+storybook-static
+.design-sync/saida
+.design-sync/tmp

@@ -1,0 +1,51 @@
+{
+  "name": "@design-studio/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design system do Design Studio: o quadro de oficina onde as Dores dos clientes ficam ao lado das telas.",
+  "type": "module",
+  "main": "dist/ds-bundle.js",
+  "types": "dist/index.d.ts",
+  "style": "dist/ds-bundle.css",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6007",
+    "build-storybook": "storybook build -o storybook-static",
+    "sync:claude-design": "node scripts/sync-claude-design.mjs",
+    "verify": "npm run typecheck && npm run test:coverage && npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@storybook/addon-a11y": "9.1.20",
+    "@storybook/addon-docs": "9.1.20",
+    "@storybook/react-vite": "9.1.20",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitest/coverage-v8": "^2.1.8",
+    "axe-core": "^4.10.2",
+    "dts-bundle-generator": "^9.5.1",
+    "esbuild": "^0.21.5",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "storybook": "9.1.20",
+    "typescript": "^5.7.2",
+    "vite": "6.4.3",
+    "vitest": "^2.1.8"
+  }
+}

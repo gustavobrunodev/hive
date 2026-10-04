@@ -1,0 +1,2 @@
+.dst-sinal { display: block; flex: none; }
+.dst-marca { display: flex; align-items: center; gap: 10px; color: var(--tinta); text-decoration: none; font-family: var(--f-titulo); font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.01em; white-space: nowrap; }

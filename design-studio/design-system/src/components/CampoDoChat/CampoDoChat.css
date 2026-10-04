@@ -1,0 +1,15 @@
+.dst-campo-chat { position: relative; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-xl); box-shadow: var(--sombra-2); padding: 12px 12px 10px; display: grid; gap: 8px; transition: border-color 0.15s, box-shadow 0.15s; }
+.dst-campo-chat:focus-within { border-color: var(--borda-forte); }
+.dst-campo-chat--compacto { border-radius: var(--raio-l); box-shadow: var(--sombra-1); padding: 10px 10px 8px; }
+.dst-campo-chat--compacto:focus-within { box-shadow: var(--sombra-2); }
+.dst-campo-chat__contexto { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 0; }
+.dst-campo-chat__texto { width: 100%; border: 0; outline: none; resize: none; background: transparent; padding: 8px 8px 4px; font-size: 1.0625rem; line-height: 1.5; min-height: 84px; max-height: 260px; }
+.dst-campo-chat--compacto .dst-campo-chat__texto { font-size: 0.9375rem; min-height: 52px; max-height: 180px; }
+.dst-campo-chat__texto::placeholder { color: var(--tinta-3); }
+.dst-campo-chat__barra { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dst-campo-chat__espaco { flex: 1; }
+.dst-campo-chat__redondo { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--borda); background: var(--superficie); display: grid; place-items: center; color: var(--tinta-2); flex: none; }
+.dst-campo-chat__redondo:hover { background: var(--superficie-3); color: var(--tinta); }
+.dst-campo-chat__redondo .dst-ic { width: 18px; height: 18px; }
+.dst-campo-chat__redondo--gravando { background: var(--critico); border-color: var(--critico); color: #fff; }
+.dst-campo-chat__redondo--gravando:hover { background: var(--critico); color: #fff; }

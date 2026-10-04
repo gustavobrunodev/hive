@@ -1,0 +1,6 @@
+.dst-filtro-graficos { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.dst-filtro-graficos__dor { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 34px 0 12px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); font-size: 0.875rem; }
+.dst-filtro-graficos__dor > span { color: var(--tinta-3); font-weight: 600; }
+.dst-filtro-graficos__dor select { appearance: none; border: 0; background: transparent; font: inherit; color: var(--tinta); font-weight: 600; max-width: 340px; text-overflow: ellipsis; outline: none; cursor: pointer; padding: 7px 0; }
+.dst-filtro-graficos__dor .dst-ic { position: absolute; right: 10px; width: 16px; height: 16px; pointer-events: none; color: var(--tinta-2); }
+.dst-filtro-graficos__dor:focus-within { outline: 2px solid var(--tinta); outline-offset: 2px; }
