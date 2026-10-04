@@ -539,6 +539,32 @@ describe('main process bootstrap', () => {
     await expect(handler()).resolves.toBe('pong')
   })
 
+  // Design Studio (Landing 10): "Recentes" over the real IPC handler and the
+  // real history store. `app.getPath` answers the temp dir for every name in
+  // this suite, so `<raiz>` is `<that dir>/Design Studio`.
+  it('designStudio:conversations lists the module conversations of every Produto folder', async () => {
+    const root = join(userDataDir, 'Design Studio')
+    const pix = join(root, 'Pix')
+    mkdirSync(pix, { recursive: true })
+    const session = (await findHandler('chatHistory:create')({}, pix, 'claude-cli')) as {
+      id: string
+    }
+    await findHandler('chatHistory:append')({}, pix, session.id, {
+      role: 'user',
+      text: 'Por onde você começaria?'
+    })
+
+    const listed = (await findHandler('designStudio:conversations')({})) as Array<{
+      id: string
+      produto: string
+      title: string
+    }>
+    expect(listed).toEqual([
+      expect.objectContaining({ id: session.id, produto: 'Pix', title: 'Por onde você começaria?' })
+    ])
+    rmSync(root, { recursive: true, force: true })
+  })
+
   // Structural proof of R1.3 (renderer never gets Node/fs/child_process access):
   // Electron enforces isolation at the OS/process level from this exact
   // webPreferences config, which a jsdom-based renderer test cannot observe

@@ -431,6 +431,18 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('chatHistory:delete', '/ws', 'id-1')
   })
 
+  // Design Studio: the module's reads. No argument crosses the bridge — main
+  // owns where `<raiz>` is (Landing 10).
+  it('hive.designStudio.conversations() invokes "designStudio:conversations"', async () => {
+    const hive = exposedGlobals().get('hive') as {
+      designStudio: { conversations: () => Promise<unknown> }
+    }
+    await expect(hive.designStudio.conversations()).resolves.toBe(
+      'invoked:designStudio:conversations'
+    )
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:conversations')
+  })
+
   it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
     const hive = exposedGlobals().get('hive') as {
       workflows: { list: (w: string) => Promise<unknown> }

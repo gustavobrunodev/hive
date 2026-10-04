@@ -37,6 +37,7 @@ import type {
   ShortcutSettings
 } from '../main/configStore'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
+import type { ModuleConversationMeta } from '../main/designStudio/conversations'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -433,6 +434,14 @@ const hive = {
       ipcRenderer.invoke('chatHistory:search', workspace, query),
     delete: (workspace: string, id: string): Promise<void> =>
       ipcRenderer.invoke('chatHistory:delete', workspace, id)
+  },
+
+  // Design Studio: the module's own reads. Its conversations are ordinary
+  // history sessions keyed by `<raiz>/<Produto>`; main owns where `<raiz>` is,
+  // so the renderer asks for the listing rather than for the path (Landing 10).
+  designStudio: {
+    conversations: (): Promise<ModuleConversationMeta[]> =>
+      ipcRenderer.invoke('designStudio:conversations')
   },
 
   // App self-update (app-settings): version info as plain invoke/response;

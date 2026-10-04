@@ -36,6 +36,7 @@ import type { ShellCatalogView } from '../main/shellService'
 import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
+import type { ModuleConversationMeta } from '../main/designStudio/conversations'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -187,6 +188,11 @@ declare global {
         setUsage(workspace: string, id: string, usage: unknown): Promise<void>
         search(workspace: string, query: string): Promise<ChatSessionMeta[]>
         delete(workspace: string, id: string): Promise<void>
+      }
+      /** Design Studio: the module's own reads — see preload/index.ts. */
+      designStudio: {
+        /** Every module conversation, tagged with its Produto folder (Landing 10). Unsorted. */
+        conversations(): Promise<ModuleConversationMeta[]>
       }
       /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
       app: {

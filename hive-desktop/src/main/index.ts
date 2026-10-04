@@ -20,6 +20,8 @@ import { APP_ID, APP_NAME } from './appIdentity'
 import { createConfigStore } from './configStore'
 import { migrateUserData } from './userDataMigration'
 import { createChatHistoryStore, type StoredCompaction } from './chatHistoryStore'
+import { resolveDataRoot } from './designStudio/dataRoot'
+import { listModuleConversations } from './designStudio/conversations'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
@@ -1747,6 +1749,14 @@ app.whenReady().then(() => {
   )
   ipcMain.handle('chatHistory:delete', async (_event, workspace: string, id: string) =>
     chatHistoryStore.remove(workspace, id)
+  )
+
+  // Design Studio (Landing 3, 10, 11): the module's own data root, resolved
+  // once — the Documents folder does not move while the app runs — and the
+  // conversations "Recentes" lists, one history workspace per Produto folder.
+  const designStudioRoot = resolveDataRoot(app.getPath('documents'))
+  ipcMain.handle('designStudio:conversations', async () =>
+    listModuleConversations(chatHistoryStore, designStudioRoot)
   )
 
   // WorkflowCatalog (T17): request/response, same shape as fs:listTree/
