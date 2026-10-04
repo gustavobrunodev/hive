@@ -99,3 +99,32 @@ describe('SidebarHost', () => {
     expect(views).toEqual(['chat', 'explorer', 'scm'])
   })
 })
+
+describe('SidebarHost — the column foot', () => {
+  it('pins the foot after every body, whichever view is showing', () => {
+    render(
+      createElement(SidebarHost, {
+        activeView: 'chat',
+        chat,
+        explorer,
+        scm,
+        foot: createElement('span', { 'data-testid': 'foot' }, 'perfil')
+      })
+    )
+    const foot = screen.getByTestId('foot').closest('.wb-sidebar-foot') as HTMLElement
+    expect(foot).not.toBeNull()
+    const host = document.querySelector('.wb-sidebar-host') as HTMLElement
+    expect(host.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(host.contains(foot)).toBe(false)
+  })
+
+  it('keeps the foot strip even while it holds nothing (the sidebar hidden)', () => {
+    render(createElement(SidebarHost, { activeView: 'chat', chat, explorer, scm, foot: false }))
+    expect(document.querySelector('.wb-sidebar-foot')?.childNodes.length).toBe(0)
+  })
+
+  it('has no foot when none is asked for', () => {
+    host('chat')
+    expect(document.querySelector('.wb-sidebar-foot')).toBeNull()
+  })
+})

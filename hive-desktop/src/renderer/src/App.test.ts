@@ -231,6 +231,8 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
         probe: vi.fn().mockResolvedValue({ ok: true, tools: [], logs: '', durationMs: 0 })
       },
       mcpLogs: createHiveMcpLogsMock(),
+      // Design Studio: the module's "Recentes" listing.
+      designStudio: { conversations: vi.fn().mockResolvedValue([]) },
       chatHistory: {
         list: vi.fn().mockResolvedValue([]),
         get: vi.fn().mockResolvedValue(null),

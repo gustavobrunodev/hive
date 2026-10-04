@@ -28,11 +28,16 @@ export type SidebarView = 'chat' | 'explorer' | 'scm'
 /**
  * What the work area's first pane is showing.
  *
- * `chat` is the transcript. The other two are the agent's tools, opened **in
- * place of** it — full pane width, with the sidebar's history left alone so
- * you can still see where you were and get back to it in one click.
+ * `chat` is the transcript. `review` and `brain` are the agent's tools, opened
+ * **in place of** it — full pane width, with the sidebar's history left alone
+ * so you can still see where you were and get back to it in one click.
+ *
+ * `design` is the Design Studio module (decision 1 of its task A). It opens in
+ * the same place, but it is a place of its own rather than a tool: while it is
+ * in front, the Chat tab's body under the tools becomes the module's own
+ * navigation, with the history kept mounted underneath for the way back.
  */
-export type WorkView = 'chat' | 'review' | 'brain'
+export type WorkView = 'chat' | 'review' | 'brain' | 'design'
 
 /** The two top-level sidebar tabs. */
 export type SidebarTab = 'chat' | 'files'
@@ -54,7 +59,7 @@ const TAB_OF_VIEW: Record<SidebarView, SidebarTab> = {
 }
 
 /** The work views, in the DOM order the pane stacks them in. */
-export const WORK_VIEWS: readonly WorkView[] = ['chat', 'review', 'brain']
+export const WORK_VIEWS: readonly WorkView[] = ['chat', 'review', 'brain', 'design']
 
 export function isWorkView(value: unknown): value is WorkView {
   return typeof value === 'string' && (WORK_VIEWS as readonly string[]).includes(value)

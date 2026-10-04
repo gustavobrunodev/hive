@@ -25,12 +25,21 @@ describe('sidebar navigation model', () => {
    * the user navigates by and then ran a diff review in a 280px column.
    */
   it('separates the work surfaces from the sidebar views, with no id in both', () => {
-    expect(WORK_VIEWS).toEqual(['chat', 'review', 'brain'])
-    for (const view of ['review', 'brain']) expect(isSidebarView(view)).toBe(false)
+    expect(WORK_VIEWS).toEqual(['chat', 'review', 'brain', 'design'])
+    for (const view of ['review', 'brain', 'design']) expect(isSidebarView(view)).toBe(false)
     for (const view of ['explorer', 'scm']) expect(isWorkView(view)).toBe(false)
     // `chat` is the one name both vocabularies use — the conversation list in
     // the rail, the transcript in the pane — and it is the home of each.
     expect(isSidebarView('chat') && isWorkView('chat')).toBe(true)
+  })
+
+  /**
+   * Design Studio, decision 1: the module is a work view — it opens in the
+   * transcript's place, and the sidebar becomes its navigation.
+   */
+  it('C5a: the Design Studio is a work view, last in the pane order', () => {
+    expect(isWorkView('design')).toBe(true)
+    expect(WORK_VIEWS).toEqual(['chat', 'review', 'brain', 'design'])
   })
 
   it('accepts persisted views and rejects invalid workspace session values', () => {

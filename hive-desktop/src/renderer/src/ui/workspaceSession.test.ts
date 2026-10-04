@@ -114,6 +114,17 @@ describe('workspaceSession — reading back what was written', () => {
     expect(loadWorkspaceSession(WS)).toEqual(session)
   })
 
+  it('C5a: a session saved with the Design Studio in front reopens on it', () => {
+    saveWorkspaceSession(WS, { workView: 'design' })
+    expect(stored().workView).toBe('design')
+    expect(loadWorkspaceSession(WS).workView).toBe('design')
+
+    // Read from a raw record too — the reader, not only the writer, has to
+    // accept the value, or a restart falls back to the transcript.
+    seed({ [WS]: { savedAt: 1, workView: 'design' } })
+    expect(loadWorkspaceSession(WS).workView).toBe('design')
+  })
+
   it('merges a patch into what is already there', () => {
     saveWorkspaceSession(WS, { chatSessionId: 's1', expanded: ['docs'] })
     saveWorkspaceSession(WS, { sidebarOpen: true })

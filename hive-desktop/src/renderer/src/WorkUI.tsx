@@ -128,6 +128,11 @@ import {
   saveWorkspaceSession,
   type WorkspaceSession
 } from './ui/workspaceSession'
+import { ChatTabBody } from './designStudio/ChatTabBody'
+import { DesignStudioNav } from './designStudio/DesignStudioNav'
+import { DesignStudioShell } from './designStudio/DesignStudioShell'
+import { DesignStudioIcon } from './designStudio/icons'
+import { useDesignStudio } from './designStudio/useDesignStudio'
 
 /** Maps `OpenResult`'s failure reasons (WS-R6.3) to a user-facing i18n key — kept close to the guard/pipeline logic that's the only caller. */
 function switchErrorMessage(reason: 'missing' | 'not-a-directory' | 'unreadable'): string {
@@ -268,7 +273,21 @@ function workPaneTitle(view: WorkView): string {
       return t('review.panelTitle')
     case 'brain':
       return t('secondBrain.panelTitle')
+    case 'design':
+      return t('designStudio.name')
   }
+}
+
+/**
+ * The Design Studio's navigation is on screen — the sidebar showing, on the
+ * Chat & Cowork tab whose body it takes over. While it is not, each module page
+ * carries the "Dados de exemplo" seal the navigation would have shown.
+ *
+ * Module scope for the same reason as the helpers above: a condition written in
+ * `WorkUI`'s body is a point off a complexity budget that is already spent.
+ */
+function designNavVisible(sidebarOpen: boolean, tab: SidebarTab): boolean {
+  return sidebarOpen && tab === 'chat'
 }
 
 /**
@@ -596,6 +615,13 @@ export function WorkUI({
    * a tool is covering it.
    */
   const mountedWorkViews = useMountedLayers<WorkView>(workView, ['chat'])
+  /**
+   * Design Studio: the module's own state (its page, what each page was last
+   * opened on, its conversations), held up here because both halves read it —
+   * the navigation in the sidebar and the pages in the work pane — and because
+   * being above the layer is what keeps it while the person is away.
+   */
+  const designStudio = useDesignStudio(workView === 'design')
   /**
    * Whether the sidebar panel itself is on screen.
    *
@@ -1740,6 +1766,19 @@ export function WorkUI({
                 <>
                   <NewConversationButton onClick={handleNewConversation} />
                   <nav className="wb-sidebar-nav" aria-label={t('nav.toolsLabel')}>
+                    {/* The Design Studio, right under "+ Novo" (criterion 1).
+                        It opens in the work pane like the tools below it, and
+                        while it is in front the body under this block becomes
+                        its navigation (decision 1). */}
+                    <SidebarNavItem
+                      view="design"
+                      controls={WORK_REGION_ID}
+                      label={t('designStudio.name')}
+                      icon={<DesignStudioIcon size={15} />}
+                      active={workView === 'design'}
+                      togglesOff={workView === 'design'}
+                      onSelect={() => toggleWorkView('design')}
+                    />
                     {/* These two disclose the WORK pane, not the sidebar —
                         `controls` is what says so to a screen reader, and the
                         history below them stays put either way. */}
@@ -1814,29 +1853,35 @@ export function WorkUI({
             <SidebarHost
               activeView={activeView}
               chat={
-                <ChatSidebar
-                  initiatives={
-                    <InitiativesPanel
-                      store={initiative.all}
-                      activePath={initiative.path}
-                      onOpen={(entry: Initiative) => initiative.show(entry.path)}
-                      onCreate={() => initiative.setCreateOpen(true)}
+                <ChatTabBody
+                  designActive={workView === 'design'}
+                  design={<DesignStudioNav store={designStudio} />}
+                  hive={
+                    <ChatSidebar
+                      initiatives={
+                        <InitiativesPanel
+                          store={initiative.all}
+                          activePath={initiative.path}
+                          onOpen={(entry: Initiative) => initiative.show(entry.path)}
+                          onCreate={() => initiative.setCreateOpen(true)}
+                        />
+                      }
+                      store={chatSessions}
+                      window={convWindow}
+                      sort={convSort}
+                      onWindowChange={setConvWindow}
+                      onSortChange={setConvSort}
+                      activeSessionId={activeSessionId}
+                      runningSessionIds={runningSessionIds}
+                      reviewPendingBySession={reviewPendingBySession}
+                      onOpenSession={handleOpenSession}
+                      onOpenAll={() => setAllConvOpen(true)}
+                      initiativeMarks={initiative.marks}
+                      initiativeOptions={initiative.filterOptions}
+                      initiativeFilter={initiative.filter}
+                      onInitiativeFilterChange={initiative.setFilter}
                     />
                   }
-                  store={chatSessions}
-                  window={convWindow}
-                  sort={convSort}
-                  onWindowChange={setConvWindow}
-                  onSortChange={setConvSort}
-                  activeSessionId={activeSessionId}
-                  runningSessionIds={runningSessionIds}
-                  reviewPendingBySession={reviewPendingBySession}
-                  onOpenSession={handleOpenSession}
-                  onOpenAll={() => setAllConvOpen(true)}
-                  initiativeMarks={initiative.marks}
-                  initiativeOptions={initiative.filterOptions}
-                  initiativeFilter={initiative.filter}
-                  onInitiativeFilterChange={initiative.setFilter}
                 />
               }
               explorer={
@@ -1863,11 +1908,11 @@ export function WorkUI({
                   onShowLogs={openGitLog}
                 />
               }
+              /* The column's bottom edge: who you are, and the two settings
+                 surfaces. It anchors the sidebar the way a scrolling list
+                 cannot, and it is where a desktop user's hand already goes. */
+              foot={sidebarOpen && userMenu}
             />
-            {/* The column's bottom edge: who you are, and the two settings
-                surfaces. It anchors the sidebar the way a scrolling list
-                cannot, and it is where a desktop user's hand already goes. */}
-            <div className="wb-sidebar-foot">{sidebarOpen && userMenu}</div>
           </div>
         </ResizablePanel>
       )
@@ -1934,6 +1979,13 @@ export function WorkUI({
             selectedPath={editor.activePath}
             setup={brainSetup}
             onIngest={() => openIngest('text')}
+          />
+        ),
+        design: (
+          <DesignStudioShell
+            store={designStudio}
+            userName={userName}
+            navVisible={designNavVisible(sidebarOpen, activeTab)}
           />
         )
       }

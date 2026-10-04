@@ -911,6 +911,20 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           lines: 90
+        },
+        // Design Studio (the module, tasks A–C): both process halves, whole
+        // directories, so a file the later lotes add is gated the day it lands.
+        'src/renderer/src/designStudio/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
+        },
+        'src/main/designStudio/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90
         }
         // `AgentPicker.tsx` and `AgentSetup.tsx` are already gated above (the
         // multi-agent and onboarding entries) — a second glob for the same file

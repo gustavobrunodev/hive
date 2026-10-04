@@ -17,6 +17,12 @@ interface SidebarHostProps {
   explorer: ReactNode
   /** The Source Control body. */
   scm: ReactNode
+  /**
+   * The column's foot (who you are, and the settings), pinned under whichever
+   * body is showing. Rendered here so the order the column promises — every
+   * body above the profile — is the host's to keep, not each caller's.
+   */
+  foot?: ReactNode
 }
 
 /** The views in nav order — also the DOM order of the layers below. */
@@ -51,24 +57,28 @@ export function SidebarHost({
   activeView,
   chat,
   explorer,
-  scm
+  scm,
+  foot
 }: SidebarHostProps): React.JSX.Element {
   const mounted = useMountedLayers<SidebarView>(activeView)
 
   const bodies: Record<SidebarView, ReactNode> = { chat, explorer, scm }
 
   return (
-    <div className="wb-sidebar-host">
-      {VIEW_ORDER.filter((view) => mounted.includes(view)).map((view) => (
-        <div
-          key={view}
-          className="wb-sidebar-layer"
-          data-view={view}
-          data-active={view === activeView || undefined}
-        >
-          {bodies[view]}
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="wb-sidebar-host">
+        {VIEW_ORDER.filter((view) => mounted.includes(view)).map((view) => (
+          <div
+            key={view}
+            className="wb-sidebar-layer"
+            data-view={view}
+            data-active={view === activeView || undefined}
+          >
+            {bodies[view]}
+          </div>
+        ))}
+      </div>
+      {foot !== undefined && <div className="wb-sidebar-foot">{foot}</div>}
+    </>
   )
 }

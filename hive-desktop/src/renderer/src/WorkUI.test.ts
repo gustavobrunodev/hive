@@ -945,6 +945,11 @@ function createHiveMock(): Window['hive'] {
       rename: vi.fn(async () => null),
       delete: vi.fn(async () => undefined)
     },
+    // Design Studio: "Recentes" — the module's conversations, read when the
+    // module comes to the front.
+    designStudio: {
+      conversations: vi.fn(async () => [])
+    },
     getRecentWorkspaces: vi.fn(async () => []),
     openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),
     // The file-search palette loads the flat workspace file list on open.
@@ -4115,5 +4120,269 @@ describe('WorkUI — iniciativas', () => {
     await waitFor(() => expect(document.querySelector('.wb-initctx')).toBeNull())
     // …and the workspace does not reopen on a folder that is in the trash.
     await waitFor(() => expect(storedSession().initiativePath).toBeNull())
+  })
+})
+
+describe('WorkUI — Design Studio (the module, decision 1)', () => {
+  function renderWork(): void {
+    render(createElement(WorkUI, { workspace: WS, theme: 'dark', onSelectTheme: vi.fn() }))
+  }
+
+  /** The module's entry row, whichever name it is wearing (it names the toggle while active). */
+  function designRow(): HTMLElement {
+    const fixed = document.querySelector('.wb-sidebar-fixed') as HTMLElement
+    return within(fixed).getByRole('button', { name: /^(Ocultar )?Design Studio$/ })
+  }
+
+  /** The Chat-tab body layer on screen: the Hive's (initiatives + conversations) or the module's navigation. */
+  function activeChatBody(): HTMLElement {
+    const body = document.querySelector<HTMLElement>(
+      '.wb-sidebar-layer[data-view="chat"] [data-chat-body][data-active]'
+    )
+    if (!body) throw new Error('no active Chat-tab body')
+    return body
+  }
+
+  /** The module's page on screen, inside the work layer on screen. */
+  function activeDesignPage(): string | null {
+    return (
+      document
+        .querySelector('.wb-work-layer[data-view="design"][data-active] [data-page][data-active]')
+        ?.getAttribute('data-page') ?? null
+    )
+  }
+
+  it('C1: in the fixed block, "Design Studio" comes right after "+ Novo" and right before "Revisão do agente"', () => {
+    renderWork()
+    const fixed = document.querySelector('.wb-sidebar-fixed') as HTMLElement
+    const buttons = Array.from(fixed.querySelectorAll('button'))
+    const newIndex = buttons.findIndex(
+      (button) => button.getAttribute('aria-label') === 'Novo — iniciar uma nova conversa'
+    )
+    expect(newIndex).toBeGreaterThanOrEqual(0)
+
+    const row = buttons[newIndex + 1]
+    expect(row).toBe(designRow())
+    expect(row.textContent).toBe('Design Studio')
+    expect(row.querySelector('svg')).not.toBeNull()
+    expect(buttons[newIndex + 2].getAttribute('aria-label')).toBe('Revisão do agente')
+  })
+
+  it.each([
+    ['clique', (row: HTMLElement) => fireEvent.click(row)],
+    // A native <button type="button"> is what turns Enter (on keydown) and
+    // Space (on keyup) into a click — the browser does it, jsdom does not
+    // dispatch it. So each keyboard row asserts the semantics that make the key
+    // work, then performs the activation the browser performs. The real keys,
+    // in the real app, are C7a's.
+    [
+      'Enter',
+      (row: HTMLElement) => {
+        expect(row.tagName).toBe('BUTTON')
+        expect(row.getAttribute('type')).toBe('button')
+        row.focus()
+        expect(document.activeElement).toBe(row)
+        fireEvent.keyDown(row, { key: 'Enter' })
+        fireEvent.click(row)
+      }
+    ],
+    [
+      'Espaço',
+      (row: HTMLElement) => {
+        expect(row.tagName).toBe('BUTTON')
+        expect(row.getAttribute('type')).toBe('button')
+        row.focus()
+        expect(document.activeElement).toBe(row)
+        fireEvent.keyUp(row, { key: ' ' })
+        fireEvent.click(row)
+      }
+    ]
+  ])(
+    'C2a: activating "Design Studio" by %s puts the module home on the active work layer',
+    (_how, activate) => {
+      renderWork()
+      expect(document.querySelector('[data-view="design"][data-active]')).toBeNull()
+
+      activate(designRow())
+
+      expect(activeWorkView()).toBe('design')
+      expect(
+        document.querySelector('.wb-work-layer[data-view="design"][data-active]')
+      ).not.toBeNull()
+      expect(activeDesignPage()).toBe('inicio')
+    }
+  )
+
+  it('C2b: the row is aria-current="true" while the module is in front, and has no aria-current otherwise', () => {
+    renderWork()
+    expect(designRow().hasAttribute('aria-current')).toBe(false)
+
+    fireEvent.click(designRow())
+    expect(designRow().getAttribute('aria-current')).toBe('true')
+
+    // Another surface in the pane takes the mark away.
+    fireEvent.click(screen.getByRole('button', { name: 'Revisão do agente' }))
+    expect(designRow().hasAttribute('aria-current')).toBe(false)
+  })
+
+  it('C2c: with the module in front, the body under the tools is the module navigation — no Iniciativas, no Conversas', () => {
+    renderWork()
+    fireEvent.click(designRow())
+
+    const body = activeChatBody()
+    expect(within(body).getByRole('button', { name: 'Início' })).toBeTruthy()
+    expect(within(body).getByRole('button', { name: 'Dores' })).toBeTruthy()
+    expect(within(body).getByRole('button', { name: 'Relatórios' })).toBeTruthy()
+    expect(within(body).getByRole('heading', { name: 'Recentes' })).toBeTruthy()
+    expect(within(body).getByText('Dados de exemplo')).toBeTruthy()
+    expect(within(body).queryByText('Iniciativas')).toBeNull()
+    expect(within(body).queryByRole('heading', { name: 'Conversas' })).toBeNull()
+
+    // Below the tools, not in their block.
+    const fixed = document.querySelector('.wb-sidebar-fixed') as HTMLElement
+    expect(fixed.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // Out of sight, but still mounted (decision 1): their scroll and their
+    // expanded folders are what C3b comes back to.
+    const iniciativas = screen.getByText('Iniciativas')
+    const conversas = screen.getByRole('heading', { name: 'Conversas' })
+    for (const hidden of [iniciativas, conversas]) {
+      const layer = hidden.closest('[data-chat-body]') as HTMLElement
+      expect(layer).not.toBeNull()
+      expect(layer.hasAttribute('data-active')).toBe(false)
+    }
+  })
+
+  it('C3a: activating the marked row again puts the Hive transcript back on the active layer', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    expect(activeWorkView()).toBe('design')
+
+    fireEvent.click(designRow())
+    expect(activeWorkView()).toBe('chat')
+    expect(storedSession().workView).toBe('chat')
+    // …and the sidebar body is the Hive's again.
+    expect(within(activeChatBody()).getByRole('heading', { name: 'Conversas' })).toBeTruthy()
+  })
+
+  it('names the toggle while the module is in front, like the other tools', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    expect(designRow().getAttribute('aria-label')).toBe('Ocultar Design Studio')
+    expect(designRow().getAttribute('aria-controls')).toBe('wb-work-region')
+    expect(designRow().getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('persists the module as the work view, and reopens on it', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    expect(storedSession().workView).toBe('design')
+    cleanup()
+
+    renderWork()
+    expect(activeWorkView()).toBe('design')
+    expect(activeDesignPage()).toBe('inicio')
+    expect(designRow().getAttribute('aria-current')).toBe('true')
+  })
+
+  it('titles the pane "Design Studio", and its ✕ goes back to the transcript', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Fechar Design Studio e voltar à conversa' })
+    )
+    expect(activeWorkView()).toBe('chat')
+  })
+
+  it('"+ Novo" still starts a Hive conversation, leaving the module (Unresolved 1)', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    fireEvent.click(screen.getByRole('button', { name: 'Novo — iniciar uma nova conversa' }))
+    expect(activeWorkView()).toBe('chat')
+    expect(chatHandle.newConversation).toHaveBeenCalled()
+  })
+
+  it('reads the module conversations when the module comes to the front, and again on every return', async () => {
+    renderWork()
+    expect(window.hive.designStudio.conversations).not.toHaveBeenCalled()
+
+    fireEvent.click(designRow())
+    await waitFor(() => expect(window.hive.designStudio.conversations).toHaveBeenCalledTimes(1))
+    fireEvent.click(designRow())
+    fireEvent.click(designRow())
+    await waitFor(() => expect(window.hive.designStudio.conversations).toHaveBeenCalledTimes(2))
+  })
+
+  it('lists the module conversations under "Recentes"', async () => {
+    vi.mocked(window.hive.designStudio.conversations).mockResolvedValue([
+      {
+        id: 'c1',
+        produto: 'Pix',
+        title: 'Compare as três Fontes',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messageCount: 2,
+        agent: 'claude-cli',
+        preview: 'trecho',
+        initiativePath: null
+      }
+    ])
+    renderWork()
+    fireEvent.click(designRow())
+    const recentes = within(activeChatBody()).getByRole('region', { name: 'Recentes' })
+    expect(await within(recentes).findByText('Compare as três Fontes')).toBeTruthy()
+    expect(within(recentes).getByText('Pix · agora')).toBeTruthy()
+  })
+
+  it('shows the "Dados de exemplo" seal in the page header only while the module navigation is out of sight', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    const header = (): HTMLElement =>
+      document.querySelector(
+        '.wb-work-layer[data-view="design"] [data-page][data-active] header'
+      ) as HTMLElement
+    expect(within(header()).queryByText('Dados de exemplo')).toBeNull()
+
+    // Ctrl+B puts the sidebar — and the label in it — away.
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    expect(within(header()).getByText('Dados de exemplo')).toBeTruthy()
+
+    // The Arquivos tab hides the module navigation too.
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    expect(within(header()).queryByText('Dados de exemplo')).toBeNull()
+    openExplorer()
+    expect(within(header()).getByText('Dados de exemplo')).toBeTruthy()
+  })
+
+  it('greets the profile name on the module home', () => {
+    render(
+      createElement(WorkUI, {
+        workspace: WS,
+        theme: 'dark',
+        onSelectTheme: vi.fn(),
+        userName: 'Marina'
+      })
+    )
+    fireEvent.click(designRow())
+    const home = document.querySelector(
+      '.wb-work-layer[data-view="design"] [data-page="inicio"] h1'
+    ) as HTMLElement
+    expect(home.textContent).toMatch(/^(Bom dia|Boa tarde|Boa noite), Marina\./)
+  })
+
+  it('goes between module pages from its navigation, keeping the module in front', () => {
+    renderWork()
+    fireEvent.click(designRow())
+    fireEvent.click(within(activeChatBody()).getByRole('button', { name: 'Dores' }))
+    expect(activeDesignPage()).toBe('dores')
+    fireEvent.click(within(activeChatBody()).getByRole('button', { name: 'Relatórios' }))
+    expect(activeDesignPage()).toBe('relatorios')
+    expect(activeWorkView()).toBe('design')
+
+    // Out to the transcript and back: the module is where it was left (C4's
+    // mechanism — the route lives above the layer, and the layer stays mounted).
+    fireEvent.click(designRow())
+    fireEvent.click(designRow())
+    expect(activeDesignPage()).toBe('relatorios')
   })
 })

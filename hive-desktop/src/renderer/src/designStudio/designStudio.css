@@ -1,0 +1,337 @@
+/* ==========================================================================
+   Design Studio — the module (tasks A–C).
+
+   The validated prototype (`design-studio/prototype/`) decides the structure;
+   `@hive/design-system` decides every value. Nothing in this file is a colour
+   or a font of its own — `designStudio/dsOnly.test.ts` reads it to make sure.
+   Classes carry the `ds-` prefix; rows the module borrows from the Hive's own
+   sidebar keep their `wb-` names, so "where I am" reads the same everywhere.
+   ========================================================================== */
+
+/* --- The Chat & Cowork tab's body: the Hive's, or the module's navigation ---
+   Both stay mounted once shown; only visibility changes. `visibility: hidden`
+   keeps the hidden layer's box — and with it the conversation list's scroll —
+   while taking it out of the tab order and the accessibility tree. */
+.ds-chatbody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ds-chatbody-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  visibility: hidden;
+}
+
+.ds-chatbody-layer[data-active] {
+  visibility: visible;
+}
+
+/* --- P1: the module's navigation ---------------------------------------- */
+.ds-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-2) var(--s-2) var(--s-3);
+  /* The line that says "the tools above are the Hive's; what follows is the
+     module's" — the same seam Iniciativas draws under itself. */
+  border-top: 1px solid var(--border);
+}
+
+.ds-nav-recentes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.ds-nav-heading {
+  padding: 0 8px;
+}
+
+.ds-recentes {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-recente {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-quart);
+}
+
+.ds-recente:hover {
+  background: var(--surface-2);
+}
+
+.ds-recente:active {
+  background: var(--surface-3);
+}
+
+.ds-recente:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* The open conversation, in the nav rows' own vocabulary: the tint, and the
+   accent ink on its icon and its title — the icon is what carries the mark at
+   3:1 against the tint, as it does on the page rows above. */
+.ds-recente[aria-current='true'] {
+  background: var(--selected-bg);
+}
+
+.ds-recente-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.ds-recente[aria-current='true'] .ds-recente-icon,
+.ds-recente[aria-current='true'] .ds-recente-title {
+  color: var(--accent-tint-ink, var(--ink));
+}
+
+.ds-recente-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.ds-recente-title {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-recente[aria-current='true'] .ds-recente-title {
+  font-weight: 600;
+}
+
+.ds-recente-meta {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-nav-empty {
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* "Dados de exemplo", at the foot of the body — directly above the profile. */
+.ds-nav-sample {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: auto 0 0;
+  padding: var(--s-2) 8px 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The dot repeats what the words say; it is decoration, not the message. */
+.ds-nav-sample::before,
+.ds-seal::before {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--rounded-full);
+  background: var(--accent);
+}
+
+/* --- The work area: one scrolling layer per page ------------------------- */
+.ds-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  /* The pages answer to the PANE's width, not the window's: the same window
+     can hold the module at 1100px or, beside a file and the sidebar, at 500. */
+  container-type: inline-size;
+}
+
+/* Every layer is absolutely positioned — the active one too — so a page that
+   goes quiet keeps exactly the box it had, and with it its scroll. */
+.ds-page-layer {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  visibility: hidden;
+}
+
+.ds-page-layer[data-active] {
+  visibility: visible;
+}
+
+.ds-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-6) var(--s-8);
+}
+
+/* --- Page header (P8, P10, P11) ------------------------------------------ */
+.ds-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-4);
+}
+
+.ds-page-titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.ds-page-title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ds-page-subtitle {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ds-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* "Dados de exemplo", in a page header while the navigation is out of sight. */
+.ds-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* --- P2: the home ---------------------------------------------------------
+   A centred hero, high on the page — the field (slice 5) is the first thing
+   the hand goes to, so it sits near the optical centre, not under a fold. */
+.ds-inicio {
+  align-items: center;
+  padding-top: clamp(var(--s-6), 11vh, var(--s-9));
+}
+
+.ds-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: min(780px, 100%);
+  text-align: center;
+}
+
+.ds-hero-title {
+  max-width: 24ch;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+.ds-hero-subtitle {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ds-hero .ds-seal {
+  margin-top: var(--s-2);
+}
+
+/* --- P13: a conversation's header --------------------------------------- */
+.ds-conversa {
+  max-width: 860px;
+}
+
+.ds-conversa-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.ds-conversa-title {
+  overflow: hidden;
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.ds-conversa-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --- Narrow panes --------------------------------------------------------- */
+@container (max-width: 640px) {
+  .ds-page {
+    padding: var(--s-5) var(--s-4) var(--s-7);
+  }
+
+  .ds-hero-title {
+    font-size: 1.625rem;
+  }
+}

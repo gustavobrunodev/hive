@@ -2885,6 +2885,70 @@ export const ptBR = {
      */
     partialLabel: 'Transcrevendo',
     partialAria: (text: string) => `Transcrevendo agora: ${text}`
+  },
+  /**
+   * Design Studio — the module (tasks A–C). Its vocabulary is the one in
+   * `design-studio/GLOSSARY.md`: **Produto**, **Fonte**, **Dor**, **Relatório
+   * de Fonte**, **Evidência**. Capitalised on purpose, as the glossary and the
+   * validated prototype write them — they are the module's proper nouns.
+   */
+  designStudio: {
+    /** The module's name: its sidebar row and the work pane's title. */
+    name: 'Design Studio',
+    /**
+     * Everything the POC shows is synthetic. The navigation says so once; a
+     * page says so in its own header whenever that navigation is out of sight.
+     */
+    sampleData: 'Dados de exemplo',
+    nav: {
+      label: 'Navegação do Design Studio',
+      home: 'Início',
+      dores: 'Dores',
+      relatorios: 'Relatórios',
+      recentes: 'Recentes',
+      recentesEmpty: 'Nenhuma conversa ainda',
+      /** A recent conversation's second line: its Produto and the Hive list's own relative time. */
+      recenteMeta: (produto: string, when: string) => `${produto} · ${when}`
+    },
+    home: {
+      /** Before noon, before six in the evening, after. */
+      morning: 'Bom dia',
+      afternoon: 'Boa tarde',
+      evening: 'Boa noite',
+      /** Unresolved 3: a profile with no name is greeted without one. */
+      greeting: (salutation: string, name: string | null) =>
+        name
+          ? `${salutation}, ${name}. O que vamos melhorar hoje?`
+          : `${salutation}. O que vamos melhorar hoje?`,
+      /** The prototype's "…e veja o Protótipo nascer no quadro" waits for task B. */
+      subtitle: 'Converse com o agente e cite as Dores dos clientes.'
+    },
+    dores: {
+      /** The page's frame. It becomes "Dores de <Produto>" once a Produto is chosen there. */
+      title: 'Dores',
+      subtitle:
+        'O que os clientes sentiram, disseram e fizeram, uma coluna por Fonte. Toque numa nota para ver as Evidências; cite no chat para o agente resolver.'
+    },
+    relatorios: {
+      title: 'Relatórios de Fonte',
+      subtitle:
+        'O que cada Fonte diz sobre cada Produto nos últimos 90 dias. É deste material que o agente parte para propor melhorias.'
+    },
+    relatorio: {
+      title: (fonte: string) => `Relatório de ${fonte}`,
+      /** A path outside the `<Produto>/relatorios/<fonte>/…` shape names no Fonte. */
+      titleNoFonte: 'Relatório'
+    },
+    conversa: {
+      /** A conversation the listing has not brought in (yet). */
+      titleUnknown: 'Conversa'
+    },
+    /** The three Fontes, keyed by the folder name decision 3 gives each. */
+    fontes: {
+      likert: 'Likert',
+      voz: 'Voz do Cliente',
+      fullstory: 'FullStory'
+    }
   }
 } as const
 

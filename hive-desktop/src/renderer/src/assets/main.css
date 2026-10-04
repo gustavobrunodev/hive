@@ -2,6 +2,8 @@
 @import './base.css';
 @import './theme.css';
 @import './workbench.css';
+/* Design Studio: the module keeps its stylesheet in its own directory (Landing 12). */
+@import '../designStudio/designStudio.css';
 
 body {
   overflow: hidden;
